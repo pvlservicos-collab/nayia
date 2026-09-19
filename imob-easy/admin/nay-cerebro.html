@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/fluxograma.css">
 <style>
   /* ==================================================================
      O CÉREBRO DA NAY
@@ -259,14 +260,43 @@
     <div id="cb-diagnostico"></div>
 
     <div class="abas" role="tablist" aria-label="Cérebro da Nay" data-abas-funcionais>
-      <button class="abas__item" role="tab" type="button" data-painel-abre="regras"     aria-selected="true">Regras</button>
+      <button class="abas__item" role="tab" type="button" data-painel-abre="fluxo"      aria-selected="true">Fluxograma</button>
+      <button class="abas__item" role="tab" type="button" data-painel-abre="regras"     aria-selected="false">Regras</button>
       <button class="abas__item" role="tab" type="button" data-painel-abre="execucoes"  aria-selected="false">O caminho</button>
       <button class="abas__item" role="tab" type="button" data-painel-abre="setores"    aria-selected="false">Setores</button>
       <button class="abas__item" role="tab" type="button" data-painel-abre="inventario" aria-selected="false">Inventário</button>
     </div>
 
+    <!-- ===================== FLUXOGRAMA ===================== -->
+    <div data-painel="fluxo">
+      <p class="painel-nota">
+        O caminho que ela percorre <strong>toda vez</strong> que responde alguém, do webhook
+        até o WhatsApp. Clique em qualquer etapa para ver o que acontece ali, onde aquilo
+        mora para você conferir, e o que já deu errado nela.
+      </p>
+
+      <div class="fx">
+        <div class="fx__barra">
+          <span class="painel-nay__sub" id="fx-total">—</span>
+          <div class="fx__legenda">
+            <span><i class="v"></i>tudo certo</span>
+            <span><i class="a"></i>atenção</span>
+            <span><i class="r"></i>problema</span>
+            <span><i class="c"></i>sem medição ainda</span>
+          </div>
+          <button class="btn-mini" type="button" id="fx-recarregar" style="margin-left:auto">Atualizar</button>
+        </div>
+
+        <div class="fx__canvas" id="fx-canvas" role="group" aria-label="Fluxograma do caminho da Nay"></div>
+
+        <div class="fx__detalhe" id="fx-detalhe">
+          <p class="fx__vazio">Clique numa etapa do fluxograma acima.</p>
+        </div>
+      </div>
+    </div>
+
     <!-- ===================== REGRAS ===================== -->
-    <div data-painel="regras">
+    <div data-painel="regras" hidden>
       <p class="painel-nota">
         Cada uma destas é uma regra que você ensinou a ela. O sistema já confere
         todas, em toda resposta — e o que está aqui é o que ele viu:
@@ -365,5 +395,6 @@
 <script src="../assets/js/layout.js"></script>
 <script src="../assets/js/admin.js"></script>
 <script src="../assets/js/nay-cerebro.js"></script>
+<script src="../assets/js/nay-fluxograma.js"></script>
 </body>
 </html>

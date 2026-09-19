@@ -1,0 +1,141 @@
+/* ==========================================================================
+   Cérebro da Nay — O FLUXOGRAMA
+   O caminho que ela percorre toda vez que responde. Canvas horizontal, no
+   espírito do n8n: colunas por setor, cartão por etapa, seta entre elas.
+   Usa só os tokens de tokens.css — se a marca mudar, isto muda junto.
+   ========================================================================== */
+
+.fx {
+  --fx-caixa: 208px;
+  --fx-gap: 14px;
+}
+
+.fx__barra {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+.fx__legenda { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--texto-fraco); }
+.fx__legenda i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; }
+.fx__legenda .v { background: var(--verde); }
+.fx__legenda .a { background: var(--laranja); }
+.fx__legenda .r { background: var(--vermelho); }
+.fx__legenda .c { background: var(--borda-forte); }
+
+/* ---- O canvas: rola na horizontal, como o do n8n ---- */
+.fx__canvas {
+  overflow-x: auto; overflow-y: hidden;
+  padding: 6px 4px 18px;
+  background:
+    radial-gradient(circle, var(--borda) 1px, transparent 1px) 0 0 / 22px 22px,
+    var(--fundo-alt);
+  border: 1px solid var(--borda);
+  border-radius: 14px;
+}
+.fx__trilho { display: flex; align-items: stretch; gap: 0; min-width: min-content; padding: 14px; }
+
+/* ---- Grupo = setor ---- */
+.fx__grupo { display: flex; flex-direction: column; gap: 8px; padding: 0 var(--fx-gap); position: relative; }
+.fx__grupo + .fx__grupo::before {
+  content: ""; position: absolute; left: 0; top: 34px; bottom: 10px;
+  border-left: 1px dashed var(--borda-forte);
+}
+.fx__grupo-topo {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--texto-fraco); white-space: nowrap; padding-bottom: 2px;
+}
+.fx__farol { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.fx__farol--verde { background: var(--verde); }
+.fx__farol--amarelo { background: var(--laranja); }
+.fx__farol--vermelho { background: var(--vermelho); }
+.fx__farol--cinza { background: var(--borda-forte); }
+
+.fx__coluna { display: flex; flex-direction: column; gap: 10px; justify-content: center; flex: 1; }
+.fx__linha { display: flex; align-items: center; gap: 0; }
+
+/* ---- O cartão de etapa ---- */
+.fx__etapa {
+  width: var(--fx-caixa); flex: none;
+  background: var(--superficie); border: 1.5px solid var(--borda);
+  border-left: 4px solid var(--borda-forte);
+  border-radius: 10px; padding: 9px 11px;
+  text-align: left; cursor: pointer; font: inherit;
+  box-shadow: 0 1px 3px rgba(82,7,121,.06);
+  transition: transform .12s, box-shadow .12s, border-color .12s;
+}
+.fx__etapa:hover, .fx__etapa:focus-visible {
+  transform: translateY(-2px); box-shadow: 0 4px 12px rgba(82,7,121,.14);
+  border-color: var(--roxo-borda); outline: none;
+}
+.fx__etapa[aria-pressed="true"] { border-color: var(--roxo); box-shadow: 0 0 0 3px var(--roxo-suave); }
+
+.fx__etapa--n8n     { border-left-color: #8b5cf6; }
+.fx__etapa--sql     { border-left-color: #0ea5e9; }
+.fx__etapa--modelo  { border-left-color: #f59e0b; }
+.fx__etapa--parede  { border-left-color: var(--vermelho); }
+.fx__etapa--saida   { border-left-color: var(--verde); }
+
+.fx__num {
+  display: inline-block; min-width: 19px; height: 19px; line-height: 19px;
+  text-align: center; border-radius: 5px; font-size: 10.5px; font-weight: 700;
+  background: var(--roxo-suave); color: var(--roxo); margin-right: 6px;
+}
+.fx__nome { font-size: 12.5px; font-weight: 600; color: var(--texto); line-height: 1.3; }
+.fx__onde {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10px; color: var(--texto-fraco); margin-top: 4px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fx__selo {
+  display: inline-block; margin-top: 6px; padding: 1px 6px; border-radius: 20px;
+  font-size: 10px; font-weight: 600;
+}
+.fx__selo--ok    { background: var(--verde-suave);   color: #1d7a52; }
+.fx__selo--alerta{ background: var(--laranja-suave); color: #9a5b1e; }
+.fx__selo--ruim  { background: var(--vermelho-suave);color: #a12a45; }
+.fx__selo--mudo  { background: var(--fundo-alt);     color: var(--texto-fraco); }
+
+/* ---- A seta entre etapas ---- */
+.fx__seta { flex: none; width: var(--fx-gap); height: 2px; background: var(--borda-forte); position: relative; }
+.fx__seta::after {
+  content: ""; position: absolute; right: -1px; top: -3px;
+  border: 4px solid transparent; border-left-color: var(--borda-forte);
+}
+.fx__seta--ramo { background: var(--lilas); }
+.fx__seta--ramo::after { border-left-color: var(--lilas); }
+
+/* ---- Ramo (as saídas do switch, os caminhos paralelos) ---- */
+.fx__ramo-rotulo {
+  font-size: 10px; color: var(--roxo); font-weight: 600;
+  background: var(--roxo-suave); border-radius: 4px; padding: 1px 5px;
+  align-self: flex-start; margin-bottom: -4px;
+}
+
+/* ---- O detalhe, embaixo ---- */
+.fx__detalhe {
+  margin-top: 16px; background: var(--superficie);
+  border: 1px solid var(--borda); border-radius: 14px; padding: 18px 20px;
+}
+.fx__detalhe h3 { font-size: 17px; color: var(--roxo); margin: 0 0 4px; }
+.fx__detalhe__onde {
+  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px;
+  color: var(--texto-fraco); margin-bottom: 14px; word-break: break-all;
+}
+.fx__campo { margin-bottom: 13px; }
+.fx__campo h4 {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--texto-fraco); margin: 0 0 4px;
+}
+.fx__campo p { margin: 0; font-size: 14px; line-height: 1.65; }
+.fx__numeros { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+.fx__numero {
+  background: var(--superficie-2); border: 1px solid var(--borda);
+  border-radius: 10px; padding: 8px 14px; min-width: 96px;
+}
+.fx__numero b { display: block; font-size: 19px; color: var(--roxo); line-height: 1.2; }
+.fx__numero span { font-size: 11px; color: var(--texto-fraco); }
+.fx__vazio { color: var(--texto-fraco); font-size: 14px; }
+
+@media (max-width: 720px) {
+  .fx { --fx-caixa: 172px; --fx-gap: 10px; }
+}
