@@ -15,7 +15,8 @@
 
 .fx {
   --fx-caixa: 196px;
-  --fx-alt: 104px;
+  --fx-alt: 112px;     /* altura do cartao */
+  --fx-faixa: 122px;   /* altura de cada faixa (cartao + gancho) */
   --fx-vao: 26px;
   --fx-fase: 34px;     /* faixa da fase */
   --fx-setor: 28px;    /* faixa do setor */
@@ -45,7 +46,8 @@
 /* A CORDA — atrás de tudo, na altura do meio dos cartões. */
 .fx__corda {
   position: absolute; left: 26px; right: 26px;
-  top: calc(18px + var(--fx-fase) + var(--fx-setor) + var(--fx-alt) / 2 + 12px);
+  top: calc(18px + var(--fx-fase) + 8px + var(--fx-setor) + 7px
+            + var(--fx-faixa) + var(--fx-alt) / 2);
   height: 3px; border-radius: 3px; z-index: 0;
   background: linear-gradient(90deg, var(--roxo-banner), var(--marca-magenta), var(--roxo-banner));
 }
@@ -98,12 +100,31 @@
 .fx__farol--cinza { background: var(--borda-forte); }
 .fx__conta { font-weight: 500; letter-spacing: 0; text-transform: none; opacity: .85; }
 
-.fx__cards { display: flex; align-items: flex-start; }
-.fx__vao { width: var(--fx-vao); height: var(--fx-alt); flex: none; }
+/* ---- AS TRES FAIXAS: acima, a corda, abaixo ---- */
+.fx__faixa { display: flex; align-items: stretch; }
+.fx__faixa--cima  { height: var(--fx-faixa); align-items: flex-start; }
+.fx__faixa--meio  { height: var(--fx-alt); }
+.fx__faixa--baixo { height: var(--fx-faixa); align-items: flex-end; }
+
+.fx__cel {
+  width: var(--fx-caixa); flex: none; position: relative;
+  display: flex; flex-direction: column; align-items: center;
+}
+.fx__cel + .fx__cel { margin-left: var(--fx-vao); }
+
+/* O gancho: o fiozinho que liga o cartao de cima ou de baixo na corda. */
+.fx__gancho { width: 2px; flex: 1; background: var(--borda-forte); min-height: 10px; }
+.fx__gancho--desce { margin-top: -1px; }
+.fx__gancho--sobe  { margin-bottom: -1px; }
+.fx__cel--no::after {
+  content: ""; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--superficie); border: 2px solid var(--marca-magenta);
+  position: absolute; top: calc(50% - 4px);
+}
 
 /* ---- ETAPA ---- */
 .fx__etapa {
-  width: var(--fx-caixa); height: var(--fx-alt); flex: none;
+  width: 100%; height: var(--fx-alt); flex: none;
   display: flex; flex-direction: column; gap: 2px;
   background: var(--superficie); border: 1.5px solid var(--borda);
   border-top: 4px solid var(--borda-forte);
@@ -119,6 +140,25 @@
 .fx__etapa[aria-pressed="true"] {
   border-color: var(--roxo); box-shadow: 0 0 0 3px var(--roxo-suave), 0 6px 16px rgba(82, 7, 121, .18);
 }
+.fx__etapa--principal {
+  box-shadow: 0 3px 12px rgba(82, 7, 121, .20);
+  border-color: var(--roxo-borda);
+}
+.fx__etapa--principal .fx__num { background: var(--marca-roxo); }
+
+/* ---- As etiquetas: o que a etapa FAZ, e o que ela E ---- */
+.fx__tags { display: flex; gap: 4px; margin-top: 3px; }
+.fx__tag {
+  font-size: 9px; font-weight: 700; letter-spacing: .03em;
+  border-radius: 20px; padding: 1px 7px; white-space: nowrap;
+}
+.fx__tag--check  { background: #fde7ec; color: #a12a45; }
+.fx__tag--acao   { background: #e6f4ee; color: #1d7a52; }
+.fx__tag--no     { background: #efe7fd; color: #6d28d9; }
+.fx__tag--nos    { background: #e3e0fb; color: #4c3bb8; }
+.fx__tag--regra  { background: #e2f1fb; color: #0b6a9c; }
+.fx__tag--prompt { background: #fdf0dd; color: #9a5b1e; }
+
 .fx__etapa--n8n    { border-top-color: #8b5cf6; }
 .fx__etapa--sql    { border-top-color: #0ea5e9; }
 .fx__etapa--modelo { border-top-color: #f59e0b; }
@@ -174,6 +214,23 @@
 .fx__numero b { display: block; font-size: 19px; color: var(--roxo); line-height: 1.2; }
 .fx__numero span { font-size: 11px; color: var(--texto-fraco); }
 .fx__vazio { color: var(--texto-fraco); font-size: 14px; }
+
+/* ---- A barra que explica o que cada coisa e ---- */
+.fx__glossario {
+  display: flex; flex-wrap: wrap; gap: 8px 18px;
+  padding: 11px 14px; margin-bottom: 12px;
+  background: var(--superficie-2); border: 1px solid var(--borda); border-radius: 11px;
+  font-size: 12px; color: var(--texto-fraco);
+}
+.fx__glossario div { display: flex; align-items: center; gap: 6px; }
+.fx__glossario b { color: var(--texto); font-weight: 600; }
+
+.fx__oque-e {
+  font-size: 12.5px; color: var(--texto-fraco);
+  background: var(--superficie-2); border: 1px solid var(--borda);
+  border-radius: 9px; padding: 8px 11px; margin: 0 0 10px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+}
 .fx__nav { display: flex; gap: 8px; margin-top: 4px; }
 
 @media (max-width: 720px) {

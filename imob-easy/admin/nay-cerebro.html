@@ -273,7 +273,8 @@
         O caminho que ela percorre <strong>toda vez</strong> que responde alguém, do webhook
         até o WhatsApp. Clique em qualquer etapa para ver o que acontece ali, onde aquilo
         mora para você conferir, e o que já deu errado nela. A corda liga as etapas na
-        <strong>ordem em que acontecem</strong>: passo 1 na esquerda, passo 44 na direita.
+        <strong>ordem em que acontecem</strong>. No meio, na corda, ficam as 14 etapas do
+        <strong>tronco</strong>; acima e abaixo, as 30 que ramificam delas.
       </p>
       <p class="fx__dica">
         O <strong>Exportar JSON</strong> baixa o caminho inteiro com os 69 nós do n8n e as
@@ -291,6 +292,15 @@
           </div>
           <button class="btn-mini" type="button" id="fx-exportar" style="margin-left:auto">Exportar JSON</button>
           <button class="btn-mini" type="button" id="fx-recarregar">Atualizar</button>
+        </div>
+
+        <div class="fx__glossario">
+          <div><span class="fx__tag fx__tag--check">check</span> <b>confere</b> — olha e pode BARRAR o que vem depois</div>
+          <div><span class="fx__tag fx__tag--acao">ação</span> <b>faz</b> — executa alguma coisa e segue</div>
+          <div><span class="fx__tag fx__tag--no">nó n8n</span> uma caixa sozinha no canvas do n8n</div>
+          <div><span class="fx__tag fx__tag--nos">conjunto</span> vários nós trabalhando como uma coisa só</div>
+          <div><span class="fx__tag fx__tag--regra">regra BD</span> função PostgreSQL — muda com SQL, sem mexer no n8n</div>
+          <div><span class="fx__tag fx__tag--prompt">prompt</span> texto que instrui o modelo — editável no painel</div>
         </div>
 
         <div class="fx__canvas" id="fx-canvas" role="group" aria-label="Fluxograma do caminho da Nay"></div>
