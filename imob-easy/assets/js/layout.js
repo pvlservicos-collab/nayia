@@ -140,6 +140,13 @@
     '<footer class="rodape-sistema">' +
       '<div class="rodape-sistema__interno">' +
         "<span>Copyright 2020-2026 © Todos os Direitos Reservados.</span>" +
+        /* Referencia obrigatoria das paginas legais. O admin mora em /admin,
+           por isso o "../" -- as paginas legais ficam na raiz do site. */
+        '<span class="rodape-sistema__links">' +
+          '<a href="../termos-de-uso.html">Termos de Uso</a>' +
+          '<a href="../politica-de-publicidade.html">Política de Publicidade</a>' +
+          '<a href="../exclusao-de-dados.html">Exclusão de Dados</a>' +
+        "</span>" +
         ICONE.folha +
       "</div>" +
     "</footer>";

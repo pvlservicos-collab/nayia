@@ -1653,3 +1653,8 @@ body.admin { background: var(--fundo); }
 }
 .lead-campo--largo { grid-column: 1 / -1; }
 .lead-vazio { color: var(--texto-fraco); font-style: italic; font-size: var(--fs-sm); }
+
+/* Links legais no rodapé do admin — pequenos e cinza. */
+.rodape-sistema__links { display: inline-flex; flex-wrap: wrap; gap: 0 14px; margin-left: 14px; font-size: 11.5px; }
+.rodape-sistema__links a { color: var(--texto-fraco); text-decoration: none; }
+.rodape-sistema__links a:hover, .rodape-sistema__links a:focus-visible { color: var(--roxo); text-decoration: underline; }

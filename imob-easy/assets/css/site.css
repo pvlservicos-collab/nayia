@@ -856,3 +856,24 @@ body.site {
 
 .btn-selecionar:hover { background: #eae7f1; border-color: var(--borda-forte); color: var(--roxo); }
 .filtros__aba:hover   { background: #eae7f1; color: var(--texto); }
+
+/* Links legais do rodapé — pequenos e cinza, abaixo do CNPJ.
+   Sobrescreve o `.site-rodape a { color: var(--roxo) }` de propósito:
+   aqui é referência obrigatória, não chamada para clicar. */
+.site-rodape__links {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--texto-fraco);
+}
+.site-rodape__links a {
+  color: var(--texto-fraco);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.site-rodape__links a:hover,
+.site-rodape__links a:focus-visible {
+  color: var(--roxo);
+  border-bottom-color: currentColor;
+}
+.site-rodape__links span[aria-hidden] { opacity: .5; margin: 0 6px; }
