@@ -25,6 +25,26 @@
   // O MAPA. Cada etapa: o que é, onde mora, e o que já deu errado nela.
   // `onde` é o endereço para ir conferir: nó do n8n, função ou tabela.
   // ------------------------------------------------------------------
+  // ------------------------------------------------------------------
+  // AS FASES. O nivel de cima: em que parte do pensamento ela esta.
+  // `grupos` aponta para os indices de GRUPOS que caem em cada fase.
+  // ------------------------------------------------------------------
+  var FASES = [
+    { id: "ouvir",     nome: "Ouvir",      resumo: "o que chegou, e o que isso quer dizer",       cor: "#6d28d9", grupos: [0, 1] },
+    { id: "reconhece", nome: "Reconhecer", resumo: "quem e, e se ela pode falar com essa pessoa", cor: "#0e7490", grupos: [2, 3, 4] },
+    { id: "pensa",     nome: "Pensar",     resumo: "o modelo decide, e consulta a base",          cor: "#b45309", grupos: [5, 6] },
+    { id: "confere",   nome: "Conferir",   resumo: "as paredes, antes de qualquer coisa sair",    cor: "#9f1239", grupos: [7, 8] },
+    { id: "fala",      nome: "Falar",      resumo: "a caixa de saida ate o WhatsApp",             cor: "#15803d", grupos: [9] },
+    { id: "sozinha",   nome: "Fora da conversa", resumo: "o que roda sem ninguem escrever",       cor: "#4b5563", grupos: [10, 11] }
+  ];
+
+  function faseDoGrupo(gi) {
+    for (var i = 0; i < FASES.length; i++) {
+      if (FASES[i].grupos.indexOf(gi) >= 0) return FASES[i];
+    }
+    return FASES[FASES.length - 1];
+  }
+
   var GRUPOS = [
     { setor: "entrada", titulo: "1. Entrada", etapas: [
       { n: "Chega a mensagem", tipo: "n8n", onde: "n8n · nó Webhook (v2.1)",
@@ -208,28 +228,41 @@
     if (!alvo) return;
     achatar();
 
-    // UMA LINHA SO. A corda atravessa tudo por tras, e a ordem e a posicao:
-    // o passo 1 na esquerda, o 44 na direita. Sem nada empilhado.
+    // Tres niveis: FASE (faixa colorida) > SETOR (regiao tracejada) > ETAPA.
+    // A corda atravessa os tres, e a ordem continua sendo a posicao.
     var html = '<div class="fx__trilho"><div class="fx__corda"></div>';
+    var passo = 0;
 
-    GRUPOS.forEach(function (g, gi) {
-      var d = vivo[g.setor] || {};
-      html += '<div class="fx__grupo">';
-      html += '<div class="fx__grupo-topo"><span class="fx__farol fx__farol--' +
-              (d.semaforo || "cinza") + '"></span>' + esc(g.titulo) +
-              (d.passagens ? " · " + d.passagens + "x" : "") + "</div>";
-      html += '<div class="fx__cards">';
-      g.etapas.forEach(function (e, ei) {
-        if (gi > 0 || ei > 0) html += '<div class="fx__vao"></div>';
-        var passo = PLANO.filter(function (x) { return x.gi === gi && x.ei === ei; })[0].passo;
-        html += '<button class="fx__etapa fx__etapa--' + e.tipo + '" type="button"' +
-                ' aria-pressed="false" data-fx="' + gi + "." + ei + '"' +
-                ' title="Passo ' + passo + ": " + esc(e.n) + '">' +
-                '<div class="fx__cab"><span class="fx__num">' + passo + "</span>" +
-                '<span class="fx__nome">' + esc(e.n) + "</span></div>" +
-                '<div class="fx__onde">' + esc(e.onde) + "</div>" +
-                "</button>";
+    FASES.forEach(function (f) {
+      html += '<div class="fx__fase fx__fase--' + f.id + '">';
+      html += '<div class="fx__fase-topo">' + esc(f.nome) +
+              " <small>" + esc(f.resumo) + "</small></div>";
+      html += '<div class="fx__fase-corpo">';
+
+      f.grupos.forEach(function (gi) {
+        var g = GRUPOS[gi];
+        if (!g) return;
+        var d = vivo[g.setor] || {};
+        html += '<div class="fx__grupo">';
+        html += '<div class="fx__grupo-topo"><span class="fx__farol fx__farol--' +
+                (d.semaforo || "cinza") + '"></span>' + esc(g.titulo) +
+                (d.passagens ? ' <span class="fx__conta">' + d.passagens + "x</span>" : "") +
+                "</div>";
+        html += '<div class="fx__cards">';
+        g.etapas.forEach(function (e, ei) {
+          passo++;
+          if (ei > 0) html += '<div class="fx__vao"></div>';
+          html += '<button class="fx__etapa fx__etapa--' + e.tipo + '" type="button"' +
+                  ' aria-pressed="false" data-fx="' + gi + "." + ei + '"' +
+                  ' title="Passo ' + passo + ": " + esc(e.n) + '">' +
+                  '<div class="fx__cab"><span class="fx__num">' + passo + "</span>" +
+                  '<span class="fx__nome">' + esc(e.n) + "</span></div>" +
+                  '<div class="fx__onde">' + esc(e.onde) + "</div>" +
+                  "</button>";
+        });
+        html += "</div></div>";
       });
+
       html += "</div></div>";
     });
 
@@ -240,7 +273,10 @@
       b.addEventListener("click", function () { abrir(b.getAttribute("data-fx")); });
     });
     var total = el("fx-total");
-    if (total) total.textContent = PLANO.length + " etapas, na ordem em que acontecem";
+    if (total) {
+      total.textContent = PLANO.length + " etapas em " + FASES.length +
+        " fases, na ordem em que acontecem";
+    }
   }
 
   function abrir(ref, semRolar) {
@@ -260,8 +296,10 @@
     escolhida = ref;
 
     var d = vivo[g.setor] || {};
-    var h = '<h3><span class="fx__passo">passo ' + item.passo + " de " + PLANO.length +
-            "</span>" + esc(e.n) + "</h3>";
+    var f = faseDoGrupo(gi);
+    var h = '<h3><span class="fx__passo">passo ' + item.passo + " de " + PLANO.length + "</span>" +
+            '<span class="fx__fita" style="background:' + f.cor + '">' + esc(f.nome) + "</span>" +
+            esc(e.n) + "</h3>";
     h += '<p class="fx__detalhe__onde">' + esc(e.onde) + "</p>";
     h += '<div class="fx__campo"><h4>O que acontece aqui</h4><p>' + esc(e.oque) + "</p></div>";
     if (e.erro) {

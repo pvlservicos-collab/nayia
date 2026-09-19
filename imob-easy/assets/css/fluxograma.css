@@ -2,37 +2,37 @@
    Cérebro da Nay — O FLUXOGRAMA
    O caminho que ela percorre toda vez que responde.
 
-   UMA LINHA SÓ, da esquerda para a direita, com uma corda contínua passando
-   por dentro de todos os blocos. Empilhar em coluna criava a dúvida "qual
-   roda primeiro?" — aqui a ordem é a posição, e a corda prova.
-   Fica longo de propósito: é o caminho inteiro.
-   Usa só os tokens de tokens.css.
+   TRÊS NÍVEIS, e cada um resolve uma pergunta:
+     FASE   — em que parte do pensamento ela está (ouvir, reconhecer, pensar,
+              conferir, falar). É a faixa colorida de cima.
+     SETOR  — a região com nome dentro da fase, com o farol.
+     ETAPA  — o cartão, numerado de 1 a 44.
+
+   E UMA CORDA SÓ atravessa tudo, da esquerda para a direita: empilhar criava
+   a dúvida "qual roda primeiro?", e a corda responde. Fica longo de
+   propósito. Usa só os tokens de tokens.css.
    ========================================================================== */
 
 .fx {
-  --fx-caixa: 196px;   /* largura do cartão */
-  --fx-alt: 104px;     /* ALTURA fixa: é o que faz a corda passar reta */
-  --fx-vao: 30px;      /* o pedaço de corda entre dois cartões */
-  --fx-rotulo: 30px;   /* altura da faixa de nome do grupo */
+  --fx-caixa: 196px;
+  --fx-alt: 104px;
+  --fx-vao: 26px;
+  --fx-fase: 34px;     /* faixa da fase */
+  --fx-setor: 28px;    /* faixa do setor */
 }
 
-.fx__barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.fx__barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
 .fx__legenda { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--texto-fraco); }
 .fx__legenda i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; }
 .fx__legenda .v { background: var(--verde); }
 .fx__legenda .a { background: var(--laranja); }
 .fx__legenda .r { background: var(--vermelho); }
 .fx__legenda .c { background: var(--borda-forte); }
+.fx__dica { font-size: 12px; color: var(--texto-fraco); margin: 0 0 10px; }
 
-.fx__dica {
-  font-size: 12px; color: var(--texto-fraco); margin: 0 0 10px;
-  display: flex; align-items: center; gap: 6px;
-}
-
-/* ---- O canvas ---- */
 .fx__canvas {
   overflow-x: auto; overflow-y: hidden;
-  padding: 4px 0 20px;
+  padding: 0 0 20px;
   background:
     radial-gradient(circle, var(--borda) 1px, transparent 1px) 0 0 / 22px 22px,
     var(--fundo-alt);
@@ -40,48 +40,68 @@
   border-radius: 14px;
 }
 
-/* ---- O trilho: tudo numa linha, e a corda por trás ---- */
-.fx__trilho {
-  position: relative;
-  display: flex; align-items: flex-start;
-  width: max-content;
-  padding: 16px 26px 10px;
-}
+.fx__trilho { position: relative; display: flex; align-items: flex-start; width: max-content; padding: 18px 26px 12px; }
 
-/* A CORDA. Passa atrás de todos os cartões, na altura do meio deles. */
+/* A CORDA — atrás de tudo, na altura do meio dos cartões. */
 .fx__corda {
   position: absolute; left: 26px; right: 26px;
-  top: calc(16px + var(--fx-rotulo) + var(--fx-alt) / 2);
-  height: 3px; border-radius: 3px;
+  top: calc(18px + var(--fx-fase) + var(--fx-setor) + var(--fx-alt) / 2 + 12px);
+  height: 3px; border-radius: 3px; z-index: 0;
   background: linear-gradient(90deg, var(--roxo-banner), var(--marca-magenta), var(--roxo-banner));
-  z-index: 0;
 }
-/* A ponta: mostra onde o caminho termina. */
 .fx__corda::after {
   content: ""; position: absolute; right: -2px; top: -5px;
   border: 7px solid transparent; border-left-color: var(--marca-magenta);
 }
 
-/* ---- Grupo: o nome em cima, os cartões DELE em linha ---- */
-.fx__grupo { position: relative; z-index: 1; display: flex; flex-direction: column; }
-.fx__grupo-topo {
-  height: var(--fx-rotulo); display: flex; align-items: center; gap: 7px;
-  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
-  color: var(--texto-fraco); white-space: nowrap; padding-left: 2px;
+/* ---- FASE: a faixa larga de cima ---- */
+.fx__fase { position: relative; z-index: 1; display: flex; flex-direction: column; }
+.fx__fase + .fx__fase { margin-left: 22px; }
+
+.fx__fase-topo {
+  height: var(--fx-fase); display: flex; align-items: center; gap: 8px;
+  padding: 0 14px; margin-bottom: 8px;
+  border-radius: 9px 9px 3px 3px;
+  font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  white-space: nowrap; color: #fff;
 }
-.fx__grupo + .fx__grupo .fx__grupo-topo { padding-left: calc(var(--fx-vao) + 2px); }
+.fx__fase-topo small {
+  font-weight: 500; letter-spacing: 0; text-transform: none;
+  font-size: 11.5px; opacity: .92;
+}
+.fx__fase--ouvir     .fx__fase-topo { background: #6d28d9; }
+.fx__fase--reconhece .fx__fase-topo { background: #0e7490; }
+.fx__fase--pensa     .fx__fase-topo { background: #b45309; }
+.fx__fase--confere   .fx__fase-topo { background: #9f1239; }
+.fx__fase--fala      .fx__fase-topo { background: #15803d; }
+.fx__fase--sozinha   .fx__fase-topo { background: #4b5563; }
+
+.fx__fase-corpo { display: flex; align-items: flex-start; }
+
+/* ---- SETOR: a região com nome, dentro da fase ---- */
+.fx__grupo {
+  display: flex; flex-direction: column;
+  border: 1.5px dashed var(--borda-forte); border-radius: 12px;
+  padding: 7px 10px 10px; background: rgba(255, 255, 255, .55);
+}
+.fx__grupo + .fx__grupo { margin-left: 14px; }
+
+.fx__grupo-topo {
+  height: var(--fx-setor); display: flex; align-items: center; gap: 7px;
+  font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--texto-fraco); white-space: nowrap;
+}
 .fx__farol { width: 9px; height: 9px; border-radius: 50%; flex: none; }
 .fx__farol--verde { background: var(--verde); }
 .fx__farol--amarelo { background: var(--laranja); }
 .fx__farol--vermelho { background: var(--vermelho); }
 .fx__farol--cinza { background: var(--borda-forte); }
+.fx__conta { font-weight: 500; letter-spacing: 0; text-transform: none; opacity: .85; }
 
 .fx__cards { display: flex; align-items: flex-start; }
-
-/* ---- O vão entre cartões: só a corda aparece ali ---- */
 .fx__vao { width: var(--fx-vao); height: var(--fx-alt); flex: none; }
 
-/* ---- O cartão ---- */
+/* ---- ETAPA ---- */
 .fx__etapa {
   width: var(--fx-caixa); height: var(--fx-alt); flex: none;
   display: flex; flex-direction: column; gap: 2px;
@@ -99,7 +119,6 @@
 .fx__etapa[aria-pressed="true"] {
   border-color: var(--roxo); box-shadow: 0 0 0 3px var(--roxo-suave), 0 6px 16px rgba(82, 7, 121, .18);
 }
-
 .fx__etapa--n8n    { border-top-color: #8b5cf6; }
 .fx__etapa--sql    { border-top-color: #0ea5e9; }
 .fx__etapa--modelo { border-top-color: #f59e0b; }
@@ -121,11 +140,6 @@
   font-size: 9.5px; color: var(--texto-fraco); line-height: 1.35; margin-top: auto;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.fx__marca {
-  position: absolute; margin-top: -1px;
-  font-size: 9px; font-weight: 700; color: var(--roxo);
-  background: var(--roxo-suave); border-radius: 20px; padding: 0 6px;
-}
 
 /* ---- O detalhe ---- */
 .fx__detalhe {
@@ -135,8 +149,12 @@
 .fx__detalhe h3 { font-size: 17px; color: var(--roxo); margin: 0 0 4px; }
 .fx__passo {
   display: inline-block; background: var(--roxo); color: #fff; font-size: 11px;
-  font-weight: 700; border-radius: 6px; padding: 1px 8px; margin-right: 8px;
-  vertical-align: 2px;
+  font-weight: 700; border-radius: 6px; padding: 1px 8px; margin-right: 8px; vertical-align: 2px;
+}
+.fx__fita {
+  display: inline-block; font-size: 11px; font-weight: 700; border-radius: 6px;
+  padding: 1px 8px; margin-right: 8px; vertical-align: 2px; color: #fff;
+  text-transform: uppercase; letter-spacing: .05em;
 }
 .fx__detalhe__onde {
   font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px;
@@ -159,5 +177,5 @@
 .fx__nav { display: flex; gap: 8px; margin-top: 4px; }
 
 @media (max-width: 720px) {
-  .fx { --fx-caixa: 168px; --fx-vao: 22px; }
+  .fx { --fx-caixa: 168px; --fx-vao: 20px; }
 }
