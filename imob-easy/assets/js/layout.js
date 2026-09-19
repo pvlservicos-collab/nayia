@@ -67,6 +67,7 @@
     { rotulo: "Fluxo de mensagens", href: "fluxo.html",      chave: "fluxo" },
     { rotulo: "Nay Locação",       href: "nay-locacao.html", chave: "nay-locacao" },
     { rotulo: "Nay Captação",      href: "nay-captacao.html", chave: "nay-captacao" },
+    { rotulo: "Cérebro da Nay",    href: "nay-cerebro.html", chave: "nay-cerebro" },
     { rotulo: "Condomínios",       href: "condominios.html", chave: "condominios" },
     { rotulo: "Anúncios",          href: "anuncios.html",    chave: "anuncios" },
     { rotulo: "Listas",            href: "listas.html",      chave: "listas" },

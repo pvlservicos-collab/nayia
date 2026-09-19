@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cérebro da Nay — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<style>
+  /* ==================================================================
+     O CÉREBRO DA NAY
+
+     Tel (19/09/2026):
+       "quero um painel de logs para eu ver que caminho a ia percorreu em
+        cada execução"
+       "queria um fluxograma horizontal, tipo a ia percorrendo um caminho"
+       "não quero tirar as regras que já tinha ensinado para ela, o problema
+        dela hoje é ignorar essas regras"
+
+     Por isso a tela abre em REGRAS (o que ela ignora), e a execução é
+     desenhada como um CAMINHO da esquerda para a direita: a mensagem dele
+     entra de um lado, a resposta sai do outro, e entre os dois estão os
+     setores por onde ela passou.
+
+     O estilo mora aqui em bloco próprio, como nay-locacao.html já faz.
+     As cores saem de tokens.css.
+     ================================================================== */
+
+  .painel-cartoes { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); margin-bottom:18px }
+  .painel-cartao { background:var(--superficie,#fff); border:1px solid var(--borda,#e3e6ec); border-radius:12px; padding:14px 16px }
+  .painel-cartao__n { font-family:Barlow,sans-serif; font-size:30px; font-weight:800; line-height:1.1 }
+  .painel-cartao__r { font-size:var(--fs-xs); color:var(--texto-fraco); margin-top:2px }
+  .painel-nota { font-size:var(--fs-xs); color:var(--texto-fraco); line-height:1.5; margin:8px 0 16px }
+  .painel-nay { border:1px solid var(--borda,#e3e6ec); border-radius:14px; padding:18px 20px; margin-bottom:26px; background:var(--superficie,#fff) }
+  .painel-nay__topo { display:flex; flex-wrap:wrap; align-items:baseline; gap:10px; margin-bottom:4px }
+  .painel-nay__nome { font-family:Barlow,sans-serif; font-size:21px; font-weight:800; margin:0 }
+  .painel-nay__sub { font-size:var(--fs-xs); color:var(--texto-fraco) }
+  .secao-titulo { font-family:Barlow,sans-serif; font-size:16px; font-weight:700; margin:18px 0 8px }
+  .fraco { color:var(--texto-fraco) }
+  .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px }
+  .tabela td.num, .tabela th.num { text-align:right; font-variant-numeric:tabular-nums }
+
+  /* ---------- selos: um vocabulário só na tela inteira ---------- */
+  .selo { font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+          border-radius:999px; padding:3px 9px; white-space:nowrap; display:inline-block }
+  .selo--ok        { background:var(--verde-suave);    color:#1b6b46 }
+  .selo--corrigida { background:var(--azul-claro);     color:var(--azul-forte) }
+  .selo--parada    { background:var(--laranja-suave);  color:#8a4b12 }
+  .selo--barrada   { background:var(--laranja-suave);  color:#8a4b12 }
+  .selo--muda      { background:var(--vermelho-suave); color:#8f2740 }
+  .selo--erro      { background:var(--vermelho-suave); color:#8f2740 }
+  .selo--mudou     { background:var(--azul-claro);     color:var(--azul-forte) }
+  .selo--cortou    { background:var(--laranja-suave);  color:#8a4b12 }
+  .selo--parou     { background:var(--vermelho-suave); color:#8f2740 }
+  .selo--cinza     { background:var(--fundo-alt);      color:var(--texto-fraco) }
+  .selo--parede    { background:var(--vermelho-suave); color:#8f2740 }
+  .selo--ajuste    { background:var(--azul-claro);     color:var(--azul-forte) }
+  .selo--fluxo     { background:var(--fundo-alt);      color:var(--texto-fraco) }
+
+  .aviso-caixa { border:1px solid var(--laranja); background:var(--laranja-suave); border-radius:10px;
+                 padding:11px 13px; font-size:var(--fs-xs); line-height:1.6; margin-bottom:14px }
+
+  /* ==================================================================
+     O FLUXO HORIZONTAL — o caminho que ela percorreu
+     ================================================================== */
+  .fluxo-rolagem {
+    overflow-x:auto; overflow-y:hidden; padding:6px 2px 14px;
+    /* a borda direita esmaece quando o caminho continua fora da tela -- sem
+       isso o último setor fica cortado e parece defeito, não rolagem */
+    -webkit-mask-image:linear-gradient(to right, #000 calc(100% - 26px), transparent 100%);
+            mask-image:linear-gradient(to right, #000 calc(100% - 26px), transparent 100%);
+    /* a rolagem lateral mora AQUI, nunca na página */
+    scrollbar-width:thin;
+  }
+  .fluxo { display:flex; align-items:stretch; gap:0; min-width:min-content }
+
+  /* as pontas: a mensagem dele entra, a resposta dela sai */
+  .fluxo__ponta {
+    flex:0 0 auto; width:158px; border-radius:12px; padding:11px 13px;
+    border:1px dashed var(--borda-forte); background:var(--fundo-alt);
+    display:flex; flex-direction:column; gap:4px; justify-content:center;
+  }
+  .fluxo__pl { font-size:10px; font-weight:700; text-transform:uppercase;
+               letter-spacing:.06em; color:var(--texto-fraco) }
+  .fluxo__pt { font-size:12.5px; line-height:1.45; overflow-wrap:anywhere;
+               display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden }
+
+  /* o nó de um setor */
+  .fluxo__no {
+    flex:0 0 auto; width:142px; cursor:pointer; font:inherit; text-align:left;
+    background:var(--superficie,#fff); border:1px solid var(--borda,#e3e6ec);
+    border-top:4px solid var(--borda-forte); border-radius:12px; padding:10px 12px;
+    display:flex; flex-direction:column; gap:3px;
+    transition:box-shadow .12s, transform .12s;
+  }
+  .fluxo__no:hover { box-shadow:var(--sombra-1); transform:translateY(-2px) }
+  .fluxo__no:focus-visible { outline:none; box-shadow:var(--foco) }
+  .fluxo__no[aria-pressed="true"] { border-color:var(--azul); background:var(--azul-claro);
+                                    box-shadow:var(--sombra-1) }
+  .fluxo__no--ok       { border-top-color:var(--verde) }
+  .fluxo__no--mexeu    { border-top-color:var(--azul) }
+  .fluxo__no--problema { border-top-color:var(--vermelho); background:var(--vermelho-suave) }
+  /* depois de uma parada, o caminho não seguiu: o resto fica apagado */
+  .fluxo__no--apagado  { opacity:.42 }
+  .fluxo__pos { font-size:10px; font-weight:700; color:var(--texto-fraco);
+                font-variant-numeric:tabular-nums }
+  .fluxo__n { font-family:Barlow,sans-serif; font-size:13.5px; font-weight:700; line-height:1.2 }
+  .fluxo__r { font-size:11px; color:var(--texto-fraco); line-height:1.4 }
+  .fluxo__no--problema .fluxo__r { color:#8f2740; font-weight:600 }
+
+  /* a seta entre dois nós */
+  .fluxo__seta { flex:0 0 auto; width:20px; align-self:center; position:relative; height:2px;
+                 background:var(--borda-forte) }
+  .fluxo__seta::after {
+    content:""; position:absolute; right:0; top:50%; width:0; height:0;
+    border-left:6px solid var(--borda-forte);
+    border-top:4px solid transparent; border-bottom:4px solid transparent;
+    transform:translateY(-50%);
+  }
+  /* a seta que sai de um nó que PAROU: tracejada e vermelha -- o caminho morreu ali */
+  .fluxo__seta--parou { background:transparent;
+    border-top:2px dashed var(--vermelho) }
+  .fluxo__seta--parou::after { border-left-color:var(--vermelho) }
+
+  /* o detalhe do nó escolhido, embaixo do fluxo */
+  .fluxo-detalhe { border:1px solid var(--borda,#e3e6ec); border-radius:12px;
+                   background:var(--superficie-2,#faf8fe); padding:14px 16px; margin-top:2px }
+  .fluxo-detalhe__vazio { color:var(--texto-fraco); font-size:var(--fs-xs); text-align:center; padding:16px 4px }
+  .fluxo-detalhe__n { font-family:Barlow,sans-serif; font-size:15px; font-weight:800; margin:0 0 3px }
+  .fluxo-detalhe__d { font-size:var(--fs-xs); color:var(--texto-fraco); margin:0 0 11px; line-height:1.5 }
+
+  .passo { border:1px solid var(--borda,#e3e6ec); border-radius:9px; margin-bottom:6px;
+           overflow:hidden; background:var(--superficie,#fff) }
+  .passo--problema { border-color:var(--vermelho); background:var(--vermelho-suave) }
+  .passo--mudou    { border-color:var(--azul-borda) }
+  .passo__b { display:flex; align-items:baseline; gap:9px; width:100%; text-align:left; font:inherit;
+              background:none; border:0; padding:8px 11px; cursor:pointer; flex-wrap:wrap }
+  .passo__b:hover { background:var(--vidro-roxo) }
+  .passo__b:focus-visible { outline:none; box-shadow:var(--foco) }
+  .passo__b[aria-disabled="true"] { cursor:default }
+  .passo__b[aria-disabled="true"]:hover { background:none }
+  .passo__e { font-family:Barlow,sans-serif; font-weight:700; font-size:13px }
+  .passo__d { flex:1 1 200px; font-size:var(--fs-xs); color:var(--texto-fraco); line-height:1.5;
+              overflow-wrap:anywhere }
+  .passo__ms { font-size:11px; color:var(--texto-fraco); margin-left:auto; font-variant-numeric:tabular-nums }
+  .passo__mais { font-size:11px; color:var(--azul); font-weight:600 }
+  .passo__corpo { border-top:1px solid var(--borda,#e3e6ec); padding:10px 11px; background:var(--superficie-2,#faf8fe) }
+  .passo__rot { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+                color:var(--texto-fraco); margin:0 0 3px }
+  .passo__rot + pre { margin:0 0 9px }
+  .passo__corpo pre { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11.5px;
+    line-height:1.55; background:var(--superficie,#fff); border:1px solid var(--borda,#e3e6ec);
+    border-radius:7px; padding:8px 10px; overflow-x:auto; white-space:pre-wrap;
+    overflow-wrap:anywhere; max-height:330px }
+  /* a regra que aquela etapa exerce, dentro do passo */
+  .passo__regra { border-top:1px dashed var(--borda,#e3e6ec); padding:8px 11px;
+                  font-size:var(--fs-xs); line-height:1.55; background:var(--superficie,#fff) }
+  .passo__regra b { font-weight:700 }
+
+  /* ---------- lista de execuções ---------- */
+  .filtros { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px }
+  .filtro { font:inherit; font-size:var(--fs-xs); cursor:pointer; border-radius:999px;
+    border:1px solid var(--borda,#e3e6ec); background:var(--superficie,#fff); padding:5px 11px; color:var(--texto) }
+  .filtro:hover { background:var(--azul-claro); border-color:var(--azul) }
+  .filtro[aria-pressed="true"] { background:var(--azul); border-color:var(--azul); color:#fff; font-weight:600 }
+  .filtro__c { opacity:.7; font-variant-numeric:tabular-nums }
+
+  .lista { border:1px solid var(--borda,#e3e6ec); border-radius:12px; overflow:hidden;
+           background:var(--superficie,#fff); margin-bottom:16px }
+  .lista__rolagem { max-height:290px; overflow-y:auto }
+  .exec { display:block; width:100%; text-align:left; font:inherit; cursor:pointer; background:none;
+          border:0; border-bottom:1px solid var(--borda,#e3e6ec); padding:10px 13px }
+  .exec:last-child { border-bottom:0 }
+  .exec:hover { background:var(--azul-claro) }
+  .exec:focus-visible { outline:none; box-shadow:var(--foco) }
+  .exec[aria-current="true"] { background:var(--azul-claro); box-shadow:inset 3px 0 0 var(--azul) }
+  .exec__topo { display:flex; align-items:center; gap:7px; margin-bottom:3px }
+  .exec__q { font-size:var(--fs-xs); color:var(--texto-fraco); font-variant-numeric:tabular-nums }
+  .exec__id { font-size:11px; color:var(--texto-fraco); margin-left:auto; font-variant-numeric:tabular-nums }
+  .exec__t { display:block; font-size:13px; line-height:1.45; overflow-wrap:anywhere }
+  .exec__nota { display:block; font-size:11px; color:var(--texto-fraco); margin-top:3px; overflow-wrap:anywhere }
+
+  .trilha__cab { border:1px solid var(--borda,#e3e6ec); border-radius:12px; padding:13px 15px;
+                 margin-bottom:10px; background:var(--superficie,#fff) }
+  .trilha__titulo { font-family:Barlow,sans-serif; font-size:18px; font-weight:800; margin:0 0 6px;
+                    display:flex; align-items:center; gap:9px; flex-wrap:wrap }
+  .trilha__meta { font-size:var(--fs-xs); color:var(--texto-fraco); line-height:1.7; margin:0 }
+  .trilha__meta b { color:var(--texto) }
+  .trilha__vazia { color:var(--texto-fraco); font-size:var(--fs-xs); padding:26px 4px; text-align:center }
+
+  /* ---------- REGRAS ---------- */
+  .regra { border:1px solid var(--borda,#e3e6ec); border-left-width:5px; border-radius:12px;
+           padding:12px 15px; margin-bottom:9px; background:var(--superficie,#fff) }
+  .regra--ignora   { border-left-color:var(--vermelho); background:var(--vermelho-suave) }
+  .regra--asvezes  { border-left-color:var(--laranja) }
+  .regra--seguiu   { border-left-color:var(--verde) }
+  .regra--semdado  { border-left-color:var(--borda-forte) }
+  .regra__topo { display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; margin-bottom:5px }
+  .regra__n { font-family:Barlow,sans-serif; font-size:15px; font-weight:800 }
+  .regra__c { margin-left:auto; font-size:var(--fs-xs); color:var(--texto-fraco);
+              font-variant-numeric:tabular-nums; white-space:nowrap }
+  .regra__c b { font-size:17px; color:var(--texto) }
+  .regra--ignora .regra__c b { color:#8f2740 }
+  .regra__t { font-size:13.5px; line-height:1.55; margin:0 0 6px }
+  .regra__f { font-size:var(--fs-xs); color:var(--texto-fraco); line-height:1.55 }
+  .regra__f b { color:var(--texto) }
+  .regra__barra { height:6px; border-radius:999px; background:var(--verde-suave);
+                  overflow:hidden; margin:8px 0 7px }
+  .regra__barra i { display:block; height:100%; background:var(--vermelho) }
+  .regra__turnos { margin-top:6px; font-size:var(--fs-xs) }
+  .regra__turnos a { margin-right:7px }
+
+  /* ---------- SETORES ---------- */
+  .setores { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)) }
+  .setor { text-align:left; width:100%; cursor:pointer; background:var(--superficie,#fff);
+    border:1px solid var(--borda,#e3e6ec); border-left-width:5px; border-radius:12px;
+    padding:12px 14px; font:inherit; transition:box-shadow .12s, transform .12s }
+  .setor:hover { box-shadow:var(--sombra-1); transform:translateY(-1px) }
+  .setor:focus-visible { outline:none; box-shadow:var(--foco) }
+  .setor[aria-pressed="true"] { border-color:var(--azul); background:var(--azul-claro) }
+  .setor--verde { border-left-color:var(--verde) }
+  .setor--amarelo { border-left-color:var(--laranja) }
+  .setor--vermelho { border-left-color:var(--vermelho) }
+  .setor--cinza { border-left-color:var(--borda-forte) }
+  .setor__topo { display:flex; align-items:center; gap:8px; margin-bottom:6px }
+  .setor__n { font-family:Barlow,sans-serif; font-size:14px; font-weight:700 }
+  .setor__ponto { width:9px; height:9px; border-radius:50%; flex:0 0 auto }
+  .setor--verde .setor__ponto { background:var(--verde) }
+  .setor--amarelo .setor__ponto { background:var(--laranja) }
+  .setor--vermelho .setor__ponto { background:var(--vermelho) }
+  .setor--cinza .setor__ponto { background:var(--borda-forte) }
+  .setor__num { display:block; font-size:var(--fs-xs); color:var(--texto-fraco); line-height:1.6 }
+  .setor__num b { color:var(--texto); font-variant-numeric:tabular-nums }
+  .setor__aviso { display:block; font-size:11px; color:#8f2740; margin-top:5px; font-weight:600 }
+</style>
+<meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
+</head>
+<body class="admin" data-pagina="nay-cerebro">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <h1 class="pagina-titulo">Cérebro da Nay</h1>
+  </div>
+
+  <section class="painel-nay">
+    <div class="painel-nay__topo">
+      <h2 class="painel-nay__nome">O caminho que ela percorreu</h2>
+      <span class="painel-nay__sub">e quais regras ela seguiu no caminho</span>
+      <button class="btn-mini" type="button" id="cb-recarregar" style="margin-left:auto">Atualizar</button>
+    </div>
+
+    <div id="cb-diagnostico"></div>
+
+    <div class="abas" role="tablist" aria-label="Cérebro da Nay" data-abas-funcionais>
+      <button class="abas__item" role="tab" type="button" data-painel-abre="regras"     aria-selected="true">Regras</button>
+      <button class="abas__item" role="tab" type="button" data-painel-abre="execucoes"  aria-selected="false">O caminho</button>
+      <button class="abas__item" role="tab" type="button" data-painel-abre="setores"    aria-selected="false">Setores</button>
+      <button class="abas__item" role="tab" type="button" data-painel-abre="inventario" aria-selected="false">Inventário</button>
+    </div>
+
+    <!-- ===================== REGRAS ===================== -->
+    <div data-painel="regras">
+      <p class="painel-nota">
+        Cada uma destas é uma regra que você ensinou a ela. O sistema já confere
+        todas, em toda resposta — e o que está aqui é o que ele viu:
+        <b>quantas vezes ela seguiu sozinha</b> e <b>quantas vezes ignorou e
+        precisou ser corrigida antes de a mensagem sair</b>.
+        Nenhuma regra é apagada por esta tela; ela só conta.
+      </p>
+      <div class="painel-cartoes" id="cb-obediencia"></div>
+      <p class="painel-nota" style="margin-top:-6px">
+        <b>Parede</b> é regra de negócio: ignorar custa caro (promessa que não
+        será cumprida, imóvel errado, foto negada que existe).
+        <b>Ajuste</b> é forma (markdown, emoji). <b>Fluxo</b> não é regra sobre
+        ela — é o sistema escolhendo caminho, e não conta como desobediência.
+        As paredes ignoradas vêm primeiro, mesmo quando outra regra é mais frequente.
+      </p>
+      <div id="cb-regras"></div>
+    </div>
+
+    <!-- ===================== O CAMINHO ===================== -->
+    <div data-painel="execucoes" hidden>
+      <div class="filtros" id="cb-filtros"></div>
+      <div class="lista"><div class="lista__rolagem" id="cb-lista"></div></div>
+
+      <div id="cb-trilha">
+        <p class="trilha__vazia">Escolha uma conversa acima para ver o caminho que ela percorreu.</p>
+      </div>
+    </div>
+
+    <!-- ===================== SETORES ===================== -->
+    <div data-painel="setores" hidden>
+      <p class="painel-nota">
+        Os 12 setores por onde uma mensagem passa, na ordem. A barra colorida é o
+        estado dos últimos 7 dias: <b>vermelho</b> = houve erro, <b>amarelo</b> =
+        mais de 10% das passagens não foram limpas, <b>verde</b> = tudo passou,
+        <b>cinza</b> = nada passou por aqui (que não é a mesma coisa que estar bem).
+      </p>
+      <div class="setores" id="cb-setores"></div>
+      <div id="cb-setor-detalhe" hidden>
+        <h3 class="secao-titulo" id="cb-setor-titulo"></h3>
+        <p class="painel-nota" id="cb-setor-desc"></p>
+        <div class="tabela-envolucro"><div class="tabela-rolagem">
+          <table class="tabela" id="cb-setor-etapas"></table>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ===================== INVENTÁRIO ===================== -->
+    <div data-painel="inventario" hidden>
+      <p class="painel-nota">
+        Aqui mora a resposta para “tem regra antiga atrapalhando?”.
+        <b>Nada nesta aba apaga nada</b> — é leitura.
+      </p>
+
+      <h3 class="secao-titulo">O que mudou no banco desde a última foto</h3>
+      <p class="painel-nota" id="cb-foto-nota"></p>
+      <div class="tabela-envolucro"><div class="tabela-rolagem">
+        <table class="tabela" id="cb-desvio"></table>
+      </div></div>
+
+      <h3 class="secao-titulo">Funções por setor</h3>
+      <div class="tabela-envolucro"><div class="tabela-rolagem">
+        <table class="tabela" id="cb-mapa"></table>
+      </div></div>
+
+      <h3 class="secao-titulo">A IA nova usando o cérebro da antiga</h3>
+      <p class="painel-nota">
+        Funções <span class="mono">nay_</span> (da Nay antiga) chamadas de dentro
+        de funções <span class="mono">nai_</span>. Reusar código não é erro — vira
+        erro quando a função antiga carrega uma regra que valia no fluxo velho.
+      </p>
+      <div class="tabela-envolucro"><div class="tabela-rolagem">
+        <table class="tabela" id="cb-acoplamento"></table>
+      </div></div>
+
+      <h3 class="secao-titulo">Sobrecargas</h3>
+      <div class="tabela-envolucro"><div class="tabela-rolagem">
+        <table class="tabela" id="cb-sobrecargas"></table>
+      </div></div>
+
+      <h3 class="secao-titulo">Candidatas a entulho</h3>
+      <p class="painel-nota">
+        Nenhuma função chama estas. <b>Isso não quer dizer que estejam mortas</b> —
+        podem ser chamadas pelo n8n, por cron ou pelo painel. Não apague nada só
+        por aparecer aqui.
+      </p>
+      <div class="tabela-envolucro"><div class="tabela-rolagem">
+        <table class="tabela" id="cb-orfas"></table>
+      </div></div>
+    </div>
+  </section>
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/nay-cerebro.js"></script>
+</body>
+</html>
