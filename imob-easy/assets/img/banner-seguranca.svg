@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 250" role="img"
+     aria-label="Segurança para comprar o seu imóvel é com a Imob Easy">
+  <title>Segurança para comprar o seu imóvel é com a Imob Easy</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8e1fa8"/>
+      <stop offset="1" stop-color="#6d1590"/>
+    </linearGradient>
+    <linearGradient id="parede" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f5ece0"/>
+      <stop offset="1" stop-color="#e2d2bd"/>
+    </linearGradient>
+    <clipPath id="recorte"><ellipse cx="856" cy="125" rx="172" ry="92"/></clipPath>
+  </defs>
+
+  <rect width="1060" height="250" fill="url(#bg)"/>
+
+  <text x="40" y="76" font-family="Barlow, Segoe UI, Arial, sans-serif" font-size="34"
+        font-weight="800" fill="#ffffff" letter-spacing="0.4"
+        textLength="530" lengthAdjust="spacingAndGlyphs">SEGURANÇA PARA COMPRAR O SEU</text>
+  <text x="40" y="118" font-family="Barlow, Segoe UI, Arial, sans-serif" font-size="34"
+        font-weight="800" fill="#ffffff" letter-spacing="0.4"
+        textLength="470" lengthAdjust="spacingAndGlyphs">IMÓVEL É COM A IMOB EASY!</text>
+
+  <path d="M40 158 q13 -11 26 0 t26 0 t26 0 t26 0 t26 0 t26 0 t26 0 t26 0 t26 0 t26 0"
+        fill="none" stroke="#ffffff" stroke-width="5" opacity="0.5"/>
+  <path d="M40 172 q13 -11 26 0 t26 0 t26 0 t26 0 t26 0 t26 0 t26 0 t26 0 t26 0 t26 0"
+        fill="none" stroke="#ffffff" stroke-width="5" opacity="0.3"/>
+
+  <g fill="#ffffff" opacity="0.7">
+    <circle cx="46" cy="208" r="5"/><circle cx="70" cy="208" r="5"/><circle cx="94" cy="208" r="5"/>
+    <circle cx="118" cy="208" r="5"/><circle cx="142" cy="208" r="5"/><circle cx="166" cy="208" r="5"/>
+    <circle cx="190" cy="208" r="5"/><circle cx="214" cy="208" r="5"/><circle cx="238" cy="208" r="5"/>
+    <circle cx="262" cy="208" r="5"/><circle cx="286" cy="208" r="5"/><circle cx="310" cy="208" r="5"/>
+  </g>
+
+  <g font-family="Barlow, Segoe UI, Arial, sans-serif" fill="#ffffff">
+    <text x="548" y="128" font-size="26" font-weight="700">imob</text>
+    <text x="548" y="160" font-size="26" font-weight="400" opacity="0.9">easy.</text>
+  </g>
+
+  <g clip-path="url(#recorte)">
+    <rect x="650" y="30" width="390" height="190" fill="url(#parede)"/>
+    <rect x="650" y="168" width="390" height="52" fill="#c2a486"/>
+    <rect x="742" y="96" width="128" height="72" rx="10" fill="#ddc9b0"/>
+    <rect x="880" y="70" width="86" height="98" rx="8" fill="#cbb69c"/>
+    <circle cx="806" cy="86" r="19" fill="#8d6a4e"/>
+    <path d="M782 168 q24 -40 48 0 z" fill="#6f4a86"/>
+    <circle cx="898" cy="88" r="17" fill="#7d5a41"/>
+    <path d="M876 168 q22 -38 44 0 z" fill="#41628c"/>
+    <circle cx="852" cy="118" r="11" fill="#a37b5b"/>
+    <path d="M838 168 q14 -26 28 0 z" fill="#c65a7a"/>
+  </g>
+  <ellipse cx="856" cy="125" rx="172" ry="92" fill="none" stroke="#ffffff" stroke-width="6"/>
+</svg>

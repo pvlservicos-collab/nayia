@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Imóveis — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<style>
+  .etiqueta--cinza { background: #eceef2; color: #4b5563; }
+  .etiqueta--vermelha { background: #fde8e8; color: #9b1c1c; }
+  .paginacao-sistema button { border: 0; background: transparent; cursor: pointer; font: inherit; color: inherit; padding: 4px 8px; }
+  .paginacao-sistema button[disabled] { opacity: .35; cursor: default; }
+  .paginacao-sistema .ativo { font-weight: 700; }
+  .resumo-lista { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; margin: 0 0 12px; font-size: var(--fs-sm); color: var(--texto-fraco); }
+  .tabela tr.fora-catalogo td { color: var(--texto-fraco); }
+  .lateral .grupo-opcoes button[aria-pressed="true"] { background: var(--primaria, #2c58c7); color: #fff; }
+  .nota-lateral { font-size: var(--fs-xs); color: var(--texto-fraco); line-height: 1.4; }
+</style>
+</head>
+<body class="admin" data-pagina="imoveis">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <h1 class="pagina-titulo">Imóveis</h1>
+    <button class="btn-azul" type="button" id="btn-exportar">Exportar (CSV)</button>
+  </div>
+
+  <div class="abas" role="tablist" aria-label="Tipo de imóvel" data-abas-funcionais>
+    <button class="abas__item" role="tab" type="button" data-painel-abre="imoveis" data-grupo="" aria-selected="true">Todos</button>
+    <button class="abas__item" role="tab" type="button" data-painel-abre="imoveis" data-grupo="apartamento" aria-selected="false">Apartamentos</button>
+    <button class="abas__item" role="tab" type="button" data-painel-abre="imoveis" data-grupo="casa" aria-selected="false">Casas</button>
+    <button class="abas__item" role="tab" type="button" data-painel-abre="imoveis" data-grupo="outros" aria-selected="false">Outros (lote, sala, prédio…)</button>
+    <button class="abas__item" role="tab" type="button" data-painel-abre="anuncios" aria-selected="false">Anúncios</button>
+  </div>
+
+  <div data-painel="imoveis">
+  <div class="layout-lateral">
+    <form class="lateral" id="filtros-imoveis" aria-label="Filtrar imóveis" data-estado-proprio>
+      <a class="btn-azul btn-bloco" href="imovel-editar.html?novo=1">Novo Imóvel</a>
+      <button class="btn-neutro btn-bloco" type="button" id="btn-revisao">Imóveis em revisão</button>
+
+      <div class="lateral__bloco">
+        <label class="lateral__rotulo" for="busca-imovel">Pesquisar</label>
+        <input class="entrada" id="busca-imovel" name="q" type="search" placeholder="Código, condomínio, bairro, endereço, proprietário">
+      </div>
+
+      <div class="lateral__bloco">
+        <label class="lateral__rotulo" for="f-status">Status</label>
+        <select class="selecao" id="f-status" name="status">
+          <option value="">Todos</option>
+          <option>Disponível</option><option>Alugado</option><option>Vendido</option>
+          <option>Arquivado</option><option>Removido</option><option>Rascunho</option>
+          <option>Em revisão</option><option>Indisponível</option><option>Fora do site</option>
+        </select>
+      </div>
+
+      <div class="lateral__bloco">
+        <label class="lateral__rotulo" for="f-tipo-imovel">Tipo de imóvel</label>
+        <select class="selecao" id="f-tipo-imovel" name="tipo">
+          <option value="">Todos</option><option>Apartamento</option><option>Casa</option>
+          <option>Casa de condomínio</option><option>Cobertura</option><option>Flat</option>
+          <option>Sala</option><option>Loja</option><option>Lote</option><option>Terreno</option><option>Prédio</option>
+        </select>
+      </div>
+
+      <div class="lateral__bloco">
+        <label class="lateral__rotulo" for="f-condominio">Condomínios</label>
+        <input class="entrada" id="f-condominio" type="text">
+      </div>
+
+      <div class="lateral__bloco">
+        <label class="lateral__rotulo" for="f-bairro">Bairro</label>
+        <input class="entrada" id="f-bairro" name="bairro" type="text" placeholder="ex.: Ponta Negra">
+      </div>
+
+      <div class="lateral__bloco">
+        <label class="lateral__rotulo" for="f-tipo-anuncio">Tipo de anúncio</label>
+        <select class="selecao" id="f-tipo-anuncio" name="finalidade">
+          <option value="">Ambos</option><option value="venda">Venda</option><option value="aluguel">Aluguel</option>
+        </select>
+      </div>
+
+      <div class="lateral__bloco">
+        <span class="lateral__rotulo">Valores (R$)</span>
+        <input class="entrada" name="vmin" type="text" inputmode="numeric" placeholder="De" aria-label="Valor mínimo">
+        <input class="entrada" name="vmax" type="text" inputmode="numeric" placeholder="Até" aria-label="Valor máximo">
+      </div>
+
+      <div class="lateral__bloco">
+        <span class="lateral__rotulo" id="rot-quartos">Quartos</span>
+        <div class="grupo-opcoes" role="group" aria-labelledby="rot-quartos" data-escolha="quartos">
+          <button type="button" aria-pressed="false" data-v="1">1</button>
+          <button type="button" aria-pressed="false" data-v="2">2</button>
+          <button type="button" aria-pressed="false" data-v="3">3</button>
+          <button type="button" aria-pressed="false" data-v="4+">4+</button>
+        </div>
+      </div>
+
+      <div class="lateral__bloco">
+        <span class="lateral__rotulo" id="rot-garagem">Garagem</span>
+        <div class="grupo-opcoes" role="group" aria-labelledby="rot-garagem" data-escolha="vagas">
+          <button type="button" aria-pressed="false" data-v="1">1</button>
+          <button type="button" aria-pressed="false" data-v="2">2</button>
+          <button type="button" aria-pressed="false" data-v="3">3</button>
+          <button type="button" aria-pressed="false" data-v="4+">4+</button>
+        </div>
+      </div>
+
+      <div class="lateral__bloco">
+        <label class="opcao-linha"><input type="checkbox" name="financia" value="Sim"> Aceita Financiamento</label>
+        <label class="opcao-linha"><input type="checkbox" name="parceiro_sim"> Só imóvel parceiro</label>
+        <label class="opcao-linha"><input type="checkbox" name="parceiro_nao"> Só imóvel de proprietário (nosso)</label>
+        <p class="nota-lateral">Permuta, placa, chaves e exclusividade não existem no banco ainda, por isso saíram do filtro.</p>
+      </div>
+
+      <div class="lateral__bloco">
+        <span class="lateral__rotulo">Por data de criação</span>
+        <input class="entrada" name="criado_de" type="date" aria-label="Data inicial">
+        <input class="entrada" name="criado_ate" type="date" aria-label="Data final">
+      </div>
+
+      <div class="lateral__bloco">
+        <label class="lateral__rotulo" for="f-ordenar">Ordenar resultados</label>
+        <select class="selecao" id="f-ordenar" name="ordem">
+          <option value="">Imóvel Mais Novo</option><option value="antigo">Imóvel Mais Antigo</option>
+          <option value="menor">Menor Valor</option><option value="maior">Maior Valor</option>
+          <option value="codigo">Código (maior primeiro)</option>
+        </select>
+      </div>
+
+      <button class="btn-azul btn-bloco" type="submit">Pesquisar</button>
+      <button class="btn-neutro btn-bloco" type="reset">Limpar Pesquisa</button>
+      <button class="btn-neutro btn-bloco" type="button" id="btn-copiar">Copiar Informações</button>
+      <p class="nota-lateral" id="copiar-status" role="status"></p>
+    </form>
+
+    <div>
+      <div id="filtro-vencimento-imoveis"></div>
+      <div class="resumo-lista"><span id="contagem-imoveis">Carregando…</span><span id="resumo-imoveis"></span></div>
+
+      <div class="tabela-envolucro">
+        <div class="tabela-rolagem">
+          <table class="tabela">
+            <thead>
+              <tr>
+                <th scope="col">Código</th>
+                <th scope="col">Status</th>
+                <th scope="col">Financia?</th>
+                <th scope="col">Valor</th>
+                <th scope="col">Condomínio</th>
+                <th scope="col">Endereço</th>
+                <th scope="col">Proprietário</th>
+                <th scope="col" class="col-acoes">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="corpo-imoveis"><tr><td colspan="8">Carregando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <nav class="paginacao-sistema" aria-label="Paginação" id="paginacao-imoveis"></nav>
+    </div>
+  </div>
+  </div>
+
+  <div data-painel="anuncios" hidden>
+    <div class="tabela-envolucro">
+      <div class="tabela-rolagem">
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th scope="col">Status</th>
+              <th scope="col">Imóvel</th>
+              <th scope="col">Tipo de anúncio</th>
+              <th scope="col">Financia?</th>
+              <th scope="col">Valores</th>
+              <th scope="col" class="col-acoes">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="corpo-anuncios"><tr><td colspan="6">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div class="sobreposicao" id="popup-imovel" hidden>
+  <div class="popup-imovel" role="dialog" aria-modal="true" aria-labelledby="popup-imovel-titulo">
+    <div class="popup-imovel__cabecalho">
+      <div>
+        <h2 class="popup-imovel__titulo" id="popup-imovel-titulo" data-popup-titulo>Imóvel</h2>
+        <p class="popup-imovel__codigo" data-popup-codigo></p>
+      </div>
+      <button class="btn-neutro" type="button" data-popup-fechar aria-label="Fechar">✕ Fechar</button>
+    </div>
+    <dl data-popup-corpo></dl>
+    <a class="btn-azul btn-bloco" data-popup-ver href="#">Abrir / editar imóvel</a>
+  </div>
+</div>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/filtro-vencimento.js"></script>
+<script src="../assets/js/seletor-condominio.js"></script>
+<script src="../assets/js/imoveis-lista.js"></script>
+</body>
+</html>

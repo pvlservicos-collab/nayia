@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editar imóvel — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+</head>
+<body class="admin" data-pagina="imoveis">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <h1 class="pagina-titulo">Editar imóvel <span id="titulo-codigo"></span></h1>
+    <a class="btn-neutro" href="imoveis.html">&larr; Voltar</a>
+  </div>
+
+  <div class="form-imovel__aviso">
+    Campos marcados <span class="marca-sincronizado">● sincronizado pelo site</span> são reescritos toda hora
+    pela varredura automática (às XX:17) se o valor no site público for diferente. Uma edição aqui é
+    provisória para eles. Campos sem essa marca são internos — a varredura nunca mexe neles.
+  </div>
+
+  <div id="criado-aviso" class="form-imovel__aviso" hidden style="border-color:#1e8e3e">Imóvel criado. Ele está <strong>fora do site</strong> até você marcar "Publicado no site".</div>
+  <div id="carregando">Carregando dados do imóvel...</div>
+  <script>if (new URLSearchParams(location.search).get("criado") === "1") document.getElementById("criado-aviso").hidden = false;</script>
+  <form class="form-imovel" id="form-imovel" hidden></form>
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/seletor-condominio.js"></script>
+<script src="../assets/js/imovel-editar.js"></script>
+</body>
+</html>

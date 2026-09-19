@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fluxo da Nay — Locação</title>
+<style>
+:root{
+  --ink:#1C2826; --muted:#5E6B68; --line:#D3DBD8; --paper:#E9EEEC;
+  --nay:#0E7A6A; --nay-bg:#DFF2EC;
+  --cor:#2C58C7; --cor-bg:#E4EAFB;
+  --prop:#A96400; --prop-bg:#FAEED6;
+  --eq:#963A74; --eq-bg:#F6E4EF;
+  --sis:#555B68; --sis-bg:#F1F2F4;
+  --flag:#B3362E; --flag-bg:#FBEAE8;
+  --font:"Avenir Next","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overscroll-behavior:none}
+body{font-family:var(--font);color:var(--ink);background:var(--paper);font-size:14px;line-height:1.45;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+h1,h2,h3,p{margin:0}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+
+.top{flex:0 0 auto;padding:16px 22px 14px;border-bottom:1px solid var(--line);background:#fff;position:relative;z-index:30}
+.top h1{font-size:17px;font-weight:700}
+.top .sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+.legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:10px;font-size:11.5px;color:var(--muted)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.legend .dash{display:inline-block;width:16px;height:0;border-top:1.6px dashed #8B958F;margin-right:5px;vertical-align:middle}
+
+#viewport{flex:1 1 auto;position:relative;overflow:hidden;background:
+    radial-gradient(circle, #D8E0DD 1px, transparent 1px) 0 0/22px 22px, var(--paper);
+  cursor:grab;touch-action:none}
+#viewport.panning{cursor:grabbing}
+#canvas{position:absolute;left:0;top:0;width:9040px;height:1620px;transform-origin:0 0;will-change:transform}
+
+.card{position:absolute;width:320px;background:#fff;border:1px solid var(--line);border-top:4px solid var(--ac);border-radius:11px;padding:0 0 11px;box-shadow:0 1px 2px rgba(20,30,28,.05)}
+.card.a-nay{--ac:var(--nay)}
+.card.a-corretor{--ac:var(--cor)}
+.card.a-proprietario{--ac:var(--prop)}
+.card.a-equipe{--ac:var(--eq)}
+.card.a-sistema{--ac:var(--sis)}
+.card.a-flag{--ac:var(--flag);border-style:dashed;border-top-style:solid;background:var(--flag-bg)}
+.card.dragging{box-shadow:0 10px 28px rgba(20,30,28,.22);z-index:20!important;cursor:grabbing}
+
+.c-top{display:flex;justify-content:space-between;align-items:baseline;padding:10px 13px 0;gap:8px;cursor:grab;touch-action:none;border-radius:11px 11px 0 0}
+.c-top:active{cursor:grabbing}
+.c-actor{font-size:11.5px;font-weight:700;color:var(--ac);white-space:nowrap}
+.c-canal{font-size:11px;color:var(--muted);text-align:right}
+.c-title{font-size:14.5px;font-weight:700;padding:4px 13px 8px;line-height:1.32}
+.c-gat{display:inline-block;margin:0 13px 8px;font-size:11px;background:#FFF4D8;color:#7A5200;border-radius:5px;padding:2px 7px}
+.c-msg{margin:0 11px 8px;background:var(--bg,#F1F2F4);border-radius:11px;border-top-left-radius:3px;padding:9px 11px;font-size:13.5px}
+.c-msg.alt{opacity:.75;font-size:12.5px;margin-top:-2px}
+.c-msg.alt .tag{font-style:italic;opacity:.85;margin-right:3px}
+.a-nay .c-msg{--bg:var(--nay-bg)}
+.a-corretor .c-msg{--bg:var(--cor-bg)}
+.a-proprietario .c-msg{--bg:var(--prop-bg)}
+.a-equipe .c-msg{--bg:var(--eq-bg)}
+.a-sistema .c-msg{background:transparent;border:1.3px dashed #B7BEC8;color:#3C414C;font-size:12.5px;border-radius:8px}
+.a-sistema .c-msg .tag{font-weight:600}
+.c-note{margin:0 11px 0;font-size:11.5px;color:#5A4A1A;background:#FFF8E6;border-radius:7px;padding:5px 8px}
+.v{color:var(--ac);font-weight:600;white-space:nowrap}
+.fim-pill{display:inline-block;margin:9px 0 0 11px;font-size:10.5px;background:var(--ink);color:#fff;border-radius:999px;padding:2px 9px}
+.flag-body{margin:0 13px 2px;font-size:13px;color:#5A2420;padding-bottom:9px}
+
+[contenteditable="true"]{outline:none;cursor:text}
+[contenteditable="true"]:hover{box-shadow:0 0 0 1.5px rgba(14,122,106,.45);border-radius:6px}
+[contenteditable="true"]:focus{box-shadow:0 0 0 2px var(--nay);border-radius:6px;background:#fff}
+
+.port{position:absolute;width:13px;height:13px;border-radius:50%;background:#fff;border:2.5px solid var(--ac,var(--muted));top:50%;margin-top:-6.5px;cursor:crosshair;z-index:6;touch-action:none}
+.port-out{right:-7px}
+.port-in{left:-7px}
+.port:hover{transform:scale(1.35);background:var(--ac,var(--nay))}
+
+.card-tools{position:absolute;top:-15px;right:10px;display:flex;align-items:center;gap:4px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:4px 5px;box-shadow:0 2px 7px rgba(20,30,28,.15);opacity:0;pointer-events:none;transition:opacity .12s;z-index:8}
+.card:hover .card-tools{opacity:1;pointer-events:auto}
+.cswatch{width:13px;height:13px;border-radius:50%;cursor:pointer;border:1.5px solid rgba(0,0,0,.14);padding:0}
+.cswatch:hover{transform:scale(1.25)}
+.card-add{width:18px;height:18px;border-radius:50%;background:var(--nay);color:#fff;font-size:13px;line-height:16px;text-align:center;cursor:pointer;border:none;margin-left:3px;padding:0;font-weight:700}
+.card-add:hover{background:#0c6a5c}
+
+svg#edges{position:absolute;left:0;top:0;overflow:visible}
+.edge{fill:none;stroke:#8B958F;stroke-width:1.8}
+.edge-hit{fill:none;stroke:transparent;stroke-width:16;cursor:pointer}
+.edge-hit:hover + .edge, .edge-hit:hover{stroke:#8B958F}
+.edge.hoverable:hover{stroke:#C0392B;stroke-width:2.6}
+.edge.back{stroke-dasharray:6 5;stroke:#9AA5A1}
+.edge.flag{stroke:var(--flag);stroke-dasharray:4 4}
+.elabel{font-size:11px;fill:var(--muted);paint-order:stroke;stroke:#fff;stroke-width:5px;stroke-linejoin:round;pointer-events:none}
+.elabel.flagl{fill:var(--flag);font-weight:700}
+.tempedge{fill:none;stroke:var(--nay);stroke-width:2.2;stroke-dasharray:5 4;pointer-events:none}
+
+.toolbar{position:absolute;top:14px;right:14px;z-index:40;display:flex;gap:7px;align-items:center}
+.tbtn{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 13px;font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.09);font-family:var(--font)}
+.tbtn:hover{background:#F3F6F5}
+.tbtn.icon{padding:8px 12px;font-size:15px;line-height:1}
+.tbtn.primary{background:var(--nay);color:#fff;border-color:var(--nay)}
+.tbtn.primary:hover{background:#0c6a5c}
+.zoomgroup{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.09)}
+.zoomgroup .tbtn{border:none;border-radius:0;box-shadow:none;border-right:1px solid var(--line)}
+.zoomgroup .tbtn:last-child{border-right:none}
+
+.hint{position:absolute;left:14px;bottom:14px;z-index:40;background:#fff;border:1px solid var(--line);border-radius:9px;padding:10px 14px;font-size:11.5px;color:var(--muted);max-width:400px;box-shadow:0 1px 3px rgba(0,0,0,.09)}
+.hint b{color:var(--ink)}
+.hint .close{position:absolute;top:6px;right:8px;cursor:pointer;color:var(--muted);font-size:13px;padding:2px 5px}
+
+.savedtoast{position:absolute;left:50%;bottom:70px;transform:translateX(-50%) translateY(8px);background:var(--ink);color:#fff;padding:8px 16px;border-radius:999px;font-size:12.5px;z-index:60;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+.savedtoast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(max-width:640px){
+  .card{width:270px}
+  .hint{max-width:78vw;font-size:11px}
+  .toolbar{flex-wrap:wrap;justify-content:flex-end;max-width:60vw}
+}
+</style>
+<style>
+/* --- acrescentado para o site: apagar card, anotar na linha, salvar --- */
+/* selecao por area (12/09/2026): arrastar no fundo desenha a area; os cards dentro dela andam juntos */
+.card.selecionado{outline:3px solid #2563eb;outline-offset:3px}
+.selecao-area{position:absolute;z-index:60;display:none;border:1.5px dashed #2563eb;background:rgba(37,99,235,.10);pointer-events:none}
+.card-del{width:18px;height:18px;border-radius:50%;background:#fff;color:var(--flag);font-size:14px;line-height:14px;text-align:center;cursor:pointer;border:1.5px solid var(--flag);margin-left:3px;padding:0;font-weight:700;font-family:var(--font)}
+.card-del:hover{background:var(--flag);color:#fff}
+.edge-pop{position:absolute;z-index:70;width:310px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;box-shadow:0 8px 24px rgba(20,30,28,.18);font-size:12.5px;cursor:default}
+.edge-pop label{display:block;font-weight:700;margin-bottom:5px;color:var(--ink)}
+.edge-pop input{width:100%;font-family:var(--font);font-size:13px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;outline:none;color:var(--ink)}
+.edge-pop input:focus{border-color:var(--nay);box-shadow:0 0 0 2px rgba(14,122,106,.18)}
+.edge-pop__acoes{display:flex;gap:6px;margin-top:9px;align-items:center}
+.edge-pop__acoes span{flex:1}
+.edge-pop .tbtn{padding:6px 10px;font-size:12px;box-shadow:none}
+.edge-pop .tbtn.remover{color:var(--flag);border-color:#EBC7C3}
+.edge-pop .tbtn.remover:hover{background:var(--flag-bg)}
+/* O status fica como etiqueta pequena LOGO ABAIXO do botao de salvar, fora da
+   fila de botoes: na mesma linha ele empurrava a barra por cima do subtitulo
+   em tela de notebook (1280px). */
+.sync-status{position:absolute;top:100%;right:0;margin-top:6px;font-size:11px;color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:999px;padding:2px 9px;white-space:nowrap}
+@media(max-width:640px){.sync-status{position:static;margin:0;padding:8px 10px;border-radius:8px}}
+.sync-status.sujo{color:#8A5A00;background:#FFF6E0;border-color:#F0D9A6}
+.sync-status.erro{color:var(--flag);background:var(--flag-bg);border-color:#EBC7C3}
+.sync-status.novo{color:var(--cor);background:var(--cor-bg);border-color:#C9D5F3}
+/* Botao de salvar em azul (pedido do Tel): o mesmo azul do editor. */
+#syncBtn{background:var(--cor);border-color:var(--cor);color:#fff}
+#syncBtn:hover{background:#2348A8;border-color:#2348A8}
+#syncBtn.sujo{box-shadow:0 0 0 3px rgba(44,88,199,.30)}
+#syncBtn:disabled{opacity:.6;cursor:wait}
+/* Motoboy (10/09/2026). Rosa choque #E6007E em vez do #FF1493 puro: o
+   nome do ator e texto pequeno sobre branco, e o #FF1493 fica em 3,6:1;
+   este chega a 4,5:1 e continua lendo como rosa choque. */
+:root{--moto:#E6007E;--moto-bg:#FDE4F1}
+.card.a-motoboy{--ac:var(--moto)}
+.a-motoboy .c-msg{--bg:var(--moto-bg)}
+/* navegacao no notebook */
+#viewport.panning, #viewport.panning *{-webkit-user-select:none!important;user-select:none!important}
+.zoom-deslizante{display:flex;align-items:center;padding:0 8px;background:#fff;border-right:1px solid var(--line);margin:0}
+.zoom-deslizante input{width:88px;accent-color:var(--nay);cursor:pointer;margin:0}
+.zoomgroup .zoom-pct{min-width:56px;padding:8px 6px;font-variant-numeric:tabular-nums;text-align:center}
+.rolagem-h{position:absolute;left:14px;right:14px;bottom:8px;height:14px;border-radius:999px;background:rgba(28,40,38,.08);z-index:35;cursor:pointer;touch-action:none}
+.rolagem-h:hover{background:rgba(28,40,38,.14)}
+.rolagem-h.inutil{display:none}
+.rolagem-h__polegar{position:absolute;top:2px;left:0;height:10px;border-radius:999px;background:rgba(28,40,38,.40);cursor:grab;touch-action:none}
+.rolagem-h__polegar:hover,.rolagem-h__polegar.arrastando{background:var(--nay)}
+.rolagem-h__polegar.arrastando{cursor:grabbing}
+@media(max-width:640px){.zoom-deslizante input{width:70px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Fluxo da Nay — Locação</h1>
+  <p class="sub">Do anúncio no grupo até o feedback pós-visita — arraste, conecte, edite</p>
+  <div class="legend">
+    <span><i style="background:var(--nay)"></i>Nay</span>
+    <span><i style="background:var(--cor)"></i>Corretor</span>
+    <span><i style="background:var(--prop)"></i>Proprietário</span>
+    <span><i style="background:var(--eq)"></i>Tel</span>
+    <span><i style="background:var(--moto)"></i>Motoboy</span>
+    <span><i style="background:var(--sis)"></i>checagem interna (não é mensagem)</span>
+    <span><i style="background:var(--flag)"></i>pendência a decidir</span>
+    <span><span class="dash"></span>volta / repete</span>
+    <span><span class="v" style="margin-right:2px">{assim}</span>dado que a Nay preenche</span>
+  </div>
+</header>
+
+<div id="viewport" class="">
+  <h2 class="sr-only">Fluxograma interativo da Nay para locação. Arraste o fundo, ou segure o botão direito em qualquer lugar, para navegar, arraste os cards para reposicionar, arraste as bolinhas das bordas para conectar ou clique numa linha para anotar nela ou desconectar, e clique no texto de qualquer card para editá-lo.</h2>
+  <div id="canvas" style="transform: translate(-3986.53px, 123.726px) scale(0.64);">
+    <svg id="edges" aria-hidden="true">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M1 1L8 5L1 9" fill="none" stroke="#8B958F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+        </marker>
+        <marker id="arrow-flag" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M1 1L8 5L1 9" fill="none" stroke="#B3362E" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+        </marker>
+      </defs>
+      <path d="M360 452 C 402 452, 418 452, 460 452" class="edge-hit"></path><path d="M360 452 C 402 452, 418 452, 460 452" class="edge hoverable" marker-end="url(#arrow)"></path><text x="410" y="443" text-anchor="middle" class="elabel">Corretor respondeu</text><path d="M620 564 C 620 629, 618 629, 618 694" class="edge-hit"></path><path d="M620 564 C 620 629, 618 629, 618 694" class="edge hoverable" marker-end="url(#arrow)"></path><text x="628" y="629" text-anchor="middle" class="elabel">Texto ou marcação do imóvel</text><path d="M778 753.5 C 819.16 753.5, 834.84 923, 876 923" class="edge-hit"></path><path d="M778 753.5 C 819.16 753.5, 834.84 923, 876 923" class="edge hoverable" marker-end="url(#arrow)"></path><text x="827" y="829.25" text-anchor="middle" class="elabel">Resposta está na base</text><path d="M778 753.5 C 814 753.5, 820 1176.5, 856 1176.5" class="edge-hit"></path><path d="M778 753.5 C 814 753.5, 820 1176.5, 856 1176.5" class="edge hoverable" marker-end="url(#arrow)"></path><text x="817" y="956" text-anchor="middle" class="elabel">Não está na base</text><path d="M778 753.5 C 928 753.5, 1643 407, 1793 407" class="edge-hit"></path><path d="M778 753.5 C 928 753.5, 1643 407, 1793 407" class="edge hoverable" marker-end="url(#arrow)"></path><text x="1285.5" y="571.25" text-anchor="middle" class="elabel">Já quer visitar</text><path d="M1196 923 C 1346 923, 1643 407, 1793 407" class="edge-hit"></path><path d="M1196 923 C 1346 923, 1643 407, 1793 407" class="edge hoverable" marker-end="url(#arrow)"></path><text x="1494.5" y="656" text-anchor="middle" class="elabel">Quer visitar</text><path d="M876 923 C 834.84 923, 819.16 753.5, 778 753.5" class="edge-hit"></path><path d="M876 923 C 834.84 923, 819.16 753.5, 778 753.5" class="edge hoverable back" marker-end="url(#arrow)"></path><text x="827" y="829.25" text-anchor="middle" class="elabel">Outra dúvida</text><path d="M1176 1176.5 C 1212 1176.5, 1177 1177, 1213 1177" class="edge-hit"></path><path d="M1176 1176.5 C 1212 1176.5, 1177 1177, 1213 1177" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M1533 1177 C 1569 1177, 1569 1177, 1605 1177" class="edge-hit"></path><path d="M1533 1177 C 1569 1177, 1569 1177, 1605 1177" class="edge hoverable" marker-end="url(#arrow)"></path><text x="1569" y="1168" text-anchor="middle" class="elabel">Tel respondeu</text><path d="M1765 1080 C 1765 960, 1953 606, 1953 486" class="edge-hit"></path><path d="M1765 1080 C 1765 960, 1953 606, 1953 486" class="edge hoverable" marker-end="url(#arrow)"></path><text x="1868" y="783" text-anchor="middle" class="elabel">Quer visitar</text><path d="M2113 407 C 2202.88 407, 2237.12 420, 2327 420" class="edge-hit"></path><path d="M2113 407 C 2202.88 407, 2237.12 420, 2327 420" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M2487 489 C 2487 584.5, 2283 584.5, 2283 680" class="edge-hit"></path><path d="M2487 489 C 2487 584.5, 2283 584.5, 2283 680" class="edge hoverable" marker-end="url(#arrow)"></path><text x="2394" y="584.5" text-anchor="middle" class="elabel">Já passou</text><path d="M2487 489 C 2487 583.5, 2614 583.5, 2614 678" class="edge-hit"></path><path d="M2487 489 C 2487 583.5, 2614 583.5, 2614 678" class="edge hoverable" marker-end="url(#arrow)"></path><text x="2559.5" y="583.5" text-anchor="middle" class="elabel">Falta menos de 2h</text><path d="M2283 680 C 2283 584.5, 2487 584.5, 2487 489" class="edge-hit"></path><path d="M2283 680 C 2283 584.5, 2487 584.5, 2487 489" class="edge hoverable back" marker-end="url(#arrow)"></path><text x="2394" y="584.5" text-anchor="middle" class="elabel">Novo horário</text><path d="M3827 435.5 C 3933.68 435.5, 3974.32 440.5, 4081 440.5" class="edge-hit"></path><path d="M3827 435.5 C 3933.68 435.5, 3974.32 440.5, 4081 440.5" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M4401 440.5 C 4437 440.5, 4402 480, 4438 480" class="edge-hit"></path><path d="M4401 440.5 C 4437 440.5, 4402 480, 4438 480" class="edge hoverable" marker-end="url(#arrow)"></path><text x="4419.5" y="451.25" text-anchor="middle" class="elabel">Nome e CPF ok</text><path d="M4241 500 C 4241 620, 4216 661, 4216 781" class="edge-hit"></path><path d="M4241 500 C 4241 620, 4216 661, 4216 781" class="edge hoverable" marker-end="url(#arrow)"></path><text x="4237.5" y="640.5" text-anchor="middle" class="elabel">Faltou dado</text><path d="M4216 781 C 4216 661, 4241 620, 4241 500" class="edge-hit"></path><path d="M4216 781 C 4216 661, 4241 620, 4241 500" class="edge hoverable back" marker-end="url(#arrow)"></path><text x="4237.5" y="640.5" text-anchor="middle" class="elabel">Corretor mandou</text><path d="M4758 480 C 4794 480, 4775 479, 4811 479" class="edge-hit"></path><path d="M4758 480 C 4794 480, 4775 479, 4811 479" class="edge hoverable" marker-end="url(#arrow)"></path><text x="4784.5" y="470.5" text-anchor="middle" class="elabel">Aceitou</text><path d="M7375 -247.5 C 7443.46 -247.5, 7469.54 -435, 7538 -435" class="edge-hit"></path><path d="M7375 -247.5 C 7443.46 -247.5, 7469.54 -435, 7538 -435" class="edge hoverable" marker-end="url(#arrow)"></path><text x="7456.5" y="-350.25" text-anchor="middle" class="elabel">Continua sem resposta</text><path d="M5131 479 C 5281 479, 5350 474, 5500 474" class="edge-hit"></path><path d="M5131 479 C 5281 479, 5350 474, 5500 474" class="edge hoverable" marker-end="url(#arrow)"></path><text x="5315.5" y="467.5" text-anchor="middle" class="elabel">Temos a chave</text><path d="M5131 479 C 5281 479, 5358 717, 5508 717" class="edge-hit"></path><path d="M5131 479 C 5281 479, 5358 717, 5508 717" class="edge hoverable" marker-end="url(#arrow)"></path><text x="5319.5" y="589" text-anchor="middle" class="elabel">Pegar a chave</text><path d="M5131 479 C 5281 479, 5393 1070, 5543 1070" class="edge-hit"></path><path d="M5131 479 C 5281 479, 5393 1070, 5543 1070" class="edge hoverable" marker-end="url(#arrow)"></path><text x="5337" y="765.5" text-anchor="middle" class="elabel">Fechadura eletrônica</text><path d="M5131 479 C 5281 479, 5396 1292, 5546 1292" class="edge-hit"></path><path d="M5131 479 C 5281 479, 5396 1292, 5546 1292" class="edge hoverable" marker-end="url(#arrow)"></path><text x="5338.5" y="876.5" text-anchor="middle" class="elabel">Proprietário acompanha</text><path d="M9065 397.5 C 9136.4 397.5, 9163.6 504, 9235 504" class="edge-hit"></path><path d="M9065 397.5 C 9136.4 397.5, 9163.6 504, 9235 504" class="edge hoverable" marker-end="url(#arrow)"></path><text x="9150" y="441.75" text-anchor="middle" class="elabel">Fechadura eletrônica</text><path d="M780 452 C 930 452, 1643 407, 1793 407" class="edge-hit"></path><path d="M780 452 C 930 452, 1643 407, 1793 407" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M2774 747 C 2810 747, 2756 733.5, 2792 733.5" class="edge-hit"></path><path d="M2774 747 C 2810 747, 2756 733.5, 2792 733.5" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M3112 733.5 C 3148 733.5, 3080 427.5, 3116 427.5" class="edge-hit"></path><path d="M3112 733.5 C 3148 733.5, 3080 427.5, 3116 427.5" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M2647 420 C 2797 420, 2966 427.5, 3116 427.5" class="edge-hit"></path><path d="M2647 420 C 2797 420, 2966 427.5, 3116 427.5" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M3436 427.5 C 3472 427.5, 3471 435.5, 3507 435.5" class="edge-hit"></path><path d="M3436 427.5 C 3472 427.5, 3471 435.5, 3507 435.5" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M3276 497 C 3276 598.5, 3601 598.5, 3601 700" class="edge-hit"></path><path d="M3276 497 C 3276 598.5, 3601 598.5, 3601 700" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M3761 873 C 3797 873, 3741 701, 3777 701" class="edge-hit"></path><path d="M3761 873 C 3797 873, 3741 701, 3777 701" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M4097 701 C 4061 701, 4117 440.5, 4081 440.5" class="edge-hit"></path><path d="M4097 701 C 4061 701, 4117 440.5, 4081 440.5" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M7538 -435 C 7469.54 -435, 7443.46 -247.5, 7375 -247.5" class="edge-hit"></path><path d="M7538 -435 C 7469.54 -435, 7443.46 -247.5, 7375 -247.5" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M7375 -247.5 C 7501.42 -247.5, 7549.58 -137, 7676 -137" class="edge-hit"></path><path d="M7375 -247.5 C 7501.42 -247.5, 7549.58 -137, 7676 -137" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M5820 474 C 5913.66 474, 5949.34 485, 6043 485" class="edge-hit"></path><path d="M5820 474 C 5913.66 474, 5949.34 485, 6043 485" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M6363 485 C 6513 485, 6644 432, 6794 432" class="edge-hit"></path><path d="M6363 485 C 6513 485, 6644 432, 6794 432" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M6954 352 C 6954 320, 7131 320, 7131 288" class="edge-hit"></path><path d="M6954 352 C 6954 320, 7131 320, 7131 288" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M7114 432 C 7264 432, 7388 447, 7538 447" class="edge-hit"></path><path d="M7114 432 C 7264 432, 7388 447, 7538 447" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M7858 447 C 8008 447, 8216 397, 8366 397" class="edge-hit"></path><path d="M7858 447 C 8008 447, 8216 397, 8366 397" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M8686 397 C 8722 397, 8709 397.5, 8745 397.5" class="edge-hit"></path><path d="M8686 397 C 8722 397, 8709 397.5, 8745 397.5" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M9065 397.5 C 9131.36 397.5, 9156.64 734, 9223 734" class="edge-hit"></path><path d="M9065 397.5 C 9131.36 397.5, 9156.64 734, 9223 734" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M9555 504 C 9642.36 504, 9675.64 361.5, 9763 361.5" class="edge-hit"></path><path d="M9555 504 C 9642.36 504, 9675.64 361.5, 9763 361.5" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M9543 734 C 9635.4 734, 9670.6 361.5, 9763 361.5" class="edge-hit"></path><path d="M9543 734 C 9635.4 734, 9670.6 361.5, 9763 361.5" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M9065 397.5 C 9215 397.5, 9613 361.5, 9763 361.5" class="edge-hit"></path><path d="M9065 397.5 C 9215 397.5, 9613 361.5, 9763 361.5" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M10083 361.5 C 10119 361.5, 10107 364, 10143 364" class="edge-hit"></path><path d="M10083 361.5 C 10119 361.5, 10107 364, 10143 364" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M6363 485 C 6513 485, 6905 -247.5, 7055 -247.5" class="edge-hit"></path><path d="M6363 485 C 6513 485, 6905 -247.5, 7055 -247.5" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M5828 717 C 5869.58 717, 5885.42 720, 5927 720" class="edge-hit"></path><path d="M5828 717 C 5869.58 717, 5885.42 720, 5927 720" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M6247 720 C 6338.14 720, 6372.86 714, 6464 714" class="edge-hit"></path><path d="M6247 720 C 6338.14 720, 6372.86 714, 6464 714" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M6247 720 C 6397 720, 6905 -247.5, 7055 -247.5" class="edge-hit"></path><path d="M6247 720 C 6397 720, 6905 -247.5, 7055 -247.5" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M6784 714 C 6820 714, 6803 801, 6839 801" class="edge-hit"></path><path d="M6784 714 C 6820 714, 6803 801, 6839 801" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M7159 801 C 7195 801, 7159 731, 7195 731" class="edge-hit"></path><path d="M7159 801 C 7195 801, 7159 731, 7195 731" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M6784 714 C 6934 714, 7045 731, 7195 731" class="edge-hit"></path><path d="M6784 714 C 6934 714, 7045 731, 7195 731" class="edge hoverable" marker-end="url(#arrow)"></path><path d="M7515 731 C 7551 731, 7502 447, 7538 447" class="edge-hit"></path><path d="M7515 731 C 7551 731, 7502 447, 7538 447" class="edge hoverable" marker-end="url(#arrow)"></path><path id="tempEdge" class="tempedge" d=""></path>
+    </svg>
+<article class="card a-nay" data-id="inicio" style="left:40px;top:340px"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Nay</span><span class="c-canal">no grupo de imóveis</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Nay envia o imóvel no grupo</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false">🏠 <span class="v">{imovel_codigo}</span> para locação<br>📍 <span class="v">{imovel_endereco}</span><br>💰 <span class="v">{imovel_valor}</span><br>Fotos abaixo 👇 Tem cliente pra esse? Me chama!</div>
+        <p class="c-note" contenteditable="true" spellcheck="false">Fotos puxadas só pelo código do imóvel.</p>
+      </article>
+<article class="card a-corretor" data-id="e_msg" style="left:460px;top:340px"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Corretor</span><span class="c-canal">no grupo</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Corretor chama a Nay</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false">Oi Nay, tenho um cliente interessado nesse aqui</div>
+        <div class="c-msg alt" contenteditable="true" spellcheck="false"><span class="tag">ou:</span>Esse ainda está disponível?</div>
+        <p class="c-note" contenteditable="true" spellcheck="false">Separar pelo número do corretor. Nunca usar o contexto de outro corretor.</p>
+      </article>
+<article class="card a-corretor" data-id="d_duvida" style="left: 457.562px; top: 694px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Corretor</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Corretor faz uma pergunta</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false"><span class="v">{duvida_corretor}</span></div>
+      </article>
+<article class="card a-nay" data-id="d_resp" style="left: 875.699px; top: 830.356px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Nay</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Responde com a base OU envia fotos ou parfceria ja por na base</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false">Sobre isso: <span class="v">{resposta_base}</span> 😉 Quer que eu já veja um horário de visita pro seu cliente?</div>
+        <span class="fim-pill">fim, se só isso</span>
+      </article>
+<article class="card a-nay" data-id="d_nao_sabe" style="left: 856.37px; top: 1106.67px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Nay</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Avisa que vai confirmar</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false">Boa pergunta! Vou confirmar essa informação e te retorno em seguida 🙌</div>
+      </article>
+<article class="card a-equipe" data-id="d_equipe" style="left: 1212.52px; top: 1088.26px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Tel</span><span class="c-canal">com o responsável</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Pergunta ao responsável (Tel)</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false">Tel, o corretor <span class="v">{nome_corretor}</span> perguntou sobre o <span class="v">{imovel_codigo}</span>: "<span class="v">{duvida_corretor}</span>". Não achei na base, você sabe?</div>
+      </article>
+<article class="card a-nay" data-id="d_repassa" style="left: 1604.92px; top: 1079.89px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Nay</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Repassa a resposta</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false">Confirmei aqui, <span class="v">{nome_corretor}</span>: <span class="v">{resposta_base}</span>. Quer agendar uma visita?</div>
+        <p class="c-note" contenteditable="true" spellcheck="false">Salvar a resposta na base do imóvel.</p>
+        <span class="fim-pill">fim, se só isso</span>
+      </article>
+<article class="card a-corretor" data-id="v_pedido" style="left: 1793.14px; top: 328.055px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Corretor</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Nay sugere ou Corretor pede a visita (forçar a sugerir)</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false">Consigo visitar <span class="v">{data_visita}</span> às <span class="v">{horario_visita}</span>?</div>
+      </article>
+<article class="card a-sistema" data-id="v_regra" style="left: 2326.85px; top: 350.959px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Checagem</span><span class="c-canal">interna, não envia</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Checa o horário pedido</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false"><span class="tag">Verifica:</span> compara o horário pedido com a hora atual.</div>
+      </article>
+<article class="card a-nay" data-id="v_passou" style="left: 2122.75px; top: 680.125px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Nay</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Horário já passou ou muito proximo</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false">Esse horário já passou 😅 Qual outro horário fica bom pro seu cliente?</div>
+      </article>
+<article class="card a-sistema" data-id="v_2h" style="left: 2453.88px; top: 678.25px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Checagem</span><span class="c-canal">interna, não envia</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Consulta se temos a chave</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false"><span class="tag">Verifica:</span> faltam menos de 2 horas — consulta o tipo de acesso do imóvel.</div>
+      </article>
+<article class="card a-sistema" data-id="v_2h_msg" style="left: 3116.19px; top: 358px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Checagem</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Checa os dados do corretor se ja tem nome e CPF e CRECI&nbsp; dele</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false"><br></div>
+      </article>
+<article class="card a-nay" data-id="v_confirmando" style="left: 3506.7px; top: 326.516px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Nay</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">CORRETOR CONHECIDO Vai confirmar e pede os dados</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false">Vou confirmar aqui a visita e já te retorno! 🙌 Enquanto isso, me passa o nome completo e o CPF do visitante?<div><br></div><div><br></div></div>
+      </article>
+<article class="card a-corretor" data-id="v_dados" style="left: 4081.05px; top: 381.495px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Corretor</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Corretor manda os dados do visitante</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false"><span class="v">{nome_visitante}</span>, CPF <span class="v">{cpf_visitante}</span></div>
+      </article>
+<article class="card a-nay" data-id="v_dados_falta" style="left: 4055.77px; top: 781.044px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Nay</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Revisão</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false"><div><div>(OBS: Reiterar o cpf ou nome completo até 3 minutos)</div><div><br></div><div>Adicionar delay de horario até 2 hrs antes da visita revisar os dados, OU em 1 ou 10 minutos que seja valores a depender da hora atual comparada com a hora da visita marcada)</div></div><div><br></div>Só falta o <span class="v">{dado_faltante}</span> do visitante pra eu fechar a visita 😉</div>
+      </article>
+<article class="card a-proprietario" data-id="p_solicita" style="left: 4438.21px; top: 342.198px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Nay</span><span class="c-canal">com o proprietário</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Pergunta se o horário é possível</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false">Olá <span class="v">{nome_proprietario}</span>, tudo bem? Aqui é a Nay, da <span class="v">{imobiliaria}</span>. Temos um pedido de visita no seu imóvel da <span class="v">{imovel_endereco}</span> para <span class="v">{data_visita}</span> às <span class="v">{horario_visita}</span>. Esse horário é possível?<div><br></div><div>(HUMANIZAR ESSE TEXTO, ex: ir hoje a tarde, ir amanha pela manhã, e não usar datas numericas)</div></div>
+      </article>
+<article class="card a-flag" data-id="p_lembrete" style="left: 7054.87px; top: -341.13px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Pendência</span><span class="c-canal">com o proprietário</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Manda de novo</h3>
+        <span class="c-gat">Quando: 30 min sem resposta</span>
+        <div class="c-msg" contenteditable="true" spellcheck="false">Oi <span class="v">{nome_proprietario}</span>, passando de novo sobre a visita de <span class="v">{data_visita}</span> às <span class="v">{horario_visita}</span>. Consegue me confirmar?</div>
+      </article>
+<article class="card a-nay" data-id="p_avisa" style="left: 7537.91px; top: -513.826px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Nay</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Avisa o corretor da demora</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false"><span class="v">{nome_corretor}</span>, ainda estou aguardando o retorno do proprietário. Assim que ele responder eu te aviso, tá?</div>
+      </article>
+<article class="card a-proprietario" data-id="p_sugestao" style="left: 6464px; top: 635px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Proprietário</span><span class="c-canal">com o proprietário</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">PROPRIETARIO DIZ NÂO</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false"><div>Pedimos outro horario</div>Sem problemas! Qual outro horário fica bom pra você receber a visita?</div>
+      </article>
+<article class="card a-nay" data-id="p_repassa" style="left: 7358px; top: 2074.91px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Nay</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Leva a sugestão ao corretor</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false"><span class="v">{nome_corretor}</span>, o proprietário não consegue às <span class="v">{horario_visita}</span>, mas sugeriu <span class="v">{data_visita}</span> às <span class="v">{horario_sugerido}</span>. Funciona pro seu cliente?</div>
+      </article>
+<article class="card a-proprietario" data-id="p_contra" style="left: 8091.14px; top: 1910.43px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Nay</span><span class="c-canal">com o proprietário</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Leva a contraproposta</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false">O cliente não consegue às <span class="v">{horario_sugerido}</span>. Pode ser às <span class="v">{novo_horario_corretor}</span>?</div>
+      </article>
+<article class="card a-proprietario" data-id="p_ok" style="left: 7847.87px; top: 1786.74px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Nay</span><span class="c-canal">com o proprietário</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Fecha o novo horário</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false">Fechado! O corretor confirmou <span class="v">{data_visita}</span> às <span class="v">{horario_sugerido}</span>. Obrigada 😊</div>
+      </article>
+<article class="card a-sistema" data-id="c_tipo" style="left: 4810.59px; top: 410.198px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Checagem</span><span class="c-canal">interna, não envia</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Qual o acesso ao imóvel?</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false"><span class="tag">Verifica:</span> consulta o tipo de acesso do imóvel no banco.</div>
+      </article>
+<article class="card a-sistema" data-id="c_chave" style="left: 5500.3px; top: 387.301px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Checagem</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Confirmação: chave conosco</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false">A IA SÓ VAI CHECAR E IR PARA A PROXIMA ETAPA<br>🔑 A chave fica na <span class="v">{local_chave}</span>, é só retirar antes.</div>
+      </article>
+<article class="card a-sistema" data-id="c_retirar" style="left: 5507.85px; top: 611.39px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Checagem</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Confirmação: pe<div><article class="card a-corretor" data-id="e_msg" style="border-color: rgb(44, 88, 199) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #2C58C7; font-size: 14px; font-weight: 400; left: 460px; top: 340px;"><h3 class="c-title" spellcheck="false">Corretor chama a Nay</h3><div class="c-msg" spellcheck="false" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(228, 234, 251); border-radius: 3px 11px 11px; font-size: 13.5px; --bg: #E4EAFB;">Oi Nay, tenho um cliente interessado nesse aqui</div><div class="c-msg alt" spellcheck="false" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(228, 234, 251); border-radius: 3px 11px 11px; --bg: #E4EAFB;"><span class="tag">ou:</span>Esse ainda está disponível?</div><p class="c-note" spellcheck="false">Separar pelo número do corretor. Nunca usar o contexto de outro corretor.</p></article><article class="card a-corretor" data-id="d_duvida" style="border-color: rgb(44, 88, 199) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #2C58C7; font-size: 14px; font-weight: 400; left: 457.562px; top: 694px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(44, 88, 199); top: 57.1719px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(44, 88, 199); top: 57.1719px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(44, 88, 199);">Corretor</span><span class="c-canal" style="color: rgb(94, 107, 104);">com o corretor</span></div><h3 class="c-title" spellcheck="false">Corretor faz uma pergunta</h3><div class="c-msg" spellcheck="false" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(228, 234, 251); border-radius: 3px 11px 11px; font-size: 13.5px; --bg: #E4EAFB;"><span class="v" style="color: rgb(44, 88, 199);">{duvida_corretor}</span></div></article><article class="card a-nay" data-id="d_resp" style="border-color: rgb(14, 122, 106) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #0E7A6A; font-size: 14px; font-weight: 400; left: 875.699px; top: 830.356px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(14, 122, 106); top: 90.6719px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(14, 122, 106); top: 90.6719px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(14, 122, 106);">Nay</span><span class="c-canal" style="color: rgb(94, 107, 104);">com o corretor</span></div><h3 class="c-title" spellcheck="false">Responde com a base OU envia fotos ou parfceria ja por na base</h3><div class="c-msg" spellcheck="false" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(223, 242, 236); border-radius: 3px 11px 11px; font-size: 13.5px; --bg: #DFF2EC;">Sobre isso: <span class="v" style="color: rgb(14, 122, 106);">{resposta_base}</span> 😉 Quer que eu já veja um horário de visita pro seu cliente?</div><span class="fim-pill" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(28, 40, 38);">fim, se só isso</span></article><article class="card a-nay" data-id="d_nao_sabe" style="border-color: rgb(14, 122, 106) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #0E7A6A; font-size: 14px; font-weight: 400; left: 856.37px; top: 1106.67px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(14, 122, 106); top: 66.9531px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(14, 122, 106); top: 66.9531px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(14, 122, 106);">Nay</span><span class="c-canal" style="color: rgb(94, 107, 104);">com o corretor</span></div><h3 class="c-title" spellcheck="false">Avisa que vai confirmar</h3><div class="c-msg" spellcheck="false" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(223, 242, 236); border-radius: 3px 11px 11px; font-size: 13.5px; --bg: #DFF2EC;">Boa pergunta! Vou confirmar essa informação e te retorno em seguida 🙌</div></article><article class="card a-equipe" data-id="d_equipe" style="border-color: rgb(150, 58, 116) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #963A74; font-size: 14px; font-weight: 400; left: 1212.52px; top: 1088.26px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(150, 58, 116); top: 86.5156px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(150, 58, 116); top: 86.5156px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(150, 58, 116);">Tel</span><span class="c-canal" style="color: rgb(94, 107, 104);">com o responsável</span></div><h3 class="c-title" spellcheck="false">Pergunta ao responsável (Tel)</h3><div class="c-msg" spellcheck="false" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(246, 228, 239); border-radius: 3px 11px 11px; font-size: 13.5px; --bg: #F6E4EF;">Tel, o corretor <span class="v" style="color: rgb(150, 58, 116);">{nome_corretor}</span> perguntou sobre o <span class="v" style="color: rgb(150, 58, 116);">{imovel_codigo}</span>: "<span class="v" style="color: rgb(150, 58, 116);">{duvida_corretor}</span>". Não achei na base, você sabe?</div></article><article class="card a-nay" data-id="d_repassa" style="border-color: rgb(14, 122, 106) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #0E7A6A; font-size: 14px; font-weight: 400; left: 1604.92px; top: 1079.89px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(14, 122, 106); top: 94.4375px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(14, 122, 106); top: 94.4375px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(14, 122, 106);">Nay</span><span class="c-canal" style="color: rgb(94, 107, 104);">com o corretor</span></div><h3 class="c-title" spellcheck="false">Repassa a resposta</h3><div class="c-msg" spellcheck="false" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(223, 242, 236); border-radius: 3px 11px 11px; font-size: 13.5px; --bg: #DFF2EC;">Confirmei aqui, <span class="v" style="color: rgb(14, 122, 106);">{nome_corretor}</span>: <span class="v" style="color: rgb(14, 122, 106);">{resposta_base}</span>. Quer agendar uma visita?</div><p class="c-note" spellcheck="false">Salvar a resposta na base do imóvel.</p><span class="fim-pill" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(28, 40, 38);">fim, se só isso</span></article><article class="card a-corretor" data-id="v_pedido" style="border-color: rgb(44, 88, 199) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #2C58C7; font-size: 14px; font-weight: 400; left: 1793.14px; top: 328.055px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(44, 88, 199); top: 76.5156px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(44, 88, 199); top: 76.5156px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(44, 88, 199);">Corretor</span><span class="c-canal" style="color: rgb(94, 107, 104);">com o corretor</span></div><h3 class="c-title" spellcheck="false">Nay sugere ou Corretor pede a visita (forçar a sugerir)</h3><div class="c-msg" spellcheck="false" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(228, 234, 251); border-radius: 3px 11px 11px; font-size: 13.5px; --bg: #E4EAFB;">Consigo visitar <span class="v" style="color: rgb(44, 88, 199);">{data_visita}</span> às <span class="v" style="color: rgb(44, 88, 199);">{horario_visita}</span>?</div></article><article class="card a-sistema" data-id="v_regra" style="border-color: rgb(85, 91, 104) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #555B68; font-size: 14px; font-weight: 400; left: 2326.85px; top: 350.959px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(85, 91, 104); top: 66.5156px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(85, 91, 104); top: 66.5156px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(85, 91, 104);">Checagem</span><span class="c-canal" style="color: rgb(94, 107, 104);">interna, não envia</span></div><h3 class="c-title" spellcheck="false">Checa o horário pedido</h3><div class="c-msg" spellcheck="false"><span class="tag">Verifica:</span> compara o horário pedido com a hora atual.</div></article><article class="card a-nay" data-id="v_passou" style="border-color: rgb(14, 122, 106) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #0E7A6A; font-size: 14px; font-weight: 400; left: 2122.75px; top: 680.125px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(14, 122, 106); top: 66.9531px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(14, 122, 106); top: 66.9531px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(14, 122, 106);">Nay</span><span class="c-canal" style="color: rgb(94, 107, 104);">com o corretor</span></div><h3 class="c-title" spellcheck="false">Horário já passou ou muito proximo</h3><div class="c-msg" spellcheck="false" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(223, 242, 236); border-radius: 3px 11px 11px; font-size: 13.5px; --bg: #DFF2EC;">Esse horário já passou 😅 Qual outro horário fica bom pro seu cliente?</div></article><article class="card a-sistema" data-id="v_2h" style="border-color: rgb(85, 91, 104) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #555B68; font-size: 14px; font-weight: 400; left: 2453.88px; top: 678.25px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(85, 91, 104); top: 66.5156px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(85, 91, 104); top: 66.5156px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(85, 91, 104);">Checagem</span><span class="c-canal" style="color: rgb(94, 107, 104);">interna, não envia</span></div><h3 class="c-title" spellcheck="false">Consulta se temos a chave</h3><div class="c-msg" spellcheck="false"><span class="tag">Verifica:</span> faltam menos de 2 horas — consulta o tipo de acesso do imóvel.</div></article><article class="card a-sistema" data-id="v_2h_msg" style="border-color: rgb(85, 91, 104) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #555B68; font-size: 14px; font-weight: 400; left: 3116.19px; top: 358px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(85, 91, 104); top: 67.0156px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(85, 91, 104); top: 67.0156px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(85, 91, 104);">Checagem</span><span class="c-canal" style="color: rgb(94, 107, 104);">com o corretor</span></div><h3 class="c-title" spellcheck="false">Checa os dados do corretor se ja tem nome e CPF e CRECI&nbsp; dele</h3><div class="c-msg" spellcheck="false"><br></div></article><article class="card a-nay" data-id="v_confirmando" style="border-color: rgb(14, 122, 106) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #0E7A6A; font-size: 14px; font-weight: 400; left: 3506.7px; top: 326.516px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(14, 122, 106); top: 105.859px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(14, 122, 106); top: 105.859px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(14, 122, 106);">Nay</span><span class="c-canal" style="color: rgb(94, 107, 104);">com o corretor</span></div><h3 class="c-title" spellcheck="false">CORRETOR CONHECIDO Vai confirmar e pede os dados</h3><div class="c-msg" spellcheck="false" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(223, 242, 236); border-radius: 3px 11px 11px; font-size: 13.5px; --bg: #DFF2EC;">Vou confirmar aqui a visita e já te retorno! 🙌 Enquanto isso, me passa o nome completo e o CPF do visitante?<div><br></div><div><br></div></div></article><article class="card a-corretor" data-id="v_dados" style="border-color: rgb(44, 88, 199) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #2C58C7; font-size: 14px; font-weight: 400; left: 4081.05px; top: 381.495px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(44, 88, 199); top: 57.1719px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(44, 88, 199); top: 57.1719px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(44, 88, 199);">Corretor</span><span class="c-canal" style="color: rgb(94, 107, 104);">com o corretor</span></div><h3 class="c-title" spellcheck="false">Corretor manda os dados do visitante</h3><div class="c-msg" spellcheck="false" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(228, 234, 251); border-radius: 3px 11px 11px; font-size: 13.5px; --bg: #E4EAFB;"><span class="v" style="color: rgb(44, 88, 199);">{nome_visitante}</span>, CPF <span class="v" style="color: rgb(44, 88, 199);">{cpf_visitante}</span></div></article><article class="card a-nay" data-id="v_dados_falta" style="border-color: rgb(14, 122, 106) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #0E7A6A; font-size: 14px; font-weight: 400; left: 4055.77px; top: 781.044px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(14, 122, 106); top: 154.984px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(14, 122, 106); top: 154.984px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(14, 122, 106);">Nay</span><span class="c-canal" style="color: rgb(94, 107, 104);">com o corretor</span></div><h3 class="c-title" spellcheck="false">Revisão</h3><div class="c-msg" spellcheck="false" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(223, 242, 236); border-radius: 3px 11px 11px; font-size: 13.5px; --bg: #DFF2EC;"><div><div>(OBS: Reiterar o cpf ou nome completo até 3 minutos)</div><div><br></div><div>Adicionar delay de horario até 2 hrs antes da visita revisar os dados, OU em 1 ou 10 minutos que seja valores a depender da hora atual comparada com a hora da visita marcada)</div></div><div><br></div>Só falta o <span class="v" style="color: rgb(14, 122, 106);">{dado_faltante}</span> do visitante pra eu fechar a visita 😉</div></article><article class="card a-proprietario" data-id="p_solicita" style="border-color: rgb(169, 100, 0) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #A96400; font-size: 14px; font-weight: 400; left: 4438.21px; top: 342.198px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(169, 100, 0); top: 135.422px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(169, 100, 0); top: 135.422px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(169, 100, 0);">Nay</span><span class="c-canal" style="color: rgb(94, 107, 104);">com o proprietário</span></div><h3 class="c-title" spellcheck="false">Pergunta se o horário é possível</h3><div class="c-msg" spellcheck="false" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(250, 238, 214); border-radius: 3px 11px 11px; font-size: 13.5px; --bg: #FAEED6;">Olá <span class="v" style="color: rgb(169, 100, 0);">{nome_proprietario}</span>, tudo bem? Aqui é a Nay, da <span class="v" style="color: rgb(169, 100, 0);">{imobiliaria}</span>. Temos um pedido de visita no seu imóvel da <span class="v" style="color: rgb(169, 100, 0);">{imovel_endereco}</span> para <span class="v" style="color: rgb(169, 100, 0);">{data_visita}</span> às <span class="v" style="color: rgb(169, 100, 0);">{horario_visita}</span>. Esse horário é possível?<div><br></div><div>(HUMANIZAR ESSE TEXTO, ex: ir hoje a tarde, ir amanha pela manhã, e não usar datas numericas)</div></div></article><article class="card a-flag" data-id="p_lembrete" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(251, 234, 232); border-color: rgb(179, 54, 46) rgb(211, 219, 216) rgb(211, 219, 216); border-width: 4px 1px 1px; border-image: none; --ac: #B3362E; font-size: 14px; font-weight: 400; left: 6644.63px; top: -309.973px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(179, 54, 46); top: 91.2031px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(179, 54, 46); top: 91.2031px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(179, 54, 46);">Pendência</span><span class="c-canal" style="color: rgb(94, 107, 104);">com o proprietário</span></div><h3 class="c-title" spellcheck="false">Manda de novo</h3><span class="c-gat">Quando: 30 min sem resposta</span><div class="c-msg" spellcheck="false" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(241, 242, 244); border-radius: 3px 11px 11px; font-size: 13.5px;">Oi <span class="v" style="color: rgb(179, 54, 46);">{nome_proprietario}</span>, passando de novo sobre a visita de <span class="v" style="color: rgb(179, 54, 46);">{data_visita}</span> às <span class="v" style="color: rgb(179, 54, 46);">{horario_visita}</span>. Consegue me confirmar?</div></article><article class="card a-nay" data-id="p_avisa" style="border-color: rgb(14, 122, 106) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #0E7A6A; font-size: 14px; font-weight: 400; left: 7214.14px; top: -465.753px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(14, 122, 106); top: 76.7344px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(14, 122, 106); top: 76.7344px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(14, 122, 106);">Nay</span><span class="c-canal" style="color: rgb(94, 107, 104);">com o corretor</span></div><h3 class="c-title" spellcheck="false">Avisa o corretor da demora</h3><div class="c-msg" spellcheck="false" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(223, 242, 236); border-radius: 3px 11px 11px; font-size: 13.5px; --bg: #DFF2EC;"><span class="v" style="color: rgb(14, 122, 106);">{nome_corretor}</span>, ainda estou aguardando o retorno do proprietário. Assim que ele responder eu te aviso, tá?</div></article><article class="card a-proprietario" data-id="p_sugestao" style="border-color: rgb(169, 100, 0) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #A96400; font-size: 14px; font-weight: 400; left: 7605.39px; top: 1890.96px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(169, 100, 0); top: 66.9531px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(169, 100, 0); top: 66.9531px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(169, 100, 0);">Nay</span><span class="c-canal" style="color: rgb(94, 107, 104);">com o proprietário</span></div><h3 class="c-title" spellcheck="false">Pede outro horário</h3><div class="c-msg" spellcheck="false" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(250, 238, 214); border-radius: 3px 11px 11px; font-size: 13.5px; --bg: #FAEED6;">Sem problemas! Qual outro horário fica bom pra você receber a visita?</div></article><article class="card a-nay" data-id="p_repassa" style="border-color: rgb(14, 122, 106) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #0E7A6A; font-size: 14px; font-weight: 400; left: 7358px; top: 2074.91px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(14, 122, 106); top: 86.5156px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(14, 122, 106); top: 86.5156px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(14, 122, 106);">Nay</span><span class="c-canal" style="color: rgb(94, 107, 104);">com o corretor</span></div><h3 class="c-title" spellcheck="false">Leva a sugestão ao corretor</h3><div class="c-msg" spellcheck="false" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(223, 242, 236); border-radius: 3px 11px 11px; font-size: 13.5px; --bg: #DFF2EC;"><span class="v" style="color: rgb(14, 122, 106);">{nome_corretor}</span>, o proprietário não consegue às <span class="v" style="color: rgb(14, 122, 106);">{horario_visita}</span>, mas sugeriu <span class="v" style="color: rgb(14, 122, 106);">{data_visita}</span> às <span class="v" style="color: rgb(14, 122, 106);">{horario_sugerido}</span>. Funciona pro seu cliente?</div></article><article class="card a-proprietario" data-id="p_contra" style="border-color: rgb(169, 100, 0) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #A96400; font-size: 14px; font-weight: 400; left: 8091.14px; top: 1910.43px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(169, 100, 0); top: 76.7344px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(169, 100, 0); top: 76.7344px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(169, 100, 0);">Nay</span><span class="c-canal" style="color: rgb(94, 107, 104);">com o proprietário</span></div><h3 class="c-title" spellcheck="false">Leva a contraproposta</h3><div class="c-msg" spellcheck="false" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(250, 238, 214); border-radius: 3px 11px 11px; font-size: 13.5px; --bg: #FAEED6;">O cliente não consegue às <span class="v" style="color: rgb(169, 100, 0);">{horario_sugerido}</span>. Pode ser às <span class="v" style="color: rgb(169, 100, 0);">{novo_horario_corretor}</span>?</div></article><article class="card a-proprietario" data-id="p_ok" style="border-color: rgb(169, 100, 0) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #A96400; font-size: 14px; font-weight: 400; left: 7847.87px; top: 1786.74px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(169, 100, 0); top: 66.9531px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(169, 100, 0); top: 66.9531px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(169, 100, 0);">Nay</span><span class="c-canal" style="color: rgb(94, 107, 104);">com o proprietário</span></div><h3 class="c-title" spellcheck="false">Fecha o novo horário</h3><div class="c-msg" spellcheck="false" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(250, 238, 214); border-radius: 3px 11px 11px; font-size: 13.5px; --bg: #FAEED6;">Fechado! O corretor confirmou <span class="v" style="color: rgb(169, 100, 0);">{data_visita}</span> às <span class="v" style="color: rgb(169, 100, 0);">{horario_sugerido}</span>. Obrigada 😊</div></article><article class="card a-sistema" data-id="c_tipo" style="border-color: rgb(85, 91, 104) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #555B68; font-size: 14px; font-weight: 400; left: 4810.59px; top: 410.198px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(85, 91, 104); top: 66.5156px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(85, 91, 104); top: 66.5156px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(85, 91, 104);">Checagem</span><span class="c-canal" style="color: rgb(94, 107, 104);">interna, não envia</span></div><h3 class="c-title" spellcheck="false">Qual o acesso ao imóvel?</h3><div class="c-msg" spellcheck="false"><span class="tag">Verifica:</span> consulta o tipo de acesso do imóvel no banco.</div></article><article class="card a-sistema" data-id="c_chave" style="border-color: rgb(85, 91, 104) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #555B68; font-size: 14px; font-weight: 400; left: 5500.3px; top: 387.301px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(85, 91, 104); top: 84.6406px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(85, 91, 104); top: 84.6406px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216); opacity: 0; pointer-events: none;"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top"><span class="c-actor" style="color: rgb(85, 91, 104);">Checagem</span><span class="c-canal" style="color: rgb(94, 107, 104);">com o corretor</span></div><h3 class="c-title" spellcheck="false">Confirmação: chave conosco</h3><div class="c-msg" spellcheck="false">A IA SÓ VAI CHECAR E IR PARA A PROXIMA ETAPA<br>🔑 A chave fica na <span class="v" style="color: rgb(85, 91, 104);">{local_chave}</span>, é só retirar antes.</div></article><article class="card a-sistema dragging" data-id="c_retirar" style="border-color: rgb(85, 91, 104) rgb(211, 219, 216) rgb(211, 219, 216); border-style: solid; border-width: 4px 1px 1px; border-image: none; --ac: #555B68; font-size: 14px; font-weight: 400; left: 5507.85px; top: 611.39px;"><span class="port port-in" data-role="in" style="border: 2px solid rgb(85, 91, 104); top: 93.7031px;"></span><span class="port port-out" data-role="out" style="border: 2px solid rgb(85, 91, 104); top: 93.7031px;"></span><div class="card-tools" data-wired="1" style="border: 1px solid rgb(211, 219, 216);"><span class="cswatch" data-actor="nay" title="Nay" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);"></span><span class="cswatch" data-actor="corretor" title="Corretor" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(44, 88, 199);"></span><span class="cswatch" data-actor="proprietario" title="Proprietário" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(169, 100, 0);"></span><span class="cswatch" data-actor="equipe" title="Tel" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(150, 58, 116);"></span><span class="cswatch" data-actor="sistema" title="Checagem" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(85, 91, 104);"></span><span class="cswatch" data-actor="flag" title="Pendência" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(179, 54, 46);"></span><button type="button" class="card-add" title="Criar novo card" style="background: none 0% 0% / auto repeat scroll padding-box border-box rgb(14, 122, 106);">+</button></div><div class="c-top" style="cursor: grabbing;"><span class="c-actor" style="color: rgb(85, 91, 104);">Checagem</span></div></article><span style="color: rgb(94, 107, 104); font-size: 11px; text-align: right; font-weight: 400;">com o corretor </span>gar e devolver a chave</div></h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false">A IA SÓ VAI CHECAR E IR PARA A PROXIMA ETAPA<br>🔑 Retire a chave na <span class="v">{local_chave}</span> e devolva até as <span class="v">{horario_devolucao_chave}</span>, combinado?</div>
+      </article>
+<article class="card a-sistema" data-id="c_fechadura" style="left: 5542.73px; top: 983.329px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Checagem</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Confirmação: fechadura eletrônica</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false">A IA SÓ VAI CHECAR E IR PARA A PROXIMA ETAPA<br>🔐 O imóvel tem fechadura eletrônica. Te mando a senha perto do horário.</div>
+      </article>
+<article class="card a-sistema" data-id="c_acompanha" style="left: 5545.74px; top: 1205.16px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Checagem</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Confirmação: proprietário abre</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false">A IA SÓ VAI CHECAR E IR PARA A PROXIMA ETAPA<br>🙋 <span class="v">{nome_proprietario}</span> vai estar lá pra abrir o imóvel. Chega no horário certinho, tá?</div>
+      </article>
+<article class="card a-proprietario" data-id="c_prop" style="left: 5927.46px; top: 631.153px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Nay</span><span class="c-canal">com o proprietário</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Dados do visitante ao proprietário</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false">Visita confirmada, &nbsp;<span class="v">{data_visita}</span> às <span class="v">{horario_visita}</span>. De forma humanizada<div><br></div><div><br></div></div>
+      </article>
+<article class="card a-equipe" data-id="flag_fernando" style="left: 6793.56px; top: 351.63px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Tel</span><span class="c-canal">falta decidir</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Avisar motoboy</h3>
+        <p class="flag-body" contenteditable="true" spellcheck="false">Olá, reservamos uma visita ao imovel [imovel] do proprietário [proprietario] as [hora exata] pelo corretor [corretor] posso confirmar que você vai acompanhar?</p>
+      </article>
+<article class="card a-nay" data-id="pv_lembrete" style="left: 8745.18px; top: 304px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Nay</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Lembrete da visita</h3>
+        <span class="c-gat">Quando: 1 hora antes</span>
+        <div class="c-msg" contenteditable="true" spellcheck="false"><div>No começo do proximo periodo</div><div>E 1 hora antes</div><div>Ao [corretor]</div></div>
+      </article>
+<article class="card a-equipe" data-id="pv_senha" style="left: 9235.45px; top: 420.364px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Tel</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Manda a senha da fechadura</h3>
+        <span class="c-gat">Quando: 30 min antes</span>
+        <div class="c-msg" contenteditable="true" spellcheck="false">Senha do imóvel da <span class="v">{imovel_endereco}</span>: <span class="v">{senha_fechadura}</span> 🔐 Boa visita!</div>
+      </article>
+<article class="card a-equipe" data-id="pv_chave" style="left: 9222.55px; top: 655.273px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Tel</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Lembra de devolver a chave</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false"><span class="v">{nome_corretor}</span>, só lembrando de devolver a chave na <span class="v">{local_chave}</span> até as <span class="v">{horario_devolucao_chave}</span> 🙏</div>
+      </article>
+<article class="card a-corretor" data-id="pv_feedback" style="left: 6634.33px; top: 1959.05px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Corretor</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">FIM DO DIA OU NO OUTRO DIA - Pergunta como foi</h3>
+        <span class="c-gat">Quando: 1 hora depois</span>
+        <div class="c-msg" contenteditable="true" spellcheck="false">E aí, <span class="v">{nome_corretor}</span>, como foi a visita? O cliente gostou do imóvel?</div>
+      </article>
+<article class="card a-nay" data-id="pv_proposta" style="left: 8366.56px; top: 1172.38px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Nay</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Segue para proposta</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false">Após a visita, perguntar se ele gostou e se quer fechar um contrato com algum imóvel?</div>
+        <span class="fim-pill">fim</span>
+      </article>
+<article class="card a-nay" data-id="pv_outros" style="left: 6421px; top: 1955.13px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div>
+        <div class="c-top"><span class="c-actor">Nay</span><span class="c-canal">com o corretor</span></div>
+        <h3 class="c-title" contenteditable="true" spellcheck="false">Oferece outras opções</h3>
+        <div class="c-msg" contenteditable="true" spellcheck="false">Poxa! Me conta o que ele procura que eu te mando opções parecidas.</div>
+        <span class="fim-pill">fim</span>
+      </article>
+  <article class="card a-nay" data-id="novo_1789062721892_1" style="left: 2791.75px; top: 674.188px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div><div class="c-top"><span class="c-actor">Nay</span><span class="c-canal" contenteditable="true" spellcheck="false">interna, não envia</span></div><h3 class="c-title" contenteditable="true" spellcheck="false">Consultar agenda motoboy ou tel</h3><div class="c-msg" contenteditable="true" spellcheck="false">Escreva a mensagem aqui…</div></article><article class="card a-nay" data-id="novo_1789062933666_2" style="left: 3440.71px; top: 700.319px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div><div class="c-top"><span class="c-actor">Nay</span><span class="c-canal" contenteditable="true" spellcheck="false">com o corretor</span></div><h3 class="c-title" contenteditable="true" spellcheck="false"><h3 class="c-title" spellcheck="false" style="box-shadow: rgb(14, 122, 106) 0px 0px 0px 2px; border-radius: 6px; background-image: initial; background-position: initial; background-size: initial; background-repeat: initial; background-attachment: initial; background-origin: initial; background-clip: initial;">CORRETOR NOVO Vai confirmar e pede os dados</h3></h3><div class="c-msg" contenteditable="true" spellcheck="false"><div>Vou confirmar aqui a visita e já te retorno! 🙌 Enquanto isso, me passa o sue&nbsp; nome completo e o CPF&nbsp;</div><div><br></div><div>Depois</div><div><br></div><div>Agora pode passar o nome completo e o CPF do visitante?</div><div><br></div><div><br></div><div><br></div></div></article><article class="card a-sistema" data-id="novo_1789062985843_3" style="left: 3777.27px; top: 640.89px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div><div class="c-top"><span class="c-actor">Checagem</span><span class="c-canal" contenteditable="true" spellcheck="false">com o corretor</span></div><h3 class="c-title" contenteditable="true" spellcheck="false">Registrar corretor novo no sistema</h3><div class="c-msg" contenteditable="true" spellcheck="false">Escreva a mensagem aqui…</div></article><article class="card a-equipe" data-id="novo_1789063603924_4" style="left: 7675.91px; top: -254.739px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div><div class="c-top"><span class="c-actor">Tel</span><span class="c-canal" contenteditable="true" spellcheck="false">com o corretor</span></div><h3 class="c-title" contenteditable="true" spellcheck="false">Acionar o tel caso demore a confirmação até 2 horas antes da visita</h3><div class="c-msg" contenteditable="true" spellcheck="false">Olha tel vai ter uma visita tal hora x, que horas eu mando o proximo aviso ao proprietario?<div>Tel= a visita é 11, então manda o proximo as 10 e se ele não responder em 30 minutos me avisa que eu ligo</div></div></article><article class="card a-proprietario" data-id="novo_1789064713747_5" style="left: 6043.18px; top: 396.182px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div><div class="c-top"><span class="c-actor">Proprietário</span><span class="c-canal" contenteditable="true" spellcheck="false">falta decidir</span></div><h3 class="c-title" contenteditable="true" spellcheck="false">Avisa o proprietario</h3><div class="c-msg" contenteditable="true" spellcheck="false">Olá, só passando para avisar que vamos fazer uma visita nos eu imovel, no [periodo\ou dia humanizado] as [horas] qualquer novidades avisamos por aqui!</div></article><article class="card a-equipe" data-id="novo_1789065159046_6" style="left: 6970.61px; top: 148.638px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div><div class="c-top"><span class="c-actor">Tel</span><span class="c-canal" contenteditable="true" spellcheck="false">com o responsável</span></div><h3 class="c-title" contenteditable="true" spellcheck="false">PROBLEMA?</h3><div class="c-msg" contenteditable="true" spellcheck="false">Se o motoboy disser que não deu ou surgir algum imprevisto avisar o TEL</div></article><article class="card a-corretor" data-id="novo_1789065284833_7" style="left: 7537.63px; top: 348.397px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div><div class="c-top"><span class="c-actor">Corretor</span><span class="c-canal" contenteditable="true" spellcheck="false">com o responsável</span></div><h3 class="c-title" contenteditable="true" spellcheck="false"><span style="font-size: 13.5px; font-weight: 400;">Visita confirmada</span></h3><div class="c-msg" contenteditable="true" spellcheck="false">Visita confirmada, <span class="v" style="color: rgb(169, 100, 0);">{nome_proprietario}</span>! <span class="v" style="color: rgb(169, 100, 0);">{data_visita}</span> às <span class="v" style="color: rgb(169, 100, 0);">{horario_visita}</span><div><span class="v" style="color: rgb(169, 100, 0);"><br></span></div><div><span class="v" style="color: rgb(169, 100, 0);">Quem vai acompanhar sua visita é o</span></div><div><span class="v" style="color: rgb(169, 100, 0);">&nbsp;[motobot]&nbsp; {contato do motoboy]</span></div></div></article><article class="card a-nay" data-id="novo_1789065396436_8" style="left: 8365.73px; top: 318px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div><div class="c-top"><span class="c-actor">Nay</span><span class="c-canal" contenteditable="true" spellcheck="false">com o corretor</span></div><h3 class="c-title" contenteditable="true" spellcheck="false">Standyby (no tempo até a visita)</h3><div class="c-msg" contenteditable="true" spellcheck="false">Disponivel para qualquer duvidas do corretor depois que a visita for confirmada, não souber vai passar par o tel</div></article><article class="card a-corretor" data-id="novo_1789065861249_9" style="left: 7194.93px; top: 651.862px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div><div class="c-top"><span class="c-actor">Corretor</span><span class="c-canal" contenteditable="true" spellcheck="false">com o corretor</span></div><h3 class="c-title" contenteditable="true" spellcheck="false">Sugerir outro horari do proprietario</h3><div class="c-msg" contenteditable="true" spellcheck="false">Se ele aceitar pode serugir para visita confirmada, se não fica tentnado agendar um horario em loop até os 2 concordarem</div></article><article class="card a-nay" data-id="novo_1789068622387_10" style="left: 9762.73px; top: 302.455px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div><div class="c-top"><span class="c-actor">Nay</span><span class="c-canal" contenteditable="true" spellcheck="false">com o corretor</span></div><h3 class="c-title" contenteditable="true" spellcheck="false">VISITA</h3><div class="c-msg" contenteditable="true" spellcheck="false">Escreva a mensagem aqui…</div></article><article class="card a-equipe" data-id="novo_1789068779807_11" style="left: 10142.7px; top: 295px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div><div class="c-top"><span class="c-actor">Tel</span><span class="c-canal" contenteditable="true" spellcheck="false">com o corretor</span></div><h3 class="c-title" contenteditable="true" spellcheck="false">Tel para fechar contratos ou sugerir outros imoveis</h3><div class="c-msg" contenteditable="true" spellcheck="false">Imovel proposta</div></article><article class="card a-proprietario" data-id="novo_1789069371016_12" style="left: 6838.81px; top: 722.138px;"><span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span><div class="card-tools" data-wired="1"><span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span><span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span><span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span><span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span><span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span><span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span><button type="button" class="card-add" title="Criar novo card">+</button></div><div class="c-top"><span class="c-actor">Proprietário</span><span class="c-canal" contenteditable="true" spellcheck="false">com o proprietário</span></div><h3 class="c-title" contenteditable="true" spellcheck="false">Se ele não sugeriu ja o horario na mensagem que disse não para o nosso então Perguntar se ele tem outro horario</h3><div class="c-msg" contenteditable="true" spellcheck="false">Escreva a mensagem aqui…</div></article></div>
+</div>
+
+<div class="toolbar">
+  <div class="zoomgroup">
+    <button class="tbtn icon" id="zoomOut" title="Diminuir zoom">−</button>
+    <label class="zoom-deslizante" title="Zoom — também dá pra usar a pinça no touchpad ou Ctrl + roda do mouse"><span class="sr-only">Zoom</span><input type="range" id="zoomRange" min="28" max="170" step="1" value="55"></label>
+    <button class="tbtn zoom-pct" id="zoomPct" title="Voltar para 100%">55%</button>
+    <button class="tbtn icon" id="zoomIn" title="Aumentar zoom">+</button>
+  </div>
+  <button class="tbtn" id="resetView">↺ Vista inicial</button>
+  <button class="tbtn" id="exportBtn">💾 Baixar cópia editada</button>
+  <span class="sync-status" id="syncStatus" role="status" aria-live="polite">Carregando…</span>
+  <button class="tbtn" id="syncBtn" title="Grava suas alterações no sistema e elas aparecem em todos os aparelhos. Atalho: Ctrl+S">Salvar fluxo no sistema</button>
+</div>
+
+<div class="hint" id="hint" style="display: none;">
+  <span class="close" id="hintClose">✕</span>
+  <b>Como usar:</b> arraste o fundo pra navegar (ou segure o botão direito em qualquer lugar) · no touchpad, dois dedos movem a tela e a pinça dá zoom · Ctrl + roda do mouse também dá zoom · arraste o topo de um card pra reposicionar · arraste a bolinha da borda pra conectar dois cards · clique numa linha pra anotar nela ou desconectar · clique em qualquer texto pra editar · passe o mouse num card pra ver as bolinhas de cor (troca a cor), o + (cria um card novo solto) e o × (apaga o card). Depois de mexer, clique em <b>Salvar fluxo no sistema</b>: a versão vai para todos os aparelhos.
+</div>
+
+<div class="savedtoast" id="toast">Baixado — esse arquivo já sai com suas edições, posições e conexões.</div>
+
+<script src="../assets/js/config.js"></script>
+<script>
+var EDGES=[["inicio","e_msg","Corretor respondeu"],["e_msg","d_duvida","Texto ou marcação do imóvel"],["d_duvida","d_resp","Resposta está na base"],["d_duvida","d_nao_sabe","Não está na base"],["d_duvida","v_pedido","Já quer visitar"],["d_resp","v_pedido","Quer visitar"],["d_resp","d_duvida","Outra dúvida","back"],["d_nao_sabe","d_equipe",""],["d_equipe","d_repassa","Tel respondeu"],["d_repassa","v_pedido","Quer visitar"],["v_pedido","v_regra",""],["v_regra","v_passou","Já passou"],["v_regra","v_2h","Falta menos de 2h"],["v_passou","v_regra","Novo horário","back"],["v_confirmando","v_dados",""],["v_dados","p_solicita","Nome e CPF ok"],["v_dados","v_dados_falta","Faltou dado"],["v_dados_falta","v_dados","Corretor mandou","back"],["p_solicita","c_tipo","Aceitou"],["p_lembrete","p_avisa","Continua sem resposta"],["c_tipo","c_chave","Temos a chave"],["c_tipo","c_retirar","Pegar a chave"],["c_tipo","c_fechadura","Fechadura eletrônica"],["c_tipo","c_acompanha","Proprietário acompanha"],["pv_lembrete","pv_senha","Fechadura eletrônica"],["e_msg","v_pedido",""],["v_2h","novo_1789062721892_1",""],["novo_1789062721892_1","v_2h_msg",""],["v_regra","v_2h_msg",""],["v_2h_msg","v_confirmando",""],["v_2h_msg","novo_1789062933666_2",""],["novo_1789062933666_2","novo_1789062985843_3",""],["novo_1789062985843_3","v_dados",""],["p_avisa","p_lembrete",""],["p_lembrete","novo_1789063603924_4",""],["c_chave","novo_1789064713747_5",""],["novo_1789064713747_5","flag_fernando",""],["flag_fernando","novo_1789065159046_6",""],["flag_fernando","novo_1789065284833_7",""],["novo_1789065284833_7","novo_1789065396436_8",""],["novo_1789065396436_8","pv_lembrete",""],["pv_lembrete","pv_chave",""],["pv_senha","novo_1789068622387_10",""],["pv_chave","novo_1789068622387_10",""],["pv_lembrete","novo_1789068622387_10",""],["novo_1789068622387_10","novo_1789068779807_11",""],["novo_1789064713747_5","p_lembrete",""],["c_retirar","c_prop",""],["c_prop","p_sugestao",""],["c_prop","p_lembrete",""],["p_sugestao","novo_1789069371016_12",""],["novo_1789069371016_12","novo_1789065861249_9",""],["p_sugestao","novo_1789065861249_9",""],["novo_1789065861249_9","novo_1789065284833_7",""]];
+(function(){
+'use strict';
+var viewport=document.getElementById('viewport');
+var canvas=document.getElementById('canvas');
+var svg=document.getElementById('edges');
+var tempEdge=document.getElementById('tempEdge');
+var toast=document.getElementById('toast');
+
+var panX=70, panY=40, zoom=0.55;
+function applyTransform(){
+  canvas.style.transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')';
+  // barra de rolagem e zoom acompanham (a funcao e declarada mais abaixo)
+  if(typeof atualizarControles==='function') atualizarControles();
+}
+applyTransform();
+
+function toCanvasCoords(clientX,clientY){
+  var vr=viewport.getBoundingClientRect();
+  return {x:(clientX-vr.left-panX)/zoom, y:(clientY-vr.top-panY)/zoom};
+}
+
+/* ---------- PAN (arrastar o fundo do canvas) ---------- */
+var isPanning=false, panStartX=0, panStartY=0, panOrigX=0, panOrigY=0;
+var panBotao=0, panMoveu=false, suprimirMenu=false;
+function iniciarPan(e){
+  isPanning=true; panBotao=e.button; panMoveu=false;
+  try{ viewport.setPointerCapture(e.pointerId); }catch(err){}
+  viewport.classList.add('panning');
+  panStartX=e.clientX; panStartY=e.clientY;
+  panOrigX=panX; panOrigY=panY;
+  // Arrastar a tela nunca vira selecao de texto.
+  var sel=window.getSelection && window.getSelection();
+  if(sel && sel.removeAllRanges) sel.removeAllRanges();
+}
+// Botao DIREITO ou do MEIO: arrasta a tela de qualquer lugar, ate por
+// cima de card. Fase de captura: pega o evento antes do card (que
+// arrastaria o card) e da bolinha (que comecaria uma ligacao).
+viewport.addEventListener('pointerdown', function(e){
+  if(e.pointerType!=='mouse' || (e.button!==1 && e.button!==2)) return;
+  if(e.target.closest('.edge-pop') || e.target.closest('.rolagem-h')) return;
+  e.preventDefault(); e.stopPropagation();
+  iniciarPan(e);
+}, true);
+// Botao esquerdo no FUNDO (12/09/2026, pedido do Tel): desenha uma AREA DE
+// SELECAO; os cards que ela pega ficam marcados e, arrastando qualquer um
+// deles, todos andam juntos. Shift ou Ctrl somam a selecao que ja existe.
+// Mover a tela continua: dois dedos no touchpad, roda, ou botao direito /
+// do meio arrastando. No toque (tablet/celular) o dedo segue movendo a
+// tela, porque la nao ha outro jeito de mover.
+var selecao=[], area=null;
+var areaEl=document.createElement('div');
+areaEl.className='selecao-area';
+viewport.appendChild(areaEl);
+function cardsDoTopo(){ return Array.prototype.slice.call(canvas.querySelectorAll(':scope > .card')); }
+function limparSelecao(){
+  for(var i=0;i<selecao.length;i++) selecao[i].classList.remove('selecionado');
+  selecao=[];
+}
+function selecaoViva(){
+  selecao=selecao.filter(function(el){ return el.parentNode===canvas; });
+  return selecao;
+}
+viewport.addEventListener('pointerdown', function(e){
+  if(e.pointerType==='mouse' && e.button!==0) return;
+  if(e.target.closest('.card')||e.target.closest('.port')||e.target.closest('.rolagem-h')) return;
+  e.preventDefault();
+  var ativo=document.activeElement;
+  if(ativo && ativo.isContentEditable) ativo.blur();
+  if(e.pointerType==='touch'){ iniciarPan(e); return; }
+  var somar=e.shiftKey||e.ctrlKey||e.metaKey;
+  if(!somar) limparSelecao();
+  area={ x0:e.clientX, y0:e.clientY, base:selecao.slice(), moveu:false };
+  try{ viewport.setPointerCapture(e.pointerId); }catch(err){}
+  var sel=window.getSelection && window.getSelection();
+  if(sel && sel.removeAllRanges) sel.removeAllRanges();
+});
+viewport.addEventListener('pointermove', function(e){
+  if(!area) return;
+  if(Math.abs(e.clientX-area.x0)+Math.abs(e.clientY-area.y0)>4) area.moveu=true;
+  if(!area.moveu) return;
+  var vr=viewport.getBoundingClientRect();
+  var l=Math.min(area.x0,e.clientX), t=Math.min(area.y0,e.clientY);
+  areaEl.style.display='block';
+  areaEl.style.left=(l-vr.left)+'px'; areaEl.style.top=(t-vr.top)+'px';
+  areaEl.style.width=Math.abs(e.clientX-area.x0)+'px'; areaEl.style.height=Math.abs(e.clientY-area.y0)+'px';
+  var a=toCanvasCoords(area.x0,area.y0), b=toCanvasCoords(e.clientX,e.clientY);
+  var x1=Math.min(a.x,b.x), x2=Math.max(a.x,b.x), y1=Math.min(a.y,b.y), y2=Math.max(a.y,b.y);
+  limparSelecao();
+  selecao=area.base.slice();
+  cardsDoTopo().forEach(function(card){
+    var r=rect(card);
+    // pega o card que a area TOCA, nao so o que fica inteiro dentro
+    var toca=r.l<x2 && r.r>x1 && r.t<y2 && r.b>y1;
+    if(toca && selecao.indexOf(card)<0) selecao.push(card);
+  });
+  for(var i=0;i<selecao.length;i++) selecao[i].classList.add('selecionado');
+});
+function fimArea(e){
+  if(!area) return;
+  area=null;
+  areaEl.style.display='none';
+  try{ viewport.releasePointerCapture(e.pointerId); }catch(err){}
+}
+viewport.addEventListener('pointerup', fimArea);
+viewport.addEventListener('pointercancel', fimArea);
+document.addEventListener('keydown', function(e){
+  if(e.key!=='Escape' || !selecao.length) return;
+  var a=document.activeElement;
+  if(a && a.isContentEditable) return;
+  limparSelecao();
+});
+viewport.addEventListener('pointermove', function(e){
+  if(!isPanning) return;
+  if(Math.abs(e.clientX-panStartX)+Math.abs(e.clientY-panStartY)>4) panMoveu=true;
+  panX=panOrigX+(e.clientX-panStartX);
+  panY=panOrigY+(e.clientY-panStartY);
+  applyTransform();
+});
+function endPan(e){
+  if(!isPanning) return;
+  isPanning=false;
+  if(panBotao===2 && panMoveu){ suprimirMenu=true; setTimeout(function(){ suprimirMenu=false; }, 500); }
+  viewport.classList.remove('panning');
+  try{ viewport.releasePointerCapture(e.pointerId); }catch(err){}
+}
+viewport.addEventListener('pointerup', endPan);
+viewport.addEventListener('pointercancel', endPan);
+
+/* ---------- ZOOM ---------- */
+function setZoom(nz, clientX, clientY){
+  nz=Math.min(1.7, Math.max(0.28, nz));
+  var vr=viewport.getBoundingClientRect();
+  var mx=(clientX!=null?clientX:vr.left+vr.width/2)-vr.left;
+  var my=(clientY!=null?clientY:vr.top+vr.height/2)-vr.top;
+  var wx=(mx-panX)/zoom, wy=(my-panY)/zoom;
+  zoom=nz;
+  panX=mx-wx*zoom; panY=my-wy*zoom;
+  applyTransform();
+}
+viewport.addEventListener('wheel', function(e){
+  e.preventDefault();
+  // No notebook, dois dedos no touchpad chegam como "roda". Antes toda
+  // roda dava zoom, e mover a tela pelo touchpad era impossivel.
+  // Agora: roda / dois dedos = mover. Ctrl + roda, ou pinca no touchpad
+  // (o navegador manda a pinca como roda com Ctrl), = zoom.
+  if(e.ctrlKey || e.metaKey){
+    var passo=e.deltaMode===0 ? e.deltaY : e.deltaY*40;
+    var fator=Math.exp(Math.max(-0.2, Math.min(0.2, -passo*0.0018)));
+    setZoom(zoom*fator, e.clientX, e.clientY);
+    return;
+  }
+  var mult=e.deltaMode===1 ? 16 : (e.deltaMode===2 ? viewport.clientHeight : 1);
+  var dx=e.deltaX*mult, dy=e.deltaY*mult;
+  if(e.shiftKey && !dx){ dx=dy; dy=0; }   // Shift + roda do mouse = lado a lado
+  panX-=dx; panY-=dy;
+  applyTransform();
+}, {passive:false});
+document.getElementById('zoomIn').addEventListener('click', function(){ setZoom(zoom+0.16); });
+document.getElementById('zoomOut').addEventListener('click', function(){ setZoom(zoom-0.16); });
+document.getElementById('resetView').addEventListener('click', function(){ panX=70; panY=40; zoom=0.55; applyTransform(); });
+
+/* ---------- util geometria ---------- */
+function ns(t){ return document.createElementNS('http://www.w3.org/2000/svg', t); }
+function rect(el){
+  var l=el.offsetLeft, t=el.offsetTop, w=el.offsetWidth, h=el.offsetHeight;
+  return {l:l,t:t,r:l+w,b:t+h,cx:l+w/2,cy:t+h/2};
+}
+function edgeGeom(s,d){
+  var dx=d.cx-s.cx, dy=d.cy-s.cy;
+  var sx,sy,ex,ey,horiz;
+  if(Math.abs(dx) >= Math.abs(dy)*0.85){
+    horiz=true;
+    if(dx>=0){ sx=s.r; ex=d.l; } else { sx=s.l; ex=d.r; }
+    sy=s.cy; ey=d.cy;
+  } else {
+    horiz=false;
+    if(dy>=0){ sy=s.b; ey=d.t; } else { sy=s.t; ey=d.b; }
+    sx=s.cx; ex=d.cx;
+  }
+  var path,mx,my;
+  if(horiz){
+    var off=Math.max(36,Math.min(150,Math.abs(ex-sx)*0.42));
+    var dir=ex>=sx?1:-1;
+    path='M'+sx+' '+sy+' C '+(sx+dir*off)+' '+sy+', '+(ex-dir*off)+' '+ey+', '+ex+' '+ey;
+    mx=(sx+ex)/2; my=(sy+ey)/2-9;
+  } else {
+    var offv=Math.max(30,Math.min(120,Math.abs(ey-sy)*0.5));
+    var dirv=ey>=sy?1:-1;
+    path='M'+sx+' '+sy+' C '+sx+' '+(sy+dirv*offv)+', '+ex+' '+(ey-dirv*offv)+', '+ex+' '+ey;
+    mx=(sx+ex)/2+9; my=(sy+ey)/2;
+  }
+  return {path:path,mx:mx,my:my};
+}
+
+/* ---------- desenhar / redesenhar arestas ---------- */
+function clearEdgeEls(){
+  var old=svg.querySelectorAll('.edge,.edge-hit,.elabel');
+  for(var i=0;i<old.length;i++) old[i].remove();
+}
+function renderEdges(){
+  clearEdgeEls();
+  EDGES.forEach(function(e, idx){
+    var from=e[0], to=e[1], label=e[2]||'', kind=e[3]||'';
+    var srcEl=canvas.querySelector('[data-id="'+from+'"]');
+    var dstEl=canvas.querySelector('[data-id="'+to+'"]');
+    if(!srcEl||!dstEl) return;
+    var g=edgeGeom(rect(srcEl), rect(dstEl));
+    var hit=ns('path');
+    hit.setAttribute('d',g.path);
+    hit.setAttribute('class','edge-hit');
+    hit.addEventListener('pointerdown', function(ev){ ev.stopPropagation(); });
+    hit.addEventListener('click', function(ev){
+      ev.stopPropagation();
+      // Antes: clicar na linha apagava na hora. Agora abre a anotação,
+      // que tem "Remover ligação" dentro -- o apagar continua a um clique.
+      abrirPopLigacao(e, ev);
+    });
+    svg.insertBefore(hit, tempEdge);
+    var p=ns('path');
+    p.setAttribute('d',g.path);
+    p.setAttribute('class','edge hoverable'+(kind==='back'?' back':'')+(kind==='flag'?' flag':''));
+    p.setAttribute('marker-end', kind==='flag'?'url(#arrow-flag)':'url(#arrow)');
+    svg.insertBefore(p, tempEdge);
+    if(label){
+      var t=ns('text');
+      t.setAttribute('x',g.mx); t.setAttribute('y',g.my); t.setAttribute('text-anchor','middle');
+      t.setAttribute('class','elabel'+(kind==='flag'?' flagl':''));
+      // Anotação longa quebra em linhas; as que já existiam (até 27
+      // caracteres) continuam numa linha só, do mesmo jeito.
+      var linhasRot=quebrarRotulo(label, 34);
+      if(linhasRot.length<2){ t.textContent=label; }
+      else {
+        linhasRot.forEach(function(ln,k){
+          var ts=ns('tspan');
+          ts.setAttribute('x', g.mx);
+          ts.setAttribute('dy', k===0 ? String(-(linhasRot.length-1)*6.5) : '13');
+          ts.textContent=ln;
+          t.appendChild(ts);
+        });
+      }
+      svg.insertBefore(t, tempEdge);
+    }
+  });
+}
+var redrawPending=false;
+function scheduleRedraw(){
+  if(redrawPending) return;
+  redrawPending=true;
+  requestAnimationFrame(function(){ redrawPending=false; renderEdges(); });
+}
+
+/* ---------- arrastar cards ---------- */
+var draggingCard=null, dragOffX=0, dragOffY=0;
+function wireCardDrag(card){
+  var handle=card.querySelector('.c-top');
+  // Card sem cabecalho (colagem acidental) nao pode derrubar o init e
+  // deixar todos os cards seguintes sem arrastar, cor e apagar.
+  if(!handle) return;
+  var posAntes='', grupo=[], c0=null;
+  handle.addEventListener('pointerdown', function(e){
+    e.stopPropagation();
+    try{ handle.setPointerCapture(e.pointerId); }catch(err){}
+    draggingCard=card;
+    card.classList.add('dragging');
+    c0=toCanvasCoords(e.clientX,e.clientY);
+    dragOffX=c0.x-card.offsetLeft;
+    dragOffY=c0.y-card.offsetTop;
+    posAntes=card.style.left+'|'+card.style.top;
+    // Card de dentro da selecao: anda o GRUPO inteiro. Card de fora: a
+    // selecao some e ele anda sozinho, como sempre foi.
+    var viva=selecaoViva();
+    if(viva.indexOf(card)<0) limparSelecao();
+    var quem=(viva.indexOf(card)>=0 && viva.length>1) ? viva : [card];
+    grupo=quem.map(function(el){ return { el:el, l:el.offsetLeft, t:el.offsetTop }; });
+  });
+  handle.addEventListener('pointermove', function(e){
+    if(draggingCard!==card) return;
+    var c=toCanvasCoords(e.clientX,e.clientY);
+    var dx=c.x-c0.x, dy=c.y-c0.y;
+    for(var i=0;i<grupo.length;i++){
+      grupo[i].el.style.left=(grupo[i].l+dx)+'px';
+      grupo[i].el.style.top=(grupo[i].t+dy)+'px';
+    }
+    scheduleRedraw();
+  });
+  function endDrag(e){
+    if(draggingCard!==card) return;
+    card.classList.remove('dragging');
+    try{ handle.releasePointerCapture(e.pointerId); }catch(err){}
+    draggingCard=null;
+    renderEdges();
+    if(card.style.left+'|'+card.style.top!==posAntes) marcarSujo();
+  }
+  handle.addEventListener('pointerup', endDrag);
+  handle.addEventListener('pointercancel', endDrag);
+}
+
+/* ---------- conectar / desconectar pelas portas ---------- */
+var connecting=null;
+function updateTempEdge(clientX,clientY){
+  var card=canvas.querySelector('[data-id="'+connecting.card+'"]');
+  var r=rect(card);
+  var sx=connecting.role==='out'?r.r:r.l;
+  var sy=r.cy;
+  var p=toCanvasCoords(clientX,clientY);
+  tempEdge.setAttribute('d','M'+sx+' '+sy+' L '+p.x+' '+p.y);
+}
+function addEdge(a,b){
+  if(a===b) return;
+  var exists=EDGES.some(function(e){ return e[0]===a && e[1]===b; });
+  if(exists) return;
+  EDGES.push([a,b,'']);
+  renderEdges();
+  marcarSujo();
+}
+function wirePort(port){
+  port.addEventListener('pointerdown', function(e){
+    e.stopPropagation();
+    try{ port.setPointerCapture(e.pointerId); }catch(err){}
+    connecting={ card:port.closest('.card').dataset.id, role:port.dataset.role };
+    updateTempEdge(e.clientX,e.clientY);
+  });
+  port.addEventListener('pointermove', function(e){
+    if(!connecting) return;
+    updateTempEdge(e.clientX,e.clientY);
+  });
+  function endConnect(e){
+    if(!connecting) return;
+    try{ port.releasePointerCapture(e.pointerId); }catch(err){}
+    var els=document.elementsFromPoint(e.clientX,e.clientY);
+    var targetCard=null;
+    for(var i=0;i<els.length;i++){
+      var c=els[i].closest && els[i].closest('.card');
+      if(c){ targetCard=c; break; }
+    }
+    if(targetCard && targetCard.dataset.id!==connecting.card){
+      if(connecting.role==='out'){ addEdge(connecting.card, targetCard.dataset.id); }
+      else { addEdge(targetCard.dataset.id, connecting.card); }
+    }
+    connecting=null;
+    tempEdge.setAttribute('d','');
+  }
+  port.addEventListener('pointerup', endConnect);
+  port.addEventListener('pointercancel', endConnect);
+}
+
+/* ---------- cor do card / criar card novo ---------- */
+var ACTOR_INFO={
+  nay:{label:'Nay', canal:'com o corretor'},
+  corretor:{label:'Corretor', canal:'com o corretor'},
+  proprietario:{label:'Proprietário', canal:'com o proprietário'},
+  equipe:{label:'Tel', canal:'com o responsável'},
+  motoboy:{label:'Motoboy', canal:'com o motoboy'},
+  sistema:{label:'Checagem', canal:'interna, não envia'},
+  flag:{label:'Pendência', canal:'falta decidir'}
+};
+var newCardSeq=0;
+
+function setCardActor(card, actorKey){
+  var info=ACTOR_INFO[actorKey];
+  if(!info) return;
+  card.className=card.className.replace(/\ba-[\w]+\b/, 'a-'+actorKey);
+  var actorEl=card.querySelector('.c-actor');
+  if(actorEl) actorEl.textContent=info.label;
+  marcarSujo();
+}
+
+function cardToolsHTML(){
+  return '<div class="card-tools">'
+    +'<span class="cswatch" data-actor="nay" style="background:var(--nay)" title="Nay"></span>'
+    +'<span class="cswatch" data-actor="corretor" style="background:var(--cor)" title="Corretor"></span>'
+    +'<span class="cswatch" data-actor="proprietario" style="background:var(--prop)" title="Proprietário"></span>'
+    +'<span class="cswatch" data-actor="equipe" style="background:var(--eq)" title="Tel"></span>'
+    +'<span class="cswatch" data-actor="motoboy" style="background:var(--moto)" title="Motoboy"></span>'
+    +'<span class="cswatch" data-actor="sistema" style="background:var(--sis)" title="Checagem"></span>'
+    +'<span class="cswatch" data-actor="flag" style="background:var(--flag)" title="Pendência"></span>'
+    +'<button type="button" class="card-add" title="Criar novo card">+</button>'
+    +'<button type="button" class="card-del" title="Apagar este card">×</button>'
+    +'</div>';
+}
+
+function wireCardTools(card){
+  var tools=card.querySelector('.card-tools');
+  if(!tools || tools.dataset.wired) return;
+  tools.dataset.wired='1';
+  var swatches=tools.querySelectorAll('.cswatch');
+  for(var i=0;i<swatches.length;i++){
+    (function(sw){
+      sw.addEventListener('pointerdown', function(ev){ ev.stopPropagation(); });
+      sw.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        setCardActor(card, sw.dataset.actor);
+      });
+    })(swatches[i]);
+  }
+  var addBtn=tools.querySelector('.card-add');
+  addBtn.addEventListener('pointerdown', function(ev){ ev.stopPropagation(); });
+  addBtn.addEventListener('click', function(ev){
+    ev.stopPropagation();
+    var m=card.className.match(/\ba-(\w+)\b/);
+    spawnCard(m?m[1]:'nay');
+  });
+  var delBtn=tools.querySelector('.card-del');
+  if(delBtn){
+    delBtn.addEventListener('pointerdown', function(ev){ ev.stopPropagation(); });
+    delBtn.addEventListener('click', function(ev){ ev.stopPropagation(); apagarCard(card); });
+  }
+}
+
+function spawnCard(actorKey){
+  actorKey=ACTOR_INFO[actorKey]?actorKey:'nay';
+  newCardSeq++;
+  var id='novo_'+Date.now()+'_'+newCardSeq;
+  var vr=viewport.getBoundingClientRect();
+  var c0=toCanvasCoords(vr.left+vr.width/2, vr.top+vr.height/2);
+  var jitter=((newCardSeq-1)%6)*28;
+  var x=c0.x-160+jitter, y=c0.y-55+jitter;
+  var info=ACTOR_INFO[actorKey];
+
+  var art=document.createElement('article');
+  art.className='card a-'+actorKey;
+  art.dataset.id=id;
+  art.style.left=x+'px';
+  art.style.top=y+'px';
+  art.innerHTML=
+    '<span class="port port-in" data-role="in"></span>'
+    +'<span class="port port-out" data-role="out"></span>'
+    +cardToolsHTML()
+    +'<div class="c-top"><span class="c-actor">'+info.label+'</span><span class="c-canal" contenteditable="true" spellcheck="false">'+info.canal+'</span></div>'
+    +'<h3 class="c-title" contenteditable="true" spellcheck="false">Novo card</h3>'
+    +'<div class="c-msg" contenteditable="true" spellcheck="false">Escreva a mensagem aqui…</div>';
+  canvas.appendChild(art);
+
+  wireCardDrag(art);
+  wireCardTools(art);
+  var newPorts=art.querySelectorAll('.port');
+  for(var i=0;i<newPorts.length;i++){ wirePort(newPorts[i]); }
+  renderEdges();
+  var titleEl=art.querySelector('.c-title');
+  if(titleEl && titleEl.focus) titleEl.focus();
+  marcarSujo();
+}
+
+/* ---------- exportar cópia editada ---------- */
+function exportHTML(){
+  var clone=document.documentElement.cloneNode(true);
+  var scripts=clone.querySelectorAll('script');
+  for(var i=0;i<scripts.length;i++){
+    if(scripts[i].textContent.indexOf('var EDGES=')>-1){
+      scripts[i].textContent=scripts[i].textContent.replace(/var EDGES=\[[\s\S]*?\];/, 'var EDGES='+JSON.stringify(EDGES)+';');
+    }
+  }
+  var vp=clone.querySelector('#viewport');
+  if(vp) vp.classList.remove('panning');
+  var htmlOut='<!DOCTYPE html>\n'+clone.outerHTML;
+  var blob=new Blob([htmlOut], {type:'text/html;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='fluxo-nay-locacao-editado.html';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+  showToast('Baixado — esse arquivo já sai com suas edições, posições e conexões.');
+}
+var toastTm;
+function showToast(msg){
+  toast.textContent=msg;
+  toast.classList.add('show');
+  clearTimeout(toastTm);
+  toastTm=setTimeout(function(){ toast.classList.remove('show'); }, 3200);
+}
+document.getElementById('exportBtn').addEventListener('click', exportHTML);
+
+var hintClose=document.getElementById('hintClose');
+if(hintClose){ hintClose.addEventListener('click', function(){ document.getElementById('hint').style.display='none'; }); }
+
+/* ---------- init ---------- */
+function init(){
+  var cardEls=canvas.querySelectorAll('.card');
+  for(var i=0;i<cardEls.length;i++){ wireCardDrag(cardEls[i]); wireCardTools(cardEls[i]); }
+  var portEls=canvas.querySelectorAll('.port');
+  for(var j=0;j<portEls.length;j++){ wirePort(portEls[j]); }
+  renderEdges();
+}
+
+/* =====================================================================
+   ADICIONADO EM 10/09/2026 — apagar card, anotar na linha, e salvar no
+   servidor ("Salvar fluxo no sistema").
+
+   Tudo o que está acima deste bloco é o editor como o Tel fez; aqui só
+   entra o que ele não tinha. Os cards em si não são tocados: o que se
+   grava é o HTML de cada card exatamente como está na tela.
+
+   COMO O SALVAMENTO FUNCIONA
+   - A versão oficial fica no servidor (/api/fluxos/locacao). Toda vez que
+     a página abre, carrega essa. Se o servidor ainda não tem nada, vale o
+     fluxo que já vem escrito no próprio arquivo.
+   - Qualquer mudança marca o fluxo como "não enviado" e guarda um
+     rascunho neste aparelho (localStorage) — fechar a aba sem querer não
+     perde nada.
+   - "Salvar fluxo no sistema" grava no servidor. Sem nada a enviar, ele
+     só confere se outro aparelho salvou algo mais novo.
+   - A cada 10 s a página pergunta ao servidor se alguém salvou. Se sim e
+     aqui não há nada pendente, troca sozinha. Se há, só avisa — nunca
+     apaga trabalho não enviado.
+   - Dois aparelhos salvando por cima: o servidor recusa o segundo (409) e
+     a página pergunta qual versão fica.
+   ===================================================================== */
+var API=(window.API_BASE||'').replace(/\/+$/,'');
+var NOME_FLUXO='locacao';
+var CHAVE_RASCUNHO='fluxo-rascunho-'+NOME_FLUXO;
+var VERSAO=0, SUJO=false, OFFLINE=false, tmRascunho=null, pop=null;
+var syncBtn=document.getElementById('syncBtn');
+var syncStatus=document.getElementById('syncStatus');
+var PORTAS='<span class="port port-in" data-role="in"></span><span class="port port-out" data-role="out"></span>';
+
+/* ---------- estado e rascunho local ---------- */
+function pintarStatus(tipo, texto){
+  if(!syncStatus) return;
+  syncStatus.className='sync-status'+((tipo==='sujo'||tipo==='erro'||tipo==='novo')?' '+tipo:'');
+  syncStatus.textContent=texto;
+  if(syncBtn) syncBtn.classList.toggle('sujo', SUJO);
+}
+function statusAtual(){
+  if(OFFLINE) return pintarStatus('erro', 'Sem conexão — guardando neste aparelho');
+  if(SUJO) return pintarStatus('sujo', 'Alterações não enviadas');
+  pintarStatus('ok', VERSAO ? 'Em dia · versão '+VERSAO : 'Ainda não salvo no servidor');
+}
+function marcarSujo(){
+  SUJO=true; statusAtual();
+  if(typeof atualizarRolagem==='function') atualizarRolagem();
+  clearTimeout(tmRascunho);
+  tmRascunho=setTimeout(guardarRascunho, 700);
+}
+function guardarRascunho(){
+  try{ localStorage.setItem(CHAVE_RASCUNHO, JSON.stringify({base:VERSAO, em:Date.now(), conteudo:serializar()})); }catch(err){}
+}
+function lerRascunho(){
+  try{ return JSON.parse(localStorage.getItem(CHAVE_RASCUNHO)||'null'); }catch(err){ return null; }
+}
+function limparRascunho(){ try{ localStorage.removeItem(CHAVE_RASCUNHO); }catch(err){} }
+function quemSou(){
+  var id='?';
+  try{
+    id=localStorage.getItem('fluxo-aparelho');
+    if(!id){ id=Math.random().toString(36).slice(2,8); localStorage.setItem('fluxo-aparelho', id); }
+  }catch(err){}
+  return 'admin · aparelho '+id;
+}
+
+/* ---------- ler e gravar o fluxo ---------- */
+/* Só a "cromagem" (bolinhas de conexão e barra de ferramentas) é refeita
+   a cada carga; o conteúdo do card vai e volta intacto. Era a cromagem
+   gravada que quebrava o arquivo antigo: 70 cards tinham data-wired="1"
+   salvo, e o editor pulava esses cards na hora de ligar as bolinhas de
+   cor e o "+". */
+/* So os cards de PRIMEIRO NIVEL viram entradas. Card que esta dentro de
+   outro (o fluxo tem 24 colados dentro do titulo do c_retirar) viaja
+   dentro do HTML do pai, no mesmo lugar -- gravado como entrada propria
+   ele apareceria duas vezes na volta. */
+function serializar(){
+  var cards=[], els=canvas.querySelectorAll(':scope > .card');
+  for(var i=0;i<els.length;i++){
+    var card=els[i], m=card.className.match(/\ba-([a-z]+)\b/);
+    var clone=card.cloneNode(true);
+    var cromo=clone.querySelectorAll('.port, .card-tools');
+    for(var j=0;j<cromo.length;j++) cromo[j].remove();
+    var aninhados=clone.querySelectorAll('.card');
+    for(var k=0;k<aninhados.length;k++) aninhados[k].classList.remove('dragging');
+    cards.push({ id:card.dataset.id, cls:'a-'+(m?m[1]:'nay'),
+                 style:card.getAttribute('style')||'', html:clone.innerHTML });
+  }
+  return { formato:1, cards:cards, edges:EDGES.map(function(e){ return e.map(String); }) };
+}
+function prepararCards(){
+  var cards=canvas.querySelectorAll('.card');
+  for(var i=0;i<cards.length;i++){
+    var card=cards[i];
+    card.classList.remove('dragging');
+    var velhos=card.querySelectorAll(':scope > .port, :scope > .card-tools');
+    for(var j=0;j<velhos.length;j++) velhos[j].remove();
+    card.insertAdjacentHTML('afterbegin', PORTAS+cardToolsHTML());
+  }
+}
+
+/* Quem abre a página renderiza o HTML que veio do servidor. Por isso ele
+   passa por aqui antes: só tags e atributos de formatação sobrevivem.
+   Tag desconhecida mas inofensiva é desembrulhada (o texto fica); tag
+   perigosa sai inteira. */
+// ARTICLE entra porque ha cards dentro de cards; sem ele o card aninhado
+// seria desembrulhado e o conteudo dele espalhado no titulo do pai.
+var TAGS_OK={ARTICLE:1,SPAN:1,DIV:1,H3:1,H4:1,P:1,BR:1,B:1,STRONG:1,I:1,EM:1,U:1,S:1,SMALL:1,SUB:1,SUP:1,UL:1,OL:1,LI:1};
+var TAGS_FORA={SCRIPT:1,STYLE:1,IFRAME:1,FRAME:1,OBJECT:1,EMBED:1,LINK:1,META:1,BASE:1,FORM:1,INPUT:1,
+  TEXTAREA:1,SELECT:1,BUTTON:1,IMG:1,SVG:1,MATH:1,VIDEO:1,AUDIO:1,SOURCE:1,TEMPLATE:1,NOSCRIPT:1,CANVAS:1};
+var ATTRS_OK={'class':1,'style':1,'contenteditable':1,'spellcheck':1,'title':1};
+function limparEstilo(s){
+  return String(s||'').replace(/url\s*\([^)]*\)/gi,'none').replace(/expression\s*\(/gi,'(')
+    .replace(/javascript:/gi,'').replace(/-moz-binding/gi,'');
+}
+function limparNo(pai){
+  var filhos=Array.prototype.slice.call(pai.childNodes);
+  for(var i=0;i<filhos.length;i++){
+    var n=filhos[i];
+    if(n.nodeType===3) continue;
+    if(n.nodeType!==1){ n.remove(); continue; }
+    var tag=n.tagName.toUpperCase();
+    if(TAGS_FORA[tag]){ n.remove(); continue; }
+    limparNo(n);
+    if(!TAGS_OK[tag]){ while(n.firstChild) pai.insertBefore(n.firstChild, n); n.remove(); continue; }
+    var at=Array.prototype.slice.call(n.attributes);
+    for(var k=0;k<at.length;k++){
+      var nome=at[k].name.toLowerCase();
+      if(!ATTRS_OK[nome] && !(tag==='ARTICLE' && nome==='data-id')) n.removeAttribute(at[k].name);
+      else if(nome==='style') n.setAttribute('style', limparEstilo(at[k].value));
+    }
+  }
+}
+function sanitizar(html){
+  var t=document.createElement('template');
+  t.innerHTML=html;
+  limparNo(t.content);
+  return t.innerHTML;
+}
+
+/* Monta tudo num fragmento ANTES de mexer na tela: se o conteúdo vier
+   quebrado, o erro acontece aqui e o fluxo atual continua intacto. */
+function aplicar(conteudo){
+  if(!conteudo || !Array.isArray(conteudo.cards) || !Array.isArray(conteudo.edges)) throw new Error('conteudo invalido');
+  var frag=document.createDocumentFragment();
+  conteudo.cards.forEach(function(c){
+    var art=document.createElement('article');
+    art.className='card '+(/^a-[a-z]{2,20}$/.test(c.cls)?c.cls:'a-nay');
+    art.dataset.id=String(c.id);
+    art.setAttribute('style', limparEstilo(c.style));
+    art.innerHTML=sanitizar(String(c.html||''));
+    frag.appendChild(art);
+  });
+  var velhos=canvas.querySelectorAll('.card');
+  for(var i=0;i<velhos.length;i++) velhos[i].remove();
+  canvas.appendChild(frag);
+  EDGES.length=0;
+  conteudo.edges.forEach(function(e){ if(Array.isArray(e) && e.length>=2) EDGES.push(e.slice(0,4).map(String)); });
+  fecharPop();
+}
+
+function buscarServidor(){
+  return fetch(API+'/api/fluxos/'+NOME_FLUXO, {cache:'no-store'}).then(function(r){
+    if(r.status===404) return {versao:0};
+    if(!r.ok) throw new Error('http '+r.status);
+    return r.json();
+  });
+}
+
+function iniciarComServidor(){
+  // O status fica em "Carregando…" ate o servidor responder. Antes ele
+  // dizia "Ainda nao salvo" de cara -- afirmando algo que ainda nao sabia.
+  var pronto=function(){ prepararCards(); init(); statusAtual(); atualizarControles(); };
+  if(!API){ OFFLINE=true; pronto(); return; }
+  buscarServidor().then(function(srv){
+    VERSAO=srv.versao||0;
+    var rasc=lerRascunho();
+    if(rasc && rasc.conteudo){
+      if(rasc.base===VERSAO){
+        aplicar(rasc.conteudo); SUJO=true;
+        setTimeout(function(){ showToast('Recuperei alterações deste aparelho que ainda não tinham sido enviadas.'); }, 400);
+      } else if(confirm('Este aparelho tem alterações que não foram enviadas, mas o fluxo foi atualizado em outro aparelho depois disso.\n\nOK = usar a versão nova do servidor (descarta as daqui)\nCancelar = continuar com as alterações deste aparelho')){
+        limparRascunho();
+        if(srv.conteudo) aplicar(srv.conteudo);
+      } else { aplicar(rasc.conteudo); SUJO=true; }
+    } else if(srv.conteudo){
+      aplicar(srv.conteudo);
+    }
+  }).catch(function(){
+    OFFLINE=true;
+    var rasc=lerRascunho();
+    if(rasc && rasc.conteudo){ try{ aplicar(rasc.conteudo); SUJO=true; }catch(err){} }
+  }).then(pronto);
+}
+
+function enviar(forcar){
+  if(syncBtn) syncBtn.disabled=true;
+  pintarStatus('salvando', 'Salvando…');
+  fetch(API+'/api/fluxos/'+NOME_FLUXO, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ versao_base:VERSAO, forcar:!!forcar, quem:quemSou(), conteudo:serializar() })
+  }).then(function(r){
+    return r.json().catch(function(){ return {}; }).then(function(j){ return {st:r.status, j:j}; });
+  }).then(function(res){
+    if(syncBtn) syncBtn.disabled=false;
+    OFFLINE=false;
+    if(res.st===200){
+      VERSAO=res.j.versao; SUJO=false; limparRascunho(); statusAtual();
+      showToast('Fluxo salvo no sistema — já aparece em todos os aparelhos.');
+      return;
+    }
+    if(res.st===409){
+      statusAtual();
+      if(confirm('Outro aparelho atualizou este fluxo depois que você abriu a página.\n\nOK = gravar o SEU por cima do dele\nCancelar = descartar o seu e carregar o dele')) enviar(true);
+      else puxar(true, true);
+      return;
+    }
+    pintarStatus('erro', 'Não salvou');
+    showToast('Não salvou: '+(res.j.erro||('erro '+res.st))+'. Suas alterações continuam neste aparelho.');
+  }).catch(function(){
+    if(syncBtn) syncBtn.disabled=false;
+    OFFLINE=true; statusAtual();
+    showToast('Sem conexão. Suas alterações continuam guardadas neste aparelho.');
+  });
+}
+
+function puxar(manual, descartar){
+  return buscarServidor().then(function(srv){
+    OFFLINE=false;
+    if(!srv.conteudo){
+      statusAtual();
+      if(manual) showToast('Nada para salvar ainda. Mexa no fluxo e clique em Salvar fluxo no sistema.');
+      return;
+    }
+    if(srv.versao>VERSAO || descartar){
+      aplicar(srv.conteudo);
+      VERSAO=srv.versao; SUJO=false; limparRascunho();
+      prepararCards(); init(); statusAtual(); atualizarControles();
+      showToast(manual ? 'Nada para salvar aqui — mas havia uma versão mais nova, salva em outro aparelho, e ela já está na tela.' : 'Fluxo atualizado em outro aparelho — já está aqui.');
+    } else {
+      statusAtual();
+      if(manual) showToast('Nada para salvar — o fluxo já está salvo no sistema.');
+    }
+  }).catch(function(){
+    OFFLINE=true; statusAtual();
+    if(manual) showToast('Sem conexão com o servidor.');
+  });
+}
+
+if(syncBtn){
+  syncBtn.addEventListener('click', function(){
+    if(!API){ showToast('config.js não define API_BASE.'); return; }
+    if(SUJO) enviar(false); else puxar(true, false);
+  });
+}
+document.addEventListener('keydown', function(e){
+  if((e.ctrlKey||e.metaKey) && (e.key==='s'||e.key==='S')){ e.preventDefault(); if(syncBtn) syncBtn.click(); }
+});
+canvas.addEventListener('input', function(ev){
+  if(ev.target && ev.target.closest && ev.target.closest('.card')) marcarSujo();
+});
+window.addEventListener('beforeunload', function(e){
+  if(SUJO){ e.preventDefault(); e.returnValue=''; }
+});
+
+/* "Tempo real": pergunta a versão a cada 10 s. Não troca a tela debaixo
+   de quem está digitando, arrastando ou com a anotação aberta. */
+function editandoAgora(){
+  var a=document.activeElement;
+  return !!((a && a.isContentEditable) || draggingCard || connecting || pop);
+}
+setInterval(function(){
+  if(!API || document.hidden) return;
+  fetch(API+'/api/fluxos/'+NOME_FLUXO+'?so_versao=1', {cache:'no-store'})
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      var tinhaCaido=OFFLINE; OFFLINE=false;
+      if((j.versao||0)>VERSAO){
+        if(!SUJO && !editandoAgora()) puxar(false, false);
+        else pintarStatus('novo', 'Versão nova em outro aparelho');
+      } else if(tinhaCaido){ statusAtual(); }
+    })
+    .catch(function(){ if(!OFFLINE){ OFFLINE=true; statusAtual(); } });
+}, 10000);
+
+/* ---------- apagar card ---------- */
+function apagarCard(card){
+  var tituloEl=card.querySelector('.c-title');
+  var titulo=((tituloEl && tituloEl.textContent) || 'este card').trim().slice(0, 70);
+  if(!confirm('Apagar o card "'+titulo+'"?\n\nAs ligações dele saem junto.')) return;
+  var id=card.dataset.id;
+  card.remove();
+  // Remove pelo ELEMENTO, não pelo id: o fluxo tem cards com id repetido,
+  // e apagar por id levaria o outro junto. Ligação só sai se não sobrou
+  // nenhum card com aquele id.
+  var sobrou=canvas.querySelector('[data-id="'+id+'"]');
+  if(!sobrou){
+    for(var i=EDGES.length-1;i>=0;i--){ if(EDGES[i][0]===id || EDGES[i][1]===id) EDGES.splice(i,1); }
+  }
+  renderEdges();
+  marcarSujo();
+  showToast(sobrou
+    ? 'Card apagado. Havia outro card com o mesmo código por baixo dele — as ligações continuam nesse.'
+    : 'Card apagado. Clique em Salvar fluxo no sistema para gravar.');
+}
+
+/* ---------- anotar na linha ---------- */
+function quebrarRotulo(txt, max){
+  var palavras=String(txt).split(/\s+/), linhas=[], atual='';
+  palavras.forEach(function(p){
+    if(atual && (atual+' '+p).length>max){ linhas.push(atual); atual=p; }
+    else atual=atual ? atual+' '+p : p;
+  });
+  if(atual) linhas.push(atual);
+  return linhas;
+}
+function fecharPop(){ if(pop){ pop.remove(); pop=null; } }
+function abrirPopLigacao(e, ev){
+  fecharPop();
+  var vr=viewport.getBoundingClientRect();
+  pop=document.createElement('div');
+  pop.className='edge-pop';
+  pop.innerHTML='<label for="edgePopTxt">Anotação na linha</label>'
+    +'<input id="edgePopTxt" type="text" maxlength="160" placeholder="Ex.: se não responder em 1 hora" spellcheck="true">'
+    +'<div class="edge-pop__acoes">'
+    +'<button type="button" class="tbtn remover" data-a="remover">Remover ligação</button><span></span>'
+    +'<button type="button" class="tbtn" data-a="cancelar">Cancelar</button>'
+    +'<button type="button" class="tbtn primary" data-a="salvar">Salvar</button></div>';
+  pop.style.left=Math.max(8, Math.min(ev.clientX-vr.left-150, vr.width-318))+'px';
+  pop.style.top=Math.max(8, Math.min(ev.clientY-vr.top+12, vr.height-150))+'px';
+  viewport.appendChild(pop);
+  var inp=pop.querySelector('input');
+  inp.value=e[2]||'';
+  inp.focus(); inp.select();
+  pop.addEventListener('pointerdown', function(x){ x.stopPropagation(); });
+  pop.addEventListener('wheel', function(x){ x.stopPropagation(); });
+  function salvar(){
+    var novo=inp.value.replace(/\s+/g,' ').trim();
+    if((e[2]||'')!==novo){ e[2]=novo; marcarSujo(); }
+    fecharPop(); renderEdges();
+  }
+  function remover(){
+    var i=EDGES.indexOf(e);
+    if(i>-1){ EDGES.splice(i,1); marcarSujo(); }
+    fecharPop(); renderEdges();
+  }
+  pop.addEventListener('click', function(x){
+    var a=x.target && x.target.dataset && x.target.dataset.a;
+    if(a==='salvar') salvar(); else if(a==='remover') remover(); else if(a==='cancelar') fecharPop();
+  });
+  inp.addEventListener('keydown', function(k){
+    if(k.key==='Enter'){ k.preventDefault(); salvar(); }
+    else if(k.key==='Escape'){ k.preventDefault(); fecharPop(); }
+  });
+}
+// Clicar fora fecha a anotação (fase de captura: roda antes do arrastar).
+viewport.addEventListener('pointerdown', function(ev){
+  if(pop && !pop.contains(ev.target)) fecharPop();
+}, true);
+
+/* =====================================================================
+   NAVEGACAO NO NOTEBOOK (10/09/2026) — barra de rolagem horizontal e
+   controle de zoom com deslizante e porcentagem.
+
+   A barra e desenhada, nao nativa: o canvas anda por transform (pan/zoom),
+   entao nao existe rolagem de verdade para o navegador mostrar. Ela le a
+   extensao dos cards e a posicao atual da tela, e arrastar o polegar move
+   a vista.
+   ===================================================================== */
+var zoomRange=document.getElementById('zoomRange');
+var zoomPct=document.getElementById('zoomPct');
+var rolagemH=null, rolagemPolegar=null, estadoRolagem=null, arrasteRol=null;
+
+function extensaoMundo(){
+  var min=Infinity, max=-Infinity, cards=canvas.querySelectorAll('.card');
+  for(var i=0;i<cards.length;i++){
+    var el=cards[i], x=0, e=el;
+    while(e && e!==canvas){ x+=e.offsetLeft; e=e.offsetParent; }
+    if(e!==canvas) continue;   // escondido ou fora do canvas
+    if(x<min) min=x;
+    if(x+el.offsetWidth>max) max=x+el.offsetWidth;
+  }
+  if(min===Infinity){ min=0; max=canvas.offsetWidth; }
+  return { min:min-120, max:max+120 };
+}
+
+function atualizarRolagem(){
+  if(!rolagemH) return;
+  var vw=viewport.clientWidth, trilho=rolagemH.clientWidth;
+  if(!vw || !trilho) return;
+  var m=extensaoMundo();
+  var visIni=-panX/zoom, visFim=(vw-panX)/zoom;
+  var ini=Math.min(m.min, visIni), fim=Math.max(m.max, visFim), total=fim-ini;
+  var larg=Math.max(36, trilho*(visFim-visIni)/total);
+  var esq=Math.max(0, Math.min(trilho-larg, (visIni-ini)/total*trilho));
+  rolagemPolegar.style.width=larg+'px';
+  rolagemPolegar.style.transform='translateX('+esq+'px)';
+  // Tudo cabe na tela: a barra nao tem o que rolar e some.
+  rolagemH.classList.toggle('inutil', visIni<=m.min && visFim>=m.max);
+  estadoRolagem={ ini:ini, total:total, trilho:trilho };
+}
+
+function atualizarControles(){
+  var pct=Math.round(zoom*100);
+  if(zoomRange && Number(zoomRange.value)!==pct) zoomRange.value=pct;
+  if(zoomPct) zoomPct.textContent=pct+'%';
+  atualizarRolagem();
+}
+
+function montarRolagem(){
+  rolagemH=document.createElement('div');
+  rolagemH.className='rolagem-h';
+  rolagemH.setAttribute('aria-hidden','true');
+  rolagemPolegar=document.createElement('div');
+  rolagemPolegar.className='rolagem-h__polegar';
+  rolagemH.appendChild(rolagemPolegar);
+  viewport.appendChild(rolagemH);
+
+  rolagemPolegar.addEventListener('pointerdown', function(e){
+    e.preventDefault(); e.stopPropagation();
+    if(!estadoRolagem) return;
+    try{ rolagemPolegar.setPointerCapture(e.pointerId); }catch(err){}
+    rolagemPolegar.classList.add('arrastando');
+    arrasteRol={ x:e.clientX, panX:panX, porPx:estadoRolagem.total/estadoRolagem.trilho };
+  });
+  rolagemPolegar.addEventListener('pointermove', function(e){
+    if(!arrasteRol) return;
+    panX=arrasteRol.panX-(e.clientX-arrasteRol.x)*arrasteRol.porPx*zoom;
+    applyTransform();
+  });
+  function soltar(e){
+    if(!arrasteRol) return;
+    arrasteRol=null;
+    rolagemPolegar.classList.remove('arrastando');
+    try{ rolagemPolegar.releasePointerCapture(e.pointerId); }catch(err){}
+  }
+  rolagemPolegar.addEventListener('pointerup', soltar);
+  rolagemPolegar.addEventListener('pointercancel', soltar);
+
+  // Clicar no trilho leva a vista para aquele ponto.
+  rolagemH.addEventListener('pointerdown', function(e){
+    if(e.target===rolagemPolegar) return;
+    e.preventDefault(); e.stopPropagation();
+    if(!estadoRolagem) return;
+    var r=rolagemH.getBoundingClientRect();
+    var alvo=estadoRolagem.ini+(e.clientX-r.left)/estadoRolagem.trilho*estadoRolagem.total;
+    panX=viewport.clientWidth/2-alvo*zoom;
+    applyTransform();
+  });
+}
+montarRolagem();
+
+if(zoomRange){
+  zoomRange.addEventListener('input', function(){ setZoom(Number(zoomRange.value)/100); });
+}
+if(zoomPct){
+  zoomPct.addEventListener('click', function(){ setZoom(1); });
+}
+window.addEventListener('resize', atualizarControles);
+
+// Arrastar com o botao direito solta o menu de contexto no fim; se o
+// gesto foi um arraste, o menu nao aparece. Clique parado continua
+// abrindo o menu (copiar/colar no texto do card).
+viewport.addEventListener('contextmenu', function(e){
+  if(suprimirMenu || isPanning){ e.preventDefault(); suprimirMenu=false; }
+});
+
+window.addEventListener('load', function(){ setTimeout(iniciarComServidor,60); });
+})();
+
+</script>
+
+
+</body></html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oportunidades — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+</head>
+<body class="admin" data-pagina="oportunidades">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <h1 class="pagina-titulo">Oportunidades</h1>
+  </div>
+
+  <section class="secao-inicio">
+    <h2 class="secao-inicio__titulo">1. Contratos vencidos</h2>
+    <div class="avisos__coluna">
+      <ul class="painel__lista" data-render="lista-vencidos" data-fonte="avisos"></ul>
+    </div>
+  </section>
+
+  <section class="secao-inicio">
+    <h2 class="secao-inicio__titulo">2. Contratos vencendo</h2>
+    <div class="avisos__coluna">
+      <ul class="painel__lista" data-render="lista-vencendo" data-fonte="avisos"></ul>
+    </div>
+  </section>
+
+  <section class="secao-inicio">
+    <h2 class="secao-inicio__titulo">3. Corretores mais ativos</h2>
+    <p style="font-size:var(--fs-sm);color:var(--texto-fraco);margin-bottom:12px">
+      "Mais ativos" pelo número de mensagens trocadas com a Nay nos últimos 30 dias -- o banco não
+      guarda uma nota de qualidade de atendimento, então isto não é o mesmo que "melhor".
+    </p>
+    <div class="tabela-envolucro">
+      <div class="tabela-rolagem">
+        <table class="tabela">
+          <thead><tr><th scope="col">#</th><th scope="col">Corretor</th><th scope="col">Mensagens (30 dias)</th></tr></thead>
+          <tbody data-render="corretoresAtivos" data-fonte="corretoresAtivos"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/dados-admin.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+</body>
+</html>

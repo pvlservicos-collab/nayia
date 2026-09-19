@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auditoria — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+</head>
+<body class="admin" data-pagina="auditoria">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="form-imovel__aviso" style="margin-bottom:16px"><strong>Exemplo, não é registro real.</strong> O sistema ainda não grava histórico de alterações — os eventos abaixo são ilustrativos, copiados do admin antigo.</div>
+  <div class="pagina-cabecalho">
+    <h1 class="pagina-titulo">Auditoria</h1>
+  </div>
+
+  <section class="cartao">
+    <div class="abas" role="tablist" aria-label="Tipo de registro">
+      <button class="abas__item" role="tab" type="button" aria-selected="false">Condomínios</button>
+      <button class="abas__item" role="tab" type="button" aria-selected="true">Imóveis</button>
+      <button class="abas__item" role="tab" type="button" aria-selected="false">Proprietários</button>
+      <button class="abas__item" role="tab" type="button" aria-selected="false">Usuários</button>
+    </div>
+    <div class="linha-tempo" data-render="auditoria" data-fonte="auditoria"></div>
+  </section>
+
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/dados-admin.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,858 @@
+/* ==========================================================================
+   Imob Easy — Site público (área do cliente)
+   ========================================================================== */
+
+body.site {
+  background: var(--fundo-alt);
+}
+
+/* --------------------------------------------------------------------------
+   Cabeçalho
+   -------------------------------------------------------------------------- */
+.site-topo {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borda);
+  box-shadow: 0 1px 0 rgba(23, 35, 56, 0.04);
+}
+.site-topo__interno {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-4);
+}
+.site-topo__logo img { height: 42px; width: auto; }
+.site-topo__acoes { display: flex; gap: var(--e-3); flex-wrap: wrap; }
+
+/* --------------------------------------------------------------------------
+   Botões
+   -------------------------------------------------------------------------- */
+.btn-roxo,
+.btn-roxo-vazado {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--e-2);
+  border-radius: var(--raio);
+  padding: 10px 18px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  line-height: 1.2;
+  border: 1px solid transparent;
+  transition: background var(--transicao), color var(--transicao),
+              border-color var(--transicao), box-shadow var(--transicao);
+}
+.btn-roxo {
+  background: var(--roxo);
+  color: #fff;
+  box-shadow: var(--sombra-1);
+}
+.btn-roxo:hover { background: var(--roxo-hover); color: #fff; text-decoration: none; }
+.btn-roxo:active { transform: translateY(1px); }
+.btn-roxo:focus-visible { outline: none; box-shadow: var(--foco-roxo); }
+
+.btn-roxo-vazado {
+  background: var(--superficie);
+  color: var(--roxo);
+  border-color: var(--roxo-borda);
+}
+.btn-roxo-vazado:hover {
+  background: var(--roxo-suave);
+  color: var(--roxo-hover);
+  border-color: var(--roxo);
+  text-decoration: none;
+}
+.btn-roxo-vazado:focus-visible { outline: none; box-shadow: var(--foco-roxo); }
+
+.btn-bloco { width: 100%; }
+.btn-grande { padding: 14px 30px; font-size: var(--fs-md); letter-spacing: 0.6px; }
+
+/* --------------------------------------------------------------------------
+   Home — busca
+   -------------------------------------------------------------------------- */
+.busca {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 56px 24px 24px;
+  text-align: center;
+}
+.busca__titulo {
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  color: var(--texto);
+  margin-bottom: var(--e-5);
+}
+
+/* Alternador Comprar / Alugar */
+.alternador {
+  display: inline-flex;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 4px;
+  gap: 4px;
+  box-shadow: var(--sombra-1);
+}
+.alternador__item {
+  border: 0;
+  background: transparent;
+  color: var(--texto-fraco);
+  padding: 8px 22px;
+  border-radius: var(--raio-sm);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  transition: background var(--transicao), color var(--transicao);
+}
+.alternador__item:hover { color: var(--roxo); background: var(--roxo-suave); }
+.alternador__item[aria-selected="true"] {
+  background: var(--roxo-suave);
+  color: var(--roxo);
+  box-shadow: inset 0 0 0 1px var(--roxo-borda);
+}
+
+/* Painel de filtros da home */
+.painel-busca {
+  margin: var(--e-5) auto 0;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-2);
+  overflow: hidden;
+  text-align: left;
+}
+/* minmax(0,...) em toda coluna: sem isso a faixa cresce com o conteudo e o
+   campo vaza o painel. Corrigido aqui, na origem, e nao no fim do arquivo --
+   la a regra passaria na frente do @media e quebraria o layout estreito. */
+.painel-busca__linha { display: grid; grid-template-columns: minmax(0, 1fr); }
+.painel-busca__linha--2 { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.painel-busca__linha--3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr); border-top: 1px solid var(--borda); }
+
+.campo {
+  padding: 14px 20px;
+  border-right: 1px solid var(--borda);
+  min-width: 0;
+}
+.campo:last-child { border-right: 0; }
+.campo__rotulo {
+  display: block;
+  font-size: var(--fs-sm);
+  color: var(--texto-fraco);
+  margin-bottom: 4px;
+}
+.campo__controle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 4px 0;
+  font-size: var(--fs-md);
+  color: var(--texto);
+}
+.campo__controle::placeholder { color: var(--texto-fraco); }
+.campo__controle:focus { outline: none; }
+.campo:focus-within { background: var(--roxo-suave); }
+
+.campo__duplo { display: flex; gap: var(--e-4); }
+.campo__duplo .campo__controle { flex: 1; }
+
+/* Grupos de opções numéricas (quartos / garagem) */
+.opcoes { display: flex; gap: var(--e-2); flex-wrap: wrap; margin-top: 2px; }
+.opcoes__botao {
+  min-width: 40px;
+  padding: 6px 10px;
+  border: 1px solid var(--borda);
+  background: var(--superficie);
+  border-radius: var(--raio-sm);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--texto-medio);
+  transition: all var(--transicao);
+}
+.opcoes__botao:hover { border-color: var(--roxo); color: var(--roxo); background: var(--roxo-suave); }
+.opcoes__botao[aria-pressed="true"] {
+  background: var(--roxo);
+  border-color: var(--roxo);
+  color: #fff;
+}
+
+.busca__ou {
+  margin: var(--e-4) 0 var(--e-2);
+  color: var(--texto-fraco);
+  font-size: var(--fs-sm);
+}
+.busca__codigo {
+  width: 100%;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-1);
+  padding: 18px 20px;
+  font-size: var(--fs-md);
+}
+.busca__codigo::placeholder { color: var(--texto-fraco); }
+.busca__codigo:focus { outline: none; border-color: var(--roxo); box-shadow: var(--foco-roxo); }
+
+.busca__enviar { margin-top: var(--e-5); }
+.busca__alternativa {
+  margin-top: var(--e-3);
+  font-size: var(--fs-sm);
+  font-style: italic;
+  color: var(--texto-fraco);
+}
+.busca__alternativa a { color: var(--roxo); font-weight: 600; }
+
+/* --------------------------------------------------------------------------
+   Destaques
+   -------------------------------------------------------------------------- */
+.destaques { max-width: 1240px; margin: 0 auto; padding: var(--e-7) 24px 0; }
+.destaques__titulo {
+  text-align: center;
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  margin-bottom: var(--e-5);
+}
+.destaques__grade {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 360px));
+  gap: var(--e-5);
+  justify-content: center;
+}
+
+/* --------------------------------------------------------------------------
+   Cartão de imóvel
+   -------------------------------------------------------------------------- */
+.imovel {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow var(--transicao), border-color var(--transicao);
+}
+.imovel:hover { box-shadow: var(--sombra-2); border-color: var(--borda-forte); }
+
+.imovel__midia { position: relative; background: #e9edf3; }
+.imovel__midia img { width: 100%; height: 232px; object-fit: cover; }
+
+.imovel__selo {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--roxo-borda);
+  color: var(--roxo);
+  border-radius: var(--raio-sm);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.carrossel__seta {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border-radius: var(--raio-pill);
+  border: 0;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--texto);
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  line-height: 1;
+  box-shadow: var(--sombra-1);
+  opacity: 0;
+  transition: opacity var(--transicao), background var(--transicao);
+}
+.imovel:hover .carrossel__seta,
+.carrossel__seta:focus-visible { opacity: 1; }
+.carrossel__seta:hover { background: #fff; }
+.carrossel__seta--ant { left: 10px; }
+.carrossel__seta--prox { right: 10px; }
+
+.carrossel__pontos {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+.carrossel__ponto {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--raio-pill);
+  background: rgba(255, 255, 255, 0.6);
+}
+.carrossel__ponto--ativo { background: #fff; }
+
+.imovel__corpo { padding: var(--e-4); display: flex; flex-direction: column; gap: var(--e-3); flex: 1; }
+.imovel__cabecalho { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--e-3); }
+.imovel__nome { font-size: var(--fs-lg); font-weight: 600; color: var(--texto); }
+.imovel__endereco { font-size: var(--fs-sm); color: var(--texto-medio); }
+
+.btn-selecionar {
+  flex: none;
+  background: var(--superficie);
+  border: 1px solid var(--roxo-borda);
+  color: var(--roxo);
+  border-radius: var(--raio-sm);
+  padding: 5px 12px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  transition: all var(--transicao);
+}
+.btn-selecionar:hover { background: var(--roxo-suave); border-color: var(--roxo); }
+.btn-selecionar[aria-pressed="true"] { background: var(--roxo); border-color: var(--roxo); color: #fff; }
+
+.especificacoes {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--e-2);
+  border-top: 1px solid var(--borda);
+  border-bottom: 1px solid var(--borda);
+  padding: var(--e-3) 0;
+  text-align: center;
+}
+.especificacao__titulo { font-size: var(--fs-xs); color: var(--texto-fraco); }
+.especificacao__icone { display: flex; justify-content: center; margin: 4px 0; color: var(--texto-medio); }
+.especificacao__icone svg { width: 26px; height: 20px; }
+.especificacao__valor { font-size: var(--fs-sm); color: var(--texto-medio); }
+
+.imovel__preco { display: flex; align-items: baseline; justify-content: space-between; gap: var(--e-3); }
+.imovel__preco dt { font-size: var(--fs-md); color: var(--texto-medio); }
+.imovel__preco dd { margin: 0; font-size: var(--fs-lg); font-weight: 700; color: var(--roxo); }
+
+.imovel__corpo .btn-roxo { margin-top: auto; }
+
+/* --------------------------------------------------------------------------
+   Faixa do banner
+   -------------------------------------------------------------------------- */
+.faixa-banner { max-width: 1240px; margin: var(--e-7) auto 0; padding: 0 24px var(--e-7); position: relative; }
+.faixa-banner img { border-radius: var(--raio-lg); box-shadow: var(--sombra-2); width: 100%; }
+.faixa-banner__seta {
+  position: absolute;
+  left: 34px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+  width: 34px; height: 34px;
+  border-radius: var(--raio-pill);
+  font-size: 18px;
+}
+.faixa-banner__seta:hover { background: rgba(255, 255, 255, 0.45); }
+
+/* --------------------------------------------------------------------------
+   Resultados (comprar / alugar)
+   -------------------------------------------------------------------------- */
+.resultados {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: var(--e-5) 24px var(--e-7);
+}
+.resultados__barra {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--e-3);
+  margin-bottom: var(--e-4);
+}
+.visao-alternar { display: inline-flex; gap: 4px; }
+.visao-alternar__botao {
+  width: 34px; height: 34px;
+  display: grid; place-items: center;
+  border: 1px solid var(--borda);
+  background: var(--superficie);
+  border-radius: var(--raio-sm);
+  color: var(--texto-medio);
+  transition: all var(--transicao);
+}
+.visao-alternar__botao:hover { border-color: var(--roxo); color: var(--roxo); }
+.visao-alternar__botao[aria-pressed="true"] { background: var(--roxo); border-color: var(--roxo); color: #fff; }
+
+.resultados__layout {
+  display: grid;
+  grid-template-columns: 268px minmax(0, 1fr);
+  gap: var(--e-5);
+  align-items: start;
+}
+
+.filtros {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-2);
+  padding: var(--e-4);
+  position: sticky;
+  top: 92px;
+}
+.filtros__abas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid var(--borda);
+  margin: calc(var(--e-4) * -1) calc(var(--e-4) * -1) var(--e-4);
+}
+.filtros__aba {
+  border: 0;
+  background: transparent;
+  padding: 14px 8px;
+  font-size: var(--fs-md);
+  color: var(--texto-fraco);
+  border-bottom: 2px solid transparent;
+  transition: color var(--transicao), border-color var(--transicao);
+}
+.filtros__aba:hover { color: var(--roxo); }
+.filtros__aba[aria-selected="true"] { color: var(--roxo); border-bottom-color: var(--roxo); font-weight: 600; }
+
+.filtros__grupo { margin-bottom: var(--e-4); }
+.filtros__rotulo {
+  display: block;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--texto-fraco);
+  margin-bottom: 6px;
+}
+.filtros__entrada,
+.filtros__caixa {
+  width: 100%;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-sm);
+  background: var(--superficie-2);
+  padding: 9px 10px;
+  font-size: var(--fs-sm);
+  transition: border-color var(--transicao), box-shadow var(--transicao);
+}
+.filtros__entrada:focus,
+.filtros__caixa:focus-within {
+  outline: none;
+  border-color: var(--roxo);
+  box-shadow: var(--foco-roxo);
+  background: var(--superficie);
+}
+.filtros__caixa { display: flex; flex-wrap: wrap; gap: 6px; min-height: 38px; }
+
+.marcador {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--roxo);
+  color: #fff;
+  border-radius: var(--raio-sm);
+  padding: 3px 9px;
+  font-size: var(--fs-sm);
+}
+.marcador button {
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  padding: 0;
+  line-height: 1;
+  font-size: 14px;
+}
+.marcador button:hover { color: #fff; }
+
+.opcao-caixa {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  font-size: var(--fs-sm);
+  color: var(--texto-medio);
+  padding: 3px 0;
+  cursor: pointer;
+}
+.opcao-caixa input { accent-color: var(--roxo); width: 15px; height: 15px; }
+.opcao-caixa:hover { color: var(--texto); }
+
+.filtros__par { display: grid; grid-template-columns: 1fr 1fr; gap: var(--e-3); }
+
+.grade-imoveis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--e-5);
+}
+
+/* --------------------------------------------------------------------------
+   Paginação
+   -------------------------------------------------------------------------- */
+.paginacao {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: var(--e-6);
+}
+.paginacao a,
+.paginacao span {
+  min-width: 38px;
+  height: 38px;
+  padding: 0 10px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-sm);
+  background: var(--superficie);
+  color: var(--texto-medio);
+  font-size: var(--fs-sm);
+  transition: all var(--transicao);
+}
+.paginacao a:hover { border-color: var(--roxo); color: var(--roxo); text-decoration: none; }
+.paginacao .ativo { background: var(--roxo); border-color: var(--roxo); color: #fff; font-weight: 600; }
+.paginacao .reticencias { border: 0; background: transparent; }
+
+/* --------------------------------------------------------------------------
+   Rodapé
+   -------------------------------------------------------------------------- */
+.site-rodape {
+  background: #e9edf3;
+  border-top: 1px solid var(--borda);
+  margin-top: var(--e-7);
+  padding: var(--e-6) 24px var(--e-5);
+  color: var(--texto-medio);
+  font-size: var(--fs-sm);
+}
+.site-rodape__grade {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1.6fr) 1fr 1fr 0.8fr;
+  gap: var(--e-5);
+  align-items: start;
+}
+.site-rodape__marca img { height: 40px; width: auto; }
+.site-rodape__pj { margin-top: 6px; color: var(--texto-fraco); }
+.site-rodape__sobre { text-align: justify; max-width: 62ch; }
+.site-rodape__titulo { font-weight: 600; color: var(--texto); margin-bottom: var(--e-2); }
+.site-rodape ul li { margin-bottom: 5px; }
+.site-rodape a { color: var(--roxo); }
+.site-rodape__legal {
+  max-width: 1240px;
+  margin: var(--e-5) auto 0;
+  padding-top: var(--e-4);
+  border-top: 1px solid var(--borda-forte);
+  text-align: center;
+  color: var(--texto-fraco);
+  font-size: var(--fs-sm);
+}
+.site-rodape__legal p { margin-bottom: 3px; }
+.site-rodape__folha { display: flex; justify-content: center; margin-top: var(--e-4); opacity: 0.5; }
+
+/* --------------------------------------------------------------------------
+   Responsivo
+   -------------------------------------------------------------------------- */
+@media (max-width: 1024px) {
+  .resultados__layout { grid-template-columns: minmax(0, 1fr); }
+  .filtros { position: static; }
+  .site-rodape__grade { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 820px) {
+  .painel-busca__linha--2,
+  .painel-busca__linha--3 { grid-template-columns: 1fr; }
+  .campo { border-right: 0; border-bottom: 1px solid var(--borda); }
+  .grade-imoveis,
+  .destaques__grade { grid-template-columns: minmax(0, 1fr); }
+  .busca { padding-top: var(--e-6); }
+  .busca__titulo { font-size: var(--fs-xl); }
+}
+
+@media (max-width: 560px) {
+  .site-topo__interno { flex-direction: column; align-items: stretch; }
+  .site-rodape__grade { grid-template-columns: minmax(0, 1fr); }
+  .especificacoes { grid-template-columns: repeat(2, 1fr); row-gap: var(--e-3); }
+}
+
+/* ==========================================================================
+   CAMADA DE MATERIAL — identidade nova (06/09/2026)
+   Mesma linguagem do sistema: branco clean, degradê claro, vidro roxo-rosa.
+   Só troca a matéria dos elementos; layout e grid continuam definidos acima.
+   ========================================================================== */
+
+.site-topo,
+.painel-busca,
+.imovel,
+.filtros__caixa,
+.resultados__barra,
+.site-rodape {
+  background: var(--grad-vidro);
+  backdrop-filter: var(--desfoque);
+  -webkit-backdrop-filter: var(--desfoque);
+  border-color: var(--vidro-borda);
+}
+
+.site-topo {
+  border-bottom: 1px solid var(--vidro-borda);
+  box-shadow:
+    0 2px 6px rgba(130, 95, 190, 0.10),
+    0 10px 30px rgba(130, 95, 190, 0.16);
+}
+
+/* Título da busca com degradê no texto -- o "brilho" da referência */
+.busca__titulo {
+  background: linear-gradient(120deg, #7c5bb0 0%, #b892e8 45%, #e6a8d4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: -0.02em;
+}
+
+/* Cartão de imóvel: vidro que levanta com halo */
+.imovel {
+  border-radius: var(--raio-lg);
+  overflow: hidden;
+  transition: transform var(--transicao), box-shadow var(--transicao);
+}
+.imovel:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--sombra-3), var(--brilho-roxo);
+  border-color: var(--roxo-borda);
+}
+.imovel__midia { background: linear-gradient(140deg, #f3edff, #fbeef7); }
+.imovel__selo {
+  background: var(--botao);
+  border-color: var(--botao-borda);
+  color: #fff;   /* a regra base pinta de roxo; no fundo sólido sumiria */
+  border-radius: var(--raio-pill);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 2px 8px rgba(120, 80, 180, 0.30);
+}
+
+/* Botão: pílula de vidro lavanda.
+   Duas camadas de fundo -- o brilho do canto superior direito por cima da
+   face em degradê. O peso da fonte é leve de propósito; negrito quebra a
+   leitura de vidro. */
+.btn-roxo {
+  border-radius: var(--raio-pill);
+  border: 1px solid var(--botao-borda);
+  background: var(--botao-brilho), var(--botao-face);
+  color: var(--botao-texto);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: var(--botao-sombra);
+  transition: background var(--transicao), box-shadow var(--transicao), transform var(--transicao);
+}
+.btn-roxo:hover {
+  background: var(--botao-brilho), linear-gradient(140deg, #fbf8ff 0%, #f1e8fd 54%, #e6dafa 100%);
+  color: var(--botao-texto);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 2px 4px rgba(140, 100, 210, 0.10),
+    0 2px 4px rgba(120, 80, 180, 0.10),
+    0 14px 34px rgba(140, 100, 210, 0.28);
+}
+.btn-roxo:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 2px 5px rgba(140, 100, 210, 0.20),
+    0 3px 10px rgba(140, 100, 210, 0.18);
+}
+.btn-roxo-vazado {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-color: var(--roxo-borda);
+}
+.btn-roxo-vazado:hover { background: rgba(255, 255, 255, 0.95); border-color: var(--roxo); }
+
+/* Campos e alternador */
+.campo__controle,
+.busca__codigo,
+.filtros__entrada {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-color: var(--roxo-borda);
+}
+.campo__controle:focus,
+.busca__codigo:focus { background: rgba(255, 255, 255, 0.98); }
+
+.alternador { background: rgba(255, 255, 255, 0.6); border-radius: var(--raio-pill); }
+.alternador__item { border-radius: var(--raio-pill); transition: all var(--transicao); }
+.alternador__item[aria-selected="true"] {
+  background: var(--botao);
+  color: #fff;
+  box-shadow: var(--brilho-roxo);
+}
+
+/* Botões de opção (quartos, garagem) */
+.opcoes__botao {
+  border-radius: var(--raio-pill);
+  border-color: var(--roxo-borda);
+  background: rgba(255, 255, 255, 0.7);
+  transition: all var(--transicao);
+}
+.opcoes__botao[aria-pressed="true"] {
+  background: var(--botao);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: var(--brilho-roxo);
+}
+
+/* Pontos do carrossel */
+.carrossel__ponto--ativo { background: var(--roxo); box-shadow: 0 0 8px var(--roxo); }
+.carrossel__seta {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 50%;
+  color: var(--marca-roxo);
+}
+
+/* Rodapé */
+.site-rodape { border-top: 1px solid var(--vidro-borda); }
+
+/* Rótulo das superfícies em roxo claro sólido.
+   Vem depois de propósito: as regras acima pintam de branco, e branco em
+   cima de #b892e8 dá ~2:1. Com o roxo da marca sobe pra ~5:1. */
+.btn-roxo,
+.btn-roxo:hover,
+.imovel__selo,
+.alternador__item[aria-selected="true"],
+.opcoes__botao[aria-pressed="true"] {
+  color: var(--botao-texto);
+}
+
+/* ---- Sem contorno branco ----
+   Mesma decisão do painel: sombra no lugar de linha. Os divisores internos
+   do painel de busca continuam, porque separam campo de campo. */
+.site-topo,
+.painel-busca,
+.imovel,
+.filtros__caixa,
+.resultados__barra,
+.site-rodape,
+.alternador,
+.alternador__item[aria-selected="true"],
+.imovel__selo,
+.opcoes__botao[aria-pressed="true"] {
+  border-color: transparent;
+}
+
+.btn-roxo-vazado,
+.opcoes__botao {
+  border-color: rgba(196, 170, 240, 0.34);
+}
+.btn-roxo-vazado:hover,
+.opcoes__botao:hover {
+  border-color: rgba(180, 148, 232, 0.55);
+}
+
+/* Títulos de coluna do rodapé são cabeçalhos na prática -- mesma fonte. */
+.site-rodape__titulo { font-family: var(--fonte-titulo); }
+
+/* Botões do site em caixa alta e peso, igual ao painel. */
+.btn-roxo,
+.btn-roxo-vazado {
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+}
+
+/* ==========================================================================
+   PASSADA DE CONTRASTE (07/09/2026) -- mesma decisão do painel:
+   superfície branca opaca, ação em roxo escuro chapado.
+   ========================================================================== */
+
+.site-topo,
+.painel-busca,
+.imovel,
+.filtros__caixa,
+.resultados__barra,
+.site-rodape,
+.alternador {
+  background: #ffffff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.campo__controle,
+.busca__codigo,
+.filtros__entrada,
+.opcoes__botao,
+.btn-roxo-vazado {
+  background: #ffffff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-color: var(--borda-forte);
+}
+.btn-roxo-vazado:hover,
+.opcoes__botao:hover { background: var(--roxo-suave); border-color: var(--roxo); }
+
+/* Botão principal: roxo escuro chapado */
+.btn-roxo {
+  background: var(--botao-brilho), var(--botao-face);
+  color: #fff;
+  box-shadow: var(--botao-sombra);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.btn-roxo:hover {
+  background: var(--botao-brilho), var(--botao-hover);
+  color: #fff;
+}
+
+/* Selecionados */
+.alternador__item[aria-selected="true"],
+.opcoes__botao[aria-pressed="true"],
+.imovel__selo {
+  background: var(--botao);
+  border-color: var(--botao);
+  color: #fff;
+  box-shadow: var(--sombra-1);
+}
+
+/* Título com degradê: tons escuros, o claro sumia no branco */
+.busca__titulo {
+  background: linear-gradient(120deg, #4c0d7a 0%, #6d28d9 52%, #a334c4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.imovel:hover { box-shadow: var(--sombra-3); }
+
+/* Os campos do painel de busca eram translúcidos e se destacavam por
+   transparência. Com o painel branco opaco eles sumiram -- a regra base
+   define `border: 0`, então pintar a cor da borda não trazia contorno
+   nenhum. Aqui viram caixa de verdade: fundo lavanda claro e borda. */
+.campo__controle,
+.filtros__entrada {
+  background: #f8f5fe;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-sm);
+  padding: 9px 11px;
+}
+.campo__controle:focus,
+.filtros__entrada:focus {
+  background: #ffffff;
+  border-color: var(--roxo);
+  box-shadow: var(--foco-roxo);
+}
+.campo:focus-within { background: transparent; }
+
+/* Hover: só escurece, sem trocar a cor do texto (ver nota no admin.css). */
+.btn-roxo-vazado:hover { background: #eae7f1; color: var(--roxo); border-color: var(--borda-forte); }
+.opcoes__botao:hover   { background: #eae7f1; color: var(--texto-medio); border-color: var(--borda-forte); }
+.alternador__item:hover { background: #eae7f1; color: var(--texto); }
+.alternador__item[aria-selected="true"]:hover,
+.opcoes__botao[aria-pressed="true"]:hover {
+  background: var(--botao);
+  color: #ffffff;
+  border-color: var(--botao);
+}
+
+.btn-selecionar:hover { background: #eae7f1; border-color: var(--borda-forte); color: var(--roxo); }
+.filtros__aba:hover   { background: #eae7f1; color: var(--texto); }

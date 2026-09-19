@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Início — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+</head>
+<body class="admin" data-pagina="inicio">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <h1 class="sr-only">Painel inicial</h1>
+
+  <!-- ================= Avisos ================= -->
+  <section class="secao-inicio">
+    <h2 class="secao-inicio__titulo">Avisos</h2>
+    <div class="avisos" data-render="avisos" data-fonte="avisos"></div>
+  </section>
+
+  <!-- ================= Status ================= -->
+  <section class="secao-inicio">
+    <h2 class="secao-inicio__titulo">Status</h2>
+    <div class="status-grade">
+      <div>
+        <section class="indicadores indicadores--3" aria-label="Resumo de imóveis">
+          <article class="indicador">
+            <div class="indicador__topo"><span class="indicador__rotulo">Imóveis disponíveis</span></div>
+            <p class="indicador__valor" data-valor="imoveisDisponiveis">—</p>
+          </article>
+          <article class="indicador">
+            <div class="indicador__topo">
+              <span class="indicador__rotulo">Imóveis cadastrados</span>
+              <a class="indicador__acao" href="imovel-editar.html?novo=1"><svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M7 2h2v5h5v2H9v5H7V9H2V7h5Z"/></svg> Novo imóvel</a>
+            </div>
+            <p class="indicador__valor" data-valor="imoveisCadastrados">—</p>
+          </article>
+          <article class="indicador">
+            <div class="indicador__topo">
+              <span class="indicador__rotulo">Imóveis aguardando revisão</span>
+              <a class="indicador__acao" href="imoveis.html?status=Em%20revis%C3%A3o"><svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M8 3.2C4.6 3.2 1.8 5.3.6 8c1.2 2.7 4 4.8 7.4 4.8S14.2 10.7 15.4 8C14.2 5.3 11.4 3.2 8 3.2Zm0 8a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4Zm0-1.7a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg> Ver imóveis</a>
+            </div>
+            <p class="indicador__valor" data-valor="imoveisAguardandoRevisao">—</p>
+          </article>
+        </section>
+
+        <section class="indicadores indicadores--2" aria-label="Resumo de parceiros" style="margin-top:16px">
+          <article class="indicador">
+            <div class="indicador__topo">
+              <span class="indicador__rotulo">Corretores parceiros cadastrados</span>
+              <a class="indicador__acao" href="corretores.html"><svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M8 3.2C4.6 3.2 1.8 5.3.6 8c1.2 2.7 4 4.8 7.4 4.8S14.2 10.7 15.4 8C14.2 5.3 11.4 3.2 8 3.2Zm0 8a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4Zm0-1.7a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg> Ver corretores</a>
+            </div>
+            <p class="indicador__valor" data-valor="corretoresParceiros">—</p>
+          </article>
+          <article class="indicador">
+            <div class="indicador__topo">
+              <span class="indicador__rotulo">Parceiros aguardando aprovação</span>
+              <a class="indicador__acao" href="corretores.html"><svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M8 3.2C4.6 3.2 1.8 5.3.6 8c1.2 2.7 4 4.8 7.4 4.8S14.2 10.7 15.4 8C14.2 5.3 11.4 3.2 8 3.2Zm0 8a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4Zm0-1.7a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg> Ver parceiros</a>
+            </div>
+            <p class="indicador__valor" data-valor="parceirosAguardando">—</p>
+          </article>
+        </section>
+
+        <section class="indicadores indicadores--1" aria-label="Resumo de condomínios" style="margin-top:16px">
+          <article class="indicador">
+            <div class="indicador__topo">
+              <span class="indicador__rotulo">Condomínios cadastrados</span>
+              <a class="indicador__acao" href="condominios.html"><svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M8 3.2C4.6 3.2 1.8 5.3.6 8c1.2 2.7 4 4.8 7.4 4.8S14.2 10.7 15.4 8C14.2 5.3 11.4 3.2 8 3.2Zm0 8a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4Zm0-1.7a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg> Ver condomínios</a>
+            </div>
+            <p class="indicador__valor" data-valor="condominiosCadastrados">—</p>
+          </article>
+        </section>
+      </div>
+
+      <div>
+        <p style="font-size:var(--fs-xs);color:var(--texto-fraco);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">
+          Recursos do sistema
+        </p>
+        <ul class="status-recursos" data-render="statusSistema" data-fonte="statusSistema"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Roadmap ================= -->
+  <section class="secao-inicio">
+    <h2 class="secao-inicio__titulo">Roadmap</h2>
+    <div class="roadmap">
+      <div class="fluxograma">
+        <pre class="mermaid">
+flowchart LR
+    Scrap["Scrap
+    site imobeasy.com"] --> DB[("Banco de dados
+    naydb")]
+    DB --> Nay(("IA
+    Nay"))
+    DB --> Site["Site
+    este painel"]
+
+    style DB fill:#f3ecfd,stroke:#a97fe0,stroke-width:2px,color:#6b4aa0
+    style Nay fill:#fbeef7,stroke:#e07bc4,stroke-width:2.5px,color:#a34e85
+    style Scrap fill:#ffffff,stroke:#ddd2ee,stroke-width:1.5px,color:#3d3550
+    style Site fill:#ffffff,stroke:#ddd2ee,stroke-width:1.5px,color:#3d3550
+        </pre>
+        <p class="fluxograma__legenda">Como o sistema funciona hoje: o banco é o centro — a varredura horária traz dado do site (Scrap), a Nay responde corretores a partir dele, e este painel lê e edita ele.</p>
+      </div>
+
+      <div class="proximos-passos">
+        <h2>Próximos passos</h2>
+        <ul class="lista-passos" id="lista-proximos-passos">Carregando...</ul>
+
+        <button class="proximos-passos__abrir-novo" type="button" id="botao-abrir-novo-passo" aria-label="Adicionar item">+</button>
+
+        <form class="proximos-passos__novo" id="form-novo-passo" hidden>
+          <input class="entrada" id="novo-passo-titulo" type="text" placeholder="Título do novo item" required>
+          <textarea class="entrada" id="novo-passo-descricao" placeholder="Descrição (opcional)" rows="2"></textarea>
+          <div style="display:flex;gap:8px">
+            <button class="btn-azul" type="submit" style="flex:1">Adicionar item</button>
+            <button class="btn-neutro" type="button" id="botao-cancelar-novo-passo">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <div class="sobreposicao" id="popup-passo" hidden>
+    <div class="popup-imovel" role="dialog" aria-modal="true" aria-labelledby="popup-passo-titulo-rotulo">
+      <div class="popup-imovel__cabecalho">
+        <h2 class="popup-imovel__titulo" id="popup-passo-titulo-rotulo">Editar item</h2>
+        <button class="popup-imovel__fechar" type="button" id="popup-passo-fechar" aria-label="Fechar">&times;</button>
+      </div>
+      <input type="hidden" id="popup-passo-id">
+      <div class="form-imovel__campo" style="margin-bottom:12px">
+        <label for="popup-passo-titulo">Título</label>
+        <input class="entrada" id="popup-passo-titulo" type="text">
+      </div>
+      <div class="form-imovel__campo" style="margin-bottom:16px">
+        <label for="popup-passo-descricao">Descrição</label>
+        <textarea class="entrada" id="popup-passo-descricao" rows="4"></textarea>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-azul" type="button" id="popup-passo-salvar" style="flex:1">Salvar</button>
+        <button class="btn-neutro" type="button" id="popup-passo-excluir" style="color:var(--vermelho)">Excluir</button>
+      </div>
+      <p class="form-imovel__status" id="popup-passo-status" style="margin-top:8px"></p>
+    </div>
+  </div>
+
+  <!-- ================= Tabelas do banco ================= -->
+  <section class="secao-inicio">
+    <h2 class="secao-inicio__titulo">Tabelas do banco (naydb)</h2>
+    <p style="font-size:var(--fs-sm);color:var(--texto-fraco);margin-bottom:14px">
+      Todas as tabelas do banco da VPS, uma a uma. Telefone, e-mail e CPF saem mascarados do
+      servidor; textos muito longos aparecem truncados. Clique numa tabela pra ver as linhas.
+    </p>
+    <div class="tabelas-banco">
+      <div class="tabelas-banco__lista" id="lista-tabelas">Carregando lista de tabelas...</div>
+      <div class="tabelas-banco__dados">
+        <h3 id="tabela-selecionada-titulo">Selecione uma tabela</h3>
+        <div class="tabela-envolucro">
+          <div class="tabela-rolagem">
+            <table class="tabela" id="tabela-selecionada-tabela">
+              <thead><tr id="tabela-selecionada-cabecalho"></tr></thead>
+              <tbody id="tabela-selecionada-corpo"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/dados-admin.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/tabelas-banco.js"></script>
+<script src="../assets/js/proximos-passos.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: "base",
+    fontFamily: "Barlow, sans-serif",
+    themeVariables: {
+      primaryColor: "#ffffff",
+      primaryBorderColor: "#ddd2ee",
+      primaryTextColor: "#3d3550",
+      lineColor: "#b19ad0",
+      fontSize: "14px"
+    },
+    flowchart: { curve: "basis", nodeSpacing: 40, rankSpacing: 60 }
+  });
+</script>
+</body>
+</html>

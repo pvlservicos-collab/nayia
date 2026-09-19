@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fluxo de mensagens — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<style>
+  /* O editor ocupa o resto da tela, abaixo do menu. Ele roda num iframe
+     de proposito: tem CSS e JavaScript próprios (variáveis como --line e
+     --ink, regras soltas em body e h1-h3) que, na mesma página, mudariam
+     a aparência do painel -- e o painel mudaria a dos cards. Isolado,
+     nenhum dos dois encosta no outro. */
+  body.admin.pagina-fluxo { overflow: hidden; }
+  .fluxo-quadro { display: block; width: 100%; border: 0; height: 70vh; background: #E9EEEC; }
+</style>
+</head>
+<body class="admin pagina-fluxo" data-pagina="fluxo">
+
+<a class="pular-conteudo" href="#fluxo-quadro">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<iframe class="fluxo-quadro" id="fluxo-quadro" src="fluxo-app.html" title="Editor do fluxo de mensagens da Nay"></iframe>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script>
+  (function () {
+    "use strict";
+    var quadro = document.getElementById("fluxo-quadro");
+    function ajustar() {
+      var topo = quadro.getBoundingClientRect().top;
+      quadro.style.height = Math.max(420, window.innerHeight - topo) + "px";
+    }
+    window.addEventListener("resize", ajustar);
+    window.addEventListener("load", ajustar);
+    ajustar();
+  })();
+</script>
+</body>
+</html>

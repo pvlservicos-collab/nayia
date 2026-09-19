@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nay Locação — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<style>
+  /* Mesmo visual da página "Relatórios das duas Nays" (o estilo mora lá também,
+     em bloco próprio; copiado para esta página ficar igual sem mexer no CSS
+     compartilhado). */
+  .painel-cartoes { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); margin-bottom:18px }
+  .painel-cartao { background:var(--superficie,#fff); border:1px solid var(--linha,#e3e6ec); border-radius:12px; padding:14px 16px }
+  .painel-cartao__n { font-family:Barlow,sans-serif; font-size:32px; font-weight:800; line-height:1.1 }
+  .painel-cartao__r { font-size:var(--fs-xs); color:var(--texto-fraco); margin-top:2px }
+  .painel-nota { font-size:var(--fs-xs); color:var(--texto-fraco); line-height:1.5; margin:8px 0 16px }
+  .painel-nay { border:1px solid var(--linha,#e3e6ec); border-radius:14px; padding:18px 20px; margin-bottom:26px; background:var(--superficie,#fff) }
+  .painel-nay__topo { display:flex; flex-wrap:wrap; align-items:baseline; gap:10px; margin-bottom:4px }
+  .painel-nay__nome { font-family:Barlow,sans-serif; font-size:21px; font-weight:800; margin:0 }
+  .painel-nay__sub { font-size:var(--fs-xs); color:var(--texto-fraco) }
+  .selo { font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; border-radius:999px; padding:3px 10px }
+  .selo--on { background:#dcfce7; color:#166534 }
+  .selo--off { background:#fee2e2; color:#991b1b }
+  .selo--teste { background:#fef3c7; color:#92400e }
+  .secao-titulo { font-family:Barlow,sans-serif; font-size:16px; font-weight:700; margin:18px 0 8px }
+  #nay-tab-config input.entrada { width:100%; min-width:180px }
+</style>
+</head>
+<body class="admin" data-pagina="nay-locacao">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <h1 class="pagina-titulo">Nay Locação</h1>
+  </div>
+
+  <section class="painel-nay">
+    <div class="painel-nay__topo">
+      <h2 class="painel-nay__nome">Como ela está agora</h2>
+      <span class="painel-nay__sub" id="nay-sub">atendimento aos corretores</span>
+      <span class="selo" id="nay-selo">…</span>
+      <button class="btn-mini" type="button" id="nay-botao-pausa" style="margin-left:auto">…</button>
+    </div>
+    <p class="painel-nota" id="nay-pausa-aviso" style="margin:0 0 8px"></p>
+    <p class="painel-nota" id="nay-nota">Carregando…</p>
+
+    <div class="abas" role="tablist" aria-label="Nay Locação" data-abas-funcionais>
+      <button class="abas__item" role="tab" type="button" data-painel-abre="metricas" aria-selected="true">Métricas</button>
+      <button class="abas__item" role="tab" type="button" data-painel-abre="config" aria-selected="false">Regras</button>
+      <button class="abas__item" role="tab" type="button" data-painel-abre="imoveis" aria-selected="false">Por imóvel</button>
+      <button class="abas__item" role="tab" type="button" data-painel-abre="prompt" aria-selected="false">Prompt</button>
+      <button class="abas__item" role="tab" type="button" data-painel-abre="conversas" aria-selected="false">Últimas respostas</button>
+      <button class="abas__item" role="tab" type="button" data-painel-abre="fila" aria-selected="false">Fila</button>
+      <button class="abas__item" role="tab" type="button" data-painel-abre="envios" aria-selected="false">Envios</button>
+    </div>
+
+    <!-- ===================== MÉTRICAS ===================== -->
+    <div data-painel="metricas">
+      <h3 class="secao-titulo">Hoje</h3>
+      <div class="painel-cartoes" id="nay-cartoes-hoje"></div>
+      <h3 class="secao-titulo">Últimos 7 dias</h3>
+      <div class="painel-cartoes" id="nay-cartoes-sete"></div>
+
+      <h3 class="secao-titulo">Dia a dia</h3>
+      <p class="painel-nota">Tempo de resposta é da mensagem dele até a primeira mensagem dela sair.</p>
+      <div class="tabela-envolucro"><div class="tabela-rolagem">
+        <table class="tabela" id="nay-tab-metricas"></table>
+      </div></div>
+
+      <h3 class="secao-titulo">O que a conferência fez (30 dias)</h3>
+      <p class="painel-nota">Cada resposta passa por 17 conferências antes de sair. Aqui está quantas vezes cada uma agiu.</p>
+      <div class="tabela-envolucro"><div class="tabela-rolagem">
+        <table class="tabela" id="nay-tab-conferencia"></table>
+      </div></div>
+    </div>
+
+    <!-- ===================== REGRAS ===================== -->
+    <div data-painel="config" hidden>
+      <h3 class="secao-titulo">Regras da Nay</h3>
+      <p class="painel-nota">O que você salvar aqui vale na mensagem seguinte, sem reiniciar nada. As regras que não podem
+        ser mudadas por aqui aparecem sem campo, só para consulta.</p>
+      <div class="tabela-envolucro"><div class="tabela-rolagem">
+        <table class="tabela" id="nay-tab-config"></table>
+      </div></div>
+    </div>
+
+    <!-- ===================== POR IMÓVEL ===================== -->
+    <div data-painel="imoveis" hidden>
+      <h3 class="secao-titulo">Por imóvel</h3>
+      <p class="painel-nota">Quantas vezes cada imóvel foi oferecido a um corretor, quantas fotos saíram dele e
+        quantas visitas nasceram daí. "Oferecido" conta cada vez que o código apareceu numa mensagem que ela
+        mandou a um corretor — uma lista com três imóveis conta uma vez para cada um.</p>
+      <p class="painel-nota">
+        <input class="entrada" id="nay-filtro-imovel" placeholder="filtrar por código, condomínio ou bairro" style="max-width:340px">
+      </p>
+      <div class="tabela-envolucro"><div class="tabela-rolagem">
+        <table class="tabela" id="nay-tab-imoveis"></table>
+      </div></div>
+    </div>
+
+    <!-- ===================== PROMPT ===================== -->
+    <div data-painel="prompt" hidden>
+      <h3 class="secao-titulo">Prompt</h3>
+      <p class="painel-nota">O fluxo do n8n lê este texto a cada mensagem: salvou aqui, vale na próxima resposta.
+        A versão anterior fica guardada.</p>
+      <p class="painel-nota">
+        <label for="nay-papel">Com quem ela fala:</label>
+        <select class="entrada" id="nay-papel">
+          <option value="corretor">Corretor</option>
+          <option value="proprietario">Proprietário</option>
+          <option value="motoboy">Fernando (motoboy)</option>
+        </select>
+        <span id="nay-prompt-info"></span>
+      </p>
+      <textarea class="entrada" id="nay-prompt" rows="24" spellcheck="false" style="width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.5"></textarea>
+      <p class="painel-nota">
+        <button class="btn-azul" type="button" id="nay-salvar-prompt">Salvar prompt</button>
+        <span id="nay-prompt-aviso"></span>
+      </p>
+    </div>
+
+    <!-- ===================== ÚLTIMAS RESPOSTAS ===================== -->
+    <div data-painel="conversas" hidden>
+      <h3 class="secao-titulo">Últimas respostas</h3>
+      <p class="painel-nota">O que chegou, o que ela respondeu e quais conferências agiram.</p>
+      <div class="tabela-envolucro"><div class="tabela-rolagem">
+        <table class="tabela" id="nay-tab-turnos"></table>
+      </div></div>
+    </div>
+
+
+    <!-- ===================== FILA ===================== -->
+    <div data-painel="fila" hidden>
+      <h3 class="secao-titulo">A fila agora</h3>
+      <div class="painel-cartoes" id="nay-fila-cartoes"></div>
+
+      <h3 class="secao-titulo">Mensagens</h3>
+      <p class="painel-nota">As duas pontas: o que chegou e ainda não virou resposta, e o que ela escreveu e
+        ainda não saiu. O que saiu barrado nas últimas 24h aparece com o motivo — é aí que se explica um
+        silêncio.</p>
+      <div class="tabela-envolucro"><div class="tabela-rolagem">
+        <table class="tabela" id="nay-tab-fila"></table>
+      </div></div>
+
+      <h3 class="secao-titulo">Quem escreveu, e o que a porta decidiu</h3>
+      <p class="painel-nota">Últimas 48 horas. Quando a regra de quem ela atende está ligada, é aqui que se vê
+        por que ela respondeu um e ficou calada com outro.</p>
+      <div class="tabela-envolucro"><div class="tabela-rolagem">
+        <table class="tabela" id="nay-tab-porta"></table>
+      </div></div>
+    </div>
+
+    <!-- ===================== ENVIOS ===================== -->
+    <div data-painel="envios" hidden>
+      <h3 class="secao-titulo">Tudo que saiu por este número</h3>
+      <div class="painel-cartoes" id="nay-envios-cartoes"></div>
+      <p class="painel-nota">A coluna <strong>Quem mandou</strong> separa o que a Nay escreveu do que alguém
+        digitou no aparelho. Ela se guia pelo identificador que o WhatsApp devolve a cada envio dela — é a
+        mesma comparação que o sistema usa para saber que você assumiu uma conversa.</p>
+      <p class="painel-nota">
+        <input class="entrada" id="nay-envios-filtro" placeholder="filtrar por nome ou texto" style="max-width:340px">
+      </p>
+      <div class="tabela-envolucro"><div class="tabela-rolagem">
+        <table class="tabela" id="nay-tab-envios"></table>
+      </div></div>
+    </div>
+  </section>
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<!-- admin.js e quem faz as abas trocarem de painel (data-abas-funcionais). Sem ele
+     os botoes acendem e o conteudo nao muda. -->
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/nay-locacao.js"></script>
+</body>
+</html>

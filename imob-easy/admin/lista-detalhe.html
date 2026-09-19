@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lista — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+</head>
+<body class="admin" data-pagina="listas">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <div>
+      <h1 class="pagina-titulo" id="titulo-lista">Lista</h1>
+      <p class="pagina-subtitulo" id="subtitulo-lista"></p>
+    </div>
+    <a class="btn-neutro" href="listas.html">&larr; Voltar pra Listas</a>
+  </div>
+
+  <div id="acoes-lista" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px"></div>
+
+  <!-- Painel dos links de WhatsApp: fica aqui vazio e o JS preenche -->
+  <section class="cartao" id="painel-whatsapp" style="padding:16px;margin-bottom:16px" hidden></section>
+
+  <div class="tabela-envolucro">
+    <div class="tabela-rolagem">
+      <table class="tabela" id="tabela-lista">
+        <thead><tr id="cabecalho-lista"></tr></thead>
+        <tbody id="corpo-lista"><tr><td>Carregando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Ficha do lead: abre ao clicar na linha, preenchida pelo JS -->
+  <div class="sobreposicao" id="sobrepor-lead" hidden>
+    <div class="popup-imovel popup-lead" role="dialog" aria-modal="true" aria-labelledby="lead-titulo">
+      <div class="popup-imovel__cabecalho">
+        <h2 class="popup-imovel__titulo" id="lead-titulo">Lead</h2>
+        <button class="popup-imovel__fechar" type="button" id="lead-fechar" aria-label="Fechar">&times;</button>
+      </div>
+      <div id="lead-corpo">Carregando...</div>
+    </div>
+  </div>
+
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/lista-detalhe.js"></script>
+</body>
+</html>

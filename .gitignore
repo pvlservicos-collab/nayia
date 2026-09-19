@@ -1,0 +1,50 @@
+# ---------------------------------------------------------------------
+# SEGREDOS -- nada aqui pode ir para o GitHub
+# ---------------------------------------------------------------------
+.env
+.env.local
+.env.*.local
+*.pem
+*_ed25519
+*_ed25519.pub
+id_rsa*
+
+# Backups de fluxo do n8n: a instancia e o token da Z-API estao HARDCODED
+# dentro dos nos (divida tecnica conhecida -- ver Arquivos/enviar_zapi.py).
+# Exportar um fluxo e exportar credencial junto.
+**/backup_wf_*.json
+**/*_workflow_backup*.json
+
+# ---------------------------------------------------------------------
+# DADO PESSOAL DE GENTE DE VERDADE
+#
+# Nome, WhatsApp e conversa de proprietario e corretor. Nao e "dado de
+# teste": e a base de clientes. Nao sobe nem em repositorio privado --
+# repositorio privado vira publico por engano, e o historico do git
+# guarda para sempre o que foi commitado uma vez.
+# ---------------------------------------------------------------------
+*.xlsx
+*.csv
+Exportação grupos*/
+captacao_para_contato_manual.csv
+imoveis_export.csv
+grupos.csv
+
+# ---------------------------------------------------------------------
+# Gerado, baixado ou temporario
+# ---------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+node_modules/
+logs/
+*.log
+.DS_Store
+Thumbs.db
+colagem/
+*.zip
+
+# nay-publicador e o ESPELHO do que esta deployado em /root/nay-publicador,
+# tem repositorio git proprio e um .env de verdade dentro. O fonte e Arquivos/.
+nay-publicador/

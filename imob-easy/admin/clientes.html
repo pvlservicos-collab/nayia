@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clientes — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+</head>
+<body class="admin" data-pagina="clientes">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <div>
+      <h1 class="pagina-titulo">Clientes</h1>
+      <p class="pagina-subtitulo" id="subtitulo-pessoas"></p>
+    </div>
+    <button class="btn-azul" type="button" id="btn-exportar">Exportar (CSV)</button>
+  </div>
+
+  <div class="layout-lateral">
+    <form class="lateral" id="filtros-pessoas" aria-label="Filtrar" data-estado-proprio>
+      <div class="lateral__bloco">
+        <label class="lateral__rotulo" for="p-busca">Pesquisar</label>
+        <div class="busca-lateral">
+          <input class="entrada" id="p-busca" type="search" placeholder="Nome, telefone ou e-mail">
+          <button type="submit" aria-label="Pesquisar"><svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M7 1a6 6 0 1 0 3.7 10.7l3.3 3.3 1.1-1.1-3.3-3.3A6 6 0 0 0 7 1Zm0 1.6a4.4 4.4 0 1 1 0 8.8 4.4 4.4 0 0 1 0-8.8Z"/></svg></button>
+        </div>
+      </div>
+      <div class="lateral__bloco">
+        <label class="lateral__rotulo" for="p-extra">Corretor</label>
+        <select class="selecao" id="p-extra"><option>Todos</option></select>
+      </div>
+      <div class="lateral__bloco">
+        <span class="lateral__rotulo">Funil</span>
+        <div class="funil" id="funil-pessoas"></div>
+      </div>
+    </form>
+
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap">
+        <span class="contagem-lista" id="contagem-pessoas" style="margin:0">Carregando…</span>
+        <select class="selecao selecao--azul" style="width:auto" aria-label="Ordenar" id="p-ordem">
+          <option value="">Ordenar</option><option value="nome">Nome (A-Z)</option><option value="recentes">Mais recentes</option>
+        </select>
+      </div>
+      <div class="grade-cartoes" id="cartoes-pessoas"></div>
+      <nav class="paginacao-sistema" aria-label="Paginação" id="pag-pessoas"></nav>
+    </div>
+  </div>
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/paginacao.js"></script>
+<script>
+(function () {
+  var POR = 30, pagina = 1, etapa = "Todos", pedido = 0;
+  var busca = document.getElementById("p-busca"), extra = document.getElementById("p-extra"), ordem = document.getElementById("p-ordem");
+  function esc(t) { return String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  function params(x) {
+    var q = new URLSearchParams(x || {});
+    if (busca.value.trim()) q.set("q", busca.value.trim());
+    if (etapa !== "Todos") q.set("etapa", etapa);
+    if (extra.value !== "Todos") q.set("corretor", extra.value);
+    if (ordem.value) q.set("ordem", ordem.value);
+    return q;
+  }
+  function cartao(i) { return '<article class="ficha"><h3 class="ficha__nome">' + esc(i.nome) + "</h3>" +
+      '<div class="ficha__etiquetas"><span class="etiqueta etiqueta--azul-suave">' + esc(i.etapa) + "</span></div>" +
+      '<dl class="ficha__dados">' +
+      '<div class="ficha__linha"><dt>Telefone:</dt><dd>' + esc(i.telefone) + "</dd></div>" +
+      '<div class="ficha__linha ficha__linha--empilhada"><dt>Email:</dt><dd>' + esc(i.email) + "</dd></div>" +
+      '<div class="ficha__linha"><dt>Corretor:</dt><dd>' + esc(i.corretor) + "</dd></div>" +
+      "</dl></article>"; }
+  var extrasCarregados = false;
+  function carregar() {
+    var meu = ++pedido;
+    fetch(window.API_BASE + "/api/clientes-lista?" + params({ page: pagina, per: POR }).toString())
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (d) {
+        if (meu !== pedido) return;
+        document.getElementById("contagem-pessoas").textContent = d.total.toLocaleString("pt-BR") + " encontrado(s)";
+        document.getElementById("cartoes-pessoas").innerHTML = d.itens.map(cartao).join("") ||
+          '<p class="painel__vazio">Ninguém com esses filtros.</p>';
+        var todos = d.funil.reduce(function (a, f) { return a + f.contagem; }, 0);
+        var maior = Math.max.apply(null, [todos].concat(d.funil.map(function (f) { return f.contagem; })));
+        document.getElementById("funil-pessoas").innerHTML = [{ rotulo: "Todos", contagem: todos }].concat(d.funil).map(function (f) {
+          return '<button class="funil__item" type="button" data-etapa="' + esc(f.rotulo) + '" style="--preenchimento:' +
+            Math.round(f.contagem / maior * 100) + '%"' + (f.rotulo === etapa ? ' aria-current="true"' : "") + "><span>" +
+            esc(f.rotulo) + '</span><span class="funil__contagem">' + f.contagem + "</span></button>";
+        }).join("");
+        document.getElementById("subtitulo-pessoas").textContent = todos.toLocaleString("pt-BR") + " no total";
+        if (!extrasCarregados) {
+          extrasCarregados = true;
+          (d.corretores || []).forEach(function (e) {
+            var o = document.createElement("option"); o.textContent = e; extra.appendChild(o);
+          });
+        }
+        window.pintarPaginacao(document.getElementById("pag-pessoas"), pagina, d.total, POR, function (n) { pagina = n; carregar(); });
+      })
+      .catch(function () { document.getElementById("cartoes-pessoas").innerHTML = '<p class="painel__vazio">Não foi possível carregar.</p>'; });
+  }
+  function recomecar() { pagina = 1; carregar(); }
+  var espera;
+  busca.addEventListener("input", function () { clearTimeout(espera); espera = setTimeout(recomecar, 300); });
+  document.getElementById("filtros-pessoas").addEventListener("submit", function (e) { e.preventDefault(); recomecar(); });
+  extra.addEventListener("change", recomecar);
+  ordem.addEventListener("change", recomecar);
+  document.getElementById("funil-pessoas").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-etapa]"); if (!b) return; etapa = b.dataset.etapa; recomecar();
+  });
+  document.getElementById("btn-exportar").addEventListener("click", function () {
+    window.location.href = window.API_BASE + "/api/clientes-lista?" + params({ formato: "csv", per: 5000 }).toString();
+  });
+  carregar();
+})();
+</script>
+</body>
+</html>

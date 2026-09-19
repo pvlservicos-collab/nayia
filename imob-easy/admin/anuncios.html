@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anúncios — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+</head>
+<body class="admin" data-pagina="anuncios">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <h1 class="pagina-titulo">Anúncios</h1>
+    <button class="btn-azul" type="button" id="btn-exportar">Exportar (CSV)</button>
+  </div>
+  <p class="pagina-subtitulo" style="margin-bottom:16px">Os imóveis do catálogo (o que o site imobeasy.com conhece), publicados ou não.</p>
+
+  <div class="layout-lateral">
+    <form class="lateral" id="filtros-anuncios" aria-label="Filtrar anúncios" data-estado-proprio>
+      <button class="btn-azul btn-bloco" type="button" id="btn-sem-anuncio">Ver imóveis sem anúncio</button>
+      <div class="lateral__bloco">
+        <label class="lateral__rotulo" for="a-busca">Pesquisar</label>
+        <input class="entrada" id="a-busca" name="q" type="search" placeholder="Código, condomínio, bairro">
+      </div>
+      <div class="lateral__bloco">
+        <label class="lateral__rotulo" for="a-tipo">Tipo de anúncio</label>
+        <select class="selecao" id="a-tipo" name="finalidade"><option value="">Todos</option><option value="venda">Venda</option><option value="aluguel">Aluguel</option></select>
+      </div>
+      <div class="lateral__bloco">
+        <label class="lateral__rotulo" for="a-status">Status</label>
+        <select class="selecao" id="a-status" name="status"><option value="">Todos</option><option value="Disponível">Publicado</option><option value="Fora do site">Fora do site</option><option value="Indisponível">Indisponível</option></select>
+      </div>
+      <div class="lateral__bloco">
+        <label class="lateral__rotulo" for="a-condominios">Condomínios</label>
+        <input class="entrada" id="a-condominios" type="text">
+      </div>
+      <div class="lateral__bloco">
+        <label class="lateral__rotulo" for="a-bairros">Bairro</label>
+        <input class="entrada" id="a-bairros" name="bairro" type="text">
+      </div>
+      <button class="btn-azul btn-bloco" type="submit">Pesquisar</button>
+      <button class="btn-neutro btn-bloco" type="reset">Limpar Pesquisa</button>
+    </form>
+
+    <div>
+      <p class="contagem-lista" id="contagem-anuncios">Carregando…</p>
+      <div class="tabela-envolucro">
+        <div class="tabela-rolagem">
+          <table class="tabela">
+            <thead><tr><th scope="col">Status</th><th scope="col">Imóvel</th><th scope="col">Tipo de anúncio</th>
+              <th scope="col">Financia?</th><th scope="col">Valores</th><th scope="col" class="col-acoes">Ações</th></tr></thead>
+            <tbody id="corpo-anuncios"><tr><td colspan="6">Carregando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <nav class="paginacao-sistema" aria-label="Paginação" id="pag-anuncios"></nav>
+    </div>
+  </div>
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/paginacao.js"></script>
+<script src="../assets/js/seletor-condominio.js"></script>
+<script>
+(function () {
+  var POR = 50, pagina = 1, pedido = 0;
+  var form = document.getElementById("filtros-anuncios");
+  var sel = window.criarSeletorCondominio(document.getElementById("a-condominios"), { multiplo: true });
+  function esc(t) { return String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  function params(x) {
+    var q = new URLSearchParams(x || {}); q.set("catalogo", "1");
+    ["q", "finalidade", "status", "bairro"].forEach(function (k) { var v = form.elements[k].value.trim(); if (v) q.set(k, v); });
+    var ids = sel.valores().map(function (c) { return c.id; }).join(","); if (ids) q.set("condo_ids", ids);
+    return q;
+  }
+  function carregar() {
+    var meu = ++pedido;
+    fetch(window.API_BASE + "/api/imoveis-lista?" + params({ page: pagina, per: POR }).toString())
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (d) {
+        if (meu !== pedido) return;
+        document.getElementById("contagem-anuncios").textContent = d.total + " anúncio(s)";
+        document.getElementById("corpo-anuncios").innerHTML = d.itens.map(function (i) {
+          var pub = i.status === "Disponível";
+          return "<tr><td><span class=\"etiqueta " + (pub ? "etiqueta--verde" : "etiqueta--laranja") + "\">" + (pub ? "Publicado" : esc(i.status)) + "</span></td>" +
+            "<td><strong>" + esc(i.codigo) + "</strong> (" + esc(i.condominio || i.bairro || "—") + ")" + (i.parceiro ? " <span class=\"etiqueta etiqueta--laranja\" style=\"font-size:10px\">parceiro</span>" : "") + "</td>" +
+            "<td>" + esc(/^Venda/.test(i.valor) ? "Venda" : /^Aluguel/.test(i.valor) ? "Aluguel" : "—") + "</td>" +
+            "<td>" + esc(i.financia) + "</td><td>" + esc(i.valor) + "</td>" +
+            "<td class=\"col-acoes\"><a class=\"btn-mini\" href=\"imovel-editar.html?codigo=" + esc(i.codigo) + "\">Editar</a></td></tr>";
+        }).join("") || '<tr><td colspan="6" style="text-align:center;color:var(--texto-fraco);padding:24px">Nenhum anúncio com esses filtros.</td></tr>';
+        window.pintarPaginacao(document.getElementById("pag-anuncios"), pagina, d.total, POR, function (n) { pagina = n; carregar(); });
+      })
+      .catch(function () { document.getElementById("corpo-anuncios").innerHTML = '<tr><td colspan="6">Não foi possível carregar.</td></tr>'; });
+  }
+  function recomecar() { pagina = 1; carregar(); }
+  form.addEventListener("submit", function (e) { e.preventDefault(); recomecar(); });
+  form.addEventListener("reset", function () { setTimeout(function () { sel.limpar(); recomecar(); }, 0); });
+  form.elements.status.addEventListener("change", recomecar);
+  form.elements.finalidade.addEventListener("change", recomecar);
+  document.getElementById("btn-sem-anuncio").addEventListener("click", function () { form.elements.status.value = "Fora do site"; recomecar(); });
+  document.getElementById("btn-exportar").addEventListener("click", function () {
+    window.location.href = window.API_BASE + "/api/imoveis-lista?" + params({ formato: "csv", per: 6000 }).toString();
+  });
+  carregar();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+{
+  "_comentario": [
+    "Fonte unica das variacoes dos comandos de PENDENCIA do Tel.",
+    "Le por teste_regex_pendencia.js e pelo patch que gera as duas copias",
+    "da regex no fluxo -- `Comando do Tel` (que EXECUTA) e `Rotear para o",
+    "agente` (que DESCARTA, senao o Tel recebe resposta dupla).",
+    "",
+    "NASCEU DE UM CASO REAL (01/09, 13h18): o Tel escreveu 'descarta 47' e",
+    "a gramatica so conhecia 'DESCARTAR'. A mensagem caiu no agente, que",
+    "leu o 47 como codigo de imovel e respondeu 'o 47 tem so dois digitos,",
+    "me passa o codigo completo'. Ele repetiu tres vezes sem entender.",
+    "",
+    "A regra do Tel: sempre listar as variacoes que ele escreve de",
+    "verdade, nunca so a forma canonica."
+  ],
+  "descartar": [
+    { "texto": "DESCARTAR 47",              "id": 47 },
+    { "texto": "descartar 47",              "id": 47 },
+    { "texto": "descarta 47",               "id": 47 },
+    { "texto": "Descarta 47",               "id": 47 },
+    { "texto": "descarte 47",               "id": 47 },
+    { "texto": "descarta a 47",             "id": 47 },
+    { "texto": "descarta a pendencia 47",   "id": 47 },
+    { "texto": "descarta a pendência 47",   "id": 47 },
+    { "texto": "esquece 47",                "id": 47 },
+    { "texto": "esqueça 47",                "id": 47 },
+    { "texto": "esquecer 47",               "id": 47 },
+    { "texto": "apaga 47",                  "id": 47 },
+    { "texto": "apagar a 47",               "id": 47 },
+    { "texto": "cancela 47",                "id": 47 },
+    { "texto": "cancelar a pendencia 47",   "id": 47 },
+    { "texto": "ignora 47",                 "id": 47 },
+    { "texto": "Nay descarta 47",           "id": 47 },
+    { "texto": "@Nay descarta 47",          "id": 47 },
+    { "texto": "Nay, descarta 47",          "id": 47 },
+    { "texto": "descarta 1024",             "id": 1024 },
+    { "texto": "  descarta 47  ",           "id": 47 }
+  ],
+  "resposta": [
+    { "texto": "RESPOSTA 18 pode ser 15h",  "id": 18, "corpo": "pode ser 15h" },
+    { "texto": "resposta 18 pode ser 15h",  "id": 18, "corpo": "pode ser 15h" },
+    { "texto": "responde 18 pode ser 15h",  "id": 18, "corpo": "pode ser 15h" },
+    { "texto": "responder 18 pode ser 15h", "id": 18, "corpo": "pode ser 15h" },
+    { "texto": "Nay responde 18 pode ser 15h", "id": 18, "corpo": "pode ser 15h" },
+    { "texto": "RESPOSTA 18 aceita pet, até 10kg", "id": 18, "corpo": "aceita pet, até 10kg" }
+  ],
+  "listar": [
+    { "texto": "PENDENCIAS" },
+    { "texto": "pendencias" },
+    { "texto": "pendências" },
+    { "texto": "PENDENTES" },
+    { "texto": "pendentes" }
+  ],
+  "descartar_tudo": [
+    { "texto": "DESCARTAR TUDO",     "confirma": false },
+    { "texto": "descarta tudo",      "confirma": false },
+    { "texto": "DESCARTAR TUDO SIM", "confirma": true },
+    { "texto": "descarta tudo sim",  "confirma": true }
+  ],
+  "nao_e_comando": [
+    "descarta esse imovel pra mim",
+    "pode descartar depois",
+    "o 47 tem quantos quartos",
+    "esquece",
+    "resposta",
+    "me manda o 5750 pro Sergio",
+    "posta o 5750",
+    "quero saber qual é o valor de entrada?",
+    "descarta 47 e posta o 5750"
+  ]
+}

@@ -1,0 +1,252 @@
+/* ==========================================================================
+   Imob Easy — Tokens de design
+   Identidade (07/09/2026): fundo em degradê mesh roxo, cartões brancos
+   opacos e roxo escuro sólido nos elementos de ação -- alto contraste.
+   ========================================================================== */
+
+:root {
+  /* ---- Marca ---- */
+  --marca-magenta: #e07bc4;
+  --marca-magenta-escuro: #c85fa8;
+  --marca-roxo: #520779;
+
+  /* ---- Roxo sólido (acento principal do sistema) ---- */
+  --roxo: #6d28d9;
+  --roxo-hover: #5b21b6;
+  --roxo-suave: #f3edff;
+  --roxo-borda: #cbb5ee;
+  --roxo-banner: #b98ae0;
+  --lilas: #d9c4f5;
+  --rosa-claro: #f7e6f5;
+
+  /* ---- "Azul" do sistema: virou o mesmo roxo-rosa, pra unificar ----
+     Os nomes ficam (o HTML e o JS inteiro usa var(--azul)), só a cor muda. */
+  --azul: #6d28d9;
+  --azul-forte: #5b21b6;
+  --azul-claro: #f1eaff;
+  --azul-borda: #d3c1f4;
+  --azul-info: #7c3aed;
+
+  /* ---- Status (suavizados pra combinar com o clean) ---- */
+  --verde: #5cb98c;
+  --verde-suave: #e8f7f0;
+  --laranja: #e8a87c;
+  --laranja-suave: #fdf2ea;
+  --vermelho: #e08497;
+  --vermelho-suave: #fdeef1;
+
+  /* ---- Neutros ---- */
+  --fundo: #eceaf1;
+  --fundo-alt: #f0eef4;
+  /* Superfície dos cartões: branco opaco. Era translúcida com tinta
+     lavanda, o que deixava todo card acinzentado sobre o fundo roxo. */
+  --superficie: #ffffff;
+  --superficie-solida: #ffffff;
+  --superficie-2: #faf8fe;
+  --borda: #e3daf2;
+  --borda-forte: #cabbe4;
+
+  /* ---- Superfícies claras ---- */
+  --vidro: #ffffff;
+  --vidro-forte: #ffffff;
+  /* Sem contorno: o vidro é separado do fundo pela sombra, não por linha.
+     O token continua existindo porque muita regra o referencia. */
+  --vidro-borda: transparent;
+  --vidro-roxo: rgba(196, 163, 240, 0.14);
+  --desfoque: saturate(160%) blur(18px);
+
+  /* ---- Degradês ---- */
+  --grad-fundo: linear-gradient(160deg, #f1eff5 0%, #eceaf2 38%, #f0edf3 72%, #eeecf3 100%);
+  --grad-acento: linear-gradient(135deg, #b892e8 0%, #d4a5e8 55%, #f0c2e0 100%);
+  --grad-vidro: #ffffff;
+
+  /* ---- Botão: roxo sólido ----
+     Era lavanda claro com rótulo cinza-roxo (~6:1). Agora é chapado e escuro
+     com texto branco, que dá 7,1:1 -- o botão passa a ser o ponto de maior
+     contraste da tela, como manda um elemento de ação. */
+  --botao: #6d28d9;
+  --botao-hover: #5b21b6;
+  --botao-texto: #ffffff;
+  --botao-borda: transparent;
+  --botao-face: #6d28d9;
+  /* Sobra só um véu de luz no alto, pra face não ficar completamente morta. */
+  --botao-brilho: linear-gradient(165deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 58%);
+  --botao-sombra:
+    0 1px 2px rgba(50, 20, 100, 0.18),
+    0 8px 20px rgba(70, 35, 135, 0.24);
+
+  /* ---- Texto ---- */
+  --texto: #241d33;
+  --texto-medio: #4a4360;
+  --texto-fraco: #5f5775;   /* ~7:1 no branco */
+  --texto-inverso: #ffffff;
+
+  /* ---- Tipografia ---- */
+  --fonte: "Barlow", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --fonte-titulo: "Rubik", "Barlow", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+  --fs-xs: 0.6875rem;   /* 11px */
+  --fs-sm: 0.8125rem;   /* 13px */
+  --fs-md: 0.9375rem;   /* 15px */
+  --fs-lg: 1.0625rem;   /* 17px */
+  --fs-xl: 1.375rem;    /* 22px */
+  --fs-2xl: 1.75rem;    /* 28px */
+  --fs-3xl: 2.25rem;    /* 36px */
+
+  /* ---- Espaço ---- */
+  --e-1: 4px;
+  --e-2: 8px;
+  --e-3: 12px;
+  --e-4: 16px;
+  --e-5: 24px;
+  --e-6: 32px;
+  --e-7: 48px;
+
+  /* ---- Formas: cantos mais generosos, tipo os arcos da referência ---- */
+  --raio-sm: 8px;
+  --raio: 14px;
+  --raio-lg: 22px;
+  --raio-pill: 999px;
+
+  /* ---- Sombras: roxeadas, nunca pretas ---- */
+  --sombra-1: 0 1px 2px rgba(60, 30, 110, 0.06), 0 2px 8px rgba(60, 30, 110, 0.06);
+  --sombra-2: 0 2px 6px rgba(60, 30, 110, 0.08), 0 10px 24px rgba(60, 30, 110, 0.09);
+  --sombra-3: 0 20px 50px rgba(55, 25, 105, 0.18);
+  --brilho-roxo: 0 10px 26px rgba(70, 35, 135, 0.14);
+  --foco: 0 0 0 3px rgba(109, 40, 217, 0.30);
+  --foco-roxo: 0 0 0 3px rgba(109, 40, 217, 0.30);
+
+  --transicao: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================================================
+   Reset enxuto
+   ========================================================================== */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--fonte);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  color: var(--texto);
+  background: var(--fundo);
+  background-image: var(--grad-fundo);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ==========================================================================
+   Fundo: degradê mesh
+   Manchas grandes de roxo que se derretem umas nas outras. Cada mancha é uma
+   elipse ampla e sem borda definida; o blur pesado no fim é o que apaga
+   qualquer emenda entre elas e dá o aspecto de tinta espalhada.
+   O `inset` negativo joga as bordas do blur pra fora da tela -- sem isso
+   sobraria uma moldura clara em volta.
+
+   Atenção ao posicionamento: como a moldura é 240px maior que a tela de cada
+   lado, "50%" aqui NÃO é o meio da tela. Por isso cada mancha é ancorada em
+   calc(240px + Nvw/Nvh), que é coordenada de tela de verdade.
+   ========================================================================== */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -240px;   /* > 3x o raio do blur, senão sobra borda clara na tela */
+  pointer-events: none;
+  z-index: 0;
+  background:
+    /* Os dois véus brancos vêm primeiro porque camada de fundo em CSS empilha
+       de cima pra baixo -- são eles que abrem o claro por cima do roxo.
+       Fracos de propósito: fortes demais e apagam o mesh inteiro.
+
+       1) Véu do topo: a faixa de cima é onde ficam logo, menu e título, e é
+       a parte que precisa respirar. Os stops estão em px+vh porque a moldura
+       começa 240px acima da tela -- assim o pico cai exatamente na borda
+       superior da viewport.
+       2) Clareira central: abre o miolo, onde fica o conteúdo. */
+    linear-gradient(to bottom,
+      rgba(238, 236, 244, 0.80) 0,
+      rgba(238, 236, 244, 0.80) 240px,
+      rgba(238, 236, 244, 0) calc(240px + 52vh)),
+    radial-gradient(54vw 48vh at calc(240px + 50vw) calc(240px + 46vh), rgba(238, 236, 244, 0.82) 0%, rgba(238, 236, 244, 0) 74%),
+    /* Uma mancha por canto, com o centro no vértice ou logo fora dele: assim
+       o roxo entra pela quina e o miolo da tela fica livre pro conteúdo. */
+    radial-gradient(38vw 34vh at calc(240px + 3vw) calc(240px + 0vh),  rgba(139, 92, 246, 0.32) 0%, rgba(139, 92, 246, 0) 72%),
+    radial-gradient(36vw 32vh at calc(240px + 99vw) calc(240px + 0vh), rgba(147, 105, 244, 0.30) 0%, rgba(147, 105, 244, 0) 72%),
+    /* laterais, pra ligar um canto no outro */
+    radial-gradient(26vw 36vh at calc(240px - 2vw) calc(240px + 46vh),  rgba(160, 118, 240, 0.30) 0%, rgba(160, 118, 240, 0) 74%),
+    radial-gradient(26vw 34vh at calc(240px + 102vw) calc(240px + 52vh), rgba(172, 128, 246, 0.28) 0%, rgba(172, 128, 246, 0) 74%),
+    /* cantos de baixo */
+    radial-gradient(46vw 42vh at calc(240px + 100vw) calc(240px + 100vh), rgba(139, 92, 246, 0.32) 0%, rgba(139, 92, 246, 0) 70%),
+    radial-gradient(40vw 38vh at calc(240px + 1vw) calc(240px + 100vh), rgba(150, 100, 246, 0.38) 0%, rgba(150, 100, 246, 0) 72%),
+    /* véu rosado, só pra quebrar o roxo puro */
+    radial-gradient(32vw 26vh at calc(240px + 62vw) calc(240px + 6vh), rgba(244, 178, 222, 0.22) 0%, rgba(244, 178, 222, 0) 74%),
+    linear-gradient(150deg, #f0edf4 0%, #eae7f0 45%, #efecf2 100%);
+  filter: blur(64px);
+}
+
+body > * { position: relative; z-index: 1; }
+
+img, svg { max-width: 100%; display: block; }
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  font-family: var(--fonte-titulo);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+p { margin: 0; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+
+a { color: var(--roxo-hover); text-decoration: none; transition: color var(--transicao); }
+a:hover { color: var(--marca-roxo); text-decoration: underline; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+
+/* Foco visível e consistente em todo o projeto */
+:focus-visible {
+  outline: 2px solid var(--roxo);
+  outline-offset: 2px;
+  border-radius: var(--raio-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Utilitário para leitores de tela */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Link de pular para o conteúdo */
+.pular-conteudo {
+  position: absolute;
+  left: 50%;
+  top: -60px;
+  transform: translateX(-50%);
+  z-index: 999;
+  background: var(--marca-roxo);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 0 0 var(--raio) var(--raio);
+  transition: top var(--transicao);
+}
+.pular-conteudo:focus { top: 0; color: #fff; text-decoration: none; }

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Condomínios — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+</head>
+<body class="admin" data-pagina="condominios">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <h1 class="pagina-titulo">Condomínios</h1>
+  </div>
+
+  <div class="layout-lateral">
+    <form class="lateral" id="filtros-condo" aria-label="Filtrar condomínios">
+      <div class="lateral__bloco">
+        <label class="lateral__rotulo" for="busca-condominio">Pesquisar</label>
+        <div class="busca-lateral">
+          <input class="entrada" id="busca-condominio" type="search" placeholder="Nome ou bairro (sem acento funciona)">
+          <button type="submit" aria-label="Pesquisar"><svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M7 1a6 6 0 1 0 3.7 10.7l3.3 3.3 1.1-1.1-3.3-3.3A6 6 0 0 0 7 1Zm0 1.6a4.4 4.4 0 1 1 0 8.8 4.4 4.4 0 0 1 0-8.8Z"/></svg></button>
+        </div>
+      </div>
+      <p style="font-size:var(--fs-xs);color:var(--texto-fraco);line-height:1.4">
+        A contagem inclui todos os imóveis do sistema ligados ao condomínio (do site e do admin antigo:
+        disponíveis, alugados, vendidos...). "Ver imóveis" abre a tela de Imóveis já filtrada.
+      </p>
+    </form>
+
+    <div>
+      <p class="contagem-lista" id="contagem-condo">Carregando…</p>
+      <div class="tabela-envolucro">
+        <div class="tabela-rolagem">
+          <table class="tabela">
+            <thead>
+              <tr>
+                <th scope="col">Nome</th>
+                <th scope="col">Bairro</th>
+                <th scope="col">Imóveis</th>
+                <th scope="col">Disponíveis</th>
+                <th scope="col" class="col-acoes">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="corpo-condo"><tr><td colspan="5">Carregando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <nav class="paginacao-sistema" aria-label="Paginação" id="pag-condo"></nav>
+    </div>
+  </div>
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/paginacao.js"></script>
+<script>
+(function () {
+  var POR = 50, pagina = 1, pedido = 0;
+  var busca = document.getElementById("busca-condominio");
+  function esc(t) { return String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  function carregar() {
+    var meu = ++pedido;
+    var q = new URLSearchParams({ page: pagina, per: POR });
+    if (busca.value.trim()) q.set("q", busca.value.trim());
+    fetch(window.API_BASE + "/api/condominios?" + q.toString())
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (itens) {
+        if (meu !== pedido) return;
+        var total = itens.length ? itens[0].total : 0;
+        document.getElementById("contagem-condo").textContent = total + " condomínio(s)";
+        document.getElementById("corpo-condo").innerHTML = itens.map(function (c) {
+          return "<tr><td><strong>" + esc(c.nome) + "</strong></td><td>" + esc(c.bairro || "—") + "</td>" +
+            '<td class="num">' + esc(c.imoveis) + '</td><td class="num">' + esc(c.disponiveis) + "</td>" +
+            '<td class="col-acoes"><a class="btn-mini" href="imoveis.html?condo=' + c.id + "&condo_nome=" +
+            encodeURIComponent(c.nome) + '">Ver imóveis</a></td></tr>';
+        }).join("") || '<tr><td colspan="5" style="text-align:center;color:var(--texto-fraco);padding:24px">Nenhum condomínio com esse nome.</td></tr>';
+        window.pintarPaginacao(document.getElementById("pag-condo"), pagina, total, POR, function (n) { pagina = n; carregar(); });
+      })
+      .catch(function () { document.getElementById("corpo-condo").innerHTML = '<tr><td colspan="5">Não foi possível carregar.</td></tr>'; });
+  }
+  var espera;
+  busca.addEventListener("input", function () { clearTimeout(espera); espera = setTimeout(function () { pagina = 1; carregar(); }, 300); });
+  document.getElementById("filtros-condo").addEventListener("submit", function (e) { e.preventDefault(); pagina = 1; carregar(); });
+  carregar();
+})();
+</script>
+</body>
+</html>

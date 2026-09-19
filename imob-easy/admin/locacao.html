@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Locação — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+</head>
+<body class="admin" data-pagina="locacao">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <h1 class="pagina-titulo">Locação</h1>
+  </div>
+
+  <div class="abas" role="tablist" aria-label="Locação" data-abas-funcionais>
+    <button class="abas__item" role="tab" type="button" data-painel-abre="locatarios" aria-selected="false">Locatários</button>
+    <button class="abas__item" role="tab" type="button" data-painel-abre="locadores" aria-selected="false">Locadores</button>
+    <button class="abas__item" role="tab" type="button" data-painel-abre="contratos" aria-selected="true">Contratos</button>
+  </div>
+
+  <div data-painel="locatarios" hidden>
+    <p class="painel__vazio" style="padding:24px 0">
+      Sem tabela correspondente no banco ainda -- o naydb não distingue locatário de proprietário
+      hoje. Ver "Próximos passos" no Início.
+    </p>
+  </div>
+
+  <div data-painel="locadores" hidden>
+    <p class="painel__vazio" style="padding:24px 0">
+      Sem tabela correspondente no banco ainda -- existe `proprietarios`, mas ligar aqui depende
+      do login (mesma decisão da área Proprietários). Ver "Próximos passos" no Início.
+    </p>
+  </div>
+
+  <div data-painel="contratos">
+    <div id="filtro-vencimento-contratos"></div>
+    <div class="tabela-envolucro">
+      <div class="tabela-rolagem">
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th scope="col">Código</th>
+              <th scope="col">Condomínio</th>
+              <th scope="col">Vencimento</th>
+              <th scope="col">Status de renovação</th>
+              <th scope="col">Proprietário</th>
+              <th scope="col">Telefone</th>
+            </tr>
+          </thead>
+          <tbody id="corpo-contratos"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/dados-admin.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/filtro-vencimento.js"></script>
+<script>
+  criarFiltroVencimento({
+    container: document.getElementById("filtro-vencimento-contratos"),
+    area: "contratos",
+    buscar: function (de, ate) {
+      var q = new URLSearchParams();
+      if (de) q.set("de", de);
+      if (ate) q.set("ate", ate);
+      return fetch(window.API_BASE + "/api/contratos?" + q.toString()).then(function (r) { return r.json(); });
+    },
+    renderizar: function (itens) {
+      document.getElementById("corpo-contratos").innerHTML = window.RENDERIZAR_CONTRATOS(itens);
+    },
+    obterResumoItem: function (item) {
+      return {
+        codigo: item.codigo, condominio: item.condominio, vencimento: item.vencimento,
+        proprietario_nome: item.proprietario_nome, proprietario_telefone: item.proprietario_telefone,
+      };
+    },
+  });
+</script>
+</body>
+</html>

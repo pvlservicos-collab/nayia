@@ -1,0 +1,28 @@
+services:
+  site-api:
+    build: .
+    container_name: nay-site-api
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - WRITE_DATABASE_URL=${WRITE_DATABASE_URL}
+      - TABELAS_DATABASE_URL=${TABELAS_DATABASE_URL}
+      - CONTEUDO_DATABASE_URL=${CONTEUDO_DATABASE_URL}
+      - HEARTBEAT_DIR=/heartbeats
+    volumes:
+      - /root/nay-publicador/logs:/heartbeats:ro
+    # localhost por enquanto -- mesma logica do nay-painel: sem DNS ainda,
+    # sem expor pra internet. Testado por SSH.
+    ports:
+      - "127.0.0.1:8092:8092"
+    labels:
+      - traefik.enable=false
+      - traefik.http.routers.nay-site-api.rule=Host(`api.imobeasy.online`)
+      - traefik.http.routers.nay-site-api.entrypoints=websecure
+      - traefik.http.routers.nay-site-api.tls.certresolver=letsencrypt
+      - traefik.http.services.nay-site-api.loadbalancer.server.port=8092
+
+networks:
+  default:
+    name: n8n-viux_default
+    external: true

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 292 96" role="img" aria-label="Imob Easy">
+  <title>Imob Easy</title>
+
+  <!-- Símbolo -->
+  <g fill="none" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 20 C14 52 30 70 46 70" stroke="#2b1a4d"/>
+    <path d="M46 70 C62 70 78 52 78 20" stroke="#e6007e"/>
+  </g>
+  <circle cx="14" cy="16" r="7" fill="#2b1a4d"/>
+  <circle cx="78" cy="16" r="7" fill="#e6007e"/>
+
+  <!-- Marca -->
+  <text x="102" y="38" font-family="Barlow, Segoe UI, Arial, sans-serif" font-size="24"
+        font-weight="700" fill="#e6007e" letter-spacing="0.4"
+        textLength="54" lengthAdjust="spacingAndGlyphs">imob</text>
+  <text x="100" y="82" font-family="Barlow, Segoe UI, Arial, sans-serif" font-size="46"
+        font-weight="700" fill="#3b2464" letter-spacing="-0.5"
+        textLength="114" lengthAdjust="spacingAndGlyphs">easy</text>
+</svg>

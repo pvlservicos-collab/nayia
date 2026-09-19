@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Imob Easy — Encontre seu imóvel em Manaus</title>
+<meta name="description" content="Busque imóveis para comprar ou alugar em Manaus com a Imob Easy.">
+<link rel="icon" href="assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body class="site" data-raiz="">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<header class="site-topo">
+  <div class="site-topo__interno">
+    <a class="site-topo__logo" href="index.html" aria-label="Imob Easy — página inicial">
+      <img src="assets/img/logo.svg" alt="Imob Easy">
+    </a>
+    <div class="site-topo__acoes">
+      <a class="btn-roxo-vazado" href="admin/inicio.html">Ir para o Admin</a>
+    </div>
+  </div>
+</header>
+
+<main id="conteudo">
+
+  <!-- ================= Busca ================= -->
+  <section class="busca">
+    <h1 class="busca__titulo">Comece seu sonho pela busca!</h1>
+
+    <div class="alternador" role="tablist" aria-label="Tipo de negócio" data-abas>
+      <button class="alternador__item" role="tab" aria-selected="true" data-destino="comprar.html">Comprar</button>
+      <button class="alternador__item" role="tab" aria-selected="false" data-destino="alugar.html">Alugar</button>
+    </div>
+
+    <form class="painel-busca" action="comprar.html" method="get">
+      <div class="painel-busca__linha painel-busca__linha--2">
+        <div class="campo">
+          <label class="campo__rotulo" for="bairro">Bairro/Condomínio</label>
+          <input class="campo__controle" id="bairro" name="bairro" type="text"
+                 placeholder="Selecione o Bairro/Condomínio">
+        </div>
+        <div class="campo">
+          <label class="campo__rotulo" for="tipo">Tipo de Imóvel</label>
+          <select class="campo__controle" id="tipo" name="tipo">
+            <option>Todos</option>
+            <option>Apartamento</option>
+            <option>Casa</option>
+            <option>Casa de condomínio</option>
+            <option>Sala comercial</option>
+            <option>Terreno</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="painel-busca__linha painel-busca__linha--3">
+        <div class="campo">
+          <span class="campo__rotulo" id="rot-quartos">Quartos</span>
+          <div class="opcoes" role="group" aria-labelledby="rot-quartos" data-grupo-exclusivo>
+            <button class="opcoes__botao" type="button" aria-pressed="false">1</button>
+            <button class="opcoes__botao" type="button" aria-pressed="false">2</button>
+            <button class="opcoes__botao" type="button" aria-pressed="false">3</button>
+            <button class="opcoes__botao" type="button" aria-pressed="false">4+</button>
+          </div>
+        </div>
+        <div class="campo">
+          <span class="campo__rotulo" id="rot-garagem">Garagem</span>
+          <div class="opcoes" role="group" aria-labelledby="rot-garagem" data-grupo-exclusivo>
+            <button class="opcoes__botao" type="button" aria-pressed="false">1</button>
+            <button class="opcoes__botao" type="button" aria-pressed="false">2</button>
+            <button class="opcoes__botao" type="button" aria-pressed="false">3</button>
+            <button class="opcoes__botao" type="button" aria-pressed="false">4+</button>
+          </div>
+        </div>
+        <div class="campo">
+          <span class="campo__rotulo">Valor</span>
+          <div class="campo__duplo">
+            <input class="campo__controle" type="text" placeholder="De" aria-label="Valor mínimo">
+            <input class="campo__controle" type="text" placeholder="Até" aria-label="Valor máximo">
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <p class="busca__ou">ou</p>
+
+    <label class="sr-only" for="codigo">Código do Imóvel</label>
+    <input class="busca__codigo" id="codigo" type="text" placeholder="Código do Imóvel">
+
+    <div class="busca__enviar">
+      <a class="btn-roxo btn-grande" href="comprar.html">ENCONTRE SEU IMÓVEL</a>
+    </div>
+
+    <p class="busca__alternativa">ou cadastre-se no <a href="#">Farejador de Imóveis</a></p>
+  </section>
+
+  <!-- ================= Destaques ================= -->
+  <section class="destaques" aria-labelledby="titulo-destaques">
+    <h2 class="destaques__titulo" id="titulo-destaques">Imóveis em Destaque</h2>
+    <div class="destaques__grade" data-lista="destaques"></div>
+  </section>
+
+  <!-- ================= Banner ================= -->
+  <section class="faixa-banner" aria-label="Comunicado">
+    <img src="assets/img/banner-seguranca.svg" alt="Segurança para comprar o seu imóvel é com a Imob Easy">
+    <button class="faixa-banner__seta" type="button" aria-label="Banner anterior">&#8249;</button>
+  </section>
+
+</main>
+
+<footer class="site-rodape">
+  <div class="site-rodape__grade">
+    <div class="site-rodape__marca">
+      <img src="assets/img/logo.svg" alt="Imob Easy">
+      <p class="site-rodape__pj">PJ 482</p>
+    </div>
+
+    <p class="site-rodape__sobre">
+      A Imob Easy é uma empresa consolidada no mercado imobiliário de Manaus. Trabalhando com
+      Vendas, locação e Administração de Imóveis, de uma forma nova e totalmente voltada para
+      facilitar a sua vida.
+    </p>
+
+    <div>
+      <p class="site-rodape__titulo">Fale com a gente</p>
+      <ul>
+        <li>92 99100-5912</li>
+        <li><a href="mailto:contato@imobeasy.com">contato@imobeasy.com</a></li>
+      </ul>
+    </div>
+
+    <div>
+      <p class="site-rodape__titulo">Reclame aqui</p>
+      <ul>
+        <li>92 99100-5912</li>
+        <li><a href="mailto:ouvidoria@imobeasy.com">ouvidoria@imobeasy.com</a></li>
+      </ul>
+    </div>
+
+    <div>
+      <p class="site-rodape__titulo">Siga-nos</p>
+      <ul>
+        <li><a href="#">Facebook</a></li>
+        <li><a href="#">Instagram</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="site-rodape__legal">
+    <p>Imob Easy Serviços Imobiliários. PJ 482, CNPJ 33.597.560/0001-24 - Todos os direitos reservados</p>
+    <p>Av. Humberto Calderaro Filho Nº 7, Conj. Abílio Nery - Adrianópolis - Cep 69057-015. Manaus - Amazonas</p>
+    <div class="site-rodape__folha" aria-hidden="true">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2c3 4 6 6 6 10a6 6 0 0 1-12 0c0-4 3-6 6-10Zm0 4.6C10.4 8.7 9 10.1 9 12a3 3 0 0 0 6 0c0-1.9-1.4-3.3-3-5.4Z"/>
+      </svg>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/dados-site.js"></script>
+<script src="assets/js/site.js"></script>
+<script src="assets/js/busca-bairro.js"></script>
+</body>
+</html>

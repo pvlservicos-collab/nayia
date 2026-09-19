@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Listas — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+</head>
+<body class="admin" data-pagina="listas">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <h1 class="pagina-titulo">Listas</h1>
+  </div>
+  <p style="font-size:var(--fs-sm);color:var(--texto-fraco);margin-bottom:16px">
+    Listas criadas nos filtros de vencimento (Imóveis, Proprietários, Corretores, Locação). Cada
+    lista é uma fotografia do momento em que foi criada -- não atualiza sozinha.
+  </p>
+
+  <div class="tabela-envolucro">
+    <div class="tabela-rolagem">
+      <table class="tabela">
+        <thead>
+          <tr>
+            <th scope="col">Nome</th>
+            <th scope="col">Área</th>
+            <th scope="col">Filtro usado</th>
+            <th scope="col">Quantidade</th>
+            <th scope="col">Data</th>
+            <th scope="col">Exportado por</th>
+            <th scope="col" class="col-acoes">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="corpo-listas"><tr><td colspan="7">Carregando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/listas.js"></script>
+</body>
+</html>

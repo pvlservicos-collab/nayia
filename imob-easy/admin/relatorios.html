@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relatórios — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<style>
+  .painel-cartoes { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); margin-bottom:18px }
+  .painel-cartao { background:var(--superficie,#fff); border:1px solid var(--linha,#e3e6ec); border-radius:12px; padding:14px 16px }
+  .painel-cartao__n { font-family:Barlow,sans-serif; font-size:32px; font-weight:800; line-height:1.1 }
+  .painel-cartao__r { font-size:var(--fs-xs); color:var(--texto-fraco); margin-top:2px }
+  .painel-barra { display:flex; align-items:center; gap:8px }
+  .painel-barra__t { flex:1; background:var(--linha,#e6e8ee); border-radius:4px; height:10px; overflow:hidden }
+  .painel-barra__p { display:block; height:100%; border-radius:4px }
+  .painel-nota { font-size:var(--fs-xs); color:var(--texto-fraco); line-height:1.5; margin:8px 0 16px }
+  .painel-nay { border:1px solid var(--linha,#e3e6ec); border-radius:14px; padding:18px 20px; margin-bottom:26px; background:var(--superficie,#fff) }
+  .painel-nay__topo { display:flex; flex-wrap:wrap; align-items:baseline; gap:10px; margin-bottom:4px }
+  .painel-nay__nome { font-family:Barlow,sans-serif; font-size:21px; font-weight:800; margin:0 }
+  .painel-nay__sub { font-size:var(--fs-xs); color:var(--texto-fraco) }
+  .selo { font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; border-radius:999px; padding:3px 10px }
+  .selo--on { background:#dcfce7; color:#166534 }
+  .selo--off { background:#fee2e2; color:#991b1b }
+  .selo--teste { background:#fef3c7; color:#92400e }
+  .painel-aviso { border-left:4px solid #f59e0b; background:#fffbeb; padding:10px 14px; border-radius:8px; margin:0 0 16px; font-size:var(--fs-sm); line-height:1.5 }
+</style>
+</head>
+<body class="admin" data-pagina="relatorios">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <h1 class="pagina-titulo">Relatórios das duas Nays</h1>
+  </div>
+
+  <section class="painel-nay" id="bloco-locacao">
+    <div class="painel-nay__topo">
+      <h2 class="painel-nay__nome">Nay Locação</h2>
+      <span class="painel-nay__sub">atendimento aos corretores</span>
+      <span class="selo" id="selo-locacao">…</span>
+    </div>
+    <p class="painel-nota" id="nota-locacao"></p>
+    <div id="aviso-visitas" class="painel-aviso" hidden></div>
+
+    <h3 class="secao-titulo">Hoje</h3>
+    <div class="painel-cartoes" id="cartoes-loc-hoje"></div>
+    <h3 class="secao-titulo">Últimos 7 dias</h3>
+    <div class="painel-cartoes" id="cartoes-loc-sete"></div>
+
+    <h3 class="secao-titulo">Dia a dia</h3>
+    <p class="painel-nota">
+      <strong>Corretores</strong> = pessoas diferentes que mandaram mensagem naquele dia (quem tem dois números conta
+      uma vez). <strong>Falaram de visita</strong> = quantos desses citaram visita, agendar ou marcar.
+      <strong>Urgentes</strong> = visitas pedidas para dentro de 3 horas, que sobem direto para o Tel.
+    </p>
+    <div class="tabela-envolucro"><div class="tabela-rolagem">
+      <table class="tabela">
+        <thead><tr>
+          <th scope="col">Dia</th><th scope="col">Corretores</th><th scope="col">Novos</th>
+          <th scope="col">Mensagens</th><th scope="col">Falaram de visita</th>
+          <th scope="col">Visitas agendadas</th><th scope="col">Confirmadas</th><th scope="col">Urgentes</th>
+        </tr></thead>
+        <tbody id="corpo-locacao"><tr><td colspan="8">Carregando…</td></tr></tbody>
+      </table>
+    </div></div>
+  </section>
+
+  <section class="painel-nay" id="bloco-captacao">
+    <div class="painel-nay__topo">
+      <h2 class="painel-nay__nome">Nay Captação</h2>
+      <span class="painel-nay__sub">campanha com proprietários, no número separado</span>
+      <span class="selo" id="selo-captacao">…</span>
+    </div>
+    <p class="painel-nota" id="nota-captacao"></p>
+
+    <h3 class="secao-titulo">Hoje</h3>
+    <div class="painel-cartoes" id="cartoes-cap-hoje"></div>
+    <h3 class="secao-titulo">Últimos 7 dias</h3>
+    <div class="painel-cartoes" id="cartoes-cap-sete"></div>
+
+    <h3 class="secao-titulo">Dia a dia</h3>
+    <p class="painel-nota">
+      <strong>Disparos</strong> = mensagens da campanha que saíram naquele dia. <strong>Responderam</strong> =
+      proprietários diferentes que responderam. <strong>Com o Tel</strong> = conversas que saíram da IA e ficaram
+      com você (você escreveu no chat, ou ela escalou).
+    </p>
+    <div class="tabela-envolucro"><div class="tabela-rolagem">
+      <table class="tabela">
+        <thead><tr>
+          <th scope="col">Dia</th><th scope="col">Disparos</th><th scope="col">Responderam</th><th scope="col">Com o Tel</th>
+        </tr></thead>
+        <tbody id="corpo-captacao"><tr><td colspan="4">Carregando…</td></tr></tbody>
+      </table>
+    </div></div>
+  </section>
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/relatorios.js"></script>
+</body>
+</html>

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Imóveis para alugar em Adrianópolis — Imob Easy</title>
+<link rel="icon" href="assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body class="site" data-raiz="">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<header class="site-topo">
+  <div class="site-topo__interno">
+    <a class="site-topo__logo" href="index.html" aria-label="Imob Easy — página inicial">
+      <img src="assets/img/logo.svg" alt="Imob Easy">
+    </a>
+    <div class="site-topo__acoes">
+      <a class="btn-roxo-vazado" href="admin/inicio.html">Ir para o Admin</a>
+      <a class="btn-roxo-vazado" href="index.html">Pesquisar Imóveis</a>
+    </div>
+  </div>
+</header>
+
+<main class="resultados" id="conteudo">
+
+  <div class="resultados__barra">
+    <div class="visao-alternar" role="group" aria-label="Modo de exibição" data-grupo-exclusivo>
+      <button class="visao-alternar__botao" type="button" aria-pressed="true" aria-label="Ver em grade">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true">
+          <path d="M1 1h6v6H1zM9 1h6v6H9zM1 9h6v6H1zM9 9h6v6H9z"/>
+        </svg>
+      </button>
+      <button class="visao-alternar__botao" type="button" aria-pressed="false" aria-label="Ver em lista">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true">
+          <path d="M1 2h14v2.5H1zM1 6.8h14v2.5H1zM1 11.5h14V14H1z"/>
+        </svg>
+      </button>
+    </div>
+
+    <label class="sr-only" for="ordenar">Ordenar resultados</label>
+    <select class="btn-roxo-vazado" id="ordenar">
+      <option>Ordenar</option>
+      <option>Menor valor</option>
+      <option>Maior valor</option>
+      <option>Imóvel mais novo</option>
+      <option>Maior área</option>
+    </select>
+  </div>
+
+  <div class="resultados__layout">
+
+    <!-- ================= Filtros ================= -->
+    <form class="filtros" aria-label="Filtrar imóveis">
+      <div class="filtros__abas" role="tablist" aria-label="Tipo de negócio" data-abas>
+        <button class="filtros__aba" role="tab" type="button" aria-selected="false" data-destino="comprar.html">Comprar</button>
+        <button class="filtros__aba" role="tab" type="button" aria-selected="true" data-destino="alugar.html">Alugar</button>
+      </div>
+
+      <div class="filtros__grupo">
+        <label class="filtros__rotulo" for="f-condominios">Condomínios</label>
+        <input class="filtros__entrada" id="f-condominios" type="text">
+      </div>
+
+      <div class="filtros__grupo">
+        <span class="filtros__rotulo">Bairros</span>
+        <div class="filtros__caixa">
+          <span class="marcador">Adrianópolis
+            <button type="button" aria-label="Remover filtro Adrianópolis">&times;</button>
+          </span>
+        </div>
+      </div>
+
+      <div class="filtros__grupo">
+        <label class="filtros__rotulo" for="f-tipos">Tipo de imóveis</label>
+        <input class="filtros__entrada" id="f-tipos" type="text">
+      </div>
+
+      <div class="filtros__grupo">
+        <label class="opcao-caixa"><input type="checkbox"> Mobiliado</label>
+        <label class="opcao-caixa"><input type="checkbox"> Semi-Mobiliado</label>
+      </div>
+
+      <div class="filtros__grupo">
+        <span class="filtros__rotulo">Valores</span>
+        <div class="filtros__par">
+          <input class="filtros__entrada" type="text" placeholder="De" aria-label="Valor mínimo">
+          <input class="filtros__entrada" type="text" placeholder="Até" aria-label="Valor máximo">
+        </div>
+      </div>
+
+      <div class="filtros__grupo">
+        <span class="filtros__rotulo">IPTU + taxa de condomínio</span>
+        <div class="filtros__par">
+          <input class="filtros__entrada" type="text" placeholder="De" aria-label="IPTU mínimo">
+          <input class="filtros__entrada" type="text" placeholder="Até" aria-label="IPTU máximo">
+        </div>
+      </div>
+
+      <div class="filtros__grupo">
+        <span class="filtros__rotulo" id="rot-f-quartos">Quartos</span>
+        <div class="opcoes" role="group" aria-labelledby="rot-f-quartos" data-grupo-exclusivo>
+          <button class="opcoes__botao" type="button" aria-pressed="false">1</button>
+          <button class="opcoes__botao" type="button" aria-pressed="false">2</button>
+          <button class="opcoes__botao" type="button" aria-pressed="false">3</button>
+          <button class="opcoes__botao" type="button" aria-pressed="false">4+</button>
+        </div>
+      </div>
+
+      <div class="filtros__grupo">
+        <span class="filtros__rotulo" id="rot-f-garagem">Garagem</span>
+        <div class="opcoes" role="group" aria-labelledby="rot-f-garagem" data-grupo-exclusivo>
+          <button class="opcoes__botao" type="button" aria-pressed="false">1</button>
+          <button class="opcoes__botao" type="button" aria-pressed="false">2</button>
+          <button class="opcoes__botao" type="button" aria-pressed="false">3</button>
+          <button class="opcoes__botao" type="button" aria-pressed="false">4+</button>
+        </div>
+      </div>
+
+      <div class="filtros__grupo filtros__par">
+        <div>
+          <label class="filtros__rotulo" for="f-banheiros">Banheiros</label>
+          <input class="filtros__entrada" id="f-banheiros" type="text" placeholder="Até">
+        </div>
+        <div>
+          <label class="filtros__rotulo" for="f-area">Área em m2</label>
+          <input class="filtros__entrada" id="f-area" type="text" placeholder="Até">
+        </div>
+      </div>
+
+      <button class="btn-roxo btn-bloco" type="submit">PESQUISAR</button>
+    </form>
+
+    <!-- ================= Resultados ================= -->
+    <div>
+      <div class="grade-imoveis" data-lista="alugar"></div>
+
+      <nav class="paginacao" aria-label="Paginação dos resultados">
+        <a href="#" aria-label="Página anterior">&laquo;</a>
+        <span class="ativo" aria-current="page">1</span>
+        <a href="#">2</a>
+        <a href="#" aria-label="Próxima página">&raquo;</a>
+      </nav>
+    </div>
+
+  </div>
+</main>
+
+<footer class="site-rodape">
+  <div class="site-rodape__grade">
+    <div class="site-rodape__marca">
+      <img src="assets/img/logo.svg" alt="Imob Easy">
+      <p class="site-rodape__pj">PJ 482</p>
+    </div>
+    <p class="site-rodape__sobre">
+      A Imob Easy é uma empresa consolidada no mercado imobiliário de Manaus. Trabalhando com
+      Vendas, locação e Administração de Imóveis, de uma forma nova e totalmente voltada para
+      facilitar a sua vida.
+    </p>
+    <div>
+      <p class="site-rodape__titulo">Fale com a gente</p>
+      <ul>
+        <li>92 99100-5912</li>
+        <li><a href="mailto:contato@imobeasy.com">contato@imobeasy.com</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="site-rodape__titulo">Reclame aqui</p>
+      <ul>
+        <li>92 99100-5912</li>
+        <li><a href="mailto:ouvidoria@imobeasy.com">ouvidoria@imobeasy.com</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="site-rodape__titulo">Siga-nos</p>
+      <ul>
+        <li><a href="#">Facebook</a></li>
+        <li><a href="#">Instagram</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="site-rodape__legal">
+    <p>Imob Easy Serviços Imobiliários. PJ 482, CNPJ 33.597.560/0001-24 - Todos os direitos reservados</p>
+    <p>Av. Humberto Calderaro Filho Nº 7, Conj. Abílio Nery - Adrianópolis - Cep 69057-015. Manaus - Amazonas</p>
+    <div class="site-rodape__folha" aria-hidden="true">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2c3 4 6 6 6 10a6 6 0 0 1-12 0c0-4 3-6 6-10Zm0 4.6C10.4 8.7 9 10.1 9 12a3 3 0 0 0 6 0c0-1.9-1.4-3.3-3-5.4Z"/>
+      </svg>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/dados-site.js"></script>
+<script src="assets/js/site.js"></script>
+</body>
+</html>

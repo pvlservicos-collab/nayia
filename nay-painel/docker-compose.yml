@@ -1,0 +1,31 @@
+services:
+  painel:
+    build: .
+    container_name: nay-painel
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - HEARTBEAT_DIR=/heartbeats
+      - TZ=America/Manaus
+    volumes:
+      # somente leitura -- o painel nunca escreve, nem nesses arquivos
+      - /root/nay-publicador/logs:/heartbeats:ro
+    # só em localhost por enquanto, pra eu testar por SSH sem depender de
+    # DNS/Traefik. Não expõe nada pra fora do servidor.
+    ports:
+      - "127.0.0.1:8091:8091"
+    labels:
+      # DESATIVADO de propósito: ativar exige o registro de DNS do
+      # subdomínio primeiro (ver AVISO-DNS.md). Ligar cedo demais faz o
+      # Traefik tentar emitir certificado Let's Encrypt pra um domínio
+      # que ainda não aponta pro servidor, e falha em loop.
+      - traefik.enable=false
+      - traefik.http.routers.nay-painel.rule=Host(`painel.imobeasy.online`)
+      - traefik.http.routers.nay-painel.entrypoints=websecure
+      - traefik.http.routers.nay-painel.tls.certresolver=letsencrypt
+      - traefik.http.services.nay-painel.loadbalancer.server.port=8091
+
+networks:
+  default:
+    name: n8n-viux_default
+    external: true

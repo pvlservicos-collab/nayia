@@ -1,0 +1,22 @@
+[
+  ["Nay manda o 5750 pro Sergio", true],
+  ["Nay envia o 5750 pro Sergio", true],
+  ["envia o 5750 pra Samira", true],
+  ["manda o 5750 p/ o Gustavo", true],
+  ["Nay repassa o 2943 pro corretor Leonan", true],
+  ["encaminha o 5611 pro Moacy", true],
+  ["Nay mnda os acquarele p/ o sergio", true],
+  ["Nay envia todos os acquarelle para locacao para o corretor Sergio", true],
+  ["Nay manda o 5750 pro 92 99999-8888", true],
+  ["Nay posta o 5750 pro Rogerio", true],
+  ["publica o 5750 pra Samira", true],
+  ["Nay posta o 5750", false],
+  ["Nay publica no anunciar easy o 5750", false],
+  ["Nay, publicamos o 5750 ontem?", false],
+  ["Nay vagas", false],
+  ["Nay tira o 5750", false],
+  ["Nay VENDEU 5750", false],
+  ["RESPOSTA 17 pode ser 15h", false],
+  ["bom dia Nay", false],
+  ["tem algo no Aleixo?", false]
+]

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Escritório">
+  <title>Escritório</title>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#b96f9a"/>
+      <stop offset="1" stop-color="#7c3763"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="420" fill="url(#g)"/>
+  <g opacity="0.5" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M232 226 L320 158 L408 226"/>
+    <path d="M256 214 L256 300 L384 300 L384 214"/>
+    <path d="M300 300 L300 252 L340 252 L340 300"/>
+  </g>
+  <rect x="0" y="352" width="640" height="68" fill="rgba(15,20,30,0.28)"/>
+  <text x="24" y="394" font-family="Barlow, Segoe UI, Arial, sans-serif" font-size="24"
+        fill="#ffffff" opacity="0.92">Escritório</text>
+</svg>

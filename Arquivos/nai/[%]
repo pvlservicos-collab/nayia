@@ -1,0 +1,2 @@
+CREATE FUNCTION
+ERROR:  unrecognized exception condition "ao"

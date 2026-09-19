@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Captação — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<style>
+  /* Linha "cinza": levou todas as tentativas e nunca respondeu. A IA não
+     chama mais essa pessoa -- a tabela mostra isso apagando a linha, para
+     bater com o que o banco decide. */
+  .tabela tr.cinza td { opacity: .45; }
+  .cap-avisos { display: flex; flex-wrap: wrap; gap: var(--e-2); margin-bottom: var(--e-4); }
+  .cap-teste {
+    border: 2px solid var(--aviso, #d98324); border-radius: var(--raio-md);
+    padding: var(--e-3) var(--e-4); margin-bottom: var(--e-4);
+    font-size: var(--fs-sm); line-height: 1.5;
+  }
+  .cap-chaves { display: flex; flex-wrap: wrap; gap: var(--e-3); align-items: flex-end; margin-bottom: var(--e-4); }
+  .cap-chave { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); }
+  .cap-chave select, .cap-chave input { min-width: 120px; }
+  .cap-largo { max-width: 900px; }
+  .cap-acao {
+    display: flex; align-items: center; gap: var(--e-3);
+    margin: var(--e-3) 0; min-height: 34px;
+    font-size: var(--fs-sm); color: var(--texto-fraco);
+  }
+  .cap-trat { min-width: 62px; font-size: var(--fs-xs); }
+  .cap-trat--vazio { border-color: var(--aviso, #d98324); }
+  .cap-candidatos { max-height: 46vh; overflow-y: auto; margin: var(--e-3) 0; }
+  .cap-candidatos table { width: 100%; }
+  .cap-bloqueado { color: var(--texto-fraco); font-style: italic; }
+  .cap-conversa { display: flex; flex-direction: column; gap: var(--e-2); margin: var(--e-3) 0; }
+  .cap-balao { padding: var(--e-2) var(--e-3); border-radius: var(--raio-md); max-width: 82%; font-size: var(--fs-sm); }
+  .cap-balao--enviada { align-self: flex-end; background: var(--selecao, #e8eefc); }
+  .cap-balao--recebida { align-self: flex-start; background: var(--superficie-2, #f2f2f4); }
+  .cap-balao__quando { display: block; font-size: var(--fs-xs); color: var(--texto-fraco); margin-top: 4px; }
+
+  /* Busca da lista */
+  .cap-busca { display: flex; align-items: center; gap: var(--e-2); margin: 0 0 var(--e-3); }
+  .cap-busca input {
+    flex: 1; max-width: 520px; padding: 9px 12px; font-size: var(--fs-sm);
+    border: 1px solid var(--borda, #d9dce3); border-radius: var(--raio-md);
+  }
+  .cap-busca__conta { font-size: var(--fs-xs); color: var(--texto-fraco); }
+  .col-acoes .btn-mini + .btn-mini { margin-top: 4px; }
+  .col-acoes { white-space: nowrap; }
+  .col-acoes .btn-mini { display: block; width: 100%; }
+
+  /* Popups desta tela: o cabecalho (com o Fechar) fica PRESO no topo
+     quando a conversa e longa -- antes ele rolava junto e sumia, e o x
+     cinza e transparente quase nao se via. */
+  #sobrepor-conversa .popup-imovel, #sobrepor-importar .popup-imovel, #sobrepor-mudar .popup-imovel { padding-top: 0; }
+  #sobrepor-conversa .popup-imovel__cabecalho, #sobrepor-importar .popup-imovel__cabecalho, #sobrepor-mudar .popup-imovel__cabecalho {
+    position: sticky; top: 0; z-index: 2; background: #fff;
+    padding: var(--e-4) 0 var(--e-3); margin-bottom: var(--e-3);
+    border-bottom: 1px solid var(--borda, #e5e7eb); align-items: center;
+  }
+  .cap-fechar {
+    flex: none; display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--borda, #d9dce3); background: #fff; color: var(--texto);
+    border-radius: var(--raio-md); padding: 6px 12px; font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
+  }
+  .cap-fechar:hover { background: var(--superficie-2, #f2f2f4); }
+  .cap-rodape { display: flex; gap: 8px; justify-content: flex-end; margin-top: var(--e-4); }
+
+  /* Popup "Mudar manualmente" */
+  .cap-opcoes { display: flex; flex-direction: column; gap: 8px; margin: var(--e-3) 0; }
+  .cap-opcao {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer;
+    border: 1px solid var(--borda, #d9dce3); border-radius: var(--raio-md); font-size: var(--fs-sm);
+  }
+  .cap-opcao:has(input:checked) { border-color: var(--primaria, #2c58c7); background: var(--selecao, #e8eefc); }
+  .cap-opcao small { color: var(--texto-fraco); display: block; }
+  .cap-contrato { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); margin: 4px 0 var(--e-2); }
+  .cap-contrato input { padding: 7px 10px; max-width: 220px; }
+  .cap-nota { font-size: var(--fs-xs); color: var(--texto-fraco); line-height: 1.5; }
+</style>
+</head>
+<body class="admin" data-pagina="captacao">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <h1 class="pagina-titulo">Captação</h1>
+  </div>
+
+  <p class="pagina-subtitulo" style="margin-bottom:16px">
+    Campanha <strong>temporária</strong>: a Nay fala com cada proprietário pelo número novo
+    da imobiliária e atualiza a situação do imóvel — alugado, disponível ou já vendido.
+    Quem responde sai daqui para o balde certo; quem nunca responde fica apagado e
+    não é chamado de novo.
+  </p>
+
+  <!-- Preenchido pelo JS quando modo_teste = sim. É o aviso que impede
+       alguém de achar que a campanha está falando com proprietário real. -->
+  <div id="aviso-teste" hidden></div>
+
+  <div class="indicadores indicadores--3" id="indicadores">
+    <div class="indicador"><span class="indicador__rotulo">Carregando…</span></div>
+  </div>
+
+  <h2 class="painel__titulo" style="margin-top:24px">Interruptores</h2>
+  <p style="font-size:var(--fs-xs);color:var(--texto-fraco);margin-bottom:10px">
+    Valem na hora, sem publicar nada: o fluxo do n8n lê estes valores do banco a cada disparo.
+  </p>
+  <div class="cap-chaves" id="chaves">
+    <label class="cap-chave">Disparo
+      <select data-chave="captacao_pausada">
+        <option value="sim">pausado</option>
+        <option value="nao">rodando</option>
+      </select>
+    </label>
+    <label class="cap-chave">Resposta automática
+      <select data-chave="resposta_pausada">
+        <option value="sim">pausada</option>
+        <option value="nao">rodando</option>
+      </select>
+    </label>
+    <label class="cap-chave">Modo teste
+      <select data-chave="modo_teste">
+        <option value="sim">ligado (só vai pro Tel)</option>
+        <option value="nao">desligado (vai pra valer)</option>
+      </select>
+    </label>
+    <label class="cap-chave" title="Silêncio mínimo entre dois envios. O sorteio do portão soma até 3 minutos em cima, então 17 vira 17 a 20 minutos reais. É este campo que controla o volume do dia.">Intervalo entre envios (min)
+      <input type="number" min="5" max="120" step="1" data-chave="minutos_entre_disparos">
+    </label>
+    <label class="cap-chave" title="Freio de segurança. Quem controla o volume é o intervalo acima — em horário comercial dá cerca de 29 por dia.">Teto por dia (freio)
+      <input type="number" min="0" max="500" step="10" data-chave="limite_dia">
+    </label>
+    <label class="cap-chave">Insistências
+      <input type="number" min="0" max="5" step="1" data-chave="max_followup">
+    </label>
+    <label class="cap-chave" title="Horas de silêncio antes do primeiro lembrete. O segundo degrau (dia seguinte, mesmo horário) só acontece com Insistências igual a 3 ou mais.">1º lembrete após
+      <input type="number" min="1" max="72" step="1" data-chave="horas_primeiro_followup">
+    </label>
+  </div>
+  <p id="chaves-status" style="font-size:var(--fs-xs);color:var(--texto-fraco);margin-bottom:20px"></p>
+
+  <div class="abas" id="abas">
+    <button class="abas__item" type="button" role="tab" aria-selected="true" data-balde="">Todos</button>
+    <button class="abas__item" type="button" role="tab" aria-selected="false" data-balde="andamento">Em andamento</button>
+    <button class="abas__item" type="button" role="tab" aria-selected="false" data-balde="disponivel">Disponíveis</button>
+    <button class="abas__item" type="button" role="tab" aria-selected="false" data-balde="alugado">Alugados</button>
+    <button class="abas__item" type="button" role="tab" aria-selected="false" data-balde="quer_vender">Quer vender</button>
+    <button class="abas__item" type="button" role="tab" aria-selected="false" data-balde="vendido">Já vendeu</button>
+    <button class="abas__item" type="button" role="tab" aria-selected="false" data-balde="outro_imovel">Tem outro imóvel</button>
+    <button class="abas__item" type="button" role="tab" aria-selected="false" data-balde="sem_resposta">Sem resposta</button>
+    <button class="abas__item" type="button" role="tab" aria-selected="false" data-balde="com_tel">Com o Tel</button>
+  </div>
+
+  <!-- Quem enche a coluna "Todos" e o Tel; quem move o lead dali para os
+       outros baldes e a IA, pela conversa. Por isso o botao muda com a
+       aba: "Todos" adiciona lista, os baldes de resultado exportam. -->
+  <div class="cap-acao" id="acao-aba"></div>
+
+  <div class="cap-busca">
+    <input type="search" id="busca-leads" autocomplete="off"
+           placeholder="Buscar pelo nome do proprietário ou do imóvel (condomínio, bairro, código, telefone)"
+           aria-label="Buscar na lista da captação">
+    <span class="cap-busca__conta" id="busca-conta"></span>
+  </div>
+
+  <div class="tabela-envolucro">
+    <div class="tabela-rolagem">
+      <table class="tabela">
+        <thead>
+          <tr>
+            <th scope="col">Proprietário</th>
+            <th scope="col">Trata.</th>
+            <th scope="col">Imóvel</th>
+            <th scope="col">Situação</th>
+            <th scope="col">Contrato até</th>
+            <th scope="col">Outro imóvel</th>
+            <th scope="col">Etapa</th>
+            <th scope="col">Env./Resp.</th>
+            <th scope="col">Último envio</th>
+            <th scope="col" class="col-acoes">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="corpo-leads"><tr><td colspan="10">Carregando…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- Popup 1: escolher a lista e desmarcar quem não deve receber. -->
+<div class="sobreposicao" id="sobrepor-importar" hidden>
+  <div class="popup-imovel cap-largo" style="max-width:900px">
+    <div class="popup-imovel__cabecalho">
+      <h2 class="popup-imovel__titulo" id="importar-titulo">Adicionar lista à campanha</h2>
+      <button class="cap-fechar" type="button" data-fechar="sobrepor-importar" aria-label="Fechar">✕ Fechar</button>
+    </div>
+    <div id="importar-corpo">Carregando…</div>
+  </div>
+</div>
+
+<!-- Popup 2: a conversa inteira de um lead, para a curadoria. -->
+<div class="sobreposicao" id="sobrepor-conversa" hidden>
+  <div class="popup-imovel" style="max-width:620px">
+    <div class="popup-imovel__cabecalho">
+      <h2 class="popup-imovel__titulo" id="conversa-titulo">Conversa</h2>
+      <button class="cap-fechar" type="button" data-fechar="sobrepor-conversa" aria-label="Fechar">✕ Fechar</button>
+    </div>
+    <div id="conversa-corpo">Carregando…</div>
+    <div class="cap-rodape">
+      <button class="btn-neutro" type="button" data-fechar="sobrepor-conversa">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Popup 3: mudar o lead de balde na mão (ex.: passar para Alugados). -->
+<div class="sobreposicao" id="sobrepor-mudar" hidden>
+  <div class="popup-imovel" style="max-width:520px">
+    <div class="popup-imovel__cabecalho">
+      <h2 class="popup-imovel__titulo" id="mudar-titulo">Mudar manualmente</h2>
+      <button class="cap-fechar" type="button" data-fechar="sobrepor-mudar" aria-label="Fechar">✕ Fechar</button>
+    </div>
+    <form id="form-mudar">
+      <p class="cap-nota" id="mudar-atual"></p>
+      <div class="cap-opcoes">
+        <label class="cap-opcao"><input type="radio" name="situacao" value="disponivel">
+          <span><strong>Disponível</strong><small>vai para a aba Disponíveis</small></span></label>
+        <label class="cap-opcao"><input type="radio" name="situacao" value="alugado">
+          <span><strong>Alugado</strong><small>vai para a aba Alugados</small></span></label>
+        <label class="cap-contrato" id="mudar-contrato" hidden>Contrato até (opcional)
+          <input type="text" name="contrato_ate" maxlength="40" placeholder="ex.: 03/2027"></label>
+        <label class="cap-opcao"><input type="radio" name="situacao" value="vendido">
+          <span><strong>Já vendeu</strong><small>vai para a aba Já vendeu</small></span></label>
+        <label class="cap-opcao"><input type="radio" name="situacao" value="manter">
+          <span><strong>Deixar a situação como está</strong><small>só mexer nas opções abaixo</small></span></label>
+        <label class="cap-opcao"><input type="radio" name="situacao" value="">
+          <span><strong>Tirar a situação</strong><small>volta para Em andamento (se ele já respondeu) ou para Todos</small></span></label>
+      </div>
+      <label class="cap-opcao"><input type="checkbox" name="tem_outro_imovel">
+        <span><strong>Tem outro imóvel</strong><small>aparece também na aba Tem outro imóvel</small></span></label>
+      <label class="cap-opcao"><input type="checkbox" name="quer_vender">
+        <span><strong>Quer vender</strong><small>aparece na aba Quer vender (a Nay para de chamar)</small></span></label>
+      <label class="cap-contrato" id="mudar-valor" hidden>Valor que ele quer pedir
+        <input type="text" name="valor_venda" maxlength="80" placeholder="ex.: 650 mil líquido"></label>
+      <label class="cap-opcao"><input type="checkbox" name="humano">
+        <span><strong>O Tel está atendendo este chat</strong><small>a Nay não responde mais aqui, nem manda lembrete (aba Com o Tel)</small></span></label>
+      <p class="cap-nota" style="margin-top:12px">Escolhendo Disponível, Alugado ou Já vendeu, a Nay <strong>para de chamar</strong>
+        esse proprietário (disparo e lembretes). Fica registrado que foi mudança manual.</p>
+      <p class="cap-nota" id="mudar-status" role="status"></p>
+      <div class="cap-rodape">
+        <button class="btn-neutro" type="button" data-fechar="sobrepor-mudar">Cancelar</button>
+        <button class="btn-azul" type="submit" id="btn-salvar-mudar">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/captacao.js"></script>
+</body>
+</html>
