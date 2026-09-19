@@ -1,0 +1,96 @@
+/* ==========================================================================
+   Imob Easy — Páginas legais (termos, publicidade, exclusão de dados)
+   Usa os tokens de tokens.css e o cabeçalho/rodapé de site.css. Não define
+   cor nova: se a marca mudar em tokens.css, estas páginas mudam junto.
+   ========================================================================== */
+
+.legal {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px 16px 72px;
+}
+
+.legal__topo { text-align: center; margin-bottom: 32px; }
+
+.legal__selo {
+  width: 56px; height: 56px;
+  margin: 0 auto 14px;
+  display: grid; place-items: center;
+  border-radius: 16px;
+  background: var(--grad-acento);
+  color: #fff;
+}
+.legal__selo svg { width: 28px; height: 28px; }
+
+.legal__topo h1 {
+  font-family: var(--fonte-titulo, 'Barlow', sans-serif);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--roxo);
+  margin-bottom: 8px;
+}
+
+.legal__resumo {
+  font-size: 15px;
+  line-height: 1.65;
+  color: #574a68;
+  max-width: 60ch;
+  margin: 0 auto;
+}
+
+.legal__artigo {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 2px rgba(82, 7, 121, .04);
+}
+
+.legal__artigo > h2 {
+  font-family: var(--fonte-titulo, 'Barlow', sans-serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--roxo);
+  padding: 15px 20px;
+  margin: 0;
+  border-bottom: 1px solid var(--borda);
+  background: var(--roxo-suave);
+}
+
+.legal__corpo { padding: 18px 20px; font-size: 14.5px; line-height: 1.7; }
+.legal__corpo > * + * { margin-top: 12px; }
+.legal__corpo ul { padding-left: 20px; }
+.legal__corpo li + li { margin-top: 7px; }
+.legal__corpo a { color: var(--roxo); font-weight: 500; }
+
+/* Bloco de dados da empresa — o mesmo nas três páginas. */
+.legal__empresa {
+  background: var(--superficie-2);
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+.legal__empresa dt {
+  font-weight: 600; color: var(--roxo);
+  float: left; clear: left; min-width: 116px;
+}
+.legal__empresa dd { margin: 0 0 2px 0; }
+
+.legal__rodape {
+  margin-top: 26px;
+  text-align: center;
+  font-size: 13px;
+  color: #6d6178;
+  line-height: 1.8;
+}
+.legal__rodape a { color: var(--roxo); }
+
+@media (max-width: 560px) {
+  .legal { padding: 28px 16px 56px; }
+  .legal__topo h1 { font-size: 23px; }
+  .legal__empresa dt { float: none; min-width: 0; }
+  .legal__empresa dd { margin-bottom: 8px; }
+}
