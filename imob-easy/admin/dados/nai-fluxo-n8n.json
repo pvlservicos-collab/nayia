@@ -1,0 +1,2396 @@
+{
+  "nome": "NAI atendimento locação",
+  "id": "NaiAtendLocacao1",
+  "ativo": true,
+  "exportado_em": "2026-09-19T20:23:33.964Z",
+  "aviso": "Export do n8n com credenciais REDIGIDAS. Nao contem token da Z-API nem chave de API.",
+  "nos": [
+    {
+      "nome": "📌 NAI atendimento locação",
+      "tipo": "n8n-nodes-base.stickyNote",
+      "versao": 1,
+      "desabilitado": false,
+      "posicao": [
+        -520,
+        -620
+      ],
+      "parametros": {
+        "content": "## NAI atendimento locação\nCópia do \"Nay- recebe mensagem\" + a visita de verdade (proprietário, Fernando, lembretes).\n\n**Toda mensagem que sai passa pela caixa `nai_saida`** e pelo CHECK DUPLO: o banco confere que o destino é parte da conversa ou da visita, e o nó \"Conferir cabeçalho\" confere de novo em JavaScript antes da Z-API.\n\n**Quem cai aqui:** decide `nai_config.modo` (desligado / teste / todos). O fluxo antigo pergunta ao banco em cada mensagem.",
+        "height": 300,
+        "width": 620
+      },
+      "credencial": []
+    },
+    {
+      "nome": "🧪 MODO TESTE",
+      "tipo": "n8n-nodes-base.stickyNote",
+      "versao": 1,
+      "desabilitado": false,
+      "posicao": [
+        -520,
+        -300
+      ],
+      "parametros": {
+        "content": "## 🧪 MODO TESTE — SÓ O TEL (96 99171-2835)\nEnquanto `nai_config.modo = teste`:\n- só o número de teste cai aqui;\n- o que iria para PROPRIETÁRIO, FERNANDO ou TEL vai para o número de teste, com etiqueta;\n- nada sai para número fora da lista (parede no banco).\n\n**Para ir pra valer:**\n`UPDATE nai_config SET valor='todos' WHERE chave='modo';`",
+        "height": 300,
+        "width": 620,
+        "color": 3
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Webhook",
+      "tipo": "n8n-nodes-base.webhook",
+      "versao": 2.1,
+      "desabilitado": false,
+      "posicao": [
+        0,
+        300
+      ],
+      "parametros": {
+        "httpMethod": "POST",
+        "path": "nai-atendimento-locacao",
+        "options": {}
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Filtrar e normalizar",
+      "tipo": "n8n-nodes-base.code",
+      "versao": 2,
+      "desabilitado": false,
+      "posicao": [
+        200,
+        300
+      ],
+      "parametros": {
+        "jsCode": "const b = $input.first().json.body || {};\n// O QUE SAI TAMBEM SE GUARDA (31/08). Ate aqui `fromMe` era descartado\n// junto com grupo e newsletter, entao NADA do que a Nay responde -- nem\n// do que o Tel digita no WhatsApp dela -- ficava gravado: 2.800 linhas em\n// `mensagens`, todas 'recebida', zero 'enviada'. O efeito pratico foi eu\n// diagnosticar conversa pela metade e propor resposta para corretor que o\n// Tel ja tinha atendido.\n// A mensagem que sai e gravada com status 'Enviado', e o `Reservar\n// mensagens` so pega 'Recebido' -- entao ela entra no historico e o fluxo\n// para sozinho, sem responder a si mesma.\nif (b.isGroup || b.isNewsletter || b.broadcast || b.isStatusReply) return [];\nif (b.type !== 'ReceivedCallback') return [];\nconst saindo = !!(b.fromMe || b.fromApi);\nconst legenda = (b.image && b.image.caption) || (b.video && b.video.caption) || (b.document && b.document.caption) || null; const texto = (b.text && b.text.message) ? b.text.message : (legenda || null);\n// A CITACAO. O corretor quase nunca manda o codigo: ele responde\n// citando o card que saiu no grupo, e o codigo esta la dentro. Ate\n// 29/08 isso era jogado fora aqui na entrada, e a Nay recebia\n// \"Ainda disponivel?\" sem imovel nenhum (caso Valois, 29/08).\n// A Z-API entrega em `referencedMessage` -- confirmado no historico\n// de execucoes do n8n. A forma INTERNA ainda nao foi vista, entao\n// tenta os caminhos plausiveis e, se nenhum servir, guarda o que\n// veio: o proximo caso se explica sozinho em vez de sumir calado.\n// A Z-API NAO manda mensagem citada nesta configuracao: 22 payloads\n// capturados em 30/08 e nenhum traz `referencedMessage`. Os campos sao\n// isStatusReply chatLid connectedPhone waitingMessage isEdit isGroup\n// isNewsletter instanceId messageId phone fromMe momment status chatName\n// senderName photo broadcast adContext messageExpirationSeconds forwarded\n// type fromApi text. O campo fica aqui defensivamente, para o dia em que\n// a Z-API passar a mandar -- mas quem identifica o imovel hoje e o CARD\n// COLADO, tratado no `Juntar mensagens`.\n// Captura a estrutura de quem RESPONDE MARCANDO. A conclusao anterior\n// (\"a Z-API nao manda citacao\") veio de 22 amostras que eram mensagens\n// comuns -- nao havia resposta marcada entre elas, entao a ausencia do\n// campo nao provava nada. Agora so grava quando ha sinal de citacao ou\n// quando o corpo traz campo desconhecido, para nao encher a tabela.\nconst camposRaiz = Object.keys(b).filter(k => b[k] !== null && b[k] !== undefined).join(' ');\nconst CONHECIDOS = new Set(['isStatusReply','chatLid','connectedPhone','waitingMessage',\n  'isEdit','isGroup','isNewsletter','instanceId','messageId','phone','fromMe','momment',\n  'status','chatName','senderName','photo','broadcast','adContext',\n  'messageExpirationSeconds','forwarded','type','fromApi','text','image','audio','video',\n  'document','sticker','reaction','reactionBy','notification','participantPhone',\n  'participantLid','senderPhoto','isGroupMessage']);\nconst novos = Object.keys(b).filter(k => !CONHECIDOS.has(k));\nconst desc = v => v === null || v === undefined ? 'nulo'\n  : Array.isArray(v) ? 'lista[' + v.length + ']'\n  : typeof v === 'object' ? '{' + Object.keys(v).join(',') + '}'\n  : typeof v === 'string' ? 'texto(' + v.length + ')' : typeof v;\nconst estrutura = novos.length\n  ? novos.map(k => k + '=' + desc(b[k])).join(' | ')\n  : null;\n\nconst ref = b.referencedMessage || null;\n// `referenceMessageId` e o nome REAL do campo (visto em payload_estrutura,\n// 01/09). So o ID chega, nunca o texto -- entao serve para saber que ELE\n// respondeu citando algo, e ela perguntar de qual imovel se trata.\nconst refId = b.referenceMessageId || (ref && ref.messageId) || null;\nlet citado = null;\nif (ref) {\n  if (typeof ref === 'string') citado = ref;\n  else citado = (ref.text && ref.text.message) || ref.message || ref.body\n             || (ref.image && ref.image.caption)\n             || (ref.video && ref.video.caption) || null;\n  if (!citado) { try { citado = JSON.stringify(ref).slice(0, 900); } catch (e) { citado = null; } }\n}\n// TEMPORARIO (31/08): descobrir onde a Z-API poe a URL da imagem, para\n// decidir se da para a Nay VER a foto. 12% das mensagens sao imagem (346\n// em 30 dias) e hoje ela so diz que nao consegue abrir.\n// Guarda apenas NOMES DE CAMPO e tipo, nunca o valor -- mesma disciplina\n// da captura de citacao, que respondeu em 22 amostras o que seis palpites\n// nao responderam. Apagar assim que o campo estiver conhecido.\nlet dbgImg = null;\nif (b.image || b.video || b.document) {\n  const desc = v => v === null || v === undefined ? 'nulo'\n    : typeof v === 'object' ? '{' + Object.keys(v).join(',') + '}'\n    : typeof v === 'string' ? 'texto(' + v.length + ')' : typeof v;\n  dbgImg = ['image','video','document']\n    .filter(k => b[k]).map(k => k + '=' + desc(b[k])).join(' | ');\n}\nlet origem = 'texto';\n// REACAO e FIGURINHA vem ANTES de imagem: figurinha costuma chegar como\n// imagem na Z-API, e cairia em 'imagem' -- fazendo a Nay dizer \"nao\n// consigo abrir esse arquivo\" para um 👍🏼. Foi o que aconteceu com o Moacy\n// em 31/08: ele reagiu com joinha na mensagem DELA e recebeu o pedido de\n// mandar o codigo do imovel.\nif (b.reaction || b.reactionBy || b.isReaction) origem = 'reacao';\nelse if (b.sticker || (b.image && b.image.isSticker)) origem = 'figurinha';\nelse if (b.audio) origem = 'audio';\nelse if (b.image) origem = 'imagem';\nelse if (b.document) origem = 'documento';\nelse if (b.video) origem = 'video';\nelse if (!texto) origem = 'outro';\nreturn [{ json: {\n  telefone: String(b.phone || ''),\n  nome: b.senderName || b.chatName || null,\n  texto: texto,\n  origem: origem,\n  message_id: b.messageId || null,\n  citado: citado,\n    citadoId: refId,\n  saindo: saindo,\n  // QUEM ESCREVEU: A NAY OU O TEL? (Tel, 16/09)\n  //\n  // Aqui dizia `!!b.fromMe && !b.fromApi`, partindo de que o que o Tel digita\n  // no celular chega com fromApi=false. NAO CHEGA: medido nas 154 execucoes\n  // entre 13:05 e 13:19, 129 mensagens tinham fromMe=true e 124 delas tambem\n  // fromApi=true -- inclusive as que ele digitou. A conta dava false, o ramo\n  // que pausa a conversa nunca rodava, e a Nay voltava a falar por cima dele.\n  // Foi o que ele viu no chat do Sr. Fiuza: ele atendeu das 13:05 as 13:17, e\n  // ela respondeu as 13:46.\n  //\n  // O QUE SEPARA DE VERDADE e o message_id: a Nay grava o id de 100% do que\n  // envia (121 de 121 hoje) na caixa de saida. Das 689 mensagens que sairam\n  // hoje, 98 casam com a caixa dela -- as outras 591 sao dele.\n  //\n  // Entao aqui passa tudo o que sai, e quem decide e `nai_tel_assumiu`, que ja\n  // compara o id e o texto com a caixa de saida. Na duvida ela fica calada,\n  // que e o lado certo de errar.\n  tel_celular: !!b.fromMe,\n  dbg_img: dbgImg,\n  dbg_raiz: camposRaiz,\n  dbg_estrutura: estrutura\n} }];"
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Foi o Tel pelo celular?",
+      "tipo": "n8n-nodes-base.if",
+      "versao": 2.2,
+      "desabilitado": false,
+      "posicao": [
+        400,
+        560
+      ],
+      "parametros": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.tel_celular }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Espera 15s (eco)",
+      "tipo": "n8n-nodes-base.wait",
+      "versao": 1.1,
+      "desabilitado": false,
+      "posicao": [
+        600,
+        560
+      ],
+      "parametros": {
+        "amount": 15
+      },
+      "credencial": []
+    },
+    {
+      "nome": "O Tel assumiu a conversa",
+      "tipo": "n8n-nodes-base.postgres",
+      "versao": 2.6,
+      "desabilitado": false,
+      "posicao": [
+        800,
+        560
+      ],
+      "parametros": {
+        "operation": "executeQuery",
+        "query": "-- O TEL ASSUMIU ESTE CHAT (pedido do Tel, 11/09): a NAI para de mandar\n-- mensagem para essa pessoa. nai_tel_assumiu confere antes se nao e eco\n-- do que a propria NAI mandou (mesmo ID ou mesmo texto) -- por isso a\n-- espera de 15s: da tempo do 'Confirmar envio' gravar o ID. Volta com\n-- o comando DEVOLVER <telefone>.\nSELECT nai_tel_assumiu($1, $2, $3) AS r;",
+        "options": {
+          "queryReplacement": "={{ [ $('Filtrar e normalizar').first().json.telefone, $('Filtrar e normalizar').first().json.message_id ?? '', $('Filtrar e normalizar').first().json.texto ?? '' ] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "Gravar na fila",
+      "tipo": "n8n-nodes-base.postgres",
+      "versao": 2.6,
+      "desabilitado": false,
+      "posicao": [
+        400,
+        300
+      ],
+      "parametros": {
+        "operation": "executeQuery",
+        "query": "-- A NAI grava na MESMA tabela `mensagens` (a historia do corretor continua\n-- uma so), marcando fluxo='nai'. O telefone e gravado COMO CHEGOU: o @lid\n-- NAO e trocado por um telefone adivinhado pelo nome.\nWITH ins AS (\n  -- O ID DA MENSAGEM QUE CHEGA (14/09): e ele que faz a MARCACAO resolver\n  -- quando o corretor marca a propria mensagem (o card que ele colou). O fluxo\n  -- antigo ja guardava; este, que atende o numero em teste, nao guardava -- e\n  -- foi por isso que \"marquei o imovel e ela nao identificou\" continuou\n  -- acontecendo depois do conserto do dia 14.\n  INSERT INTO mensagens (telefone, nome, direcao, origem, texto, status, citado, citado_id, fluxo, message_id)\n  VALUES ($1, $2, CASE WHEN $6::boolean THEN 'enviada' ELSE 'recebida' END, $3,\n          NULLIF($4, 'null'), CASE WHEN $6::boolean THEN 'Enviado' ELSE 'Recebido' END,\n          NULLIF($5, 'null'), NULLIF($7, 'null'), 'nai', NULLIF($8, 'null'))\n  RETURNING id, telefone, origem, criada_em, direcao\n), nomeia AS (\n  SELECT nay_sincronizar_nome((SELECT telefone FROM ins), $2)\n), congela AS (\n  SELECT nay_congelar_lembretes((SELECT telefone FROM ins)) AS n WHERE NOT $6::boolean\n)\nSELECT ins.id, ins.telefone, ins.origem, ins.criada_em, ins.direcao,\n       -- quanto esperar antes de responder, para juntar as mensagens que ele\n       -- ainda esta digitando (Tel, 15/09). Muda por UPDATE, sem deploy.\n       nai_cfg_int('janela_segundos', 25) AS janela,\n       (SELECT count(*) FROM nomeia) + (SELECT count(*) FROM congela) AS efeitos_colaterais\nFROM ins;",
+        "options": {
+          "queryReplacement": "={{ [$json.telefone, $json.nome ?? null, $json.origem, $json.texto ?? null, $json.citado ?? null, $json.saindo === true, $json.citadoId ?? null, $json.message_id ?? null] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "Janela de 25s",
+      "tipo": "n8n-nodes-base.wait",
+      "versao": 1.1,
+      "desabilitado": false,
+      "posicao": [
+        600,
+        300
+      ],
+      "parametros": {
+        "amount": "={{ $('Gravar na fila').first().json.janela || 25 }}"
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Reservar mensagens",
+      "tipo": "n8n-nodes-base.postgres",
+      "versao": 2.6,
+      "desabilitado": false,
+      "posicao": [
+        800,
+        300
+      ],
+      "parametros": {
+        "operation": "executeQuery",
+        "query": "UPDATE mensagens SET status = 'Processando' WHERE telefone = $1 AND status = 'Recebido' AND fluxo = 'nai' RETURNING id, telefone, nome, origem, texto, citado, citado_id, criada_em,\n  -- Calculados AQUI, e nao no `Gravar na fila`: e deste no que o\n  -- `Juntar mensagens` le. Ficando so la, chegavam como undefined e\n  -- a segunda camada inteira era letra morta.\n  -- O primeiro nome da pessoa, ou NULL quando o nome e de empresa.\n  -- Calculado aqui pelo mesmo motivo dos de baixo: e deste no que o\n  -- `Juntar mensagens` le.\n  nay_nome_de_pessoa(nome) AS nome_pessoa,\n  nay_pede_localizacao_da_unidade(texto) AS pede_unidade,\n  -- O que ele pediu neste turno, por mensagem. O `Juntar mensagens`\n  -- combina: locacao numa linha + venda na outra vira \"ambos\".\n  nay_pede_visita(texto) AS pede_visita,\n  -- De qual imovel esta conversa vem falando. Sai do DADO (envios,\n  -- mensagens, mensagem_saida), nao da memoria do modelo -- o caminho\n  -- do codigo puro nao passa pelo agente e nao entra em `nay_memoria`.\n  nay_aviso_do_foco(telefone) AS foco_aviso,\n  -- A MESMA funcao que o portao de fotos usa na hora de enviar.\n  -- Sem isso ela anuncia album que nao sai.\n  nay_deve_mandar_fotos(telefone, texto) AS manda_fotos,\n  nay_negocio_pedido(texto) AS negocio_pedido,\n  nay_codigos_citados(coalesce(texto,'')) AS codigos_citados,\n  -- A citacao vira o codigo do imovel por IGUALDADE de messageId.\n  -- NULL quando nao resolve, e nao resolver continua levando a\n  -- perguntar -- nunca a chutar.\n  nay_imovel_da_citacao(citado_id) AS codigo_citado,\n  -- Quando a mensagem citada fala de mais de um imovel, a lista dela.\n  nay_opcoes_da_citacao(citado_id) AS opcoes_citacao;",
+        "options": {
+          "queryReplacement": "={{ $json.telefone }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "Juntar mensagens",
+      "tipo": "n8n-nodes-base.code",
+      "versao": 2,
+      "desabilitado": false,
+      "posicao": [
+        1000,
+        300
+      ],
+      "parametros": {
+        "jsCode": "// SO MENSAGEM ENTRA AQUI (Tel, 16/09, corrigindo erro meu do mesmo dia).\n// O no \"Ler imagem (GPT)\" tambem desagua neste, e a resposta da OpenAI traz um\n// campo `id` que e texto -- \"chatcmpl-EOm3J...\". O filtro antigo so olhava se\n// havia `id`, entao essa resposta entrava na lista como se fosse mensagem, e o\n// \"Abrir turno\" quebrava com `invalid input syntax for type bigint`.\n// Id de mensagem e sempre numero: e isso que este filtro exige agora.\n// AS MENSAGENS VEM SEMPRE DE \"Reservar mensagens\" (Tel, 16/09). Pelo $input,\n// na segunda passada chegava so a resposta da OpenAI e a lista ficava vazia.\nlet bruto;\ntry { bruto = $('Reservar mensagens').all().map(i => i.json); }\ncatch (e) { bruto = $input.all().map(i => i.json); }\nconst itens = bruto\n  .filter(m => m && m.id !== undefined && m.id !== null && /^[0-9]+$/.test(String(m.id)));\nif (itens.length === 0) return [];\n\n// ESPERAR O RAMO DA MIDIA. Se ha audio ou imagem no lote e a leitura ainda nao\n// terminou, esta passada nao produz nada: quem abre o turno e a passada\n// seguinte, ja com o texto do audio ou da imagem na mao. Sem isto o turno\n// nascia vazio e a porta decidia \"assunto que nao e de corretor\".\n//\n// So espera o que REALMENTE vem: se \"Detectar audio\"/\"Detectar imagem\" rodou e\n// nao devolveu item (midia sem url, mensagem que saiu daqui), nao ha nada que\n// esperar e a mensagem segue. E os nos do ramo tem onError, entao ate a falha\n// da API devolve o controle para ca.\nfunction rodou(no) {\n  try { const r = $(no).all(); return { sim: true, itens: (r || []).length }; }\n  catch (e) { return { sim: false, itens: 0 }; }\n}\n// QUEM DECIDE SE HA LEITURA A ESPERAR E O WEBHOOK, nao os nos detectores\n// (corrigindo erro meu de 16/09 13:16). Na PRIMEIRA passada os detectores\n// ainda nao rodaram, entao perguntar a eles devolvia \"nao ha nada vindo\" e a\n// espera nunca acontecia -- o mesmo audio abria dois turnos.\n//\n// O corpo do webhook esta disponivel desde o inicio e diz, sozinho, se vai\n// haver transcricao ou leitura: e a mesma condicao que \"Detectar audio\" e\n// \"Detectar imagem\" usam para decidir se produzem item.\nconst w = $('Webhook').first().json.body || {};\nconst midiaDaqui = !!(w.fromMe || w.fromApi || w.isGroup || w.isNewsletter\n                      || w.broadcast || w.isStatusReply || w.type !== 'ReceivedCallback');\nconst urlAudio = (w.audio && w.audio.audioUrl) || '';\nconst urlImg   = (w.image && (w.image.imageUrl || w.image.url)) || '';\nconst urlDoc   = (w.document && (w.document.documentUrl || w.document.url)) || '';\nconst mimeDoc  = String((w.document && (w.document.mimeType || w.document.mimetype)) || '');\nconst vaiTranscrever = !midiaDaqui && !!urlAudio;\nconst vaiLerImagem   = !midiaDaqui && (!!urlImg || (!!urlDoc && /pdf|image/i.test(mimeDoc)));\n// O CRITERIO E TER ITEM, NAO \"TER RODADO\" (corrigindo erro meu de 16/09 13:05).\n// `$('No').all()` NAO lança quando o no ainda nao executou: devolve vazio. Com\n// `.sim` a espera nunca acontecia, as duas passadas produziam saida e o mesmo\n// arquivo abria DOIS turnos -- foi o que aconteceu com o Sr. Leonardo, turnos\n// 8391 e 8392 para a mensagem 14015.\n//\n// Zero itens quer dizer \"ainda nao veio\". Se a leitura falhar, o no tem\n// onError e devolve um item com o erro dentro -- entao a espera termina e a\n// mensagem segue para o Tel, sem travar.\n// Espera a leitura que o webhook prometeu. Zero itens = ainda nao veio; os\n// nos do ramo tem onError, entao ate a falha devolve item e a espera termina.\nif (vaiTranscrever && rodou('Transcrever').itens === 0) return [];\nif (vaiLerImagem   && rodou('Ler imagem (GPT)').itens === 0) return [];\nitens.sort((a, b) => a.id - b.id);\nconst nomeItem = itens.find(m => m.nome);\nconst val = (m) => (m.texto && m.texto !== 'null') ? m.texto : '';\nlet texto = itens.map(val).filter(Boolean).join('\\n');\n// 'outro' fica de FORA: e o que nao e texto nem arquivo conhecido --\n// reacao com emoji, figurinha, enquete. Tratar isso como arquivo fez\n// ela dizer ao Moacy \"nao consigo abrir esse arquivo\" quando ele nao\n// tinha mandado arquivo nenhum (31/08, 19:23).\nconst nt = [...new Set(itens.filter(m => !val(m))\n  .map(m => m.origem || 'outro')\n  .filter(o => o !== 'outro' && o !== 'reacao' && o !== 'figurinha'))];\n// O QUE O CORRETOR FALOU, sem envelope de sistema nenhum. E este que\n// vai ao portao de fotos: os envelopes abaixo sao escritos por NOS, e\n// um deles tinha a palavra 'fotos' dentro.\nlet textoCru = texto;\nlet transcrito = '';\ntry { const tr = $('Transcrever').all(); if (tr && tr.length) { transcrito = String(tr[0].json.text || tr[0].json.transcription || '').trim(); } } catch (e) { transcrito = ''; }\n// A LEITURA DA IMAGEM (Tel, 16/09), no mesmo molde da transcricao do audio.\n// O no roda com onError, entao aqui pode chegar tanto a resposta do GPT quanto\n// um erro: so vale o que tiver texto de verdade dentro.\nlet lidoNaImagem = '';\nlet tipoDaMidia = 'imagem';\ntry {\n  const im = $('Ler imagem (GPT)').all();\n  if (im && im.length) {\n    const j = im[0].json || {};\n    const ch = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';\n    lidoNaImagem = String(ch || '').trim();\n  }\n} catch (e) { lidoNaImagem = ''; }\ntry {\n  const dt = $('Detectar imagem').all();\n  if (dt && dt.length) { tipoDaMidia = String((dt[0].json || {}).tipo || 'imagem'); }\n} catch (e) { tipoDaMidia = 'imagem'; }\nif (transcrito) {\n  textoCru = transcrito;\n  texto = '(o corretor mandou um audio. transcricao: \"' + transcrito + '\") '\n        + 'Atenda o que ele pediu nesta resposta, sem esperar confirmacao. Diga numa linha '\n        + 'curta o que voce entendeu e ja entregue junto -- por exemplo \"Entendi que o Sr. '\n        + 'quer as fotos do Acquarelle, ja te mando!\". Transcricao erra nome de condominio: '\n        + 'quando o imovel que voce entendeu nao for o da conversa, confirme qual e antes de '\n        + 'mandar material daquele imovel.';\n} else if (lidoNaImagem) {\n  // A IMAGEM FOI LIDA (Tel, 16/09). Vale como se ele tivesse escrito: o\n  // corretor que manda o print do anuncio ou a foto do imovel esta dizendo de\n  // qual imovel fala, e agora ela enxerga isso.\n  //\n  // A LEGENDA VEM NA FRENTE. Foto com legenda e o caso comum -- \"esse ainda\n  // esta disponivel?\" com o print junto -- e a pergunta dele nao pode ser\n  // trocada pela descricao da foto. `textoCru`, que e o que vai ao portao de\n  // fotos, continua sendo o que ELE escreveu quando ele escreveu algo.\n  const dele = String(texto || '').trim();\n  if (!dele) { textoCru = lidoNaImagem; }\n  texto = (dele ? dele + '\\n' : '')\n        + '(informacao de sistema, nao repita isso literalmente) ele mandou '\n        + (tipoDaMidia === 'arquivo' ? 'um arquivo' : 'uma imagem')\n        + ' e voce leu. Conteudo: \"' + lidoNaImagem + '\". '\n        + (dele ? 'Responda a mensagem dele acima usando isto. '\n                : 'Responda o que ele quer a partir disso. ')\n        + 'Fale no seu tom, sem dizer que leu nem descrever a imagem de volta.';\n} else if (!texto && nt.length) {\n  // A MIDIA VAI PARA O TEL (Tel, 16/09): \"ela NUNCA deve falar que nao le\n  // imagem; se nao conseguir, manda a imagem ao Tel\".\n  //\n  // Aqui estava a origem da frase. Este trecho MANDAVA ela dizer que nao\n  // consegue abrir -- e foi o que o Sr. Ribamar ouviu as 05:32, depois de\n  // mandar treze fotos, e o proprio Tel as 05:30. Nao adiantava proibir a\n  // frase no prompt: a ordem chegava dentro do texto do turno.\n  //\n  // Este ramo so roda quando a leitura acima falhou (API fora do ar, arquivo\n  // que o GPT nao abre). Entao ela cala e o Tel ve a midia no WhatsApp dele.\n  const nomes = { audio: 'um audio', imagem: 'uma imagem', documento: 'um arquivo', video: 'um video', outro: 'algo que nao e texto' };\n  const lista = nt.map(o => nomes[o] || nomes.outro).join(' e ');\n  texto = '(informacao de sistema, nao repita isso literalmente) ele enviou ' + lista\n        + ' e nenhum texto junto, e voce nao conseguiu abrir. Chame escalar_ao_tel '\n        + 'NESTA resposta e mande o texto_pronto que ela devolver, exatamente como veio: '\n        + 'e uma linha curta avisando que recebeu, para ele nao ficar sem resposta. '\n        + 'Depois dela o Tel assume. A frase \"nao consigo abrir\" nao vai para ele em '\n        + 'forma nenhuma.';\n}\n// A citacao vai SEPARADA do texto, nunca colada nele. Se fosse\n// colada, o card dela citado de volta -- que termina em \"quer que\n// eu mande as fotos?\" -- dispararia envio de foto sem ninguem ter\n// pedido. A citacao serve para achar o IMOVEL, o pedido se le so\n// no que o corretor escreveu.\nconst citado = (itens.map(m => m.citado).filter(Boolean)[0]) || null;\n// O CARD COLADO. Levantado em 30/08 capturando a estrutura do payload:\n// a Z-API NAO manda mensagem citada (nao existe `referencedMessage` nos\n// 22 payloads observados). O que o corretor faz de verdade e COLAR ou\n// ENCAMINHAR o card do grupo para dizer de qual imovel fala -- o texto\n// chega inteiro, entao nunca houve dado faltando.\n// O defeito era outro: ela lia o card, buscava o codigo e devolvia o\n// MESMO card de volta. A Samira mandou o 2943 e recebeu o 2943.\nconst mCard = texto.match(/C[óo]digo:\\s*(\\d{3,5})/i);\nif (mCard && /[📍•]/.test(texto)) {\n  texto = '(informacao de sistema, nao repita isso ao corretor) ele COLOU o card do imovel '\n        + mCard[1] + ' para dizer de qual imovel esta falando. NAO mande esse card de volta, '\n        + 'ele acabou de mandar. Siga de onde a conversa estava, tratando o ' + mCard[1]\n        + ' como o imovel escolhido. Mensagem dele: ' + texto;\n}\n// OR entre as mensagens do lote: se o corretor mandou duas linhas e a\n// pergunta da unidade esta na segunda, a parede tem que valer igual.\nconst pedeUnidade = itens.some(m => m.pede_unidade === true);\n// Visita pedida em QUALQUER mensagem do lote vale para o turno todo.\nconst pedeVisita = itens.some(m => m.pede_visita === true);\n// O aviso e o mesmo para todas as mensagens do lote (depende do\n// telefone, nao do texto): basta o primeiro que veio preenchido.\nconst focoAviso = (itens.map(m => m.foco_aviso).filter(Boolean)[0]) || null;\n// Pedido de foto em QUALQUER mensagem do lote vale para o turno todo --\n// e o portao de envio le o texto junto, entao tem que ser OR aqui.\nconst vaoSairFotos = itens.some(m => m.manda_fotos === true);\n// E os negocios se SOMAM: 'locacao' numa linha e 'venda' na outra e o\n// caso que quebrou -- ela mandou so os de venda.\nconst negs = new Set();\nfor (const m of itens) {\n  const x = m.negocio_pedido;\n  if (x === 'ambos') { negs.add('venda'); negs.add('locacao'); }\n  else if (x) negs.add(x);\n}\nconst negocioPedido = negs.size > 1 ? 'ambos' : (negs.values().next().value || null);\n// Ele respondeu citando alguma mensagem? So o ID chega, nunca o texto.\n// `citado_id` (snake) e o nome que vem do RETURNING do Postgres.\nconst citadoId = (itens.map(m => m.citado_id).filter(Boolean)[0]) || null;\n// O imovel da mensagem que ele marcou, quando a gente consegue casar.\nconst codigoCitado = (itens.map(m => m.codigo_citado).filter(Boolean)[0]) || null;\n// Uniao dos codigos que ele escreveu, sem os valores.\nconst codigosDele = [...new Set(itens.flatMap(m => m.codigos_citados || []))];\nreturn [{ json: { pedeUnidade: pedeUnidade, citadoId: citadoId, codigoCitado: codigoCitado, codigosDele: codigosDele, telefone: itens[0].telefone, nome: nomeItem ? nomeItem.nome : null, pedeVisita: pedeVisita, focoAviso: focoAviso, vaoSairFotos: vaoSairFotos, negocioPedido: negocioPedido, opcoesCitacao: (itens.map(m => m.opcoes_citacao).filter(Boolean)[0]) || null, nomePessoa: (itens.map(m => m.nome_pessoa).filter(Boolean)[0]) || null, texto: texto, textoCru: textoCru, citado: citado, naoTexto: nt, ids: itens.map(m => m.id), qtd: itens.length } }];"
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Detectar audio",
+      "tipo": "n8n-nodes-base.code",
+      "versao": 2,
+      "desabilitado": false,
+      "posicao": [
+        1000,
+        520
+      ],
+      "parametros": {
+        "jsCode": "const w = $('Webhook').first().json.body || {};\n// Mesma parede do \"Detectar imagem\" (16/09): audio que SAI daqui nao volta\n// para ser transcrito. Nunca quebrou nada porque a resposta do Whisper nao tem\n// campo `id`, mas transcrever o proprio audio e gasto sem uso.\nif (w.isGroup || w.isNewsletter || w.broadcast || w.isStatusReply) return [];\nif (w.type !== 'ReceivedCallback') return [];\nif (w.fromMe || w.fromApi) return [];\nconst a = w.audio || {};\nconst url = a.audioUrl || '';\nif (!url) return [];\nconst seg = Number(a.seconds || 0);\nreturn [{ json: { audio_url: url, seg: seg, longo: seg > 180, telefone: w.phone, nome: w.senderName } }];"
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Baixar audio",
+      "tipo": "n8n-nodes-base.httpRequest",
+      "versao": 4.2,
+      "desabilitado": false,
+      "posicao": [
+        1200,
+        520
+      ],
+      "parametros": {
+        "url": "={{ $json.audio_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Transcrever",
+      "tipo": "@n8n/n8n-nodes-langchain.openAi",
+      "versao": 1.8,
+      "desabilitado": false,
+      "posicao": [
+        1400,
+        520
+      ],
+      "parametros": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {
+          "language": "pt"
+        }
+      },
+      "credencial": [
+        "openAiApi"
+      ]
+    },
+    {
+      "nome": "Abrir turno",
+      "tipo": "n8n-nodes-base.postgres",
+      "versao": 2.6,
+      "desabilitado": false,
+      "posicao": [
+        1200,
+        300
+      ],
+      "parametros": {
+        "operation": "executeQuery",
+        "query": "-- O CABECALHO do turno: quem escreveu, em que papel, qual visita, qual memoria.\nSELECT nai_abrir_turno($1, $2, $3, $4, ARRAY(SELECT jsonb_array_elements_text($5::jsonb)::bigint)) AS cab;",
+        "options": {
+          "queryReplacement": "={{ [$json.telefone, $json.nome ?? null, ($json.textoCru ?? $json.texto ?? ''), $json.citadoId ?? null, JSON.stringify($json.ids || [])] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "Rotear pelo cabeçalho",
+      "tipo": "n8n-nodes-base.code",
+      "versao": 2,
+      "desabilitado": false,
+      "posicao": [
+        1400,
+        300
+      ],
+      "parametros": {
+        "jsCode": "// LIDO de `regex_liberar.js` pelo patch -- nao editar aqui.\nconst TAXA_CODIGO = /^(\\d{3,5})\\s*[-–—:,]?\\s*([^\\d]{2,40})$/;\nconst FALA_DE_TAXA = /\\b(tx|taxa|condominio|condomínio|cond)\\b/i;\nconst FALA_DE_INCLUSAO = /\\b(inclus[ao]|inclu[íi]d[ao]|inclui)\\b/i;\nconst NEGA = /\\b(nao|não|sem)\\b/i;\n\nfunction ehComandoDeTaxa(texto) {\n  const m = TAXA_CODIGO.exec(String(texto || ''));\n  if (!m) return false;\n  const resto = m[2];\n  if (!FALA_DE_TAXA.test(resto)) return false;\n  return FALA_DE_INCLUSAO.test(resto) || NEGA.test(resto);\n}\n\nconst VOC = '(?:@?nay\\\\b[\\\\s,;:.!?-]*)?';\n\nconst V_DESCARTA =\n  '(?:descarta|descartar|descarte|esquece|esquecer|esqueca|esqueça|' +\n  'apaga|apagar|cancela|cancelar|ignora|ignorar)';\n\nconst V_RESPOSTA = '(?:resposta|responde|responder)';\n\nconst LIGACAO = '(?:\\\\s+a)?(?:\\\\s+pend[eê]ncias?)?';\n\nconst RE_RESPOSTA = new RegExp(\n  '^\\\\s*' + VOC + V_RESPOSTA + LIGACAO + '\\\\s+(\\\\d{1,6})\\\\s+([\\\\s\\\\S]+?)\\\\s*$', 'i');\n\nconst RE_DESCARTA = new RegExp(\n  '^\\\\s*' + VOC + V_DESCARTA + LIGACAO + '\\\\s+(\\\\d{1,6})\\\\s*$', 'i');\n\nconst RE_DESCARTA_TUDO = new RegExp(\n  '^\\\\s*' + VOC + V_DESCARTA + '\\\\s+tudo\\\\s*$', 'i');\n\nconst RE_DESCARTA_TUDO_SIM = new RegExp(\n  '^\\\\s*' + VOC + V_DESCARTA + '\\\\s+tudo\\\\s+sim\\\\s*$', 'i');\n\nconst RE_LISTAR = new RegExp(\n  '^\\\\s*' + VOC + '(?:pend[eê]ncias?|pendentes)\\\\s*$', 'i');\n\nfunction ehComandoDePendencia(t) {\n  const s = String(t || '');\n  return RE_DESCARTA_TUDO_SIM.test(s) || RE_DESCARTA_TUDO.test(s) ||\n         RE_DESCARTA.test(s) || RE_RESPOSTA.test(s) || RE_LISTAR.test(s);\n}\n\nfunction interpretarPendencia(t) {\n  const s = String(t || '');\n  let m;\n  if (RE_DESCARTA_TUDO_SIM.test(s)) return { acao: 'DESCARTAR TUDO SIM', p_id: null, p_texto: null };\n  if (RE_DESCARTA_TUDO.test(s)) return { acao: 'DESCARTAR TUDO', p_id: null, p_texto: null };\n  m = s.match(RE_RESPOSTA);\n  if (m) return { acao: 'RESPOSTA', p_id: parseInt(m[1], 10), p_texto: m[2].trim() };\n  m = s.match(RE_DESCARTA);\n  if (m) return { acao: 'DESCARTAR', p_id: parseInt(m[1], 10), p_texto: null };\n  if (RE_LISTAR.test(s)) return { acao: 'PENDENCIAS', p_id: null, p_texto: null };\n  return null;\n}\n\n\n// ===== NAI: o caminho sai do CABECALHO (Abrir turno), nunca do texto solto.\nfunction ehComandoAntigo(t) {\n  return ehComandoDePendencia(t)\n    || /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(envi|m[a]?nd|repass|encaminh|mostr|post|public|dispar|solt)(?:a|ar|e|ei|ou|o)?\\b([\\s\\S]*)(?:\\bpara\\b|\\bpra\\b|\\bpro\\b|\\bp\\/)\\s*([\\s\\S]+?)\\s*$/i.test(t)\n    || /^(@?NAY\\b[\\s,:;.!\\-]*)?((POSTA|POSTAR|PUBLICA|PUBLICAR|DISPARA|DISPARAR|SOLTA|TIRA|TIRAR|REMOVE|REMOVER|RETIRA|RETIRAR|VENDEU|VENDIDO|VENDIDA|ALUGOU|ALUGADO|ALUGADA|VAGAS|VAGA|LISTA)\\b|(MANDA|MANDAR|MANDE|ENVIA|ENVIAR|ENVIE)\\s+(AS?\\s+|OS?\\s+)?(LISTA|APARTAMENTOS?|APTOS?|COBERTURAS?|FLATS?|CASAS?|SOBRADOS?|SALAS?|LOJAS?|LOTES?|TERRENOS?)\\b)/i.test(t)\n    || /^(?:@?NAY\\b[\\s,:;.!\\-]*)?(\\d{3,5})\\s*[-–—:,]?\\s*(?:JA|JÁ)?\\s*(VENDEU|VENDIDO|VENDIDA|ALUGOU|ALUGADO|ALUGADA)\\b/i.test(t)\n    || ehComandoDeTaxa(t);\n}\nconst j = $('Juntar mensagens').first().json;\nlet cab = {};\ntry { cab = $('Abrir turno').first().json.cab || {}; } catch (e) { cab = {}; }\nif (cab.ok !== true) return [];                       // sem cabecalho, nada sai\nconst papel = cab.papel;\nconst t = String(cab.texto || '').trim();\nconst envelope = String(j.texto || '').trim();\nif (papel === 'tel') {\n  // Comando da NAI (VISITAS, VISITA N, ACESSO, ASSUMIR, DEVOLVER e, desde\n  // 15/09, AGENDA DE VISITAS). Quem decide e o banco, em `cab.comando_nai`;\n  // a regex abaixo fica como reserva para cabecalho antigo.\n  if (cab.comando_nai === true) return [{ json: { rota: 'tel_nai' } }];\n  if (/^\\s*(@?nay[\\s,:;.!-]*)?(visitas\\s*$|visita\\s+#?\\d+\\s+\\S|acesso\\s+\\d{3,5}\\s+\\S|(assumir|devolver)\\s+\\S)/i.test(t)) return [{ json: { rota: 'tel_nai' } }];\n  if (ehComandoAntigo(t)) return [{ json: { rota: cab.teste === true ? 'aviso_teste' : 'tel_antigo' } }];\n  return envelope ? [{ json: { rota: 'agente' } }] : [];\n}\nif (cab.pausado !== false) return [];                  // pausada (ou sem saber): silencio\nif (papel === 'proprietario') return t ? [{ json: { rota: 'proprietario' } }] : [];\nif (papel === 'motoboy') return t ? [{ json: { rota: 'motoboy' } }] : [];\n// corretor -- o porteiro, que falha FECHADO\n// A PORTA primeiro (Tel, 15/09): com a regra publica ligada, quem decide e\n// `nai_deve_atender`, no banco. false = silencio; true = atende mesmo sem\n// estar em `corretores` (gente nova que chega do grupo perguntando de\n// imovel). Indefinido = regra desligada, e vale o porteiro de sempre.\nif (cab.atende === false) return [];\nif (cab.atende !== true && cab.aprovado !== true) return cab.primeira_vez === true ? [{ json: { rota: 'cortesia' } }] : [];\n// NUMERO SOLTO: so e codigo de imovel quando ela NAO acabou de perguntar o\n// valor. Em 13/09 ela perguntou a faixa de preco, ele respondeu \"3500\" e\n// levou \"nao achei nenhum imovel com o codigo 3500\".\nif (/^\\d{3,5}$/.test(t) && cab.esperando_valor !== true) return [{ json: { rota: 'codigo', codigo: parseInt(t, 10) } }];\nif (!envelope) return [];\nreturn [{ json: { rota: 'agente' } }];\n"
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Qual caminho?",
+      "tipo": "n8n-nodes-base.switch",
+      "versao": 3.2,
+      "desabilitado": false,
+      "posicao": [
+        1600,
+        300
+      ],
+      "parametros": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.rota }}",
+                    "rightValue": "agente",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "agente"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.rota }}",
+                    "rightValue": "codigo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "codigo"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.rota }}",
+                    "rightValue": "cortesia",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "cortesia"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.rota }}",
+                    "rightValue": "proprietario",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "proprietario"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.rota }}",
+                    "rightValue": "motoboy",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "motoboy"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.rota }}",
+                    "rightValue": "tel_nai",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "tel_nai"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.rota }}",
+                    "rightValue": "tel_antigo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "tel_antigo"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.rota }}",
+                    "rightValue": "aviso_teste",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "aviso_teste"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credencial": []
+    },
+    {
+      "nome": "NAI (corretor)",
+      "tipo": "@n8n/n8n-nodes-langchain.agent",
+      "versao": 3.1,
+      "desabilitado": false,
+      "posicao": [
+        1900,
+        -200
+      ],
+      "parametros": {
+        "promptType": "define",
+        "text": "=(informação de sistema, não repita isso ao corretor) agora em Manaus é {{ $now.setZone('America/Manaus').setLocale('pt-BR').toFormat('cccc dd/MM/yyyy HH:mm') }}. {{ $('Abrir turno').first().json.cab.vocativo ? 'trate o corretor por: ' + $('Abrir turno').first().json.cab.vocativo + ' (Sr./Sra. + primeiro nome, como na captacao). ' : '' }}{{ $('Juntar mensagens').first().json.nomePessoa ? 'o nome dele e ' + $('Juntar mensagens').first().json.nomePessoa + '. ' : 'nao sei o nome dele -- pergunte com quem voce fala antes de tratar por nome. ' }}{{ $('Juntar mensagens').first().json.citado ? 'ele respondeu citando esta mensagem, e o imovel dela e o assunto: \"' + $('Juntar mensagens').first().json.citado + '\". ' : '' }}{{ $('Juntar mensagens').first().json.codigoCitado ? 'ele MARCOU a mensagem do imovel ' + $('Juntar mensagens').first().json.codigoCitado + '. E desse que ele fala: siga com esse codigo e NAO pergunte qual e. ' : '' }}{{ $('Juntar mensagens').first().json.opcoesCitacao ? 'ele marcou uma mensagem sua que falava de MAIS DE UM imovel. Pergunte qual, mostrando esta lista como veio:' + String.fromCharCode(10) + $('Juntar mensagens').first().json.opcoesCitacao + String.fromCharCode(10) : '' }}{{ ($('Juntar mensagens').first().json.citadoId && !$('Juntar mensagens').first().json.citado) ? 'ele respondeu CITANDO uma mensagem que voce nao consegue ver. Se a pergunta depende de saber qual imovel e, PERGUNTE. Nunca suponha. ' : '' }}{{ $('Juntar mensagens').first().json.qtd > 1 ? 'ele mandou ' + $('Juntar mensagens').first().json.qtd + ' mensagens neste intervalo, juntas abaixo: responda TODAS. ' : '' }}{{ $('Juntar mensagens').first().json.pedeVisita ? 'ele falou de VISITA: chame pedir_visita NESTA resposta, com o codigo e o horario que ele disse. ' : '' }}{{ $('Juntar mensagens').first().json.vaoSairFotos ? (($('Juntar mensagens').first().json.codigoCitado || ($('Juntar mensagens').first().json.codigosDele || []).length) ? 'as fotos VAO sair junto com a sua resposta -- pode avisar que estao vindo. ' : 'ele pediu FOTO, mas voce ainda NAO sabe de qual imovel: pergunte qual e NAO diga que as fotos estao vindo. ') : 'as fotos NAO saem neste turno, porque ele nao pediu: nao diga que vai mandar foto, ofereca. ' }}{{ $('Abrir turno').first().json.cab.contexto || '' }} mensagem do corretor: {{ $('Juntar mensagens').first().json.texto }}",
+        "options": {
+          "systemMessage": "={{ $('Abrir turno').first().json.cab.prompt || \"Você é a Nay, da Imob Easy, imobiliária de Manaus. Neste número você atende CORRETORES PARCEIROS pelo WhatsApp, sobre imóveis de LOCAÇÃO. O dono da imobiliária é o Tel.\\n\\n# COMO VOCÊ FALA\\n- Escreva como uma atendente de Manaus no WhatsApp: frases curtas, educadas e diretas.\\n- Cumprimente pela hora de Manaus que vem na informação de sistema: bom dia até 11h59, boa tarde até 17h59, boa noite a partir das 18h.\\n- Chame o corretor pelo tratamento que vem pronto na informação de sistema (\\\"Sr. Carlos\\\", \\\"Sra. Marcia\\\"). Se vier só o primeiro nome, use só o primeiro nome.\\n- Fale como mulher: \\\"obrigada\\\".\\n- Faça uma pergunta por mensagem.\\n- Escreva sem emoji e sem markdown. O card do imóvel e a lista de opções chegam prontos do sistema: repita como vieram.\\n- Quando ele só cumprimentar, responda só o cumprimento com o tratamento: \\\"Boa noite, Sr. Pedro!\\\"\\n- Quando ele colar ou marcar um card sem perguntar nada, responda: \\\"Certo, Sr. Pedro. O que o Sr. quer saber desse imóvel?\\\"\\n- Para agradecer diga \\\"Imagina!\\\" ou \\\"Por nada!\\\". Para encerrar diga \\\"Qualquer coisa me chama por aqui.\\\"\\n\\n# COMO VOCÊ USA AS FERRAMENTAS\\n- Toda informação sobre imóvel vem de uma ferramenta chamada nesta resposta.\\n- Quando a ferramenta devolver texto_pronto, mande exatamente esse texto, com as quebras de linha.\\n- Quando a ferramenta devolver instrucao_para_voce, siga a instrução e guarde ela só para você.\\n- Quando a ferramenta mandar responder SILENCIO, responda exatamente: SILENCIO\\n\\n# O FLUXO\\n\\n## 1. O corretor chama\\nEle responde um card do grupo, marca a mensagem, cola o card ou escreve o código.\\n- A informação de sistema diz qual é o IMÓVEL DESTA CONVERSA. Use esse código em todas as ferramentas.\\n- Quando ele disser \\\"esse\\\" e a informação de sistema não trouxer o imóvel, chame imovel_do_disparo e mostre a lista para ele escolher.\\n- Quando ele já pedir visita, vá para a etapa 5.\\n\\n## 2. O corretor faz uma pergunta sobre o imóvel\\nMobília, quartos, vagas, área, andar, sol, valor, condomínio, IPTU, disponibilidade, endereço, pet ou lazer.\\n- Chame o_que_sei_do_imovel com o código e a pergunta dele.\\n- Com sabe=true: mande o texto_pronto. O sistema manda a sugestão de visita em outra mensagem.\\n- Com sabe=false: chame imovel_por_codigo. Se a resposta estiver no card, responda com ela.\\n- Se a resposta não estiver em nenhuma das duas: chame escalar_ao_tel e responda SILENCIO. A partir daí quem responde é o Tel.\\n\\n## 3. O corretor pede fotos ou o card\\n- Chame imovel_por_codigo e mande o card. O sistema manda as fotos logo depois, com as duas mensagens de sugestão.\\n- Quando não houver imóvel na conversa, pergunte: \\\"De qual imóvel o Sr. quer as fotos?\\\"\\n\\n## 4. Oferecer outros imóveis\\nQuando ele quiser outras opções, chame buscar_por_perfil com o que já souber (bairro, teto, quartos, mobília).\\n- A ferramenta conduz as perguntas, uma de cada vez: bairro, depois faixa de preço, depois mobiliado ou semimobiliado. Mande a pergunta que ela devolver.\\n- Número solto na resposta dele responde a última pergunta: se você perguntou a faixa de preço e ele disse \\\"3500\\\", chame buscar_por_perfil com teto 3500.\\n- \\\"Tanto faz\\\" ou \\\"qualquer um\\\" na mobília: chame buscar_por_perfil com mobilia vazia.\\n- Quando vier a lista, mande o texto_pronto como veio.\\n- Quando ele escolher um da lista, mande o card dele com imovel_por_codigo.\\n\\n## 5. A visita\\n- Ele quer visitar e não disse qual imóvel: pergunte qual dos imóveis que você mostrou.\\n- Ele quer visitar e não disse dia e hora: \\\"Claro! Me informa o dia e o horário que fica bom pro seu cliente, ok?\\\"\\n- Ele deu o imóvel e o horário: chame pedir_visita e siga o que ela devolver. Ela confere o horário, fala com o proprietário e, se faltar menos de 3 horas, sobe para o Tel.\\n- A confirmação da visita é mandada pelo sistema, depois do proprietário e do Fernando.\\n- O proprietário sugeriu outro horário e o corretor respondeu: chame responder_horario_do_proprietario.\\n- Ele quer trocar o horário de uma visita já pedida: chame mudar_horario_da_visita.\\n\\n## 6. Depois da visita confirmada\\n- O sistema pede os dados. Quando ele mandar nome, CPF ou CRECI (dele ou do visitante), chame guardar_dados_da_visita com tudo o que veio e mande o texto_pronto.\\n- Até a visita, responda as dúvidas dele como na etapa 2.\\n\\n## 7. Depois da visita\\n- O sistema pergunta como foi. Quando ele contar, chame resultado_da_visita (quer_alugar, nao_gostou, pensando ou nao_foi) e responda SILENCIO. O Tel segue com ele.\\n\\n# QUANDO RESPONDER SILENCIO\\n- Depois de chamar escalar_ao_tel.\\n- Quando a ferramenta mandar.\\n- Quando ele só agradecer ou disser \\\"ok\\\" depois que você já encerrou.\\n\" }}",
+          "returnIntermediateSteps": true
+        }
+      },
+      "credencial": []
+    },
+    {
+      "nome": "GPT (corretor)",
+      "tipo": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "versao": 1.3,
+      "desabilitado": false,
+      "posicao": [
+        1700,
+        60
+      ],
+      "parametros": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.6-sol",
+          "mode": "list",
+          "cachedResultName": "gpt-5.6-sol"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "credencial": [
+        "openAiApi"
+      ]
+    },
+    {
+      "nome": "Memória (corretor)",
+      "tipo": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "versao": 1.4,
+      "desabilitado": false,
+      "posicao": [
+        1860,
+        60
+      ],
+      "parametros": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Abrir turno').first().json.cab.memoria }}",
+        "tableName": "nai_memoria",
+        "contextWindowLength": 40
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "imovel_por_codigo",
+      "tipo": "n8n-nodes-base.postgresTool",
+      "versao": 2.7,
+      "desabilitado": false,
+      "posicao": [
+        2000,
+        60
+      ],
+      "parametros": {
+        "descriptionType": "manual",
+        "toolDescription": "Busca um imóvel pelo código. Use sempre que o corretor citar um número de 3 a 5 dígitos ou pedir informações de um imóvel específico. Se o corretor fez uma PERGUNTA ESPECÍFICA (endereço, valor, quartos, disponibilidade), responda SÓ o que foi perguntado, usando os dados da consulta — não despeje o card inteiro. Se o corretor pediu informações gerais ou você precisa apresentar o imóvel, aí sim repita o texto_pronto sem alterar. As fotos NÃO são enviadas por você: o sistema manda quando o corretor pede. Ao apresentar um imóvel, ofereça — pergunte se ele quer as fotos. Se qtd_fotos vier 0, NUNCA diga que nao tem foto: diga que ja manda -- o sistema confere no anuncio do site e, se mesmo la nao houver, avisa o Tel.",
+        "operation": "executeQuery",
+        "query": "SELECT c.texto_pronto,\n  i.disponivel,\n  COALESCE(i.e_parceiro,false) AS e_parceiro,\n  COALESCE(i.extras->>'aceita financiamento','') AS aceita_financiamento,\n  c.qtd_fotos,\n  COALESCE(i.administrado,false) AS administrado,\n  CASE WHEN COALESCE(i.administrado,false) THEN\n    'Este imóvel é ADMINISTRADO pela Imob Easy. Pode passar ao corretor todas as informações que vieram, incluindo o endereço. Se o corretor perguntar quanto precisa para entrar no imóvel, responda que vai verificar e escale ao Tel — o valor de caução varia.'\n  ELSE '' END\n  || CASE\n       -- FORMA DE PAGAMENTO: é derivável, e ela não pode dizer que vai\n       -- verificar. Em 30/08 ela respondeu ao Gustavo \"aceita\n       -- financiamento\" e emendou \"sobre a forma de pagamento, vou\n       -- verificar e retorno\" -- tendo o dado na mão.\n       WHEN COALESCE(i.valor_venda,0) > 0 AND COALESCE(i.extras->>'aceita financiamento','') ~* '^s' THEN\n         ' Se perguntarem a forma de pagamento: este imovel aceita financiamento, entao e A VISTA OU FINANCIADO. Responda direto, NUNCA diga que vai verificar.'\n       WHEN COALESCE(i.valor_venda,0) > 0 THEN\n         ' Se perguntarem a forma de pagamento: este imovel NAO aceita financiamento, entao e SO A VISTA. Responda direto, NUNCA diga que vai verificar.'\n       ELSE ''\n     END\n  || CASE\n       -- A DESCRIÇÃO do anúncio, capturada em 31/08. É onde o Tel escreve\n       -- o que a ficha não cabe: o que falta para ficar 100% mobiliado, se\n       -- aceita pet, se tem ponto comercial. Vai na INSTRUÇÃO, não no\n       -- texto_pronto: serve para RESPONDER pergunta, não para despejar no\n       -- card. Sem isto ela ofereceu ao Ênio um mobiliado quando ele pediu\n       -- sem mobília, tendo no banco um cuja descrição diz \"sem mobília\".\n       -- PARCEIRO NAO TEM DESCRICAO AQUI. O card ja esconde tudo; sem\n       -- este gate a instrucao entregava endereco, CEP, valor e ate o\n       -- saldo devedor do proprietario. Falha fechada: so passa quando\n       -- e_parceiro prova ser falso.\n       WHEN COALESCE(i.e_parceiro, true) THEN ''\n       WHEN COALESCE(i.descricao,'') <> '' THEN\n         ' O anuncio deste imovel diz: \"' ||\n         -- `nay_descricao_segura` tira o numero da unidade do texto do\n         -- anuncio. Tres anuncios publicam \"apto 801\", \"apart. 601\" -- que\n         -- o site publique nao autoriza a Nay a entregar de mao beijada.\n         replace(nay_descricao_segura(i.descricao), chr(10), ' ')\n         || '\". Use para responder o que a ficha nao responde, e so o que ele'\n         || ' perguntar. NAO repita a descricao inteira sem ele pedir.'\n       ELSE ''\n     END AS instrucao_para_voce\nFROM imoveis i\nCROSS JOIN LATERAL nai_card_do_imovel(i.codigo) c\nWHERE i.codigo = $1;",
+        "options": {
+          "queryReplacement": "={{ $fromAI('codigo', 'o código do imóvel, um número de 3 a 5 dígitos', 'string') }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "resumo_do_condominio",
+      "tipo": "n8n-nodes-base.postgresTool",
+      "versao": 2.7,
+      "desabilitado": false,
+      "posicao": [
+        2150,
+        60
+      ],
+      "parametros": {
+        "descriptionType": "manual",
+        "toolDescription": "Diz quantos imóveis a Imob Easy tem num condomínio, separando venda e locação, com a faixa de valor de cada um. Use no primeiro passo do funil, sempre que o corretor citar o nome de um condomínio. Devolve o texto pronto para você repetir sem alterar.",
+        "operation": "executeQuery",
+        "query": "SELECT\n  'no ' || c.nome || ' tenho ' || c.total || CASE WHEN c.total = 1 THEN ' imóvel: ' ELSE ' imóveis: ' END\n  || CASE WHEN c.venda > 0 THEN c.venda || ' pra venda (' || CASE WHEN c.venda = 1 THEN replace(to_char(c.vmin,'FM999,999,990'),',','.') ELSE 'de ' || replace(to_char(c.vmin,'FM999,999,990'),',','.') || ' a ' || replace(to_char(c.vmax,'FM999,999,990'),',','.') END || ')' ELSE '' END\n  || CASE WHEN c.venda > 0 AND c.locacao > 0 THEN ' e ' ELSE '' END\n  || CASE WHEN c.locacao > 0 THEN c.locacao || ' pra locação (' || CASE WHEN c.locacao = 1 THEN replace(to_char(c.lmin,'FM999,999,990'),',','.') ELSE 'de ' || replace(to_char(c.lmin,'FM999,999,990'),',','.') || ' a ' || replace(to_char(c.lmax,'FM999,999,990'),',','.') END || ')' ELSE '' END\n  || CASE WHEN c.venda > 0 AND c.locacao > 0 THEN '. é venda ou locação?' ELSE '' END\n  AS texto_pronto,\n  'ATENCAO: esta faixa de valor e apenas informativa e NAO serve para concluir se existe ou nao existe imovel. Assim que o corretor informar quartos ou valor, chame listar_no_condominio, mesmo que o valor dele pareca fora desta faixa -- a busca usa margem maior. Se a pergunta dele for se TEM ou NAO TEM naquele condominio, use disponibilidade_no_condominio, que responde isso de forma final. O que voce NAO pode e concluir que nao tem olhando so esta faixa de valor.' AS instrucao_para_voce\nFROM (\n  SELECT i.condominio_nome AS nome,\n         count(*) AS total,\n         count(*) FILTER (WHERE COALESCE(i.valor_venda,0) > 0) AS venda,\n         count(*) FILTER (WHERE COALESCE(i.valor_aluguel,0) > 0) AS locacao,\n         min(i.valor_venda) FILTER (WHERE COALESCE(i.valor_venda,0) > 0) AS vmin,\n         max(i.valor_venda) FILTER (WHERE COALESCE(i.valor_venda,0) > 0) AS vmax,\n         min(i.valor_aluguel) FILTER (WHERE COALESCE(i.valor_aluguel,0) > 0) AS lmin,\n         max(i.valor_aluguel) FILTER (WHERE COALESCE(i.valor_aluguel,0) > 0) AS lmax\n  FROM imoveis i\n  WHERE i.condominio_nome IN (SELECT nome FROM nay_cond($1))\n    AND i.disponivel = true\n    AND COALESCE(i.bloqueado,false) = false\n    AND COALESCE(i.e_parceiro,false) = false\n  GROUP BY i.condominio_nome\n) c;",
+        "options": {
+          "queryReplacement": "={{ $fromAI('condominio', 'nome do condomínio citado pelo corretor', 'string') }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "listar_no_condominio",
+      "tipo": "n8n-nodes-base.postgresTool",
+      "versao": 2.7,
+      "desabilitado": false,
+      "posicao": [
+        2300,
+        60
+      ],
+      "parametros": {
+        "descriptionType": "manual",
+        "toolDescription": "Execute a SQL query in PostgresLista os imoveis de um condominio filtrando por venda ou locacao, quantidade de quartos e teto de valor. Use no terceiro passo do funil. Passe o teto de valor exatamente como o corretor falou, sem fazer conta nenhuma - a faixa e calculada automaticamente. CHAME ESTA FERRAMENTA IMEDIATAMENTE assim que voce souber o condominio, se e venda ou locacao, e o corretor tiver informado quartos OU valor - inclusive quando ele informar os dois na mesma frase. NUNCA pergunte de novo um dado que o corretor ja escreveu na mensagem dele: releia a mensagem antes de perguntar qualquer coisa.",
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE(string_agg(t.linha, E'\\n' ORDER BY t.ordem), CASE WHEN $3::int >= 3 THEN 'nao encontrei nada com esse perfil. pergunte ao corretor se ele aceitaria um quarto a menos antes de encerrar' ELSE 'nao encontrei nada com esse perfil' END) AS texto_pronto, CASE WHEN count(*) = 0 THEN 'nao ha resultado. faca exatamente o que o texto_pronto manda e nada alem disso.' WHEN count(*) = 1 AND count(*) FILTER (WHERE t.acima) = 1 THEN 'ATENCAO: e uma unica opcao e ela custa MAIS do que o corretor pediu. Diga primeiro que nao tem nada dentro do valor dele, ofereca esta como alternativa citando o valor, e ja chame imovel_por_codigo e mande o imovel completo na mesma resposta. NAO pergunte qual codigo ele quer.' WHEN count(*) = 1 THEN 'ATENCAO: e uma unica opcao. NAO pergunte qual codigo ele quer. Chame imovel_por_codigo agora e mande o imovel completo na mesma resposta.' WHEN count(*) FILTER (WHERE t.acima) > 0 THEN 'ATENCAO: os itens marcados com (acima do teto) custam mais do que o corretor pediu. Avise isso com naturalidade antes da lista e depois pergunte qual codigo ele quer.' ELSE 'pergunte qual codigo ele quer receber' END AS instrucao_para_voce FROM (SELECT '• ' || i.codigo || ' — ' || CASE WHEN COALESCE(i.quartos,0) > 0 THEN i.quartos || CASE WHEN i.quartos = 1 THEN ' quarto' ELSE ' quartos' END || CASE WHEN COALESCE(i.suites,0) > 0 THEN ' sendo ' || i.suites || CASE WHEN i.suites = 1 THEN ' suíte' ELSE ' suítes' END ELSE '' END ELSE i.tipo END || CASE WHEN COALESCE(i.area_util,0) > 0 THEN ' — ' || trim(to_char(i.area_util,'FM999990')) || 'm2' ELSE '' END || ' — ' || CASE WHEN $2 = 'locacao' THEN 'locação ' || replace(to_char(i.valor_aluguel,'FM999,999,990'),',','.') ELSE replace(to_char(i.valor_venda,'FM999,999,990'),',','.') END || CASE WHEN COALESCE(i.mobilia,'') <> '' THEN ' — ' || replace(replace(i.mobilia,'moveis','móveis'),'so ar-condicionado','só ar-condicionado') ELSE '' END || CASE WHEN $4::numeric > 0 AND CASE WHEN $2 = 'locacao' THEN i.valor_aluguel ELSE i.valor_venda END > $4::numeric THEN ' (acima do teto)' ELSE '' END AS linha, CASE WHEN $2 = 'locacao' THEN i.valor_aluguel ELSE i.valor_venda END AS ordem, ($4::numeric > 0 AND CASE WHEN $2 = 'locacao' THEN i.valor_aluguel ELSE i.valor_venda END > $4::numeric) AS acima FROM imoveis i WHERE i.condominio_nome IN (SELECT nome FROM nay_cond($1)) AND i.disponivel = true AND COALESCE(i.bloqueado,false) = false AND COALESCE(i.e_parceiro,false) = false AND (($2 = 'locacao' AND COALESCE(i.valor_aluguel,0) > 0) OR ($2 = 'venda' AND COALESCE(i.valor_venda,0) > 0)) AND ($3::int = 0 OR i.quartos = $3::int) AND ($4::numeric = 0 OR CASE WHEN $2 = 'locacao' THEN i.valor_aluguel ELSE i.valor_venda END BETWEEN $4::numeric * 0.85 AND $4::numeric * 1.10) ORDER BY ordem LIMIT 8) t;",
+        "options": {
+          "queryReplacement": "={{ [$fromAI('condominio', 'nome do condomínio', 'string') ?? null, $fromAI('negocio', 'venda ou locacao - exatamente uma dessas duas palavras sem acento', 'string') ?? null, $fromAI('quartos', 'quantidade de quartos. use 0 se o corretor nao informou', 'number') ?? 0, $fromAI('valor_teto', 'o teto de valor que o corretor falou, em reais, sem pontos nem virgula. use 0 se ele nao informou', 'number') ?? 0] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "buscar_por_perfil",
+      "tipo": "n8n-nodes-base.postgresTool",
+      "versao": 2.7,
+      "desabilitado": false,
+      "posicao": [
+        2450,
+        60
+      ],
+      "parametros": {
+        "descriptionType": "manual",
+        "toolDescription": "Busca imovel por BAIRRO e faixa de valor -- use quando o corretor pedir imovel por regiao e preco, sem citar condominio. Ex: 'apartamento no Parque 10 ate 2 mil', 'casa no Aleixo para alugar'. CHAME ANTES de responder qualquer coisa sobre ter ou nao ter imovel. NUNCA diga que vai verificar e retornar: consulte agora e responda com o que vier. Se nao voltar nada, diga o texto_pronto e escale ao Tel -- nao prometa procurar depois. Se o corretor disser algo sobre MOBILIA -- sem mobilia, mobiliado, so modulados -- passe no parametro mobilia: a busca filtra e devolve so o que casa, em vez de voce oferecer o que nao serve. Devolve o que tem no bairro e, junto, o que casa nos bairros AO REDOR (com o bairro de cada um). Repita a lista como veio. So LOCACAO.",
+        "operation": "executeQuery",
+        "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_buscar_por_perfil($1::bigint, $2, $3, $4, $5);",
+        "options": {
+          "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('bairro', 'o bairro ou regiao que o corretor citou, so o nome', 'string') ?? null, $fromAI('teto', 'o teto de valor em reais, so digitos. vazio se ele nao disse', 'string') ?? null, $fromAI('quartos', 'quantidade de quartos. vazio se ele nao disse', 'string') ?? null, $fromAI('mobilia', 'o que ele disse sobre mobilia: sem mobilia, mobiliado, so modulados, semi-mobiliado. vazio se nao falou', 'string') ?? null] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "disponibilidade_no_condominio",
+      "tipo": "n8n-nodes-base.postgresTool",
+      "versao": 2.7,
+      "desabilitado": false,
+      "posicao": [
+        2600,
+        60
+      ],
+      "parametros": {
+        "descriptionType": "manual",
+        "toolDescription": "Diz se a Imob Easy TEM ou NAO TEM imovel num condominio, pelo NOME dele -- o corretor nao precisa saber o codigo. CHAME SEMPRE que ele perguntar se algo esta disponivel citando o nome do condominio ou colando um anuncio. Passe tambem se ele quer venda ou locacao, quando ele tiver dito. SIGA A instrucao_para_voce que vier junto, ao pe da letra: e ela que diz se aquela resposta e final, se voce deve perguntar qual condominio ele quis dizer, ou se o imovel e de parceria. Quando a instrucao disser que e resposta, NAO escale ao Tel e NAO diga que vai verificar. Quando ela mandar perguntar, pergunte e chame esta ferramenta de novo com o que ele responder -- nunca afirme disponibilidade sobre um condominio que ele nao confirmou. Quando vier um codigo preenchido, e porque so existe um imovel la e voce ja pode seguir com ele.",
+        "operation": "executeQuery",
+        "query": "SELECT texto_pronto, codigo, instrucao_para_voce FROM nay_disponibilidade_no_condominio($1,$2);",
+        "options": {
+          "queryReplacement": "={{ [$fromAI('condominio', 'o nome do condominio como o corretor escreveu', 'string') ?? null, $fromAI('negocio', 'venda ou locacao, se ele tiver dito; senao deixe vazio', 'string') ?? null] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "o_que_sei_do_imovel",
+      "tipo": "n8n-nodes-base.postgresTool",
+      "versao": 2.7,
+      "desabilitado": false,
+      "posicao": [
+        2750,
+        60
+      ],
+      "parametros": {
+        "descriptionType": "manual",
+        "toolDescription": "Responde perguntas sobre UM imovel, escritas de qualquer jeito: mobilia, quartos e suites, banheiros, vagas e garagem, area, andar, sol, valor do aluguel ou venda, taxa de condominio, IPTU, disponibilidade, onde fica, financiamento, e pet ou lazer quando o anuncio fala -- mais o que o Tel ja explicou desse imovel. Passe o codigo e a pergunta nas palavras dele. CHAME ANTES de escalar_ao_tel. sabe=true: diga o texto_pronto como veio e NAO escale. sabe=false: confira imovel_por_codigo; se tambem nao estiver la, chame escalar_ao_tel.",
+        "operation": "executeQuery",
+        "query": "SELECT texto_pronto, sabe, instrucao_para_voce FROM nai_o_que_sei_do_imovel($1,$2);",
+        "options": {
+          "queryReplacement": "={{ [$fromAI('codigo', 'o codigo do imovel', 'string') ?? null, $fromAI('pergunta', 'o que o corretor quer saber, nas palavras dele', 'string') ?? null] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "guardar_do_imovel",
+      "tipo": "n8n-nodes-base.postgresTool",
+      "versao": 2.7,
+      "desabilitado": false,
+      "posicao": [
+        2900,
+        60
+      ],
+      "parametros": {
+        "descriptionType": "manual",
+        "toolDescription": "Guarda o que o TEL explicar sobre um imovel -- quitacao, valor de entrada, condicoes de locacao, pet, mobilia, estado, situacao. Chame na MESMA resposta em que ele explicar: se nao chamar, a informacao se perde e voce vai perguntar de novo. So o Tel consegue gravar; se um corretor tentar, a ferramenta recusa e voce NAO diz que guardou.",
+        "operation": "executeQuery",
+        "query": "SELECT nay_guardar_do_imovel($1,$2,$3,$4) AS texto_pronto;",
+        "options": {
+          "queryReplacement": "={{ [$fromAI('codigo', 'o codigo do imovel', 'string') ?? null, $fromAI('assunto', 'do que se trata: quitacao, entrada, condicoes de locacao, pet, mobilia, estado ou situacao', 'string') ?? null, $fromAI('texto', 'o que o Tel explicou, nas palavras dele', 'string') ?? null, $('Juntar mensagens').first().json.telefone] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "imovel_do_disparo",
+      "tipo": "n8n-nodes-base.postgresTool",
+      "versao": 2.7,
+      "desabilitado": false,
+      "posicao": [
+        2000,
+        220
+      ],
+      "parametros": {
+        "descriptionType": "manual",
+        "toolDescription": "Descobre de qual imovel o corretor fala quando ele diz 'esse', 'esse ai', 'esse imovel' SEM dar o codigo. Devolve a lista dos imoveis que VOCE mandou para ELE, para ele escolher. NUNCA devolve um codigo escolhido: quem escolhe e o corretor. Mostre a lista como veio e espere ele apontar. NAO suponha que e o ultimo imovel que voces conversaram, nem o ultimo postado nos grupos -- sao mais de 3 por dia, e mandar informacao de um imovel como se fosse de outro e o pior erro possivel.",
+        "operation": "executeQuery",
+        "query": "SELECT texto_pronto, NULL::text AS codigo, instrucao_para_voce FROM nay_qual_imovel($1);",
+        "options": {
+          "queryReplacement": "={{ [$('Juntar mensagens').first().json.telefone] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "responder_pendencia",
+      "tipo": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "versao": 2.2,
+      "desabilitado": false,
+      "posicao": [
+        2150,
+        220
+      ],
+      "parametros": {
+        "description": "Use quando o TEL (e so ele) estiver respondendo uma pendencia que voce escalou -- por exemplo ele diz 'pode ser 15h', 'a Raissa liberou', 'diz que nao da hoje'. NUNCA use para mensagem de corretor. Passe o id da pendencia e o que o Tel disse. A ferramenta NAO envia de primeira: ela devolve em texto_pronto a frase de confirmacao que voce deve dizer ao Tel. So depois que ele confirmar numa mensagem NOVA e que ela envia ao corretor. Siga texto_pronto ao pe da letra e nunca diga que avisou o corretor antes de a ferramenta devolver que avisou. Se voce nao souber de qual pendencia ele fala, pergunte a ele antes de chamar.",
+        "workflowId": {
+          "__rl": true,
+          "value": "NayRespConv00001",
+          "mode": "list",
+          "cachedResultName": "Nay - responder pendencia"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "pendencia_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('pendencia_id', `O numero da pendencia que o Tel esta respondendo. Ele aparece no aviso que voce mandou a ele (Pendencia N). Se nao tiver certeza, deixe vazio.`, 'string') }}",
+            "texto": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('texto', `O que o Tel respondeu, nas palavras dele, para o corretor ler. Nao acrescente nada que ele nao disse.`, 'string') }}",
+            "msg_id": "={{ $('Gravar na fila').first().json.id }}",
+            "telefone": "={{ $('Juntar mensagens').first().json.telefone }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "pendencia_id",
+              "displayName": "pendencia_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "texto",
+              "displayName": "texto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "msg_id",
+              "displayName": "msg_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "telefone",
+              "displayName": "telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "credencial": []
+    },
+    {
+      "nome": "escalar_ao_tel",
+      "tipo": "n8n-nodes-base.postgresTool",
+      "versao": 2.7,
+      "desabilitado": false,
+      "posicao": [
+        2000,
+        380
+      ],
+      "parametros": {
+        "descriptionType": "manual",
+        "toolDescription": "Use quando a resposta NAO esta na base (nenhuma ferramenta de consulta trouxe). Avisa o Tel e desliga voce neste chat: quem responde o corretor e o Tel. Diga o texto_pronto como veio -- SILENCIO quando foi ao Tel.",
+        "operation": "executeQuery",
+        "query": "SELECT texto_pronto FROM nai_escalar($1::bigint, $2, $3, $4);",
+        "options": {
+          "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('codigo', 'o codigo do imovel, 3 a 5 digitos; vazio se nao houver', 'string') ?? null, $fromAI('assunto', 'do que se trata, em poucas palavras', 'string') ?? null, $fromAI('disse', 'o que o corretor disse, nas palavras dele', 'string') ?? null] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "dados_do_corretor",
+      "tipo": "n8n-nodes-base.postgresTool",
+      "versao": 2.7,
+      "desabilitado": false,
+      "posicao": [
+        2150,
+        380
+      ],
+      "parametros": {
+        "descriptionType": "manual",
+        "toolDescription": "Diz se voce ja tem nome completo, CPF e CRECI deste corretor. CHAME antes de pedir esses dados a ele. Devolve instrucao_para_voce: obedeca e nunca mostre ao corretor.",
+        "operation": "executeQuery",
+        "query": "SELECT instrucao_para_voce FROM nai_dados_do_corretor_tool($1::bigint);",
+        "options": {
+          "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "pedir_visita",
+      "tipo": "n8n-nodes-base.postgresTool",
+      "versao": 2.7,
+      "desabilitado": false,
+      "posicao": [
+        2300,
+        380
+      ],
+      "parametros": {
+        "descriptionType": "manual",
+        "toolDescription": "Pede uma VISITA. CHAME sempre que o corretor quiser visitar ou sugerir horario, depois de saber QUAL imovel. Passe o codigo e o horario (AAAA-MM-DD HH:MM, hora de Manaus). Diga o texto_pronto ao pe da letra e obedeca instrucao_para_voce sem mostra-la.",
+        "operation": "executeQuery",
+        "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_pedir_visita($1::bigint, $2, $3, $4);",
+        "options": {
+          "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('codigo', 'o codigo do imovel, 3 a 5 digitos', 'string') ?? null, $fromAI('quando', 'data e hora pedidas, formato AAAA-MM-DD HH:MM, hora de Manaus. vazio se ele nao disse', 'string') ?? null, '' ] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "guardar_dados_da_visita",
+      "tipo": "n8n-nodes-base.postgresTool",
+      "versao": 2.7,
+      "desabilitado": false,
+      "posicao": [
+        2450,
+        380
+      ],
+      "parametros": {
+        "descriptionType": "manual",
+        "toolDescription": "Guarda os dados que o corretor mandou para a visita: os DELE (nome completo, CPF, CRECI) e/ou os do VISITANTE (nome completo e CPF). CHAME NA MESMA RESPOSTA em que ele mandar. Passe exatamente como ele escreveu; deixe vazio o que nao veio. Diga o texto_pronto ao pe da letra (vazio = SILENCIO).",
+        "operation": "executeQuery",
+        "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_guardar_dados_visita($1::bigint, $2, $3, $4, $5, $6, $7);",
+        "options": {
+          "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('codigo', 'codigo do imovel da visita, se ele disse; senao vazio', 'string') ?? null, $fromAI('visitante_nome', 'nome completo do visitante; vazio se nao veio', 'string') ?? null, $fromAI('visitante_cpf', 'CPF do visitante; vazio se nao veio', 'string') ?? null, $fromAI('corretor_nome', 'nome completo do proprio corretor; vazio se nao veio', 'string') ?? null, $fromAI('corretor_cpf', 'CPF do proprio corretor; vazio se nao veio', 'string') ?? null, $fromAI('corretor_creci', 'CRECI do corretor; vazio se nao veio', 'string') ?? null] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "responder_horario_do_proprietario",
+      "tipo": "n8n-nodes-base.postgresTool",
+      "versao": 2.7,
+      "desabilitado": false,
+      "posicao": [
+        2750,
+        380
+      ],
+      "parametros": {
+        "descriptionType": "manual",
+        "toolDescription": "Use quando o proprietario sugeriu outro horario (o sistema perguntou ao corretor) e o corretor RESPONDEU. aceita=sim se ele topou o horario do proprietario; senao passe outro_quando (AAAA-MM-DD HH:MM) com o horario que ele propoe.",
+        "operation": "executeQuery",
+        "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_responder_horario($1::bigint, $2, $3, $4);",
+        "options": {
+          "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('codigo', 'codigo do imovel, se souber', 'string') ?? null, $fromAI('aceita', 'sim se ele topou o horario sugerido pelo proprietario, nao se nao topou', 'string') ?? null, $fromAI('outro_quando', 'outro horario que ele propoe, AAAA-MM-DD HH:MM; vazio se nao disse', 'string') ?? null] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "mudar_horario_da_visita",
+      "tipo": "n8n-nodes-base.postgresTool",
+      "versao": 2.7,
+      "desabilitado": false,
+      "posicao": [
+        2900,
+        380
+      ],
+      "parametros": {
+        "descriptionType": "manual",
+        "toolDescription": "Muda o horario de uma visita que ja foi pedida. Passe o codigo e o novo horario (AAAA-MM-DD HH:MM).",
+        "operation": "executeQuery",
+        "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_mudar_horario($1::bigint, $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('codigo', 'codigo do imovel', 'string') ?? null, $fromAI('quando', 'novo horario, AAAA-MM-DD HH:MM', 'string') ?? null] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "resultado_da_visita",
+      "tipo": "n8n-nodes-base.postgresTool",
+      "versao": 2.7,
+      "desabilitado": false,
+      "posicao": [
+        3200,
+        380
+      ],
+      "parametros": {
+        "descriptionType": "manual",
+        "toolDescription": "Depois da visita, quando o corretor contar como foi. resultado: quer_alugar, nao_gostou, pensando ou nao_foi. Vai ao Tel, que segue com ele: responda SILENCIO.",
+        "operation": "executeQuery",
+        "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_resultado_visita($1::bigint, $2, $3, $4);",
+        "options": {
+          "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('codigo', 'codigo do imovel, se souber', 'string') ?? null, $fromAI('resultado', 'quer_alugar, nao_gostou, pensando ou nao_foi', 'string') ?? null, $fromAI('obs', 'o que ele contou, em poucas palavras', 'string') ?? null] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "Achar codigo na resposta",
+      "tipo": "n8n-nodes-base.code",
+      "versao": 2,
+      "desabilitado": false,
+      "posicao": [
+        2200,
+        -200
+      ],
+      "parametros": {
+        "jsCode": "const r = $input.first().json;\nconst saida = String(r.output || r.text || '');\nconst j = $('Juntar mensagens').first().json;\nconst escreveu = String(j.texto || '');\n// O que sai daqui como `escreveu` alimenta `nay_deve_mandar_fotos`.\n// Tem que ser a fala DELE, nunca o envelope que este fluxo escreveu.\n// O fallback existe para o caso de `Juntar mensagens` ser mais antigo\n// que este no -- mas o guarda de comando acima continua lendo `escreveu`\n// inteiro, senao um `textoCru` vazio abriria a porta que ele fecha.\nconst cru = String(j.textoCru !== undefined && j.textoCru !== null ? j.textoCru : (j.texto || ''));\nconst citou = String(j.citado || '');\n\n// A QUARTA copia, a menos obvia: sem ela, \"Nay envia as FOTOS do 5750\n// pro Sergio\" faz `pediuFoto` ler o texto do PROPRIO Tel e `solto`\n// colher o 5750 -- as fotos sairiam para o chat dele tambem.\nif (/^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(envi|m[a]?nd|repass|encaminh|mostr|post|public|dispar|solt)(?:a|ar|e|ei|ou|o)?\\b([\\s\\S]*)(?:\\bpara\\b|\\bpra\\b|\\bpro\\b|\\bp\\/)\\s*([\\s\\S]+?)\\s*$/i.test(escreveu)) {\n  return [{ json: { texto: saida, codigo: '0', codigos: ['0'], escreveu: '' } }];\n}\n\n// TODOS os codigos que ela mandou, nao so o primeiro. Em 30/08 o Gustavo\n// pediu \"me passa as informacoes dos 3\" -- ela mandaria os tres cards e so\n// as fotos do primeiro sairiam.\nconst todos = [...saida.matchAll(/C[óo]digo:\\s*(\\d{3,5})/gi)].map(m => m[1]);\n\n// Quando ela nao repetiu card nenhum, o imovel vem da citacao ou da fala\n// dele. Numero colado a ponto ou virgula NAO conta: \"valor: 900.000\"\n// virava codigo 900 (caso Sebastiana, 29/08).\nconst porRotulo = t => { const m = String(t).match(/C[óo]digo:\\s*(\\d{3,5})/i); return m ? m[1] : null; };\nconst solto = t => { const m = String(t).match(/(?<![\\d.,])(\\d{3,5})(?![\\d.,])/); return m ? m[1] : null; };\n\n// `codigosDele` vem de `nay_codigos_citados`, que tira os VALORES antes\n// de procurar codigo -- \"paga ate 4000\" nao e o imovel 4000. O `solto()`\n// cru fica so para a citacao, onde nao ha alternativa.\nconst dele = j.codigosDele || [];\nconst codigos = todos.length ? [...new Set(todos)]\n  : [porRotulo(citou) || j.codigoCitado || porRotulo(escreveu) || dele[0] || solto(citou)].filter(Boolean);\n\nreturn [{ json: {\n  texto: saida,\n  codigo: codigos[0] || '0',\n  codigos: codigos.length ? codigos : ['0'],\n  escreveu: cru\n} }];"
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Fotos faltando?",
+      "tipo": "n8n-nodes-base.postgres",
+      "versao": 2.6,
+      "desabilitado": false,
+      "posicao": [
+        2400,
+        -200
+      ],
+      "parametros": {
+        "operation": "executeQuery",
+        "query": "-- Imoveis da resposta que estao SEM foto na tabela: esses serao lidos no site agora.\nSELECT nai_fotos_faltando(ARRAY(SELECT jsonb_array_elements_text($1::jsonb)::int)) AS faltando;",
+        "options": {
+          "queryReplacement": "={{ [JSON.stringify(($json.codigos || []).map(String).filter(c => /^\\d{3,5}$/.test(c) && c !== '0'))] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "Buscar fotos no site",
+      "tipo": "n8n-nodes-base.code",
+      "versao": 2,
+      "desabilitado": false,
+      "posicao": [
+        2600,
+        -200
+      ],
+      "parametros": {
+        "jsCode": "// CHECAGEM DUPLA DAS FOTOS (camada 2). A tabela nao tinha foto deste\n// imovel: le o anuncio AO VIVO no site, como o publicador faz, e o banco\n// grava antes de responder. Caso Regiane (01/09): 2014 com 24 fotos no\n// anuncio e zero na tabela -- ela disse que nao tinha.\nconst r = $('Achar codigo na resposta').first().json;\nconst falt = (($input.first().json || {}).faltando || []).slice(0, 3);\nconst lidas = [];\nfor (const c of falt) {\n  try {\n    const html = String(await this.helpers.httpRequest({ method: 'GET', url: 'https://imobeasy.com/anuncios/' + c, timeout: 15000, json: false }) || '');\n    const ini = html.indexOf('id=\"imagens\"');\n    if (ini < 0) continue;\n    const fim = html.indexOf('</ul>', ini);\n    const trecho = html.slice(ini, fim > ini ? fim : ini + 300000);\n    const urls = [];\n    for (const m of trecho.matchAll(/<a\\b[^>]*>/g)) {\n      const tag = m[0];\n      if (!/class=\"[^\"]*gallery-item/.test(tag)) continue;\n      const h = tag.match(/href=\"([^\"]+)\"/);\n      if (!h) continue;\n      const u = h[1].startsWith('http') ? h[1] : 'https://imobeasy.com' + h[1];\n      if (!urls.includes(u)) urls.push(u);\n    }\n    lidas.push({ codigo: Number(c), urls });\n  } catch (e) { /* site fora: segue; a guarda de promessa avisa o Tel */ }\n}\nreturn [{ json: { texto: r.texto, codigos: r.codigos, escreveu: r.escreveu, fotos_site: lidas } }];\n"
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Enfileirar resposta",
+      "tipo": "n8n-nodes-base.postgres",
+      "versao": 2.6,
+      "desabilitado": false,
+      "posicao": [
+        2800,
+        100
+      ],
+      "parametros": {
+        "operation": "executeQuery",
+        "query": "-- Monta a resposta na caixa de saida: card, fotos DAQUELE card, resto do texto.\n-- Guardas: negou foto que existe -> corrige; prometeu foto que nao existe -> Tel.\nSELECT nai_enfileirar_resposta_ferramentas($1::bigint, $2, $3::jsonb, $4, $5::jsonb, $6::jsonb) AS r;",
+        "options": {
+          "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $json.texto ?? '', JSON.stringify($json.codigos || []), $json.escreveu ?? '', JSON.stringify($json.fotos_site || []), ($('NAI (corretor)').isExecuted && Array.isArray($('NAI (corretor)').first().json.intermediateSteps)) ? JSON.stringify($('NAI (corretor)').first().json.intermediateSteps.map(x => (x.action || {}).tool).filter(Boolean)) : null] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "NAI (proprietário)",
+      "tipo": "@n8n/n8n-nodes-langchain.agent",
+      "versao": 3.1,
+      "desabilitado": false,
+      "posicao": [
+        1900,
+        700
+      ],
+      "parametros": {
+        "promptType": "define",
+        "text": "=(informacao de sistema, nao repita) agora em Manaus e {{ $now.setZone('America/Manaus').setLocale('pt-BR').toFormat('cccc dd/MM/yyyy HH:mm') }}. {{ $('Abrir turno').first().json.cab.vocativo ? 'trate por: ' + $('Abrir turno').first().json.cab.vocativo + '. ' : '' }}{{ $('Abrir turno').first().json.cab.contexto || '' }} mensagem dele: {{ $('Abrir turno').first().json.cab.texto }}",
+        "options": {
+          "systemMessage": "={{ $('Abrir turno').first().json.cab.prompt || \"Você é a Nay, da Imob Easy, imobiliária de Manaus. Nesta conversa você fala com o PROPRIETÁRIO de um imóvel, pelo WhatsApp, sobre uma VISITA que um corretor parceiro pediu. A informação de sistema diz qual visita é, o horário e o que estamos esperando dele.\\n\\nO QUE VOCÊ FAZ\\n- Entende a resposta dele e chama resposta_do_proprietario com a decisão:\\n  aceita = pode receber a visita no horário;\\n  outro_horario = sugeriu outro dia ou hora (passe quando no formato AAAA-MM-DD HH:MM, hora de Manaus, resolvendo \\\"amanhã\\\", \\\"sábado\\\", \\\"às 16h\\\" pela data de hoje que vem na informação de sistema);\\n  recusa = não pode e não disse outro horário;\\n  acesso = explicou como se entra no imóvel: passe em acesso (chave com a gente, o Fernando pega a chave, fechadura eletrônica, ou ele mesmo abre), em detalhe onde e a partir de que horas pegar a chave, e em senha a senha da fechadura se ele passou;\\n  cancela = não quer a visita ou o imóvel não está mais disponível;\\n  duvida = perguntou ou falou qualquer outra coisa.\\n- Se ele disse duas coisas (aceitou E já explicou o acesso), chame para as duas.\\n- Depois diga a ele o texto_pronto que voltou, como veio, sem acrescentar pergunta.\\n- Se ele só agradecer ou disser ok e não houver nada pendente, responda curto (\\\"Imagina!\\\", \\\"Obrigada!\\\") -- ou escreva só SILENCIO para não responder.\\n\\nO QUE VOCÊ NÃO FAZ\\n- Não negocia valor, não fala de contrato, não passa telefone do corretor. Qualquer coisa fora da agenda da visita é decisao duvida: o Tel responde.\\n- Não inventa horário e não confirma nada sem a ferramenta.\\n- Nunca diz que é IA, robô ou assistente virtual.\\n\\nCOMO VOCÊ ESCREVE -- português do Brasil de gente, como uma atendente de Manaus no WhatsApp\\n- Trate por Sr. ou Sra. e o primeiro nome (vem na informação de sistema). Sem o tratamento, só o primeiro nome. Prefira frases sem \\\"você\\\".\\n- Frases curtas. Sem emoji. Sem linguagem de e-mail.\\n- Proibido -> diga assim:\\n  \\\"Você está bem-vinda\\\" -> \\\"Imagina!\\\"\\n  \\\"Perfeito!\\\", \\\"Ótimo!\\\", \\\"Excelente!\\\" abrindo frase -> \\\"Certo,\\\" ou \\\"Combinado,\\\"\\n  \\\"Obrigada por compartilhar/confirmar\\\" -> \\\"Obrigada!\\\"\\n  \\\"Fico feliz em ajudar\\\", \\\"Tenha um ótimo dia\\\" -> não diga\\n  \\\"Estou à disposição\\\", \\\"Disponha\\\", \\\"Sinta-se à vontade\\\" -> \\\"Qualquer coisa me chama por aqui.\\\"\\n\" }}"
+        }
+      },
+      "credencial": []
+    },
+    {
+      "nome": "GPT (proprietário)",
+      "tipo": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "versao": 1.3,
+      "desabilitado": false,
+      "posicao": [
+        1800,
+        920
+      ],
+      "parametros": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.6-sol",
+          "mode": "list",
+          "cachedResultName": "gpt-5.6-sol"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "credencial": [
+        "openAiApi"
+      ]
+    },
+    {
+      "nome": "Memória (proprietário)",
+      "tipo": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "versao": 1.4,
+      "desabilitado": false,
+      "posicao": [
+        1950,
+        920
+      ],
+      "parametros": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Abrir turno').first().json.cab.memoria }}",
+        "tableName": "nai_memoria",
+        "contextWindowLength": 40
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "resposta_do_proprietario",
+      "tipo": "n8n-nodes-base.postgresTool",
+      "versao": 2.7,
+      "desabilitado": false,
+      "posicao": [
+        2100,
+        920
+      ],
+      "parametros": {
+        "descriptionType": "manual",
+        "toolDescription": "Registra a resposta do PROPRIETARIO sobre a visita. decisao: aceita, outro_horario, recusa, acesso, cancela ou duvida. Diga o texto_pronto que voltar, como veio.",
+        "operation": "executeQuery",
+        "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_resposta_proprietario($1::bigint, $2, $3, $4, $5, $6);",
+        "options": {
+          "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('decisao', 'aceita, outro_horario, recusa, acesso, cancela ou duvida', 'string') ?? null, $fromAI('quando', 'se sugeriu horario: AAAA-MM-DD HH:MM (Manaus); senao vazio', 'string') ?? null, $fromAI('acesso', 'como se entra: chave com a gente, o Fernando pega a chave, fechadura eletronica, ou ele abre; vazio se nao falou', 'string') ?? null, $fromAI('detalhe', 'onde e a partir de que horas pegar a chave, ou a duvida dele; vazio se nada', 'string') ?? null, $fromAI('senha', 'a senha da fechadura, se ele passou; senao vazio', 'string') ?? null] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "Resposta do proprietário",
+      "tipo": "n8n-nodes-base.code",
+      "versao": 2,
+      "desabilitado": false,
+      "posicao": [
+        2200,
+        700
+      ],
+      "parametros": {
+        "jsCode": "return [{ json: { texto: String($input.first().json.output || ''), codigos: [], escreveu: '', fotos_site: [] } }];"
+      },
+      "credencial": []
+    },
+    {
+      "nome": "NAI (Fernando)",
+      "tipo": "@n8n/n8n-nodes-langchain.agent",
+      "versao": 3.1,
+      "desabilitado": false,
+      "posicao": [
+        1900,
+        1150
+      ],
+      "parametros": {
+        "promptType": "define",
+        "text": "=(informacao de sistema, nao repita) agora em Manaus e {{ $now.setZone('America/Manaus').setLocale('pt-BR').toFormat('cccc dd/MM/yyyy HH:mm') }}. {{ $('Abrir turno').first().json.cab.vocativo ? 'trate por: ' + $('Abrir turno').first().json.cab.vocativo + '. ' : '' }}{{ $('Abrir turno').first().json.cab.contexto || '' }} mensagem dele: {{ $('Abrir turno').first().json.cab.texto }}",
+        "options": {
+          "systemMessage": "={{ $('Abrir turno').first().json.cab.prompt || \"Você é a Nay, da Imob Easy. Aqui você fala com o FERNANDO, da nossa equipe, que acompanha as visitas dos corretores. Conversa de colega de trabalho: direta, educada, frases curtas, sem emoji.\\n\\nQuando ele responder sobre uma visita, chame resposta_do_motoboy com:\\n- visita: o número da visita (se ele disser, ou se a informação de sistema trouxer uma só);\\n- decisao: confirma (vai acompanhar), nao_pode (não consegue), problema (imprevisto) ou outro;\\n- obs: o que ele disse, em poucas palavras.\\nDepois diga o texto_pronto que voltou.\\nSe não der para saber de qual visita ele fala, pergunte mostrando a lista da informação de sistema.\\nNunca invente horário, endereço ou senha. Se ele pedir a senha antes da hora, diga que ela chega 30 minutos antes da visita.\\nSe ele só disser ok ou agradecer, escreva só SILENCIO.\\n\" }}"
+        }
+      },
+      "credencial": []
+    },
+    {
+      "nome": "GPT (Fernando)",
+      "tipo": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "versao": 1.3,
+      "desabilitado": false,
+      "posicao": [
+        1800,
+        1370
+      ],
+      "parametros": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.6-sol",
+          "mode": "list",
+          "cachedResultName": "gpt-5.6-sol"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "credencial": [
+        "openAiApi"
+      ]
+    },
+    {
+      "nome": "Memória (Fernando)",
+      "tipo": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "versao": 1.4,
+      "desabilitado": false,
+      "posicao": [
+        1950,
+        1370
+      ],
+      "parametros": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Abrir turno').first().json.cab.memoria }}",
+        "tableName": "nai_memoria",
+        "contextWindowLength": 40
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "resposta_do_motoboy",
+      "tipo": "n8n-nodes-base.postgresTool",
+      "versao": 2.7,
+      "desabilitado": false,
+      "posicao": [
+        2100,
+        1370
+      ],
+      "parametros": {
+        "descriptionType": "manual",
+        "toolDescription": "Registra a resposta do FERNANDO sobre uma visita. decisao: confirma, nao_pode, problema ou outro. Diga o texto_pronto que voltar.",
+        "operation": "executeQuery",
+        "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_resposta_motoboy($1::bigint, $2, $3, $4);",
+        "options": {
+          "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('visita', 'o numero da visita, se souber', 'string') ?? null, $fromAI('decisao', 'confirma, nao_pode, problema ou outro', 'string') ?? null, $fromAI('obs', 'o que ele disse, em poucas palavras', 'string') ?? null] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "Resposta do Fernando",
+      "tipo": "n8n-nodes-base.code",
+      "versao": 2,
+      "desabilitado": false,
+      "posicao": [
+        2200,
+        1150
+      ],
+      "parametros": {
+        "jsCode": "return [{ json: { texto: String($input.first().json.output || ''), codigos: [], escreveu: '', fotos_site: [] } }];"
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Enfileirar card do código",
+      "tipo": "n8n-nodes-base.postgres",
+      "versao": 2.6,
+      "desabilitado": false,
+      "posicao": [
+        1900,
+        480
+      ],
+      "parametros": {
+        "operation": "executeQuery",
+        "query": "SELECT nai_enfileirar_card($1::bigint, $2::int) AS r;",
+        "options": {
+          "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $json.codigo] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "Enfileirar cortesia",
+      "tipo": "n8n-nodes-base.postgres",
+      "versao": 2.6,
+      "desabilitado": false,
+      "posicao": [
+        1900,
+        580
+      ],
+      "parametros": {
+        "operation": "executeQuery",
+        "query": "SELECT nai_enfileirar_cortesia($1::bigint, $2) AS r;",
+        "options": {
+          "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $('Juntar mensagens').first().json.texto ?? ''] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "Comando de visita (Tel)",
+      "tipo": "n8n-nodes-base.postgres",
+      "versao": 2.6,
+      "desabilitado": false,
+      "posicao": [
+        1900,
+        1600
+      ],
+      "parametros": {
+        "operation": "executeQuery",
+        "query": "-- VISITAS / VISITA <id> OK|CANCELA|HORARIO|AVISA|FERNANDO OK / ACESSO <codigo> <como>\nSELECT * FROM nai_comando_tel($1::bigint, $2);",
+        "options": {
+          "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $('Abrir turno').first().json.cab.texto ?? ''] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "Aviso no teste",
+      "tipo": "n8n-nodes-base.postgres",
+      "versao": 2.6,
+      "desabilitado": false,
+      "posicao": [
+        1900,
+        1700
+      ],
+      "parametros": {
+        "operation": "executeQuery",
+        "query": "SELECT nai_enfileirar_texto($1::bigint, NULL, $2::bigint, 'turno', $3, 'aviso_teste', 1) AS id;",
+        "options": {
+          "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $('Abrir turno').first().json.cab.contato_id, '🧪 no teste, os comandos antigos (RESPOSTA, posta, dispara...) continuam pelo seu número principal. Aqui só VISITAS, VISITA <n> ... e ACESSO.'] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "Comando do Tel",
+      "tipo": "n8n-nodes-base.code",
+      "versao": 2,
+      "desabilitado": false,
+      "posicao": [
+        1900,
+        1820
+      ],
+      "parametros": {
+        "jsCode": "// LIDO de `regex_liberar.js` pelo patch -- nao editar aqui.\nconst TAXA_CODIGO = /^(\\d{3,5})\\s*[-–—:,]?\\s*([^\\d]{2,40})$/;\nconst FALA_DE_TAXA = /\\b(tx|taxa|condominio|condomínio|cond)\\b/i;\nconst FALA_DE_INCLUSAO = /\\b(inclus[ao]|inclu[íi]d[ao]|inclui)\\b/i;\nconst NEGA = /\\b(nao|não|sem)\\b/i;\n\nfunction ehComandoDeTaxa(texto) {\n  const m = TAXA_CODIGO.exec(String(texto || ''));\n  if (!m) return false;\n  const resto = m[2];\n  if (!FALA_DE_TAXA.test(resto)) return false;\n  return FALA_DE_INCLUSAO.test(resto) || NEGA.test(resto);\n}\n\nconst VOC = '(?:@?nay\\\\b[\\\\s,;:.!?-]*)?';\n\nconst V_DESCARTA =\n  '(?:descarta|descartar|descarte|esquece|esquecer|esqueca|esqueça|' +\n  'apaga|apagar|cancela|cancelar|ignora|ignorar)';\n\nconst V_RESPOSTA = '(?:resposta|responde|responder)';\n\nconst LIGACAO = '(?:\\\\s+a)?(?:\\\\s+pend[eê]ncias?)?';\n\nconst RE_RESPOSTA = new RegExp(\n  '^\\\\s*' + VOC + V_RESPOSTA + LIGACAO + '\\\\s+(\\\\d{1,6})\\\\s+([\\\\s\\\\S]+?)\\\\s*$', 'i');\n\nconst RE_DESCARTA = new RegExp(\n  '^\\\\s*' + VOC + V_DESCARTA + LIGACAO + '\\\\s+(\\\\d{1,6})\\\\s*$', 'i');\n\nconst RE_DESCARTA_TUDO = new RegExp(\n  '^\\\\s*' + VOC + V_DESCARTA + '\\\\s+tudo\\\\s*$', 'i');\n\nconst RE_DESCARTA_TUDO_SIM = new RegExp(\n  '^\\\\s*' + VOC + V_DESCARTA + '\\\\s+tudo\\\\s+sim\\\\s*$', 'i');\n\nconst RE_LISTAR = new RegExp(\n  '^\\\\s*' + VOC + '(?:pend[eê]ncias?|pendentes)\\\\s*$', 'i');\n\nfunction ehComandoDePendencia(t) {\n  const s = String(t || '');\n  return RE_DESCARTA_TUDO_SIM.test(s) || RE_DESCARTA_TUDO.test(s) ||\n         RE_DESCARTA.test(s) || RE_RESPOSTA.test(s) || RE_LISTAR.test(s);\n}\n\nfunction interpretarPendencia(t) {\n  const s = String(t || '');\n  let m;\n  if (RE_DESCARTA_TUDO_SIM.test(s)) return { acao: 'DESCARTAR TUDO SIM', p_id: null, p_texto: null };\n  if (RE_DESCARTA_TUDO.test(s)) return { acao: 'DESCARTAR TUDO', p_id: null, p_texto: null };\n  m = s.match(RE_RESPOSTA);\n  if (m) return { acao: 'RESPOSTA', p_id: parseInt(m[1], 10), p_texto: m[2].trim() };\n  m = s.match(RE_DESCARTA);\n  if (m) return { acao: 'DESCARTAR', p_id: parseInt(m[1], 10), p_texto: null };\n  if (RE_LISTAR.test(s)) return { acao: 'PENDENCIAS', p_id: null, p_texto: null };\n  return null;\n}\n\n// NAI: o papel vem do CABECALHO. Publicador (posta, dispara...) so fora do teste.\nlet cab = {};\ntry { cab = $('Abrir turno').first().json.cab || {}; } catch (e) { cab = {}; }\nif (cab.papel !== 'tel' || cab.teste === true) return [];\nconst TEL = String(cab.telefone);\nconst linhas = String(cab.texto || '').split('\\n');\nfor (const bruta of linhas) {\n  const linha = bruta.trim();\n  if (!linha) continue;\n  const up = linha.toUpperCase();\n  // A gramatica de pendencia mora em regex_pendencia.js, com 45 casos\n  // em casos_comando_pendencia.json. 'descarta 47' e 'esquece 47' sao\n  // formas que o Tel usa de verdade.\n  const pend = interpretarPendencia(linha);\n  if (pend) return [{ json: { acao: pend.acao, p_id: pend.p_id, p_texto: pend.p_texto, tel_tel: TEL } }];\n  if (up === 'PENDENCIAS' || up === 'PEND\\u00caNCIAS') return [{ json: { acao: 'PENDENCIAS', p_id: null, p_texto: null, tel_tel: TEL } }];\n  // ENVIO PRIVADO (31/08): mesma regex do interpretar_comando.py. Vem\n  // ANTES dos verbos antigos porque \"posta o 5750 pro Sergio\" precisa\n  // chegar ao Python para ser RECUSADO, em vez de virar postagem em 14\n  // grupos. Timeout maior: um envio com fotos leva mais que 8s.\n  const ENVIO_RE = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(envi|m[a]?nd|repass|encaminh|mostr|post|public|dispar|solt)(?:a|ar|e|ei|ou|o)?\\b([\\s\\S]*)(?:\\bpara\\b|\\bpra\\b|\\bpro\\b|\\bp\\/)\\s*([\\s\\S]+?)\\s*$/i;\n  const NAO_PESSOA_RE = /\\b(grupos?|grade|vagas?|easy|anunciar|todos os corretores)\\b/i;\n  const mEnv = linha.match(ENVIO_RE);\n  if (mEnv && !NAO_PESSOA_RE.test(mEnv[3])) {\n    try {\n      await this.helpers.httpRequest({\n        method: 'POST', url: 'http://172.16.0.1:8080/comando',\n        headers: { 'Content-Type': 'application/json', 'Authorization': '[REDIGIDO]' },\n        body: { texto: linha }, json: true, timeout: 120000\n      });\n    } catch (e) {}\n    return [];\n  }\n  if (/^(@?NAY\\b[\\s,:;.!\\-]*)?((POSTA|POSTAR|PUBLICA|PUBLICAR|DISPARA|DISPARAR|SOLTA|TIRA|TIRAR|REMOVE|REMOVER|RETIRA|RETIRAR|VENDEU|VENDIDO|VENDIDA|ALUGOU|ALUGADO|ALUGADA|VAGAS|VAGA|LISTA)\\b|(MANDA|MANDAR|MANDE|ENVIA|ENVIAR|ENVIE)\\s+(AS?\\s+|OS?\\s+)?(LISTA|APARTAMENTOS?|APTOS?|COBERTURAS?|FLATS?|CASAS?|SOBRADOS?|SALAS?|LOJAS?|LOTES?|TERRENOS?)\\b)/i.test(up)\n      // \"5712 Alugado\" -- o codigo na frente (Tel, 09/09). Mesmo literal\n      // de `regex_liberar.js`, exercitado por `casos_comando_liberar.json`.\n      || /^(?:@?NAY\\b[\\s,:;.!\\-]*)?(\\d{3,5})\\s*[-–—:,]?\\s*(?:JA|JÁ)?\\s*(VENDEU|VENDIDO|VENDIDA|ALUGOU|ALUGADO|ALUGADA)\\b/i.test(up)\n      || ehComandoDeTaxa(up)\n      // \"5712 Alugado\" -- o codigo na frente (Tel, 09/09). Mesmo literal\n      // de `regex_liberar.js`, exercitado por `casos_comando_liberar.json`.\n      || /^(?:@?NAY\\b[\\s,:;.!\\-]*)?(\\d{3,5})\\s*[-–—:,]?\\s*(?:JA|JÁ)?\\s*(VENDEU|VENDIDO|VENDIDA|ALUGOU|ALUGADO|ALUGADA)\\b/i.test(up)) {\n    try {\n      await this.helpers.httpRequest({\n        method: 'POST',\n        url: 'http://172.16.0.1:8080/comando',\n        headers: { 'Content-Type': 'application/json', 'Authorization': '[REDIGIDO]' },\n        body: { texto: linha },\n        json: true,\n        timeout: 8000\n      });\n    } catch (e) {}\n    return [];\n  }\n}\nreturn []"
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Responder pendencia",
+      "tipo": "n8n-nodes-base.postgres",
+      "versao": 2.5,
+      "desabilitado": false,
+      "posicao": [
+        2100,
+        1820
+      ],
+      "parametros": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM nay_comando($1,$2,$3);",
+        "options": {
+          "queryReplacement": "={{ [String($json.acao ?? ''), $json.p_id == null ? null : String($json.p_id), $json.p_texto == null ? null : String($json.p_texto)] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "Preparar aviso do comando",
+      "tipo": "n8n-nodes-base.code",
+      "versao": 2,
+      "desabilitado": false,
+      "posicao": [
+        2300,
+        1820
+      ],
+      "parametros": {
+        "jsCode": "const r = $input.first().json;\nconst TEL = $('Comando do Tel').first().json.tel_tel;\nconst out = [];\nif (r.avisar && r.msg_corretor) {\n  out.push({ rota: 'send-text', pausa: 1, corpo: { phone: String(r.avisar), message: r.msg_corretor } });\n}\nout.push({ rota: 'send-text', pausa: 2, corpo: { phone: TEL, message: r.msg_tel } });\nreturn out.map(x => ({ json: x }));"
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Enviar aviso do comando",
+      "tipo": "n8n-nodes-base.httpRequest",
+      "versao": 4.2,
+      "desabilitado": false,
+      "posicao": [
+        2500,
+        1820
+      ],
+      "parametros": {
+        "method": "POST",
+        "url": "=https://[INSTANCIA-REDIGIDA][TOKEN-REDIGIDO]/{{ $json.rota }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Client-Token",
+              "value": "Fde4eb64e76574b7a93bec02543b57e98S"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1500
+            }
+          }
+        }
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Fechar turno",
+      "tipo": "n8n-nodes-base.postgres",
+      "versao": 2.6,
+      "desabilitado": false,
+      "posicao": [
+        3050,
+        100
+      ],
+      "parametros": {
+        "operation": "executeQuery",
+        "query": "SELECT nai_fechar_turno($1::bigint) AS lote;",
+        "options": {
+          "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "Agenda (todo minuto)",
+      "tipo": "n8n-nodes-base.scheduleTrigger",
+      "versao": 1.2,
+      "desabilitado": false,
+      "posicao": [
+        2800,
+        1100
+      ],
+      "parametros": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Agenda da NAI",
+      "tipo": "n8n-nodes-base.postgres",
+      "versao": 2.6,
+      "desabilitado": false,
+      "posicao": [
+        3050,
+        1100
+      ],
+      "parametros": {
+        "operation": "executeQuery",
+        "query": "SELECT nai_agenda_tick() AS n, NULL::bigint AS lote;",
+        "options": {}
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "Liberar saída",
+      "tipo": "n8n-nodes-base.postgres",
+      "versao": 2.6,
+      "desabilitado": false,
+      "posicao": [
+        3300,
+        300
+      ],
+      "parametros": {
+        "operation": "executeQuery",
+        "query": "-- Pega o que esta pronto para sair. lote = turno (resposta, sai na hora);\n-- NULL = o que a NAI inicia (respeita a janela de horario). Aqui ficam as\n-- paredes: pausa, modo teste (redireciona e nunca sai para fora da lista),\n-- repeticao e foto que nao confere.\nSELECT * FROM nai_liberar_saida($1::bigint);",
+        "options": {
+          "queryReplacement": "={{ [$json.lote ?? null] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "Conferir cabeçalho",
+      "tipo": "n8n-nodes-base.code",
+      "versao": 2,
+      "desabilitado": false,
+      "posicao": [
+        3500,
+        300
+      ],
+      "parametros": {
+        "jsCode": "// CHECK DUPLO, segunda metade: recalcula a chave do destino em JavaScript\n// (implementacao independente da do banco) e compara com a que o banco\n// mandou. Qualquer divergencia = nao envia.\nfunction chave(p) {\n  p = String(p || '');\n  if (/@lid$/i.test(p)) { const d = p.replace(/\\D/g, ''); return d ? 'lid:' + d : null; }\n  let d = p.replace(/\\D/g, '');\n  if (!d) return null;\n  if ((d.length === 10 || d.length === 11) && !d.startsWith('55')) d = '55' + d;\n  if (/^55\\d{10,11}$/.test(d)) return d.slice(0, 4) + d.slice(-8);\n  return d;\n}\nreturn $input.all().map(it => {\n  const j = it.json || {};\n  let motivo = null;\n  if (!j.id) motivo = 'sem_id';\n  else if (!j.corpo || String(j.corpo.phone) !== String(j.telefone)) motivo = 'telefone_do_corpo_diferente';\n  else if (!j.chave_esperada || chave(j.telefone) !== String(j.chave_esperada)) motivo = 'chave_nao_confere_js';\n  else if (j.rota !== 'send-text' && j.rota !== 'send-image') motivo = 'rota_invalida';\n  // A COLAGEM (12/09) mora no nosso site, nao no do catalogo: sem esta excecao\n  // ela saia SEMPRE barrada aqui (foto_sem_codigo) -- visto no teste de 13/09.\n  // So passa a colagem DAQUELE imovel: o arquivo tem o numero do codigo.\n  else if (j.rota === 'send-image' && !(Number(j.codigo) > 0 && (/^https:\\/\\/imobeasy\\.com\\/system\\/pictures\\//.test(String(j.corpo.image || ''))\n           || String(j.corpo.image || '') === 'https://imobeasy.online/colagens/' + Number(j.codigo) + '.jpg'))) motivo = 'foto_sem_codigo';\n  else if (j.rota === 'send-text' && !String(j.corpo.message || '').trim()) motivo = 'texto_vazio';\n  return { json: { ...j, enviar: motivo === null, motivo } };\n});\n"
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Pode enviar?",
+      "tipo": "n8n-nodes-base.if",
+      "versao": 2.2,
+      "desabilitado": false,
+      "posicao": [
+        3700,
+        300
+      ],
+      "parametros": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.enviar }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Enviar Z-API",
+      "tipo": "n8n-nodes-base.httpRequest",
+      "versao": 4.2,
+      "desabilitado": false,
+      "posicao": [
+        3900,
+        200
+      ],
+      "parametros": {
+        "method": "POST",
+        "url": "=https://[INSTANCIA-REDIGIDA][TOKEN-REDIGIDO]/{{ $json.rota }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Client-Token",
+              "value": "Fde4eb64e76574b7a93bec02543b57e98S"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2000
+            }
+          }
+        }
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Confirmar envio",
+      "tipo": "n8n-nodes-base.postgres",
+      "versao": 2.6,
+      "desabilitado": false,
+      "posicao": [
+        4100,
+        200
+      ],
+      "parametros": {
+        "operation": "executeQuery",
+        "query": "-- Grava o ID da mensagem (e alimenta mensagem_saida/envios, para a citacao).\nSELECT nai_confirmar_envio($1::bigint, $2::jsonb) AS r;",
+        "options": {
+          "queryReplacement": "={{ [$('Conferir cabeçalho').item.json.id, JSON.stringify($json || {})] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "Registrar bloqueio",
+      "tipo": "n8n-nodes-base.postgres",
+      "versao": 2.6,
+      "desabilitado": false,
+      "posicao": [
+        3900,
+        420
+      ],
+      "parametros": {
+        "operation": "executeQuery",
+        "query": "SELECT nai_registrar_bloqueio($1::bigint, $2);",
+        "options": {
+          "queryReplacement": "={{ [$json.id, $json.motivo ?? 'conferencia'] }}"
+        }
+      },
+      "credencial": [
+        "postgres"
+      ]
+    },
+    {
+      "nome": "Detectar imagem",
+      "tipo": "n8n-nodes-base.code",
+      "versao": 2,
+      "desabilitado": false,
+      "posicao": [
+        1000,
+        700
+      ],
+      "parametros": {
+        "jsCode": "// LER IMAGEM E ARQUIVO (Tel, 16/09): \"cria um fluxo que le imagem, audio e\n// arquivo com a api do gpt\". O audio ja era transcrito no ramo ao lado; a\n// imagem nao tinha caminho nenhum, e o corretor ouvia \"nao consigo abrir a\n// imagem\".\n//\n// A Z-API entrega a midia no proprio corpo do webhook -- `image.imageUrl`,\n// `document.documentUrl`. Sem url, este ramo nao roda e o fluxo segue como era.\n//\n// O CORPO DO PEDIDO VAI MONTADO DAQUI (16/09). Escrito como expressao no\n// proprio httpRequest, o no devolvia {\"error\":\"invalid syntax\"} em 31ms: o\n// parser do n8n nao aceita `{{ JSON.stringify({...}) }}` comecando com chave.\n// Montado aqui e mandado como string, a mesma chamada leu a foto do 5709.\nconst w = $('Webhook').first().json.body || {};\n\n// SO LE O QUE CHEGA, NUNCA O QUE SAI (Tel, 16/09 -- corrigindo erro meu do\n// mesmo dia). Este ramo lia o webhook direto, sem as exclusoes que o \"Filtrar\n// e normalizar\" faz logo ali do lado. Resultado: cada foto que a PROPRIA NAY\n// manda -- e ela manda quatro por card -- era enviada ao GPT para ser\n// descrita. Alem do gasto, foi isso que quebrou o \"Abrir turno\" as 12:41: a\n// resposta da OpenAI entrava na lista de mensagens do lote.\n//\n// As mesmas condicoes do \"Filtrar e normalizar\", pela mesma razao.\nif (w.isGroup || w.isNewsletter || w.broadcast || w.isStatusReply) return [];\nif (w.type !== 'ReceivedCallback') return [];\nif (w.fromMe || w.fromApi) return [];\n\nconst img = w.image || {};\nconst doc = w.document || {};\nconst url = img.imageUrl || img.url || '';\nconst docUrl = doc.documentUrl || doc.url || '';\nconst mime = String(doc.mimeType || doc.mimetype || '');\n// PDF e imagem o GPT le pela url. Planilha, .docx, video e audio nao passam\n// por aqui: audio tem o ramo dele, e o resto vai para o Tel.\nconst docLegivel = docUrl && /pdf|image/i.test(mime);\nconst alvo = url || (docLegivel ? docUrl : '');\nif (!alvo) return [];\n\nconst prompt = 'Voce trabalha numa imobiliaria de Manaus. Descreva em portugues, '\n  + 'em ate 5 linhas, o que este arquivo mostra. Quando for imovel, diga o que da '\n  + 'para ver: comodo, estado, mobilia. Quando for print de conversa, anuncio ou '\n  + 'documento, transcreva o texto que aparece. Codigo de imovel, valor e endereco '\n  + 'escreva exatamente como aparecem.';\n\nconst corpo = JSON.stringify({\n  model: 'gpt-4o-mini',\n  max_tokens: 400,\n  messages: [{ role: 'user', content: [\n    { type: 'text', text: prompt },\n    { type: 'image_url', image_url: { url: alvo } }\n  ]}]\n});\n\nreturn [{ json: {\n  midia_url: alvo,\n  tipo: url ? 'imagem' : 'arquivo',\n  corpo: corpo,\n  telefone: w.phone,\n  nome: w.senderName\n} }];"
+      },
+      "credencial": []
+    },
+    {
+      "nome": "Ler imagem (GPT)",
+      "tipo": "n8n-nodes-base.httpRequest",
+      "versao": 4.2,
+      "desabilitado": false,
+      "posicao": [
+        1200,
+        700
+      ],
+      "parametros": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.corpo }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credencial": [
+        "openAiApi"
+      ]
+    }
+  ],
+  "ligacoes": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Filtrar e normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar e normalizar": {
+      "main": [
+        [
+          {
+            "node": "Gravar na fila",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Foi o Tel pelo celular?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Foi o Tel pelo celular?": {
+      "main": [
+        [
+          {
+            "node": "Espera 15s (eco)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Espera 15s (eco)": {
+      "main": [
+        [
+          {
+            "node": "O Tel assumiu a conversa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gravar na fila": {
+      "main": [
+        [
+          {
+            "node": "Janela de 25s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Janela de 25s": {
+      "main": [
+        [
+          {
+            "node": "Reservar mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reservar mensagens": {
+      "main": [
+        [
+          {
+            "node": "Juntar mensagens",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Detectar audio",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Detectar imagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar audio": {
+      "main": [
+        [
+          {
+            "node": "Baixar audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar audio": {
+      "main": [
+        [
+          {
+            "node": "Transcrever",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcrever": {
+      "main": [
+        [
+          {
+            "node": "Juntar mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Juntar mensagens": {
+      "main": [
+        [
+          {
+            "node": "Abrir turno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Abrir turno": {
+      "main": [
+        [
+          {
+            "node": "Rotear pelo cabeçalho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rotear pelo cabeçalho": {
+      "main": [
+        [
+          {
+            "node": "Qual caminho?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qual caminho?": {
+      "main": [
+        [
+          {
+            "node": "NAI (corretor)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enfileirar card do código",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enfileirar cortesia",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "NAI (proprietário)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "NAI (Fernando)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Comando de visita (Tel)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Comando do Tel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Aviso no teste",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT (corretor)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "NAI (corretor)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT (proprietário)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "NAI (proprietário)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT (Fernando)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "NAI (Fernando)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memória (corretor)": {
+      "ai_memory": [
+        [
+          {
+            "node": "NAI (corretor)",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memória (proprietário)": {
+      "ai_memory": [
+        [
+          {
+            "node": "NAI (proprietário)",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memória (Fernando)": {
+      "ai_memory": [
+        [
+          {
+            "node": "NAI (Fernando)",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "imovel_por_codigo": {
+      "ai_tool": [
+        [
+          {
+            "node": "NAI (corretor)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "resumo_do_condominio": {
+      "ai_tool": [
+        [
+          {
+            "node": "NAI (corretor)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "listar_no_condominio": {
+      "ai_tool": [
+        [
+          {
+            "node": "NAI (corretor)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_por_perfil": {
+      "ai_tool": [
+        [
+          {
+            "node": "NAI (corretor)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "disponibilidade_no_condominio": {
+      "ai_tool": [
+        [
+          {
+            "node": "NAI (corretor)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "o_que_sei_do_imovel": {
+      "ai_tool": [
+        [
+          {
+            "node": "NAI (corretor)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "guardar_do_imovel": {
+      "ai_tool": [
+        [
+          {
+            "node": "NAI (corretor)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "imovel_do_disparo": {
+      "ai_tool": [
+        [
+          {
+            "node": "NAI (corretor)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "responder_pendencia": {
+      "ai_tool": [
+        [
+          {
+            "node": "NAI (corretor)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "escalar_ao_tel": {
+      "ai_tool": [
+        [
+          {
+            "node": "NAI (corretor)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "dados_do_corretor": {
+      "ai_tool": [
+        [
+          {
+            "node": "NAI (corretor)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "pedir_visita": {
+      "ai_tool": [
+        [
+          {
+            "node": "NAI (corretor)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "guardar_dados_da_visita": {
+      "ai_tool": [
+        [
+          {
+            "node": "NAI (corretor)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "responder_horario_do_proprietario": {
+      "ai_tool": [
+        [
+          {
+            "node": "NAI (corretor)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "mudar_horario_da_visita": {
+      "ai_tool": [
+        [
+          {
+            "node": "NAI (corretor)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "resultado_da_visita": {
+      "ai_tool": [
+        [
+          {
+            "node": "NAI (corretor)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "resposta_do_proprietario": {
+      "ai_tool": [
+        [
+          {
+            "node": "NAI (proprietário)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "resposta_do_motoboy": {
+      "ai_tool": [
+        [
+          {
+            "node": "NAI (Fernando)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NAI (corretor)": {
+      "main": [
+        [
+          {
+            "node": "Achar codigo na resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Achar codigo na resposta": {
+      "main": [
+        [
+          {
+            "node": "Fotos faltando?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fotos faltando?": {
+      "main": [
+        [
+          {
+            "node": "Buscar fotos no site",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar fotos no site": {
+      "main": [
+        [
+          {
+            "node": "Enfileirar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NAI (proprietário)": {
+      "main": [
+        [
+          {
+            "node": "Resposta do proprietário",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resposta do proprietário": {
+      "main": [
+        [
+          {
+            "node": "Enfileirar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NAI (Fernando)": {
+      "main": [
+        [
+          {
+            "node": "Resposta do Fernando",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resposta do Fernando": {
+      "main": [
+        [
+          {
+            "node": "Enfileirar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enfileirar resposta": {
+      "main": [
+        [
+          {
+            "node": "Fechar turno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enfileirar card do código": {
+      "main": [
+        [
+          {
+            "node": "Fechar turno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enfileirar cortesia": {
+      "main": [
+        [
+          {
+            "node": "Fechar turno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comando de visita (Tel)": {
+      "main": [
+        [
+          {
+            "node": "Fechar turno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aviso no teste": {
+      "main": [
+        [
+          {
+            "node": "Fechar turno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fechar turno": {
+      "main": [
+        [
+          {
+            "node": "Liberar saída",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agenda (todo minuto)": {
+      "main": [
+        [
+          {
+            "node": "Agenda da NAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agenda da NAI": {
+      "main": [
+        [
+          {
+            "node": "Liberar saída",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Liberar saída": {
+      "main": [
+        [
+          {
+            "node": "Conferir cabeçalho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conferir cabeçalho": {
+      "main": [
+        [
+          {
+            "node": "Pode enviar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pode enviar?": {
+      "main": [
+        [
+          {
+            "node": "Enviar Z-API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar bloqueio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Z-API": {
+      "main": [
+        [
+          {
+            "node": "Confirmar envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comando do Tel": {
+      "main": [
+        [
+          {
+            "node": "Responder pendencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder pendencia": {
+      "main": [
+        [
+          {
+            "node": "Preparar aviso do comando",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar aviso do comando": {
+      "main": [
+        [
+          {
+            "node": "Enviar aviso do comando",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar imagem": {
+      "main": [
+        [
+          {
+            "node": "Ler imagem (GPT)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler imagem (GPT)": {
+      "main": [
+        [
+          {
+            "node": "Juntar mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

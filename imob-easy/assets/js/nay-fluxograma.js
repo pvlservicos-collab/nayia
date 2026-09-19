@@ -192,30 +192,43 @@
     return '<span class="fx__selo fx__selo--' + cls + '">' + d.passagens + " passagens</span>";
   }
 
+  var PLANO = [];   // a lista achatada, na ordem de execucao
+
+  function achatar() {
+    PLANO = [];
+    GRUPOS.forEach(function (g, gi) {
+      g.etapas.forEach(function (e, ei) {
+        PLANO.push({ g: g, e: e, gi: gi, ei: ei, passo: PLANO.length + 1 });
+      });
+    });
+  }
+
   function desenhar() {
     var alvo = el("fx-canvas");
     if (!alvo) return;
-    var num = 0;
-    var html = '<div class="fx__trilho">';
+    achatar();
+
+    // UMA LINHA SO. A corda atravessa tudo por tras, e a ordem e a posicao:
+    // o passo 1 na esquerda, o 44 na direita. Sem nada empilhado.
+    var html = '<div class="fx__trilho"><div class="fx__corda"></div>';
 
     GRUPOS.forEach(function (g, gi) {
       var d = vivo[g.setor] || {};
-      var farol = d.semaforo || "cinza";
       html += '<div class="fx__grupo">';
-      html += '<div class="fx__grupo-topo"><span class="fx__farol fx__farol--' + farol + '"></span>' + esc(g.titulo) + "</div>";
-      html += '<div class="fx__coluna">';
+      html += '<div class="fx__grupo-topo"><span class="fx__farol fx__farol--' +
+              (d.semaforo || "cinza") + '"></span>' + esc(g.titulo) +
+              (d.passagens ? " · " + d.passagens + "x" : "") + "</div>";
+      html += '<div class="fx__cards">';
       g.etapas.forEach(function (e, ei) {
-        num++;
-        html += '<div class="fx__linha">';
-        html += '<button class="fx__etapa fx__etapa--' + e.tipo + '" type="button" aria-pressed="false" data-fx="' + gi + "." + ei + '">' +
-                '<div><span class="fx__num">' + num + '</span><span class="fx__nome">' + esc(e.n) + "</span></div>" +
+        if (gi > 0 || ei > 0) html += '<div class="fx__vao"></div>';
+        var passo = PLANO.filter(function (x) { return x.gi === gi && x.ei === ei; })[0].passo;
+        html += '<button class="fx__etapa fx__etapa--' + e.tipo + '" type="button"' +
+                ' aria-pressed="false" data-fx="' + gi + "." + ei + '"' +
+                ' title="Passo ' + passo + ": " + esc(e.n) + '">' +
+                '<div class="fx__cab"><span class="fx__num">' + passo + "</span>" +
+                '<span class="fx__nome">' + esc(e.n) + "</span></div>" +
                 '<div class="fx__onde">' + esc(e.onde) + "</div>" +
-                (ei === 0 ? selo(g) : "") +
                 "</button>";
-        if (ei < g.etapas.length - 1 || gi < GRUPOS.length - 1) {
-          html += '<div class="fx__seta"></div>';
-        }
-        html += "</div>";
       });
       html += "</div></div>";
     });
@@ -227,26 +240,37 @@
       b.addEventListener("click", function () { abrir(b.getAttribute("data-fx")); });
     });
     var total = el("fx-total");
-    if (total) total.textContent = num + " etapas";
+    if (total) total.textContent = PLANO.length + " etapas, na ordem em que acontecem";
   }
 
-  function abrir(ref) {
+  function abrir(ref, semRolar) {
     var alvo = el("fx-canvas");
-    var p = ref.split("."), g = GRUPOS[+p[0]], e = g.etapas[+p[1]];
-    Array.prototype.forEach.call(alvo.querySelectorAll("[data-fx]"), function (b) {
-      b.setAttribute("aria-pressed", b.getAttribute("data-fx") === ref ? "true" : "false");
+    var p = ref.split("."), gi = +p[0], ei = +p[1];
+    var g = GRUPOS[gi], e = g.etapas[ei];
+    var item = PLANO.filter(function (x) { return x.gi === gi && x.ei === ei; })[0] || { passo: "?" };
+
+    var botoes = alvo.querySelectorAll("[data-fx]");
+    Array.prototype.forEach.call(botoes, function (b) {
+      var meu = b.getAttribute("data-fx") === ref;
+      b.setAttribute("aria-pressed", meu ? "true" : "false");
+      if (meu && !semRolar && b.scrollIntoView) {
+        b.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      }
     });
     escolhida = ref;
+
     var d = vivo[g.setor] || {};
-    var h = "<h3>" + esc(e.n) + "</h3>";
+    var h = '<h3><span class="fx__passo">passo ' + item.passo + " de " + PLANO.length +
+            "</span>" + esc(e.n) + "</h3>";
     h += '<p class="fx__detalhe__onde">' + esc(e.onde) + "</p>";
     h += '<div class="fx__campo"><h4>O que acontece aqui</h4><p>' + esc(e.oque) + "</p></div>";
     if (e.erro) {
       h += '<div class="fx__campo"><h4>O que já deu errado</h4><p>' + esc(e.erro) + "</p></div>";
     }
-    h += '<div class="fx__campo"><h4>Setor ' + esc(g.setor) + " — números de agora</h4>";
+    h += '<div class="fx__campo"><h4>Setor ' + esc(g.setor) + " &mdash; números de agora</h4>";
     if (d.passagens === undefined) {
-      h += '<p class="fx__vazio">Sem medição para este setor ainda. Os números aparecem depois que os nós de trace do n8n forem instalados (passo 5).</p>';
+      h += '<p class="fx__vazio">Sem medição para este setor ainda. Os números aparecem ' +
+           "depois que os nós de trace do n8n forem instalados (passo 5).</p>";
     } else {
       h += '<div class="fx__numeros">' +
         '<div class="fx__numero"><b>' + (d.passagens || 0) + "</b><span>passagens</span></div>" +
@@ -257,7 +281,27 @@
         "</div>";
     }
     h += "</div>";
-    el("fx-detalhe").innerHTML = h;
+
+    // Andar pelo caminho sem precisar cacar o cartao no meio da corda.
+    var i = PLANO.indexOf(item);
+    h += '<div class="fx__nav">';
+    if (i > 0) {
+      var a = PLANO[i - 1];
+      h += '<button class="btn-mini" type="button" data-fx-ir="' + a.gi + "." + a.ei +
+           '">&larr; ' + esc(a.e.n) + "</button>";
+    }
+    if (i > -1 && i < PLANO.length - 1) {
+      var b2 = PLANO[i + 1];
+      h += '<button class="btn-mini" type="button" data-fx-ir="' + b2.gi + "." + b2.ei +
+           '">' + esc(b2.e.n) + " &rarr;</button>";
+    }
+    h += "</div>";
+
+    var caixa = el("fx-detalhe");
+    caixa.innerHTML = h;
+    Array.prototype.forEach.call(caixa.querySelectorAll("[data-fx-ir]"), function (b) {
+      b.addEventListener("click", function () { abrir(b.getAttribute("data-fx-ir")); });
+    });
   }
 
   function carregar() {
@@ -266,9 +310,85 @@
       .then(function (d) {
         (d.setores || []).forEach(function (s) { vivo[s.setor] = s; });
         desenhar();
-        if (escolhida) abrir(escolhida);
+        if (escolhida) abrir(escolhida, true);
       })
       .catch(function () { desenhar(); });
+  }
+
+  // ------------------------------------------------------------------
+  // EXPORTAR
+  // Junta num arquivo so: o mapa em portugues (o que cada etapa significa),
+  // os numeros ao vivo, e o fluxo REAL do n8n com os 69 nos e as ligacoes.
+  //
+  // O export do n8n tem token da Z-API dentro dos nos. O arquivo servido em
+  // admin/dados/ ja sai REDIGIDO -- token, clientToken, apiKey, Bearer e o
+  // id da instancia viram [REDIGIDO]. E para poder mandar para outra IA sem
+  // mandar a credencial junto.
+  // ------------------------------------------------------------------
+  function exportar() {
+    var botao = el("fx-exportar");
+    if (botao) { botao.disabled = true; botao.textContent = "Montando…"; }
+
+    // O arquivo mora em admin/dados/ e NAO em assets/: /assets e publico, e o
+    // fluxo inteiro (queries, prompts, a logica toda) nao deve ficar baixavel
+    // por qualquer um. Em admin/ ele herda a senha do painel.
+    Promise.all([
+      fetch("dados/nai-fluxo-n8n.json").then(function (r) {
+        return r.ok ? r.json() : null;
+      }).catch(function () { return null; }),
+      fetch(API + "/api/nai/trace/regras").then(function (r) {
+        return r.ok ? r.json() : null;
+      }).catch(function () { return null; })
+    ]).then(function (res) {
+      var n8n = res[0], regras = res[1];
+      achatar();
+
+      var pacote = {
+        gerado_em: new Date().toISOString(),
+        o_que_e: "O caminho que a Nay de Locacao percorre para responder uma mensagem. " +
+                 "Tres camadas: o mapa em portugues (o que cada etapa significa), os numeros " +
+                 "medidos, e o fluxo real do n8n.",
+        aviso_de_seguranca: n8n
+          ? "O fluxo do n8n vem com as credenciais REDIGIDAS: token, clientToken, apiKey, " +
+            "Bearer e o id da instancia da Z-API foram substituidos por [REDIGIDO]."
+          : "O fluxo do n8n NAO pode ser lido agora (arquivo admin/dados/nai-fluxo-n8n.json " +
+            "ausente). O pacote saiu so com o mapa e os numeros.",
+
+        mapa_do_caminho: {
+          total_de_etapas: PLANO.length,
+          etapas: PLANO.map(function (x) {
+            return {
+              passo: x.passo,
+              grupo: x.g.titulo,
+              setor: x.g.setor,
+              etapa: x.e.n,
+              tipo: x.e.tipo,
+              onde_fica: x.e.onde,
+              o_que_acontece: x.e.oque,
+              o_que_ja_deu_errado: x.e.erro || null
+            };
+          })
+        },
+
+        medicao_por_setor: Object.keys(vivo).map(function (k) { return vivo[k]; }),
+        regras: regras || null,
+        fluxo_n8n: n8n || null
+      };
+
+      var nome = "nay-locacao-fluxo-" +
+        new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "") + ".json";
+      var blob = new Blob([JSON.stringify(pacote, null, 2)], { type: "application/json" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = nome;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+
+      if (botao) {
+        botao.disabled = false;
+        botao.textContent = n8n ? "Exportar JSON" : "Exportar JSON (sem o n8n)";
+      }
+    });
   }
 
   function iniciar() {
@@ -277,6 +397,8 @@
     carregar();
     var b = el("fx-recarregar");
     if (b) b.addEventListener("click", carregar);
+    var x = el("fx-exportar");
+    if (x) x.addEventListener("click", exportar);
   }
 
   if (document.readyState === "loading") {
