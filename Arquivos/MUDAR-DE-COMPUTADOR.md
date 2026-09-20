@@ -80,10 +80,39 @@ Na pasta do projeto:
 bash Arquivos/juntar_credenciais.sh
 ```
 
-Ele monta `NAY-IA-CREDENCIAIS.txt` **fora do repositório** (um nível acima, em
-`TEL SOBREIRA/`) — de propósito, para não haver como commitar por acidente.
+Ele monta a pasta **`NAY-IA-SEGREDOS/`** um nível acima, em `TEL SOBREIRA/` —
+**fora da árvore do git**, de propósito: ali não existe o caminho de commitar
+por acidente, nem depende do `.gitignore` estar certo.
 
-O script pede confirmação antes de começar e avisa o que vai incluir.
+A pasta sai assim, com cada arquivo no caminho de onde ele veio:
+
+```
+NAY-IA-SEGREDOS/
+  LEIA-ME.txt                      o que é cada coisa e para onde ela volta
+  restaurar_no_servidor.sh         devolve os .env, se reinstalar o servidor
+  windows/
+    .env.local                     vai para a raiz do projeto
+    ssh/nay_srv1894338_ed25519     vai para ~/.ssh/, com chmod 600
+    ssh/nay_srv1877774_ed25519
+  servidor/
+    root/nay-publicador/.env       os tokens da Z-API
+    root/nay/.env
+    root/baixador-imagens/.env
+    docker/nay-site-api/.env
+    docker/traefik/.env
+    docker/postgres/.env           a senha do Postgres
+    docker/nay-painel/.env
+    docker/n8n-viux/.env           a chave que descriptografa o n8n
+    n8n_database.sqlite            fluxos e credenciais (criptografadas)
+    _senha_do_admin_HASH.txt
+    naydb_AAAAMMDD.dump            opcional, ele pergunta
+```
+
+**Pasta em vez de arquivo único porque cada arquivo mantém o nome e o
+destino** — restaurar vira copiar de volta, em vez de recortar pedaço de um
+blocão e adivinhar onde cada um vai.
+
+O script pede confirmação antes de começar, e diz quantos arquivos vieram.
 
 ---
 
@@ -91,9 +120,9 @@ O script pede confirmação antes de começar e avisa o que vai incluir.
 
 1. **Instale**: Git, Node 18+, Python 3, e um cliente SSH (o do Git Bash serve).
 2. **Clone**: `git clone https://github.com/pvlservicos-collab/nayia.git`
-3. **Restaure os segredos** a partir do `NAY-IA-CREDENCIAIS.txt`:
-   - o bloco do `.env.local` vai para a raiz do projeto, com esse nome;
-   - as duas chaves SSH vão para `~/.ssh/`, e **precisam de permissão 600**:
+3. **Restaure os segredos** a partir da pasta `NAY-IA-SEGREDOS/`:
+   - `windows/.env.local` vai para a raiz do projeto, com esse nome;
+   - `windows/ssh/*` vai para `~/.ssh/`, e **precisa de permissão 600**:
      ```sh
      chmod 600 ~/.ssh/nay_srv1894338_ed25519
      ```
@@ -126,10 +155,20 @@ O script pede confirmação antes de começar e avisa o que vai incluir.
 
 ## Depois de copiar
 
-O arquivo `NAY-IA-CREDENCIAIS.txt` tem **tudo** — com ele, qualquer pessoa entra
-no servidor, no banco e no WhatsApp da empresa.
+A pasta `NAY-IA-SEGREDOS/` tem **tudo** — com ela, qualquer pessoa entra no
+servidor, no banco e no WhatsApp da empresa.
 
 - Não mande por WhatsApp, e-mail nem Drive.
 - Passe por pen drive, ou por um gerenciador de senhas.
 - **Apague das duas máquinas depois de terminar**, e refaça quando precisar de
   novo — o script leva quinze segundos para rodar.
+
+---
+
+## Por que clonar do GitHub não basta
+
+O repositório tem o código e a documentação, e **nenhum segredo** — é assim de
+propósito. Sem esta pasta, no computador novo você não entra no servidor, a API
+não conecta no banco e o n8n não fala com a Z-API.
+
+As duas metades andam juntas: **o GitHub dá o código, a pasta dá as chaves.**
