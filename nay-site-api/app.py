@@ -2869,5 +2869,15 @@ def api_saude():
         return jsonify({"status": "erro", "detalhe": exc.__class__.__name__}), 200
 
 
+# O painel do cerebro (trace por execucao). Em try/except de proposito: se
+# este modulo falhar ao importar, as rotas do site continuam de pe e so o
+# painel novo fica fora do ar.
+try:
+    from trace_api import trace_bp
+    app.register_blueprint(trace_bp)
+except Exception as _e:  # noqa: BLE001
+    app.logger.warning("trace_api nao carregou: %s", _e)
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8092)

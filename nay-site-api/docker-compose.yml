@@ -8,6 +8,8 @@ services:
       - WRITE_DATABASE_URL=${WRITE_DATABASE_URL}
       - TABELAS_DATABASE_URL=${TABELAS_DATABASE_URL}
       - CONTEUDO_DATABASE_URL=${CONTEUDO_DATABASE_URL}
+      - LISTAS_DATABASE_URL=${LISTAS_DATABASE_URL}
+      - NAI_DATABASE_URL=${NAI_DATABASE_URL}
       - HEARTBEAT_DIR=/heartbeats
     volumes:
       - /root/nay-publicador/logs:/heartbeats:ro
@@ -16,7 +18,7 @@ services:
     ports:
       - "127.0.0.1:8092:8092"
     labels:
-      - traefik.enable=false
+      - traefik.enable=true
       - traefik.http.routers.nay-site-api.rule=Host(`api.imobeasy.online`)
       - traefik.http.routers.nay-site-api.entrypoints=websecure
       - traefik.http.routers.nay-site-api.tls.certresolver=letsencrypt
