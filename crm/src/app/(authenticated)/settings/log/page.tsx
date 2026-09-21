@@ -31,7 +31,7 @@ interface Evento {
 const TIPOS: Record<string, { label: string; icon: typeof ArrowDown; cor: string }> = {
   mensagem_recebida: { label: 'Mensagem recebida', icon: ArrowDown, cor: '#5fd39b' },
   mensagem_enviada: { label: 'Mensagem enviada', icon: ArrowUp, cor: '#7aa2f7' },
-  lead_recebido: { label: 'Lead recebido', icon: UserPlus, cor: '#f2c744' },
+  lead_recebido: { label: 'Lead recebido', icon: UserPlus, cor: '#8b5cf6' },
   lead_movido: { label: 'Lead movido', icon: ArrowsLeftRight, cor: '#14b8a6' },
   funil_iniciado: { label: 'Funil iniciado', icon: Lightning, cor: '#8b5cf6' },
 }

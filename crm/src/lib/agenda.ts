@@ -58,7 +58,7 @@ export const AGENDA_QUIZ_LABELS: { key: string; label: string; hint?: string }[]
  * está no CRM e não conhece os Faróis; vai no title do item e da legenda.
  */
 export const AGENDA_BLOCK_CATEGORIES: Record<string, { label: string; desc: string; color: string }> = {
-  f1: { label: 'Farol 1 · rumo às metas', desc: 'Trabalho e progresso financeiro direto', color: '#f2c744' },
+  f1: { label: 'Farol 1 · rumo às metas', desc: 'Trabalho e progresso financeiro direto', color: '#8b5cf6' },
   f2: { label: 'Farol 2 · ser a sua palavra', desc: 'Compromissos com outras pessoas — reuniões, calls', color: '#7aa2f7' },
   f3: { label: 'Farol 3 · autossustentável', desc: 'Rotina que mantém a pessoa funcionando', color: '#5fd39b' },
   sono: { label: 'Sono', desc: 'Sono', color: '#8b7ff5' },

@@ -5,7 +5,7 @@ import { ChartLineUp } from '@phosphor-icons/react'
 import GlassCard, { SectionHeader } from './GlassCard'
 import { CHANNEL_META, CHANNEL_ORDER, type DailyLeadPoint } from './mockData'
 
-const ACCENT = '#f2c744'
+const ACCENT = '#8b5cf6'
 
 function formatDayLabel(iso: string) {
   const d = new Date(`${iso}T00:00:00`)

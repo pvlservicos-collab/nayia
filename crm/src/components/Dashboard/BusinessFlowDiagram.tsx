@@ -46,7 +46,7 @@ const nodeTypes = { flowNode: FlowNode }
 const COLOR_ORGANIC = '#3987e5'
 const COLOR_MAGNET_1 = '#c98500'
 const COLOR_MAGNET_2 = '#d95926'
-const COLOR_CRM = '#f2c744'
+const COLOR_CRM = '#8b5cf6'
 const COLOR_WHATSAPP = '#199e70'
 
 const nodes = [
