@@ -877,3 +877,54 @@ body.site {
   border-bottom-color: currentColor;
 }
 .site-rodape__links span[aria-hidden] { opacity: .5; margin: 0 6px; }
+
+/* ==========================================================================
+   DADOS CADASTRAIS NO RODAPÉ (21/09/2026)
+   O Facebook recusou a verificação da empresa porque não achava a RAZÃO
+   SOCIAL no site — só o nome fantasia "Imob Easy". Este bloco põe o
+   comprovante do CNPJ em texto de verdade (nada de imagem, nada montado por
+   JavaScript), que é o que o robô dele consegue ler.
+   ========================================================================== */
+.empresa-dados {
+  max-width: 1240px;
+  margin: var(--e-5) auto 0;
+  padding-top: var(--e-4);
+  border-top: 1px solid var(--borda-forte);
+}
+.empresa-dados__titulo {
+  font-family: var(--fonte-titulo);
+  font-size: 14px; font-weight: 700; color: var(--texto);
+  margin: 0 0 2px;
+}
+.empresa-dados__sub {
+  font-size: 12px; color: var(--texto-fraco); margin: 0 0 14px;
+}
+/* A razão social é o dado que o Facebook procura: fica em destaque. */
+.empresa-dados__razao {
+  font-family: var(--fonte-titulo);
+  font-size: 17px; font-weight: 700; color: var(--roxo);
+  margin: 0 0 2px; letter-spacing: .01em;
+}
+.empresa-dados__fantasia { font-size: 13px; color: var(--texto-fraco); margin: 0 0 16px; }
+
+.empresa-dados__grade {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px 26px; margin: 0;
+}
+.empresa-dados__grade > div { min-width: 0; }
+.empresa-dados dt {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--texto-fraco); margin-bottom: 2px;
+}
+.empresa-dados dd {
+  margin: 0; font-size: 13.5px; color: var(--texto); line-height: 1.5;
+}
+.empresa-dados__larga { grid-column: 1 / -1; }
+.empresa-dados__lista { margin: 0; padding-left: 16px; font-size: 13px; line-height: 1.7; }
+.empresa-dados__situacao {
+  display: inline-block; background: var(--verde-suave); color: #1d7a52;
+  font-size: 12px; font-weight: 700; border-radius: 20px; padding: 1px 10px;
+}
+@media (max-width: 560px) {
+  .empresa-dados__grade { grid-template-columns: 1fr; }
+}
