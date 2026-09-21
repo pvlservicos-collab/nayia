@@ -1,0 +1,23 @@
+version: "3.8"
+services:
+  app:
+    image: follemcrm-app:latest
+    networks:
+      - folem
+      - follemcrm_default
+    deploy:
+      restart_policy:
+        condition: on-failure
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.follemcrm.entrypoints=websecure
+        - traefik.http.routers.follemcrm.rule=Host(`crm.folemmidia.com`)
+        - traefik.http.routers.follemcrm.tls=true
+        - traefik.http.routers.follemcrm.tls.certresolver=letsencryptresolver
+        - traefik.http.services.follemcrm.loadbalancer.server.port=3000
+
+networks:
+  folem:
+    external: true
+  follemcrm_default:
+    external: true

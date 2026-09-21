@@ -1,0 +1,349 @@
+/* ============================================
+   REVITALIZED FILTER MODAL — Calendar Styles
+   react-day-picker v9
+
+   REFERENCE IMAGE ANALYSIS:
+   ┌────┬────┬════╤────┬────┬────┬────┐
+   │  9 │ 10 ║ 11 │ 12 │ 13 │ 14 │ 15 │  ← row with range-start
+   ├────┼────╫────┼────┼────╤════┼────┤
+   │ 16 │ 17 ║ 18 │ 19 │ 20 │ 21 │ 22 │  ← row with range-end
+   └────┴────╨────┴────┴────┴────┴────┘
+
+   ║ 11 ║ = dark blue square, ~40px, border-radius ~10px
+   │ 12 │ = light blue bg fills FULL cell, no gaps
+   The band is 100% continuous across cells.
+
+   LAYER STRATEGY:
+   - CELL (<td>): range background (light blue, full bleed)
+   - BUTTON:      selection square (dark blue, z-index:2)
+   ============================================ */
+
+/* Calendar Card Container */
+.filter-calendar-card {
+  border: 1px solid #f3f4f6;
+  border-radius: 16px;
+  padding: 16px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* ── Root ── */
+.rdp-revitalized {
+  --rdp-accent-color: #3b82f6;
+  --rdp-background-color: #dbeafe;
+  width: 100%;
+  font-family: inherit;
+}
+
+/* ── Months wrapper ── */
+.rdp-months-rev {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Single month ── */
+.rdp-month-rev {
+  width: 100%;
+}
+
+/* ============================================
+   CAPTION & NAVIGATION
+   ============================================ */
+.rdp-caption-rev {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  height: 40px;
+  margin-bottom: 8px;
+}
+
+.rdp-caption-label-rev {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2937;
+  text-transform: capitalize;
+  letter-spacing: 0.01em;
+}
+
+/* Nav stretches full caption width, arrows dock to edges */
+.rdp-nav-rev {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+}
+
+.rdp-nav-btn-rev {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #9ca3af;
+  border-radius: 8px;
+  transition: all 0.15s;
+  pointer-events: auto;
+  position: static !important;
+}
+
+.rdp-nav-btn-rev:hover {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.rdp-nav-btn-rev svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ── Table ── */
+.rdp-table-rev {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+/* ── Head row (weekday names) ── */
+.rdp-head-row-rev {
+  display: flex;
+  width: 100%;
+  margin-bottom: 2px;
+}
+
+.rdp-head-cell-rev {
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  padding: 4px 0;
+  letter-spacing: 0.05em;
+}
+
+/* ── Data rows — no gap between rows ── */
+.rdp-row-rev {
+  display: flex;
+  width: 100%;
+}
+
+/* ============================================
+   DAY CELL (<td>) — BACKGROUND LAYER
+   Flush cells: no padding, no margin, no gap.
+   The light-blue range band lives here.
+   ============================================ */
+.rdp-day-rev {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 2px 0;
+  /* tiny vertical breathing room between rows */
+  margin: 0;
+  background: transparent;
+}
+
+/* ============================================
+   DAY BUTTON (<button>) — FOREGROUND LAYER
+   Large square (~fills cell), rounded corners.
+   Sits above cell background via z-index.
+   ============================================ */
+.rdp-day-btn-rev {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  border-radius: 10px;
+  /* rounded square */
+  transition: all 0.15s;
+  position: relative;
+  z-index: 2;
+}
+
+.rdp-day-btn-rev:hover {
+  background-color: #eff6ff;
+}
+
+/* ── Today ── */
+.rdp-today-rev .rdp-day-btn-rev {
+  font-weight: 800;
+  color: #3b82f6;
+}
+
+/* ── Selected (generic) ── */
+.rdp-selected-rev .rdp-day-btn-rev {
+  background-color: #3b82f6 !important;
+  color: #fff !important;
+  font-weight: 700;
+}
+
+/* ============================================
+   RANGE HIGHLIGHTING
+   ============================================
+
+   The range band is built by painting the CELL
+   background. The selected-day BUTTON paints a
+   dark-blue square on top.
+
+   KEY: the cell background uses a ::before
+   pseudo-element that spans the full cell width
+   and exactly the button height, so the band
+   aligns perfectly with the button row.
+   ============================================ */
+
+/* ── Range START ──
+   Gradient: left-half transparent, right-half light-blue.
+   Dark blue square button on top.
+   ======================================== */
+.rdp-range-start-rev {
+  position: relative;
+}
+
+.rdp-range-start-rev::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 50%;
+  height: 36px;
+  transform: translateY(-50%);
+  background-color: #dbeafe;
+  z-index: 0;
+}
+
+.rdp-range-start-rev .rdp-day-btn-rev {
+  background-color: #3b82f6 !important;
+  color: #fff !important;
+  font-weight: 700;
+  border-radius: 10px;
+  z-index: 2;
+}
+
+/* ── Range END ──
+   Gradient: left-half light-blue, right-half transparent.
+   Dark blue square button on top.
+   ======================================== */
+.rdp-range-end-rev {
+  position: relative;
+}
+
+.rdp-range-end-rev::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 50%;
+  height: 36px;
+  transform: translateY(-50%);
+  background-color: #dbeafe;
+  z-index: 0;
+}
+
+.rdp-range-end-rev .rdp-day-btn-rev {
+  background-color: #3b82f6 !important;
+  color: #fff !important;
+  font-weight: 700;
+  border-radius: 10px;
+  z-index: 2;
+}
+
+/* ── Single day (start == end) ──
+   No band at all.
+   ======================================== */
+.rdp-range-start-rev.rdp-range-end-rev::before {
+  display: none !important;
+}
+
+.rdp-range-start-rev.rdp-range-end-rev .rdp-day-btn-rev {
+  border-radius: 10px !important;
+}
+
+/* ── Range MIDDLE ──
+   Full light-blue band on cell (pseudo-element
+   matches button height for perfect alignment).
+   Button is transparent with blue text.
+   ======================================== */
+.rdp-range-middle-rev {
+  position: relative;
+}
+
+.rdp-range-middle-rev::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 36px;
+  transform: translateY(-50%);
+  background-color: #dbeafe;
+  z-index: 0;
+}
+
+.rdp-range-middle-rev .rdp-day-btn-rev {
+  background-color: transparent !important;
+  color: #1d4ed8 !important;
+  font-weight: 600;
+  border-radius: 0;
+  z-index: 2;
+}
+
+/* ── Outside days ── */
+.rdp-outside-rev .rdp-day-btn-rev {
+  color: #d1d5db;
+}
+
+/* ── Disabled ── */
+.rdp-disabled-rev .rdp-day-btn-rev {
+  color: #e5e7eb;
+  cursor: not-allowed;
+}
+
+/* ── Hidden ── */
+.rdp-hidden-rev {
+  visibility: hidden;
+}
+
+/* ── Focus ring ── */
+.rdp-revitalized button:focus {
+  outline: none;
+}
+
+.rdp-revitalized button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+  border-radius: 10px;
+}
+
+/* ============================================
+   MODAL ANIMATION
+   ============================================ */
+@keyframes filterModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.filter-modal-enter {
+  animation: filterModalIn 0.2s ease-out;
+}

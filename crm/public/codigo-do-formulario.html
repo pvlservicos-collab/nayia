@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Código do formulário de aplicação — colar no WordPress</title>
+  <style>
+    :root {
+      --ouro: #c9a227;
+      --ouro-claro: #e8c85a;
+      --fundo: #0d0f12;
+      --cartao: #14171c;
+      --linha: rgba(255, 255, 255, 0.1);
+      --texto: #f2f2f0;
+      --fraco: #a7a7a2;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--fundo);
+      color: var(--texto);
+      font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+      padding: 28px 16px 60px;
+    }
+    .caixa { max-width: 900px; margin: 0 auto; }
+    h1 { font-family: Georgia, serif; font-weight: 400; font-size: 26px; margin: 0 0 6px; }
+    .sub { color: var(--fraco); font-size: 14px; margin: 0 0 22px; line-height: 1.6; }
+    .passos { background: var(--cartao); border: 1px solid var(--linha); border-radius: 14px; padding: 16px 20px; margin-bottom: 18px; }
+    .passos ol { margin: 0; padding-left: 20px; }
+    .passos li { font-size: 14px; line-height: 1.75; color: var(--texto); }
+    .passos code {
+      background: rgba(255, 255, 255, 0.07);
+      padding: 2px 6px;
+      border-radius: 5px;
+      font-size: 12.5px;
+      word-break: break-all;
+    }
+    .barra { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+    button {
+      font: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 22px;
+      cursor: pointer;
+      background: linear-gradient(180deg, var(--ouro-claro), var(--ouro));
+      color: #17140a;
+    }
+    button:hover { filter: brightness(1.06); }
+    button.secundario { background: transparent; border: 1px solid var(--linha); color: var(--texto); font-weight: 500; }
+    .estado { font-size: 13px; color: var(--ouro); }
+    textarea {
+      width: 100%;
+      height: 60vh;
+      background: #0a0c0f;
+      color: #cfd3d8;
+      border: 1px solid var(--linha);
+      border-radius: 12px;
+      padding: 14px;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre;
+    }
+  </style>
+</head>
+<body>
+  <div class="caixa">
+    <h1>Formulário de aplicação — código pra colar</h1>
+    <p class="sub">
+      Só as perguntas. Nome, e-mail e WhatsApp vêm do popup da página anterior, por trás — ninguém digita de novo.
+      <a href="/formulario-aplicacao.html" style="color: var(--ouro)">Ver o formulário funcionando</a>.
+    </p>
+
+    <div class="passos" style="border-color: rgba(201,162,39,0.45)">
+      <strong style="display:block;font-size:15px;margin-bottom:8px">Jeito recomendado: iframe (não mexe em nada da página)</strong>
+      <p class="sub" style="margin:0 0 12px">
+        O formulário roda isolado dentro de uma moldura — não tem como afetar o popup, o tema nem o resto da página.
+        A altura se ajusta sozinha a cada pergunta. Cole este trecho no widget HTML:
+      </p>
+      <textarea id="codigo-iframe" readonly spellcheck="false" style="height:150px">&lt;iframe src="https://titacrm.vercel.app/formulario-aplicacao.html" id="form-aplicacao" style="width:100%;border:0;height:560px;display:block" scrolling="no"&gt;&lt;/iframe&gt;
+&lt;script&gt;
+window.addEventListener('message', function (e) {
+  if (e.data &amp;&amp; e.data.tipo === 'aplicacao-titan-altura') {
+    document.getElementById('form-aplicacao').style.height = e.data.altura + 'px';
+  }
+});
+&lt;/script&gt;</textarea>
+      <div class="barra" style="margin-top:10px">
+        <button id="copiar-iframe">Copiar iframe</button>
+        <span class="estado" id="estado-iframe"></span>
+      </div>
+    </div>
+
+    <div class="passos">
+      <strong style="display:block;font-size:15px;margin-bottom:8px">Jeito direto: colar o código inteiro</strong>
+      <ol>
+        <li>Clique em <strong>Copiar código</strong> aqui embaixo.</li>
+        <li>No WordPress, abra <code>/preencha-o-formulario/</code> e apague o formulário atual.</li>
+        <li>Ponha um bloco <strong>HTML personalizado</strong> (ou widget <strong>HTML</strong>, no Elementor) no lugar e cole.</li>
+        <li>
+          No popup da página anterior, em <em>Ações após enviar → Redirecionar</em>, use:
+          <br />
+          <code>https://ascensaotita.com/preencha-o-formulario/?nome=[field id="name"]&amp;email=[field id="email"]&amp;whatsapp=[field id="tel"]</code>
+          <br />
+          É isso que amarra as respostas ao lead que o popup criou. Sem isso o formulário funciona, mas as respostas
+          chegam sem dono.
+        </li>
+      </ol>
+    </div>
+
+    <div class="barra">
+      <button id="copiar">Copiar código inteiro</button>
+      <button class="secundario" id="baixar">Baixar arquivo</button>
+      <span class="estado" id="estado"></span>
+    </div>
+
+    <textarea id="codigo" readonly spellcheck="false">Carregando…</textarea>
+  </div>
+
+  <script>
+    var campo = document.getElementById('codigo');
+    var estado = document.getElementById('estado');
+
+    fetch('/formulario-aplicacao.html')
+      .then(function (r) { return r.text(); })
+      .then(function (texto) { campo.value = texto; })
+      .catch(function () { campo.value = 'Não consegui carregar o código. Abra /formulario-aplicacao.html e use Ctrl+U.'; });
+
+    document.getElementById('copiar').addEventListener('click', function () {
+      // O jeito moderno só funciona em HTTPS; select+execCommand cobre o resto.
+      var pronto = function () {
+        estado.textContent = 'Copiado! Agora é só colar no WordPress.';
+        setTimeout(function () { estado.textContent = ''; }, 4000);
+      };
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(campo.value).then(pronto, manual);
+      } else {
+        manual();
+      }
+      function manual() {
+        campo.removeAttribute('readonly');
+        campo.select();
+        campo.setSelectionRange(0, campo.value.length);
+        try { document.execCommand('copy'); pronto(); } catch (e) {
+          estado.textContent = 'Selecionei tudo — aperte Ctrl+C.';
+        }
+        campo.setAttribute('readonly', 'readonly');
+      }
+    });
+
+    document.getElementById('copiar-iframe').addEventListener('click', function () {
+      var campoIframe = document.getElementById('codigo-iframe');
+      var pronto = function () {
+        document.getElementById('estado-iframe').textContent = 'Copiado!';
+        setTimeout(function () { document.getElementById('estado-iframe').textContent = ''; }, 4000);
+      };
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(campoIframe.value).then(pronto, seleciona);
+      } else { seleciona(); }
+      function seleciona() {
+        campoIframe.removeAttribute('readonly');
+        campoIframe.select();
+        try { document.execCommand('copy'); pronto(); } catch (e) {
+          document.getElementById('estado-iframe').textContent = 'Selecionei — aperte Ctrl+C.';
+        }
+        campoIframe.setAttribute('readonly', 'readonly');
+      }
+    });
+
+    document.getElementById('baixar').addEventListener('click', function () {
+      var blob = new Blob([campo.value], { type: 'text/html;charset=utf-8' });
+      var link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'formulario-aplicacao.html';
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+  </script>
+</body>
+</html>

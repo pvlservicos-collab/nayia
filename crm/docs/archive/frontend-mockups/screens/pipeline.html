@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-br"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Functional Kanban CRM Pipeline</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style type="text/tailwindcss">
+        :root {
+            --primary: #f9f506;
+            --border-color: #e5e7eb;
+            --surface: #ffffff;
+            --bg-main: #ffffff;
+            --text-main: #111827;
+            --text-muted: #6b7280;
+        }
+        body {
+            font-family: 'Spline Sans', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+            font-size: 18px;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .kanban-column {
+            min-width: 300px;
+            width: 300px;
+        }
+        .card-shadow {
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+<header class="h-16 border-b border-[var(--border-color)] px-6 flex items-center justify-between shrink-0 bg-white z-10">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2 cursor-pointer group">
+<h1 class="font-bold text-lg">Pipeline de Vendas</h1>
+<span class="material-symbols-outlined text-gray-400 group-hover:text-gray-600">expand_more</span>
+</div>
+<div class="h-6 w-px bg-gray-200"></div>
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+<input class="pl-10 pr-4 py-2 bg-gray-50 border-none rounded-lg text-sm w-72 focus:ring-2 focus:ring-[#f9f506]/50 transition-all" placeholder="Buscar leads ou empresas..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border-color)] hover:bg-gray-50 transition-colors text-sm font-medium">
+<span class="material-symbols-outlined">filter_list</span>
+                Filtros
+            </button>
+<button class="flex items-center gap-2 px-5 py-2.5 bg-[#f9f506] rounded-xl text-black font-semibold text-sm hover:brightness-95 transition-all shadow-sm">
+<span class="material-symbols-outlined">add</span>
+                Novo Lead
+            </button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-gray-200">
+<img alt="User" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXD1yF5ilANzM7wAYrp6DqRiSeFfdTrFwH01sb5B_9WkDRUzzyvq1lNeqMfi9Rgf1KTkYx8fX_F1TvR9qPEz3fS7glFtPkFnbHuuSdLaIH4l7-ebN7XugYUA-n-qxdNrKcH8aG8aFDOWvn0VWAB-gQ6e6XkNZP0Cf09po1G9IZ2ZHErwTxdRNVMVp2-el13aOkbo1rJ1Fd2C0OV9kdlsuMnA-X3yiE_URlz412YBXXGG5I73HjsdxOimjrZSwPa35yI_2FuKqLvd4"/>
+</div>
+</div>
+</header>
+<main class="flex-1 overflow-x-auto flex bg-[#fafafa] p-6 gap-6 hide-scrollbar">
+<div class="kanban-column flex flex-col h-full">
+<div class="flex items-center justify-between mb-4 px-1">
+<div class="flex items-center gap-2">
+<h2 class="font-bold text-sm text-gray-800 uppercase tracking-wide">Novo</h2>
+<span class="px-2 py-0.5 bg-gray-200 text-gray-600 text-[11px] font-bold rounded-full">3</span>
+</div>
+<button class="text-gray-400 hover:text-gray-600"><span class="material-symbols-outlined">more_horiz</span></button>
+</div>
+<div class="flex-1 overflow-y-auto space-y-3 hide-scrollbar pb-10">
+<div class="bg-white border border-[var(--border-color)] p-4 rounded-2xl card-shadow cursor-grab active:cursor-grabbing hover:border-gray-300 transition-all">
+<div class="flex justify-between items-start mb-3">
+<h3 class="font-bold text-[14px] text-gray-900 leading-tight">Energia Solar Brasil</h3>
+<span class="px-2 py-0.5 bg-green-50 text-green-700 text-[10px] font-bold rounded-md uppercase">Alto</span>
+</div>
+<div class="flex items-center gap-2 mb-4">
+<img alt="Owner" class="w-6 h-6 rounded-full border border-gray-100" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD4Hj0k40-HTPlQS3Iz5sJZ4vNYhkyqm-676bEAvzuSQ7CAMLS4Ll8Betv585-YBZRe5bh4prb76ENcP0x3uuQmyFuWOzeCN9WZhJmUEqcf4FNZIyD-PW03uts6Vz8hFCxSDMs3Wdt0a4NHDgcgX2MhZZN4fJg_gtwEwR5Bhf1f_rAbwCUEu_CoL9FZeP3ZlME4DwG6aXdT9szIldo1uaxn8qNHQxcgjy3FzGsLlC5vzjInj9YiCtqPwLPgftL6tXLMjDtA_zKhWag"/>
+<span class="text-xs text-gray-600 font-medium">Mariana Silva</span>
+</div>
+<div class="flex flex-wrap gap-2 mb-4">
+<span class="px-2 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-lg flex items-center gap-1 uppercase">
+                            WhatsApp
+                        </span>
+<span class="px-2 py-1 bg-purple-50 text-purple-600 text-[10px] font-bold rounded-lg uppercase">Inbound</span>
+</div>
+<div class="pt-3 border-t border-gray-100 flex items-center justify-between">
+<div class="flex items-center gap-1.5 text-gray-400">
+<span class="material-symbols-outlined !text-[14px]">schedule</span>
+<span class="text-[11px]">2h atrás</span>
+</div>
+<span class="text-[11px] text-indigo-600 italic font-medium">Ligar para fechar</span>
+</div>
+</div>
+<div class="bg-white border border-[var(--border-color)] p-4 rounded-2xl card-shadow cursor-grab hover:border-gray-300 transition-all">
+<div class="flex justify-between items-start mb-3">
+<h3 class="font-bold text-[14px] text-gray-900 leading-tight">Residencial Alpha</h3>
+<span class="px-2 py-0.5 bg-yellow-50 text-yellow-700 text-[10px] font-bold rounded-md uppercase">Médio</span>
+</div>
+<div class="flex items-center gap-2 mb-4">
+<img alt="Owner" class="w-6 h-6 rounded-full border border-gray-100" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBGoIaEehmx-lH3CTFYfVB-KXvmb7yXnSc9IwL127n7k9-uWCFV_7EUq6jgOq-8ja9QMRig7qNI1Gt8mf7hYCVx3_aQ08vCDjiuSP3RYcoODKO8WI859Uh2wd6KK4-QS4Ecr5XGHQQWMtRLDhFrXSUe4-noLUadnKjW1om_XZxIM3hrW_cacH2vtmgQdIk_STTj2KzeHrFJt0-JmvoRhpu60ZCosH9leyhbxXatG_-yeaPbkYaUzyMxVsU-IEYv-bhNFvK3MPGVB9Q"/>
+<span class="text-xs text-gray-600 font-medium">Lucas Rocha</span>
+</div>
+<div class="flex flex-wrap gap-2 mb-4">
+<span class="px-2 py-1 bg-orange-50 text-orange-600 text-[10px] font-bold rounded-lg uppercase">Google Ads</span>
+</div>
+<div class="pt-3 border-t border-gray-100 flex items-center justify-between">
+<div class="flex items-center gap-1.5 text-gray-400">
+<span class="material-symbols-outlined !text-[14px]">schedule</span>
+<span class="text-[11px]">5h atrás</span>
+</div>
+<span class="text-[11px] text-indigo-600 italic font-medium">Enviar PDF</span>
+</div>
+</div>
+</div>
+</div>
+<div class="kanban-column flex flex-col h-full">
+<div class="flex items-center justify-between mb-4 px-1">
+<div class="flex items-center gap-2">
+<h2 class="font-bold text-sm text-gray-800 uppercase tracking-wide">Qualificado</h2>
+<span class="px-2 py-0.5 bg-gray-200 text-gray-600 text-[11px] font-bold rounded-full">1</span>
+</div>
+<button class="text-gray-400 hover:text-gray-600"><span class="material-symbols-outlined">more_horiz</span></button>
+</div>
+<div class="flex-1 overflow-y-auto space-y-3 hide-scrollbar pb-10">
+<div class="bg-white border border-[var(--border-color)] p-4 rounded-2xl card-shadow cursor-grab hover:border-gray-300 transition-all">
+<div class="flex justify-between items-start mb-3">
+<h3 class="font-bold text-[14px] text-gray-900 leading-tight">Indústria Mecânica XP</h3>
+<span class="px-2 py-0.5 bg-green-50 text-green-700 text-[10px] font-bold rounded-md uppercase">Alto</span>
+</div>
+<div class="flex items-center gap-2 mb-4">
+<img alt="Owner" class="w-6 h-6 rounded-full border border-gray-100" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDEnrFeXtmXPWXC9tWsHIWp6D6yWJImXy6Wot0ChbX3DTIesKfb3_5djjwLoUcKaY6x-9uV6SYrwM6mlRD0SgQSFgmXurn4kqPCkaTMOQYoeWb0Zpd6olFy1u1FR75HerxS8ocp72L7WTiiZSNm8aV67VqXCl0FwZQUZZzVmcYAhjQUVBgEb00j2PbSZTeOWOw2rnSj2G79Vk8tslchLj0eWXUxCLt4yfylcdE85ptV83WNsrnXrJFba5txOY6GsRnIy2oO_Cgac0w"/>
+<span class="text-xs text-gray-600 font-medium">Mariana Silva</span>
+</div>
+<div class="flex flex-wrap gap-2 mb-4">
+<span class="px-2 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-lg uppercase">WhatsApp</span>
+<span class="px-2 py-1 bg-red-50 text-red-600 text-[10px] font-bold rounded-lg uppercase">Urgente</span>
+</div>
+<div class="pt-3 border-t border-gray-100 flex items-center justify-between">
+<div class="flex items-center gap-1.5 text-gray-400">
+<span class="material-symbols-outlined !text-[14px]">schedule</span>
+<span class="text-[11px]">10 min atrás</span>
+</div>
+<span class="text-[11px] text-indigo-600 italic font-medium">Marcar Reunião</span>
+</div>
+</div>
+</div>
+</div>
+<div class="kanban-column flex flex-col h-full">
+<div class="flex items-center justify-between mb-4 px-1">
+<div class="flex items-center gap-2">
+<h2 class="font-bold text-sm text-gray-800 uppercase tracking-wide">Proposta</h2>
+<span class="px-2 py-0.5 bg-gray-200 text-gray-600 text-[11px] font-bold rounded-full">0</span>
+</div>
+<button class="text-gray-400 hover:text-gray-600"><span class="material-symbols-outlined">more_horiz</span></button>
+</div>
+<div class="flex-1 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center p-6 text-gray-400 bg-gray-50/50">
+<span class="material-symbols-outlined !text-3xl mb-2">inbox</span>
+<span class="text-xs font-medium uppercase tracking-widest">Sem leads</span>
+</div>
+</div>
+<div class="kanban-column flex flex-col h-full">
+<div class="flex items-center justify-between mb-4 px-1">
+<div class="flex items-center gap-2">
+<h2 class="font-bold text-sm text-gray-800 uppercase tracking-wide">Fechado</h2>
+<span class="px-2 py-0.5 bg-gray-200 text-gray-600 text-[11px] font-bold rounded-full">1</span>
+</div>
+<button class="text-gray-400 hover:text-gray-600"><span class="material-symbols-outlined">more_horiz</span></button>
+</div>
+<div class="flex-1 overflow-y-auto space-y-3 hide-scrollbar pb-10">
+<div class="bg-white border border-[var(--border-color)] p-4 rounded-2xl card-shadow cursor-grab hover:border-gray-300 transition-all opacity-80">
+<div class="flex justify-between items-start mb-3">
+<h3 class="font-bold text-[14px] text-gray-900 leading-tight line-through">Mercado do Bairro</h3>
+<span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-md uppercase">Ganho</span>
+</div>
+<div class="flex items-center gap-2 mb-4">
+<img alt="Owner" class="w-6 h-6 rounded-full border border-gray-100" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBGYA8_vCS8EVabEmYm5AxvQ544Bu8lZkcYgZoEn_CWMXWNtBECwQBb3JLUyVa16RYIJOGGXUbMKC8sKnhYPFo7MZ4FeMBd3Suc7X1f6i5bzbPv07QzPJDgl0MDJyfPV3X3bKlZt9DDDK2O6o3jb0yNaZM9SiEuLr9XC4Ho4xarMZqWAjYvHLK2BlPIxIYLFpZX3JVz4FfA0Bonz8hEMn0Zlqy-RiJZURS4Es1rnGduEkwZaWHBf4GcJfNw-VT_gT5cahGtl2gQSWg"/>
+<span class="text-xs text-gray-600 font-medium">Lucas Rocha</span>
+</div>
+<div class="flex flex-wrap gap-2 mb-4">
+<span class="px-2 py-1 bg-gray-100 text-gray-600 text-[10px] font-bold rounded-lg uppercase">Indicação</span>
+</div>
+<div class="pt-3 border-t border-gray-100 flex items-center justify-between">
+<div class="flex items-center gap-1.5 text-gray-400">
+<span class="material-symbols-outlined !text-[14px]">check_circle</span>
+<span class="text-[11px]">Concluído</span>
+</div>
+<span class="text-[11px] text-gray-400 italic">Negócio fechado</span>
+</div>
+</div>
+</div>
+</div>
+<div class="w-10 shrink-0"></div>
+</main>
+<div class="fixed bottom-8 right-8 flex flex-col gap-3">
+<button class="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-all group">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">insights</span>
+</button>
+<button class="w-14 h-14 bg-[#f9f506] rounded-full shadow-xl flex items-center justify-center text-black hover:scale-105 active:scale-95 transition-all">
+<span class="material-symbols-outlined !text-2xl">add</span>
+</button>
+</div>
+
+</body></html>

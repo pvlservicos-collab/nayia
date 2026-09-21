@@ -54,3 +54,8 @@ colagem/
 # nay-publicador e o ESPELHO do que esta deployado em /root/nay-publicador,
 # tem repositorio git proprio e um .env de verdade dentro. O fonte e Arquivos/.
 nay-publicador/
+
+# CRM (Next.js)
+crm/node_modules/
+crm/.next/
+crm/.env

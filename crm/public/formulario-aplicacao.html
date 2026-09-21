@@ -1,0 +1,584 @@
+<!--
+  Formulário de aplicação — Ascensão Titã (bloco pra colar no WordPress)
+  =====================================================================
+
+  Cole no lugar do formulário atual, na página /preencha-o-formulario/, num
+  bloco "HTML personalizado" (Gutenberg) ou widget "HTML" (Elementor). Sem
+  plugin, sem biblioteca, sem fonte externa.
+
+  SÓ AS PERGUNTAS. Nome, e-mail e WhatsApp já foram capturados pelo popup da
+  página anterior e são lidos por trás, do endereço — ninguém digita nada
+  de novo aqui.
+
+  PRA ISSO FUNCIONAR, o popup precisa passar os dados no redirecionamento.
+  No Elementor: "Ações após enviar" → "Redirecionar" → URL:
+
+      https://ascensaotita.com/preencha-o-formulario/?nome=[field id="name"]&email=[field id="email"]&whatsapp=[field id="tel"]
+
+  (troque os `id` pelos ids reais dos campos do popup)
+
+  PERGUNTAS: estão na lista PERGUNTAS, no começo do <script>. Cada item tem
+  `chave` (o nome do campo no CRM), `titulo` e `opcoes`.
+-->
+
+<div id="aplicacao-titan">
+  <div class="aplic__cartao" role="form" aria-labelledby="aplic-titulo">
+    <div class="aplic__topo">
+      <span class="aplic__contador" id="aplic-contador"></span>
+    </div>
+
+    <div class="aplic__palco" id="aplic-palco" aria-live="polite"></div>
+
+    <div class="aplic__rodape">
+      <button type="button" class="aplic__voltar" id="aplic-voltar">← Voltar</button>
+      <span class="aplic__aviso" id="aplic-aviso"></span>
+      <button type="button" class="aplic__avancar" id="aplic-avancar">Continuar →</button>
+    </div>
+
+    <!-- Barra embaixo: enche conforme as respostas vão sendo dadas. -->
+    <div class="aplic__barra"><span class="aplic__barra-progresso" id="aplic-progresso"></span></div>
+  </div>
+</div>
+
+<style>
+  /* Tudo escopado em #aplicacao-titan pra não vazar no tema do WordPress. */
+  #aplicacao-titan {
+    --ouro: #c9a227;
+    --ouro-claro: #e8c85a;
+    --cartao: #14171c;
+    --linha: rgba(255, 255, 255, 0.10);
+    --texto: #f2f2f0;
+    --texto-fraco: #a7a7a2;
+    --erro: #e5675c;
+
+    /*
+     * Embed: fundo é o da página, largura é a do container onde for colado.
+     *
+     * `display: block` de propósito, e não flex: dentro do Elementor o bloco
+     * cai em containers que já são flex, e um filho flex a mais bagunçava o
+     * alinhamento do resto da página.
+     */
+    background: transparent;
+    color: var(--texto);
+    font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+  }
+  #aplicacao-titan *,
+  #aplicacao-titan *::before,
+  #aplicacao-titan *::after { box-sizing: border-box; }
+
+  /* Só o formulário: sem caixa, sem borda, sem sombra. O que aparece é a
+     pergunta, as opções e os botões, direto na página. */
+  #aplicacao-titan .aplic__cartao {
+    width: 100%;
+    max-width: 660px;
+    margin: 0 auto;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+
+  #aplicacao-titan .aplic__barra {
+    height: 4px;
+    margin-top: 18px;
+    border-radius: 99px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.08);
+  }
+  #aplicacao-titan .aplic__barra-progresso {
+    display: block;
+    height: 100%;
+    width: 0%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--ouro), var(--ouro-claro));
+    transition: width 0.35s ease;
+  }
+
+  #aplicacao-titan .aplic__topo {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 10px 0 0;
+  }
+  #aplicacao-titan .aplic__contador { font-size: 11px; color: var(--texto-fraco); letter-spacing: 0.08em; }
+
+  #aplicacao-titan .aplic__palco {
+    padding: 14px 0 6px;
+    /* Altura mínima: sem isso o bloco encolhe e cresce a cada pergunta, e a
+       página inteira dá um pulo embaixo dele a cada resposta. */
+    min-height: 320px;
+  }
+
+  #aplicacao-titan .aplic__pergunta {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(20px, 3.4vw, 26px);
+    line-height: 1.32;
+    font-weight: 400;
+    margin: 6px 0 18px;
+    /* Branco explícito: sem isto o tema do WordPress pinta o h2 com a cor dele
+       e o título some no fundo escuro. */
+    color: #ffffff;
+  }
+
+  #aplicacao-titan .aplic__opcoes { display: grid; gap: 10px; }
+  @media (min-width: 620px) {
+    #aplicacao-titan .aplic__opcoes--duas { grid-template-columns: 1fr 1fr; }
+  }
+
+  #aplicacao-titan .aplic__opcao {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-height: 52px; /* alvo de toque confortável no celular */
+    width: 100%;
+    text-align: left;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--linha);
+    border-radius: 12px;
+    color: var(--texto);
+    font: inherit;
+    font-size: 15px;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.08s ease;
+  }
+  #aplicacao-titan .aplic__opcao:hover { background: rgba(255, 255, 255, 0.06); border-color: rgba(201, 162, 39, 0.45); }
+  #aplicacao-titan .aplic__opcao:active { transform: scale(0.995); }
+  #aplicacao-titan .aplic__opcao[aria-pressed="true"] {
+    border-color: var(--ouro);
+    background: rgba(201, 162, 39, 0.12);
+  }
+  #aplicacao-titan .aplic__marcador {
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255, 255, 255, 0.28);
+    flex-shrink: 0;
+    position: relative;
+  }
+  #aplicacao-titan .aplic__opcao[aria-pressed="true"] .aplic__marcador { border-color: var(--ouro); }
+  #aplicacao-titan .aplic__opcao[aria-pressed="true"] .aplic__marcador::after {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border-radius: 50%;
+    background: var(--ouro);
+  }
+  #aplicacao-titan .aplic__tecla {
+    font-size: 11px;
+    color: var(--texto-fraco);
+    border: 1px solid var(--linha);
+    border-radius: 5px;
+    padding: 1px 6px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  @media (max-width: 619px) { #aplicacao-titan .aplic__tecla { display: none; } }
+
+  #aplicacao-titan .aplic__rodape {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 0 0;
+  }
+  /* Celular: um botão embaixo do outro, cada um na largura toda. Lado a lado
+     eles ficavam espremidos, e "Continuar" é o alvo do dedo — vem primeiro. */
+  @media (max-width: 619px) {
+    #aplicacao-titan .aplic__rodape {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+    }
+    #aplicacao-titan .aplic__avancar {
+      order: 1;
+      margin-left: 0;
+      width: 100%;
+      padding: 15px 20px;
+      font-size: 15px;
+    }
+    #aplicacao-titan .aplic__voltar {
+      order: 2;
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--linha);
+      border-radius: 10px;
+    }
+    #aplicacao-titan .aplic__aviso { order: 0; text-align: center; }
+  }
+  #aplicacao-titan .aplic__voltar,
+  #aplicacao-titan .aplic__avancar {
+    font: inherit;
+    font-size: 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: opacity 0.15s ease, filter 0.15s ease;
+  }
+  #aplicacao-titan .aplic__voltar {
+    background: none;
+    border: none;
+    color: var(--texto-fraco);
+    padding: 10px 4px;
+  }
+  #aplicacao-titan .aplic__voltar:hover { color: var(--texto); }
+  #aplicacao-titan .aplic__avancar {
+    margin-left: auto;
+    background: linear-gradient(180deg, var(--ouro-claro), var(--ouro));
+    border: none;
+    color: #17140a;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 12px 24px;
+  }
+  #aplicacao-titan .aplic__avancar:hover { filter: brightness(1.06); }
+  #aplicacao-titan .aplic__avancar[disabled] { opacity: 0.45; cursor: default; filter: none; }
+  #aplicacao-titan .aplic__aviso { font-size: 12.5px; color: var(--erro); }
+
+  #aplicacao-titan .aplic__fim { text-align: center; padding: 26px 0 18px; }
+  #aplicacao-titan .aplic__selo {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    border: 1px solid var(--ouro);
+    color: var(--ouro);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: 14px;
+  }
+  #aplicacao-titan .aplic__fim h2 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 400;
+    font-size: 24px;
+    margin: 0 0 10px;
+    color: #ffffff;
+  }
+  #aplicacao-titan .aplic__fim p {
+    color: var(--texto-fraco);
+    font-size: 14.5px;
+    line-height: 1.6;
+    margin: 0 auto;
+    max-width: 420px;
+  }
+</style>
+
+<script>
+(function () {
+  'use strict';
+
+  var ENDERECO_CRM = 'https://titacrm.vercel.app/api/public/aplicacao';
+
+  // Pra onde mandar depois de concluir. Vazio = fica na tela de agradecimento.
+  var REDIRECIONAR_APOS = '';
+
+  /*
+   * As perguntas. `chave` é o nome do campo no CRM — mudar uma chave depois faz
+   * as respostas antigas e novas ficarem em campos diferentes. `area`, `aumento`
+   * e `investimento` têm o mesmo nome das perguntas equivalentes da Agenda, de
+   * propósito: a resposta cai na mesma coluna, não importa por onde a pessoa
+   * entrou.
+   */
+  var PERGUNTAS = [
+    {
+      chave: 'area',
+      titulo: 'Qual a sua área de atuação profissional?',
+      colunas: 2,
+      opcoes: ['Empresário', 'Profissional Autônomo', 'CLT', 'Outro'],
+    },
+    {
+      chave: 'aumento',
+      titulo: 'Na sua opinião, em quanto irá AUMENTAR seu faturamento mensal nos próximos 6 meses se VOCÊ alcançar maior eficiência e produtividade na execução das suas atividades profissionais?',
+      colunas: 2,
+      opcoes: [
+        'Mais de R$50.000/mês',
+        'R$25.000-R$50.000/mês',
+        'R$10.000-R$25.000/mês',
+        'R$1.000-R$10.000/mês',
+        'Menos de R$1.000/mês',
+      ],
+    },
+    {
+      chave: 'investimento',
+      titulo: 'Quanto você investiu em imersões, cursos, treinamentos, mentorias e outros programas de desenvolvimento pessoal e profissional no último ano?',
+      colunas: 2,
+      opcoes: [
+        'Mais de R$50.000',
+        'R$31.000 à R$50.000',
+        'R$16.000 à R$30.000',
+        'R$5.000 à R$15.000',
+        'Até R$4.000',
+        'Não fiz esse tipo de investimento',
+      ],
+    },
+    {
+      chave: 'objetivo_profissional',
+      titulo: 'O que você deseja alcançar com sua vida profissional nos próximos 12 meses?',
+      colunas: 1,
+      opcoes: [
+        'Reconhecimento - Ter tempo para desenvolver habilidades que farão eu me destacar como profissional, ser reconhecido e me tornar uma referência no mercado em que atuo',
+        'Dinheiro - Quero ser mais produtivo e eficiente com minhas atividades profissionais para conseguir aumentar minhas fontes de renda e/ou meu faturamento',
+        'Liberdade - Me sinto preso às minhas demandas e imprevistos. Quero ter um controle maior dos meus compromissos e rotina de modo a ter mais liberdade para escolher o que eu vou fazer com o meu tempo',
+        'Outro',
+      ],
+    },
+    {
+      chave: 'qualidade_vida',
+      titulo: 'O que você deseja alcançar em termos de Qualidade de Vida nos próximos 12 meses?',
+      colunas: 1,
+      opcoes: [
+        'Relacionamentos - Quero ter mais tempo de qualidade para ficar com as pessoas que são importantes para mim',
+        'Saúde - Quero ter mais tempo para cuidar da minha saúde, praticar atividade física com consistência, cuidar mais da minha alimentação e ter maior qualidade de sono, de modo que eu me sinta mais disposto e saudável',
+        'Hobbies - Quero ter mais tempo para praticar hobbies, viajar, estudar áreas que tenho interesse e/ou tirar um projeto que está na gaveta há muito tempo',
+        'Outro',
+      ],
+    },
+    {
+      chave: 'acompanhante',
+      titulo: 'Você tem algum acompanhante que gostaria de convidar para participar da imersão com você?',
+      colunas: 2,
+      opcoes: ['Sim', 'Não'],
+    },
+  ];
+
+  var CHAVE_MEMORIA = 'aplicacao-titan';
+
+  var palco = document.getElementById('aplic-palco');
+  var progresso = document.getElementById('aplic-progresso');
+  var contador = document.getElementById('aplic-contador');
+  var botaoVoltar = document.getElementById('aplic-voltar');
+  var botaoAvancar = document.getElementById('aplic-avancar');
+  var aviso = document.getElementById('aplic-aviso');
+
+  var estado = { passo: 0, respostas: {}, enviando: false, concluido: false };
+
+  /*
+   * Quem é a pessoa — lido por trás, sem perguntar nada.
+   *
+   * 1) o endereço, que o popup preenche no redirecionamento;
+   * 2) o que ficou guardado no navegador numa visita anterior.
+   *
+   * O popup já pediu esses dados; pedir de novo aqui seria fazer a pessoa
+   * digitar duas vezes a mesma coisa.
+   */
+  function lerIdentidade() {
+    var url = new URLSearchParams(window.location.search);
+    var pega = function (nomes) {
+      for (var i = 0; i < nomes.length; i++) {
+        var valor = url.get(nomes[i]);
+        // "[field id=...]" é o atalho do Elementor que não foi substituído.
+        if (valor && valor.trim() && valor.indexOf('[field') === -1) return valor.trim();
+      }
+      return '';
+    };
+    var daUrl = {
+      nome: pega(['nome', 'name', 'first_name']),
+      email: pega(['email', 'e-mail']),
+      whatsapp: pega(['whatsapp', 'tel', 'telefone', 'phone']),
+    };
+    var guardado = {};
+    try { guardado = JSON.parse(localStorage.getItem(CHAVE_MEMORIA) || '{}'); } catch (e) {}
+
+    var identidade = {
+      nome: daUrl.nome || guardado.nome || '',
+      email: daUrl.email || guardado.email || '',
+      whatsapp: daUrl.whatsapp || guardado.whatsapp || '',
+    };
+    // Guarda pra sobreviver a um F5, que limparia o endereço.
+    try {
+      localStorage.setItem(CHAVE_MEMORIA, JSON.stringify({
+        nome: identidade.nome, email: identidade.email, whatsapp: identidade.whatsapp,
+        respostas: guardado.respostas || {},
+      }));
+    } catch (e) {}
+    return identidade;
+  }
+
+  var identidade = lerIdentidade();
+
+  function guardarRespostas() {
+    try {
+      localStorage.setItem(CHAVE_MEMORIA, JSON.stringify({
+        nome: identidade.nome, email: identidade.email, whatsapp: identidade.whatsapp,
+        respostas: estado.respostas,
+      }));
+    } catch (e) {}
+  }
+
+  // ── Desenho ──────────────────────────────────────────────────────────────
+  function desenhar() {
+    aviso.textContent = '';
+    if (estado.concluido) return desenharFim();
+
+    // A barra mede o que já foi RESPONDIDO, não em que tela a pessoa está:
+    // é isso que ela quer saber — quanto falta pra acabar.
+    var respondidas = PERGUNTAS.filter(function (p) { return estado.respostas[p.chave]; }).length;
+    progresso.style.width = Math.round((respondidas / PERGUNTAS.length) * 100) + '%';
+    contador.textContent = (estado.passo + 1) + ' de ' + PERGUNTAS.length;
+    botaoVoltar.style.visibility = estado.passo === 0 ? 'hidden' : 'visible';
+    botaoAvancar.textContent = estado.passo === PERGUNTAS.length - 1 ? 'Enviar aplicação' : 'Continuar →';
+    botaoAvancar.disabled = false;
+
+    var pergunta = PERGUNTAS[estado.passo];
+    palco.innerHTML = '';
+    setTimeout(avisarAltura, 0);
+
+    var titulo = document.createElement('h2');
+    titulo.className = 'aplic__pergunta';
+    titulo.id = 'aplic-titulo';
+    // Numerada, como no formulário antigo: "1.", "2.", "3."…
+    titulo.textContent = (estado.passo + 1) + '. ' + pergunta.titulo;
+    palco.appendChild(titulo);
+
+    var lista = document.createElement('div');
+    lista.className = 'aplic__opcoes' + (pergunta.colunas === 2 ? ' aplic__opcoes--duas' : '');
+    pergunta.opcoes.forEach(function (opcao, indice) {
+      var botao = document.createElement('button');
+      botao.type = 'button';
+      botao.className = 'aplic__opcao';
+      botao.setAttribute('aria-pressed', estado.respostas[pergunta.chave] === opcao ? 'true' : 'false');
+
+      var marcador = document.createElement('span');
+      marcador.className = 'aplic__marcador';
+      var texto = document.createElement('span');
+      texto.textContent = opcao;
+      botao.appendChild(marcador);
+      botao.appendChild(texto);
+
+      if (indice < 9) {
+        var tecla = document.createElement('span');
+        tecla.className = 'aplic__tecla';
+        tecla.textContent = String(indice + 1);
+        botao.appendChild(tecla);
+      }
+
+      botao.addEventListener('click', function () { escolher(pergunta.chave, opcao); });
+      lista.appendChild(botao);
+    });
+    palco.appendChild(lista);
+  }
+
+  function desenharFim() {
+    progresso.style.width = '100%';
+    contador.textContent = '';
+    botaoVoltar.style.visibility = 'hidden';
+    botaoAvancar.style.display = 'none';
+    palco.innerHTML =
+      '<div class="aplic__fim">' +
+      '<div class="aplic__selo">✓</div>' +
+      '<h2>Aplicação enviada</h2>' +
+      '<p>Recebemos suas respostas. Nossa equipe vai falar com você pelo WhatsApp ' +
+      'sobre a sua vaga na imersão — fique de olho nas mensagens.</p>' +
+      '</div>';
+  }
+
+  // ── Navegação ────────────────────────────────────────────────────────────
+  function escolher(chave, opcao) {
+    estado.respostas[chave] = opcao;
+    guardarRespostas();
+    desenhar(); // marca a escolha
+    setTimeout(function () {
+      if (!estado.enviando && !estado.concluido) avancar();
+    }, 220);
+  }
+
+  function avancar() {
+    if (estado.enviando) return;
+    var pergunta = PERGUNTAS[estado.passo];
+    if (!estado.respostas[pergunta.chave]) { aviso.textContent = 'Escolha uma opção para continuar.'; return; }
+    if (estado.passo === PERGUNTAS.length - 1) return enviar();
+    estado.passo++;
+    desenhar();
+  }
+
+  function voltar() {
+    if (estado.passo === 0 || estado.enviando) return;
+    estado.passo--;
+    desenhar();
+  }
+
+  // ── Envio ────────────────────────────────────────────────────────────────
+  function enviar() {
+    estado.enviando = true;
+    botaoAvancar.disabled = true;
+    botaoAvancar.textContent = 'Enviando…';
+    aviso.textContent = '';
+
+    var corpo = {
+      nome: identidade.nome,
+      email: identidade.email,
+      whatsapp: identidade.whatsapp,
+      origem_formulario: 'aplicacao-site',
+      pagina: window.location.href,
+      website: '', // armadilha: robô preenche, gente não
+    };
+    Object.keys(estado.respostas).forEach(function (chave) { corpo[chave] = estado.respostas[chave]; });
+
+    fetch(ENDERECO_CRM, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo),
+    })
+      .then(function (resposta) {
+        if (!resposta.ok) {
+          // Guarda o motivo real: sem isso, "não consegui enviar" não diz nada
+          // pra quem for investigar (F12 → Console).
+          return resposta.text().then(function (texto) {
+            console.error('[aplicacao] envio recusado', resposta.status, texto);
+            throw new Error('resposta ' + resposta.status);
+          });
+        }
+        estado.concluido = true;
+        try { localStorage.removeItem(CHAVE_MEMORIA); } catch (e) {}
+        desenhar();
+        if (REDIRECIONAR_APOS) setTimeout(function () { window.location.href = REDIRECIONAR_APOS; }, 1200);
+      })
+      .catch(function (erro) {
+        console.error('[aplicacao] falha no envio:', erro);
+        estado.enviando = false;
+        botaoAvancar.disabled = false;
+        botaoAvancar.textContent = 'Tentar de novo';
+        aviso.textContent = 'Não consegui enviar agora. Toque em "Tentar de novo".';
+      });
+  }
+
+  // Teclado: 1..9 escolhe, Enter avança.
+  document.addEventListener('keydown', function (e) {
+    if (estado.concluido) return;
+    if (e.key === 'Enter') { e.preventDefault(); return avancar(); }
+    var numero = parseInt(e.key, 10);
+    var pergunta = PERGUNTAS[estado.passo];
+    if (pergunta && numero >= 1 && numero <= pergunta.opcoes.length) {
+      escolher(pergunta.chave, pergunta.opcoes[numero - 1]);
+    }
+  });
+
+  /*
+   * Dentro de um iframe, o pai não sabe a altura do conteúdo — avisa a cada
+   * desenho pra a caixa acompanhar a pergunta (as de 6 opções são bem mais
+   * altas que as de 2). Ver o trecho do iframe em /codigo-do-formulario.html.
+   */
+  function avisarAltura() {
+    if (window.parent === window) return;
+    var altura = Math.ceil(document.getElementById('aplicacao-titan').getBoundingClientRect().height) + 8;
+    window.parent.postMessage({ tipo: 'aplicacao-titan-altura', altura: altura }, '*');
+  }
+
+  botaoAvancar.addEventListener('click', avancar);
+  botaoVoltar.addEventListener('click', voltar);
+
+  try {
+    var memoria = JSON.parse(localStorage.getItem(CHAVE_MEMORIA) || '{}');
+    if (memoria.respostas) estado.respostas = memoria.respostas;
+  } catch (e) {}
+  desenhar();
+  avisarAltura();
+  window.addEventListener('resize', avisarAltura);
+})();
+</script>

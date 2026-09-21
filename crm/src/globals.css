@@ -1,0 +1,702 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'Neue Haas Grotesk Display Pro';
+  src: url('/fonts/NeueHaasDisplayRoman.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Neue Haas Grotesk Display Pro';
+  src: url('/fonts/NeueHaasDisplayMedium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Neue Haas Grotesk Display Pro';
+  src: url('/fonts/NeueHaasDisplayBold.ttf') format('truetype');
+  font-weight: 600 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ============================================
+   BRAND TOKENS — identidade nova (preto + cinza escuro + amarelo)
+   Incondicional em :root (não dentro de .dark): só recebemos a paleta escura da
+   marca, não uma versão clara dela — então essas variáveis já valem assim que uma
+   tela migra pra elas, independente do toggle claro/escuro do ThemeContext. Esse
+   toggle continua existindo só pras telas que ainda não foram migradas (ver bloco
+   ".dark" mais abaixo, que agora aponta pra esses mesmos tokens).
+   ============================================ */
+:root {
+  --void: #060606;
+  --panel: #141414;
+  --panel-2: #1c1c1c;
+  --ink: #f5f5f2;
+  --muted: #9a9a94;
+  --line: rgba(255, 255, 255, 0.08);
+  --blue: #f2c744;
+  --blue-2: #ffdd66;
+  --blue-line: rgba(242, 199, 68, 0.28);
+  --glow-primary: 0 0 40px rgba(242, 199, 68, 0.35);
+
+  /* ── Rampa de cinzas ──────────────────────────────────────────────
+     Os tokens de marca acima (--void/--panel/--panel-2) continuam sendo a
+     referência; esta rampa só preenche os degraus que faltavam entre eles,
+     pra dar de onde/para onde ir nos degradês sem inventar hex solto no meio
+     dos componentes. g-0 é mais escuro que --void, g-9 encosta em --muted. */
+  --g-0: #030303;
+  --g-1: #0a0a0a;
+  --g-2: #101010;
+  --g-3: #171717;
+  --g-4: #1e1e1e;
+  --g-5: #262626;
+  --g-6: #303030;
+  --g-7: #3d3d3d;
+  --g-8: #565656;
+  --g-9: #7b7b76;
+
+  /* ── Degradês de superfície ───────────────────────────────────────
+     Sempre cinza→cinza (nunca colorido): o amarelo da marca fica reservado
+     pra acento pontual, não pra preencher área. */
+  --grad-app: radial-gradient(120% 90% at 50% 0%, #101010 0%, #0a0a0a 45%, #050505 100%);
+  --grad-panel: linear-gradient(168deg, #1d1d1d 0%, #161616 55%, #111111 100%);
+  --grad-raised: linear-gradient(168deg, #262626 0%, #1c1c1c 60%, #171717 100%);
+  --grad-sunken: linear-gradient(180deg, #0d0d0d 0%, #121212 100%);
+  --grad-rail: linear-gradient(180deg, #181818 0%, #121212 100%);
+
+  /* ── Glass ────────────────────────────────────────────────────────
+     --glass-veil é o véu translúcido (vai por cima do que estiver atrás,
+     via backdrop-filter); --glass-edge é a linha de contorno; --glass-lift
+     é a sombra + o brilho interno de 1px que dá o relevo de vidro. */
+  --glass-veil: linear-gradient(158deg, rgba(255, 255, 255, 0.075) 0%, rgba(255, 255, 255, 0.022) 48%, rgba(255, 255, 255, 0.045) 100%);
+  --glass-veil-strong: linear-gradient(158deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.04) 48%, rgba(255, 255, 255, 0.07) 100%);
+  --glass-veil-soft: linear-gradient(158deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.014) 50%, rgba(255, 255, 255, 0.028) 100%);
+  --glass-edge: rgba(255, 255, 255, 0.1);
+  --glass-edge-strong: rgba(255, 255, 255, 0.16);
+  /* Fundo de cada degrau da escala. São variáveis (e não hex direto na regra)
+     só por causa do tema claro do chat — ver o bloco .chat-theme mais abaixo. */
+  --glass-bg: rgba(18, 18, 18, 0.55);
+  --glass-bg-soft: rgba(16, 16, 16, 0.4);
+  --glass-bg-raised: rgba(26, 26, 26, 0.72);
+  --glass-bg-sunken: rgba(8, 8, 8, 0.5);
+  --glass-sheen: rgba(255, 255, 255, 0.22);
+  --glass-blur: 20px;
+  --glass-lift: 0 1px 0 0 rgba(255, 255, 255, 0.07) inset, 0 -1px 0 0 rgba(0, 0, 0, 0.35) inset, 0 18px 40px -22px rgba(0, 0, 0, 0.9);
+  --glass-lift-lg: 0 1px 0 0 rgba(255, 255, 255, 0.09) inset, 0 -1px 0 0 rgba(0, 0, 0, 0.4) inset, 0 32px 70px -30px rgba(0, 0, 0, 0.95);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--blue-2);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Título é Syne em todo o app — cobre todas as telas de uma vez, sem precisar
+   aplicar font-display manualmente em cada h1/h2 já existente. */
+h1, h2 {
+  font-family: 'Syne', system-ui, sans-serif;
+}
+
+/* ============================================
+   CHAT THEME TOKENS
+   O Chat nasceu como clone visual do WhatsApp Web, então carregava a paleta
+   deles: superfícies azuladas (#111b21, #182229) e um azul de acento (#53bdeb)
+   que não existe em lugar nenhum da marca. Agora as superfícies são cinzas
+   neutros derivados da rampa --g-*, e o acento virou um cinza claro — o mesmo
+   papel (link, foco, destaque, aba ativa) sem puxar pro azul. O amarelo da
+   marca continua fora daqui de propósito: no chat ele só aparece em alerta/
+   destaque pontual, não como cor de superfície.
+
+   --chat-bubble-out/-in são novos: a bolha enviada era um ciano hardcoded
+   (rgba(33,188,237,.85)) espalhado pelo ActivityTimeline. Virou token pra
+   distinção enviado/recebido ficar em um lugar só — enviada é o cinza mais
+   claro, recebida o mais escuro.
+   ============================================ */
+:root {
+  --chat-bg-base: #f4f4f2;
+  --chat-bg-conversation: #ebebe8;
+  --chat-bg-panel: #ffffff;
+  --chat-bg-field: #ffffff;
+  --chat-bg-menu: #ffffff;
+  --chat-bg-hover: #f0f0ee;
+  --chat-border: #e2e2de;
+  --chat-text-primary: #16161a;
+  --chat-text-secondary: #3f3f45;
+  --chat-text-muted: #6f6f74;
+  --chat-text-tertiary: #8d8d92;
+  --chat-icon: #55555b;
+  --chat-accent: #5a5a60;
+  --chat-accent-hover: #2e2e33;
+  --chat-bubble-out: #4a4a50;
+  --chat-bubble-out-ink: #ffffff;
+  --chat-bg-field-evolution: #f1eefb;
+  --chat-border-evolution: rgba(139, 92, 246, 0.25);
+  --chat-glass-veil: linear-gradient(158deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.35) 100%);
+  --chat-glass-edge: rgba(0, 0, 0, 0.07);
+}
+.dark {
+  --chat-bg-base: #0f0f0f;
+  --chat-bg-conversation: #090909;
+  --chat-bg-panel: #151515;
+  --chat-bg-field: #1b1b1b;
+  --chat-bg-menu: #202020;
+  --chat-bg-hover: #282828;
+  --chat-border: rgba(255, 255, 255, 0.09);
+  --chat-text-primary: #ededea;
+  --chat-text-secondary: #c8c8c3;
+  --chat-text-muted: #8d8d88;
+  --chat-text-tertiary: #6c6c68;
+  --chat-icon: #b2b2ac;
+  --chat-accent: #c6c6c0;
+  --chat-accent-hover: #ebebe6;
+  --chat-bubble-out: #333338;
+  --chat-bubble-out-ink: #f2f2ef;
+  --chat-bg-field-evolution: #1b1725;
+  --chat-border-evolution: rgba(139, 92, 246, 0.2);
+  --chat-glass-veil: var(--glass-veil);
+  --chat-glass-edge: var(--glass-edge);
+}
+
+/* ============================================
+   DARK MODE — Light-section overrides
+   Affects Pipeline, Settings, Metrics etc.
+   ============================================ */
+.dark nav.bg-white,
+.dark .dark-nav {
+  background-color: var(--panel) !important;
+  border-color: var(--line) !important;
+}
+
+/* Cards / panels
+   Além da cor de base, cada um recebe o degradê cinza→cinza correspondente da
+   rampa. É o que leva a linguagem nova pras telas que ainda não foram migradas
+   pro design system (Configurações, Métricas, Logs, Notificações): elas usam
+   bg-white/bg-gray-* do Tailwind, então passam a ganhar o degradê sem precisar
+   editar arquivo por arquivo.
+
+   background-image junto com background-color é seguro aqui porque o alvo são
+   elementos com fundo chapado; se algum dia um deles precisar de um gradiente
+   próprio do Tailwind (bg-gradient-to-*), some com o bg-white/bg-gray-* dele e
+   pinte direto, senão esta regra ganha (!important). */
+.dark .bg-white {
+  background-color: var(--panel) !important;
+  background-image: var(--grad-panel) !important;
+}
+.dark .bg-gray-50 {
+  background-color: var(--void) !important;
+  background-image: var(--grad-sunken) !important;
+}
+.dark .bg-gray-100,
+.dark .bg-gray-200 {
+  background-color: var(--panel-2) !important;
+  background-image: var(--grad-raised) !important;
+}
+
+/* Borders */
+.dark .border-gray-100 { border-color: var(--line) !important; }
+.dark .border-gray-200 { border-color: var(--line) !important; }
+.dark .border-gray-300 { border-color: var(--line) !important; }
+.dark .divide-gray-50 > * + * { border-color: var(--line) !important; }
+.dark .divide-y { --tw-divide-opacity: 1; }
+
+/* Text */
+.dark .text-gray-900 { color: var(--ink) !important; }
+.dark .text-gray-800 { color: var(--ink) !important; }
+.dark .text-gray-700 { color: var(--muted) !important; }
+.dark .text-gray-600 { color: var(--muted) !important; }
+.dark .text-gray-500 { color: var(--muted) !important; }
+.dark .text-gray-400 { color: var(--muted) !important; }
+
+/* Inputs
+   As exceções :not(...) são a lista de "quem já sabe se pintar sozinho".
+   Antes só cobria quem trazia um bg-[...] arbitrário do Tailwind; agora cobre
+   também os campos que usam as superfícies do design system (.field, .glass*,
+   .panel) — sem isso o !important abaixo apagava o vidro deles, e no tema
+   claro do chat um campo de vidro claro virava um bloco escuro. .bg-transparent
+   entra pelo mesmo motivo: quem pediu fundo transparente (o textarea do
+   compositor, que fica dentro de um painel de vidro) estava recebendo um
+   retângulo opaco por cima. */
+.dark input:not([class*="bg-["]):not([class*="bg-[#"]):not(.field):not(.glass):not(.glass-soft):not(.glass-raised):not(.glass-sunken):not(.panel):not(.bg-transparent),
+.dark textarea:not([class*="bg-["]):not([class*="bg-[#"]):not(.field):not(.glass):not(.glass-soft):not(.glass-raised):not(.glass-sunken):not(.panel):not(.bg-transparent),
+.dark select:not([class*="bg-["]):not([class*="bg-[#"]):not(.field):not(.glass):not(.glass-soft):not(.glass-raised):not(.glass-sunken):not(.panel):not(.bg-transparent) {
+  background-color: var(--panel-2) !important;
+  border-color: var(--line) !important;
+  color: var(--ink) !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder { color: var(--muted) !important; }
+
+/* Tables */
+.dark thead tr,
+.dark .bg-gray-50\/50 { background-color: var(--panel) !important; }
+.dark tbody tr:hover { background-color: var(--panel-2) !important; }
+
+/* Shadows — soften in dark mode */
+.dark .shadow-sm { box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important; }
+.dark .shadow-lg { box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important; }
+
+/* ============================================
+   GLOBAL MODAL ANIMATIONS
+   ============================================ */
+@keyframes modalOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalContentIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-overlay-enter {
+  animation: modalOverlayIn 0.2s ease-out;
+}
+
+.modal-content-enter {
+  animation: modalContentIn 0.2s ease-out;
+}
+
+/* Hide scrollbar but keep scroll functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE/Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;             /* Chrome/Safari/Opera */
+}
+
+/* Dark, subtle scrollbar used inside the chat (WhatsApp-style dark UI) */
+.chat-dark-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--chat-border) transparent;
+}
+.chat-dark-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.chat-dark-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-dark-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--chat-border);
+  border-radius: 8px;
+}
+.chat-dark-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--chat-text-tertiary);
+}
+
+/* ============================================
+   PWA / "parece um app" — tela cheia instalada
+   ============================================ */
+
+/* Tira o elástico de puxar a página (pull-to-refresh) que denuncia "é um site".
+   overflow-x: hidden trava a página pra nunca escorregar na horizontal — se algum
+   elemento (ex: uma fileira de filtros) estourar a largura da tela, ele é cortado
+   em vez de arrastar a página inteira torta pro lado. */
+html, body {
+  overscroll-behavior: none;
+  overflow-x: hidden;
+}
+
+/* Remove o flash cinza padrão do navegador ao tocar em algo */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* iPhone dá zoom automático ao focar campo com fonte < 16px — trava isso só no mobile,
+   sem mudar o tamanho de fonte pretendido no design pra telas maiores. */
+@media (max-width: 767px) {
+  input, textarea, select {
+    font-size: 16px;
+  }
+}
+
+/* Preenchimento pra não colidir com notch/Dynamic Island (topo) e barra de
+   gestos/home indicator (embaixo) quando o app roda instalado (modo standalone). */
+.app-safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.app-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Botões de navegação/ícone (não o texto das mensagens, que continua selecionável
+   de propósito) — tira o menu de copiar/compartilhar que aparece ao segurar o dedo. */
+.app-tap-target {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* ============================================
+   BIBLIOTECA DE ELEMENTOS — camada glass
+   Vocabulário fechado de superfícies, usado no lugar de montar
+   border/bg/blur/shadow à mão em cada componente. Três razões pra isso morar
+   aqui em vez de num componente React: (1) telas antigas que ainda montam a
+   marcação na unha pegam de graça só trocando a className, (2) empilhar véu +
+   borda + brilho interno + sombra é mais de uma dezena de utilitários do
+   Tailwind por elemento, (3) muda em um lugar, muda no app inteiro.
+
+   Escala de profundidade — quanto mais alto, mais o elemento "sobe":
+     .glass-sunken  fundo rebaixado (trilhos, listas, áreas de scroll)
+     .glass         superfície padrão (cards, painéis)
+     .glass-raised  elemento sobreposto (dropdown, popover, modal)
+   ============================================ */
+@layer components {
+  /* Base compartilhada. O véu translúcido vai em background-image (sobre o
+     background-color, sob o conteúdo) e NÃO num ::before — de propósito:
+     pseudo-elemento não renderiza em <input>, e dentro de um container com
+     scroll próprio (dropdown alto, lista) ele rolaria junto com o conteúdo,
+     enquanto o background fica preso à caixa do elemento. O ::after é só a
+     linha de luz do topo, decorativa e pointer-events:none. */
+  .glass,
+  .glass-soft,
+  .glass-raised,
+  .glass-sunken {
+    position: relative;
+    border: 1px solid var(--glass-edge);
+    background-color: var(--glass-bg);
+    background-image: var(--glass-veil);
+    backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    box-shadow: var(--glass-lift);
+  }
+
+  /* Linha de luz no topo — some nas laterais, igual reflexo em borda de vidro. */
+  .glass::after,
+  .glass-raised::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 12%;
+    right: 12%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--glass-sheen), transparent);
+    pointer-events: none;
+  }
+
+  .glass-soft {
+    background-color: var(--glass-bg-soft);
+    background-image: var(--glass-veil-soft);
+    backdrop-filter: blur(14px) saturate(130%);
+    -webkit-backdrop-filter: blur(14px) saturate(130%);
+    box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.05) inset, 0 12px 28px -20px rgba(0, 0, 0, 0.8);
+  }
+
+  .glass-raised {
+    background-color: var(--glass-bg-raised);
+    background-image: var(--glass-veil-strong);
+    border-color: var(--glass-edge-strong);
+    backdrop-filter: blur(28px) saturate(150%);
+    -webkit-backdrop-filter: blur(28px) saturate(150%);
+    box-shadow: var(--glass-lift-lg);
+  }
+
+  /* Rebaixado: sem linha de luz e sem sombra externa — o que "afunda" não
+     projeta sombra pra fora, só recebe uma por dentro. */
+  .glass-sunken {
+    background-color: var(--glass-bg-sunken);
+    background-image: var(--glass-veil-soft);
+    border-color: rgba(255, 255, 255, 0.06);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.45) inset;
+  }
+
+  /* ── Superfície sólida com degradê ───────────────────────────────
+     Mesma linguagem visual do vidro (degradê cinza, borda clara, brilho de
+     1px no topo) mas SEM backdrop-filter. É a escolha certa onde o mesmo
+     elemento se repete muitas vezes na tela — o filtro é recalculado por
+     elemento, e o Pipeline chega a ter centenas de cards visíveis. */
+  .panel {
+    position: relative;
+    border: 1px solid var(--glass-edge);
+    background: var(--grad-panel);
+    box-shadow: var(--glass-lift);
+  }
+  .panel-raised {
+    position: relative;
+    border: 1px solid var(--glass-edge-strong);
+    background: var(--grad-raised);
+    box-shadow: var(--glass-lift-lg);
+  }
+
+  /* Realce no hover — em cards clicáveis, combinado com .glass ou .panel */
+  .glass-hover {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .glass-hover:hover {
+    border-color: var(--glass-edge-strong);
+    box-shadow: var(--glass-lift-lg);
+  }
+  .panel.glass-hover:hover { background: var(--grad-raised); }
+
+  /* Variante de acento — card em destaque, ainda cinza mas com fio amarelo */
+  .glass-accent {
+    border-color: var(--blue-line);
+    box-shadow: var(--glass-lift), 0 0 0 1px rgba(242, 199, 68, 0.06);
+  }
+
+  /* ── Superfícies sólidas (degradê cinza→cinza, sem transparência) ──
+     Pra onde o glass não cabe: o que precisa ser opaco porque tem conteúdo
+     rolando por trás, ou porque backdrop-filter empilhado custa caro. */
+  .surface-app { background: var(--grad-app); }
+  .surface-panel { background: var(--grad-panel); }
+  .surface-raised { background: var(--grad-raised); }
+  .surface-sunken { background: var(--grad-sunken); }
+  .surface-rail { background: var(--grad-rail); }
+
+  /* Fio de separação com fade nas pontas — substitui border-* reto */
+  .hairline-x {
+    background: linear-gradient(90deg, transparent, var(--glass-edge) 15%, var(--glass-edge) 85%, transparent);
+  }
+  .hairline-y {
+    background: linear-gradient(180deg, transparent, var(--glass-edge) 15%, var(--glass-edge) 85%, transparent);
+  }
+
+  /* ============================================
+     BOTÕES — preenchimento sólido, borda trabalhada
+     Nada de degradê no fundo (decisão de design, não acidente): o relevo vem
+     do contorno duplo — a borda de 1px mais o anel externo que aparece no
+     hover. Se for mexer aqui, mantenha `background` como cor chapada.
+     ============================================ */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.15rem;
+    border-radius: 0.875rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    border: 1px solid transparent;
+    transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
+    cursor: pointer;
+  }
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .btn-sm { padding: 0.4rem 0.8rem; border-radius: 0.7rem; font-size: 0.78rem; }
+  .btn-lg { padding: 0.8rem 1.5rem; border-radius: 1rem; font-size: 0.95rem; }
+
+  /* Primário — amarelo da marca, chapado */
+  .btn-primary {
+    background: var(--blue);
+    color: #100d02;
+    border-color: rgba(255, 255, 255, 0.22);
+    box-shadow: 0 0 0 1px rgba(242, 199, 68, 0.18), 0 6px 18px -10px rgba(242, 199, 68, 0.55);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--blue-2);
+    border-color: rgba(255, 255, 255, 0.34);
+    box-shadow: 0 0 0 1px rgba(242, 199, 68, 0.3), 0 10px 26px -10px rgba(242, 199, 68, 0.7);
+  }
+
+  /* Secundário — grafite chapado, o botão mais usado do app */
+  .btn-secondary {
+    background: var(--g-5);
+    color: var(--ink);
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 6px 16px -12px rgba(0, 0, 0, 0.9);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--g-6);
+    border-color: rgba(255, 255, 255, 0.24);
+  }
+
+  /* Outline — sem preenchimento, só o contorno; ganha fundo no hover */
+  .btn-outline {
+    background: transparent;
+    color: var(--ink);
+    border-color: rgba(255, 255, 255, 0.16);
+  }
+  .btn-outline:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--blue-line);
+    color: var(--blue-2);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border-color: transparent;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--ink);
+  }
+
+  .btn-danger {
+    background: #b3251f;
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2), 0 6px 18px -12px rgba(239, 68, 68, 0.7);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: #c92c25;
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  /* Botão só-ícone, quadrado — mesma família de borda */
+  .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.75rem;
+    border: 1px solid transparent;
+    color: var(--muted);
+    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  }
+  .btn-icon:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--glass-edge);
+    color: var(--ink);
+  }
+
+  /* ── Pílula / chip de filtro ── */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid var(--glass-edge);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--muted);
+    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  }
+  .pill:hover { background: rgba(255, 255, 255, 0.07); color: var(--ink); }
+  .pill-active {
+    background: var(--g-6);
+    border-color: rgba(255, 255, 255, 0.22);
+    color: var(--ink);
+  }
+
+  /* ── Campo de formulário ── */
+  .field {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid var(--glass-edge);
+    background: rgba(0, 0, 0, 0.28);
+    padding: 0.55rem 0.85rem;
+    font-size: 0.875rem;
+    color: var(--ink);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+  }
+  .field::placeholder { color: var(--muted); }
+  .field:focus {
+    outline: none;
+    border-color: var(--blue-line);
+    background: rgba(0, 0, 0, 0.4);
+    box-shadow: 0 0 0 3px rgba(242, 199, 68, 0.1);
+  }
+}
+
+/* ============================================
+   VIDRO NO TEMA CLARO DO CHAT
+   O chat é a única parte do app que tem um tema claro de verdade (os tokens
+   --chat-* em :root). Sem isto, um painel .glass dentro de um chat claro
+   continuaria escuro — véu branco sobre fundo quase preto — e ficaria um
+   buraco no meio da tela. O resto do app (navbar, pipeline, modais) NÃO entra
+   aqui de propósito: a paleta da marca é escura incondicionalmente, então lá o
+   vidro escuro é o certo mesmo com o toggle no claro.
+
+   Aplicado via .chat-theme nos containers das telas de conversa.
+   ============================================ */
+:root:not(.dark) .chat-theme {
+  --glass-bg: rgba(255, 255, 255, 0.62);
+  --glass-bg-soft: rgba(255, 255, 255, 0.45);
+  --glass-bg-raised: rgba(255, 255, 255, 0.82);
+  --glass-bg-sunken: rgba(0, 0, 0, 0.035);
+  --glass-veil: linear-gradient(158deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.15) 100%);
+  --glass-veil-soft: linear-gradient(158deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.1) 100%);
+  --glass-veil-strong: linear-gradient(158deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.3) 100%);
+  --glass-edge: rgba(0, 0, 0, 0.09);
+  --glass-edge-strong: rgba(0, 0, 0, 0.16);
+  --glass-sheen: rgba(255, 255, 255, 0.8);
+  --glass-lift: 0 1px 0 0 rgba(255, 255, 255, 0.6) inset, 0 8px 24px -18px rgba(0, 0, 0, 0.35);
+  --glass-lift-lg: 0 1px 0 0 rgba(255, 255, 255, 0.7) inset, 0 20px 44px -26px rgba(0, 0, 0, 0.4);
+}
+
+/* Glow ambiente de fundo — os dois borrões que ficam atrás dos cards de vidro.
+   Como pseudo-elemento do container, pra não poluir a marcação com duas divs
+   decorativas em cada tela que quiser o efeito. */
+.ambient-glow { position: relative; }
+.ambient-glow::before,
+.ambient-glow::after {
+  content: '';
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 0;
+}
+.ambient-glow::before {
+  top: -6rem;
+  left: 18%;
+  width: 32rem;
+  height: 32rem;
+  background: rgba(242, 199, 68, 0.07);
+  filter: blur(120px);
+}
+.ambient-glow::after {
+  top: 12rem;
+  right: -4rem;
+  width: 26rem;
+  height: 26rem;
+  background: rgba(255, 255, 255, 0.035);
+  filter: blur(110px);
+}
+
+/* Safari/iOS não compõe backdrop-filter dentro de container com scroll próprio
+   sem isso — sem o will-change o vidro "congela" a imagem de trás ao rolar. */
+@supports (-webkit-touch-callout: none) {
+  .glass, .glass-soft, .glass-raised, .glass-sunken { will-change: backdrop-filter; }
+}
+
+/* Piscar do card do lead — acionado ao clicar no minicard dele na coluna "Fonte:".
+   Anima a borda e o halo, não a opacidade: o card precisa continuar legível
+   enquanto chama atenção, e piscar sumindo é justamente o que faria perder de
+   vista o que se quer achar. */
+@keyframes leadCardFlash {
+  0%, 100% {
+    border-color: var(--glass-edge);
+    box-shadow: var(--glass-lift);
+  }
+  25%, 75% {
+    border-color: var(--blue);
+    box-shadow: var(--glass-lift), 0 0 0 3px rgba(242, 199, 68, 0.28), 0 0 26px -4px rgba(242, 199, 68, 0.55);
+  }
+}
+
+.lead-card-flash {
+  animation: leadCardFlash 0.75s ease-in-out 3;
+}

@@ -1,0 +1,54 @@
+{
+    "name": "n8n-nodes-atlaseye",
+    "version": "1.2.8",
+    "description": "n8n community node for Atlas Eye CRM — manage leads, pipelines, messages, and notifications.",
+    "keywords": [
+        "n8n-community-node-package",
+        "n8n",
+        "atlas-eye",
+        "crm",
+        "leads",
+        "pipelines"
+    ],
+    "license": "MIT",
+    "homepage": "https://atlaseye.com",
+    "author": {
+        "name": "Atlas Eye",
+        "email": "support@atlaseye.com"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/atlaseye/n8n-nodes-atlas-eye.git"
+    },
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsc && gulp build:icons",
+        "dev": "tsc --watch",
+        "prepublishOnly": "npm run build",
+        "lint": "tsc --noEmit",
+        "format": "prettier --write \"**/*.ts\""
+    },
+    "files": [
+        "dist"
+    ],
+    "n8n": {
+        "n8nNodesApiVersion": 1,
+        "credentials": [
+            "dist/credentials/AtlasEyeApi.credentials.js"
+        ],
+        "nodes": [
+            "dist/nodes/AtlasEye/AtlasEye.node.js"
+        ]
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "gulp": "^4.0.2",
+        "n8n-workflow": "*",
+        "typescript": "~5.4.0",
+        "prettier": "^3.2.0"
+    },
+    "peerDependencies": {
+        "n8n-workflow": "*"
+    }
+}

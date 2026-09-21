@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/funnels/tick",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/integrations/instagram/check-tokens",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/evolution-reconcile",
+      "schedule": "* * * * *"
+    }
+  ]
+}

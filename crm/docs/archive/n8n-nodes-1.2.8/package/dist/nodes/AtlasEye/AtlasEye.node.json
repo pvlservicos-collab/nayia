@@ -1,0 +1,32 @@
+{
+    "node": "n8n-nodes-base.atlasEye",
+    "nodeVersion": "1.0",
+    "codexVersion": "1.0",
+    "categories": [
+        "Sales"
+    ],
+    "resources": {
+        "primaryDocumentation": [
+            {
+                "url": "https://atlaseye.com/docs/api"
+            }
+        ],
+        "credentialDocumentation": [
+            {
+                "url": "https://atlaseye.com/docs/api/authentication"
+            }
+        ]
+    },
+    "alias": [
+        "CRM",
+        "Lead",
+        "Pipeline",
+        "Sales",
+        "Atlas Eye"
+    ],
+    "subcategories": {
+        "Sales": [
+            "Lead Management"
+        ]
+    }
+}

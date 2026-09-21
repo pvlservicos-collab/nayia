@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-br"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CRM Lead Conversation Timeline</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#f9f506",
+                        "insight-yellow": "#fef9c3",
+                        "whatsapp-green": "#dcfce7",
+                        "slate-50": "#f8fafc",
+                    },
+                    fontFamily: {
+                        sans: ["Spline Sans", "sans-serif"],
+                    },
+                },
+            },
+        };
+    </script>
+<style type="text/tailwindcss">
+        @layer base {
+            body { @apply font-sans bg-slate-50 text-slate-900; }
+        }
+        .ios-blur { backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="h-screen flex items-center justify-center">
+<div class="w-[375px] h-[812px] bg-white shadow-2xl rounded-[40px] border-[8px] border-slate-900 overflow-hidden flex flex-col relative">
+<header class="bg-white border-b border-slate-100 pt-10 pb-3 px-4 flex items-center justify-between shrink-0">
+<div class="flex items-center gap-3">
+<button class="text-slate-600">
+<span class="material-symbols-outlined">arrow_back_ios</span>
+</button>
+<div>
+<h1 class="font-bold text-base leading-tight">Agile Administradora</h1>
+<p class="text-[11px] text-slate-500 font-medium">Estágio: <span class="text-blue-600">Qualificado</span></p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<img alt="Owner" class="w-8 h-8 rounded-full border border-slate-100" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCpR4M4ywbyPaRkaRRVuQA1pozJ8Q7tyQXdwdSq0K2p2RFQOPPpSYthrcKA9zlH2R0FdwFvS4RKxTOX_xrz5os18-Z5tQVE7Bv8EaQlShXmPhw6vF0GRoW8BET8K-rhyHQ3N2iRkzfj63bC5Jvf7Ca1z50tSqhayVRrw7Oy3LHpswzBRzxrsCIjyJg0Ge9W6NQ1VznnWi2LUCEzCiApK14eD_u6QzIAIT0MudGbwcKYypUNcbaMHYj3ukxj1w5g8pynEqJ5YKV5_mU"/>
+<button class="text-slate-400">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+</header>
+<div class="bg-insight-yellow px-4 py-2.5 flex items-center justify-between shrink-0 border-b border-yellow-100">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-yellow-700 text-sm">auto_awesome</span>
+<span class="text-[12px] italic text-yellow-800 font-medium">Sugerir agendamento de demo</span>
+</div>
+<span class="bg-yellow-400/20 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Alto Interesse</span>
+</div>
+<div class="flex-1 overflow-y-auto bg-slate-50 p-4 space-y-6">
+<div class="flex flex-col items-start max-w-[85%]">
+<div class="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm border border-slate-100">
+<p class="text-[13px] text-slate-700 leading-relaxed">Olá! Gostaria de saber mais sobre os planos para administradoras de condomínios.</p>
+</div>
+<span class="text-[10px] text-slate-400 mt-1 ml-1">09:41 • WhatsApp</span>
+</div>
+<div class="flex justify-center">
+<div class="bg-slate-200/50 px-3 py-1 rounded-full">
+<p class="text-[10px] font-medium text-slate-500">Estágio alterado: <span class="font-bold text-slate-600">Novo</span> → <span class="font-bold text-slate-600">Qualificado</span></p>
+</div>
+</div>
+<div class="flex justify-center w-full">
+<div class="bg-insight-yellow/50 border border-yellow-200 p-3 rounded-xl w-full max-w-[90%]">
+<div class="flex items-center gap-1.5 mb-1">
+<span class="material-symbols-outlined text-yellow-700 text-sm">description</span>
+<span class="text-[11px] font-bold text-yellow-800 uppercase tracking-tight">Nota Interna</span>
+</div>
+<p class="text-[12px] italic text-yellow-900 leading-snug">Lead demonstrou urgência na implementação. Focar em automação de boletos durante a call.</p>
+</div>
+</div>
+<div class="flex justify-center">
+<div class="flex items-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-full shadow-sm">
+<span class="material-symbols-outlined text-slate-400 text-lg">call</span>
+<span class="text-[12px] font-semibold text-slate-600">05:20</span>
+<span class="text-[10px] text-slate-400 font-medium">Chamada finalizada</span>
+</div>
+</div>
+<div class="flex flex-col items-end ml-auto max-w-[85%]">
+<div class="bg-whatsapp-green p-3 rounded-2xl rounded-tr-none shadow-sm border border-green-100">
+<p class="text-[13px] text-slate-700 leading-relaxed">Com certeza! Podemos agendar uma demonstração rápida amanhã às 14h? Tenho ótimos cases do seu setor.</p>
+</div>
+<div class="flex items-center gap-1 mt-1 mr-1">
+<span class="text-[10px] text-slate-400">10:15</span>
+<span class="material-symbols-outlined text-blue-500 text-[14px]">done_all</span>
+</div>
+</div>
+</div>
+<footer class="bg-white border-t border-slate-100 p-4 pb-8 space-y-4 shrink-0">
+<div class="flex items-center gap-1">
+<button class="bg-primary text-slate-900 px-4 py-1.5 rounded-full text-[12px] font-bold transition-all shadow-sm">WhatsApp</button>
+<button class="text-slate-500 px-4 py-1.5 rounded-full text-[12px] font-medium hover:bg-slate-50 transition-all">Nota</button>
+<button class="text-slate-500 px-4 py-1.5 rounded-full text-[12px] font-medium hover:bg-slate-50 transition-all">Ligação</button>
+<button class="text-slate-500 px-4 py-1.5 rounded-full text-[12px] font-medium hover:bg-slate-50 transition-all">Email</button>
+</div>
+<div class="flex items-center gap-2">
+<div class="flex-1 bg-slate-100 rounded-full flex items-center px-4 py-2.5">
+<input class="bg-transparent border-none focus:ring-0 text-sm w-full placeholder:text-slate-400" placeholder="Responder para Agile..." type="text"/>
+<button class="text-slate-400">
+<span class="material-symbols-outlined text-xl">attach_file</span>
+</button>
+</div>
+<button class="bg-primary w-11 h-11 rounded-full flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-transform shrink-0">
+<span class="material-symbols-outlined text-slate-900">send</span>
+</button>
+</div>
+</footer>
+<div class="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-32 h-1 bg-slate-200 rounded-full"></div>
+</div>
+
+</body></html>

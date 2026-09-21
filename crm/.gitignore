@@ -1,0 +1,46 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Testing
+coverage
+
+# Next.js
+.next
+out
+build
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env.local
+.env.*.local
+
+# Debug/Test scripts
+check_db.js
+patch_rls.js
+test_*.js
+test_*.mjs
+build_output.txt
+tsconfig.tsbuildinfo
+
+# Misc
+.cache
+.vercel
+
+.vercel
+.env*
+
+# arquivos temporarios de sessao (scripts de diagnostico, bundles)
+.tmp-claude/
+.verificar-webhook.cjs
