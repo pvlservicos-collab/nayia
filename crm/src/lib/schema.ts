@@ -1,5 +1,5 @@
 /**
- * Drizzle ORM Schema — TitaCRM
+ * Drizzle ORM Schema — ImobEasy CRM
  * Espelha exatamente as migrations SQL do Supabase (database/001_init_schema.sql + seguintes)
  * compatível com Neon (PostgreSQL)
  */

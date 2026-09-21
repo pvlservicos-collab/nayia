@@ -17,7 +17,7 @@ export default function LoginPage() {
                         alt="Imob Easy"
                         className="w-20 h-20 mx-auto mb-4 object-contain drop-shadow-[0_0_28px_rgba(139,92,246,0.35)]"
                     />
-                    <h1 className="text-2xl font-light text-ink tracking-tight">TitaCRM</h1>
+                    <h1 className="text-2xl font-light text-ink tracking-tight">ImobEasy CRM</h1>
                     <p className="text-muted text-sm mt-1">Entre na sua conta</p>
                 </div>
                 <LoginForm />

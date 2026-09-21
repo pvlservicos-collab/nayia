@@ -72,7 +72,7 @@ const nodes = [
     id: 'crm',
     type: 'flowNode',
     position: { x: 340, y: 130 },
-    data: { label: 'TitaCRM', sublabel: 'Organiza, qualifica e distribui', category: 'CRM', color: COLOR_CRM, icon: Database, hasTarget: true, hasSource: true },
+    data: { label: 'ImobEasy CRM', sublabel: 'Organiza, qualifica e distribui', category: 'CRM', color: COLOR_CRM, icon: Database, hasTarget: true, hasSource: true },
   },
   {
     id: 'whatsapp',

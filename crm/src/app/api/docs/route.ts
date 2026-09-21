@@ -1,5 +1,5 @@
 
-// Define the OpenAPI Specification for TitaCRM API
+// Define the OpenAPI Specification for ImobEasy CRM API
 const SOURCE_FIELD = {
     type: 'string',
     description: 'Fonte da requisição (Obrigatório). Identifica quem está realizando a ação. Ex: "system", "ai_agent", "human".',
@@ -9,11 +9,11 @@ const SOURCE_FIELD = {
 const spec = {
     openapi: '3.1.0',
     info: {
-        title: 'TitaCRM API',
+        title: 'ImobEasy CRM API',
         version: '1.0.0',
-        description: 'Documentação oficial da API do TitaCRM. Utilize esta API para integrar serviços externos, gerenciar leads, organizações e pipelines.\n\n## Autenticação e Segurança\n\nToda requisição deve incluir um Bearer Token (JWT do Supabase Auth) no header `Authorization`. O sistema extrai o `user_id` do JWT e consulta a tabela `organization_members` para identificar a **organização** à qual o usuário pertence. Dessa forma, **todos os dados retornados e todas as operações de escrita são automaticamente limitados (scoped) à organização do token fornecido**, impedindo acesso a dados de outras organizações.\n\nFluxo interno:\n1. `Authorization: Bearer <JWT>` → Supabase decodifica → `user_id`\n2. `user_id` → consulta `organization_members` → obtém `organization_id` + `member_id`\n3. Todas as queries usam `organization_id` como filtro obrigatório\n\n**Importante:** Todos os endpoints de escrita (POST, PATCH, DELETE) exigem o campo `source` no body da requisição para rastreabilidade de quem/o quê realizou a ação (valores: `system`, `ai_agent`, `human`).',
+        description: 'Documentação oficial da API do ImobEasy CRM. Utilize esta API para integrar serviços externos, gerenciar leads, organizações e pipelines.\n\n## Autenticação e Segurança\n\nToda requisição deve incluir um Bearer Token (JWT do Supabase Auth) no header `Authorization`. O sistema extrai o `user_id` do JWT e consulta a tabela `organization_members` para identificar a **organização** à qual o usuário pertence. Dessa forma, **todos os dados retornados e todas as operações de escrita são automaticamente limitados (scoped) à organização do token fornecido**, impedindo acesso a dados de outras organizações.\n\nFluxo interno:\n1. `Authorization: Bearer <JWT>` → Supabase decodifica → `user_id`\n2. `user_id` → consulta `organization_members` → obtém `organization_id` + `member_id`\n3. Todas as queries usam `organization_id` como filtro obrigatório\n\n**Importante:** Todos os endpoints de escrita (POST, PATCH, DELETE) exigem o campo `source` no body da requisição para rastreabilidade de quem/o quê realizou a ação (valores: `system`, `ai_agent`, `human`).',
         contact: {
-            name: 'Suporte TitaCRM',
+            name: 'Suporte ImobEasy CRM',
             url: 'https://atlaseye.com/support',
         }
     },
@@ -500,7 +500,7 @@ export function GET() {
 <!DOCTYPE html>
 <html>
   <head>
-    <title>TitaCRM API Reference</title>
+    <title>ImobEasy CRM API Reference</title>
     <meta charset="utf-8" />
     <meta
       name="viewport"

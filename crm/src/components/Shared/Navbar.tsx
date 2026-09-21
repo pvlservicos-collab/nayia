@@ -141,7 +141,7 @@ export default function Navbar() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
           <img src="/logos/imobeasy-simbolo.svg" alt="Imob Easy" className="h-7 w-7 object-contain" />
-          <span className="font-display font-bold text-ink hidden sm:inline">TitaCRM</span>
+          <span className="font-display font-bold text-ink hidden sm:inline">ImobEasy CRM</span>
         </Link>
 
         {/* Nav Tabs (desktop) */}
@@ -304,7 +304,7 @@ export default function Navbar() {
           <div className="flex items-center justify-between h-14 px-4 relative">
             <Link href="/" className="flex items-center gap-2" onClick={() => setShowMobileMenu(false)}>
               <img src="/logos/imobeasy-simbolo.svg" alt="Imob Easy" className="h-7 w-7 object-contain" />
-              <span className="font-display font-bold text-ink">TitaCRM</span>
+              <span className="font-display font-bold text-ink">ImobEasy CRM</span>
             </Link>
             <button
               onClick={() => setShowMobileMenu(false)}

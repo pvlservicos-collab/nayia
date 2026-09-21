@@ -15,7 +15,7 @@ const FAQS = [
     },
     {
         question: "Posso usar modelos de mensagem (HSM)?",
-        answer: "Sim! Porém eles exigem aprovação prévia no Gerenciador do WhatsApp. Após aprovados, você poderá dispará-los via automações no TitaCRM."
+        answer: "Sim! Porém eles exigem aprovação prévia no Gerenciador do WhatsApp. Após aprovados, você poderá dispará-los via automações no ImobEasy CRM."
     }
 ]
 

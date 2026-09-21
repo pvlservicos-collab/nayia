@@ -406,7 +406,7 @@ export default function ProfileSettingsPage() {
                     </div>
 
                     <p className="text-xs text-muted">
-                        Tokens de API permitem que sistemas externos (agentes IA, automações, webhooks) acessem a API do TitaCRM em nome desta organização. <strong>O token é exibido apenas uma vez</strong> — copie e guarde em local seguro.
+                        Tokens de API permitem que sistemas externos (agentes IA, automações, webhooks) acessem a API do ImobEasy CRM em nome desta organização. <strong>O token é exibido apenas uma vez</strong> — copie e guarde em local seguro.
                     </p>
 
                     {/* Generated Token Alert */}

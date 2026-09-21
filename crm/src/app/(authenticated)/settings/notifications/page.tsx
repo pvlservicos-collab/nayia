@@ -281,7 +281,7 @@ function PushNotificationsCard() {
                     <p className="text-sm text-muted">Seu navegador não é compatível com notificações push.</p>
                 ) : status === 'denied' ? (
                     <p className="text-sm text-muted">
-                        As notificações estão bloqueadas pro TitaCRM neste navegador. Ative de novo nas
+                        As notificações estão bloqueadas pro ImobEasy CRM neste navegador. Ative de novo nas
                         configurações de site do seu navegador/celular pra poder ligar aqui.
                     </p>
                 ) : (

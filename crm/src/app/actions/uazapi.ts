@@ -72,7 +72,7 @@ export async function createInstance(instanceName: string) {
             method: 'POST',
             body: JSON.stringify({
                 name: instanceName,
-                systemName: "TitaCRM",
+                systemName: "ImobEasy CRM",
                 fingerprintProfile: "chrome",
                 browser: "chrome"
             })

@@ -1,5 +1,5 @@
 /**
- * Biblioteca de elementos do TitaCRM.
+ * Biblioteca de elementos do ImobEasy CRM.
  *
  * Camada fina em cima das classes de `globals.css` (.glass*, .btn*, .pill,
  * .field, .surface-*). O CSS é a fonte da verdade visual; o que estes

@@ -13,7 +13,7 @@ const FAQS = [
     },
     {
         question: "Quantos aparelhos posso conectar?",
-        answer: "Cada instância do TitaCRM permite a conexão de um único aparelho Lite por vez para garantir a estabilidade das automações."
+        answer: "Cada instância do ImobEasy CRM permite a conexão de um único aparelho Lite por vez para garantir a estabilidade das automações."
     },
     {
         question: "Como funciona a estabilidade do Lite?",

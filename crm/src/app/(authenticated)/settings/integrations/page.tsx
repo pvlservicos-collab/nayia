@@ -7,7 +7,7 @@ export default function IntegrationsSettingsPage() {
     return (
         <div className="max-w-4xl">
             <h1 className="text-2xl font-bold mb-2">Integrações</h1>
-            <p className="text-muted mb-8">Gerencie os canais de comunicação e integrações de terceiros conectados ao TitaCRM.</p>
+            <p className="text-muted mb-8">Gerencie os canais de comunicação e integrações de terceiros conectados ao ImobEasy CRM.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-fr">
                 {/* WhatsApp Cloud API Card */}
