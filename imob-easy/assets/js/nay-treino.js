@@ -160,7 +160,7 @@
   function desenharLista() {
     var lista = filtrados();
     var cab = "<thead><tr>" +
-      ["Quando", "Quem", "Ele disse", "Ela respondeu agora", "Ferramentas", "Estado", "Veredito", ""]
+      ["Rodada", "Quando", "Quem", "Ele disse", "Ela respondeu agora", "Ferramentas", "Estado", "Veredito", ""]
         .map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("") + "</tr></thead>";
 
     var corpo = "<tbody>" + (lista.length ? lista.map(function (c) {
@@ -172,16 +172,21 @@
               : c.estado === "erro"   ? '<span class="selo selo--parou">falhou</span>'
               : '<span class="selo selo--cinza">' + esc(c.estado) + "</span>";
       var ferr = (c.ferramentas_agora || []).filter(function (f) { return f.charAt(0) !== "_"; });
-      return '<tr><td>' + esc(quando(c.quando_original)) + "</td>" +
+      return '<tr><td><span class="tr__rodada">' +
+               esc(c.ciclo_rotulo || ("ciclo " + c.ciclo_id)) + "</span></td>" +
+             "<td>" + esc(quando(c.quando_original)) + "</td>" +
              "<td>" + esc(c.nome_completo || c.nome_whatsapp || "—") + "</td>" +
              "<td>" + esc(cortar(c.ele_disse, 90)) + "</td>" +
              "<td>" + esc(cortar(c.ela_respondeu_agora || (c.estado === "erro" ? c.erro_execucao : "(calada)"), 120)) +
+               (Number(c.fotos_agora || 0) > 0
+                  ? '<span class="tr__fotos-selo">+' + esc(c.fotos_agora) + " foto" +
+                    (Number(c.fotos_agora) === 1 ? "" : "s") + "</span>" : "") +
                (c.mudou ? '<span class="tr__cmp">antes: ' + esc(cortar(c.ela_respondeu_antes, 90)) + "</span>" : "") +
              "</td>" +
              '<td class="mono">' + esc(ferr.join(", ") || "—") + "</td>" +
              "<td>" + est + "</td><td>" + vered + "</td>" +
              '<td><button class="btn-mini" type="button" data-abrir="' + c.id + '">Abrir</button></td></tr>';
-    }).join("") : '<tr><td colspan="8" class="fraco">Nenhum caso com esse filtro.</td></tr>') + "</tbody>";
+    }).join("") : '<tr><td colspan="9" class="fraco">Nenhum caso com esse filtro.</td></tr>') + "</tbody>";
 
     el("tr-tabela").innerHTML = cab + corpo;
   }
@@ -255,14 +260,26 @@
           agora.map(function (t) { return balao("dela", t, hora(c.rodado_em), "tr__b--agora"); }).join("")
         : '<div class="tr__rot">agora ela ficou calada</div>';
 
+    /* AS FOTOS. `ela_respondeu_agora` guarda so texto -- as linhas de imagem
+       da caixa de saida nunca chegavam aqui, e a tela dava a entender que ela
+       nao tinha mandado foto nenhuma. Em 21/09 o Tel julgou um caso por isso.
+       O Tel pediu "(fotos)", nao as fotos: o balao diz quantas e para. */
+    var qFotos = Number(c.fotos_agora || 0);
+    if (qFotos > 0 && c.estado !== "erro") {
+      blocoAgora += balao("dela", "(" + qFotos + (qFotos === 1 ? " foto" : " fotos") + ")",
+                          hora(c.rodado_em), "tr__b--agora tr__b--fotos");
+    }
+
     var ferr = (c.ferramentas_agora || []).filter(function (f) { return f.charAt(0) !== "_"; });
 
     alvo.innerHTML =
       '<div class="tr__topo">' +
         '<span class="tr__ini">' + esc(iniciais(c.nome_completo || c.nome_whatsapp)) + "</span>" +
         "<span><h4>" + esc(c.nome_completo || c.nome_whatsapp || "(sem nome)") + "</h4>" +
-        "<small>turno #" + esc(c.turno_origem) + " · " + esc(quando(c.quando_original)) +
-        (ferr.length ? " · " + esc(ferr.join(", ")) : "") + "</small></span>" +
+        "<small>" +
+          '<span class="tr__rodada">' + esc(c.ciclo_rotulo || ("ciclo " + c.ciclo_id)) + "</span> · " +
+          "turno #" + esc(c.turno_origem) + " · " + esc(quando(c.quando_original)) +
+          (ferr.length ? " · " + esc(ferr.join(", ")) : "") + "</small></span>" +
       "</div>" +
       '<div class="tr__baloes">' + hist + foco + blocoAntes + blocoAgora + "</div>" +
       ficha(c);
@@ -426,10 +443,15 @@
         return null;
       }
       sel.innerHTML = estado.ciclos.map(function (c) {
-        return '<option value="' + c.id + '">ciclo ' + c.id + " — " + esc(c.rotulo) +
-               " (" + c.julgados + "/" + c.casos + " julgados)</option>";
+        return '<option value="' + c.id + '">' + esc(c.rotulo) +
+               (c.fechado_em ? " (fechado)" : "") +
+               " — " + c.julgados + "/" + c.casos + " julgados</option>";
       }).join("");
-      estado.ciclo = estado.ciclo || estado.ciclos[0].id;
+      // A rodada ATUAL, nao a primeira da lista (Tel, 21/09: "quero la na aba
+      // treinamentos para eu julgar so as atuais"). Julgar conversa de ciclo
+      // fechado e trabalho jogado fora: a solucao dele ja foi aplicada.
+      var maisNova = estado.ciclos.reduce(function (a, b) { return b.id > a.id ? b : a; });
+      estado.ciclo = estado.ciclo || maisNova.id;
       sel.value = String(estado.ciclo);
       el("tr-aviso").innerHTML = j.pool
         ? '<p class="painel-nota">Sobram <b>' + esc(j.pool) +

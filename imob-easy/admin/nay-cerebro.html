@@ -340,6 +340,25 @@
 
   .tr__vazio { margin:auto; color:#667781; font-size:13px; text-align:center; padding:40px 20px }
   .tr__cmp { display:block; font-size:11px; color:var(--texto-fraco); margin-top:3px }
+
+/* A ETIQUETA DA RODADA e o balao de (fotos) -- Tel, 21/09.
+   A etiqueta existe para ele nao julgar conversa de rodada antiga sem
+   perceber; o balao de fotos, porque `ela_respondeu_agora` guarda so texto
+   e a tela dava a entender que ela nao tinha mandado foto nenhuma. */
+.tr__rodada {
+  display: inline-block; white-space: nowrap;
+  background: var(--roxo-suave); color: var(--roxo);
+  font-size: 10.5px; font-weight: 700; letter-spacing: .02em;
+  border-radius: 20px; padding: 1px 8px;
+}
+.tr__b--fotos {
+  font-style: italic; opacity: .92;
+}
+.tr__fotos-selo {
+  display: inline-block; margin-left: 6px;
+  background: var(--azul-claro); color: var(--azul-forte);
+  font-size: 10.5px; font-weight: 700; border-radius: 20px; padding: 1px 7px;
+}
 </style>
 <meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
 </head>
