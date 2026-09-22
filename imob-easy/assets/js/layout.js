@@ -38,6 +38,9 @@
     captacao:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
       '<path d="M4 4h16v4H4z"/><path d="M6 8v6a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>',
+    vagas:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<rect x="3.5" y="7" width="17" height="12.5" rx="2"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"/><path d="M3.5 12.5h17"/></svg>',
     mais:
       '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
       '<path d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7Z"/></svg>',
@@ -60,7 +63,8 @@
     { chave: "locacao",       rotulo: "Locação",          href: "locacao.html" },
     { chave: "oportunidades", rotulo: "Oportunidades",    href: "oportunidades.html" },
     { chave: "captacao",      rotulo: "Captação",         href: "captacao.html" },
-    { chave: "clientes",      rotulo: "Clientes",         href: "clientes.html" }
+    { chave: "clientes",      rotulo: "Clientes",         href: "clientes.html" },
+    { chave: "vagas",         rotulo: "Vagas",            href: "vagas.html" }
   ];
 
   var SUBMENU = [
@@ -68,6 +72,7 @@
     { rotulo: "Nay Locação",       href: "nay-locacao.html", chave: "nay-locacao" },
     { rotulo: "Nay Captação",      href: "nay-captacao.html", chave: "nay-captacao" },
     { rotulo: "Cérebro da Nay",    href: "nay-cerebro.html", chave: "nay-cerebro" },
+    { rotulo: "Estrutura da Nay",  href: "nay-estrutura.html", chave: "nay-estrutura" },
     { rotulo: "Condomínios",       href: "condominios.html", chave: "condominios" },
     { rotulo: "Anúncios",          href: "anuncios.html",    chave: "anuncios" },
     { rotulo: "Listas",            href: "listas.html",      chave: "listas" },

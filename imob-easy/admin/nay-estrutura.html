@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estrutura da Nay — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<style>
+  /* ==================================================================
+     A ESTRUTURA DA NAY
+
+     Tel (22/09/2026):
+       "a nova nay em uma nay geral como uma mente por tras das coisas que
+        vai ler a mensagem e escolher qual ia vai responder"
+       "implementa visualmente la no nay ia, la no site como vai ficar essa
+        estrutura nova em fluxograma"
+
+     O desenho e horizontal, como o do Cerebro: a mensagem entra pela
+     esquerda, passa pela mente, e sai por um dos dois lados. O que e
+     DESENHO mora aqui; o que e NUMERO vem de /api/nai/estrutura.
+
+     As cores saem de tokens.css. O bloco de estilo fica na propria pagina,
+     como nay-locacao.html e nay-cerebro.html ja fazem.
+     ================================================================== */
+
+  .es-nota { font-size:var(--fs-xs); color:var(--texto-fraco); line-height:1.6; margin:0 0 18px; max-width:70ch }
+
+  .es-mapa { overflow-x:auto; padding:4px 0 14px; -webkit-overflow-scrolling:touch }
+  .es-trilho { display:flex; align-items:stretch; gap:0; width:max-content; min-width:100% }
+
+  .es-passo { width:210px; flex:none; display:flex; flex-direction:column }
+  .es-passo__topo {
+    font-family:Barlow,sans-serif; font-weight:700; font-size:12px; letter-spacing:.04em;
+    text-transform:uppercase; color:#fff; padding:7px 12px; border-radius:9px 9px 0 0 }
+  .es-passo__corpo {
+    flex:1; border:1px solid var(--borda,#e3e6ec); border-top:0; border-radius:0 0 9px 9px;
+    background:var(--superficie,#fff); padding:12px 13px; font-size:var(--fs-xs); line-height:1.55 }
+  .es-passo__corpo b { display:block; font-size:var(--fs-sm); margin-bottom:4px }
+  .es-passo__corpo p { margin:0 0 8px; color:var(--texto-fraco) }
+  .es-passo__corpo p:last-child { margin-bottom:0 }
+
+  .es-passo--ouve   .es-passo__topo { background:#6d28d9 }
+  .es-passo--porta  .es-passo__topo { background:#0e7490 }
+  .es-passo--mente  .es-passo__topo { background:#b45309 }
+  .es-passo--loc    .es-passo__topo { background:#15803d }
+  .es-passo--sec    .es-passo__topo { background:#9f1239 }
+  .es-passo--saida  .es-passo__topo { background:#4b5563 }
+
+  .es-seta { flex:none; width:34px; display:flex; align-items:center; justify-content:center;
+             color:var(--borda-forte,#b9c0cc); font-size:20px; font-weight:700 }
+
+  .es-garfo { width:250px; flex:none; display:flex; flex-direction:column; gap:14px }
+
+  .es-num { font-family:Barlow,sans-serif; font-size:26px; font-weight:800; line-height:1 }
+  .es-num small { display:block; font-family:Rubik,sans-serif; font-size:11px; font-weight:400;
+                  color:var(--texto-fraco); margin-top:3px; letter-spacing:0 }
+
+  .es-cartoes { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); margin:6px 0 24px }
+  .es-cartao { background:var(--superficie,#fff); border:1px solid var(--borda,#e3e6ec);
+               border-radius:12px; padding:14px 16px }
+
+  .es-selo { display:inline-block; font-size:11px; font-weight:600; padding:2px 9px; border-radius:20px;
+             border:1px solid var(--borda,#e3e6ec); color:var(--texto-fraco) }
+  .es-selo--on  { background:#dcfce7; border-color:#86efac; color:#166534 }
+  .es-selo--off { background:#fee2e2; border-color:#fca5a5; color:#991b1b }
+
+  .es-volta { border:1px dashed var(--borda-forte,#b9c0cc); border-radius:12px; padding:14px 16px;
+              margin:4px 0 26px; font-size:var(--fs-xs); line-height:1.6; color:var(--texto-fraco) }
+  .es-volta b { color:var(--texto,#1f2430) }
+
+  .es-tabela { width:100%; border-collapse:collapse; font-size:var(--fs-xs) }
+  .es-tabela th { text-align:left; font-weight:600; color:var(--texto-fraco); padding:7px 10px;
+                  border-bottom:1px solid var(--borda,#e3e6ec); white-space:nowrap }
+  .es-tabela td { padding:8px 10px; border-bottom:1px solid var(--borda,#eef0f4); vertical-align:top }
+  .es-tabela tr:last-child td { border-bottom:0 }
+  .es-vazio { color:var(--texto-fraco); font-size:var(--fs-xs); padding:14px 2px }
+
+  .es-eti { display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:.03em;
+            text-transform:uppercase; padding:2px 7px; border-radius:5px }
+  .es-eti--loc { background:#dcfce7; color:#166534 }
+  .es-eti--sec { background:#ffe4e6; color:#9f1239 }
+
+  @media (max-width:760px) { .es-passo, .es-garfo { width:190px } }
+</style>
+</head>
+<body class="admin" data-pagina="nay-estrutura">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <h1 class="pagina-titulo">Estrutura da Nay</h1>
+  </div>
+
+  <p class="es-nota">
+    Para quem fala com ela, a Nay é uma só. Por dentro são duas: a de
+    <b>Locação</b>, que já estava pronta e cuida de imóvel nosso, e a
+    <b>Secretária</b>, que atende o que sobra e ainda está aprendendo.
+    Quem lê a mensagem e escolhe entre as duas é a <b>mente</b>.
+  </p>
+
+  <section class="painel-nay">
+    <div class="painel-nay__topo">
+      <h2 class="painel-nay__nome">O caminho de uma mensagem</h2>
+      <span class="es-selo" id="es-selo-sec">…</span>
+    </div>
+
+    <div class="es-mapa">
+      <div class="es-trilho">
+
+        <div class="es-passo es-passo--ouve">
+          <div class="es-passo__topo">1 · ouve</div>
+          <div class="es-passo__corpo">
+            <b>Espera um minuto</b>
+            <p>A mensagem entra e o sistema aguarda: se a pessoa ainda está
+               digitando, tudo chega junto.</p>
+            <p>Áudio vira texto, foto vira descrição — e a URL de cada mídia
+               fica guardada na mensagem.</p>
+          </div>
+        </div>
+
+        <div class="es-seta">→</div>
+
+        <div class="es-passo es-passo--porta">
+          <div class="es-passo__topo">2 · porta</div>
+          <div class="es-passo__corpo">
+            <b>Quem ela atende</b>
+            <p>Só corretor: quem está nos grupos ou tem <b>Xx</b> no nome da
+               agenda.</p>
+            <p>Conversa que já era do Tel continua com ele.</p>
+          </div>
+        </div>
+
+        <div class="es-seta">→</div>
+
+        <div class="es-passo es-passo--mente">
+          <div class="es-passo__topo">3 · mente</div>
+          <div class="es-passo__corpo">
+            <b>Quem responde isso?</b>
+            <p>Lê o bloco inteiro e escolhe o lado. Na dúvida, manda para
+               Locação — que é o caminho pronto.</p>
+            <p class="es-num" id="es-total">—<small>decisões nos últimos 7 dias</small></p>
+          </div>
+        </div>
+
+        <div class="es-seta">→</div>
+
+        <div class="es-garfo">
+          <div class="es-passo es-passo--loc" style="width:auto">
+            <div class="es-passo__topo">4a · Nay Locação</div>
+            <div class="es-passo__corpo">
+              <b>Imóvel nosso</b>
+              <p>Card, fotos, busca por perfil, visita, documentação,
+                 parceria. Venda e locação pelo mesmo fluxo.</p>
+              <p class="es-num" id="es-loc">—<small>mensagens</small></p>
+            </div>
+          </div>
+
+          <div class="es-passo es-passo--sec" style="width:auto">
+            <div class="es-passo__topo">4b · Nay Secretária</div>
+            <div class="es-passo__corpo">
+              <b>O que sobra</b>
+              <p>Dúvida geral, recado, e o corretor que oferece um imóvel
+                 dele — aí ela colhe os dados e as fotos.</p>
+              <p>O que ela não sabe, ela pergunta ao Tel.</p>
+              <p class="es-num" id="es-sec">—<small>mensagens</small></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="es-seta">→</div>
+
+        <div class="es-passo es-passo--saida">
+          <div class="es-passo__topo">5 · fala</div>
+          <div class="es-passo__corpo">
+            <b>Caixa de saída</b>
+            <p>As duas escrevem no mesmo lugar. É ali que a resposta é
+               dividida em mensagens, conferida e liberada.</p>
+            <p>Imóvel de parceiro nunca sai. Envio simulado não sai.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <div class="es-volta">
+    <b>Como ela aprende.</b> Quando a secretária não sabe, ela abre uma
+    pendência e avisa o Tel no WhatsApp. Ele responde com
+    <b>RESPOSTA &lt;número&gt; &lt;o que dizer&gt;</b> — o mesmo comando de
+    sempre. A resposta vai para o corretor <b>e</b> fica guardada: da próxima
+    vez ela responde sozinha, sem perguntar de novo.
+  </div>
+
+  <div class="es-cartoes">
+    <div class="es-cartao"><div class="es-num" id="es-c-saber">—<small>coisas que ela já sabe</small></div></div>
+    <div class="es-cartao"><div class="es-num" id="es-c-esperando">—<small>esperando o Tel responder</small></div></div>
+    <div class="es-cartao"><div class="es-num" id="es-c-fichas">—<small>imóveis em cadastro</small></div></div>
+    <div class="es-cartao"><div class="es-num" id="es-c-subidos">—<small>imóveis que já entraram</small></div></div>
+  </div>
+
+  <section class="painel-nay">
+    <div class="painel-nay__topo">
+      <h2 class="painel-nay__nome">As últimas decisões da mente</h2>
+    </div>
+    <div id="es-decisoes"><p class="es-vazio">carregando…</p></div>
+  </section>
+
+  <section class="painel-nay">
+    <div class="painel-nay__topo">
+      <h2 class="painel-nay__nome">O que o Tel já ensinou</h2>
+    </div>
+    <div id="es-saber"><p class="es-vazio">carregando…</p></div>
+  </section>
+
+  <section class="painel-nay">
+    <div class="painel-nay__topo">
+      <h2 class="painel-nay__nome">Imóveis que entraram pela conversa dela</h2>
+    </div>
+    <div id="es-fichas"><p class="es-vazio">carregando…</p></div>
+  </section>
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<!-- admin.js e quem faz as abas trocarem de painel. Sem ele os botoes
+     acendem e o conteudo nao muda. -->
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/nay-estrutura.js"></script>
+</body>
+</html>

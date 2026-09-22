@@ -1684,6 +1684,10 @@ def api_tabelas():
         linhas = todas_linhas(conn, """
             SELECT relname AS tabela, n_live_tup AS linhas
             FROM pg_stat_user_tables
+            -- So o public, igual a rota de dados logo abaixo: o schema
+            -- `vagas` (candidatos e curriculos) nao entra nem pelo nome
+            -- nem pela contagem.
+            WHERE schemaname = 'public'
             ORDER BY relname
         """)
         return jsonify([{"tabela": l["tabela"], "linhas": l["linhas"]} for l in linhas])
@@ -2878,6 +2882,30 @@ try:
 except Exception as _e:  # noqa: BLE001
     app.logger.warning("trace_api nao carregou: %s", _e)
 
+# O menu de TREINO. Mesmo try/except, mesma razao: um erro de import aqui nao
+# pode levar junto as 49 rotas do site nem o painel do cerebro.
+try:
+    from treino_api import treino_bp
+    app.register_blueprint(treino_bp)
+except Exception as _e:  # noqa: BLE001
+    app.logger.warning("treino_api nao carregou: %s", _e)
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8092)
+
+# A pagina de VAGAS (/vagas-manaus) e a tela Vagas do painel. Mesmo
+# try/except: um erro de import aqui nao pode levar junto o resto da API.
+try:
+    from vagas_api import vagas_bp
+    app.register_blueprint(vagas_bp)
+except Exception as _e:  # noqa: BLE001
+    app.logger.warning("vagas_api nao carregou: %s", _e)
+
+# A ESTRUTURA DA NAY (a mente mestra e a secretaria, em fluxograma). Mesmo
+# try/except, mesma razao.
+try:
+    from estrutura_api import estrutura_bp
+    app.register_blueprint(estrutura_bp)
+except Exception as _e:  # noqa: BLE001
+    app.logger.warning("estrutura_api nao carregou: %s", _e)
