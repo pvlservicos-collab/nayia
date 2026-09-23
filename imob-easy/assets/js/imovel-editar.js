@@ -55,6 +55,24 @@
     bloqueado: "Bloqueado", motivo_bloqueio: "Motivo do bloqueio",
   };
 
+  /* AS LISTAS QUE DESCEM (Tel, 23/09: "por a lista que desce lá em todos os
+     campos de imóveis para selecionar o que temos e não ter que digitar tudo
+     como está em condomínios").
+
+     Os valores saem do próprio catálogo, por /api/imoveis/valores -- então a
+     lista mostra o que a casa usa de verdade, e o que alguém cadastrar de novo
+     entra sozinho amanhã. Continua sendo campo de digitar: a lista sugere,
+     não prende. */
+  var VALORES = {};
+  var COM_LISTA = ["tipo", "bairro", "cidade", "estado", "sol", "andar", "mobilia", "motivo_bloqueio"];
+
+  function datalistHtml(nome) {
+    var vs = VALORES[nome] || [];
+    if (!vs.length) { return ""; }
+    return '<datalist id="lista-' + nome + '">' +
+      vs.map(function (v) { return "<option>" + esc(v) + "</option>"; }).join("") + "</datalist>";
+  }
+
   function campoHtml(nome, valor, regra) {
     if (nome === "condominio") {
       return (
@@ -69,10 +87,11 @@
         '<div class="form-imovel__campo">' +
           "<label>" + esc(ROTULOS.tipo) + (novo ? " *" : "") +
           (regra.sincronizado ? ' <span class="marca-sincronizado">● sincronizado</span>' : "") + "</label>" +
-          '<input class="entrada" type="text" list="tipos-imovel" data-campo="tipo" value="' + esc(valor || "") + '"' + (novo ? " required" : "") + ">" +
-          '<datalist id="tipos-imovel"><option>Apartamento</option><option>Casa</option><option>Casa de condomínio</option>' +
-          "<option>Cobertura</option><option>Flat</option><option>Sala/Andar</option><option>Loja/Ponto</option>" +
-          "<option>Lote em Condomínio</option><option>Terreno</option><option>Prédio</option><option>Galpão</option></datalist>" +
+          '<input class="entrada" type="text" list="lista-tipo" data-campo="tipo" value="' + esc(valor || "") + '"' + (novo ? " required" : "") + ">" +
+          (datalistHtml("tipo") ||
+           '<datalist id="lista-tipo"><option>Apartamento</option><option>Casa</option><option>Casa de condomínio</option>' +
+           "<option>Cobertura</option><option>Flat</option><option>Sala/Andar</option><option>Loja/Ponto</option>" +
+           "<option>Lote em Condomínio</option><option>Terreno</option><option>Prédio</option><option>Galpão</option></datalist>") +
         "</div>"
       );
     }
@@ -101,22 +120,37 @@
         '<div class="form-imovel__campo' + largo + '">' +
           "<label>" + esc(ROTULOS[nome] || nome) + marca + "</label>" +
           '<textarea class="entrada" data-campo="' + nome + '" data-lista="true">' + esc(texto) + "</textarea>" +
+          '<input class="entrada" list="lista-caracteristicas" placeholder="escolher uma da lista e acrescentar" ' +
+            'data-acrescenta="' + nome + '" style="margin-top:6px">' +
+          datalistHtml("caracteristicas") +
         "</div>"
       );
     }
     var tipoInput = regra.tipo === "numero" ? "number" : regra.tipo === "inteiro" ? "number" : "text";
     var step = regra.tipo === "numero" ? ' step="0.01"' : "";
+    var lista = COM_LISTA.indexOf(nome) >= 0 ? datalistHtml(nome) : "";
     return (
       '<div class="form-imovel__campo">' +
         "<label>" + esc(ROTULOS[nome] || nome) + marca + "</label>" +
-        '<input class="entrada" type="' + tipoInput + '"' + step + ' data-campo="' + nome + '" value="' + esc(valor == null ? "" : valor) + '">' +
+        '<input class="entrada" type="' + tipoInput + '"' + step + ' data-campo="' + nome + '"' +
+          (lista ? ' list="lista-' + nome + '"' : "") +
+          ' value="' + esc(valor == null ? "" : valor) + '">' + lista +
       "</div>"
     );
   }
 
-  fetch(window.API_BASE + (novo ? "/api/imoveis/campos" : "/api/imoveis/" + encodeURIComponent(codigo)))
-    .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
-    .then(function (item) {
+  /* Os dois pedidos vão juntos: o imóvel e as listas de valores. Se a lista
+     falhar, o formulário abre igual -- só sem sugestão, nunca quebrado. */
+  Promise.all([
+    fetch(window.API_BASE + (novo ? "/api/imoveis/campos" : "/api/imoveis/" + encodeURIComponent(codigo)))
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); }),
+    fetch(window.API_BASE + "/api/imoveis/valores")
+      .then(function (r) { return r.ok ? r.json() : {}; })
+      .catch(function () { return {}; }),
+  ])
+    .then(function (par) {
+      VALORES = par[1] || {};
+      var item = par[0];
       if (novo) {
         item = { campos_editaveis: item, disponivel: true };
         document.title = "Novo imóvel — Imob Easy";
@@ -141,6 +175,29 @@
         );
       }).join("");
 
+      /* O QUE FALTA NESTE IMOVEL (Tel, 23/09: "lá onde abre o imóvel não tem
+         todas as informações... preciso disso bem organizado para a nay não
+         errar"). O aviso fica no TOPO porque é o que explica por que a Nay às
+         vezes não acha o imóvel: sem mobília ele não entra numa busca por
+         "mobiliado", sem bairro não entra em busca por bairro. */
+      if (!novo) {
+        fetch(window.API_BASE + "/api/imoveis/" + encodeURIComponent(codigo) + "/ficha")
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) {
+            if (!d || !d.falta || !d.falta.length) { return; }
+            var aviso = document.createElement("div");
+            aviso.className = "aviso-buracos";
+            aviso.style.cssText = "border:1px solid #fcd34d;background:#fffbeb;border-radius:12px;" +
+              "padding:12px 14px;margin-bottom:16px;font-size:var(--fs-xs);line-height:1.6";
+            aviso.innerHTML = "<strong>Falta preencher:</strong> " + esc(d.falta.join(", ")) + "." +
+              (d.a_nay_pode_oferecer
+                ? " A Nay oferece este imóvel — o que falta aqui, ela não sabe responder."
+                : " (a Nay não oferece este imóvel hoje)");
+            form.parentNode.insertBefore(aviso, form);
+          })
+          .catch(function () { /* sem o aviso a tela abre igual */ });
+      }
+
       html +=
         '<div class="form-imovel__rodape">' +
           '<button class="btn-azul" type="submit">' + (novo ? "Criar imóvel" : "Salvar alterações") + "</button>" +
@@ -163,6 +220,25 @@
     .catch(function () {
       carregando.textContent = "Não foi possível carregar este imóvel (código inexistente ou API fora do ar).";
     });
+
+  /* ESCOLHER NA LISTA ACRESCENTA UMA LINHA. As características são uma lista
+     (uma por linha), então o seletor não substitui o que já está escrito --
+     ele soma, e se limpa para o próximo. */
+  form.addEventListener("change", function (evento) {
+    var campo = evento.target.getAttribute("data-acrescenta");
+    if (!campo) { return; }
+    var valor = String(evento.target.value || "").trim();
+    if (!valor) { return; }
+    var area = form.querySelector('[data-campo="' + campo + '"]');
+    if (area) {
+      var linhas = String(area.value || "").split("
+").map(function (x) { return x.trim(); }).filter(Boolean);
+      if (linhas.indexOf(valor) < 0) { linhas.push(valor); }
+      area.value = linhas.join("
+");
+    }
+    evento.target.value = "";
+  });
 
   form.addEventListener("submit", function (evento) {
     evento.preventDefault();

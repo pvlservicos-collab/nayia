@@ -13,6 +13,7 @@ COPY trace_api.py .
 COPY treino_api.py .
 COPY vagas_api.py .
 COPY estrutura_api.py .
+COPY imoveis_api.py .
 
 RUN useradd -m site-api
 USER site-api

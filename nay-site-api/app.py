@@ -1016,6 +1016,11 @@ def api_imoveis_lista():
         conds.append("v.e_parceiro")
     elif a.get("parceiro") == "nao":
         conds.append("NOT v.e_parceiro")
+    # "ver os imoveis que estao sem proprietarios" (Tel, 23/09). Sao 1.163 no
+    # catalogo -- e e por isso que o botao de proprietario nao abre nada na
+    # maioria das linhas.
+    if a.get("sem_dono") == "1":
+        conds.append("coalesce(v.proprietario_nome, '') = ''")
     if a.get("catalogo") == "1":
         conds.append("v.no_catalogo")
     if a.get("financia") in ("Sim", "Não"):
@@ -2909,3 +2914,11 @@ try:
     app.register_blueprint(estrutura_bp)
 except Exception as _e:  # noqa: BLE001
     app.logger.warning("estrutura_api nao carregou: %s", _e)
+
+# O QUE FALTAVA NA TELA DE IMOVEIS: as listas por campo, o proprietario do
+# imovel e a ficha com os buracos. Mesmo try/except, mesma razao.
+try:
+    from imoveis_api import imoveis_bp
+    app.register_blueprint(imoveis_bp)
+except Exception as _e:  # noqa: BLE001
+    app.logger.warning("imoveis_api nao carregou: %s", _e)

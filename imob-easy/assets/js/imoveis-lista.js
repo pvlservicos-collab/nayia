@@ -33,6 +33,71 @@
   if (qs.get("condo")) seletor.definir([{ id: Number(qs.get("condo")), nome: qs.get("condo_nome") || "Condomínio " + qs.get("condo") }]);
   if (qs.get("status")) form.elements.status.value = qs.get("status");
 
+  /* O BOTAO DE PROPRIETARIO (Tel, 23/09: "um botão lá na lista de imóveis
+     proprietário abre um popup com os dados do proprietário desse imóvel").
+
+     Os dados pessoais vêm da rota COM SENHA (/admin/api/...), a mesma do
+     /admin: telefone de proprietário não sai pela API aberta. O navegador já
+     mandou a senha do /admin nesta página, então o popup abre sem pedir de
+     novo.
+
+     O vínculo imóvel-proprietário é POR NOME -- o banco novo não tem chave
+     ligando os dois. Por isso o popup diz de onde veio cada contato, em vez
+     de apresentar como certeza. */
+  function popupDono(codigo) {
+    var fundo = document.createElement("div");
+    fundo.style.cssText = "position:fixed;inset:0;background:rgba(15,20,30,.55);display:flex;" +
+      "align-items:center;justify-content:center;z-index:900;padding:16px";
+    fundo.innerHTML = '<div style="background:var(--superficie,#fff);border-radius:14px;max-width:460px;' +
+      'width:100%;padding:20px 22px;max-height:80vh;overflow:auto"><p style="margin:0">carregando…</p></div>';
+    fundo.addEventListener("click", function (e) { if (e.target === fundo) { fundo.remove(); } });
+    document.body.appendChild(fundo);
+    var caixa = fundo.firstChild;
+
+    function fechar() {
+      var b = caixa.querySelector("button");
+      if (b) { b.addEventListener("click", function () { fundo.remove(); }); }
+    }
+
+    fetch(window.API_BASE + "/admin/api/imoveis/" + encodeURIComponent(codigo) + "/proprietario",
+          { credentials: "include" })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (d) {
+        var p = d.proprietario;
+        var h = '<h2 style="margin:0 0 8px;font-size:var(--fs-lg)">Proprietário do ' + esc(codigo) + "</h2>";
+        if (!p) {
+          h += '<p style="color:var(--texto-fraco)">' + esc(d.aviso || "sem proprietário cadastrado") + "</p>";
+        } else {
+          h += '<p style="margin:0 0 10px"><strong>' + esc(p.nome) + "</strong>" +
+               (p.e_parceiro ? ' <span class="etiqueta etiqueta--laranja">parceiro</span>' : "") + "</p>";
+          if (!p.contatos.length) {
+            h += '<p style="color:var(--texto-fraco);font-size:var(--fs-xs)">' + esc(d.aviso || "") + "</p>";
+          } else {
+            h += p.contatos.map(function (c) {
+              return '<p style="margin:0 0 8px">' + esc(c.telefone || "sem telefone") +
+                '<br><span style="color:var(--texto-fraco);font-size:var(--fs-xs)">' +
+                esc(c.email || "sem e-mail") + " · " + esc(c.fonte) + "</span></p>";
+            }).join("");
+          }
+        }
+        h += '<p style="margin:14px 0 0;font-size:var(--fs-xs);color:var(--texto-fraco)">' +
+             esc([d.imovel.condominio, d.imovel.endereco].filter(Boolean).join(" — ")) + "</p>" +
+             '<button type="button" class="btn-mini" style="margin-top:14px">Fechar</button>';
+        caixa.innerHTML = h;
+        fechar();
+      })
+      .catch(function (e) {
+        caixa.innerHTML = "<p>não consegui ler o proprietário (" + esc(e) + ")</p>" +
+          '<button type="button" class="btn-mini">Fechar</button>';
+        fechar();
+      });
+  }
+
+  document.addEventListener("click", function (e) {
+    var cod = e.target && e.target.getAttribute && e.target.getAttribute("data-dono");
+    if (cod) { popupDono(cod); }
+  });
+
   function escolha(nome) {
     var b = form.querySelector('[data-escolha="' + nome + '"] [aria-pressed="true"]');
     return b ? b.dataset.v : "";
@@ -66,6 +131,7 @@
     if (f.financia.checked) p.set("financia", "Sim");
     if (f.parceiro_sim.checked && !f.parceiro_nao.checked) p.set("parceiro", "sim");
     if (f.parceiro_nao.checked && !f.parceiro_sim.checked) p.set("parceiro", "nao");
+    if (f.sem_dono && f.sem_dono.checked) p.set("sem_dono", "1");
     pos("criado_de", f.criado_de.value);
     pos("criado_ate", f.criado_ate.value);
     pos("ordem", f.ordem.value);
@@ -94,7 +160,9 @@
       "<td>" + esc(i.valor) + "</td>" +
       "<td>" + esc(i.condominio) + (i.tipo ? '<br><span style="font-size:var(--fs-xs);color:var(--texto-fraco)">' + esc(i.tipo) + "</span>" : "") + "</td>" +
       "<td>" + esc([i.endereco, i.bairro].filter(Boolean).join(" - ")) + "</td>" +
-      "<td>" + esc(i.proprietario) + "</td>" +
+      "<td>" + (i.proprietario
+        ? '<button type="button" class="btn-mini" data-dono="' + esc(i.codigo) + '">' + esc(i.proprietario) + "</button>"
+        : '<span style="color:var(--texto-fraco)">sem proprietário</span>') + "</td>" +
       '<td class="col-acoes"><span class="acoes-celula"><button class="btn-mini" type="button" data-ver="' + esc(i.codigo) + '">Ver</button>' + acoes + "</span></td>" +
       "</tr>";
   }
