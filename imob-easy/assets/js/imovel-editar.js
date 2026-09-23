@@ -231,11 +231,9 @@
     if (!valor) { return; }
     var area = form.querySelector('[data-campo="' + campo + '"]');
     if (area) {
-      var linhas = String(area.value || "").split("
-").map(function (x) { return x.trim(); }).filter(Boolean);
+      var linhas = String(area.value || "").split("\n").map(function (x) { return x.trim(); }).filter(Boolean);
       if (linhas.indexOf(valor) < 0) { linhas.push(valor); }
-      area.value = linhas.join("
-");
+      area.value = linhas.join("\n");
     }
     evento.target.value = "";
   });
