@@ -97,7 +97,13 @@ def conferir_travas(conn, espelho):
            varios(conn, "SELECT chave, valor FROM nai_config")}
 
     problemas = []
-    if cfg.get("envio_simulado") != "sim":
+    # A TRAVA PODE VIR DO DESTINO (92): com a Nay no ar, `envio_simulado` fica
+    # 'nao' -- liga-la calaria os corretores de verdade. Entao vale tambem a
+    # protecao do espelho dentro da caixa de saida: tudo que vai para ele fica
+    # em 'simulado' de qualquer jeito. Uma das duas basta; nenhuma, nao roda.
+    espelho_protegido = um(conn,
+        "SELECT pg_get_functiondef('nai_liberar_saida'::regproc) ~ 'ESPELHO DO TREINO NUNCA SAI' AS ok")["ok"]
+    if cfg.get("envio_simulado") != "sim" and not espelho_protegido:
         problemas.append(
             "nai_config.envio_simulado = %r, precisa ser 'sim'.\n"
             "    Sem isso a Z-API E CHAMADA DE VERDADE e o corretor recebe a\n"
@@ -133,8 +139,9 @@ def conferir_travas(conn, espelho):
             print("  * " + p + "\n", file=sys.stderr)
         sys.exit(1)
 
-    print("travas conferidas: envio_simulado=sim, modo=%s, espelho na lista de teste"
-          % cfg.get("modo"))
+    print("travas conferidas: %s, modo=%s, espelho na lista de teste"
+          % ("envio_simulado=sim" if cfg.get("envio_simulado") == "sim"
+             else "espelho protegido na caixa de saida", cfg.get("modo")))
 
 
 # --------------------------------------------------------------- espelho --
@@ -195,6 +202,17 @@ def limpar_conversa(conn, contato_id, sessao):
     executar(conn, "UPDATE nai_contato SET zerado_em = now(), "
                    "humano_assumiu_em = NULL, humano_motivo = NULL "
                    " WHERE id = %s", (contato_id,))
+    # FOTO DO CASO ANTERIOR NAO PODE TRAVAR A DO PROXIMO (21/09). Todo caso
+    # passa pelo mesmo espelho, e `nai_fotos_ja_mandadas` bloqueia a mesma
+    # foto para o mesmo contato por 24h -- sem olhar `zerado_em`. Resultado:
+    # o segundo corretor que perguntasse de um imovel ja pedido por outro
+    # ficava sem foto, o que em producao nao acontece (sao pessoas
+    # diferentes). Foi o que zerou as fotos da rodada 3. As linhas nao sao
+    # apagadas: so recuam 2 dias, e a contagem de fotos de cada caso (que e
+    # por turno) continua certa.
+    executar(conn, "UPDATE nai_saida SET criado_em = criado_em - interval '2 days' "
+                   " WHERE contato_id = %s AND tipo = 'imagem' AND estado = 'simulado' "
+                   "   AND criado_em > now() - interval '2 days'", (contato_id,))
     # Visita aberta do caso anterior faria o proximo cair em outro ramo.
     executar(conn, "UPDATE nai_visita SET estado='encerrada', encerrada_em=now(), "
                    "motivo='treino: caso anterior' "
@@ -318,7 +336,7 @@ def vestir_espelho(conn, contato_esp, caso):
 
 def rodar_caso(conn, caso, webhook, espelho, contato_esp, sessao, pausa):
     cid = caso["id"]
-    print("\n[caso %d] turno original %d  (%s)" % (cid, caso["turno_origem"],
+    print("\n[caso %d] turno original %s  (%s)" % (cid, caso["turno_origem"] or "-",
           (caso["ele_disse"] or "")[:70].replace("\n", " ")))
 
     executar(conn, "UPDATE nai_treino_caso SET estado='rodando', erro=NULL WHERE id=%s", (cid,))

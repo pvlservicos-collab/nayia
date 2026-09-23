@@ -1,0 +1,136 @@
+{
+  "_como_funciona": "Cada roteiro e uma conversa de um corretor simulado com a Nay. Os passos entram um de cada vez, depois da resposta dela ao anterior, na mesma conversa. {cod1} e {cod2} viram o 1o e o 2o codigo de imovel que ELA citou na ultima resposta; se ela nao citou nenhum, o passo usa o texto de 'senao'. Rodada 7, Tel, 22/09/2026.",
+  "roteiros": [
+    {"id": "01-busca-ponta-negra", "persona": "Carla Mendes", "cobre": "busca por bairro, lista, card, pergunta, visita, despedida",
+     "passos": [
+       "Boa tarde Nay, tudo bem? Tem apartamento pra locação na Ponta Negra?",
+       "Até 4 mil",
+       {"texto": "Me manda o {cod1}", "senao": "Me manda o primeiro"},
+       "Tem vaga de garagem?",
+       "Meu cliente quer visitar amanhã às 10h",
+       "Obrigada Nay!"]},
+
+    {"id": "02-parque10-mobiliado", "persona": "Rogério Lima", "cobre": "pedido completo numa mensagem, lista, fotos, perguntas, visita no sábado",
+     "passos": [
+       "Oi Nay, preciso de apto mobiliado no Parque 10 até 6 mil pra um cliente",
+       {"texto": "Me manda as fotos do {cod1}", "senao": "Me manda as fotos do primeiro"},
+       "Aceita pet?",
+       "Qual o valor do condomínio?",
+       "Consegue visita sábado às 9h?"]},
+
+    {"id": "03-codigo-direto", "persona": "Patrícia Souza", "cobre": "card pelo código, disponibilidade, pergunta, visita",
+     "passos": [
+       "Bom dia! Me manda o card do 5739",
+       "Ainda está disponível?",
+       "Quantas suítes tem?",
+       "Quero agendar visita pra quinta às 15h"]},
+
+    {"id": "04-condominio-dois-e-fotos-de-novo", "persona": "Juliana Costa", "cobre": "condominio com 2 imoveis, escolha, fotos pedidas DE NOVO",
+     "passos": [
+       "Vc tem apto no Conquista Rio Negro?",
+       {"texto": "Me manda o {cod2}", "senao": "Me manda o mais barato"},
+       "Nay me manda as fotos de novo por favor, não abriram aqui",
+       "Agora foi, obrigada"]},
+
+    {"id": "05-venda-ponta-negra", "persona": "Marcos Albuquerque", "cobre": "VENDA por bairro (a busca por perfil e so locacao), condominio, financiamento",
+     "passos": [
+       "Boa tarde, tem casa em condomínio pra venda na Ponta Negra até 1 milhão?",
+       "E no Morada dos Pássaros, tem alguma?",
+       "Aceita financiamento?",
+       "Quero levar meu cliente pra conhecer, pode ser segunda às 16h?"]},
+
+    {"id": "06-parceria", "persona": "Francimary Azevedo", "cobre": "pedido de parceria (regra nova da rodada 5)",
+     "passos": [
+       "Boa noite! Posso anunciar os imóveis de vocês? Trabalho mais com locação",
+       "Ainda não estou no grupo, como faço pra entrar?",
+       "Ok, obrigada!"]},
+
+    {"id": "07-pergunta-sem-resposta", "persona": "Eduardo Nunes", "cobre": "pergunta que o cadastro nao responde -> escalar ao Tel",
+     "passos": [
+       "Oi Nay, o 5722 aceita pet?",
+       "E qual o IPTU dele?",
+       "Beleza, fico no aguardo"]},
+
+    {"id": "08-foto-da-suite", "persona": "Solange Bernardino", "cobre": "foto de um comodo, pergunta de andar, outro no mesmo predio",
+     "passos": [
+       "Nay vc tem foto da suíte do Grand Prix?",
+       "Qual o andar?",
+       "Tem outro no mesmo prédio?"]},
+
+    {"id": "09-aleixo-casa", "persona": "Leandro Pires", "cobre": "casa por bairro, faixa, card, visita no mesmo dia",
+     "passos": [
+       "Tem casa pra alugar no Aleixo?",
+       "Até 5 mil",
+       {"texto": "Me manda o {cod1}", "senao": "Me manda a primeira"},
+       "Meu cliente gostou, pode ser visita hoje às 18h?"]},
+
+    {"id": "10-muda-horario", "persona": "Aline Rocha", "cobre": "visita pedida e depois troca de horario",
+     "passos": [
+       "Me manda o 5720",
+       "Quero agendar visita sexta às 14h",
+       "Nay, meu cliente pediu pra mudar pra 16h, pode ser?"]},
+
+    {"id": "11-vieiralves", "persona": "Henrique Barros", "cobre": "Vieiralves (area dentro de N. Sra. das Gracas)",
+     "passos": [
+       "Tem algo no Vieiralves até 4 mil?",
+       {"texto": "Me manda o {cod1}", "senao": "E aqui perto, tem algo?"},
+       "Valeu Nay"]},
+
+    {"id": "12-taruma", "persona": "Kerolayne Macedo", "cobre": "bairro com pouco imovel, card, pergunta de mobilia",
+     "passos": [
+       "Tem apartamento no Tarumã até 2.500?",
+       {"texto": "Me manda o {cod1}", "senao": "Me manda o que tiver"},
+       "É mobiliado mesmo? Com cama e tudo?"]},
+
+    {"id": "13-cliente-sem-bairro", "persona": "Guilherme Lucas", "cobre": "pedido sem bairro -> sequencia de perguntas; duas opcoes",
+     "passos": [
+       "Tenho um cliente procurando 3 quartos até 5 mil",
+       "Pode ser Ponta Negra",
+       {"texto": "Me manda o {cod1}", "senao": "Me manda o primeiro"},
+       "Vou mostrar pra ele e te retorno"]},
+
+    {"id": "14-venda-morada", "persona": "Aira Araújo", "cobre": "venda num condominio com 1 imovel (card na hora), lazer, condominio, permuta",
+     "passos": [
+       "Vc tem uma casa no Morada dos Pássaros para venda?",
+       "Tem foto da área de lazer?",
+       "Qual o valor do condomínio?",
+       "O proprietário aceita permuta?"]},
+
+    {"id": "15-dados-da-visita", "persona": "Carlos Alberto Souza", "cobre": "visita e envio dos dados do visitante",
+     "passos": [
+       "Me manda o 5724",
+       "Quero visita amanhã às 11h",
+       "O cliente é João Pereira, CPF 529.982.247-25. Meu CRECI é 4321"]},
+
+    {"id": "16-negociacao", "persona": "Leonardo Toledo", "cobre": "margem de negociacao (escala) e busca alternativa",
+     "passos": [
+       "O Acquarelle de 3.500 teria margem pra negociar? Minha cliente tem teto de 3.200",
+       "Entendi. Então vê outras opções até 3.200 na Ponta Negra",
+       {"texto": "Me manda o {cod1}", "senao": "Me manda o primeiro"}]},
+
+    {"id": "17-pedido-picado", "persona": "Rosineide Castro", "cobre": "cumprimento sozinho e pedido em partes",
+     "passos": [
+       "Boa tarde",
+       "Nay, tem kitnet ou studio no Centro?",
+       "Até 2 mil",
+       "Ok, obrigada"]},
+
+    {"id": "18-agradece-e-some", "persona": "André Moreira", "cobre": "card e despedida (o ultimo e para ela ficar calada)",
+     "passos": [
+       "Me manda o card do 5727",
+       "Show, obrigado!",
+       "Deus abençoe"]},
+
+    {"id": "19-foto-sem-imovel", "persona": "Silvana de Paula", "cobre": "pede foto sem dizer de qual imovel",
+     "passos": [
+       "Me manda as fotos",
+       "Do Life Parque Dez",
+       "Qual o valor?"]},
+
+    {"id": "20-visita-urgente", "persona": "Fiuza Corretor", "cobre": "visita para daqui a pouco (menos de 3h -> Tel)",
+     "passos": [
+       "Tem apto de 2 quartos no Parque 10 até 4 mil?",
+       {"texto": "Me manda o {cod1}", "senao": "Me manda o primeiro"},
+       "Meu cliente tá aqui do lado, dá pra visitar daqui a uma hora?"]}
+  ]
+}

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vagas — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<style>
+  .vg-topo { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px }
+  .vg-topo__vaga { display:flex; flex-wrap:wrap; align-items:center; gap:10px; color:var(--texto-medio); font-size:var(--fs-sm) }
+  .vg-topo__vaga strong { color:var(--texto) }
+  .vg-selo { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; border-radius:999px; padding:4px 11px; background:var(--verde-suave); color:#1f7a4d }
+  .vg-selo::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--verde) }
+  .vg-cartoes { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); margin-bottom:20px }
+  .vg-cartao { background:var(--superficie); border-radius:var(--raio-lg); box-shadow:var(--sombra-1); padding:16px 18px }
+  .vg-cartao__n { font-family:var(--fonte-titulo); font-size:30px; font-weight:700; line-height:1.1; color:var(--texto) }
+  .vg-cartao__r { font-size:var(--fs-xs); color:var(--texto-fraco); margin-top:2px; text-transform:uppercase; letter-spacing:.06em; font-weight:600 }
+  .vg-tabela td { vertical-align:top }
+  .vg-nome { font-weight:700; color:var(--texto) }
+  .vg-sub { display:block; font-size:var(--fs-xs); color:var(--texto-fraco); margin-top:2px }
+  .vg-tag { display:inline-block; white-space:nowrap; font-size:var(--fs-xs); font-weight:600; border-radius:999px; padding:3px 10px; background:var(--roxo-suave); color:var(--roxo) }
+  .vg-tag--sim { background:var(--verde-suave); color:#1f7a4d }
+  .vg-tag--nao { background:var(--fundo-alt); color:var(--texto-fraco) }
+  .vg-link { color:var(--roxo); font-weight:600; white-space:nowrap }
+  .vg-baixar { display:inline-flex; align-items:center; gap:6px; white-space:nowrap }
+  .vg-baixar svg { width:15px; height:15px }
+  .vg-mais { background:none; border:0; color:var(--roxo); font-weight:600; cursor:pointer; padding:0; font:inherit; font-size:var(--fs-sm) }
+  .vg-mais:hover { text-decoration:underline }
+  .vg-detalhe td { background:var(--superficie-2); padding:16px 18px !important }
+  .vg-tabela tbody tr.vg-detalhe:hover { background:var(--superficie-2) }
+  .vg-detalhe__grade { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,2fr); gap:12px 28px }
+  .vg-detalhe dt { font-size:var(--fs-xs); text-transform:uppercase; letter-spacing:.06em; color:var(--texto-fraco); font-weight:700; margin-bottom:3px }
+  .vg-detalhe dd { margin:0; color:var(--texto); white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.55 }
+  .vg-vazio { text-align:center; padding:48px 20px !important; color:var(--texto-medio) }
+  .vg-vazio strong { display:block; color:var(--texto); font-size:var(--fs-lg); margin-bottom:6px }
+  .vg-aviso { border-left:4px solid var(--vermelho); background:var(--vermelho-suave); padding:10px 14px; border-radius:8px; margin:0 0 16px; font-size:var(--fs-sm) }
+  @media (max-width:700px) { .vg-detalhe__grade { grid-template-columns:minmax(0,1fr) } }
+</style>
+<meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
+</head>
+<body class="admin" data-pagina="vagas">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <h1 class="pagina-titulo">Vagas</h1>
+  </div>
+
+  <div class="vg-topo">
+    <p class="vg-topo__vaga">
+      <span class="vg-selo">Aberta</span>
+      <strong>SDR — Pré-vendas imobiliária</strong>
+      <span>imobeasy.online/vagas-manaus</span>
+    </p>
+    <a class="btn-azul-vazado" href="../vagas-manaus" target="_blank" rel="noopener">Ver a página da vaga</a>
+  </div>
+
+  <div class="vg-cartoes">
+    <div class="vg-cartao"><div class="vg-cartao__n" id="vg-total">–</div><div class="vg-cartao__r">Candidaturas</div></div>
+    <div class="vg-cartao"><div class="vg-cartao__n" id="vg-semana">–</div><div class="vg-cartao__r">Últimos 7 dias</div></div>
+    <div class="vg-cartao"><div class="vg-cartao__n" id="vg-hoje">–</div><div class="vg-cartao__r">Hoje</div></div>
+    <div class="vg-cartao"><div class="vg-cartao__n" id="vg-imob">–</div><div class="vg-cartao__r">Já trabalharam com imóveis</div></div>
+  </div>
+
+  <div class="vg-aviso" id="vg-aviso" hidden></div>
+
+  <div class="tabela-envolucro"><div class="tabela-rolagem">
+    <table class="tabela vg-tabela">
+      <thead><tr>
+        <th scope="col">Recebida</th>
+        <th scope="col">Candidato</th>
+        <th scope="col">WhatsApp</th>
+        <th scope="col">E-mail</th>
+        <th scope="col">Exp. em vendas</th>
+        <th scope="col">Imobiliário</th>
+        <th scope="col">Pode começar</th>
+        <th scope="col">Pretensão</th>
+        <th scope="col">Currículo</th>
+        <th scope="col"><span class="sr-only">Detalhes</span></th>
+      </tr></thead>
+      <tbody id="vg-corpo">
+        <tr><td colspan="10" class="vg-vazio">Carregando…</td></tr>
+      </tbody>
+    </table>
+  </div></div>
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/vagas-admin.js"></script>
+</body>
+</html>

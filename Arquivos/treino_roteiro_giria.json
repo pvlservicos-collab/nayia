@@ -1,0 +1,10 @@
+{
+  "_como_funciona": "Teste da biblioteca de palavras (Tel, 22/09): o corretor fala como o Erick falou -- chama o nome, cita o imóvel e pergunta 'tá valendo?'.",
+  "roteiros": [
+    {"id": "giria-ta-valendo", "persona": "Erick Oliveira", "cobre": "ta valendo = ainda esta disponivel; e 'me joga ai' = manda o imovel",
+     "passos": [
+       "Nay",
+       "Esse Mirante das Flores de 2.500 tá valendo?",
+       "Me joga aí as fotos"]}
+  ]
+}

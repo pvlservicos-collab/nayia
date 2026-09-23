@@ -1,0 +1,150 @@
+{
+  "_como_funciona": "Rodada 8 (Tel, 22/09/2026): 'faça a próxima rodada testando mais partes do fluxo e não só pedindo card, testa visita, testa diferentes opções lá para vermos se está tudo certo'. Cada roteiro é uma conversa inteira. {cod1}/{cod2} viram o 1º e o 2º código que ELA citou na última resposta; {visita} e {imovel} viram a visita aberta do corretor simulado e o imóvel dela. Passo com \"como\": \"tel\" entra pelo número de comando do Tel -- é o que fecha a visita com o proprietário e com o Fernando.",
+  "roteiros": [
+    {"id": "01-visita-inteira", "persona": "Carla Mendes", "cobre": "o fluxo todo: card, visita, OK do proprietario e do Fernando, dados do visitante",
+     "passos": [
+       "Boa tarde Nay! Me manda o card do 5727",
+       "Meu cliente quer visitar amanhã às 10h",
+       {"como": "tel", "texto": "VISITA {visita} OK"},
+       {"como": "tel", "texto": "VISITA {visita} FERNANDO OK"},
+       "Perfeito! O cliente é João Pereira, CPF 529.982.247-25. Meu CRECI é 4321",
+       "Obrigada Nay!"]},
+
+    {"id": "02-visita-acesso-chave", "persona": "Rogério Lima", "cobre": "visita em que o acesso nao esta cadastrado (ACESSO ... e VISITA OK de novo)",
+     "passos": [
+       "Me manda o 5720",
+       "Quero visita quinta às 15h",
+       {"como": "tel", "texto": "VISITA {visita} OK"},
+       {"como": "tel", "texto": "ACESSO {imovel} chave com a gente"},
+       {"como": "tel", "texto": "VISITA {visita} OK"},
+       {"como": "tel", "texto": "VISITA {visita} FERNANDO OK"},
+       "Show, confirmado então"]},
+
+    {"id": "03-proprietario-sugere-outro-horario", "persona": "Patrícia Souza", "cobre": "o dono sugere outro horario e o corretor aceita",
+     "passos": [
+       "Me manda o card do 5722",
+       "Visita sexta às 9h, por favor",
+       {"como": "tel", "texto": "VISITA {visita} HORARIO sexta 11h"},
+       "Pode ser 11h sim, o cliente consegue",
+       "Combinado!"]},
+
+    {"id": "04-muda-horario-depois-de-confirmada", "persona": "Aline Rocha", "cobre": "visita confirmada e o corretor pede para mudar",
+     "passos": [
+       "Me manda o 5739",
+       "Visita amanhã às 16h",
+       {"como": "tel", "texto": "VISITA {visita} OK"},
+       {"como": "tel", "texto": "VISITA {visita} FERNANDO OK"},
+       "Nay, o cliente pediu pra mudar pra 18h, dá?",
+       "Obrigada!"]},
+
+    {"id": "05-resultado-da-visita", "persona": "Leandro Pires", "cobre": "o corretor conta como foi a visita",
+     "passos": [
+       "Me manda o card do 5724",
+       "Visita hoje às 20h",
+       {"como": "tel", "texto": "VISITA {visita} OK"},
+       {"como": "tel", "texto": "VISITA {visita} FERNANDO OK"},
+       "Nay, acabei de sair da visita. O cliente gostou muito e quer alugar!"]},
+
+    {"id": "06-visita-sem-dizer-o-imovel", "persona": "Juliana Costa", "cobre": "pede visita sem dizer de qual imovel nem quando",
+     "passos": [
+       "Tem apartamento de 2 quartos na Ponta Negra até 3 mil?",
+       {"texto": "Quero marcar uma visita", "senao": "Quero marcar uma visita"},
+       {"texto": "No {cod1}", "senao": "No primeiro que você mandou"},
+       "Segunda às 14h"]},
+
+    {"id": "07-busca-tres-perguntas", "persona": "Henrique Barros", "cobre": "quem chega pelo card do grupo: bairro, faixa e mobilia",
+     "passos": [
+       "📍 Mirante Das Flores\n• Bairro: Ponta Negra\n• 47m2\nCódigo: 5727",
+       "Tem outras opções?",
+       "Aleixo",
+       "Até 5 mil",
+       "Tanto faz a mobília",
+       {"texto": "Me manda o {cod1}", "senao": "Me manda o primeiro"}]},
+
+    {"id": "08-bairro-sem-imovel", "persona": "Kerolayne Macedo", "cobre": "bairro onde nao temos nada: ela oferece vizinhos",
+     "passos": [
+       "Tem apartamento pra alugar na Cidade de Deus até 2 mil?",
+       {"texto": "Me manda o {cod1}", "senao": "E perto de lá, tem alguma coisa?"},
+       "Valeu Nay"]},
+
+    {"id": "09-condominio-venda-e-locacao", "persona": "Marcos Albuquerque", "cobre": "condominio com venda E locacao: ela pergunta qual",
+     "passos": [
+       "Vc tem no Morada dos Pássaros?",
+       "Venda",
+       "Aceita financiamento?",
+       "Quero levar o cliente segunda às 10h"]},
+
+    {"id": "10-nome-parecido", "persona": "Eduardo Nunes", "cobre": "nome que bate com mais de um condominio",
+     "passos": [
+       "Tem apartamento no Reserva Inglesa?",
+       {"texto": "O {cod1}", "senao": "O London"},
+       "Qual o valor do condomínio?"]},
+
+    {"id": "11-escolhe-da-lista-e-visita", "persona": "Guilherme Lucas", "cobre": "lista, escolha, card, duvida e visita",
+     "passos": [
+       "Tenho um cliente procurando 3 quartos até 5 mil",
+       "Ponta Negra",
+       {"texto": "Me manda o {cod1}", "senao": "Me manda o primeiro"},
+       "Tem vaga coberta?",
+       "Ele quer ver amanhã às 9h"]},
+
+    {"id": "12-pergunta-pontual", "persona": "Solange Bernardino", "cobre": "pergunta pontual tem resposta pontual",
+     "passos": [
+       "Nay, qual o valor do 5733?",
+       "E o condomínio?",
+       "Tem elevador?"]},
+
+    {"id": "13-pergunta-que-escala", "persona": "Rosineide Castro", "cobre": "pergunta que o cadastro nao responde",
+     "passos": [
+       "Nay, o 5720 aceita pet de grande porte?",
+       "Fico no aguardo então"]},
+
+    {"id": "14-fotos-de-novo-e-visita", "persona": "André Moreira", "cobre": "fotos pedidas duas vezes e depois visita",
+     "passos": [
+       "Me manda as fotos do 5643",
+       "As fotos não abriram aqui, manda de novo por favor",
+       "Esse é de venda ou locação?",
+       "Quero visitar sábado às 10h"]},
+
+    {"id": "15-imovel-de-parceria", "persona": "Fiuza Corretor", "cobre": "imovel de parceiro: nunca sai para o corretor",
+     "passos": [
+       "Tem apartamento no Smart Downtown Residence?",
+       {"texto": "Me manda o {cod1}", "senao": "Tem algum parecido então?"},
+       "Entendi, obrigado"]},
+
+    {"id": "16-vieiralves-e-troca-de-bairro", "persona": "Aira Araújo", "cobre": "Vieiralves, e depois ele muda de ideia de bairro",
+     "passos": [
+       "Tem algo no Vieiralves até 4 mil?",
+       "Na verdade meu cliente prefere o Parque 10",
+       "Até 6 mil",
+       {"texto": "Me manda o {cod1}", "senao": "Me manda o primeiro"}]},
+
+    {"id": "17-dois-clientes-de-uma-vez", "persona": "Leonardo Toledo", "cobre": "dois pedidos na mesma conversa",
+     "passos": [
+       "Nay, tenho dois clientes: um quer 2 quartos no Aleixo até 3.500",
+       {"texto": "Me manda o {cod1}", "senao": "Me manda o primeiro"},
+       "O outro quer casa em condomínio na Ponta Negra pra alugar até 8 mil",
+       {"texto": "Me manda o {cod1} também", "senao": "Me manda o primeiro desses"}]},
+
+    {"id": "18-visita-urgente", "persona": "Silvana de Paula", "cobre": "visita para daqui a pouco: sobe para o Tel",
+     "passos": [
+       "Me manda o card do 5721",
+       "O cliente tá aqui perto, dá pra ver daqui a uma hora?",
+       "Beleza, fico no aguardo"]},
+
+    {"id": "19-cancelamento", "persona": "Carlos Alberto Souza", "cobre": "pede visita e depois desiste",
+     "passos": [
+       "Me manda o 5727",
+       "Visita terça às 15h",
+       "Nay, o cliente desistiu da visita de terça, pode cancelar?"]},
+
+    {"id": "20-conversa-torta", "persona": "Miriã Fernandes", "cobre": "mensagem picada, erro de digitacao e mudanca de assunto",
+     "passos": [
+       "oi",
+       "vc tem apt d 2 qrt no parq 10",
+       "ate 3500",
+       "na vdd pode ser 3 qrt tbm",
+       {"texto": "manda o {cod1}", "senao": "manda o primeiro"},
+       "vlw"]}
+  ]
+}

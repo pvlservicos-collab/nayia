@@ -1,0 +1,9 @@
+{
+  "_como_funciona": "Teste: o corretor pede a documentação e a lista do Tel tem que sair inteira, palavra por palavra.",
+  "roteiros": [
+    {"id": "docs", "persona": "Carla Mendes", "cobre": "pedido da lista de documentos",
+     "passos": [
+       "Nay, quais documentos o cliente precisa pra alugar?",
+       "E se for empresa?"]}
+  ]
+}

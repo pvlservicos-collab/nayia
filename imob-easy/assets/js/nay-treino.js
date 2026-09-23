@@ -44,8 +44,14 @@
     visao: "lista",     // lista | mockup
     filtro: "todos",    // todos | pendentes | errados | corretos | mudou
     escolhido: null,
-    carregando: false
+    carregando: false,
+    atual: null,        // a rodada mais nova -- a que o Tel quer ver
+    historico: false,   // true = ele abriu o historico e escolheu outra rodada
+    vistos: {},         // ids ja desenhados, para destacar o que acabou de chegar
+    relogio: null
   };
+
+  var ESPERA_MS = 8000;   // de quanto em quanto a barra pergunta o progresso
 
   /* ------------------------------------------------------------ utilidades */
   function esc(t) {
@@ -105,6 +111,14 @@
       .filter(Boolean);
   }
 
+  /* Conversa simulada (rodada 7 em diante): o nome e o do corretor simulado,
+     e a etiqueta diz de qual conversa e qual passo e aquela resposta. */
+  function quem(c) { return c.persona || c.nome_completo || c.nome_whatsapp; }
+  function etiqueta(c) {
+    return esc(c.ciclo_rotulo || ("ciclo " + c.ciclo_id)) +
+      (c.roteiro ? " · conversa " + esc(c.roteiro) + " · passo " + esc(c.passo) : "");
+  }
+
   function casoPorId(id) {
     for (var i = 0; i < estado.casos.length; i++) {
       if (estado.casos[i].id === id) return estado.casos[i];
@@ -112,12 +126,19 @@
     return null;
   }
 
+  /* Na rodada ATUAL so aparece o que ela ja respondeu (Tel, 21/09: "as
+     conversas que vao aparecer ja vai ser a resposta da nay"). Caso ainda na
+     fila so tem a fala dele, e nao ha o que julgar. */
+  function naAtual() {
+    return !estado.historico && estado.ciclo === estado.atual;
+  }
+
   function filtrados() {
     return estado.casos.filter(function (c) {
+      if (naAtual() && c.estado !== "rodado" && c.estado !== "erro") return false;
       if (estado.filtro === "pendentes") return !c.veredito;
       if (estado.filtro === "errados")   return c.veredito === "errado";
       if (estado.filtro === "corretos")  return c.veredito === "correto";
-      if (estado.filtro === "mudou")     return !!c.mudou;
       return true;
     });
   }
@@ -125,26 +146,26 @@
   /* ============================================================ CARTÕES ==== */
   function desenharCartoes() {
     var t = estado.casos.length;
+    var visiveis = naAtual()
+      ? estado.casos.filter(function (c) { return c.estado === "rodado" || c.estado === "erro"; }).length
+      : t;
     var rodados = estado.casos.filter(function (c) { return c.estado === "rodado"; }).length;
     var erros = estado.casos.filter(function (c) { return c.estado === "erro"; }).length;
     var julgados = estado.casos.filter(function (c) { return !!c.veredito; }).length;
     var corretos = estado.casos.filter(function (c) { return c.veredito === "correto"; }).length;
-    var mudou = estado.casos.filter(function (c) { return !!c.mudou; }).length;
 
     el("tr-cartoes").innerHTML =
-      cartao("Casos no ciclo", t, rodados + " re-executados") +
+      cartao("Respondidas", rodados + erros, "de " + t + " na rodada") +
       cartao("Julgados", julgados, t ? Math.round(julgados * 100 / t) + "%" : "") +
       cartao("Conversou certo", corretos, julgados ? Math.round(corretos * 100 / julgados) + "% dos julgados" : "") +
       cartao("Com erro anotado", julgados - corretos) +
-      cartao("Mudou de resposta", mudou, "vs. a execução original") +
       (erros ? cartao("Falharam ao rodar", erros, "veja a coluna Estado") : "");
 
     var filtros = [
-      ["todos", "Todos", t],
-      ["pendentes", "Por julgar", t - julgados],
+      ["todos", "Todos", visiveis],
+      ["pendentes", "Por julgar", visiveis - julgados],
       ["errados", "Com erro", julgados - corretos],
-      ["corretos", "Certos", corretos],
-      ["mudou", "Mudaram", mudou]
+      ["corretos", "Certos", corretos]
     ];
     el("tr-filtros").innerHTML = filtros.map(function (f) {
       return '<button class="filtro" type="button" data-filtro="' + f[0] + '" aria-pressed="' +
@@ -157,6 +178,64 @@
      Os 50 de uma vez. Cada linha mostra o que ele disse, o que ela respondeu
      agora, e o veredito — o suficiente para decidir onde vale abrir a
      conversa inteira. */
+  /* O que ela respondeu, do jeito que sai no WhatsApp: uma mensagem por
+     linha e as fotos no lugar delas. Antes vinha tudo grudado com "---", e o
+     Tel leu isso como se ela mandasse um blocao so -- e como se as fotos nao
+     tivessem saido (Tel, 22/09: "parece que nem enviou as fotos"). */
+  /* AS FOTOS DA CONVERSA INTEIRA (Tel, 22/09: "nao ta aparecendo um
+     indicativo que saiu as fotos em varias conversas, preciso ver
+     visualmente"). A regra dele e foto UMA VEZ POR CONVERSA: pediu o mesmo
+     imovel de novo, vai o card e as fotos nao se repetem. Sem dizer isso na
+     tela, o card sem foto parece defeito. */
+  function codigoDoCard(c) {
+    var m = String(c.ela_respondeu_agora || "").match(/C[óo]digo:\s*(\d{3,5})/);
+    return m ? m[1] : null;
+  }
+  function temFotos(c) {
+    return (c.saida || []).some(function (b) { return b.tipo === "fotos"; });
+  }
+  function passosAnteriores(c) {
+    if (!c.roteiro) return [];
+    return estado.casos.filter(function (x) {
+      return x.ciclo_id === c.ciclo_id && x.roteiro === c.roteiro && x.passo < c.passo;
+    }).sort(function (a, b) { return a.passo - b.passo; });
+  }
+  /* card sem foto: as fotos desse imovel ja sairam antes nesta conversa? */
+  function fotosJaSairam(c) {
+    var cod = codigoDoCard(c);
+    if (!cod || temFotos(c)) return null;
+    var antes = passosAnteriores(c).filter(function (x) {
+      return temFotos(x) &&
+        (String(x.ela_respondeu_agora || "").indexOf(cod) >= 0 || String(x.ele_disse || "").indexOf(cod) >= 0);
+    });
+    return { cod: cod, passo: antes.length ? antes[0].passo : null };
+  }
+
+  function resumoDaSaida(c) {
+    if (c.estado === "erro") return esc(cortar(c.erro_execucao, 120));
+    if (c.estado === "calada") return '<span class="fraco">' + esc(c.erro_execucao || "calada") + "</span>";
+    var blocos = c.saida && c.saida.length ? c.saida : null;
+    if (!blocos) {
+      return esc(cortar(c.ela_respondeu_agora || "(calada)", 120)) +
+        (Number(c.fotos_agora || 0) > 0
+           ? '<span class="tr__fotos-selo">+' + esc(c.fotos_agora) + " fotos</span>" : "");
+    }
+    var ja = fotosJaSairam(c);
+    var nota = !ja ? ""
+      : ja.passo
+        ? '<div class="tr__msg tr__msg--ja">fotos do ' + esc(ja.cod) + " já enviadas no passo " + esc(ja.passo) + "</div>"
+        : '<div class="tr__msg tr__msg--sem">card do ' + esc(ja.cod) + " saiu SEM fotos</div>";
+    return '<div class="tr__msgs">' + blocos.map(function (b) {
+      return b.tipo === "fotos"
+        ? '<div class="tr__msg tr__msg--fotos">' + esc(b.fotos) +
+            (b.fotos === 1 ? " foto" : " fotos") + "</div>"
+        : '<div class="tr__msg">' + esc(cortar(b.texto, 90)) +
+            (b.para && b.para !== "quem escreveu" && b.para !== "o corretor"
+               ? '<span class="tr__para">para ' + esc(b.para) + "</span>" : "") +
+          "</div>";
+    }).join("") + nota + "</div>";
+  }
+
   function desenharLista() {
     var lista = filtrados();
     var cab = "<thead><tr>" +
@@ -167,21 +246,17 @@
       var vered = c.veredito === "correto" ? '<span class="selo selo--ok">certo</span>'
                 : c.veredito === "errado"  ? '<span class="selo selo--erro">erro</span>'
                 : '<span class="selo selo--cinza">por julgar</span>';
-      var est = c.estado === "rodado" ? (c.mudou ? '<span class="selo selo--mudou">mudou</span>'
-                                                 : '<span class="selo selo--cinza">igual</span>')
+      var est = c.estado === "rodado" ? '<span class="selo selo--ok">respondeu</span>'
+              : c.estado === "calada"  ? '<span class="selo selo--parou">calada</span>' 
               : c.estado === "erro"   ? '<span class="selo selo--parou">falhou</span>'
               : '<span class="selo selo--cinza">' + esc(c.estado) + "</span>";
       var ferr = (c.ferramentas_agora || []).filter(function (f) { return f.charAt(0) !== "_"; });
-      return '<tr><td><span class="tr__rodada">' +
-               esc(c.ciclo_rotulo || ("ciclo " + c.ciclo_id)) + "</span></td>" +
+      return '<tr><td><span class="tr__rodada">' + etiqueta(c) + "</span></td>" +
              "<td>" + esc(quando(c.quando_original)) + "</td>" +
-             "<td>" + esc(c.nome_completo || c.nome_whatsapp || "—") + "</td>" +
+             "<td>" + esc(quem(c) || "—") + "</td>" +
              "<td>" + esc(cortar(c.ele_disse, 90)) + "</td>" +
-             "<td>" + esc(cortar(c.ela_respondeu_agora || (c.estado === "erro" ? c.erro_execucao : "(calada)"), 120)) +
-               (Number(c.fotos_agora || 0) > 0
-                  ? '<span class="tr__fotos-selo">+' + esc(c.fotos_agora) + " foto" +
-                    (Number(c.fotos_agora) === 1 ? "" : "s") + "</span>" : "") +
-               (c.mudou ? '<span class="tr__cmp">antes: ' + esc(cortar(c.ela_respondeu_antes, 90)) + "</span>" : "") +
+             "<td>" + resumoDaSaida(c) +
+
              "</td>" +
              '<td class="mono">' + esc(ferr.join(", ") || "—") + "</td>" +
              "<td>" + est + "</td><td>" + vered + "</td>" +
@@ -207,7 +282,7 @@
     el("tr-itens").innerHTML = lista.map(function (c, i) {
       var ponto = c.veredito === "correto" ? '<span class="selo selo--ok">certo</span>'
                 : c.veredito === "errado"  ? '<span class="selo selo--erro">erro</span>'
-                : c.mudou                  ? '<span class="selo selo--mudou">mudou</span>' : "";
+                : "";
       return '<button class="tr__item" type="button" data-caso="' + c.id + '" aria-selected="' +
              (estado.escolhido === c.id ? "true" : "false") + '">' +
              '<span class="tr__item-topo"><span class="tr__item-n">' + (i + 1) + "</span>" + ponto +
@@ -231,7 +306,20 @@
 
     /* o histórico que veio antes — é o que dá sentido à pergunta dele */
     var diaAnterior = "";
-    var hist = (c.contexto || []).map(function (m) {
+    /* Conversa simulada: o historico vem dos PASSOS ANTERIORES, com as fotos
+       que sairam em cada um -- o `contexto` guarda so texto. */
+    var anteriores = passosAnteriores(c);
+    var histPassos = anteriores.length ? anteriores.map(function (x) {
+      var dele = balao("dele", (x.persona === "Tel (comando)" ? "[comando do Tel] " : "") + x.ele_disse, hora(x.rodado_em));
+      var dela = (x.saida || []).map(function (b) {
+        return b.tipo === "fotos"
+          ? balao("dela", "(" + b.fotos + (b.fotos === 1 ? " foto" : " fotos") + ")", hora(x.rodado_em), "tr__b--fotos")
+          : balao("dela", (b.para && b.para !== "quem escreveu" && b.para !== "o corretor" ? "[para " + b.para + "] " : "") + b.texto,
+                  hora(x.rodado_em));
+      }).join("");
+      return dele + dela;
+    }).join("") : null;
+    var hist = histPassos !== null ? histPassos : (c.contexto || []).map(function (m) {
       var pedaco = "";
       var d = dia(m.quando);
       if (d && d !== diaAnterior) { diaAnterior = d; pedaco += '<div class="tr__dia">' + esc(d) + "</div>"; }
@@ -244,28 +332,56 @@
     /* o turno do caso: a fala dele em foco, a resposta original, e a de agora */
     var foco = balao("dele", c.ele_disse, hora(c.quando_original), "tr__b--foco");
 
-    var antes = pedacos(c.ela_respondeu_antes);
     var agora = pedacos(c.ela_respondeu_agora);
 
-    var blocoAntes = antes.length
-      ? '<div class="tr__rot">o que ela respondeu na época</div>' +
-        antes.map(function (t) { return balao("dela", t, hora(c.quando_original)); }).join("")
-      : "";
+    /* O "o que ela respondeu na epoca" SAIU (Tel, 21/09): "eu quero so as
+       conversas novas... voce vai simular no nosso fluxo as mensagens que o
+       cliente mandou para a nay de novo". Duas respostas lado a lado faziam
+       ele comparar em vez de julgar, e a da epoca e de uma Nay que nao existe
+       mais -- prompt diferente, regras diferentes. O dado continua na tabela,
+       so nao ocupa a tela. */
 
+    /* NA ORDEM EM QUE SAIU NO WHATSAPP (Tel, 22/09: "ela juntando as mensagens
+       em um blocao, falando que enviou as fotos mas nao enviou mesmo"). A
+       caixa de saida vem pronta da view, em `saida`: cada texto um balao,
+       cada rajada de fotos um balao "(12 fotos)" no lugar certo. Antes os
+       textos vinham grudados e as fotos, quando apareciam, iam todas para o
+       fim -- e lia-se "Aqui as fotos" sem foto nenhuma embaixo. */
+    var blocos = c.saida && c.saida.length ? c.saida : null;
     var blocoAgora = c.estado === "erro"
       ? '<div class="tr__rot">a re-execução falhou</div>' +
         balao("dela", c.erro_execucao || "sem detalhe", "", "tr__b--agora")
-      : agora.length
-        ? '<div class="tr__rot">o que ela responde AGORA' + (c.mudou ? " — mudou" : " — igual") + "</div>" +
-          agora.map(function (t) { return balao("dela", t, hora(c.rodado_em), "tr__b--agora"); }).join("")
-        : '<div class="tr__rot">agora ela ficou calada</div>';
+      : c.estado === "calada"
+        ? '<div class="tr__rot">ela não respondeu: ' + esc(c.erro_execucao || "a conversa saiu da mão dela") + "</div>"
+        : blocos
+          ? '<div class="tr__rot">o que ela responde</div>' +
+            blocos.map(function (b) {
+              return b.tipo === "fotos"
+                ? balao("dela", "(" + b.fotos + (b.fotos === 1 ? " foto" : " fotos") + ")",
+                        hora(c.rodado_em), "tr__b--agora tr__b--fotos")
+                : balao("dela",
+                        (b.para && b.para !== "quem escreveu" && b.para !== "o corretor"
+                           ? "[para " + b.para + "] " : "") + b.texto,
+                        hora(c.rodado_em), "tr__b--agora");
+            }).join("")
+          : agora.length
+            ? '<div class="tr__rot">o que ela responde</div>' +
+              agora.map(function (t) { return balao("dela", t, hora(c.rodado_em), "tr__b--agora"); }).join("")
+            : '<div class="tr__rot">agora ela ficou calada</div>';
 
     /* AS FOTOS. `ela_respondeu_agora` guarda so texto -- as linhas de imagem
        da caixa de saida nunca chegavam aqui, e a tela dava a entender que ela
        nao tinha mandado foto nenhuma. Em 21/09 o Tel julgou um caso por isso.
        O Tel pediu "(fotos)", nao as fotos: o balao diz quantas e para. */
+    var ja = fotosJaSairam(c);
+    if (ja && c.estado === "rodado") {
+      blocoAgora += balao("dela", ja.passo
+          ? "(sem fotos aqui: as fotos do " + ja.cod + " já foram no passo " + ja.passo + " desta conversa)"
+          : "(atenção: o card do " + ja.cod + " saiu sem nenhuma foto nesta conversa)",
+        hora(c.rodado_em), ja.passo ? "tr__b--nota" : "tr__b--alerta");
+    }
     var qFotos = Number(c.fotos_agora || 0);
-    if (qFotos > 0 && c.estado !== "erro") {
+    if (qFotos > 0 && c.estado !== "erro" && !blocos) {
       blocoAgora += balao("dela", "(" + qFotos + (qFotos === 1 ? " foto" : " fotos") + ")",
                           hora(c.rodado_em), "tr__b--agora tr__b--fotos");
     }
@@ -274,14 +390,14 @@
 
     alvo.innerHTML =
       '<div class="tr__topo">' +
-        '<span class="tr__ini">' + esc(iniciais(c.nome_completo || c.nome_whatsapp)) + "</span>" +
-        "<span><h4>" + esc(c.nome_completo || c.nome_whatsapp || "(sem nome)") + "</h4>" +
+        '<span class="tr__ini">' + esc(iniciais(quem(c))) + "</span>" +
+        "<span><h4>" + esc(quem(c) || "(sem nome)") + "</h4>" +
         "<small>" +
-          '<span class="tr__rodada">' + esc(c.ciclo_rotulo || ("ciclo " + c.ciclo_id)) + "</span> · " +
-          "turno #" + esc(c.turno_origem) + " · " + esc(quando(c.quando_original)) +
+          '<span class="tr__rodada">' + etiqueta(c) + "</span> · " +
+          (c.turno_origem ? "turno #" + esc(c.turno_origem) + " · " : "") + esc(quando(c.quando_original)) +
           (ferr.length ? " · " + esc(ferr.join(", ")) : "") + "</small></span>" +
       "</div>" +
-      '<div class="tr__baloes">' + hist + foco + blocoAntes + blocoAgora + "</div>" +
+      '<div class="tr__baloes">' + hist + foco + blocoAgora + "</div>" +
       ficha(c);
   }
 
@@ -430,6 +546,65 @@
   });
 
   /* ============================================================ CARGA ======= */
+  /* ============================================== A BARRA DA RODADA ===== */
+  function desenharProgresso() {
+    var caixa = el("tr-progresso");
+    var c = null;
+    for (var i = 0; i < estado.ciclos.length; i++) {
+      if (estado.ciclos[i].id === estado.atual) c = estado.ciclos[i];
+    }
+    if (!c) { caixa.hidden = true; return 0; }
+    var total = Number(c.casos) || 0;
+    var ok = Number(c.rodados) || 0;
+    var erro = Number(c.com_erro) || 0;
+    var feitos = ok + erro;
+    var falta = Math.max(0, total - feitos);
+    var pct = function (n) { return total ? (n * 100 / total).toFixed(2) + "%" : "0%"; };
+    caixa.hidden = false;
+    caixa.innerHTML =
+      '<div class="tr-prog__topo">' +
+        '<span class="tr-prog__titulo">' + esc(c.rotulo) + "</span>" +
+        '<span class="tr-prog__conta">' + feitos + " <small>de " + total + " respondidas</small></span>" +
+      "</div>" +
+      '<div class="tr-prog__trilho" role="progressbar" aria-valuemin="0" aria-valuemax="' + total +
+        '" aria-valuenow="' + feitos + '" aria-label="Conversas respondidas nesta rodada">' +
+        '<span class="tr-prog__ok" style="width:' + pct(ok) + '"></span>' +
+        '<span class="tr-prog__erro" style="width:' + pct(erro) + '"></span>' +
+      "</div>" +
+      '<div class="tr-prog__rodape">' +
+        (falta
+          ? '<span class="tr-prog__vivo">rodando agora</span><span>' + falta + " na fila</span>"
+          : '<span class="tr-prog__fim">rodada concluída</span>') +
+        "<span>" + ok + " responderam</span>" +
+        (erro ? '<span style="color:#b4234a;font-weight:700">' + erro + " falharam ao rodar</span>" : "") +
+        "<span>" + (Number(c.julgados) || 0) + " julgadas por você</span>" +
+      "</div>";
+    return falta;
+  }
+
+  function feitosDaAtual() {
+    var n = null;
+    estado.ciclos.forEach(function (c) {
+      if (c.id === estado.atual) n = (Number(c.rodados) || 0) + (Number(c.com_erro) || 0);
+    });
+    return n;
+  }
+
+  /* Enquanto a rodada anda, pergunta o progresso de tempos em tempos e, se
+     chegou resposta nova, recarrega os casos. Para sozinho quando acaba. */
+  function acompanhar() {
+    clearTimeout(estado.relogio);
+    estado.relogio = setTimeout(function () {
+      var antes = feitosDaAtual();
+      buscar("/api/nai/treino/ciclos").then(function (j) {
+        estado.ciclos = j.ciclos || [];
+        var falta = desenharProgresso();
+        if (feitosDaAtual() !== antes && naAtual()) carregarCasos(true);
+        if (falta) acompanhar();
+      }).catch(function () { acompanhar(); });
+    }, ESPERA_MS);
+  }
+
   function carregarCiclos() {
     return buscar("/api/nai/treino/ciclos").then(function (j) {
       estado.ciclos = j.ciclos || [];
@@ -451,26 +626,50 @@
       // treinamentos para eu julgar so as atuais"). Julgar conversa de ciclo
       // fechado e trabalho jogado fora: a solucao dele ja foi aplicada.
       var maisNova = estado.ciclos.reduce(function (a, b) { return b.id > a.id ? b : a; });
+      estado.atual = maisNova.id;
       estado.ciclo = estado.ciclo || maisNova.id;
       sel.value = String(estado.ciclo);
-      el("tr-aviso").innerHTML = j.pool
-        ? '<p class="painel-nota">Sobram <b>' + esc(j.pool) +
-          "</b> turnos nunca usados para os próximos ciclos — nenhum se repete.</p>"
-        : '<p class="painel-nota">Todos os turnos respondidos já viraram caso.</p>';
+      if (desenharProgresso()) acompanhar();
+      el("tr-aviso").innerHTML = "";
       return estado.ciclo;
     });
   }
 
-  function carregarCasos() {
+  /* `aoVivo` = recarga automatica durante a rodada. Nela a conversa aberta
+     NAO e redesenhada se ele estiver escrevendo um julgamento -- senao o
+     texto sumiria no meio da digitacao. */
+  function carregarCasos(aoVivo) {
     if (!estado.ciclo || estado.carregando) return Promise.resolve();
     estado.carregando = true;
     return buscar("/api/nai/treino/casos?ciclo=" + estado.ciclo).then(function (j) {
       estado.casos = j.casos || [];
+      // Na rodada atual, a resposta mais nova primeiro: e a que acabou de sair.
+      if (naAtual()) {
+        estado.casos.sort(function (a, b) {
+          return String(b.rodado_em || "").localeCompare(String(a.rodado_em || "")) || b.id - a.id;
+        });
+      }
+      var novos = {};
+      var primeiraVez = !Object.keys(estado.vistos).length;
+      estado.casos.forEach(function (c) {
+        if ((c.estado === "rodado" || c.estado === "erro") && !estado.vistos[c.id]) {
+          if (!primeiraVez) novos[c.id] = true;
+          estado.vistos[c.id] = true;
+        }
+      });
       var lista = filtrados();
       if (!lista.some(function (c) { return c.id === estado.escolhido; })) {
         estado.escolhido = lista.length ? lista[0].id : null;
       }
-      desenharCartoes(); desenharLista(); desenharIndice(); desenharConversa();
+      var conv = el("tr-conversa");
+      var escrevendo = aoVivo && conv && document.activeElement && conv.contains(document.activeElement);
+      desenharCartoes(); desenharLista(); desenharIndice();
+      if (!escrevendo) desenharConversa();
+      Object.keys(novos).forEach(function (id) {
+        var b = document.querySelector('#tr-tabela [data-abrir="' + id + '"]');
+        var linha = b && b.closest("tr");
+        if (linha) linha.classList.add("tr__novo");
+      });
     }).catch(function (e) {
       el("tr-aviso").innerHTML = '<div class="aviso-caixa"><b>Não consegui carregar os casos.</b> ' +
         esc(e.message) + "<br>Confira se o blueprint <span class=\"mono\">treino_api.py</span> " +
@@ -482,8 +681,24 @@
     if (!el("tr-ciclo")) return;
     el("tr-ciclo").addEventListener("change", function () {
       estado.ciclo = Number(this.value) || null;
+      estado.historico = estado.ciclo !== estado.atual;
       estado.escolhido = null;
       carregarCasos();
+    });
+    // Historico: abre o seletor das rodadas antigas; fechar volta para a atual.
+    el("tr-historico").addEventListener("click", function () {
+      var caixa = el("tr-ciclo-caixa");
+      var abrir = caixa.hidden;
+      caixa.hidden = !abrir;
+      this.setAttribute("aria-expanded", String(abrir));
+      this.textContent = abrir ? "Voltar para a rodada atual" : "Histórico de rodadas";
+      if (!abrir && estado.ciclo !== estado.atual) {
+        estado.ciclo = estado.atual;
+        estado.historico = false;
+        estado.escolhido = null;
+        el("tr-ciclo").value = String(estado.atual);
+        carregarCasos();
+      }
     });
     carregarCiclos().then(function (c) { if (c) carregarCasos(); });
   });

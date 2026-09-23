@@ -1,0 +1,12 @@
+{
+  "_como_funciona": "Teste do caso da Lily (Tel, 22/09): ela pediu um imóvel e, no meio da conversa, perguntou de OUTRO. A Nay tem que trocar de imóvel e mandar a foto do certo. Imóveis escolhidos por estarem no ar hoje: Mirante das Flores (5727) e Acquarelle (2943, R$ 3.500).",
+  "roteiros": [
+    {"id": "lily-troca-de-imovel", "persona": "Lily Morato", "cobre": "pede um imovel, depois pergunta de outro pelo nome, e no fim erra o nome como no audio",
+     "passos": [
+       "Oi Nay, bom dia! Me manda o card do Mirante das Flores",
+       "Tem 2 quartos mesmo?",
+       "O Acquarelle tá 3.500?",
+       "Me manda as fotos dele",
+       "E o aquarele de uma suíte, ainda tá disponível?"]}
+  ]
+}

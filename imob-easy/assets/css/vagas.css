@@ -1,0 +1,499 @@
+/* ==========================================================================
+   Imob Easy — Página de vagas (/vagas-manaus)
+   Tudo em cima dos tokens do site: mesmo roxo, mesmas fontes, mesmos cantos.
+   Nada de cor solta aqui que não venha de tokens.css, a não ser o verde do
+   "vaga aberta" e do sucesso, que usam --verde.
+   ========================================================================== */
+
+.vaga {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ---------------------------------------------------------------- Abertura */
+.vaga-topo {
+  text-align: center;
+  padding: 64px 0 40px;
+}
+.vaga-topo__selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 6px 14px;
+  border-radius: var(--raio-pill);
+  background: var(--superficie);
+  box-shadow: var(--sombra-1);
+  color: var(--texto-medio);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.vaga-topo__ponto {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--verde);
+  box-shadow: 0 0 0 0 rgba(92, 185, 140, 0.55);
+  animation: vaga-pulso 2s infinite;
+}
+@keyframes vaga-pulso {
+  0%   { box-shadow: 0 0 0 0 rgba(92, 185, 140, 0.55); }
+  70%  { box-shadow: 0 0 0 9px rgba(92, 185, 140, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(92, 185, 140, 0); }
+}
+.vaga-topo__titulo {
+  font-size: clamp(2rem, 5.2vw, 3.25rem);
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  color: var(--roxo);   /* roxo sólido, sem degradê (Tel, 21/09) */
+  padding-bottom: 4px;
+}
+.vaga-topo__sub {
+  max-width: 60ch;
+  margin: 16px auto 0;
+  color: var(--texto-medio);
+  font-size: var(--fs-lg);
+  line-height: 1.6;
+}
+.vaga-topo__fichas {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  list-style: none;
+  margin: 26px 0 0;
+  padding: 0;
+}
+.vaga-topo__fichas li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: var(--raio-pill);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--sombra-1);
+  color: var(--texto);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.vaga-topo__fichas svg { width: 18px; height: 18px; color: var(--roxo); flex: none; }
+.vaga-topo__acao { margin-top: 30px; }
+
+/* ------------------------------------------------------------ Títulos */
+.vaga-secao__titulo {
+  font-size: var(--fs-2xl);
+  letter-spacing: -0.015em;
+  color: var(--texto);
+  text-align: center;
+}
+.vaga-secao__sub {
+  max-width: 62ch;
+  margin: 8px auto 0;
+  text-align: center;
+  color: var(--texto-medio);
+  line-height: 1.6;
+}
+
+/* ------------------------------------------------------------------ Vídeo */
+/* Logo abaixo do título, menor (Tel, 21/09): e o primeiro contato com a
+   vaga, mas nao pode empurrar o resto da abertura para fora da tela. */
+.vaga-topo__video {
+  max-width: 640px;
+  margin: 26px auto 4px;
+}
+.vaga-video__quadro {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--raio-lg);
+  overflow: hidden;
+  background:
+    radial-gradient(70% 90% at 15% 10%, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 60%),
+    linear-gradient(135deg, #520779 0%, #6d28d9 48%, #b76ad0 100%);
+  box-shadow: var(--sombra-3), var(--brilho-roxo);
+}
+.vaga-video__quadro iframe,
+.vaga-video__quadro video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #000;
+}
+.vaga-video__espera {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: rgba(255, 255, 255, 0.92);
+  text-align: center;
+  padding: 24px;
+}
+.vaga-video__espera p { margin: 0; font-weight: 500; }
+.vaga-video__play {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.vaga-video__play svg { width: 26px; height: 26px; margin-left: 3px; }
+
+/* ------------------------------------------------------------- A vaga */
+.vaga-sobre { padding: 64px 0 8px; }
+.vaga-sobre__grade {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 32px;
+}
+.vaga-cartao {
+  background: var(--superficie);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-2);
+  padding: 28px 26px;
+  transition: transform var(--transicao), box-shadow var(--transicao);
+}
+.vaga-cartao:hover { transform: translateY(-3px); box-shadow: var(--sombra-3), var(--brilho-roxo); }
+.vaga-cartao--destaque { background: linear-gradient(165deg, #ffffff 0%, #faf5ff 100%); }
+.vaga-cartao__icone {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: var(--raio);
+  background: var(--roxo-suave);
+  color: var(--roxo);
+}
+.vaga-cartao__icone svg { width: 24px; height: 24px; }
+.vaga-cartao__titulo {
+  margin-top: 16px;
+  font-size: var(--fs-xl);
+  color: var(--texto);
+}
+.vaga-lista {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+.vaga-lista li strong { color: var(--texto); }
+.vaga-lista li {
+  position: relative;
+  padding-left: 26px;
+  margin-bottom: 10px;
+  color: var(--texto-medio);
+  line-height: 1.55;
+}
+.vaga-lista li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.32em;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236d28d9' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 12.5 4 4 8-9'/%3E%3C/svg%3E") center / 11px no-repeat,
+    var(--roxo-suave);
+}
+
+/* ------------------------------------------------------------ Formulário */
+.vaga-form {
+  max-width: 860px;
+  margin: 72px auto 0;
+  scroll-margin-top: 96px;
+}
+.vg-form,
+.vg-sucesso {
+  margin-top: 28px;
+  background: var(--superficie);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-3), var(--brilho-roxo);
+  padding: 36px 40px;
+}
+.vg-obrig { color: var(--roxo); font-weight: 700; }
+
+.vg-isca {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.vg-bloco {
+  border: 0;
+  margin: 0;
+  padding: 0 0 28px;
+  min-width: 0;
+}
+.vg-bloco + .vg-bloco {
+  padding-top: 28px;
+  border-top: 1px solid var(--borda);
+}
+.vg-bloco__titulo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  margin-bottom: 18px;
+  font-family: var(--fonte-titulo);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--texto);
+}
+.vg-bloco__titulo > span:first-child {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--roxo);
+  color: #fff;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+
+.vg-grade {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 20px;
+}
+.vg-campo { min-width: 0; }
+.vg-campo--largo { grid-column: 1 / -1; }
+
+.vg-campo > label,
+.vg-rotulo {
+  display: block;
+  margin-bottom: 7px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--texto);
+}
+.vg-campo input,
+.vg-campo select,
+.vg-campo textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--texto);
+  font: inherit;
+  font-size: var(--fs-md);
+  transition: border-color var(--transicao), box-shadow var(--transicao);
+}
+.vg-campo textarea { resize: vertical; min-height: 110px; line-height: 1.5; }
+.vg-campo select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 40px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='%236d28d9'%3E%3Cpath d='M1 4l5 5 5-5z'/%3E%3C/svg%3E") right 14px center / 12px no-repeat,
+    #fff;
+}
+.vg-campo input::placeholder,
+.vg-campo textarea::placeholder { color: #9a92ad; }
+.vg-campo input:hover,
+.vg-campo select:hover,
+.vg-campo textarea:hover { border-color: var(--roxo-borda); }
+.vg-campo input:focus,
+.vg-campo select:focus,
+.vg-campo textarea:focus {
+  outline: none;
+  border-color: var(--roxo);
+  box-shadow: var(--foco-roxo);
+}
+.vg-contador {
+  margin: 6px 0 0;
+  text-align: right;
+  font-size: var(--fs-xs);
+  color: var(--texto-fraco);
+}
+
+/* Pílulas de escolha (rádio) */
+.vg-pilulas { display: flex; flex-wrap: wrap; gap: 10px; }
+.vg-pilula { position: relative; cursor: pointer; }
+.vg-pilula input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.vg-pilula span {
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: var(--raio-pill);
+  border: 1px solid var(--borda-forte);
+  background: #fff;
+  color: var(--texto-medio);
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  transition: all var(--transicao);
+}
+.vg-pilula:hover span { border-color: var(--roxo-borda); color: var(--roxo); }
+.vg-pilula input:checked + span {
+  background: var(--roxo);
+  border-color: var(--roxo);
+  color: #fff;
+  box-shadow: var(--brilho-roxo);
+}
+.vg-pilula input:focus-visible + span { box-shadow: var(--foco-roxo); }
+
+/* Currículo */
+.vg-arquivo {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 30px 20px;
+  border: 2px dashed var(--roxo-borda);
+  border-radius: var(--raio-lg);
+  background: #fcfaff;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--transicao), background var(--transicao);
+}
+.vg-arquivo:hover,
+.vg-arquivo.arrastando { border-color: var(--roxo); background: var(--roxo-suave); }
+.vg-arquivo:focus-within { box-shadow: var(--foco-roxo); }
+.vg-arquivo input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.vg-arquivo__icone {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--roxo-suave);
+  color: var(--roxo);
+  margin-bottom: 4px;
+}
+.vg-arquivo__icone svg { width: 24px; height: 24px; }
+.vg-arquivo__texto { color: var(--texto-medio); overflow-wrap: anywhere; }
+.vg-arquivo__texto strong { color: var(--roxo); }
+.vg-arquivo__regra { font-size: var(--fs-xs); color: var(--texto-fraco); }
+.vg-arquivo.tem-arquivo {
+  border-style: solid;
+  border-color: var(--verde);
+  background: var(--verde-suave);
+}
+.vg-arquivo.tem-arquivo .vg-arquivo__icone { background: #fff; color: var(--verde); }
+
+/* Consentimento */
+.vg-consentimento { padding-top: 4px; }
+.vg-check {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  cursor: pointer;
+  color: var(--texto-medio);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+}
+.vg-check input {
+  flex: none;
+  width: 19px;
+  height: 19px;
+  margin-top: 1px;
+  accent-color: var(--roxo);
+}
+.vg-check a { color: var(--roxo); font-weight: 600; }
+
+/* Erros */
+.vg-erro {
+  display: none;
+  margin: 6px 0 0;
+  color: #b4234a;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+.tem-erro .vg-erro,
+.vg-erro.visivel { display: block; }
+.tem-erro input:not([type="radio"]):not([type="checkbox"]),
+.tem-erro select,
+.tem-erro textarea { border-color: var(--vermelho); }
+.tem-erro .vg-pilula span { border-color: var(--vermelho); }
+.vg-arquivo.tem-erro { border-color: var(--vermelho); background: var(--vermelho-suave); }
+
+.vg-aviso {
+  margin: 18px 0 0;
+  padding: 12px 16px;
+  border-radius: var(--raio);
+  background: var(--vermelho-suave);
+  color: #8f1d3c;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+/* Enviar */
+.vg-enviar {
+  position: relative;
+  width: 100%;
+  margin-top: 24px;
+}
+.vg-enviar__girando {
+  display: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: vg-girar 0.7s linear infinite;
+}
+.vg-enviar.enviando { pointer-events: none; opacity: 0.85; }
+.vg-enviar.enviando .vg-enviar__girando { display: inline-block; }
+@keyframes vg-girar { to { transform: rotate(360deg); } }
+
+/* Sucesso */
+.vg-sucesso { text-align: center; padding: 48px 32px; }
+.vg-sucesso:focus { outline: none; }
+.vg-sucesso__icone {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  background: var(--verde-suave);
+  color: var(--verde);
+}
+.vg-sucesso__icone svg { width: 36px; height: 36px; }
+.vg-sucesso__titulo { font-size: var(--fs-2xl); color: var(--texto); }
+.vg-sucesso p { color: var(--texto-medio); margin: 10px 0 24px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vaga-topo__ponto,
+  .vg-enviar__girando { animation: none; }
+  .vaga-cartao:hover { transform: none; }
+}
+
+/* ------------------------------------------------------------ Responsivo */
+@media (max-width: 900px) {
+  .vaga-sobre__grade { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .vaga { padding: 0 16px; }
+  .vaga-topo { padding: 40px 0 28px; }
+  .vaga-topo__sub { font-size: var(--fs-md); }
+  .vaga-sobre { padding-top: 48px; }
+  .vaga-form { margin-top: 52px; }
+  .vg-form { padding: 24px 18px; }
+  .vg-grade { grid-template-columns: minmax(0, 1fr); }
+  .vaga-topo__video { margin-top: 20px; }
+  .vaga-video__play { width: 54px; height: 54px; }
+  .vaga-video__play svg { width: 22px; height: 22px; }
+}

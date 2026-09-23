@@ -252,6 +252,35 @@
      É a mesma cabeça lendo as duas telas.
      ================================================================== */
   .tr__barra { display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px; margin:4px 0 14px }
+  /* o seletor de rodadas so aparece pelo botao Historico; sem isto o
+     display do .tr__campo passa por cima do atributo hidden */
+  #tr-ciclo-caixa[hidden] { display:none }
+  /* barra de progresso da rodada atual */
+  /* uma mensagem por linha na lista, como sai no WhatsApp */
+  .tr__msgs { display:flex; flex-direction:column; gap:4px }
+  .tr__msg { background:var(--superficie-2,#faf8fe); border-left:3px solid var(--roxo-borda); border-radius:6px; padding:4px 8px; font-size:var(--fs-xs); line-height:1.45 }
+  .tr__msg--fotos { border-left-color:var(--verde); background:#e8f7f0; color:#1f7a4d; font-weight:700 }
+  .tr__msg--fotos::before { content: "📷 "; }
+  .tr__msg--ja { border-left-color:var(--texto-fraco); color:var(--texto-fraco); font-style:italic }
+  .tr__msg--sem { border-left-color:var(--vermelho); background:var(--vermelho-suave); color:#8f1d3c; font-weight:700 }
+  .tr__b--nota { opacity:.75; font-style:italic }
+  .tr__b--alerta { background:#fdeef1 !important; color:#8f1d3c !important; font-weight:700 }
+  .tr__para { display:inline-block; margin-left:6px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--texto-fraco) }
+  .tr-prog { background:var(--superficie,#fff); border-radius:14px; box-shadow:var(--sombra-1); padding:16px 18px; margin:0 0 14px }
+  .tr-prog__topo { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:10px }
+  .tr-prog__titulo { font-family:var(--fonte-titulo); font-size:17px; font-weight:600; color:var(--texto) }
+  .tr-prog__conta { font-family:var(--fonte-titulo); font-size:22px; font-weight:700; color:var(--roxo) }
+  .tr-prog__conta small { font-size:14px; color:var(--texto-fraco); font-weight:500 }
+  .tr-prog__trilho { height:12px; border-radius:999px; background:var(--roxo-suave); overflow:hidden; display:flex }
+  .tr-prog__ok { background:var(--roxo); transition:width .6s ease }
+  .tr-prog__erro { background:var(--vermelho); transition:width .6s ease }
+  .tr-prog__rodape { display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:8px; font-size:var(--fs-xs); color:var(--texto-fraco) }
+  .tr-prog__vivo { display:inline-flex; align-items:center; gap:6px; color:#1f7a4d; font-weight:700 }
+  .tr-prog__vivo::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--verde); animation:tr-pulso 1.6s infinite }
+  .tr-prog__fim { color:var(--texto-medio); font-weight:700 }
+  @keyframes tr-pulso { 0%{box-shadow:0 0 0 0 rgba(92,185,140,.6)} 70%{box-shadow:0 0 0 8px rgba(92,185,140,0)} 100%{box-shadow:0 0 0 0 rgba(92,185,140,0)} }
+  .tr__novo { animation:tr-chegou 2.4s ease }
+  @keyframes tr-chegou { 0%{background:#e8f7f0} 100%{background:transparent} }
   .tr__campo { display:flex; flex-direction:column; gap:3px; font-size:var(--fs-xs); color:var(--texto-fraco) }
   .tr__campo .entrada { min-width:230px }
 
@@ -352,8 +381,12 @@
   border-radius: 20px; padding: 1px 8px;
 }
 .tr__b--fotos {
-  font-style: italic; opacity: .92;
+  /* as fotos precisam SALTAR aos olhos: e por elas que o Tel confere se o
+     envio funcionou (22/09) */
+  background: #e8f7f0 !important; color: #1f7a4d !important;
+  border: 1px solid #b7e4cc; font-weight: 700; font-style: normal;
 }
+.tr__b--fotos::before { content: "📷 "; }
 .tr__fotos-selo {
   display: inline-block; margin-left: 6px;
   background: var(--azul-claro); color: var(--azul-forte);
@@ -387,7 +420,7 @@
       <button class="abas__item" role="tab" type="button" data-painel-abre="execucoes"  aria-selected="false">O caminho</button>
       <button class="abas__item" role="tab" type="button" data-painel-abre="setores"    aria-selected="false">Setores</button>
       <button class="abas__item" role="tab" type="button" data-painel-abre="inventario" aria-selected="false">Inventário</button>
-      <button class="abas__item" role="tab" type="button" data-painel-abre="treino"     aria-selected="false">Rodada de treino 2</button>
+      <button class="abas__item" role="tab" type="button" data-painel-abre="treino"     aria-selected="false">Rodada de treino 8</button>
     </div>
 
     <!-- ===================== FLUXOGRAMA ===================== -->
@@ -539,17 +572,25 @@
       e o que chega aqui já passou pela caixa de saída em modo simulado.
     -->
     <div data-painel="treino" hidden>
+      <!-- A BARRA DA RODADA (Tel, 21/09): quantas ela ja respondeu na rodada
+           atual, atualizando sozinha enquanto o executor roda no servidor. -->
+      <div class="tr-prog" id="tr-progresso" hidden></div>
+
       <p class="painel-nota">
-        Cada caso aqui é um <b>turno real que ela já respondeu</b>, re-executado
-        pelo fluxo de verdade — mesmo prompt, mesmo modelo, mesmas ferramentas.
+        Cada caso aqui é uma <b>mensagem real que um corretor mandou</b>, entregue
+        de novo ao fluxo de verdade — mesmo prompt, mesmo modelo, mesmas ferramentas —
+        e respondida pela Nay de hoje.
         A única troca é a entrada: em vez do WhatsApp, a mensagem foi entregue
         por um script. <b>Nada disto saiu para o WhatsApp</b>, nem sairá: a
         caixa de saída rodou em modo simulado.
       </p>
 
       <div class="tr__barra">
-        <label class="tr__campo">
-          <span>Ciclo</span>
+        <!-- As rodadas antigas ficam escondidas: o interesse e a atual. So
+             aparecem clicando em "Historico". -->
+        <button class="btn-mini" type="button" id="tr-historico" aria-expanded="false">Histórico de rodadas</button>
+        <label class="tr__campo" id="tr-ciclo-caixa" hidden>
+          <span>Rodada</span>
           <select class="entrada" id="tr-ciclo"></select>
         </label>
         <div class="tr__visao" role="group" aria-label="Formato de visualização">

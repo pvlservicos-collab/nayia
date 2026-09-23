@@ -11,6 +11,10 @@ services:
       - LISTAS_DATABASE_URL=${LISTAS_DATABASE_URL}
       - NAI_DATABASE_URL=${NAI_DATABASE_URL}
       - HEARTBEAT_DIR=/heartbeats
+      # O hash do basicauth do /admin (o mesmo do Traefik). A tela Vagas do
+      # painel confere a senha AQUI DENTRO tambem: este processo atende
+      # api.imobeasy.online, que nao tem senha nenhuma.
+      - ADMIN_HTPASSWD=${ADMIN_HTPASSWD}
     volumes:
       - /root/nay-publicador/logs:/heartbeats:ro
     # localhost por enquanto -- mesma logica do nay-painel: sem DNS ainda,
@@ -23,6 +27,18 @@ services:
       - traefik.http.routers.nay-site-api.entrypoints=websecure
       - traefik.http.routers.nay-site-api.tls.certresolver=letsencrypt
       - traefik.http.services.nay-site-api.loadbalancer.server.port=8092
+
+      # /admin/api no dominio do site -> esta API, atras do MESMO cadeado do
+      # /admin (middleware definido no compose do nay-site-web). Assim a tela
+      # Vagas chama o proprio dominio e o navegador reaproveita a senha que o
+      # Tel ja digitou. Prioridade acima do router do /admin (1000), senao o
+      # nginx responderia 404 no lugar da API.
+      - traefik.http.routers.nay-site-admin-api.rule=(Host(`imobeasy.online`) || Host(`www.imobeasy.online`)) && PathPrefix(`/admin/api`)
+      - traefik.http.routers.nay-site-admin-api.entrypoints=websecure
+      - traefik.http.routers.nay-site-admin-api.tls.certresolver=letsencrypt
+      - traefik.http.routers.nay-site-admin-api.priority=2000
+      - traefik.http.routers.nay-site-admin-api.middlewares=nay-site-admin-auth@docker
+      - traefik.http.routers.nay-site-admin-api.service=nay-site-api
 
 networks:
   default:
