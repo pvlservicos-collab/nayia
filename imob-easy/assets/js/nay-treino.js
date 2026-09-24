@@ -605,6 +605,14 @@
     }, ESPERA_MS);
   }
 
+  /* O NOME DA ABA SEGUE A RODADA. Ele estava escrito na mao no HTML
+     ("Rodada de treino 8"), entao toda rodada nova exigia mexer na pagina --
+     e, se ninguem mexesse, a aba mentia. */
+  function nomearAba(rotulo) {
+    var b = document.querySelector('[data-painel-abre="treino"]');
+    if (b && rotulo) b.textContent = rotulo;
+  }
+
   function carregarCiclos() {
     return buscar("/api/nai/treino/ciclos").then(function (j) {
       estado.ciclos = j.ciclos || [];
@@ -625,8 +633,18 @@
       // A rodada ATUAL, nao a primeira da lista (Tel, 21/09: "quero la na aba
       // treinamentos para eu julgar so as atuais"). Julgar conversa de ciclo
       // fechado e trabalho jogado fora: a solucao dele ja foi aplicada.
-      var maisNova = estado.ciclos.reduce(function (a, b) { return b.id > a.id ? b : a; });
+      //
+      // E RODADA, nao teste avulso. Entre as rodadas ficam ciclos de tres
+      // casos montados para conferir uma coisa so ("Teste: troca de imovel",
+      // "Teste: biblioteca de palavras"). Eles tem id maior, e por isso a
+      // aba estava abrindo num teste de 22/09 enquanto dizia "Rodada 8".
+      var rodadas = estado.ciclos.filter(function (c) {
+        return /^rodada/i.test(String(c.rotulo || ""));
+      });
+      var pool = rodadas.length ? rodadas : estado.ciclos;
+      var maisNova = pool.reduce(function (a, b) { return b.id > a.id ? b : a; });
       estado.atual = maisNova.id;
+      nomearAba(maisNova.rotulo);
       estado.ciclo = estado.ciclo || maisNova.id;
       sel.value = String(estado.ciclo);
       if (desenharProgresso()) acompanhar();
