@@ -349,7 +349,7 @@ export default function LeadDetailsSidebar({
 
   return (
     <>
-    <div className="w-full md:w-72 border-l border-[var(--chat-border)] flex flex-col flex-shrink-0 overflow-y-auto bg-[var(--chat-bg-base)] surface-rail chat-dark-scroll">
+    <div className="w-full md:w-60 xl:w-72 border-l border-[var(--chat-border)] flex flex-col flex-shrink-0 overflow-y-auto bg-[var(--chat-bg-base)] surface-rail chat-dark-scroll">
       {onClose && (
         <div className="flex items-center justify-between px-4 h-14 border-b border-[var(--chat-border)] flex-shrink-0 md:hidden">
           <span className="text-sm font-semibold text-[var(--chat-text-primary)]">Detalhes do contato</span>

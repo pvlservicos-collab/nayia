@@ -377,7 +377,10 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
   return (
     <div className="chat-theme flex h-full gap-0">
       {/* Left — Lead List */}
-      <div className="w-[340px] border-r border-[var(--chat-border)] flex-shrink-0">
+      {/* Em notebook (1366) os 340px fixos + a barra da direita comiam a
+          conversa. Agora a lista encolhe e so volta ao tamanho cheio em
+          tela grande (xl = 1280px pra cima). */}
+      <div className="w-[264px] xl:w-[340px] border-r border-[var(--chat-border)] flex-shrink-0">
         <LeadList
           leads={allLeads}
           selectedLeadId={displayedLead?.id}

@@ -92,13 +92,24 @@ export function LeadsProvider({ children, escopo = 'tudo' }: { children: ReactNo
 
   // Real-time via Pusher
   /*
-   * Atualização automática: busca a lista de novo a cada 6 segundos com a aba
-   * aberta. É o que faz a conversa que acabou de receber mensagem subir pro topo
-   * sozinha (a lista é ordenada pela última atividade) e conversa nova aparecer
-   * sem recarregar. Ver useAtualizacaoPeriodica — o Pusher abaixo continua
-   * ligado, mas o app dele não existe mais, então hoje é isto que atualiza.
+   * Atualização automática: é o que faz a conversa que acabou de receber
+   * mensagem subir pro topo sozinha (a lista é ordenada pela última atividade)
+   * e conversa nova aparecer sem recarregar.
+   *
+   * ERA DE 6 EM 6 SEGUNDOS porque o app do Pusher não existia mais e a busca
+   * periódica era a única coisa que atualizava. O Tel criou o app em
+   * 25/09/2026, então o tempo real voltou a funcionar e a busca vira o que ela
+   * deveria ser: uma REDE DE SEGURANÇA, não o mecanismo.
+   *
+   * Por que isso pesava: `returnAll=true` traz a lista INTEIRA, sem limite, e
+   * a cada volta o navegador ainda fazia `JSON.stringify` dela só pra comparar.
+   * Dez vezes por minuto, numa máquina de 2 CPUs que também roda a Nay.
+   *
+   * Sem Pusher configurado, continua nos 6 segundos de antes — nada regride.
    */
-  useAtualizacaoPeriodica(() => fetchLeads(false), 6000, { ativo: !!organizationId })
+  const temPusher = !!process.env.NEXT_PUBLIC_PUSHER_KEY
+  useAtualizacaoPeriodica(() => fetchLeads(false), temPusher ? 60000 : 6000,
+                          { ativo: !!organizationId })
 
   usePusherChannel(
     organizationId ? `org-${organizationId}` : '',
