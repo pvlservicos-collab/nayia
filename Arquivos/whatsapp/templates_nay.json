@@ -1,0 +1,114 @@
+[
+  {
+    "name": "captacao_novo_numero",
+    "language": "pt_BR",
+    "category": "MARKETING",
+    "_para_que": "A PRIMEIRA mensagem da campanha de captação, a que sai antes da IA entrar. Hoje ela vai pela Z-API; pela API oficial ela PRECISA ser template, porque abre a conversa.",
+    "components": [
+      {
+        "type": "BODY",
+        "text": "Olá, {{1}}! Aqui é a Nay, da Imob Easy. Passando para informar o novo número da imobiliária, que vamos usar daqui pra frente. Aproveitando: o seu imóvel {{2}} está disponível para locação?",
+        "example": { "body_text": [["Carlos", "no Condomínio Acquarelle"]] }
+      },
+      {
+        "type": "BUTTONS",
+        "buttons": [
+          { "type": "QUICK_REPLY", "text": "Está disponível" },
+          { "type": "QUICK_REPLY", "text": "Está alugado" },
+          { "type": "QUICK_REPLY", "text": "Já vendi" }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "captacao_lembrete",
+    "language": "pt_BR",
+    "category": "MARKETING",
+    "_para_que": "O lembrete de 1 hora, ditado pelo Tel em 09/09. Está DESLIGADO desde 15/09 (max_followup=0) -- fica pronto para quando ele religar. De propósito NÃO repete a pergunta: ela ainda está na tela do proprietário.",
+    "components": [
+      {
+        "type": "BODY",
+        "text": "Olá, {{1}}! Estou atualizando as informações aqui no sistema e fico muito grata se conseguir me responder sobre o seu imóvel.",
+        "example": { "body_text": [["Carlos"]] }
+      }
+    ]
+  },
+  {
+    "name": "visita_agendada_proprietario",
+    "language": "pt_BR",
+    "category": "UTILITY",
+    "_para_que": "Avisar o dono do imóvel que marcamos visita. É serviço sobre um negócio em andamento, por isso UTILITY.",
+    "components": [
+      {
+        "type": "BODY",
+        "text": "Olá, {{1}}! Agendamos uma visita ao seu imóvel {{2}} para {{3}}, às {{4}}. Quem acompanha é o corretor {{5}}. Se precisar remarcar, é só me avisar por aqui.",
+        "example": {
+          "body_text": [["Carlos", "no Condomínio Acquarelle", "quinta-feira, 25/09", "15h", "Nancy Souza"]]
+        }
+      }
+    ]
+  },
+  {
+    "name": "visita_lembrete",
+    "language": "pt_BR",
+    "category": "UTILITY",
+    "_para_que": "Lembrete no dia da visita. Serve para corretor, proprietário e para o Fernando (motoboy) -- muda só o que entra nas variáveis.",
+    "components": [
+      {
+        "type": "BODY",
+        "text": "Olá, {{1}}! Lembrando da visita de hoje ao imóvel {{2}}, às {{3}}. Qualquer coisa, é só me chamar por aqui.",
+        "example": { "body_text": [["Nancy", "Conquista Rio Negro (5724)", "15h"]] }
+      }
+    ]
+  },
+  {
+    "name": "visita_remarcada",
+    "language": "pt_BR",
+    "category": "UTILITY",
+    "_para_que": "Confirmar remarcação. Hoje a Nay faz isso dentro da janela de 24h; fora dela, sem template a mensagem não sai.",
+    "components": [
+      {
+        "type": "BODY",
+        "text": "Olá, {{1}}! A visita ao imóvel {{2}} foi remarcada para {{3}}, às {{4}}. Se esse horário não servir, me avisa que eu ajusto.",
+        "example": {
+          "body_text": [["Carlos", "Conquista Rio Negro (5724)", "sexta-feira, 26/09", "10h"]]
+        }
+      }
+    ]
+  },
+  {
+    "name": "retomar_conversa",
+    "language": "pt_BR",
+    "category": "UTILITY",
+    "_para_que": "Reabrir a conversa quando a janela de 24h fechou e ainda há assunto pendente. Sem isto, passado um dia a Nay simplesmente não consegue mais falar.",
+    "components": [
+      {
+        "type": "BODY",
+        "text": "Olá, {{1}}! Passando para retomar nossa conversa sobre o imóvel {{2}}. Posso seguir com o atendimento por aqui?",
+        "example": { "body_text": [["Carlos", "Conquista Rio Negro (5724)"]] }
+      }
+    ]
+  },
+  {
+    "name": "opcao_para_o_cliente",
+    "language": "pt_BR",
+    "category": "MARKETING",
+    "_para_que": "Oferecer um imóvel a um corretor parceiro fora da janela. O card completo e as fotos vão DEPOIS, na conversa aberta -- o template só reabre a porta.",
+    "components": [
+      {
+        "type": "BODY",
+        "text": "Olá, {{1}}! Tenho uma opção que pode servir para o seu cliente: {{2}}, {{3}}. Quer que eu mande as fotos e os detalhes?",
+        "example": {
+          "body_text": [["Geina", "Arezzo Residencial, 2 quartos no Flores", "R$ 2.500/mês"]]
+        }
+      },
+      {
+        "type": "BUTTONS",
+        "buttons": [
+          { "type": "QUICK_REPLY", "text": "Quero ver" },
+          { "type": "QUICK_REPLY", "text": "Agora não" }
+        ]
+      }
+    ]
+  }
+]
