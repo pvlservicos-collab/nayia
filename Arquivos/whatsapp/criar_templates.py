@@ -63,10 +63,10 @@ def chamar(caminho, corpo=None, metodo=None):
         return {"erro": json.loads(e.read().decode("utf-8", "replace"))}
 
 
-def ler_templates():
+def ler_templates(arquivo="templates_nay.json"):
     """O JSON ao lado. As chaves que comecam com _ sao anotacao nossa e nao
     vao para a Meta -- ela recusa campo que nao conhece."""
-    bruto = json.load(io.open(os.path.join(AQUI, "templates_nay.json"), encoding="utf-8"))
+    bruto = json.load(io.open(os.path.join(AQUI, arquivo), encoding="utf-8"))
     return [{k: v for k, v in t.items() if not k.startswith("_")} for t in bruto]
 
 
@@ -81,8 +81,8 @@ def listar():
               % (t["name"], t["language"], t["status"], t.get("category", "")))
 
 
-def conferir():
-    for t in ler_templates():
+def conferir(arquivo):
+    for t in ler_templates(arquivo):
         corpo = [c for c in t["components"] if c["type"] == "BODY"][0]
         print("\n--- %s (%s, %s)" % (t["name"], t["category"], t["language"]))
         print(corpo["text"])
@@ -91,11 +91,11 @@ def conferir():
             print("   botoes: " + " | ".join(b["text"] for b in botoes[0]["buttons"]))
 
 
-def criar():
+def criar(arquivo):
     ja = chamar("%s/message_templates?limit=100" % waba())
     existentes = {t["name"] for t in ja.get("data", [])} if "erro" not in ja else set()
 
-    for t in ler_templates():
+    for t in ler_templates(arquivo):
         if t["name"] in existentes:
             print("  %-32s ja existe, pulei" % t["name"])
             continue
@@ -113,14 +113,16 @@ def main():
     p.add_argument("--listar", action="store_true")
     p.add_argument("--conferir", action="store_true")
     p.add_argument("--criar", action="store_true")
+    p.add_argument("--arquivo", default="templates_nay.json",
+                   help="qual JSON de templates usar")
     a = p.parse_args()
 
     if a.conferir:
-        conferir()
+        conferir(a.arquivo)
     elif a.listar:
         listar()
     elif a.criar:
-        criar()
+        criar(a.arquivo)
     else:
         p.print_help()
 

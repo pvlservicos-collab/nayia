@@ -1,0 +1,344 @@
+[
+  {
+    "name": "modelo4sembotao",
+    "language": "pt_BR",
+    "category": "UTILITY",
+    "components": [
+      {
+        "type": "HEADER",
+        "format": "TEXT",
+        "text": "Status do imóvel"
+      },
+      {
+        "type": "BODY",
+        "text": "Olá, {{name}}! Precisamos confirmar o status atual do imóvel cadastrado, ele está disponível?",
+        "example": {
+          "body_text_named_params": [
+            {
+              "param_name": "name",
+              "example": "Pedro"
+            }
+          ]
+        }
+      }
+    ],
+    "parameter_format": "NAMED"
+  },
+  {
+    "name": "modelou4",
+    "language": "pt_BR",
+    "category": "UTILITY",
+    "components": [
+      {
+        "type": "HEADER",
+        "format": "TEXT",
+        "text": "Status do imóvel"
+      },
+      {
+        "type": "BODY",
+        "text": "Olá, {{name}}! Precisamos confirmar o status atual do imóvel cadastrado.",
+        "example": {
+          "body_text_named_params": [
+            {
+              "param_name": "name",
+              "example": "Pedro"
+            }
+          ]
+        }
+      },
+      {
+        "type": "BUTTONS",
+        "buttons": [
+          {
+            "type": "QUICK_REPLY",
+            "text": "Disponível"
+          },
+          {
+            "type": "QUICK_REPLY",
+            "text": "Alugado"
+          },
+          {
+            "type": "QUICK_REPLY",
+            "text": "Vendido"
+          }
+        ]
+      }
+    ],
+    "parameter_format": "NAMED"
+  },
+  {
+    "name": "modelou3",
+    "language": "pt_BR",
+    "category": "UTILITY",
+    "components": [
+      {
+        "type": "HEADER",
+        "format": "TEXT",
+        "text": "Conferência de cadastro"
+      },
+      {
+        "type": "BODY",
+        "text": "Olá, {{name}}! Confirme a situação atual do imóvel associado ao seu cadastro.",
+        "example": {
+          "body_text_named_params": [
+            {
+              "param_name": "name",
+              "example": "Pedro"
+            }
+          ]
+        }
+      },
+      {
+        "type": "BUTTONS",
+        "buttons": [
+          {
+            "type": "QUICK_REPLY",
+            "text": "Está disponível"
+          },
+          {
+            "type": "QUICK_REPLY",
+            "text": "Está alugado"
+          },
+          {
+            "type": "QUICK_REPLY",
+            "text": "Foi vendido"
+          }
+        ]
+      }
+    ],
+    "parameter_format": "NAMED"
+  },
+  {
+    "name": "modelof2ptbr",
+    "language": "pt_BR",
+    "category": "UTILITY",
+    "_falta": "o botao 'Informar situacao' e de formulario (Flow) e nao ha Flow nesta conta -- sobe so o texto",
+    "components": [
+      {
+        "type": "HEADER",
+        "format": "TEXT",
+        "text": "Atualização do imóvel"
+      },
+      {
+        "type": "BODY",
+        "text": "Olá, {{name}}! Estamos realizando uma atualização cadastral. Informe a situação atual do seu imóvel pelo formulário.",
+        "example": {
+          "body_text_named_params": [
+            {
+              "param_name": "name",
+              "example": "Pedro"
+            }
+          ]
+        }
+      }
+    ],
+    "parameter_format": "NAMED"
+  },
+  {
+    "name": "modelof1_2",
+    "language": "en",
+    "category": "UTILITY",
+    "_falta": "idem, e o Tel cadastrou este como English mesmo com o texto em portugues -- mantido como ele mandou",
+    "components": [
+      {
+        "type": "HEADER",
+        "format": "TEXT",
+        "text": "Atualização do imóvel"
+      },
+      {
+        "type": "BODY",
+        "text": "Olá, {{name}}! Estamos realizando uma atualização cadastral. Informe a situação atual do imóvel pelo formulário.",
+        "example": {
+          "body_text_named_params": [
+            {
+              "param_name": "name",
+              "example": "Pedro"
+            }
+          ]
+        }
+      }
+    ],
+    "parameter_format": "NAMED"
+  },
+  {
+    "name": "midelou1sembotao",
+    "language": "pt_BR",
+    "category": "UTILITY",
+    "components": [
+      {
+        "type": "HEADER",
+        "format": "TEXT",
+        "text": "Atualização do cadastro"
+      },
+      {
+        "type": "BODY",
+        "text": "Olá, {{name}}! Precisamos atualizar a situação do imóvel registrado em seu cadastro, ele está disponível?",
+        "example": {
+          "body_text_named_params": [
+            {
+              "param_name": "name",
+              "example": "Pedro"
+            }
+          ]
+        }
+      }
+    ],
+    "parameter_format": "NAMED"
+  },
+  {
+    "name": "modelou2sb",
+    "language": "pt_BR",
+    "category": "UTILITY",
+    "components": [
+      {
+        "type": "HEADER",
+        "format": "TEXT",
+        "text": "Situação do imóvel"
+      },
+      {
+        "type": "BODY",
+        "text": "Olá, {{name}}! Estamos atualizando o status do imóvel registrado no seu cadastro, está disponível?",
+        "example": {
+          "body_text_named_params": [
+            {
+              "param_name": "name",
+              "example": "Pedro"
+            }
+          ]
+        }
+      }
+    ],
+    "parameter_format": "NAMED"
+  },
+  {
+    "name": "moldeou2cb",
+    "language": "pt_BR",
+    "category": "UTILITY",
+    "components": [
+      {
+        "type": "HEADER",
+        "format": "TEXT",
+        "text": "Situação do imóvel"
+      },
+      {
+        "type": "BODY",
+        "text": "Olá, {{name}}! Estamos atualizando o status do imóvel registrado no seu cadastro.",
+        "example": {
+          "body_text_named_params": [
+            {
+              "param_name": "name",
+              "example": "Pedro"
+            }
+          ]
+        }
+      },
+      {
+        "type": "FOOTER",
+        "text": "Atualização cadastral Imobeasy"
+      },
+      {
+        "type": "BUTTONS",
+        "buttons": [
+          {
+            "type": "QUICK_REPLY",
+            "text": "Disponível"
+          },
+          {
+            "type": "QUICK_REPLY",
+            "text": "Alugado"
+          },
+          {
+            "type": "QUICK_REPLY",
+            "text": "Vendido"
+          }
+        ]
+      }
+    ],
+    "parameter_format": "NAMED"
+  },
+  {
+    "name": "modelou1_2ptbr",
+    "language": "pt_BR",
+    "category": "UTILITY",
+    "components": [
+      {
+        "type": "HEADER",
+        "format": "TEXT",
+        "text": "Atualização do cadastro"
+      },
+      {
+        "type": "BODY",
+        "text": "Olá, {{nome}}! Precisamos atualizar a situação do imóvel registrado em seu cadastro",
+        "example": {
+          "body_text_named_params": [
+            {
+              "param_name": "nome",
+              "example": "Pedro"
+            }
+          ]
+        }
+      },
+      {
+        "type": "BUTTONS",
+        "buttons": [
+          {
+            "type": "QUICK_REPLY",
+            "text": "Disponível"
+          },
+          {
+            "type": "QUICK_REPLY",
+            "text": "Alugado"
+          },
+          {
+            "type": "QUICK_REPLY",
+            "text": "Vendido"
+          }
+        ]
+      }
+    ],
+    "parameter_format": "NAMED"
+  },
+  {
+    "name": "modelout1",
+    "language": "en",
+    "category": "UTILITY",
+    "_falta": "cadastrado como English pelo Tel, texto em portugues -- mantido como ele mandou",
+    "components": [
+      {
+        "type": "HEADER",
+        "format": "TEXT",
+        "text": "Atualização do cadastro"
+      },
+      {
+        "type": "BODY",
+        "text": "Olá, {{nome}}! Precisamos atualizar a situação do imóvel registrado em seu cadastro.",
+        "example": {
+          "body_text_named_params": [
+            {
+              "param_name": "nome",
+              "example": "Pedro"
+            }
+          ]
+        }
+      },
+      {
+        "type": "BUTTONS",
+        "buttons": [
+          {
+            "type": "QUICK_REPLY",
+            "text": "Disponível"
+          },
+          {
+            "type": "QUICK_REPLY",
+            "text": "Alugado"
+          },
+          {
+            "type": "QUICK_REPLY",
+            "text": "Vendido"
+          }
+        ]
+      }
+    ],
+    "parameter_format": "NAMED"
+  }
+]

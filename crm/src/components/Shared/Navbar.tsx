@@ -34,7 +34,10 @@ import { usePipelineFilters } from '@/contexts/FilterContext'
 const NAV_ITEMS = [
   { label: 'Início', href: '/', icon: House },
   { label: 'Pipeline', href: '/pipeline', icon: Kanban },
-  { label: 'WhatsApp API', href: '/chat', icon: WhatsappLogo },
+  // DUAS LINHAS DE WHATSAPP (Tel, 25/09/2026): a captacao pela API Oficial
+  // e a parceria pela Z-API. Mesma tela, conversas separadas por integracao.
+  { label: 'WhatsApp API (captação)', href: '/chat', icon: WhatsappLogo },
+  { label: 'WhatsApp Parceria', href: '/chat/parceria', icon: WhatsappLogo },
   { label: 'Funil de Mensagens', href: '/funnels', icon: FlowArrow },
   { label: 'Configurações', href: '/settings/organization', icon: Gear },
 ]
@@ -42,7 +45,7 @@ const NAV_ITEMS = [
 // Destinos mais usados — ficam sempre à mão na barra inferior do celular.
 // Os demais (Configurações, Funil de Mensagens, Métricas) ficam atrás do "Mais",
 // que abre a mesma gaveta lateral — só um sistema de navegação por vez no celular.
-const MOBILE_TAB_LABELS = ['WhatsApp API', 'DM Instagram', 'Pipeline']
+const MOBILE_TAB_LABELS = ['WhatsApp API (captação)', 'WhatsApp Parceria', 'Pipeline']
 
 export default function Navbar() {
   const pathname = usePathname()
@@ -53,6 +56,14 @@ export default function Navbar() {
   const pipelineIdParam = searchParams.get('pipelineId')
   const { pipelines, selectedPipelineId } = usePipeline(organizationId || '')
   const activePipelineId = pipelineIdParam || selectedPipelineId
+
+  /* A aba acesa e a de caminho MAIS LONGO que casa com o endereco. Sem
+     isto, /chat/parceria acenderia tambem a aba /chat (captacao), porque
+     '/chat' e prefixo de '/chat/parceria'. */
+  const hrefAtivo = NAV_ITEMS
+    .map((i) => i.href)
+    .filter((h) => pathname === h || (h !== '/' && pathname.startsWith(h)))
+    .sort((a, b) => b.length - a.length)[0]
 
   const { setFilters } = usePipelineFilters()
   const [showPipelineDropdown, setShowPipelineDropdown] = useState(false)
@@ -123,7 +134,8 @@ export default function Navbar() {
       case 'Dashboard': return !!permissions.settings?.view_dashboard
       case 'Leads': return !!permissions.settings?.view_leads
       case 'Pipeline': return !!permissions.settings?.view_pipeline
-      case 'WhatsApp API': return !!permissions.settings?.view_chat
+      case 'WhatsApp API (captação)': return !!permissions.settings?.view_chat
+      case 'WhatsApp Parceria': return !!permissions.settings?.view_chat
       case 'DM Instagram': return !!permissions.settings?.view_chat
       case 'Funil de Mensagens': return !!permissions.settings?.view_funnels
       case 'Logs': return !!permissions.settings?.view_logs
@@ -147,8 +159,7 @@ export default function Navbar() {
         {/* Nav Tabs (desktop) */}
         <div className="hidden md:flex items-center gap-1">
           {NAV_ITEMS.filter(item => isItemVisible(item.label)).map((item) => {
-            const isActive = pathname === item.href ||
-              (item.href !== '/' && pathname.startsWith(item.href))
+            const isActive = item.href === hrefAtivo
             const Icon = item.icon
 
             // Special handling for Pipeline with multiple pipelines
@@ -317,7 +328,7 @@ export default function Navbar() {
           </div>
           <div className="flex-1 overflow-y-auto p-2">
             {NAV_ITEMS.filter(item => isItemVisible(item.label)).map(item => {
-              const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
+              const isActive = item.href === hrefAtivo
               const Icon = item.icon
               return (
                 <Link

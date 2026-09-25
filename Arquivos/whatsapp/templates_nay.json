@@ -8,7 +8,7 @@
       {
         "type": "BODY",
         "text": "Olá, {{1}}! Aqui é a Nay, da Imob Easy. Passando para informar o novo número da imobiliária, que vamos usar daqui pra frente. Aproveitando: o seu imóvel {{2}} está disponível para locação?",
-        "example": { "body_text": [["Carlos", "no Condomínio Acquarelle"]] }
+        "example": { "body_text": [["Pedro", "no Condomínio Acquarelle"]] }
       },
       {
         "type": "BUTTONS",
@@ -29,7 +29,7 @@
       {
         "type": "BODY",
         "text": "Olá, {{1}}! Estou atualizando as informações aqui no sistema e fico muito grata se conseguir me responder sobre o seu imóvel.",
-        "example": { "body_text": [["Carlos"]] }
+        "example": { "body_text": [["Pedro"]] }
       }
     ]
   },
@@ -43,7 +43,7 @@
         "type": "BODY",
         "text": "Olá, {{1}}! Agendamos uma visita ao seu imóvel {{2}} para {{3}}, às {{4}}. Quem acompanha é o corretor {{5}}. Se precisar remarcar, é só me avisar por aqui.",
         "example": {
-          "body_text": [["Carlos", "no Condomínio Acquarelle", "quinta-feira, 25/09", "15h", "Nancy Souza"]]
+          "body_text": [["Pedro", "no Condomínio Acquarelle", "quinta-feira, 25/09", "15h", "Nancy Souza"]]
         }
       }
     ]
@@ -71,7 +71,7 @@
         "type": "BODY",
         "text": "Olá, {{1}}! A visita ao imóvel {{2}} foi remarcada para {{3}}, às {{4}}. Se esse horário não servir, me avisa que eu ajusto.",
         "example": {
-          "body_text": [["Carlos", "Conquista Rio Negro (5724)", "sexta-feira, 26/09", "10h"]]
+          "body_text": [["Pedro", "Conquista Rio Negro (5724)", "sexta-feira, 26/09", "10h"]]
         }
       }
     ]
@@ -85,7 +85,7 @@
       {
         "type": "BODY",
         "text": "Olá, {{1}}! Passando para retomar nossa conversa sobre o imóvel {{2}}. Posso seguir com o atendimento por aqui?",
-        "example": { "body_text": [["Carlos", "Conquista Rio Negro (5724)"]] }
+        "example": { "body_text": [["Pedro", "Conquista Rio Negro (5724)"]] }
       }
     ]
   },
