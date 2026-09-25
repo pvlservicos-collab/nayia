@@ -1,6 +1,6 @@
 [
   {
-    "name": "modelo4sembotao",
+    "name": "modelo4sembotao_2",
     "language": "pt_BR",
     "category": "UTILITY",
     "components": [
@@ -25,7 +25,7 @@
     "parameter_format": "NAMED"
   },
   {
-    "name": "modelou4",
+    "name": "modelou4_2",
     "language": "pt_BR",
     "category": "UTILITY",
     "components": [
@@ -67,7 +67,7 @@
     "parameter_format": "NAMED"
   },
   {
-    "name": "modelou3",
+    "name": "modelou3_2",
     "language": "pt_BR",
     "category": "UTILITY",
     "components": [
@@ -109,7 +109,7 @@
     "parameter_format": "NAMED"
   },
   {
-    "name": "modelof2ptbr",
+    "name": "modelof2ptbr_2",
     "language": "pt_BR",
     "category": "UTILITY",
     "_falta": "o botao 'Informar situacao' e de formulario (Flow) e nao ha Flow nesta conta -- sobe so o texto",
@@ -135,7 +135,7 @@
     "parameter_format": "NAMED"
   },
   {
-    "name": "modelof1_2",
+    "name": "modelof1_2b",
     "language": "en",
     "category": "UTILITY",
     "_falta": "idem, e o Tel cadastrou este como English mesmo com o texto em portugues -- mantido como ele mandou",
@@ -161,7 +161,7 @@
     "parameter_format": "NAMED"
   },
   {
-    "name": "midelou1sembotao",
+    "name": "midelou1sembotao_2",
     "language": "pt_BR",
     "category": "UTILITY",
     "components": [
@@ -186,7 +186,7 @@
     "parameter_format": "NAMED"
   },
   {
-    "name": "modelou2sb",
+    "name": "modelou2sb_2",
     "language": "pt_BR",
     "category": "UTILITY",
     "components": [
@@ -211,7 +211,7 @@
     "parameter_format": "NAMED"
   },
   {
-    "name": "moldeou2cb",
+    "name": "moldeou2cb_2",
     "language": "pt_BR",
     "category": "UTILITY",
     "components": [
@@ -257,7 +257,7 @@
     "parameter_format": "NAMED"
   },
   {
-    "name": "modelou1_2ptbr",
+    "name": "modelou1_2ptbr_2",
     "language": "pt_BR",
     "category": "UTILITY",
     "components": [
@@ -299,7 +299,7 @@
     "parameter_format": "NAMED"
   },
   {
-    "name": "modelout1",
+    "name": "modelout1_2",
     "language": "en",
     "category": "UTILITY",
     "_falta": "cadastrado como English pelo Tel, texto em portugues -- mantido como ele mandou",
