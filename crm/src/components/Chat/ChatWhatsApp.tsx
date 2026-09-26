@@ -118,6 +118,12 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
   // hora de abrir a tela, e fica nela. Antes era "a do topo agora": com a lista
   // se reordenando sozinha, a conversa na tela trocava sem ninguém clicar.
   const conversaInicial = useRef<string | null>(null)
+  const linhaDoRef = useRef<LinhaWhatsapp | null>(null)
+  // o ref tambem sobrevive a troca de aba: zera quando a linha muda
+  if (linhaDoRef.current !== linha) {
+    linhaDoRef.current = linha
+    conversaInicial.current = null
+  }
   if (!conversaInicial.current && allLeads.length > 0) {
     // A última que esta pessoa abriu, se ainda estiver na lista; senão a do topo.
     let guardada: string | null = null
@@ -128,7 +134,17 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
       guardada && allLeads.some((l) => l.id === guardada) ? guardada : allLeads[0].id
   }
   const displayedLeadId = selectedLead?.id || conversaInicial.current
-  const displayedLead = allLeads.find(l => l.id === displayedLeadId) || selectedLead
+  /* O `|| selectedLead` existe para conversa fora do limite de 1000 linhas
+     que o LeadsContext carrega -- busca e link conseguem apontar para ela.
+     Mas ele NAO pode atravessar a troca de aba: as duas abas renderizam este
+     mesmo componente na mesma posicao da arvore, entao o React reaproveita a
+     instancia em vez de remontar, e o `selectedLead` da parceria sobrevivia
+     para a captacao. A lista vinha vazia (certo) e o painel mostrava a
+     conversa da outra linha (errado). Por isso o lead solto so vale se for
+     da linha desta aba. */
+  const soltoDestaLinha =
+    selectedLead && getLinhaWhatsapp(selectedLead) === linha ? selectedLead : null
+  const displayedLead = allLeads.find(l => l.id === displayedLeadId) || soltoDestaLinha
   // Pass the lead's stage_id directly — the hook resolves the pipeline internally
   const { stages: leadStages, loading: stagesLoading } = useLeadPipelineStages(displayedLead?.stage_id)
   const { history: stageHistory, loading: historyLoading } = useStageHistory(displayedLead?.id || '')
