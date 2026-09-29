@@ -2,35 +2,29 @@ import { db } from '@/lib/db'
 import { integrations, integrationSecrets } from '@/lib/schema'
 import { eq, and, isNull } from 'drizzle-orm'
 import { convertAudioToVoiceNote } from '@/lib/audioConvert'
+import { credencialMeta } from '@/lib/metaTemplates'
+import { enderecoParaFora } from '@/lib/armazem'
 
+/**
+ * A credencial da API oficial para mandar TEXTO e MÍDIA -- a mesma dos templates.
+ *
+ * Até 28/09 esta função só olhava `integration_secrets`, e o token nunca esteve
+ * lá: gravar segredo ali é barrado, e ele mora no .env (META_TOKEN), que é de
+ * onde a tela de Templates sempre leu (`credencialMeta`). Resultado: o template
+ * saía, mas responder a conversa da aba API Oficial pelo chat falhava sempre com
+ * "Integração com WhatsApp incompleta" (Pedro: "quando clico em um chat da api
+ * oficial não dá para mandar msg pra ele"). Agora é uma credencial só, na mesma
+ * ordem: a do banco se existir, senão a do .env.
+ */
 export async function getWhatsAppCredentials(organizationId: string) {
-  const [integration] = await db.select({ id: integrations.id, config: integrations.config })
-    .from(integrations)
-    .where(and(
-      eq(integrations.organizationId, organizationId),
-      eq(integrations.type, 'whatsapp_cloud_official'),
-      isNull(integrations.deletedAt),
-    ))
-    .limit(1)
-
-  if (!integration) throw { status: 400, message: 'Integração com WhatsApp não configurada.' }
-
-  const [secretRow] = await db.select({ secret: integrationSecrets.secret })
-    .from(integrationSecrets)
-    .where(eq(integrationSecrets.integrationId, integration.id))
-    .limit(1)
-
-  const config = integration.config as { phone_number_id?: string; graph_api_version?: string }
-  const secret = secretRow?.secret as { system_token?: string } | undefined
-
-  if (!config?.phone_number_id || !secret?.system_token) {
+  const cred = await credencialMeta(organizationId)
+  if (!cred?.token || !cred.phoneNumberId) {
     throw { status: 400, message: 'Integração com WhatsApp incompleta (faltando phone_number_id ou token).' }
   }
-
   return {
-    apiVersion: config.graph_api_version || 'v21.0',
-    phoneNumberId: config.phone_number_id,
-    token: secret.system_token,
+    apiVersion: cred.versao || 'v21.0',
+    phoneNumberId: cred.phoneNumberId,
+    token: cred.token,
   }
 }
 
@@ -81,7 +75,8 @@ export async function sendWhatsAppMedia(
   // enviar, senão a Meta rejeita com "Unsupported MIME type" (ver audioConvert.ts).
   const effectiveMediaUrl = mediaType === 'audio' ? await convertAudioToVoiceNote(mediaUrl) : mediaUrl
 
-  const mediaPayload: Record<string, any> = { link: effectiveMediaUrl }
+  // a Meta baixa sem sessão: endereço assinado do armazém (ver src/lib/armazem.ts)
+  const mediaPayload: Record<string, any> = { link: enderecoParaFora(effectiveMediaUrl) }
   if (caption && mediaType !== 'audio' && mediaType !== 'sticker') mediaPayload.caption = caption
   if (filename && mediaType === 'document') mediaPayload.filename = filename
 

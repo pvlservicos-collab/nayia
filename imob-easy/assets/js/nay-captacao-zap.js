@@ -202,7 +202,7 @@
   }
 
   function carregar() {
-    fetch(API + "/api/nai/captacao/conversas")
+    fetch("api/nai/captacao/conversas")
       .then(function (r) { return r.json(); })
       .then(function (j) {
         conversas = (j && j.conversas) || [];

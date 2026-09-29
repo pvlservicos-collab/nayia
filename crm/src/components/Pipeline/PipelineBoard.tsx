@@ -24,11 +24,18 @@ import { getStageColor } from '@/lib/stageColors'
 import FilterButton, { FilterState } from '@/components/Shared/FilterButton'
 import StageColumn from './StageColumn'
 import SourceRail from './SourceRail'
+import NovoLeadImobEasy from './NovoLeadImobEasy'
 import LeadCard from './LeadCard'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 import { LeadDetailsSidebar } from '@/components/Chat'
-import { X } from '@phosphor-icons/react'
+import { X, Plus } from '@phosphor-icons/react'
 import { linkDaConversa } from '@/lib/links'
+
+const ORDEM_DO_FUNIL: Record<string, number> = { oficial: 0, parceria: 1, captacao: 2 }
+function rotuloDoFunil(p: { name: string; settings?: any }) {
+  const linha = p.settings?.linha
+  return linha === 'oficial' ? 'API Oficial' : linha === 'parceria' ? 'Parceria' : linha === 'captacao' ? 'Captação' : p.name
+}
 
 // A coluna "Fonte:" não é uma etapa, então no celular ela precisa de um id
 // próprio pra virar uma aba junto com as etapas de verdade. Prefixo improvável de
@@ -50,7 +57,7 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
 
   const { currentOrganization, permissions } = useAuth()
 
-  const { leads: globalLeads, moveLeadToStage, setLeads, stageStats } = useLeadsContext()
+  const { leads: globalLeads, moveLeadToStage, setLeads, stageStats, refetch } = useLeadsContext()
   const { setFilters } = usePipelineFilters()
 
   // Apply pipeline-specific filters in memory
@@ -71,6 +78,13 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
   console.log('[PipelineBoard] pipelines length:', pipelines?.length, 'stages length:', stages?.length, 'selectedPipelineId:', selectedPipelineId);
 
   const activePipeline = pipelines.find(p => p.id === selectedPipelineId)
+  // as abas: Oficial, Parceria, Captação (settings.linha, migração 0127) e o resto depois
+  const abasDosFunis = useMemo(() => [...pipelines].sort((a, b) =>
+    (ORDEM_DO_FUNIL[a.settings?.linha] ?? 9) - (ORDEM_DO_FUNIL[b.settings?.linha] ?? 9)), [pipelines])
+  const trocarDeFunil = useCallback((id: string) => {
+    selectPipeline(id)
+    router.replace(`/pipeline?pipelineId=${id}`)
+  }, [selectPipeline, router])
   const isGoalsEnabled = activePipeline?.settings?.goals_enabled || false
   const [activeLead, setActiveLead] = useState<LeadWithOwner | null>(null)
   const [activeLeadOriginalStage, setActiveLeadOriginalStage] = useState<string | null>(null)
@@ -112,11 +126,16 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
   // Mobile: garante que sempre haja uma etapa selecionada pra mostrar (a primeira, por padrão)
   useEffect(() => {
     if (stages.length === 0) return
-    const isValid = activeMobileStageId === SOURCE_TAB_ID || stages.some(s => s.id === activeMobileStageId)
-    // Abre na coluna "Fonte:" — é por onde o lead entra, então é o começo natural
-    // da leitura no celular, onde só cabe uma coluna por vez.
-    if (!isValid) setActiveMobileStageId(SOURCE_TAB_ID)
+    // Abre na PRIMEIRA ETAPA. Antes abria na coluna "Fonte:", que saiu em
+    // 26/09 -- sem esta troca o celular abriria numa aba que nao existe mais
+    // e a tela ficaria vazia.
+    const isValid = stages.some(s => s.id === activeMobileStageId)
+    if (!isValid) setActiveMobileStageId(stages[0].id)
   }, [stages, activeMobileStageId])
+
+  /* ADICIONAR LEAD À MÃO (Tel, 26/09/2026). O botão vive no topo do quadro,
+     junto do filtro, porque é de lá que se olha o funil inteiro. */
+  const [abrirNovoLead, setAbrirNovoLead] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -411,6 +430,46 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
       {/* Kanban Board — largura rola no desktop (várias colunas lado a lado), altura
           é travada aqui e repassada pra baixo; quem rola de verdade é a lista de cards
           dentro de cada StageColumn, não essa página inteira. */}
+      {/* Barra do quadro: um funil por número em abas (Pedro, 29/09: "vai ter uma
+          pipeline para cada número, podendo serem alteradas por abas lá em cima")
+          e adicionar lead à mão */}
+      <div className="px-4 pt-3 flex flex-wrap items-center gap-2 flex-shrink-0">
+        {abasDosFunis.length > 1 && (
+          <div className="flex items-center gap-0.5 p-0.5 rounded-lg border border-line bg-panel" role="tablist" aria-label="Funil de cada número">
+            {abasDosFunis.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                role="tab"
+                aria-selected={p.id === selectedPipelineId}
+                onClick={() => trocarDeFunil(p.id)}
+                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap ${p.id === selectedPipelineId
+                  ? 'bg-accent/15 text-accent'
+                  : 'text-ink-2 hover:text-ink hover:bg-graphite-6/40'}`}
+              >
+                {rotuloDoFunil(p)}
+              </button>
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setAbrirNovoLead(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
+                     bg-accent/15 border border-accent/40 text-accent hover:bg-accent/25 transition-colors"
+        >
+          <Plus size={14} weight="bold" /> Adicionar lead
+        </button>
+      </div>
+
+      {abrirNovoLead && (
+        <NovoLeadImobEasy
+          etapas={stages.map((s2) => ({ id: s2.id, name: s2.name }))}
+          onClose={() => setAbrirNovoLead(false)}
+          onCriado={() => { if (typeof refetch === 'function') refetch() }}
+        />
+      )}
+
       <div className="flex-1 min-h-0 p-4 overflow-x-auto">
         <DndContext
           sensors={sensors}
@@ -438,14 +497,6 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
 
               {/* Seletor de etapa — abas roláveis horizontalmente */}
               <div className="flex gap-2 overflow-x-auto pb-3 -mx-1 px-1 flex-shrink-0">
-                <button
-                  onClick={() => setActiveMobileStageId(SOURCE_TAB_ID)}
-                  className={`pill flex-shrink-0 px-3.5 py-2 text-sm !border-accent/40 ${
-                    activeMobileStageId === SOURCE_TAB_ID ? 'pill-active !text-accent-2' : '!text-accent-2/70'
-                  }`}
-                >
-                  Fonte:
-                </button>
                 {stages.map(stage => {
                   const count = stageStats[stage.id]?.count ?? leadsByStage[stage.id]?.length ?? 0
                   const isActive = stage.id === activeMobileStageId
@@ -464,15 +515,6 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
               {/* Uma etapa por vez — arrastar entre etapas não funciona bem no toque,
                   então mover um lead é feito clicando no card (abre "mover para"). */}
               <div className="flex-1 min-h-0">
-                {activeMobileStageId === SOURCE_TAB_ID && (
-                  <SourceRail
-                    leads={pipelineLeads}
-                    stageNameById={stageNameById}
-                    stageColorById={stageColorById}
-                    highlightedLeadId={highlightedLeadId}
-                    onHighlightLead={handleHighlightLead}
-                  />
-                )}
                 {stages.filter(s => s.id === activeMobileStageId).map(stage => (
                   <StageColumn
                     key={stage.id}
@@ -491,14 +533,11 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
             </div>
           ) : (
             <div className="flex gap-4 pb-4 h-full">
-              {/* Coluna fixa, fora do DnD — ver o comentário no topo de SourceRail */}
-              <SourceRail
-                leads={pipelineLeads}
-                stageNameById={stageNameById}
-                stageColorById={stageColorById}
-                highlightedLeadId={highlightedLeadId}
-                onHighlightLead={handleHighlightLead}
-              />
+              {/* A coluna "Fonte:" saiu (Tel, 26/09/2026): "pode retirar aquilo
+                  de fontes de dados, da pipeline era de outro projeto". As
+                  fontes eram agenda_ascensao, site_evento e indicacao -- nada
+                  da Imob Easy. O SourceRail continua no repositório, então
+                  voltar é só recolocar estas linhas. */}
               {stages.map((stage) => (
                 <StageColumn
                   key={stage.id}

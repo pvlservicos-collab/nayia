@@ -62,12 +62,13 @@
     { chave: "corretores",    rotulo: "Corretores",       href: "corretores.html" },
     { chave: "locacao",       rotulo: "Locação",          href: "locacao.html" },
     { chave: "oportunidades", rotulo: "Oportunidades",    href: "oportunidades.html" },
-    { chave: "captacao",      rotulo: "Captação",         href: "captacao.html" },
-    { chave: "clientes",      rotulo: "Clientes",         href: "clientes.html" },
-    { chave: "vagas",         rotulo: "Vagas",            href: "vagas.html" }
+    { chave: "captacao",      rotulo: "Captação",         href: "captacao.html" }
+    /* Clientes e Vagas foram para o "Mais" (Tel, 28/09) */
   ];
 
   var SUBMENU = [
+    { rotulo: "Clientes",          href: "clientes.html",    chave: "clientes" },
+    { rotulo: "Vagas",             href: "vagas.html",       chave: "vagas" },
     { rotulo: "Fluxo de mensagens", href: "fluxo.html",      chave: "fluxo" },
     { rotulo: "Nay Locação",       href: "nay-locacao.html", chave: "nay-locacao" },
     { rotulo: "Nay Captação",      href: "nay-captacao.html", chave: "nay-captacao" },
@@ -97,6 +98,8 @@
         "</a>" +
         '<div class="barra-topo__direita">' +
           '<a class="btn-azul-vazado btn-marca" href="https://n8n.imobeasy.online" target="_blank" rel="noopener">n8n</a>' +
+          /* Enviar imóvel ao lado do n8n (Tel, 28/09): o disparo direto para um número. */
+          '<a class="btn-azul-vazado btn-marca" href="disparo.html"' + (atual === "disparo" ? ' aria-current="page"' : "") + '>Enviar imóvel</a>' +
           '<a class="btn-azul-vazado" href="../index.html">Pesquisar Imóveis</a>' +
           '<button class="sino" type="button" aria-label="Notificações">' + ICONE.sino + "</button>" +
           '<button class="usuario" type="button">Telmário Araújo ' +

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { PinnedMessage, LeadActivityWithActor } from '@/lib/types'
 import { usePusherChannel } from './usePusher'
@@ -34,7 +34,8 @@ export function usePinnedMessages(leadId: string) {
     '__reconnected': () => fetchPinned(),
   })
 
-  const pinnedActivityIds = new Set(pinned.map((p) => p.activity_id))
+  // o mesmo Set enquanto a lista não muda: senão a conversa inteira se redesenhava a cada render
+  const pinnedActivityIds = useMemo(() => new Set(pinned.map((p) => p.activity_id)), [pinned])
 
   const togglePin = useCallback(async (activity: LeadActivityWithActor) => {
     const isPinned = pinnedActivityIds.has(activity.id)

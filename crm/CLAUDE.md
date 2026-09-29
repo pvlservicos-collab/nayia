@@ -25,6 +25,30 @@ correto) e não com o código-fonte dele inlined (bundlado, quebrado):
 grep -o 'require("nome-do-pacote")' .next/server/app/api/.../route.js
 ```
 
+## Um lead por pessoa EM CADA LINHA de WhatsApp (28/09/2026)
+
+São três números, uma aba cada: `/chat` (API Oficial, `whatsapp_cloud_official`),
+`/chat/parceria` (Z-API, `whatsapp_zapi`) e `/chat/captacao` (Z-API,
+`whatsapp_zapi_captacao`). A mesma pessoa falando com dois números são DUAS
+conversas, dois leads. O índice `leads_org_phone_unique` é
+(organização, telefone, `integration_id`) com NULLS NOT DISTINCT (drizzle/0125).
+
+Até 28/09 o lead era um por telefone, e cada mensagem que chegava puxava o lead
+para a linha do número que a recebeu: a conversa pulava de aba e a resposta saía
+pelo número errado.
+
+Regras que sustentam isso:
+
+- todo código que acha ou cria lead a partir de uma mensagem usa
+  `acharLeadDaLinha(org, telefones, integrationId)` (`src/lib/leadDaLinha.ts`),
+  nunca `eq(leads.phone, …)` sozinho;
+- nada troca o `integration_id` de um lead que já tem linha; só o lead SEM linha
+  é adotado (dentro do `acharLeadDaLinha`);
+- mover para "Em atendimento" é só com `etapaEmAtendimentoDoMesmoPipeline`
+  (`src/lib/etapaDaLinha.ts`): no pipeline do próprio lead, só para quem já está
+  no funil e só para a frente. Procurar a etapa pelo nome na organização inteira
+  joga lead da Parceria no funil da captação.
+
 ## Diagnosticar "não está enviando X"
 
 Falhas de envio (WhatsApp/Instagram) ficam em `lead_activities.metadata` (`send_status`,

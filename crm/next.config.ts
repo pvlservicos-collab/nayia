@@ -1,6 +1,24 @@
 import type { NextConfig } from 'next'
 
 const config: NextConfig = {
+  /*
+   * O DOCUMENTO NAO FICA GUARDADO NO NAVEGADOR (Tel, 26/09/2026).
+   *
+   * Os chunks do Next tem o hash no nome, entao trocar de build troca o
+   * arquivo. Mas o HTML que APONTA pra eles pode ficar no cache do
+   * navegador, e ai a pessoa continua baixando os chunks antigos mesmo
+   * depois do deploy -- foi o que fez o Tel ver conversa da Z-API numa aba
+   * que, no servidor, ja vinha vazia.
+   *
+   * `no-store` so no documento: os /_next/static continuam cacheados pra
+   * sempre, como devem, porque o nome deles muda a cada build.
+   */
+  async headers() {
+    return [{
+      source: '/:path((?!_next/static|_next/image|icons|fonts|logos).*)',
+      headers: [{ key: 'Cache-Control', value: 'no-store, must-revalidate' }],
+    }]
+  },
   reactStrictMode: true,
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },

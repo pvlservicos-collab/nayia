@@ -165,6 +165,27 @@ export function telefoneCanonico(value: unknown): string | null {
   return variantes[0] ?? null
 }
 
+/**
+ * O telefone é um espelho da bateria de treino?
+ *
+ * Tel, 26/09/2026: o CRM tinha 24 conversas com nome de corretor de verdade
+ * (Ubaldo, Mariza, Joel...) e telefone 5599 9 0000-00NN. Não eram clientes: era
+ * a rodada de treino. O runner conversa com a Nay pelo fluxo real, e o n8n copia
+ * tudo que passa por lá para o CRM -- inclusive o treino. Quem abrisse o chat
+ * veria a mesma pessoa duas vezes, uma delas inventada.
+ *
+ * O prefixo não é de ninguém: foi escolhido fora de qualquer faixa real de
+ * Manaus (92) ou Macapá (96) justamente para isso. Duas formas porque o CRM
+ * guarda o celular com o nono dígito e o runner manda sem.
+ */
+const PREFIXOS_ESPELHO_TREINO = ['5599900000', '5599990000']
+
+export function ehEspelhoDeTreino(value: unknown): boolean {
+  const d = String(value ?? '').replace(/\D/g, '')
+  if (!d) return false
+  return PREFIXOS_ESPELHO_TREINO.some((p) => d.startsWith(p))
+}
+
 function trimmed(value: unknown): string | null {
   if (value === null || value === undefined) return null
   const s = String(value).trim()

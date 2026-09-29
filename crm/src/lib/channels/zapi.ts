@@ -13,17 +13,18 @@ export const zapiAdapter: ChannelAdapter = {
   metadataIdKey: 'zapi_message_id',
   supportsGroups: true,
 
-  async sendText(organizationId, _integrationId, recipient, content) {
-    const { data, telefone } = await sendZapiMessage(organizationId, recipient, content)
+  // a linha da conversa (Parceria ou captação) decide por qual número sai
+  async sendText(organizationId, integrationId, recipient, content) {
+    const { data, telefone } = await sendZapiMessage(organizationId, recipient, content, integrationId)
     return { externalId: data?.messageId || data?.id, raw: data, recipienteCorrigido: telefone }
   },
 
-  async sendMedia(organizationId, _integrationId, recipient, mediaType, mediaUrl, caption, filename) {
-    const { data, telefone } = await sendZapiMedia(organizationId, recipient, mediaType, mediaUrl, caption, filename)
+  async sendMedia(organizationId, integrationId, recipient, mediaType, mediaUrl, caption, filename) {
+    const { data, telefone } = await sendZapiMedia(organizationId, recipient, mediaType, mediaUrl, caption, filename, integrationId)
     return { externalId: data?.messageId || data?.id, raw: data, recipienteCorrigido: telefone }
   },
 
-  async deleteMessage(organizationId, _integrationId, recipient, externalMessageId) {
-    await deleteZapiMessage(organizationId, recipient, externalMessageId, true)
+  async deleteMessage(organizationId, integrationId, recipient, externalMessageId) {
+    await deleteZapiMessage(organizationId, recipient, externalMessageId, true, integrationId)
   },
 }

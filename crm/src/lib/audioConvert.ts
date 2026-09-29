@@ -16,7 +16,7 @@ import { writeFile, readFile, unlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import ffmpegPath from 'ffmpeg-static'
-import { put } from '@vercel/blob'
+import { guardarMidia, lerMidia } from './armazem'
 
 function runFfmpeg(args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -35,10 +35,15 @@ function runFfmpeg(args: string[]): Promise<void> {
   })
 }
 
+/**
+ * Devolve o endereço RELATIVO do armazém (/api/midia/...). Quem manda para fora
+ * passa por `enderecoParaFora` (ver src/lib/armazem.ts): a Z-API e a Meta
+ * precisam de endereço absoluto e assinado.
+ */
 export async function convertAudioToVoiceNote(sourceUrl: string): Promise<string> {
-  const res = await fetch(sourceUrl)
-  if (!res.ok) throw new Error(`Falha ao baixar áudio original (HTTP ${res.status})`)
-  const inputBuffer = Buffer.from(await res.arrayBuffer())
+  const origem = await lerMidia(sourceUrl)
+  if (!origem) throw new Error('Falha ao baixar o áudio original')
+  const inputBuffer = origem.dados
 
   const tmpId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
   const inputPath = join(tmpdir(), `audio-in-${tmpId}`)
@@ -61,11 +66,7 @@ export async function convertAudioToVoiceNote(sourceUrl: string): Promise<string
     ])
 
     const outputBuffer = await readFile(outputPath)
-    const blob = await put(`chat-media/audio-meta/${tmpId}.ogg`, outputBuffer, {
-      access: 'public',
-      contentType: 'audio/ogg',
-    })
-    return blob.url
+    return await guardarMidia('chat-media/voz', tmpId, outputBuffer, 'audio/ogg')
   } finally {
     await Promise.allSettled([unlink(inputPath), unlink(outputPath)])
   }

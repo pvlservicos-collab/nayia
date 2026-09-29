@@ -18,8 +18,11 @@
       }).join("") +
       '<button type="button" data-pagina="' + (p + 1) + '"' + (p >= paginas ? " disabled" : "") + ' aria-label="Próxima página">&raquo;</button>';
     nav.onclick = function (e) {
-      var b = e.target.closest("[data-pagina]");
-      if (!b || b.disabled) return;
+      // So o BOTAO da propria barra: o <body> tambem tem data-pagina (o nome da
+      // tela), e clicar no numero da pagina atual ou nas reticencias subia ate
+      // ele -- virava "ir para a pagina NaN" e a lista dava erro (28/09).
+      var b = e.target.closest("button[data-pagina]");
+      if (!b || b.disabled || !nav.contains(b)) return;
       aoIr(Number(b.dataset.pagina));
       window.scrollTo({ top: 0, behavior: "smooth" });
     };

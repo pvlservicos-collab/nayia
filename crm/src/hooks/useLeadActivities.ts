@@ -14,6 +14,7 @@ import { useNotification } from '@/contexts/NotificationContext'
 const CHANNEL_LABELS: Record<string, string> = {
   whatsapp_evolution: 'Nº 2 (Evolution)',
   whatsapp_zapi: 'Z-API',
+  whatsapp_zapi_captacao: 'Z-API (captação)',
   whatsapp_cloud_official: 'API Oficial',
 }
 
@@ -23,6 +24,8 @@ const CHANNEL_LABELS: Record<string, string> = {
  * servidor. É por conversa — a chave é o id do lead —, então nunca mistura.
  */
 const conversasJaAbertas = new Map<string, LeadActivityWithActor[]>()
+/** se ainda há mensagens mais antigas que as guardadas, por conversa */
+const temMaisAntigas = new Map<string, boolean>()
 const LIMITE_DE_CONVERSAS_GUARDADAS = 60
 
 function guardarConversa(leadId: string, atividades: LeadActivityWithActor[]) {
@@ -30,9 +33,15 @@ function guardarConversa(leadId: string, atividades: LeadActivityWithActor[]) {
   conversasJaAbertas.set(leadId, atividades)
   if (conversasJaAbertas.size > LIMITE_DE_CONVERSAS_GUARDADAS) {
     const maisAntiga = conversasJaAbertas.keys().next().value
-    if (maisAntiga) conversasJaAbertas.delete(maisAntiga)
+    if (maisAntiga) {
+      conversasJaAbertas.delete(maisAntiga)
+      temMaisAntigas.delete(maisAntiga)
+    }
   }
 }
+
+const semCampoPersonalizado = (lista: any[]): LeadActivityWithActor[] =>
+  (lista || []).filter((a: any) => !(a.type === 'system' && a.metadata?.source === 'custom_field'))
 
 export function useLeadActivities(organizationId: string, leadId: string) {
   const { data: session } = useSession()
@@ -58,12 +67,18 @@ export function useLeadActivities(organizationId: string, leadId: string) {
    */
   const leadAberto = useRef(leadId)
   leadAberto.current = leadId
+  const [temMais, setTemMais] = useState(() => temMaisAntigas.get(leadId) ?? false)
+  const [carregandoAnteriores, setCarregandoAnteriores] = useState(false)
   const [leadDoEstado, setLeadDoEstado] = useState(leadId)
   if (leadDoEstado !== leadId) {
     setLeadDoEstado(leadId)
     setActivities(conversasJaAbertas.get(leadId) ?? [])
     setLoading(!conversasJaAbertas.has(leadId))
+    setTemMais(temMaisAntigas.get(leadId) ?? false)
+    setCarregandoAnteriores(false)
   }
+  const atividadesRef = useRef(activities)
+  atividadesRef.current = activities
 
   const fetchActivities = useCallback(async (showLoading = true) => {
     if (!organizationId || !leadId) return
@@ -76,18 +91,30 @@ export function useLeadActivities(organizationId: string, leadId: string) {
       const json = await res.json()
       if (leadAberto.current !== alvo) return // a pessoa já está em outra conversa
 
-      const filtered = (json.data || []).filter((a: any) => {
-        if (a.type === 'system' && a.metadata?.source === 'custom_field') return false
-        return true
-      })
-      guardarConversa(alvo, filtered)
+      const filtered = semCampoPersonalizado(json.data)
+      const janelaCortada = !!json.mais
       setError(null) // deu certo agora: some o aviso de falha anterior
       // Mensagem otimista (a que acabou de ser digitada e ainda está a caminho do
       // servidor) fica na tela até o envio terminar — a busca periódica pode
       // chegar no meio e, sem isto, a mensagem piscaria: some e volta.
       setActivities((prev) => {
         const pendentes = prev.filter((a) => a.metadata?.is_optimistic && a.lead_id === alvo)
-        const proxima = pendentes.length ? [...filtered, ...pendentes] : filtered
+        // A busca traz só as últimas 300. As mais antigas que já estavam na
+        // tela (quem subiu para ler, ou as que a janela deixou para trás quando
+        // chegou mensagem nova) continuam: a janela nova só substitui a parte dela.
+        let antigas: LeadActivityWithActor[] = []
+        if (janelaCortada && filtered.length) {
+          const naJanela = new Set(filtered.map((a) => a.id))
+          const inicio = Date.parse(filtered[0].created_at)
+          antigas = prev.filter((a) => !a.metadata?.is_optimistic && !naJanela.has(a.id) && Date.parse(a.created_at) <= inicio)
+        }
+        if (!antigas.length) {
+          temMaisAntigas.set(alvo, janelaCortada)
+          setTemMais(janelaCortada)
+        }
+        const juntas = antigas.length ? [...antigas, ...filtered] : filtered
+        guardarConversa(alvo, juntas)
+        const proxima = pendentes.length ? [...juntas, ...pendentes] : juntas
         // Nada mudou: devolve o mesmo array e o React não redesenha a conversa.
         if (JSON.stringify(proxima) === JSON.stringify(prev)) return prev
         return proxima
@@ -98,6 +125,42 @@ export function useLeadActivities(organizationId: string, leadId: string) {
       if (leadAberto.current === alvo) setLoading(false)
     }
   }, [organizationId, leadId, session])
+
+  /* As mensagens de antes (subiu até o topo), como no WhatsApp. */
+  const buscandoAnteriores = useRef(false)
+  const carregarAnteriores = useCallback(async () => {
+    if (!leadId || buscandoAnteriores.current) return
+    const alvo = leadId
+    const primeira = atividadesRef.current.find((a) => !a.metadata?.is_optimistic)
+    if (!primeira || !temMaisAntigas.get(alvo)) return
+    buscandoAnteriores.current = true
+    setCarregandoAnteriores(true)
+    try {
+      const res = await fetch(`/api/leads/${alvo}/messages?antesDe=${encodeURIComponent(primeira.id)}`)
+      if (!res.ok) throw new Error('Falha ao carregar as mensagens anteriores')
+      const json = await res.json()
+      if (leadAberto.current !== alvo) return
+      const anteriores = semCampoPersonalizado(json.data)
+      let novas = 0
+      setActivities((prev) => {
+        const ja = new Set(prev.map((a) => a.id))
+        const soNovas = anteriores.filter((a) => !ja.has(a.id))
+        novas = soNovas.length
+        if (!novas) return prev
+        const proxima = [...soNovas, ...prev]
+        guardarConversa(alvo, proxima.filter((a) => !a.metadata?.is_optimistic))
+        return proxima
+      })
+      const aindaTem = !!json.mais && anteriores.length > 0
+      temMaisAntigas.set(alvo, aindaTem)
+      setTemMais(aindaTem)
+    } catch (err) {
+      console.error('[conversa] mensagens anteriores', err)
+    } finally {
+      buscandoAnteriores.current = false
+      if (leadAberto.current === alvo) setCarregandoAnteriores(false)
+    }
+  }, [leadId])
 
   useEffect(() => {
     fetchActivities(true)
@@ -305,5 +368,8 @@ export function useLeadActivities(organizationId: string, leadId: string) {
     }
   }
 
-  return { activities, loading, error, sendHumanMessage, sendMediaMessage, deleteMessage, refresh: fetchActivities }
+  return {
+    activities, loading, error, sendHumanMessage, sendMediaMessage, deleteMessage, refresh: fetchActivities,
+    temMais, carregandoAnteriores, carregarAnteriores,
+  }
 }

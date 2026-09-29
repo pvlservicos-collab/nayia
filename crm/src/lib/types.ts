@@ -100,6 +100,10 @@ export interface LeadWithOwner extends Lead {
   }
   stage?: PipelineStage
   integration?: Integration
+  /* A ABA DESTA CONVERSA, calculada no servidor pela linha do lead. Desde
+     28/09 cada lead é de uma linha só (ver `leadDaLinha.ts`), então a lista
+     tem um item; vazio cai na linha do lead. */
+  linhas?: Array<'oficial' | 'parceria' | 'captacao'>
   lead_tags?: Array<{
     tag_id: string
     tag: { id: string; name: string; color: string }

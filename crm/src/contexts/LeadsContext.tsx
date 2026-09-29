@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo, ReactNode } from 'react'
 import { LeadWithOwner } from '@/lib/types'
 import { useAuth } from '@/hooks'
 import { usePusherChannel } from '@/hooks/usePusher'
@@ -43,52 +43,156 @@ export function LeadsProvider({ children, escopo = 'tudo' }: { children: ReactNo
   const [leads, setLeads] = useState<LeadWithOwner[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [stageStats, setStageStats] = useState<Record<string, StageStats>>({})
 
   const organizationId = currentOrganization?.organization_id
   // Última lista recebida, pra não redesenhar a tela quando nada mudou — a
   // lista é buscada a cada poucos segundos e quase sempre vem igual.
   const ultimaAssinatura = useRef('')
+  /*
+   * UMA BUSCA DE CADA VEZ (Pedro, 29/09/2026: "quando aparece mensagem nova nem
+   * sempre ela fica no topo da lista"). Cada aviso 'lead.updated' buscava a
+   * lista inteira, e numa rajada (a Nay manda texto + card + fotos) várias
+   * buscas corriam juntas: a resposta mais VELHA podia chegar por último e
+   * desfazer a nova -- a conversa voltava para baixo até o aviso seguinte ou a
+   * rede de segurança de 60 s. Agora quem chega com uma busca no ar só marca
+   * "de novo", e a busca seguinte sai quando a atual termina: a última
+   * aplicada é sempre a mais nova.
+   */
+  const buscando = useRef(false)
+  const deNovo = useRef(false)
+
+  /*
+   * SÓ A CONVERSA QUE MUDOU (Pedro, 29/09/2026: "preciso do máximo de
+   * velocidade nas mensagens no CRM... cliques rápidos sem bugar"). O aviso diz
+   * QUAL conversa mudou ({ id } ou { ids }); a tela busca só ela (1 KB, ~100 ms)
+   * em vez da lista inteira (352 conversas, 400 KB) -- que numa rajada de
+   * mensagens era baixada, comparada e redesenhada várias vezes seguidas. Os
+   * pedidos que chegam juntos viram uma busca só; uma de cada vez, pela mesma
+   * razão da busca completa. A lista inteira fica para a abertura, o "não sei
+   * qual mudou" e a rede de segurança de 60 s.
+   */
+  const idsPendentes = useRef<Set<string>>(new Set())
+  const buscandoIds = useRef(false)
+  const relogioIds = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // mudaram enquanto a lista inteira estava no ar: pedidos de novo depois dela
+  const mexidosDuranteCompleta = useRef<Set<string>>(new Set())
+
+  function parametrosBase() {
+    const viewOwnOnly = permissions?.leads?.view_own_only
+    const memberId = currentOrganization?.id
+    // Grupos entram na lista (o Chat precisa deles); quem não quer ver grupo
+    // (Pipeline) já filtra por conta própria em PipelineBoard.tsx.
+    const params = new URLSearchParams({ returnAll: 'true' })
+    if (escopo !== 'tudo') params.set('scope', escopo)
+    if (viewOwnOnly && memberId) params.set('owner', memberId)
+    return params
+  }
 
   async function fetchLeads(showLoading = true) {
     if (!organizationId) { setLoading(false); return }
+    if (buscando.current) { deNovo.current = true; return }
+    buscando.current = true
+    mexidosDuranteCompleta.current = new Set()
     try {
       if (showLoading) setLoading(true)
       setError(null)
-      const viewOwnOnly = permissions?.leads?.view_own_only
-      const memberId = currentOrganization?.id
-      // Grupos entram na lista (o Chat precisa deles); quem não quer ver grupo
-      // (Pipeline) já filtra por conta própria em PipelineBoard.tsx.
-      const params = new URLSearchParams({ returnAll: 'true' })
-      if (escopo !== 'tudo') params.set('scope', escopo)
-      if (viewOwnOnly && memberId) params.set('owner', memberId)
-      const res = await fetch(`/api/leads?${params}`)
+      const res = await fetch(`/api/leads?${parametrosBase()}`)
       if (!res.ok) throw new Error('Failed to fetch leads')
       const { data } = await res.json()
       const assinatura = JSON.stringify(data || [])
       if (assinatura === ultimaAssinatura.current) return
       ultimaAssinatura.current = assinatura
       setLeads(data || [])
-
-      // Compute stage stats — grupo não conta pra estatística do Pipeline
-      const stats: Record<string, StageStats> = {}
-      for (const lead of (data || [])) {
-        if (!lead.stage_id || lead.is_group) continue
-        if (!stats[lead.stage_id]) stats[lead.stage_id] = { count: 0, totalValue: 0 }
-        stats[lead.stage_id].count++
-        stats[lead.stage_id].totalValue += lead.value || 0
-      }
-      setStageStats(stats)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch leads')
     } finally {
       if (showLoading) setLoading(false)
+      buscando.current = false
+      // o que mudou enquanto ela estava no ar pode ter vindo velho nela
+      if (mexidosDuranteCompleta.current.size) {
+        pedirConversas(Array.from(mexidosDuranteCompleta.current))
+        mexidosDuranteCompleta.current = new Set()
+      }
+      if (deNovo.current) {
+        deNovo.current = false
+        void fetchLeads(false)
+      }
     }
   }
+
+  function pedirConversas(ids: string[]) {
+    for (const id of ids) if (id) idsPendentes.current.add(id)
+    if (!idsPendentes.current.size || relogioIds.current || buscandoIds.current) return
+    // os avisos de uma rajada chegam juntos: espera um instante e busca todos
+    relogioIds.current = setTimeout(() => { relogioIds.current = null; void buscarConversas() }, 80)
+  }
+
+  async function buscarConversas() {
+    if (buscandoIds.current || !organizationId) return
+    const ids = Array.from(idsPendentes.current).slice(0, 100)
+    if (!ids.length) return
+    ids.forEach((id) => idsPendentes.current.delete(id))
+    buscandoIds.current = true
+    let falhou = false
+    try {
+      const params = parametrosBase()
+      params.set('ids', ids.join(','))
+      const res = await fetch(`/api/leads?${params}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const { data } = await res.json()
+      const novos: LeadWithOwner[] = data || []
+      if (buscando.current) ids.forEach((id) => mexidosDuranteCompleta.current.add(id))
+      // a tela já não é a última lista completa: a próxima completa aplica
+      ultimaAssinatura.current = ''
+      setLeads((prev) => {
+        const porId = new Map(novos.map((l) => [l.id, l]))
+        const pedidos = new Set(ids)
+        const proxima: LeadWithOwner[] = []
+        for (const l of prev) {
+          const nova = porId.get(l.id)
+          if (nova) { proxima.push(nova); porId.delete(l.id) }
+          else if (!pedidos.has(l.id)) proxima.push(l)   // pedida e não voltou: saiu do recorte
+        }
+        for (const n of porId.values()) proxima.push(n)  // entrou no recorte agora
+        return proxima
+      })
+    } catch {
+      falhou = true
+      ids.forEach((id) => idsPendentes.current.add(id))
+    } finally {
+      buscandoIds.current = false
+      if (idsPendentes.current.size) {
+        if (falhou) {
+          // sem rede ou servidor reiniciando: tenta daqui a pouco, sem girar em falso
+          if (!relogioIds.current) relogioIds.current = setTimeout(() => { relogioIds.current = null; void buscarConversas() }, 3000)
+        } else {
+          pedirConversas([])
+        }
+      }
+    }
+  }
+
+  // o Pusher guarda as funções da hora da inscrição: estas são sempre as de agora
+  const acoes = useRef({ fetchLeads, pedirConversas })
+  acoes.current = { fetchLeads, pedirConversas }
 
   useEffect(() => {
     fetchLeads()
   }, [organizationId, currentOrganization?.id])
+
+  useEffect(() => () => { if (relogioIds.current) clearTimeout(relogioIds.current) }, [])
+
+  // Grupo não conta pra estatística do Pipeline
+  const stageStats = useMemo(() => {
+    const stats: Record<string, StageStats> = {}
+    for (const lead of leads) {
+      if (!lead.stage_id || lead.is_group) continue
+      if (!stats[lead.stage_id]) stats[lead.stage_id] = { count: 0, totalValue: 0 }
+      stats[lead.stage_id].count++
+      stats[lead.stage_id].totalValue += lead.value || 0
+    }
+    return stats
+  }, [leads])
 
   // Real-time via Pusher
   /*
@@ -101,25 +205,35 @@ export function LeadsProvider({ children, escopo = 'tudo' }: { children: ReactNo
    * 25/09/2026, então o tempo real voltou a funcionar e a busca vira o que ela
    * deveria ser: uma REDE DE SEGURANÇA, não o mecanismo.
    *
-   * Por que isso pesava: `returnAll=true` traz a lista INTEIRA, sem limite, e
-   * a cada volta o navegador ainda fazia `JSON.stringify` dela só pra comparar.
-   * Dez vezes por minuto, numa máquina de 2 CPUs que também roda a Nay.
-   *
    * Sem Pusher configurado, continua nos 6 segundos de antes — nada regride.
    */
   const temPusher = !!process.env.NEXT_PUBLIC_PUSHER_KEY
-  useAtualizacaoPeriodica(() => fetchLeads(false), temPusher ? 60000 : 6000,
+  useAtualizacaoPeriodica(() => acoes.current.fetchLeads(false), temPusher ? 60000 : 6000,
                           { ativo: !!organizationId })
+
+  const quaisMudaram = (data: any): string[] | null => {
+    if (Array.isArray(data?.ids) && data.ids.length) return data.ids.map(String)
+    if (data?.id) return [String(data.id)]
+    return null
+  }
 
   usePusherChannel(
     organizationId ? `org-${organizationId}` : '',
     {
-      'lead.created': () => fetchLeads(false),
-      'lead.updated': () => fetchLeads(false),
+      'lead.created': (data: any) => {
+        const ids = quaisMudaram(data)
+        if (ids) acoes.current.pedirConversas(ids)
+        else acoes.current.fetchLeads(false)
+      },
+      'lead.updated': (data: any) => {
+        const ids = quaisMudaram(data)
+        if (ids) acoes.current.pedirConversas(ids)
+        else acoes.current.fetchLeads(false)
+      },
       'lead.deleted': (data: any) => {
         if (data?.id) setLeads(prev => prev.filter(l => l.id !== data.id))
       },
-      '__reconnected': () => fetchLeads(false),
+      '__reconnected': () => acoes.current.fetchLeads(false),
     }
   )
 

@@ -2,9 +2,10 @@ import { NextRequest } from 'next/server'
 import { authenticateRequest, apiError, validateRequired } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { publishEvent, channels, events } from '@/lib/realtime'
-import { leads, leadTags, tags, leadStageHistory, organizationMembers, profiles } from '@/lib/schema'
+import { leads, leadTags, tags, leadStageHistory, organizationMembers, profiles, integrations } from '@/lib/schema'
 import { eq, and, isNull, asc } from 'drizzle-orm'
 import { mapLead } from '@/lib/mappers'
+import { linhaDoTipo } from '@/lib/leadChannel'
 import { isUniqueViolation } from '@/lib/db-helpers'
 
 type Params = { params: Promise<{ id: string }> }
@@ -24,6 +25,15 @@ export async function GET(req: NextRequest, { params }: Params) {
     const [lead] = await db.select().from(leads).where(resolveCondition(id, auth.organizationId)).limit(1)
     if (!lead) return apiError(404, 'Lead não encontrado.')
 
+    // O tipo da linha vai junto: é o que diz em qual aba do chat (oficial,
+    // parceria, captação) esta conversa abre -- um link para a aba errada não
+    // mostraria nada.
+    const [integ] = lead.integrationId
+      ? await db.select({ type: integrations.type }).from(integrations)
+          .where(eq(integrations.id, lead.integrationId)).limit(1)
+      : []
+    const linha = linhaDoTipo(integ?.type) ?? (lead.integrationId && !integ?.type ? 'parceria' : null)
+
     const leadTagsData = await db
       .select({ tagId: leadTags.tagId, name: tags.name, color: tags.color })
       .from(leadTags)
@@ -41,7 +51,13 @@ export async function GET(req: NextRequest, { params }: Params) {
       if (ownerRow) owner = { id: ownerRow.id, profiles: { full_name: ownerRow.fullName || '', avatar_url: ownerRow.avatarUrl || undefined } }
     }
 
-    return Response.json({ data: { ...mapLead(lead), lead_tags: leadTagsData.map(t => ({ tag_id: t.tagId, tag: t })), owner } })
+    return Response.json({ data: {
+      ...mapLead(lead),
+      lead_tags: leadTagsData.map(t => ({ tag_id: t.tagId, tag: t })),
+      owner,
+      integration: integ?.type ? { type: integ.type } : undefined,
+      linhas: linha ? [linha] : [],
+    } })
   } catch (err: any) {
     return apiError(err.status || 500, err.message || 'Erro interno.')
   }

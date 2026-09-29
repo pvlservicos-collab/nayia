@@ -1,20 +1,13 @@
 /**
- * Upload de arquivos direto do navegador para o Vercel Blob.
+ * Upload de arquivos do navegador para o armazém do CRM (29/09/2026).
  *
- * Por quê: Vercel Functions têm um limite rígido de 4.5MB no corpo da requisição
- * (plataforma, não configurável). O antigo fluxo mandava o arquivo inteiro por
- * FormData pro endpoint /api/upload, que por sua vez repassava pro Blob — então
- * qualquer vídeo (quase sempre >4.5MB) ou foto de celular um pouco maior já
- * chegava rejeitado (413) antes mesmo do nosso código rodar. A correção oficial
- * da Vercel pra esse limite é o upload direto cliente→Blob: o navegador manda os
- * bytes direto pro storage, e o servidor só emite um token de autorização de
- * curta duração (handleUpload em /api/upload).
- *
- * https://vercel.com/kb/guide/how-to-bypass-vercel-body-size-limit-serverless-functions
+ * Até 28/09 o navegador mandava direto para o Vercel Blob, com um token que
+ * /api/upload emitia -- o Blob não existe neste servidor, e todo anexo quebrava
+ * ("Vercel Blob: No token found"). O limite de 4,5MB que motivou aquilo era da
+ * Vercel. Agora o arquivo vai inteiro para /api/upload, que guarda no disco do
+ * servidor (src/lib/armazem.ts) e devolve o endereço /api/midia/...
  */
 'use client'
-
-import { upload } from '@vercel/blob/client'
 
 export type UploadFolder = 'avatars' | 'org-logos' | 'chat-media' | 'feature-screenshots'
 
@@ -51,19 +44,20 @@ async function normalizeImageOrientation(file: File): Promise<File> {
 }
 
 /**
- * Envia um arquivo direto pro Vercel Blob e retorna a URL pública.
- * Substitui o antigo `fetch('/api/upload', { body: formData })`.
+ * Manda o arquivo para o armazém do CRM e devolve o endereço (/api/midia/...).
+ * Mesma assinatura de antes: quem chama não muda.
  */
 export async function uploadClientFile(file: File, folder: UploadFolder, identifier: string): Promise<string> {
   const normalized = await normalizeImageOrientation(file)
-  const ext = normalized.name.split('.').pop() || 'bin'
-  const pathname = `${folder}/${identifier}_${Date.now()}.${ext}`
+  const form = new FormData()
+  form.append('arquivo', normalized, normalized.name || file.name || 'arquivo')
+  form.append('pasta', folder)
+  form.append('id', identifier)
 
-  const blob = await upload(pathname, normalized, {
-    access: 'public',
-    contentType: normalized.type || 'application/octet-stream',
-    handleUploadUrl: '/api/upload',
-  })
-
-  return blob.url
+  const res = await fetch('/api/upload', { method: 'POST', body: form })
+  const corpo = await res.json().catch(() => ({} as Record<string, unknown>))
+  if (!res.ok || typeof corpo.url !== 'string') {
+    throw new Error(String(corpo.error || `Falha ao enviar o arquivo (HTTP ${res.status})`))
+  }
+  return corpo.url
 }

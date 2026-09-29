@@ -138,7 +138,7 @@
   }
 
   function carregarCaptacao() {
-    fetch(API + "/api/nai/captacao")
+    fetch("api/nai/captacao")
       .then(function (r) { return r.json(); })
       .then(function (dados) { captacao = dados; desenharCaptacao(); })
       .catch(function () { elemento("cap-nota").textContent = "não consegui carregar a captação."; });
@@ -152,7 +152,7 @@
     var campo = document.querySelector('[data-cap-chave="' + chave + '"]');
     if (!campo) return;
     botao.disabled = true;
-    fetch(API + "/api/nai/captacao/config", {
+    fetch("api/nai/captacao/config", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chave: chave, valor: campo.value })
@@ -203,7 +203,7 @@
   }
 
   function carregarEnvios() {
-    fetch(API + "/api/nai/captacao/envios")
+    fetch("api/nai/captacao/envios")
       .then(function (r) { return r.json(); })
       .then(function (d) { envios = d; desenharEnvios(); })
       .catch(function () {});

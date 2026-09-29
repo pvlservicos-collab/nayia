@@ -1,188 +1,188 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth, useStageHistory, useLeadPipelineStages, usePipeline, useIsMobile } from '@/hooks'
 import { useLeadsContext } from '@/contexts/LeadsContext'
-import { LeadList, ChatWindow, LeadDetailsSidebar, LeadOrderStatusBadges } from '@/components/Chat'
+import { LeadList, ChatWindow, LeadDetailsSidebar } from '@/components/Chat'
 import { LeadWithOwner } from '@/lib/types'
-import { getInitials } from '@/lib/utils'
-import { getLinhaWhatsapp, type LinhaWhatsapp } from '@/lib/leadChannel'
+import { CAMINHO_DA_LINHA, getLinhaWhatsapp, type LinhaWhatsapp } from '@/lib/leadChannel'
+import { useParceriaMarcas } from '@/hooks/useParceriaMarcas'
 import NotAuthorized from '@/components/Shared/NotAuthorized'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
-import { CaretLeft, Info } from '@phosphor-icons/react'
+import AbasParceria, { type AbaDaParceria } from './AbasParceria'
+import VisitasAgendadas from './VisitasAgendadas'
+import BarraDeMetricas from './BarraDeMetricas'
+import BarraDaCaptacao from './BarraDaCaptacao'
+import CardDoDonoCaptacao from './CardDoDonoCaptacao'
+import PainelContatoParceria from './PainelContatoParceria'
 
 /** Última conversa aberta nesta tela, pra reabrir no próximo acesso. */
 const CHAVE_ULTIMA_CONVERSA = 'crm:ultima-conversa:whatsapp'
+const CHAVE_PAINEL = 'crm:painel-do-contato-aberto'
+
+/* A ETIQUETA DA LINHA (Tel, 26/09): a tela DIZ em qual linha você está, com
+   o número, para ninguém precisar deduzir. Desde 29/09 ela fica no topo da
+   lista, como o "WhatsApp" do WhatsApp Web. */
+const IDENTIDADE_DA_LINHA: Record<LinhaWhatsapp, { titulo: string; numero: string }> = {
+  oficial: { titulo: 'API Oficial (Meta)', numero: '+55 92 8456-0874' },
+  parceria: { titulo: 'Parceria', numero: 'Z-API · +55 92 9445-3618' },
+  captacao: { titulo: 'Captação', numero: 'Z-API · +55 92 8595-6408' },
+}
+
+/** Tela larga o bastante para o card do contato ficar ao lado (e não por cima). */
+function useTelaLarga(): boolean {
+  const [larga, setLarga] = useState(true)
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1280px)')
+    const atualizar = () => setLarga(mq.matches)
+    atualizar()
+    mq.addEventListener('change', atualizar)
+    return () => mq.removeEventListener('change', atualizar)
+  }, [])
+  return larga
+}
 
 export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
-  /* A chave e POR LINHA: sem isso, abrir a aba da parceria reabriria a
-     ultima conversa da captacao. */
+  /* A chave é POR LINHA: sem isso, abrir a aba da parceria reabriria a
+     última conversa da captação. */
   const chaveUltimaConversa = `${CHAVE_ULTIMA_CONVERSA}:${linha}`
+  const ehParceria = linha === 'parceria'
 
   const { organizationId, loading, permissions, isMaster, roleName, currentOrganization, user, profileName } = useAuth()
-
   const { leads: globalLeads, loading: leadsLoading, moveLeadToStage, setLeads } = useLeadsContext()
 
   const searchParams = useSearchParams()
+  const router = useRouter()
   const leadIdFromUrl = searchParams.get('leadId')
-  /*
-   * Chave do pedido vindo do endereço: a conversa MAIS a marca de abertura que
-   * os links internos carregam (ver src/lib/links.ts). Sem a marca, clicar duas
-   * vezes no mesmo link seria o mesmo valor e a segunda vez não abriria nada.
-   */
+  /* Chave do pedido vindo do endereço: a conversa MAIS a marca de abertura que
+     os links internos carregam (ver src/lib/links.ts). */
   const pedidoDaUrl = leadIdFromUrl ? `${leadIdFromUrl}|${searchParams.get('abrir') ?? ''}` : null
 
-  // Cada aba mostra SO a sua linha de WhatsApp (Tel, 25/09): a captacao
-  // pela API Oficial e a parceria pela Z-API. Instagram tem aba propria.
-  const allLeads = globalLeads.filter(l => {
+  // Cada aba mostra SÓ a sua linha de WhatsApp (Tel, 25/09).
+  const allLeads = globalLeads.filter((l) => {
     if (getLinhaWhatsapp(l) !== linha) return false
     if (permissions?.leads?.view_own_only && currentOrganization?.id) {
-      if (l.owner_member_id !== currentOrganization.id) return false;
+      if (l.owner_member_id !== currentOrganization.id) return false
     }
-    return true;
+    return true
   })
 
   const [selectedLead, setSelectedLead] = useState<LeadWithOwner | null>(null)
   const isMobile = useIsMobile()
+  const telaLarga = useTelaLarga()
   const [mobileView, setMobileView] = useState<'list' | 'conversation'>('list')
-  const [showMobileDetails, setShowMobileDetails] = useState(false)
+
+  /* AS ABAS DA PARCERIA (Pedro, 29/09): Conversas e Visitas agendadas, na
+     faixa de cima -- "no lugar de Z-API (parceria) +55 92 9445-3618". */
+  const [aba, setAba] = useState<AbaDaParceria>('conversas')
+  const [visitaDestaque, setVisitaDestaque] = useState<number | null>(null)
+  const { marcas, nay } = useParceriaMarcas(ehParceria)
+
+  /* O card do contato: ao lado em tela larga (lembrando se a pessoa fechou),
+     por cima da conversa em tela menor -- aí começa fechado. */
+  const [painelAberto, setPainelAberto] = useState(true)
+  useEffect(() => {
+    if (!telaLarga) { setPainelAberto(false); return }
+    try { setPainelAberto(localStorage.getItem(CHAVE_PAINEL) !== 'nao') } catch { setPainelAberto(true) }
+  }, [telaLarga])
+  const alternarPainel = useCallback(() => {
+    setPainelAberto((aberto) => {
+      const novo = !aberto
+      if (telaLarga) { try { localStorage.setItem(CHAVE_PAINEL, novo ? 'sim' : 'nao') } catch {} }
+      return novo
+    })
+  }, [telaLarga])
 
   /*
    * UMA fonte de verdade para a conversa aberta: o que a pessoa escolheu.
-   *
-   * O endereço (`?leadId=`) é só ENTRADA — serve pra chegar aqui pelo link do
-   * aviso no grupo, pelo "Ver conversa" do Pipeline ou pela busca. Clicar numa
-   * conversa não escreve mais no endereço, e é isso que mata de vez uma família
-   * inteira de bugs: enquanto os dois lados escreviam, existia sempre um quadro
-   * em que a seleção dizia uma coisa e o endereço ainda dizia outra, e alguém
-   * tinha que ceder — foi assim que a tela ora abria a conversa errada, ora
-   * congelava na anterior, ora não abria nada.
-   *
-   * Recarregar a página continua reabrindo a última conversa, agora pelo
-   * navegador (localStorage) em vez do endereço. Guardar isso não pode
-   * atrapalhar nada: se falhar, a tela só abre na conversa do topo.
+   * O endereço (`?leadId=`) é só ENTRADA (ver crm/CLAUDE.md).
    */
-  /** Último pedido do endereço que este efeito viu — só pedido NOVO manda. */
   const ultimaUrlVista = useRef<string | null>(null)
 
   const handleSelectLead = useCallback((lead: LeadWithOwner) => {
     setSelectedLead(lead)
     setMobileView('conversation')
-    // Pra reabrir aqui no próximo acesso. Best-effort: navegador anônimo ou
-    // armazenamento bloqueado não pode impedir a conversa de abrir.
-    try {
-      localStorage.setItem(chaveUltimaConversa, lead.id)
-    } catch {}
+    try { localStorage.setItem(chaveUltimaConversa, lead.id) } catch {}
   }, [chaveUltimaConversa])
 
-  // Sync `?leadId=` from URL (pushed by GlobalSearch and notification links)
-  // into selectedLead. Handles leads that are NOT in the in-memory 1000-row
-  // cap by fetching them directly from Supabase with the same joins
-  // LeadsContext uses, so downstream consumers (ChatWindow, sidebar) render
-  // with full data.
   useEffect(() => {
     if (!leadIdFromUrl) return
     if (pedidoDaUrl === ultimaUrlVista.current) return
     ultimaUrlVista.current = pedidoDaUrl
     if (selectedLead?.id === leadIdFromUrl) return
 
-    const fromMemory = globalLeads.find(l => l.id === leadIdFromUrl)
-    if (fromMemory) {
-      setSelectedLead(fromMemory)
-      // Sem isso, um link tipo /chat?leadId=... resolvia o lead certo em segundo plano
-      // mas no celular a tela continuava mostrando a lista de conversas — a pessoa
-      // precisava tocar de novo pra entrar na conversa de verdade.
+    /* O LINK ABRE NA ABA DA LINHA DA CONVERSA (28/09). */
+    const abrir = (alvo: LeadWithOwner) => {
+      const linhaDoAlvo = getLinhaWhatsapp(alvo)
+      if (linhaDoAlvo && linhaDoAlvo !== linha) {
+        router.replace(`${CAMINHO_DA_LINHA[linhaDoAlvo]}?${searchParams.toString()}`)
+        return
+      }
+      setSelectedLead(alvo)
+      setAba('conversas')
       setMobileView('conversation')
-      return
     }
+
+    const fromMemory = globalLeads.find((l) => l.id === leadIdFromUrl)
+    if (fromMemory) { abrir(fromMemory); return }
 
     let cancelled = false
     ;(async () => {
       const res = await fetch(`/api/leads/${leadIdFromUrl}`)
       if (res.ok) {
         const { data } = await res.json()
-        if (!cancelled && data) {
-          setSelectedLead(data as LeadWithOwner)
-          setMobileView('conversation')
-        }
+        if (!cancelled && data) abrir(data as LeadWithOwner)
       }
     })()
     return () => { cancelled = true }
-  }, [leadIdFromUrl, pedidoDaUrl, globalLeads, selectedLead?.id])
+  }, [leadIdFromUrl, pedidoDaUrl, globalLeads, selectedLead?.id, linha, router, searchParams])
 
-  // Resolve the displayed lead: prefer the freshest version from context; fall back
-  // to the clicked `selectedLead` when the lead isn't in memory (search hits can
-  // point at leads outside the 1000-row Supabase cap loaded by LeadsContext).
-  // Sem clique ainda, abre a conversa do topo — mas a que estava no topo na
-  // hora de abrir a tela, e fica nela. Antes era "a do topo agora": com a lista
-  // se reordenando sozinha, a conversa na tela trocava sem ninguém clicar.
+  /* Sem clique ainda, abre a conversa que estava no topo na hora de abrir a
+     tela (ou a última aberta aqui) -- e fica nela. */
   const conversaInicial = useRef<string | null>(null)
   const linhaDoRef = useRef<LinhaWhatsapp | null>(null)
-  // o ref tambem sobrevive a troca de aba: zera quando a linha muda
   if (linhaDoRef.current !== linha) {
     linhaDoRef.current = linha
     conversaInicial.current = null
   }
   if (!conversaInicial.current && allLeads.length > 0) {
-    // A última que esta pessoa abriu, se ainda estiver na lista; senão a do topo.
     let guardada: string | null = null
-    try {
-      guardada = localStorage.getItem(chaveUltimaConversa)
-    } catch {}
-    conversaInicial.current =
-      guardada && allLeads.some((l) => l.id === guardada) ? guardada : allLeads[0].id
+    try { guardada = localStorage.getItem(chaveUltimaConversa) } catch {}
+    conversaInicial.current = guardada && allLeads.some((l) => l.id === guardada) ? guardada : allLeads[0].id
   }
   const displayedLeadId = selectedLead?.id || conversaInicial.current
-  /* O `|| selectedLead` existe para conversa fora do limite de 1000 linhas
-     que o LeadsContext carrega -- busca e link conseguem apontar para ela.
-     Mas ele NAO pode atravessar a troca de aba: as duas abas renderizam este
-     mesmo componente na mesma posicao da arvore, entao o React reaproveita a
-     instancia em vez de remontar, e o `selectedLead` da parceria sobrevivia
-     para a captacao. A lista vinha vazia (certo) e o painel mostrava a
-     conversa da outra linha (errado). Por isso o lead solto so vale se for
-     da linha desta aba. */
-  const soltoDestaLinha =
-    selectedLead && getLinhaWhatsapp(selectedLead) === linha ? selectedLead : null
-  const displayedLead = allLeads.find(l => l.id === displayedLeadId) || soltoDestaLinha
-  // Pass the lead's stage_id directly — the hook resolves the pipeline internally
-  const { stages: leadStages, loading: stagesLoading } = useLeadPipelineStages(displayedLead?.stage_id)
-  const { history: stageHistory, loading: historyLoading } = useStageHistory(displayedLead?.id || '')
-  const { pipelines, stagesMap, loading: pipelinesLoading } = usePipeline(organizationId || '')
+  /* O lead solto (fora do limite da lista) só vale se for desta linha: as
+     três abas são o mesmo componente, e o React o reaproveita entre elas. */
+  const soltoDestaLinha = selectedLead && getLinhaWhatsapp(selectedLead) === linha ? selectedLead : null
+  const displayedLead = allLeads.find((l) => l.id === displayedLeadId) || soltoDestaLinha
 
-  // Derive the current pipeline id from the lead's stage
+  /* O funil (etapas, histórico de etapas, pipelines) só existe para o card
+     antigo. O da Parceria não usa: sem estes três pedidos a conversa abre
+     mais rápido (Pedro, 29/09: "que o clicar na conversa fique mais rápido"). */
+  const usaFunil = !ehParceria
+  const { stages: leadStages, loading: stagesLoading } = useLeadPipelineStages(usaFunil ? displayedLead?.stage_id : undefined)
+  const { history: stageHistory, loading: historyLoading } = useStageHistory(usaFunil ? displayedLead?.id || '' : '')
+  const { pipelines, stagesMap } = usePipeline(usaFunil ? organizationId || '' : '')
   const currentPipelineId = leadStages.length > 0 ? leadStages[0]?.pipeline_id : undefined
 
   const handleStageChange = useCallback(async (newStageId: string) => {
     if (!displayedLead) return
     const oldStageId = displayedLead.stage_id
-    // Optimistic UI update for the selected lead
-    if (selectedLead) {
-      setSelectedLead({ ...selectedLead, stage_id: newStageId })
-    }
+    if (selectedLead) setSelectedLead({ ...selectedLead, stage_id: newStageId })
     try {
       await moveLeadToStage(displayedLead.id, newStageId, oldStageId)
     } catch {
-      // Revert on error
-      if (selectedLead) {
-        setSelectedLead({ ...selectedLead, stage_id: oldStageId })
-      }
+      if (selectedLead) setSelectedLead({ ...selectedLead, stage_id: oldStageId })
     }
   }, [displayedLead, selectedLead, moveLeadToStage])
 
   const handlePipelineChange = useCallback(async (newPipelineId: string) => {
     if (!displayedLead || !organizationId) return
     try {
-      let firstStageId: string | undefined;
-
-      // Optimistic Check: Do we already have the stages for this pipeline in memory?
-      // usePipeline's stages map might have it if it was ever loaded or is the default.
-      const cachedStages = stagesMap ? stagesMap[newPipelineId] : undefined;
-      if (cachedStages && cachedStages.length > 0) {
-        firstStageId = cachedStages[0].id;
-      }
-
-      // Fallback: Fetch from database if we don't have it in memory
+      let firstStageId: string | undefined
+      const cachedStages = stagesMap ? stagesMap[newPipelineId] : undefined
+      if (cachedStages && cachedStages.length > 0) firstStageId = cachedStages[0].id
       if (!firstStageId) {
         const stagesRes = await fetch(`/api/pipelines/${newPipelineId}/stages`)
         if (!stagesRes.ok) { console.error('Failed to fetch stages'); return }
@@ -190,12 +190,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
         if (!newStages || newStages.length === 0) return
         firstStageId = newStages[0].id
       }
-
-      if (!firstStageId) {
-        console.error('Could not find first stage for pipeline', newPipelineId);
-        return;
-      }
-
+      if (!firstStageId) return
       await handleStageChange(firstStageId)
     } catch (err) {
       console.error('Failed to change pipeline:', err)
@@ -203,80 +198,43 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
   }, [displayedLead, organizationId, handleStageChange, stagesMap])
 
   const handleTagsChange = useCallback((targetLeadId: string, tagId: string, action: 'add' | 'remove', tagObj?: any) => {
-    setLeads((prevLeads) => prevLeads.map((l) => {
-      if (l.id !== targetLeadId) return l
-
+    const mudar = (l: LeadWithOwner): LeadWithOwner => {
       let newTags = [...(l.lead_tags || [])]
       if (action === 'add') {
-        if (!newTags.find((t) => t.tag_id === tagId)) {
-          newTags.push({ tag_id: tagId, tag: tagObj })
-        }
+        if (!newTags.find((t) => t.tag_id === tagId)) newTags.push({ tag_id: tagId, tag: tagObj })
       } else {
         newTags = newTags.filter((t) => t.tag_id !== tagId)
       }
       return { ...l, lead_tags: newTags }
-    }))
-
-    // Note: selectedLead doesn't strictly need manual matching if it falls back to displayedLead reading from allLeads, but we'll update it just in case
-    if (selectedLead?.id === targetLeadId) {
-      setSelectedLead((prev) => {
-        if (!prev) return prev
-        let newTags = [...(prev.lead_tags || [])]
-        if (action === 'add') {
-          if (!newTags.find((t) => t.tag_id === tagId)) {
-            newTags.push({ tag_id: tagId, tag: tagObj })
-          }
-        } else {
-          newTags = newTags.filter((t) => t.tag_id !== tagId)
-        }
-        return { ...prev, lead_tags: newTags }
-      })
     }
+    setLeads((prev) => prev.map((l) => (l.id === targetLeadId ? mudar(l) : l)))
+    if (selectedLead?.id === targetLeadId) setSelectedLead((prev) => (prev ? mudar(prev) : prev))
   }, [setLeads, selectedLead])
 
   const handleChatMessageSent = useCallback((content: string) => {
     const memberId = currentOrganization?.id || ''
     const fullName = profileName || user?.name || user?.email || ''
     const leadId = displayedLead?.id
-    // Só assume automaticamente quem respondeu se o lead ainda não tem responsável —
-    // nunca sobrescreve uma atribuição manual feita por outra pessoa.
+    // Só assume quem respondeu se o lead ainda não tem responsável.
     const alreadyHasOwner = !!displayedLead?.owner_member_id
 
-    setLeads(prev => prev.map(l => {
-      if (l.id === leadId) {
-        const shouldAssign = !l.owner_member_id && memberId
-        return {
-          ...l,
-          last_message_content: content,
-          last_message_sender_type: 'human' as const,
-          last_activity_at: new Date().toISOString(),
-          // A lista recalcula no servidor a cada poucos segundos; isto só evita
-          // a etiqueta de quem respondeu demorar a aparecer.
-          ...(!l.is_group && memberId && {
-            autores_manuais: [memberId, ...(l.autores_manuais ?? []).filter(id => id !== memberId)],
-            em_atendimento_humano: true,
-          }),
-          owner_member_id: shouldAssign ? memberId : l.owner_member_id,
-          owner: shouldAssign ? { id: memberId, profiles: { full_name: fullName, avatar_url: user?.image || undefined } } : l.owner,
-        }
+    const atualizar = (l: LeadWithOwner): LeadWithOwner => {
+      const shouldAssign = !l.owner_member_id && memberId
+      return {
+        ...l,
+        last_message_content: content,
+        last_message_sender_type: 'human' as const,
+        last_activity_at: new Date().toISOString(),
+        ...(!l.is_group && memberId && {
+          autores_manuais: [memberId, ...(l.autores_manuais ?? []).filter((id) => id !== memberId)],
+          em_atendimento_humano: true,
+        }),
+        owner_member_id: shouldAssign ? memberId : l.owner_member_id,
+        owner: shouldAssign ? { id: memberId, profiles: { full_name: fullName, avatar_url: user?.image || undefined } } : l.owner,
       }
-      return l
-    }))
-    // Also update selectedLead so the sidebar refreshes immediately
-    if (selectedLead && selectedLead.id === leadId) {
-      setSelectedLead(prev => {
-        if (!prev) return prev
-        const shouldAssign = !prev.owner_member_id && memberId
-        return {
-          ...prev,
-          last_message_content: content,
-          last_message_sender_type: 'human' as const,
-          last_activity_at: new Date().toISOString(),
-          owner_member_id: shouldAssign ? memberId : prev.owner_member_id,
-          owner: shouldAssign ? { id: memberId, profiles: { full_name: fullName, avatar_url: user?.image || undefined } } : prev.owner,
-        }
-      })
     }
+    setLeads((prev) => prev.map((l) => (l.id === leadId ? atualizar(l) : l)))
+    if (selectedLead && selectedLead.id === leadId) setSelectedLead((prev) => (prev ? atualizar(prev) : prev))
 
     if (leadId && memberId && !alreadyHasOwner) {
       fetch(`/api/leads/${leadId}`, {
@@ -288,13 +246,22 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
   }, [displayedLead, selectedLead, setLeads, currentOrganization, user, profileName])
 
   const handleUpdateLead = useCallback((leadId: string, updates: Partial<LeadWithOwner>) => {
-    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, ...updates } : l))
+    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, ...updates } : l)))
   }, [setLeads])
 
+  /* Da aba Visitas para a conversa do corretor, e do card para a visita. */
+  const abrirConversaPorId = useCallback((leadId: string) => {
+    const alvo = allLeads.find((l) => l.id === leadId)
+    setAba('conversas')
+    if (alvo) handleSelectLead(alvo)
+  }, [allLeads, handleSelectLead])
+  const verVisita = useCallback((visitaId: number) => {
+    setVisitaDestaque(visitaId)
+    setAba('visitas')
+  }, [])
+
   const isAdmin = isMaster || roleName?.toLowerCase() === 'administrador' || roleName?.toLowerCase() === 'owner' || permissions?.['*']
-  if (!loading && !isAdmin && permissions && !permissions.settings?.view_chat) {
-    return <NotAuthorized />
-  }
+  if (!loading && !isAdmin && permissions && !permissions.settings?.view_chat) return <NotAuthorized />
 
   if (loading || leadsLoading || (!isAdmin && !permissions)) {
     return (
@@ -307,141 +274,139 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
   if (!organizationId) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-muted">Nenhuma organização encontrada. Execute o seed.sql no Supabase.</p>
+        <p className="text-muted">Nenhuma organização encontrada.</p>
       </div>
     )
   }
 
-  // Mobile: uma tela por vez (lista OU conversa), detalhes do lead viram overlay
-  // em tela cheia em vez de coluna fixa. Desktop abaixo continua como sempre foi.
-  if (isMobile) {
-    return (
-      <div className="chat-theme h-full flex flex-col">
-        {mobileView === 'list' && (
-          <LeadList
-            leads={allLeads}
-            selectedLeadId={displayedLead?.id}
-            onSelectLead={handleSelectLead}
-            onUpdateLead={handleUpdateLead}
-            loading={false}
-            organizationId={organizationId}
-          />
-        )}
+  const identidade = IDENTIDADE_DA_LINHA[linha]
+  const naoLidas = allLeads.filter((l) => l.is_unread && !l.is_archived).length
+  const visitasAbertas = new Set(Object.values(marcas).filter((m) => m.visitaAberta && m.visitaId).map((m) => m.visitaId)).size
 
-        {mobileView === 'conversation' && (
-          displayedLead ? (
-            <div className="flex flex-col h-full min-h-0">
-              <div className="glass-soft rounded-none border-x-0 border-t-0 flex items-center gap-3 h-14 px-2 flex-shrink-0">
-                <button onClick={() => setMobileView('list')} className="btn-icon w-9 h-9 text-[var(--chat-text-primary)]" aria-label="Voltar">
-                  <CaretLeft size={20} />
-                </button>
-                <div className="w-8 h-8 rounded-full bg-[var(--chat-bg-hover)] flex items-center justify-center overflow-hidden flex-shrink-0">
-                  {displayedLead.avatar_url ? (
-                    <img src={displayedLead.avatar_url} alt={displayedLead.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-xs font-bold text-[var(--chat-accent)]">{getInitials(displayedLead.title)}</span>
-                  )}
-                </div>
-                <span className="flex-1 min-w-0 truncate text-sm font-medium text-[var(--chat-text-primary)]">{displayedLead.title}</span>
-                <LeadOrderStatusBadges key={displayedLead.id} leadId={displayedLead.id} />
-                <button onClick={() => setShowMobileDetails(true)} className="btn-icon w-9 h-9" aria-label="Detalhes do contato">
-                  <Info size={20} />
-                </button>
-              </div>
-              <div className="flex-1 min-h-0">
-                <ChatWindow
-                  // Uma conversa = uma área de tela: trocar de lead remonta tudo, e
-                  // nada da conversa anterior (mensagens, rascunho, fixadas) sobra.
-                  key={displayedLead.id}
-                  lead={displayedLead}
-                  organizationId={organizationId}
-                  onMessageSent={handleChatMessageSent}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-full bg-[var(--chat-bg-conversation)] text-[var(--chat-text-muted)]">
-              Integre alguma fonte de conversas
-            </div>
-          )
-        )}
+  const lista = (
+    <LeadList
+      leads={allLeads}
+      linha={linha}
+      titulo={identidade.titulo}
+      numero={identidade.numero}
+      selectedLeadId={displayedLead?.id}
+      onSelectLead={handleSelectLead}
+      onUpdateLead={handleUpdateLead}
+      loading={false}
+      organizationId={organizationId}
+    />
+  )
 
-        {showMobileDetails && displayedLead && (
-          <div className="fixed inset-0 z-50 flex bg-[var(--chat-bg-base)]">
-            {/* flex: o painel estica até a altura da tela e rola por dentro. Sem isso
-                ele crescia do tamanho do conteúdo e o fim ficava cortado, sem rolar. */}
-            <LeadDetailsSidebar
-              key={displayedLead.id}
-              lead={displayedLead}
-              stages={leadStages}
-              stageHistory={stageHistory}
-              stageHistoryLoading={historyLoading || stagesLoading}
-              onStageChange={handleStageChange}
-              onTagsChange={handleTagsChange}
-              onUpdateLead={handleUpdateLead}
-              pipelines={pipelines}
-              currentPipelineId={currentPipelineId}
-              onPipelineChange={handlePipelineChange}
-              onClose={() => setShowMobileDetails(false)}
-            />
-          </div>
-        )}
-      </div>
-    )
-  }
+  const conversa = (voltar?: () => void) => displayedLead ? (
+    <ChatWindow
+      // Uma conversa = uma área de tela: trocar de lead remonta tudo.
+      key={displayedLead.id}
+      lead={displayedLead}
+      organizationId={organizationId}
+      onMessageSent={handleChatMessageSent}
+      linha={linha}
+      marca={ehParceria ? marcas[displayedLead.id] : undefined}
+      painelAberto={painelAberto}
+      aoAlternarPainel={alternarPainel}
+      aoVoltar={voltar}
+    />
+  ) : (
+    <div className="wa-papel flex flex-col items-center justify-center h-full gap-2 px-8 text-center">
+      <span className="relative text-[15px] font-semibold" style={{ color: 'var(--wa-text)' }}>{identidade.titulo} · {identidade.numero}</span>
+      <span className="relative text-[14px]" style={{ color: 'var(--wa-text-2)' }}>
+        {linha === 'oficial'
+          ? 'Nenhuma conversa aqui ainda. Esta aba mostra só o que passa pelo número oficial da Meta.'
+          : 'Nenhuma conversa nesta linha ainda.'}
+      </span>
+    </div>
+  )
 
-  return (
-    <div className="chat-theme flex h-full gap-0">
-      {/* Left — Lead List */}
-      {/* Em notebook (1366) os 340px fixos + a barra da direita comiam a
-          conversa. Agora a lista encolhe e so volta ao tamanho cheio em
-          tela grande (xl = 1280px pra cima). */}
-      <div className="w-[264px] xl:w-[340px] border-r border-[var(--chat-border)] flex-shrink-0">
-        <LeadList
-          leads={allLeads}
-          selectedLeadId={displayedLead?.id}
-          onSelectLead={handleSelectLead}
-          onUpdateLead={handleUpdateLead}
-          loading={false}
-          organizationId={organizationId}
-        />
-      </div>
-
-      {/* Center — Chat */}
-      <div className="flex-1 min-w-0">
-        {displayedLead ? (
-          <ChatWindow
-            // Uma conversa = uma área de tela: trocar de lead remonta tudo, e
-            // nada da conversa anterior (mensagens, rascunho, fixadas) sobra.
-            key={displayedLead.id}
-            lead={displayedLead}
-            organizationId={organizationId}
-            onMessageSent={handleChatMessageSent}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full bg-[var(--chat-bg-conversation)] text-[var(--chat-text-muted)]">
-            Integre alguma fonte de conversas
-          </div>
-        )}
-      </div>
-
-      {/* Right — Lead Details Sidebar */}
-      {displayedLead && (
-        <LeadDetailsSidebar
+  const painel = (modo: 'lateral' | 'gaveta') => {
+    if (!displayedLead || !painelAberto) return null
+    if (ehParceria) {
+      return (
+        <PainelContatoParceria
           key={displayedLead.id}
           lead={displayedLead}
-          stages={leadStages}
-          stageHistory={stageHistory}
-          stageHistoryLoading={historyLoading || stagesLoading}
-          onStageChange={handleStageChange}
+          modo={modo}
+          aoFechar={alternarPainel}
+          aoVerVisita={verVisita}
           onTagsChange={handleTagsChange}
-          onUpdateLead={handleUpdateLead}
-          pipelines={pipelines}
-          currentPipelineId={currentPipelineId}
-          onPipelineChange={handlePipelineChange}
         />
-      )}
+      )
+    }
+    const antigo = (
+      <LeadDetailsSidebar
+        key={displayedLead.id}
+        lead={displayedLead}
+        stages={leadStages}
+        stageHistory={stageHistory}
+        stageHistoryLoading={historyLoading || stagesLoading}
+        onStageChange={handleStageChange}
+        onTagsChange={handleTagsChange}
+        onUpdateLead={handleUpdateLead}
+        pipelines={pipelines}
+        currentPipelineId={currentPipelineId}
+        onPipelineChange={handlePipelineChange}
+        onClose={modo === 'gaveta' ? alternarPainel : undefined}
+        extra={linha === 'captacao' ? <CardDoDonoCaptacao key={displayedLead.id} leadId={displayedLead.id} /> : undefined}
+      />
+    )
+    if (modo === 'lateral') return antigo
+    return (
+      <div className="fixed inset-0 z-50 flex justify-end" onClick={alternarPainel}>
+        <div className="absolute inset-0 bg-black/40" />
+        <div className="relative h-full w-[min(380px,92vw)] flex shadow-2xl" onClick={(e) => e.stopPropagation()}>{antigo}</div>
+      </div>
+    )
+  }
+
+  const abas = ehParceria ? (
+    <AbasParceria aba={aba} aoMudar={(k) => { setAba(k); if (k === 'conversas') setMobileView('list') }}
+                  naoLidas={naoLidas} visitasAbertas={visitasAbertas}>
+      <BarraDeMetricas leads={allLeads} marcas={marcas} nay={nay} aoAbrirConversa={abrirConversaPorId} />
+    </AbasParceria>
+  ) : linha === 'captacao' ? (
+    // a barra da captação (Pedro, 29/09): hoje, as etapas e o relatório ao Tel
+    <BarraDaCaptacao />
+  ) : null
+
+  /* ── Celular: uma tela por vez; na Parceria as abas ficam em cima ── */
+  if (isMobile) {
+    const naConversa = mobileView === 'conversation' && aba === 'conversas'
+    return (
+      <div className="chat-theme h-full flex flex-col">
+        {!naConversa && abas}
+        {ehParceria && aba === 'visitas' ? (
+          <div className="flex-1 min-h-0 flex"><VisitasAgendadas aoAbrirConversa={abrirConversaPorId} destaque={visitaDestaque} /></div>
+        ) : mobileView === 'list' ? (
+          <div className="flex-1 min-h-0">{lista}</div>
+        ) : (
+          <div className="flex-1 min-h-0">{conversa(() => setMobileView('list'))}</div>
+        )}
+        {painelAberto && painel('gaveta')}
+      </div>
+    )
+  }
+
+  /* ── Computador: [abas da Parceria em cima] / lista | conversa | card do contato ── */
+  return (
+    <div className="chat-theme flex flex-col h-full min-h-0">
+      {abas}
+      <div className="flex flex-1 min-h-0">
+        {ehParceria && aba === 'visitas' ? (
+          <VisitasAgendadas aoAbrirConversa={abrirConversaPorId} destaque={visitaDestaque} />
+        ) : (
+          <>
+            {/* A lista: 30% da tela, entre 300 e 440 px, como no WhatsApp Web */}
+            <div className="flex-shrink-0 h-full min-h-0" style={{ width: 'clamp(300px, 30%, 440px)', borderRight: '1px solid var(--wa-divider)' }}>
+              {lista}
+            </div>
+            <div className="flex-1 min-w-0 h-full min-h-0">{conversa()}</div>
+            {painel(telaLarga ? 'lateral' : 'gaveta')}
+          </>
+        )}
+      </div>
     </div>
   )
 }
-

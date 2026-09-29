@@ -9,6 +9,7 @@ import { isUniqueViolation } from '@/lib/db-helpers'
 import { notifyInboundMessage } from '@/lib/push'
 import { avisarGrupoRespostaAutomacao } from '@/lib/avisoGrupo'
 import { telefoneVariantes, telefoneCanonico } from '@/lib/leadSources'
+import { etapaEmAtendimentoDoMesmoPipeline } from '@/lib/etapaDaLinha'
 
 // Processamento de uma mensagem Evolution/Baileys já reconhecida como conteúdo real
 // (não recibo de entrega/leitura) — compartilhado entre o webhook em tempo real
@@ -307,18 +308,11 @@ export async function processEvolutionMessage(
   if (!isFromMe) {
     leadUpdates.title = lead.title === lead.phone ? senderName : lead.title
   } else {
-    const [stage] = await db
-      .select({ id: pipelineStages.id })
-      .from(pipelineStages)
-      .where(
-        and(
-          eq(pipelineStages.organizationId, orgId),
-          isNull(pipelineStages.deletedAt),
-          ilike(pipelineStages.name, 'Em atendimento')
-        )
-      )
-      .limit(1)
-    if (stage) leadUpdates.stageId = stage.id
+    // Só dentro do pipeline do lead e para a frente (28/09): procurar a etapa
+    // pelo nome na organização inteira jogava o lead em outro funil.
+    const [atual] = await db.select({ stageId: leads.stageId }).from(leads).where(eq(leads.id, lead.id)).limit(1)
+    const etapa = await etapaEmAtendimentoDoMesmoPipeline(orgId, atual?.stageId)
+    if (etapa) leadUpdates.stageId = etapa
   }
 
   await db.update(leads).set(leadUpdates).where(eq(leads.id, lead.id))

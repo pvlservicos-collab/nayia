@@ -22,6 +22,7 @@ import {
   X,
   House,
   ShieldCheck,
+  PaperPlaneTilt,
 } from '@phosphor-icons/react'
 import { useAuth, usePipeline } from '@/hooks'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -34,10 +35,15 @@ import { usePipelineFilters } from '@/contexts/FilterContext'
 const NAV_ITEMS = [
   { label: 'Início', href: '/', icon: House },
   { label: 'Pipeline', href: '/pipeline', icon: Kanban },
-  // DUAS LINHAS DE WHATSAPP (Tel, 25/09/2026): a captacao pela API Oficial
-  // e a parceria pela Z-API. Mesma tela, conversas separadas por integracao.
-  { label: 'WhatsApp API (captação)', href: '/chat', icon: WhatsappLogo },
-  { label: 'WhatsApp Parceria', href: '/chat/parceria', icon: WhatsappLogo },
+  // TRES LINHAS DE WHATSAPP, uma aba cada (Tel, 28/09/2026): "São 3 WhatsApp,
+  // cada um em uma tab lá no CRM... não misturando contatos". Mesma tela,
+  // conversas separadas por linha. `curto` é o nome na barra do celular.
+  { label: 'WhatsApp Oficial', curto: 'Oficial', href: '/chat', icon: WhatsappLogo },
+  { label: 'WhatsApp Parceria', curto: 'Parceria', href: '/chat/parceria', icon: WhatsappLogo },
+  { label: 'WhatsApp Captação', curto: 'Captação', href: '/chat/captacao', icon: WhatsappLogo },
+  // A ABA IMOVEIS (Tel, 27/09/2026): o mesmo acervo da tela do site, aqui dentro,
+  // para achar imovel e mandar direto numa conversa.
+  { label: 'Imóveis', href: '/imoveis', icon: Buildings },
   { label: 'Funil de Mensagens', href: '/funnels', icon: FlowArrow },
   { label: 'Configurações', href: '/settings/organization', icon: Gear },
 ]
@@ -45,7 +51,7 @@ const NAV_ITEMS = [
 // Destinos mais usados — ficam sempre à mão na barra inferior do celular.
 // Os demais (Configurações, Funil de Mensagens, Métricas) ficam atrás do "Mais",
 // que abre a mesma gaveta lateral — só um sistema de navegação por vez no celular.
-const MOBILE_TAB_LABELS = ['WhatsApp API (captação)', 'WhatsApp Parceria', 'Pipeline']
+const MOBILE_TAB_LABELS = ['WhatsApp Oficial', 'WhatsApp Parceria', 'WhatsApp Captação', 'Pipeline', 'Imóveis']
 
 export default function Navbar() {
   const pathname = usePathname()
@@ -134,8 +140,9 @@ export default function Navbar() {
       case 'Dashboard': return !!permissions.settings?.view_dashboard
       case 'Leads': return !!permissions.settings?.view_leads
       case 'Pipeline': return !!permissions.settings?.view_pipeline
-      case 'WhatsApp API (captação)': return !!permissions.settings?.view_chat
+      case 'WhatsApp Oficial': return !!permissions.settings?.view_chat
       case 'WhatsApp Parceria': return !!permissions.settings?.view_chat
+      case 'WhatsApp Captação': return !!permissions.settings?.view_chat
       case 'DM Instagram': return !!permissions.settings?.view_chat
       case 'Funil de Mensagens': return !!permissions.settings?.view_funnels
       case 'Logs': return !!permissions.settings?.view_logs
@@ -239,6 +246,22 @@ export default function Navbar() {
 
       {/* Right: Search + Notifications + User + Button */}
       <div className="flex items-center gap-2 sm:gap-4">
+        {/* ENVIAR IMOVEL (Tel, 28/09/2026): "coloca o enviar imovel do lado do n8n
+            la em cima e no crm". Botao no alto, fora das abas -- a mesma tela do
+            admin do site. No celular tambem vai escrito (Pedro, 29/09: "quero nao
+            so o aviaozinho de enviar imovel e sim um botao Enviar imovel"). */}
+        <Link
+          href="/disparo"
+          title="Enviar imóvel"
+          className={`app-tap-target flex items-center justify-center gap-1.5 h-9 px-2.5 lg:px-3 rounded-lg text-[13px] sm:text-sm font-semibold whitespace-nowrap border transition-colors ${pathname.startsWith('/disparo')
+            ? 'bg-graphite-6 border-white/15 text-accent-2'
+            : 'border-line text-ink hover:border-accent/60'
+            }`}
+        >
+          <PaperPlaneTilt size={16} weight={pathname.startsWith('/disparo') ? 'fill' : 'regular'} />
+          <span>Enviar imóvel</span>
+        </Link>
+
         {/* Busca — input+dropdown no desktop, ícone que abre overlay de tela cheia no celular */}
         <GlobalSearch />
 
@@ -357,7 +380,9 @@ export default function Navbar() {
     <div className="app-safe-bottom md:hidden fixed bottom-0 left-0 right-0 z-50 glass-raised rounded-none border-x-0 border-b-0">
       <div className="h-16 flex items-stretch">
         {NAV_ITEMS.filter(item => MOBILE_TAB_LABELS.includes(item.label) && isItemVisible(item.label)).map(item => {
-          const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
+          // A mesma regra da barra de cima: sem ela, /chat/captacao acenderia
+          // também a aba /chat (a oficial), que é prefixo do endereço.
+          const isActive = item.href === hrefAtivo
           const Icon = item.icon
           return (
             <Link
@@ -367,7 +392,7 @@ export default function Navbar() {
                 }`}
             >
               <Icon size={22} weight={isActive ? 'fill' : 'regular'} />
-              <span className="text-[10px] font-medium leading-none">{item.label}</span>
+              <span className="text-[10px] font-medium leading-none">{item.curto ?? item.label}</span>
             </Link>
           )
         })}

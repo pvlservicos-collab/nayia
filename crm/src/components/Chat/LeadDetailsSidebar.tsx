@@ -59,6 +59,8 @@ interface LeadDetailsSidebarProps {
   /** Só passado por quem abre esse painel de fora de uma conversa já ativa (ex: Pipeline)
    * — exibe um botão "Ver conversa". O próprio Chat não passa, já está dentro dela. */
   onGoToConversation?: () => void
+  /** Um bloco da linha, logo abaixo do nome (captação: o card do proprietário, 29/09). */
+  extra?: React.ReactNode
 }
 
 interface Appointment {
@@ -87,6 +89,7 @@ export default function LeadDetailsSidebar({
   onPipelineChange,
   onClose,
   onGoToConversation,
+  extra,
 }: LeadDetailsSidebarProps) {
   const ownerName = lead.owner?.profiles?.full_name || ''
   const ownerInitials = ownerName
@@ -539,6 +542,8 @@ export default function LeadDetailsSidebar({
             </div>
           </div>
         </div>
+
+        {extra}
 
         {/* Contadores + janela de 24h do WhatsApp */}
         <div className="space-y-3">

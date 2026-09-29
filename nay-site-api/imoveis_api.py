@@ -240,8 +240,11 @@ def api_imovel_ficha(codigo):
         if not str(i.get("proprietario_nome") or "").strip():
             falta.append("proprietário")
 
+        # Sem o `imovel` inteiro desde 28/09: esta rota responde sem senha, e o
+        # `i.*` levava o nome do proprietario e o `extras` da raspagem (torre e
+        # apartamento) a qualquer um. A tela so usa a lista do que falta.
         return jsonify({
-            "imovel": i,
+            "codigo": i["codigo"],
             "falta": falta,
             "a_nay_pode_oferecer": bool(i["no_mercado"]) and not bool(i.get("e_parceiro")),
         })

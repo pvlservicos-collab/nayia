@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { integrations } from '@/lib/schema'
-import { eq, and, isNull, sql } from 'drizzle-orm'
+import { eq, and, isNull, sql, inArray } from 'drizzle-orm'
 import { processZapiMessage, logZapiDiagnostico } from '@/lib/zapiInbound'
-import { ZAPI_INTEGRATION_TYPE } from '@/lib/zapi'
+import { ZAPI_INTEGRATION_TYPE, TIPOS_ZAPI } from '@/lib/zapi'
 import { publishEvent, channels, events } from '@/lib/realtime'
 
 /**
@@ -40,13 +40,14 @@ export async function POST(req: NextRequest) {
     // Conectou / desconectou: reflete no status da integração, que é o que a tela
     // de configuração mostra. Sem isto, uma instância caída só apareceria como
     // "mensagens pararam de chegar", sem ninguém saber por quê.
+    const instancia = body.instanceId ? String(body.instanceId) : null
     if (body.type === 'ConnectedCallback' || body.connected === true) {
-      await marcarStatus(orgId, 'active')
+      await marcarStatus(orgId, 'active', instancia)
       return NextResponse.json({ ok: true, evento: 'conectado' })
     }
     if (body.type === 'DisconnectedCallback' || body.disconnected === true) {
-      await marcarStatus(orgId, 'disabled')
-      await ligarAvisoDeDesconexao(orgId)
+      await marcarStatus(orgId, 'disabled', instancia)
+      await ligarAvisoDeDesconexao(orgId, instancia)
       return NextResponse.json({ ok: true, evento: 'desconectado' })
     }
 
@@ -56,6 +57,19 @@ export async function POST(req: NextRequest) {
 
     // Mensagem recebida (ou eco de mensagem enviada pelo celular).
     if (body.type === 'ReceivedCallback' || body.phone) {
+      /*
+       * `?rapido=1` é só do espelho da Nay no n8n (29/09/2026): ele roda ANTES
+       * do atendimento, então não pode esperar a foto baixar. Responde na hora e
+       * grava logo depois. Se a gravação falhar, a conferência de cada minuto
+       * (espelhoDaNay.ts) traz a mensagem -- por isso a Z-API direta, que não
+       * tem essa rede, continua no caminho que espera e devolve 500.
+       */
+      if (req.nextUrl.searchParams.get('rapido') === '1') {
+        after(() => processZapiMessage(orgId, body)
+          .then(() => undefined)
+          .catch((e) => console.error('[zapi webhook rápido]', body?.messageId, e?.message || e)))
+        return NextResponse.json({ ok: true, fila: true }, { status: 202 })
+      }
       const resultado = await processZapiMessage(orgId, body)
       if (resultado.status === 'created') {
         return NextResponse.json({ ok: true, activityId: resultado.activityId })
@@ -76,16 +90,21 @@ export async function POST(req: NextRequest) {
 }
 
 // 'disabled' é o valor que o enum de status da tabela usa pra "não está valendo".
-async function marcarStatus(orgId: string, status: 'active' | 'disabled') {
+/** A linha certa: a da instância que avisou; sem instância, a Parceria (28/09). */
+function daInstancia(orgId: string, instancia: string | null) {
+  return instancia
+    ? and(eq(integrations.organizationId, orgId), inArray(integrations.type, TIPOS_ZAPI),
+          isNull(integrations.deletedAt), sql`${integrations.config}->>'instance_id' = ${instancia}`)
+    : and(eq(integrations.organizationId, orgId), eq(integrations.type, ZAPI_INTEGRATION_TYPE),
+          isNull(integrations.deletedAt))
+}
+
+async function marcarStatus(orgId: string, status: 'active' | 'disabled', instancia: string | null = null) {
   try {
     await db
       .update(integrations)
       .set({ status, updatedAt: new Date() })
-      .where(and(
-        eq(integrations.organizationId, orgId),
-        eq(integrations.type, ZAPI_INTEGRATION_TYPE),
-        isNull(integrations.deletedAt)
-      ))
+      .where(daInstancia(orgId, instancia))
   } catch (err) {
     console.error('[zapi webhook] falha ao atualizar status da integração', err)
   }
@@ -106,18 +125,14 @@ async function marcarStatus(orgId: string, status: 'active' | 'disabled') {
  * escondeu qual. Uma query atômica fecha essa lacuna específica; o log virou
  * console.error(err.message) pra próxima vez não ficar sem pista nenhuma.
  */
-async function ligarAvisoDeDesconexao(orgId: string) {
+async function ligarAvisoDeDesconexao(orgId: string, instancia: string | null = null) {
   try {
     const resultado = await db.update(integrations)
       .set({
         config: sql`COALESCE(${integrations.config}, '{}'::jsonb) || jsonb_build_object('disconnectAlertActive', true, 'disconnectedAt', ${new Date().toISOString()}::text)`,
         updatedAt: new Date(),
       })
-      .where(and(
-        eq(integrations.organizationId, orgId),
-        eq(integrations.type, ZAPI_INTEGRATION_TYPE),
-        isNull(integrations.deletedAt)
-      ))
+      .where(daInstancia(orgId, instancia))
       .returning({ id: integrations.id })
 
     if (resultado.length === 0) {

@@ -66,11 +66,15 @@ SELECT 'parecido não afirma: ' || f.forma,
 
 -- 4. Condomínio que existe mas é só de parceiro NÃO pode ser declarado
 --    inexistente. Era o buraco maior: 177 de 387 nomes.
+--    E desde 28/09 (153) também NÃO fala em parceria. Tel: "ela nunca pode
+--    falar isso, os imóveis de parceria estão oficialmente fora de tudo". A
+--    resposta é a mesma de quem não tem nada disponível.
 INSERT INTO resultado
 SELECT 'só parceria: ' || f.forma,
-       CASE WHEN d.texto_pronto LIKE '%imóvel de parceria%' THEN 'parceria'
+       CASE WHEN d.texto_pronto ILIKE '%parceria%' THEN 'falou de parceria'
+            WHEN d.texto_pronto LIKE '%não tenho nada disponível%' THEN 'nada disponível'
             ELSE left(replace(d.texto_pronto, chr(10),' / '),60) END,
-       'parceria'
+       'nada disponível'
   FROM (VALUES ('Villa Verde 1'),('Lê Boulevard'),('Smart Vista do Sol 2')) f(forma),
    LATERAL nay_disponibilidade_no_condominio(f.forma,'venda') d;
 

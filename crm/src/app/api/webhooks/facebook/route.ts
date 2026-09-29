@@ -9,6 +9,8 @@
  *   URL: https://seu-app.vercel.app/api/webhooks/facebook?org_id=SEU_ORG_ID
  *   Verify Token: valor de FACEBOOK_WEBHOOK_VERIFY_TOKEN
  */
+import { guardarDoEndereco } from '@/lib/armazem'
+import { getWhatsAppCredentials } from '@/lib/whatsapp'
 import { NextRequest, after } from 'next/server'
 import { db } from '@/lib/db'
 import { leads, leadActivities, pipelineStages, integrationMessageLogs, integrations } from '@/lib/schema'
@@ -18,6 +20,48 @@ import { dispatchOutboundWebhook } from '@/lib/outbound-webhook'
 import { ORGANIZATION_ID } from '@/lib/automated-message'
 import { isUniqueViolation } from '@/lib/db-helpers'
 import { notifyInboundMessage } from '@/lib/push'
+import { transcreverAtividade } from '@/lib/transcricao'
+import { acharLeadDaLinha, integracaoDoTipo } from '@/lib/leadDaLinha'
+import { telefoneCanonico, telefoneVariantes } from '@/lib/leadSources'
+import { etapaInicialDaLinha } from '@/lib/etapaDaLinha'
+
+/** O que a conversa mostra quando a Meta entrega a mensagem sem conteúdo. */
+const AVISO_SEM_CONTEUDO_DA_META =
+  '⚠️ A pessoa mandou algo que a API oficial não mostra (foto de visualização única, enquete ou recurso novo do WhatsApp). Peça para reenviar.'
+
+/**
+ * Manda para o fluxo da captação (n8n) o que chegou no número oficial.
+ * Sem CAPTACAO_OFICIAL_WEBHOOK_URL no .env, não faz nada. Falhar aqui nunca
+ * derruba o registro da mensagem, que já aconteceu.
+ */
+async function repassarParaCaptacao(corpo: Record<string, unknown>) {
+  const url = process.env.CAPTACAO_OFICIAL_WEBHOOK_URL
+  if (!url) return
+  const controle = new AbortController()
+  const prazo = setTimeout(() => controle.abort(), 8000)
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-captacao-segredo': process.env.CAPTACAO_OFICIAL_SEGREDO || '',
+      },
+      body: JSON.stringify(corpo),
+      signal: controle.signal,
+    })
+    if (!r.ok) console.error('[Facebook Webhook] a captação respondeu', r.status)
+  } catch (err) {
+    console.error('[Facebook Webhook] repasse para a captação falhou', err)
+  } finally {
+    clearTimeout(prazo)
+  }
+}
+
+/** A Meta avisou que não sabe entregar este tipo (`unsupported`, erro 131051). */
+function ehMensagemSemConteudoDaMeta(message: any): boolean {
+  return message?.type === 'unsupported'
+    || (Array.isArray(message?.errors) && message.errors.some((e: any) => Number(e?.code) === 131051))
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -32,29 +76,23 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * Baixa uma mídia do WhatsApp Cloud API e armazena no Vercel Blob.
- * Retorna a URL pública e o mimetype, ou null se não foi possível.
+ * Baixa uma mídia do WhatsApp Cloud API e guarda no armazém do CRM.
+ * Retorna o endereço (relativo) e o mimetype, ou null se não foi possível.
+ *
+ * A MÍDIA DO NÚMERO OFICIAL SE PERDIA INTEIRA (29/09/2026). Esta função só
+ * lia o token de `integration_secrets`, e ele nunca esteve lá (mora no .env,
+ * META_TOKEN -- ver `getWhatsAppCredentials`); e, se lesse, o Blob da Vercel
+ * não existe neste servidor. Resultado medido: nenhuma foto, áudio ou
+ * documento recebido pelo 8456-0874 ficou no CRM, só o rótulo "🎵 Áudio".
  */
 async function downloadWhatsappMedia(orgId: string, mediaId: string): Promise<{ url: string; mimetype?: string } | null> {
-  const { integrations, integrationSecrets } = await import('@/lib/schema')
-
-  const [integration] = await db.select({ id: integrations.id, config: integrations.config })
-    .from(integrations)
-    .where(and(eq(integrations.organizationId, orgId), eq(integrations.type, 'whatsapp_cloud_official'), isNull(integrations.deletedAt)))
-    .limit(1)
-  if (!integration) return null
-
-  const [secretRow] = await db.select({ secret: integrationSecrets.secret })
-    .from(integrationSecrets)
-    .where(eq(integrationSecrets.integrationId, integration.id))
-    .limit(1)
-
-  const config = integration.config as { graph_api_version?: string }
-  const secret = secretRow?.secret as { system_token?: string } | undefined
-  if (!secret?.system_token) return null
-
-  const apiVersion = config?.graph_api_version || 'v21.0'
-  const token = secret.system_token
+  let apiVersion: string
+  let token: string
+  try {
+    ({ apiVersion, token } = await getWhatsAppCredentials(orgId))
+  } catch {
+    return null
+  }
 
   const metaRes = await fetch(`https://graph.facebook.com/${apiVersion}/${mediaId}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -63,18 +101,10 @@ async function downloadWhatsappMedia(orgId: string, mediaId: string): Promise<{ 
   const meta = await metaRes.json()
   if (!meta?.url) return null
 
-  const fileRes = await fetch(meta.url, { headers: { Authorization: `Bearer ${token}` } })
-  if (!fileRes.ok) return null
-  const buffer = Buffer.from(await fileRes.arrayBuffer())
-
-  const { put } = await import('@vercel/blob')
-  const ext = (meta.mime_type || '').split('/')[1]?.split(';')[0] || 'bin'
-  const blob = await put(`whatsapp-media/${orgId}/${mediaId}.${ext}`, buffer, {
-    access: 'public',
-    contentType: meta.mime_type || 'application/octet-stream',
-  })
-
-  return { url: blob.url, mimetype: meta.mime_type }
+  const guardada = await guardarDoEndereco(`whatsapp-media/${orgId}`, mediaId, meta.url,
+                                          { Authorization: `Bearer ${token}` })
+  if (!guardada) return null
+  return { url: guardada.url, mimetype: meta.mime_type || guardada.mimetype }
 }
 
 const MEDIA_TYPES = ['image', 'video', 'audio', 'document', 'sticker'] as const
@@ -103,23 +133,8 @@ async function findInstagramIntegration(entryId: string) {
 }
 
 async function downloadInstagramMedia(orgId: string, url: string, mediaType: string): Promise<string | null> {
-  try {
-    const fileRes = await fetch(url)
-    if (!fileRes.ok) return null
-    const buffer = Buffer.from(await fileRes.arrayBuffer())
-    const contentType = fileRes.headers.get('content-type') || 'application/octet-stream'
-    const ext = contentType.split('/')[1]?.split(';')[0] || 'bin'
-
-    const { put } = await import('@vercel/blob')
-    const blob = await put(`instagram-media/${orgId}/${mediaType}-${Date.now()}.${ext}`, buffer, {
-      access: 'public',
-      contentType,
-    })
-    return blob.url
-  } catch (err) {
-    console.error('[Instagram Webhook] media download failed', err)
-    return null
-  }
+  const guardada = await guardarDoEndereco(`instagram-media/${orgId}`, `${mediaType}-${Date.now()}`, url)
+  return guardada?.url ?? null
 }
 
 // share/ig_reel/story_mention: conteúdo compartilhado de dentro do Instagram
@@ -320,6 +335,7 @@ export async function POST(req: NextRequest) {
     let mediaType: string | undefined
     let mediaMimetype: string | undefined
     let mediaFilename: string | undefined
+    let mediaIdMeta: string | undefined
     let content = message.text?.body || ''
 
     if ((MEDIA_TYPES as readonly string[]).includes(message.type)) {
@@ -330,6 +346,7 @@ export async function POST(req: NextRequest) {
       if (mediaObj?.caption) content = mediaObj.caption
 
       if (mediaObj?.id) {
+        mediaIdMeta = String(mediaObj.id)
         try {
           const downloaded = await downloadWhatsappMedia(orgId, mediaObj.id)
           if (downloaded) {
@@ -354,38 +371,51 @@ export async function POST(req: NextRequest) {
     } else if (message.type === 'location') {
       const loc = message.location
       content = `📍 Localização: ${loc?.name || `${loc?.latitude}, ${loc?.longitude}`}`
+    } else if (ehMensagemSemConteudoDaMeta(message)) {
+      // A META MANDA VAZIO (28/09/2026). `type: "unsupported"`, erro 131051
+      // "Message type unknown": a pessoa mandou algo que a API oficial não
+      // entrega -- foto de visualização única, enquete, recurso novo do app. O
+      // texto não chega para ninguém; o que dá para fazer é pedir de novo.
+      // Antes aparecia "[Mensagem recebida]", que não explicava nada (Pedro:
+      // "vê se isso aqui é bug").
+      content = AVISO_SEM_CONTEUDO_DA_META
     } else if (!content) {
       content = '[Mensagem recebida]'
     }
 
-    // Buscar ou criar lead
-    const [existing] = await db.select({ id: leads.id }).from(leads)
-      .where(and(eq(leads.organizationId, orgId), ilike(leads.phone, `%${phone}%`), isNull(leads.deletedAt)))
-      .limit(1)
+    /* O LEAD DA LINHA OFICIAL (Tel, 28/09/2026: "API oficial com as coisas que
+       recebemos só da API oficial... não misturando contatos").
+
+       Antes o lead era procurado por qualquer pedaço do telefone, em qualquer
+       linha, e nascia SEM integração -- a conversa de quem escrevia para o
+       8456-0874 não aparecia em aba nenhuma (5511999910621, 28/09). Agora é
+       (telefone, linha oficial), como na Z-API (ver `leadDaLinha.ts`). */
+    const linhaOficial = await integracaoDoTipo(orgId, 'whatsapp_cloud_official')
+    const telefones = telefoneVariantes(phone)
+    const existing = await acharLeadDaLinha(orgId, telefones.length ? telefones : [phone], linhaOficial)
 
     let leadId = existing?.id
     if (!leadId) {
-      const [firstStage] = await db.select({ id: pipelineStages.id }).from(pipelineStages)
-        .where(and(eq(pipelineStages.organizationId, orgId), isNull(pipelineStages.deletedAt)))
-        .orderBy(asc(pipelineStages.rank)).limit(1)
+      // A etapa do pipeline DA LINHA, não a primeira da organização -- os
+      // pipelines têm etapa de rank 1 cada um, e o banco devolvia qualquer uma.
+      const etapa = await etapaInicialDaLinha(orgId, 'whatsapp_cloud_official')
 
       try {
         const [newLead] = await db.insert(leads).values({
           organizationId: orgId,
           title: senderName,
-          phone,
-          stageId: firstStage?.id || null,
+          phone: telefoneCanonico(phone) || phone,
+          integrationId: linhaOficial,
+          stageId: etapa,
           lastActivityAt: new Date(),
         }).returning({ id: leads.id })
         leadId = newLead.id
       } catch (err) {
         // Mesma race condition já vista no Evolution: duas mensagens quase simultâneas
         // pro mesmo telefone, cada uma cria seu próprio lead sem constraint. Agora a
-        // constraint leads_org_phone_unique garante que só uma vence.
+        // constraint leads_org_phone_unique (telefone + linha) garante que só uma vence.
         if (!isUniqueViolation(err)) throw err
-        const [raceLead] = await db.select({ id: leads.id }).from(leads)
-          .where(and(eq(leads.organizationId, orgId), eq(leads.phone, phone), isNull(leads.deletedAt)))
-          .limit(1)
+        const raceLead = await acharLeadDaLinha(orgId, telefones.length ? telefones : [phone], linhaOficial)
         if (!raceLead) throw err
         leadId = raceLead.id
       }
@@ -401,9 +431,16 @@ export async function POST(req: NextRequest) {
         metadata: {
           direction: isOutboundEcho ? 'outbound' : 'inbound',
           source: isOutboundEcho ? 'whatsapp_app' : 'facebook_cloud',
+          // por qual número passou (a Z-API já grava o dela)
+          channel: 'whatsapp_cloud_official',
           sender_name: senderName,
+          // o erro da Meta, quando ela mandou a mensagem sem conteúdo
+          ...(ehMensagemSemConteudoDaMeta(message)
+            ? { meta_sem_conteudo: true, meta_erro: message.errors?.[0] ?? { type: message.type } }
+            : {}),
           ...(message.id ? { whatsapp_message_id: message.id } : {}),
           ...(mediaUrl ? { media_url: mediaUrl, media_type: mediaType, media_mimetype: mediaMimetype, ...(mediaFilename ? { media_filename: mediaFilename } : {}) } : {}),
+          ...(mediaIdMeta ? { whatsapp_media_id: mediaIdMeta } : {}),
         },
       }).returning({ id: leadActivities.id })
     } catch (err) {
@@ -429,6 +466,43 @@ export async function POST(req: NextRequest) {
 
     if (!isOutboundEcho) {
       after(() => notifyInboundMessage(orgId, leadId, { text: content, mediaType }))
+    }
+    // a transcrição embaixo do áudio, também na linha oficial (29/09)
+    if (mediaType === 'audio' && mediaUrl) {
+      const idDoAudio = activity.id
+      after(() => transcreverAtividade(idDoAudio).then(() => undefined)
+        .catch((e) => console.error('[transcricao]', idDoAudio, e?.message || e)))
+    }
+
+    /* A NAY DE CAPTAÇÃO CONVERSA PELO NÚMERO OFICIAL (Pedro, 28/09/2026). O que
+       uma pessoa manda para cá vai também para o fluxo da captação, no formato
+       da Z-API, marcado `canal: 'oficial'`; lá ele decide se é dono em captação
+       e se pode responder, e a resposta volta por /api/webhooks/captacao-oficial.
+       Não vai: o nosso eco e a mensagem que a Meta entregou sem conteúdo. Depois
+       de responder o webhook -- a captação não pode atrasar a Meta. */
+    if (!isOutboundEcho && !ehMensagemSemConteudoDaMeta(message)) {
+      const temTexto = !!(message.text?.body || (mediaType && content && content !== MEDIA_LABELS[message.type]))
+      const corpoCaptacao: Record<string, unknown> = {
+        type: 'ReceivedCallback',
+        canal: 'oficial',
+        phone: fromNumber,
+        fromMe: false,
+        fromApi: false,
+        isGroup: false,
+        senderName,
+        messageId: message.id || null,
+        momment: message.timestamp ? Number(message.timestamp) * 1000 : Date.now(),
+        ...(temTexto && !mediaType ? { text: { message: content } } : {}),
+        ...(mediaType === 'audio' && mediaUrl ? { audio: { audioUrl: mediaUrl, mimeType: mediaMimetype } } : {}),
+        ...(mediaType === 'image' ? { image: { imageUrl: mediaUrl || '', caption: temTexto ? content : '' } } : {}),
+        ...(mediaType === 'video' ? { video: { videoUrl: mediaUrl || '', caption: temTexto ? content : '' } } : {}),
+        ...(mediaType === 'document' ? { document: { documentUrl: mediaUrl || '', caption: temTexto ? content : '' } } : {}),
+        ...(mediaType === 'sticker' ? { sticker: { stickerUrl: mediaUrl || '' } } : {}),
+        ...(message.type === 'reaction' ? { reaction: { value: message.reaction?.emoji || '' } } : {}),
+        // botão de template / resposta interativa chegam como texto
+        ...(!mediaType && !temTexto && message.type !== 'reaction' && content ? { text: { message: content } } : {}),
+      }
+      after(() => repassarParaCaptacao(corpoCaptacao))
     }
 
     await db.insert(integrationMessageLogs).values({

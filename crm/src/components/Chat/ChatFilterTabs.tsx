@@ -1,80 +1,73 @@
 'use client'
 
 import { memo } from 'react'
-import type { Atendente } from '@/lib/atendentes'
 
-/** `atendente:<member_id>` filtra as conversas de quem está atendendo. */
-export type ChatTab = 'all' | 'human' | 'urgent' | `atendente:${string}`
+/**
+ * Os filtros de cima da lista, no desenho do WhatsApp Web (29/09/2026).
+ *
+ * Quem decide QUAIS filtros aparecem é a lista (LeadList), porque muda por
+ * linha:
+ *   parceria  -> Todas · Não lidas · Proprietários · Visitas · Tel
+ *                (Pedro, 29/09: "troca por TODOS, Não lidos, Proprietários
+ *                 (filtra conforme o banco de dados, o sistema já sabe quem
+ *                 é), VISITAS, TEL (TAG TEL QUE É O TEL ATENDENDO)")
+ *   captação / oficial -> Todas · as etiquetas do funil · quem está atendendo
+ *                (Tel, 26/09 e 28/09) -- só o desenho mudou.
+ *
+ * Clicar no filtro ativo volta para "Todas", como no WhatsApp.
+ */
+export type ChatTab = string
+
+export interface FiltroDaLista {
+  chave: ChatTab
+  rotulo: string
+  contagem?: number
+  /** cor própria (etiqueta, atendente) -- vira um pontinho antes do nome */
+  cor?: string
+  titulo?: string
+}
+
+/** mantido para quem ainda importa o tipo antigo */
+export interface EtiquetaDaAba {
+  id: string
+  nome: string
+  cor: string
+}
 
 interface ChatFilterTabsProps {
-  activeTab: ChatTab
-  onChange: (tab: ChatTab) => void
-  counts: Record<string, number>
-  /** Abas de pessoa, entre HUMANO e URGENTES, cada uma na cor dela. */
-  atendentes?: Atendente[]
+  ativo: ChatTab
+  aoMudar: (tab: ChatTab) => void
+  filtros: FiltroDaLista[]
 }
 
-const classeBase = 'flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors border'
-
-function Contador({ valor, ativo }: { valor: number; ativo: boolean }) {
-  if (valor <= 0) return null
+function ChatFilterTabs({ ativo, aoMudar, filtros }: ChatFilterTabsProps) {
   return (
-    <span
-      className={`px-1.5 rounded-full text-[10px] font-bold ${
-        ativo ? 'bg-black/20 text-[var(--chat-bg-conversation)]' : 'bg-white/10 text-[var(--chat-text-primary)]'
-      }`}
-    >
-      {valor}
-    </span>
-  )
-}
-
-function ChatFilterTabs({ activeTab, onChange, counts, atendentes = [] }: ChatFilterTabsProps) {
-  const abaFixa = (key: ChatTab, label: string) => {
-    const isActive = activeTab === key
-    return (
-      <button
-        key={key}
-        onClick={() => onChange(key)}
-        className={`${classeBase} ${
-          isActive
-            ? 'bg-[var(--chat-accent)] border-white/20 text-[var(--chat-bg-conversation)]'
-            : 'bg-white/[0.04] border-[var(--chat-border)] text-[var(--chat-text-muted)] hover:bg-white/[0.08] hover:text-[var(--chat-text-primary)]'
-        }`}
-      >
-        {label}
-        <Contador valor={counts[key] ?? 0} ativo={isActive} />
-      </button>
-    )
-  }
-
-  return (
-    <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[var(--chat-border)] overflow-x-auto">
-      {abaFixa('all', 'TODOS')}
-      {abaFixa('human', 'HUMANO')}
-
-      {atendentes.map((a) => {
-        const key: ChatTab = `atendente:${a.id}`
-        const isActive = activeTab === key
+    /* rola de lado com a barrinha e com a rodinha do mouse (Pedro, 29/09:
+       "põe uma barrinha para mexer para o lado as tags, porque não tem") */
+    <div className="flex items-center gap-2 px-4 pb-2 pt-0.5 overflow-x-auto wa-rolagem-x" role="tablist"
+         onWheel={(e) => {
+           const el = e.currentTarget
+           if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
+           el.scrollLeft += e.deltaY
+         }}>
+      {filtros.map((f) => {
+        const on = ativo === f.chave
         return (
           <button
-            key={key}
-            onClick={() => onChange(isActive ? 'all' : key)}
-            title={`Conversas que ${a.nome} está atendendo`}
-            className={`${classeBase} ${isActive ? 'text-[#111]' : 'hover:brightness-125'}`}
-            style={
-              isActive
-                ? { backgroundColor: a.cor, borderColor: a.cor }
-                : { backgroundColor: a.cor + '14', borderColor: a.cor + '59', color: a.cor }
-            }
+            key={f.chave}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            title={f.titulo}
+            onClick={() => aoMudar(on && f.chave !== 'all' ? 'all' : f.chave)}
+            className={`wa-chip ${on ? 'wa-chip--on' : ''}`}
           >
-            {a.nome.toUpperCase()}
-            <Contador valor={counts[key] ?? 0} ativo={isActive} />
+            {f.cor && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: f.cor }} />}
+            {f.rotulo}
+            {f.contagem !== undefined && f.contagem > 0 && <span className="wa-chip__n">{f.contagem}</span>}
           </button>
         )
       })}
-
-      {abaFixa('urgent', 'URGENTES')}
     </div>
   )
 }

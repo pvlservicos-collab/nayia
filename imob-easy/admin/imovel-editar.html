@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/imovel-editar.css">
 <meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
 </head>
 <body class="admin" data-pagina="imoveis">
@@ -18,23 +19,59 @@
 
 <div data-layout-topo></div>
 
-<main class="conteudo" id="conteudo">
-  <div class="pagina-cabecalho">
-    <h1 class="pagina-titulo">Editar imóvel <span id="titulo-codigo"></span></h1>
-    <a class="btn-neutro" href="imoveis.html">&larr; Voltar</a>
+<!--
+  A TELA DE EDITAR, REFEITA (Pedro, 28/09/2026): "tá tudo muito confuso em uma
+  galeria branca estranha, não quero assim, quero fotos em cima, e os campos
+  embaixo organizados por categorias, fáceis de editar, o status do imóvel nem
+  tá dando pra editar direito... bem organizado e visualmente diferente cada
+  conjunto de dados".
+-->
+<main class="conteudo ed" id="conteudo">
+  <div class="pagina-cabecalho ed__cabecalho">
+    <div>
+      <a class="ed__voltar" href="imoveis.html">&larr; Imóveis</a>
+      <h1 class="pagina-titulo" id="ed-titulo">Editar imóvel</h1>
+      <div class="ed__sub" id="ed-sub"></div>
+    </div>
   </div>
 
-  <div class="form-imovel__aviso">
-    Campos marcados <span class="marca-sincronizado">● sincronizado pelo site</span> são reescritos toda hora
-    pela varredura automática (às XX:17) se o valor no site público for diferente. Uma edição aqui é
-    provisória para eles. Campos sem essa marca são internos — a varredura nunca mexe neles.
-  </div>
-
-  <div id="criado-aviso" class="form-imovel__aviso" hidden style="border-color:#1e8e3e">Imóvel criado. Ele está <strong>fora do site</strong> até você marcar "Publicado no site".</div>
-  <div id="carregando">Carregando dados do imóvel...</div>
+  <div id="criado-aviso" class="ed__aviso ed__aviso--ok" hidden>Imóvel cadastrado como rascunho. Quando quiser anunciar, mude a situação lá em cima para Disponível.</div>
+  <div id="ed-carregando" class="ed__aviso">Carregando o imóvel…</div>
   <script>if (new URLSearchParams(location.search).get("criado") === "1") document.getElementById("criado-aviso").hidden = false;</script>
-  <form class="form-imovel" id="form-imovel" hidden></form>
+
+  <form id="ed-form" hidden novalidate>
+    <!-- a faixa de estado: fica presa no alto enquanto rola -->
+    <div class="ed__estado" id="ed-estado"></div>
+
+    <!-- as fotos em cima -->
+    <section class="ed__fotos" id="ed-fotos" hidden></section>
+
+    <!-- o que falta preencher -->
+    <div class="ed__falta" id="ed-falta" hidden></div>
+
+    <!-- os dados, cada conjunto com a sua cor -->
+    <div class="ed__cartoes" id="ed-cartoes"></div>
+  </form>
 </main>
+
+<!-- a foto grande -->
+<dialog class="ed__visor" id="ed-visor" aria-label="Foto do imóvel">
+  <button type="button" class="ed__visor-fechar" data-visor="fechar" aria-label="Fechar">✕</button>
+  <button type="button" class="ed__visor-seta ed__visor-seta--ant" data-visor="ant" aria-label="Foto anterior">‹</button>
+  <img id="ed-visor-img" alt="">
+  <button type="button" class="ed__visor-seta ed__visor-seta--prox" data-visor="prox" aria-label="Próxima foto">›</button>
+  <div class="ed__visor-conta" id="ed-visor-conta"></div>
+</dialog>
+
+<!-- o aviso do proprietário: o salvar pergunta quando o imóvel está sem dono -->
+<dialog class="ed__aviso-dono" id="ed-dono-aviso" aria-labelledby="ed-dono-aviso-titulo">
+  <h2 id="ed-dono-aviso-titulo">Falta o proprietário</h2>
+  <p>Este imóvel está sem os dados do dono (a OLX não traz). Sem eles, a Nay não tem como falar com o proprietário para marcar visita.</p>
+  <div class="ed__aviso-dono-botoes">
+    <button type="button" class="btn-azul" data-aviso-dono="preencher">Preencher agora</button>
+    <button type="button" class="btn-neutro" data-aviso-dono="salvar">Salvar sem o proprietário</button>
+  </div>
+</dialog>
 
 <div data-layout-rodape></div>
 

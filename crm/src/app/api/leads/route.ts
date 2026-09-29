@@ -5,8 +5,24 @@ import { publishEvent, channels, events } from '@/lib/realtime'
 import {
   leads, leadTags, tags, organizationMembers, profiles, pipelineStages, integrations,
 } from '@/lib/schema'
-import { eq, and, isNull, desc, asc, ilike, or, sql, count } from 'drizzle-orm'
+import { eq, and, isNull, desc, asc, ilike, or, sql, count, inArray } from 'drizzle-orm'
 import { mapLead } from '@/lib/mappers'
+import { etapaInicialDaLinha } from '@/lib/etapaDaLinha'
+import { linhaDoTipo, type LinhaWhatsapp } from '@/lib/leadChannel'
+import { acharLeadDaLinha } from '@/lib/leadDaLinha'
+
+/**
+ * A aba em que esta conversa aparece: a da linha DO LEAD, e só ela.
+ *
+ * De 26/09 a 28/09 entravam também as linhas de todas as mensagens, para uma
+ * conversa aparecer em mais de uma aba -- remendo do lead único por telefone,
+ * que misturava as conversas (Tel, 28/09: "não misturando contatos"). Desde
+ * `leadDaLinha.ts` cada lead é de uma linha.
+ */
+function linhasDe(tipoDaIntegracao: string | null, integrationId: string | null): LinhaWhatsapp[] {
+  const doLead = linhaDoTipo(tipoDaIntegracao) ?? (integrationId && !tipoDaIntegracao ? 'parceria' : null)
+  return doLead ? [doLead] : []
+}
 import { isUniqueViolation } from '@/lib/db-helpers'
 import type { Integration } from '@/lib/types'
 import { DIAS_CONVERSA_IMPORTADA } from '@/lib/conversas'
@@ -37,6 +53,13 @@ export async function GET(req: NextRequest) {
      *   funil     → o que o Kanban desenha (card sem etapa não existe lá)
      */
     const scope = searchParams.get('scope')
+    /**
+     * Só estas conversas (29/09, Pedro: "máximo de velocidade... cliques rápidos
+     * sem bugar"). A tela recebe "a conversa X mudou" e busca só ela, em vez da
+     * lista inteira (352 conversas, 400 KB) a cada mensagem.
+     */
+    const idsPedidos = (searchParams.get('ids') || '').split(',').map((s) => s.trim())
+      .filter((s) => /^[0-9a-f-]{36}$/i.test(s)).slice(0, 100)
 
     const conditions = [
       eq(leads.organizationId, auth.organizationId),
@@ -49,6 +72,7 @@ export async function GET(req: NextRequest) {
     if (owner) conditions.push(eq(leads.ownerMemberId, owner))
     if (stageId) conditions.push(eq(leads.stageId, stageId))
     if (excludeGroups) conditions.push(or(isNull(leads.isGroup), eq(leads.isGroup, false))!)
+    if (searchParams.has('ids')) conditions.push(idsPedidos.length ? inArray(leads.id, idsPedidos) : sql`false`)
 
     if (scope === 'funil') {
       conditions.push(sql`${leads.stageId} IS NOT NULL`)
@@ -156,6 +180,7 @@ export async function GET(req: NextRequest) {
       }),
       lead_tags: tagsMap[r.lead.id] || [],
       integration: r.integrationType ? ({ type: r.integrationType } as Integration) : undefined,
+      linhas: linhasDe(r.integrationType, r.lead.integrationId),
       owner: r.ownerMemberIdJoin
         ? { id: r.ownerMemberIdJoin, profiles: { full_name: r.ownerFullName || '', avatar_url: r.ownerAvatarUrl || undefined } }
         : undefined,
@@ -179,34 +204,29 @@ export async function POST(req: NextRequest) {
     const requiredError = validateRequired(body, ['title', 'source'])
     if (requiredError) return apiError(400, requiredError)
 
-    // Verifica duplicata por telefone
+    // Verifica duplicata por telefone NA MESMA LINHA (28/09): a mesma pessoa
+    // pode ter uma conversa em cada número, e cadastrar na Parceria alguém que
+    // já fala com a captação é um lead novo, não o de lá.
     if (body.phone) {
-      const [existing] = await db
-        .select({ id: leads.id })
-        .from(leads)
-        .where(
-          and(
-            eq(leads.organizationId, auth.organizationId),
-            eq(leads.phone, body.phone),
-            isNull(leads.deletedAt)
-          )
-        )
-        .limit(1)
-
-      if (existing) return Response.json({ data: existing, existed: true })
+      const existing = await acharLeadDaLinha(auth.organizationId, [body.phone], body.integration_id || null)
+      if (existing) return Response.json({ data: { id: existing.id }, existed: true })
     }
 
-    const [firstStage] = await db
-      .select({ id: pipelineStages.id })
-      .from(pipelineStages)
-      .where(
-        and(
-          eq(pipelineStages.organizationId, auth.organizationId),
-          isNull(pipelineStages.deletedAt)
-        )
-      )
-      .orderBy(asc(pipelineStages.rank))
-      .limit(1)
+    /* A ETAPA SAI DO PIPELINE DA LINHA (Tel, 26/09/2026: "vai ter essa divisão no
+       pipeline cada pipeline para cada zap").
+
+       Antes daqui saía "a primeira etapa da organização", sem olhar pipeline.
+       Com dois pipelines, os dois têm etapa de rank 1 -- "Contactando" na
+       captação e "Agendou visita" na parceria -- e o banco devolvia qualquer uma
+       das duas. Um corretor da parceria podia nascer dentro do pipeline da
+       captação, e ninguém notaria olhando a tela. */
+    let tipoDaLinha: string | null = null
+    if (body.integration_id) {
+      const [integ] = await db.select({ type: integrations.type }).from(integrations)
+        .where(and(eq(integrations.id, body.integration_id), isNull(integrations.deletedAt))).limit(1)
+      tipoDaLinha = integ?.type ?? null
+    }
+    const etapaDaLinha = await etapaInicialDaLinha(auth.organizationId, tipoDaLinha)
 
     let lead: typeof leads.$inferSelect
     try {
@@ -217,8 +237,16 @@ export async function POST(req: NextRequest) {
           title: body.title,
           phone: body.phone || null,
           email: body.email || null,
-          stageId: body.stage_id || firstStage?.id || null,
+          stageId: body.stage_id || etapaDaLinha || null,
           ownerMemberId: body.owner_member_id || null,
+          /*
+           * DE QUAL LINHA DE WHATSAPP É O LEAD (Tel, 26/09/2026).
+           *
+           * Sem isto o lead cadastrado à mão não aparece em nenhuma das duas
+           * abas do chat: elas filtram pelo tipo da integração, e um lead sem
+           * integração não é de linha nenhuma.
+           */
+          integrationId: body.integration_id || null,
           customAttributes: body.custom_fields || {},
           lastActivityAt: new Date(),
         })
@@ -227,9 +255,7 @@ export async function POST(req: NextRequest) {
       // Checagem de duplicata acima (linha ~113) não cobre corrida entre duas
       // requisições simultâneas — leads_org_phone_unique garante isso no banco.
       if (!isUniqueViolation(err) || !body.phone) throw err
-      const [raceLead] = await db.select().from(leads)
-        .where(and(eq(leads.organizationId, auth.organizationId), eq(leads.phone, body.phone), isNull(leads.deletedAt)))
-        .limit(1)
+      const raceLead = await acharLeadDaLinha(auth.organizationId, [body.phone], body.integration_id || null)
       if (!raceLead) throw err
       return Response.json({ data: raceLead, existed: true })
     }

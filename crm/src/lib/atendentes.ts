@@ -25,6 +25,10 @@ export interface Atendente {
 // Tons claros (400) de propósito: a lista de conversas é escura, e o tom 500
 // do roxo e do azul fica com pouco contraste como texto em cima dela.
 const EQUIPE: { prefixo: string; nome: string; cor: string }[] = [
+  // Imob Easy (29/09/2026): "a tag Tel entra na conversa sempre que mandar
+  // mensagem pelo meu login, e a da Rayssa pelo login dela, automaticamente"
+  { prefixo: 'tel', nome: 'Tel', cor: '#FB7185' },         // o mesmo rosa da marca "Tel" da Nay
+  { prefixo: 'rayssa', nome: 'Rayssa', cor: '#C084FC' },   // roxo
   { prefixo: 'augusto', nome: 'Augusto', cor: '#FACC15' }, // amarelo
   { prefixo: 'michele', nome: 'Michele', cor: '#C084FC' }, // roxo
   { prefixo: 'cau', nome: 'Cau', cor: '#60A5FA' },         // azul

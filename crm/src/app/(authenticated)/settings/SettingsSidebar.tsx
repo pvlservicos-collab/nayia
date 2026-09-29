@@ -15,7 +15,7 @@ import {
     Table,
     ClipboardText,
     Robot,
-} from '@phosphor-icons/react'
+    ChatText, IdentificationBadge } from '@phosphor-icons/react'
 
 const SETTINGS_SECTIONS = [
     { label: 'Perfil da Organização', href: '/settings/organization', icon: Buildings },
@@ -26,9 +26,12 @@ const SETTINGS_SECTIONS = [
     { label: 'Inteligência Artificial', href: '/settings/ia', icon: Robot },
     { label: 'Campos Customizados', href: '/settings/custom-fields', icon: PencilSimpleLine },
     { label: 'Tags', href: '/settings/tags', icon: Tag },
+    // 29/09: os corretores parceiros -- quem mais conversa, quem mais agenda, a pasta de cada um
+    { label: 'Corretores', href: '/settings/corretores', icon: IdentificationBadge },
     { label: 'Respostas Rápidas', href: '/settings/quick-replies', icon: Lightning },
     { label: 'Produtos', href: '/settings/products', icon: Package },
     { label: 'Integrações', href: '/settings/integrations', icon: ShareNetwork },
+    { label: 'Templates do WhatsApp', href: '/settings/templates', icon: ChatText },
     { label: 'Notificações', href: '/settings/notifications', icon: Bell },
 ]
 

@@ -752,7 +752,8 @@ body.admin { background: var(--fundo); }
 
 @media (max-width: 700px) {
   .barra-topo__interno { flex-direction: column; align-items: stretch; }
-  .barra-topo__direita { justify-content: space-between; }
+  /* com o Enviar imóvel ao lado do n8n (28/09), cinco itens: quebra a linha em vez de vazar */
+  .barra-topo__direita { justify-content: space-between; flex-wrap: wrap; gap: var(--e-2); }
   .grade-cartoes { grid-template-columns: minmax(0, 1fr); }
   .pagina-cabecalho { flex-direction: column; }
   .evento { grid-template-columns: 66px 18px minmax(0, 1fr); }

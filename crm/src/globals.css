@@ -331,6 +331,31 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* ============================================================
+   NOTEBOOK: TUDO UM POUCO MENOR (Tel, 26/09/2026)
+   "reorganize o visual do crm para notebook esta tudo muito grande e
+    aparecendo poucas conversas, da uma diminuida bacana no zoom em
+    monitores pequenos"
+
+   O jeito mais honesto de "diminuir o zoom" é mexer na base: quase tudo
+   no Tailwind é rem, então baixar o tamanho da raiz encolhe fonte,
+   espaçamento, altura de linha e ícone JUNTOS, na mesma proporção. É
+   diferente de sair caçando classe por classe, que sempre deixa um
+   pedaço fora de escala.
+
+   Só vale do tablet pra cima: no celular o texto precisa continuar
+   legível, e lá o problema não é caber mais conversa.
+
+   16px é o padrão. Em 1440 vai a 14px (−12%) e em 1280 a 13px (−19%) --
+   numa lista de conversa isso são três ou quatro linhas a mais na tela.
+   ============================================================ */
+@media (min-width: 768px) and (max-width: 1439px) {
+  html { font-size: 14px; }
+}
+@media (min-width: 768px) and (max-width: 1279px) {
+  html { font-size: 13px; }
+}
+
 /* iPhone dá zoom automático ao focar campo com fonte < 16px — trava isso só no mobile,
    sem mudar o tamanho de fonte pretendido no design pra telas maiores. */
 @media (max-width: 767px) {
@@ -705,4 +730,675 @@ html {
 
 .lead-card-flash {
   animation: leadCardFlash 0.75s ease-in-out 3;
+}
+
+/* ============================================================
+   O CHAT IGUAL AO WHATSAPP WEB (Pedro, 29/09/2026: "quero que mude o crm
+   para ficar exatamente igual o whatsapp web").
+
+   As cores do WhatsApp Web de 2025, clara e escura, SÓ dentro do chat
+   (.chat-theme): o resto do CRM continua com a marca. O tema segue o botão
+   claro/escuro do app, como o WhatsApp segue o do computador.
+
+   Os tokens --chat-* que os componentes antigos já liam passam a apontar
+   para os --wa-*: por isso a conversa, o card e os menus mudam juntos. O
+   chat nasceu clone do WhatsApp e em algum momento virou cinza neutro (ver
+   o comentário de CHAT THEME TOKENS acima); aqui ele volta.
+   ============================================================ */
+.chat-theme {
+  --wa-app: #f0f2f5;
+  --wa-rail: #f7f5f3;
+  --wa-panel: #ffffff;
+  --wa-header: #ffffff;
+  --wa-search: #f0f2f5;
+  --wa-search-ink: #54656f;
+  --wa-row-hover: #f5f6f6;
+  --wa-row-selected: #f0f2f5;
+  --wa-divider: #e9edef;
+  --wa-text: #111b21;
+  --wa-text-2: #667781;
+  --wa-icon: #54656f;
+  --wa-green: #1daa61;
+  --wa-green-ink: #ffffff;
+  --wa-unread: #25d366;
+  --wa-unread-ink: #ffffff;
+  --wa-chip-bg: #f0f2f5;
+  --wa-chip-ink: #54656f;
+  --wa-chip-border: transparent;
+  --wa-chip-on-bg: #d9fdd3;
+  --wa-chip-on-ink: #15603e;
+  --wa-conv-bg: #efeae2;
+  --wa-doodle: rgba(17, 27, 33, 0.075);
+  --wa-in: #ffffff;
+  --wa-in-ink: #111b21;
+  --wa-out: #d9fdd3;
+  --wa-out-ink: #111b21;
+  --wa-meta: #667781;
+  --wa-tick-read: #53bdeb;
+  --wa-date-chip: #ffffff;
+  --wa-date-ink: #54656f;
+  --wa-input: #ffffff;
+  --wa-menu: #ffffff;
+  --wa-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+  --wa-quote: rgba(11, 20, 26, 0.05);
+  --wa-quote-bar: #06cf9c;
+  --wa-tag-prop: #b45309;
+  --wa-tag-visita: #1d4ed8;
+  --wa-tag-tel: #be123c;
+  --wa-tag-corretor: #047857;
+
+  /* os tokens que os componentes antigos do chat já leem */
+  --chat-bg-base: var(--wa-panel);
+  --chat-bg-conversation: var(--wa-conv-bg);
+  --chat-bg-panel: var(--wa-header);
+  --chat-bg-field: var(--wa-in);
+  --chat-bg-menu: var(--wa-menu);
+  --chat-bg-hover: var(--wa-row-hover);
+  --chat-border: var(--wa-divider);
+  --chat-text-primary: var(--wa-text);
+  --chat-text-secondary: var(--wa-text);
+  --chat-text-muted: var(--wa-text-2);
+  --chat-text-tertiary: var(--wa-text-2);
+  --chat-icon: var(--wa-icon);
+  --chat-accent: var(--wa-green);
+  --chat-accent-hover: var(--wa-green);
+  --chat-bubble-out: var(--wa-out);
+  --chat-bubble-out-ink: var(--wa-out-ink);
+
+  font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, 'Lucida Grande', Arial, Ubuntu, Cantarell, 'Fira Sans', sans-serif;
+  color: var(--wa-text);
+  background: var(--wa-panel);
+}
+.dark .chat-theme {
+  --wa-app: #0e0f0f;
+  --wa-rail: #1d1f1f;
+  --wa-panel: #161717;
+  --wa-header: #161717;
+  --wa-search: #2e2f2f;
+  --wa-search-ink: #a5a5a5;
+  --wa-row-hover: #242626;
+  --wa-row-selected: #2e2f2f;
+  --wa-divider: rgba(255, 255, 255, 0.09);
+  --wa-text: #fafafa;
+  --wa-text-2: #a5a5a5;
+  --wa-icon: #a5a5a5;
+  --wa-green: #21c063;
+  --wa-green-ink: #0b141a;
+  --wa-unread: #21c063;
+  --wa-unread-ink: #0b141a;
+  --wa-chip-bg: transparent;
+  --wa-chip-ink: #a5a5a5;
+  --wa-chip-border: rgba(255, 255, 255, 0.16);
+  --wa-chip-on-bg: #103529;
+  --wa-chip-on-ink: #d9fdd3;
+  --wa-conv-bg: #161717;
+  --wa-doodle: rgba(255, 255, 255, 0.05);
+  --wa-in: #242626;
+  --wa-in-ink: #fafafa;
+  --wa-out: #144d37;
+  --wa-out-ink: #fafafa;
+  --wa-meta: rgba(255, 255, 255, 0.6);
+  --wa-date-chip: #242626;
+  --wa-date-ink: #a5a5a5;
+  --wa-input: #242626;
+  --wa-menu: #242626;
+  --wa-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.3);
+  --wa-quote: rgba(0, 0, 0, 0.22);
+  --wa-tag-prop: #f59e0b;
+  --wa-tag-visita: #60a5fa;
+  --wa-tag-tel: #fb7185;
+  --wa-tag-corretor: #34d399;
+}
+
+/* O papel de parede: o desenho (public/chat-bg.svg) é máscara, a cor vem do tema */
+.wa-papel { position: relative; background-color: var(--wa-conv-bg); isolation: isolate; }
+.wa-papel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--wa-doodle);
+  -webkit-mask-image: url('/chat-bg.svg');
+  mask-image: url('/chat-bg.svg');
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+  -webkit-mask-size: 420px 420px;
+  mask-size: 420px 420px;
+}
+
+/* O balão, com o "rabinho" só na primeira mensagem de cada sequência */
+.wa-balao {
+  position: relative;
+  border-radius: 7.5px;
+  box-shadow: var(--wa-shadow);
+  font-size: 14.2px;
+  line-height: 19px;
+  padding: 6px 7px 8px 9px;
+  overflow-wrap: anywhere;
+}
+.wa-balao--in { background: var(--wa-in); color: var(--wa-in-ink); }
+.wa-balao--out { background: var(--wa-out); color: var(--wa-out-ink); }
+.wa-balao--in.wa-balao--rabo { border-top-left-radius: 0; }
+.wa-balao--out.wa-balao--rabo { border-top-right-radius: 0; }
+.wa-balao--rabo::before { content: ''; position: absolute; top: 0; width: 8px; height: 13px; }
+.wa-balao--in.wa-balao--rabo::before { left: -8px; background: var(--wa-in); clip-path: polygon(0 0, 100% 0, 100% 100%); }
+.wa-balao--out.wa-balao--rabo::before { right: -8px; background: var(--wa-out); clip-path: polygon(0 0, 100% 0, 0 100%); }
+.wa-hora { font-size: 11px; line-height: 15px; color: var(--wa-meta); white-space: nowrap; }
+.wa-data {
+  font-size: 12.5px;
+  line-height: 21px;
+  padding: 3px 12px;
+  border-radius: 7.5px;
+  background: var(--wa-date-chip);
+  color: var(--wa-date-ink);
+  box-shadow: var(--wa-shadow);
+}
+
+/* A transcrição do áudio, embaixo dele, como no WhatsApp */
+.wa-transcricao { font-size: 13.5px; line-height: 18px; opacity: 0.92; padding: 4px 2px 0; white-space: pre-wrap; }
+.wa-transcricao--espera { font-style: italic; opacity: 0.6; }
+
+/* Os filtros de cima da lista (Todos, Não lidas...) */
+.wa-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  font-size: 14px;
+  line-height: 20px;
+  white-space: nowrap;
+  background: var(--wa-chip-bg);
+  color: var(--wa-chip-ink);
+  border: 1px solid var(--wa-chip-border);
+  transition: background-color 0.15s, color 0.15s;
+}
+.wa-chip:hover { background: var(--wa-row-hover); }
+.wa-chip--on, .wa-chip--on:hover { background: var(--wa-chip-on-bg); color: var(--wa-chip-on-ink); border-color: transparent; }
+.wa-chip__n { font-size: 12px; font-weight: 600; opacity: 0.85; }
+
+/* A busca da lista */
+.wa-busca {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 9999px;
+  background: var(--wa-search);
+  color: var(--wa-search-ink);
+}
+.wa-busca input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; font-size: 15px; color: var(--wa-text); }
+.wa-busca input::placeholder { color: var(--wa-search-ink); }
+
+/* A linha da lista de conversas */
+.wa-linha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  margin: 0 8px;
+  padding: 0 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  width: calc(100% - 16px);
+}
+.wa-linha:hover { background: var(--wa-row-hover); }
+.wa-linha--sel, .wa-linha--sel:hover { background: var(--wa-row-selected); }
+.wa-nome { font-size: 16px; line-height: 21px; color: var(--wa-text); }
+.wa-previa { font-size: 14px; line-height: 20px; color: var(--wa-text-2); }
+.wa-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  background: var(--wa-unread);
+  color: var(--wa-unread-ink);
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.wa-marca {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 600;
+  padding: 0 6px;
+  border-radius: 9999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* As barras de cima (lista, conversa, card) */
+.wa-topo { display: flex; align-items: center; min-height: 60px; padding: 0 16px; background: var(--wa-header); }
+.wa-icone-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--wa-icon);
+  flex-shrink: 0;
+}
+.wa-icone-btn:hover { background: var(--wa-row-hover); }
+.wa-icone-btn--on { background: var(--wa-row-selected); color: var(--wa-text); }
+
+/* A caixa de digitar, flutuando sobre o papel de parede */
+.wa-entrada {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  min-height: 48px;
+  padding: 4px 6px;
+  border-radius: 24px;
+  background: var(--wa-input);
+  box-shadow: var(--wa-shadow);
+}
+.wa-entrada textarea { font-size: 15px; line-height: 20px; }
+
+/* O puxador para alargar o card do lado */
+.wa-puxador { position: absolute; top: 0; left: -3px; width: 6px; height: 100%; cursor: col-resize; z-index: 30; }
+.wa-puxador::after { content: ''; position: absolute; top: 0; bottom: 0; left: 2px; width: 2px; background: transparent; transition: background-color 0.15s; }
+.wa-puxador:hover::after, .wa-puxador--arrastando::after { background: var(--wa-green); }
+
+.wa-rolagem { scrollbar-width: thin; scrollbar-color: var(--wa-divider) transparent; }
+.wa-rolagem::-webkit-scrollbar { width: 6px; height: 6px; }
+.wa-rolagem::-webkit-scrollbar-thumb { background-color: var(--wa-divider); border-radius: 6px; }
+.wa-rolagem::-webkit-scrollbar-track { background: transparent; }
+
+/* As abas da Parceria, na faixa de cima (Conversas / Visitas agendadas), e
+   depois delas a barra de métricas até o canto direito */
+.wa-abas {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  height: 46px;
+  padding: 0 0 0 12px;
+  flex-shrink: 0;
+  background: var(--wa-panel);
+  border-bottom: 1px solid var(--wa-divider);
+}
+.wa-abas__abas { display: flex; align-items: stretch; gap: 4px; flex-shrink: 0; }
+.wa-aba {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  font-size: 14.5px;
+  color: var(--wa-text-2);
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+.wa-aba:hover { color: var(--wa-text); background: var(--wa-row-hover); }
+.wa-aba--on, .wa-aba--on:hover { color: var(--wa-text); font-weight: 600; border-bottom-color: var(--wa-green); background: transparent; }
+
+/* ── A agenda das visitas (FullCalendar), no tema do WhatsApp -- 29/09/2026 ──
+   As cores vêm dos tokens --wa-*: claro e escuro sem regra própria. */
+.agenda-wa .fc {
+  --fc-page-bg-color: var(--wa-panel);
+  --fc-neutral-bg-color: var(--wa-app);
+  --fc-neutral-text-color: var(--wa-text-2);
+  --fc-border-color: var(--wa-divider);
+  --fc-button-text-color: var(--wa-chip-ink);
+  --fc-button-bg-color: var(--wa-chip-bg);
+  --fc-button-border-color: var(--wa-divider);
+  --fc-button-hover-bg-color: var(--wa-row-hover);
+  --fc-button-hover-border-color: var(--wa-divider);
+  --fc-button-active-bg-color: var(--wa-chip-on-bg);
+  --fc-button-active-border-color: var(--wa-chip-on-bg);
+  --fc-today-bg-color: color-mix(in srgb, var(--wa-green) 7%, transparent);
+  --fc-now-indicator-color: var(--wa-tag-tel);
+  --fc-list-event-hover-bg-color: var(--wa-row-hover);
+  --fc-highlight-color: color-mix(in srgb, var(--wa-green) 15%, transparent);
+  --fc-small-font-size: 12px;
+  height: 100%;
+  font-size: 13px;
+  color: var(--wa-text);
+  background: var(--wa-panel);
+  border-radius: 12px;
+  padding: 10px;
+}
+.agenda-wa .fc .fc-toolbar.fc-header-toolbar { gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.agenda-wa .fc .fc-toolbar-title { font-size: 17px; font-weight: 600; }
+.agenda-wa .fc .fc-button { padding: 4px 12px; font-size: 13px; font-weight: 500; text-transform: none; box-shadow: none !important; }
+.agenda-wa .fc .fc-button-primary:not(:disabled).fc-button-active { color: var(--wa-chip-on-ink); }
+.agenda-wa .fc .fc-button-primary:disabled { opacity: .5; }
+.agenda-wa .fc .fc-button-group > .fc-button { border-radius: 0; }
+.agenda-wa .fc .fc-button-group > .fc-button:first-child { border-radius: 999px 0 0 999px; }
+.agenda-wa .fc .fc-button-group > .fc-button:last-child { border-radius: 0 999px 999px 0; }
+.agenda-wa .fc .fc-today-button { border-radius: 999px; }
+.agenda-wa .fc .fc-col-header-cell-cushion,
+.agenda-wa .fc .fc-daygrid-day-number,
+.agenda-wa .fc .fc-list-day-text,
+.agenda-wa .fc .fc-list-day-side-text { color: var(--wa-text); text-decoration: none; }
+/* "dom. 27/09" vira "Dom. 27/09" -- só a primeira letra ("28 de setembro de", não "De") */
+.agenda-wa .fc .fc-col-header-cell-cushion,
+.agenda-wa .fc .fc-list-day-text,
+.agenda-wa .fc .fc-toolbar-title { display: inline-block; }
+.agenda-wa .fc .fc-col-header-cell-cushion::first-letter,
+.agenda-wa .fc .fc-list-day-text::first-letter,
+.agenda-wa .fc .fc-toolbar-title::first-letter { text-transform: uppercase; }
+.agenda-wa .fc .fc-timegrid-slot-label-cushion,
+.agenda-wa .fc .fc-timegrid-axis-cushion { color: var(--wa-text-2); font-size: 11.5px; }
+.agenda-wa .fc .fc-timegrid-slot { height: 2.4em; }
+.agenda-wa .fc .fc-scrollgrid { border-radius: 8px; overflow: hidden; }
+.agenda-wa .fc .fc-list-day-cushion { background: var(--wa-app); }
+.agenda-wa .fc .fc-list-empty { background: var(--wa-panel); color: var(--wa-text-2); }
+.agenda-wa .fc .fc-timegrid-now-indicator-line { border-width: 2px 0 0; }
+.agenda-wa .fc .fc-event { cursor: pointer; }
+
+/* a visita: tinta clara da cor da situação, filete à esquerda */
+.agenda-wa .fc .fc-timegrid-event.agenda-evento,
+.agenda-wa .fc .fc-daygrid-event.agenda-evento { background: transparent; border: 0; box-shadow: none; }
+.agenda-bloco {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--cor) 16%, var(--wa-panel));
+  border-left: 3px solid var(--cor);
+  color: var(--wa-text);
+  font-size: 12px;
+  line-height: 15px;
+}
+.agenda-bloco-linha { display: flex; gap: 5px; min-width: 0; white-space: nowrap; }
+.agenda-bloco-hora { font-weight: 600; color: var(--cor); flex-shrink: 0; }
+.agenda-bloco-titulo { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.agenda-bloco-sub { color: var(--wa-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agenda-evento--ruim .agenda-bloco { opacity: .6; }
+.agenda-evento--ruim .agenda-bloco-titulo,
+.agenda-evento--ruim .agenda-mes-linha,
+.agenda-evento--ruim .agenda-lista-linha { text-decoration: line-through; }
+.agenda-evento--sugerido .agenda-bloco { background: transparent; border: 1.5px dashed var(--cor); }
+.agenda-evento--sel .agenda-bloco { outline: 2px solid var(--wa-green); outline-offset: 1px; }
+.agenda-mes-linha { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; font-size: 12px; padding: 1px 2px; color: var(--wa-text); }
+.agenda-ponto { width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0; }
+.agenda-lista-sub { color: var(--wa-text-2); }
+/* na lista, a bolinha (o FullCalendar pinta com a cor do evento, que aqui é transparente) */
+.agenda-wa .fc .agenda-evento--andamento .fc-list-event-dot { border-color: var(--wa-tag-visita) !important; }
+.agenda-wa .fc .agenda-evento--atencao .fc-list-event-dot,
+.agenda-wa .fc .agenda-evento--sugerido .fc-list-event-dot { border-color: var(--wa-tag-prop) !important; }
+.agenda-wa .fc .agenda-evento--ok .fc-list-event-dot { border-color: var(--wa-green) !important; }
+.agenda-wa .fc .agenda-evento--fim .fc-list-event-dot { border-color: var(--wa-text-2) !important; }
+.agenda-wa .fc .agenda-evento--ruim .fc-list-event-dot { border-color: var(--wa-tag-tel) !important; }
+.agenda-wa .fc .agenda-evento--sel td { background: color-mix(in srgb, var(--wa-green) 10%, transparent); }
+
+/* A etapa da Nay ao lado do nome (29/09/2026): quadradinha, pequena, na cor
+   da etapa (a mesma das tags "Nay: ..." do CRM). */
+.wa-etapa {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  line-height: 15px;
+  font-weight: 600;
+  padding: 0 5px;
+  border-radius: 3px;
+  color: var(--cor);
+  background: color-mix(in srgb, var(--cor) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cor) 40%, transparent);
+  white-space: nowrap;
+}
+/* O robô da Nay no cabeçalho da conversa: verde atendendo, vermelho parada. */
+.wa-robo {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cor);
+  background: color-mix(in srgb, var(--cor) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cor) 45%, transparent);
+}
+
+/* O robô da Nay no canto inferior esquerdo da foto, na lista (29/09/2026). */
+.wa-robo-selo {
+  position: absolute;
+  left: -3px;
+  bottom: -2px;
+  width: 19px;
+  height: 19px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: var(--cor);
+  border: 2px solid var(--wa-panel);
+}
+.wa-linha--sel .wa-robo-selo { border-color: var(--wa-row-selected); }
+/* A barra de filtros rola de lado com uma barrinha fina e visível. */
+.wa-rolagem-x { scrollbar-width: thin; scrollbar-color: var(--wa-divider) transparent; }
+.wa-rolagem-x::-webkit-scrollbar { height: 6px; }
+.wa-rolagem-x::-webkit-scrollbar-thumb { background: var(--wa-divider); border-radius: 999px; }
+.wa-rolagem-x::-webkit-scrollbar-thumb:hover { background: var(--wa-text-2); }
+.wa-rolagem-x::-webkit-scrollbar-track { background: transparent; }
+
+/* ── O painel de métricas da Parceria (29/09/2026): bolsa de valores + jogo ── */
+.painel { background: var(--wa-app); color: var(--wa-text); }
+.painel-fita { overflow: hidden; background: #0b0f14; border-bottom: 1px solid #1f2937; }
+.painel-fita__trilho { display: flex; width: max-content; animation: painel-fita 45s linear infinite; }
+.painel-fita:hover .painel-fita__trilho { animation-play-state: paused; }
+.painel-fita__volta { display: flex; }
+.painel-fita__item { display: inline-flex; align-items: baseline; gap: 8px; padding: 9px 22px; white-space: nowrap;
+  border-right: 1px solid #1f2937; font-family: ui-monospace, 'JetBrains Mono', Menlo, monospace; }
+.painel-fita__rotulo { font-size: 11px; letter-spacing: .08em; color: #94a3b8; }
+.painel-fita__valor { font-size: 15px; font-weight: 800; color: #e2e8f0; }
+.painel-fita__item--alerta .painel-fita__valor { color: #f87171; animation: painel-pisca 1s steps(2, start) infinite; }
+@keyframes painel-fita { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.painel-var { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 700; font-family: ui-monospace, Menlo, monospace; }
+.painel-var--sobe { color: #22c55e; }
+.painel-var--desce { color: #ef4444; }
+.painel-var--igual { color: #94a3b8; }
+
+.painel-alerta { --cor: #22c55e; border-radius: 18px; padding: 22px 24px; background: #0b0f14; color: #f8fafc;
+  border: 2px solid color-mix(in srgb, var(--cor) 55%, transparent);
+  box-shadow: 0 0 0 1px #000 inset, 0 0 28px color-mix(in srgb, var(--cor) 25%, transparent); }
+.painel-alerta--amarelo { --cor: #f59e0b; }
+.painel-alerta--vermelho { --cor: #ef4444; animation: painel-brilho 1.2s ease-in-out infinite; }
+.painel-alerta__icone { color: var(--cor); filter: drop-shadow(0 0 12px var(--cor)); }
+.painel-alerta__icone--pisca { animation: painel-pisca .9s steps(2, start) infinite; }
+.painel-alerta__rotulo { font-size: 13px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: #cbd5e1; }
+.painel-alerta__numero { font-family: ui-monospace, 'JetBrains Mono', Menlo, monospace; font-size: clamp(64px, 9vw, 112px); line-height: 1;
+  font-weight: 900; color: var(--cor); text-shadow: 0 0 22px color-mix(in srgb, var(--cor) 60%, transparent); }
+.painel-alerta__sub { margin-top: 6px; font-size: 14px; color: #cbd5e1; }
+@keyframes painel-pisca { to { visibility: hidden; } }
+@keyframes painel-brilho { 0%, 100% { box-shadow: 0 0 0 1px #000 inset, 0 0 18px rgba(239, 68, 68, .25); }
+  50% { box-shadow: 0 0 0 1px #000 inset, 0 0 42px rgba(239, 68, 68, .7); } }
+
+/* a barra de vida: um gomo por pessoa, um risco preto a cada 10 */
+.painel-vida { margin-top: 18px; display: flex; flex-wrap: nowrap; gap: 0; position: relative; padding-bottom: 18px; }
+.painel-vida__bloco { flex: 1 1 0; min-width: 0; display: flex; gap: 2px; padding: 3px; background: #1e293b; border: 2px solid #000; margin-right: -2px; }
+.painel-vida__bloco:first-child { border-radius: 6px 0 0 6px; }
+.painel-vida__bloco:last-of-type { border-radius: 0 6px 6px 0; }
+.painel-vida__gomo { flex: 1 1 0; min-width: 3px; height: 22px; border-radius: 2px; background: #334155; }
+.painel-vida__gomo--cheio { background: linear-gradient(180deg, color-mix(in srgb, var(--cor) 60%, #fff) 0%, var(--cor) 45%, color-mix(in srgb, var(--cor) 70%, #000) 100%);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--cor) 60%, transparent); }
+.painel-vida--verde { --cor: #22c55e; }
+.painel-vida--amarelo { --cor: #f59e0b; }
+.painel-vida--vermelho { --cor: #ef4444; }
+.painel-vida--vermelho .painel-vida__gomo--cheio { animation: painel-gomo 0.8s ease-in-out infinite; }
+@keyframes painel-gomo { 50% { filter: brightness(1.6); } }
+.painel-vida__escala { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between;
+  font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: #64748b; }
+@media (max-width: 640px) { .painel-vida__gomo { height: 18px; } .painel-alerta { padding: 16px; } }
+
+.painel-aviso { display: flex; align-items: center; gap: 10px; border-radius: 12px; padding: 12px 14px; font-size: 14px;
+  color: #fecaca; background: #450a0a; border: 1px solid #b91c1c; }
+.painel-cartao { border-radius: 14px; padding: 16px; background: var(--wa-panel); border: 1px solid var(--wa-divider); }
+.painel-cartao__titulo { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--wa-text-2); margin-bottom: 8px; font-family: inherit; }
+.painel-placar { font-family: ui-monospace, 'JetBrains Mono', Menlo, monospace; font-size: 44px; font-weight: 900; line-height: 1.05; color: var(--wa-text); }
+.painel-placar__sub { font-size: 13px; color: var(--wa-text-2); display: flex; align-items: center; gap: 8px; }
+.painel-mini { margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 12.5px; color: var(--wa-text-2); }
+.painel-mini b { color: var(--wa-text); font-family: ui-monospace, Menlo, monospace; }
+.painel-espera { width: 100%; display: flex; align-items: center; gap: 12px; padding: 9px 6px; border-radius: 10px; }
+.painel-espera:hover { background: var(--wa-row-hover); }
+.painel-espera__tempo { flex-shrink: 0; min-width: 64px; text-align: center; font-family: ui-monospace, Menlo, monospace; font-weight: 800;
+  font-size: 13px; padding: 3px 6px; border-radius: 6px; color: #fff; }
+.painel-espera__tempo--verde { background: #15803d; }
+.painel-espera__tempo--amarelo { background: #b45309; }
+.painel-espera__tempo--vermelho { background: #b91c1c; }
+.painel-espera__responder { flex-shrink: 0; font-size: 12.5px; font-weight: 700; color: var(--wa-green); }
+@media (prefers-reduced-motion: reduce) {
+  .painel-fita__trilho, .painel-alerta--vermelho, .painel-alerta__icone--pisca, .painel-vida--vermelho .painel-vida__gomo--cheio, .painel-fita__item--alerta .painel-fita__valor { animation: none; }
+}
+
+/* ── A barra fixa de métricas (29/09/2026): na faixa das abas, do lado de
+   "Visitas agendadas" até o canto direito, no chat e na agenda ── */
+.painel-barra { flex: 1 1 auto; min-width: 0; display: flex; align-items: stretch; background: #0b0f14; color: #e2e8f0;
+  border-left: 2px solid #000; }
+.painel-barra__alerta { --cor: #22c55e; height: 100%; display: flex; align-items: center; gap: 8px; padding: 0 14px 0 12px;
+  background: color-mix(in srgb, var(--cor) 16%, #0b0f14); border-right: 2px solid #000; color: var(--cor); }
+.painel-barra__alerta:hover { background: color-mix(in srgb, var(--cor) 26%, #0b0f14); }
+.painel-barra__alerta--amarelo { --cor: #f59e0b; }
+.painel-barra__alerta--vermelho { --cor: #ef4444; animation: painel-barra-brilho 1.2s ease-in-out infinite; }
+@keyframes painel-barra-brilho { 50% { background: color-mix(in srgb, var(--cor) 38%, #0b0f14); } }
+.painel-barra__icone { filter: drop-shadow(0 0 6px var(--cor)); flex-shrink: 0; }
+.painel-barra__icone--pisca { animation: painel-pisca .9s steps(2, start) infinite; }
+.painel-barra__numero { font-family: ui-monospace, 'JetBrains Mono', Menlo, monospace; font-size: 30px; font-weight: 900; line-height: 1;
+  color: var(--cor); text-shadow: 0 0 14px color-mix(in srgb, var(--cor) 60%, transparent); min-width: 1.2ch; text-align: center; }
+.painel-barra__rotulo { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; line-height: 1.15; text-transform: uppercase;
+  color: #cbd5e1; text-align: left; white-space: nowrap; }
+.painel-barra__vida { flex: 1 1 200px; min-width: 120px; max-width: 380px; display: flex; align-items: center; padding: 0 12px;
+  border-right: 1px solid #1f2937; }
+.painel-barra__vida .painel-vida { margin: 0; padding: 0; width: 100%; }
+.painel-barra__vida .painel-vida__bloco { padding: 2px; gap: 1px; }
+.painel-barra__vida .painel-vida__gomo { height: 16px; min-width: 2px; }
+.painel-barra__placar { flex-shrink: 0; display: flex; align-items: center; gap: 6px; padding: 0 12px; white-space: nowrap;
+  border-right: 1px solid #1f2937; color: #94a3b8; font-family: ui-monospace, 'JetBrains Mono', Menlo, monospace; }
+.painel-barra__placar-rotulo { font-size: 10.5px; letter-spacing: .08em; }
+.painel-barra__placar-valor { font-size: 17px; font-weight: 800; color: #f8fafc; }
+.painel-barra__placar-valor--texto { font-size: 12px; letter-spacing: .06em; }
+.painel-barra__placar--alerta .painel-barra__placar-valor { color: #f87171; animation: painel-pisca 1s steps(2, start) infinite; }
+.painel-barra__luz { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.painel-barra__luz--verde { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+.painel-barra__luz--vermelha { background: #ef4444; box-shadow: 0 0 8px #ef4444; animation: painel-pisca .9s steps(2, start) infinite; }
+.painel-barra__fita { flex: 1 1 0; min-width: 0; display: flex; align-items: center; border-bottom: 0; background: transparent; }
+.painel-barra__fita .painel-fita__item { padding: 0 18px; }
+.painel-barra__lista { position: absolute; top: calc(100% + 1px); left: 0; z-index: 60; width: min(420px, 94vw);
+  max-height: min(62vh, 560px); overflow-y: auto; background: var(--wa-panel); color: var(--wa-text);
+  border: 1px solid var(--wa-divider); border-radius: 0 0 12px 12px; box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
+/* notebook estreito: os placares fixos saem, a fita carrega os números */
+@media (max-width: 1180px) {
+  .painel-barra__placar--largo { display: none; }
+}
+@media (min-width: 1181px) {
+  .painel-fita__item--so-estreito { display: none; }
+}
+/* celular: a barra desce para uma linha própria, a tela inteira de largura */
+@media (max-width: 767px) {
+  .wa-abas { flex-wrap: wrap; height: auto; padding: 0; gap: 0; }
+  .wa-abas__abas { width: 100%; height: 46px; padding: 0 8px; overflow-x: auto; }
+  .painel-barra { flex-basis: 100%; height: 44px; border-left: 0; }
+  .painel-barra__alerta { padding: 0 10px; }
+  .painel-barra__numero { font-size: 26px; }
+  .painel-barra__vida { flex: 1 1 90px; min-width: 70px; }
+  .painel-barra__placar { display: none; }
+  .painel-barra__fita { display: none; }
+}
+/* a barra da captação: uma linha própria no topo da aba, os números rolam e o
+   botão do relatório fica sempre no canto direito */
+.painel-barra--linha { flex: 0 0 auto; height: 46px; border-left: 0; border-bottom: 1px solid #000; position: relative; }
+.painel-barra__rola { flex: 1 1 auto; min-width: 0; display: flex; align-items: stretch; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none; }
+.painel-barra__rola::-webkit-scrollbar { display: none; }
+.painel-barra__rola > * { flex-shrink: 0; }
+.painel-barra--linha .painel-barra__placar { padding: 0 9px; gap: 5px; }
+/* sem caber numa linha (notebook), quebra em duas: nada fica escondido (29/09) */
+@media (min-width: 768px) {
+  .painel-barra--linha { height: auto; min-height: 46px; }
+  .painel-barra--linha .painel-barra__rola { flex-wrap: wrap; overflow: visible; }
+  .painel-barra--linha .painel-barra__rola > * { min-height: 40px; }
+  .painel-barra--linha .painel-barra__botao { align-self: center; height: 32px; }
+}
+.painel-barra__hoje { display: flex; align-items: center; gap: 7px; padding: 0 14px 0 12px; border-right: 2px solid #000;
+  background: color-mix(in srgb, #22c55e 14%, #0b0f14); font-family: ui-monospace, 'JetBrains Mono', Menlo, monospace; color: #94a3b8; }
+.painel-barra__hoje-rotulo { font-size: 10.5px; font-weight: 900; letter-spacing: .14em; color: #0b0f14; background: #22c55e;
+  padding: 2px 6px; border-radius: 4px; }
+.painel-barra__hoje-numero { font-size: 24px; font-weight: 900; line-height: 1; color: #22c55e; margin-right: 6px;
+  text-shadow: 0 0 12px rgba(34, 197, 94, .5); }
+.painel-barra__aviso { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; font-weight: 800; color: #f87171; }
+.painel-barra__ponto { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+.painel-barra__botao { flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; margin: 7px 10px; padding: 0 14px;
+  border-radius: 999px; background: #22c55e; color: #052e16; font-size: 13.5px; font-weight: 700; white-space: nowrap; }
+.painel-barra__botao:hover { background: #16a34a; color: #fff; }
+.painel-barra__botao--janela { margin: 0; height: 36px; }
+.painel-barra__botao--contorno { background: transparent; color: #22c55e; border: 1.5px solid #22c55e; margin-right: 6px; }
+.painel-barra__botao--contorno:hover { background: rgba(34, 197, 94, .15); color: #4ade80; }
+.painel-barra__total-rotulo { display: flex; align-items: center; padding: 0 8px 0 12px; font-size: 10.5px; font-weight: 900;
+  letter-spacing: .14em; color: #0b0f14; }
+.painel-barra__total-rotulo::before { content: 'TOTAL'; background: #94a3b8; color: #0b0f14; padding: 2px 6px; border-radius: 4px; }
+.painel-barra__total-rotulo { font-size: 0; }
+.painel-barra__total-rotulo::before { font-size: 10.5px; }
+@media (max-width: 767px) {
+  .painel-barra--linha .painel-barra__placar { display: flex; }
+  .painel-barra__botao span { display: none; }
+  .painel-barra__botao { padding: 0 11px; margin: 7px 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .painel-barra__alerta--vermelho, .painel-barra__icone--pisca, .painel-barra__placar--alerta .painel-barra__placar-valor,
+  .painel-barra__luz--vermelha { animation: none; }
+}
+
+/* captação: o imóvel ao lado do dono na lista (29/09/2026) */
+.wa-dono-imovel { font-size: 13px; color: var(--wa-text-2); min-width: 0; }
+
+/* A trilha da Nay no card do contato (29/09/2026): as etapas como nós; o
+   atual pulsa com a Nay ativa; parada, tudo cinza e o motivo em vermelho */
+.wa-trilha { --cor: #22c55e; width: 100%; margin-top: 14px; padding: 10px 10px 8px; border-radius: 12px; text-align: left;
+  background: var(--wa-search); border: 1px solid color-mix(in srgb, var(--cor) 45%, transparent); }
+.wa-trilha--parada { --cor: #ef4444; }
+.wa-trilha__estado { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--cor); line-height: 16px; }
+.wa-trilha__nos { display: flex; list-style: none; margin: 10px 0 0; padding: 0; }
+.wa-trilha__no { flex: 1 1 0; min-width: 0; position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+/* a linha entre um nó e o seguinte */
+.wa-trilha__no:not(:last-child)::after { content: ''; position: absolute; top: 6px; left: calc(50% + 8px); right: calc(-50% + 8px);
+  height: 2px; background: var(--wa-divider); }
+.wa-trilha__no--passou:not(:last-child)::after { background: var(--cor); }
+.wa-trilha--parada .wa-trilha__no--passou:not(:last-child)::after { background: #94a3b8; }
+.wa-trilha__bola { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--wa-divider); background: transparent; }
+.wa-trilha__no--passou .wa-trilha__bola { background: var(--cor); border-color: var(--cor); }
+.wa-trilha__no--aqui .wa-trilha__bola { background: var(--cor); border-color: var(--cor); box-shadow: 0 0 0 4px color-mix(in srgb, var(--cor) 25%, transparent); }
+.wa-trilha--ativa .wa-trilha__no--aqui .wa-trilha__bola { animation: wa-trilha-pulso 1.6s ease-in-out infinite; }
+.wa-trilha--parada .wa-trilha__no--passou .wa-trilha__bola, .wa-trilha--parada .wa-trilha__no--aqui .wa-trilha__bola { background: #94a3b8; border-color: #94a3b8; box-shadow: none; }
+@keyframes wa-trilha-pulso { 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--cor) 10%, transparent); } }
+.wa-trilha__rotulo { font-size: 11.5px; line-height: 14px; color: var(--wa-text-2); }
+.wa-trilha__no--aqui .wa-trilha__rotulo { color: var(--wa-text); font-weight: 700; }
+.wa-trilha__quando { font-size: 10.5px; color: var(--wa-text-2); }
+.wa-trilha__vazio { margin-top: 6px; font-size: 12px; color: var(--wa-text-2); }
+@media (prefers-reduced-motion: reduce) { .wa-trilha--ativa .wa-trilha__no--aqui .wa-trilha__bola { animation: none; } }
+
+/* O X dos popups de foto (29/09/2026): alto contraste nos dois temas */
+.wa-fechar-foto { background: #fff !important; color: #000 !important;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, .75), 0 6px 18px rgba(0, 0, 0, .55); }
+.wa-fechar-foto:hover { background: #fde047 !important; }
+.wa-fechar-foto:focus-visible { outline: 4px solid #fde047; outline-offset: 2px; }
+
+/* O botão de descer da conversa (29/09/2026): canto de baixo, acima da caixa de digitar. */
+.wa-descer {
+  position: absolute; right: 18px; bottom: 14px; z-index: 20;
+  width: 42px; height: 42px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--wa-menu); color: var(--wa-icon, var(--wa-text-2));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
+}
+.wa-descer:hover { color: var(--wa-text); }
+.wa-descer__n {
+  position: absolute; top: -6px; left: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
+  background: var(--wa-green); color: var(--wa-green-ink);
 }

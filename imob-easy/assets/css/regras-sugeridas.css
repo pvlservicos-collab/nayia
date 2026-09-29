@@ -1,0 +1,87 @@
+/* Regras sugeridas — Cérebro da Nay (28/09/2026). A lista por categoria e o
+   popup com as conversas de onde cada regra veio. */
+
+.rs__barra { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 14px; }
+.rs__estados { display: flex; gap: 6px; flex-wrap: wrap; }
+.rs__estado {
+  font: inherit; font-size: var(--fs-sm, 14px); cursor: pointer;
+  border: 1px solid var(--borda-forte); background: var(--superficie); color: inherit;
+  border-radius: 999px; padding: 5px 12px;
+}
+.rs__estado b { font-weight: 700; margin-left: 2px; }
+.rs__estado[aria-pressed="true"] { background: var(--roxo); border-color: var(--roxo); color: #fff; }
+
+.rs__grupo { margin-bottom: 18px; }
+.rs__conta {
+  font-size: 12px; font-weight: 600; color: var(--roxo); background: var(--roxo-suave);
+  border-radius: 999px; padding: 1px 8px; margin-left: 4px; vertical-align: middle;
+}
+.rs__cartoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.rs__cartao {
+  display: flex; flex-direction: column; gap: 6px; text-align: left; cursor: pointer;
+  font: inherit; color: inherit; background: var(--superficie);
+  border: 1px solid var(--borda); border-radius: 12px; padding: 12px 14px;
+}
+.rs__cartao:hover, .rs__cartao:focus-visible { border-color: var(--roxo); outline: none; box-shadow: 0 0 0 3px var(--roxo-suave); }
+.rs__selos { display: flex; gap: 5px; flex-wrap: wrap; }
+.rs__selo {
+  font-size: 11px; font-weight: 600; letter-spacing: .02em; border-radius: 6px; padding: 2px 7px;
+  background: var(--fundo-alt); color: var(--texto-fraco, #6b6478);
+}
+.rs__selo--alta { background: var(--vermelho-suave); color: #b4405a; }
+.rs__selo--media { background: var(--laranja-suave); color: #a8662f; }
+.rs__selo--baixa { background: var(--verde-suave); color: #2f7d58; }
+.rs__selo--aceita { background: var(--verde-suave); color: #2f7d58; }
+.rs__selo--recusada { background: var(--fundo-alt); color: #7a7285; text-decoration: line-through; }
+.rs__titulo { font-weight: 700; font-size: 15px; }
+.rs__regra {
+  font-size: 13px; color: var(--texto-fraco, #6b6478); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.rs__rodape { font-size: 12px; color: var(--roxo); font-weight: 600; }
+
+/* o popup */
+.rs__popup {
+  width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 48px);
+  border: 0; border-radius: 16px; padding: 0; overflow: auto;
+  background: var(--superficie); color: inherit; box-shadow: 0 24px 60px rgba(40, 20, 70, .28);
+}
+.rs__popup::backdrop { background: rgba(30, 16, 50, .45); }
+.rs__popup-topo {
+  position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; gap: 12px;
+  align-items: flex-start; padding: 16px 18px 10px; background: var(--superficie);
+  border-bottom: 1px solid var(--borda);
+}
+.rs__popup-topo h3 { margin: 6px 0 0; font-size: 18px; }
+.rs__popup-corpo { padding: 6px 18px 4px; }
+.rs__bloco { margin: 12px 0; }
+.rs__bloco h4 {
+  margin: 0 0 5px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--roxo);
+}
+.rs__bloco p { margin: 0; line-height: 1.5; }
+.rs__casos { display: flex; flex-direction: column; gap: 10px; }
+.rs__caso { border: 1px solid var(--borda); border-radius: 12px; padding: 10px 12px; background: var(--fundo-alt); }
+.rs__caso-topo { font-size: 12px; color: var(--texto-fraco, #6b6478); margin-bottom: 6px; }
+.rs__balao {
+  max-width: 85%; border-radius: 12px; padding: 7px 10px; margin: 4px 0; font-size: 14px;
+  line-height: 1.4; white-space: pre-wrap; word-break: break-word;
+}
+.rs__balao--ele { background: #fff; border: 1px solid var(--borda); }
+.rs__balao--ela { background: var(--roxo-suave); margin-left: auto; }
+.rs__sem-resposta { font-size: 12px; font-style: italic; color: #b4405a; text-align: right; margin: 4px 0; }
+.rs__ponto { font-size: 13px; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--borda-forte); }
+.rs__decisao {
+  position: sticky; bottom: 0; padding: 12px 18px 16px; background: var(--superficie);
+  border-top: 1px solid var(--borda);
+}
+.rs__rotulo { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+.rs__decisao textarea { width: 100%; box-sizing: border-box; resize: vertical; }
+.rs__botoes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+/* o display do .btn-mini venceria o [hidden] do navegador */
+.rs__botoes [hidden] { display: none !important; }
+.rs__recado { font-size: 13px; color: var(--roxo); }
+
+@media (max-width: 560px) {
+  .rs__popup { width: calc(100vw - 16px); max-height: calc(100vh - 16px); }
+  .rs__balao { max-width: 100%; }
+}

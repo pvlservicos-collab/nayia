@@ -180,7 +180,11 @@ export const leads = pgTable('leads', {
   // "Geicymara Alves" com o mesmo telefone, criados a 1ms de diferença). Índices já
   // aplicados diretamente no Neon via script; declarados aqui só pra manter o schema
   // Drizzle fiel ao banco real (não roda migration automática neste projeto).
-  orgPhoneUnique: uniqueIndex('leads_org_phone_unique').on(t.organizationId, t.phone)
+  //
+  // Desde 28/09 (drizzle/0125) é UM POR LINHA: (organização, telefone, linha),
+  // com NULLS NOT DISTINCT -- a mesma pessoa tem um lead em cada número de
+  // WhatsApp, e um só sem número nenhum. Ver src/lib/leadDaLinha.ts.
+  orgPhoneUnique: uniqueIndex('leads_org_phone_unique').on(t.organizationId, t.phone, t.integrationId)
     .where(sql`deleted_at IS NULL AND phone IS NOT NULL AND phone != ''`),
   integrationExternalIdUnique: uniqueIndex('leads_integration_external_id_unique').on(t.integrationId, t.externalId)
     .where(sql`deleted_at IS NULL AND external_id IS NOT NULL`),
@@ -203,6 +207,22 @@ export const leadTags = pgTable('lead_tags', {
 }, (t) => ({
   pk: primaryKey({ columns: [t.leadId, t.tagId] }),
 }))
+
+// ── A pasta do corretor (29/09/2026, drizzle/0128) ───────────────────────────
+// Os documentos que a equipe guarda de cada corretor. O arquivo mora no disco
+// do CRM (documentos-corretores/<lead>/...); apagar é marcar apagado_em.
+export const corretorDocumentos = pgTable('corretor_documentos', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull(),
+  leadId: uuid('lead_id').notNull().references(() => leads.id, { onDelete: 'cascade' }),
+  nome: text('nome').notNull(),
+  url: text('url').notNull(),
+  tipo: text('tipo'),
+  tamanho: integer('tamanho'),
+  enviadoPor: uuid('enviado_por'),
+  criadoEm: timestamp('criado_em', { withTimezone: true }).defaultNow().notNull(),
+  apagadoEm: timestamp('apagado_em', { withTimezone: true }),
+})
 
 // ── Lead Activities ───────────────────────────────────────────────────────────
 export const leadActivities = pgTable('lead_activities', {

@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/captacao-olx.css">
 <style>
   /* Linha "cinza": levou todas as tentativas e nunca respondeu. A IA não
      chama mais essa pessoa -- a tabela mostra isso apagando a linha, para
@@ -80,6 +81,16 @@
   .cap-contrato { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); margin: 4px 0 var(--e-2); }
   .cap-contrato input { padding: 7px 10px; max-width: 220px; }
   .cap-nota { font-size: var(--fs-xs); color: var(--texto-fraco); line-height: 1.5; }
+
+  /* A saúde do número (163) */
+  .cap-saude { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; margin: 0 0 14px;
+               padding: 10px 14px; border: 1px solid var(--borda, #d9dce3); border-radius: var(--raio-md); font-size: var(--fs-sm); }
+  .cap-saude:empty { display: none; }
+  .cap-saude__estado { font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+  .cap-saude__estado--ok { color: #2f7d58; background: #e8f7f0; }
+  .cap-saude__estado--parado { color: #92400e; background: #fffbeb; }
+  .cap-saude__alerta { color: #b42323; font-weight: 600; flex-basis: 100%; }
+  .cap-saude__fraco { color: var(--texto-fraco); }
 </style>
 <meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
 </head>
@@ -94,6 +105,14 @@
     <h1 class="pagina-titulo">Captação</h1>
   </div>
 
+  <!-- AS DUAS CAPTAÇÕES (Pedro, 28/09/2026): "a atual que tá Captação deixa
+       Captação WhatsApp e cria uma outra aba Captação OLX". -->
+  <div class="cap-topo" role="tablist" aria-label="Tipo de captação" data-estado-proprio>
+    <button class="cap-topo__aba" type="button" role="tab" id="aba-whatsapp" aria-controls="painel-whatsapp" aria-selected="true">Captação WhatsApp</button>
+    <button class="cap-topo__aba" type="button" role="tab" id="aba-olx" aria-controls="painel-olx" aria-selected="false" tabindex="-1">Captação OLX</button>
+  </div>
+
+  <div id="painel-whatsapp" role="tabpanel" aria-labelledby="aba-whatsapp">
   <p class="pagina-subtitulo" style="margin-bottom:16px">
     Campanha <strong>temporária</strong>: a Nay fala com cada proprietário pelo número novo
     da imobiliária e atualiza a situação do imóvel — alugado, disponível ou já vendido.
@@ -113,6 +132,8 @@
   <p style="font-size:var(--fs-xs);color:var(--texto-fraco);margin-bottom:10px">
     Valem na hora, sem publicar nada: o fluxo do n8n lê estes valores do banco a cada disparo.
   </p>
+  <!-- a saúde do número: se o disparo sai agora e por quê; os sinais de 17/09 -->
+  <div class="cap-saude" id="saude" aria-live="polite"></div>
   <div class="cap-chaves" id="chaves">
     <label class="cap-chave">Disparo
       <select data-chave="captacao_pausada">
@@ -144,8 +165,28 @@
     <label class="cap-chave" title="Horas de silêncio antes do primeiro lembrete. O segundo degrau (dia seguinte, mesmo horário) só acontece com Insistências igual a 3 ou mais.">1º lembrete após
       <input type="number" min="1" max="72" step="1" data-chave="horas_primeiro_followup">
     </label>
+    <!-- A SEGURANÇA DO NÚMERO (28/09, migração 163): aquecimento e os tetos do volume real -->
+    <label class="cap-chave" title="Quantos disparos saem no dia em que a campanha religa. Tirar a pausa recomeça o aquecimento.">Aquecimento: começa com
+      <input type="number" min="0" max="50" step="1" data-chave="rampa_inicio">
+    </label>
+    <label class="cap-chave" title="Quantos disparos a mais por dia, até o máximo.">soma por dia
+      <input type="number" min="0" max="20" step="1" data-chave="rampa_passo">
+    </label>
+    <label class="cap-chave" title="O máximo de disparos por dia depois do aquecimento.">até no máximo
+      <input type="number" min="0" max="100" step="1" data-chave="rampa_maximo">
+    </label>
+    <label class="cap-chave" title="Mensagens que a Nay manda por dia por este número (disparo + resposta + lembrete). Passou, o disparo espera o dia seguinte; a resposta a quem escreveu continua.">Mensagens da Nay por dia
+      <input type="number" min="0" max="500" step="10" data-chave="limite_api_dia">
+    </label>
+    <label class="cap-chave" title="Mensagens por dia neste número contando as que a equipe digita. Em 15/09 foram 242 e o número caiu dois dias depois.">Mensagens do número por dia (com a equipe)
+      <input type="number" min="0" max="1000" step="10" data-chave="limite_total_dia">
+    </label>
   </div>
   <p id="chaves-status" style="font-size:var(--fs-xs);color:var(--texto-fraco);margin-bottom:20px"></p>
+
+  <!-- IMÓVEIS VINDOS DA CONVERSA (28/09, migração 164): a ficha que a Nay monta com o dono -->
+  <h2 class="painel__titulo" id="cap-cadastros-titulo" style="margin-top:8px">Imóveis vindos da conversa</h2>
+  <div class="cad-lista" id="cap-cadastros"><p class="cad__nota">Carregando…</p></div>
 
   <div class="abas" id="abas">
     <button class="abas__item" type="button" role="tab" aria-selected="true" data-balde="">Todos</button>
@@ -192,6 +233,54 @@
       </table>
     </div>
   </div>
+  </div><!-- /painel-whatsapp -->
+
+  <div id="painel-olx" role="tabpanel" aria-labelledby="aba-olx" hidden>
+    <p class="pagina-subtitulo" style="margin-bottom:16px">
+      Traga o anúncio que o proprietário fez na OLX: dados e fotos entram como <strong>pré-cadastro</strong>
+      (rascunho, fora do site e da Nay). Só vai para o site e para a Nay quando você clicar em <strong>Cadastrar</strong>.
+    </p>
+
+    <ol class="olx-passos">
+      <li class="olx-passo">
+        <span class="olx-passo__num" aria-hidden="true">1</span>
+        <div>
+          <h2 class="olx-passo__titulo">Instale o botão (uma vez só)</h2>
+          <p>Arraste este botão para a barra de favoritos do navegador:</p>
+          <a class="olx-favorito" id="olx-favorito" href="#" draggable="true">Enviar para Imob Easy</a>
+          <p class="olx-nota">Não vê a barra de favoritos? Aperte <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>.</p>
+        </div>
+      </li>
+      <li class="olx-passo">
+        <span class="olx-passo__num" aria-hidden="true">2</span>
+        <div>
+          <h2 class="olx-passo__titulo">Cole o link do anúncio</h2>
+          <form class="olx-link" id="olx-form">
+            <input class="entrada" type="url" id="olx-link" placeholder="https://am.olx.com.br/..." aria-label="Link do anúncio na OLX" required>
+            <button class="btn-azul" type="submit">Abrir o anúncio</button>
+          </form>
+          <p class="olx-nota" id="olx-dica">O anúncio abre numa aba nova. Lá, clique em <strong>Enviar para Imob Easy</strong> na barra de favoritos.</p>
+        </div>
+      </li>
+      <li class="olx-passo">
+        <span class="olx-passo__num" aria-hidden="true">3</span>
+        <div>
+          <h2 class="olx-passo__titulo">Confira, ponha o proprietário e cadastre</h2>
+          <p>A barrinha mostra a leitura e as fotos chegando. A OLX não traz o dono: os dados dele são o último passo, antes do Cadastrar.</p>
+        </div>
+      </li>
+    </ol>
+
+    <div class="olx-progresso" id="olx-progresso" hidden>
+      <div class="olx-progresso__trilho" role="progressbar" aria-label="Importando o anúncio" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="olx-barra"></span></div>
+      <p class="olx-progresso__texto" id="olx-etapa" role="status"></p>
+    </div>
+
+    <div id="olx-espelho"></div>
+
+    <h2 class="painel__titulo" style="margin-top:28px">Pré-cadastrados da OLX</h2>
+    <div class="olx-lista" id="olx-lista"><p class="olx-nota">Carregando…</p></div>
+  </div><!-- /painel-olx -->
 </main>
 
 <!-- Popup 1: escolher a lista e desmarcar quem não deve receber. -->
@@ -266,5 +355,7 @@
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/layout.js"></script>
 <script src="../assets/js/captacao.js"></script>
+<script src="../assets/js/captacao-olx.js"></script>
+<script src="../assets/js/captacao-cadastros.js"></script>
 </body>
 </html>

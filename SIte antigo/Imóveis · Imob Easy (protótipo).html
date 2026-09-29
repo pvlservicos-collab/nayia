@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="color-scheme" content="light only">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Imóveis · Imob Easy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --roxo:#5B21B6; --roxo2:#7C3AED; --roxo-claro:#F0E9FD; --roxo-borda:#D6C4F7; --rosa:#E23D8C;
+  --fundo:#F4EEFC; --fundo2:#FAF7FF; --card:#FFFFFF; --texto:#2A2140; --cinza:#726A8A; --linha:#ECE6F7;
+  --verde:#137A3F; --verde-bg:#E2F5EA; --amarelo:#9A6300; --amarelo-bg:#FBF1D3; --vermelho:#B42323; --vermelho-bg:#FCE3E3;
+  --azul:#1D5FB5; --azul-bg:#E3EEFB; --laranja:#B4520C; --laranja-bg:#FCEBDD;
+  --sombra:0 6px 22px rgba(91,33,182,.10);
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,var(--fundo) 0%,var(--fundo2) 40%,var(--fundo) 100%);color:var(--texto);font:14.5px/1.45 "Saira",system-ui,-apple-system,"Segoe UI",sans-serif}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--roxo2);outline-offset:2px}
+.up{text-transform:uppercase;letter-spacing:.11em;font-weight:600}
+.pill{border-radius:999px;border:1px solid var(--roxo-borda);background:var(--card);color:var(--roxo);padding:9px 18px;font-size:11.5px}
+.pill.cheio{background:linear-gradient(135deg,var(--roxo2),var(--roxo));border-color:transparent;color:#fff;box-shadow:0 6px 16px rgba(91,33,182,.28)}
+
+/* cabeçalho */
+.head{background:var(--card);border-bottom:1px solid var(--linha);padding:14px 40px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{font-size:24px;font-weight:700;background:linear-gradient(90deg,var(--rosa),var(--roxo2));-webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:-.01em}
+.head .sp{flex:1}
+.nav{display:flex;flex-wrap:wrap;margin:22px 40px 0}
+.nav div{display:flex;flex-wrap:wrap;border:1px solid var(--roxo-borda);background:var(--card);border-radius:4px;overflow:hidden}
+.nav a{padding:13px 18px;text-decoration:none;color:var(--texto);border-right:1px solid var(--linha);font-size:12px}
+.nav a.on{background:linear-gradient(135deg,var(--roxo2),var(--roxo));color:#fff}
+
+.pagina{padding:26px 40px 60px}
+.topo{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.topo h1{margin:0;font-size:18px;border-left:4px solid var(--roxo);padding-left:12px}
+
+/* abas de tipo, como as suas */
+.abas{display:inline-flex;flex-wrap:wrap;gap:4px;background:var(--card);border-radius:999px;padding:5px;box-shadow:var(--sombra);margin-bottom:18px}
+.abas button{border:0;background:none;border-radius:999px;padding:9px 18px;font-size:11.5px;color:var(--texto)}
+.abas button.on{background:linear-gradient(135deg,var(--roxo2),var(--roxo));color:#fff}
+.abas button .n{color:var(--cinza);font-weight:400;letter-spacing:0;margin-left:6px}
+.abas button.on .n{color:#E8DDFF}
+
+.grid{display:grid;grid-template-columns:270px 1fr;gap:24px;align-items:start}
+
+/* ===== lateral ===== */
+.lado{display:flex;flex-direction:column;gap:12px}
+.lado .pill.cheio{padding:14px;text-align:center;font-size:12.5px}
+.lado .pill{padding:13px;text-align:center}
+.busca input{width:100%;border:1px solid var(--roxo-borda);border-radius:14px;padding:12px 14px;background:var(--card);box-shadow:var(--sombra)}
+.grupo{background:var(--card);border-radius:16px;box-shadow:var(--sombra);overflow:hidden;border-left:5px solid var(--cor)}
+.grupo summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:13px 14px}
+.grupo summary::-webkit-details-marker{display:none}
+.grupo .ico{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:var(--corbg);color:var(--cor);font-size:13px}
+.grupo summary b{font-size:11.5px;flex:1}
+.grupo .seta{color:var(--cinza);transition:transform .2s}
+.grupo[open] .seta{transform:rotate(180deg)}
+.grupo .qtd{background:var(--cor);color:#fff;border-radius:999px;font-size:10.5px;padding:1px 7px}
+.corpo{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
+.rot{font-size:12px;color:var(--cinza);margin-bottom:6px}
+.ops{display:flex;flex-wrap:wrap;gap:6px}
+.op{border:1px solid var(--linha);background:var(--fundo2);border-radius:999px;padding:6px 11px;font-size:12.5px;display:inline-flex;gap:6px;align-items:center}
+.op .n{color:var(--cinza);font-size:11.5px}
+.op.on{background:var(--cor);border-color:var(--cor);color:#fff}
+.op.on .n{color:rgba(255,255,255,.75)}
+.op .bol{width:8px;height:8px;border-radius:50%}
+.campo select,.campo input{width:100%;border:1px solid var(--roxo-borda);border-radius:10px;padding:9px 12px;background:var(--card)}
+.faixa{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dica{font-size:11.5px;color:var(--cinza)}
+.limpar{background:none;border:0;color:var(--roxo);text-decoration:underline;font-size:12.5px;align-self:center}
+
+/* ===== direita ===== */
+.datas{background:var(--card);border-radius:18px;box-shadow:var(--sombra);padding:16px 18px;margin-bottom:14px;border-left:5px solid var(--laranja)}
+.datas .tit{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.datas .tit .ico{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:var(--laranja-bg);color:var(--laranja)}
+.datas .tit b{font-size:11.5px}
+.passo{display:grid;grid-template-columns:150px 1fr;gap:10px;align-items:center;padding:8px 0;border-top:1px dashed var(--linha)}
+.passo .rot{margin:0;font-weight:600;color:var(--texto);font-size:12.5px}
+.passo .rot span{display:block;font-weight:400;color:var(--cinza);font-size:11.5px}
+.datas .op.on{background:var(--laranja);border-color:var(--laranja)}
+.datas input{width:110px;border:1px solid var(--roxo-borda);border-radius:999px;padding:6px 12px;font-size:12.5px;background:var(--card)}
+.datas .rodape{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.resumo{font-size:13px;color:var(--cinza)}
+.resumo b{color:var(--texto)}
+
+.atalhos{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.atalho{background:var(--card);border:1px solid var(--linha);border-radius:12px;padding:7px 12px;display:flex;gap:9px;align-items:center;font-size:12.5px;box-shadow:var(--sombra)}
+.atalho b{font-size:15px}
+.atalho.bad b{color:var(--vermelho)} .atalho.warn b{color:var(--amarelo)}
+.atalho:hover{border-color:var(--roxo2)}
+.linha{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.ativos{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.ativo{background:var(--roxo-claro);color:var(--roxo);border:0;border-radius:999px;padding:5px 12px;font-size:12.5px}
+.ativo::after{content:" ✕";font-size:10px}
+.alterna{display:inline-flex;background:var(--card);border:1px solid var(--roxo-borda);border-radius:999px;padding:3px}
+.alterna button{border:0;background:none;border-radius:999px;padding:6px 14px;font-size:11px;color:var(--roxo)}
+.alterna button.on{background:linear-gradient(135deg,var(--roxo2),var(--roxo));color:#fff}
+.ordem{border:1px solid var(--roxo-borda);border-radius:999px;padding:7px 14px;background:var(--card);font-size:12.5px}
+
+.tabela{background:var(--card);border-radius:18px;box-shadow:var(--sombra);overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:980px}
+th{text-align:left;padding:14px;font-size:11px;color:var(--texto);border-bottom:1px solid var(--linha);background:var(--fundo2)}
+td{padding:14px;border-bottom:1px solid var(--linha);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--roxo-claro)}
+.cod{font-weight:700;font-size:15px}
+.sub{color:var(--cinza);font-size:12px}
+.val{font-weight:700;color:var(--roxo)}
+.tag{display:inline-block;border-radius:999px;padding:3px 11px;font-size:11px;font-weight:600;white-space:nowrap;letter-spacing:.06em;text-transform:uppercase}
+.tag.ok{background:var(--verde-bg);color:var(--verde)} .tag.warn{background:var(--amarelo-bg);color:var(--amarelo)} .tag.bad{background:var(--vermelho-bg);color:var(--vermelho)} .tag.cz{background:var(--roxo-claro);color:var(--roxo)}
+.dono{display:inline-block;border:1px solid var(--roxo-borda);color:var(--roxo);border-radius:8px;padding:4px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;max-width:150px}
+.acoes{display:flex;flex-direction:column;gap:6px}
+.acoes .pill{padding:6px 14px;font-size:10.5px}
+.vazio{padding:50px;text-align:center;color:var(--cinza)}
+.mapa{background:var(--card);border-radius:18px;box-shadow:var(--sombra);overflow:hidden}
+.mapa svg{display:block;width:100%;height:auto}
+.leg{display:flex;flex-wrap:wrap;gap:16px;padding:12px 16px;font-size:12.5px;color:var(--cinza);border-top:1px solid var(--linha)}
+.leg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+
+/* ficha */
+.veu{position:fixed;inset:0;background:rgba(42,33,64,.35);z-index:25;display:none}.veu.on{display:block}
+.ficha{position:fixed;top:0;right:0;height:100%;width:min(500px,100%);background:var(--card);z-index:30;transform:translateX(105%);transition:transform .25s;overflow-y:auto;padding:calc(22px + env(safe-area-inset-top,0px)) 24px calc(24px + env(safe-area-inset-bottom,0px))}
+.ficha.on{transform:none}
+@media (prefers-reduced-motion:reduce){.ficha,.grupo .seta{transition:none}}
+.fc{display:flex;justify-content:space-between;gap:10px}
+.fc h2{margin:6px 0 2px;font-size:22px}
+.x{border:0;background:var(--roxo-claro);color:var(--roxo);width:38px;height:38px;border-radius:12px;font-size:17px}
+.bloco{border:1px solid var(--linha);border-radius:14px;padding:14px 16px;margin-top:12px}
+.bloco h3{margin:0 0 10px;font-size:11px;color:var(--roxo)}
+.dois{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
+.dois b{display:block;font-size:11.5px;color:var(--cinza);font-weight:500}
+.verif{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--roxo-claro);border-radius:14px;padding:14px 16px;margin-top:16px}
+.tempo{list-style:none;margin:0;padding:0}
+.tempo li{padding:7px 0 7px 16px;border-left:2px solid var(--roxo-borda);position:relative}
+.tempo li::before{content:"";position:absolute;left:-6px;top:12px;width:10px;height:10px;border-radius:50%;background:var(--roxo2)}
+
+@media (max-width:1000px){.grid{grid-template-columns:1fr}.passo{grid-template-columns:1fr}.head,.pagina{padding-left:16px;padding-right:16px}.nav{margin:16px 16px 0}}
+</style>
+</head>
+<body>
+
+<div class="pagina">
+  <div class="topo"><h1 class="up">Imóveis</h1><div style="display:flex;gap:8px"><button class="pill up">+ Criar lista com estes filtros</button><button class="pill cheio up">Exportar (CSV)</button></div></div>
+
+  <div class="abas up" id="abas"></div>
+
+  <div class="grid">
+    <!-- ===== LATERAL ===== -->
+    <aside class="lado">
+      <button class="pill cheio up">Novo imóvel</button>
+      <button class="pill up">Imóveis em revisão (17)</button>
+      <div class="busca"><input type="search" id="q" placeholder="Código, condomínio, bairro ou rua"></div>
+
+      <details class="grupo" open style="--cor:var(--verde);--corbg:var(--verde-bg)">
+        <summary><span class="ico">●</span><b class="up">Situação</b><span class="qtd" data-g="sit" hidden></span><span class="seta">▾</span></summary>
+        <div class="corpo">
+          <div><div class="rot">Como o imóvel está</div><div class="ops" data-f="sit"></div></div>
+          <div><div class="rot">Informação com o proprietário</div><div class="ops" data-f="info"></div><div class="dica" style="margin-top:6px">Atualizada = proprietário confirmou situação e valor nos últimos 15 dias (aluguel) ou 30 (venda).</div></div>
+        </div>
+      </details>
+
+      <details class="grupo" open style="--cor:var(--roxo2);--corbg:var(--roxo-claro)">
+        <summary><span class="ico">⌂</span><b class="up">Imóvel</b><span class="qtd" data-g="imovel" hidden></span><span class="seta">▾</span></summary>
+        <div class="corpo">
+          <div><div class="rot">Quartos</div><div class="ops" data-f="quartos"></div></div>
+          <div><div class="rot">Anúncio</div><div class="ops" data-f="anuncio"></div></div>
+        </div>
+      </details>
+
+      <details class="grupo" open style="--cor:var(--azul);--corbg:var(--azul-bg)">
+        <summary><span class="ico">⌖</span><b class="up">Localização</b><span class="qtd" data-g="onde" hidden></span><span class="seta">▾</span></summary>
+        <div class="corpo">
+          <div class="campo"><div class="rot">Bairro</div><select id="bairro"><option value="">Todos os bairros</option></select></div>
+          <div class="campo"><div class="rot">Condomínio</div><input id="cond" placeholder="Digite o nome"></div>
+        </div>
+      </details>
+
+      <details class="grupo" open style="--cor:var(--laranja);--corbg:var(--laranja-bg)">
+        <summary><span class="ico">$</span><b class="up">Valor</b><span class="qtd" data-g="valor" hidden></span><span class="seta">▾</span></summary>
+        <div class="corpo">
+          <div><div class="rot">Finalidade</div><div class="ops" data-f="fin"></div></div>
+          <div class="faixa campo"><div><div class="rot">Mínimo (R$)</div><input id="vmin" inputmode="numeric" placeholder="0"></div><div><div class="rot">Máximo (R$)</div><input id="vmax" inputmode="numeric" placeholder="sem limite"></div></div>
+          <div><div class="rot">Aceita financiamento</div><div class="ops" data-f="financia"></div></div>
+        </div>
+      </details>
+
+      <details class="grupo" style="--cor:var(--rosa);--corbg:#FCE4F0">
+        <summary><span class="ico">☺</span><b class="up">Proprietário</b><span class="qtd" data-g="dono" hidden></span><span class="seta">▾</span></summary>
+        <div class="corpo"><div class="ops" data-f="dono"></div></div>
+      </details>
+
+      <button class="limpar" id="limpar">Limpar todos os filtros</button>
+    </aside>
+
+    <!-- ===== DIREITA ===== -->
+    <section style="min-width:0">
+      <div class="datas">
+        <div class="tit"><span class="ico">📅</span><b class="up">Filtro por data</b><span class="dica">Escolha primeiro qual data, depois o período.</span></div>
+        <div class="passo"><div class="rot">1. Qual data?</div><div class="ops" id="qualData"></div></div>
+        <div class="passo"><div class="rot">2. Qual período?<span id="explicaPeriodo"></span></div><div class="ops" id="periodo"></div></div>
+        <div class="rodape"><div class="resumo" id="resumoData"></div><button class="limpar" id="limparData">Tirar filtro de data</button></div>
+      </div>
+
+      <div class="atalhos" id="atalhos"></div>
+      <div class="linha">
+        <div class="resumo" id="cont"></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select class="ordem" id="ordem"><option value="novo">Mais recentes primeiro</option><option value="vmenor">Menor valor</option><option value="vmaior">Maior valor</option><option value="fim">Contrato terminando antes</option><option value="info">Informação mais antiga</option></select>
+          <div class="alterna up"><button data-v="lista" class="on">Lista</button><button data-v="mapa">Mapa</button></div>
+        </div>
+      </div>
+      <div class="ativos" id="ativos"></div>
+      <div id="area"></div>
+    </section>
+  </div>
+</div>
+
+<div class="veu" id="veu"></div>
+<aside class="ficha" id="ficha" aria-label="Ficha do imóvel"></aside>
+
+<script>
+const HOJE=new Date(2026,8,26);
+const D=s=>{const[a,m,d]=s.split('-').map(Number);return new Date(a,m-1,d)};
+const dias=(a,b=HOJE)=>Math.round((b-a)/864e5);
+const dt=x=>x.toLocaleDateString('pt-BR');
+const brl=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+const B={"Ponta Negra":[170,390],"Tarumã":[230,210],"Compensa":[380,420],"Santo Agostinho":[300,330],"Adrianópolis":[560,330],"Parque 10":[640,270],"Flores":[640,170],"Aleixo":[720,300],"Chapada":[510,280],"Centro":[520,470],"Cidade Nova":[760,130]};
+/* código, condomínio, tipo, bairro, rua, finalidade, situação, valor, quartos, financia, última confirmação, disponível desde, fim contrato, cadastro, proprietário, anunciado */
+const L=[
+ [5758,"Kopenhagen","Apartamento","Parque 10","Av. Tancredo Neves","venda","disponivel",270000,2,0,"2026-09-20","2026-08-02",null,"2026-08-02","",1],
+ [5757,"Saint Martin","Apartamento","Adrianópolis","Av. Mário Ypiranga","locacao","disponivel",6900,3,0,"2026-09-22","2026-09-01",null,"2026-09-01","",1],
+ [99,"Barão da Villa","Apartamento","Adrianópolis","Rua Teresina","venda","disponivel",3000000,4,0,"2026-06-10","2025-11-18",null,"2025-11-18","Neilo",1],
+ [4207,"Residencial Efhraim","Casa de condomínio","Chapada","Rua dos Franceses","locacao","alugado",7500,3,0,"2026-09-05",null,"2026-10-14","2025-09-10","Nicole Benchaya e esposo Felipe",0],
+ [5756,"Residencial no Parque Dez","Apartamento","Parque 10","Parque Dez, 61","venda","disponivel",430000,3,0,"2026-08-10","2026-07-20",null,"2026-07-20","Valdecy",1],
+ [5755,"Residencial Ponta Negra II","Casa de condomínio","Ponta Negra","Av. Cecília Meireles, 7","venda","disponivel",2500000,4,1,"2026-09-15","2026-05-02",null,"2026-05-02","Adriano",1],
+ [5754,"Smile Village Cidade Nova","Apartamento","Cidade Nova","Torre B","venda","disponivel",375000,2,1,"2026-07-01","2026-04-10",null,"2026-04-10","Aimee Cavalcante",0],
+ [5643,"Acquarelle","Apartamento","Ponta Negra","Torre Magenta","locacao","disponivel",4100,2,0,"2026-09-02","2026-07-06",null,"2025-07-01","Proprietário 5643",1],
+ [1125,"Estilo Ponta Negra","Apartamento","Ponta Negra","Av. Coronel Teixeira, 5131","locacao","alugado",2300,2,0,"2026-08-16",null,"2027-08-17","2025-06-01","Roseane",0],
+ [3310,"Flex Parque Dez","Apartamento","Parque 10","Torre 2","locacao","alugado",3100,2,0,"2026-08-28",null,"2027-09-09","2024-10-01","Ivana",0],
+ [2890,"Casa Nova Cidade","Casa","Cidade Nova","Av. Curaçao","locacao","alugado",2500,3,0,"2026-09-12",null,null,"2024-10-30","Maria Aurinei",0],
+ [4471,"Mundi Resort","Apartamento","Ponta Negra","Av. Coronel Teixeira","venda","disponivel",890000,3,1,"2026-08-01","2026-03-14",null,"2026-03-14","Proprietário 4471",1],
+ [5102,"Vitta Adrianópolis","Apartamento","Adrianópolis","Rua Salvador","locacao","disponivel",3800,2,0,"2026-09-01","2026-08-20",null,"2026-08-20","Proprietário 5102",1],
+ [3982,"Jardim das Américas","Apartamento","Flores","Rua das Flores","locacao","alugado",2200,2,0,"2026-07-30",null,"2026-11-30","2025-11-30","Proprietário 3982",0],
+ [5560,"Allegro","Apartamento","Aleixo","Rua Belo Horizonte","venda","disponivel",480000,3,1,"2026-09-18","2026-06-01",null,"2026-06-01","Proprietário 5560",1],
+ [5611,"Park Tarumã","Casa de condomínio","Tarumã","Estrada do Tarumã","locacao","disponivel",5200,4,0,"2026-07-15","2026-05-10",null,"2026-05-10","Proprietário 5611",1],
+ [5733,"Res. Santo Agostinho","Apartamento","Santo Agostinho","Rua Piauí","locacao","disponivel",2600,2,0,"2026-09-24","2026-09-15",null,"2026-09-15","Proprietário 5733",1],
+ [4815,"Torres do Aleixo","Apartamento","Aleixo","Rua Pará","locacao","alugado",3400,3,0,"2026-09-10",null,"2026-12-20","2025-12-20","Proprietário 4815",0],
+ [5320,"Parque das Nações","Apartamento","Flores","Rua Curitiba","venda","vendido",410000,3,1,"2026-09-03",null,null,"2026-01-15","Proprietário 5320",0],
+ [5701,"Sala Centro Empresarial","Sala","Centro","Rua Saldanha Marinho","locacao","indisponivel",1800,0,0,"2026-02-02",null,null,"2025-08-01","Proprietário 5701",0],
+ [5690,"Lote Tarumã","Lote","Tarumã","Ramal do Tarumã","venda","disponivel",150000,0,0,"2026-09-19","2026-09-01",null,"2026-09-01","Proprietário 5690",0]
+].map((r,i)=>{const[c,cond,tipo,bairro,rua,fin,sit,valor,q,financia,verif,desde,fim,cad,dono,anunciado]=r;const[x,y]=B[bairro];
+ return{c,cond,tipo,bairro,rua,fin,sit,valor,q,financia:!!financia,verif,desde,fim,cad,dono,anunciado:!!anunciado,x:x+((i*37)%50-25),y:y+((i*53)%40-20),
+ hist:[{d:cad,t:"Cadastrado no sistema"},desde&&{d:desde,t:"Ficou disponível"},sit==="alugado"&&{d:verif,t:fim?"Alugado, contrato até "+dt(D(fim)):"Alugado, sem data de fim cadastrada"},sit==="vendido"&&{d:verif,t:"Vendido"},sit==="indisponivel"&&{d:verif,t:"Marcado como indisponível"},{d:verif,t:"Proprietário confirmou situação e valor"}].filter(Boolean)}});
+
+const prazo=i=>i.fin==="locacao"?15:30;
+const nivel=i=>{const n=dias(D(i.verif)),p=prazo(i);return n<=p?"ok":n<=p*2?"warn":"bad"};
+
+const OPC={
+ sit:{g:"sit",multi:true,itens:[["disponivel","Disponível","var(--verde)"],["alugado","Alugado","var(--roxo2)"],["vendido","Vendido","var(--cinza)"],["indisponivel","Indisponível","var(--vermelho)"]],teste:(i,v)=>v.includes(i.sit)},
+ info:{g:"sit",multi:true,itens:[["ok","Atualizada","var(--verde)"],["warn","Vencendo","var(--amarelo)"],["bad","Desatualizada","var(--vermelho)"]],teste:(i,v)=>v.includes(nivel(i))},
+ quartos:{g:"imovel",multi:false,itens:[["1","1+"],["2","2+"],["3","3+"],["4","4+"]],teste:(i,v)=>i.q>=+v[0]},
+ anuncio:{g:"imovel",multi:false,itens:[["sim","Anunciado"],["nao","Não anunciado"]],teste:(i,v)=>(v[0]==="sim")===i.anunciado},
+ fin:{g:"valor",multi:true,itens:[["locacao","Aluguel"],["venda","Venda"]],teste:(i,v)=>v.includes(i.fin)},
+ financia:{g:"valor",multi:false,itens:[["sim","Sim"],["nao","Não"]],teste:(i,v)=>(v[0]==="sim")===i.financia},
+ dono:{g:"dono",multi:false,itens:[["com","Com proprietário"],["sem","Sem proprietário"]],teste:(i,v)=>(v[0]==="com")===!!i.dono}
+};
+const NOME={sit:"Situação",info:"Informação",quartos:"Quartos",anuncio:"Anúncio",fin:"Finalidade",financia:"Financia",dono:"Proprietário"};
+const TIPOS=[["","Todos",()=>true],["Apartamento","Apartamentos",i=>i.tipo==="Apartamento"],["Casa","Casas",i=>i.tipo.startsWith("Casa")],["Outros","Outros (lote, sala, prédio...)",i=>!["Apartamento","Casa","Casa de condomínio"].includes(i.tipo)]];
+
+/* filtro por data em dois passos */
+const QUAL=[
+ ["fim","Fim do contrato de aluguel",i=>i.fim?D(i.fim):null,"futuro"],
+ ["desde","Disponível desde",i=>i.desde?D(i.desde):null,"passado"],
+ ["verif","Última confirmação do proprietário",i=>D(i.verif),"passado"],
+ ["cad","Data de cadastro",i=>D(i.cad),"passado"]
+];
+const st={sel:{},tipo:"",vis:"lista",qual:null,per:null,meses:""};
+const $=id=>document.getElementById(id);
+Object.keys(B).sort().forEach(b=>$("bairro").insertAdjacentHTML("beforeend",`<option>${b}</option>`));
+const num=s=>+(s||"").replace(/\D/g,"")||0;
+
+function passaData(i){
+ if(!st.qual||!st.per)return true;
+ const q=QUAL.find(x=>x[0]===st.qual),d=q[2](i);
+ if(st.per==="semdata")return!d; if(!d)return false;
+ const n=dias(d);/* positivo = passado, negativo = futuro */
+ if(q[3]==="futuro"){ if(st.per==="vencido")return n>0; if(st.per==="semana")return n<=0&&-n<=7; if(st.per==="meses")return st.meses&&-n<=+st.meses*30&&n<=0; return n<=0&&-n<=+st.per; }
+ if(st.per==="semana")return n<=7; if(st.per==="meses")return st.meses&&n>+st.meses*30; return n>+st.per;
+}
+function passa(i,ignorar){
+ const q=$("q").value.trim().toLowerCase();
+ if(q&&!(String(i.c).includes(q)||i.cond.toLowerCase().includes(q)||i.bairro.toLowerCase().includes(q)||i.rua.toLowerCase().includes(q)))return false;
+ if(ignorar!=="tipo"&&!TIPOS.find(t=>t[0]===st.tipo)[2](i))return false;
+ if($("bairro").value&&i.bairro!==$("bairro").value)return false;
+ const cd=$("cond").value.trim().toLowerCase(); if(cd&&!i.cond.toLowerCase().includes(cd))return false;
+ const mn=num($("vmin").value),mx=num($("vmax").value); if(mn&&i.valor<mn)return false; if(mx&&i.valor>mx)return false;
+ if(ignorar!=="data"&&!passaData(i))return false;
+ for(const[k,v]of Object.entries(st.sel)){if(k===ignorar||!v.length)continue;if(!OPC[k].teste(i,v))return false}
+ return true;
+}
+function desenharOpcoes(){
+ $("abas").innerHTML=TIPOS.map(t=>`<button data-tipo="${t[0]}" class="${st.tipo===t[0]?"on":""}">${t[1]}<span class="n">${L.filter(i=>passa(i,"tipo")&&t[2](i)).length}</span></button>`).join("");
+ document.querySelectorAll(".ops[data-f]").forEach(el=>{
+  const k=el.dataset.f,o=OPC[k],sel=st.sel[k]||[];
+  el.innerHTML=o.itens.map(([v,t,cor])=>`<button class="op ${sel.includes(v)?"on":""}" data-k="${k}" data-v="${v}">${cor?`<span class="bol" style="background:${cor}"></span>`:""}${t}<span class="n">${L.filter(i=>passa(i,k)&&o.teste(i,[v])).length}</span></button>`).join("");
+ });
+ const g={sit:0,imovel:0,onde:0,valor:0,dono:0};
+ for(const[k,v]of Object.entries(st.sel))if(v.length)g[OPC[k].g]+=v.length;
+ if($("bairro").value)g.onde++; if($("cond").value.trim())g.onde++; if($("vmin").value||$("vmax").value)g.valor++;
+ document.querySelectorAll(".qtd[data-g]").forEach(e=>{const n=g[e.dataset.g];e.hidden=!n;e.textContent=n});
+ /* data */
+ $("qualData").innerHTML=QUAL.map(q=>`<button class="op ${st.qual===q[0]?"on":""}" data-qual="${q[0]}">${q[1]}</button>`).join("");
+ const q=QUAL.find(x=>x[0]===st.qual);
+ let per=[];
+ if(!q){$("periodo").innerHTML=`<span class="dica">Escolha uma data no passo 1.</span>`;$("explicaPeriodo").textContent="";}
+ else{
+  if(q[3]==="futuro"){per=[["vencido","Já venceu"],["semana","Esta semana"],["15","Próximos 15 dias"],["30","Próximos 30 dias"],["90","Próximos 90 dias"],["semdata","Sem data cadastrada"]];$("explicaPeriodo").textContent="contando a partir de hoje";}
+  else{per=[["semana","Últimos 7 dias"],["15","Há mais de 15 dias"],["30","Há mais de 30 dias"],["90","Há mais de 90 dias"]];$("explicaPeriodo").textContent="quanto tempo faz";}
+  $("periodo").innerHTML=per.map(([v,t])=>`<button class="op ${st.per===v?"on":""}" data-per="${v}">${t}<span class="n">${L.filter(i=>passa(i,"data")&&passaData.call(null,i,st.qual,v)).length}</span></button>`).join("")
+   +`<span style="display:inline-flex;gap:6px;align-items:center"><input id="meses" placeholder="Nº de meses" value="${st.meses}"><button class="pill" data-per="meses" style="padding:6px 12px">${q[3]==="futuro"?"Nos próximos":"Há mais de"} X meses</button></span>`;
+ }
+ $("resumoData").innerHTML=(q&&st.per)?`Mostrando: <b>${q[1]}</b> ${st.per==="semdata"?"não cadastrada":st.per==="vencido"?"já passou":st.per==="semana"?(q[3]==="futuro"?"nos próximos 7 dias":"nos últimos 7 dias"):st.per==="meses"?(q[3]==="futuro"?"nos próximos ":"há mais de ")+(st.meses||"?")+" meses":(q[3]==="futuro"?"nos próximos ":"há mais de ")+st.per+" dias"}`:`Nenhum filtro de data ativo.`;
+}
+/* versão de passaData que aceita período de teste (pra contar antes de clicar) */
+const _pd=passaData; passaData=function(i,qual,per){ if(qual===undefined)return _pd(i); const s={...st};st.qual=qual;st.per=per;const r=_pd(i);Object.assign(st,s);return r; };
+
+function chipsAtivos(){
+ const c=[];
+ if(st.tipo)c.push(`<button class="ativo" data-rtipo>Tipo: ${TIPOS.find(t=>t[0]===st.tipo)[1]}</button>`);
+ for(const[k,v]of Object.entries(st.sel))v.forEach(x=>{const it=OPC[k].itens.find(a=>a[0]===x);c.push(`<button class="ativo" data-rk="${k}" data-rv="${x}">${NOME[k]}: ${it[1]}</button>`)});
+ if($("q").value.trim())c.push(`<button class="ativo" data-campo="q">Busca: ${$("q").value.trim()}</button>`);
+ if($("bairro").value)c.push(`<button class="ativo" data-campo="bairro">Bairro: ${$("bairro").value}</button>`);
+ if($("cond").value.trim())c.push(`<button class="ativo" data-campo="cond">Condomínio: ${$("cond").value.trim()}</button>`);
+ if($("vmin").value)c.push(`<button class="ativo" data-campo="vmin">Mínimo: ${brl(num($("vmin").value))}</button>`);
+ if($("vmax").value)c.push(`<button class="ativo" data-campo="vmax">Máximo: ${brl(num($("vmax").value))}</button>`);
+ if(st.qual&&st.per)c.push(`<button class="ativo" data-rdata>Data: ${QUAL.find(x=>x[0]===st.qual)[1]}</button>`);
+ $("ativos").innerHTML=c.join("");
+}
+const sitTag=i=>({disponivel:`<span class="tag ok">Disponível</span>`,alugado:`<span class="tag cz">Alugado</span>`,vendido:`<span class="tag cz">Vendido</span>`,indisponivel:`<span class="tag bad">Indisponível</span>`})[i.sit];
+const infoTag=i=>`<span class="tag ${nivel(i)}">${{ok:"Atualizada",warn:"Vencendo",bad:"Desatualizada"}[nivel(i)]}</span><div class="sub">confirmada há ${dias(D(i.verif))} dias</div>`;
+function dataTxt(i){
+ if(i.sit==="alugado"){if(!i.fim)return`<span class="tag bad">Sem data de fim</span>`;const r=dias(HOJE,D(i.fim));return`<div class="sub">Contrato até</div>${dt(D(i.fim))}<div class="sub">${r>=0?"faltam "+r+" dias":"venceu há "+(-r)+" dias"}</div>`}
+ if(i.sit==="disponivel")return`<div class="sub">Disponível desde</div>${dt(D(i.desde))}<div class="sub">há ${dias(D(i.desde))} dias</div>`;
+ return`<div class="sub">Atualizado em</div>${dt(D(i.verif))}`;
+}
+function ordenar(a){const o=$("ordem").value;return a.sort((x,y)=>o==="vmenor"?x.valor-y.valor:o==="vmaior"?y.valor-x.valor:o==="fim"?((x.fim?D(x.fim):9e15)-(y.fim?D(y.fim):9e15)):o==="info"?D(x.verif)-D(y.verif):y.c-x.c)}
+const ATALHOS=[
+ {t:"contratos terminam em 90 dias",c:"warn",f:i=>i.fim&&dias(HOJE,D(i.fim))>=0&&dias(HOJE,D(i.fim))<=90,ap:()=>{st.qual="fim";st.per="90"}},
+ {t:"disponíveis desatualizados",c:"bad",f:i=>i.sit==="disponivel"&&nivel(i)==="bad",ap:()=>{st.sel={sit:["disponivel"],info:["bad"]}}},
+ {t:"alugados sem data de fim",c:"bad",f:i=>i.sit==="alugado"&&!i.fim,ap:()=>{st.sel={sit:["alugado"]};st.qual="fim";st.per="semdata"}}
+];
+function render(){
+ desenharOpcoes();chipsAtivos();
+ $("atalhos").innerHTML=ATALHOS.map((a,k)=>`<button class="atalho ${a.c}" data-at="${k}"><b>${L.filter(a.f).length}</b>${a.t}</button>`).join("");
+ const R=ordenar(L.filter(i=>passa(i)));
+ $("cont").innerHTML=`<b>${R.length}</b> de ${L.length} imóveis`;
+ if(st.vis==="mapa"){
+  const cor=i=>i.sit!=="disponivel"?"var(--roxo2)":nivel(i)==="ok"?"var(--verde)":nivel(i)==="warn"?"var(--amarelo)":"var(--vermelho)";
+  $("area").innerHTML=`<div class="mapa"><svg viewBox="0 0 1000 560" role="img" aria-label="Mapa esquemático de Manaus"><rect width="1000" height="560" fill="var(--fundo)"/><path d="M0 470 C160 430,300 500,450 510 S750 480,1000 520 L1000 560 L0 560Z" fill="#A9C7E8" opacity=".6"/><path d="M0 470 C100 360,90 220,60 0 L0 0Z" fill="#A9C7E8" opacity=".6"/>
+  ${Object.entries(B).map(([n,[x,y]])=>`<text x="${x}" y="${y-30}" text-anchor="middle" fill="var(--cinza)" font-size="13" font-family="Saira">${n}</text>`).join("")}
+  ${R.map(i=>`<g data-cod="${i.c}" style="cursor:pointer"><title>Cód. ${i.c}, ${i.cond}, ${brl(i.valor)}</title><circle cx="${i.x}" cy="${i.y}" r="9" fill="${cor(i)}" stroke="#fff" stroke-width="2.5"/></g>`).join("")}</svg>
+  <div class="leg"><span><i style="background:var(--verde)"></i>Disponível, atualizado</span><span><i style="background:var(--amarelo)"></i>Disponível, vencendo</span><span><i style="background:var(--vermelho)"></i>Disponível, desatualizado</span><span><i style="background:var(--roxo2)"></i>Alugado, vendido ou indisponível</span><span>Mapa esquemático do protótipo</span></div></div>`;return;
+ }
+ $("area").innerHTML=`<div class="tabela"><table><thead><tr class="up"><th>Código</th><th>Situação</th><th>Valor</th><th>Condomínio</th><th>Endereço</th><th>Datas</th><th>Proprietário</th><th>Ações</th></tr></thead><tbody>${
+  R.length?R.map(i=>`<tr data-cod="${i.c}" tabindex="0">
+   <td class="cod">${i.c}${i.anunciado?`<div class="sub">anunciado</div>`:""}</td>
+   <td>${sitTag(i)}<div style="margin-top:6px">${infoTag(i)}</div></td>
+   <td><div class="sub">${i.fin==="venda"?"Venda":"Aluguel"}</div><span class="val">${brl(i.valor)}</span><div class="sub">${i.financia?"aceita financiamento":i.fin==="venda"?"sem financiamento":""}</div></td>
+   <td><b>${i.cond}</b><div class="sub">${i.tipo}${i.q?", "+i.q+" quartos":""}</div></td>
+   <td>${i.rua}<div class="sub">${i.bairro}</div></td>
+   <td>${dataTxt(i)}</td>
+   <td>${i.dono?`<span class="dono">${i.dono}</span>`:`<span class="sub">sem proprietário</span>`}</td>
+   <td><div class="acoes"><button class="pill up" data-cod="${i.c}">Ver</button><button class="pill up" data-edit="1">Editar</button></div></td></tr>`).join("")
+  :`<tr><td colspan="8" class="vazio">Nenhum imóvel com esses filtros. Remova um filtro acima.</td></tr>`}</tbody></table></div>`;
+}
+function abrir(c){
+ const i=L.find(x=>x.c==c);
+ $("ficha").innerHTML=`<div class="fc"><div><span class="tag cz">Cód. ${i.c}</span><h2>${i.cond}</h2><div class="sub">${i.tipo}, ${i.rua}, ${i.bairro}</div></div><button class="x" id="fx" aria-label="Fechar">✕</button></div>
+ <div class="verif"><div><div class="sub">Informação com o proprietário</div>${infoTag(i)}</div><button class="pill cheio up" id="fv" style="padding:9px 14px;font-size:10.5px">Marcar como atualizado</button></div>
+ <div class="bloco"><h3 class="up">Oferta</h3><div class="dois"><div><b>Finalidade</b>${i.fin==="venda"?"Venda":"Aluguel"}</div><div><b>Valor</b>${brl(i.valor)}</div><div><b>Situação</b>${sitTag(i)}</div><div><b>Financiamento</b>${i.financia?"Aceita":"Não aceita"}</div><div><b>Anúncio</b>${i.anunciado?"Anunciado":"Não anunciado"}</div></div></div>
+ <div class="bloco"><h3 class="up">Datas</h3>${dataTxt(i)}<div class="sub" style="margin-top:6px">Cadastrado em ${dt(D(i.cad))}</div></div>
+ <div class="bloco"><h3 class="up">Características</h3><div class="dois"><div><b>Tipo</b>${i.tipo}</div><div><b>Bairro</b>${i.bairro}</div><div><b>Quartos</b>${i.q||"Não se aplica"}</div><div><b>Condomínio</b>${i.cond}</div></div></div>
+ <div class="bloco"><h3 class="up">Proprietário</h3>${i.dono||"Sem proprietário vinculado"}<div class="sub">Uso interno. Nunca vai para corretor.</div></div>
+ <div class="bloco"><h3 class="up">Histórico</h3><ul class="tempo">${[...i.hist].sort((a,b)=>D(b.d)-D(a.d)).map(h=>`<li><div class="sub">${dt(D(h.d))}</div>${h.t}</li>`).join("")}</ul></div>`;
+ $("ficha").classList.add("on");$("veu").classList.add("on");$("fx").focus();
+ $("fx").onclick=fechar;
+ $("fv").onclick=()=>{i.verif="2026-09-26";i.hist.push({d:"2026-09-26",t:"Marcado como atualizado pela equipe"});render();abrir(i.c)};
+}
+function fechar(){$("ficha").classList.remove("on");$("veu").classList.remove("on")}
+
+document.addEventListener("click",e=>{
+ const T=s=>e.target.closest(s);
+ const op=T(".op[data-k]"),tipo=T("[data-tipo]"),qual=T("[data-qual]"),per=T("[data-per]"),rk=T("[data-rk]"),cp=T("[data-campo]"),at=T("[data-at]"),alt=T(".alterna button"),ed=T("[data-edit]"),cod=T("[data-cod]");
+ if(op){const k=op.dataset.k,v=op.dataset.v,s=st.sel[k]||[];st.sel[k]=s.includes(v)?s.filter(x=>x!==v):(OPC[k].multi?[...s,v]:[v]);render()}
+ else if(tipo){st.tipo=tipo.dataset.tipo;render()}
+ else if(qual){st.qual=st.qual===qual.dataset.qual?null:qual.dataset.qual;st.per=null;render()}
+ else if(per){if(per.dataset.per==="meses")st.meses=$("meses").value;st.per=st.per===per.dataset.per&&per.dataset.per!=="meses"?null:per.dataset.per;render()}
+ else if(T("[data-rtipo]")){st.tipo="";render()}
+ else if(T("[data-rdata]")){st.qual=null;st.per=null;render()}
+ else if(rk){st.sel[rk.dataset.rk]=st.sel[rk.dataset.rk].filter(x=>x!==rk.dataset.rv);render()}
+ else if(cp){$(cp.dataset.campo).value="";render()}
+ else if(at){st.sel={};st.qual=null;st.per=null;ATALHOS[+at.dataset.at].ap();render()}
+ else if(alt){document.querySelectorAll(".alterna button").forEach(b=>b.classList.remove("on"));alt.classList.add("on");st.vis=alt.dataset.v;render()}
+ else if(ed){}
+ else if(cod&&!T("#ficha")){abrir(cod.dataset.cod)}
+});
+$("limpar").onclick=()=>{st.sel={};st.tipo="";st.qual=null;st.per=null;st.meses="";["q","bairro","cond","vmin","vmax"].forEach(id=>$(id).value="");render()};
+$("limparData").onclick=()=>{st.qual=null;st.per=null;st.meses="";render()};
+document.addEventListener("keydown",e=>{if(e.key==="Escape")fechar();if(e.key==="Enter"&&e.target.dataset&&e.target.dataset.cod)abrir(e.target.dataset.cod)});
+document.addEventListener("input",e=>{if(e.target.id==="meses"){st.meses=e.target.value;return}if(["q","bairro","cond","vmin","vmax","ordem"].includes(e.target.id))render()});
+$("veu").onclick=fechar;
+render();
+</script>
+</body>
+</html>

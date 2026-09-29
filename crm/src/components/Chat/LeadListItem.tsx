@@ -2,215 +2,212 @@
 
 import { memo } from 'react'
 import { LeadWithOwner, SearchHit } from '@/lib/types'
-import { Robot, PushPin } from '@phosphor-icons/react'
-import { getInitials, formatPhone, renderSnippet } from '@/lib/utils'
-import IntegrationBadge from '@/components/Shared/IntegrationBadge'
-import LeadBadges from '@/components/Shared/LeadBadges'
-import { PAYMENT_STATUS_META, TONE_STYLES } from '@/lib/orderStatus'
+import { PushPin, Checks, User, Robot } from '@phosphor-icons/react'
+import { formatPhone, renderSnippet } from '@/lib/utils'
 import type { Atendente } from '@/lib/atendentes'
+import type { EstadoDaNay } from '@/lib/tiposNay'
+import type { DonoNaLista, MarcaDaNay } from '@/lib/tiposNay'
 
+/**
+ * Uma linha da lista de conversas, no desenho do WhatsApp Web (29/09/2026):
+ * foto, nome e hora em cima; prévia da última mensagem embaixo, com o tique
+ * quando fomos nós que falamos por último e a bolinha verde quando há
+ * mensagem não lida.
+ *
+ * Na Parceria entram as marcas da Nay antes da prévia -- "Tel" (o Tel está
+ * com a conversa), "Visita" (com a data) e "Proprietário" --, as mesmas dos
+ * filtros de cima. Nas outras linhas, quem está atendendo e as etiquetas.
+ */
 interface LeadListItemProps {
-    lead: LeadWithOwner
-    isSelected: boolean
-    onContextMenu: (e: React.MouseEvent, lead: LeadWithOwner) => void
-    timeStr: string
-    hit?: SearchHit
-    query?: string
-    hideReplyHighlight?: boolean
-    /**
-     * Segunda via do clique.
-     *
-     * Quem decide normalmente é a lista (delegação em LeadList, que sabe qual
-     * linha foi apertada mesmo se a lista se reordenar no meio). Este onClick é
-     * rede de segurança: se o evento não chegar lá por qualquer motivo, a
-     * conversa abre do mesmo jeito. Abrir duas vezes a mesma não faz mal.
-     */
-    onClick: (lead: LeadWithOwner) => void
-    /** Quem está atendendo — etiqueta colorida com o nome, controle interno. */
-    atendente?: Atendente
+  lead: LeadWithOwner
+  isSelected: boolean
+  onContextMenu: (e: React.MouseEvent, lead: LeadWithOwner) => void
+  timeStr: string
+  hit?: SearchHit
+  query?: string
+  /**
+   * Segunda via do clique. Quem decide normalmente é a lista (delegação em
+   * LeadList, que sabe qual linha foi apertada mesmo se a lista se reordenar
+   * no meio); este onClick é rede de segurança.
+   */
+  onClick: (lead: LeadWithOwner) => void
+  /** Quem está atendendo — etiqueta colorida com o nome, controle interno. */
+  atendente?: Atendente
+  /** O que a Nay sabe desta conversa (só na Parceria) */
+  marca?: MarcaDaNay
+  /** captação: o dono e o imóvel ("Evandro Prop Kopenhagen", Pedro 29/09) */
+  dono?: DonoNaLista
+  /** a chave geral da Nay -- com ela a linha mostra o robô (só na Parceria) */
+  nay?: EstadoDaNay | null
 }
 
-const PAYMENT_METHOD_TAGS: Record<string, { label: string; style: React.CSSProperties }> = {
-    pix: { label: 'PIX', style: { backgroundColor: 'rgba(34,197,94,0.15)', color: '#4ade80' } },
-    credit_card: { label: 'Cartão', style: { backgroundColor: 'rgba(59,130,246,0.15)', color: '#60a5fa' } },
-    boleto: { label: 'Boleto', style: { backgroundColor: 'rgba(251,146,60,0.15)', color: '#fb923c' } },
-    dinheiro: { label: 'Dinheiro', style: { backgroundColor: 'rgba(52,211,153,0.15)', color: '#34d399' } },
+const RECEBIDO = ['lead']
+
+/** O primeiro nome cadastrado na captação ("Evandro Prop Kopenhagen"); o que veio
+ *  TODO EM MAIÚSCULA vira "Tadeu". O nome inteiro fica no title da linha. */
+function nomeDoDono(nome: string | null): string {
+  const palavras = (nome || '').trim().split(/\s+/).filter((p) => p.replace(/\P{L}/gu, '').length >= 2)
+  const primeiro = palavras.find((p) => !/^(sr|sra|dr|dra)\.?$/i.test(p)) || palavras[0] || ''
+  if (!primeiro || primeiro !== primeiro.toUpperCase()) return primeiro
+  return primeiro.charAt(0) + primeiro.slice(1).toLowerCase()
 }
 
-const PAYMENT_STATUS_TAGS: Record<string, { label: string; style: React.CSSProperties }> = Object.fromEntries(
-    Object.entries(PAYMENT_STATUS_META).map(([value, meta]) => [value, { label: meta.label, style: TONE_STYLES[meta.tone] }])
-)
+function quandoCurto(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const hoje = new Date()
+  const dia = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
+  const dif = Math.round((dia(d) - dia(hoje)) / 86400000)
+  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  if (dif === 0) return `hoje ${hora}`
+  if (dif === 1) return `amanhã ${hora}`
+  return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ${hora}`
+}
 
-const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, hideReplyHighlight, atendente }: LeadListItemProps) => {
-    // Conversa importada não tem prévia (a Z-API não traz mensagem antiga).
-    // "Ver conversa" prometia um histórico que não existe; dizer de onde ela veio
-    // prepara pra tela vazia em vez de surpreender.
-    const importada = (lead.custom_attributes as Record<string, unknown> | undefined)?.origem === 'conversa_whatsapp'
-    const defaultMsg = importada
-      ? 'Conversa do WhatsApp · sem histórico aqui'
-      : lead.last_activity_type ? 'Ver conversa' : 'Sem mensagens'
-    const lastMsg = lead.last_message_content || defaultMsg
+/*
+ * O ROBÔ DA NAY (Pedro, 29/09/2026): "o robô não é do lado da pessoa na aba
+ * conversas e sim lá na lista de conversas, ele fica no canto da foto da
+ * pessoa, inferior esquerdo" -- verde a Nay atendendo, vermelho parada (a chave
+ * geral da Nay, ou o Tel / alguém da equipe com a conversa). Só na Parceria.
+ */
+function Avatar({ lead, robo }: { lead: LeadWithOwner; robo?: { parada: boolean; texto: string } | null }) {
+  return (
+    <div className="relative flex-shrink-0">
+      <div className="w-[49px] h-[49px] rounded-full overflow-hidden flex items-center justify-center"
+           style={{ backgroundColor: 'var(--wa-row-selected)' }}>
+        {lead.avatar_url ? (
+          <img src={lead.avatar_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+        ) : (
+          <User size={28} weight="fill" style={{ color: 'var(--wa-text-2)', opacity: 0.55 }} />
+        )}
+      </div>
+      {robo && (
+        <span className="wa-robo-selo" style={{ ['--cor' as string]: robo.parada ? 'var(--wa-tag-tel)' : 'var(--wa-green)' }}
+              title={robo.texto} aria-label={robo.texto} role="img">
+          <Robot size={11} weight="fill" />
+        </span>
+      )}
+    </div>
+  )
+}
 
-    const orderPaymentMethod = lead.custom_attributes?.last_order_payment_method as string | undefined
-    const orderPaymentStatus = lead.custom_attributes?.last_order_payment_status as string | undefined
+const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono }: LeadListItemProps) => {
+  const robo = nay === undefined ? null : !nay ? { parada: true, texto: 'Lendo a Nay…' }
+    : !nay.ligada ? { parada: true, texto: `Nay parada: ${nay.motivo || 'desligada'}` }
+    : marca?.telAtendendo ? { parada: true, texto: `Nay parada nesta conversa: ${marca.telMotivo || 'o Tel está com a conversa'}` }
+    : { parada: false, texto: 'Nay atendendo esta conversa' }
+  // Conversa importada não tem prévia (a Z-API não traz mensagem antiga).
+  const importada = (lead.custom_attributes as Record<string, unknown> | undefined)?.origem === 'conversa_whatsapp'
+  const semPrevia = importada ? 'Conversa do WhatsApp · sem histórico aqui' : lead.last_activity_type ? '' : 'Sem mensagens'
+  const previa = lead.last_message_content || semPrevia
+  const fomosNos = !!lead.last_message_sender_type && !RECEBIDO.includes(lead.last_message_sender_type)
+  const naoLida = !!lead.is_unread
 
-    let SenderIcon = null
-    let iconColor = ''
-
-    if (lead.last_message_sender_type === 'ai' || lead.last_message_sender_type === 'ai_agent') {
-        SenderIcon = Robot
-        iconColor = 'text-violet-600'
-    }
-
-    // Faixa de destaque à esquerda do item. Só o "lead respondeu" continua
-    // colorido — é o sinal que importa e o único que precisa saltar. Os dois
-    // estados de "você mandou" eram azul e turquesa; viraram dois níveis de
-    // cinza claro, que se distinguem entre si sem competir com o verde.
-    const unreadGradient = lead.is_unread
-        ? (lead.last_message_sender_type === 'lead'
-            ? 'linear-gradient(to right, rgba(34,197,94,0.5), transparent 80%)'
-            : 'linear-gradient(to right, rgba(255,255,255,0.16), transparent 80%)')
-        : (lead.last_message_sender_type === 'human' && !hideReplyHighlight
-            ? 'linear-gradient(to right, rgba(255,255,255,0.07), transparent 80%)'
-            : undefined)
-
-
-    return (
-        <div className="w-full flex-shrink-0 relative">
-            {/* Abrir a conversa é decidido pela lista (LeadList), pela linha que
-                estava embaixo do mouse/dedo na hora do toque — ver `aoApertar`. */}
-            <button
-                type="button"
-                data-lead-id={lead.id}
-                onClick={() => onClick(lead)}
-                onContextMenu={(e) => onContextMenu(e, lead)}
-                className={`w-full text-left px-4 py-3 border-b border-[var(--chat-border)] transition-colors ${isSelected
-                    ? 'bg-white/[0.07] border-l-[3px] border-l-[var(--chat-accent)]'
-                    : 'hover:bg-white/[0.04] border-l-[3px] border-l-transparent'
-                    }`}
-                style={unreadGradient ? { background: unreadGradient } : undefined}
-            >
-                <div className="flex items-center gap-3 w-full">
-                    {/* Avatar */}
-                    <div className="relative flex-shrink-0">
-                        {lead.is_pinned && (
-                            <div className="absolute -top-1 -left-1 z-10 bg-[var(--chat-bg-base)] rounded-full p-[1px]">
-                                <PushPin size={12} weight="fill" className="text-[var(--chat-accent)] -rotate-45" />
-                            </div>
-                        )}
-                        <div className="w-10 h-10 rounded-full bg-[var(--chat-bg-hover)] flex items-center justify-center overflow-hidden border border-[var(--chat-bg-hover)]">
-                            {lead.avatar_url ? (
-                                <img src={lead.avatar_url} alt={lead.title} className="w-full h-full object-cover" />
-                            ) : (
-                                <span className="text-sm font-bold text-[var(--chat-accent)]">{getInitials(lead.title)}</span>
-                            )}
-                        </div>
-                        <IntegrationBadge lead={lead} size="sm" />
-                    </div>
-
-                    {/* Text Content */}
-                    <div className="flex-1 min-w-0 overflow-hidden">
-                        <div className="flex items-start justify-between mb-[2px] w-full">
-                            <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                                <LeadBadges lead={lead} size="sm" />
-                                <h3 className={`text-[15px] leading-tight truncate ${lead.is_unread ? 'font-bold text-[var(--chat-text-primary)]' : 'font-medium text-[var(--chat-text-secondary)]'}`}>
-                                    {formatPhone(lead.title)}
-                                </h3>
-                            </div>
-                            <div className="flex items-center gap-2 pl-2 flex-shrink-0">
-                                {lead.is_unread && (
-                                    <div className="w-2 h-2 rounded-full bg-[var(--chat-accent)] flex-shrink-0" />
-                                )}
-                                <span className={`text-[11px] flex-shrink-0 ${lead.is_unread ? 'text-[var(--chat-accent)] font-bold' : 'text-[var(--chat-text-tertiary)] font-medium'}`}>
-                                    {timeStr}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Status: se um humano da equipe já respondeu, isso prevalece sobre "só contactado" */}
-                        <div className="flex items-center gap-1.5">
-                            {atendente && (
-                                <span
-                                    className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-[1px] rounded-full border flex-shrink-0"
-                                    style={{ color: atendente.cor, backgroundColor: atendente.cor + '1F', borderColor: atendente.cor + '66' }}
-                                    title={`${atendente.nome} está atendendo`}
-                                >
-                                    {atendente.nome}
-                                </span>
-                            )}
-                            <span className={`text-[9px] font-bold uppercase tracking-wide ${lead.last_message_sender_type === 'human' ? 'text-teal-500' : 'text-[var(--chat-text-tertiary)]'}`}>
-                                {lead.last_message_sender_type === 'human' ? 'Respondeu (humano)' : 'Contactado'}
-                            </span>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 overflow-hidden w-full">
-                            {SenderIcon && <SenderIcon weight="fill" className={`flex-shrink-0 ${iconColor} w-3.5 h-3.5`} />}
-                            <p className={`text-[13px] truncate ${lead.is_unread ? 'text-[var(--chat-text-secondary)] font-medium' : (lastMsg ? 'text-[var(--chat-text-muted)]' : 'text-[var(--chat-text-tertiary)] italic')}`}>
-                                {lastMsg}
-                            </p>
-                        </div>
-
-                        {hit?.matchType === 'message' && hit.snippet && (
-                            <div className="text-xs text-[var(--chat-text-muted)] italic mt-0.5 line-clamp-1">
-                                <span className="text-[var(--chat-accent)] mr-1">↩</span>
-                                <span dangerouslySetInnerHTML={{ __html: renderSnippet(hit.snippet, query ?? '') }} />
-                            </div>
-                        )}
-
-                        {/* Order status tags + lead tags — badges de grupo/canal já saíram daqui, ficam do lado do nome */}
-                        {(orderPaymentMethod || (lead.lead_tags && lead.lead_tags.length > 0)) && (
-                            <div className="flex flex-wrap gap-1 mt-1.5 items-center">
-                                {orderPaymentMethod && PAYMENT_METHOD_TAGS[orderPaymentMethod] && (
-                                    <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full flex-shrink-0" style={PAYMENT_METHOD_TAGS[orderPaymentMethod].style}>
-                                        {PAYMENT_METHOD_TAGS[orderPaymentMethod].label}
-                                    </span>
-                                )}
-                                {orderPaymentStatus && PAYMENT_STATUS_TAGS[orderPaymentStatus] && (
-                                    <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full flex-shrink-0" style={PAYMENT_STATUS_TAGS[orderPaymentStatus].style}>
-                                        {PAYMENT_STATUS_TAGS[orderPaymentStatus].label}
-                                    </span>
-                                )}
-                                {lead.lead_tags && lead.lead_tags.map((lt: any) => {
-                                    const tag = lt.tag
-                                    if (!tag) return null
-                                    const isHex = tag.color?.startsWith('#')
-                                    return (
-                                        <span
-                                            key={lt.tag_id}
-                                            className={`text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full flex items-center gap-1 ${!isHex ? tag.color : ''}`}
-                                            style={isHex ? { backgroundColor: tag.color + '1A', color: tag.color } : {}}
-                                        >
-                                            {tag.name}
-                                        </span>
-                                    )
-                                })}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </button>
+  return (
+    <button
+      type="button"
+      data-lead-id={lead.id}
+      onClick={() => onClick(lead)}
+      onContextMenu={(e) => onContextMenu(e, lead)}
+      className={`wa-linha ${isSelected ? 'wa-linha--sel' : ''}`}
+    >
+      <Avatar lead={lead} robo={robo} />
+      <div className="flex-1 min-w-0 py-[11px]">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="flex items-center gap-1.5 min-w-0">
+            {dono ? (
+              /* captação (Pedro, 29/09): [nome] [Prop] [condomínio] */
+              <span className="flex items-baseline gap-1.5 min-w-0"
+                    title={[dono.nome, dono.condominio, dono.codigo ? `#${dono.codigo}` : null, dono.bairro].filter(Boolean).join(' · ')}>
+                <span className={`wa-nome truncate flex-shrink ${naoLida ? 'font-semibold' : ''}`}>{nomeDoDono(dono.nome) || formatPhone(lead.title)}</span>
+                <span className="wa-marca flex-shrink-0" style={{ color: 'var(--wa-tag-prop)' }}>Prop</span>
+                {dono.condominio && <span className="wa-dono-imovel truncate">{dono.condominio}{dono.imoveis > 1 ? ` +${dono.imoveis - 1}` : ''}</span>}
+              </span>
+            ) : (
+              <span className={`wa-nome truncate ${naoLida ? 'font-semibold' : ''}`}>{formatPhone(lead.title)}</span>
+            )}
+            {/* a etiqueta da etapa saiu (Pedro, 29/09: "retira as tags de recebeu
+                imóvel, não tá bacana"); a etapa virou a trilha do card do contato */}
+          </span>
+          <span className="text-[12px] leading-4 flex-shrink-0"
+                style={{ color: naoLida ? 'var(--wa-unread)' : 'var(--wa-text-2)', fontWeight: naoLida ? 600 : 400 }}>
+            {timeStr}
+          </span>
         </div>
-    )
+
+        <div className="flex items-center gap-1.5 mt-[2px] min-w-0">
+          {marca?.telAtendendo && (
+            <span className="wa-marca" style={{ color: 'var(--wa-tag-tel)' }} title={marca.telMotivo || 'O Tel está com esta conversa'}>Tel</span>
+          )}
+          {marca?.visitaAberta && (
+            <span className="wa-marca" style={{ color: 'var(--wa-tag-visita)' }} title="Visita em andamento">
+              Visita {quandoCurto(marca.visitaQuando)}
+            </span>
+          )}
+          {marca?.corretor && (
+            <span className="wa-marca" style={{ color: 'var(--wa-tag-corretor)' }}
+                  title={marca.creci ? `Corretor parceiro · CRECI ${marca.creci}` : 'Corretor parceiro'}>
+              Corretor parceiro
+            </span>
+          )}
+          {marca?.proprietario && (
+            <span className="wa-marca" style={{ color: 'var(--wa-tag-prop)' }}
+                  title={marca.imoveisDoDono.length ? `Proprietário: ${marca.imoveisDoDono.join(', ')}` : 'Proprietário'}>
+              Proprietário
+            </span>
+          )}
+          {atendente && !(atendente.nome === 'Tel' && marca?.telAtendendo) && (
+            <span className="wa-marca" style={{ color: atendente.cor }} title={`${atendente.nome} mandou a última mensagem da equipe, pelo login`}>{atendente.nome}</span>
+          )}
+          {!marca && (lead.lead_tags || []).slice(0, 2).map((lt: any) => lt.tag && (
+            <span key={lt.tag_id} className="wa-marca" style={{ color: lt.tag.color?.startsWith('#') ? lt.tag.color : 'var(--wa-text-2)' }}>
+              {lt.tag.name}
+            </span>
+          ))}
+          {fomosNos && previa && <Checks size={16} weight="bold" className="flex-shrink-0" style={{ color: 'var(--wa-text-2)' }} />}
+          <span className={`wa-previa truncate ${naoLida ? 'font-medium' : ''}`}
+                style={naoLida ? { color: 'var(--wa-text)' } : undefined}>
+            {previa}
+          </span>
+          <span className="ml-auto flex items-center gap-1.5 pl-1 flex-shrink-0">
+            {lead.is_pinned && <PushPin size={16} weight="fill" className="-rotate-45" style={{ color: 'var(--wa-text-2)' }} />}
+            {naoLida && <span className="wa-badge" aria-label="Mensagem não lida">&nbsp;</span>}
+          </span>
+        </div>
+
+        {hit?.matchType === 'message' && hit.snippet && (
+          <div className="wa-previa text-[13px] italic mt-0.5 line-clamp-1">
+            <span dangerouslySetInnerHTML={{ __html: renderSnippet(hit.snippet, query ?? '') }} />
+          </div>
+        )}
+      </div>
+    </button>
+  )
 }
 
-export default memo(LeadListItem, (prevProps, nextProps) => {
-    return (
-        prevProps.lead.id === nextProps.lead.id &&
-        prevProps.lead.updated_at === nextProps.lead.updated_at &&
-        prevProps.lead.is_unread === nextProps.lead.is_unread &&
-        prevProps.lead.last_message_sender_type === nextProps.lead.last_message_sender_type &&
-        prevProps.lead.integration_id === nextProps.lead.integration_id &&
-        prevProps.lead.integration?.type === nextProps.lead.integration?.type &&
-        prevProps.lead.is_group === nextProps.lead.is_group &&
-        prevProps.lead.custom_attributes?.last_order_payment_status === nextProps.lead.custom_attributes?.last_order_payment_status &&
-        prevProps.lead.custom_attributes?.last_order_payment_method === nextProps.lead.custom_attributes?.last_order_payment_method &&
-        prevProps.isSelected === nextProps.isSelected &&
-        prevProps.hideReplyHighlight === nextProps.hideReplyHighlight &&
-        prevProps.atendente?.id === nextProps.atendente?.id &&
-        prevProps.atendente?.cor === nextProps.atendente?.cor &&
-        prevProps.timeStr === nextProps.timeStr &&
-        prevProps.query === nextProps.query &&
-        prevProps.hit?.matchType === nextProps.hit?.matchType &&
-        prevProps.hit?.snippet === nextProps.hit?.snippet
-    )
-})
+export default memo(LeadListItem, (a, b) => (
+  a.lead.id === b.lead.id &&
+  a.lead.updated_at === b.lead.updated_at &&
+  a.lead.title === b.lead.title &&
+  a.lead.avatar_url === b.lead.avatar_url &&
+  a.lead.is_unread === b.lead.is_unread &&
+  a.lead.is_pinned === b.lead.is_pinned &&
+  a.lead.last_message_content === b.lead.last_message_content &&
+  a.lead.last_message_sender_type === b.lead.last_message_sender_type &&
+  (a.lead.lead_tags?.length ?? 0) === (b.lead.lead_tags?.length ?? 0) &&
+  a.isSelected === b.isSelected &&
+  a.atendente?.id === b.atendente?.id &&
+  a.timeStr === b.timeStr &&
+  a.query === b.query &&
+  a.hit?.matchType === b.hit?.matchType &&
+  a.hit?.snippet === b.hit?.snippet &&
+  a.marca?.telAtendendo === b.marca?.telAtendendo &&
+  a.marca?.visitaAberta === b.marca?.visitaAberta &&
+  a.marca?.visitaQuando === b.marca?.visitaQuando &&
+  a.marca?.proprietario === b.marca?.proprietario &&
+  a.marca?.corretor === b.marca?.corretor &&
+  a.marca?.etapa === b.marca?.etapa &&
+  a.dono?.nome === b.dono?.nome &&
+  a.dono?.condominio === b.dono?.condominio &&
+  a.nay?.ligada === b.nay?.ligada && a.nay === undefined === (b.nay === undefined)
+))

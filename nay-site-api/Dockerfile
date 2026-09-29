@@ -14,9 +14,14 @@ COPY treino_api.py .
 COPY vagas_api.py .
 COPY estrutura_api.py .
 COPY imoveis_api.py .
+COPY disparo_api.py .
+# a captacao pela OLX (28/09) e o tradutor do anuncio, copiado do nay-publicador
+COPY captacao_campos.py .
+COPY olx_api.py .
 
 RUN useradd -m site-api
 USER site-api
 
 EXPOSE 8092
-CMD ["python", "-m", "gunicorn", "--bind", "0.0.0.0:8092", "--workers", "2", "--timeout", "30", "app:app"]
+# timeout 90 (era 30): o disparo pela API oficial manda card e fotos um a um (28/09).
+CMD ["python", "-m", "gunicorn", "--bind", "0.0.0.0:8092", "--workers", "2", "--timeout", "90", "app:app"]

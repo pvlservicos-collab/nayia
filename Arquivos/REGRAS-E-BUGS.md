@@ -1663,3 +1663,452 @@ Isso exigiu um papel novo na caixa de saída (`entrega`), porque a trava — com
 razão — só deixava responder a quem escreveu o turno. O papel novo tem trava
 própria: **só sai de um turno do Tel**. Sem essa exigência, qualquer função
 poderia mandar mensagem para qualquer pessoa do cadastro.
+
+### 59. "Perguntou aluguel ou venda mas não esperou" — a rajada furada e o bairro lido como condomínio (28/09)
+
+**O que o Tel viu.** Na conversa com a Taysa (92 8477-1312) ela perguntou "Seu
+cliente procura imóvel para alugar ou para comprar?" e, junto, mandou o card de
+**venda** do Residencial Laranjeiras (R$ 2 milhões) com 29 fotos, que ninguém
+pediu. Depois respondeu "?!" com "Desculpa, eu que me confundi. É para compra,
+certo?".
+
+**O que era de verdade.** Três coisas encadeadas:
+- **A trava da rajada tinha um furo.** Ela contava as outras mensagens da pessoa
+  e excluía a própria (`m2.id <> NEW.id`). A execução de uma mensagem antiga
+  segurava as antigas e deixava a **mais nova** passar sozinha antes da hora:
+  sete mensagens em 44 s viraram quatro turnos, cada um com a sua resposta.
+- **Nome de bairro dentro da frase virou condomínio.** "Pq das laranjeiras ou pq
+  dez" deu `nai_imoveis_pedidos = {1351, 2155}`: a palavra "laranjeiras" do
+  bairro casou com o Residencial Laranjeiras e o Laranjeiras Premium. A 144 só
+  pegava a frase que era INTEIRA um bairro ("Ponta negra").
+- **A fila dos outros imóveis não esperava a resposta.** Ela só conferia o
+  negócio quando ele já era conhecido; desconhecido (justamente quando a
+  pergunta acabou de sair), mandava tudo.
+
+**O que segura hoje** (`Arquivos/nai/147_janela_20s_e_fila_que_espera.sql`):
+- a trava da rajada conta a própria mensagem: nenhuma sai enquanto qualquer
+  uma da pessoa for mais nova que a janela;
+- a janela é **20 s** para todo mundo e 15 s para os testes internos
+  (`nai_janela_segundos(telefone)`, lida pela trava e pelo nó Gravar na fila do
+  n8n) — Tel: "põe 20 segundos, melhor para tudo, menos os testes internos";
+- `nai_nome_so_do_bairro`: condomínio cujas palavras citadas são todas de um
+  bairro citado sai da fila (o código digitado fica sempre);
+- com locação/venda ainda sem resposta, a fila só manda código digitado.
+
+**Junto, o eco repetido.** A Z-API reavisa a mesma mensagem enviada até 10
+vezes, até 38 min depois (2.768 cópias a mais em 3 dias). `mensagens_uma_vez_so`
+passou a gravar a enviada uma vez por fluxo — o painel de envios lê a do fluxo
+`nai`, e os dois fluxos já paravam o eco logo depois de gravar.
+
+**Custo do deploy.** O reinício do n8n para trocar o nó cortou uma transcrição
+de áudio no meio (Lily Morato, 11:34): o `stop -t 40` não segura o executor de
+código, que cai antes. Antes de reiniciar, olhar também `status='Processando'`
+sem turno, não só `Recebido`.
+
+### 60. "Clico em ver o imóvel e não aparece o card; clico no filtro e a tela sobe" (28/09)
+
+**O que o Tel viu.** Na tela Todos os Imóveis do admin, o "Ver" não abria nada,
+e os cliques jogavam a tela para cima.
+
+**O que era de verdade.** O `<body>` das páginas do admin tem
+`data-pagina="imoveis"` (é como o menu sabe qual aba acender), e o clique da
+paginação procurava `closest("[data-pagina]")`. Como o body envolve tudo, quase
+todo clique fora dos filtros (o "Ver", a linha, o campo de bairro, abrir um
+grupo) virava "ir para a página NaN": rolava ao topo, a API respondia 500 e a
+lista mostrava "Não foi possível carregar", e a gaveta nunca abria. Os botões de
+filtro subiam a tela por outro motivo: a tabela virava uma linha "Carregando…"
+e a página encolhia de uma vez. A mesma armadilha estava em `paginacao.js`
+(Anúncios, Condomínios, Proprietários, Clientes), ao clicar no número da página
+atual.
+
+**Junto, achado na revisão:** o PUT/POST de `/api/imoveis` (o cadastro) não
+pedia senha nenhuma — qualquer um na internet mudava preço ou publicava imóvel;
+o contato do proprietário ficava em "carregando" (era pedido a outro domínio,
+sem a senha); a faixa de valor com "Aluguel" comparava com o preço de venda; e a
+lista mostrava só o preço de venda de quem tem os dois.
+
+**O que segura hoje.** Paginação com atributo próprio (`data-ir-pagina`) e
+clique restrito à barra; as linhas antigas ficam apagadas no lugar enquanto a
+resposta chega; a lateral de filtros acompanha a rolagem; o editor e o
+proprietário vão pelo próprio domínio (`/admin/api/...`, atrás da senha); a API
+recusa gravar sem a senha do /admin (`senha_do_admin_confere` no `app.py`); a
+página inválida vira a 1 em vez de 500. Testado num Chrome sem janela, clicando
+de verdade (roteiro em `scratchpad/ui` da sessão de 28/09).
+
+**Regra para tela nova do admin:** nunca procurar `[data-pagina]` (nem outro
+atributo que o `<body>` tenha) com `closest` num clique do documento inteiro.
+
+### 61. "Só saíram 3 fotos" — a Z-API caiu e o erro era final (28/09)
+
+**O que o Tel viu.** Ele disparou pelo site (Enviar imóvel) o 5746 para a
+Shirley Maclaine (92 8423-3107) e três imóveis para a Ane Cavalcante (92
+9406-6468). A Shirley recebeu 3 fotos; a Ane, nada.
+
+**O que era de verdade.** Entre 14:12 e 14:23 os servidores da Z-API
+responderam "502 Bad Gateway" (um envio ficou pendurado 5 min até estourar o
+tempo). Das 51 mensagens, 48 viraram `erro` na caixa de saída -- e erro era
+FINAL: ninguém tentava de novo. Pior: a trava das 24h tinha sido gravada na hora
+de ENFILEIRAR, então nem o Tel conseguia reenviar pelo site ("as fotos já foram
+para esse número"). As respostas normais da Nay não foram afetadas (só esses dois
+disparos caíram na janela).
+
+**O que segura hoje** (`Arquivos/nai/151_zapi_falhou_tenta_de_novo.sql`):
+`nai_confirmar_envio` devolve à fila o erro PASSAGEIRO (5xx, tempo esgotado, rede)
+-- 1 min depois, depois 2 min; até 2 novas tentativas, contadas em
+`resposta->tentativas`. Quando desiste, e nada daquele imóvel chegou na pessoa
+naquele turno, solta a trava das 24h. Os 48 foram recolocados na fila e saíram
+às 14:35.
+
+### 62. "No Ibiza Flex o que eu tenho é imóvel de parceria" — ela nunca pode falar isso (28/09)
+
+**O que o Tel viu.** A Nay respondeu a um corretor (92 8152-3366, 15:31): "No
+Ibiza Flex o que eu tenho é imóvel de parceria, não da Imob Easy." Ele: "ela
+nunca pode falar isso, os imóveis de parceria estão oficialmente fora de tudo
+por enquanto".
+
+**O que era de verdade.** Não era o modelo inventando: era resposta PRONTA.
+`nay_disponibilidade_no_condominio` tinha um ramo para o condomínio que só tem
+imóvel de parceiro, com essa frase e a instrução "diga isso e pare". A parede
+da caixa de saída (60) barra card e foto de parceria, mas não barra a PALAVRA.
+Tinha saído igual em 16/09 (Turim), 18/09 (Brisas do Parque) e 19/09 (Shizen I).
+O aviso do contexto sobre código de parceria também começava com "ESTE IMOVEL E
+DE PARCERIA", que é o que ela repetiria.
+
+**O que segura hoje** (`Arquivos/nai/153_parceria_nunca_se_fala.sql`): condomínio
+só de parceria responde igual ao que não tem nada — "no X não tenho nada
+disponível no momento" —, com a instrução "NUNCA fale em parceria ou parceiro".
+O aviso do contexto diz "não está na nossa carteira" e proíbe a palavra; o resto
+continua (sem card, sem foto, sobe ao Tel). Teste:
+`Arquivos/teste_disponibilidade_condominio.sql`, parte 4 (espera "nada
+disponível" e falha se aparecer "parceria").
+
+### 63. "Não tá conseguindo cadastrar no novo" — e o que ele cadastrasse sumia no dia seguinte (28/09)
+
+**O que o Tel viu.** Não conseguia cadastrar imóvel pelo admin novo, e não havia
+onde pôr o número do apartamento. Pedro, na tela de criar: "O QUE É ISSO?
+Situação definida depois de criar, Não chega na Nay, e um quadrado preto".
+
+**O que era de verdade.** Três coisas. O cadastro exigia o tipo (`tipo:
+obrigatório` no POST) e a tela não tinha os campos do site antigo (apartamento,
+torre, bloco, casa, garantia, incluso no aluguel...). O "quadrado preto" era a
+caixa das fotos vazia: `.ed__fotos {display: grid}` vencia o atributo `hidden`.
+E a pior, que ninguém tinha visto: a varredura do site antigo DESPUBLICA todo
+imóvel que não está no .com -- inclusive os criados no site novo (origem `crm`),
+que nunca estiveram lá. O que o Tel cadastrasse e pusesse no ar sumia do site e
+da Nay na varredura seguinte.
+
+**O que segura hoje.** Nenhum campo obrigatório; o cadastro nasce Rascunho e a
+situação aparece depois de criar (`nay-site-api/app.py`, `api_imovel_criar`).
+Os campos do site antigo moram onde a Nay já lê (`imoveis.extras`, mesmas chaves
+da raspagem), a unidade em `imovel_privado`, o locatário no schema `privado`
+(migração 157). `.ed [hidden] {display:none !important}`. A varredura pula
+`origem IN ('crm','olx')` (`sincronizar_catalogo.py`, teste em
+`teste_sincronizar_catalogo.py`). Teste da tela:
+`scratchpad/ui/teste_cadastro.mjs` (cadastro sem nada obrigatório, edição
+mandando só o que mudou, parte privada sem senha não abre).
+
+### 64. A importação da planilha (26/09) desfez o que o Tel mandou e zerou garagem (28/09)
+
+**O que o Tel viu.** "Não está todos os dados lá que tem na planilha"; o
+Acquarelle alugado aparecia disponível; faltava número do apartamento e o
+endereço estava errado.
+
+**O que era de verdade.** A importação de 26/09 gravou a coluna "Vagas" da
+planilha (que é a vaga COBERTA do admin antigo) como total -- 644 imóveis com
+garagem zerada --, deixou o endereço inteiro em `logradouro` (4.385, com o número
+da casa aparecendo no cartão público do site), e voltou para Disponível três
+imóveis que o Tel tinha dado por alugados no WhatsApp: 1850 (09/09), 2943
+(25/09) e 5374 (26/09, uma hora antes da importação).
+
+**O que segura hoje** (`Arquivos/nai/158_dados_da_planilha_e_do_site_antigo.sql`):
+a correção só preenche o que está vazio, confere o valor de hoje contra o medido
+no plano antes de trocar a rua e as vagas, manda o número da CASA de rua para
+`imovel_privado.casa` (nunca para o endereço público) e guarda a cópia de antes
+em `privado.imoveis_antes_158`. A varredura do site antigo passou a rodar uma
+vez por dia (05:17), não de hora em hora. Conferência: `nai_rodar_casos()` 43/43
+depois; 0 casa de rua com número público; oferta 261 → 260 (o 1850 saiu).
+
+### 65. "O cadastro da captação tava bugado" — a Nay encerrava em cima do imóvel novo (28/09)
+
+**O que o Pedro viu.** "Lembro que tava bugado: precisa pedir as informações
+certinhas do imóvel para recadastrar, ou se ele mandar um imóvel novo, cadastrar
+o imóvel novo dele."
+
+**O que era de verdade.** Era ferramenta, não prompt. `guardar_outro_imovel`
+devolvia "gravado. agradeça e ENCERRE" -- a Nay nunca pedia informação nem foto
+do imóvel novo, que virava uma frase solta em `captacao_imoveis_extra` (13 desde
+09/09, nenhum curado). E `guardar_situacao`, com "disponível" + valor, mandava ir
+direto para "tem outro imóvel?", atropelando o pedido de informações e fotos do
+prompt. Nada do imóvel disponível chegava a lugar nenhum; a foto que o dono
+mandava ficava só na URL temporária da Z-API.
+
+**O que segura hoje** (`Arquivos/nai/164_...sql`, `165_ficha_sem_recomecar.sql`,
+fluxo `CjsUJefRYcQIIi1F` na VPS2, prompt da captação versão 6): uma FICHA por
+imóvel (`captacao_cadastro`); quem escolhe a próxima pergunta é o banco
+(`captacao_ficha`), uma de cada vez, e "não sei" conta como resposta. A ficha
+pronta não recomeça, só abre para imóvel disponível, e o dono pode parar. O aviso
+"FICHA DO IMÓVEL ABERTA" entra em todo turno (`captacao_ficha_aviso`), porque a
+memória dela guarda a conversa, não as ferramentas. A foto vai para o nosso
+servidor pelo ramo `Foto do dono?` (senha de máquina). Nada vai sozinho para o
+site: a ficha aparece em Captação WhatsApp → "Imóveis vindos da conversa", e um
+humano aplica, e "Aplicar" recusa imóvel que o dono não disse estar
+disponível. Conferência: `teste165.sql` (3 cenários, rollback) e o simulador da
+VPS2 (`sh /root/n8n-captacao/simular.sh disponivel outro bagunca`), com o
+modelo e o prompt de verdade e nenhuma mensagem saindo.
+
+### 66. "Tem mensagem que não aparece" — a Parceria no CRM pela metade (29/09)
+
+**O que o Pedro viu.** "As conversas da parceria eu preciso que fique
+exatamente como está no meu WhatsApp aqui, hoje parece que não está 100%...
+tem mensagem que não aparece."
+
+**O que era de verdade.** De 8.047 mensagens reais da Parceria entre 25 e
+29/09, 2.348 não estavam no CRM (29%), por três caminhos. (1) O eco das
+mensagens que NÓS mandamos para um contato @lid chega da Z-API só com o LID,
+sem telefone, e o CRM descartava: sumiam 555 de 755 textos e 220 de 242 fotos
+desses contatos. (2) O nó "Espelhar no CRM" fica só no fluxo da NAI, então o
+que o fluxo antigo não repassa (comando do Tel, card e fotos do publicador,
+equipe) nunca chegava. (3) Com o CRM reiniciando, o espelho perdia a mensagem
+e não tentava de novo. E a conversa aberta mostrava só as últimas 300.
+
+**O que segura hoje.** A entrada do CRM resolve o LID pelo `chat_lid` que o
+próprio lead guardou e, se não souber, pergunta à Nay
+(`crm_telefone_do_lid`, `Arquivos/nai/167_parceria_igual_ao_whatsapp.sql`,
+que normaliza os dígitos porque `identidade_lid.lid` está gravado com e sem
+"@lid"). Uma conferência roda a cada minuto (`/etc/cron.d/crm-espelho-nay` →
+`POST /api/cron/espelho-nay` → `crm/src/lib/espelhoDaNay.ts`). Ela lê
+`naydb.mensagens` e traz pela mesma entrada da Z-API o que o CRM ainda não tem
+pelo id. A janela termina 2 minutos atrás: assim o espelho, que entrega com
+aviso e "não lida", sempre chega primeiro. O histórico desde 25/09 foi trazido
+(1.010 mensagens), e sobraram 60, todas reação ou "outro", que a Nay grava sem
+conteúdo. A bateria de treino fica de fora de propósito. Subindo até o topo, a
+conversa busca as anteriores (`?antesDe=`). Reação vira emoji em cima da
+mensagem, e mensagem editada troca o texto. Para conferir de novo, cruze os
+`message_id` da naydb com `lead_activities.metadata->>'zapi_message_id'`: a
+mesma mensagem aparece várias vezes na naydb (uma por status), então conte
+ids distintos.
+
+### 67. A regra do Tel falhava em 20 pessoas: o @lid gravado de dois jeitos (29/09)
+
+**O que apareceu.** Medindo o CRM (entrada 66), a tabela `identidade_lid`
+mostrou 157 de 1.620 LIDs gravados com "@lid" no fim e o resto só com os
+dígitos.
+
+**O que era de verdade.** `nai_contato_irmaos` (a leitura que junta o telefone
+e o @lid da mesma pessoa, ver entrada da memória "duas linhas por pessoa")
+comparava cru: `i.lid = '<dígitos>'` e `'lid:' || i.lid`. Nas 157, os dois
+lados não se achavam: para 20 pessoas (40 contatos) a Nay não enxergava o
+carimbo do Tel na outra linha, e a regra dos 30 minutos, o DEVOLVER e a
+escalada não valiam: ela podia falar por cima dele.
+
+**O que segura hoje.** `Arquivos/nai/168_irmaos_lid_normalizado.sql`, feito em
+cima da versão viva: `i.lid IN (d, d || '@lid')` (continua usando o índice) e
+`'lid:' || dígitos`. Medido antes de aplicar, só com SELECT: dos 307 contatos
+candidatos, 40 ganham o irmão, nenhum perde, e o resultado antigo está contido
+no novo. `nai_rodar_casos()` deu 43 de 43 antes e depois. 50 chamadas levam
+6 ms. Código novo que cruze LID com telefone compara só os dígitos.
+
+### 68. "Ela mandou para a Lily um imóvel que não está disponível" -- a captação gravou o contrário do dono (29/09)
+
+**O que apareceu.** A Nay mandou o card do 2133 (Life Ponta Negra) para a Lily,
+com o imóvel como disponível.
+
+**O que era de verdade.** Não era a Nay furando a regra: no catálogo, o 2133
+estava "Disponível" e travado com o motivo "captação: o dono disse disponível em
+12/09". Na conversa da captação, o dono respondeu "Não" e "Não estamos
+alugando". A IA da captação até respondeu "então o imóvel não está disponível",
+mas gravou `situacao = 'disponivel'`, e a migração 160 levou isso ao catálogo em
+28/09. A auditoria achou só esse caso: dos 2 imóveis que a captação deu como
+disponíveis, este é o único com negativa do dono. A leitura automática
+(`captacao_situacao_dita`) nunca produz "disponível".
+
+**O que segura hoje.** O 2133 foi tirado do ar pelo mesmo caminho do comando
+`INDISPONIVEL` (fica no `imovel_situacao_log`), e a resposta errada da captação
+foi limpa. A mesma revisão confirmou que as paredes funcionam: nenhum imóvel de
+parceria saiu em 7 dias, e a caixa barrou 73 envios de imóvel fora do mercado.
+Ficam em aberto: a IA da captação ainda pode gravar "disponível" contra o que o
+dono disse (dá para pôr uma parede no banco), e o publicador lê o site antigo, e
+não o nosso status.
+
+### 69. "O WhatsApp da captação tá puxando id e não número" (29/09)
+
+**O que era de verdade.** Mensagem que alguém digita no celular da captação para
+um contato que o WhatsApp endereça por LID volta da Z-API só com o LID: sem o
+número, e com `chatName` = nome salvo no celular. O CRM abria uma conversa com o
+LID no lugar do telefone e do nome, 21 nas duas linhas.
+
+**O que segura hoje.** Ver a memória `lid-no-crm`: o telefone é achado pelo id da
+mensagem (171), o título usa o nome do chat, a conversa do LID se junta sozinha
+à do telefone quando a pessoa responde, e o que sobra aparece como "Número
+oculto pelo WhatsApp". Das 21, 6 foram juntadas ou ganharam o telefone e 7
+ganharam o nome salvo. Ficaram 7 sem nome nem número.
+
+### 70. "A captação engoliu outra mensagem do Jeferson" (29/09)
+
+**O que o Pedro viu.** Mensagens da captação no WhatsApp que não estavam no CRM.
+
+**O que era de verdade.** O ramo que copia a mensagem para o CRM fica no fim do
+fluxo da captação (VPS2), depois do AI Agent. Com a OpenAI sem crédito (09:51),
+a execução parava antes: 25 de 62 textos recebidos faltavam desde que a aba
+existe.
+
+**O que segura hoje.** A conferência da captação no CRM (`conferirACaptacao`,
+`crm/src/lib/espelhoDaNay.ts`, migração 177), no mesmo cron de minuto da
+Parceria. A recebida não tem id no registro: casa por pessoa, texto e hora
+(3 min), UMA para UMA; repetição do mesmo texto em menos de 15 s é o registro
+gravando de novo. Mídia que faltava entra só como rótulo ("🎵 Áudio"): o
+registro não guarda o arquivo. Faltam 0 desde a aba (28/09 15:34).
+
+### 71. Visita vencida sem aviso, e visita parada esperando o SIM (29/09)
+
+**O que o Tel viu.** Visitas que "faltaram alinhar ou confirmar" sem ninguém
+saber o que houve.
+
+**O que era de verdade.** (1) A visita em 'confirmando' vencia em 12 h só com um
+evento: nem o Tel sabia (#1047). (2) O "sim" do corretor esperava o SIM do
+número da Imob Easy; sem resposta, a visita ficava parada até cair no Tel perto
+da hora (#1048).
+
+**O que segura hoje.** 179b: todo vencimento avisa o Tel com a ficha da visita,
+o corretor e o número dele, e o passo em que parou. 179a: o "sim" do corretor
+já leva ao proprietário (`nai_config.visita_sem_aprovacao` = 'sim'); o Tel e o
+8595-6408 só recebem o aviso. Em cima da hora e sem telefone do dono continua
+indo para o Tel. Ensaiado em transação desfeita (4 casos) e bateria 43/43
+antes e depois.
+
+### 72. "Tá errado esse relatório de captação" (29/09)
+
+**O que era de verdade.** O texto das 18h (copiado pela 178 para o botão do
+CRM) somava nas "respostas" quem não é da campanha (60 de 94), contava como
+"fila ainda não chamados" 103 que já tinham recebido o disparo, e contava as
+situações de um jeito diferente da barra. E era acumulado, não do dia.
+
+**O que segura hoje.** 185: `crm_captacao_relatorio()` só do dia, com as
+etapas da barra, e `captacao_relatorio_da_vez()` decide a hora (1 h depois do
+último disparo, ou o fim da janela), uma vez por dia. O fluxo NayRelatCaptac01
+pergunta a cada 10 min.
+
+### 73. A Nay conversava com o acompanhante (29/09)
+
+**O que o Pedro viu.** A Nay respondendo o André ("Não consta nenhuma visita
+pendente. Qual é o número da visita?"), e uma vez chamando-o de Fernando.
+
+**O que segura hoje.** 186: papel 'motoboy' grava o turno e devolve `ok` falso;
+o roteador do n8n não manda nada. Os avisos da agenda continuam saindo.
+Pendente: os avisos ainda fazem perguntas a ele.
+
+### 74. "Algumas conversas não chegam, ou não atualiza rápido" na Parceria (29/09)
+
+**O que era de verdade.** O espelho do fluxo da Nay fica depois da IA; com a
+OpenAI sem crédito ele não rodava, e a mensagem esperava a conferência (2 min
+de atraso de propósito): 42% das recebidas levavam 2–5 min. E a lista buscava
+a lista inteira a cada aviso, em paralelo -- uma resposta velha chegava por
+último e desfazia a nova.
+
+**O que segura hoje.** A conferência a 40 s (com "não lida", desarquivar e
+notificar), a lista busca uma vez de cada vez, e a troca do espelho para antes
+da IA fica para as 03:30 de 30/09. Medido depois: pior caso 42 s.
+
+### 75. "Não conta quem eu respondo pelo app, fica gente como não respondido" (29/09)
+
+**O que era de verdade.** Dois buracos. (1) A entrada ao vivo gravava a hora da
+conversa como a hora do PROCESSAMENTO (~60 s depois, o espelho roda depois da
+IA); a resposta dada pelo celular nesse meio-tempo entrava com a hora real,
+"mais velha", e a conversa continuava com a pessoa por último (7 conversas).
+(2) A Z-API não devolveu o eco de 63 mensagens da Nay (17:14–17:18): o CRM
+só conhecia o que a Nay manda pelo eco, e a conversa ficou sem a resposta.
+
+**O que segura hoje.** A entrada usa a hora da mensagem e só troca a "última
+mensagem" se for a mais nova (a regra da conferência); a conferência lê
+também a caixa de saída da Nay (189). Depois: 0 conversas trocadas, e a barra
+conta só quem ninguém respondeu.
+
+### 76. "Pediu locação e ela mandou imóvel de venda" (29/09)
+
+**O que o Pedro viu.** De manhã o corretor pediu "a sua lista... na ponta negra
+ii de 7mil" e recebeu 5 cards de locação. À tarde: "Tem Vieira Alves e
+Adrianópolis 3 quartos?" -- e recebeu "Sim! Tem 4 quartos..." e 24 fotos do
+5748, Jardim Adrianópolis, VENDA, R$ 2 milhões.
+
+**O que era de verdade.** Três falhas em fila. (1) `nai_imovel_pelo_condominio`,
+no último recurso (parecença), achou "adrianopolis quartos" 50% parecido com
+"Jardim Adrianópolis": o BAIRRO virou imóvel. (2) A conversa não sabia que era
+locação: `nai_negocio_da_conversa` só lia palavra explícita e ignorava o "7mil"
+e os cards que ela mesma mandou. (3) A conferência trocou a lista da busca pela
+ficha do 5748 (etapa 05) e o portão de fotos pegou o "imóvel da conversa".
+
+**O que segura hoje (190).** A finalidade do imóvel mora em
+`nai_finalidade_do_imovel`, e as duas listas têm nome: `vw_catalogo_locacao` e
+`vw_catalogo_venda`. A conversa guarda o negócio por 3 dias (palavra, valor com
+cara de dinheiro, e o que ele já recebeu). A PAREDE fica no gatilho
+`nai_saida_validar`: card ou foto de venda não sai em conversa de locação, nem o
+contrário -- salvo o código que ELE digitou ou colou. Na parecença, pedaço com
+nome de bairro/área não conta. A conferência não troca a resposta da busca por
+ficha, e turno da busca sem card não manda foto. Bateria: casos 'pelo_nome',
+'negocio_valor' e 'negocio_conversa' de 29/09.
+
+### 77. "No Coroado não tenho", sem ele citar bairro nenhum; e listou sem filtro (29/09)
+
+**O que o Pedro viu.** O Sulivam escreveu "Ela precisa de mais um cômodo P
+escritório Ideal 3 quartos" e a Nay respondeu "No Coroado não tenho nenhuma casa
+nesse perfil". Antes disso, com "casa, na média de 5mil", ela já tinha mandado
+imóvel sem perguntar a região.
+
+**O que era de verdade.** `nai_corrigir_nomes` (piso 0,70) trocou "cômodo" por
+"Coroado" (2 letras em 7) antes de o modelo ler. No corpus de 14 dias a mesma
+função trocava "dentro"→Centro (7x), "passando"→Passaredo, "luar"→Life,
+"até"→II, "terreno"→Estilo, "portal"→Portugal, "colocado"→Coroado -- e juntava
+as linhas da mensagem numa só. E a regra 146 listava com QUALQUER filtro na mão.
+
+**O que segura hoje (190).** Piso 0,80 (numeric: em real, 1-0,80 arredondava e
+"aquarelli" deixava de virar Acquarelle); palavra que aparece em 5+ mensagens
+(`nai_palavra_conhecida`, 190a) não é trocada, e numa janela de várias palavras
+só troca por uma letra ("Bom Pedro"→Dom Pedro sim, "luar"→life não); as quebras
+de linha ficam. Medido depois: 21 mensagens alteradas em 14 dias, todas
+acertos. Na busca, o filtro vem antes de qualquer imóvel: locação/venda →
+casa/apartamento → valor → região (do grupo, região primeiro), cada pergunta uma
+vez por dia (`nai_filtro_ja_perguntado`); "não sabe o valor" e "tanto faz o
+bairro" pulam, como a 146 queria.
+
+### 78. "A captação não voltou a funcionar" (29/09)
+
+**O que era de verdade.** Às 17:28 o disparo pegou um dono cujo número não tem
+WhatsApp. O nó "Sem WhatsApp" (28/09) grava `status='sem_whatsapp'`, mas a regra
+`captacao_lead_status_ok` não conhecia esse valor: a execução quebrou, o lead
+ficou 'reservado', e com um reservado a fila inteira para ("um de cada vez") até
+o destravador de 30 min -- que devolvia o mesmo número para a fila.
+
+**O que segura hoje (190b).** O status existe na regra da tabela. Para
+conferir: `SELECT * FROM captacao_disparo_liberado()` diz se o banco libera, e
+`SELECT status, count(*) FROM captacao_leads GROUP BY 1` mostra reservado preso.
+
+### 79. "Respondeu pagamento à vista sendo que o imóvel aceita financiamento" (29/09)
+
+**O que o Pedro viu.** O Paulo pediu o Living Comfort (5664) e a Nay escreveu "Já
+o Living Comfort 5664 é somente à vista". Ele repetiu e ela confirmou: "O Living
+Comfort é somente à vista mesmo." O anúncio diz "Aceita Financiamento? Sim".
+
+**O que era de verdade.** No banco da Nay o 5664 não tinha descrição, nem
+características, nem os campos do site: a tabela `imoveis` vem da LISTAGEM do
+site, e o `extras` (onde mora "aceita financiamento") só existe para os imóveis
+importados do site antigo. Sem o dado, o modelo supôs -- e nada conferia.
+
+**O que segura hoje (191).** Quatro camadas:
+1. **Dado.** `imovel_ficha`, lida do anúncio a cada 3 h por
+   `ficha_do_anuncio.py`: todos os campos (inclusive os escondidos em
+   comentário HTML), as características do imóvel e do condomínio, a descrição,
+   as observações e o card dos grupos.
+2. **Consulta.** `nai_ficha_valor` e `nai_ficha_completa`, o documento inteiro
+   que a ferramenta `o_que_sei_do_imovel` entrega ao modelo.
+3. **Resposta.** Financiamento/à vista, FGTS, permuta, garantia, taxa, IPTU,
+   incluso e escada saem da linha da ficha (`nai_resposta_da_base`). Assunto
+   sensível que a ficha não responde (`nai_assunto_sensivel`) vira "escale ao
+   Tel", nunca palpite.
+4. **Parede.** Na conferência (etapa 05p, `nai_conferir_pagamento`), frase que
+   afirma forma de pagamento é conferida com a ficha do imóvel de que fala:
+   contradiz → vira a frase certa; a ficha não diz → a frase sai e o Tel é
+   chamado.
+
+O card da Nay passou a ser o card dos grupos, lido na ficha
+(`nai_card_do_imovel`; o antigo virou `nai_card_do_banco`, a reserva). Bateria:
+casos 'afirma_pagamento' e 'assunto_sensivel'.

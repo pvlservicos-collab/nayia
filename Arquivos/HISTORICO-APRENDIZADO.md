@@ -1375,6 +1375,24 @@ todos os campos dentro.
 **Parecia:** a Nay perguntando "de qual imóvel?" logo depois de responder sobre ele.
 **Era:** o código do turno só era gravado a partir de número ou card; o nome do condomínio era procurado só entre os imóveis "na mesa", vazia numa conversa que começa pelo nome. O modelo acertou os dados do Maison Rochelle e cinco minutos depois o sistema não sabia de que imóvel se falava.
 
+### 5.k — "Tem mensagem que não aparece" no CRM da Parceria (29/09)
+
+**Parecia:** o CRM mostrando a conversa pela metade, comparado com o WhatsApp.
+**Era:** três buracos somados, e 29% das mensagens reais faltavam (2.348 de 8.047 em 4 dias). (1) O eco das NOSSAS mensagens para contato @lid chega sem telefone, e o CRM descartava. (2) O espelho mora só no fluxo da NAI, então comando do Tel, card e fotos do publicador nunca chegavam. (3) CRM reiniciando = mensagem perdida. De quebra, a conversa só carregava as últimas 300 mensagens. Hoje: o LID é resolvido na entrada, e uma conferência de minuto em minuto roda contra `naydb.mensagens` (`crm/src/lib/espelhoDaNay.ts`). Sobraram 60, todas reação ou "outro", que a Nay grava sem conteúdo.
+**Como se achou:** cruzando os `message_id` da naydb com os do CRM por direção e tipo. O "duplicate" do primeiro histórico mostrou que a naydb grava a mesma mensagem até 8 vezes (uma por status).
+
+### 5.m — "A captação engoliu outra mensagem do Jeferson" (29/09)
+
+**Parecia:** o CRM perdendo mensagem da captação de vez em quando.
+**Era:** o espelho do fluxo da captação (VPS2) fica DEPOIS do atendimento, e a OpenAI sem crédito (desde 09:51) parava a execução antes dele: 25 de 62 textos recebidos faltavam, 5 só do Jeferson. Hoje o CRM confere de minuto em minuto contra `captacao_mensagens` (migração 177, `conferirACaptacao`). Como a captação não guarda o id da recebida, a comparação é por pessoa, texto e hora (3 min), um para um. Repetição do mesmo texto em menos de 15 s é o registro gravando duas vezes, não a pessoa mandando duas.
+**Como se achou:** a primeira versão usava "já existe uma parecida" e juntou os dois áudios do Jeferson (10:16:07 e 10:16:32); a auditoria de áudio viu o segundo sumir.
+
+### 5.n — Visita que vencia sem o corretor confirmar não avisava ninguém (29/09)
+
+**Parecia:** visita sumindo da agenda sem explicação (a #1047, Maria Soraia, 5722).
+**Era:** o passo 141 do `nai_agenda_tick` expirava 'confirmando' com um evento e mais nada. O Tel só era avisado quando a visita passava da hora em outros estados, e sem o número do corretor. Hoje (179b) todo vencimento avisa o Tel com a ficha inteira (corretor e número) e o passo em que parou. Na mesma leva (179a) o "sim" do corretor passou a levar a visita direto ao proprietário, a pedido do Tel, sem o SIM do número da Imob Easy: foi esse SIM que deixou a #1048 parada até cair no Tel.
+**Como se achou:** listando os eventos das visitas não fechadas para mandar ao Tel.
+
 ## Parte 6 — Princípios de engenharia nascidos de bugs reais
 
 Estes não são teoria — cada um só existe porque algo quebrou primeiro.

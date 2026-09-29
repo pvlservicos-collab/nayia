@@ -15,8 +15,21 @@ services:
       # painel confere a senha AQUI DENTRO tambem: este processo atende
       # api.imobeasy.online, que nao tem senha nenhuma.
       - ADMIN_HTPASSWD=${ADMIN_HTPASSWD}
+      # A aba Enviar imovel (28/09) repassa ao CRM pela rede interna, com um
+      # token `atl_` do CRM. O token mora so no .env do servidor.
+      - CRM_API_BASE=http://crm-imobeasy:3000
+      - CRM_API_TOKEN=${CRM_API_TOKEN}
+      # A captacao pela OLX (28/09) grava as fotos onde o nginx do site serve:
+      # https://imobeasy.online/fotos-captacao/olx/<codigo>/01.jpg
+      - FOTOS_CAPTACAO_DIR=/fotos
+      - FOTOS_CAPTACAO_URL=https://imobeasy.online/fotos-captacao
+      # A foto que o dono manda na conversa da captacao (164) chega do n8n da
+      # VPS2 com esta senha de maquina. Mora so no .env daqui e na credencial
+      # "Captacao fotos (site)" do n8n da VPS2 (cifrada la dentro).
+      - CAPTACAO_FOTO_SEGREDO=${CAPTACAO_FOTO_SEGREDO}
     volumes:
       - /root/nay-publicador/logs:/heartbeats:ro
+      - /docker/nay-site-web/public/fotos-captacao:/fotos
     # localhost por enquanto -- mesma logica do nay-painel: sem DNS ainda,
     # sem expor pra internet. Testado por SSH.
     ports:

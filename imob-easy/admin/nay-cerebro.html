@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css">
 <link rel="stylesheet" href="../assets/css/fluxograma.css">
+<link rel="stylesheet" href="../assets/css/regras-sugeridas.css">
 <style>
   /* ==================================================================
      O CÉREBRO DA NAY
@@ -421,6 +422,7 @@
       <button class="abas__item" role="tab" type="button" data-painel-abre="setores"    aria-selected="false">Setores</button>
       <button class="abas__item" role="tab" type="button" data-painel-abre="inventario" aria-selected="false">Inventário</button>
       <button class="abas__item" role="tab" type="button" data-painel-abre="treino"     aria-selected="false">Rodada de treino</button>
+      <button class="abas__item" role="tab" type="button" data-painel-abre="sugeridas"  aria-selected="false">Regras sugeridas</button>
     </div>
 
     <!-- ===================== FLUXOGRAMA ===================== -->
@@ -622,7 +624,52 @@
         </div>
       </div>
     </div>
+
+    <!-- ===================== REGRAS SUGERIDAS ===================== -->
+    <!--
+      Tel (27/09/2026): "vc vai analisar todas as regras de hoje, e ver as
+      conversas para ver o que a nay não entenderia hoje... e vai me sugerir
+      regras novas... ao clicar na regra aparece um popup com a conversa que ela
+      veio". As tabelas (nai_regra_sugerida e _caso) são da 128; a tela é de
+      28/09. Aceitar só MARCA: a Nay muda quando a regra entra no prompt ou nas
+      funções.
+    -->
+    <div data-painel="sugeridas" hidden>
+      <p class="painel-nota">
+        Regras que eu sugeri depois de ler as conversas da semana: o que a Nay de hoje
+        <b>não entenderia</b>. Cada uma diz de quantas conversas veio. Clique para ver as
+        conversas e decidir. <b>Aceitar não muda a Nay sozinho</b>: marca a regra para
+        implementar, e ela passa a valer quando entra no prompt ou nas funções.
+      </p>
+      <div class="rs__barra">
+        <div class="rs__estados" role="group" aria-label="Mostrar" id="rs-estados" data-estado-proprio></div>
+        <button class="btn-mini" type="button" id="rs-recarregar" style="margin-left:auto">Atualizar</button>
+      </div>
+      <div id="rs-lista"><p class="painel-nota">carregando…</p></div>
+    </div>
   </section>
+
+  <!-- o popup de uma regra sugerida: a regra, o porquê e as conversas de onde veio -->
+  <dialog class="rs__popup" id="rs-popup" aria-labelledby="rs-popup-titulo">
+    <div class="rs__popup-topo">
+      <div>
+        <div class="rs__selos" id="rs-popup-selos"></div>
+        <h3 id="rs-popup-titulo"></h3>
+      </div>
+      <button class="btn-neutro" type="button" id="rs-fechar" aria-label="Fechar">✕</button>
+    </div>
+    <div class="rs__popup-corpo" id="rs-popup-corpo"></div>
+    <div class="rs__decisao">
+      <label for="rs-nota" class="rs__rotulo">Nota (opcional)</label>
+      <textarea class="entrada" id="rs-nota" rows="2" placeholder="Ex.: aceito, mas só para locação"></textarea>
+      <div class="rs__botoes">
+        <button class="btn-azul" type="button" data-rs-decidir="aceita">Aceitar</button>
+        <button class="btn-neutro" type="button" data-rs-decidir="recusada">Recusar</button>
+        <button class="btn-mini" type="button" data-rs-decidir="sugerida" id="rs-desfazer" hidden>Voltar para sugerida</button>
+        <span class="rs__recado" id="rs-recado" role="status"></span>
+      </div>
+    </div>
+  </dialog>
 </main>
 
 <div data-layout-rodape></div>
@@ -633,5 +680,6 @@
 <script src="../assets/js/nay-cerebro.js"></script>
 <script src="../assets/js/nay-fluxograma.js"></script>
 <script src="../assets/js/nay-treino.js"></script>
+<script src="../assets/js/nay-regras-sugeridas.js"></script>
 </body>
 </html>

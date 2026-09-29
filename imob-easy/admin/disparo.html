@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enviar imóvel — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<style>
+  .dp { max-width: 820px; }
+  .dp-bloco { padding: 16px 18px; margin-bottom: 16px; }
+  .dp-grade { display: grid; gap: 12px; grid-template-columns: 1fr 260px; }
+  @media (max-width: 640px) { .dp-grade { grid-template-columns: 1fr; } }
+  .dp-rotulo { display: block; font-size: var(--fs-xs); color: var(--texto-fraco); margin-bottom: 4px; }
+  .dp .entrada, .dp .selecao { width: 100%; }
+  .dp-aviso { grid-column: 1 / -1; margin: 0; font-size: var(--fs-xs); color: #92400e; }
+  .dp-busca { position: relative; }
+  .dp-lista { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px); max-height: 360px; overflow-y: auto;
+              background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra-1); }
+  .dp-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; border: 0; border-bottom: 1px solid var(--borda);
+             background: transparent; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+  .dp-item:last-child { border-bottom: 0; }
+  .dp-item:hover { background: var(--superficie-2); }
+  .dp-item--marcado { background: var(--azul-claro); }
+  .dp-caixa { width: 18px; height: 18px; flex-shrink: 0; border: 1.5px solid var(--borda-forte); border-radius: 4px;
+              display: grid; place-items: center; font-size: 12px; color: #fff; }
+  .dp-item--marcado .dp-caixa { background: var(--azul); border-color: var(--azul); }
+  .dp-capa { width: 52px; height: 38px; flex-shrink: 0; border-radius: 6px; object-fit: cover; background: var(--superficie-2); }
+  .dp-texto { min-width: 0; flex: 1; }
+  .dp-texto b, .dp-texto span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dp-texto span { font-size: var(--fs-xs); color: var(--texto-fraco); }
+  .dp-vazio { padding: 10px 12px; margin: 0; font-size: var(--fs-xs); color: var(--texto-fraco); }
+  .dp-escolhidos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .dp-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 4px 4px 10px; border-radius: 999px;
+             background: var(--azul-claro); border: 1px solid var(--azul-borda); font-size: var(--fs-xs); }
+  .dp-chip button { border: 0; background: transparent; cursor: pointer; padding: 0 6px; font-size: 14px; line-height: 1; color: var(--texto-medio); }
+  .dp-enviar { margin-top: 16px; }
+  .dp-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .dp-modos { display: inline-flex; border: 1px solid var(--borda); border-radius: 999px; padding: 2px; }
+  .dp-modo { border: 0; background: transparent; border-radius: 999px; padding: 5px 14px; font: inherit;
+             font-size: var(--fs-xs); cursor: pointer; color: var(--texto-medio); }
+  .dp-modo[aria-selected="true"] { background: var(--azul); color: #fff; }
+  .dp-faixa { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: end; }
+  @media (max-width: 640px) { .dp-faixa { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .dp-faixa label { display: block; }
+  .dp-faixa__largo { grid-column: span 2; min-width: 0; }
+  @media (max-width: 640px) { .dp-faixa__largo { grid-column: 1 / -1; } }
+  .dp-faixa__chips { display: flex; flex-wrap: wrap; gap: 14px; }
+  .dp-faixa__chips .dp-rotulo { display: block; }
+  .dp-chip-op { border: 1px solid var(--borda); background: var(--superficie-2); border-radius: 999px; padding: 6px 13px;
+                font: inherit; font-size: var(--fs-xs); cursor: pointer; color: inherit; margin: 2px 4px 2px 0; }
+  .dp-chip-op[aria-pressed="true"] { background: var(--azul); border-color: var(--azul); color: #fff; }
+  .dp-faixa .entrada, .dp-faixa .selecao { width: 100%; }
+  .dp-faixa__botao .btn-azul-vazado { width: 100%; justify-content: center; }
+  .dp-aviso-faixa { margin: 12px 0 0; font-size: var(--fs-xs); color: var(--texto-medio); }
+  .dp-achados { position: static; margin-top: 8px; max-height: 440px; }
+  .dp-achados__topo { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+                      padding: 6px 12px; font-size: var(--fs-xs); color: var(--texto-fraco); background: var(--superficie-2);
+                      border-bottom: 1px solid var(--borda); }
+  .dp-achados__topo button { border: 0; background: none; padding: 0; font: inherit; color: var(--azul); text-decoration: underline; cursor: pointer; }
+  .dp-achados .dp-item:not(.dp-item--marcado) { opacity: .7; }
+  .dp-enviar:disabled { opacity: .45; cursor: not-allowed; }
+  .dp-resposta { white-space: pre-wrap; border-radius: var(--raio); padding: 12px 14px; font-size: var(--fs-sm); line-height: 1.5; }
+  .dp-resposta--ok { background: var(--verde-suave); border: 1px solid var(--verde); }
+  .dp-resposta--erro { background: var(--vermelho-suave); border: 1px solid var(--vermelho); }
+  .dp-resposta small { display: block; margin-top: 6px; color: var(--texto-fraco); }
+</style>
+<meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
+</head>
+<body class="admin" data-pagina="disparo">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<main class="conteudo dp" id="conteudo">
+  <div class="pagina-cabecalho">
+    <h1 class="pagina-titulo">Enviar imóvel</h1>
+  </div>
+  <p class="pagina-subtitulo" style="margin-bottom:16px">
+    Vai o card dos grupos e as fotos. As regras da Nay valem aqui também: imóvel de parceiro e indisponível
+    não saem, e as fotos do mesmo imóvel vão uma vez a cada 24h para cada número.
+  </p>
+
+  <section class="cartao dp-bloco dp-grade">
+    <label>
+      <span class="dp-rotulo">Para qual número</span>
+      <input class="entrada" id="dp-telefone" inputmode="tel" placeholder="92 99999-9999" autocomplete="off">
+    </label>
+    <label>
+      <span class="dp-rotulo">Por qual WhatsApp</span>
+      <select class="selecao" id="dp-linha"><option value="">carregando…</option></select>
+    </label>
+    <p class="dp-aviso" id="dp-aviso" hidden></p>
+  </section>
+
+  <section class="cartao dp-bloco">
+    <div class="dp-topo">
+      <span class="dp-rotulo">Imóveis</span>
+      <div class="dp-modos" role="tablist" aria-label="Como escolher os imóveis">
+        <button type="button" class="dp-modo" role="tab" data-modo="um" aria-selected="true">Um a um</button>
+        <button type="button" class="dp-modo" role="tab" data-modo="faixa" aria-selected="false">Por faixa</button>
+      </div>
+    </div>
+
+    <div id="dp-modo-um">
+      <div class="dp-busca" id="dp-busca">
+        <input class="entrada" id="dp-q" placeholder="Digite uma parte: código, condomínio, bairro ou rua" autocomplete="off">
+        <div class="dp-lista" id="dp-lista" hidden></div>
+      </div>
+      <div class="dp-escolhidos" id="dp-escolhidos"></div>
+    </div>
+
+    <!-- POR FAIXA: acha e marca, ele confere e envia -->
+    <div id="dp-modo-faixa" hidden data-estado-proprio>
+      <div class="dp-faixa">
+        <label><span class="dp-rotulo">Finalidade</span>
+          <select class="selecao" id="f-fin"><option value="aluguel">Aluguel</option><option value="venda">Venda</option><option value="">Tanto faz</option></select></label>
+        <label><span class="dp-rotulo">Valor de (R$)</span><input class="entrada" id="f-vmin" inputmode="numeric" placeholder="0"></label>
+        <label><span class="dp-rotulo">até (R$)</span><input class="entrada" id="f-vmax" inputmode="numeric" placeholder="sem limite"></label>
+        <div class="dp-faixa__largo"><span class="dp-rotulo">Bairros</span><div id="f-bairros"></div></div>
+        <div class="dp-faixa__largo"><span class="dp-rotulo">Tipos de imóvel</span><div id="f-tipos"></div></div>
+        <div class="dp-faixa__largo dp-faixa__chips">
+          <div><span class="dp-rotulo">Mobília</span>
+            <button type="button" class="dp-chip-op" data-mob="mobiliado" aria-pressed="false">Mobiliado</button>
+            <button type="button" class="dp-chip-op" data-mob="semi" aria-pressed="false">Semimobiliado</button></div>
+          <div><span class="dp-rotulo">Quartos</span>
+            <button type="button" class="dp-chip-op" data-qt="1" aria-pressed="false">1</button>
+            <button type="button" class="dp-chip-op" data-qt="2" aria-pressed="false">2</button>
+            <button type="button" class="dp-chip-op" data-qt="3" aria-pressed="false">3</button>
+            <button type="button" class="dp-chip-op" data-qt="4" aria-pressed="false">4+</button></div>
+        </div>
+        <div class="dp-faixa__botao"><button class="btn-azul-vazado" id="dp-buscar" type="button">Buscar</button></div>
+      </div>
+      <p class="dp-aviso-faixa" id="dp-aviso-faixa" hidden></p>
+      <div class="dp-lista dp-achados" id="dp-achados" hidden></div>
+    </div>
+    <button class="btn-azul btn-bloco dp-enviar" id="dp-enviar" type="button" disabled>Enviar</button>
+  </section>
+
+  <div id="dp-resposta" hidden></div>
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/multiselecao.js"></script>
+<script src="../assets/js/disparo.js"></script>
+</body>
+</html>

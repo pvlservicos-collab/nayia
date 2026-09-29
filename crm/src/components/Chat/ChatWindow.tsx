@@ -1,11 +1,16 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { Image as ImageIcon } from '@phosphor-icons/react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { codigoReferenciado } from '@/lib/imovelCodigo'
+import { Image as ImageIcon, ArrowLeft, User, SidebarSimple, Robot } from '@phosphor-icons/react'
 import { useLeadActivities, useAuth, useChatButtonSettings, useIsMobile } from '@/hooks'
 import { usePinnedMessages } from '@/hooks/usePinnedMessages'
 import { uploadClientFile } from '@/lib/blobClient'
+import { formatPhone } from '@/lib/utils'
 import { LeadWithOwner, LeadActivityWithActor } from '@/lib/types'
+import type { LinhaWhatsapp } from '@/lib/leadChannel'
+import type { EstadoDaNay, MarcaDaNay } from '@/lib/tiposNay'
+import { useParceriaMarcas, recarregarMarcasDaParceria } from '@/hooks/useParceriaMarcas'
 import ActivityTimeline from './ActivityTimeline'
 import ActivityComposer, { ActivityComposerHandle } from './ActivityComposer'
 import PinnedMessagesBar from './PinnedMessagesBar'
@@ -16,6 +21,13 @@ interface ChatWindowProps {
   lead: LeadWithOwner
   organizationId: string
   onMessageSent?: (content: string) => void
+  /** A linha de WhatsApp da conversa: a Parceria tem transcrição de áudio e as marcas da Nay. */
+  linha?: LinhaWhatsapp
+  marca?: MarcaDaNay
+  painelAberto?: boolean
+  aoAlternarPainel?: () => void
+  /** Só no celular: volta para a lista. */
+  aoVoltar?: () => void
 }
 
 export interface ReplyContext {
@@ -24,9 +36,92 @@ export interface ReplyContext {
   sender: string
 }
 
-export default function ChatWindow({ lead, organizationId, onMessageSent }: ChatWindowProps) {
-  const { activities, loading, error: erroDasMensagens, refresh: recarregarMensagens, sendHumanMessage, sendMediaMessage, deleteMessage } =
-    useLeadActivities(organizationId, lead.id)
+function quandoCurto(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const zero = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
+  const dif = Math.round((zero(d) - zero(new Date())) / 86400000)
+  const h = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  return dif === 0 ? `hoje ${h}` : dif === 1 ? `amanhã ${h}` : `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ${h}`
+}
+
+/**
+ * A barra de cima da conversa, como no WhatsApp Web: foto, nome e, embaixo,
+ * o telefone -- na Parceria, o que a Nay sabe da pessoa. Clicar no nome abre
+ * (ou fecha) o card do contato.
+ */
+/*
+ * O ROBÔ DA NAY (Pedro, 29/09/2026): "uma tagzinha de robô ao lado esquerdo no
+ * topo do lead para sabermos se a Nay está ou não ativa nesse número... verde
+ * ativa, vermelha inativa, ex. quando o Tel manda msg fica vermelho".
+ * Vermelho: a Nay parada no geral (pausa, modo) ou nesta conversa (o Tel ou
+ * alguém da equipe escreveu -- ela cala 30 min --, escalada, visita parada).
+ * Quem decide é a Nay (crm_parceria_marcas / crm_nay_ligada).
+ */
+function RoboDaNay({ nay, marca }: { nay: EstadoDaNay | null; marca?: MarcaDaNay }) {
+  const parada = !!nay && (!nay.ligada || !!marca?.telAtendendo)
+  const cor = !nay ? 'var(--wa-text-2)' : parada ? 'var(--wa-tag-tel)' : 'var(--wa-green)'
+  const texto = !nay ? 'Lendo a Nay…'
+    : !nay.ligada ? `Nay parada: ${nay.motivo || 'desligada'}`
+    : marca?.telAtendendo ? `Nay parada nesta conversa: ${marca.telMotivo || 'o Tel está com a conversa'}`
+    : 'Nay atendendo esta conversa'
+  return (
+    <span className="wa-robo" style={{ ['--cor' as string]: cor }} title={texto} aria-label={texto} role="img">
+      <Robot size={16} weight="fill" />
+    </span>
+  )
+}
+
+function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlternarPainel, aoVoltar }: {
+  lead: LeadWithOwner
+  marca?: MarcaDaNay
+  nay?: EstadoDaNay | null
+  mostrarRobo?: boolean
+  painelAberto?: boolean
+  aoAlternarPainel?: () => void
+  aoVoltar?: () => void
+}) {
+  const partes: string[] = []
+  if (marca?.telAtendendo) partes.push('com o Tel')
+  if (marca?.visitaAberta) partes.push(`visita ${quandoCurto(marca.visitaQuando)}`)
+  if (marca?.corretor) partes.push(marca.creci ? `corretor · CRECI ${marca.creci}` : 'corretor')
+  if (marca?.proprietario) partes.push('proprietário')
+  const subtitulo = partes.length ? partes.join(' · ') : formatPhone(lead.phone || '')
+
+  return (
+    <div className="wa-topo gap-3 flex-shrink-0 relative z-20 !px-3" style={{ borderBottom: '1px solid var(--wa-divider)' }}>
+      {aoVoltar && (
+        <button type="button" className="wa-icone-btn -mr-1" onClick={aoVoltar} aria-label="Voltar para a lista"><ArrowLeft size={22} /></button>
+      )}
+      {mostrarRobo && <RoboDaNay nay={nay ?? null} marca={marca} />}
+      <button type="button" onClick={aoAlternarPainel} className="flex items-center gap-3 min-w-0 flex-1 text-left" title="Dados do contato">
+        <span className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center" style={{ background: 'var(--wa-row-selected)' }}>
+          {lead.avatar_url
+            ? <img src={lead.avatar_url} alt="" className="w-full h-full object-cover" />
+            : <User size={24} weight="fill" style={{ color: 'var(--wa-text-2)', opacity: 0.55 }} />}
+        </span>
+        <span className="min-w-0">
+          <span className="block text-[16px] leading-[21px] truncate" style={{ color: 'var(--wa-text)' }}>{formatPhone(lead.title)}</span>
+          <span className="block text-[13px] leading-[18px] truncate" style={{ color: marca?.telAtendendo ? 'var(--wa-tag-tel)' : 'var(--wa-text-2)' }}>
+            {subtitulo}
+          </span>
+        </span>
+      </button>
+      {aoAlternarPainel && (
+        <button type="button" onClick={aoAlternarPainel} className={`wa-icone-btn ${painelAberto ? 'wa-icone-btn--on' : ''}`}
+                title={painelAberto ? 'Fechar os dados do contato' : 'Dados do contato'} aria-pressed={!!painelAberto}>
+          <SidebarSimple size={22} className="-scale-x-100" />
+        </button>
+      )}
+    </div>
+  )
+}
+
+export default function ChatWindow({ lead, organizationId, onMessageSent, linha, marca, painelAberto, aoAlternarPainel, aoVoltar }: ChatWindowProps) {
+  const {
+    activities, loading, error: erroDasMensagens, refresh: recarregarMensagens, sendHumanMessage, sendMediaMessage, deleteMessage,
+    temMais, carregandoAnteriores, carregarAnteriores,
+  } = useLeadActivities(organizationId, lead.id)
   const { pinned, pinnedActivityIds, togglePin } = usePinnedMessages(lead.id)
   const { currentOrganization } = useAuth()
   const { settings: chatButtonSettings, fireWebhook } = useChatButtonSettings()
@@ -34,29 +129,45 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
   const [sendError, setSendError] = useState<string | null>(null)
   const ehCelular = useIsMobile()
   const composerRef = useRef<ActivityComposerHandle>(null)
+  const ehParceria = linha === 'parceria'
+  // o robô: a chave geral da Nay (a marca desta conversa já vem do pai)
+  const { nay } = useParceriaMarcas(ehParceria)
+  /* Mandou pelo CRM: a Nay vai calar por 30 min assim que o eco chegar a ela
+     (segundos). Pede uma leitura nova para o robô ficar vermelho sem esperar
+     o minuto da atualização. */
+  const avisarANay = useCallback(() => {
+    if (!ehParceria) return
+    setTimeout(() => { void recarregarMarcasDaParceria(true) }, 8000)
+  }, [ehParceria])
 
   /**
-   * Abriu a conversa? O cursor já vai pro campo de texto.
-   *
-   * Quem atende clica na conversa pra responder — ter que clicar de novo no
-   * campo é um passo a mais em cada atendimento do dia.
-   *
-   * Só no desktop: no celular, focar sozinho abre o teclado por cima da
-   * conversa e esconde justamente a mensagem que a pessoa acabou de abrir pra
-   * ler.
+   * Abriu a conversa? O cursor já vai pro campo de texto (só no computador:
+   * no celular o teclado cobriria a mensagem que a pessoa abriu pra ler).
    */
   useEffect(() => {
     if (ehCelular) return
-    // Um quadro de atraso: no mesmo tick o composer ainda está montando com a
-    // conversa nova, e o focus se perderia no remonte.
     const id = requestAnimationFrame(() => composerRef.current?.focar())
     return () => cancelAnimationFrame(id)
   }, [lead.id, ehCelular])
 
-  // Arrastar-e-soltar um arquivo em qualquer ponto da conversa (não só no clipe) —
-  // dragCounter conta enter/leave porque o navegador dispara esses eventos toda vez
-  // que o cursor cruza um elemento filho da timeline, não só na entrada/saída real
-  // da área inteira; sem contar, a sobreposição pisca ou nunca some.
+  /*
+   * OS ÁUDIOS ANTIGOS DA PARCERIA GANHAM TEXTO (29/09): o áudio novo é
+   * transcrito quando chega; os de antes, quando a conversa abre -- uma vez
+   * por abertura, e só se houver algum ainda sem texto. Cada transcrição
+   * chega sozinha pela atualização da conversa.
+   */
+  const jaPediTranscricao = useRef(false)
+  useEffect(() => {
+    // as três linhas de WhatsApp (29/09); antes, só a Parceria
+    if (!linha || jaPediTranscricao.current || loading) return
+    const falta = activities.some((a) => a.metadata?.media_type === 'audio' && typeof a.metadata?.transcricao !== 'string'
+      && !['sem_audio', 'falhou', 'andando'].includes(String(a.metadata?.transcricao_status || '')) && !a.metadata?.is_optimistic)
+    if (!falta) return
+    jaPediTranscricao.current = true
+    fetch(`/api/leads/${lead.id}/transcrever`, { method: 'POST' }).catch(() => { jaPediTranscricao.current = false })
+  }, [linha, activities, loading, lead.id])
+
+  // Arrastar-e-soltar um arquivo em qualquer ponto da conversa (não só no clipe).
   const [isDraggingFile, setIsDraggingFile] = useState(false)
   const dragCounter = useRef(0)
 
@@ -66,9 +177,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
     dragCounter.current += 1
     setIsDraggingFile(true)
   }
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault() // necessário pro navegador permitir o drop
-  }
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault() }
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault()
     dragCounter.current = Math.max(0, dragCounter.current - 1)
@@ -91,15 +200,37 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
       return
     }
 
-    try {
-      if (onMessageSent) onMessageSent(content)
+    /* `/3050` MANDA O IMÓVEL (Tel, 27/09/2026): o card igual ao dos grupos e
+       depois as fotos. Só a barra dispara isso: um "3050" solto é texto. */
+    const codigoPedido = codigoReferenciado(content)
+    if (codigoPedido) {
+      try {
+        const res = await fetch(`/api/leads/${lead.id}/enviar-imovel`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ codigo: codigoPedido }),
+        })
+        const j = await res.json()
+        if (!res.ok) throw new Error(j?.error || 'não consegui mandar o imóvel')
+        if (j.e_parceiro) {
+          setSendError(`Atenção: o ${codigoPedido} é imóvel DE PARCEIRO. Ele foi enviado porque `
+            + 'você pediu, mas a Nay nunca manda imóvel de parceiro.')
+        } else if (j.fotos_que_falharam > 0) {
+          setSendError(`O card do ${codigoPedido} saiu, mas ${j.fotos_que_falharam} foto(s) não foram.`)
+        }
+        recarregarMensagens()
+      } catch (error: any) {
+        console.error('Failed to send imóvel:', error)
+        setSendError(error?.message || `Não consegui mandar o imóvel ${codigoPedido}.`)
+      }
+      return
+    }
 
+    try {
+      avisarANay(); if (onMessageSent) onMessageSent(content)
       const replyMessageId = replyContext?.messageId
       const replyPreview = replyContext ? { text: replyContext.text, sender: replyContext.sender } : undefined
-
-      // Clear reply before sending so UI updates immediately
       setReplyContext(null)
-
       await sendHumanMessage(content, 'whatsapp', currentOrganization.id, replyMessageId, replyPreview)
     } catch (error) {
       console.error('Failed to send activity:', error)
@@ -109,7 +240,6 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
 
   const handleSendMedia = async (file: File, caption?: string) => {
     setSendError(null)
-
     let mediaType: 'image' | 'video' | 'audio' | 'document' = 'document'
     if (file.type.startsWith('image/')) mediaType = 'image'
     else if (file.type.startsWith('video/')) mediaType = 'video'
@@ -117,21 +247,15 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
 
     try {
       const url = await uploadClientFile(file, 'chat-media', lead.id)
-
-      if (onMessageSent) onMessageSent(caption || `[${mediaType}]`)
+      avisarANay(); if (onMessageSent) onMessageSent(caption || `[${mediaType}]`)
       await sendMediaMessage(url, mediaType, caption || '', file.name, file.type)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send media:', error)
-      setSendError('Falha ao enviar mídia. Verifique o arquivo e tente novamente.')
+      setSendError(`Falha ao enviar ${mediaType === 'audio' ? 'o áudio' : 'o arquivo'}: ${error?.message || 'verifique o arquivo e tente novamente'}.`)
     }
   }
 
-  // Nota de voz não aceita legenda no WhatsApp — mandar texto no campo de legenda aqui
-  // simplesmente some sem chegar no cliente, mesmo aparecendo (errado) como enviado no
-  // histórico do CRM. Pra áudio com texto junto, manda como duas mensagens reais: o
-  // áudio primeiro, depois o texto — igual sairia se alguém gravasse e mandasse assim
-  // manualmente. Reaproveitado tanto pela mídia única quanto por cada passo de uma
-  // sequência, pra não duplicar esse caso especial em dois lugares.
+  // Nota de voz não aceita legenda no WhatsApp: áudio com texto vai como duas mensagens.
   const sendQuickReplyStep = async (step: {
     content: string
     mediaUrl: string | null
@@ -154,9 +278,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
       }
       return
     }
-    if (step.content.trim()) {
-      await sendHumanMessage(step.content, 'whatsapp', currentOrganization?.id)
-    }
+    if (step.content.trim()) await sendHumanMessage(step.content, 'whatsapp', currentOrganization?.id)
   }
 
   const handleSendQuickReplyMedia = async (qr: {
@@ -168,7 +290,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
   }) => {
     setSendError(null)
     try {
-      if (onMessageSent) onMessageSent(qr.content || `[${qr.mediaType}]`)
+      avisarANay(); if (onMessageSent) onMessageSent(qr.content || `[${qr.mediaType}]`)
       await sendQuickReplyStep(qr)
     } catch (error) {
       console.error('Failed to send quick reply media:', error)
@@ -188,10 +310,8 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i]
       try {
-        if (onMessageSent) onMessageSent(step.content || (step.mediaType ? `[${step.mediaType}]` : ''))
+        avisarANay(); if (onMessageSent) onMessageSent(step.content || (step.mediaType ? `[${step.mediaType}]` : ''))
         await sendQuickReplyStep(step)
-        // Espera configurada no passo antes de mandar o próximo — só roda enquanto
-        // esta aba estiver aberta (não é durável tipo o funil, ver plano da feature).
         if (step.delaySeconds > 0 && i < steps.length - 1) {
           await new Promise((resolve) => setTimeout(resolve, step.delaySeconds * 1000))
         }
@@ -203,9 +323,10 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
     }
   }
 
-  const handleDeleteMessage = async (activity: LeadActivityWithActor, deleteForEveryone: boolean) => {
+  /* Estáveis entre um desenho e outro: sem isso a conversa inteira (até 300
+     balões) se redesenhava a cada atualização, e abrir conversa ficava lento. */
+  const handleDeleteMessage = useCallback(async (activity: LeadActivityWithActor, deleteForEveryone: boolean) => {
     setSendError(null)
-
     try {
       const result = await deleteMessage(activity.id, deleteForEveryone)
       if (deleteForEveryone && result.channel_supports_delete && !result.deleted_for_everyone) {
@@ -215,15 +336,15 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
       console.error('Failed to delete message:', error)
       setSendError(error instanceof Error ? error.message : 'Falha ao apagar mensagem.')
     }
-  }
+  }, [deleteMessage])
 
-  const handleReply = (activity: LeadActivityWithActor) => {
+  const tituloDoLead = lead.title
+  const handleReply = useCallback((activity: LeadActivityWithActor) => {
     const messageId = activity.metadata?.message_id || activity.id
     const text = activity.content || ''
-    const sender = activity.metadata?.sender_name || activity.actor?.profiles?.full_name || lead.title || 'Lead'
-
+    const sender = activity.metadata?.sender_name || activity.actor?.profiles?.full_name || tituloDoLead || 'Lead'
     setReplyContext({ messageId, text, sender })
-  }
+  }, [tituloDoLead])
 
   const handleUnpin = (activityId: string) => {
     const pin = pinned.find((p) => p.activity_id === activityId)
@@ -232,47 +353,35 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
 
   return (
     <div
-      className="flex flex-col h-full relative overflow-x-hidden"
-      style={{
-        backgroundColor: 'var(--chat-bg-conversation)',
-        backgroundImage: `url('/chat-bg.svg')`,
-        backgroundRepeat: 'repeat',
-        backgroundSize: 'auto',
-      }}
+      className="wa-papel flex flex-col h-full relative overflow-x-hidden"
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Overlay de arrastar-e-soltar — cobre a conversa inteira, não só o clipe */}
+      <CabecalhoConversa lead={lead} marca={marca} nay={nay} mostrarRobo={false} painelAberto={painelAberto} aoAlternarPainel={aoAlternarPainel} aoVoltar={aoVoltar} />
+
+      {/* Arrastar-e-soltar — cobre a conversa inteira, não só o clipe */}
       {isDraggingFile && (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm pointer-events-none animate-in fade-in duration-150">
-          <div className="flex flex-col items-center gap-3 border-4 border-dashed border-[var(--chat-accent)] rounded-2xl px-12 py-10 bg-[var(--chat-bg-panel)]/90">
-            <ImageIcon size={40} weight="bold" className="text-[var(--chat-accent)]" />
-            <p className="text-sm font-bold text-[var(--chat-text-primary)]">Solte o arquivo para enviar</p>
+          <div className="flex flex-col items-center gap-3 border-4 border-dashed rounded-2xl px-12 py-10"
+               style={{ borderColor: 'var(--wa-green)', background: 'var(--wa-panel)' }}>
+            <ImageIcon size={40} weight="bold" style={{ color: 'var(--wa-green)' }} />
+            <p className="text-sm font-bold" style={{ color: 'var(--wa-text)' }}>Solte o arquivo para enviar</p>
           </div>
         </div>
       )}
 
-      {/* Pinned Messages */}
-      <PinnedMessagesBar pinned={pinned} onUnpin={handleUnpin} />
+      <div className="relative z-10"><PinnedMessagesBar pinned={pinned} onUnpin={handleUnpin} /></div>
 
-      {/* Falha ao carregar as mensagens: avisa e deixa tentar de novo. Antes a
-          conversa abria em branco, calada — quem atende não tinha como saber se
-          a pessoa nunca escreveu ou se a busca falhou. */}
+      {/* Falha ao carregar: avisa e deixa tentar de novo, em vez de abrir calada. */}
       {erroDasMensagens && activities.length === 0 && !loading && (
-        <div className="mx-4 mt-2 px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between gap-3">
-          <span className="text-sm text-amber-300">Não consegui carregar as mensagens desta conversa.</span>
-          <button
-            onClick={() => recarregarMensagens(true)}
-            className="btn btn-outline btn-sm !py-1 !text-[11px] flex-shrink-0"
-          >
-            Tentar de novo
-          </button>
+        <div className="relative z-10 mx-4 mt-2 px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between gap-3">
+          <span className="text-sm" style={{ color: 'var(--wa-tag-prop)' }}>Não consegui carregar as mensagens desta conversa.</span>
+          <button onClick={() => recarregarMensagens(true)} className="btn btn-outline btn-sm !py-1 !text-[11px] flex-shrink-0">Tentar de novo</button>
         </div>
       )}
 
-      {/* Timeline */}
       <ActivityTimeline
         activities={activities}
         loading={loading}
@@ -281,22 +390,19 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
         onTogglePin={togglePin}
         onDelete={handleDeleteMessage}
         pinnedActivityIds={pinnedActivityIds}
+        mostrarTranscricao={!!linha}
+        temMais={temMais}
+        carregandoAnteriores={carregandoAnteriores}
+        onCarregarAnteriores={carregarAnteriores}
       />
 
-      {/* Send Error Banner */}
       {sendError && (
-        <div className="mx-4 mb-2 px-4 py-2.5 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center justify-between">
-          <span className="text-sm text-red-700 dark:text-red-300">{sendError}</span>
-          <button
-            onClick={() => setSendError(null)}
-            className="text-red-600/70 dark:text-red-400/70 hover:text-red-700 dark:hover:text-red-300 text-xs font-bold ml-3"
-          >
-            ✕
-          </button>
+        <div className="relative z-10 mx-4 mb-2 px-4 py-2.5 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center justify-between">
+          <span className="text-sm" style={{ color: 'var(--wa-tag-tel)' }}>{sendError}</span>
+          <button onClick={() => setSendError(null)} className="text-xs font-bold ml-3" style={{ color: 'var(--wa-tag-tel)' }}>✕</button>
         </div>
       )}
 
-      {/* Composer Bottom */}
       <ActivityComposer
         ref={composerRef}
         onSend={handleSendActivity}

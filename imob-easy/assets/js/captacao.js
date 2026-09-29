@@ -87,6 +87,7 @@
       var campo = chaves.querySelector('[data-chave="' + chave + '"]');
       if (campo) campo.value = d.config[chave];
     });
+    pintarSaude(d.saude);
 
     if (d.config.modo_teste === "sim") {
       avisoTeste.hidden = false;
@@ -106,8 +107,32 @@
     }
   }
 
+  /* A SAÚDE DO NÚMERO (28/09): se o disparo sai agora e, se não, por quê; o
+     volume do dia contra os tetos (o que derrubou o número em 17/09 foi volume);
+     e os dois sinais que vieram antes da queda -- resposta e entrega. */
+  function pintarSaude(s) {
+    var alvo = document.getElementById("saude");
+    if (!alvo || !s) return;
+    var partes = [
+      '<span class="cap-saude__estado cap-saude__estado--' + (s.liberado ? "ok" : "parado") + '">' +
+        (s.liberado ? "Disparo liberado agora" : "Disparo parado: " + esc(s.motivo || "")) + "</span>",
+      "<span>Hoje: <b>" + s.disparos_hoje + "</b> de " + s.teto_hoje + " disparos · <b>" + s.api_hoje + "</b> de " +
+        s.limite_api + " mensagens da Nay · <b>" + s.total_hoje + "</b> de " + s.limite_total + " do número, com a equipe</span>"
+    ];
+    if (s.disparos) {
+      partes.push('<span class="cap-saude__fraco">Últimos ' + s.disparos + " disparos: " + s.responderam +
+        " responderam · " + s.entregues + " entregues</span>");
+    }
+    if (s.rampa_desde) partes.push('<span class="cap-saude__fraco">Aquecendo desde ' + esc(s.rampa_desde.split("-").reverse().join("/")) + "</span>");
+    if (s.disjuntor) {
+      partes.push('<span class="cap-saude__alerta">A campanha pausou sozinha' + (s.disjuntor_em ? " em " + esc(s.disjuntor_em) : "") +
+        ": " + esc(s.disjuntor) + ". Confira o número antes de religar.</span>");
+    }
+    alvo.innerHTML = partes.join("");
+  }
+
   function carregarResumo() {
-    return fetch(API + "/api/captacao/resumo")
+    return fetch("api/captacao/resumo")
       .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
       .then(pintarResumo)
       .catch(function () {
@@ -120,7 +145,7 @@
     var campo = evento.target.closest("[data-chave]");
     if (!campo) return;
     chavesStatus.textContent = "Salvando…";
-    fetch(API + "/api/captacao/config", {
+    fetch("api/captacao/config", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chave: campo.dataset.chave, valor: String(campo.value) })
@@ -200,7 +225,7 @@
     var termo = (busca && busca.value || "").trim();
     var meu = ++pedidoAtual;   // resposta velha (de uma letra atras) nao pinta a tabela
     corpo.innerHTML = '<tr><td colspan="10">Carregando…</td></tr>';
-    fetch(API + "/api/captacao/leads?balde=" + encodeURIComponent(baldeAtual) +
+    fetch("api/captacao/leads?balde=" + encodeURIComponent(baldeAtual) +
           (termo ? "&q=" + encodeURIComponent(termo) : ""))
       .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
       .then(function (itens) {
@@ -243,7 +268,7 @@
     var sel = evento.target.closest("[data-trat]");
     if (!sel) return;
     sel.disabled = true;
-    fetch(API + "/api/captacao/lead/" + sel.dataset.trat + "/tratamento", {
+    fetch("api/captacao/lead/" + sel.dataset.trat + "/tratamento", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tratamento: sel.value })
@@ -266,7 +291,7 @@
     abrir("sobrepor-conversa");
     var alvo = document.getElementById("conversa-corpo");
     alvo.innerHTML = "Carregando…";
-    fetch(API + "/api/captacao/lead/" + botao.dataset.conversa)
+    fetch("api/captacao/lead/" + botao.dataset.conversa)
       .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
       .then(function (d) {
         document.getElementById("conversa-titulo").textContent =
@@ -368,7 +393,7 @@
     var botaoSalvar = document.getElementById("btn-salvar-mudar");
     botaoSalvar.disabled = true;
     statusMudar.textContent = "Salvando…";
-    fetch(API + "/api/captacao/lead/" + leadMudando.id + "/mudar", {
+    fetch("api/captacao/lead/" + leadMudando.id + "/mudar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -398,7 +423,7 @@
   acaoAba.addEventListener("click", function (evento) {
     if (evento.target.closest("#btn-exportar")) {
       // Deixa o navegador baixar direto: o CSV vem com Content-Disposition.
-      window.location.href = API + "/api/captacao/exportar?balde=" +
+      window.location.href = "api/captacao/exportar?balde=" +
         encodeURIComponent(baldeAtual);
       return;
     }
@@ -456,7 +481,7 @@
   function mostrarPrevia(listaId) {
     var alvo = document.getElementById("importar-corpo");
     alvo.innerHTML = "Montando a prévia…";
-    fetch(API + "/api/captacao/previa/" + listaId)
+    fetch("api/captacao/previa/" + listaId)
       .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
       .then(function (d) {
         listaAberta = d.lista.id;
@@ -514,7 +539,7 @@
     botao.disabled = true;
     botao.textContent = "Adicionando…";
 
-    fetch(API + "/api/captacao/importar", {
+    fetch("api/captacao/importar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

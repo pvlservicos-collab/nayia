@@ -31,6 +31,13 @@ export function middleware(req: NextRequest) {
     // o matcher abaixo só livra _next/static e afins, então sem isso qualquer imagem
     // usada numa tela sem sessão (ex: login) cairia no redirect também.
     '/logos/', '/fonts/', '/chat-bg.svg',
+    // A mídia do armazém (29/09): a própria rota confere a sessão OU o endereço
+    // assinado. A Z-API e a Meta baixam o que mandamos sem cookie nenhum, e o
+    // redirect de login entregaria a elas uma página HTML no lugar da foto.
+    '/api/midia/',
+    // A conferência com a Nay (29/09): o cron do servidor chama com o segredo
+    // CRON_SEGREDO no cabeçalho, e é a rota que confere.
+    '/api/cron/espelho-nay', '/api/cron/funis',
   ]
   const isPublic = publicPaths.some((p) => pathname.startsWith(p))
 
@@ -51,14 +58,22 @@ export function middleware(req: NextRequest) {
   // renderizarem vazias. Isso saiu junto: em produção, o app servia dados falsos
   // (leads e conversas de exemplo) pra quem abrisse sem logar — indistinguíveis
   // dos reais na tela, o que é pior que uma tela vazia.
-  // SEM TELA DE LOGIN (Tel, 20/09): manda para a entrada automatica, que faz
-  // o signIn do usuario unico da casa e devolve a pessoa para ca. A sessao
-  // continua real -- o que sai e so a tela. A porta e protegida pelo
-  // basicauth do traefik, fora do app. Ver src/app/api/auth/entrar/route.ts.
+  // CADA UM COM O SEU LOGIN (Tel, 26/09/2026): "tira essa entrada
+  // automatica, deixa o login normal do app mesmo".
+  //
+  // De 20/09 ate aqui, quem chegasse sem sessao era mandado para
+  // /api/auth/entrar, que logava SEMPRE como o usuario unico da casa. Com
+  // uma pessoa so isso passava; com duas, nao: a Rayssa entrava e virava o
+  // Tel, com permissao de Admin, e o cargo dela nao valia nada.
+  //
+  // O navegador guarda a senha: o formulario tem autoComplete username +
+  // current-password e e um <form> de verdade, entao o "salvar senha"
+  // aparece e o preenchimento automatico funciona nas proximas vezes.
   if (!sessionToken) {
-    const entrada = new URL('/api/auth/entrar', req.url)
-    entrada.searchParams.set('callbackUrl', pathname)
-    return NextResponse.redirect(entrada)
+    const login = new URL('/login', req.url)
+    // volta para onde a pessoa queria ir depois de entrar
+    if (pathname && pathname !== '/') login.searchParams.set('callbackUrl', pathname)
+    return NextResponse.redirect(login)
   }
 
   return NextResponse.next()

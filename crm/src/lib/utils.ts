@@ -104,6 +104,12 @@ export function formatPhone(phone?: string | number): string {
   if (!phone) return ''
   const phoneStr = String(phone)
   const cleaned = phoneStr.replace(/\D/g, '')
+  /* O @LID (29/09): o WhatsApp esconde o número de quem ele endereça por LID,
+     e o id (14-16 dígitos, sem o 55) aparecia no lugar do nome. Nenhum
+     celular brasileiro tem esse formato. */
+  if (/@lid/i.test(phoneStr) || (/^[\d\s@lid]+$/i.test(phoneStr) && cleaned.length >= 14 && cleaned.length <= 16 && !cleaned.startsWith('55'))) {
+    return 'Número oculto pelo WhatsApp'
+  }
 
   if (cleaned.length < 10) return phoneStr
 

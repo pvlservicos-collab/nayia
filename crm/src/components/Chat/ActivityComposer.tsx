@@ -6,7 +6,7 @@ import type { EmojiClickData, Theme } from 'emoji-picker-react'
 import {
   PaperPlaneRight,
   Smiley,
-  Paperclip,
+  Plus,
   Microphone,
   Lightning,
   Pause,
@@ -427,7 +427,10 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
   }
 
   return (
-    <div className="px-6 pb-4 pt-3 space-y-3 relative z-10 bg-gradient-to-t from-[var(--chat-bg-conversation)] via-[var(--chat-bg-conversation)]/80 to-transparent">
+    /* A caixa de digitar do WhatsApp Web (29/09/2026): a pílula flutuando sobre
+       o papel de parede, "+" e emoji à esquerda, e à direita o microfone -- que
+       vira "enviar" quando há texto. */
+    <div className="px-3 sm:px-5 pb-3 pt-1.5 space-y-2 relative z-10">
       {/* Action Buttons */}
       <div className="flex gap-2 items-center mb-1 flex-wrap">
         {chatButtonSettings?.pausar_ia?.enabled && (!chatButtonSettings.pausar_ia.position || chatButtonSettings.pausar_ia.position === 'chat') && (
@@ -478,7 +481,7 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
 
       {/* Media Preview Bar — mídia escolhida no clipe, aguardando confirmação/legenda */}
       {pendingMedia && (
-        <div className="glass flex items-center gap-3 rounded-xl px-3 py-2 animate-in slide-in-from-bottom-2 duration-200">
+        <div className="flex items-center gap-3 rounded-xl px-3 py-2 shadow animate-in slide-in-from-bottom-2 duration-200" style={{ background: 'var(--wa-input)' }}>
           <div className="w-14 h-14 rounded-lg overflow-hidden bg-[var(--chat-bg-hover)] flex items-center justify-center flex-shrink-0">
             {pendingMedia.file.type.startsWith('image/') ? (
               <img src={pendingMedia.previewUrl} alt="Prévia" className="w-full h-full object-cover" />
@@ -514,9 +517,9 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
 
       {/* Reply Preview Bar */}
       {replyContext && (
-        <div className="glass flex items-center rounded-xl px-3 py-2 animate-in slide-in-from-bottom-2 duration-200">
+        <div className="flex items-center rounded-xl px-3 py-2 shadow animate-in slide-in-from-bottom-2 duration-200" style={{ background: 'var(--wa-input)' }}>
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div className="w-1 h-8 rounded-full bg-[var(--chat-accent)] flex-shrink-0" />
+            <div className="w-1 h-8 rounded-full flex-shrink-0" style={{ background: 'var(--wa-quote-bar)' }} />
             <ArrowBendUpLeft size={14} weight="bold" className="text-[var(--chat-accent)] flex-shrink-0" />
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-[var(--chat-accent)] truncate">{replyContext.sender}</p>
@@ -539,10 +542,10 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
       )}
 
       {/* Input Area */}
-      <div className="glass relative flex items-end gap-2 rounded-2xl px-4 py-2.5 focus-within:ring-2 focus-within:ring-white/10 focus-within:border-[var(--chat-accent)]/40 transition-all">
+      <div className="wa-entrada relative">
         {recorder.isRecording ? (
           <>
-            <div className="flex items-center gap-3 flex-1 py-1">
+            <div className="flex items-center gap-3 flex-1 py-2 pl-3">
               <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
               <span className="text-sm text-[var(--chat-text-primary)] tabular-nums">{formatDuration(recorder.durationMs)}</span>
               <span className="text-xs text-[var(--chat-text-muted)]">Gravando áudio...</span>
@@ -559,8 +562,8 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
               type="button"
               onClick={handleMicClick}
               disabled={uploadingMedia}
-              className="w-8 h-8 rounded-full flex items-center justify-center border border-white/20 transition-colors hover:brightness-110 disabled:opacity-50 flex-shrink-0 mb-0.5"
-              style={{ backgroundColor: 'var(--chat-accent)', color: 'var(--chat-bg-conversation)' }}
+              className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:brightness-110 disabled:opacity-50 flex-shrink-0"
+              style={{ backgroundColor: 'var(--wa-green)', color: 'var(--wa-green-ink)' }}
               title="Enviar áudio"
             >
               {uploadingMedia ? <span className="animate-spin text-sm inline-block">⏳</span> : <PaperPlaneRight size={16} weight="fill" />}
@@ -568,7 +571,7 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
           </>
         ) : (
           <>
-            <div className="flex items-center gap-0 pb-0.5">
+            <div className="flex items-center gap-0.5 pb-0.5">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -579,23 +582,14 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingMedia || !onSendMedia || !!pendingMedia}
-                className="text-[var(--chat-text-muted)] hover:text-[var(--chat-icon)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Enviar mídia"
+                className="wa-icone-btn disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Anexar foto, vídeo, áudio ou documento"
               >
                 {uploadingMedia ? (
-                  <span className="animate-spin text-sm inline-block">⏳</span>
+                  <span className="block w-5 h-5 rounded-full border-2 border-current border-t-transparent animate-spin" />
                 ) : (
-                  <Paperclip size={20} />
+                  <Plus size={24} />
                 )}
-              </button>
-              <button
-                type="button"
-                onClick={handleMicClick}
-                disabled={uploadingMedia || !onSendMedia || !!pendingMedia}
-                className="text-[var(--chat-text-muted)] hover:text-[var(--chat-icon)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Gravar áudio"
-              >
-                <Microphone size={20} />
               </button>
               <button
                 ref={quickReplyButtonRef}
@@ -605,20 +599,18 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
                   setManualSearchQuery('')
                   setShowQuickReplyPicker((prev) => !prev)
                 }}
-                className={`transition-colors ${quickReplyPickerOpen ? 'text-[var(--chat-accent)]' : 'text-[var(--chat-text-muted)] hover:text-[var(--chat-icon)]'}`}
-                title="Respostas rápidas"
+                className={`wa-icone-btn ${quickReplyPickerOpen ? 'wa-icone-btn--on' : ''}`}
+                title="Respostas rápidas (ou digite /)"
               >
-                <Lightning size={20} />
+                <Lightning size={22} />
               </button>
               <button
                 ref={emojiButtonRef}
                 onClick={() => setShowEmojiPicker((prev) => !prev)}
-                className={`transition-colors ${showEmojiPicker
-                  ? 'text-[var(--chat-accent)]'
-                  : 'text-[var(--chat-text-muted)] hover:text-[var(--chat-icon)]'
-                  }`}
+                className={`wa-icone-btn ${showEmojiPicker ? 'wa-icone-btn--on' : ''}`}
+                title="Emoji"
               >
-                <Smiley size={20} />
+                <Smiley size={24} />
               </button>
             </div>
 
@@ -631,7 +623,7 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
               >
                 <EmojiPicker
                   onEmojiClick={handleEmojiClick}
-                  theme={'dark' as Theme}
+                  theme={(typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light') as Theme}
                   width={350}
                   height={400}
                   searchPlaceHolder="Buscar emoji..."
@@ -674,27 +666,36 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onKeyDown={handleComposerKeyDown}
-              placeholder={pendingMedia ? 'Legenda (opcional)...' : replyContext ? 'Digite sua resposta...' : "Digite sua mensagem ou digite '/' para respostas rápidas..."}
-              className="flex-1 text-sm focus:outline-none text-[var(--chat-text-primary)] placeholder-[var(--chat-text-muted)] bg-transparent resize-none overflow-y-auto leading-[1.5] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              placeholder={pendingMedia ? 'Legenda (opcional)' : 'Digite uma mensagem'}
+              className="flex-1 min-w-0 self-center py-[9px] px-1 focus:outline-none text-[var(--chat-text-primary)] placeholder-[var(--chat-text-muted)] bg-transparent resize-none overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               rows={1}
               style={{ maxHeight: '160px' }}
             />
-            <button
-              onClick={pendingMedia ? handleConfirmSendMedia : handleSend}
-              disabled={pendingMedia ? uploadingMedia : (!content.trim() || sending)}
-              className="w-8 h-8 rounded-full flex items-center justify-center border border-white/20 transition-colors hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 mb-0.5"
-              style={{ backgroundColor: 'var(--chat-accent)', color: 'var(--chat-bg-conversation)' }}
-            >
-              <PaperPlaneRight size={16} weight="fill" />
-            </button>
+            {content.trim() || pendingMedia ? (
+              <button
+                onClick={pendingMedia ? handleConfirmSendMedia : handleSend}
+                disabled={pendingMedia ? uploadingMedia : sending}
+                className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                style={{ backgroundColor: 'var(--wa-green)', color: 'var(--wa-green-ink)' }}
+                title="Enviar"
+              >
+                <PaperPlaneRight size={20} weight="fill" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleMicClick}
+                disabled={uploadingMedia || !onSendMedia}
+                className="wa-icone-btn disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Gravar áudio"
+              >
+                <Microphone size={24} />
+              </button>
+            )}
           </>
         )}
       </div>
 
-      {/* Hint */}
-      <p className="text-center text-[10px] font-bold uppercase tracking-wider text-[var(--chat-text-tertiary)]">
-        Enter para enviar · Shift+Enter para nova linha{replyContext ? ' · Esc para cancelar reply' : ''}
-      </p>
     </div>
   )
 })

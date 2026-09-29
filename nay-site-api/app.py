@@ -88,7 +88,55 @@ CAMPOS_EDITAVEIS = {
     "disponivel": {"tipo": "booleano", "sincronizado": False},
     "bloqueado": {"tipo": "booleano", "sincronizado": False},
     "motivo_bloqueio": {"tipo": "texto", "sincronizado": False},
+    # do site antigo, que o cadastro novo nao mostrava (28/09); captado_em e
+    # "dd/mm/aaaa", como o site antigo escrevia
+    "captado_por": {"tipo": "texto", "sincronizado": False},
+    "captado_em": {"tipo": "texto", "sincronizado": False},
 }
+
+# OS CAMPOS DO SITE ANTIGO QUE O NOVO NAO TINHA (Pedro, 28/09: "ponha todos os
+# campos do site antigo mas sem ser obrigatorio"). Moram em `imoveis.extras`,
+# com o MESMO nome de chave da raspagem do site antigo -- a Nay ja le "incluso
+# no aluguel" e "aceita financiamento" de la (migracao 157). O tipo diz como o
+# valor e gravado: do jeito que o site antigo escrevia ("115 m2", "Sim").
+EXTRAS_EDITAVEIS = {
+    "salas": "inteiro",
+    "andares": "inteiro",
+    "elevadores": "inteiro",
+    "lances de escada": "inteiro",
+    "area construida": "m2",
+    "tamanho do terreno": "m2",
+    "frente": "m",
+    "fundo": "m",
+    "pe direito": "m",
+    "tipo de cobertura": "texto",
+    "incluso no aluguel": "texto",
+    "garantia de aluguel": "texto",
+    "aceita financiamento": "simnao",
+    "permuta": "texto",
+    "indicado por": "texto",
+    "inspecionado por": "texto",
+    # quais das `caracteristicas` são do CONDOMÍNIO (Pedro, 28/09: "na OLX fica
+    # bem divididinho, quero assim"). A coluna continua com todas -- é nela que
+    # a Nay procura "tem piscina?" --; esta chave só diz em que grupo cada uma
+    # aparece. Sem ela, a tela separa por palavra (portaria, salão de festas...).
+    "caracteristicas do condominio": "lista_texto",
+}
+
+# A UNIDADE e a LOCACAO ATUAL nunca saem pela rota aberta: so por
+# /admin/api/imoveis/<codigo>/privado, que confere a senha (migracao 157).
+# O numero do apartamento em `imovel_privado` e o que a Nay usa no endereco
+# interno (motoboy); o locatario fica no schema `privado`, fora do public.
+PRIVADO_UNIDADE = ("torre", "unidade", "bloco", "casa", "lote")
+PRIVADO_FICHA = ("locatario_nome", "locatario_contato", "observacao_aluguel", "observacoes")
+_SEM_VENCIMENTO = object()  # "o corpo nao falou do vencimento" (None apaga)
+
+# O PROPRIETARIO DO IMOVEL (migracao 162). Pedro, 28/09: "a ultima etapa da
+# captacao pela OLX, ja que a OLX nao da esses dados". Mora em `proprietarios`
+# (a tabela do admin antigo) e o imovel aponta para ele em
+# imoveis.proprietario_id E imovel_privado.proprietario_id -- e por este que a
+# Nay acha o dono para pedir a visita (nai_proprietario_do_imovel).
+PROPRIETARIO_CAMPOS = ("nome", "telefone", "email", "documento", "tratamento")
 
 
 @app.after_request
@@ -110,6 +158,54 @@ def cors(resp):
     else:
         resp.headers["Cache-Control"] = "no-store"
     return resp
+
+
+# A SENHA DO /admin PARA GRAVAR IMOVEL (28/09/2026). O PUT e o POST de
+# /api/imoveis nao pediam senha nenhuma: qualquer um na internet mudava preco,
+# descricao, tirava do site ou publicava -- e isso muda o que a Nay oferece. O
+# editor passou a gravar pelo proprio dominio (imobeasy.online/admin/api/...),
+# atras da senha do /admin, e esta e a mesma conferencia dos outros modulos
+# (o hash do basicauth do Traefik, aqui dentro, porque este processo tambem
+# atende api.imobeasy.online, que nao tem senha).
+try:
+    from passlib.context import CryptContext as _CryptContext
+    _CTX_ADMIN = _CryptContext(schemes=["apr_md5_crypt", "bcrypt", "sha256_crypt"])
+except Exception:  # noqa: BLE001
+    _CTX_ADMIN = None
+
+
+def senha_do_admin_confere():
+    import base64
+    import hmac
+    htpasswd = os.environ.get("ADMIN_HTPASSWD", "")
+    if ":" not in htpasswd or _CTX_ADMIN is None:
+        return False
+    usuario_ok, hash_ok = htpasswd.split(":", 1)
+    cab = request.headers.get("Authorization", "")
+    if not cab.startswith("Basic "):
+        return False
+    try:
+        usuario, senha = base64.b64decode(cab[6:]).decode("utf-8").split(":", 1)
+    except Exception:  # noqa: BLE001
+        return False
+    if not hmac.compare_digest(usuario, usuario_ok):
+        return False
+    try:
+        return _CTX_ADMIN.verify(senha, hash_ok)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _sem_senha():
+    return jsonify({"erro": "não autenticado"}), 401, {"WWW-Authenticate": 'Basic realm="admin"'}
+
+
+def _inteiro(v, padrao):
+    """Numero da query string; lixo ("NaN", "abc") vira o padrao em vez de erro 500."""
+    try:
+        return int(str(v).strip())
+    except (TypeError, ValueError):
+        return padrao
 
 
 def conectar():
@@ -391,7 +487,14 @@ CAPTACAO_CHAVES_EDITAVEIS = {
     "janela_inicio", "janela_fim", "janela_inicio_fds", "janela_fim_fds",
     "pausa_inicio", "pausa_fim",
     "max_followup", "horas_primeiro_followup",
+    "rampa_inicio", "rampa_passo", "rampa_maximo", "limite_api_dia", "limite_total_dia",
+    "disjuntor_resposta_min", "disjuntor_sem_entrega",
 }
+# O VALOR tambem e conferido (28/09): "Nao" em captacao_pausada nao e "nao" --
+# o fluxo lia como NAO pausado e a tela, como pausado.
+CAPTACAO_VALORES = {"captacao_pausada": {"sim", "nao"}, "resposta_pausada": {"sim", "nao"},
+                    "modo_teste": {"sim", "nao"}}
+CAPTACAO_HORAS = {"janela_inicio", "janela_fim", "janela_inicio_fds", "janela_fim_fds", "pausa_inicio", "pausa_fim"}
 
 
 def conectar_nai():
@@ -655,6 +758,16 @@ def api_captacao_config_salvar():
         return jsonify({"ok": False, "erro": "essa regra não é editável por aqui"}), 400
     if valor is None or str(valor).strip() == "":
         return jsonify({"ok": False, "erro": "valor vazio"}), 400
+    valor = str(valor).strip()
+    if chave in CAPTACAO_VALORES:
+        valor = valor.lower()
+        if valor not in CAPTACAO_VALORES[chave]:
+            return jsonify({"ok": False, "erro": "use sim ou nao"}), 400
+    elif chave in CAPTACAO_HORAS:
+        if not re.fullmatch(r"\d{2}:\d{2}", valor):
+            return jsonify({"ok": False, "erro": "hora no formato 09:00"}), 400
+    elif not valor.isdigit():
+        return jsonify({"ok": False, "erro": "valor precisa ser número"}), 400
     conn = conectar_nai()
     try:
         with conn.cursor() as cur:
@@ -841,7 +954,8 @@ def api_imovel_detalhe(codigo):
                    vagas_cobertas, sol, andar, valor_venda, valor_aluguel,
                    taxa_condominio, iptu, mobilia, descricao, caracteristicas,
                    publicado_no_site, disponivel, bloqueado, motivo_bloqueio,
-                   e_parceiro, criado_em, sincronizado_em
+                   e_parceiro, criado_em, sincronizado_em, captado_por, captado_em,
+                   extras
             FROM imoveis WHERE codigo = %s
         """, (codigo,))
         if not linhas:
@@ -853,14 +967,157 @@ def api_imovel_detalhe(codigo):
         for campo in ("criado_em", "sincronizado_em"):
             if item.get(campo) is not None:
                 item[campo] = item[campo].isoformat()
+        # So as chaves da lista: o extras da raspagem tambem guarda torre e
+        # apartamento, e esta rota responde sem senha.
+        extras = item.get("extras") or {}
+        item["extras"] = {k: extras[k] for k in EXTRAS_EDITAVEIS if extras.get(k) not in (None, "")}
         item["campos_editaveis"] = CAMPOS_EDITAVEIS
+        item["extras_editaveis"] = EXTRAS_EDITAVEIS
         return jsonify(item)
     finally:
         conn.close()
 
 
+def _card_do_imovel(conn, codigo):
+    """O card + as fotos de um imovel, do jeito que a Nay manda.
+
+    Reusa `nai_card_do_imovel` e `nai_imagens_do_envio` -- as MESMAS funcoes do
+    envio de verdade. Escrever um card novo aqui daria dois cards diferentes
+    para o mesmo imovel, e o do CRM envelheceria calado.
+
+    A COLAGEM FICA DE FORA. A metadinha de 4 fotos e so dos grupos desde 14/09
+    (pedido do Tel); num envio de um para um vao as fotos soltas.
+    """
+    linhas = todas_linhas(conn, "SELECT texto_pronto, qtd_fotos FROM nai_card_do_imovel(%s)", (codigo,))
+    if not linhas or not linhas[0]["texto_pronto"]:
+        return None
+    card = linhas[0]
+
+    fotos = todas_linhas(conn, "SELECT url, e_colagem FROM nai_imagens_do_envio(%s)", (codigo,))
+    urls = [f["url"] for f in fotos if f["url"] and not f["e_colagem"]]
+
+    resumo = todas_linhas(conn, """
+        SELECT codigo, status, tipo, condominio, bairro, endereco, quartos, suites,
+               banheiros, vagas, area_total, valor_venda, valor_aluguel, financia,
+               e_parceiro, publicado_no_site, fotos AS total_fotos, capa,
+               proprietario_nome
+          FROM vw_imoveis_todos WHERE codigo = %s
+    """, (codigo,))
+    r = dict(resumo[0]) if resumo else {"codigo": codigo}
+    for campo in ("valor_venda", "valor_aluguel", "area_total"):
+        if r.get(campo) is not None:
+            r[campo] = float(r[campo])
+
+    return {
+        "codigo": codigo,
+        "card": card["texto_pronto"],
+        "qtd_fotos": int(card["qtd_fotos"] or 0),
+        "fotos": urls,
+        "imovel": r,
+        # A parede do parceiro NAO bloqueia aqui: quem manda e uma pessoa, nao a
+        # Nay. Mas a bandeira vai junto, em cima, para a tela avisar antes.
+        "e_parceiro": bool(r.get("e_parceiro")),
+        "no_site": bool(r.get("publicado_no_site")),
+    }
+
+
+@app.route("/api/imovel-card/<int:codigo>")
+def api_imovel_card(codigo):
+    """O card pronto de um imovel, para o CRM mandar numa conversa.
+
+    Tel, 27/09/2026: "se alguem quiser buscar imoveis para la e ja enviar para
+    uma conversa ele pode so referenciar /codigo que ja vai as fotos e o card do
+    imovel para o contato".
+    """
+    conn = conectar_tabelas()
+    try:
+        d = _card_do_imovel(conn, codigo)
+        if not d:
+            return jsonify({"erro": "imovel nao encontrado"}), 404
+        return jsonify(d)
+    finally:
+        conn.close()
+
+
+@app.route("/api/mensagem-imovel")
+def api_mensagem_imovel():
+    """De qual imovel fala a mensagem que a pessoa MARCOU no WhatsApp?
+
+    Tel, 27/09/2026: "se alguem marcar uma mensagem de um imovel disparado no
+    grupo vai aparecer encima da mensagem um popup com o imovel".
+
+    A Z-API so manda o `referenceMessageId` -- o id da mensagem marcada, sem o
+    conteudo dela. Quem sabe de qual imovel aquela mensagem era e a CAIXA DE
+    SAIDA: `nai_saida` guarda o `message_id` de cada envio junto com o `codigo`
+    do imovel. E o caminho exato, sem adivinhar por texto.
+
+    Se a caixa de saida nao souber (mensagem antiga, ou de fora do fluxo), cai
+    no texto da mensagem em `mensagens` e procura o codigo ali. Nao achando
+    nada, devolve 404 -- a tela entao nao mostra popup, em vez de mostrar o
+    imovel errado.
+    """
+    mid = str(request.args.get("id") or "").strip()[:80]
+    if not mid:
+        return jsonify({"erro": "falta o id da mensagem"}), 400
+
+    conn = conectar_tabelas()
+    try:
+        linhas = todas_linhas(conn, """
+            SELECT codigo FROM nai_saida
+             WHERE message_id = %s AND codigo IS NOT NULL
+             ORDER BY criado_em DESC LIMIT 1
+        """, (mid,))
+        codigo = linhas[0]["codigo"] if linhas else None
+
+        if codigo is None:
+            # O texto da mensagem, procurando "Codigo: NNNN" ou codigo solto.
+            linhas = todas_linhas(conn, """
+                SELECT (regexp_match(texto, 'C(?:o|ó)digo:?\\s*([0-9]{3,5})', 'i'))[1] AS cod
+                  FROM mensagens WHERE message_id = %s AND texto IS NOT NULL
+                 ORDER BY criada_em DESC LIMIT 1
+            """, (mid,))
+            if linhas and linhas[0]["cod"]:
+                codigo = int(linhas[0]["cod"])
+
+        if codigo is None:
+            return jsonify({"erro": "nao sei de qual imovel essa mensagem fala"}), 404
+
+        d = _card_do_imovel(conn, int(codigo))
+        if not d:
+            return jsonify({"erro": "imovel nao encontrado", "codigo": codigo}), 404
+        return jsonify(d)
+    finally:
+        conn.close()
+
+
+@app.route("/api/imoveis/<int:codigo>/fotos")
+def api_imovel_fotos(codigo):
+    """As fotos de um imovel, na ordem, a capa primeiro. E o que a gaveta da
+    tela de Imoveis abre quando alguem clica na linha -- antes nao havia de
+    onde tirar isso: `/api/imoveis/<codigo>` traz os campos do imovel e nao
+    as fotos."""
+    conn = conectar()
+    try:
+        linhas = todas_linhas(conn, """
+            SELECT url, coalesce(e_capa, false) AS e_capa, e_fachada
+              FROM imovel_fotos
+             WHERE codigo = %s AND coalesce(url, '') <> ''
+             -- sem `id` no desempate: a role do site tem SELECT coluna por
+             -- coluna em imovel_fotos e `id` nao esta entre elas (de proposito).
+             ORDER BY e_capa DESC, ordem NULLS LAST, url
+        """, (codigo,))
+        return jsonify({"codigo": codigo, "total": len(linhas),
+                        "fotos": [{"url": l["url"], "capa": l["e_capa"], "fachada": l["e_fachada"]}
+                                  for l in linhas]})
+    finally:
+        conn.close()
+
+
 @app.route("/api/imoveis/<int:codigo>", methods=["PUT"])
+@app.route("/admin/api/imoveis/<int:codigo>", methods=["PUT"])
 def api_imovel_salvar(codigo):
+    if not senha_do_admin_confere():
+        return _sem_senha()
     corpo = request.get_json(silent=True) or {}
     sets = []
     valores = []
@@ -882,10 +1139,39 @@ def api_imovel_salvar(codigo):
             sets.append(psycopg2.sql.SQL("condominio_nome = (SELECT nome FROM condominios WHERE id = %s)"))
             valores.append(cid)
 
+    # A SITUAÇÃO (28/09, Pedro: "o status do imóvel nem tá dando pra editar
+    # direito"). Ela manda em duas outras coisas, pela regra do Tel de 27/09:
+    # nosso e Disponível fica no site e na Nay; qualquer outra situação sai dos
+    # dois. Sem isso, marcar "Alugado" deixava a Nay oferecendo o imóvel.
+    # `publicado_no_site` mandado junto, de propósito, vale mais que a regra.
+    status_novo = None
+    if "status" in corpo:
+        status_novo = str(corpo.get("status") or "").strip()
+        if status_novo not in STATUS_EDITAVEIS:
+            return jsonify({"erro": "validação", "detalhes": ["status: use " + ", ".join(STATUS_EDITAVEIS)]}), 400
+        sets.append(psycopg2.sql.SQL("status = %s"))
+        valores.append(status_novo)
+        sets.append(psycopg2.sql.SQL("disponivel = %s"))
+        valores.append(status_novo == "Disponível")
+        if "publicado_no_site" not in corpo:
+            sets.append(psycopg2.sql.SQL("publicado_no_site = (%s AND NOT coalesce(e_parceiro, false))"))
+            valores.append(status_novo == "Disponível")
+
+    # A TRAVA (28/09, Pedro: "a não ser que o Tel tenha mudado em uma data
+    # posterior"): o que se decide à mão aqui -- situação ou "no site" -- a
+    # leitura diária do site antigo não desfaz. Sem ela, o imóvel posto
+    # Disponível no admin novo e que não está no .com saía do ar na manhã
+    # seguinte (sincronizar_catalogo.py despublica o que não acha lá).
+    if status_novo is not None or "publicado_no_site" in corpo:
+        sets.append(psycopg2.sql.SQL("travado = true, travado_motivo = %s, travado_em = now()"))
+        valores.append("mudado à mão no admin novo")
+
     for campo, valor in corpo.items():
         regra = CAMPOS_EDITAVEIS.get(campo)
         if not regra:
             continue  # ignora silenciosamente qualquer campo fora da lista
+        if campo == "disponivel" and status_novo is not None:
+            continue  # quem decide é a situação, logo acima
 
         if valor is None:
             sets.append(psycopg2.sql.SQL("{} = %s").format(psycopg2.sql.Identifier(campo)))
@@ -911,26 +1197,319 @@ def api_imovel_salvar(codigo):
 
         sets.append(psycopg2.sql.SQL("{} = %s").format(psycopg2.sql.Identifier(campo)))
 
+    # os campos do site antigo (extras) e a parte privada (unidade, locacao)
+    apagar, gravar = _extras_do_corpo(corpo, erros)
+    if apagar or gravar:
+        sets.append(psycopg2.sql.SQL("extras = (coalesce(extras, '{}'::jsonb) - %s::text[]) || %s::jsonb"))
+        valores.append(apagar)
+        valores.append(psycopg2.extras.Json(gravar))
+    unidade, ficha, vencimento = _privado_do_corpo(corpo, erros)
+    dono, dono_novo = _proprietario_do_corpo(corpo)
+
     if erros:
         return jsonify({"erro": "validação", "detalhes": erros}), 400
-    if not sets:
+    if not sets and not unidade and not ficha and vencimento is _SEM_VENCIMENTO and dono is None:
         return jsonify({"erro": "nenhum campo editável enviado"}), 400
 
     conn = conectar_escrita()
     try:
-        query = psycopg2.sql.SQL("UPDATE imoveis SET {} WHERE codigo = %s").format(
-            psycopg2.sql.SQL(", ").join(sets)
-        )
         with conn.cursor() as cur:
-            cur.execute(query, valores + [codigo])
-            afetadas = cur.rowcount
+            if sets:
+                query = psycopg2.sql.SQL("UPDATE imoveis SET {} WHERE codigo = %s").format(
+                    psycopg2.sql.SQL(", ").join(sets)
+                )
+                cur.execute(query, valores + [codigo])
+                existe = cur.rowcount > 0
+            else:
+                cur.execute("SELECT 1 FROM imoveis WHERE codigo = %s", (codigo,))
+                existe = cur.fetchone() is not None
+            if not existe:
+                conn.rollback()
+                return jsonify({"erro": "não encontrado"}), 404
+            _gravar_privado(cur, codigo, unidade, ficha, vencimento)
+            pid = _gravar_proprietario(cur, codigo, dono, dono_novo)
         conn.commit()
-        if afetadas == 0:
-            return jsonify({"erro": "não encontrado"}), 404
-        return jsonify({"status": "salvo", "codigo": codigo})
+        resposta = {"status": "salvo", "codigo": codigo, "proprietario_id": pid}
+        if dono is not None:   # o dono como ficou gravado (pode ter ligado a quem já era dono)
+            resposta["proprietario"] = _proprietario_do_imovel(conn, codigo)
+        return jsonify(resposta)
     except Exception as exc:  # noqa: BLE001
         conn.rollback()
         return jsonify({"erro": exc.__class__.__name__}), 500
+    finally:
+        conn.close()
+
+
+def _extra_normalizado(tipo, valor):
+    """O valor do jeito que o site antigo gravava no extras; None apaga a chave."""
+    if valor is None:
+        return None
+    txt = str(valor).strip()
+    if not txt:
+        return None
+    if tipo == "inteiro":
+        return str(int(float(txt.replace(",", "."))))
+    if tipo in ("m2", "m"):
+        achado = re.search(r"\d+(?:[.,]\d+)?", txt)
+        if not achado:
+            raise ValueError
+        n = float(achado.group(0).replace(",", "."))
+        return ("%.2f" % n).rstrip("0").rstrip(".") + (" m2" if tipo == "m2" else " m")
+    if tipo == "simnao":
+        baixo = txt.lower()
+        if baixo in ("sim", "s", "true", "1"):
+            return "Sim"
+        if baixo in ("não", "nao", "n", "false", "0"):
+            return "Não"
+        raise ValueError
+    if tipo == "lista_texto":   # "A, B, A" -> "A, B" (o jeito do site antigo)
+        itens = []
+        for item in re.split(r"[,\n]", txt):
+            item = item.strip()
+            if item and item not in itens:
+                itens.append(item)
+        return ", ".join(itens)[:2000] or None
+    return txt[:500]
+
+
+def _extras_do_corpo(corpo, erros):
+    """(chaves a apagar, chaves a gravar) de corpo["extras"]. Chave fora de
+    EXTRAS_EDITAVEIS e ignorada, igual aos campos de coluna."""
+    apagar, gravar = [], {}
+    extras = corpo.get("extras")
+    if not isinstance(extras, dict):
+        return apagar, gravar
+    for chave, valor in extras.items():
+        tipo = EXTRAS_EDITAVEIS.get(chave)
+        if not tipo:
+            continue
+        try:
+            v = _extra_normalizado(tipo, valor)
+        except (TypeError, ValueError):
+            erros.append(f"{chave}: valor inválido")
+            continue
+        if v is None:
+            apagar.append(chave)
+        else:
+            gravar[chave] = v
+    return apagar, gravar
+
+
+def _privado_do_corpo(corpo, erros):
+    """(unidade, ficha, vencimento) de corpo["privado"]. O vencimento volta
+    _SEM_VENCIMENTO quando o corpo nao fala dele; None apaga."""
+    unidade, ficha, vencimento = {}, {}, _SEM_VENCIMENTO
+    privado = corpo.get("privado")
+    if not isinstance(privado, dict):
+        return unidade, ficha, vencimento
+    for campo, valor in privado.items():
+        if campo in PRIVADO_UNIDADE or campo in PRIVADO_FICHA:
+            limite = 4000 if campo == "observacoes" else 300
+            txt = None if valor is None else (str(valor).strip()[:limite] or None)
+            (unidade if campo in PRIVADO_UNIDADE else ficha)[campo] = txt
+        elif campo == "vencimento":
+            if valor in (None, ""):
+                vencimento = None
+            else:
+                try:
+                    vencimento = date.fromisoformat(str(valor)[:10])
+                except ValueError:
+                    erros.append("vencimento: data inválida")
+    return unidade, ficha, vencimento
+
+
+def _gravar_privado(cur, codigo, unidade, ficha, vencimento):
+    """A unidade em imovel_privado, o locatario em privado.imovel_ficha e o
+    vencimento em contratos_locacao (de onde sai a lista por vencimento)."""
+    for tabela, campos, extra in (("imovel_privado", unidade, None),
+                                  ("imovel_ficha", ficha, "atualizado_em = now()")):
+        if not campos:
+            continue
+        cols = list(campos)
+        alvo = (psycopg2.sql.Identifier("privado", tabela) if tabela == "imovel_ficha"
+                else psycopg2.sql.Identifier(tabela))
+        sets = [psycopg2.sql.SQL("{0} = EXCLUDED.{0}").format(psycopg2.sql.Identifier(c)) for c in cols]
+        if extra:
+            sets.append(psycopg2.sql.SQL(extra))
+        cur.execute(psycopg2.sql.SQL(
+            "INSERT INTO {t} (codigo, {c}) VALUES (%s, {v}) ON CONFLICT (codigo) DO UPDATE SET {s}"
+        ).format(t=alvo,
+                 c=psycopg2.sql.SQL(", ").join(psycopg2.sql.Identifier(c) for c in cols),
+                 v=psycopg2.sql.SQL(", ").join(psycopg2.sql.Placeholder() for _ in cols),
+                 s=psycopg2.sql.SQL(", ").join(sets)),
+            [codigo] + [campos[c] for c in cols])
+    if vencimento is not _SEM_VENCIMENTO:
+        cur.execute("UPDATE contratos_locacao SET vencimento = %s WHERE codigo = %s", (vencimento, str(codigo)))
+        if cur.rowcount == 0 and vencimento is not None:
+            cur.execute("INSERT INTO contratos_locacao (codigo, vencimento) VALUES (%s, %s)", (str(codigo), vencimento))
+
+
+def _telefone_formatado(txt):
+    """O formato do cadastro: (92) 99999-9999. Outro jeito (dois números,
+    estrangeiro) fica como veio -- a Nay pega o primeiro telefone do campo."""
+    digitos = re.sub(r"\D", "", txt)
+    if digitos.startswith("55") and len(digitos) in (12, 13):
+        digitos = digitos[2:]
+    if len(digitos) == 11:
+        return f"({digitos[:2]}) {digitos[2:7]}-{digitos[7:]}"
+    if len(digitos) == 10:
+        return f"({digitos[:2]}) {digitos[2:6]}-{digitos[6:]}"
+    return txt
+
+
+def _documento_formatado(txt):
+    digitos = re.sub(r"\D", "", txt)
+    if len(digitos) == 11:
+        return f"{digitos[:3]}.{digitos[3:6]}.{digitos[6:9]}-{digitos[9:]}"
+    if len(digitos) == 14:
+        return f"{digitos[:2]}.{digitos[2:5]}.{digitos[5:8]}/{digitos[8:12]}-{digitos[12:]}"
+    return txt
+
+
+def _proprietario_do_corpo(corpo):
+    """(dados, novo) de corpo["proprietario"]. `novo` = corpo["proprietario_novo"]:
+    "é outra pessoa" -- não mexe no dono de hoje, cadastra ou acha outro."""
+    p = corpo.get("proprietario")
+    if not isinstance(p, dict):
+        return None, False
+    dados = {}
+    for campo in PROPRIETARIO_CAMPOS:
+        if campo in p:
+            v = p.get(campo)
+            v = None if v is None else (str(v).strip()[:300] or None)
+            if v and campo == "telefone":
+                v = _telefone_formatado(v)
+            if v and campo == "documento":
+                v = _documento_formatado(v)
+            dados[campo] = v
+    return dados, bool(corpo.get("proprietario_novo"))
+
+
+def _gravar_proprietario(cur, codigo, dados, novo):
+    """Grava o dono do imóvel e liga os dois lugares. Devolve o id (ou None).
+
+    * o imóvel já tem dono e não é "outra pessoa": atualiza os dados DELE (valem
+      para todos os imóveis dele);
+    * senão procura quem já é dono de outro imóvel -- pelo CPF/CNPJ, ou pelo
+      telefone (8 últimos dígitos), e só se achar UM: ligar o imóvel à pessoa
+      errada não tem volta; na dúvida, cadastra outro;
+    * não achou: cadastra, com id da faixa 900001+ (migração 162)."""
+    if dados is None:
+        return None
+    cur.execute("SELECT coalesce(p.proprietario_id, i.proprietario_id) AS id FROM imoveis i "
+                "LEFT JOIN imovel_privado p ON p.codigo = i.codigo WHERE i.codigo = %s", (codigo,))
+    pid = None if novo else (cur.fetchone() or {}).get("id")
+    if pid is not None:
+        if dados:
+            cur.execute(psycopg2.sql.SQL("UPDATE proprietarios SET {} WHERE id = %s").format(
+                psycopg2.sql.SQL(", ").join(psycopg2.sql.SQL("{} = %s").format(psycopg2.sql.Identifier(c)) for c in dados)),
+                list(dados.values()) + [pid])
+    else:
+        preenchidos = {c: v for c, v in dados.items() if v}
+        if not preenchidos:
+            return None
+        documento = re.sub(r"\D", "", preenchidos.get("documento") or "")
+        telefone = re.sub(r"\D", "", preenchidos.get("telefone") or "")
+        if len(documento) >= 11:
+            cur.execute(r"SELECT id FROM proprietarios WHERE regexp_replace(coalesce(documento, ''), '\D', '', 'g') = %s LIMIT 2",
+                        (documento,))
+            achados = cur.fetchall()
+            pid = achados[0]["id"] if len(achados) == 1 else None
+        if pid is None and len(telefone) >= 8:
+            cur.execute(r"SELECT id FROM proprietarios WHERE regexp_replace(coalesce(telefone, ''), '\D', '', 'g') LIKE %s LIMIT 2",
+                        ("%" + telefone[-8:] + "%",))
+            achados = cur.fetchall()
+            pid = achados[0]["id"] if len(achados) == 1 else None
+        if pid is None:
+            cur.execute("SELECT nextval('proprietarios_site_id_seq') AS id")
+            pid = cur.fetchone()["id"]
+            cols = list(preenchidos)
+            cur.execute(psycopg2.sql.SQL("INSERT INTO proprietarios (id, {}) VALUES (%s, {})").format(
+                psycopg2.sql.SQL(", ").join(psycopg2.sql.Identifier(c) for c in cols),
+                psycopg2.sql.SQL(", ").join(psycopg2.sql.Placeholder() for _ in cols)),
+                [pid] + [preenchidos[c] for c in cols])
+        else:
+            # já era dono de outro imóvel: completa o que o cadastro dele não tinha
+            cur.execute(psycopg2.sql.SQL("UPDATE proprietarios SET {} WHERE id = %s").format(
+                psycopg2.sql.SQL(", ").join(
+                    psycopg2.sql.SQL("{0} = coalesce(NULLIF(btrim({0}), ''), %s)").format(psycopg2.sql.Identifier(c))
+                    for c in preenchidos)),
+                list(preenchidos.values()) + [pid])
+    # os dois lugares apontam para ele (a Nay lê o imovel_privado)
+    cur.execute("UPDATE imoveis SET proprietario_id = %s WHERE codigo = %s", (pid, codigo))
+    cur.execute("INSERT INTO imovel_privado (codigo, proprietario_id) VALUES (%s, %s) "
+                "ON CONFLICT (codigo) DO UPDATE SET proprietario_id = EXCLUDED.proprietario_id", (codigo, pid))
+    return pid
+
+
+def _proprietario_do_imovel(conn, codigo):
+    dono = todas_linhas(conn, """
+        SELECT pr.id, pr.nome, pr.telefone, pr.email, pr.documento, pr.tratamento
+          FROM imoveis i LEFT JOIN imovel_privado p ON p.codigo = i.codigo
+          JOIN proprietarios pr ON pr.id = coalesce(p.proprietario_id, i.proprietario_id)
+         WHERE i.codigo = %s""", (codigo,))
+    if not dono:
+        return None
+    dono = dict(dono[0])
+    outros = todas_linhas(conn, """
+        SELECT codigo FROM imoveis WHERE proprietario_id = %s AND codigo <> %s
+        UNION SELECT codigo FROM imovel_privado WHERE proprietario_id = %s AND codigo <> %s
+        ORDER BY 1 LIMIT 40""", (dono["id"], codigo, dono["id"], codigo))
+    dono["outros_imoveis"] = [o["codigo"] for o in outros]
+    return dono
+
+
+@app.route("/admin/api/imoveis/<int:codigo>/privado")
+def api_imovel_privado(codigo):
+    """A UNIDADE (torre, apartamento, bloco, casa, lote) e a LOCACAO ATUAL do
+    imovel -- so com a senha do /admin. A rota aberta /api/imoveis/<codigo>
+    nunca devolve isto."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    conn = conectar_escrita()
+    try:
+        saida = {c: None for c in PRIVADO_UNIDADE + PRIVADO_FICHA}
+        u = todas_linhas(conn, "SELECT torre, unidade, bloco, casa, lote FROM imovel_privado WHERE codigo = %s", (codigo,))
+        f = todas_linhas(conn, "SELECT locatario_nome, locatario_contato, observacao_aluguel, observacoes "
+                               "FROM privado.imovel_ficha WHERE codigo = %s", (codigo,))
+        v = todas_linhas(conn, "SELECT vencimento FROM contratos_locacao WHERE codigo = %s "
+                               "ORDER BY vencimento DESC NULLS LAST LIMIT 1", (str(codigo),))
+        if u:
+            saida.update(u[0])
+        if f:
+            saida.update(f[0])
+        saida["vencimento"] = v[0]["vencimento"].isoformat() if v and v[0]["vencimento"] else None
+        saida["proprietario"] = _proprietario_do_imovel(conn, codigo)
+        return jsonify(saida)
+    finally:
+        conn.close()
+
+
+@app.route("/admin/api/imoveis/valores")
+def api_imovel_valores():
+    """As listas que descem no cadastro, tiradas do proprio catalogo: as de
+    /api/imoveis/valores (imoveis_api.py) mais as dos campos do site antigo --
+    captado/indicado/inspecionado por sao nomes da equipe, por isso esta rota
+    fica atras da senha e a aberta continua como estava."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    conn = conectar_escrita()
+    try:
+        saida = {}
+        for campo in ("tipo", "bairro", "cidade", "estado", "andar", "sol", "mobilia", "motivo_bloqueio", "captado_por"):
+            linhas = todas_linhas(conn, psycopg2.sql.SQL(
+                "SELECT btrim({c}) AS v, count(*) AS n FROM imoveis WHERE NULLIF(btrim({c}), '') IS NOT NULL "
+                "GROUP BY 1 ORDER BY 2 DESC LIMIT 200").format(c=psycopg2.sql.Identifier(campo)))
+            saida[campo] = [l["v"] for l in linhas]
+        linhas = todas_linhas(conn, "SELECT btrim(c) AS v, count(*) AS n FROM imoveis, unnest(caracteristicas) c "
+                                    "WHERE NULLIF(btrim(c), '') IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 300")
+        saida["caracteristicas"] = [l["v"] for l in linhas]
+        for chave in ("indicado por", "inspecionado por", "tipo de cobertura", "permuta"):
+            linhas = todas_linhas(conn, "SELECT btrim(extras->>%s) AS v, count(*) AS n FROM imoveis "
+                                        "WHERE NULLIF(btrim(extras->>%s), '') IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 200",
+                                  (chave, chave))
+            saida["x:" + chave] = [l["v"] for l in linhas]
+        return jsonify(saida)
     finally:
         conn.close()
 
@@ -952,110 +1531,277 @@ def _csv(cabecalho, linhas, nome):
 
 STATUS_IMOVEL = ("Disponível", "Alugado", "Vendido", "Arquivado", "Removido",
                  "Rascunho", "Em revisão", "Indisponível", "Fora do site")
+# O que se escolhe na lista suspensa: "Fora do site" não é situação, é anúncio.
+STATUS_EDITAVEIS = ("Disponível", "Alugado", "Vendido", "Rascunho", "Em revisão",
+                    "Arquivado", "Removido", "Indisponível")
 
 
 @app.route("/api/imoveis-lista")
 def api_imoveis_lista():
-    """TODOS os imoveis (catalogo + admin antigo), paginado, com total e
-    filtros de verdade. Antes: so o catalogo, corte em 200, filtros sem
-    efeito, e o filtro de vencimento na carga inicial reduzia a 1 imovel."""
+    """TODOS os imoveis, paginado, com filtros de verdade e a CONTAGEM AO LADO
+    de cada opcao do filtro.
+
+    A contagem ao lado ignora o proprio grupo da opcao. Sem isso o numero ao
+    lado de "Alugado" viraria 0 no instante em que alguem marca "Disponivel", e
+    o filtro deixaria de servir de mapa do acervo -- que e pra isso que ele
+    existe: dar pra ver, antes de clicar, quanto tem de cada coisa.
+
+    Sao tres leituras da visao (a pagina, a base das contagens e o resumo), ~47ms
+    cada. A conta em si e feita aqui no Python sobre a base ja filtrada, em vez
+    de uma consulta por grupo -- sete leituras seria meio segundo de espera.
+    """
     a = request.args
-    per = max(1, min(int(a.get("per") or 50), 6000 if a.get("formato") == "csv" else 2000))
-    page = max(1, int(a.get("page") or 1))
-    conds, params = [], []
+    # MAPA (28/09): a tela pede o ponto de cada imovel, com os MESMOS filtros da
+    # lista -- o mapa mostra o que esta filtrado. Pode vir o acervo inteiro.
+    mapa = a.get("mapa") == "1"
+    per = max(1, min(_inteiro(a.get("per") or 50, 50),
+                     6000 if a.get("formato") == "csv" or mapa else 2000))
+    page = max(1, _inteiro(a.get("page") or 1, 1))
+
+    # Cada condicao e uma dupla (sql, parametros). Assim da pra montar o WHERE
+    # de tres jeitos diferentes (a pagina, cada contagem, o CSV) sem nunca
+    # desencontrar a ordem dos %s.
+    base = []      # busca, lugar, valor, data -- valem para tudo
+    grupos = {}    # as facetas, uma lista de condicoes por grupo
 
     q = str(a.get("q") or "").strip()[:80]
     if q:
         if q.isdigit():
-            conds.append("v.codigo::text LIKE %s")
-            params.append(q + "%")
+            base.append(("v.codigo::text LIKE %s", [q + "%"]))
         else:
-            conds.append("nay_sem_acento(lower(concat_ws(' ', v.condominio, v.bairro, v.endereco, v.tipo, v.proprietario_nome))) "
-                         "LIKE '%%' || nay_sem_acento(lower(%s)) || '%%'")
-            params.append(q)
+            base.append(("nay_sem_acento(lower(concat_ws(' ', v.condominio, v.bairro, v.endereco, v.tipo, v.proprietario_nome))) "
+                         "LIKE '%%' || nay_sem_acento(lower(%s)) || '%%'", [q]))
+
     status = [x for x in str(a.get("status") or "").split(",") if x in STATUS_IMOVEL]
     if status:
-        conds.append("v.status = ANY(%s)")
-        params.append(status)
+        grupos.setdefault("status", []).append(("v.status = ANY(%s)", [status]))
+
     grupo = a.get("grupo")
     if grupo in ("apartamento", "casa", "outros", "sem_tipo"):
-        conds.append("v.grupo_tipo = %s")
-        params.append(grupo)
+        grupos.setdefault("tipo", []).append(("v.grupo_tipo = %s", [grupo]))
     tipo = str(a.get("tipo") or "").strip()[:60]
     if tipo:
-        conds.append("v.tipo ILIKE %s")
-        params.append(tipo + "%")
+        grupos.setdefault("tipo", []).append(("v.tipo ILIKE %s", [tipo + "%"]))
+
     condos = [int(x) for x in str(a.get("condo_ids") or "").split(",") if x.strip().isdigit()]
     if condos:
-        conds.append("(v.condo_id = ANY(%s) OR lower(nay_sem_acento(v.condominio)) IN "
-                     "(SELECT lower(nay_sem_acento(nome)) FROM condominios WHERE id = ANY(%s)))")
-        params.extend([condos, condos])
+        base.append(("(v.condo_id = ANY(%s) OR lower(nay_sem_acento(v.condominio)) IN "
+                     "(SELECT lower(nay_sem_acento(nome)) FROM condominios WHERE id = ANY(%s)))",
+                     [condos, condos]))
     bairro = str(a.get("bairro") or "").strip()[:60]
     if bairro:
-        conds.append("nay_sem_acento(lower(v.bairro)) LIKE '%%' || nay_sem_acento(lower(%s)) || '%%'")
-        params.append(bairro)
+        base.append(("nay_sem_acento(lower(v.bairro)) LIKE '%%' || nay_sem_acento(lower(%s)) || '%%'", [bairro]))
+
+    # VÁRIOS DE UMA VEZ (28/09, Pedro: "não consigo selecionar vários bairros,
+    # quero os filtros dos imóveis igual os do enviar"). Os valores vêm da lista
+    # de /api/imoveis/opcoes, escritos como estão no banco -- igualdade, sem LIKE.
+    def varios(nome):
+        return [x.strip()[:80] for x in a.getlist(nome) if x and x.strip()][:60]
+    bairros = varios("bairros")
+    if bairros:
+        base.append(("v.bairro = ANY(%s)", [bairros]))
+    tipos = varios("tipos")
+    if tipos:
+        base.append(("v.tipo = ANY(%s)", [tipos]))
+    condominios = varios("condominios")
+    if condominios:
+        base.append(("v.condominio = ANY(%s)", [condominios]))
+
     fin = a.get("finalidade")
     if fin == "venda":
-        conds.append("(coalesce(v.valor_venda, 0) > 0 OR v.valor_texto ILIKE 'Venda%%')")
+        grupos.setdefault("fin", []).append(("(coalesce(v.valor_venda, 0) > 0 OR v.valor_texto ILIKE 'Venda%%')", []))
     elif fin == "aluguel":
-        conds.append("(coalesce(v.valor_aluguel, 0) > 0 OR v.valor_texto ILIKE 'Aluguel%%')")
-    for chave, col in (("quartos", "v.quartos"), ("vagas", "v.vagas")):
+        grupos.setdefault("fin", []).append(("(coalesce(v.valor_aluguel, 0) > 0 OR v.valor_texto ILIKE 'Aluguel%%')", []))
+
+    for chave, col, nome in (("quartos", "v.quartos", "quartos"), ("vagas", "v.vagas", "vagas")):
         val = str(a.get(chave) or "")
         if val.endswith("+") and val[:-1].isdigit():
-            conds.append(col + " >= %s")
-            params.append(int(val[:-1]))
+            grupos.setdefault(nome, []).append((col + " >= %s", [int(val[:-1])]))
         elif val.isdigit():
-            conds.append(col + " = %s")
-            params.append(int(val))
+            grupos.setdefault(nome, []).append((col + " >= %s", [int(val)]))
+
+    # FAIXA DE VALOR NA COLUNA DA FINALIDADE (28/09). Antes o minimo/maximo
+    # comparava com coalesce(venda, aluguel): com "Aluguel" marcado, o imovel
+    # que tem os dois precos era medido pelo de VENDA e sumia da faixa. Sem
+    # finalidade, vale se um dos dois precos cabe inteiro na faixa.
+    col_valor = {"aluguel": "nullif(v.valor_aluguel, 0)", "venda": "nullif(v.valor_venda, 0)"}.get(fin)
+    faixa = []
     for chave, op in (("vmin", ">="), ("vmax", "<=")):
         val = re.sub(r"[^\d]", "", str(a.get(chave) or "").split(",")[0])
         if val:
-            conds.append("coalesce(nullif(v.valor_venda, 0), v.valor_aluguel) " + op + " %s")
-            params.append(int(val))
+            faixa.append((op, int(val)))
+    if faixa:
+        def na_faixa(col):
+            return "(" + " AND ".join(col + " " + op + " %s" for op, _ in faixa) + ")"
+        numeros = [x for _, x in faixa]
+        if col_valor:
+            base.append((na_faixa(col_valor), numeros))
+        else:
+            base.append(("(" + na_faixa("nullif(v.valor_venda, 0)") + " OR " +
+                         na_faixa("nullif(v.valor_aluguel, 0)") + ")", numeros + numeros))
+
     if a.get("parceiro") == "sim":
-        conds.append("v.e_parceiro")
+        grupos.setdefault("parceiro", []).append(("v.e_parceiro", []))
     elif a.get("parceiro") == "nao":
-        conds.append("NOT v.e_parceiro")
-    # "ver os imoveis que estao sem proprietarios" (Tel, 23/09). Sao 1.163 no
-    # catalogo -- e e por isso que o botao de proprietario nao abre nada na
-    # maioria das linhas.
+        grupos.setdefault("parceiro", []).append(("NOT v.e_parceiro", []))
+
     if a.get("sem_dono") == "1":
-        conds.append("coalesce(v.proprietario_nome, '') = ''")
+        grupos.setdefault("dono", []).append(("coalesce(v.proprietario_nome, '') = ''", []))
+    elif a.get("com_dono") == "1":
+        grupos.setdefault("dono", []).append(("coalesce(v.proprietario_nome, '') <> ''", []))
+
+    # ANUNCIO: esta no site ou nao. E outra coisa que a situacao do imovel --
+    # um imovel disponivel pode estar fora do site de proposito.
+    if a.get("anunciado") == "sim":
+        grupos.setdefault("anuncio", []).append(("v.publicado_no_site", []))
+    elif a.get("anunciado") == "nao":
+        grupos.setdefault("anuncio", []).append(("NOT v.publicado_no_site", []))
+
+    if a.get("com_foto") == "sim":
+        grupos.setdefault("foto", []).append(("v.fotos > 0", []))
+    elif a.get("com_foto") == "nao":
+        grupos.setdefault("foto", []).append(("v.fotos = 0", []))
+
+    if a.get("confirmar") == "1":
+        grupos.setdefault("confirmar", []).append(("v.precisa_confirmacao", []))
+
     if a.get("catalogo") == "1":
-        conds.append("v.no_catalogo")
+        base.append(("v.no_catalogo", []))
     if a.get("financia") in ("Sim", "Não"):
-        conds.append("v.financia = %s")
-        params.append(a.get("financia"))
+        grupos.setdefault("financia", []).append(("v.financia = %s", [a.get("financia")]))
+
+    # ---- DATA EM DOIS PASSOS: qual data, depois qual periodo ----------
+    # As duas datas que existem de verdade no banco: o fim do contrato de
+    # aluguel (contratos_locacao) e a data de cadastro. "Disponivel desde" e
+    # "ultima confirmacao do proprietario" nao existem em coluna nenhuma --
+    # ficam de fora em vez de virar filtro que mente.
+    CAMPO_DATA = {"vencimento": ("v.vencimento", "futuro"), "criado": ("v.criado::date", "passado")}
+    campo, quando = CAMPO_DATA.get(str(a.get("data_campo") or ""), (None, None))
+    per_data = str(a.get("data_per") or "")
+    if campo and per_data:
+        meses = re.sub(r"[^\d]", "", str(a.get("data_meses") or ""))
+        if per_data == "semdata":
+            base.append((campo + " IS NULL", []))
+        elif per_data == "vencido" and quando == "futuro":
+            base.append((campo + " < current_date", []))
+        elif per_data == "semana":
+            # "esta semana" / "ultimos 7 dias" -- e o unico periodo que olha para
+            # DENTRO da janela; os outros sao "ha mais de" e "nos proximos".
+            if quando == "futuro":
+                base.append((campo + " BETWEEN current_date AND current_date + 7", []))
+            else:
+                base.append((campo + " >= current_date - 7", []))
+        elif per_data == "meses" and meses:
+            if quando == "futuro":
+                base.append((campo + " BETWEEN current_date AND current_date + (%s || ' months')::interval", [meses]))
+            else:
+                base.append((campo + " <= current_date - (%s || ' months')::interval", [meses]))
+        elif per_data.isdigit():
+            if quando == "futuro":
+                base.append((campo + " BETWEEN current_date AND current_date + %s", [int(per_data)]))
+            else:
+                base.append((campo + " <= current_date - %s", [int(per_data)]))
+
+    # O filtro de vencimento antigo (a faixa de datas em cima da tabela) continua
+    # valendo: a tela de Anuncios usa ele.
     de, ate = periodo_da_query()
     if de:
-        conds.append("v.vencimento >= %s")
-        params.append(de)
+        base.append(("v.vencimento >= %s", [de]))
     if ate:
-        conds.append("v.vencimento <= %s")
-        params.append(ate)
+        base.append(("v.vencimento <= %s", [ate]))
     for chave, op in (("criado_de", ">="), ("criado_ate", "<=")):
         val = str(a.get(chave) or "")
         if re.match(r"^\d{4}-\d{2}-\d{2}$", val):
-            conds.append("v.criado::date " + op + " %s")
-            params.append(val)
+            base.append(("v.criado::date " + op + " %s", [val]))
 
+    def montar(conds):
+        """(WHERE, parametros) na mesma ordem -- e o que impede o %s trocado."""
+        if not conds:
+            return "", []
+        return ("WHERE " + " AND ".join(c[0] for c in conds),
+                [p for c in conds for p in c[1]])
+
+    todas = base + [c for g in grupos.values() for c in g]
+    where, params = montar(todas)
+
+    # "menor/maior valor" tambem olha o preco da finalidade escolhida
+    col_ordem = col_valor or "coalesce(nullif(v.valor_venda, 0), v.valor_aluguel)"
     ordem = {"antigo": "v.criado ASC NULLS LAST, v.codigo",
-             "menor": "coalesce(nullif(v.valor_venda, 0), v.valor_aluguel) ASC NULLS LAST",
-             "maior": "coalesce(nullif(v.valor_venda, 0), v.valor_aluguel) DESC NULLS LAST",
-             "codigo": "v.codigo DESC"}.get(a.get("ordem"), "v.criado DESC NULLS LAST, v.codigo DESC")
-    where = ("WHERE " + " AND ".join(conds)) if conds else ""
+             "menor": col_ordem + " ASC NULLS LAST",
+             "maior": col_ordem + " DESC NULLS LAST",
+             "codigo": "v.codigo DESC",
+             "vencimento": "v.vencimento ASC NULLS LAST",
+             "fotos": "v.fotos DESC, v.codigo DESC"}.get(a.get("ordem"), "v.criado DESC NULLS LAST, v.codigo DESC")
 
     conn = conectar()
     try:
-        linhas = todas_linhas(conn, "SELECT v.*, count(*) OVER () AS total FROM vw_imoveis_todos v " + where +
-                              " ORDER BY " + ordem + " LIMIT %s OFFSET %s",
+        geo_col = (", g.lat, g.lon, g.precisao AS geo_precisao, g.bairro AS geo_bairro" if mapa else "")
+        geo_join = (" LEFT JOIN imovel_geo g ON g.codigo = v.codigo " if mapa else " ")
+        linhas = todas_linhas(conn, "SELECT v.*" + geo_col + ", count(*) OVER () AS total FROM vw_imoveis_todos v" +
+                              geo_join + where + " ORDER BY " + ordem + " LIMIT %s OFFSET %s",
                               tuple(params + [per, (page - 1) * per]))
         resumo = todas_linhas(conn, """
             SELECT count(*) FILTER (WHERE status = 'Disponível' AND coalesce(valor_aluguel, 0) > 0) AS aluguel,
                    count(*) FILTER (WHERE status = 'Disponível' AND coalesce(valor_venda, 0) > 0) AS venda,
                    count(*) FILTER (WHERE e_parceiro) AS parceiros,
+                   count(*) FILTER (WHERE fotos > 0) AS com_foto,
                    count(*) AS todos
               FROM vw_imoveis_todos""")[0]
+
+        # ---- a base das contagens: uma leitura, o resto e conta no Python ----
+        where_base, params_base = montar(base)
+        crus = todas_linhas(conn, """
+            SELECT v.codigo, v.status, v.tipo, v.grupo_tipo, v.publicado_no_site, v.fotos, v.quartos, v.vagas,
+                   v.e_parceiro, v.financia, v.precisa_confirmacao,
+                   coalesce(v.proprietario_nome, '') <> '' AS tem_dono,
+                   (coalesce(v.valor_venda, 0) > 0 OR v.valor_texto ILIKE 'Venda%%') AS e_venda,
+                   (coalesce(v.valor_aluguel, 0) > 0 OR v.valor_texto ILIKE 'Aluguel%%') AS e_aluguel
+              FROM vw_imoveis_todos v """ + where_base, tuple(params_base))
+
+        # como cada grupo ja escolhido peneira a base, em Python
+        PENEIRA = {
+            "status": lambda l: l["status"] in status,
+            "tipo": lambda l: ((not grupo or l["grupo_tipo"] == grupo)
+                               and (not tipo or (l["tipo"] or "").lower().startswith(tipo.lower()))),
+            "fin": lambda l: (l["e_venda"] if fin == "venda" else l["e_aluguel"]),
+            "quartos": lambda l: (l["quartos"] or 0) >= int(re.sub(r"[^\d]", "", a.get("quartos") or "0") or 0),
+            "vagas": lambda l: (l["vagas"] or 0) >= int(re.sub(r"[^\d]", "", a.get("vagas") or "0") or 0),
+            "parceiro": lambda l: l["e_parceiro"] if a.get("parceiro") == "sim" else not l["e_parceiro"],
+            "dono": lambda l: (not l["tem_dono"]) if a.get("sem_dono") == "1" else l["tem_dono"],
+            "anuncio": lambda l: l["publicado_no_site"] if a.get("anunciado") == "sim" else not l["publicado_no_site"],
+            "foto": lambda l: (l["fotos"] > 0) if a.get("com_foto") == "sim" else (l["fotos"] == 0),
+            "confirmar": lambda l: l["precisa_confirmacao"],
+            "financia": lambda l: l["financia"] == a.get("financia"),
+        }
+
+        def sem(nome):
+            """As linhas que passam por todos os grupos MENOS o `nome`."""
+            outros = [PENEIRA[g] for g in grupos if g != nome and g in PENEIRA]
+            return [l for l in crus if all(f(l) for f in outros)]
+
+        def contar(nome, chaves):
+            linhas_g = sem(nome)
+            return {rotulo: sum(1 for l in linhas_g if teste(l)) for rotulo, teste in chaves.items()}
+
+        facetas = {
+            "status": contar("status", {s: (lambda l, s=s: l["status"] == s) for s in STATUS_IMOVEL}),
+            "tipo": contar("tipo", {"": lambda l: True,
+                                    "apartamento": lambda l: l["grupo_tipo"] == "apartamento",
+                                    "casa": lambda l: l["grupo_tipo"] == "casa",
+                                    "outros": lambda l: l["grupo_tipo"] == "outros",
+                                    "sem_tipo": lambda l: l["grupo_tipo"] == "sem_tipo"}),
+            "fin": contar("fin", {"venda": lambda l: l["e_venda"], "aluguel": lambda l: l["e_aluguel"]}),
+            "quartos": contar("quartos", {str(n): (lambda l, n=n: (l["quartos"] or 0) >= n) for n in (1, 2, 3, 4)}),
+            "vagas": contar("vagas", {str(n): (lambda l, n=n: (l["vagas"] or 0) >= n) for n in (1, 2, 3, 4)}),
+            "parceiro": contar("parceiro", {"sim": lambda l: l["e_parceiro"], "nao": lambda l: not l["e_parceiro"]}),
+            "dono": contar("dono", {"com": lambda l: l["tem_dono"], "sem": lambda l: not l["tem_dono"]}),
+            "anuncio": contar("anuncio", {"sim": lambda l: l["publicado_no_site"],
+                                          "nao": lambda l: not l["publicado_no_site"]}),
+            "foto": contar("foto", {"sim": lambda l: l["fotos"] > 0, "nao": lambda l: l["fotos"] == 0}),
+            "confirmar": contar("confirmar", {"sim": lambda l: l["precisa_confirmacao"]}),
+            "financia": contar("financia", {"Sim": lambda l: l["financia"] == "Sim",
+                                            "Não": lambda l: l["financia"] == "Não"}),
+        }
 
         def valor(l):
             if l["valor_venda"]:
@@ -1067,22 +1813,250 @@ def api_imoveis_lista():
         itens = [{
             "codigo": str(l["codigo"]), "status": l["status"], "noCatalogo": l["no_catalogo"],
             "tipo": l["tipo"], "financia": l["financia"], "valor": valor(l),
+            "valorVenda": float(l["valor_venda"]) if l["valor_venda"] else None,
+            "valorAluguel": float(l["valor_aluguel"]) if l["valor_aluguel"] else None,
             "condominio": l["condominio"] or "", "condoId": l["condo_id"],
             "bairro": l["bairro"], "endereco": l["endereco"] or "",
             "proprietario": l["proprietario_nome"] or "", "parceiro": l["e_parceiro"],
             "quartos": l["quartos"], "vagas": l["vagas"],
+            "suites": l["suites"], "banheiros": l["banheiros"],
+            "area": float(l["area_total"]) if l["area_total"] else None,
+            "fotos": l["fotos"], "capa": l["capa"],
+            "anunciado": l["publicado_no_site"], "precisaConfirmar": l["precisa_confirmacao"],
+            "criado": l["criado"].date().isoformat() if l["criado"] else None,
             "vencimento": l["vencimento"].isoformat() if l["vencimento"] else None,
+            **({"lat": l.get("lat"), "lon": l.get("lon"), "precisao": l.get("geo_precisao"),
+                "bairroMapa": l.get("geo_bairro")} if mapa else {}),
         } for l in linhas]
 
         if a.get("formato") == "csv":
-            return _csv(["codigo", "status", "tipo", "valor", "condominio", "bairro", "endereco",
-                         "quartos", "vagas", "financia", "parceiro", "proprietario", "vencimento"],
-                        [[i["codigo"], i["status"], i["tipo"], i["valor"], i["condominio"], i["bairro"],
-                          i["endereco"], i["quartos"], i["vagas"], i["financia"],
-                          "sim" if i["parceiro"] else "nao", i["proprietario"], i["vencimento"]] for i in itens],
+            return _csv(["codigo", "status", "anunciado", "tipo", "valor", "condominio", "bairro", "endereco",
+                         "quartos", "suites", "banheiros", "vagas", "area", "fotos", "financia", "parceiro",
+                         "proprietario", "vencimento", "cadastro"],
+                        [[i["codigo"], i["status"], "sim" if i["anunciado"] else "nao", i["tipo"], i["valor"],
+                          i["condominio"], i["bairro"], i["endereco"], i["quartos"], i["suites"], i["banheiros"],
+                          i["vagas"], i["area"], i["fotos"], i["financia"], "sim" if i["parceiro"] else "nao",
+                          i["proprietario"], i["vencimento"], i["criado"]] for i in itens],
                         "imoveis")
         return jsonify({"total": linhas[0]["total"] if linhas else 0, "page": page, "per": per,
-                        "itens": itens, "resumo": {k: int(v or 0) for k, v in resumo.items()}})
+                        "itens": itens, "facetas": facetas,
+                        "resumo": {k: int(v or 0) for k, v in resumo.items()}})
+    finally:
+        conn.close()
+
+
+@app.route("/api/mapa/bairros")
+def api_mapa_bairros():
+    """Os bairros de Manaus para o mapa (migracao 149): o contorno oficial do
+    OpenStreetMap, um ponto de dentro (o rotulo), quem faz divisa com quem e
+    quantos imoveis nossos caem em cada um. Muda pouco: o navegador guarda 1h."""
+    conn = conectar()
+    try:
+        bairros = todas_linhas(conn, """
+            SELECT b.bairro, b.lat, b.lon, b.poligono, b.fonte, b.area_km2,
+                   (SELECT count(*) FROM imovel_geo g WHERE g.bairro = b.bairro) AS imoveis
+              FROM geo_bairro b ORDER BY b.bairro""")
+        viz = todas_linhas(conn, "SELECT bairro, vizinho, divisa, km FROM geo_bairro_vizinho ORDER BY bairro, km")
+        por = {}
+        for v in viz:
+            por.setdefault(v["bairro"], []).append({"bairro": v["vizinho"], "divisa": v["divisa"], "km": float(v["km"])})
+        saida = [{"bairro": b["bairro"], "lat": b["lat"], "lon": b["lon"], "poligono": b["poligono"],
+                  "fonte": b["fonte"], "area_km2": float(b["area_km2"]) if b["area_km2"] is not None else None,
+                  "imoveis": b["imoveis"], "vizinhos": por.get(b["bairro"], [])} for b in bairros]
+        return jsonify(saida), 200, {"Cache-Control": "public, max-age=3600"}
+    finally:
+        conn.close()
+
+
+@app.route("/api/imoveis/<int:codigo>/ao-redor")
+def api_imovel_ao_redor(codigo):
+    """Os bairros a ate 2 km do imovel, medidos ate a BORDA de cada bairro, e a
+    precisao do ponto (condominio, rua ou centro do bairro)."""
+    conn = conectar()
+    try:
+        g = todas_linhas(conn, "SELECT lat, lon, precisao, bairro FROM imovel_geo WHERE codigo = %s", (codigo,))
+        perto = todas_linhas(conn, """SELECT bairro, km, dentro FROM imovel_bairro_ao_redor
+                                       WHERE codigo = %s ORDER BY km, bairro""", (codigo,))
+        return jsonify({"codigo": codigo, "ponto": g[0] if g else None,
+                        "bairros": [{"bairro": l["bairro"], "km": float(l["km"]), "dentro": l["dentro"]} for l in perto]})
+    finally:
+        conn.close()
+
+
+@app.route("/api/imoveis/opcoes")
+def api_imoveis_opcoes():
+    """As opções dos filtros de várias escolhas da lista de imóveis (28/09):
+    bairros, tipos e condomínios como estão escritos no banco, com quantos
+    imóveis cada um tem. Sem dado pessoal."""
+    conn = conectar()
+    try:
+        def lista(coluna):
+            return [{"valor": l["valor"], "n": l["n"]} for l in todas_linhas(conn,
+                "SELECT " + coluna + " AS valor, count(*) AS n FROM vw_imoveis_todos "
+                "WHERE coalesce(btrim(" + coluna + "), '') <> '' GROUP BY 1 ORDER BY 1")]
+        return jsonify({"bairros": lista("bairro"), "tipos": lista("tipo"),
+                        "condominios": lista("condominio")}), 200, {"Cache-Control": "public, max-age=300"}
+    finally:
+        conn.close()
+
+
+@app.route("/api/imoveis/<int:codigo>/sugestoes")
+def api_imovel_sugestoes(codigo):
+    """SUGESTOES POR PERTO (Tel, 28/09/2026): "agora que tem o mapa quero
+    implementar sugestoes de imoveis proximos (no mesmo bairro) e em outros
+    bairros, ai listar o bairro e embaixo os imoveis disponiveis (nome,
+    status, se e locacao ou venda, e preco)".
+
+    Primeiro o bairro do proprio imovel; depois os bairros a ate 2 km, os
+    mesmos da gaveta ("Bairros ao redor"), do mais perto ao mais longe. Em cada
+    um, os imoveis DISPONIVEIS e nossos -- parceria esta fora de tudo (Tel,
+    28/09) --, do mais perto ao mais longe do ponto deste imovel.
+
+    O bairro e o do PONTO no mapa (`imovel_geo`), nao o texto do cadastro: e o
+    mesmo de `imovel_bairro_ao_redor`, e o cadastro escreve o mesmo bairro de
+    varios jeitos."""
+    por_bairro = max(1, min(_inteiro(request.args.get("por_bairro") or 8, 8), 30))
+    max_bairros = max(0, min(_inteiro(request.args.get("bairros") or 6, 6), 15))
+    conn = conectar()
+    try:
+        g = todas_linhas(conn, "SELECT lat, lon, bairro FROM imovel_geo WHERE codigo = %s", (codigo,))
+        if not g or g[0]["lat"] is None or not g[0]["bairro"]:
+            return jsonify({"codigo": codigo, "ponto": None, "bairros": []})
+        p = g[0]
+        vizinhos = [l["bairro"] for l in todas_linhas(conn, """
+            SELECT bairro FROM imovel_bairro_ao_redor
+             WHERE codigo = %s AND NOT dentro AND bairro <> %s
+             ORDER BY km, bairro LIMIT %s""", (codigo, p["bairro"], max_bairros))]
+        km_do_bairro = {l["bairro"]: float(l["km"]) for l in todas_linhas(conn, """
+            SELECT bairro, km FROM imovel_bairro_ao_redor WHERE codigo = %s""", (codigo,))}
+        ordem = [p["bairro"]] + vizinhos
+
+        linhas = todas_linhas(conn, """
+            WITH perto AS (
+              SELECT v.codigo, v.condominio, v.tipo, v.status, v.valor_venda, v.valor_aluguel,
+                     v.valor_texto, v.publicado_no_site, g.bairro,
+                     6371 * 2 * asin(sqrt(power(sin(radians(g.lat - %(lat)s) / 2), 2)
+                       + cos(radians(%(lat)s)) * cos(radians(g.lat))
+                       * power(sin(radians(g.lon - %(lon)s) / 2), 2))) AS km
+                FROM vw_imoveis_todos v
+                JOIN imovel_geo g ON g.codigo = v.codigo
+               WHERE g.bairro = ANY(%(bairros)s) AND v.codigo <> %(codigo)s
+                 AND v.status = 'Disponível' AND NOT v.e_parceiro
+            )
+            SELECT *, row_number() OVER (PARTITION BY bairro ORDER BY km, codigo) AS n,
+                   count(*) OVER (PARTITION BY bairro) AS no_bairro
+              FROM perto""", {"lat": p["lat"], "lon": p["lon"], "bairros": ordem, "codigo": codigo})
+
+        def finalidade(l):
+            venda = (l["valor_venda"] or 0) > 0 or (l["valor_texto"] or "").lower().startswith("venda")
+            aluguel = (l["valor_aluguel"] or 0) > 0 or (l["valor_texto"] or "").lower().startswith("aluguel")
+            return "Venda e locação" if venda and aluguel else "Venda" if venda else "Locação" if aluguel else "—"
+
+        grupos = {b: [] for b in ordem}
+        total = {}
+        for l in linhas:
+            total[l["bairro"]] = l["no_bairro"]
+            if l["n"] <= por_bairro:
+                grupos[l["bairro"]].append({
+                    "codigo": l["codigo"],
+                    "nome": l["condominio"] or l["tipo"] or ("Imóvel %s" % l["codigo"]),
+                    "tipo": l["tipo"],
+                    "status": l["status"],
+                    "finalidade": finalidade(l),
+                    "valor_venda": float(l["valor_venda"]) if l["valor_venda"] else None,
+                    "valor_aluguel": float(l["valor_aluguel"]) if l["valor_aluguel"] else None,
+                    "valor_texto": l["valor_texto"],
+                    "no_site": bool(l["publicado_no_site"]),
+                    "km": round(float(l["km"]), 2),
+                })
+        saida = [{"bairro": b, "mesmo_bairro": b == p["bairro"],
+                  "km": 0.0 if b == p["bairro"] else km_do_bairro.get(b),
+                  "total": total.get(b, 0), "imoveis": grupos[b]} for b in ordem]
+        return jsonify({"codigo": codigo, "ponto": {"bairro": p["bairro"]}, "bairros": saida})
+    finally:
+        conn.close()
+
+
+# ===================================================== REGRAS SUGERIDAS --
+# Tel, 27/09/2026: "crie uma nova função lá no site treino da Nay... vai me
+# sugerir regras novas... ao clicar na regra aparece um popup com a conversa
+# que ela veio". As tabelas existiam desde a 128; faltava a tela (Pedro, 28/09:
+# "não achei no site, se não tem põe lá").
+#
+# Em /admin/api, com a senha conferida aqui dentro: os casos são conversas de
+# corretores de verdade, e a /api/ deste serviço não tem senha nenhuma. Lê e
+# grava pela role de CONTEÚDO, que só pode mudar o estado da sugestão (155).
+
+@app.route("/admin/api/nai/regras-sugeridas")
+def admin_regras_sugeridas():
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    conn = conectar_conteudo()
+    try:
+        linhas = todas_linhas(conn, """
+            SELECT s.id, s.rodada, s.categoria, s.importancia, s.tipo, s.estado,
+                   s.titulo, s.regra, s.o_que_faz, s.porque,
+                   to_char(s.janela_de, 'DD/MM') AS janela_de,
+                   to_char(s.janela_ate, 'DD/MM') AS janela_ate,
+                   to_char(s.criada_em, 'DD/MM/YYYY') AS criada_em,
+                   to_char(s.decidido_em, 'DD/MM/YYYY HH24:MI') AS decidido_em,
+                   s.decidido_por, s.nota_do_tel,
+                   (SELECT count(*) FROM nai_regra_sugerida_caso c WHERE c.sugestao_id = s.id) AS casos
+              FROM nai_regra_sugerida s
+             ORDER BY CASE s.importancia WHEN 'alta' THEN 0 WHEN 'media' THEN 1 ELSE 2 END,
+                      s.categoria, s.id""")
+        return jsonify([dict(l) for l in linhas])
+    finally:
+        conn.close()
+
+
+@app.route("/admin/api/nai/regras-sugeridas/<int:sid>/casos")
+def admin_regras_sugeridas_casos(sid):
+    """As conversas que provam a sugestão -- o popup."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    conn = conectar_conteudo()
+    try:
+        linhas = todas_linhas(conn, """
+            SELECT c.id, c.quem, to_char(c.quando, 'DD/MM/YYYY HH24:MI') AS quando, c.turno_id,
+                   c.ele_disse, c.ela_disse, c.o_ponto
+              FROM nai_regra_sugerida_caso c
+             WHERE c.sugestao_id = %s
+             ORDER BY c.quando NULLS LAST, c.id""", (sid,))
+        return jsonify([dict(l) for l in linhas])
+    finally:
+        conn.close()
+
+
+@app.route("/admin/api/nai/regras-sugeridas/<int:sid>", methods=["PUT"])
+def admin_regras_sugeridas_decidir(sid):
+    """Aceita, recusa ou devolve para 'sugerida'. Aceitar NÃO muda a Nay:
+    marca para implementar -- a regra passa a valer quando entra no prompt ou
+    nas funções."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    dados = request.get_json(silent=True) or {}
+    estado = str(dados.get("estado") or "").strip()
+    if estado not in ("aceita", "recusada", "sugerida"):
+        return jsonify({"erro": "estado tem que ser aceita, recusada ou sugerida"}), 400
+    nota = str(dados.get("nota") or "").strip()[:2000] or None
+    por = str(dados.get("por") or "painel").strip()[:60]
+    conn = conectar_conteudo()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE nai_regra_sugerida
+                   SET estado = %(estado)s,
+                       decidido_em = CASE WHEN %(estado)s = 'sugerida' THEN NULL ELSE now() END,
+                       decidido_por = CASE WHEN %(estado)s = 'sugerida' THEN NULL ELSE %(por)s END,
+                       nota_do_tel = %(nota)s
+                 WHERE id = %(id)s
+             RETURNING id, estado""", {"estado": estado, "por": por, "nota": nota, "id": sid})
+            r = cur.fetchone()
+        conn.commit()
+        if not r:
+            return jsonify({"erro": "essa sugestão não existe"}), 404
+        return jsonify({"ok": True, "id": r["id"], "estado": r["estado"]})
     finally:
         conn.close()
 
@@ -1169,20 +2143,31 @@ def api_clientes_lista():
 
 
 @app.route("/api/imoveis", methods=["POST"])
+@app.route("/admin/api/imoveis", methods=["POST"])
 def api_imovel_criar():
-    """NOVO IMOVEL pelo site. Codigo da faixa 900000+ (nunca colide com o
-    codigo do imobeasy.com, que a varredura horaria sobrescreveria). Nasce
-    FORA do site (publicado_no_site = false): nao aparece na vitrine nem e
-    oferecido pela Nay ate alguem publicar."""
+    """NOVO IMOVEL pelo site. Codigo da faixa 9001-9999 (migracao 161: 4
+    digitos como todo codigo da casa, e longe do imobeasy.com, que numera em
+    sequencia e estava no 5765 em 28/09 -- a varredura sobrescreveria um codigo
+    repetido). Ate 28/09 era 900000+, e o Pedro achou "um numero estranho".
+
+    NENHUM CAMPO E OBRIGATORIO (Pedro, 28/09: "ponha todos os campos do site
+    antigo mas sem ser obrigatorio, poe so as informacoes que tivermos") -- o
+    tipo era, e o Tel nao conseguia cadastrar. Nasce como RASCUNHO, fora do
+    site e da Nay, a nao ser que venha outra situacao; a regra e a mesma da
+    edicao (Disponivel = no site e na Nay)."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
     corpo = request.get_json(silent=True) or {}
-    cols = ["origem", "publicado_no_site", "disponivel", "criado_em"]
-    vals = ["crm", False, True, datetime.now()]
+    situacao = str(corpo.get("status") or "Rascunho").strip()
+    if situacao not in STATUS_EDITAVEIS:
+        return jsonify({"erro": "validação", "detalhes": ["status: use " + ", ".join(STATUS_EDITAVEIS)]}), 400
+    no_ar = situacao == "Disponível"
+    cols = ["origem", "status", "publicado_no_site", "disponivel", "criado_em"]
+    vals = ["crm", situacao, no_ar, no_ar, datetime.now()]
     erros = []
-    if not str(corpo.get("tipo") or "").strip():
-        return jsonify({"erro": "validação", "detalhes": ["tipo: obrigatório"]}), 400
     for campo, valor in corpo.items():
         regra = CAMPOS_EDITAVEIS.get(campo)
-        if not regra or campo in ("publicado_no_site", "bloqueado", "motivo_bloqueio") or valor in (None, ""):
+        if not regra or campo in ("publicado_no_site", "disponivel", "bloqueado", "motivo_bloqueio") or valor in (None, ""):
             continue
         try:
             if regra["tipo"] == "numero":
@@ -1200,11 +2185,19 @@ def api_imovel_criar():
         except (TypeError, ValueError):
             erros.append(f"{campo}: valor inválido")
             continue
-        if campo == "disponivel":
-            vals[cols.index("disponivel")] = valor
-            continue
         cols.append(campo)
         vals.append(valor)
+    # os campos do site antigo (extras) e a parte privada (unidade, locacao)
+    _apagar, gravar = _extras_do_corpo(corpo, erros)
+    if gravar:
+        cols.append("extras")
+        vals.append(psycopg2.extras.Json(gravar))
+    unidade, ficha, vencimento = _privado_do_corpo(corpo, erros)
+    unidade = {k: v for k, v in unidade.items() if v is not None}
+    ficha = {k: v for k, v in ficha.items() if v is not None}
+    if vencimento is None:
+        vencimento = _SEM_VENCIMENTO
+    dono, _ = _proprietario_do_corpo(corpo)
     if erros:
         return jsonify({"erro": "validação", "detalhes": erros}), 400
     conn = conectar_escrita()
@@ -1224,6 +2217,8 @@ def api_imovel_criar():
                      psycopg2.sql.SQL(", ").join(psycopg2.sql.Placeholder() for _ in cols))
             cur.execute(query, vals)
             novo = cur.fetchone()["codigo"]
+            _gravar_privado(cur, novo, unidade, ficha, vencimento)
+            _gravar_proprietario(cur, novo, dono, True)
         conn.commit()
         return jsonify({"status": "criado", "codigo": novo}), 201
     except Exception as exc:  # noqa: BLE001
@@ -1681,9 +2676,17 @@ def api_lista_item(lista_id):
 
 
 @app.route("/api/tabelas")
+@app.route("/admin/api/tabelas")
 def api_tabelas():
     """Lista todas as tabelas do naydb com contagem de linhas -- pra
-    montar o menu do navegador de tabelas."""
+    montar o menu do navegador de tabelas.
+
+    COM SENHA desde 28/09 (Pedro: "fecha agora"): as tabelas mostravam a
+    qualquer um na internet o nome e o contato do locatario e o numero do
+    apartamento. O painel chama por /admin/api, onde o navegador ja manda a
+    senha; pelo /api aberto a resposta e 401."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
     conn = conectar_tabelas()
     try:
         linhas = todas_linhas(conn, """
@@ -1701,12 +2704,16 @@ def api_tabelas():
 
 
 @app.route("/api/tabelas/<nome>")
+@app.route("/admin/api/tabelas/<nome>")
 def api_tabela_dados(nome):
     """As primeiras 100 linhas de UMA tabela, qualquer uma do naydb.
     `nome` vem da URL (entrada do usuário) -- validado contra a lista real
     de tabelas antes de qualquer coisa chegar perto de SQL, e o nome só
     entra na query via psycopg2.sql.Identifier (nunca por %s, que não
-    funciona pra nome de tabela, nem por f-string, que seria injeção)."""
+    funciona pra nome de tabela, nem por f-string, que seria injeção).
+    Com senha desde 28/09, igual à lista acima."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
     conn = conectar_tabelas()
     try:
         validas = todas_linhas(conn, "SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
@@ -2180,6 +3187,26 @@ def api_captacao_resumo():
               FROM captacao_mensagens
         """)[0]
 
+        # A SAÚDE DO NÚMERO (migração 163): se o disparo sai agora e, se não,
+        # por quê; o volume do dia contra os tetos; e os dois sinais que
+        # antecederam a queda de 17/09 -- resposta e entrega dos últimos disparos.
+        saude = dict(todas_linhas(conn, "SELECT * FROM captacao_disparo_liberado()")[0])
+        sinais = todas_linhas(conn, """
+            SELECT count(*) AS disparos,
+                   count(*) FILTER (WHERE EXISTS (SELECT 1 FROM captacao_mensagens r
+                                                   WHERE r.lead_id = d.lead_id AND r.direcao = 'recebida'
+                                                     AND r.criada_em > d.criada_em)) AS responderam,
+                   count(*) FILTER (WHERE d.entregue_em IS NOT NULL) AS entregues
+              FROM (SELECT lead_id, criada_em, entregue_em FROM captacao_mensagens
+                     WHERE direcao = 'enviada' AND origem = 'disparo' AND status = 'Enviado'
+                       AND criada_em < now() - interval '30 minutes'
+                     ORDER BY criada_em DESC LIMIT 20) d
+        """)[0]
+        saude.update({k: int(v or 0) for k, v in sinais.items()})
+        saude["disjuntor"] = cfg.get("_disjuntor") or None
+        saude["disjuntor_em"] = cfg.get("_disjuntor_em") or None
+        saude["rampa_desde"] = cfg.get("rampa_desde") or None
+
         return jsonify({
             "config": cfg,
             "leads": {k: int(v or 0) for k, v in m.items()},
@@ -2191,6 +3218,7 @@ def api_captacao_resumo():
                 "ultimoEnvio": (envios["ultimo_envio"].isoformat()
                                 if envios["ultimo_envio"] else None),
             },
+            "saude": saude,
         })
     finally:
         conn.close()
@@ -2213,6 +3241,10 @@ def api_captacao_config():
         "max_followup": None,           # inteiro 0..5
         "horas_primeiro_followup": None,  # inteiro 1..72
         "minutos_entre_disparos": None,   # inteiro 5..120
+        # a segurança do número (migração 163)
+        "rampa_inicio": None, "rampa_passo": None, "rampa_maximo": None,
+        "limite_api_dia": None, "limite_total_dia": None,
+        "disjuntor_resposta_min": None, "disjuntor_sem_entrega": None,
     }
     corpo = request.get_json(silent=True) or {}
     chave = str(corpo.get("chave") or "").strip()
@@ -2231,7 +3263,10 @@ def api_captacao_config():
         # zero hora faria o lembrete sair junto com a mensagem original.
         tetos = {"limite_dia": (0, 500), "max_followup": (0, 5),
                  "horas_primeiro_followup": (1, 72),
-                 "minutos_entre_disparos": (5, 120)}
+                 "minutos_entre_disparos": (5, 120),
+                 "rampa_inicio": (0, 50), "rampa_passo": (0, 20), "rampa_maximo": (0, 100),
+                 "limite_api_dia": (0, 500), "limite_total_dia": (0, 1000),
+                 "disjuntor_resposta_min": (0, 100), "disjuntor_sem_entrega": (2, 50)}
         piso, teto = tetos.get(chave, (0, 500))
         if not piso <= int(valor) <= teto:
             return jsonify({"erro": "valor fora do intervalo"}), 400
@@ -2922,3 +3957,51 @@ try:
     app.register_blueprint(imoveis_bp)
 except Exception as _e:  # noqa: BLE001
     app.logger.warning("imoveis_api nao carregou: %s", _e)
+
+# ENVIAR IMOVEL (28/09): a aba de disparo do painel, que repassa ao CRM.
+# Mesmo try/except, mesma razao.
+try:
+    from disparo_api import disparo_bp
+    app.register_blueprint(disparo_bp)
+except Exception as _e:  # noqa: BLE001
+    app.logger.warning("disparo_api nao carregou: %s", _e)
+
+# CAPTACAO PELA OLX (28/09): o pre-cadastro que o botao "Enviar para Imob Easy"
+# manda do navegador, e as fotos baixadas uma a uma. Mesmo try/except.
+try:
+    from olx_api import olx_bp
+    app.register_blueprint(olx_bp)
+except Exception as _e:  # noqa: BLE001
+    app.logger.warning("olx_api nao carregou: %s", _e)
+
+# A CAPTACAO PEDE SENHA (28/09, Pedro: "com bastante seguranca para o numero nao
+# cair"). As rotas /api/captacao/* e /api/nai/captacao* respondiam sem senha
+# nenhuma: qualquer um na internet ligava o disparo (captacao_pausada), punha o
+# teto em 500 ou lia o telefone dos proprietarios. Agora todas exigem a senha do
+# /admin, e as telas chamam pelo proprio dominio (/admin/api/...), onde o
+# navegador ja manda a senha. A guarda e uma so, aqui, para rota nova de
+# captacao nascer protegida.
+_PREFIXOS_CAPTACAO = ("/api/captacao", "/api/nai/captacao", "/admin/api/captacao", "/admin/api/nai/captacao")
+
+
+def _maquina_do_crm_confere():
+    """O card do proprietário no CRM (29/09) entra com a senha de máquina da
+    captação (CAPTACAO_FOTO_SEGREDO), só nas rotas dele: /api/captacao/crm/*."""
+    import hmac
+    segredo = os.environ.get("CAPTACAO_FOTO_SEGREDO", "")
+    return bool(segredo) and request.path.startswith("/api/captacao/crm/") and hmac.compare_digest(
+        request.headers.get("x-captacao-segredo", ""), segredo)
+
+
+@app.before_request
+def _captacao_exige_senha():
+    if request.method != "OPTIONS" and request.path.startswith(_PREFIXOS_CAPTACAO) \
+            and not senha_do_admin_confere() and not _maquina_do_crm_confere():
+        return _sem_senha()
+
+
+for _regra in list(app.url_map.iter_rules()):
+    if _regra.rule.startswith(("/api/captacao", "/api/nai/captacao")):
+        app.add_url_rule("/admin" + _regra.rule, endpoint=_regra.endpoint + "__admin",
+                         view_func=app.view_functions[_regra.endpoint],
+                         methods=sorted(m for m in _regra.methods if m not in ("HEAD", "OPTIONS")))

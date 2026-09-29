@@ -1,0 +1,235 @@
+/* ==========================================================================
+   Tela de edição do imóvel (refeita em 28/09/2026): situação no alto, fotos
+   em cima, e cada conjunto de dados num cartão com cor e ícone próprios.
+   ========================================================================== */
+
+.ed { max-width: 1180px; }
+/* o [hidden] tem que vencer o display dos blocos: sem isto a caixa escura das
+   fotos (e a amarela do "falta preencher") apareciam vazias no cadastro */
+.ed [hidden] { display: none !important; }
+.ed__cabecalho { align-items: flex-end; }
+.ed__voltar { display: inline-block; font-size: var(--fs-sm, 14px); color: var(--roxo); text-decoration: none; margin-bottom: 6px; }
+.ed__voltar:hover { text-decoration: underline; }
+.ed__codigo {
+  display: inline-block; background: var(--roxo); color: #fff; border-radius: 9px; padding: 1px 10px;
+  font-size: .8em; vertical-align: 2px;
+}
+.ed__sub { color: var(--texto-fraco, #6b6478); font-size: var(--fs-sm, 14px); margin-top: 4px; }
+.ed__aviso {
+  border: 1px solid var(--borda); background: var(--superficie); border-radius: 12px; padding: 12px 14px;
+  margin-bottom: 14px; font-size: var(--fs-sm, 14px);
+}
+.ed__aviso--ok { border-color: #5cb98c; background: #e8f7f0; }
+
+/* ---- a faixa de estado, presa no alto ---- */
+.ed__estado {
+  position: sticky; top: 8px; z-index: 30;
+  display: flex; align-items: center; gap: 14px 22px; flex-wrap: wrap;
+  background: var(--superficie); border: 1px solid var(--borda); border-radius: 16px;
+  padding: 12px 16px; margin-bottom: 16px; box-shadow: 0 10px 28px rgba(60, 30, 110, .10);
+}
+.ed__estado-item { display: flex; align-items: center; gap: 10px; }
+.ed__rot { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--texto-fraco, #6b6478); }
+.ed__estado-novo { font-size: 13px; color: var(--texto-fraco, #6b6478); }
+.ed__estado-salvar { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.ed__status-salvar { font-size: 13px; color: var(--texto-fraco, #6b6478); }
+.ed__status-salvar--ok { color: #2f7d58; font-weight: 600; }
+.ed__status-salvar--erro { color: #b42323; font-weight: 600; }
+.ed__estado .btn-azul:disabled { opacity: .45; cursor: default; box-shadow: none; }
+
+.ed-situacao {
+  -webkit-appearance: none; appearance: none; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--sc); background-color: var(--sb);
+  border: 1.5px solid color-mix(in srgb, var(--sc) 40%, transparent); border-radius: 999px;
+  padding: 8px 32px 8px 15px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--sc) 50%), linear-gradient(135deg, var(--sc) 50%, transparent 50%);
+  background-position: calc(100% - 17px) 55%, calc(100% - 12px) 55%;
+  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+}
+.ed-situacao:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--sc) 25%, transparent); }
+.ed-situacao option { text-transform: none; font-weight: 500; color: #1f1633; background: #fff; }
+
+.ed__nay {
+  display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600;
+  color: #7a7285; background: #f1eff5; border-radius: 999px; padding: 6px 12px;
+}
+.ed__nay::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #b8b2c2; }
+.ed__nay--sim { color: #2f7d58; background: #e8f7f0; }
+.ed__nay--sim::before { background: #3f9c6d; }
+.ed__selo--parceiro { font-size: 12px; font-weight: 700; color: #a8662f; background: #fdf2ea; border-radius: 999px; padding: 5px 11px; }
+
+/* a chave liga/desliga (no site, bloqueado) */
+.ed__chave { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; user-select: none; }
+.ed__chave input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.ed__chave-trilho {
+  position: relative; width: 40px; height: 22px; border-radius: 999px; background: #d9d4e2; flex-shrink: 0;
+  transition: background .15s;
+}
+.ed__chave-trilho::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: transform .15s;
+}
+.ed__chave input:checked + .ed__chave-trilho { background: var(--roxo); }
+.ed__chave input:checked + .ed__chave-trilho::after { transform: translateX(18px); }
+.ed__chave input:focus-visible + .ed__chave-trilho { box-shadow: 0 0 0 3px var(--roxo-suave); }
+.ed__chave--forte span:last-child { font-weight: 600; }
+
+/* ---- as fotos, em cima ---- */
+/* altura fixa: a capa preenche e as miniaturas rolam ao lado -- sem isso as 15
+   miniaturas esticavam o bloco e a capa ficava num vão escuro */
+.ed__fotos {
+  display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); grid-template-rows: 400px auto; gap: 10px;
+  background: #1f1a29; border-radius: 16px; padding: 10px; margin-bottom: 16px;
+}
+.ed__fotos button { border: 0; padding: 0; cursor: zoom-in; background: #2c2538; border-radius: 10px; overflow: hidden; }
+.ed__fotos img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.ed__capa { height: 100%; min-height: 0; }
+.ed__miniaturas {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 118px; gap: 8px;
+  align-content: start; height: 100%; min-height: 0; overflow-y: auto; padding-right: 2px;
+}
+.ed__mini { height: 100%; }
+.ed__mini:hover img, .ed__capa:hover img { opacity: .88; }
+.ed__fotos-rodape { grid-column: 1 / -1; color: #c9c2d6; font-size: 12px; padding: 2px 4px; }
+.ed__sem-foto { grid-column: 1 / -1; color: #c9c2d6; text-align: center; padding: 26px; font-size: 14px; }
+/* sem foto: uma faixa clara e baixa, não o bloco escuro */
+.ed__fotos--vazio { display: block; background: var(--fundo-alt, #f6f4f9); border: 1px dashed var(--borda-forte, #d6d0e0); padding: 0; }
+.ed__fotos--vazio .ed__sem-foto { color: var(--texto-fraco, #6b6478); padding: 14px; }
+
+/* ---- o que falta ---- */
+.ed__falta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px;
+  border: 1px solid #fcd34d; background: #fffbeb; border-radius: 12px; padding: 10px 14px;
+  margin-bottom: 16px; font-size: 13px;
+}
+.ed__falta-item { background: #fff; border: 1px solid #fcd34d; border-radius: 999px; padding: 2px 10px; }
+.ed__falta-nota { flex-basis: 100%; color: #92400e; }
+
+/* ---- os cartões, um por conjunto ---- */
+.ed__cartoes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.ed__cartao {
+  background: var(--superficie); border: 1px solid var(--borda); border-top: 4px solid var(--gc);
+  border-radius: 16px; overflow: hidden;
+}
+.ed__cartao-titulo {
+  display: flex; align-items: center; gap: 10px; margin: 0; padding: 12px 16px;
+  background: var(--gb); color: var(--gc); font-size: 15px; font-weight: 700; letter-spacing: .02em;
+}
+.ed__icone {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 9px;
+  background: var(--gc); color: #fff; font-size: 15px;
+}
+/* a parte privada (unidade, locatário): o selo e a borda tracejada avisam */
+.ed__cartao--privado { border-style: dashed; border-top-style: solid; }
+.ed__cartao-selo {
+  margin-left: auto; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  background: #fff; color: var(--gc); border: 1px solid color-mix(in srgb, var(--gc) 35%, transparent);
+  border-radius: 999px; padding: 3px 10px;
+}
+.ed__cartao-nota { grid-column: 1 / -1; margin: 0; font-size: 12.5px; color: var(--texto-fraco, #6b6478); }
+.ed__cartao-nota--erro { color: #b42323; font-weight: 600; }
+
+/* o proprietário: de quem mais ele é dono, "é outra pessoa", e o aviso do salvar */
+.ed__dono-extra { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+.ed__dono-extra a { color: var(--gc); font-weight: 600; }
+.ed__botao-link {
+  border: 0; background: none; padding: 0; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600;
+  color: var(--gc); text-decoration: underline; text-underline-offset: 2px;
+}
+.ed__cartao--chamando { animation: ed-chamando 1.8s ease-out 1; }
+@keyframes ed-chamando {
+  0% { box-shadow: 0 0 0 0 rgba(3, 105, 161, .55); }
+  70% { box-shadow: 0 0 0 16px rgba(3, 105, 161, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(3, 105, 161, 0); }
+}
+.ed__aviso-dono {
+  border: 0; border-radius: 18px; padding: 22px 24px; max-width: 440px; width: calc(100vw - 32px);
+  box-shadow: 0 24px 60px rgba(30, 15, 60, .35); border-top: 5px solid #0369a1;
+}
+.ed__aviso-dono::backdrop { background: rgba(20, 12, 35, .45); }
+.ed__aviso-dono h2 { margin: 0 0 8px; font-size: 18px; }
+.ed__aviso-dono p { margin: 0 0 18px; font-size: 14.5px; line-height: 1.5; color: var(--texto-fraco, #6b6478); }
+.ed__aviso-dono-botoes { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* o que tem: características do imóvel e do condomínio, como a OLX mostra */
+.ed__cartao--largo { grid-column: 1 / -1; }
+.ed__grupos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 32px; }
+.ed__grupo-titulo { margin: 0 0 10px; font-size: 15px; font-weight: 700; color: var(--texto, #1f1633); }
+.ed__chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; min-height: 32px; align-content: flex-start; }
+.ed__chips:empty::before { content: "nada ainda"; font-size: 13px; color: var(--texto-fraco, #8a8296); align-self: center; }
+.ed__chip {
+  display: inline-flex; align-items: center; gap: 2px; background: #f1f1f5; color: #1f1633;
+  border-radius: 8px; padding: 4px 4px 4px 11px; font-size: 14px; font-weight: 500;
+}
+.ed__chip-botao {
+  border: 0; background: transparent; cursor: pointer; color: #8a8296; font-size: 14px; line-height: 1;
+  width: 24px; height: 24px; border-radius: 6px;
+}
+.ed__chip-botao:hover { background: #e2e0ea; color: var(--gc); }
+.ed__chip-botao:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--gc); }
+.ed__grupo-mais { max-width: 320px; }
+
+/* marcar várias (incluso no aluguel, garantia) */
+.ed__rotulo-grupo { font-size: 12px; font-weight: 600; color: var(--texto-fraco, #6b6478); }
+.ed__marcar { display: flex; flex-wrap: wrap; gap: 8px; }
+.ed__marca { position: relative; cursor: pointer; user-select: none; }
+.ed__marca input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.ed__marca span {
+  display: inline-block; border: 1px solid var(--borda-forte, #d6d0e0); background: #fff; color: var(--texto, #1f1633);
+  border-radius: 999px; padding: 6px 13px; font-size: 13px; transition: background .12s, color .12s, border-color .12s;
+}
+.ed__marca:hover span { border-color: var(--gc); }
+.ed__marca input:checked + span { background: var(--gc); border-color: var(--gc); color: #fff; font-weight: 600; }
+.ed__marca input:focus-visible + span { box-shadow: 0 0 0 3px color-mix(in srgb, var(--gc) 25%, transparent); }
+.ed__grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px 14px; padding: 14px 16px 16px; }
+.ed__campo { display: flex; flex-direction: column; gap: 5px; min-width: 0; border-radius: 10px; }
+.ed__campo--largo { grid-column: 1 / -1; }
+.ed__campo > label:not(.ed__chave) { font-size: 12px; font-weight: 600; color: var(--texto-fraco, #6b6478); }
+.ed__campo .entrada { width: 100%; box-sizing: border-box; }
+.ed__campo textarea.entrada { resize: vertical; min-height: 90px; line-height: 1.45; }
+.ed__acrescenta { margin-top: 2px; }
+.ed__dica { font-size: 11.5px; color: var(--texto-fraco, #8a8296); line-height: 1.35; }
+.ed__campo--chave { justify-content: center; }
+/* o campo que ele mexeu e ainda não salvou */
+.ed__campo--mudou { box-shadow: 0 0 0 2px #f5c542; background: #fffbeb; padding: 6px; margin: -6px; }
+
+.ed__unidade {
+  display: flex; align-items: stretch; border: 1px solid var(--borda-forte); border-radius: var(--raio, 10px);
+  overflow: hidden; background: var(--superficie);
+}
+.ed__unidade .entrada { border: 0; border-radius: 0; box-shadow: none; min-width: 0; }
+.ed__unidade:focus-within { border-color: var(--roxo); box-shadow: 0 0 0 3px var(--roxo-suave); }
+.ed__un { display: grid; place-items: center; padding: 0 10px; background: var(--fundo-alt); color: var(--texto-fraco, #6b6478); font-size: 13px; font-weight: 600; }
+
+/* ---- a foto grande ---- */
+.ed__visor {
+  width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; margin: 0; padding: 0; border: 0;
+  background: rgba(15, 10, 25, .94); display: none;
+}
+.ed__visor[open] { display: grid; place-items: center; }
+.ed__visor::backdrop { background: rgba(15, 10, 25, .6); }
+.ed__visor img { max-width: calc(100vw - 140px); max-height: calc(100vh - 90px); object-fit: contain; border-radius: 8px; }
+.ed__visor-fechar, .ed__visor-seta {
+  position: fixed; border: 0; cursor: pointer; color: #fff; background: rgba(255, 255, 255, .12);
+  border-radius: 999px; width: 46px; height: 46px; font-size: 26px; line-height: 1;
+}
+.ed__visor-fechar { top: 16px; right: 16px; font-size: 20px; }
+.ed__visor-seta--ant { left: 16px; top: 50%; transform: translateY(-50%); }
+.ed__visor-seta--prox { right: 16px; top: 50%; transform: translateY(-50%); }
+.ed__visor-fechar:hover, .ed__visor-seta:hover { background: rgba(255, 255, 255, .24); }
+.ed__visor-conta { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); color: #ddd; font-size: 13px; }
+
+@media (max-width: 900px) {
+  .ed__cartoes { grid-template-columns: minmax(0, 1fr); }
+  .ed__grupos { grid-template-columns: minmax(0, 1fr); }
+  .ed__fotos { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; }
+  .ed__capa { aspect-ratio: 16 / 10; height: auto; }
+  .ed__miniaturas { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 80px; height: auto; max-height: 250px; }
+}
+@media (max-width: 560px) {
+  .ed__estado { position: static; }
+  .ed__estado-salvar { margin-left: 0; width: 100%; justify-content: space-between; }
+  .ed__miniaturas { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ed__visor img { max-width: 100vw; }
+}

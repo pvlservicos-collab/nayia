@@ -1,12 +1,27 @@
 'use client'
 
-import { useRef, useEffect, useState, useMemo, memo } from 'react'
-import { Sparkle, X, MagnifyingGlassPlus, Play, Pause, Microphone, ArrowBendUpLeft, Check, WarningCircle, Lightning, PushPin, Trash, Prohibit, Checks } from '@phosphor-icons/react'
+import { useRef, useEffect, useLayoutEffect, useState, useMemo, memo, useCallback } from 'react'
+import { Sparkle, X, Play, Pause, Microphone, ArrowBendUpLeft, Check, Checks, WarningCircle, Lightning, PushPin, Trash, Prohibit, FileText, DownloadSimple, CaretDown, CaretLeft, CaretRight } from '@phosphor-icons/react'
 import { LeadActivityWithActor, LeadWithOwner } from '@/lib/types'
 import { formatTime } from '@/lib/utils'
+import ImovelCitado from './ImovelCitado'
 import { useAuth } from '@/hooks'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 
+/**
+ * A CONVERSA NO DESENHO DO WHATSAPP WEB (Pedro, 29/09/2026).
+ *
+ * Balão com "rabinho" só na primeira mensagem de cada sequência, hora e tique
+ * dentro do balão, data no meio da conversa, sem foto ao lado (conversa de
+ * duas pessoas). O que é da Nay ou da automação leva o nome em cima, dentro
+ * do balão, como o nome de quem fala num grupo.
+ *
+ * O áudio: o tocador só baixa o arquivo quando alguém aperta o play -- antes
+ * cada áudio da conversa passava pela conversão do servidor ao abrir, e
+ * conversa com áudio demorava para abrir. Na Parceria, a transcrição aparece
+ * embaixo, como no WhatsApp ("usar api de transcrição do gpt e por a
+ * transcrição embaixo do áudio igual no whatsapp").
+ */
 interface ActivityTimelineProps {
   activities: LeadActivityWithActor[]
   loading: boolean
@@ -15,49 +30,41 @@ interface ActivityTimelineProps {
   onTogglePin?: (activity: LeadActivityWithActor) => void
   onDelete?: (activity: LeadActivityWithActor, deleteForEveryone: boolean) => void | Promise<void>
   pinnedActivityIds?: Set<string>
+  /** Parceria: mostra a transcrição embaixo do áudio */
+  mostrarTranscricao?: boolean
+  /** há mensagens mais antigas no servidor (subir até o topo busca) */
+  temMais?: boolean
+  carregandoAnteriores?: boolean
+  onCarregarAnteriores?: () => void
 }
 
-// ── Date helpers ──
-const WEEKDAYS_PT = [
-  'Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira',
-  'Quinta-feira', 'Sexta-feira', 'Sábado',
-]
+// ── Datas ──
+const WEEKDAYS_PT = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado']
 
 function getDateLabel(date: Date): string {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const target = new Date(date)
   target.setHours(0, 0, 0, 0)
-
-  const diffTime = today.getTime() - target.getTime()
-  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
-
+  const diffDays = Math.round((today.getTime() - target.getTime()) / 86400000)
   if (diffDays === 0) return 'Hoje'
   if (diffDays === 1) return 'Ontem'
   if (diffDays >= 2 && diffDays <= 6) return WEEKDAYS_PT[target.getDay()]
-
-  const d = String(target.getDate()).padStart(2, '0')
-  const m = String(target.getMonth() + 1).padStart(2, '0')
-  const y = target.getFullYear()
-  return `${d}/${m}/${y}`
+  return `${String(target.getDate()).padStart(2, '0')}/${String(target.getMonth() + 1).padStart(2, '0')}/${target.getFullYear()}`
 }
 
 function getDateKey(date: Date): string {
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
 }
 
-// ── Determine sender type ──
+// ── Quem mandou ──
 type SenderType = 'lead' | 'ai' | 'user' | 'automated' | 'system_other'
 
 function getSenderType(activity: LeadActivityWithActor): SenderType {
   if (activity.type === 'note' || activity.type === 'call' || activity.type === 'email') return 'system_other'
-
   if (activity.metadata?.direction === 'inbound') return 'lead'
-
   if (activity.metadata?.automated) return 'automated'
-
   if (activity.metadata?.source === 'ai' || activity.metadata?.source === 'ai_agent' || activity.type === 'system') return 'ai'
-
   return 'user'
 }
 
@@ -65,278 +72,314 @@ function isOutgoing(senderType: SenderType): boolean {
   return senderType === 'ai' || senderType === 'user' || senderType === 'automated'
 }
 
-// ── Date Divider ──
+const ROTULOS_DE_MIDIA = ['📷 Imagem', '🎥 Vídeo', '🎵 Áudio', '📄 Documento', '✨ Figurinha']
+
+// ── A data no meio da conversa ──
 function DateDivider({ label }: { label: string }) {
   return (
-    <div className="flex justify-center py-3">
-      <span className="text-[11px] font-semibold text-[var(--chat-text-muted)] bg-[var(--chat-bg-panel)]/90 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-sm border border-white/5">
-        {label}
-      </span>
+    <div className="flex justify-center py-2 sticky top-1 z-20">
+      <span className="wa-data">{label}</span>
     </div>
   )
 }
 
-// ── Custom Audio Player ──
-function CustomAudioPlayer({ url, isOutgoing, senderAvatar }: { url: string; isOutgoing: boolean, senderAvatar?: string }) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const audioRef = useRef<HTMLAudioElement>(null);
+// ── O tocador de áudio ──
+function tempo(t: number) {
+  if (!isFinite(t) || isNaN(t) || t < 0) return '0:00'
+  const m = Math.floor(t / 60)
+  const s = Math.floor(t % 60)
+  return `${m}:${s < 10 ? '0' : ''}${s}`
+}
 
-  const togglePlay = () => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
+const VELOCIDADES = [1, 1.5, 2]
+
+function CustomAudioPlayer({ url, isOutgoing, senderAvatar, segundos }: { url: string; isOutgoing: boolean; senderAvatar?: string; segundos?: number }) {
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [duration, setDuration] = useState(segundos && segundos > 0 ? segundos : 0)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [falhou, setFalhou] = useState(false)
+  const [carregando, setCarregando] = useState(false)
+  const [velocidade, setVelocidade] = useState(1)
+  const audioRef = useRef<HTMLAudioElement>(null)
+
+  /*
+   * O ÁUDIO PASSA PELO CRM (Tel, 26/09/2026: "quando clico em reproduzir
+   * audio no crm não reproduz"): a rota converte o ogg da Z-API para m4a, que
+   * o Safari toca. `preload="none"`: nada baixa até o play (29/09).
+   */
+  const fonte = url.startsWith('/api/media/audio') ? url : `/api/media/audio?url=${encodeURIComponent(url)}`
+
+  const togglePlay = async () => {
+    const a = audioRef.current
+    if (!a) return
+    if (isPlaying) { a.pause(); setIsPlaying(false); return }
+    try {
+      setCarregando(a.readyState < 2)
+      a.playbackRate = velocidade
+      await a.play()
+      setFalhou(false)
+      setIsPlaying(true)
+    } catch {
+      setFalhou(true)
+      setIsPlaying(false)
+    } finally {
+      setCarregando(false)
     }
-  };
+  }
 
-  const handleTimeUpdate = () => {
-    if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
-    }
-  };
+  const trocarVelocidade = () => {
+    const nova = VELOCIDADES[(VELOCIDADES.indexOf(velocidade) + 1) % VELOCIDADES.length]
+    setVelocidade(nova)
+    if (audioRef.current) audioRef.current.playbackRate = nova
+  }
 
-  const handleLoadedMetadata = () => {
-    if (audioRef.current) {
-      setDuration(audioRef.current.duration);
-    }
-  };
-
-  const formatAudioTime = (time: number) => {
-    if (isNaN(time) || !isFinite(time)) return '0:00';
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-  };
-
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const progresso = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0
+  const cor = isOutgoing ? 'var(--wa-out-ink)' : 'var(--wa-in-ink)'
 
   return (
-    <div className={`flex items-center gap-3 min-w-[220px] max-w-[320px] p-1.5 ${isOutgoing ? '' : ''}`}>
+    <div className="flex items-center gap-2.5 w-[300px] max-w-full pt-1 pr-1">
       <audio
         ref={audioRef}
-        src={url}
-        onTimeUpdate={handleTimeUpdate}
-        onLoadedMetadata={handleLoadedMetadata}
-        onEnded={() => setIsPlaying(false)}
+        src={fonte}
+        preload="none"
+        onTimeUpdate={() => audioRef.current && setCurrentTime(audioRef.current.currentTime)}
+        onLoadedMetadata={() => audioRef.current && isFinite(audioRef.current.duration) && setDuration(audioRef.current.duration)}
+        onEnded={() => { setIsPlaying(false); setCurrentTime(0) }}
+        onWaiting={() => setCarregando(true)}
+        onPlaying={() => setCarregando(false)}
+        onError={() => { setFalhou(true); setIsPlaying(false); setCarregando(false) }}
       />
 
-      <button onClick={togglePlay} className={`${isOutgoing ? 'text-white' : 'text-[var(--chat-icon)]'} hover:opacity-80 flex-shrink-0 transition-opacity`}>
-        {isPlaying ? <Pause size={28} weight="fill" /> : <Play size={28} weight="fill" />}
+      {!isOutgoing && (
+        <div className="relative flex-shrink-0">
+          <div className="w-[46px] h-[46px] rounded-full overflow-hidden flex items-center justify-center" style={{ background: 'var(--wa-row-selected)' }}>
+            {senderAvatar ? <img src={senderAvatar} alt="" className="w-full h-full object-cover" /> : <Microphone size={22} weight="fill" style={{ color: 'var(--wa-text-2)' }} />}
+          </div>
+          {senderAvatar && (
+            <Microphone size={16} weight="fill" className="absolute -bottom-0.5 -right-1" style={{ color: 'var(--wa-green)' }} />
+          )}
+        </div>
+      )}
+
+      <button type="button" onClick={togglePlay} className="flex-shrink-0 hover:opacity-80" style={{ color: 'var(--wa-icon)' }}
+              aria-label={isPlaying ? 'Pausar' : 'Tocar'}>
+        {carregando ? <span className="block w-6 h-6 rounded-full border-2 border-current border-t-transparent animate-spin" />
+          : isPlaying ? <Pause size={28} weight="fill" /> : <Play size={28} weight="fill" />}
       </button>
 
-      <div className="flex-1 flex flex-col justify-center min-w-0 mr-2">
-        <div className="relative w-full h-8 flex items-center">
+      <div className="flex-1 min-w-0">
+        <div className="relative h-6 flex items-center">
           <input
             type="range"
-            min="0"
+            min={0}
             max={duration || 100}
+            step={0.1}
             value={currentTime}
             onChange={(e) => {
               if (audioRef.current) {
-                audioRef.current.currentTime = Number(e.target.value);
-                setCurrentTime(Number(e.target.value));
+                audioRef.current.currentTime = Number(e.target.value)
+                setCurrentTime(Number(e.target.value))
               }
             }}
             className="absolute z-10 w-full h-full opacity-0 cursor-pointer"
+            aria-label="Posição do áudio"
           />
-          <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: isOutgoing ? 'rgba(255,255,255,0.3)' : 'var(--chat-border)' }}>
-            <div
-              className="h-full"
-              style={{ width: `${progressPercent}%`, backgroundColor: isOutgoing ? '#fff' : 'var(--chat-accent)' }}
-            />
+          <div className="w-full h-[3px] rounded-full" style={{ background: 'var(--wa-divider)' }}>
+            <div className="h-full rounded-full" style={{ width: `${progresso}%`, background: 'var(--wa-tick-read)' }} />
           </div>
-          <div
-            className="absolute pointer-events-none rounded-full"
-            style={{
-              left: `calc(${progressPercent}% - 6px)`,
-              width: '12px',
-              height: '12px',
-              backgroundColor: isOutgoing ? '#fff' : 'var(--chat-accent)',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-            }}
-          />
+          <div className="absolute w-3 h-3 rounded-full pointer-events-none"
+               style={{ left: `calc(${progresso}% - 6px)`, background: 'var(--wa-tick-read)' }} />
         </div>
-        <div className="flex justify-start -mt-1.5">
-          <span className={`text-[11px] font-medium ${isOutgoing ? 'text-white/80' : 'text-[var(--chat-text-muted)]'}`}>
-            {formatAudioTime(currentTime || duration)}
-          </span>
+        <div className="flex items-center justify-between -mt-0.5">
+          <span className="wa-hora">{tempo(currentTime > 0 ? currentTime : duration)}</span>
+          {falhou && (
+            <a href={fonte} target="_blank" rel="noreferrer" className="text-[11px] underline" style={{ color: cor }}
+               title="Não consegui tocar aqui — abre o arquivo">abrir áudio</a>
+          )}
         </div>
       </div>
 
-      <div className="relative flex-shrink-0">
-        <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center border border-black/5 bg-[var(--chat-bg-hover)]">
-          {senderAvatar ? (
-            <img src={senderAvatar} alt="Avatar" className="w-full h-full object-cover" />
-          ) : (
-            <div className={`w-full h-full flex items-center justify-center ${isOutgoing ? 'bg-panel-2' : 'bg-[var(--chat-bg-hover)]'}`}>
-              <span className={`text-[10px] font-bold ${isOutgoing ? 'text-accent-2' : 'text-[var(--chat-text-muted)]'}`}>👤</span>
-            </div>
-          )}
+      {isPlaying || currentTime > 0 ? (
+        <button type="button" onClick={trocarVelocidade}
+                className="flex-shrink-0 text-[12px] font-semibold rounded-full px-2 h-6 min-w-[36px]"
+                style={{ background: 'var(--wa-quote)', color: cor }} title="Velocidade">
+          {velocidade}×
+        </button>
+      ) : isOutgoing ? (
+        <div className="relative flex-shrink-0">
+          <div className="w-[46px] h-[46px] rounded-full overflow-hidden flex items-center justify-center" style={{ background: 'var(--wa-row-selected)' }}>
+            {senderAvatar ? <img src={senderAvatar} alt="" className="w-full h-full object-cover" /> : <Microphone size={22} weight="fill" style={{ color: 'var(--wa-text-2)' }} />}
+          </div>
         </div>
-        <div className="absolute -bottom-1 -left-1 rounded-full p-0.5 shadow-sm" style={{ backgroundColor: isOutgoing ? 'var(--chat-bubble-out)' : 'var(--chat-bg-hover)' }}>
-          <Microphone size={12} weight="fill" className={isOutgoing ? "text-white" : "text-[var(--chat-accent)]"} />
-        </div>
-      </div>
+      ) : null}
     </div>
   )
 }
 
-// ── Media Renderer ──
-function MediaRenderer({ metadata, isOutgoing, onImageClick, senderAvatar }: { metadata: any, isOutgoing: boolean, onImageClick?: (url: string) => void, senderAvatar?: string }) {
-  if (!metadata?.media_url) return null;
+/** A transcrição embaixo do áudio (nas três linhas desde 29/09). */
+function Transcricao({ metadata, atividadeId, leadId }: { metadata: any; atividadeId?: string; leadId?: string }) {
+  const [pediu, setPediu] = useState(false)
+  // a tentativa voltou (deu certo ou falhou de novo): o botão volta a valer
+  const tentativa = String(metadata?.transcricao_em || '')
+  useEffect(() => { setPediu(false) }, [tentativa])
+  // e se nada voltar em 40 s, também (a tela não fica presa em "de novo…")
+  useEffect(() => {
+    if (!pediu) return
+    const t = setTimeout(() => setPediu(false), 40_000)
+    return () => clearTimeout(t)
+  }, [pediu])
+  const texto = typeof metadata?.transcricao === 'string' ? metadata.transcricao : null
+  const status = String(metadata?.transcricao_status || '')
+  if (texto !== null) {
+    if (!texto.trim()) return <p className="wa-transcricao wa-transcricao--espera">(sem fala no áudio)</p>
+    return <p className="wa-transcricao">&ldquo;{texto}&rdquo;</p>
+  }
+  if (status === 'andando' || !status) return <p className="wa-transcricao wa-transcricao--espera">Transcrevendo…</p>
+  if (status === 'sem_audio') return <p className="wa-transcricao wa-transcricao--espera">Transcrição indisponível: o arquivo do áudio já não existe.</p>
+  if (status === 'falhou') {
+    // 29/09: a falha de passagem (OpenAI sem crédito) é refeita sozinha a cada
+    // 5 min; o botão pede na hora. O "de novo…" só vale até a tentativa voltar
+    // (transcricao_em muda): sem isso ficava carregando para sempre quando a
+    // tentativa falhava de novo (Pedro: "a transcrição fica carregando").
+    const semCredito = /credit|429/i.test(String(metadata?.transcricao_erro || ''))
+    return (
+      <p className="wa-transcricao wa-transcricao--espera">
+        {pediu
+          ? 'Transcrevendo de novo…'
+          : semCredito
+            ? 'Sem transcrição: a conta da OpenAI está sem crédito. Ela sai sozinha quando o crédito voltar. '
+            : 'A transcrição falhou. '}
+        {!pediu && atividadeId && leadId && (
+          <button type="button" className="underline font-medium not-italic"
+                  onClick={() => {
+                    setPediu(true)
+                    fetch(`/api/leads/${leadId}/transcrever`, {
+                      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ atividade: atividadeId }),
+                    }).catch(() => setPediu(false))
+                  }}>
+            Tentar de novo
+          </button>
+        )}
+      </p>
+    )
+  }
+  return null
+}
 
-  const url = metadata.media_url;
-  const type = metadata.media_type;
+// ── Mídia ──
+function MediaRenderer({ metadata, isOutgoing, onImageClick, senderAvatar, mostrarTranscricao, atividadeId, leadId }: {
+  metadata: any; isOutgoing: boolean; onImageClick?: (url: string) => void; senderAvatar?: string; mostrarTranscricao?: boolean
+  atividadeId?: string; leadId?: string
+}) {
+  if (!metadata?.media_url) return null
+  const url = metadata.media_url
+  const type = metadata.media_type
 
-  // Audio
   if (type === 'audio') {
-    return <CustomAudioPlayer url={url} isOutgoing={isOutgoing} senderAvatar={senderAvatar} />;
+    return (
+      <div>
+        <CustomAudioPlayer url={url} isOutgoing={isOutgoing} senderAvatar={senderAvatar} segundos={Number(metadata.audio_seconds) || undefined} />
+        {mostrarTranscricao && <Transcricao metadata={metadata} atividadeId={atividadeId} leadId={leadId} />}
+      </div>
+    )
   }
 
-  // Image & Sticker
   if (type === 'image' || type === 'sticker') {
-    const isSticker = type === 'sticker';
+    const isSticker = type === 'sticker'
     return (
-      <div className={`mt-1 mb-1 rounded-lg overflow-hidden relative cursor-pointer group ${isSticker ? 'max-w-[120px] bg-transparent' : ''}`}>
+      <button type="button" onClick={() => onImageClick?.(url)} className={`block -mx-[3px] -mt-[3px] mb-0.5 rounded-[6px] overflow-hidden ${isSticker ? 'max-w-[140px]' : ''}`}
+              title="Ampliar">
         <img
           src={url}
-          alt={isSticker ? "Figurinha de Chat" : "Mídia de Chat"}
-          className={`${isSticker ? 'w-full h-auto drop-shadow-sm' : 'max-w-[240px] max-h-[240px] sm:max-w-[300px] border border-black/5 rounded-lg'} object-contain`}
+          alt={isSticker ? 'Figurinha' : 'Foto'}
+          loading="lazy"
+          decoding="async"
+          className={isSticker ? 'w-full h-auto' : 'block w-[330px] max-w-full max-h-[330px] object-cover'}
+          style={isSticker ? undefined : { minHeight: 120, background: 'var(--wa-quote)' }}
         />
-        {!isSticker && (
-          <button
-            onClick={() => onImageClick?.(url)}
-            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-lg w-full h-full"
-          >
-            <span className="text-white bg-black/60 px-3 py-1.5 rounded text-xs backdrop-blur-sm shadow flex items-center gap-1.5">
-              <MagnifyingGlassPlus size={16} /> Ampliar
-            </span>
-          </button>
-        )}
-        {isSticker && (
-          <button
-            onClick={() => onImageClick?.(url)}
-            className="absolute inset-0 bg-transparent opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-lg w-full h-full"
-          >
-            <div className="bg-black/60 rounded-full p-2 backdrop-blur-sm shadow-sm scale-75">
-              <MagnifyingGlassPlus size={16} weight="bold" className="text-white" />
-            </div>
-          </button>
-        )}
-      </div>
-    );
+      </button>
+    )
   }
 
-  // Video
   if (type === 'video') {
     return (
-      <div className="mt-1 mb-1 rounded-lg overflow-hidden bg-black/10">
-        <video
-          controls
-          src={url}
-          className="max-w-[240px] max-h-[240px] sm:max-w-[300px] object-contain rounded-lg"
-        />
+      <div className="-mx-[3px] -mt-[3px] mb-0.5 rounded-[6px] overflow-hidden bg-black">
+        <video controls preload="metadata" src={url} className="block w-[330px] max-w-full max-h-[330px] object-contain" />
       </div>
-    );
+    )
   }
 
-  // Document (PDF etc)
   if (type === 'document') {
+    const nome = metadata.media_filename || 'Documento'
+    const ext = (String(nome).split('.').pop() || metadata.media_mimetype?.split('/')[1] || 'arquivo').toUpperCase().slice(0, 5)
     return (
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`mt-1 mb-1 flex items-center gap-3 p-3 rounded-lg border ${isOutgoing ? 'bg-black/10 border-white/20 hover:bg-black/20 text-white' : 'bg-[var(--chat-bg-hover)] border-[var(--chat-border)] hover:bg-[var(--chat-bg-hover)] text-[var(--chat-text-primary)]'
-          } transition-colors max-w-[240px]`}
-        title="Baixar Documento"
-      >
-        <div className={`p-2 rounded ${isOutgoing ? 'bg-panel' : 'bg-[var(--chat-bg-hover)] shadow-sm'}`}>
-          <span className="text-lg">📄</span>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{metadata.media_filename || 'Documento'}</p>
-          <p className={`text-[10px] ${isOutgoing ? 'text-white/70' : 'text-[var(--chat-text-muted)]'} uppercase mt-0.5 tracking-wider`}>
-            {metadata.media_mimetype?.split('/')[1] || 'FILE'}
-          </p>
-        </div>
+      <a href={url} target="_blank" rel="noopener noreferrer" download={metadata.media_filename || undefined}
+         className="flex items-center gap-3 p-2.5 rounded-[6px] w-[300px] max-w-full mb-0.5" style={{ background: 'var(--wa-quote)' }}
+         title="Abrir o documento">
+        <FileText size={30} weight="fill" style={{ color: ext === 'PDF' ? '#e5252a' : 'var(--wa-icon)' }} className="flex-shrink-0" />
+        <span className="flex-1 min-w-0">
+          <span className="block text-[14px] truncate">{nome}</span>
+          <span className="block wa-hora">{ext}</span>
+        </span>
+        <DownloadSimple size={20} style={{ color: 'var(--wa-icon)' }} className="flex-shrink-0" />
       </a>
-    );
+    )
   }
 
-  return (
-    <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm underline">
-      Abrir Arquivo ({type})
-    </a>
-  );
+  return <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm underline">Abrir arquivo ({type})</a>
 }
 
-// ── Quoted Message Bar (WhatsApp-style reply preview) ──
-function QuotedMessageBar({ metadata, isOutgoing }: { metadata: any; isOutgoing: boolean }) {
-  const quotedText = metadata?.quoted_text;
-  const quotedMediaType = metadata?.quoted_media_type;
-  const quotedMediaUrl = metadata?.quoted_media_url;
-  const quotedSender = metadata?.quoted_sender;
-
-  if (!quotedText && !quotedMediaType) return null;
-
-  // Color for the left bar: blue accent for lead replies, white-ish for outgoing
-  const barColor = isOutgoing ? 'rgba(255,255,255,0.45)' : 'var(--chat-accent)';
-  const bgColor = isOutgoing ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.06)';
-  const textColor = isOutgoing ? 'text-white/90' : 'text-[var(--chat-text-secondary)]';
-  const senderColor = isOutgoing ? 'text-white font-semibold' : 'text-[var(--chat-accent)] font-semibold';
-
+// ── A mensagem citada (resposta) ──
+function QuotedMessageBar({ metadata }: { metadata: any }) {
+  const quotedText = metadata?.quoted_text
+  const quotedMediaType = metadata?.quoted_media_type
+  const quotedMediaUrl = metadata?.quoted_media_url
+  const quotedSender = metadata?.quoted_sender
+  const quotedId = metadata?.quoted_message_id
+  /* A Z-API manda só o ID do que foi citado, nunca o texto; o texto vem da
+     busca por esse ID entre as mensagens guardadas (zapiInbound.ts). Quando
+     não achamos, a barra ainda avisa que ele respondeu citando algo. */
+  if (!quotedText && !quotedMediaType && !quotedId) return null
   return (
-    <div
-      className="rounded-lg mb-1.5 overflow-hidden cursor-pointer"
-      style={{ backgroundColor: bgColor }}
-    >
-      <div className="flex min-h-[40px]">
-        {/* Colored left bar */}
-        <div className="w-1 flex-shrink-0 rounded-l" style={{ backgroundColor: barColor }} />
-
-        {/* Quote content */}
-        <div className="flex-1 px-2.5 py-1.5 min-w-0">
-          {quotedSender && (
-            <p className={`text-[11px] ${senderColor} truncate mb-0.5`}>
-              {quotedSender}
-            </p>
-          )}
-          <p className={`text-[12px] ${textColor} line-clamp-2 leading-snug opacity-80`}>
-            {quotedText || ''}
-          </p>
-        </div>
-
-        {/* Quoted media thumbnail */}
-        {quotedMediaUrl && (quotedMediaType === 'image' || quotedMediaType === 'video' || quotedMediaType === 'sticker') && (
-          <div className="w-[46px] h-[46px] flex-shrink-0 overflow-hidden rounded-r">
-            <img
-              src={quotedMediaUrl}
-              alt="Mídia citada"
-              className="w-full h-full object-cover"
-            />
-          </div>
-        )}
+    <div className="rounded-[6px] mb-1 overflow-hidden flex min-h-[42px]" style={{ background: 'var(--wa-quote)' }}>
+      <div className="w-1 flex-shrink-0" style={{ background: 'var(--wa-quote-bar)' }} />
+      <div className="flex-1 px-2.5 py-1.5 min-w-0">
+        <p className="text-[12.5px] font-semibold truncate" style={{ color: 'var(--wa-quote-bar)' }}>
+          {quotedSender || 'Lead se refere a mensagem:'}
+        </p>
+        <p className="text-[13px] line-clamp-3 leading-[17px] whitespace-pre-wrap break-words opacity-80">
+          {quotedText || (quotedMediaType ? `[${quotedMediaType}]` : '(não encontrei essa mensagem aqui)')}
+        </p>
       </div>
+      {quotedMediaUrl && (quotedMediaType === 'image' || quotedMediaType === 'video' || quotedMediaType === 'sticker') && (
+        <img src={quotedMediaUrl} alt="" className="w-[52px] h-[52px] object-cover flex-shrink-0" />
+      )}
     </div>
-  );
+  )
 }
 
-// ── Message Bubble ──
-// memo() evita re-renderizar cada bolha quando algo não relacionado à lista muda (ex:
-// abrir o lightbox de uma foto, selecionar mensagens pra apagar) — sem isso, qualquer
-// re-render de ActivityTimeline reprocessa a bolha inteira de novo (formatação de data,
-// player de áudio, etc.) mesmo pras centenas de mensagens que não mudaram nada.
+/** Os tiques: um (saiu), dois (entregue), dois azuis (lido); aviso vermelho se falhou. */
+function Tiques({ metadata }: { metadata: any }) {
+  if (metadata?.send_status === 'failed') {
+    return (
+      <span title={metadata?.send_error || 'Falha ao enviar'} className="inline-flex">
+        <WarningCircle size={15} weight="fill" style={{ color: '#ef4444' }} />
+      </span>
+    )
+  }
+  const st = String(metadata?.whatsapp_status || metadata?.status || '').toLowerCase()
+  if (st === 'read' || st === 'played' || st === 'lida') return <Checks size={16} weight="bold" style={{ color: 'var(--wa-tick-read)' }} />
+  if (st === 'delivered' || st === 'received' || st === 'entregue') return <Checks size={16} weight="bold" />
+  if (metadata?.is_optimistic) return <span className="inline-block w-3 h-3 rounded-full border border-current border-t-transparent animate-spin" />
+  return <Check size={15} weight="bold" />
+}
+
+// ── O balão ──
 const MessageBubble = memo(function MessageBubble({
   activity,
   senderType,
   showHeader,
-  lead,
+  nomeDoLead,
   reactions,
   onImageClick,
   onReply,
@@ -346,11 +389,12 @@ const MessageBubble = memo(function MessageBubble({
   isPinned,
   onToggleSelect,
   isSelected,
+  mostrarTranscricao,
 }: {
   activity: LeadActivityWithActor
   senderType: SenderType | 'system_other'
   showHeader: boolean
-  lead: LeadWithOwner
+  nomeDoLead: string
   reactions?: LeadActivityWithActor[]
   onImageClick?: (url: string) => void
   onReply?: (activity: LeadActivityWithActor) => void
@@ -360,268 +404,175 @@ const MessageBubble = memo(function MessageBubble({
   isPinned?: boolean
   onToggleSelect?: (activity: LeadActivityWithActor) => void
   isSelected?: boolean
+  mostrarTranscricao?: boolean
 }) {
-  if (senderType === 'system_other') {
-    // Other types, we handled in main loop
-    return null
-  }
+  if (senderType === 'system_other') return null
 
   const outgoing = isOutgoing(senderType)
-  const isDeleted = !!activity.metadata?.deleted
+  const m = activity.metadata || {}
+  const isDeleted = !!m.deleted
+  const isAI = senderType === 'ai'
+  const isAutomated = senderType === 'automated'
+  const temMidia = !!m.media_url
+  const mostraTexto = !!activity.content && (!temMidia || !ROTULOS_DE_MIDIA.includes(activity.content))
+  const ehGrupo = m.is_group === true
 
-  if (outgoing) {
-    const isAI = senderType === 'ai'
-    const isAutomated = senderType === 'automated'
-    const bubbleColor = isAI ? 'rgba(75, 59, 253, 0.85)' : isAutomated ? 'rgba(34, 197, 94, 0.85)' : 'var(--chat-bubble-out)'
-    const labelColor = isAI ? '#4B3BFD' : isAutomated ? '#16A34A' : 'var(--chat-accent)'
-    const label = isAI ? 'Atlas AI' : isAutomated ? 'Automático' : 'Você'
+  // o nome em cima, dentro do balão: da Nay/automação, ou de quem fala no grupo
+  const rotulo = outgoing
+    ? (showHeader && (isAI || isAutomated) ? (isAI ? 'Nay (IA)' : 'Automático') : null)
+    : (showHeader && ehGrupo ? (m.sender_name || nomeDoLead) : null)
+  const corDoRotulo = isAI ? '#7c6bff' : isAutomated ? 'var(--wa-green)' : 'var(--wa-quote-bar)'
 
-    return (
-      <div className="flex flex-col items-end group/msg max-w-[65%] w-fit ml-auto">
-        {showHeader && (
-          <div className="flex items-center gap-1.5 mb-1">
-            <span className="text-xs font-semibold" style={{ color: labelColor }}>
-              {label}
-            </span>
-            {isAI ? (
-              <div
-                className="w-6 h-6 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: '#4B3BFD' }}
-              >
-                <Sparkle size={12} weight="fill" className="text-white" />
-              </div>
-            ) : isAutomated ? (
-              <div
-                className="w-6 h-6 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: '#16A34A' }}
-              >
-                <Lightning size={12} weight="fill" className="text-white" />
-              </div>
-            ) : (
-              <div
-                className="w-6 h-6 rounded-full flex items-center justify-center overflow-hidden"
-                style={{ backgroundColor: 'var(--chat-bubble-out)' }}
-              >
-                {activity.actor?.profiles?.avatar_url ? (
-                  <img src={activity.actor.profiles.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-[9px] font-bold text-white">
-                    {(activity.actor?.profiles?.full_name?.charAt(0) || 'V').toUpperCase()}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-        <div className="relative">
-          {/* Reply/Pin/Delete buttons — outgoing (appear on left). Fica sempre visível
-              (não só no hover) quando a mensagem está selecionada pra apagar em lote,
-              senão o checkbox marcado "some" assim que o mouse sai da bolha.
-              Presos pela borda da bolha (right-full) e não a uma distância fixa
-              dela (-left-9): com 3-4 botões a fileira passava de 36px e cobria o
-              começo da bolha — no áudio, justo o play e a barra de reprodução.
-              Assim ela cresce só pra esquerda, pra fora da mensagem. O espaço é pr-2 e
-              não mr-2 de propósito: padding faz parte da área do hover, então o
-              mouse vai da bolha pros botões sem passar por um vão que os apaga. */}
-          {!isDeleted && (onTogglePin || onReply || (onRequestDelete && canDelete)) && (
-            <div className={`absolute right-full pr-2 top-1/2 -translate-y-1/2 flex items-center gap-1 transition-opacity z-20 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover/msg:opacity-100'}`}>
-              {onToggleSelect && canDelete && (
-                <button
-                  onClick={() => onToggleSelect(activity)}
-                  className={`w-7 h-7 rounded-full border shadow-sm flex items-center justify-center transition-colors ${
-                    isSelected
-                      ? 'bg-[var(--chat-accent)] border-[var(--chat-accent)]'
-                      : 'bg-[var(--chat-bg-menu)] border-[var(--chat-border)] hover:bg-[var(--chat-bg-hover)]'
-                  }`}
-                  title={isSelected ? 'Remover da seleção' : 'Selecionar mensagem'}
-                >
-                  {isSelected && <Check size={14} weight="bold" className="text-white" />}
-                </button>
-              )}
-              {onRequestDelete && canDelete && (
-                <button
-                  onClick={() => onRequestDelete(activity)}
-                  className="w-7 h-7 rounded-full bg-[var(--chat-bg-menu)] border border-[var(--chat-border)] shadow-sm flex items-center justify-center hover:bg-red-500/10 hover:border-red-500/30"
-                  title="Apagar mensagem"
-                >
-                  <Trash size={14} weight="bold" className="text-[var(--chat-icon)] hover:text-red-500" />
-                </button>
-              )}
-              {onTogglePin && (
-                <button
-                  onClick={() => onTogglePin(activity)}
-                  className="glass-raised w-7 h-7 rounded-full flex items-center justify-center hover:brightness-125"
-                  title={isPinned ? 'Desafixar mensagem' : 'Fixar mensagem'}
-                >
-                  <PushPin size={14} weight={isPinned ? 'fill' : 'bold'} className={isPinned ? 'text-[var(--chat-accent)] -rotate-45' : 'text-[var(--chat-icon)]'} />
-                </button>
-              )}
-              {onReply && (
-                <button
-                  onClick={() => onReply(activity)}
-                  className="glass-raised w-7 h-7 rounded-full flex items-center justify-center hover:brightness-125"
-                  title="Responder"
-                >
-                  <ArrowBendUpLeft size={14} weight="bold" className="text-[var(--chat-icon)]" />
-                </button>
-              )}
-            </div>
-          )}
-          {isDeleted ? (
-            <div
-              className={`relative rounded-2xl px-3 py-2 min-w-[80px] border border-dashed ${showHeader ? 'rounded-tr-[2px]' : ''}`}
-              style={{ backgroundColor: 'var(--chat-bg-field)', borderColor: 'var(--chat-border)' }}
-            >
-              <p className="text-sm italic text-[var(--chat-text-muted)] flex items-center gap-1.5">
-                <Prohibit size={14} weight="bold" />
-                Mensagem apagada
-                <span className="inline-block w-[2.5rem]" />
-              </p>
-              <span className="absolute bottom-1 right-2.5 text-[10px] text-[var(--chat-text-muted)] whitespace-nowrap">
-                {formatTime(activity.created_at)}
-              </span>
-            </div>
-          ) : (
-          <div
-            className={`relative rounded-2xl px-3 pt-2 pb-1.5 min-w-[80px] border border-white/10 shadow-[0_1px_0_0_rgba(255,255,255,0.07)_inset,0_10px_24px_-18px_rgba(0,0,0,0.9)] ${showHeader ? 'rounded-tr-[2px]' : ''}`}
-            style={{ backgroundColor: bubbleColor, color: 'var(--chat-bubble-out-ink)' }}
-          >
-            <QuotedMessageBar metadata={activity.metadata} isOutgoing={true} />
-            {activity.metadata?.media_url && (
-              <MediaRenderer metadata={activity.metadata} isOutgoing={true} onImageClick={onImageClick} senderAvatar={isAI ? undefined : activity.actor?.profiles?.avatar_url} />
-            )}
-            {(!activity.metadata?.media_url || !['📷 Imagem', '🎥 Vídeo', '🎵 Áudio', '📄 Documento', '✨ Figurinha'].includes(activity.content)) && (
-              <p className={`text-sm leading-relaxed whitespace-pre-wrap break-words ${activity.metadata?.media_url ? 'mt-1' : ''}`}>
-                {activity.content}
-                <span className="inline-block w-[2.5rem]" />
-              </p>
-            )}
-            <span className="absolute bottom-1 right-2.5 text-[10px] opacity-70 whitespace-nowrap flex items-center gap-1">
-              {formatTime(activity.created_at)}
-              {activity.metadata?.send_status === 'failed' ? (
-                <span title={activity.metadata?.send_error || 'Falha ao enviar'}>
-                  <WarningCircle size={13} weight="fill" className="text-red-300" />
-                </span>
-              ) : activity.metadata?.send_status === 'sent' ? (
-                <Check size={13} weight="bold" className="opacity-70" />
-              ) : null}
-            </span>
-          </div>
-          )}
+  const acoes = !isDeleted && (onTogglePin || onReply || (outgoing && onRequestDelete && canDelete)) && (
+    <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 z-20 transition-opacity
+                     ${outgoing ? 'right-full pr-2' : 'left-full pl-2'} ${isSelected ? 'opacity-100' : 'opacity-0 group-hover/msg:opacity-100'}`}>
+      {outgoing && onToggleSelect && canDelete && (
+        <button onClick={() => onToggleSelect(activity)} title={isSelected ? 'Remover da seleção' : 'Selecionar mensagem'}
+                className="w-7 h-7 rounded-full shadow flex items-center justify-center"
+                style={{ background: isSelected ? 'var(--wa-green)' : 'var(--wa-menu)', border: '1px solid var(--wa-divider)' }}>
+          {isSelected && <Check size={14} weight="bold" className="text-white" />}
+        </button>
+      )}
+      {outgoing && onRequestDelete && canDelete && (
+        <button onClick={() => onRequestDelete(activity)} title="Apagar mensagem"
+                className="w-7 h-7 rounded-full shadow flex items-center justify-center hover:text-red-500"
+                style={{ background: 'var(--wa-menu)', color: 'var(--wa-icon)' }}>
+          <Trash size={14} weight="bold" />
+        </button>
+      )}
+      {onTogglePin && (
+        <button onClick={() => onTogglePin(activity)} title={isPinned ? 'Desafixar mensagem' : 'Fixar mensagem'}
+                className="w-7 h-7 rounded-full shadow flex items-center justify-center" style={{ background: 'var(--wa-menu)', color: isPinned ? 'var(--wa-green)' : 'var(--wa-icon)' }}>
+          <PushPin size={14} weight={isPinned ? 'fill' : 'bold'} className={isPinned ? '-rotate-45' : ''} />
+        </button>
+      )}
+      {onReply && (
+        <button onClick={() => onReply(activity)} title="Responder"
+                className="w-7 h-7 rounded-full shadow flex items-center justify-center" style={{ background: 'var(--wa-menu)', color: 'var(--wa-icon)' }}>
+          <ArrowBendUpLeft size={14} weight="bold" />
+        </button>
+      )}
+    </div>
+  )
 
-          {/* Reaction Pill Outgoing */}
-          {reactions && reactions.length > 0 && (
-            <div
-              className="glass-raised absolute -bottom-2 right-2 rounded-full px-1.5 py-0.5 flex items-center gap-0.5 z-10"
-              title={reactions.map(r => `${r.metadata?.sender_name || 'Desconhecido'}: ${r.content}`).join('\n')}
-            >
-              {Array.from(new Set(reactions.map(r => r.content))).map((emoji, idx) => (
-                <span key={idx} className="text-[12px] leading-none">{emoji}</span>
-              ))}
-              {reactions.length > 1 && <span className="text-[var(--chat-text-muted)] font-medium text-[10px] ml-0.5">{reactions.length}</span>}
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  // Lead — left side
-  const senderName = activity.metadata?.sender_name || activity.actor?.profiles?.full_name || lead.title || 'Lead'
-  const initials = senderName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
-  const isEvolution = activity.metadata?.source === 'evolution'
+  const reacoes = reactions && reactions.length > 0 && (
+    <div className={`absolute -bottom-3 ${outgoing ? 'right-2' : 'left-2'} rounded-full px-1.5 py-0.5 flex items-center gap-0.5 z-10 shadow`}
+         style={{ background: 'var(--wa-menu)', border: '1px solid var(--wa-divider)' }}
+         title={reactions.map((r) => `${r.metadata?.direction === 'outbound' ? 'Você' : (r.metadata?.sender_name || nomeDoLead)}: ${r.content}`).join('\n')}>
+      {Array.from(new Set(reactions.map((r) => r.content))).map((emoji, idx) => <span key={idx} className="text-[13px] leading-none">{emoji}</span>)}
+      {reactions.length > 1 && <span className="text-[11px] ml-0.5" style={{ color: 'var(--wa-text-2)' }}>{reactions.length}</span>}
+    </div>
+  )
 
   return (
-    <div className="flex items-start gap-2.5 group/msg">
-      <div className="w-7 flex-shrink-0 mt-0.5">
-        {showHeader && (
-          <div className="w-7 h-7 rounded-full bg-[var(--chat-bg-hover)] flex items-center justify-center shadow-inner overflow-hidden border border-[var(--chat-bg-hover)]">
-            {lead.avatar_url ? (
-              <img src={lead.avatar_url} alt={lead.title} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-[10px] font-bold text-[var(--chat-accent)]">{initials}</span>
-            )}
+    <div className={`flex ${outgoing ? 'justify-end' : 'justify-start'} ${outgoing ? 'pl-[10%]' : 'pr-[10%]'} ${reacoes ? 'mb-4' : ''}`}>
+      <div className="relative group/msg max-w-[min(65%,680px)] min-w-0">
+        {acoes}
+        {isDeleted ? (
+          <div className={`wa-balao ${outgoing ? 'wa-balao--out' : 'wa-balao--in'} ${showHeader ? 'wa-balao--rabo' : ''}`}>
+            <p className="italic flex items-center gap-1.5 opacity-70">
+              <Prohibit size={14} weight="bold" /> Mensagem apagada
+              <span className="inline-block w-[3.2rem]" />
+            </p>
+            <span className="absolute bottom-[3px] right-[7px] wa-hora">{formatTime(activity.created_at)}</span>
           </div>
-        )}
-      </div>
-      <div className="max-w-[65%] w-fit">
-        {showHeader && (
-          <div className="flex items-center gap-1.5 mb-1 ml-1">
-            <span className="text-xs font-semibold text-[var(--chat-text-muted)]">{senderName}</span>
-            {isEvolution && (
-              <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(139,92,246,0.2)', color: '#a78bfa' }}>
-                Nº 2
-              </span>
-            )}
-          </div>
-        )}
-        <div className="relative">
-          {/* Reply/Pin buttons — inbound (appear on right). Presos pela borda da
-              bolha (left-full), pelo mesmo motivo do lado de quem envia: crescem
-              pra fora da mensagem, nunca por cima dela. */}
-          {(onTogglePin || onReply) && (
-            <div className="absolute left-full pl-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover/msg:opacity-100 transition-opacity z-20">
-              {onTogglePin && (
-                <button
-                  onClick={() => onTogglePin(activity)}
-                  className="glass-raised w-7 h-7 rounded-full flex items-center justify-center hover:brightness-125"
-                  title={isPinned ? 'Desafixar mensagem' : 'Fixar mensagem'}
-                >
-                  <PushPin size={14} weight={isPinned ? 'fill' : 'bold'} className={isPinned ? 'text-[var(--chat-accent)] -rotate-45' : 'text-[var(--chat-icon)]'} />
-                </button>
-              )}
-              {onReply && (
-                <button
-                  onClick={() => onReply(activity)}
-                  className="glass-raised w-7 h-7 rounded-full flex items-center justify-center hover:brightness-125"
-                  title="Responder"
-                >
-                  <ArrowBendUpLeft size={14} weight="bold" className="text-[var(--chat-icon)]" />
-                </button>
-              )}
-            </div>
-          )}
-          <div
-            className={`relative rounded-2xl px-3 pt-2 pb-1.5 border shadow-sm min-w-[80px] ${showHeader ? 'rounded-tl-[2px]' : ''}`}
-            style={isEvolution
-              ? { backgroundColor: 'var(--chat-bg-field-evolution)', borderColor: 'var(--chat-border-evolution)' }
-              : { backgroundColor: 'var(--chat-bg-field)', borderColor: 'var(--chat-border)' }
-            }
-          >
-            <QuotedMessageBar metadata={activity.metadata} isOutgoing={false} />
-            {activity.metadata?.media_url && (
-              <MediaRenderer metadata={activity.metadata} isOutgoing={false} onImageClick={onImageClick} senderAvatar={lead.avatar_url} />
-            )}
-            {(!activity.metadata?.media_url || !['📷 Imagem', '🎥 Vídeo', '🎵 Áudio', '📄 Documento', '✨ Figurinha'].includes(activity.content)) && (
-              <p className={`text-sm text-[var(--chat-text-primary)] leading-relaxed whitespace-pre-wrap break-words ${activity.metadata?.media_url ? 'mt-1' : ''}`}>
-                {activity.content}
-                <span className="inline-block w-[2.5rem]" />
+        ) : (
+          <div className={`wa-balao ${outgoing ? 'wa-balao--out' : 'wa-balao--in'} ${showHeader ? 'wa-balao--rabo' : ''}`}>
+            {rotulo && (
+              <p className="text-[12.8px] font-semibold leading-[18px] mb-0.5 flex items-center gap-1" style={{ color: corDoRotulo }}>
+                {isAI && <Sparkle size={12} weight="fill" />}
+                {isAutomated && <Lightning size={12} weight="fill" />}
+                {rotulo}
               </p>
             )}
-            <span className="absolute bottom-1 right-2.5 text-[10px] text-[var(--chat-text-muted)] whitespace-nowrap">
+            <QuotedMessageBar metadata={m} />
+            {/* O IMÓVEL DA MENSAGEM MARCADA (Tel, 27/09): antes de ler "ainda
+                está disponível?" a pessoa precisa saber DE QUAL imóvel. */}
+            <ImovelCitado quotedText={m.quoted_text} quotedMessageId={m.quoted_message_id} ownText={activity.content} isOutgoing={outgoing} />
+            {/* POR QUAL NÚMERO SAIU (Tel, 26/09): template da API Oficial numa conversa da Parceria */}
+            {m.channel === 'whatsapp_cloud_official' && outgoing && (
+              <span className="block mb-0.5 text-[11px] opacity-70">API Oficial{m.template ? ` · ${m.template}` : ''}</span>
+            )}
+            {temMidia && (
+              <MediaRenderer
+                metadata={m}
+                isOutgoing={outgoing}
+                onImageClick={onImageClick}
+                senderAvatar={outgoing ? (isAI ? undefined : activity.actor?.profiles?.avatar_url) : undefined}
+                mostrarTranscricao={mostrarTranscricao}
+                atividadeId={activity.id}
+                leadId={activity.lead_id}
+              />
+            )}
+            {mostraTexto && (
+              <p className="whitespace-pre-wrap break-words">
+                {activity.content}
+                {/* espaço para a hora e o tique não subirem por cima do texto */}
+                <span className={`inline-block ${outgoing ? 'w-[4.1rem]' : 'w-[3.1rem]'} ${m.editada ? (outgoing ? '!w-[7.4rem]' : '!w-[6.4rem]') : ''}`} />
+              </p>
+            )}
+            <span className={`${mostraTexto || !temMidia ? 'absolute bottom-[3px] right-[7px]' : 'flex justify-end -mb-1'} wa-hora items-center gap-[3px] inline-flex`}>
+              {m.editada && <span className="mr-0.5">Editada</span>}
               {formatTime(activity.created_at)}
+              {outgoing && <Tiques metadata={m} />}
             </span>
           </div>
-
-          {/* Reaction Pill Inbound */}
-          {reactions && reactions.length > 0 && (
-            <div
-              className="glass-raised absolute -bottom-2 right-2 rounded-full px-1.5 py-0.5 flex items-center gap-0.5 z-10"
-              title={reactions.map(r => `${r.metadata?.sender_name || 'Desconhecido'}: ${r.content}`).join('\n')}
-            >
-              {Array.from(new Set(reactions.map(r => r.content))).map((emoji, idx) => (
-                <span key={idx} className="text-[12px] leading-none">{emoji}</span>
-              ))}
-              {reactions.length > 1 && <span className="text-[var(--chat-text-muted)] font-medium text-[10px] ml-0.5">{reactions.length}</span>}
-            </div>
-          )}
-        </div>
+        )}
+        {reacoes}
       </div>
     </div>
   )
 })
 
-// ── Main Component ──
+/*
+ * O ÁLBUM (Pedro, 29/09/2026): "no WhatsApp fica 4 miniaturas e um número de
+ * fotos que tem, 26+ por exemplo, ele junta as fotos". Quatro ou mais fotos
+ * seguidas da mesma pessoa, a menos de 2 min uma da outra e sem legenda, viram
+ * um balão só: 4 miniaturas, e a quarta com "+N" quando há mais. Tocar abre a
+ * galeria com todas.
+ */
+function fotoAgrupavel(a: LeadActivityWithActor): boolean {
+  const m = a.metadata || {}
+  if (a.type !== 'whatsapp' || m.media_type !== 'image' || !m.media_url || m.deleted || m.is_reaction) return false
+  const c = String(a.content || '').trim()
+  if (c === '[Figurinha]' || c === '✨ Figurinha') return false
+  return !c || ROTULOS_DE_MIDIA.includes(c) || c === '[Imagem]'
+}
+
+const AlbumDeFotos = memo(function AlbumDeFotos({ fotos, outgoing, showHeader, rotulo, aoAbrir }: {
+  fotos: LeadActivityWithActor[]
+  outgoing: boolean
+  showHeader: boolean
+  rotulo: string | null
+  aoAbrir: (indice: number) => void
+}) {
+  const ultima = fotos[fotos.length - 1]
+  const resto = fotos.length - 3  // como no WhatsApp: a 4ª fica coberta pelo número
+  return (
+    <div className={`flex ${outgoing ? 'justify-end' : 'justify-start'} ${outgoing ? 'pl-[10%]' : 'pr-[10%]'}`}>
+      <div className={`wa-balao ${outgoing ? 'wa-balao--out' : 'wa-balao--in'} ${showHeader ? 'wa-balao--rabo' : ''} !p-[3px]`}>
+        {rotulo && <p className="text-[12.8px] font-semibold leading-[18px] px-1.5 pt-0.5 pb-1" style={{ color: 'var(--wa-quote-bar)' }}>{rotulo}</p>}
+        <div className="grid grid-cols-2 gap-[3px] w-[min(300px,62vw)]">
+          {fotos.slice(0, 4).map((f, i) => (
+            <button key={f.id} type="button" onClick={() => aoAbrir(i)} className="relative aspect-square overflow-hidden rounded-md bg-black/10"
+                    aria-label={i === 3 && fotos.length > 4 ? `Ver as ${fotos.length} fotos` : `Abrir a foto ${i + 1}`}>
+              <img src={f.metadata?.media_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+              {i === 3 && fotos.length > 4 && (
+                <span className="absolute inset-0 flex items-center justify-center bg-black/55 text-white text-[28px] font-semibold">+{resto}</span>
+              )}
+            </button>
+          ))}
+        </div>
+        <span className="flex justify-end items-center gap-[3px] wa-hora px-1.5 pt-0.5">
+          {fotos.length} fotos · {formatTime(ultima.created_at)}
+          {outgoing && <Tiques metadata={ultima.metadata || {}} />}
+        </span>
+      </div>
+    </div>
+  )
+})
+
+// ── A conversa ──
 export default function ActivityTimeline({
   activities,
   loading,
@@ -630,24 +581,40 @@ export default function ActivityTimeline({
   onTogglePin,
   onDelete,
   pinnedActivityIds,
+  mostrarTranscricao,
+  temMais,
+  carregandoAnteriores,
+  onCarregarAnteriores,
 }: ActivityTimelineProps) {
-  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  // a galeria: uma foto (clique numa imagem) ou o álbum inteiro
+  const [galeria, setGaleria] = useState<{ urls: string[]; i: number } | null>(null)
+  const setSelectedImage = useCallback((url: string) => setGaleria({ urls: [url], i: 0 }), [])
+  useEffect(() => {
+    if (!galeria) return
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setGaleria(null)
+      if (e.key === 'ArrowRight') setGaleria((g) => g && { ...g, i: Math.min(g.urls.length - 1, g.i + 1) })
+      if (e.key === 'ArrowLeft') setGaleria((g) => g && { ...g, i: Math.max(0, g.i - 1) })
+    }
+    window.addEventListener('keydown', tecla)
+    return () => window.removeEventListener('keydown', tecla)
+  }, [galeria])
+
+  /* O BOTÃO DE DESCER (Pedro, 29/09): subiu para ler, aparece a setinha no
+     canto de baixo, com quantas mensagens chegaram desde então. */
+  const [longeDoFim, setLongeDoFim] = useState(false)
+  const quantasAoSubir = useRef(0)
   const [deleteTarget, setDeleteTarget] = useState<LeadActivityWithActor | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
-  const endRef = useRef<HTMLDivElement>(null)
+  const rolagemRef = useRef<HTMLDivElement>(null)
+  const jaRolou = useRef(false)
   const { currentOrganization, isMaster, roleName } = useAuth()
   const isOrgAdminUser = isMaster || roleName?.toLowerCase() === 'administrador' || roleName?.toLowerCase() === 'owner'
+  const nomeDoLead = lead.title || 'Lead'
 
-  // Só quem enviou a mensagem (ou um admin) pode apagá-la — mesma regra aplicada no
-  // servidor em /api/leads/[id]/messages/[activityId]; aqui só decide se o botão aparece.
-  // Mensagem otimista (ainda enviando, sem id real do servidor) não pode ser apagada:
-  // o id é só um placeholder local ("temp-...") — mandar isso pro DELETE quebra com
-  // "invalid input syntax for type uuid" porque a coluna é uuid de verdade.
-  // Mensagens que chegaram via automação externa (source !== 'human', ex: bot de
-  // disparo ligado no mesmo número) não têm actor_member_id — só um admin pode apagá-las;
-  // um membro comum só apaga as que ele mesmo mandou pelo CRM.
+  // Só quem enviou (ou um admin) apaga; mensagem otimista (sem id real) não.
   const canDeleteActivity = (activity: LeadActivityWithActor) => {
     if (activity.metadata?.is_optimistic || activity.metadata?.direction !== 'outbound') return false
     if (isOrgAdminUser) return true
@@ -655,7 +622,7 @@ export default function ActivityTimeline({
   }
 
   const toggleSelect = (activity: LeadActivityWithActor) => {
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       const next = new Set(prev)
       if (next.has(activity.id)) next.delete(activity.id)
       else next.add(activity.id)
@@ -664,366 +631,343 @@ export default function ActivityTimeline({
   }
   const clearSelection = () => setSelectedIds(new Set())
 
-  // Toda mensagem que já pode ser selecionada individualmente (checkbox só aparece
-  // nas mensagens que a própria empresa mandou — canDeleteActivity já garante isso).
-  // Só alcança o que já está carregado (últimas ~300 mensagens da conversa).
   const selectableActivityIds = activities
     .filter((a) => a.type !== 'note' && a.type !== 'call' && a.type !== 'email' && canDeleteActivity(a))
     .map((a) => a.id)
   const selectAllEligible = () => setSelectedIds(new Set(selectableActivityIds))
 
-  // ChatWindow não remonta ao trocar de lead (sem key={lead.id}) — sem isso a seleção
-  // de um lead ficaria pendurada ao abrir outra conversa.
-  useEffect(() => {
-    clearSelection()
-  }, [lead.id])
+  useEffect(() => { clearSelection(); jaRolou.current = false }, [lead.id])
 
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [activities.length])
+  /* Abrir a conversa já no fim, sem animação (a rolagem "suave" começava do
+     topo e atravessava a conversa inteira). Mensagem nova rola suave, e só se
+     a pessoa já estava perto do fim -- quem subiu para ler não é puxado. */
+  /* As de antes entram EM CIMA: a tela fica parada na mensagem que a pessoa
+     estava lendo (senão o conteúdo novo empurraria tudo para baixo). */
+  const antesDeCarregar = useRef<{ altura: number; topo: number; primeira: string } | null>(null)
+  const primeiraId = activities[0]?.id
+  useLayoutEffect(() => {
+    const el = rolagemRef.current
+    if (!el || activities.length === 0) return
+    if (!jaRolou.current) {
+      el.scrollTop = el.scrollHeight
+      jaRolou.current = true
+      return
+    }
+    const antes = antesDeCarregar.current
+    if (antes && antes.primeira !== primeiraId) {
+      el.scrollTop = antes.topo + (el.scrollHeight - antes.altura)
+      antesDeCarregar.current = null
+      return
+    }
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 240) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+  }, [activities.length, primeiraId])
 
-  // Monta a lista de bolhas só quando algo que realmente afeta o resultado muda — sem
-  // isso, qualquer re-render de ActivityTimeline por um motivo não relacionado (abrir o
-  // lightbox de uma foto, selecionar mensagens pra apagar) reprocessava a conversa
-  // inteira de novo a cada tecla/clique. Precisa ficar antes dos returns condicionais
-  // de loading/vazio abaixo — hook não pode ser chamado condicionalmente.
+  const aoRolar = () => {
+    const perto = rolagemRef.current ? rolagemRef.current.scrollHeight - rolagemRef.current.scrollTop - rolagemRef.current.clientHeight < 300 : true
+    if (!perto && !longeDoFim) quantasAoSubir.current = activities.length
+    if (perto !== !longeDoFim) setLongeDoFim(!perto)
+    const el = rolagemRef.current
+    if (!el || !temMais || carregandoAnteriores || !onCarregarAnteriores || !jaRolou.current) return
+    if (el.scrollTop > 300) return
+    antesDeCarregar.current = { altura: el.scrollHeight, topo: el.scrollTop, primeira: primeiraId || '' }
+    onCarregarAnteriores()
+  }
+
   const elements = useMemo(() => {
     if (activities.length === 0) return []
 
-    // Pre-process reactions
     const normalActivities: LeadActivityWithActor[] = []
+    // reação: por mensagem reagida, e de cada pessoa só a última (trocar o
+    // emoji substitui; reação vazia é "tirou") -- como no WhatsApp
+    const porAlvo = new Map<string, Map<string, LeadActivityWithActor>>()
+    activities.forEach((act) => {
+      if (act.type === 'system' && act.metadata?.source === 'rename') return
+      if (act.metadata?.is_reaction && act.metadata?.target_message_id) {
+        const targetId = String(act.metadata.target_message_id)
+        const quem = act.metadata?.direction === 'outbound' ? 'nos' : String(act.metadata?.participant_phone || act.metadata?.sender_name || 'contato')
+        if (!porAlvo.has(targetId)) porAlvo.set(targetId, new Map())
+        porAlvo.get(targetId)!.set(quem, act)
+      } else {
+        normalActivities.push(act)
+      }
+    })
     const reactionMap = new Map<string, LeadActivityWithActor[]>()
+    porAlvo.forEach((deCadaUm, alvo) => {
+      const valendo = Array.from(deCadaUm.values()).filter((r) => !!r.content)
+      if (valendo.length) reactionMap.set(alvo, valendo)
+    })
 
-    activities.forEach(act => {
-    // Skip rename events from appearing in the chat timeline (they only go to the History panel)
-    if (act.type === 'system' && act.metadata?.source === 'rename') {
-      return
-    }
+    const out: React.ReactNode[] = []
+    let lastDateKey = ''
+    let lastSenderType = ''
+    let lastSenderName = ''
 
-    if (act.metadata?.is_reaction && act.metadata?.target_message_id) {
-      const targetId = act.metadata.target_message_id
-      if (!reactionMap.has(targetId)) {
-        reactionMap.set(targetId, [])
-      }
-      reactionMap.get(targetId)!.push(act)
-    } else {
-      normalActivities.push(act)
-    }
-  })
-
-  // Start building elements
-  const elements: React.ReactNode[] = []
-  let lastDateKey = ''
-  let lastSenderType = ''
-  let lastSenderName = ''
-
-  normalActivities.forEach((activity, i) => {
-    const senderType = getSenderType(activity)
-    const date = new Date(activity.created_at)
-    const dateKey = getDateKey(date)
-
-    // Note
-    if (activity.type === 'note') {
+    const divisor = (dateKey: string, date: Date, i: number) => {
       if (dateKey !== lastDateKey) {
-        elements.push(<DateDivider key={`date-${dateKey}-${i}`} label={getDateLabel(date)} />)
+        out.push(<DateDivider key={`date-${dateKey}-${i}`} label={getDateLabel(date)} />)
         lastDateKey = dateKey
         lastSenderType = ''
         lastSenderName = ''
       }
-      elements.push(
-        <div key={activity.id} className="mt-4 flex justify-center">
-          <div className="bg-amber-50 dark:bg-[#3a2e12] border border-amber-200 dark:border-[#5a4720] rounded-2xl p-3 max-w-sm w-full shadow-sm">
-            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">📝 Nota</p>
-            <p className="text-sm text-amber-900/90 dark:text-amber-100/90 mt-1 whitespace-pre-wrap">{activity.content}</p>
-            <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80 mt-2 text-right uppercase font-semibold tracking-wider">
-              {activity.actor?.profiles?.full_name || 'Desconhecido'} • {formatTime(activity.created_at)}
-            </p>
-          </div>
-        </div>
-      )
-      lastSenderType = 'system_other'
-      lastSenderName = ''
-      return
     }
 
-    // Call
-    if (activity.type === 'call') {
-      if (dateKey !== lastDateKey) {
-        elements.push(<DateDivider key={`date-${dateKey}-${i}`} label={getDateLabel(date)} />)
-        lastDateKey = dateKey
-        lastSenderType = ''
+    for (let i = 0; i < normalActivities.length; i++) {
+      const activity = normalActivities[i]
+      const senderType = getSenderType(activity)
+      const date = new Date(activity.created_at)
+      const dateKey = getDateKey(date)
+
+      if (activity.type === 'note') {
+        divisor(dateKey, date, i)
+        out.push(
+          <div key={activity.id} className="mt-3 flex justify-center">
+            <div className="rounded-lg px-3 py-2 max-w-md w-full shadow-sm" style={{ background: '#fff5c4', color: '#3b3200' }}>
+              <p className="text-[13px] font-semibold">📝 Nota interna</p>
+              <p className="text-[14px] mt-1 whitespace-pre-wrap">{activity.content}</p>
+              <p className="text-[11px] mt-1.5 text-right opacity-70">
+                {activity.actor?.profiles?.full_name || 'Desconhecido'} · {formatTime(activity.created_at)}
+              </p>
+            </div>
+          </div>
+        )
+        lastSenderType = 'system_other'
         lastSenderName = ''
+        continue
       }
-      const durationSecs = activity.metadata?.duration_seconds
-      const durationStr = durationSecs
-        ? `${Math.floor(durationSecs / 60)}min ${durationSecs % 60}s`
-        : ''
-      elements.push(
-        <div key={activity.id} className="mt-4 flex justify-center mb-1">
-          <div className="bg-[var(--chat-bg-field)] border border-[var(--chat-border)] shadow-sm rounded-full py-2 px-5 inline-block">
-            <p className="text-xs font-semibold text-[var(--chat-text-secondary)] uppercase tracking-widest">
-              📞 Ligação{durationStr ? ` • ${durationStr}` : ''} • <span className="text-[var(--chat-text-muted)] font-normal">{formatTime(activity.created_at)}</span>
-            </p>
-          </div>
-        </div>
-      )
-      lastSenderType = 'system_other'
-      lastSenderName = ''
-      return
-    }
 
-    // Email
-    if (activity.type === 'email') {
-      if (dateKey !== lastDateKey) {
-        elements.push(<DateDivider key={`date-${dateKey}-${i}`} label={getDateLabel(date)} />)
-        lastDateKey = dateKey
-        lastSenderType = ''
+      if (activity.type === 'call' || activity.type === 'email') {
+        divisor(dateKey, date, i)
+        const durationSecs = activity.metadata?.duration_seconds
+        const texto = activity.type === 'call'
+          ? `📞 Ligação${durationSecs ? ` · ${Math.floor(durationSecs / 60)}min ${durationSecs % 60}s` : ''}`
+          : `📧 E-mail: ${activity.content}`
+        out.push(
+          <div key={activity.id} className="mt-3 flex justify-center">
+            <span className="wa-data !whitespace-pre-wrap max-w-md text-center">{texto} · {formatTime(activity.created_at)}</span>
+          </div>
+        )
+        lastSenderType = 'system_other'
         lastSenderName = ''
+        continue
       }
-      elements.push(
-        <div key={activity.id} className="mt-4 flex justify-center">
-          <div className="bg-panel-2 dark:bg-[#0f2733] border border-accent-line dark:border-[#1e4356] rounded-2xl p-4 max-w-md w-full shadow-sm">
-            <p className="text-sm font-semibold text-accent-2">📧 Email</p>
-            <p className="text-sm text-accent-2 mt-2 whitespace-pre-wrap bg-black/5 dark:bg-black/15 p-3 rounded-xl border border-accent-line">{activity.content}</p>
-            <p className="text-[10px] text-accent-2 mt-2 text-right uppercase font-semibold tracking-wide">
-              {formatTime(activity.created_at)}
-            </p>
-          </div>
+
+      divisor(dateKey, date, i)
+
+      // sequência: a mesma pessoa falando seguido não repete o "rabinho"
+      const currentSenderName = activity.metadata?.sender_name || ''
+      const isGroupMsg = activity.metadata?.is_group === true
+      const senderChanged = senderType !== lastSenderType || (isGroupMsg && senderType === 'lead' && currentSenderName !== lastSenderName)
+      const showHeader = senderChanged
+      const needsGap = showHeader && lastSenderType !== '' && lastSenderType !== 'system_other'
+      lastSenderType = senderType as string
+      lastSenderName = currentSenderName
+
+      // o álbum: 4+ fotos seguidas da mesma pessoa, a menos de 2 min uma da outra
+      if (fotoAgrupavel(activity)) {
+        const fotos = [activity]
+        let j = i + 1
+        while (j < normalActivities.length && fotoAgrupavel(normalActivities[j])
+               && getSenderType(normalActivities[j]) === senderType
+               && getDateKey(new Date(normalActivities[j].created_at)) === dateKey
+               && new Date(normalActivities[j].created_at).getTime() - new Date(normalActivities[j - 1].created_at).getTime() <= 120_000) {
+          fotos.push(normalActivities[j])
+          j++
+        }
+        if (fotos.length >= 4) {
+          const outgoingAlbum = isOutgoing(senderType as SenderType)
+          const rotuloAlbum = outgoingAlbum
+            ? (showHeader && (senderType === 'ai' || senderType === 'automated') ? (senderType === 'ai' ? 'Nay (IA)' : 'Automático') : null)
+            : (showHeader && isGroupMsg ? (currentSenderName || nomeDoLead) : null)
+          const urls = fotos.map((f) => String(f.metadata?.media_url))
+          out.push(
+            <div key={`album-${activity.id}`} id={`activity-${activity.id}`} className={needsGap ? 'mt-3' : 'mt-[2px]'}>
+              <AlbumDeFotos fotos={fotos} outgoing={outgoingAlbum} showHeader={showHeader} rotulo={rotuloAlbum}
+                            aoAbrir={(indice) => setGaleria({ urls, i: indice })} />
+            </div>
+          )
+          i = j - 1
+          continue
+        }
+      }
+
+      const idDaMensagem = activity.metadata?.message_id || activity.metadata?.zapi_message_id || activity.metadata?.whatsapp_message_id
+      const reactionsForThisMessage = idDaMensagem ? reactionMap.get(String(idDaMensagem)) : undefined
+
+      out.push(
+        <div key={activity.id} id={`activity-${activity.id}`} className={needsGap ? 'mt-3' : 'mt-[2px]'}>
+          <MessageBubble
+            activity={activity}
+            senderType={senderType as SenderType}
+            showHeader={showHeader}
+            nomeDoLead={nomeDoLead}
+            reactions={reactionsForThisMessage}
+            onImageClick={setSelectedImage}
+            onReply={onReply}
+            onTogglePin={onTogglePin}
+            onRequestDelete={onDelete ? setDeleteTarget : undefined}
+            canDelete={canDeleteActivity(activity)}
+            isPinned={pinnedActivityIds?.has(activity.id)}
+            onToggleSelect={onDelete ? toggleSelect : undefined}
+            isSelected={selectedIds.has(activity.id)}
+            mostrarTranscricao={mostrarTranscricao}
+          />
         </div>
       )
-      lastSenderType = 'system_other'
-      lastSenderName = ''
-      return
     }
 
-    // WhatsApp and System messages (bubbles)
-    if (dateKey !== lastDateKey) {
-      elements.push(<DateDivider key={`date-${dateKey}-${i}`} label={getDateLabel(date)} />)
-      lastDateKey = dateKey
-      lastSenderType = ''
-      lastSenderName = ''
-    }
-
-    // For group chats, track individual sender names to show headers on participant change
-    const currentSenderName = activity.metadata?.sender_name || ''
-    const isGroupMsg = activity.metadata?.is_group === true
-    const senderChanged = senderType !== lastSenderType || (isGroupMsg && senderType === 'lead' && currentSenderName !== lastSenderName)
-    const showHeader = senderChanged
-    const needsGap = showHeader && lastSenderType !== '' && lastSenderType !== 'system_other'
-    lastSenderType = senderType as string
-    lastSenderName = currentSenderName
-
-    const reactionsForThisMessage = activity.metadata?.message_id
-      ? reactionMap.get(activity.metadata.message_id)
-      : undefined
-
-    elements.push(
-      <div key={activity.id} id={`activity-${activity.id}`} className={needsGap ? 'mt-4' : 'mt-1'}>
-        <MessageBubble
-          activity={activity}
-          senderType={senderType as SenderType}
-          showHeader={showHeader}
-          lead={lead}
-          reactions={reactionsForThisMessage}
-          onImageClick={setSelectedImage}
-          onReply={onReply}
-          onTogglePin={onTogglePin}
-          onRequestDelete={onDelete ? setDeleteTarget : undefined}
-          canDelete={canDeleteActivity(activity)}
-          isPinned={pinnedActivityIds?.has(activity.id)}
-          onToggleSelect={onDelete ? toggleSelect : undefined}
-          isSelected={selectedIds.has(activity.id)}
-        />
-      </div>
-    )
-  })
-
-  elements.push(<div key="end" ref={endRef} className="h-2" />)
-
-    return elements
+    return out
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activities, lead, pinnedActivityIds, selectedIds, onReply, onTogglePin, onDelete, isOrgAdminUser, currentOrganization?.id])
+  }, [activities, nomeDoLead, pinnedActivityIds, selectedIds, onReply, onTogglePin, onDelete, isOrgAdminUser, currentOrganization?.id, mostrarTranscricao])
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center relative z-10">
         <LoadingSpinner text="Carregando mensagens..." />
       </div>
     )
   }
 
   if (activities.length === 0) {
-    /*
-     * Conversa importada do WhatsApp é o caso comum de tela vazia: 79 das 82
-     * conversas do chat nasceram assim. Elas EXISTEM no aparelho, com
-     * histórico, mas a Z-API não entrega mensagem antiga — só as que chegam
-     * depois de ligado o webhook.
-     *
-     * Sem dizer isso, a tela em branco parece defeito: foi exatamente o que
-     * aconteceu, e a primeira reação foi "parou de carregar as mensagens",
-     * quando o servidor tinha respondido 200 com a conversa vazia.
-     */
+    /* Conversa importada do WhatsApp: ela existe no aparelho, com histórico,
+       mas a Z-API não entrega mensagem antiga -- só as que chegam depois. */
     const importada = (lead.custom_attributes as Record<string, unknown> | undefined)?.origem === 'conversa_whatsapp'
     const ultimaNoWhatsapp = lead.last_activity_at
-      ? new Date(lead.last_activity_at).toLocaleString('pt-BR', {
-          day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-        })
+      ? new Date(lead.last_activity_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
       : null
-
     return (
-      <div className="flex-1 flex items-center justify-center bg-transparent z-10 relative px-6">
-        {importada ? (
-          <div className="bg-[var(--chat-bg-panel)] border border-white/5 rounded-2xl px-5 py-4 max-w-sm text-center shadow-sm">
-            <p className="text-[13px] font-semibold text-[var(--chat-text-secondary)]">
-              O histórico desta conversa está no celular
-            </p>
-            <p className="text-[12px] text-[var(--chat-text-muted)] mt-1.5 leading-relaxed">
-              Ela já existia no WhatsApp antes do CRM, e a Z-API não traz mensagens
-              antigas. A partir da próxima mensagem — sua ou dele — tudo aparece aqui.
-            </p>
-            {ultimaNoWhatsapp && (
-              <p className="text-[11px] text-[var(--chat-text-tertiary)] mt-2">
-                Última mensagem no WhatsApp: {ultimaNoWhatsapp}
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="bg-[var(--chat-bg-panel)] border border-white/5 rounded-full px-6 py-2.5 text-[13px] text-[var(--chat-text-muted)] shadow-sm">
-            Nenhuma mensagem ainda. Inicie a conversa!
-          </div>
-        )}
+      <div className="flex-1 flex items-center justify-center relative z-10 px-6">
+        <div className="wa-data !px-5 !py-3 max-w-sm text-center !whitespace-normal">
+          {importada ? (
+            <>
+              <p className="font-semibold" style={{ color: 'var(--wa-text)' }}>O histórico desta conversa está no celular</p>
+              <p className="mt-1">Ela já existia no WhatsApp antes do CRM, e a Z-API não traz mensagens antigas. A partir da próxima mensagem — sua ou dele — tudo aparece aqui.</p>
+              {ultimaNoWhatsapp && <p className="mt-1.5 opacity-80">Última mensagem no WhatsApp: {ultimaNoWhatsapp}</p>}
+            </>
+          ) : 'Nenhuma mensagem ainda. Inicie a conversa!'}
+        </div>
       </div>
     )
   }
 
+  const novasDesdeQueSubiu = longeDoFim ? Math.max(0, activities.length - quantasAoSubir.current) : 0
   return (
     <>
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-4 z-10 relative flex flex-col">
-        <div className="flex flex-col flex-1 justify-end">{elements}</div>
+      <div className="relative flex-1 min-h-0 flex flex-col z-10">
+      {longeDoFim && (
+        <button type="button" className="wa-descer" title="Ir para a mensagem mais recente" aria-label="Ir para a mensagem mais recente"
+                onClick={() => { const el = rolagemRef.current; if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }) }}>
+          {novasDesdeQueSubiu > 0 && <span className="wa-descer__n">{novasDesdeQueSubiu > 99 ? '99+' : novasDesdeQueSubiu}</span>}
+          <CaretDown size={22} weight="bold" />
+        </button>
+      )}
+      <div ref={rolagemRef} onScroll={aoRolar} className="flex-1 overflow-y-auto overflow-x-hidden relative wa-rolagem" style={{ padding: '8px clamp(12px, 6%, 64px) 12px' }}>
+        <div className="flex flex-col min-h-full justify-end">
+          {temMais && (
+            <div className="flex justify-center py-2">
+              {carregandoAnteriores ? (
+                <span className="wa-data inline-flex items-center gap-2">
+                  <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                  Carregando mensagens anteriores…
+                </span>
+              ) : (
+                <button type="button" className="wa-data hover:brightness-95" onClick={() => {
+                  const el = rolagemRef.current
+                  if (el) antesDeCarregar.current = { altura: el.scrollHeight, topo: el.scrollTop, primeira: primeiraId || '' }
+                  onCarregarAnteriores?.()
+                }}>
+                  Ver mensagens anteriores
+                </button>
+              )}
+            </div>
+          )}
+          {elements}
+        </div>
+      </div>
       </div>
 
-      {selectedIds.size > 0 ? (
-        <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-t border-[var(--chat-border)] bg-[var(--chat-bg-panel)] z-10 relative">
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 relative z-10" style={{ background: 'var(--wa-panel)', borderTop: '1px solid var(--wa-divider)' }}>
           <div className="flex items-center gap-2">
-            <button
-              onClick={clearSelection}
-              className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[var(--chat-bg-hover)]"
-              title="Cancelar seleção"
-            >
-              <X size={16} weight="bold" className="text-[var(--chat-icon)]" />
-            </button>
-            <span className="text-sm font-medium text-[var(--chat-text-primary)]">
+            <button onClick={clearSelection} className="wa-icone-btn !w-8 !h-8" title="Cancelar seleção"><X size={16} weight="bold" /></button>
+            <span className="text-[14px]" style={{ color: 'var(--wa-text)' }}>
               {selectedIds.size} {selectedIds.size === 1 ? 'selecionada' : 'selecionadas'}
             </span>
           </div>
           <div className="flex items-center gap-2">
             {selectedIds.size < selectableActivityIds.length && (
-              <button
-                onClick={selectAllEligible}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[var(--chat-text-muted)] hover:text-[var(--chat-text-primary)] hover:bg-[var(--chat-bg-hover)] text-sm font-medium transition-colors"
-              >
-                <Checks size={14} weight="bold" />
-                Selecionar todas
+              <button onClick={selectAllEligible} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] hover:bg-[var(--wa-row-hover)]" style={{ color: 'var(--wa-text-2)' }}>
+                <Checks size={14} weight="bold" /> Selecionar todas
               </button>
             )}
-            <button
-              onClick={() => setBulkDeleteOpen(true)}
-              disabled={bulkDeleting}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              <Trash size={14} weight="bold" />
-              {bulkDeleting ? 'Apagando…' : 'Apagar selecionadas'}
+            <button onClick={() => setBulkDeleteOpen(true)} disabled={bulkDeleting}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 text-[13px] disabled:opacity-50">
+              <Trash size={14} weight="bold" /> {bulkDeleting ? 'Apagando…' : 'Apagar selecionadas'}
             </button>
           </div>
         </div>
-      ) : selectableActivityIds.length > 0 ? (
-        <div className="flex items-center justify-end px-4 py-1.5 border-t border-[var(--chat-border)] bg-[var(--chat-bg-panel)] z-10 relative">
-          <button
-            onClick={selectAllEligible}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium text-[var(--chat-text-muted)] hover:text-[var(--chat-text-primary)] hover:bg-[var(--chat-bg-hover)] transition-colors"
-            title="Seleciona as mensagens enviadas pela empresa nesta conversa — mensagens do cliente não podem ser apagadas do lado dele"
-          >
-            <Checks size={14} weight="bold" />
-            Selecionar todas as mensagens
-          </button>
-        </div>
-      ) : null}
+      )}
 
-      {selectedImage && (
-        <div
-          className="fixed inset-0 z-[999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
-          onClick={() => setSelectedImage(null)}
-        >
-          <button
-            className="absolute top-6 right-6 text-white bg-black/50 hover:bg-black/80 transition flex items-center justify-center w-10 h-10 rounded-full shadow-lg border border-white/10"
-            onClick={() => setSelectedImage(null)}
-            title="Fechar (Esc)"
-          >
-            <X size={20} weight="bold" />
+      {galeria && (
+        <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4" onClick={() => setGaleria(null)}>
+          {/* o X em alto contraste (Pedro, 29/09): branco com o X preto, no canto de cima à direita */}
+          <button type="button" aria-label="Fechar" title="Fechar (Esc)"
+                  // a cor vai no style: o tema escuro troca o bg-white por escuro (globals.css)
+                  className="wa-fechar-foto fixed top-4 right-4 z-[1000] w-12 h-12 rounded-full flex items-center justify-center"
+                  onClick={(e) => { e.stopPropagation(); setGaleria(null) }}>
+            <X size={26} weight="bold" />
           </button>
-          <img
-            src={selectedImage}
-            alt="Mídia Expandida"
-            className="max-w-[90vw] max-h-[90vh] object-contain rounded-md shadow-2xl ring-1 ring-white/10"
-            onClick={(e) => e.stopPropagation()}
-          />
+          {galeria.urls.length > 1 && (
+            <span className="absolute top-7 left-1/2 -translate-x-1/2 text-white/85 text-[14px] font-medium">{galeria.i + 1} / {galeria.urls.length}</span>
+          )}
+          <img src={galeria.urls[galeria.i]} alt="Foto" className="max-w-[92vw] max-h-[78vh] object-contain rounded-md shadow-2xl" onClick={(e) => e.stopPropagation()} />
+          {galeria.urls.length > 1 && (
+            <>
+              <button type="button" disabled={galeria.i === 0} onClick={(e) => { e.stopPropagation(); setGaleria((g) => g && { ...g, i: Math.max(0, g.i - 1) }) }}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center disabled:opacity-25" aria-label="Foto anterior">
+                <CaretLeft size={24} weight="bold" />
+              </button>
+              <button type="button" disabled={galeria.i === galeria.urls.length - 1} onClick={(e) => { e.stopPropagation(); setGaleria((g) => g && { ...g, i: Math.min(g.urls.length - 1, g.i + 1) }) }}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center disabled:opacity-25" aria-label="Próxima foto">
+                <CaretRight size={24} weight="bold" />
+              </button>
+              <div className="mt-3 flex gap-1.5 overflow-x-auto max-w-[92vw] pb-1" onClick={(e) => e.stopPropagation()}>
+                {galeria.urls.map((u, k) => (
+                  <button key={k} type="button" onClick={() => setGaleria((g) => g && { ...g, i: k })}
+                          className={`w-14 h-14 flex-shrink-0 rounded-md overflow-hidden ${k === galeria.i ? 'ring-2 ring-white' : 'opacity-60 hover:opacity-100'}`}>
+                    <img src={u} alt="" loading="lazy" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 
       {deleteTarget && (() => {
-        // "Para todos" só é real na Evolution (WhatsApp Nº 2) — a API Oficial e o
-        // Instagram não expõem nenhuma operação de apagar mensagem já enviada por um
-        // negócio (limitação da própria Meta, não é algo contornável daqui). Fora da
-        // Evolution só faz sentido oferecer "apenas pra mim".
+        // "Para todos" só é real na Evolution; a API Oficial e o Instagram não deixam apagar.
         const supportsEveryone = deleteTarget.metadata?.channel === 'whatsapp_evolution'
         const close = () => setDeleteTarget(null)
-        const choose = (deleteForEveryone: boolean) => {
-          onDelete?.(deleteTarget, deleteForEveryone)
-          close()
-        }
+        const choose = (deleteForEveryone: boolean) => { onDelete?.(deleteTarget, deleteForEveryone); close() }
         return (
-          <div
-            className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
-            onClick={close}
-          >
-            <div
-              className="w-full max-w-sm rounded-2xl bg-[var(--chat-bg-menu)] border border-[var(--chat-border)] shadow-2xl p-5"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-sm font-semibold text-[var(--chat-text-primary)] mb-1">Apagar mensagem</h3>
-              <p className="text-xs text-[var(--chat-text-muted)] mb-4">
+          <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 p-4" onClick={close}>
+            <div className="w-full max-w-sm rounded-2xl shadow-2xl p-5" style={{ background: 'var(--wa-menu)', color: 'var(--wa-text)' }} onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-[15px] font-semibold mb-1" style={{ fontFamily: 'inherit' }}>Apagar mensagem</h3>
+              <p className="text-[13px] mb-4" style={{ color: 'var(--wa-text-2)' }}>
                 {supportsEveryone
                   ? 'Escolha se ela também deve sumir do WhatsApp do cliente ou só daqui do CRM.'
-                  : 'A API Oficial do WhatsApp não permite apagar mensagens já enviadas — ela vai continuar visível no celular do cliente. Só sai daqui do CRM.'}
+                  : 'O WhatsApp não deixa apagar por aqui mensagem que já saiu — ela continua no celular do cliente. Sai só daqui do CRM.'}
               </p>
-
               <div className="flex flex-col gap-2">
                 {supportsEveryone && (
-                  <button
-                    onClick={() => choose(true)}
-                    className="w-full text-left px-3 py-2.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-colors"
-                  >
-                    <span className="block text-sm font-medium text-red-400">Apagar para todos</span>
-                    <span className="block text-xs text-[var(--chat-text-muted)] mt-0.5">
-                      Também apaga no WhatsApp do cliente, se ainda estiver dentro do prazo permitido.
-                    </span>
+                  <button onClick={() => choose(true)} className="w-full text-left px-3 py-2.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30">
+                    <span className="block text-[14px] font-medium text-red-500">Apagar para todos</span>
                   </button>
                 )}
-                <button
-                  onClick={() => choose(false)}
-                  className="w-full text-left px-3 py-2.5 rounded-lg bg-[var(--chat-bg-hover)] hover:bg-[var(--chat-border)] border border-[var(--chat-border)] transition-colors"
-                >
-                  <span className="block text-sm font-medium text-[var(--chat-text-primary)]">Apagar apenas para mim</span>
-                  <span className="block text-xs text-[var(--chat-text-muted)] mt-0.5">
-                    Some só daqui do CRM — continua visível pro cliente.
-                  </span>
+                <button onClick={() => choose(false)} className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-[var(--wa-row-hover)]" style={{ border: '1px solid var(--wa-divider)' }}>
+                  <span className="block text-[14px] font-medium">Apagar apenas para mim</span>
+                  <span className="block text-[12px] mt-0.5" style={{ color: 'var(--wa-text-2)' }}>Some só daqui do CRM.</span>
                 </button>
-                <button
-                  onClick={close}
-                  className="w-full text-center px-3 py-2 rounded-lg text-sm font-medium text-[var(--chat-text-muted)] hover:text-[var(--chat-text-primary)] mt-1"
-                >
-                  Cancelar
-                </button>
+                <button onClick={close} className="w-full text-center px-3 py-2 rounded-lg text-[14px]" style={{ color: 'var(--wa-green)' }}>Cancelar</button>
               </div>
             </div>
           </div>
@@ -1031,66 +975,37 @@ export default function ActivityTimeline({
       })()}
 
       {bulkDeleteOpen && (() => {
-        const targets = activities.filter(a => selectedIds.has(a.id))
-        // "Para todos" só entra se TODAS as selecionadas suportarem — misturar canais
-        // e prometer "apaga no WhatsApp do cliente" pra uma que na verdade não apaga
-        // (API Oficial/Instagram) seria enganoso.
-        const supportsEveryone = targets.length > 0 && targets.every(a => a.metadata?.channel === 'whatsapp_evolution')
+        const targets = activities.filter((a) => selectedIds.has(a.id))
+        const supportsEveryone = targets.length > 0 && targets.every((a) => a.metadata?.channel === 'whatsapp_evolution')
         const close = () => setBulkDeleteOpen(false)
         const choose = async (deleteForEveryone: boolean) => {
           close()
           setBulkDeleting(true)
-          for (const act of targets) {
-            await onDelete?.(act, deleteForEveryone)
-          }
+          for (const act of targets) await onDelete?.(act, deleteForEveryone)
           setBulkDeleting(false)
           clearSelection()
         }
         return (
-          <div
-            className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
-            onClick={close}
-          >
-            <div
-              className="w-full max-w-sm rounded-2xl bg-[var(--chat-bg-menu)] border border-[var(--chat-border)] shadow-2xl p-5"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-sm font-semibold text-[var(--chat-text-primary)] mb-1">
+          <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 p-4" onClick={close}>
+            <div className="w-full max-w-sm rounded-2xl shadow-2xl p-5" style={{ background: 'var(--wa-menu)', color: 'var(--wa-text)' }} onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-[15px] font-semibold mb-1" style={{ fontFamily: 'inherit' }}>
                 Apagar {targets.length} {targets.length === 1 ? 'mensagem' : 'mensagens'}
               </h3>
-              <p className="text-xs text-[var(--chat-text-muted)] mb-4">
+              <p className="text-[13px] mb-4" style={{ color: 'var(--wa-text-2)' }}>
                 {supportsEveryone
                   ? 'Escolha se elas também devem sumir do WhatsApp do cliente ou só daqui do CRM.'
-                  : 'Pelo menos uma dessas mensagens não pode ser apagada no WhatsApp do cliente (API Oficial/Instagram não permitem) — ela vai continuar visível pra ele. Só sai daqui do CRM.'}
+                  : 'Pelo menos uma delas não pode ser apagada no WhatsApp do cliente. Saem só daqui do CRM.'}
               </p>
-
               <div className="flex flex-col gap-2">
                 {supportsEveryone && (
-                  <button
-                    onClick={() => choose(true)}
-                    className="w-full text-left px-3 py-2.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-colors"
-                  >
-                    <span className="block text-sm font-medium text-red-400">Apagar para todos</span>
-                    <span className="block text-xs text-[var(--chat-text-muted)] mt-0.5">
-                      Também apaga no WhatsApp do cliente, se ainda estiver dentro do prazo permitido.
-                    </span>
+                  <button onClick={() => choose(true)} className="w-full text-left px-3 py-2.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30">
+                    <span className="block text-[14px] font-medium text-red-500">Apagar para todos</span>
                   </button>
                 )}
-                <button
-                  onClick={() => choose(false)}
-                  className="w-full text-left px-3 py-2.5 rounded-lg bg-[var(--chat-bg-hover)] hover:bg-[var(--chat-border)] border border-[var(--chat-border)] transition-colors"
-                >
-                  <span className="block text-sm font-medium text-[var(--chat-text-primary)]">Apagar apenas para mim</span>
-                  <span className="block text-xs text-[var(--chat-text-muted)] mt-0.5">
-                    Some só daqui do CRM — continua visível pro cliente.
-                  </span>
+                <button onClick={() => choose(false)} className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-[var(--wa-row-hover)]" style={{ border: '1px solid var(--wa-divider)' }}>
+                  <span className="block text-[14px] font-medium">Apagar apenas para mim</span>
                 </button>
-                <button
-                  onClick={close}
-                  className="w-full text-center px-3 py-2 rounded-lg text-sm font-medium text-[var(--chat-text-muted)] hover:text-[var(--chat-text-primary)] mt-1"
-                >
-                  Cancelar
-                </button>
+                <button onClick={close} className="w-full text-center px-3 py-2 rounded-lg text-[14px]" style={{ color: 'var(--wa-green)' }}>Cancelar</button>
               </div>
             </div>
           </div>

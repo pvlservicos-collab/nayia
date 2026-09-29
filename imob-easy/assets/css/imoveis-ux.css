@@ -1,0 +1,342 @@
+/* ==========================================================================
+   Imob Easy — Tela de Imóveis (UX nova, 26/09/2026)
+
+   Tel: "eu tb pedi para uma ia refazer a ux da página de imoveis é um html
+   dentro de site antigo tb acha la e implementa no site online".
+
+   É o protótipo `Imóveis · Imob Easy (protótipo).html` trazido para cá: os
+   grupos de filtro em cartão com a barrinha de cor, a contagem ao lado de
+   cada opção, o filtro de data em dois passos, os atalhos, as etiquetas do
+   que está filtrado e a gaveta do imóvel. A cor sai dos tokens do site
+   (--roxo, --verde-suave...), então a página é a mesma casa das outras.
+   ========================================================================== */
+
+/* ---- a moldura ---- */
+.ux-grid { display: grid; grid-template-columns: 272px 1fr; gap: 20px; align-items: start; }
+.ux-direita { min-width: 0; }
+.cabecalho-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.abas__n { color: var(--texto-fraco); font-weight: 400; margin-left: 5px; font-size: var(--fs-xs); }
+.abas__item[aria-selected="true"] .abas__n { color: rgba(255, 255, 255, .8); }
+
+/* ---- a lateral ---- */
+.ux-lado { display: flex; flex-direction: column; gap: 10px; }
+/* No computador a lateral acompanha a rolagem (com a propria barra): quem esta
+   no meio da lista clica no filtro sem precisar subir a tela. */
+@media (min-width: 1001px) {
+  .ux-lado {
+    position: sticky; top: var(--ux-topo, 72px); max-height: calc(100vh - var(--ux-topo, 72px) - 16px);
+    overflow-y: auto;
+    padding-right: 4px; scrollbar-width: thin;
+  }
+  /* os cartoes nao encolhem: quem rola e a lateral */
+  .ux-lado > * { flex-shrink: 0; }
+}
+.ux-busca .entrada { width: 100%; }
+
+.ux-grupo {
+  background: var(--superficie); border-radius: 14px; overflow: hidden;
+  border-left: 5px solid var(--cor, var(--roxo)); box-shadow: var(--sombra-1);
+}
+.ux-grupo summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 9px; padding: 11px 12px;
+}
+.ux-grupo summary::-webkit-details-marker { display: none; }
+.ux-grupo summary b { flex: 1; font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: .08em; }
+.ux-ico {
+  width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center;
+  background: var(--corbg, var(--roxo-suave)); color: var(--cor, var(--roxo)); font-size: 12px;
+}
+.ux-seta { color: var(--texto-fraco); transition: transform .2s; }
+.ux-grupo[open] .ux-seta { transform: rotate(180deg); }
+.ux-qtd { background: var(--cor, var(--roxo)); color: #fff; border-radius: 999px; font-size: 10.5px; padding: 1px 7px; }
+.ux-corpo { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 11px; }
+.ux-rot { font-size: var(--fs-xs); color: var(--texto-fraco); margin-bottom: 5px; }
+.ux-rot--forte { color: var(--texto); font-weight: 600; margin: 0; }
+.ux-dica { font-size: var(--fs-xs); color: var(--texto-fraco); line-height: 1.4; margin: 4px 0 0; }
+
+/* ---- as opções com a contagem do lado ---- */
+.ux-ops { display: flex; flex-wrap: wrap; gap: 5px; }
+.op {
+  border: 1px solid var(--borda); background: var(--superficie-2); border-radius: 999px;
+  padding: 5px 10px; font-size: var(--fs-xs); display: inline-flex; gap: 6px; align-items: center;
+  cursor: pointer; font-family: inherit; color: inherit;
+}
+.op:hover { border-color: var(--cor, var(--roxo)); }
+.op .n { color: var(--texto-fraco); }
+.op[aria-pressed="true"] { background: var(--cor, var(--roxo)); border-color: var(--cor, var(--roxo)); color: #fff; }
+.op[aria-pressed="true"] .n { color: rgba(255, 255, 255, .75); }
+.op[disabled] { opacity: .4; cursor: default; }
+.op .bol { width: 8px; height: 8px; border-radius: 50%; }
+.ux-faixa { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ux-limpar {
+  background: none; border: 0; color: var(--roxo); text-decoration: underline;
+  font-size: var(--fs-sm); font-family: inherit; cursor: pointer; padding: 6px;
+}
+
+/* ---- o filtro de data ---- */
+.ux-datas {
+  background: var(--superficie); border-radius: 16px; padding: 14px 16px; margin-bottom: 12px;
+  border-left: 5px solid #c4762f; box-shadow: var(--sombra-1);
+}
+.ux-datas__tit { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; flex-wrap: wrap; }
+.ux-datas__tit b { font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: .08em; }
+.ux-datas__tit .ux-ico { background: var(--laranja-suave); color: #c4762f; }
+.ux-passo {
+  display: grid; grid-template-columns: 160px 1fr; gap: 10px; align-items: center;
+  padding: 8px 0; border-top: 1px dashed var(--borda);
+}
+.ux-datas .op[aria-pressed="true"] { background: #c4762f; border-color: #c4762f; }
+.ux-datas__rodape { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.ux-meses { width: 96px; padding: 5px 10px; font-size: var(--fs-xs); border-radius: 999px; border: 1px solid var(--borda); }
+
+/* ---- atalhos, contagem, etiquetas ---- */
+.ux-atalhos { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.atalho {
+  background: var(--superficie); border: 1px solid var(--borda); border-radius: 11px;
+  padding: 6px 11px; display: flex; gap: 8px; align-items: center; font-size: var(--fs-xs);
+  cursor: pointer; font-family: inherit; color: inherit;
+}
+.atalho b { font-size: var(--fs-md); }
+.atalho:hover { border-color: var(--roxo); }
+.atalho--alerta b { color: #b42323; }
+.atalho--morno b { color: #9a6300; }
+.ux-linha { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.ux-linha__dir { display: flex; gap: 8px; align-items: center; }
+.ux-ordem { max-width: 230px; }
+.ux-resumo { font-size: var(--fs-sm); color: var(--texto-fraco); }
+.ux-resumo b { color: var(--texto); }
+.ux-resumo--geral { margin-bottom: 8px; }
+.ux-ativos { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
+.ux-ativos .ativo {
+  background: var(--roxo-suave); color: var(--roxo); border: 0; border-radius: 999px;
+  padding: 4px 11px; font-size: var(--fs-xs); cursor: pointer; font-family: inherit;
+}
+.ux-ativos .ativo::after { content: " ✕"; font-size: 9px; }
+
+/* ---- a tabela ---- */
+.tabela--ux tbody tr { cursor: pointer; }
+/* enquanto a proxima pagina/filtro chega, as linhas antigas ficam apagadas no lugar */
+.tabela--ux tbody.ux-carregando { opacity: .45; transition: opacity .15s; pointer-events: none; }
+.tabela--ux tbody tr:hover td { background: var(--roxo-suave); }
+.tabela--ux td { vertical-align: top; }
+.tabela--ux .cod { font-weight: 700; font-size: var(--fs-md); }
+.tabela--ux .sub { color: var(--texto-fraco); font-size: var(--fs-xs); }
+.tabela--ux .val { font-weight: 700; color: var(--roxo); }
+.tabela--ux tr.fora-catalogo td { color: var(--texto-fraco); }
+.miniatura {
+  width: 46px; height: 34px; border-radius: 6px; object-fit: cover; display: block;
+  background: var(--roxo-suave); margin-top: 5px;
+}
+
+/* ---- a gaveta do imóvel ---- */
+.ux-veu { position: fixed; inset: 0; background: rgba(42, 33, 64, .38); z-index: 880; }
+.ux-ficha {
+  position: fixed; top: 0; right: 0; height: 100%; width: min(520px, 100%);
+  background: var(--superficie); z-index: 890; overflow-y: auto; padding: 20px 22px 28px;
+  box-shadow: -10px 0 36px rgba(42, 33, 64, .18);
+}
+.ux-ficha__topo { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.ux-ficha h2 { margin: 6px 0 2px; font-size: var(--fs-xl); }
+.ux-bloco { border: 1px solid var(--borda); border-radius: 12px; padding: 12px 14px; margin-top: 11px; }
+.ux-bloco h3 { margin: 0 0 9px; font-size: var(--fs-xs); color: var(--roxo); text-transform: uppercase; letter-spacing: .09em; }
+.ux-dois { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 14px; font-size: var(--fs-sm); }
+.ux-dois b { display: block; font-size: var(--fs-xs); color: var(--texto-fraco); font-weight: 500; }
+/* sugestões por perto (28/09): o bairro, e embaixo os disponíveis dele */
+.ux-sugestoes { display: flex; flex-direction: column; gap: 12px; }
+.ux-sug__bairro { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: var(--fs-sm); }
+.ux-sug__bairro .ux-dica { margin: 0; }
+.ux-sug__lista { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.ux-sug__item {
+  width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; align-items: center;
+  text-align: left; font: inherit; font-size: var(--fs-sm); color: inherit; cursor: pointer;
+  background: transparent; border: 1px solid var(--borda); border-radius: 9px; padding: 7px 10px;
+}
+.ux-sug__item:hover, .ux-sug__item:focus-visible { border-color: var(--roxo); background: var(--roxo-suave); outline: none; }
+.ux-sug__nome { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ux-sug__item .etiqueta { justify-self: end; }
+.ux-sug__fin { color: var(--texto-fraco); font-size: var(--fs-xs); }
+.ux-sug__preco { justify-self: end; font-weight: 600; white-space: nowrap; }
+
+.ux-fotos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.ux-fotos img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; background: var(--roxo-suave); }
+
+/* ---- o mapa ---- */
+/* o estilo da paginacao e da tabela (display: flex/block) vencia o atributo hidden */
+.ux-direita [hidden] { display: none !important; }
+
+/* NO MAPA A LATERAL SOME e sobra so o mapa (Tel, 28/09) */
+.ux-grid--mapa { grid-template-columns: minmax(0, 1fr); }
+.ux-grid--mapa .ux-lado, .ux-grid--mapa .ux-datas, .ux-grid--mapa .ux-atalhos, .ux-grid--mapa .ux-linha,
+.ux-grid--mapa .ux-ativos, .ux-grid--mapa .ux-resumo--geral { display: none !important; }
+
+.ux-mapa { margin-bottom: 12px; position: relative; }
+/* OS FILTROS GRUDADOS NO TOPO DO MAPA: um cabeçalho claro (o contraste com o
+   mapa escuro), a linha do resumo embaixo dele, e o mapa colado logo abaixo */
+.mapa-filtros {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 12px; margin: 0;
+  background: var(--superficie); border: 1px solid var(--borda); border-bottom: 0; border-radius: 14px 14px 0 0;
+}
+.ux-mapa__barra.mapa-filtros__rodape {
+  margin: 0; padding: 6px 12px 8px; background: var(--superficie); border: 1px solid var(--borda);
+  border-top: 1px dashed var(--borda); border-bottom: 0;
+}
+
+/* O CABECALHO ESCURO, no cinza do mapa, com o texto branco (Tel, 28/09:
+   "deixa os filtros com a aparência escura cinza no fundo igual o mapa e os
+   textos cor branca"). Os campos, as etiquetas e a lista que desce vão junto. */
+.mapa-filtros, .ux-mapa__barra.mapa-filtros__rodape { background: #26242b; border-color: #3a3642; color: #f4f2f8; }
+.ux-mapa__barra.mapa-filtros__rodape { border-top-color: #3a3642; }
+.mapa-filtros .entrada { background: #1c1b20; border-color: #3f3b48; color: #fff; }
+.mapa-filtros .entrada::placeholder { color: #a8a3b3; }
+.mapa-filtros .ms__caixa { background: #1c1b20; border-color: #3f3b48; }
+.mapa-filtros .ms__caixa:focus-within, .mapa-filtros .entrada:focus { border-color: #8b5cf6; box-shadow: 0 0 0 3px rgba(139, 92, 246, .25); }
+.mapa-filtros .ms__texto { color: #fff; }
+.mapa-filtros .ms__texto::placeholder { color: #a8a3b3; }
+.mapa-filtros .ms__chip { background: rgba(124, 58, 237, .35); border-color: #7c3aed; color: #fff; }
+.mapa-filtros .ms__chip button { color: #e4dcf7; }
+.mapa-filtros .ms__lista { background: #2a2830; border-color: #3f3b48; color: #f4f2f8; box-shadow: 0 12px 30px rgba(0, 0, 0, .5); }
+.mapa-filtros .ms__op:hover, .mapa-filtros .ms__op--ativo { background: #3b2a63; }
+.mapa-filtros .ms__op small, .mapa-filtros .ms__vazio { color: #b3adbf; }
+.mapa-filtros .op { background: #1c1b20; border-color: #3f3b48; color: #f4f2f8; }
+.mapa-filtros .op:hover { border-color: #8b5cf6; }
+.mapa-filtros .ux-rot { color: #c9c4d4; }
+.mapa-filtros .ux-limpar, .mapa-filtros__rodape .ux-limpar { color: #c4b5fd; }
+.mapa-filtros__rodape .ux-resumo, .mapa-filtros__rodape .ux-mapa__opcao { color: #d6d2df; }
+.mapa-filtros__rodape .ux-resumo b { color: #fff; }
+.mapa-filtros__rodape .mapa-estilos { background: #1c1b20; border-color: #3f3b48; }
+.mapa-filtros__rodape .mapa-estilos button { color: #c9c4d4; }
+.mapa-filtros__rodape .mapa-estilos button[aria-pressed="true"] { background: #6d28d9; color: #fff; }
+.ux-mapa .ux-mapa__area { border-color: #3a3642; }
+/* TUDO NUMA LINHA SO (Tel, 28/09): os campos de lista dividem o que sobra da
+   linha; a lista que desce e mais larga que o campo, para caber o nome. So em
+   tela estreita a linha quebra. */
+.mapa-filtros { flex-wrap: nowrap; gap: 6px; }
+.mapa-filtros__busca { flex: 0 1 96px; min-width: 70px; }
+.mapa-filtros__ms { flex: 1 1 0; min-width: 104px; }
+.mapa-filtros .ms__caixa { min-height: 36px; padding: 2px 5px; }
+.mapa-filtros .ms__texto { min-width: 56px; font-size: 13px; }
+.mapa-filtros .ms__lista { min-width: 260px; }
+.mapa-filtros .entrada { padding-top: 7px; padding-bottom: 7px; font-size: 13px; }
+.mapa-filtros__grupo { display: inline-flex; gap: 4px; align-items: center; flex-wrap: nowrap; flex: 0 0 auto; }
+.mapa-filtros__grupo .ux-rot { margin: 0 1px 0 3px; font-size: 11px; }
+.mapa-filtros .op { padding: 5px 8px; }
+.mapa-filtros__valor { width: 76px; }
+.mapa-filtros .ux-limpar { flex: 0 0 auto; padding: 4px; }
+@media (max-width: 1180px) { .mapa-filtros { flex-wrap: wrap; } .mapa-filtros__ms { flex-basis: 160px; } }
+.mapa-filtros .op[aria-pressed="true"] { background: var(--roxo); border-color: var(--roxo); color: #fff; }
+.ux-mapa__barra { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.ux-mapa__opcao { font-size: var(--fs-xs); color: var(--texto-medio); display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.mapa-estilos { display: inline-flex; border: 1px solid var(--borda); border-radius: 999px; padding: 2px; background: var(--superficie); }
+.mapa-estilos button { border: 0; background: none; border-radius: 999px; padding: 4px 12px; font: inherit; font-size: var(--fs-xs); cursor: pointer; color: var(--texto-medio); }
+.mapa-estilos button[aria-pressed="true"] { background: #2a2438; color: #fff; }
+.ux-mapa__area {
+  height: calc(100vh - 170px); min-height: 460px; border-radius: 0 0 14px 14px; overflow: hidden;
+  border: 1px solid var(--borda); border-top: 0; box-shadow: var(--sombra-1); background: #1d1b22;
+}
+/* O FUNDO: o mapa do OpenStreetMap com filtro de cor -- escuro ou cinza */
+.mapa--escuro .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) grayscale(1) brightness(.92) contrast(.88); }
+.mapa--cinza .leaflet-tile-pane { filter: grayscale(1) brightness(.9) contrast(.92); }
+.mapa--cinza { background: #d9d9d9; }
+.ux-mapa__legenda { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 2px 0; font-size: var(--fs-xs); color: var(--texto-medio); align-items: center; }
+.ux-mapa__legenda > span { display: inline-flex; align-items: center; gap: 5px; }
+.ux-leg-cor { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+.ux-leg-pin svg { width: 18px; height: auto; }
+
+/* os pins: solidos, com a ponta embaixo; sem brilho */
+.ux-pin-icone { background: none; border: 0; }
+.ux-pin {
+  display: block; filter: drop-shadow(1px 2px 1.5px rgba(0, 0, 0, .35));
+  /* menor com o mapa afastado (a escala vem do zoom); a PONTA fica no lugar --
+     a sombra no chao fica abaixo dela, por isso a origem nao e o fim do desenho */
+  transform: scale(var(--pin-escala, 1));
+}
+.ux-pin--um { transform-origin: 50% 92.1%; }      /* 35 de 38 */
+.ux-pin--varios { transform-origin: 50% 93.75%; } /* 45 de 48 */
+.ux-leg-pin .ux-pin { transform: none; }
+/* o clique vale so no desenho do pin (encolhido, a caixa inteira roubaria o clique do vizinho) */
+.leaflet-pane .leaflet-marker-icon.ux-pin-icone { pointer-events: none; }
+.leaflet-pane .ux-pin-icone .ux-pin path, .leaflet-pane .ux-pin-icone .ux-pin circle,
+.leaflet-pane .ux-pin-icone .ux-pin text { pointer-events: auto; cursor: pointer; }
+.leaflet-pane .ux-pin-icone .ux-pin ellipse { pointer-events: none; }
+.leaflet-marker-icon.ux-pin-icone:hover { z-index: 9999 !important; }
+
+/* .leaflet-tooltip junto: o CSS do Leaflet chega depois e ganharia no empate */
+.leaflet-tooltip.ux-rotulo-bairro {
+  background: transparent; border: 0; box-shadow: none; font-weight: 700; font-size: 11px; white-space: nowrap; padding: 0;
+  color: #3b2a63; text-shadow: 0 0 3px #fff, 0 0 3px #fff;
+}
+.mapa--escuro .leaflet-tooltip.ux-rotulo-bairro { color: #ede9fe; text-shadow: 0 0 3px #000, 0 0 3px #000; }
+.leaflet-tooltip.ux-rotulo-bairro::before { display: none; }
+/* o nome do bairro que acompanha o mouse */
+.leaflet-tooltip.ux-dica-bairro {
+  background: #26242b; color: #fff; border: 1px solid #3a3642; border-radius: 8px;
+  font-weight: 600; font-size: 12px; padding: 4px 9px; box-shadow: 0 4px 14px rgba(0, 0, 0, .35);
+}
+.leaflet-tooltip-top.ux-dica-bairro::before { border-top-color: #26242b; }
+
+/* o balao de um imovel */
+.ux-card { width: 230px; font-family: inherit; }
+.ux-card img { width: 100%; height: 120px; object-fit: cover; border-radius: 8px; display: block; margin-bottom: 7px; background: var(--roxo-suave); }
+.ux-card__cod { font-weight: 800; font-size: 15px; }
+.ux-card__tit { font-weight: 600; margin: 3px 0 2px; }
+.ux-card__sub { color: var(--texto-fraco); font-size: 11.5px; line-height: 1.35; }
+.ux-card__val { color: var(--roxo); font-weight: 700; margin: 5px 0; }
+.ux-card__acoes { display: flex; gap: 6px; margin-top: 8px; }
+.ux-card__acoes .btn-mini { flex: 1; text-align: center; justify-content: center; }
+.leaflet-popup-content { margin: 12px 14px; }
+.ux-vizinhos { margin: 6px 0 0; padding-left: 16px; font-size: 12px; }
+
+/* o balao de varios imoveis no mesmo ponto: a lista */
+.ux-lugar { width: 310px; }
+.ux-lugar__tit { font-weight: 700; font-size: 14px; }
+.ux-lugar__lista { margin-top: 8px; max-height: 300px; overflow-y: auto; overscroll-behavior: contain; border-top: 1px solid var(--borda); }
+.ux-lugar__item { display: flex; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--borda); }
+.ux-lugar__item img, .ux-lugar__semfoto { width: 52px; height: 40px; border-radius: 6px; object-fit: cover; flex-shrink: 0; background: var(--roxo-suave); }
+.ux-lugar__txt { flex: 1; min-width: 0; font-size: 12px; }
+.ux-lugar__nome { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- mapa em construção ---- */
+.ux-obra {
+  background: var(--superficie); border-radius: 16px; padding: 28px; max-width: 680px;
+  box-shadow: var(--sombra-1);
+}
+.ux-obra h2 { margin: 12px 0 8px; font-size: var(--fs-lg); }
+.ux-obra p { margin: 0 0 10px; font-size: var(--fs-sm); line-height: 1.5; }
+
+@media (max-width: 1000px) {
+  .ux-grid { grid-template-columns: 1fr; }
+  .ux-passo { grid-template-columns: 1fr; }
+  .ux-ficha { width: 100%; }
+}
+
+/* ---- etiquetas e paginação que viviam soltas no HTML da página antiga ---- */
+.etiqueta--cinza-ux { background: #eceef2; color: #4b5563; }
+.etiqueta--vermelha-ux { background: #fde8e8; color: #9b1c1c; }
+.paginacao-sistema button {
+  border: 0; background: transparent; cursor: pointer; font: inherit; color: inherit; padding: 4px 8px;
+}
+.paginacao-sistema button[disabled] { opacity: .35; cursor: default; }
+.paginacao-sistema .ativo { font-weight: 700; }
+
+/* a situação editável na própria lista (28/09): uma etiqueta que abre a lista */
+.ux-situacao {
+  -webkit-appearance: none; appearance: none; cursor: pointer;
+  font: inherit; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--sc); background-color: var(--sb);
+  border: 1px solid color-mix(in srgb, var(--sc) 35%, transparent); border-radius: 999px;
+  padding: 5px 24px 5px 11px; max-width: 100%;
+  background-image: linear-gradient(45deg, transparent 50%, var(--sc) 50%), linear-gradient(135deg, var(--sc) 50%, transparent 50%);
+  background-position: calc(100% - 13px) 55%, calc(100% - 9px) 55%;
+  background-size: 4px 4px, 4px 4px; background-repeat: no-repeat;
+}
+.ux-situacao:hover { border-color: var(--sc); }
+.ux-situacao:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--sc) 25%, transparent); }
+.ux-situacao:disabled { opacity: .6; cursor: progress; }
+.ux-situacao option { text-transform: none; font-weight: 500; color: #1f1633; background: #fff; }
+
+.ux-recado {
+  position: fixed; right: 18px; bottom: 18px; z-index: 3000; max-width: min(420px, calc(100vw - 36px));
+  background: #1f1633; color: #fff; border-radius: 12px; padding: 11px 15px; font-size: 14px;
+  box-shadow: 0 12px 30px rgba(20, 10, 40, .3);
+}
+.ux-recado--erro { background: #b42323; }

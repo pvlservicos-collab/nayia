@@ -4,11 +4,12 @@ import { memo, useCallback, useEffect, useRef } from 'react'
 
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Info, ShoppingBag, InstagramLogo } from '@phosphor-icons/react'
+import { Info, ShoppingBag, InstagramLogo, ChatCircleDots } from '@phosphor-icons/react'
 import { LeadWithOwner } from '@/lib/types'
 import { formatPhone } from '@/lib/utils'
 import Avatar from '@/components/Shared/Avatar'
 import IntegrationBadge from '@/components/Shared/IntegrationBadge'
+import { CAMINHO_DA_LINHA, getLinhaWhatsapp } from '@/lib/leadChannel'
 
 interface LeadCardProps {
   lead: LeadWithOwner
@@ -116,6 +117,26 @@ const LeadCard = ({ lead, isDragOverlay, stageColor, onClick, onInfoClick, isHig
             <h4 className="font-semibold text-sm text-ink truncate pr-2">
               {formatPhone(lead.title)}
             </h4>
+            {/* CONVERSAR (Tel, 26/09/2026): "um botao de conversar quando eu
+                clico eu abro uma conversa com esse lead por um dos 2
+                telefones".
+
+                Ele leva para a ABA DA LINHA do lead: API oficial em /chat,
+                Parceria em /chat/parceria, captação em /chat/captacao.
+                Mandar para a aba errada seria mandar para uma lista que não
+                tem esse lead -- a conversa não abriria. */}
+            {!isDragOverlay && (
+              <a
+                href={`${CAMINHO_DA_LINHA[getLinhaWhatsapp(lead) ?? 'parceria']}`
+                      + `?leadId=${lead.id}&abrir=${Date.now()}`}
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                title="Abrir a conversa deste lead"
+                className="flex-shrink-0 ml-1 p-1 rounded-md text-muted hover:text-accent hover:bg-white/[0.06] transition-colors"
+              >
+                <ChatCircleDots size={15} weight="fill" />
+              </a>
+            )}
             {onInfoClick && !isDragOverlay && (
               <button
                 type="button"

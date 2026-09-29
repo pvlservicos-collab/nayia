@@ -19,11 +19,24 @@
  */
 import { db } from './db'
 import { integrations, integrationSecrets } from './schema'
-import { eq, and, isNull } from 'drizzle-orm'
+import { eq, and, isNull, inArray } from 'drizzle-orm'
 import { telefoneVariantes } from './leadSources'
 import { convertAudioToVoiceNote } from './audioConvert'
+import { enderecoParaFora, guardarDoEndereco } from './armazem'
 
 export const ZAPI_INTEGRATION_TYPE = 'whatsapp_zapi'
+
+/**
+ * A LINHA Z-API DA CAPTAÇÃO (28/09/2026, Tel: "põe o número de captação antigo
+ * lá no CRM também"). Tipo PRÓPRIO, de propósito: tudo o que é "a linha Z-API"
+ * (configuração, grupos, avisos de grupo) continua sendo a Parceria, e as
+ * conversas deste número caem sozinhas na aba Captação.
+ */
+export const ZAPI_CAPTACAO_TYPE = 'whatsapp_zapi_captacao'
+export const TIPOS_ZAPI = [ZAPI_INTEGRATION_TYPE, ZAPI_CAPTACAO_TYPE]
+export function ehZapi(tipo: string | null | undefined): boolean {
+  return tipo === ZAPI_INTEGRATION_TYPE || tipo === ZAPI_CAPTACAO_TYPE
+}
 export const ZAPI_INTEGRATION_NAME = 'WhatsApp Z-API'
 
 const BASE = 'https://api.z-api.io/instances'
@@ -43,16 +56,36 @@ export interface ZapiCredentials {
   clientToken: string | null
 }
 
-export async function getZapiCredentials(organizationId: string): Promise<ZapiCredentials> {
-  const [integration] = await db
-    .select({ id: integrations.id, config: integrations.config })
-    .from(integrations)
-    .where(and(
-      eq(integrations.organizationId, organizationId),
-      eq(integrations.type, ZAPI_INTEGRATION_TYPE),
-      isNull(integrations.deletedAt)
-    ))
-    .limit(1)
+/**
+ * As credenciais da linha Z-API. Com `integrationId` (a linha da conversa), é
+ * AQUELA instância -- a Parceria ou a da captação. Sem ele, ou se a conversa
+ * não é de uma linha Z-API (automação de lead da API oficial, por exemplo), é a
+ * Parceria, como sempre foi.
+ */
+export async function getZapiCredentials(organizationId: string, integrationId?: string | null): Promise<ZapiCredentials> {
+  let [integration] = integrationId
+    ? await db
+        .select({ id: integrations.id, config: integrations.config })
+        .from(integrations)
+        .where(and(
+          eq(integrations.organizationId, organizationId),
+          eq(integrations.id, integrationId),
+          inArray(integrations.type, TIPOS_ZAPI),
+          isNull(integrations.deletedAt)
+        ))
+        .limit(1)
+    : []
+  if (!integration) {
+    ;[integration] = await db
+      .select({ id: integrations.id, config: integrations.config })
+      .from(integrations)
+      .where(and(
+        eq(integrations.organizationId, organizationId),
+        eq(integrations.type, ZAPI_INTEGRATION_TYPE),
+        isNull(integrations.deletedAt)
+      ))
+      .limit(1)
+  }
 
   if (!integration) throw new Error('Integração Z-API não configurada.')
 
@@ -209,9 +242,10 @@ async function comCorrecaoDeNumero(
 export async function sendZapiMessage(
   organizationId: string,
   phone: string,
-  text: string
+  text: string,
+  integrationId?: string | null
 ): Promise<EnvioZapi> {
-  const creds = await getZapiCredentials(organizationId)
+  const creds = await getZapiCredentials(organizationId, integrationId)
   return comCorrecaoDeNumero(phone, (numero) =>
     chamar(
       creds,
@@ -225,8 +259,8 @@ export async function sendZapiMessage(
 /**
  * Mídia por link público — a Z-API baixa da URL que a gente manda.
  *
- * O CRM já hospeda o que o agente anexa no Blob da Vercel, então o link existe e
- * é estável. Documento é o único que leva a extensão no caminho da rota
+ * O que o agente anexa fica no armazém do CRM (29/09, src/lib/armazem.ts), e a
+ * Z-API recebe o endereço assinado com validade. Documento é o único que leva a extensão no caminho da rota
  * (`send-document/pdf`): é dela que a Z-API tira o tipo do arquivo, então uma
  * extensão errada chega como arquivo corrompido do outro lado.
  */
@@ -236,41 +270,44 @@ export async function sendZapiMedia(
   mediaType: string,
   mediaUrl: string,
   caption?: string,
-  fileName?: string
+  fileName?: string,
+  integrationId?: string | null
 ): Promise<EnvioZapi> {
-  const creds = await getZapiCredentials(organizationId)
+  const creds = await getZapiCredentials(organizationId, integrationId)
 
   // A Z-API aceita o webm que o navegador grava sem reclamar (200 OK), mas quem
   // recebe fica com um arquivo que não toca — ela não faz o remux que a Evolution
   // faz sozinha. Mesma conversão pra Ogg/Opus que os canais da Meta já usam (ver
   // src/lib/audioConvert.ts). Convertido uma vez aqui fora, antes do retry de
   // número — repetir a conversão a cada tentativa seria trabalho em dobro à toa.
-  const effectiveMediaUrl = mediaType === 'audio' ? await convertAudioToVoiceNote(mediaUrl) : mediaUrl
+  // O que está no armazém do CRM só abre com sessão: a Z-API baixa pelo
+  // endereço assinado (ver src/lib/armazem.ts). O que vem do site passa igual.
+  const paraFora = enderecoParaFora(mediaType === 'audio' ? await convertAudioToVoiceNote(mediaUrl) : mediaUrl)
 
   return comCorrecaoDeNumero(phone, (numero) => {
     const to = destinatario(numero)
 
     if (mediaType === 'image' || mediaType === 'sticker') {
       return chamar(creds, 'send-image', {
-        body: { phone: to, image: mediaUrl, ...(caption ? { caption } : {}) },
+        body: { phone: to, image: paraFora, ...(caption ? { caption } : {}) },
       }, 'Falha ao enviar imagem pela Z-API')
     }
 
     if (mediaType === 'video') {
       return chamar(creds, 'send-video', {
-        body: { phone: to, video: mediaUrl, ...(caption ? { caption } : {}) },
+        body: { phone: to, video: paraFora, ...(caption ? { caption } : {}) },
       }, 'Falha ao enviar vídeo pela Z-API')
     }
 
     if (mediaType === 'audio') {
       return chamar(creds, 'send-audio', {
-        body: { phone: to, audio: effectiveMediaUrl },
+        body: { phone: to, audio: paraFora },
       }, 'Falha ao enviar áudio pela Z-API')
     }
 
     const extensao = extensaoDe(fileName, mediaUrl)
     return chamar(creds, 'send-document/' + extensao, {
-      body: { phone: to, document: mediaUrl, fileName: fileName || ('arquivo.' + extensao) },
+      body: { phone: to, document: paraFora, fileName: fileName || ('arquivo.' + extensao) },
     }, 'Falha ao enviar documento pela Z-API')
   })
 }
@@ -290,9 +327,10 @@ export async function deleteZapiMessage(
   organizationId: string,
   phone: string,
   messageId: string,
-  owner = true
+  owner = true,
+  integrationId?: string | null
 ) {
-  const creds = await getZapiCredentials(organizationId)
+  const creds = await getZapiCredentials(organizationId, integrationId)
   const params = new URLSearchParams({
     messageId,
     phone: destinatario(phone),
@@ -405,25 +443,9 @@ export async function rehospedarMidiaZapi(
   mediaUrl: string,
   messageId: string
 ): Promise<{ url: string; mimetype?: string } | null> {
-  try {
-    const res = await fetch(mediaUrl)
-    if (!res.ok) return null
-
-    const mimetype = res.headers.get('content-type') || 'application/octet-stream'
-    const buffer = Buffer.from(await res.arrayBuffer())
-
-    const { put } = await import('@vercel/blob')
-    const ext = mimetype.split('/')[1]?.split(';')[0] || 'bin'
-    const blob = await put(`zapi-media/${organizationId}/${messageId}.${ext}`, buffer, {
-      access: 'public',
-      contentType: mimetype,
-    })
-
-    return { url: blob.url, mimetype }
-  } catch (err) {
-    console.error('[zapi] falha ao re-hospedar mídia', err)
-    return null
-  }
+  // No armazém do CRM desde 29/09 -- o Blob da Vercel nunca existiu neste
+  // servidor, e 193 mídias em 72h ficaram só no link temporário.
+  return guardarDoEndereco(`zapi-media/${organizationId}`, messageId, mediaUrl)
 }
 
 /** Foto de perfil do contato, re-hospedada — mesmo motivo de expiração acima. */
@@ -432,20 +454,6 @@ export async function rehospedarFotoPerfil(
   fotoUrl: string,
   phone: string
 ): Promise<string | null> {
-  try {
-    const res = await fetch(fotoUrl)
-    if (!res.ok) return null
-    const mimetype = res.headers.get('content-type') || 'image/jpeg'
-    const buffer = Buffer.from(await res.arrayBuffer())
-    const { put } = await import('@vercel/blob')
-    const ext = mimetype.split('/')[1]?.split(';')[0] || 'jpg'
-    const blob = await put(`zapi-avatars/${organizationId}/${phone}-${Date.now()}.${ext}`, buffer, {
-      access: 'public',
-      contentType: mimetype,
-    })
-    return blob.url
-  } catch (err) {
-    console.error('[zapi] falha ao re-hospedar foto de perfil', err)
-    return null
-  }
+  const guardada = await guardarDoEndereco(`zapi-avatars/${organizationId}`, `${phone}-${Date.now()}`, fotoUrl)
+  return guardada?.url ?? null
 }

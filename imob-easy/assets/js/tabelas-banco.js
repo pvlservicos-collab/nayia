@@ -85,7 +85,7 @@
     cabecalho.innerHTML = "";
     corpo.innerHTML = '<tr><td>Carregando...</td></tr>';
 
-    fetch(window.API_BASE + "/api/tabelas/" + encodeURIComponent(nome))
+    fetch("api/tabelas/" + encodeURIComponent(nome), { credentials: "same-origin" })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
       .then(function (dados) {
         cabecalho.innerHTML = dados.colunas.map(function (c) { return "<th scope=\"col\">" + esc(c) + "</th>"; }).join("");
@@ -118,7 +118,7 @@
     );
   }
 
-  fetch(window.API_BASE + "/api/tabelas")
+  fetch("api/tabelas", { credentials: "same-origin" })
     .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
     .then(function (tabelas) {
       var porTabela = {};

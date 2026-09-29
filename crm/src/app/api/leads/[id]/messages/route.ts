@@ -1,4 +1,5 @@
-import { NextRequest } from 'next/server'
+import { after, NextRequest } from 'next/server'
+import { linhaTemTranscricao, transcreverAtividade } from '@/lib/transcricao'
 import { authenticateRequest, apiError, validateRequired, validateSource } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { publishEvent, channels, events } from '@/lib/realtime'
@@ -10,9 +11,12 @@ import { getChannelAdapter } from '@/lib/channels/registry'
 import { integrations } from '@/lib/schema'
 import { isOrgAdmin } from '@/lib/admin-auth'
 import { isUniqueViolation } from '@/lib/db-helpers'
+import { acharLeadDaLinha } from '@/lib/leadDaLinha'
+import { etapaEmAtendimentoDoMesmoPipeline } from '@/lib/etapaDaLinha'
 
 const CHANNEL_LABELS: Record<string, string> = {
   whatsapp_zapi: 'Z-API',
+  whatsapp_zapi_captacao: 'Z-API (captação)',
   whatsapp_evolution: 'Nº 2 (Evolution)',
   whatsapp_cloud_official: 'API Oficial',
   instagram_direct: 'Instagram',
@@ -46,8 +50,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // Só as últimas 300 (desc + limit, revertido pra ordem cronológica depois) — sem
     // isso, uma conversa antiga com histórico longo vem inteira de uma vez só e trava
     // o navegador ao montar centenas/milhares de bolhas na timeline, principalmente em
-    // celular (o desktop absorve, o celular não). Carregar mensagens mais antigas que
-    // isso fica pra uma paginação futura, se algum dia fizer falta.
+    // celular (o desktop absorve, o celular não).
+    //
+    // AS MAIS ANTIGAS (29/09/2026, "tem mensagem que não aparece"): subir até o
+    // topo da conversa pede `?antesDe=<id da mais antiga na tela>` e vem a página
+    // anterior, como no WhatsApp. `mais` diz se ainda há o que buscar. A ordem é
+    // (horário, id): duas mensagens no mesmo milésimo não se perdem na costura.
+    const POR_PAGINA = 300
+    const antesDe = req.nextUrl.searchParams.get('antesDe')
+    const antesDeValido = !!antesDe && /^[0-9a-f-]{36}$/i.test(antesDe)
     const rowsDesc = await db
       .select({
         id: leadActivities.id,
@@ -67,12 +78,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         and(
           eq(leadActivities.organizationId, auth.organizationId),
           eq(leadActivities.leadId, lead.id),
-          sql`${leadActivities.type} IN ('whatsapp','note','email','system')`
+          sql`${leadActivities.type} IN ('whatsapp','note','email','system')`,
+          antesDeValido
+            ? sql`(${leadActivities.createdAt}, ${leadActivities.id}) < (SELECT b.created_at, b.id FROM lead_activities b WHERE b.id = ${antesDe}::uuid)`
+            : undefined
         )
       )
-      .orderBy(desc(leadActivities.createdAt))
-      .limit(300)
-    const rows = rowsDesc.reverse()
+      .orderBy(desc(leadActivities.createdAt), desc(leadActivities.id))
+      .limit(POR_PAGINA + 1)
+    const mais = rowsDesc.length > POR_PAGINA
+    const rows = rowsDesc.slice(0, POR_PAGINA).reverse()
 
     // Mensagem apagada: não devolve mais o conteúdo/mídia originais na API (só o carimbo
     // "apagada") — a UI já esconde isso, mas sem redigir aqui o texto/mídia original
@@ -103,7 +118,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     })
 
-    return Response.json({ data })
+    return Response.json({ data, mais })
   } catch (err: any) {
     return apiError(err.status || 500, err.message || 'Erro interno.')
   }
@@ -130,21 +145,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
-    let decodedPhone = ''
+    const decodedPhone = isUuid ? '' : decodeURIComponent(id)
 
-    let leadQuery = db
-      .select({ id: leads.id, title: leads.title, phone: leads.phone, isGroup: leads.isGroup, externalId: leads.externalId })
-      .from(leads)
-      .where(
-        and(
-          eq(leads.organizationId, auth.organizationId),
-          isNull(leads.deletedAt),
-          isUuid ? eq(leads.id, id) : (() => { decodedPhone = decodeURIComponent(id); return eq(leads.phone, decodedPhone) })()
-        )
-      )
-      .limit(1)
-
-    const [lead] = await leadQuery
+    /* Pelo id, o lead. Pelo TELEFONE (caminho antigo, de integrações), a
+       conversa mais recente dessa pessoa: desde 28/09 a mesma pessoa pode ter
+       um lead em cada linha, e o `limit(1)` sem ordem pegava qualquer um. */
+    const [lead] = isUuid
+      ? await db
+          .select({ id: leads.id, title: leads.title, phone: leads.phone, isGroup: leads.isGroup, externalId: leads.externalId })
+          .from(leads)
+          .where(and(eq(leads.organizationId, auth.organizationId), isNull(leads.deletedAt), eq(leads.id, id)))
+          .limit(1)
+      : await acharLeadDaLinha(auth.organizationId, [decodedPhone], null).then((l) => (l ? [l] : []))
     let actualLeadId = lead?.id
 
     if (!actualLeadId) {
@@ -198,6 +210,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (body.reply_to_message_id) metadata.reply_to_message_id = body.reply_to_message_id
     if (body.media_url) metadata.media_url = body.media_url
     if (body.media_type) metadata.media_type = body.media_type
+    // o nome e o tipo do arquivo: sem eles o documento que saía perdia o nome
+    // depois de recarregar a conversa (29/09)
+    if (body.media_mimetype) metadata.media_mimetype = body.media_mimetype
+    if (body.media_filename) metadata.media_filename = body.media_filename
 
     // Determina o canal de envio pelo integration_id do lead
     if (direction === 'outbound' && body.type === 'whatsapp' && !body.skip_send) {
@@ -327,6 +343,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       })
       .returning({ id: leadActivities.id, content: leadActivities.content, createdAt: leadActivities.createdAt })
 
+    // A TRANSCRIÇÃO DO ÁUDIO que saiu pela Parceria (29/09): depois de responder
+    if (body.media_type === 'audio' && metadata.send_status === 'sent' && linhaTemTranscricao(metadata.channel)) {
+      const idDoAudio = activity.id
+      after(() => transcreverAtividade(idDoAudio).then(() => undefined)
+        .catch((e) => console.error('[transcricao]', idDoAudio, e?.message || e)))
+    }
+
     // Atualizar lead
     const updates: any = {
       lastMessageContent: body.content,
@@ -344,12 +367,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
     }
 
-    // Ao responder o lead, move a conversa para o pipeline "Em atendimento"
-    if (direction === 'outbound' && body.type === 'whatsapp') {
-      const [stage] = await db.select({ id: pipelineStages.id }).from(pipelineStages)
-        .where(and(eq(pipelineStages.organizationId, auth.organizationId), isNull(pipelineStages.deletedAt), ilike(pipelineStages.name, 'Em atendimento')))
-        .limit(1)
-      if (stage) updates.stageId = stage.id
+    // Ao responder o lead, ele anda para "Em atendimento" -- no pipeline DELE,
+    // só se já está no funil e só para a frente (28/09, ver
+    // `etapaEmAtendimentoDoMesmoPipeline`). Antes era a primeira etapa com esse
+    // nome na organização, para qualquer conversa respondida.
+    if (direction === 'outbound' && body.type === 'whatsapp' && actualLeadId) {
+      const [atual] = await db.select({ stageId: leads.stageId }).from(leads)
+        .where(eq(leads.id, actualLeadId)).limit(1)
+      const etapa = await etapaEmAtendimentoDoMesmoPipeline(auth.organizationId, atual?.stageId)
+      if (etapa) updates.stageId = etapa
     }
 
     await db.update(leads).set(updates).where(eq(leads.id, actualLeadId))

@@ -3,6 +3,7 @@ import { whatsappCloudAdapter } from './whatsappCloud'
 import { evolutionAdapter } from './evolution'
 import { instagramAdapter } from './instagram'
 import { zapiAdapter } from './zapi'
+import { ehZapi } from '@/lib/zapi'
 
 /**
  * Qualquer tipo de integração não mapeado explicitamente (whatsapp_cloud_official,
@@ -11,7 +12,7 @@ import { zapiAdapter } from './zapi'
  * comportamento de leads com integração não mapeada.
  */
 export function getChannelAdapter(integrationType: string | null | undefined): ChannelAdapter {
-  if (integrationType === 'whatsapp_zapi') return zapiAdapter
+  if (ehZapi(integrationType)) return zapiAdapter   // a Parceria e a da captação
   if (integrationType === 'whatsapp_evolution') return evolutionAdapter
   if (integrationType === 'instagram_direct') return instagramAdapter
   return whatsappCloudAdapter

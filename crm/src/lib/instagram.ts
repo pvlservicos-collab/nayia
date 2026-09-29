@@ -1,3 +1,4 @@
+import { enderecoParaFora } from '@/lib/armazem'
 import { db } from '@/lib/db'
 import { integrations, integrationSecrets } from '@/lib/schema'
 import { eq, and, isNull } from 'drizzle-orm'
@@ -125,7 +126,7 @@ export async function sendInstagramMedia(
     },
     body: JSON.stringify({
       recipient: { id: recipientId },
-      message: { attachment: { type: attachmentType, payload: { url: effectiveMediaUrl } } },
+      message: { attachment: { type: attachmentType, payload: { url: enderecoParaFora(effectiveMediaUrl) } } },
     }),
   })
 

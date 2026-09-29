@@ -33,6 +33,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { isUniqueViolation } from '@/lib/db-helpers'
 import { telefoneCanonico } from '@/lib/leadSources'
 import { ZAPI_INTEGRATION_TYPE, fetchZapiChats } from '@/lib/zapi'
+import { acharLeadDaLinha } from '@/lib/leadDaLinha'
 
 const PAGINA_TAMANHO = 50
 /** Teto por chamada — a Vercel corta a função em 60s e o resto vem na próxima. */
@@ -107,15 +108,9 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        const [existente] = await db
-          .select({ id: leads.id })
-          .from(leads)
-          .where(and(
-            eq(leads.organizationId, auth.organizationId),
-            eq(leads.phone, phone),
-            isNull(leads.deletedAt)
-          ))
-          .limit(1)
+        // Já existe NESTA linha? (a mesma pessoa em outro número é outra
+        // conversa -- ver `leadDaLinha.ts`)
+        const existente = await acharLeadDaLinha(auth.organizationId, [phone], integration.id)
 
         if (existente) {
           existentes++
