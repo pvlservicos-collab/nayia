@@ -13,6 +13,7 @@ import { montarAtendentes, atendenteDaConversa, type Atendente } from '@/lib/ate
 import LeadListItem from './LeadListItem'
 import ChatFilterTabs, { type ChatTab, type FiltroDaLista } from './ChatFilterTabs'
 import { conversaEstaNaLinha, type LinhaWhatsapp } from '@/lib/leadChannel'
+import { pedeResposta } from '@/lib/esperaResposta'
 
 /*
  * FOLLOW-UP DA PARCERIA (Pedro, 29/09/2026): "Últimas 6h | Últimas 24h | Essa
@@ -23,9 +24,8 @@ import { conversaEstaNaLinha, type LinhaWhatsapp } from '@/lib/leadChannel'
  */
 const HORA = 3_600_000
 const JANELAS_DE_FOLLOWUP: Array<[string, number]> = [['seg_6h', 6 * HORA], ['seg_24h', 24 * HORA], ['seg_semana', 7 * 24 * HORA]]
-function esperandoResposta(l: { last_message_sender_type?: string | null; last_message_content?: string | null; last_activity_at?: string | null }, janela: number, agora: number) {
-  if (l.last_message_sender_type !== 'lead') return false
-  if (String(l.last_message_content || '').startsWith('Reagiu com')) return false
+function esperandoResposta(l: { last_message_sender_type?: string | null; last_message_content?: string | null; last_activity_at?: string | null; phone?: string | null }, janela: number, agora: number) {
+  if (!pedeResposta(l)) return false   // cortesia, reação e o número da Nay não contam (30/09)
   const t = Date.parse(l.last_activity_at || '')
   return Number.isFinite(t) && agora - t <= janela
 }

@@ -26,6 +26,7 @@ import { Warning, CheckCircle, ArrowUp, ArrowDown, Robot, CalendarCheck, X } fro
 import type { LeadWithOwner } from '@/lib/types'
 import type { EstadoDaNay, MarcaDaNay } from '@/lib/tiposNay'
 import { formatPhone } from '@/lib/utils'
+import { pedeResposta } from '@/lib/esperaResposta'
 
 type PainelDaNay = {
   respostasHoje: number; respostasOntem: number; respostas1h: number; ultimaResposta: string | null
@@ -42,8 +43,7 @@ export function quemEsperaResposta(leads: LeadWithOwner[], marcas: Record<string
   const esperando: Array<{ lead: LeadWithOwner; ha: number }> = []
   let chegando = 0
   for (const l of leads) {
-    if (l.is_archived || l.last_message_sender_type !== 'lead') continue
-    if (String(l.last_message_content || '').startsWith('Reagiu com')) continue
+    if (l.is_archived || !pedeResposta(l)) continue   // cortesia, reação e o número da Nay não contam
     if (marcas[l.id]?.equipe) continue
     const t = Date.parse(l.last_activity_at || '')
     if (!Number.isFinite(t)) continue
