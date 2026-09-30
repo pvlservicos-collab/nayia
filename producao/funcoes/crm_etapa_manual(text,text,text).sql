@@ -9,7 +9,7 @@ DECLARE
   v_ids     bigint[];
   v_quem    text := left(coalesce(nullif(btrim(p_quem), ''), 'CRM'), 80);
 BEGIN
-  IF p_etapa NOT IN ('todos', 'visitas', 'proprietarios', 'fechamento', 'tel', 'rayssa') THEN
+  IF p_etapa NOT IN ('todos', 'visitas', 'proprietarios', 'fechamento', 'tel', 'rayssa', 'soltar') THEN
     RETURN QUERY SELECT false, 'Etapa desconhecida: ' || coalesce(p_etapa, '');
     RETURN;
   END IF;
@@ -32,6 +32,14 @@ BEGIN
                            humano_motivo = left('Rayssa: CRM: ' || v_quem || ' mandou para a Rayssa', 200)
      WHERE id = v_contato;
     RETURN QUERY SELECT true, 'Com a Rayssa: a Nay não responde até a conversa voltar para Todos.'::text;
+    RETURN;
+  END IF;
+  -- 212: o × da etiqueta -- só tira a marca de humano, sem mexer em etapa nem fechamento
+  IF p_etapa = 'soltar' THEN
+    UPDATE nai_contato SET humano_assumiu_em = NULL, humano_motivo = NULL WHERE id = ANY (v_ids);
+    RETURN QUERY SELECT true, CASE WHEN nai_com_a_rayssa(v_contato, NULL) IS NULL
+      THEN 'Etiqueta tirada: a Nay volta a responder.'
+      ELSE 'Etiqueta tirada. A conversa continua em Visitas, Proprietários ou Fechamento: a Nay segue calada.' END;
     RETURN;
   END IF;
 
