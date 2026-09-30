@@ -12,7 +12,7 @@
 set -uo pipefail
 RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
 SRV=nay-srv1894338
-PSQL="docker exec -i nay-postgres psql -U nay -d naydb -X -v ON_ERROR_STOP=1 -P pager=off"
+PSQL="nay-postgres psql -U nay -d naydb -X -v ON_ERROR_STOP=1 -P pager=off"
 cmd="${1:-}"; shift || true
 lf() { tr -d '\r'; }   # o Windows grava CRLF; o psql quer LF
 case "$cmd" in
