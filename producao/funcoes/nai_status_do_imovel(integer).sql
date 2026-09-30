@@ -11,7 +11,8 @@ DECLARE
   v_n    int;
   v_situ text;
 BEGIN
-  SELECT im.codigo, im.status, im.bairro, nai_condominio_ok(im.condominio_nome) AS cond
+  SELECT im.codigo, im.status, im.bairro, nai_condominio_ok(im.condominio_nome) AS cond,
+         im.valor_aluguel, im.valor_venda
     INTO i FROM imoveis im WHERE im.codigo = p_codigo;
   IF i.codigo IS NULL THEN
     RETURN QUERY SELECT ('Não achei o imóvel ' || p_codigo || '. Confere o código pra mim?')::text, false,
@@ -29,23 +30,35 @@ BEGIN
 
   v_situ := CASE WHEN i.status = 'Alugado' THEN 'está alugado' ELSE 'está indisponível' END;
   v_cond := nullif(btrim(coalesce(i.cond, '')), '');
+  -- 214: "Casa" é o condomínio de toda casa de rua -- não é condomínio
+  IF lower(unaccent(coalesce(v_cond, ''))) ~ '^(casas?|apartamentos?|apto|salas?( comerciais| comercial)?|terrenos?|lotes?|galpao|galpoes|ponto comercial|imove(l|is)|residencia|kitnet|studio|flat|chacaras?|sitios?|cobertura)$' THEN
+    v_cond := NULL;
+  END IF;
 
   IF v_cond IS NOT NULL THEN
     SELECT count(*),
-           string_agg('• ' || x.codigo || ' — ' || coalesce(x.tipo, 'Imóvel')
-                      || CASE WHEN coalesce(x.quartos, 0) > 0
-                              THEN ', ' || x.quartos || CASE WHEN x.quartos = 1 THEN ' quarto' ELSE ' quartos' END ELSE '' END
-                      || CASE WHEN coalesce(x.valor_aluguel, 0) > 0
-                              THEN ', aluguel R$ ' || replace(to_char(x.valor_aluguel, 'FM999,999,990'), ',', '.')
-                              WHEN coalesce(x.valor_venda, 0) > 0
-                              THEN ', venda R$ ' || replace(to_char(x.valor_venda, 'FM999,999,990'), ',', '.') ELSE '' END,
-                      E'\n' ORDER BY coalesce(x.valor_aluguel, x.valor_venda, 0))
+           string_agg('• ' || y.codigo || ' — ' || coalesce(y.tipo, 'Imóvel')
+                      || CASE WHEN coalesce(y.quartos, 0) > 0
+                              THEN ', ' || y.quartos || CASE WHEN y.quartos = 1 THEN ' quarto' ELSE ' quartos' END ELSE '' END
+                      || CASE WHEN coalesce(i.valor_aluguel, 0) > 0 AND coalesce(y.valor_aluguel, 0) > 0
+                              THEN ', aluguel R$ ' || replace(to_char(y.valor_aluguel, 'FM999,999,990'), ',', '.')
+                              WHEN coalesce(y.valor_venda, 0) > 0
+                              THEN ', venda R$ ' || replace(to_char(y.valor_venda, 'FM999,999,990'), ',', '.')
+                              WHEN coalesce(y.valor_aluguel, 0) > 0
+                              THEN ', aluguel R$ ' || replace(to_char(y.valor_aluguel, 'FM999,999,990'), ',', '.') ELSE '' END,
+                      E'\n' ORDER BY y.v)
       INTO v_n, v_alt
-      FROM imoveis x
-     WHERE x.codigo <> p_codigo
-       AND NOT coalesce(x.e_parceiro, false)
-       AND nai_condominio_ok(x.condominio_nome) = v_cond
-       AND nai_imovel_disponivel(x.codigo);
+      FROM (SELECT x.*, CASE WHEN coalesce(i.valor_aluguel, 0) > 0 THEN x.valor_aluguel ELSE x.valor_venda END AS v
+              FROM imoveis x
+             WHERE x.codigo <> p_codigo
+               AND NOT coalesce(x.e_parceiro, false)
+               AND nai_condominio_ok(x.condominio_nome) = v_cond
+               AND nai_imovel_disponivel(x.codigo)
+               -- 214: o mesmo negócio do imóvel que ele perguntou
+               AND CASE WHEN coalesce(i.valor_aluguel, 0) > 0 THEN coalesce(x.valor_aluguel, 0) > 0
+                        WHEN coalesce(i.valor_venda, 0) > 0 THEN coalesce(x.valor_venda, 0) > 0
+                        ELSE true END
+             ORDER BY 2 LIMIT 8) y;
   END IF;
 
   IF coalesce(v_n, 0) > 0 THEN

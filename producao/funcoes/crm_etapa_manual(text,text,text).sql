@@ -2,7 +2,7 @@ CREATE OR REPLACE FUNCTION public.crm_etapa_manual(p_telefone text, p_etapa text
  RETURNS TABLE(ok boolean, mensagem text)
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path TO 'public', 'pg_temp'
 AS $function$
 DECLARE
   v_contato bigint;
@@ -22,7 +22,7 @@ BEGIN
 
   IF p_etapa = 'tel' THEN
     UPDATE nai_contato SET humano_assumiu_em = now(), humano_motivo = left('CRM: ' || v_quem || ' mandou para o Tel', 200)
-     WHERE id = v_contato;
+     WHERE id = ANY (v_ids);  -- 215: as duas linhas da pessoa
     RETURN QUERY SELECT true, 'Com o Tel: a Nay não responde até o Tel devolver.'::text;
     RETURN;
   END IF;
@@ -30,7 +30,7 @@ BEGIN
   IF p_etapa = 'rayssa' THEN
     UPDATE nai_contato SET humano_assumiu_em = now(),
                            humano_motivo = left('Rayssa: CRM: ' || v_quem || ' mandou para a Rayssa', 200)
-     WHERE id = v_contato;
+     WHERE id = ANY (v_ids);  -- 215: as duas linhas da pessoa
     RETURN QUERY SELECT true, 'Com a Rayssa: a Nay não responde até a conversa voltar para Todos.'::text;
     RETURN;
   END IF;

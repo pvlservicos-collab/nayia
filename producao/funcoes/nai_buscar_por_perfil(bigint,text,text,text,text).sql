@@ -36,18 +36,16 @@ DECLARE
   v_lug_bairros  text[];   -- 206: os bairros do conjunto/avenida citado
   v_lug_rx       text;     -- 206: o nome do conjunto (condominio de mesmo nome vem primeiro)
   v_lug_rotulo   text;     -- 206: "Parque 10 de Novembro (bairro do Conjunto Eldorado)"
+  v_ultima       text;     -- 215: a última pergunta do filtro que ela fez (24 h)
 BEGIN
   SELECT * INTO t FROM nai_turno WHERE id = p_turno;
   SELECT * INTO k FROM nai_contato WHERE id = t.contato_id;
 
   -- 206: CONJUNTO E AVENIDA (Pedro, 30/09: "quando algum corretor perguntar de
   -- algum conjunto ... ela mande imoveis do bairro"; e a avenida, com os
-  -- bairros dela). Sem bairro nenhum na chamada, vale o que ele escreveu.
+  -- bairros dela). Só o bairro que a CHAMADA trouxe (215): o texto da mensagem
+  -- pode ser um card colado ou um endereço, e isso não é resposta de região.
   v_lug_bairros := nai_bairros_do_lugar(p_bairro);
-  IF v_lug_bairros IS NULL AND nullif(btrim(coalesce(p_bairro, '')), '') IS NULL THEN
-    p_bairro := (SELECT string_agg(l.nome, ' e ' ORDER BY l.tipo, l.nome) FROM nai_lugar_citado(t.texto) l);
-    v_lug_bairros := nai_bairros_do_lugar(p_bairro);
-  END IF;
   IF v_lug_bairros IS NOT NULL THEN
     v_lug_rx := (SELECT string_agg('(' || l.expressao || ')', '|') FROM nai_lugar_citado(p_bairro) l
                   WHERE l.tipo = 'conjunto');
@@ -55,6 +53,18 @@ BEGIN
     PERFORM nai_anotar(p_turno, 7, 'lugar_vira_bairro', 'mudou',
                        left(p_bairro || ' -> ' || array_to_string(v_lug_bairros, ', '), 200));
   END IF;
+
+  -- 215: A QUE O "TANTO FAZ" RESPONDE -- a última pergunta do filtro, 24 h.
+  SELECT CASE WHEN s.texto ~* 'alugar ou para comprar' THEN 'negocio'
+              WHEN s.texto ~* 'casa ou apartamento\?' THEN 'tipo'
+              WHEN s.texto ~* 'at[eé] que valor' THEN 'valor'
+              ELSE 'regiao' END
+    INTO v_ultima
+    FROM nai_saida s
+   WHERE s.contato_id = ANY (coalesce(nai_contato_irmaos(k.id), ARRAY[k.id])) AND s.tipo = 'texto'
+     AND s.estado IN ('enviado', 'enviando', 'simulado') AND s.criado_em > now() - interval '24 hours'
+     AND s.texto ~* '(alugar ou para comprar|casa ou apartamento\?|at[eé] que valor|regi[aã]o ou bairro|em qual bairro)'
+   ORDER BY s.criado_em DESC LIMIT 1;
 
   -- POR ONDE ELE ENTROU (Tel, 15/09: "ou a pessoa vem pelo grupo ou a pessoa
   -- manda msg pedindo imoveis especificos"). Nao precisa de marca nova: quem
@@ -90,7 +100,11 @@ BEGIN
   -- modelo mandou "Manaus" como bairro e a busca antiga respondeu que NAO
   -- TRABALHAMOS COM IMOVEL EM MANAUS. A cidade nunca e bairro.
   v_livre := nai_e_a_cidade(p_bairro)
-             OR nai_sem_preferencia_de_bairro(concat_ws(' ', p_bairro, t.texto));
+             OR nai_sem_preferencia_de_bairro(p_bairro)
+             -- 215: "tanto faz" solto vale para a região só se a última pergunta
+             -- foi a da região, ou se ele falou de bairro ("qualquer bairro")
+             OR (nai_sem_preferencia_de_bairro(t.texto)
+                 AND (v_ultima = 'regiao' OR lower(unaccent(coalesce(t.texto, ''))) ~ '(bairro|regiao|lugar|local|zona)'));
   v_mostra_logo := nai_pede_os_valores(concat_ws(' ', t.texto, p_bairro))
                    OR nai_quantos_no_bairro(p_bairro, k.telefone, v_q, v_negocio, v_tipo)
                       BETWEEN 1 AND nai_cfg_int('limite_sem_teto', 5);
@@ -118,8 +132,14 @@ BEGIN
   -- quartos) ela LISTA -- na cidade toda se nao houver bairro -- e depois
   -- oferece os filtros que faltam. Sem filtro nenhum, pergunta um de cada vez.
   -- (Substitui a sequencia obrigatoria bairro -> faixa -> mobilia e a da 138.)
+  -- 215: a frase que FALA de valor vale sempre; "tanto faz"/"não sabe" soltos só
+  -- valem quando a última pergunta foi a do valor (ou vieram no teto da chamada)
   v_sem_valor := lower(unaccent(concat_ws(' ', p_teto, t.texto))) ~
-    '(nao\s+(disse|sabe|informou|falou|definiu|passou|me\s+disse)|sem\s+valor|qualquer\s+valor|tanto\s+faz|valor\s+(livre|aberto)|nao\s+tem\s+(um\s+)?valor)';
+      '(sem\s+valor|qualquer\s+valor|valor\s+(livre|aberto)|nao\s+tem\s+(um\s+)?valor|nao\s+(disse|sabe|informou|falou|definiu|passou)\s+(o\s+|um\s+)?(valor|preco|orcamento|quanto))'
+    OR lower(unaccent(coalesce(p_teto, ''))) ~
+      '(nao\s+(disse|sabe|informou|falou|definiu|passou|me\s+disse)|tanto\s+faz|indiferente|nao\s+importa|qualquer)'
+    OR (v_ultima = 'valor' AND lower(unaccent(coalesce(t.texto, ''))) ~
+      '(nao\s+(disse|sabe|informou|falou|definiu|passou|me\s+disse)|tanto\s+faz|indiferente|nao\s+importa|qualquer)');
   v_tem_filtro := v_teto IS NOT NULL
                OR (nullif(btrim(coalesce(p_bairro, '')), '') IS NOT NULL AND NOT v_livre)
                OR (nullif(v_mob, '') IS NOT NULL AND v_mob !~ '(tanto faz|indiferente|qualquer)')
@@ -147,11 +167,19 @@ BEGIN
   -- Sem laco: "tanto faz / qualquer um / os dois" libera a lista, e quem ja
   -- ouviu a pergunta nas ultimas 24h nao ouve de novo.
   IF v_tipo IS NULL THEN
-    v_tanto_faz := lower(unaccent(concat_ws(' ', t.texto, (
-        SELECT string_agg(m.texto, ' ') FROM mensagens m
-         WHERE nai_chave(m.telefone) IN (SELECT c.chave FROM nai_contato c WHERE c.id = ANY (nai_contato_irmaos(k.id)))
-           AND m.direcao = 'recebida' AND m.criada_em > now() - interval '24 hours'))))
-      ~ '(tanto faz|qualquer (um|uma|tipo|coisa|imovel)|os dois|as duas|ambos|indiferente|nao importa|nao tem preferencia|sem preferencia)';
+    -- 215: o "tanto faz" é a RESPOSTA a "casa ou apartamento?" (o que ele escreveu
+    -- depois dessa pergunta), ou uma frase que fala do tipo ("tanto faz casa ou apto")
+    v_tanto_faz := lower(unaccent(concat_ws(' ',
+        CASE WHEN v_ultima = 'tipo' THEN t.texto END,
+        (SELECT string_agg(m.texto, ' ') FROM mensagens m
+          WHERE nai_chave(m.telefone) IN (SELECT c.chave FROM nai_contato c WHERE c.id = ANY (nai_contato_irmaos(k.id)))
+            AND m.direcao = 'recebida'
+            AND m.criada_em > (SELECT max(s.criado_em) FROM nai_saida s
+                                WHERE s.contato_id = ANY (nai_contato_irmaos(k.id)) AND s.tipo = 'texto'
+                                  AND s.texto ILIKE '%casa ou apartamento?%' AND s.criado_em > now() - interval '24 hours')))))
+      ~ '(tanto faz|qualquer (um|uma|tipo|coisa|imovel)|os dois|as duas|ambos|indiferente|nao importa|nao tem preferencia|sem preferencia)'
+      OR lower(unaccent(coalesce(t.texto, ''))) ~
+      '((casa|apartamento|apto).{0,25}(tanto faz|os dois|ambos|qualquer um)|(tanto faz|os dois|ambos|qualquer um).{0,25}(casa|apartamento|apto))';
     IF NOT v_tanto_faz AND NOT EXISTS (
          SELECT 1 FROM nai_saida s
           WHERE s.contato_id = ANY (nai_contato_irmaos(k.id)) AND s.tipo = 'texto'

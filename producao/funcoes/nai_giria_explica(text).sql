@@ -6,17 +6,18 @@ AS $function$
   SELECT coalesce(
     ' COMO ELE FALA: ' || string_agg('"' || g.exemplo_curto || '" = ' || g.significado, ' ' ORDER BY g.id),
     '')
-    -- 206: conjuntos e avenidas (Pedro, 30/09)
-    || coalesce((SELECT ' LUGARES: ' || string_agg(
-         CASE WHEN l.tipo = 'conjunto'
-              THEN '"' || l.nome || '" é um conjunto do bairro ' || l.bairros[1]
-                   || ': quem pede imóvel lá quer imóvel desse bairro.'
-              ELSE '"' || l.nome || '" passa ' || CASE WHEN cardinality(l.bairros) = 1 THEN 'pelo bairro ' ELSE 'pelos bairros ' END
-                   || nai_lista_pt(l.bairros) || ': quem pede imóvel nessa avenida quer imóvel '
-                   || CASE WHEN cardinality(l.bairros) = 1 THEN 'desse bairro.' ELSE 'desses bairros.' END END
-         || ' Não pergunte o bairro: chame buscar_por_perfil com bairro "' || l.nome || '" (a busca já procura lá).',
-         ' ' ORDER BY l.tipo, l.nome)
-       FROM (SELECT * FROM nai_lugar_citado(p_texto) LIMIT 4) l), '')
+    -- 206/215: conjuntos e avenidas -- só quando a mensagem é PEDIDO de imóvel
+    || CASE WHEN coalesce((nai_pedido_de_perfil(p_texto)->>'e_pedido')::boolean, false) THEN
+         coalesce((SELECT ' LUGARES (referência; citar lugar não é pedir imóvel): ' || string_agg(
+           CASE WHEN l.tipo = 'conjunto'
+                THEN '"' || l.nome || '" é um conjunto do bairro ' || l.bairros[1] || '.'
+                ELSE '"' || l.nome || '" passa ' || CASE WHEN cardinality(l.bairros) = 1 THEN 'pelo bairro ' ELSE 'pelos bairros ' END
+                     || nai_lista_pt(l.bairros) || '.' END
+           || ' Se ele está pedindo imóvel lá, ao chamar buscar_por_perfil passe bairro "' || l.nome
+           || '" em vez de perguntar o bairro; o resto do filtro segue igual.',
+           ' ' ORDER BY l.tipo, l.nome)
+         FROM (SELECT * FROM nai_lugar_citado(p_texto) LIMIT 4) l), '')
+       ELSE '' END
     FROM (
       SELECT id, significado,
              -- a expressao inteira que ele escreveu: a regex vai entre

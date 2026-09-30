@@ -41,20 +41,20 @@ BEGIN
   END IF;
 
   -- A linha carimbada MAIS RECENTE entre as da mesma pessoa.
-  SELECT c.humano_assumiu_em, c.humano_motivo
-    INTO v_em, v_motivo
-    FROM nai_contato c
-   WHERE c.id = ANY (nai_contato_irmaos(p_contato))
-     AND c.humano_assumiu_em IS NOT NULL
-   ORDER BY c.humano_assumiu_em DESC
-   LIMIT 1;
-
-  IF v_em IS NULL THEN RETURN false; END IF;
-
-  IF v_motivo = 'o Tel escreveu pelo celular' THEN
-    v_gap := greatest(nai_cfg_int('gap_tel_min', 30), 0);
-    RETURN v_em > now() - make_interval(mins => v_gap);
-  END IF;
+  -- 215: QUALQUER linha da pessoa com marca valendo cala. Antes valia só a mais
+  -- recente: o eco de 30 min ("o Tel escreveu pelo celular") numa linha vencia a
+  -- marca do CRM (Tel/Rayssa) na outra, e 30 min depois a Nay falava por cima.
+  -- Cada marca expira pela regra dela; tudo o que solta limpa as duas linhas.
+  v_gap := greatest(nai_cfg_int('gap_tel_min', 30), 0);
+  v_horas := nai_cfg_int('escalacao_expira_horas', 0);
+  RETURN EXISTS (
+    SELECT 1 FROM nai_contato c
+     WHERE c.id = ANY (nai_contato_irmaos(p_contato)) AND c.humano_assumiu_em IS NOT NULL
+       AND CASE WHEN c.humano_motivo = 'o Tel escreveu pelo celular'
+                  THEN c.humano_assumiu_em > now() - make_interval(mins => v_gap)
+                WHEN c.humano_motivo ~ '^(duvida fora da base|midia)' AND v_horas > 0
+                  THEN c.humano_assumiu_em > now() - make_interval(hours => v_horas)
+                ELSE true END);
 
   -- 195 (30/09): ESCALACAO TEM PRAZO. "duvida fora da base" e "midia" paravam
   -- o chat ate alguem mandar DEVOLVER -- em 29/09, 34 de 42 corretores

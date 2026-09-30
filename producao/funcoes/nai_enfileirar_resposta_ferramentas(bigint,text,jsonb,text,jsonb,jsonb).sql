@@ -12,6 +12,8 @@ DECLARE
   v_codigos   jsonb := coalesce(p_codigos, '[]'::jsonb);
   v_cortados  int[] := '{}';
   v_r         jsonb;
+  v_base      text;       -- 214
+  v_papel     text;       -- 214
 BEGIN
   -- ---------------------------------------------------- registrar ----
   -- (igual a versao anterior: as ferramentas viram carimbo no turno)
@@ -110,6 +112,24 @@ BEGIN
         PERFORM nai_anotar(p_turno, 23, 'rejeitado_fora_da_caixa', 'cortou',
           'tirei da caixa de saída o que ele já recusou: ' || array_to_string(v_cortados, ', '));
       END IF;
+    END IF;
+  END IF;
+
+  -- 214: A PAREDE CORTOU E NÃO SOBROU NADA. Sem isto o corretor ficava sem
+  -- resposta ("Manda as de locação", "Cliente gostou do apto"). Cortesia continua
+  -- sem resposta, de propósito.
+  SELECT papel INTO v_papel FROM nai_turno WHERE id = p_turno;
+  IF v_contato IS NOT NULL AND v_papel = 'corretor' AND v_tem_lista AND v_antes > 0
+     AND NOT coalesce(v_consultou, false)
+     AND NOT EXISTS (SELECT 1 FROM nai_saida s WHERE s.turno_id = p_turno)
+     AND nullif(btrim(coalesce(p_escreveu, '')), '') IS NOT NULL
+     AND NOT nai_e_so_cortesia(p_escreveu) THEN
+    v_base := nai_escalar_calado(p_turno, p_escreveu, 'resposta cortada: ia mandar imóvel sem consultar', NULL);
+    IF v_base IS NOT NULL THEN
+      PERFORM nai_enfileirar_texto(p_turno, NULL, v_contato, 'turno', v_base, 'resposta', 1);
+      PERFORM nai_anotar(p_turno, 24, 'corte_sem_silencio', 'mudou', 'a ficha respondeu no lugar do que foi cortado');
+    ELSE
+      PERFORM nai_anotar(p_turno, 24, 'corte_sem_silencio', 'parou', 'nada saiu depois do corte: foi ao Tel');
     END IF;
   END IF;
 
