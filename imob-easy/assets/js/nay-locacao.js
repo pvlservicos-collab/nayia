@@ -279,7 +279,7 @@
     if (!botao) return;
     var pausar = botao.dataset.pausar === "true";
     botao.disabled = true;
-    fetch(API + "/api/nai/pausa", {
+    fetch("/admin/api/nai/pausa", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pausar: pausar })

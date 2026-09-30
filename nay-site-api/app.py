@@ -3999,7 +3999,9 @@ def _maquina_do_crm_confere():
 # reescrevia o que ela diz, sem registro de quem foi (entrevista de 29/09,
 # pergunta 50). Mesma guarda da captacao; as telas passam a chamar pelo
 # proprio dominio (/admin/api/...), onde o navegador ja manda a senha.
-_PREFIXOS_NAI_PAINEL = ("/api/nai/config", "/api/nai/prompt", "/admin/api/nai/config", "/admin/api/nai/prompt")
+# A PAUSA TAMBEM (30/09): PUT /api/nai/pausa liga e desliga a Nay inteira.
+_PREFIXOS_NAI_PAINEL = ("/api/nai/config", "/api/nai/prompt", "/api/nai/pausa",
+                        "/admin/api/nai/config", "/admin/api/nai/prompt", "/admin/api/nai/pausa")
 
 
 @app.before_request
@@ -4013,7 +4015,7 @@ def _captacao_exige_senha():
 
 
 for _regra in list(app.url_map.iter_rules()):
-    if _regra.rule.startswith(("/api/captacao", "/api/nai/captacao", "/api/nai/config", "/api/nai/prompt")):
+    if _regra.rule.startswith(("/api/captacao", "/api/nai/captacao", "/api/nai/config", "/api/nai/prompt", "/api/nai/pausa")):
         app.add_url_rule("/admin" + _regra.rule, endpoint=_regra.endpoint + "__admin",
                          view_func=app.view_functions[_regra.endpoint],
                          methods=sorted(m for m in _regra.methods if m not in ("HEAD", "OPTIONS")))
