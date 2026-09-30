@@ -34,6 +34,7 @@ import { useParceriaMarcas, recarregarMarcasDaParceria } from '@/hooks/useParcer
 import { ESTADO_DA_VISITA, type ItemDoHistorico } from '@/lib/tiposNay'
 import TrilhaDaNay from './TrilhaDaNay'
 import EscolherImoveis, { useOpcoesDoDisparo, type ImovelParaEnviar } from '@/components/Disparo/EscolherImoveis'
+import EtapaDoLead from './EtapaDoLead'
 
 const LARGURA_GUARDADA = 'crm:largura-card-parceria'
 const LARGURA_MIN = 300
@@ -97,12 +98,13 @@ function Secao({ titulo, children, acao }: { titulo: string; children: React.Rea
 
 type EstadoDoEnvio = { tipo: 'ok' | 'erro' | 'aviso'; texto: string } | null
 
-export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisita, onTagsChange }: {
+export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisita, onTagsChange, onUpdateLead }: {
   lead: LeadWithOwner
   modo: 'lateral' | 'gaveta'
   aoFechar: () => void
   aoVerVisita?: (visitaId: number) => void
   onTagsChange?: (leadId: string, tagId: string, action: 'add' | 'remove', tagObj?: any) => void
+  onUpdateLead?: (leadId: string, updates: Partial<LeadWithOwner>) => void
 }) {
   const { marca: marcaDoContato, historico, carregando, erro, recarregar } = useContatoNay(lead.id)
   const { marcas, nay } = useParceriaMarcas(true)
@@ -399,6 +401,14 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
           ) : lead.phone && lead.phone !== lead.title ? (
             <p className="text-[14px] mt-0.5" style={{ color: 'var(--wa-text-2)' }}>{formatPhone(lead.phone)}</p>
           ) : null}
+
+          {/* A ETAPA, logo abaixo do número (Tel, 30/09): "no card dentro do chat,
+              quando eu clico no lead". Este é o card que a Parceria usa -- o
+              menu tinha ido parar no LeadDetailsSidebar, que o chat da
+              Parceria nem desenha. */}
+          <div className="mt-3 text-left">
+            <EtapaDoLead lead={lead} onUpdateLead={onUpdateLead} />
+          </div>
 
           {/* as etiquetas: embaixo do número (Pedro, 29/09) */}
           <div className="flex flex-wrap justify-center items-center gap-1.5 mt-3 relative">

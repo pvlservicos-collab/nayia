@@ -16,7 +16,6 @@ import FechamentoChecklists from './FechamentoChecklists'
 import BarraDeMetricas from './BarraDeMetricas'
 import BarraDaCaptacao from './BarraDaCaptacao'
 import CardDoDonoCaptacao from './CardDoDonoCaptacao'
-import EtapaDoLead from './EtapaDoLead'
 import PainelContatoParceria from './PainelContatoParceria'
 
 /** Última conversa aberta nesta tela, pra reabrir no próximo acesso. */
@@ -335,6 +334,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
           aoFechar={alternarPainel}
           aoVerVisita={verVisita}
           onTagsChange={handleTagsChange}
+          onUpdateLead={handleUpdateLead}
         />
       )
     }
@@ -354,9 +354,6 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
         onClose={modo === 'gaveta' ? alternarPainel : undefined}
         extra={linha === 'captacao'
           ? <CardDoDonoCaptacao key={displayedLead.id} leadId={displayedLead.id} />
-          : undefined}
-        topo={ehParceria
-          ? <EtapaDoLead key={displayedLead.id} lead={displayedLead} onUpdateLead={handleUpdateLead} />
           : undefined}
       />
     )
