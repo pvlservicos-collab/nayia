@@ -1,5 +1,5 @@
 CREATE OR REPLACE FUNCTION public.crm_parceria_marcas(p_telefones text[])
- RETURNS TABLE(telefone text, contato_id bigint, proprietario boolean, proprietario_nome text, imoveis_do_dono text[], corretor boolean, corretor_nome text, creci text, visita_aberta boolean, visita_id bigint, visita_quando timestamp with time zone, visita_estado text, visita_papel text, visita_codigo integer, tel_atendendo boolean, tel_motivo text, etapa text, etapa_desde timestamp with time zone, equipe boolean)
+ RETURNS TABLE(telefone text, contato_id bigint, proprietario boolean, proprietario_nome text, imoveis_do_dono text[], corretor boolean, corretor_nome text, creci text, visita_aberta boolean, visita_id bigint, visita_quando timestamp with time zone, visita_estado text, visita_papel text, visita_codigo integer, tel_atendendo boolean, tel_motivo text, etapa text, etapa_desde timestamp with time zone, equipe boolean, checklist boolean)
  LANGUAGE sql
  STABLE SECURITY DEFINER
  SET search_path TO 'public'
@@ -68,7 +68,7 @@ AS $function$
          (co.telefone IS NOT NULL AND NOT eq.equipe), co.nome, coalesce(co.creci, nc.creci),
          (va.id IS NOT NULL), va.id, va.quando, va.estado, va.papel, va.codigo,
          coalesce(t.com_o_tel, false), CASE WHEN t.com_o_tel THEN t.motivo END,
-         et.etapa, et.desde, eq.equipe
+         et.etapa, et.desde, eq.equipe, ck.pediu
     FROM pessoa pe
     LEFT JOIN nai_contato nc ON nc.id = pe.contato_id
     LEFT JOIN LATERAL (SELECT min(d.nome) AS nome FROM dono d WHERE d.telefone = pe.telefone HAVING count(*) > 0) dn ON true
@@ -94,4 +94,15 @@ AS $function$
     LEFT JOIN LATERAL (
       SELECT coalesce(pe.contato_id IS NOT NULL AND nai_e_da_equipe_contato(pe.contato_id), false) AS equipe
     ) eq ON true
+    -- 30/09: JA PEDIU O CHECKLIST? Quem pede a documentacao esta fechando --
+    -- e a etapa Fechamento no CRM. O checklist sai pela caixa da Nay com
+    -- motivo 'checklist_...' (nai_enviar_checklist_para); ter recebido e o
+    -- sinal, porque so se manda a quem pediu.
+    LEFT JOIN LATERAL (
+      SELECT EXISTS (
+        SELECT 1 FROM nai_saida s
+         WHERE s.contato_id = ANY (pe.ids)
+           AND s.motivo LIKE 'checklist%'
+           AND s.estado IN ('enviado', 'enviando', 'simulado')) AS pediu
+    ) ck ON true
 $function$;

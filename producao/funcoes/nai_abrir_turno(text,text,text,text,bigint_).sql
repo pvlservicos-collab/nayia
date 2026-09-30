@@ -330,7 +330,7 @@ BEGIN
     -- 141: A ETAPA vem na frente do contexto (identificacao / recebeu o
     -- imovel / agendamento de visita) -- e o que a mantem no fio da conversa.
     'etapa', CASE WHEN v_papel = 'corretor' THEN (SELECT e.etapa FROM nai_etapa_contato e WHERE e.contato_id = v_contato) END,
-    'contexto', CASE WHEN v_papel = 'corretor' THEN nai_etapa_para_o_modelo(v_contato) || E'\n' ELSE '' END
+    'contexto', CASE WHEN v_papel = 'corretor' THEN nai_etapa_para_o_modelo(v_contato) || E'\n' || coalesce(nai_retomada_texto(v_contato), '') ELSE '' END
                 || nai_contexto(v_papel, v_contato, v_visita, v_teste)
                 || CASE WHEN v_papel IN ('corretor', 'tel')
                         THEN nai_giria_explica(v_texto) ELSE '' END,
