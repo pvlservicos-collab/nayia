@@ -34,6 +34,11 @@ BEGIN
     || '! Segue a lista de documentos para ' || CASE p_tipo WHEN 'venda' THEN 'a venda' ELSE 'o aluguel' END || E':\n\n'
     || v_texto,
     'checklist', 1);
+  -- 197: quem recebe o checklist entra no FECHAMENTO (é da Rayssa até ela concluir no CRM)
+  IF nai_cfg('visita_com_a_rayssa', 'sim') = 'sim' AND NOT nai_e_da_equipe_contato(v_destino) THEN
+    INSERT INTO nai_fechamento (contato_id, tipo, iniciado_por) VALUES (v_destino, p_tipo, 'checklist')
+      ON CONFLICT DO NOTHING;
+  END IF;
   RETURN 'Mandei o checklist de ' || v_nome || ' para ' || nai_fone_fmt(v_digitos) || '.';
 END;
 $function$;

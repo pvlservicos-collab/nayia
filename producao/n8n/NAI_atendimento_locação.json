@@ -2,7 +2,7 @@
  "id": "NaiAtendLocacao1",
  "nome": "NAI atendimento locação",
  "ativo": true,
- "atualizado_em": "2026-09-28 15:34:27",
+ "atualizado_em": "2026-09-30 12:52:39",
  "nodes": [
   {
    "parameters": {
@@ -2167,22 +2167,47 @@
   {
    "parameters": {
     "method": "POST",
-    "url": "http://172.16.0.9:3000/api/webhooks/zapi?org_id=a47991bb-80e3-43ad-9838-02258ebac5d2",
+    "url": "http://crm-imobeasy:3000/api/webhooks/zapi?org_id=a47991bb-80e3-43ad-9838-02258ebac5d2&rapido=1",
     "sendBody": true,
     "specifyBody": "json",
     "jsonBody": "={{ JSON.stringify($json.body || $json) }}",
     "options": {
-     "timeout": 8000
+     "timeout": 4000
     }
    },
    "type": "n8n-nodes-base.httpRequest",
    "typeVersion": 4.2,
    "position": [
     -712,
-    628
+    148
    ],
    "id": "espelhar-crm-0001",
    "name": "Espelhar no CRM",
+   "onError": "continueRegularOutput",
+   "retryOnFail": true,
+   "alwaysOutputData": false,
+   "maxTries": 2,
+   "waitBetweenTries": 1000
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "http://nay-core:8000/decidir/sombra",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ (() => {\n  let tr = null, li = null;\n  try { const x = $('Transcrever').all(); if (x.length) tr = String(x[0].json.text || x[0].json.transcription || '') || null; } catch (e) {}\n  try { const im = $('Ler imagem (GPT)').all(); if (im.length) { const c = ((im[0].json || {}).choices || [])[0]; li = String(((c || {}).message || {}).content || '') || null; } } catch (e) {}\n  return JSON.stringify({ turno_id: $json.cab.turno_id, transcricao_audio: tr, leitura_imagem: li });\n})() }}",
+    "options": {
+     "timeout": 2000
+    }
+   },
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    576,
+    568
+   ],
+   "id": "d6b0ebad-9a57-406b-8e68-a75e88a43242",
+   "name": "Espelhar decisão",
    "onError": "continueRegularOutput",
    "retryOnFail": false,
    "alwaysOutputData": false
@@ -2335,6 +2360,11 @@
     [
      {
       "node": "Rotear pelo cabeçalho",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Espelhar decisão",
       "type": "main",
       "index": 0
      }

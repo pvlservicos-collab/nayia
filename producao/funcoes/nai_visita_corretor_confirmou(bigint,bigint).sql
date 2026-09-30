@@ -22,6 +22,13 @@ BEGIN
     PERFORM nai_evento(v.id, 'corretor_confirmou', nai_hora_exata(v.quando));
     PERFORM nai_evento(v.id, 'aprovada', 'automática');
 
+    -- 197 (Pedro, 30/09/2026): a visita confirmada é da Rayssa (1ª solicitação ao
+    -- proprietário, a confirmação completa à Rayssa, o Tel só avisado)
+    IF nai_cfg('visita_com_a_rayssa', 'sim') = 'sim' THEN
+      PERFORM nai_visita_para_a_rayssa(v.id, p_turno);
+      RETURN;
+    END IF;
+
     -- em cima da hora continua sendo do Tel (a mesma conferência do SIM)
     IF v.quando < now() + make_interval(hours => v_min_h) THEN
       UPDATE nai_visita SET estado = 'com_tel', aguardando = 'tel', atualizado_em = now() WHERE id = v.id;

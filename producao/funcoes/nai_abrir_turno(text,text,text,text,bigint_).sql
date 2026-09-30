@@ -18,6 +18,7 @@ DECLARE
   v_prim    boolean;
   v_pausado boolean;
   v_tel_lid text;
+  v_rayssa  text;       -- 197: a conversa é da Rayssa (visita, fechamento, proprietário)
   v_porta   record;   -- a porta: atende essa mensagem?
 BEGIN
   IF v_chave IS NULL THEN
@@ -258,6 +259,18 @@ BEGIN
     UPDATE nai_turno SET fechado_em = now() WHERE id = v_turno;
     RETURN jsonb_build_object('ok', false, 'motivo', 'acompanhante_so_recebe_aviso', 'turno_id', v_turno,
                               'contato_id', v_contato, 'papel', v_papel);
+  END IF;
+
+  -- 197 (Pedro, 30/09/2026): corretor com a visita confirmada (até ela acabar), em
+  -- fechamento, ou proprietário: quem responde é a Rayssa, pelo CRM. A mensagem
+  -- fica gravada e a Nay não responde (o mesmo "ok falso" do 186).
+  IF v_papel IN ('corretor', 'proprietario') THEN
+    v_rayssa := nai_com_a_rayssa(v_contato, v_papel);
+    IF v_rayssa IS NOT NULL THEN
+      UPDATE nai_turno SET fechado_em = now() WHERE id = v_turno;
+      RETURN jsonb_build_object('ok', false, 'motivo', v_rayssa, 'turno_id', v_turno,
+                                'contato_id', v_contato, 'papel', v_papel);
+    END IF;
   END IF;
 
   -- 141b: a etapa e atualizada ANTES de montar o cabecalho. Dentro do

@@ -90,7 +90,7 @@ BEGIN
   IF v_v.id IS NOT NULL AND v_v.estado = 'confirmando' THEN
     IF abs(extract(epoch FROM (v_v.quando - v_q))) < 60 THEN
       PERFORM nai_visita_corretor_confirmou(v_v.id, p_turno);
-      RETURN QUERY SELECT 'Certo! Vou ver esse horário com o proprietário e já te retorno.'::text,
+      RETURN QUERY SELECT nai_texto_corretor_confirmou(),
         'ele confirmou a visita. mande o texto_pronto exatamente e nada mais.'::text;
       RETURN;
     END IF;

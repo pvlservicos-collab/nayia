@@ -373,7 +373,7 @@ BEGIN
        FROM nai_visita x WHERE x.corretor_id = ANY (nai_contato_irmaos(t.contato_id)) AND x.estado = 'confirmando';
     PERFORM nai_anotar(p_turno, 14, 'visita_confirmada_pelo_corretor', 'mudou', 'o banco confirmou');
     RETURN jsonb_build_object('acao', 'responder', 'guarda', 'visita_confirmada_pelo_corretor', 'codigo', NULL,
-                              'texto', 'Certo! Vou ver esse horário com o proprietário e já te retorno.');
+                              'texto', nai_texto_corretor_confirmou());
   END IF;
 
   -- 15 ------------------------------------------- DE QUAIS IMÓVEIS SÃO AS FOTOS

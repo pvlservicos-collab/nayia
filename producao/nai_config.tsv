@@ -1,5 +1,5 @@
 chave	valor	atualizado_em
-_agenda_rodou_em	2026-09-30 07:53:15	2026-09-30T07:53
+_agenda_rodou_em	2026-09-30 09:28:20	2026-09-30T09:28
 antecedencia_minima_horas	3	2026-09-10T18:41
 apresentacao_proprietario	Olá! Este é o número que usamos somente para agendamentos de visitas.	2026-09-15T15:31
 aprovacao_lembrete_min	30	2026-09-28T10:35
@@ -67,4 +67,6 @@ trace_nivel	completo	2026-09-19T15:31
 trace_payload	sim	2026-09-19T15:31
 treino_espelho	[telefone …0001]	2026-09-19T23:40
 v2_piso_intencao	0.60	2026-09-25T09:48
+visita_com_a_rayssa	sim	2026-09-30T09:29
+visita_rayssa_ate_min	120	2026-09-30T09:29
 visita_sem_aprovacao	sim	2026-09-29T13:09
