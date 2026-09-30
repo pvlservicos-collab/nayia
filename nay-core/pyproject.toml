@@ -1,0 +1,40 @@
+[project]
+name = "nay-core"
+version = "0.1.0"
+description = "O núcleo novo da Nay: máquina de estados, cérebro no banco, modelo só para classificar e ligar frases."
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "psycopg[binary,pool]>=3.2",
+  "pydantic>=2.8",
+  "pyyaml>=6.0",
+  "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "ruff>=0.6"]
+
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["nay*"]
+
+[tool.setuptools.package-data]
+nay = ["**/*.md", "**/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "C90"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
