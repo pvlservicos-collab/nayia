@@ -17,8 +17,7 @@ cmd="${1:-}"; shift || true
 lf() { tr -d '\r'; }   # o Windows grava CRLF; o psql quer LF
 case "$cmd" in
   q)
-    if [ -f "${1:-}" ]; then src="$1"; else src=<(printf '%s\n' "$*"); fi
-    lf < "$src" | ssh -o ConnectTimeout=20 $SRV "docker exec -i -e PGOPTIONS='-c default_transaction_read_only=on -c statement_timeout=60000' nay-postgres psql -U nay -d naydb -X -v ON_ERROR_STOP=1 -P pager=off -A -F' | '" ;;
+    { if [ -f "${1:-}" ]; then cat "$1"; else printf '%s\n' "$*"; fi; } | lf | ssh -o ConnectTimeout=20 $SRV "docker exec -i -e PGOPTIONS='-c default_transaction_read_only=on -c statement_timeout=60000' nay-postgres psql -U nay -d naydb -X -v ON_ERROR_STOP=1 -P pager=off -A -F' | '" ;;
   ensaio)
     f="$1"
     if grep -qiE '^\s*COMMIT\s*;' "$f"; then echo "RECUSADO: tem COMMIT; troque por ROLLBACK;"; exit 1; fi
