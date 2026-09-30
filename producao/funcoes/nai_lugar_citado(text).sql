@@ -8,5 +8,12 @@ AS $function$
    WHERE c.ativo AND t.n <> '' AND t.n ~ c.expressao
   UNION ALL
   SELECT 'avenida', a.nome, a.bairros, a.expressao FROM nai_lugar_avenida a, t
-   WHERE a.ativo AND t.n <> '' AND t.n ~ a.expressao;
+   WHERE a.ativo AND t.n <> '' AND t.n ~ a.expressao
+  -- 229: a ZONA ("zona leste", "zona centro-sul") vira os bairros dela (bairro_zona)
+  UNION ALL
+  SELECT 'zona', 'Zona ' || initcap(z.zona), array_agg(z.bairro ORDER BY z.bairro),
+         '\mzona ' || replace(z.zona, '-', ' ') || '\M'
+    FROM bairro_zona z, t
+   WHERE t.n <> '' AND t.n ~ ('\mzona ' || replace(z.zona, '-', ' ') || '\M')
+   GROUP BY z.zona;
 $function$;

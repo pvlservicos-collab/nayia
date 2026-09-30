@@ -10,6 +10,8 @@ AS $function$
     WHEN n.q = 1 AND (SELECT tipo FROM l) = 'conjunto' THEN
       (SELECT bairros[1] || ' (bairro ' || CASE WHEN lower(unaccent(nome)) ~ '^(vila|morada)' THEN 'da ' ELSE 'do ' END
               || nome || ')' FROM l)
+    -- 229: a zona diz os bairros dela
+    WHEN n.q = 1 AND (SELECT tipo FROM l) = 'zona' THEN (SELECT nome || ' (' || nai_lista_pt(bairros) || ')' FROM l)
     WHEN n.q = 1 THEN (SELECT 'entorno da ' || nome || ' (' || nai_lista_pt(bairros) || ')' FROM l)
     ELSE nai_lista_pt(nai_bairros_do_lugar(p_texto)) || ' (' || (SELECT nai_lista_pt(array_agg(nome ORDER BY nome)) FROM l) || ')'
   END FROM n;
