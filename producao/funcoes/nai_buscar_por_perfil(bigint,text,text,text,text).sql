@@ -278,11 +278,14 @@ BEGIN
        AND (v_q_min IS NULL OR coalesce(i.quartos, 0) BETWEEN v_q_min AND v_q_max)  -- 218
      ORDER BY (v_lug_rx IS NOT NULL AND nai_lugar_normal(i.condominio_nome) ~ v_lug_rx) DESC, 2 LIMIT 5) z;
 
+  -- 219: AO REDOR PELO MAPA -- divisa ou até 3 km dos bairros pedidos (um ou vários)
   v_viz := CASE WHEN v_livre THEN '{}'::text[]
-                WHEN cardinality(v_lug_bairros) = 1 THEN nay_bairros_proximos(v_lug_bairros[1])
-                WHEN v_lug_bairros IS NOT NULL THEN '{}'::text[]
-                ELSE nay_bairros_proximos(btrim(coalesce(p_bairro, ''))) END;
-  IF coalesce(array_length(v_viz, 1), 0) > 1 THEN
+                ELSE coalesce(nai_bairros_ao_redor(coalesce(v_lug_bairros, ARRAY(
+                       SELECT DISTINCT i.bairro FROM imoveis i
+                        WHERE coalesce(btrim(i.bairro), '') <> ''
+                          AND nay_normalizar_lugar(i.bairro, true) LIKE '%' || nay_normalizar_lugar(p_bairro, true) || '%'))),
+                       '{}'::text[]) END;
+  IF coalesce(array_length(v_viz, 1), 0) > 0 THEN
     SELECT string_agg(nai_bloco_oferta(z.c, v_negocio), E'\n\n' ORDER BY z.v) INTO v_alt FROM (
       SELECT i.codigo AS c,
              CASE WHEN v_negocio = 'venda' THEN i.valor_venda
@@ -314,7 +317,24 @@ BEGIN
                   ELSE coalesce(i.valor_aluguel, 0) > 0
                        AND i.valor_aluguel <= v_teto * (1 + nai_cfg_int('faixa_acima_pct', 10) / 100.0) END
        ORDER BY 2 DESC LIMIT 5) z;
-    v_mais_barato := v_aqui IS NOT NULL;
+    -- 219: nos bairros pedidos não coube nada? os mais em conta ao redor
+    IF v_aqui IS NULL AND coalesce(array_length(v_viz, 1), 0) > 0 THEN
+      SELECT string_agg(nai_bloco_oferta(z.c, v_negocio), E'\n\n' ORDER BY z.v DESC) INTO v_alt FROM (
+        SELECT i.codigo AS c,
+               CASE WHEN v_negocio = 'venda' THEN i.valor_venda
+                    ELSE coalesce(i.valor_aluguel, i.valor_venda) END AS v
+          FROM imoveis i
+         WHERE i.bairro = ANY (v_viz)
+           AND nai_oferta_serve(i, k.telefone, NULL, v_q, v_sem, v_com, v_negocio, v_tipo)
+           AND (v_q_min IS NULL OR coalesce(i.quartos, 0) BETWEEN v_q_min AND v_q_max)
+           AND CASE WHEN v_negocio = 'venda'
+                    THEN coalesce(i.valor_venda, 0) > 0
+                         AND i.valor_venda <= v_teto * (1 + nai_cfg_int('faixa_acima_pct', 10) / 100.0)
+                    ELSE coalesce(i.valor_aluguel, 0) > 0
+                         AND i.valor_aluguel <= v_teto * (1 + nai_cfg_int('faixa_acima_pct', 10) / 100.0) END
+         ORDER BY 2 DESC LIMIT 5) z;
+    END IF;
+    v_mais_barato := v_aqui IS NOT NULL OR v_alt IS NOT NULL;
     IF v_mais_barato THEN
       PERFORM nai_anotar(p_turno, 7, 'faixa_vazia_mais_em_conta', 'mudou', 'nada na faixa do valor: saíram os que cabem nele');
     END IF;
@@ -396,7 +416,7 @@ BEGIN
       (CASE WHEN v_livre
             THEN 'Não tenho ' || v_nada || ' nesse perfil disponível no momento.'
             ELSE 'No ' || coalesce(v_lug_rotulo, initcap(btrim(coalesce(p_bairro, '')))) || ' não tenho ' || v_nada
-                 || ' nesse perfil, nem nos bairros aqui perto.' END
+                 || ' nesse perfil agora, nem nos bairros aqui pertinho.' END
        || CASE WHEN v_teto IS NULL AND NOT v_sem_valor
                THEN ' Me diz até que valor o cliente vai, que eu procuro em toda a cidade.'
                ELSE '' END)::text,
@@ -424,8 +444,14 @@ BEGIN
   -- "Codigo:", e e isso que faz o sistema mandar as fotos e o fechamento.
   IF (SELECT count(*) FROM regexp_matches(coalesce(v_aqui, '') || coalesce(v_alt, ''), ' #[0-9]{3,5}\*', 'g')) = 1 THEN
     RETURN QUERY SELECT
-      (SELECT cc.texto_pronto FROM nai_card_do_imovel(
-         (regexp_match(coalesce(v_aqui, '') || coalesce(v_alt, ''), ' #([0-9]{3,5})\*'))[1]::int) cc),
+      (CASE WHEN v_aqui IS NULL AND NOT v_livre
+              THEN 'No ' || v_nome_b || ' eu não tenho ' || v_nada || ' nesse perfil agora, mas bem pertinho de lá eu tenho este'
+                   || CASE WHEN v_mais_barato THEN ', um pouco mais em conta' ELSE '' END || ':' || E'\n\n'
+            WHEN v_mais_barato
+              THEN 'Nessa faixa de valor eu não tenho, mas tenho este um pouco mais em conta:' || E'\n\n'
+            ELSE '' END
+       || (SELECT cc.texto_pronto FROM nai_card_do_imovel(
+         (regexp_match(coalesce(v_aqui, '') || coalesce(v_alt, ''), ' #([0-9]{3,5})\*'))[1]::int) cc)),
       ('e um imovel so nesse perfil: mande o card EXATAMENTE como veio. O sistema manda as '
        || 'fotos e a sugestao de visita logo depois.')::text;
     RETURN;
@@ -443,8 +469,8 @@ BEGIN
       v_txt := v_txt || E'\n\n' || 'E tenho estas aqui perto:' || E'\n\n' || v_alt;
     END IF;
   ELSE
-    v_txt := 'No ' || v_nome_b || ', não tenho ' || v_nada || ' nesse perfil disponível no momento.' || E'\n\n' ||
-             'Mas tenho estas opções aqui perto:' || E'\n\n' || v_alt;
+    v_txt := 'No ' || v_nome_b || ' eu não tenho ' || v_nada || ' nesse perfil agora, mas separei estas opções bem pertinho de lá'
+             || CASE WHEN v_mais_barato THEN ', um pouco mais em conta' ELSE '' END || ':' || E'\n\n' || v_alt;
   END IF;
 
   -- DEPOIS DE UMA LISTA, A PERGUNTA E PADRAO (Tel, 22/09, caso 159: "faltou ela
