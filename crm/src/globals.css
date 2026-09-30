@@ -1545,3 +1545,5 @@ html {
   font-size: 12.5px; font-weight: 500; color: var(--wa-text-2); border: 1px solid var(--wa-divider); background: transparent; }
 .barra-calma__botao:hover { background: var(--wa-row-hover); color: var(--wa-text); }
 .barra-calma .painel-barra__lista { top: 100%; }
+/* na Captação a barra é uma LINHA no topo da coluna: não estica para baixo (30/09) */
+.barra-calma--linha { flex: 0 0 auto; align-content: center; }

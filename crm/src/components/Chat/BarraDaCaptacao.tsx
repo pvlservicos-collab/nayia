@@ -131,7 +131,7 @@ export default function BarraDaCaptacao({ leads }: { leads?: LeadWithOwner[] }) 
   const semTeto = !p || p.tetoHoje >= 999
 
   return (
-    <div className="barra-calma" aria-label="Números da captação">
+    <div className="barra-calma barra-calma--linha" aria-label="Números da captação">
       <span className="barra-calma__grupo">Hoje</span>
       <div className="barra-calma__item" title="Primeira mensagem da campanha para um proprietário, hoje">
         <span className="barra-calma__rotulo">Disparos</span>
