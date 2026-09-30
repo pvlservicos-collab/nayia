@@ -1,0 +1,51 @@
+#!/bin/bash
+# nay: o caminho curto de toda mudança na Nay. Uso, na raiz do nayia (Git Bash):
+#   ./scripts/nay q  arquivo.sql|"SELECT ..."   consulta SÓ LEITURA no naydb
+#   ./scripts/nay ensaio arquivo.sql             roda numa transação que TERMINA EM ROLLBACK
+#   ./scripts/nay backup fn1 fn2 ... [rotulo]    pg_get_functiondef para /root/backups-funcoes/<fn>-<data>-<rotulo>.sql
+#   ./scripts/nay aplicar arquivo.sql            aplica (o arquivo tem BEGIN/COMMIT), tira a foto e mostra o git status
+#   ./scripts/nay bateria                        nai_rodar_casos(): passou/total e as que falharam
+#   ./scripts/nay conversa <4 últimos dígitos> [horas]   o que ela e a pessoa disseram (padrão 12 h)
+#   ./scripts/nay site                           sobe nay-site-api + arquivos do imob-easy/ e confere /api/imoveis/opcoes
+#   ./scripts/nay crm arquivo1 arquivo2 ...      copia para /docker/crm/app e rebuild (~4 min)
+# Regras (CLAUDE.md): backup -> ensaio -> aplicar -> foto -> commit. Nunca reaplique .sql antigo.
+set -uo pipefail
+RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
+SRV=nay-srv1894338
+PSQL="docker exec -i nay-postgres psql -U nay -d naydb -X -v ON_ERROR_STOP=1 -P pager=off"
+cmd="${1:-}"; shift || true
+lf() { tr -d '\r'; }   # o Windows grava CRLF; o psql quer LF
+case "$cmd" in
+  q)
+    if [ -f "${1:-}" ]; then src="$1"; else src=<(printf '%s\n' "$*"); fi
+    lf < "$src" | ssh -o ConnectTimeout=20 $SRV "docker exec -i -e PGOPTIONS='-c default_transaction_read_only=on -c statement_timeout=60000' nay-postgres psql -U nay -d naydb -X -v ON_ERROR_STOP=1 -P pager=off -A -F' | '" ;;
+  ensaio)
+    f="$1"
+    if grep -qiE '^\s*COMMIT\s*;' "$f"; then echo "RECUSADO: tem COMMIT; troque por ROLLBACK;"; exit 1; fi
+    if ! tail -5 "$f" | grep -qi '^ROLLBACK;'; then echo "RECUSADO: precisa terminar em ROLLBACK;"; exit 1; fi
+    lf < "$f" | ssh -o ConnectTimeout=20 $SRV "docker exec -i -e PGOPTIONS='-c statement_timeout=120000 -c lock_timeout=3000' $PSQL" ;;
+  backup)
+    args=("$@"); rot="${args[-1]}"; unset 'args[-1]'; [ ${#args[@]} -eq 0 ] && { args=("$rot"); rot="manual"; }
+    for fn in "${args[@]}"; do
+      n=$(echo "$fn" | cut -d'(' -f1)
+      ssh -o ConnectTimeout=20 $SRV "docker exec nay-postgres psql -U nay -d naydb -Atc \"SELECT pg_get_functiondef('$fn'::regprocedure)\" > /root/backups-funcoes/$n-$(date +%F)-$rot.sql && echo backup $n ok"
+    done ;;
+  aplicar)
+    f="$1"; lf < "$f" | ssh -o ConnectTimeout=20 $SRV "docker exec -i -e PGOPTIONS='-c statement_timeout=120000 -c lock_timeout=3000' $PSQL" || { echo "FALHOU: nada commitado"; exit 1; }
+    "$RAIZ/scripts/foto_producao.sh" 2>/dev/null | tail -1; git -C "$RAIZ" status --short | head -20 ;;
+  bateria)
+    "$0" q "SELECT count(*) FILTER (WHERE passou) AS passou, count(*) AS total FROM nai_rodar_casos(); SELECT regra, left(frase,60) frase, esperado, deu FROM nai_rodar_casos() WHERE NOT passou;" ;;
+  conversa)
+    d="$1"; h="${2:-12}"
+    "$0" q "SELECT to_char(x.h,'DD HH24:MI') hora, x.quem, x.txt FROM (
+      SELECT t.criado_em h, 'ELE' quem, left(regexp_replace(t.texto,'\s+',' ','g'),200) txt FROM nai_turno t JOIN nai_contato k ON k.id=t.contato_id WHERE right(regexp_replace(k.telefone,'\D','','g'),4)='$d' AND t.criado_em>now()-interval '$h hours'
+      UNION ALL SELECT s.criado_em, 'NAY '||s.estado||coalesce(':'||s.bloqueio,''), CASE WHEN s.tipo='imagem' THEN '[foto '||s.codigo||']' ELSE left(regexp_replace(s.texto,'\s+',' ','g'),200) END FROM nai_saida s JOIN nai_contato k ON k.id=s.contato_id WHERE right(regexp_replace(k.telefone,'\D','','g'),4)='$d' AND s.criado_em>now()-interval '$h hours' AND s.papel_destino<>'tel') x ORDER BY 1;" ;;
+  site)
+    scp -q "$RAIZ/nay-site-api/app.py" $SRV:/docker/nay-site-api/app.py
+    for f in "$@"; do scp -q "$RAIZ/imob-easy/$f" "$SRV:/docker/nay-site-web/public/$f"; done
+    ssh -o ConnectTimeout=20 $SRV 'cd /docker/nay-site-api && docker compose up -d --build 2>&1 | grep -i started | tail -1; sleep 7; curl -s -m 60 -o /dev/null -w "/api/imoveis/opcoes -> %{http_code} em %{time_total}s\n" http://127.0.0.1:8092/api/imoveis/opcoes' ;;
+  crm)
+    for f in "$@"; do scp -q "$RAIZ/crm/$f" "$SRV:/docker/crm/app/$f"; done
+    ssh -o ConnectTimeout=20 $SRV 'cd /docker/crm && docker compose up -d --build 2>&1 | tail -2; docker ps --filter name=crm-imobeasy --format "{{.Names}} {{.Status}}"' ;;
+  *) sed -n 2,12p "$0" ;;
+esac

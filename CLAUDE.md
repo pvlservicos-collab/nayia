@@ -35,3 +35,4 @@ o que foi corrigido no banco.
 - Nunca apagar linha de `imoveis`.
 - Nada de segredo no git: token, senha, chave, URL da Z-API com instância.
 - Import de fluxo no n8n só de madrugada, pelo procedimento do espelho-madrugada.
+- Atalhos: `./scripts/nay` (q, ensaio, backup, aplicar, bateria, conversa, site, crm) e o mapa pedido → função em `MAPA.md`.
