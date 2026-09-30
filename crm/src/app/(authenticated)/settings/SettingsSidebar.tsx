@@ -15,7 +15,7 @@ import {
     Table,
     ClipboardText,
     Robot,
-    ChatText, IdentificationBadge } from '@phosphor-icons/react'
+    ChatText, IdentificationBadge, FlowArrow } from '@phosphor-icons/react'
 
 const SETTINGS_SECTIONS = [
     { label: 'Perfil da Organização', href: '/settings/organization', icon: Buildings },
@@ -29,6 +29,8 @@ const SETTINGS_SECTIONS = [
     // 29/09: os corretores parceiros -- quem mais conversa, quem mais agenda, a pasta de cada um
     { label: 'Corretores', href: '/settings/corretores', icon: IdentificationBadge },
     { label: 'Respostas Rápidas', href: '/settings/quick-replies', icon: Lightning },
+    // saiu da barra de cima (Pedro, 30/09: "pegue a aba funil de mensagem e ponha para dentro de configuração")
+    { label: 'Funil de Mensagens', href: '/settings/funnels', icon: FlowArrow },
     { label: 'Produtos', href: '/settings/products', icon: Package },
     { label: 'Integrações', href: '/settings/integrations', icon: ShareNetwork },
     { label: 'Templates do WhatsApp', href: '/settings/templates', icon: ChatText },

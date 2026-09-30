@@ -786,6 +786,7 @@ html {
   --wa-tag-visita: #1d4ed8;
   --wa-tag-tel: #be123c;
   --wa-tag-corretor: #047857;
+  --wa-tag-equipe: #6d28d9;
 
   /* os tokens que os componentes antigos do chat já leem */
   --chat-bg-base: var(--wa-panel);
@@ -848,6 +849,7 @@ html {
   --wa-tag-visita: #60a5fa;
   --wa-tag-tel: #fb7185;
   --wa-tag-corretor: #34d399;
+  --wa-tag-equipe: #a78bfa;
 }
 
 /* O papel de parede: o desenho (public/chat-bg.svg) é máscara, a cor vem do tema */

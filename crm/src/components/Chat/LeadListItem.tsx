@@ -144,11 +144,11 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
               Visita {quandoCurto(marca.visitaQuando)}
             </span>
           )}
-          {marca?.corretor && (
-            <span className="wa-marca" style={{ color: 'var(--wa-tag-corretor)' }}
-                  title={marca.creci ? `Corretor parceiro · CRECI ${marca.creci}` : 'Corretor parceiro'}>
-              Corretor parceiro
-            </span>
+          {/* Pedro, 30/09: "retire a tag de corretor parceiro do chat Todos, deixe só a
+              tag proprietários e equipe" -- quase todo mundo é corretor, a etiqueta
+              não diferenciava ninguém. O CRECI continua no card do contato. */}
+          {(marca?.equipe || marca?.acompanhante) && (
+            <span className="wa-marca" style={{ color: 'var(--wa-tag-equipe)' }} title="Da equipe da Imob Easy">Equipe</span>
           )}
           {marca?.proprietario && (
             <span className="wa-marca" style={{ color: 'var(--wa-tag-prop)' }}

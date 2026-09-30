@@ -15,6 +15,7 @@ import { authenticateRequest, apiError } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { marcasDaNay, visitasDaNay } from '@/lib/nayLeitura'
 import { conversaPorChave, conversasDaParceria } from '@/lib/conversasDaParceria'
+import { naydb } from '@/lib/nayDisparo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -50,6 +51,16 @@ export async function GET(req: NextRequest) {
          GROUP BY lead_id`),
       visitasDaNay(desde.toISOString().slice(0, 10), null),
     ])
+    // CONTRATOS (221, Pedro 30/09: "contratos fechados"): fechamento que a Rayssa
+    // concluiu no período; e o que está em andamento agora
+    const contratos = new Map<string, { fechados: number; andamento: number }>()
+    try {
+      const r = await naydb().query('SELECT * FROM crm_fechamentos_por_telefone($1::text[], $2::timestamptz)',
+        [corretores.map((c) => c.telefone).filter(Boolean), desde.toISOString()])
+      for (const l of r.rows) contratos.set(l.telefone, { fechados: Number(l.fechados) || 0, andamento: Number(l.em_andamento) || 0 })
+    } catch (err: any) {
+      console.error('[corretores] contratos', err?.message || err)
+    }
     const porId = new Map<string, any>()
     for (const l of mensagens.rows as any[]) porId.set(l.id, l)
     const docs = new Map<string, number>((documentos.rows as any[]).map((l) => [l.id, Number(l.n)]))
@@ -88,6 +99,8 @@ export async function GET(req: NextRequest) {
         visitasRealizadas: vis.realizadas,
         visitasAbertas: vis.abertas,
         documentos: docs.get(c.id) || 0,
+        contratosFechados: contratos.get(c.telefone!)?.fechados ?? 0,
+        fechamentoEmAndamento: contratos.get(c.telefone!)?.andamento ?? 0,
       }
     })
     return Response.json({ corretores: saida, dias })

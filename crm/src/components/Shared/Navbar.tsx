@@ -16,6 +16,7 @@ import {
   SignOut,
   Buildings,
   FlowArrow,
+  IdentificationBadge,
   Sun,
   Moon,
   List,
@@ -44,7 +45,10 @@ const NAV_ITEMS = [
   // A ABA IMOVEIS (Tel, 27/09/2026): o mesmo acervo da tela do site, aqui dentro,
   // para achar imovel e mandar direto numa conversa.
   { label: 'Imóveis', href: '/imoveis', icon: Buildings },
-  { label: 'Funil de Mensagens', href: '/funnels', icon: FlowArrow },
+  // CORRETORES (Pedro, 30/09/2026): "cria mais uma aba ali no CRM ... Corretores,
+  // com vários quadradinhos, cada um um corretor, com as métricas". O Funil de
+  // Mensagens foi para dentro de Configurações.
+  { label: 'Corretores', href: '/corretores', icon: IdentificationBadge },
   { label: 'Configurações', href: '/settings/organization', icon: Gear },
 ]
 
