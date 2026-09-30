@@ -239,7 +239,12 @@
   }
 
   /* ---- o espelho: tudo o que veio, antes do clique -------------------------- */
+  // Guardada para o espelho poder se redesenhar sozinho depois de tirar uma
+  // foto, sem perder o que veio da importação (título, url, o que falta).
+  var ultimaImportacao = null;
+
   function desenharEspelho(codigo, importacao) {
+    ultimaImportacao = importacao || ultimaImportacao;
     var alvo = $("olx-espelho");
     alvo.innerHTML = '<p class="olx-nota">Montando o espelho…</p>';
     Promise.all([
@@ -248,7 +253,7 @@
     ]).then(function (par) {
       var i = par[0];
       var fotos = (par[1].fotos || []).map(function (f) { return typeof f === "string" ? f : (f.url || f.arquivo); }).filter(Boolean);
-      var imp = importacao || {};
+      var imp = ultimaImportacao || {};
       var dado = function (rotulo, valor) {
         return valor == null || valor === "" ? "" : '<div class="olx-dado"><dt>' + esc(rotulo) + "</dt><dd>" + esc(valor) + "</dd></div>";
       };
@@ -271,8 +276,19 @@
             '<h3 class="olx-espelho__titulo">Pré-cadastro <span class="olx-codigo">' + esc(i.codigo) + "</span>" +
               (imp.titulo ? " · " + esc(imp.titulo) : "") + "</h3>" +
             pilula(i.status) + "</div></header>" +
+          // O X EM CADA FOTO (Tel, 30/09): a OLX manda planta, fachada repetida
+          // e foto ruim. Só sai enquanto é Rascunho -- depois de cadastrado o
+          // imóvel já está no site e na Nay, e tirar foto ali é na tela de
+          // edição, não aqui.
           (fotos.length ? '<div class="olx-espelho__fotos">' + fotos.slice(0, 13).map(function (u, k) {
-              return '<img src="' + esc(u) + '" alt="' + (k ? "" : "Foto principal") + '" loading="lazy"' + (k ? "" : ' class="olx-espelho__capa"') + ">";
+              return '<figure class="olx-foto' + (k ? "" : " olx-espelho__capa") + '">' +
+                '<img src="' + esc(u) + '" alt="' + (k ? "" : "Foto principal") + '" loading="lazy">' +
+                (i.status === "Rascunho"
+                  ? '<button class="olx-foto__x" type="button" title="Tirar esta foto"' +
+                    ' aria-label="Tirar esta foto do cadastro"' +
+                    ' data-apagar-foto="' + esc(u) + '" data-codigo="' + esc(i.codigo) + '">&times;</button>'
+                  : "") +
+                "</figure>";
             }).join("") + (fotos.length > 13 ? '<span class="olx-espelho__mais">+' + (fotos.length - 13) + "</span>" : "") + "</div>"
             : '<p class="olx-nota olx-espelho__semfoto">Nenhuma foto veio.</p>') +
           '<dl class="olx-espelho__dados">' +
@@ -401,7 +417,33 @@
       });
   }
 
+  /* ---- tirar uma foto que não deve subir ------------------------------------ */
+  function apagarFoto(botao) {
+    if (botao.disabled) return;
+    var url = botao.getAttribute("data-apagar-foto");
+    var codigo = botao.getAttribute("data-codigo");
+    var figura = botao.closest(".olx-foto");
+    botao.disabled = true;
+    if (figura) figura.classList.add("olx-foto--saindo");
+    enviar("api/olx/" + encodeURIComponent(codigo) + "/foto", "DELETE", { url: url })
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.dados.erro || "não deu para tirar a foto");
+        // Redesenha em vez de só sumir com o elemento: o espelho mostra 13 e um
+        // "+N", e tirar uma sem redesenhar deixaria essa conta mentindo.
+        desenharEspelho(codigo, ultimaImportacao);
+      })
+      .catch(function (erro) {
+        botao.disabled = false;
+        if (!figura) return;
+        figura.classList.remove("olx-foto--saindo");
+        figura.classList.add("olx-foto--erro");
+        figura.title = erro.message;
+      });
+  }
+
   document.addEventListener("click", function (e) {
+    var af = e.target.closest ? e.target.closest("[data-apagar-foto]") : null;
+    if (af) { apagarFoto(af); return; }
     var b = e.target.closest ? e.target.closest("[data-cadastrar]") : null;
     if (b) { cadastrar(b); return; }
     var sd = e.target.closest ? e.target.closest("[data-salvar-dono]") : null;

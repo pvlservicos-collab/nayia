@@ -90,6 +90,23 @@
 }
 .olx-espelho__fotos img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; background: #eeeaf4; }
 .olx-espelho__capa { grid-row: span 2; }
+/* Cada foto com o seu X (Tel, 30/09). A figure é o item da grade agora; a img
+   dentro dela ocupa tudo, como ocupava antes. */
+.olx-foto { position: relative; margin: 0; min-width: 0; }
+.olx-foto__x {
+  position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; padding: 0;
+  display: grid; place-items: center; cursor: pointer;
+  border: 0; border-radius: 999px; background: rgba(20, 16, 28, .72); color: #fff;
+  font: 700 15px/1 system-ui, sans-serif;
+  /* Sempre visível no toque, onde não existe passar o mouse por cima. */
+  opacity: .55; transition: opacity .12s, background .12s, transform .12s;
+}
+.olx-foto:hover .olx-foto__x, .olx-foto__x:focus-visible { opacity: 1; }
+.olx-foto__x:hover { background: #b42323; transform: scale(1.08); }
+.olx-foto__x[disabled] { cursor: progress; }
+.olx-foto--saindo { opacity: .35; filter: grayscale(1); }
+.olx-foto--erro { outline: 2px solid #b42323; outline-offset: 1px; }
+@media (hover: none) { .olx-foto__x { opacity: .9; } }
 .olx-espelho__mais {
   display: grid; place-items: center; border-radius: 8px; background: #1f1a29; color: #fff; font-weight: 700;
 }

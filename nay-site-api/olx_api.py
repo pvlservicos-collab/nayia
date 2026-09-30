@@ -346,6 +346,61 @@ def olx_foto(codigo):
         conn.close()
 
 
+@olx_bp.route("/admin/api/olx/<int:codigo>/foto", methods=["DELETE"])
+def olx_foto_apagar(codigo):
+    """Tira uma foto do pré-cadastro antes de ele virar anúncio.
+
+    Pedido do Tel (30/09/2026): "coloca um X na imagem para clicar nele e
+    apagar caso não queira que suba essa imagem". A OLX traz foto de planta,
+    de fachada repetida e foto ruim; quem separa é o olho de quem cadastra.
+
+    Some a linha E o arquivo: foto que ninguém quis não fica ocupando disco.
+    A CAPA NÃO PRECISA SER PROMOVIDA -- `buscar_fotos` ordena por `ordem`, não
+    por `e_capa`, então a próxima da fila já vira a primeira sozinha. (E a role
+    do site não tem UPDATE em `imovel_fotos`, só INSERT e DELETE.)
+    """
+    if not _admin_autenticado():
+        return _sem_senha()
+    corpo = request.get_json(silent=True) or {}
+    url = str(corpo.get("url") or "").strip()
+    if not url:
+        return jsonify({"erro": "sem url"}), 400
+
+    conn = _conectar()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT origem FROM imoveis WHERE codigo = %s", (codigo,))
+            linha = cur.fetchone()
+            if not linha or linha["origem"] != "olx":
+                return jsonify({"erro": "este imóvel não é um pré-cadastro da OLX"}), 404
+            cur.execute("DELETE FROM imovel_fotos WHERE codigo = %s AND url = %s", (codigo, url))
+            apagou = cur.rowcount
+            cur.execute("SELECT count(*) AS n FROM imovel_fotos WHERE codigo = %s", (codigo,))
+            restam = cur.fetchone()["n"]
+        conn.commit()
+
+        # O ARQUIVO DEPOIS DO COMMIT, e só o que está dentro da pasta deste
+        # imóvel: a url vem do navegador, e caminho vindo de fora nunca escolhe
+        # o que apagar. Se falhar, a linha já se foi e a foto não aparece mais.
+        prefixo = f"{URL_FOTOS}/olx/{codigo}/"
+        if url.startswith(prefixo):
+            nome = os.path.basename(url[len(prefixo):])
+            caminho = os.path.join(PASTA_FOTOS, "olx", str(codigo), nome)
+            pasta = os.path.realpath(os.path.join(PASTA_FOTOS, "olx", str(codigo)))
+            if nome and os.path.realpath(caminho).startswith(pasta + os.sep):
+                try:
+                    os.remove(caminho)
+                except OSError:
+                    pass   # sem arquivo é o mesmo resultado que o pedido queria
+
+        return jsonify({"ok": True, "apagou": apagou, "restam": restam})
+    except Exception as exc:  # noqa: BLE001
+        conn.rollback()
+        return jsonify({"ok": False, "erro": exc.__class__.__name__}), 500
+    finally:
+        conn.close()
+
+
 @olx_bp.route("/admin/api/olx/importados")
 def olx_importados():
     if not _admin_autenticado():

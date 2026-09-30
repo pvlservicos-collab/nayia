@@ -575,6 +575,55 @@
     return m;
   }
 
+  /* ---- o endereço vem do condomínio escolhido (Tel, 30/09/2026) ------------
+     "quando selecionado ele já preenche com os dados de endereço desse
+     condomínio". Rua e cidade não existem na tabela `condominios` (ela tem só
+     id, nome e bairro): vêm dos imóveis já ligados ao condomínio, pelo valor
+     mais frequente -- ver /api/condominios/<id>/endereco.
+
+     SÓ PREENCHE CAMPO VAZIO. Quem já digitou um endereço sabe de algo que o
+     cadastro não sabe, e sobrescrever por conta própria apagaria isso em
+     silêncio. O que não coube vai escrito na dica, para a pessoa decidir. */
+  function preencherDoCondominio() {
+    var escolhido = seletorCondo && seletorCondo.valores()[0];
+    if (!escolhido || !escolhido.id) return;
+    fetch(window.API_BASE + "/api/condominios/" + encodeURIComponent(escolhido.id) + "/endereco")
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (e) {
+        if (!e) return;
+        var postos = [], divergentes = [];
+        [["logradouro", "a rua"], ["bairro", "o bairro"], ["cidade", "a cidade"],
+         ["estado", "o estado"], ["cep", "o CEP"]].forEach(function (par) {
+          var campo = $("ed-" + par[0]), valor = e[par[0]];
+          if (!campo || !valor) return;
+          var atual = String(campo.value || "").trim();
+          if (!atual) {
+            campo.value = valor;
+            campo.dispatchEvent(new Event("input", { bubbles: true }));
+            postos.push(par[1]);
+          } else if (atual.toLowerCase() !== String(valor).toLowerCase()) {
+            divergentes.push(par[1] + ' do condomínio é "' + valor + '"');
+          }
+        });
+        atualizarBotao();
+        var dica = $("ed-condo-dica");
+        if (!dica) return;
+        var recado = [];
+        if (postos.length) {
+          recado.push("Preenchi " + postos.join(", ") + " pelo condomínio" +
+            (e.base ? " (do que está cadastrado em " + e.base + " imóvel" + (e.base === 1 ? "" : "is") + " dele)" : "") + ".");
+        }
+        if (divergentes.length) {
+          recado.push("Não mexi no que já estava escrito — mas " + divergentes.join("; ") + ".");
+        }
+        if (!postos.length && !divergentes.length) {
+          recado.push("Esse condomínio ainda não tem endereço em nenhum imóvel cadastrado.");
+        }
+        dica.textContent = recado.join(" ");
+      })
+      .catch(function () {});
+  }
+
   function atualizarBotao() {
     if (novo) return;
     var m = mudancas();
@@ -623,7 +672,10 @@
 
     var campoCondo = $("ed-condominio");
     if (campoCondo && window.criarSeletorCondominio) {
-      seletorCondo = window.criarSeletorCondominio(campoCondo, { multiplo: false, aoMudar: atualizarBotao });
+      seletorCondo = window.criarSeletorCondominio(campoCondo, {
+        multiplo: false,
+        aoMudar: function () { atualizarBotao(); preencherDoCondominio(); }
+      });
       if (condoInicial) seletorCondo.definir([condoInicial]);
       if (!novo && item.condominio_nome && !item.condo_id) {
         $("ed-condo-dica").textContent = "Hoje está escrito \"" + item.condominio_nome + "\", sem ligação com o cadastro de condomínios — escolha na lista para ligar.";

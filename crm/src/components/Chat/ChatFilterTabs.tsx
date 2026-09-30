@@ -25,6 +25,16 @@ export interface FiltroDaLista {
   /** cor própria (etiqueta, atendente) -- vira um pontinho antes do nome */
   cor?: string
   titulo?: string
+  /**
+   * PARCERIA (Tel, 30/09/2026): "um menu único tipo um tudo com cada parte
+   * selecionável e visivelmente selecionada com aspecto 3d ... os 3 primeiros
+   * são etapas e devem ficar destacadas de tel e rayssa".
+   *
+   * 'etapa'  -> Todos, Visitas, Proprietários: onde a conversa ESTÁ.
+   * 'pessoa' -> Tel, Rayssa: quem está atendendo.
+   * Sem grupo, o filtro sai como sempre saiu (captação, oficial).
+   */
+  grupo?: 'etapa' | 'pessoa'
 }
 
 /** mantido para quem ainda importa o tipo antigo */
@@ -50,22 +60,29 @@ function ChatFilterTabs({ ativo, aoMudar, filtros }: ChatFilterTabsProps) {
            if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
            el.scrollLeft += e.deltaY
          }}>
-      {filtros.map((f) => {
+      {filtros.map((f, i) => {
         const on = ativo === f.chave
+        // A barrinha que separa as etapas de quem atende: só onde o grupo muda.
+        const separa = f.grupo === 'pessoa' && filtros[i - 1]?.grupo === 'etapa'
+        const classe = f.grupo
+          ? `wa-etapa wa-etapa--${f.grupo} ${on ? 'wa-etapa--on' : ''}`
+          : `wa-chip ${on ? 'wa-chip--on' : ''}`
         return (
-          <button
-            key={f.chave}
-            type="button"
-            role="tab"
-            aria-selected={on}
-            title={f.titulo}
-            onClick={() => aoMudar(on && f.chave !== 'all' ? 'all' : f.chave)}
-            className={`wa-chip ${on ? 'wa-chip--on' : ''}`}
-          >
-            {f.cor && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: f.cor }} />}
-            {f.rotulo}
-            {f.contagem !== undefined && f.contagem > 0 && <span className="wa-chip__n">{f.contagem}</span>}
-          </button>
+          <span key={f.chave} className="contents">
+            {separa && <span className="wa-etapa__risco" aria-hidden="true" />}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={on}
+              title={f.titulo}
+              onClick={() => aoMudar(on && f.chave !== 'all' ? 'all' : f.chave)}
+              className={classe}
+            >
+              {f.cor && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: f.cor }} />}
+              {f.rotulo}
+              {f.contagem !== undefined && f.contagem > 0 && <span className="wa-chip__n">{f.contagem}</span>}
+            </button>
+          </span>
         )
       })}
     </div>

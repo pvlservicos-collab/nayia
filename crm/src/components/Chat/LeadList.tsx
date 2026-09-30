@@ -140,6 +140,15 @@ export default function LeadList({
     for (const a of atendentes) mapa[a.id] = a
     return mapa
   }, [atendentes])
+  /* A RAYSSA (Tel, 30/09): "vamos pôr a Nay para responder a maioria das
+     pessoas e escalar para a Rayssa após uma visita confirmada". Ela é uma
+     atendente do CRM como as outras -- o que muda é ter lugar fixo no menu,
+     ao lado do Tel. Se ninguém com esse nome estiver na organização, a aba
+     simplesmente não aparece, em vez de aparecer vazia. */
+  const rayssa = useMemo(
+    () => atendentes.find((a) => a.nome.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().startsWith('rayssa')),
+    [atendentes])
+
   const [tagFilterOpen, setTagFilterOpen] = useState(false)
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const tagFilterRef = useRef<HTMLDivElement>(null)
@@ -349,7 +358,9 @@ export default function LeadList({
     if (ehParceria) {
       const m = marcas[l.id]
       if (m?.proprietario) soma('proprietarios')
-      if (m?.visitaAberta) soma('visitas')
+      // proprietário não entra em Visitas: a etapa dele é só a dele
+      if (m?.visitaAberta && !m?.proprietario) soma('visitas')
+      if (atendente?.nome === rayssa?.nome && rayssa) soma('rayssa')
       // "Tel": a Nay diz que ele está com a conversa OU ele mandou pelo login dele
       if (m?.telAtendendo || atendente?.nome === 'Tel') soma('tel')
       if (atendente && atendente.nome !== 'Tel') soma(`atendente:${atendente.id}`)
@@ -362,15 +373,26 @@ export default function LeadList({
 
   const filtros: FiltroDaLista[] = ehParceria
     ? [
-        { chave: 'all', rotulo: 'Todas', contagem: undefined },
-        { chave: 'nao_lidas', rotulo: 'Não lidas', contagem: contagem.nao_lidas },
-        { chave: 'proprietarios', rotulo: 'Proprietários', contagem: contagem.proprietarios, titulo: 'Quem a Nay sabe que é dono de imóvel' },
-        { chave: 'visitas', rotulo: 'Visitas', contagem: contagem.visitas, titulo: 'Com visita em andamento' },
-        { chave: 'tel', rotulo: 'Tel', contagem: contagem.tel, titulo: 'O Tel está atendendo (a Nay parou por ele, ou ele mandou pelo login dele)' },
-        ...atendentes.filter((a) => a.nome !== 'Tel').map((a) => ({
-          chave: `atendente:${a.id}`, rotulo: a.nome, cor: a.cor, contagem: contagem[`atendente:${a.id}`],
-          titulo: `Conversas em que ${a.nome} mandou a última mensagem da equipe, pelo login dela`,
-        })),
+        /* AS ETAPAS DA PARCERIA (Tel, 30/09/2026). Saiu "Não lidas"; entrou um
+           menu só, com as três etapas destacadas de quem atende.
+
+           A Nay atende em TODOS. Quando ela escala uma visita, a conversa passa
+           para Visitas e quem atende é a Rayssa -- e isso é TEMPORÁRIO: "a
+           pessoa fica por tempo temporário em visita enquanto a visita está
+           aberta mesmo; quando finaliza ou passa o tempo ela volta para todos e
+           a Nay volta a atender". Por isso a marca é `visitaAberta`, que a Nay
+           já apaga sozinha ao fechar a visita -- não tem nada para arquivar
+           aqui, a conversa volta de graça. */
+        { chave: 'all', rotulo: 'Todos', grupo: 'etapa', titulo: 'A Nay atende aqui. Sem os proprietários, que têm a etapa deles.' },
+        { chave: 'visitas', rotulo: 'Visitas', grupo: 'etapa', contagem: contagem.visitas,
+          titulo: 'Com visita aberta — quem atende é a Rayssa. Fechou a visita, volta para Todos e a Nay volta a atender.' },
+        { chave: 'proprietarios', rotulo: 'Proprietários', grupo: 'etapa', contagem: contagem.proprietarios,
+          titulo: 'Quem a Nay sabe que é dono de imóvel. Só aparece aqui.' },
+        { chave: 'tel', rotulo: 'Tel', grupo: 'pessoa', contagem: contagem.tel, titulo: 'O Tel está atendendo (a Nay parou por ele, ou ele mandou pelo login dele)' },
+        ...(rayssa
+          ? [{ chave: 'rayssa', rotulo: rayssa.nome, grupo: 'pessoa' as const, cor: rayssa.cor, contagem: contagem.rayssa,
+               titulo: `${rayssa.nome} está atendendo (mandou a última mensagem da equipe, pelo login dela)` }]
+          : []),
       ]
     : [
         { chave: 'all', rotulo: 'Todas' },
@@ -393,10 +415,15 @@ export default function LeadList({
 
   const passaNoFiltro = (hit: SearchHit): boolean => {
     const l = hit.lead
-    if (activeTab === 'all') return true
+    /* O PROPRIETÁRIO SÓ APARECE NA ETAPA DELE (Tel, 30/09): "os proprietários
+       não vão aparecer em outras etapas, só ali, para ficar mais organizado".
+       Vale para as ETAPAS (Todos, Visitas). Tel e Rayssa são quem atende, não
+       etapa: se o Tel está com um proprietário, ele aparece na aba do Tel. */
+    if (activeTab === 'all') return !ehParceria || !marcas[l.id]?.proprietario
     if (activeTab === 'nao_lidas') return !!l.is_unread || l.id === selectedLeadId
     if (activeTab === 'proprietarios') return !!marcas[l.id]?.proprietario
-    if (activeTab === 'visitas') return !!marcas[l.id]?.visitaAberta
+    if (activeTab === 'visitas') return !!marcas[l.id]?.visitaAberta && !marcas[l.id]?.proprietario
+    if (activeTab === 'rayssa') return !!rayssa && atendenteDoLead[l.id]?.nome === rayssa.nome
     if (activeTab === 'tel') return !!marcas[l.id]?.telAtendendo || atendenteDoLead[l.id]?.nome === 'Tel'
     const janela = JANELAS_DE_FOLLOWUP.find(([k]) => k === activeTab)
     if (janela) return esperandoResposta(l, janela[1], agora)
@@ -408,6 +435,15 @@ export default function LeadList({
   const filtradas = visiveis
     .filter(passaNoFiltro)
     .filter((hit) => selectedTagIds.length === 0 || hit.lead.lead_tags?.some((lt: any) => selectedTagIds.includes(lt.tag_id)))
+
+  /* O ANDRÉ EM CIMA, EM VISITAS (Tel, 30/09): "o André vai ficar fixado em cima
+     das conversas porque ele é da equipe e faz parte disso". Quem é da equipe
+     vem da Nay (`equipe`: Tel, Rayssa e o acompanhante) -- em Visitas quem
+     aparece com essa marca é justamente quem acompanha a visita. Só reordena,
+     não filtra: ninguém some por causa disso. */
+  if (ehParceria && activeTab === 'visitas') {
+    filtradas.sort((a, b) => Number(!!marcas[b.lead.id]?.equipe) - Number(!!marcas[a.lead.id]?.equipe))
+  }
 
   const visibleHits = filtradas.slice(0, displayLimit)
   leadsNaTela.current = Object.fromEntries(visibleHits.map((hit) => [hit.lead.id, hit.lead]))

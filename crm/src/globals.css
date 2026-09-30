@@ -919,6 +919,52 @@ html {
 .wa-chip--on, .wa-chip--on:hover { background: var(--wa-chip-on-bg); color: var(--wa-chip-on-ink); border-color: transparent; }
 .wa-chip__n { font-size: 12px; font-weight: 600; opacity: 0.85; }
 
+/* AS ETAPAS DA PARCERIA (Tel, 30/09/2026): "um menu único tipo um tudo com cada
+   parte selecionável e visivelmente selecionada com aspecto 3d". Botão em
+   relevo: levantado quando está solto, AFUNDADO quando está escolhido -- é o
+   afundar que diz qual está valendo, sem depender só de cor.
+   Etapa (onde a conversa está) e pessoa (quem atende) se distinguem pela cor,
+   e um risco separa as duas partes do menu. */
+.wa-etapa {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 13px; border-radius: 9px;
+  font-size: 14px; line-height: 20px; font-weight: 600; white-space: nowrap;
+  color: var(--wa-chip-ink);
+  background: linear-gradient(180deg, #ffffff 0%, var(--wa-chip-bg) 100%);
+  border: 1px solid rgba(17, 27, 33, .14);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .9) inset, 0 2px 3px rgba(11, 20, 26, .16);
+  transform: translateY(-1px);
+  transition: transform .09s ease, box-shadow .09s ease, background .12s ease;
+  cursor: pointer;
+}
+.wa-etapa:hover { filter: brightness(1.03); }
+.wa-etapa:active { transform: translateY(0); box-shadow: 0 1px 2px rgba(11, 20, 26, .18); }
+/* escolhida: afunda e ganha a cor do seu grupo */
+.wa-etapa--on, .wa-etapa--on:hover {
+  transform: translateY(1px);
+  box-shadow: 0 2px 5px rgba(11, 20, 26, .22) inset, 0 0 0 1px rgba(11, 20, 26, .06);
+  filter: none;
+}
+.wa-etapa--etapa.wa-etapa--on {
+  background: linear-gradient(180deg, #bff0b4 0%, var(--wa-chip-on-bg) 100%);
+  color: var(--wa-chip-on-ink); border-color: rgba(21, 96, 62, .35);
+}
+.wa-etapa--pessoa {
+  color: #6b4d12;
+  background: linear-gradient(180deg, #ffffff 0%, #fdf3dd 100%);
+  border-color: rgba(146, 100, 14, .22);
+}
+.wa-etapa--pessoa.wa-etapa--on {
+  background: linear-gradient(180deg, #f3d999 0%, #ffe9b8 100%);
+  color: #5a3f0a; border-color: rgba(146, 100, 14, .4);
+}
+/* o risco que separa as etapas de quem atende */
+.wa-etapa__risco {
+  display: inline-block; flex: 0 0 auto;
+  width: 1px; height: 20px; margin: 0 4px;
+  background: rgba(17, 27, 33, .16);
+}
+
 /* A busca da lista */
 .wa-busca {
   display: flex;

@@ -2090,6 +2090,59 @@ def api_condominios_sugerir():
         conn.close()
 
 
+@app.route("/api/condominios/<int:cid>/endereco")
+def api_condominio_endereco(cid):
+    """O endereco de um condominio, para o editor preencher sozinho.
+
+    Pedido do Tel (30/09/2026): "quando selecionado ele ja preenche com os
+    dados de endereco desse condominio".
+
+    DE ONDE VEM: a tabela `condominios` tem so id, nome e bairro -- rua e
+    cidade nao existem la. Entao saem dos IMOVEIS ja ligados a esse condominio
+    (`condo_id`), pelo valor mais frequente. Medido em 30/09: todo condominio
+    com 3 ou mais imoveis tem UMA rua so, entao a moda e o endereco, nao um
+    chute. `base` diz de quantos imoveis veio -- com 1 so, quem preenche ve
+    de onde saiu e confere.
+    """
+    conn = conectar()
+    try:
+        linhas = todas_linhas(conn, """
+            SELECT c.nome, c.bairro AS bairro_cadastro,
+                   count(i.codigo) FILTER (WHERE coalesce(i.logradouro, '') <> '') AS base,
+                   mode() WITHIN GROUP (ORDER BY i.logradouro)
+                     FILTER (WHERE coalesce(i.logradouro, '') <> '') AS logradouro,
+                   mode() WITHIN GROUP (ORDER BY i.bairro)
+                     FILTER (WHERE coalesce(i.bairro, '') <> '')     AS bairro_imoveis,
+                   mode() WITHIN GROUP (ORDER BY i.cidade)
+                     FILTER (WHERE coalesce(i.cidade, '') <> '')     AS cidade,
+                   mode() WITHIN GROUP (ORDER BY i.estado)
+                     FILTER (WHERE coalesce(i.estado, '') <> '')     AS estado
+              FROM condominios c
+              LEFT JOIN imoveis i ON i.condo_id = c.id
+             WHERE c.id = %s
+             GROUP BY c.nome, c.bairro
+        """, (cid,))
+        if not linhas:
+            return jsonify({"erro": "condominio nao encontrado"}), 404
+        l = linhas[0]
+        return jsonify({
+            "id": cid,
+            "nome": l["nome"],
+            "base": l["base"],
+            # o bairro do cadastro manda; o dos imoveis e a reserva
+            "bairro": l["bairro_cadastro"] or l["bairro_imoveis"],
+            "logradouro": l["logradouro"],
+            "cidade": l["cidade"],
+            "estado": l["estado"],
+            # SEM CEP de proposito: a role de leitura do site nao tem SELECT na
+            # coluna `cep` de `imoveis` (as permissoes dela sao por coluna).
+            # Pedir a coluna derruba a rota inteira com "permission denied for
+            # table imoveis" -- foi o que aconteceu ao subir isto em 30/09.
+        })
+    finally:
+        conn.close()
+
+
 @app.route("/api/imoveis/campos")
 def api_imovel_campos():
     """Os campos que o formulario pode gravar -- a tela de NOVO imovel usa."""

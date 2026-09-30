@@ -22,6 +22,7 @@ import { db } from '@/lib/db'
 import { integrations } from '@/lib/schema'
 import { conferirACaptacao, conferirComANay } from '@/lib/espelhoDaNay'
 import { refazerTranscricoesQueFalharam } from '@/lib/transcricao'
+import { realinharUltimaMensagem } from '@/lib/realinharUltimaMensagem'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -78,6 +79,15 @@ export async function POST(req: NextRequest) {
         .catch((e) => console.error('[transcricao] rodada', e?.message || e)))
     }
     const resultado = await conferirComANay(parceria.org, desde, ate, { aoVivo: !historico })
+    /* E O RESUMO DA CONVERSA (30/09): depois de trazer o que faltava, acerta
+       "quem falou por último" onde ele discorda das mensagens de verdade. É o
+       que faz a barra de "pessoas para responder" baixar quando a resposta foi
+       dada pelo celular. Só na rodada de minuto, e nunca derruba a rota. */
+    if (!historico && !rapida) {
+      after(() => realinharUltimaMensagem(parceria.org)
+        .then((n) => { if (n) console.log('[resumo da conversa] realinhadas', n) })
+        .catch((e) => console.error('[resumo da conversa] falhou', e?.message || e)))
+    }
     // e a captação (29/09): o mesmo intervalo, na linha dela
     const captacao = await conferirACaptacao(parceria.org, desde, ate, { aoVivo: !historico })
     if (captacao && (captacao.trazidas || captacao.erros)) console.log('[conferência da captação]', JSON.stringify(captacao))
