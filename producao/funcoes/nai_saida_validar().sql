@@ -28,12 +28,36 @@ BEGIN
     NEW.texto := nai_sem_senhor(NEW.texto);
   END IF;
 
-  IF NEW.visita_id IS NOT NULL THEN
-    SELECT * INTO v FROM nai_visita WHERE id = NEW.visita_id;
-  END IF;
-  IF NEW.turno_id IS NOT NULL THEN
-    SELECT * INTO t FROM nai_turno WHERE id = NEW.turno_id;
-  END IF;
+  -- SEM `IF ... IS NOT NULL` EM VOLTA, e a ausencia do IF e a correcao (30/09).
+  --
+  -- O QUE ACONTECEU: a NAI mandou "record \"t\" is not assigned yet" a cada
+  -- minuto a noite toda, e a agenda dela ficou 10 HORAS sem completar uma
+  -- rodada -- a funcao e uma transacao so, entao o erro desfazia ate o carimbo
+  -- `_agenda_rodou_em`. Nada de lembrete, expiracao ou aviso ao Tel saiu.
+  --
+  -- A CADEIA, reproduzida com BEGIN/ROLLBACK:
+  --   nai_agenda_tick linha 203 chama
+  --     nai_enfileirar_texto(NULL, v.id, v.motoboy_id, 'motoboy', ...)
+  --                          ^^^^ turno_id NULL, que e legitimo: lembrete da
+  --                               agenda nao nasce de turno nenhum
+  --   -> INSERT em nai_saida -> este trigger -> `t.papel` na linha 124.
+  --
+  -- POR QUE ESTOURAVA: as linhas 124 e 216 leem `t.papel` dentro de
+  -- `NEW.papel_destino = 'turno' AND t.papel = ...`. Quem escreveu contou com
+  -- CURTO-CIRCUITO do AND -- mas o Postgres avalia a expressao inteira, entao
+  -- `t.papel` e tocado mesmo com o papel sendo 'motoboy'. E record que nunca
+  -- recebeu atribuicao nao tem estrutura de tupla: qualquer campo estoura.
+  --
+  -- POR QUE TIRAR O IF RESOLVE, e nao e sorte: `SELECT INTO` que nao acha
+  -- linha ATRIBUI o record com todos os campos NULL. Medido:
+  --   SELECT * INTO t FROM nai_turno WHERE id = NULL  ->  t.id = NULL
+  -- Ou seja, com o SELECT sempre rodando, `t` e `v` existem sempre, os
+  -- `IS NULL` daqui passam a funcionar como quem escreveu queria, e a familia
+  -- inteira de erro morre -- inclusive nos ramos 'turno', 'entrega',
+  -- 'corretor', 'proprietario' e 'motoboy', que tinham o mesmo defeito
+  -- esperando um `visita_id` nulo para aparecer.
+  SELECT * INTO v FROM nai_visita WHERE id = NEW.visita_id;
+  SELECT * INTO t FROM nai_turno  WHERE id = NEW.turno_id;
 
   IF NEW.papel_destino = 'turno' THEN
     -- Resposta: so para quem escreveu aquele turno.
