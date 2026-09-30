@@ -8,7 +8,8 @@
  *     assim que a Z-API e a Meta baixam o que nós mandamos, sem sessão;
  *   - as pastas públicas (logo da organização, que aparece no login).
  */
-import { join } from 'node:path'
+import { mkdir, stat } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { NextRequest } from 'next/server'
 import { auth } from '@/lib/auth'
 import { PASTA_DO_ARMAZEM, PASTAS_PUBLICAS, assinaturaValida, caminhoSeguro, tipoDaExtensao } from '@/lib/armazem'
@@ -34,5 +35,28 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cami
   }
   if (!pode) return new Response('não autenticado', { status: 401 })
 
-  return servirArquivo(join(PASTA_DO_ARMAZEM, rel), tipoDaExtensao(rel), req)
+  // MINIATURA (?w=160, aba Fechamento, 30/09): a lista de documentos não baixa
+  // cada foto em tamanho cheio. Feita uma vez e guardada em _miniaturas/ (pasta
+  // que esta rota nunca serve direto: começa com "_").
+  const w = Number(req.nextUrl.searchParams.get('w'))
+  const tipo = tipoDaExtensao(rel)
+  if (Number.isInteger(w) && w >= 32 && w <= 640 && tipo.startsWith('image/')) {
+    const mini = join(PASTA_DO_ARMAZEM, '_miniaturas', `w${w}`, rel + '.jpg')
+    try {
+      await stat(mini)
+    } catch {
+      try {
+        const sharp = (await import('sharp')).default
+        await mkdir(dirname(mini), { recursive: true })
+        await sharp(join(PASTA_DO_ARMAZEM, rel)).rotate().resize({ width: w, withoutEnlargement: true })
+          .jpeg({ quality: 70 }).toFile(mini)
+      } catch (err) {
+        console.error('[midia] miniatura', rel, (err as Error)?.message)
+        return servirArquivo(join(PASTA_DO_ARMAZEM, rel), tipo, req)
+      }
+    }
+    return servirArquivo(mini, 'image/jpeg', req)
+  }
+
+  return servirArquivo(join(PASTA_DO_ARMAZEM, rel), tipo, req)
 }
