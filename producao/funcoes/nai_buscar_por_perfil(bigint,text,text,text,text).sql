@@ -33,9 +33,28 @@ DECLARE
   v_falta_valor  boolean;  -- 190
   v_falta_regiao boolean;  -- 190
   v_abertura     boolean;  -- 190
+  v_lug_bairros  text[];   -- 206: os bairros do conjunto/avenida citado
+  v_lug_rx       text;     -- 206: o nome do conjunto (condominio de mesmo nome vem primeiro)
+  v_lug_rotulo   text;     -- 206: "Parque 10 de Novembro (bairro do Conjunto Eldorado)"
 BEGIN
   SELECT * INTO t FROM nai_turno WHERE id = p_turno;
   SELECT * INTO k FROM nai_contato WHERE id = t.contato_id;
+
+  -- 206: CONJUNTO E AVENIDA (Pedro, 30/09: "quando algum corretor perguntar de
+  -- algum conjunto ... ela mande imoveis do bairro"; e a avenida, com os
+  -- bairros dela). Sem bairro nenhum na chamada, vale o que ele escreveu.
+  v_lug_bairros := nai_bairros_do_lugar(p_bairro);
+  IF v_lug_bairros IS NULL AND nullif(btrim(coalesce(p_bairro, '')), '') IS NULL THEN
+    p_bairro := (SELECT string_agg(l.nome, ' e ' ORDER BY l.tipo, l.nome) FROM nai_lugar_citado(t.texto) l);
+    v_lug_bairros := nai_bairros_do_lugar(p_bairro);
+  END IF;
+  IF v_lug_bairros IS NOT NULL THEN
+    v_lug_rx := (SELECT string_agg('(' || l.expressao || ')', '|') FROM nai_lugar_citado(p_bairro) l
+                  WHERE l.tipo = 'conjunto');
+    v_lug_rotulo := nai_lugar_rotulo(p_bairro);
+    PERFORM nai_anotar(p_turno, 7, 'lugar_vira_bairro', 'mudou',
+                       left(p_bairro || ' -> ' || array_to_string(v_lug_bairros, ', '), 200));
+  END IF;
 
   -- POR ONDE ELE ENTROU (Tel, 15/09: "ou a pessoa vem pelo grupo ou a pessoa
   -- manda msg pedindo imoveis especificos"). Nao precisa de marca nova: quem
@@ -198,11 +217,14 @@ BEGIN
            CASE WHEN v_negocio = 'venda' THEN i.valor_venda
                 ELSE coalesce(i.valor_aluguel, i.valor_venda) END AS v
       FROM imoveis i
-     WHERE (v_livre OR nay_normalizar_lugar(i.bairro, true) LIKE '%' || nay_normalizar_lugar(p_bairro, true) || '%')
+     WHERE (v_livre OR nay_normalizar_lugar(i.bairro, true) LIKE '%' || nay_normalizar_lugar(p_bairro, true) || '%'
+            OR i.bairro = ANY (v_lug_bairros))
        AND nai_oferta_serve(i, k.telefone, v_teto, v_q, v_sem, v_com, v_negocio, v_tipo)
-     ORDER BY 2 LIMIT 5) z;
+     ORDER BY (v_lug_rx IS NOT NULL AND nai_lugar_normal(i.condominio_nome) ~ v_lug_rx) DESC, 2 LIMIT 5) z;
 
   v_viz := CASE WHEN v_livre THEN '{}'::text[]
+                WHEN cardinality(v_lug_bairros) = 1 THEN nay_bairros_proximos(v_lug_bairros[1])
+                WHEN v_lug_bairros IS NOT NULL THEN '{}'::text[]
                 ELSE nay_bairros_proximos(btrim(coalesce(p_bairro, ''))) END;
   IF coalesce(array_length(v_viz, 1), 0) > 1 THEN
     SELECT string_agg(nai_bloco_oferta(z.c, v_negocio), E'\n\n' ORDER BY z.v) INTO v_alt FROM (
@@ -212,8 +234,9 @@ BEGIN
         FROM imoveis i
        WHERE i.bairro = ANY (v_viz)
          AND nay_normalizar_lugar(i.bairro, true) NOT LIKE '%' || nay_normalizar_lugar(p_bairro, true) || '%'
+         AND i.bairro <> ALL (coalesce(v_lug_bairros, '{}'::text[]))
          AND nai_oferta_serve(i, k.telefone, v_teto, v_q, v_sem, v_com, v_negocio, v_tipo)
-       ORDER BY 2 LIMIT 5) z;
+       ORDER BY (v_lug_rx IS NOT NULL AND nai_lugar_normal(i.condominio_nome) ~ v_lug_rx) DESC, 2 LIMIT 5) z;
   END IF;
 
   -- NADA AQUI NEM PERTO (105, Tel 23/09: "nao e para ocorrer esse tipo de
@@ -237,9 +260,10 @@ BEGIN
                CASE WHEN v_negocio = 'venda' THEN i.valor_venda
                     ELSE coalesce(i.valor_aluguel, i.valor_venda) END AS v
           FROM imoveis i
-         WHERE (v_livre OR nay_normalizar_lugar(i.bairro, true) LIKE '%' || nay_normalizar_lugar(p_bairro, true) || '%')
+         WHERE (v_livre OR nay_normalizar_lugar(i.bairro, true) LIKE '%' || nay_normalizar_lugar(p_bairro, true) || '%'
+            OR i.bairro = ANY (v_lug_bairros))
            AND nai_oferta_serve(i, k.telefone, v_teto, v_q, v_sem, v_com, v_negocio, NULL)
-         ORDER BY 2 LIMIT 5) z;
+         ORDER BY (v_lug_rx IS NOT NULL AND nai_lugar_normal(i.condominio_nome) ~ v_lug_rx) DESC, 2 LIMIT 5) z;
       IF v_aqui IS NOT NULL THEN
         RETURN QUERY SELECT
           (initcap(coalesce(v_rotulo, 'esse tipo')) || ' nesse perfil eu não tenho no momento. Mas tenho estas opções nesse valor:'
@@ -256,7 +280,7 @@ BEGIN
     END IF;
 
     -- 1. O BAIRRO EXISTE? Pode ser so o jeito de escrever.
-    IF NOT v_livre AND NOT EXISTS (
+    IF NOT v_livre AND v_lug_bairros IS NULL AND NOT EXISTS (
          SELECT 1 FROM imoveis i
           WHERE nay_normalizar_lugar(i.bairro, true)
                 LIKE '%' || nay_normalizar_lugar(p_bairro, true) || '%') THEN
@@ -289,7 +313,7 @@ BEGIN
     RETURN QUERY SELECT
       (CASE WHEN v_livre
             THEN 'Não tenho ' || v_nada || ' nesse perfil disponível no momento.'
-            ELSE 'No ' || initcap(btrim(coalesce(p_bairro, ''))) || ' não tenho ' || v_nada
+            ELSE 'No ' || coalesce(v_lug_rotulo, initcap(btrim(coalesce(p_bairro, '')))) || ' não tenho ' || v_nada
                  || ' nesse perfil, nem nos bairros aqui perto.' END
        || CASE WHEN v_teto IS NULL AND NOT v_sem_valor
                THEN ' Me diz até que valor o cliente vai, que eu procuro em toda a cidade.'
@@ -309,6 +333,10 @@ BEGIN
   -- o jeito de falar acompanha a pessoa.
   SELECT coalesce((SELECT a.area FROM nai_area_citada(p_bairro) a LIMIT 1), v_nome_b)
     INTO v_nome_b;
+  -- 206: conjunto e avenida dizem de que bairro e a lista (o Vieiralves segue a regra de cima)
+  IF v_lug_rotulo IS NOT NULL AND NOT EXISTS (SELECT 1 FROM nai_area_citada(p_bairro)) THEN
+    v_nome_b := v_lug_rotulo;
+  END IF;
 
   -- UM SO, em lugar nenhum mais: vai o CARD (Tel, 22/09, caso 162). O card traz
   -- "Codigo:", e e isso que faz o sistema mandar as fotos e o fechamento.

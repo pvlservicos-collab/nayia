@@ -9,7 +9,12 @@ AS $function$
       FROM (SELECT DISTINCT nay_normalizar_lugar(x.bairro, true) AS nb
               FROM (SELECT DISTINCT bairro FROM imoveis WHERE coalesce(btrim(bairro), '') <> ''
                     UNION SELECT bairro FROM bairro_zona) x) b, t
-     WHERE length(b.nb) >= 4 AND t.n LIKE '% ' || b.nb || ' %'),
+     WHERE length(b.nb) >= 4 AND t.n LIKE '% ' || b.nb || ' %'
+    -- 206: o conjunto que ele citou ("eldorado" nao e o Eldorado Park)
+    UNION
+    SELECT btrim((regexp_match(t.n, '(' || c.expressao || ')'))[1])
+      FROM nai_lugar_conjunto c, t
+     WHERE c.ativo AND t.n ~ c.expressao),
   palavras AS (
     SELECT DISTINCT w
       FROM imoveis i, t,
