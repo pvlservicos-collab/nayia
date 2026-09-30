@@ -41,10 +41,18 @@ case "$cmd" in
       UNION ALL SELECT s.criado_em, 'NAY '||s.estado||coalesce(':'||s.bloqueio,''), CASE WHEN s.tipo='imagem' THEN '[foto '||s.codigo||']' ELSE left(regexp_replace(s.texto,'\s+',' ','g'),200) END FROM nai_saida s JOIN nai_contato k ON k.id=s.contato_id WHERE right(regexp_replace(k.telefone,'\D','','g'),4)='$d' AND s.criado_em>now()-interval '$h hours' AND s.papel_destino<>'tel') x ORDER BY 1;" ;;
   site)
     scp -q "$RAIZ/nay-site-api/app.py" $SRV:/docker/nay-site-api/app.py
-    for f in "$@"; do scp -q "$RAIZ/imob-easy/$f" "$SRV:/docker/nay-site-web/public/$f"; done
+    for f in "$@"; do
+      ssh -o ConnectTimeout=20 $SRV "cat > '/docker/nay-site-web/public/$f'" < "$RAIZ/imob-easy/$f" || { echo "FALHOU copiar $f"; exit 1; }
+    done
     ssh -o ConnectTimeout=20 $SRV 'cd /docker/nay-site-api && docker compose up -d --build 2>&1 | grep -i started | tail -1; sleep 7; curl -s -m 60 -o /dev/null -w "/api/imoveis/opcoes -> %{http_code} em %{time_total}s\n" http://127.0.0.1:8092/api/imoveis/opcoes' ;;
   crm)
-    for f in "$@"; do scp -q "$RAIZ/crm/$f" "$SRV:/docker/crm/app/$f"; done
+    # cria a pasta antes (rota nova mora em pasta nova) e PARA se a cópia falhar:
+    # em 30/09 duas rotas novas não subiram e o scp -q engoliu o erro
+    for f in "$@"; do
+      d="/docker/crm/app/$(dirname "$f")"
+      printf '%s' "$d" | ssh -o ConnectTimeout=20 $SRV 'd=$(cat); mkdir -p "$d"' || { echo "FALHOU criar a pasta de $f"; exit 1; }
+      ssh -o ConnectTimeout=20 $SRV "cat > '/docker/crm/app/$f'" < "$RAIZ/crm/$f" || { echo "FALHOU copiar $f"; exit 1; }
+    done
     ssh -o ConnectTimeout=20 $SRV 'cd /docker/crm && docker compose up -d --build 2>&1 | tail -2; docker ps --filter name=crm-imobeasy --format "{{.Names}} {{.Status}}"' ;;
   *) sed -n 2,12p "$0" ;;
 esac

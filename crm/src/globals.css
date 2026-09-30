@@ -1518,3 +1518,30 @@ html {
   display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
   background: var(--wa-green); color: var(--wa-green-ink);
 }
+
+/* A BARRA CALMA (Pedro, 30/09/2026): as barras de métricas da Parceria e da Captação
+   refeitas -- "algo mais simples visualmente e mais confortável de enxergar, sem muita
+   cor, algo menor". Uma linha fina, neutra; a cor aparece só no número que pede atenção. */
+.barra-calma { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px;
+  min-height: 34px; padding: 2px 8px; background: var(--wa-app); color: var(--wa-text);
+  border-bottom: 1px solid var(--wa-divider); position: relative; }
+.barra-calma__item { display: inline-flex; align-items: baseline; gap: 6px; height: 26px; padding: 0 10px; border-radius: 8px;
+  white-space: nowrap; line-height: 26px; }
+.barra-calma__item + .barra-calma__item, .barra-calma > .relative + .barra-calma__item { box-shadow: -1px 0 0 var(--wa-divider); border-radius: 0; }
+.barra-calma__item--botao { cursor: pointer; border-radius: 8px; }
+.barra-calma__item--botao:hover { background: var(--wa-row-hover); }
+.barra-calma__rotulo { font-size: 12px; color: var(--wa-text-2); }
+.barra-calma__valor { font-size: 14px; font-weight: 600; color: var(--wa-text); font-variant-numeric: tabular-nums; }
+.barra-calma__item--medio .barra-calma__valor { color: #b45309; }
+.barra-calma__item--alto .barra-calma__valor, .barra-calma__item--alto .barra-calma__rotulo { color: #b91c1c; }
+.dark .barra-calma__item--medio .barra-calma__valor { color: #fbbf24; }
+.dark .barra-calma__item--alto .barra-calma__valor, .dark .barra-calma__item--alto .barra-calma__rotulo { color: #f87171; }
+.barra-calma__grupo { font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--wa-text-2);
+  opacity: .8; padding: 0 4px 0 10px; }
+.barra-calma__luz { width: 7px; height: 7px; border-radius: 999px; background: #16a34a; align-self: center; }
+.barra-calma__luz--ruim { background: #dc2626; }
+.barra-calma__fim { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+.barra-calma__botao { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 500; color: var(--wa-text-2); border: 1px solid var(--wa-divider); background: transparent; }
+.barra-calma__botao:hover { background: var(--wa-row-hover); color: var(--wa-text); }
+.barra-calma .painel-barra__lista { top: 100%; }

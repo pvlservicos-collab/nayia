@@ -373,7 +373,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
     </AbasParceria>
   ) : linha === 'captacao' ? (
     // a barra da captação (Pedro, 29/09): hoje, as etapas e o relatório ao Tel
-    <BarraDaCaptacao />
+    <BarraDaCaptacao leads={allLeads} />
   ) : null
 
   /* ── Celular: uma tela por vez; na Parceria as abas ficam em cima ── */

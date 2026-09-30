@@ -13,21 +13,39 @@
  * /api/captacao/relatorio e a migração 178).
  */
 import { useEffect, useState } from 'react'
-import { PaperPlaneTilt, X, CheckCircle, Warning, Copy } from '@phosphor-icons/react'
+import { PaperPlaneTilt, X, CheckCircle, Copy } from '@phosphor-icons/react'
 import type { PlacarDaCaptacao } from '@/lib/nayLeitura'
+import type { LeadWithOwner } from '@/lib/types'
+import { useCaptacaoDonos } from '@/hooks/useCaptacaoDonos'
 
-const ETAPAS: Array<{ chave: keyof PlacarDaCaptacao; rotulo: string; cor: string }> = [
-  { chave: 'naoRespondeu', rotulo: 'NÃO RESPONDEU', cor: '#94a3b8' },
-  { chave: 'respondeu', rotulo: 'RESPONDEU', cor: '#38bdf8' },
-  { chave: 'disponivel', rotulo: 'DISPONÍVEL', cor: '#22c55e' },
-  { chave: 'alugado', rotulo: 'ALUGADO', cor: '#f59e0b' },
-  { chave: 'vendido', rotulo: 'VENDIDO', cor: '#a78bfa' },
-  { chave: 'mandouDados', rotulo: 'DADOS', cor: '#f472b6' },
+/* AS MESMAS CONTAS DAS ABAS (Pedro, 30/09: "os números não coincidem com a realidade").
+   A barra antiga contava pelas etapas do funil (uma só por pessoa, com precedência), e as
+   abas contam pelo que a campanha gravou de cada dono. Agora as duas leem a mesma fonte
+   (crm_captacao_donos, migração 236) e o mesmo conjunto de conversas: o número da barra
+   é o número da aba. */
+const SITUACOES: Array<{ chave: string; rotulo: string; titulo: string }> = [
+  { chave: 'em_andamento', rotulo: 'Em andamento', titulo: 'Respondeu e a conversa ainda não fechou' },
+  { chave: 'sem_resposta', rotulo: 'Sem resposta', titulo: 'Recebeu a mensagem da campanha e ainda não respondeu' },
+  { chave: 'com_o_tel', rotulo: 'Com o Tel', titulo: 'A Nay parou: o Tel está com a conversa' },
+  { chave: 'disponiveis', rotulo: 'Disponíveis', titulo: 'O dono disse que o imóvel está disponível' },
+  { chave: 'alugados', rotulo: 'Alugados', titulo: 'O dono disse que o imóvel está alugado' },
+  { chave: 'quer_vender', rotulo: 'Quer vender', titulo: 'O dono quer vender' },
+  { chave: 'ja_vendeu', rotulo: 'Já vendeu', titulo: 'O dono disse que já vendeu' },
+  { chave: 'tem_outro_imovel', rotulo: 'Outro imóvel', titulo: 'O dono falou de outro imóvel' },
 ]
 
 type EstadoDoEnvio = 'lendo' | 'pronto' | 'enviando' | 'enviado' | 'erro'
 
-export default function BarraDaCaptacao() {
+export default function BarraDaCaptacao({ leads }: { leads?: LeadWithOwner[] }) {
+  // as mesmas conversas e a mesma fonte das abas da lista
+  const donos = useCaptacaoDonos(true)
+  const porAba: Record<string, number> = {}
+  let conversas = 0
+  for (const l of leads || []) {
+    if (l.is_archived) continue
+    conversas++
+    for (const a of donos[l.id]?.abas || []) porAba[a] = (porAba[a] ?? 0) + 1
+  }
   const [placar, setPlacar] = useState<PlacarDaCaptacao | null>(null)
   const [janela, setJanela] = useState(false)
   const [texto, setTexto] = useState('')
@@ -113,52 +131,52 @@ export default function BarraDaCaptacao() {
   const semTeto = !p || p.tetoHoje >= 999
 
   return (
-    <div className="painel-barra painel-barra--linha" aria-label="Números da captação">
-      <div className="painel-barra__rola"
-           onWheel={(e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) e.currentTarget.scrollLeft += e.deltaY }}>
-        {/* HOJE (Pedro, 29/09: "ajusta as métricas, tá estranho; põe total de
-            mensagens enviadas") -- o dia de um lado, o total da campanha do outro */}
-        <div className="painel-barra__hoje">
-          <span className="painel-barra__hoje-rotulo">HOJE</span>
-          <span className="painel-barra__placar-rotulo" title="Primeira mensagem da campanha para um proprietário">DISPAROS</span>
-          <span className="painel-barra__hoje-numero">{v(p?.disparosHoje)}{!semTeto && <small className="text-[13px] opacity-70">/{p?.tetoHoje}</small>}</span>
-          <span className="painel-barra__placar-rotulo"
-                title={p ? `Tudo o que o número da captação mandou hoje: ${p.enviadasHojeDisparo} disparos, ${p.enviadasHojeNay} respostas da Nay, ${p.enviadasHojeEquipe} da equipe` : ''}>ENVIADAS</span>
-          <span className="painel-barra__hoje-numero">{v(p?.enviadasHoje)}</span>
-          <span className="painel-barra__placar-rotulo" title="Proprietários da campanha que responderam hoje">RESPONDERAM</span>
-          <span className="painel-barra__hoje-numero">{v(p?.pessoasHoje)}</span>
-          {!!p?.falharamHoje && <span className="painel-barra__aviso" title="Disparos de hoje que falharam"><Warning size={14} weight="fill" />{p.falharamHoje} falharam</span>}
-        </div>
-        <div className="painel-barra__total-rotulo" title="Desde o começo da campanha">TOTAL</div>
-        {ETAPAS.map((e) => (
-          <div key={e.chave} className="painel-barra__placar" title={`Proprietários na etapa "${e.chave === 'mandouDados' ? 'mandou os dados' : e.rotulo.toLowerCase()}" (todos os disparados)`}>
-            <span className="painel-barra__ponto" style={{ background: e.cor, boxShadow: `0 0 8px ${e.cor}` }} />
-            <span className="painel-barra__placar-rotulo">{e.rotulo}</span>
-            <span className="painel-barra__placar-valor">{v(p?.[e.chave] as number | undefined)}</span>
-          </div>
-        ))}
-        <div className="painel-barra__placar" title="Mensagens que o número da captação mandou desde o começo (disparos, Nay e equipe)">
-          <span className="painel-barra__placar-rotulo">ENVIADAS</span>
-          <span className="painel-barra__placar-valor">{v(p?.enviadasTotal)}</span>
-        </div>
-        <div className="painel-barra__placar"
-             title={p ? `Para chamar: ${p.nuncaChamados} nunca chamados e ${p.perguntarDeNovo} para perguntar de novo (de ${p.total} na campanha)` : ''}>
-          <span className="painel-barra__placar-rotulo">FILA</span>
-          <span className="painel-barra__placar-valor">{p ? p.nuncaChamados + p.perguntarDeNovo : '…'}</span>
-        </div>
-        {p?.modoTeste && <div className="painel-barra__placar painel-barra__placar--alerta"><span className="painel-barra__placar-valor painel-barra__placar-valor--texto">MODO TESTE</span></div>}
-        {p?.pausada && <div className="painel-barra__placar painel-barra__placar--alerta"><span className="painel-barra__placar-valor painel-barra__placar-valor--texto">DISPARO PAUSADO</span></div>}
+    <div className="barra-calma" aria-label="Números da captação">
+      <span className="barra-calma__grupo">Hoje</span>
+      <div className="barra-calma__item" title="Primeira mensagem da campanha para um proprietário, hoje">
+        <span className="barra-calma__rotulo">Disparos</span>
+        <span className="barra-calma__valor">{v(p?.disparosHoje)}{!semTeto && <small className="opacity-60">/{p?.tetoHoje}</small>}</span>
       </div>
+      <div className="barra-calma__item" title="Proprietários da campanha que responderam hoje">
+        <span className="barra-calma__rotulo">Responderam</span>
+        <span className="barra-calma__valor">{v(p?.pessoasHoje)}</span>
+      </div>
+      {!!p?.falharamHoje && (
+        <div className="barra-calma__item barra-calma__item--alto" title="Disparos de hoje que falharam">
+          <span className="barra-calma__rotulo">Falharam</span>
+          <span className="barra-calma__valor">{p.falharamHoje}</span>
+        </div>
+      )}
+      <span className="barra-calma__grupo" title="As mesmas contas das abas da lista">Conversas</span>
+      <div className="barra-calma__item" title="Conversas da captação na lista (sem as arquivadas)">
+        <span className="barra-calma__rotulo">Todas</span>
+        <span className="barra-calma__valor">{leads ? conversas : '…'}</span>
+      </div>
+      {SITUACOES.map((e) => (
+        <div key={e.chave} className="barra-calma__item" title={e.titulo}>
+          <span className="barra-calma__rotulo">{e.rotulo}</span>
+          <span className="barra-calma__valor">{leads ? (porAba[e.chave] ?? 0) : '…'}</span>
+        </div>
+      ))}
+      <div className="barra-calma__item"
+           title={p ? `Para chamar: ${p.nuncaChamados} nunca chamados e ${p.perguntarDeNovo} para perguntar de novo (de ${p.total} na campanha)` : ''}>
+        <span className="barra-calma__rotulo">Fila</span>
+        <span className="barra-calma__valor">{p ? p.nuncaChamados + p.perguntarDeNovo : '…'}</span>
+      </div>
+      {p?.modoTeste && <div className="barra-calma__item barra-calma__item--alto"><span className="barra-calma__rotulo">Modo teste</span></div>}
+      {p?.pausada && <div className="barra-calma__item barra-calma__item--alto"><span className="barra-calma__rotulo">Disparo pausado</span></div>}
 
-      <button type="button" onClick={() => void copiarRelatorio()} disabled={copia === 'copiando'}
-              className="painel-barra__botao painel-barra__botao--contorno" title="Copiar o relatório de hoje">
-        {copia === 'copiado' ? <CheckCircle size={16} weight="fill" /> : <Copy size={16} weight="bold" />}
-        <span>{copia === 'copiado' ? 'Copiado' : copia === 'erro' ? 'Não copiou' : 'Copiar'}</span>
-      </button>
-      <button type="button" onClick={abrirRelatorio} className="painel-barra__botao" style={{ marginLeft: 0 }} title="Enviar o relatório de hoje ao Tel (mostra antes de mandar)">
-        <PaperPlaneTilt size={16} weight="fill" />
-        <span>Enviar ao Tel</span>
-      </button>
+      <span className="barra-calma__fim">
+        <button type="button" onClick={() => void copiarRelatorio()} disabled={copia === 'copiando'}
+                className="barra-calma__botao" title="Copiar o relatório de hoje">
+          {copia === 'copiado' ? <CheckCircle size={14} weight="fill" /> : <Copy size={14} />}
+          <span>{copia === 'copiado' ? 'Copiado' : copia === 'erro' ? 'Não copiou' : 'Copiar relatório'}</span>
+        </button>
+        <button type="button" onClick={abrirRelatorio} className="barra-calma__botao" title="Enviar o relatório de hoje ao Tel (mostra antes de mandar)">
+          <PaperPlaneTilt size={14} />
+          <span>Enviar ao Tel</span>
+        </button>
+      </span>
 
       {janela && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" onClick={() => envio !== 'enviando' && setJanela(false)}>

@@ -37,7 +37,7 @@ export function middleware(req: NextRequest) {
     '/api/midia/',
     // A conferência com a Nay (29/09): o cron do servidor chama com o segredo
     // CRON_SEGREDO no cabeçalho, e é a rota que confere.
-    '/api/cron/espelho-nay', '/api/cron/funis',
+    '/api/cron/espelho-nay', '/api/cron/funis', '/api/cron/followups',
   ]
   const isPublic = publicPaths.some((p) => pathname.startsWith(p))
 
