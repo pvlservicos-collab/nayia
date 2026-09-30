@@ -423,6 +423,7 @@
       <button class="abas__item" role="tab" type="button" data-painel-abre="inventario" aria-selected="false">Inventário</button>
       <button class="abas__item" role="tab" type="button" data-painel-abre="treino"     aria-selected="false">Rodada de treino</button>
       <button class="abas__item" role="tab" type="button" data-painel-abre="sugeridas"  aria-selected="false">Regras sugeridas</button>
+      <button class="abas__item" role="tab" type="button" data-painel-abre="pedidos"    aria-selected="false">Treinamento por pedido</button>
     </div>
 
     <!-- ===================== FLUXOGRAMA ===================== -->
@@ -647,7 +648,30 @@
       </div>
       <div id="rs-lista"><p class="painel-nota">carregando…</p></div>
     </div>
+
+    <div data-painel="pedidos" hidden>
+      <p class="painel-nota">
+        Os pedidos dos corretores que a Nay <b>não teve certeza</b> do que era (escalou ao Tel,
+        perguntou qual imóvel, a resposta foi cortada por uma parede, ou a busca rodou sem
+        reconhecer o pedido). À esquerda o pedido e o que ela respondeu; à direita, explique o que
+        ela deveria ter entendido. Quando terminar, <b>Salvar tudo</b> e me avise para eu revisar e
+        implementar no banco ou nas funções. Entra pedido novo a cada 10 minutos.
+      </p>
+      <div class="rs__barra">
+        <div class="rs__estados" role="group" aria-label="Mostrar" id="tp-estados" data-estado-proprio></div>
+        <button class="btn-mini" type="button" id="tp-recarregar" style="margin-left:auto">Atualizar</button>
+        <button class="btn-azul" type="button" id="tp-salvar">Salvar tudo</button>
+        <span class="rs__recado" id="tp-recado" role="status"></span>
+      </div>
+      <div id="tp-lista"><p class="painel-nota">carregando…</p></div>
+    </div>
   </section>
+  <style>
+    .tp__linha{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px 0;border-bottom:1px solid var(--borda,#d9dce3)}
+    .tp__topo{font-size:var(--fs-xs,12px);color:var(--texto-fraco,#6b7280);margin-bottom:6px}
+    .tp__explica textarea{width:100%;min-height:110px}
+    @media (max-width:800px){.tp__linha{grid-template-columns:1fr}}
+  </style>
 
   <!-- o popup de uma regra sugerida: a regra, o porquê e as conversas de onde veio -->
   <dialog class="rs__popup" id="rs-popup" aria-labelledby="rs-popup-titulo">
@@ -681,5 +705,6 @@
 <script src="../assets/js/nay-fluxograma.js"></script>
 <script src="../assets/js/nay-treino.js"></script>
 <script src="../assets/js/nay-regras-sugeridas.js"></script>
+<script src="../assets/js/nay-treino-pedidos.js?v=20260930"></script>
 </body>
 </html>

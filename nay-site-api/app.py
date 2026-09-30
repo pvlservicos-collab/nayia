@@ -2133,6 +2133,63 @@ def admin_regras_sugeridas():
         conn.close()
 
 
+@app.route("/admin/api/nai/treino-pedidos")
+def admin_treino_pedidos():
+    """TREINAMENTO POR PEDIDO (Pedro, 30/09): os pedidos que a Nay não teve certeza
+    (nai_treino_pedido, 234). ?estado=novo|explicado|implementado|ignorado|todos."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    estado = str(request.args.get("estado") or "novo").strip()
+    cond = "" if estado == "todos" else "WHERE p.estado = %s"
+    conn = conectar_conteudo()
+    try:
+        linhas = todas_linhas(conn, """
+            SELECT p.id, p.turno_id, p.quem, p.texto, p.resposta, p.motivos, p.estado,
+                   p.explicacao, p.explicado_por,
+                   to_char(p.criado_em AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI') AS quando,
+                   to_char(p.explicado_em AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI') AS explicado_quando,
+                   (SELECT count(*) FROM nai_treino_pedido x WHERE x.estado = 'novo') AS novos
+              FROM nai_treino_pedido p """ + cond + """
+             ORDER BY p.criado_em DESC LIMIT 400""", (() if estado == "todos" else (estado,)))
+        return jsonify([dict(l) for l in linhas])
+    finally:
+        conn.close()
+
+
+@app.route("/admin/api/nai/treino-pedidos", methods=["POST"])
+def admin_treino_pedidos_salvar():
+    """Grava as explicações de uma vez: [{id, explicacao}]. Explicação vazia não mexe."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    dados = request.get_json(silent=True) or {}
+    itens = dados.get("itens") if isinstance(dados, dict) else None
+    por = str((dados or {}).get("por") or "painel").strip()[:60]
+    if not isinstance(itens, list):
+        return jsonify({"erro": "mande itens: [{id, explicacao}]"}), 400
+    conn = conectar_conteudo()
+    try:
+        n = 0
+        with conn.cursor() as cur:
+            for it in itens[:500]:
+                try:
+                    pid = int(it.get("id"))
+                except Exception:
+                    continue
+                exp = str(it.get("explicacao") or "").strip()[:4000]
+                if not exp:
+                    continue
+                cur.execute("""
+                    UPDATE nai_treino_pedido
+                       SET explicacao = %s, explicado_por = %s, explicado_em = now(),
+                           estado = CASE WHEN estado = 'novo' THEN 'explicado' ELSE estado END
+                     WHERE id = %s AND explicacao IS DISTINCT FROM %s""", (exp, por, pid, exp))
+                n += cur.rowcount
+        conn.commit()
+        return jsonify({"ok": True, "gravados": n})
+    finally:
+        conn.close()
+
+
 @app.route("/admin/api/nai/regras-sugeridas/<int:sid>/casos")
 def admin_regras_sugeridas_casos(sid):
     """As conversas que provam a sugestão -- o popup."""

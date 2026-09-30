@@ -1,0 +1,2 @@
+# 234 (30/09): junta os pedidos que a Nay nao teve certeza (Treinamento por pedido no site)
+*/10 * * * * root docker exec nay-postgres psql -U nay -d naydb -c "SELECT nai_treino_coletar()" >/dev/null 2>&1
