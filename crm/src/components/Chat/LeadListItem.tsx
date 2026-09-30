@@ -120,7 +120,7 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
               <span className="flex items-baseline gap-1.5 min-w-0"
                     title={[dono.nome, dono.condominio, dono.codigo ? `#${dono.codigo}` : null, dono.bairro].filter(Boolean).join(' · ')}>
                 <span className={`wa-nome truncate flex-shrink ${naoLida ? 'font-semibold' : ''}`}>{nomeDoDono(dono.nome) || formatPhone(lead.title)}</span>
-                <span className="wa-marca flex-shrink-0" style={{ color: 'var(--wa-tag-prop)' }}>Prop</span>
+                <span className="wa-marca flex-shrink-0" style={{ color: 'var(--wa-text-2)' }}>Prop</span>
                 {dono.condominio && <span className="wa-dono-imovel truncate">{dono.condominio}{dono.imoveis > 1 ? ` +${dono.imoveis - 1}` : ''}</span>}
               </span>
             ) : (
@@ -137,10 +137,12 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
 
         <div className="flex items-center gap-1.5 mt-[2px] min-w-0">
           {marca?.telAtendendo && (
-            <span className="wa-marca" style={{ color: 'var(--wa-tag-tel)' }} title={marca.telMotivo || 'O Tel está com esta conversa'}>Tel</span>
+            <span className="wa-marca" style={{ color: 'var(--wa-text-2)' }} title={marca.telMotivo || 'O Tel está com esta conversa'}>
+              {(marca.telMotivo || '').startsWith('Rayssa:') ? 'Rayssa' : 'Tel'}
+            </span>
           )}
           {marca?.visitaAberta && (
-            <span className="wa-marca" style={{ color: 'var(--wa-tag-visita)' }} title="Visita em andamento">
+            <span className="wa-marca" style={{ color: 'var(--wa-text-2)' }} title="Visita em andamento">
               Visita {quandoCurto(marca.visitaQuando)}
             </span>
           )}
@@ -148,19 +150,16 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
               tag proprietários e equipe" -- quase todo mundo é corretor, a etiqueta
               não diferenciava ninguém. O CRECI continua no card do contato. */}
           {(marca?.equipe || marca?.acompanhante) && (
-            <span className="wa-marca" style={{ color: 'var(--wa-tag-equipe)' }} title="Da equipe da Imob Easy">Equipe</span>
+            <span className="wa-marca" style={{ color: 'var(--wa-text-2)' }} title="Da equipe da Imob Easy">Equipe</span>
           )}
           {marca?.proprietario && (
-            <span className="wa-marca" style={{ color: 'var(--wa-tag-prop)' }}
+            <span className="wa-marca" style={{ color: 'var(--wa-text-2)' }}
                   title={marca.imoveisDoDono.length ? `Proprietário: ${marca.imoveisDoDono.join(', ')}` : 'Proprietário'}>
               Proprietário
             </span>
           )}
-          {atendente && !(atendente.nome === 'Tel' && marca?.telAtendendo) && (
-            <span className="wa-marca" style={{ color: atendente.cor }} title={`${atendente.nome} mandou a última mensagem da equipe, pelo login`}>{atendente.nome}</span>
-          )}
           {!marca && (lead.lead_tags || []).slice(0, 2).map((lt: any) => lt.tag && (
-            <span key={lt.tag_id} className="wa-marca" style={{ color: lt.tag.color?.startsWith('#') ? lt.tag.color : 'var(--wa-text-2)' }}>
+            <span key={lt.tag_id} className="wa-marca" style={{ color: 'var(--wa-text-2)' }}>
               {lt.tag.name}
             </span>
           ))}

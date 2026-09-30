@@ -51,16 +51,21 @@ function esperandoResposta(l: { last_message_sender_type?: string | null; last_m
    aparência levemente diferente ... a IA vai colocando as pessoas no automático".
    Quem decide a aba é a campanha (crm_captacao_donos, migração 236); aqui é só o
    desenho: cada aba com a sua cor (o pontinho), para não confundir com a Parceria. */
-const ABAS_DA_CAPTACAO: Array<{ chave: string; rotulo: string; cor: string; titulo: string; pessoa?: boolean }> = [
-  { chave: 'em_andamento', rotulo: 'Em andamento', cor: '#2563eb', titulo: 'Respondeu e a conversa ainda não fechou' },
-  { chave: 'disponiveis', rotulo: 'Disponíveis', cor: '#16a34a', titulo: 'O dono disse que o imóvel está disponível' },
-  { chave: 'alugados', rotulo: 'Alugados', cor: '#d97706', titulo: 'O dono disse que o imóvel está alugado' },
-  { chave: 'quer_vender', rotulo: 'Quer vender', cor: '#7c3aed', titulo: 'O dono quer vender' },
-  { chave: 'ja_vendeu', rotulo: 'Já vendeu', cor: '#6b7280', titulo: 'O dono disse que já vendeu' },
-  { chave: 'tem_outro_imovel', rotulo: 'Tem outro imóvel', cor: '#0891b2', titulo: 'O dono falou de outro imóvel' },
-  { chave: 'sem_resposta', rotulo: 'Sem resposta', cor: '#dc2626', titulo: 'Recebeu a mensagem da campanha e ainda não respondeu' },
-  { chave: 'com_o_tel', rotulo: 'Com o Tel', cor: '#be185d', titulo: 'A Nay parou: o Tel está com a conversa', pessoa: true },
+/* DUAS LINHAS (Pedro, 30/09: "ficou muito longa a rolagem lateral ... divide em 2 linhas,
+   colocando categorias que fazem sentido estarem próximas"):
+     linha 1 = COMO ESTÁ A CONVERSA   Todos · Em andamento · Sem resposta · Com o Tel
+     linha 2 = O QUE O DONO DISSE     Disponíveis · Alugados · Quer vender · Já vendeu · Tem outro imóvel */
+const ABAS_DA_CAPTACAO: Array<{ chave: string; rotulo: string; cor: string; titulo: string; pessoa?: boolean; linha: 1 | 2 }> = [
+  { chave: 'em_andamento', rotulo: 'Em andamento', cor: '#2563eb', titulo: 'Respondeu e a conversa ainda não fechou', linha: 1 },
+  { chave: 'sem_resposta', rotulo: 'Sem resposta', cor: '#dc2626', titulo: 'Recebeu a mensagem da campanha e ainda não respondeu', linha: 1 },
+  { chave: 'com_o_tel', rotulo: 'Com o Tel', cor: '#be185d', titulo: 'A Nay parou: o Tel está com a conversa', pessoa: true, linha: 1 },
+  { chave: 'disponiveis', rotulo: 'Disponíveis', cor: '#16a34a', titulo: 'O dono disse que o imóvel está disponível', linha: 2 },
+  { chave: 'alugados', rotulo: 'Alugados', cor: '#d97706', titulo: 'O dono disse que o imóvel está alugado', linha: 2 },
+  { chave: 'quer_vender', rotulo: 'Quer vender', cor: '#7c3aed', titulo: 'O dono quer vender', linha: 2 },
+  { chave: 'ja_vendeu', rotulo: 'Já vendeu', cor: '#6b7280', titulo: 'O dono disse que já vendeu', linha: 2 },
+  { chave: 'tem_outro_imovel', rotulo: 'Tem outro imóvel', cor: '#0891b2', titulo: 'O dono falou de outro imóvel', linha: 2 },
 ]
+const NA_LINHA_2_DA_CAPTACAO = new Set(ABAS_DA_CAPTACAO.filter((a) => a.linha === 2).map((a) => `cap:${a.chave}`))
 
 const ETIQUETAS_DA_LINHA: Record<string, string[]> = {
   // um funil por número (29/09): as etapas da campanha, que o CRM põe sozinho (src/lib/funis.ts)
@@ -659,7 +664,14 @@ export default function LeadList({
                 </div>
               </div>
             )}
-            <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtros} />
+            {linha === 'captacao' ? (
+              <>
+                <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtros.filter((f) => !NA_LINHA_2_DA_CAPTACAO.has(f.chave))} />
+                <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtros.filter((f) => NA_LINHA_2_DA_CAPTACAO.has(f.chave))} />
+              </>
+            ) : (
+              <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtros} />
+            )}
             {ehParceria && activeTab === 'proprietarios' && (
               <BuscaDaLista
                 texto={buscaDono}

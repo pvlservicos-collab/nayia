@@ -36,6 +36,7 @@ import TrilhaDaNay from './TrilhaDaNay'
 import EscolherImoveis, { useOpcoesDoDisparo, type ImovelParaEnviar } from '@/components/Disparo/EscolherImoveis'
 import EtapaDoLead from './EtapaDoLead'
 import { escolhaAMao } from '@/lib/etapaDaParceria'
+import AgendarFollowup from './AgendarFollowup'
 
 const LARGURA_GUARDADA = 'crm:largura-card-parceria'
 const LARGURA_MIN = 300
@@ -553,6 +554,9 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
               {mexendoNaNay === 'instruir' ? <CircleNotch size={14} className="animate-spin" /> : <Robot size={14} weight="fill" />} Nay atender com instrução
             </button>
           </div>
+
+          {/* agendar follow-up (Pedro, 30/09): mensagem + amanhã / uma semana / data + hora */}
+          <AgendarFollowup leadId={lead.id} />
 
           {/* observação (Pedro, 29/09: "um quadradinho de observação, caixa de mensagem para escrever") */}
           <div className="w-full mt-4 text-left">
