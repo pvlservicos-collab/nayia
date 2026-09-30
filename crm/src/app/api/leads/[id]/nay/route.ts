@@ -65,24 +65,35 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const r = await pararOuDevolverANay(lead.telefone, acao, quem)
     if (!r.ok || acao === 'parar') return Response.json({ ...r, reentregou: false }, { status: r.ok ? 200 : 409 })
 
-    // o que a pessoa escreveu depois da nossa última mensagem (das últimas 24 h)
+    // o que a pessoa escreveu depois da nossa última mensagem (até 7 dias; 228: eram
+    // 24 h, e quem escreveu ontem de manhã e ficou sem resposta não recebia nada)
     const recentes = await db
       .select({ conteudo: leadActivities.content, metadata: leadActivities.metadata, em: leadActivities.createdAt })
       .from(leadActivities)
       .where(and(eq(leadActivities.leadId, id), eq(leadActivities.type, 'whatsapp')))
       .orderBy(desc(leadActivities.createdAt))
-      .limit(20)
+      .limit(40)
     const dela: string[] = []
+    let soMidia = 0
     for (const a of recentes) {
       const m = (a.metadata || {}) as Record<string, any>
       if (m.direction !== 'inbound') break
       if (m.is_reaction || m.deleted) continue
-      if (a.em && Date.now() - new Date(a.em).getTime() > 24 * 3600_000) break
+      if (a.em && Date.now() - new Date(a.em).getTime() > 7 * 24 * 3600_000) break
       const texto = m.media_type === 'audio' ? (m.transcricao || '') : String(a.conteudo || '')
       const limpo = texto && !/^\[(áudio|audio|foto|imagem|vídeo|documento|figurinha)\]$/i.test(texto.trim()) ? texto.trim() : ''
       if (limpo) dela.unshift(limpo)
+      else soMidia += 1
     }
-    if (!dela.length) return Response.json({ ...r, reentregou: false })
+    if (!dela.length) {
+      return Response.json({
+        ...r,
+        reentregou: false,
+        mensagem: r.mensagem + (soMidia
+          ? ' A última mensagem da pessoa é foto, áudio sem transcrição ou arquivo: a Nay não tem texto para responder agora.'
+          : ' A última mensagem da conversa é nossa: a Nay responde quando a pessoa escrever.'),
+      })
+    }
 
     const aviso = {
       type: 'ReceivedCallback',
@@ -96,21 +107,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       chatName: lead.titulo || lead.telefone,
       text: { message: dela.join('\n') },
     }
-    let reentregou = false
-    try {
-      const resp = await fetch(WEBHOOK_DA_NAI, {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(aviso), signal: AbortSignal.timeout(10_000),
-      })
-      reentregou = resp.ok
-    } catch (err: any) {
+    // 228: NÃO ESPERA O FLUXO TERMINAR. O webhook da NAI só responde quando a Nay
+    // acaba (janela de 25 s + modelo, 30 a 45 s), e os 10 s de antes estouravam:
+    // o Tel via "não consegui entregar" com a mensagem já entregue. Agora a entrega
+    // segue sozinha (até 2 min) e a tela responde na hora.
+    void fetch(WEBHOOK_DA_NAI, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(aviso), signal: AbortSignal.timeout(120_000),
+    }).then((resp) => {
+      if (!resp.ok) console.error('[nay voltar] a NAI respondeu', resp.status)
+    }).catch((err: any) => {
       console.error('[nay voltar] não reentreguei à NAI', err?.message || err)
-    }
+    })
     return Response.json({
       ok: true,
-      reentregou,
-      mensagem: reentregou
-        ? `A Nay voltou a atender e recebeu de novo a última mensagem (${dela.length === 1 ? '1 mensagem' : `${dela.length} mensagens`}) para responder.`
-        : 'A Nay voltou a atender, mas não consegui entregar a última mensagem a ela.',
+      reentregou: true,
+      mensagem: `${r.mensagem} A Nay recebeu de novo o que a pessoa escreveu (${dela.length === 1 ? '1 mensagem' : `${dela.length} mensagens`}) e responde em até 1 minuto.`,
     })
   } catch (err: any) {
     console.error('[leads/nay POST]', err?.message || err)
