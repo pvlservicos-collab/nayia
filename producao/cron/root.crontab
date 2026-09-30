@@ -1,6 +1,6 @@
 * * * * * flock -n /tmp/disparar_grade.lock /root/nay-publicador/disparar_grade.sh >> /root/nay-publicador/logs/disparar_grade.log 2>&1
-* * * * * flock -n /tmp/disparar_lembretes.lock /root/nay-publicador/disparar_lembretes.sh >> /root/nay-publicador/logs/disparar_lembretes.log 2>&1
-* * * * * flock -n /tmp/entregar_pendentes.lock /root/nay-publicador/entregar_pendentes.sh >> /root/nay-publicador/logs/entregar_pendentes.log 2>&1
+# desligado 30/09 (morto desde 31/08, aprovado pelo Tel): * * * * * flock -n /tmp/disparar_lembretes.lock /root/nay-publicador/disparar_lembretes.sh >> /root/nay-publicador/logs/disparar_lembretes.log 2>&1
+# desligado 30/09 (morto desde 01/09, aprovado pelo Tel): * * * * * flock -n /tmp/entregar_pendentes.lock /root/nay-publicador/entregar_pendentes.sh >> /root/nay-publicador/logs/entregar_pendentes.log 2>&1
 # DESLIGADO 19/09/2026 (Tel: "o raspamento ja foi, agora ela le o nosso banco").
 # Estava despublicando imovel NOSSO por ele nao estar mais no imobeasy.com.
 # Religar: tire o # da linha abaixo.
@@ -9,12 +9,12 @@
 17 9 * * * flock -n /tmp/sincronizar_catalogo.lock /root/nay-publicador/sincronizar_catalogo.sh >> /root/nay-publicador/logs/sincronizar_catalogo.log 2>&1
 * * * * * flock -n /tmp/ciclo_pendencias.lock /root/nay-publicador/ciclo_pendencias.sh >> /root/nay-publicador/logs/ciclo_pendencias.log 2>&1
 5 3 * * * flock -n /tmp/backup_banco.lock /root/nay-publicador/backup_banco.sh >> /root/nay-publicador/logs/backup_banco.log 2>&1
-* * * * * flock -n /tmp/alertar_visitas.lock /root/nay-publicador/alertar_visitas.sh >> /root/nay-publicador/logs/alertar_visitas.log 2>&1
+# desligado 30/09 (NameError desde 23/09, decisão do Tel): * * * * * flock -n /tmp/alertar_visitas.lock /root/nay-publicador/alertar_visitas.sh >> /root/nay-publicador/logs/alertar_visitas.log 2>&1
 23 3 * * * /root/nay-colagem/montar_colagens.sh
 * * * * * flock -n /tmp/detectar_visitas.lock /root/nay-publicador/detectar_visitas.sh >> /root/nay-publicador/logs/detectar_visitas.log 2>&1
 */2 * * * * flock -n /tmp/catalogar_postados.cron.lock /root/nay-publicador/catalogar_postados.sh >> /root/nay-publicador/logs/catalogar_postados.log 2>&1
 10 10 * * 1 flock -n /tmp/sincronizar_grupos_corretores.lock /root/nay-publicador/sincronizar_grupos_corretores.sh >> /root/nay-publicador/logs/sincronizar_grupos_corretores.log 2>&1
-45 12 19 9 * flock -n /tmp/retomar_sabado.lock /usr/bin/python3 /root/nay-publicador/retomar_sabado.py >> /root/nay-publicador/logs/retomar_sabado.log 2>&1
+# desligado 30/09 (rodou uma vez em 19/09, aprovado pelo Tel): 45 12 19 9 * flock -n /tmp/retomar_sabado.lock /usr/bin/python3 /root/nay-publicador/retomar_sabado.py >> /root/nay-publicador/logs/retomar_sabado.log 2>&1
 23 * * * * /root/sincronizar_agenda_xx.sh
 17 4 * * * docker exec nay-postgres psql -U nay -d naydb -c "SELECT nai_vocabulario_atualizar()" >/dev/null 2>&1  # 106: o filtro de palavras acompanha o catalogo
 0 11 28 9 * /root/ligar_nay_20260928.sh >> /root/nay-publicador/logs/ligar_nay.log 2>&1  # 136: Nay para todos as 07:00 de Manaus, sem fila
