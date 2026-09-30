@@ -440,74 +440,9 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
               menu tinha ido parar no LeadDetailsSidebar, que o chat da
               Parceria nem desenha. */}
           <div className="mt-3 text-left">
-            <EtapaDoLead lead={lead} onUpdateLead={onUpdateLead} />
+            <EtapaDoLead lead={lead} onUpdateLead={onUpdateLead} semExplicacao />
           </div>
 
-          {/* as etiquetas: embaixo do número (Pedro, 29/09) */}
-          <div className="flex flex-wrap justify-center items-center gap-1.5 mt-3 relative">
-            {etiquetasDoLead.map((t: any) => (
-              <span key={t.id} className="wa-marca !pr-1 inline-flex items-center gap-1" style={{ color: t.color?.startsWith('#') ? t.color : 'var(--wa-text-2)' }}>
-                {t.name}
-                <button type="button" onClick={() => void alternarEtiqueta(t)} className="rounded-full hover:bg-black/10 p-0.5" title={`Tirar "${t.name}"`} aria-label={`Tirar ${t.name}`}>
-                  <X size={10} weight="bold" />
-                </button>
-              </span>
-            ))}
-            <button type="button" onClick={() => setMenuEtiquetas((m) => !m)} className="wa-chip !h-7 !px-2.5 !text-[12.5px]"
-                    aria-expanded={menuEtiquetas} title="Pôr ou trocar etiqueta">
-              <Plus size={12} weight="bold" /> Etiqueta
-            </button>
-            {menuEtiquetas && (
-              <div className="absolute top-full mt-1.5 z-30 w-[260px] max-h-[300px] overflow-y-auto wa-rolagem rounded-xl shadow-2xl p-1.5 text-left"
-                   style={{ background: 'var(--wa-menu)', border: '1px solid var(--wa-divider)' }}>
-                {etiquetas.map((t) => {
-                  const on = temEtiqueta(t.id)
-                  return (
-                    <button key={t.id} type="button" onClick={() => void alternarEtiqueta(t)}
-                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[13.5px] hover:bg-[var(--wa-row-hover)]"
-                            style={{ color: 'var(--wa-text)' }}>
-                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
-                      <span className="flex-1 truncate">{t.name}</span>
-                      {on && <Check size={14} weight="bold" style={{ color: 'var(--wa-green)' }} />}
-                    </button>
-                  )
-                })}
-                <form className="flex items-center gap-1 mt-1 pt-1.5" style={{ borderTop: '1px solid var(--wa-divider)' }}
-                      onSubmit={(e) => { e.preventDefault(); void criarEtiqueta() }}>
-                  <input value={novaEtiqueta} onChange={(e) => setNovaEtiqueta(e.target.value)} placeholder="Criar etiqueta…" maxLength={40}
-                         className="flex-1 min-w-0 h-8 px-2 rounded-md text-[13px]" style={{ background: 'var(--wa-app)', color: 'var(--wa-text)' }} />
-                  <button type="submit" disabled={!novaEtiqueta.trim()} className="wa-icone-btn !w-8 !h-8 disabled:opacity-40" aria-label="Criar etiqueta">
-                    <Plus size={15} weight="bold" />
-                  </button>
-                </form>
-                <button type="button" onClick={() => setMenuEtiquetas(false)} className="w-full mt-1 text-[12.5px] py-1" style={{ color: 'var(--wa-text-2)' }}>Fechar</button>
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-1.5 mt-2.5">
-            {marca?.corretor && (
-              <span className="wa-marca" style={{ color: 'var(--wa-tag-corretor)' }}>
-                Corretor parceiro{marca.creci ? ` · CRECI ${marca.creci}` : ''}
-              </span>
-            )}
-            {marca?.proprietario && <span className="wa-marca" style={{ color: 'var(--wa-tag-prop)' }}>Proprietário</span>}
-            {/* A ETIQUETA DE QUEM ESTÁ COM A CONVERSA, com × (Tel, 30/09): "quero
-                tirar a etiqueta de tel ou rayssa lá no card do contato também, e
-                aí ele sai da tag deles do chat". Tirar devolve a conversa à Nay
-                (crm_etapa_manual 'soltar', 212: limpa só a marca de humano; a
-                etapa e o fechamento aberto ficam). */}
-            {comQuem && (
-              <span className="wa-marca !pr-1 inline-flex items-center gap-1" style={{ color: 'var(--wa-tag-tel)' }} title={marca?.telMotivo || ''}>
-                {comQuem === 'rayssa' ? 'Com a Rayssa' : 'Com o Tel'}
-                <button type="button" onClick={tirarDaPessoa} disabled={tirando}
-                        aria-label={`Tirar a etiqueta ${comQuem === 'rayssa' ? 'da Rayssa' : 'do Tel'}`}
-                        title="Tirar: a conversa sai da aba e volta para a Nay"
-                        className="rounded-full px-1 leading-none hover:opacity-70">×</button>
-              </span>
-            )}
-            {!marca && carregando && <span className="text-[13px]" style={{ color: 'var(--wa-text-2)' }}>Perguntando à Nay…</span>}
-          </div>
           {/* a trilha da Nay com o contato, ativa ou parada (Pedro, 29/09) */}
           <TrilhaDaNay marca={marca} nay={nay} />
           {/* Parar Nay / Nay voltar a atender (Pedro, 29/09) */}
@@ -732,6 +667,82 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
           </Secao>
         )}
         {/* histórico */}
+        {/* A FRASE DA ETAPA, A ETIQUETA E AS MARCAS descem para cá (Pedro, 30/09: "põe lá para
+            baixo ... antes de O que já pediu, recebeu e visitou"): o topo do card fica só com
+            a etapa, a trilha e os botões da Nay. */}
+        <div className="px-6 py-4 text-center" style={{ borderTop: '1px solid var(--wa-divider)' }}>
+          <p className="text-[12px] leading-4" style={{ color: 'var(--wa-text-2)' }}>
+            {escolhaDoCard
+              ? 'Preso nesta etapa por você, e a Nay já sabe. Escolha Todos e salve para devolver a conversa a ela.'
+              : 'A Nay está decidindo sozinha: visita passada à Rayssa, dono do imóvel ou checklist pedido.'}
+          </p>
+          {/* as etiquetas: embaixo do número (Pedro, 29/09) */}
+          <div className="flex flex-wrap justify-center items-center gap-1.5 mt-3 relative">
+            {etiquetasDoLead.map((t: any) => (
+              <span key={t.id} className="wa-marca !pr-1 inline-flex items-center gap-1" style={{ color: t.color?.startsWith('#') ? t.color : 'var(--wa-text-2)' }}>
+                {t.name}
+                <button type="button" onClick={() => void alternarEtiqueta(t)} className="rounded-full hover:bg-black/10 p-0.5" title={`Tirar "${t.name}"`} aria-label={`Tirar ${t.name}`}>
+                  <X size={10} weight="bold" />
+                </button>
+              </span>
+            ))}
+            <button type="button" onClick={() => setMenuEtiquetas((m) => !m)} className="wa-chip !h-7 !px-2.5 !text-[12.5px]"
+                    aria-expanded={menuEtiquetas} title="Pôr ou trocar etiqueta">
+              <Plus size={12} weight="bold" /> Etiqueta
+            </button>
+            {menuEtiquetas && (
+              <div className="absolute top-full mt-1.5 z-30 w-[260px] max-h-[300px] overflow-y-auto wa-rolagem rounded-xl shadow-2xl p-1.5 text-left"
+                   style={{ background: 'var(--wa-menu)', border: '1px solid var(--wa-divider)' }}>
+                {etiquetas.map((t) => {
+                  const on = temEtiqueta(t.id)
+                  return (
+                    <button key={t.id} type="button" onClick={() => void alternarEtiqueta(t)}
+                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[13.5px] hover:bg-[var(--wa-row-hover)]"
+                            style={{ color: 'var(--wa-text)' }}>
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
+                      <span className="flex-1 truncate">{t.name}</span>
+                      {on && <Check size={14} weight="bold" style={{ color: 'var(--wa-green)' }} />}
+                    </button>
+                  )
+                })}
+                <form className="flex items-center gap-1 mt-1 pt-1.5" style={{ borderTop: '1px solid var(--wa-divider)' }}
+                      onSubmit={(e) => { e.preventDefault(); void criarEtiqueta() }}>
+                  <input value={novaEtiqueta} onChange={(e) => setNovaEtiqueta(e.target.value)} placeholder="Criar etiqueta…" maxLength={40}
+                         className="flex-1 min-w-0 h-8 px-2 rounded-md text-[13px]" style={{ background: 'var(--wa-app)', color: 'var(--wa-text)' }} />
+                  <button type="submit" disabled={!novaEtiqueta.trim()} className="wa-icone-btn !w-8 !h-8 disabled:opacity-40" aria-label="Criar etiqueta">
+                    <Plus size={15} weight="bold" />
+                  </button>
+                </form>
+                <button type="button" onClick={() => setMenuEtiquetas(false)} className="w-full mt-1 text-[12.5px] py-1" style={{ color: 'var(--wa-text-2)' }}>Fechar</button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-1.5 mt-2.5">
+            {marca?.corretor && (
+              <span className="wa-marca" style={{ color: 'var(--wa-tag-corretor)' }}>
+                Corretor parceiro{marca.creci ? ` · CRECI ${marca.creci}` : ''}
+              </span>
+            )}
+            {marca?.proprietario && <span className="wa-marca" style={{ color: 'var(--wa-tag-prop)' }}>Proprietário</span>}
+            {/* A ETIQUETA DE QUEM ESTÁ COM A CONVERSA, com × (Tel, 30/09): "quero
+                tirar a etiqueta de tel ou rayssa lá no card do contato também, e
+                aí ele sai da tag deles do chat". Tirar devolve a conversa à Nay
+                (crm_etapa_manual 'soltar', 212: limpa só a marca de humano; a
+                etapa e o fechamento aberto ficam). */}
+            {comQuem && (
+              <span className="wa-marca !pr-1 inline-flex items-center gap-1" style={{ color: 'var(--wa-tag-tel)' }} title={marca?.telMotivo || ''}>
+                {comQuem === 'rayssa' ? 'Com a Rayssa' : 'Com o Tel'}
+                <button type="button" onClick={tirarDaPessoa} disabled={tirando}
+                        aria-label={`Tirar a etiqueta ${comQuem === 'rayssa' ? 'da Rayssa' : 'do Tel'}`}
+                        title="Tirar: a conversa sai da aba e volta para a Nay"
+                        className="rounded-full px-1 leading-none hover:opacity-70">×</button>
+              </span>
+            )}
+            {!marca && carregando && <span className="text-[13px]" style={{ color: 'var(--wa-text-2)' }}>Perguntando à Nay…</span>}
+          </div>
+        </div>
+
         <Secao titulo="O que já pediu, recebeu e visitou">
           {carregando && !historico.length ? (
             <p className="text-[13px]" style={{ color: 'var(--wa-text-2)' }}>Carregando…</p>

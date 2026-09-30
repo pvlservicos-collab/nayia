@@ -18,9 +18,11 @@ import { useParceriaMarcas } from '@/hooks/useParceriaMarcas'
 import { etapaDaParceria, escolhaAMao, DESTINOS_DA_PARCERIA, ROTULO_DA_ETAPA, type DestinoParceria } from '@/lib/etapaDaParceria'
 import type { LeadWithOwner } from '@/lib/types'
 
-export default function EtapaDoLead({ lead, onUpdateLead }: {
+export default function EtapaDoLead({ lead, onUpdateLead, semExplicacao }: {
   lead: LeadWithOwner
   onUpdateLead?: (leadId: string, updates: Partial<LeadWithOwner>) => void
+  /** o card do contato mostra a frase lá embaixo, antes do histórico (Pedro, 30/09) */
+  semExplicacao?: boolean
 }) {
   const { marcas } = useParceriaMarcas(true)
   const [salvando, setSalvando] = useState(false)
@@ -134,13 +136,15 @@ export default function EtapaDoLead({ lead, onUpdateLead }: {
           )}
         </div>
       )}
-      <p className="mt-2 text-[11px] text-[var(--chat-text-secondary)]">
-        {erro
-          ? <span className="text-red-500">{erro}</span>
-          : aMao
-            ? 'Preso aqui por você, e a Nay já sabe. Escolha Todos e salve para devolver a conversa a ela.'
-            : 'A Nay está decidindo sozinha: visita passada à Rayssa, dono do imóvel ou checklist pedido.'}
-      </p>
+      {(erro || !semExplicacao) && (
+        <p className="mt-2 text-[11px] text-[var(--chat-text-secondary)]">
+          {erro
+            ? <span className="text-red-500">{erro}</span>
+            : aMao
+              ? 'Preso aqui por você, e a Nay já sabe. Escolha Todos e salve para devolver a conversa a ela.'
+              : 'A Nay está decidindo sozinha: visita passada à Rayssa, dono do imóvel ou checklist pedido.'}
+        </p>
+      )}
     </div>
   )
 }
