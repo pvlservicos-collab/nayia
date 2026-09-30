@@ -605,10 +605,40 @@
             divergentes.push(par[1] + ' do condomínio é "' + valor + '"');
           }
         });
+        /* A FICHA DO CONDOMÍNIO (Pedro, 30/09: "ao clicar no condomínio no cadastro
+           pela OLX ele já preencha os outros campos"): o lazer da ficha vira chips
+           em "Características do condomínio" (sem repetir o que já está), e andares
+           e elevadores entram só se estiverem vazios. */
+        var daFicha = [];
+        if (e.ficha) {
+          var caixa = form.querySelector("[data-grupos]");
+          var lazer = Array.isArray(e.ficha.lazer) ? e.ficha.lazer : [];
+          if (caixa && lazer.length) {
+            var destino = caixa.querySelector('[data-grupo="condominio"] .ed__chips');
+            var ja = Array.prototype.map.call(caixa.querySelectorAll(".ed__chip"), function (c) {
+              return c.getAttribute("data-item").toLowerCase();
+            });
+            var n = 0;
+            lazer.forEach(function (x) {
+              x = String(x || "").trim();
+              if (!x || ja.indexOf(x.toLowerCase()) >= 0) return;
+              destino.insertAdjacentHTML("beforeend", chipHtml(x)); ja.push(x.toLowerCase()); n++;
+            });
+            if (n) { sincronizarGrupos(caixa); daFicha.push(n + " característica" + (n > 1 ? "s" : "") + " do condomínio"); }
+          }
+          [["andares", e.ficha.andares, "os andares"], ["elevadores", e.ficha.elevadores, "os elevadores"]].forEach(function (par) {
+            var campo = form.querySelector('[data-campo="x:' + par[0] + '"]');
+            if (!campo || par[1] == null || String(campo.value || "").trim()) return;
+            campo.value = par[1];
+            campo.dispatchEvent(new Event("input", { bubbles: true }));
+            daFicha.push(par[2]);
+          });
+        }
         atualizarBotao();
         var dica = $("ed-condo-dica");
         if (!dica) return;
         var recado = [];
+        if (daFicha.length) recado.push("Da ficha do condomínio: " + daFicha.join(", ") + ".");
         if (postos.length) {
           recado.push("Preenchi " + postos.join(", ") + " pelo condomínio" +
             (e.base ? " (do que está cadastrado em " + e.base + " imóvel" + (e.base === 1 ? "" : "is") + " dele)" : "") + ".");

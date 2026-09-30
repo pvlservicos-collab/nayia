@@ -2248,10 +2248,36 @@ def api_condominio_endereco(cid):
         if not linhas:
             return jsonify({"erro": "condominio nao encontrado"}), 404
         l = linhas[0]
+        # A FICHA DO CONDOMÍNIO (Pedro, 30/09: "ao clicar no condomínio no cadastro
+        # do imóvel pela OLX ele já preencha os outros campos"): lazer, elevador,
+        # andares, construtora e ano da condominio_ficha (210/229), quando existe.
+        ficha = todas_linhas(conn, """
+            SELECT f.lazer, f.elevador, f.andares, f.aptos_por_andar, f.torres, f.construtora,
+                   f.ano_lancamento, f.revestimento, f.endereco, f.unidades
+              FROM condominio_ficha f WHERE f.condominio_id = %s LIMIT 1""", (cid,))
+        f = ficha[0] if ficha else None
+        def inteiro(txt):
+            m = re.search(r"\d+", str(txt or ""))
+            return int(m.group(0)) if m else None
         return jsonify({
             "id": cid,
             "nome": l["nome"],
             "base": l["base"],
+            "ficha": None if not f else {
+                "lazer": list(f["lazer"] or []),
+                "elevador": f["elevador"],
+                # "Sim, possui 2 elevadores por torre" -> 2; "Sim, possui elevador" -> 1; "Não..." -> 0
+                "elevadores": (0 if re.match(r"^\s*n[aã]o", str(f["elevador"] or ""), re.I)
+                               else (inteiro(f["elevador"]) or (1 if f["elevador"] else None))),
+                "andares": inteiro(f["andares"]),
+                "aptos_por_andar": f["aptos_por_andar"],
+                "torres": f["torres"],
+                "construtora": f["construtora"],
+                "ano_lancamento": f["ano_lancamento"],
+                "revestimento": f["revestimento"],
+                "endereco": f["endereco"],
+                "unidades": f["unidades"],
+            },
             # o bairro do cadastro manda; o dos imoveis e a reserva
             "bairro": l["bairro_cadastro"] or l["bairro_imoveis"],
             "logradouro": l["logradouro"],
