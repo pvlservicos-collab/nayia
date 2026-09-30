@@ -86,7 +86,9 @@ BEGIN
           -- 135: a ENTREGA pedida pela equipe tambem passa. Quem pediu para
           -- mandar o imovel ao cliente foi a propria equipe -- inclusive quando
           -- o Tel esta conversando com ele.
-          AND NOT (r.papel_destino IN ('turno', 'entrega') AND (SELECT t2.papel FROM nai_turno t2 WHERE t2.id = r.turno_id) = 'tel') THEN
+          AND NOT (r.papel_destino IN ('turno', 'entrega') AND (SELECT t2.papel FROM nai_turno t2 WHERE t2.id = r.turno_id) = 'tel')
+          -- 233: o "Recebi, já te respondo" da mídia sai antes da pausa valer
+          AND r.motivo <> 'midia_contingencia' THEN
       -- O TEL ASSUMIU esse chat: a NAI nao manda mais nada para essa pessoa
       -- (so a resposta a um comando do proprio Tel passa).
       v_bloq := 'tel_assumiu';

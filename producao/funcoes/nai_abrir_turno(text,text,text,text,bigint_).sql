@@ -304,6 +304,9 @@ BEGIN
     'teste', v_teste,
     'modo', v_modo,
     'texto', v_texto,
+    -- 233: imagem, documento e vídeo do turno inteiro, para o ramo "Mídia para o Tel"
+    'midias', nai_midias_do_turno(v_turno),
+    'tem_midia_visual', jsonb_array_length(nai_midias_do_turno(v_turno)) > 0,
     'aprovado', v_aprov,
     -- ATENDE: NULL quando a regra publica esta desligada (o roteador decide
     -- como sempre decidiu); true/false quando ela manda. `porta` diz o motivo,

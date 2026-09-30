@@ -1,5 +1,5 @@
--- 233 (rascunho, 30/09/2026): MÍDIA DE CORRETOR VAI AO TEL, SEM MODELO -- PARTE B.
--- NÃO APLICADO: só ensaiado. Espera a aprovação do Pedro/Tel (texto do aviso e da
+-- 233 (30/09/2026, aplicada com aprovação do Pedro): MÍDIA DE CORRETOR VAI AO TEL, SEM MODELO -- PARTE B.
+-- Aprovada pelo Pedro em 30/09 (texto do aviso e da contingência). Parte C (n8n) de madrugada.
 -- contingência) e a Parte A (modelos). Decisão do Tel: a Nay para de ler imagem com
 -- modelo; imagem/documento/vídeo vira aviso ao Tel com contexto e links (OPÇÃO A:
 -- os links do Backblaze abrem sem cabeçalho e o mais antigo, de 22/09, ainda abre),
