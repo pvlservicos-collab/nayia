@@ -9,7 +9,7 @@ DECLARE
   v_ids     bigint[];
   v_quem    text := left(coalesce(nullif(btrim(p_quem), ''), 'CRM'), 80);
 BEGIN
-  IF p_etapa NOT IN ('todos', 'visitas', 'proprietarios', 'fechamento', 'tel') THEN
+  IF p_etapa NOT IN ('todos', 'visitas', 'proprietarios', 'fechamento', 'tel', 'rayssa') THEN
     RETURN QUERY SELECT false, 'Etapa desconhecida: ' || coalesce(p_etapa, '');
     RETURN;
   END IF;
@@ -24,6 +24,14 @@ BEGIN
     UPDATE nai_contato SET humano_assumiu_em = now(), humano_motivo = left('CRM: ' || v_quem || ' mandou para o Tel', 200)
      WHERE id = v_contato;
     RETURN QUERY SELECT true, 'Com o Tel: a Nay não responde até o Tel devolver.'::text;
+    RETURN;
+  END IF;
+  -- 208: a Rayssa, pelo mesmo caminho; "Rayssa: " na frente é o que o CRM lê
+  IF p_etapa = 'rayssa' THEN
+    UPDATE nai_contato SET humano_assumiu_em = now(),
+                           humano_motivo = left('Rayssa: CRM: ' || v_quem || ' mandou para a Rayssa', 200)
+     WHERE id = v_contato;
+    RETURN QUERY SELECT true, 'Com a Rayssa: a Nay não responde até a conversa voltar para Todos.'::text;
     RETURN;
   END IF;
 
