@@ -275,7 +275,7 @@ BEGIN
       (SELECT cc.texto_pronto FROM nai_card_do_imovel((regexp_match(v_lista, '[*]Imóvel ([0-9]+)[*]'))[1]::int) cc),
       (regexp_match(v_lista, '[*]Imóvel ([0-9]+)[*]'))[1],
       ('e um imovel so nesse condominio: mande o card EXATAMENTE como veio. O sistema '
-       || 'manda as fotos e a sugestao de visita logo depois. NAO escale.')::text;
+       || 'manda a sugestao de visita logo depois; foto so sai se ele pedir. NAO escale.')::text;
     RETURN;
   END IF;
 

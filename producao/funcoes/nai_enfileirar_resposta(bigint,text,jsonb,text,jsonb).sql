@@ -88,7 +88,7 @@ BEGIN
     IF v_fotos > 0 AND (v_resto = '' OR nai_so_anuncia_fotos(v_resto) OR nai_pergunta_qual_imovel(v_resto)) THEN
       PERFORM nai_depois_das_fotos(p_turno, v_ordem);
       v_textos := v_textos + 2;
-    ELSIF v_resto <> '' THEN
+    ELSIF v_resto <> '' AND NOT (v_fotos = 0 AND nai_so_anuncia_fotos(v_resto)) THEN
       PERFORM nai_enfileirar_texto(p_turno, NULL, t.contato_id, 'turno', nai_sem_pergunta_de_identidade(nai_sem_emoji_resposta(v_resto)), 'resposta', v_ordem + 1);
       v_textos := v_textos + 1;
       -- O PADRAO DE ATENDIMENTO VAI JUNTO (Tel, 21/09). Mandou card com foto,
@@ -198,6 +198,8 @@ BEGIN
   -- ...e a mesma rede no TEXTO (120f): imovel de parceiro citado dentro
   -- de uma lista escrita passava por baixo da parede do card.
   PERFORM nai_conferir_texto_da_saida(p_turno);
+  -- 224: o status e o "Aqui as fotos" nao saem sem o card e a foto atras
+  PERFORM nai_saida_sem_sobras(p_turno);
 
   PERFORM nai_espacar_depois_das_fotos(p_turno);
 

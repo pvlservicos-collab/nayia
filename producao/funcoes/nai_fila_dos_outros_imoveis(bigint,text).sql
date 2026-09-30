@@ -109,7 +109,9 @@ BEGIN
     v_ordem := v_ordem + 1;
     PERFORM nai_enfileirar_texto(p_turno, NULL, t.contato_id, 'turno', v_card, 'resposta', v_ordem);
 
-    FOR f IN SELECT * FROM nai_imagens_do_envio(c) LOOP
+    -- 224: a foto do segundo imovel so vai se ele pediu foto
+    FOR f IN SELECT * FROM nai_imagens_do_envio(c)
+              WHERE (SELECT coalesce(nai_deve_mandar_fotos(t.contato_id, k.telefone, v_txt), false)) LOOP
       v_ordem := v_ordem + 1;
       INSERT INTO nai_saida (turno_id, contato_id, papel_destino, chave_destino, tipo, imagem_url, codigo, ordem, motivo)
            VALUES (p_turno, t.contato_id, 'turno', '', 'imagem', f.url, c, v_ordem,

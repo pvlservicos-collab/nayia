@@ -24,7 +24,7 @@ BEGIN
     SELECT c.texto_pronto INTO v_card FROM nai_card_do_imovel(p_codigo) c;
     RETURN QUERY SELECT ('📌 Status: Disponível' || E'\n\n' || v_card)::text, true,
       ('mande o texto_pronto EXATAMENTE como veio: a linha de status e o card, com as quebras de linha. '
-       || 'As fotos e a pergunta saem sozinhas atrás. Não escale.')::text;
+       || 'A pergunta sai sozinha atrás; foto só sai se ele pedir. Não escale.')::text;
     RETURN;
   END IF;
 

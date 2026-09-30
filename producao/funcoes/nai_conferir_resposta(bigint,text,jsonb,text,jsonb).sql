@@ -385,9 +385,9 @@ BEGIN
     FROM jsonb_array_elements_text(coalesce(p_codigos, '[]'::jsonb)) x
    WHERE x ~ '^[0-9]{3,5}$' AND x::int > 0;
   IF t.papel IN ('corretor', 'tel') THEN
-    -- AS FOTOS VAO SEMPRE (Tel, 16/09): falou de imovel, recebe informacao e
-    -- foto na mesma resposta. Antes era preciso pedir "foto" com todas as
-    -- letras, e quem escrevia "me encaminha o 5717" recebia so o card.
+    -- 224: FOTO SO QUANDO ELE PEDE (Pedro, 30/09): falou em foto, ou pediu um
+    -- imovel claro com "me manda/envia/encaminha". Sem pedido vai o card, que
+    -- tem todas as informacoes. (De 16/09 a 30/09 a foto ia sempre.)
     v_gate := coalesce(nai_deve_mandar_fotos(t.contato_id, k.telefone, coalesce(p_escreveu, '')), false);
   END IF;
   -- 190: turno da BUSCA sem card na resposta (pergunta do filtro, lista) nao
@@ -402,6 +402,37 @@ BEGIN
   -- formato e de sugestao de visita cairam por isso.
   IF v_gate AND coalesce(array_length(v_cods, 1), 0) = 0 THEN
     v_gate := false;
+  END IF;
+
+  -- 224: FOTO SO DO IMOVEL CERTO. Pedido de foto na mao, sai foto so do imovel
+  -- que bate com o negocio (locacao/venda) e o tipo (casa/apartamento) da
+  -- conversa -- a nao ser o que ele mesmo citou (codigo digitado em 3 dias,
+  -- nome do condominio agora). Em 29/09, numa conversa de venda, sairam 24
+  -- fotos de um de locacao.
+  IF v_gate THEN
+    DECLARE
+      v_neg224 text := nai_negocio_da_conversa(t.contato_id, coalesce(p_escreveu, ''));
+      v_tp224  text := nai_tipo_da_conversa(t.contato_id, coalesce(p_escreveu, ''));
+      v_citou  int[] := nai_codigos_que_ele_digitou(t.contato_id)
+                        || coalesce(nai_imovel_pelo_condominio(coalesce(p_escreveu, ''), coalesce(k.telefone, '')), '{}'::int[]);
+      v_fora   int[];
+    BEGIN
+      SELECT coalesce(array_agg(c), '{}') INTO v_fora FROM unnest(v_cods) c
+       WHERE NOT (c = ANY (v_citou))
+         AND (NOT nai_finalidade_serve(c, v_neg224)
+              OR (v_tp224 IS NOT NULL
+                  AND EXISTS (SELECT 1 FROM imoveis i WHERE i.codigo = c
+                                 AND i.tipo IS NOT NULL AND i.tipo NOT ILIKE v_tp224)));
+      IF coalesce(array_length(v_fora, 1), 0) > 0 THEN
+        v_cods := ARRAY(SELECT c FROM unnest(v_cods) c WHERE NOT (c = ANY (v_fora)));
+        PERFORM nai_anotar(p_turno, 15, 'foto_fora_do_pedido', 'mudou',
+          'sem foto de ' || array_to_string(v_fora, ', ') || ' (conversa: '
+          || coalesce(v_neg224, '?') || ', ' || coalesce(nai_rotulo_do_tipo(v_tp224), '?') || ')');
+        IF coalesce(array_length(v_cods, 1), 0) = 0 THEN
+          v_gate := false;
+        END IF;
+      END IF;
+    END;
   END IF;
 
   -- IMOVEL INDISPONIVEL NAO LEVA FOTO (138): a resposta de situacao lista os
@@ -434,7 +465,20 @@ BEGIN
 
   PERFORM nai_anotar(p_turno, 15, 'portao_de_fotos', CASE WHEN v_gate THEN 'mudou' ELSE 'passou' END,
                      CASE WHEN v_gate THEN 'ele pediu foto; imóveis: ' || coalesce(array_to_string(v_cods, ', '), 'nenhum')
-                          ELSE 'ele não pediu foto' END);
+                          ELSE 'sem foto: ele não pediu, ou o imóvel não bate com o pedido' END);
+
+  -- 224: SEM FOTO, SEM PROMESSA DE FOTO. A frase do modelo que anuncia foto
+  -- ("segue as fotos", "já te mando as fotos") sai quando nenhuma foto vai.
+  -- Se a frase era tudo o que ela ia dizer ("Claro! Segue as fotos."), fica: e
+  -- dali que sai o "de qual imovel voce quer as fotos?" quando ele pediu foto.
+  IF NOT v_gate AND v_texto ~* nai_re_promete_foto() THEN
+    v_novo := nai_tirar_frase(v_texto, nai_re_promete_foto());
+    IF length(regexp_replace(v_novo, '\W', '', 'g')) >= 12 THEN
+      v_texto := v_novo;
+      v_guarda := coalesce(v_guarda || '+', '') || 'promessa_de_foto';
+      PERFORM nai_anotar(p_turno, 16, 'promessa_sem_foto', 'mudou', 'nenhuma foto vai: a frase das fotos saiu');
+    END IF;
+  END IF;
 
   -- 16 ------------------------------- NEGOU FOTO QUE EXISTE / PROMETEU A QUE NÃO
   IF v_gate AND v_texto ~* nai_re_nega_foto() AND coalesce(array_length(v_cods, 1), 0) >= 1 THEN

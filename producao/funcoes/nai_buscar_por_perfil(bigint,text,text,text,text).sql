@@ -492,8 +492,8 @@ BEGIN
        -- 222: o semimobiliado pergunta se serve
        || CASE WHEN coalesce(v_aqui, '') || coalesce(v_alt, '') ~ 'está 80% mobiliado'
                THEN E'\n\n' || 'Esse imóvel está 80% mobiliado, serve para seu cliente?' ELSE '' END),
-      ('e um imovel so nesse perfil: mande o card EXATAMENTE como veio. O sistema manda as '
-       || 'fotos e a sugestao de visita logo depois.')::text;
+      ('e um imovel so nesse perfil: mande o card EXATAMENTE como veio. O sistema manda a '
+       || 'sugestao de visita logo depois; foto so sai se ele pedir.')::text;
     RETURN;
   END IF;
 

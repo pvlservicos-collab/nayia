@@ -13,7 +13,10 @@ BEGIN
     RETURN jsonb_build_object('ok', true, 'achou', false);
   END IF;
   PERFORM nai_enfileirar_texto(p_turno, NULL, t.contato_id, 'turno', v_card, 'card', 1);
-  IF NOT EXISTS (SELECT 1 FROM imoveis WHERE codigo = p_codigo AND coalesce(e_parceiro, false)) THEN
+  -- 224: o codigo solto ("5724") leva o card; a foto so se ele pediu
+  IF NOT EXISTS (SELECT 1 FROM imoveis WHERE codigo = p_codigo AND coalesce(e_parceiro, false))
+     AND coalesce(nai_deve_mandar_fotos(t.contato_id,
+                    (SELECT k.telefone FROM nai_contato k WHERE k.id = t.contato_id), t.texto), false) THEN
     FOR f IN SELECT * FROM nai_imagens_do_envio(p_codigo) LOOP
       v_ordem := v_ordem + 1;
       INSERT INTO nai_saida (turno_id, contato_id, papel_destino, chave_destino, tipo, imagem_url, codigo, ordem, motivo)
