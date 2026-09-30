@@ -32,8 +32,14 @@ export async function POST(req: NextRequest) {
     const digitos = String(corpo?.telefone || '').replace(/\D/g, '')
     if (digitos.length < 10 || digitos.length > 13) return apiError(400, 'Número inválido: use DDD + número.')
     const nome = String(corpo?.nome || '').trim().slice(0, 120)
-    const linha = await integracaoDoTipo(auth.organizationId, 'whatsapp_zapi')
-    if (!linha) return apiError(400, 'A linha da Parceria não está configurada.')
+    // CADA LUPA ABRE NA SUA LINHA (Pedro, 30/09: "digitar um número novo lá na lupa de
+    // captação para iniciar uma conversa ... cada lupa abre uma conversa com cada contato")
+    const TIPO_DA_LINHA: Record<string, string> = {
+      parceria: 'whatsapp_zapi', captacao: 'whatsapp_zapi_captacao', oficial: 'whatsapp_cloud_official',
+    }
+    const tipo = TIPO_DA_LINHA[String(corpo?.linha || 'parceria')] || 'whatsapp_zapi'
+    const linha = await integracaoDoTipo(auth.organizationId, tipo)
+    if (!linha) return apiError(400, 'Essa linha de WhatsApp não está configurada.')
 
     const [principal] = formas(digitos)
     const existente = await acharLeadDaLinha(auth.organizationId, formas(digitos), linha)

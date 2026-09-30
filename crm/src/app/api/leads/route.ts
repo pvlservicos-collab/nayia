@@ -66,7 +66,18 @@ export async function GET(req: NextRequest) {
       isNull(leads.deletedAt),
     ]
 
-    if (q) conditions.push(or(ilike(leads.title, `%${q}%`), ilike(leads.email, `%${q}%`), ilike(leads.phone, `%${q}%`))!)
+    if (q) {
+      // A LUPA GERAL PROCURA POR "CONTÉM" (Pedro, 30/09: "só aparece quando eu digito o
+      // número exato"). O número é comparado só pelos dígitos -- "(92) 99163", "92 9163"
+      // e "991630597" acham o mesmo contato -- e pelos 8 finais, que não dependem do 9.
+      const dig = q.replace(/\D/g, '')
+      const pedacos = [dig, dig.length >= 8 ? dig.slice(-8) : ''].filter((x) => x.length >= 3)
+      conditions.push(or(
+        sql`translate(lower(coalesce(${leads.title}, '')), 'áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') LIKE ${'%' + q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') + '%'}`,
+        ilike(leads.email, `%${q}%`), ilike(leads.phone, `%${q}%`),
+        ...pedacos.map((p) => sql`regexp_replace(coalesce(${leads.phone}, ''), '[^0-9]', '', 'g') LIKE ${'%' + p + '%'}`),
+      )!)
+    }
     if (phone) conditions.push(ilike(leads.phone, `%${phone}%`))
     if (assignedTo) conditions.push(eq(leads.ownerMemberId, assignedTo))
     if (owner) conditions.push(eq(leads.ownerMemberId, owner))

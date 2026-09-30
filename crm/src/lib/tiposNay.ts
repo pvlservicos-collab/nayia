@@ -163,4 +163,6 @@ export const EVENTO_DA_VISITA: Record<string, string> = {
 export interface DonoNaLista {
   nome: string | null; condominio: string | null; codigo: string | null; bairro: string | null
   tipo: string | null; captacaoId: number; imoveis: number
+  /** as abas da captação (migração 236): em_andamento, disponiveis, alugados... */
+  abas?: string[]
 }

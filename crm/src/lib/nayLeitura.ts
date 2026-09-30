@@ -190,6 +190,13 @@ export async function pararOuDevolverANay(telefone: string, acao: 'parar' | 'vol
   return { ok: !!l?.ok, mensagem: String(l?.mensagem || 'Sem resposta da Nay.') }
 }
 
+/** "Nay atender com instrução" (migração 235): guarda a instrução por 48 h e solta a Nay. */
+export async function instruirANay(telefone: string, texto: string, quem: string): Promise<{ ok: boolean; mensagem: string }> {
+  const r = await naydb().query('SELECT * FROM crm_nay_instruir($1::text, $2::text, $3::text)', [telefone, texto, quem])
+  const l = r.rows[0]
+  return { ok: !!l?.ok, mensagem: String(l?.mensagem || 'Sem resposta da Nay.') }
+}
+
 /** O registro da captação (migração 177), para a conferência do CRM. */
 export interface MensagemDaCaptacao {
   id: number; telefone: string; nome: string | null; direcao: string; origem: string
@@ -272,6 +279,8 @@ export async function mensagensDaParceria(desde: Date, ate: Date, limite = 2000)
 export interface DonoDaCaptacao {
   telefone: string; lid: string | null; nome: string | null; condominio: string | null
   codigo: string | null; bairro: string | null; tipo: string | null; captacaoId: number; imoveis: number
+  /** as abas da captação em que a IA pôs a pessoa (migração 236) */
+  abas: string[]
 }
 
 export async function donosDaCaptacao(): Promise<DonoDaCaptacao[]> {
@@ -280,6 +289,7 @@ export async function donosDaCaptacao(): Promise<DonoDaCaptacao[]> {
     telefone: String(l.telefone || ''), lid: l.chat_lid ?? null, nome: l.nome ?? null, condominio: l.condominio ?? null,
     codigo: l.codigo ?? null, bairro: l.bairro ?? null, tipo: l.tipo ?? null, captacaoId: Number(l.captacao_id),
     imoveis: Number(l.imoveis || 1),
+    abas: Array.isArray(l.abas) ? l.abas.map(String) : [],
   }))
 }
 

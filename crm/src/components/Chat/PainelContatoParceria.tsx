@@ -289,12 +289,15 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
   }
 
   /* ── Parar Nay / Nay voltar a atender (migração 176) ── */
-  const [mexendoNaNay, setMexendoNaNay] = useState<'parar' | 'voltar' | null>(null)
+  const [mexendoNaNay, setMexendoNaNay] = useState<'parar' | 'voltar' | 'instruir' | null>(null)
   const [avisoDaNay, setAvisoDaNay] = useState<{ ok: boolean; texto: string } | null>(null)
-  const pararOuVoltar = async (acao: 'parar' | 'voltar') => {
+  const [instrucao, setInstrucao] = useState('')
+  const pararOuVoltar = async (acao: 'parar' | 'voltar' | 'instruir') => {
+    if (acao === 'instruir' && !instrucao.trim()) { setAvisoDaNay({ ok: false, texto: 'Escreva a instrução antes.' }); return }
     setMexendoNaNay(acao); setAvisoDaNay(null)
     try {
-      const r = await fetch(`/api/leads/${lead.id}/nay`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao }) })
+      const r = await fetch(`/api/leads/${lead.id}/nay`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(acao === 'instruir' ? { acao, instrucao: instrucao.trim() } : { acao }) })
       const j = await r.json().catch(() => ({}))
       setAvisoDaNay({ ok: r.ok && j.ok !== false, texto: j.mensagem || j.error || 'Não consegui falar com a Nay.' })
     } catch {
@@ -533,6 +536,23 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
               <WarningCircle size={14} /> Não consegui ler a Nay agora.
             </p>
           )}
+
+          {/* Nay atender com instrução (Pedro, 30/09: "eu digito o histórico do cliente e o que ele
+              busca, clico e a Nay lê a conversa recente e atende baseado na instrução"; vale 48 h) */}
+          <div className="w-full mt-4 text-left">
+            <label htmlFor={`instr-${lead.id}`} className="text-[13px] block mb-1" style={{ color: 'var(--wa-text-2)' }}>Instrução para a Nay (vale 48 h)</label>
+            <textarea id={`instr-${lead.id}`} value={instrucao} rows={3} maxLength={4000}
+                      onChange={(e) => setInstrucao(e.target.value)}
+                      placeholder="Ex.: cliente dela quer 2 quartos mobiliado até 4 mil na Ponta Negra; se não tiver, ofereça 3 quartos até 4.400"
+                      className="w-full rounded-lg px-3 py-2 text-[14px] leading-5 resize-y min-h-[72px]"
+                      style={{ background: 'var(--wa-app)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }} />
+            <button type="button" onClick={() => void pararOuVoltar('instruir')} disabled={!!mexendoNaNay || !instrucao.trim()}
+                    className="mt-2 inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-semibold disabled:opacity-50"
+                    style={{ background: 'var(--wa-green)', color: 'var(--wa-green-ink)' }}
+                    title="A Nay lê a conversa recente e responde agora seguindo a instrução">
+              {mexendoNaNay === 'instruir' ? <CircleNotch size={14} className="animate-spin" /> : <Robot size={14} weight="fill" />} Nay atender com instrução
+            </button>
+          </div>
 
           {/* observação (Pedro, 29/09: "um quadradinho de observação, caixa de mensagem para escrever") */}
           <div className="w-full mt-4 text-left">

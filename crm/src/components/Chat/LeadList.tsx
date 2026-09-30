@@ -47,6 +47,21 @@ function esperandoResposta(l: { last_message_sender_type?: string | null; last_m
  * de dados, o sistema já sabe quem é), VISITAS, TEL (TAG TEL QUE É O TEL
  * ATENDENDO)". Proprietários, Visitas e Tel vêm da Nay (/api/parceria/marcas).
  */
+/* AS ABAS DA CAPTAÇÃO (Pedro, 30/09/2026): "as mesmas abas do parceria mas com uma
+   aparência levemente diferente ... a IA vai colocando as pessoas no automático".
+   Quem decide a aba é a campanha (crm_captacao_donos, migração 236); aqui é só o
+   desenho: cada aba com a sua cor (o pontinho), para não confundir com a Parceria. */
+const ABAS_DA_CAPTACAO: Array<{ chave: string; rotulo: string; cor: string; titulo: string; pessoa?: boolean }> = [
+  { chave: 'em_andamento', rotulo: 'Em andamento', cor: '#2563eb', titulo: 'Respondeu e a conversa ainda não fechou' },
+  { chave: 'disponiveis', rotulo: 'Disponíveis', cor: '#16a34a', titulo: 'O dono disse que o imóvel está disponível' },
+  { chave: 'alugados', rotulo: 'Alugados', cor: '#d97706', titulo: 'O dono disse que o imóvel está alugado' },
+  { chave: 'quer_vender', rotulo: 'Quer vender', cor: '#7c3aed', titulo: 'O dono quer vender' },
+  { chave: 'ja_vendeu', rotulo: 'Já vendeu', cor: '#6b7280', titulo: 'O dono disse que já vendeu' },
+  { chave: 'tem_outro_imovel', rotulo: 'Tem outro imóvel', cor: '#0891b2', titulo: 'O dono falou de outro imóvel' },
+  { chave: 'sem_resposta', rotulo: 'Sem resposta', cor: '#dc2626', titulo: 'Recebeu a mensagem da campanha e ainda não respondeu' },
+  { chave: 'com_o_tel', rotulo: 'Com o Tel', cor: '#be185d', titulo: 'A Nay parou: o Tel está com a conversa', pessoa: true },
+]
+
 const ETIQUETAS_DA_LINHA: Record<string, string[]> = {
   // um funil por número (29/09): as etapas da campanha, que o CRM põe sozinho (src/lib/funis.ts)
   captacao: ['Não respondeu', 'Respondeu', 'Disponível', 'Alugado', 'Vendido', 'Mandou os dados'],
@@ -407,6 +422,8 @@ export default function LeadList({
     } else {
       for (const lt of (l.lead_tags || []) as any[]) soma(`tag:${lt.tag_id}`)
       if (atendente) soma(`atendente:${atendente.id}`)
+      // as abas da captação (migração 236)
+      if (linha === 'captacao') for (const a of donos[l.id]?.abas || []) soma(`cap:${a}`)
     }
   }
 
@@ -435,6 +452,12 @@ export default function LeadList({
           ? [{ chave: 'rayssa', rotulo: rayssa.nome, grupo: 'pessoa' as const, cor: rayssa.cor, contagem: contagem.rayssa, faltam: contagem['faltam:rayssa'],
                titulo: `${rayssa.nome} está atendendo (mandou a última mensagem da equipe, pelo login dela)` }]
           : []),
+      ]
+    : linha === 'captacao'
+    ? [
+        { chave: 'all', rotulo: 'Todos', grupo: 'etapa' as const },
+        ...ABAS_DA_CAPTACAO.map((a) => ({ chave: `cap:${a.chave}`, rotulo: a.rotulo, cor: a.cor, titulo: a.titulo,
+                                          grupo: (a.pessoa ? 'pessoa' : 'etapa') as 'pessoa' | 'etapa', contagem: contagem[`cap:${a.chave}`] })),
       ]
     : [
         { chave: 'all', rotulo: 'Todas' },
@@ -467,6 +490,7 @@ export default function LeadList({
       return etapaDaParceria(l, marcas[l.id]) === (activeTab === 'all' ? 'todos' : activeTab)
     }
     if (activeTab === 'all') return true
+    if (activeTab.startsWith('cap:')) return (donos[l.id]?.abas || []).includes(activeTab.slice(4))
     if (activeTab === 'nao_lidas') return !!l.is_unread || l.id === selectedLeadId
     if (activeTab === 'rayssa') return daRayssa(l, marcas[l.id], atendenteDoLead[l.id])
     if (activeTab === 'tel') return doTel(l, marcas[l.id], atendenteDoLead[l.id])
@@ -613,6 +637,12 @@ export default function LeadList({
               <button type="button" onClick={() => { setSearch(''); setBuscaAberta(false) }} aria-label="Fechar a busca"><X size={16} /></button>
             </label>
           </div>
+        )}
+
+        {/* número que não temos: a lupa inicia a conversa nesta linha (Pedro, 30/09) */}
+        {buscaAberta && !verArquivadas && !searching && (
+          <BuscaDaLista soBotao linha={linha} texto={search} aoMudar={setSearch} achados={filtradas.length}
+                        aoAbrir={(id) => { setBuscaAberta(false); aoAbrirPorId?.(id) }} />
         )}
 
         {!verArquivadas && (

@@ -22,7 +22,11 @@ export function casaNaBusca(texto: string, lead: { title?: string | null; phone?
   return nome.includes(t)
 }
 
-export default function BuscaDaLista({ texto, aoMudar, achados, aoAbrir, placeholder }: {
+export default function BuscaDaLista({ texto, aoMudar, achados, aoAbrir, placeholder, linha, soBotao }: {
+  /** em qual número a conversa nova abre (parceria, captacao, oficial) */
+  linha?: string
+  /** só o botão "Abrir conversa com ...", sem o campo (a lupa de cima já tem o campo) */
+  soBotao?: boolean
   texto: string
   aoMudar: (t: string) => void
   achados: number
@@ -39,7 +43,7 @@ export default function BuscaDaLista({ texto, aoMudar, achados, aoAbrir, placeho
     setErro(null)
     try {
       const r = await fetch('/api/leads/abrir', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telefone: digitos }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telefone: digitos, linha: linha || 'parceria' }),
       })
       const j = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(j?.error || j?.message || 'Não consegui abrir a conversa.')
@@ -50,6 +54,20 @@ export default function BuscaDaLista({ texto, aoMudar, achados, aoAbrir, placeho
     } finally {
       setAbrindo(false)
     }
+  }
+
+  if (soBotao) {
+    if (!ehNumero || achados > 0) return null
+    return (
+      <div className="px-4 pb-2">
+        <button type="button" onClick={abrir} disabled={abrindo}
+                className="flex items-center gap-2 text-sm font-medium wa-busca__abrir">
+          <ChatCircleText size={16} />
+          {abrindo ? 'Abrindo…' : `Iniciar conversa com ${texto.trim()}`}
+        </button>
+        {erro && <p className="mt-1 text-xs text-red-600">{erro}</p>}
+      </div>
+    )
   }
 
   return (

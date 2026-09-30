@@ -18,7 +18,7 @@ import { and, desc, eq, isNull } from 'drizzle-orm'
 import { authenticateRequest, apiError } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { leadActivities, leads, profiles } from '@/lib/schema'
-import { historicoDaNay, marcasDaNay, pararOuDevolverANay } from '@/lib/nayLeitura'
+import { historicoDaNay, instruirANay, marcasDaNay, pararOuDevolverANay } from '@/lib/nayLeitura'
 
 /** O webhook da NAI no n8n da Nay (a mesma porta do fluxo antigo, pela rede interna). */
 const WEBHOOK_DA_NAI = process.env.NAI_WEBHOOK_URL || 'http://n8n-viux-n8n-1:5678/webhook/nai-atendimento-locacao'
@@ -51,8 +51,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!auth.userId) return apiError(403, 'Só quem entra no CRM para ou solta a Nay.')
     const { id } = await params
     const corpo = await req.json().catch(() => ({}))
-    const acao = corpo?.acao === 'parar' ? 'parar' : corpo?.acao === 'voltar' ? 'voltar' : null
+    const acao = corpo?.acao === 'parar' ? 'parar' : corpo?.acao === 'voltar' ? 'voltar' : corpo?.acao === 'instruir' ? 'instruir' : null
     if (!acao) return apiError(400, 'Ação inválida.')
+    const instrucao = String(corpo?.instrucao || '').trim().slice(0, 4000)
+    if (acao === 'instruir' && !instrucao) return apiError(400, 'Escreva a instrução antes.')
     const [lead] = await db
       .select({ telefone: leads.phone, titulo: leads.title })
       .from(leads)
@@ -62,7 +64,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const [perfil] = await db.select({ nome: profiles.fullName }).from(profiles).where(eq(profiles.id, auth.userId)).limit(1)
     const quem = perfil?.nome?.trim() || 'alguém no CRM'
 
-    const r = await pararOuDevolverANay(lead.telefone, acao, quem)
+    // 235: "Nay atender com instrução" guarda o recado (48 h) e segue como o "voltar":
+    // reentrega o que a pessoa escreveu para a Nay responder agora, já com a instrução
+    const r = acao === 'instruir' ? await instruirANay(lead.telefone, instrucao, quem) : await pararOuDevolverANay(lead.telefone, acao, quem)
     if (!r.ok || acao === 'parar') return Response.json({ ...r, reentregou: false }, { status: r.ok ? 200 : 409 })
 
     // o que a pessoa escreveu depois da nossa última mensagem (até 7 dias; 228: eram
@@ -75,11 +79,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .limit(40)
     const dela: string[] = []
     let soMidia = 0
+    let pulouNossa = false
     for (const a of recentes) {
       const m = (a.metadata || {}) as Record<string, any>
-      if (m.direction !== 'inbound') break
+      // com instrução, a Nay responde AGORA: se a última palavra é nossa, pula as nossas
+      // e reentrega a última mensagem dela (das últimas 48 h)
+      if (m.direction !== 'inbound') { if (acao === 'instruir' && !dela.length) { pulouNossa = true; continue } break }
+      if (acao === 'instruir' && pulouNossa && dela.length) break
       if (m.is_reaction || m.deleted) continue
-      if (a.em && Date.now() - new Date(a.em).getTime() > 7 * 24 * 3600_000) break
+      if (a.em && Date.now() - new Date(a.em).getTime() > (acao === 'instruir' ? 48 : 7 * 24) * 3600_000) break
       const texto = m.media_type === 'audio' ? (m.transcricao || '') : String(a.conteudo || '')
       const limpo = texto && !/^\[(áudio|audio|foto|imagem|vídeo|documento|figurinha)\]$/i.test(texto.trim()) ? texto.trim() : ''
       if (limpo) dela.unshift(limpo)
