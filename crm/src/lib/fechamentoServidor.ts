@@ -75,15 +75,24 @@ export async function atividadesDoLead(org: string, leadId: string): Promise<Ati
   })
 }
 
-/** Mídia que conta como documento: imagem, PDF/arquivo, vídeo; sem figurinha nem áudio. */
+/**
+ * Mídia que conta como documento: imagem, PDF/arquivo, vídeo, que a PESSOA mandou
+ * (as fotos de imóvel que a Nay manda não entram); sem figurinha nem áudio.
+ */
 export function ehDocumentoPossivel(a: Atividade): boolean {
-  if (!a.midia) return false
+  if (!a.midia || a.direcao !== 'recebida') return false
   if (a.texto.trim() === '[Figurinha]' || a.midia.mime === 'image/webp') return false
   return ['image', 'document', 'video'].includes(a.midia.tipo)
 }
 
-export async function escolhasDaRayssa(leadId: string): Promise<Map<string, { documento: string; papel: Papel | null }>> {
-  const r = await db.execute(sql`SELECT activity_id, documento, papel FROM fechamento_documentos WHERE lead_id = ${leadId}`)
+/**
+ * As escolhas da Rayssa pelas MENSAGENS, não pelo lead: quando duas conversas são
+ * juntadas (juntarConversaNaOutra) as mensagens mudam de lead e a escolha vai junto.
+ */
+export async function escolhasDaRayssa(activityIds: string[]): Promise<Map<string, { documento: string; papel: Papel | null }>> {
+  if (!activityIds.length) return new Map()
+  const r = await db.execute(sql`SELECT activity_id, documento, papel FROM fechamento_documentos
+                                   WHERE activity_id = ANY(${activityIds}::uuid[])`)
   return new Map((r.rows as any[]).map((l) => [l.activity_id, { documento: l.documento, papel: l.papel }]))
 }
 
@@ -115,15 +124,17 @@ export interface ItemDoFechamento {
  * Cada mídia com o documento: a escolha da Rayssa manda; sem ela, o automático
  * (nome do arquivo, legenda, mensagem curta da mesma pessoa até 2 min antes/depois).
  */
-export async function itensDoFechamento(atividades: Atividade[], leadId: string,
+export async function itensDoFechamento(atividades: Atividade[], _leadId: string,
                                         tipo: TipoChecklist | null): Promise<ItemDoFechamento[]> {
-  const escolhas = await escolhasDaRayssa(leadId)
-  const textos = atividades.filter((a) => !a.midia && a.texto.trim())
+  const midias = atividades.filter(ehDocumentoPossivel)
+  const escolhas = await escolhasDaRayssa(midias.map((a) => a.id))
+  // os textos da pessoa com a hora já lida (a lista vem em ordem de tempo)
+  const textos = atividades.filter((a) => !a.midia && a.direcao === 'recebida' && a.texto.trim())
+    .map((a) => ({ t: Date.parse(a.quando), texto: a.texto }))
   const itens: ItemDoFechamento[] = []
-  for (const a of atividades.filter(ehDocumentoPossivel)) {
+  for (const a of midias) {
     const t = Date.parse(a.quando)
-    const vizinhas = textos.filter((x) => x.direcao === a.direcao && Math.abs(Date.parse(x.quando) - t) <= 120_000)
-      .map((x) => x.texto)
+    const vizinhas = textos.filter((x) => Math.abs(x.t - t) <= 120_000).map((x) => x.texto)
     const legenda = a.texto && a.texto !== a.midia!.nome ? a.texto : null
     const escolha = escolhas.get(a.id)
     const auto = escolha ? null : identificarDocumento(a.midia!.nome, legenda, vizinhas, tipo)

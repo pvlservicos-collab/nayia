@@ -125,8 +125,12 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ etapa: 'soltar' }),
       })
       if (!r.ok) throw new Error('não tirou')
+      const resposta = await r.json().catch(() => ({} as any))
       const depois = { ...((lead as any).custom_attributes || {}) }
       if (depois.etapa_parceria === 'tel' || depois.etapa_parceria === 'rayssa') delete depois.etapa_parceria
+      // a etapa em que a Nay está (Visitas/Proprietários/Fechamento) volta para o card
+      if (resposta?.etapa && !depois.etapa_parceria) depois.etapa_parceria = resposta.etapa
+      depois.pessoa_solta_em = new Date().toISOString()
       onUpdateLead?.(lead.id, { custom_attributes: depois } as any)
       // a marca da Nay muda na hora: sem isto a etiqueta ficaria até o próximo minuto
       void recarregarMarcasDaParceria(true)

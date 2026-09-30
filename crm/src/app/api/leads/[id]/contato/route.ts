@@ -19,6 +19,19 @@ import { leads } from '@/lib/schema'
 import { publishEvent, channels, events } from '@/lib/realtime'
 import { DESTINOS_DA_PARCERIA } from '@/lib/etapaDaParceria'
 import { marcarEtapaNaNay } from '@/lib/nayLeitura'
+import { naydb } from '@/lib/nayDisparo'
+
+/** A etapa em que a Nay está com essa pessoa (visitas/proprietarios/fechamento), ou null. */
+async function etapaNaNay(telefone: string): Promise<string | null> {
+  if (!telefone) return null
+  try {
+    const r = await naydb().query('SELECT crm_etapa_da_nay($1::text) AS etapa', [telefone])
+    return r.rows[0]?.etapa ?? null
+  } catch (err: any) {
+    console.error('[etapa da nay]', err?.message || err)
+    return null
+  }
+}
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -60,10 +73,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       if (etapa === 'soltar') {
         const quem = auth.userId ? 'CRM ' + auth.userId.slice(0, 8) : 'CRM'
         const recado = await marcarEtapaNaNay(lead.phone || '', 'soltar', quem)
-        await db.execute(sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) - 'etapa_parceria',
-                 updated_at = now() WHERE id = ${id} AND custom_attributes->>'etapa_parceria' IN ('tel', 'rayssa')`)
+        // A etapa que a Nay conhece (217): se a Rayssa tinha posto em Visitas e depois
+        // escolheu "Rayssa", o card volta para Visitas, e não para Todos com a Nay calada.
+        const etapaDaNay = await etapaNaNay(lead.phone || '')
+        // pessoa_solta_em: a lista deixa de contar quem escreveu pelo login ANTES do ×
+        // (senão a conversa ficava para sempre na aba Rayssa/Tel)
+        await db.execute(sql`UPDATE leads SET custom_attributes =
+                 (CASE WHEN custom_attributes->>'etapa_parceria' IN ('tel', 'rayssa')
+                       THEN coalesce(custom_attributes, '{}'::jsonb) - 'etapa_parceria'
+                       ELSE coalesce(custom_attributes, '{}'::jsonb) END)
+                 || jsonb_build_object('pessoa_solta_em', now()::text)
+                 || CASE WHEN ${etapaDaNay}::text IS NOT NULL AND coalesce(custom_attributes->>'etapa_parceria', 'tel') IN ('tel', 'rayssa')
+                         THEN jsonb_build_object('etapa_parceria', ${etapaDaNay}::text, 'etapa_parceria_em', now()::text)
+                         ELSE '{}'::jsonb END,
+                 updated_at = now() WHERE id = ${id}`)
         await publishEvent(channels.orgLeads(auth.organizationId), events.LEAD_UPDATED, { id })
-        return Response.json({ ok: true, recado })
+        return Response.json({ ok: true, recado, etapa: etapaDaNay })
       }
       // 'tel' não é etapa do CRM: quem mostra a aba Tel é a marca da Nay
       // (telAtendendo). Aqui ele só avisa a Nay e limpa a escolha manual.

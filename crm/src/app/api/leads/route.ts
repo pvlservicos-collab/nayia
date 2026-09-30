@@ -147,12 +147,17 @@ export async function GET(req: NextRequest) {
         SELECT a.lead_id,
           -- Todos os autores, do mais recente pro mais antigo: quem é do time
           -- de atendimento decide a tela (a conta de admin não vira etiqueta).
+          -- O × da etiqueta Tel/Rayssa (pessoa_solta_em) zera a conta: quem
+          -- escreveu pelo login ANTES dele não prende mais a conversa na aba.
           array_agg(a.actor_member_id ORDER BY a.created_at DESC)
-            FILTER (WHERE a.actor_member_id IS NOT NULL AND ${manual}) AS autores,
+            FILTER (WHERE a.actor_member_id IS NOT NULL AND ${manual}
+                      AND a.created_at > coalesce(nullif(ld.custom_attributes->>'pessoa_solta_em', '')::timestamptz,
+                                                  '-infinity'::timestamptz)) AS autores,
           bool_or(${manual}) AS teve_manual,
           min(a.created_at) FILTER (WHERE a.metadata->>'automated' = 'true' OR a.metadata->>'source' = 'funnel') AS primeira_automatica,
           max(a.created_at) FILTER (WHERE a.metadata->>'direction' = 'inbound') AS ultima_do_lead
         FROM lead_activities a
+        LEFT JOIN leads ld ON ld.id = a.lead_id
         WHERE a.organization_id = ${auth.organizationId}
           AND a.lead_id = ANY(${sql.raw(`ARRAY['${leadIds.join("','")}']::uuid[]`)})
           AND a.metadata->>'direction' IS NOT NULL

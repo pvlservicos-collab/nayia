@@ -69,6 +69,8 @@ export function donoDoPapel(papel: Papel | null | undefined): Dono | null {
 export function marcaDoDocumento(chave: string, tipo: TipoChecklist, papel: Papel | null): string | null {
   const d = POR_CHAVE.get(chave)
   if (!d) return null
+  // documento do CORRETOR não marca a caixinha do cliente (o RG dele não é o do inquilino)
+  if (papel === 'corretor') return null
   if (tipo === 'locacao') return d.marca.locacao ?? null
   if (papel === 'vendedor') return d.marca.venda_vendedor ?? null
   if (papel === 'comprador') return d.marca.venda_comprador ?? null
@@ -245,7 +247,8 @@ export function lerCampos(mensagens: MensagemDeTexto[], tipo: TipoChecklist): Ca
         if (negocio) { por(negocio[1], valor, m, linha); continue }
       }
       // sem rótulo: o que tem forma própria
-      const cpf = linha.match(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/)
+      // CPF sem rótulo só no formato 000.000.000-00: 11 dígitos soltos é celular
+      const cpf = linha.match(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/)
       if (cpf && !valores[`${pessoa}_cpf`]) por(`${pessoa}_cpf`, cpf[0], m, linha)
       const email = linha.match(/[\w.+-]+@[\w-]+\.[\w.]+/)
       if (email && !valores[`${pessoa}_email`]) por(`${pessoa}_email`, email[0], m, linha)

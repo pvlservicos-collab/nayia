@@ -8,7 +8,7 @@
  *     assim que a Z-API e a Meta baixam o que nós mandamos, sem sessão;
  *   - as pastas públicas (logo da organização, que aparece no login).
  */
-import { mkdir, stat } from 'node:fs/promises'
+import { mkdir, rename, stat, unlink } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { NextRequest } from 'next/server'
 import { auth } from '@/lib/auth'
@@ -45,12 +45,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cami
     try {
       await stat(mini)
     } catch {
+      // grava num temporário e troca de nome: outra requisição nunca pega a
+      // miniatura pela metade (e ela ficaria presa no cache do navegador)
+      const tmp = `${mini}.${process.pid}.${Date.now()}.tmp`
       try {
         const sharp = (await import('sharp')).default
         await mkdir(dirname(mini), { recursive: true })
         await sharp(join(PASTA_DO_ARMAZEM, rel)).rotate().resize({ width: w, withoutEnlargement: true })
-          .jpeg({ quality: 70 }).toFile(mini)
+          .jpeg({ quality: 70 }).toFile(tmp)
+        await rename(tmp, mini)
       } catch (err) {
+        await unlink(tmp).catch(() => {})
         console.error('[midia] miniatura', rel, (err as Error)?.message)
         return servirArquivo(join(PASTA_DO_ARMAZEM, rel), tipo, req)
       }
