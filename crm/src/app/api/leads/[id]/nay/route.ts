@@ -14,7 +14,7 @@
  * passar e que a entrada do CRM ignora (não vira mensagem duplicada aqui).
  */
 import { NextRequest } from 'next/server'
-import { and, desc, eq, isNull } from 'drizzle-orm'
+import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 import { authenticateRequest, apiError } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { leadActivities, leads, profiles } from '@/lib/schema'
@@ -68,6 +68,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // reentrega o que a pessoa escreveu para a Nay responder agora, já com a instrução
     const r = acao === 'instruir' ? await instruirANay(lead.telefone, instrucao, quem) : await pararOuDevolverANay(lead.telefone, acao, quem)
     if (!r.ok || acao === 'parar') return Response.json({ ...r, reentregou: false }, { status: r.ok ? 200 : 409 })
+    // o card volta para TODOS aqui também (Pedro, 30/09: "hoje fazemos tudo por etapas"):
+    // sem isto a Nay voltava a atender e a conversa continuava na aba Tel/Rayssa
+    if (!/propriet/i.test(r.mensagem)) {
+      await db.update(leads).set({
+        customAttributes: sql`coalesce(${leads.customAttributes}, '{}'::jsonb) || jsonb_build_object('etapa_parceria', 'todos', 'etapa_parceria_em', now()::text)`,
+      }).where(eq(leads.id, id))
+    }
 
     // o que a pessoa escreveu depois da nossa última mensagem (até 7 dias; 228: eram
     // 24 h, e quem escreveu ontem de manhã e ficou sem resposta não recebia nada)

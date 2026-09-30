@@ -179,16 +179,22 @@ export default function LeadList({
      a Nay diz "o Tel escreveu pelo celular" (esse aviso é o eco de QUALQUER
      mensagem manual pela linha, não sabe de quem foi). */
   const daRayssa = (l: LeadWithOwner, m: any, atendente?: { nome: string } | null) => {
+    /* SÓ A ETAPA DECIDE (Pedro, 30/09/2026: "contatos que já estão marcados como todos
+       estão aparecendo lá na aba Rayssa ... essas tags de atendimento que usávamos antes
+       pode remover, hoje fazemos tudo por etapas"). Saiu o "quem mandou a última
+       mensagem pelo login dela": valia para sempre e vencia a etapa escolhida. Agora é
+       dela quem foi MANDADO para ela (no card, ou a marca 'Rayssa:' da Nay) -- e
+       qualquer etapa escolhida à mão (Todos, Visitas...) tira daqui. */
     const aMao = escolhaAMao(l as any)
     if (aMao === 'rayssa') return true
-    if (aMao === 'tel') return false      // mandado para o Tel no card: não é dela
-    return (!!rayssa && atendente?.nome === rayssa.nome) || !!(m?.telMotivo || '').startsWith('Rayssa:')
+    if (aMao) return false                // Todos, Visitas, Proprietários, Fechamento ou Tel: não é dela
+    return !!(m?.telMotivo || '').startsWith('Rayssa:')
   }
   const doTel = (l: LeadWithOwner, m: any, atendente?: { nome: string } | null) => {
     const aMao = escolhaAMao(l as any)
     if (aMao === 'tel') return true
-    if (aMao === 'rayssa') return false
-    return atendente?.nome === 'Tel' || (!!m?.telAtendendo && !daRayssa(l, m, atendente))
+    if (aMao) return false                // etapa escolhida à mão (inclusive Todos) tira do Tel
+    return !!m?.telAtendendo && !daRayssa(l, m, atendente)
   }
   /* QUEM ESTÁ COM UMA PESSOA SAI DAS ETAPAS: a conversa não está mais no fluxo
      da Nay, então não faz sentido contá-la em Todos nem em Visitas. */
@@ -417,7 +423,6 @@ export default function LeadList({
       if (daRayssa(l, m, atendente)) { soma('rayssa'); if (falta) soma('faltam:rayssa') }
       // "Tel": a Nay diz que ele está com a conversa OU ele mandou pelo login dele
       if (doTel(l, m, atendente)) { soma('tel'); if (falta) soma('faltam:tel') }
-      if (atendente && atendente.nome !== 'Tel') soma(`atendente:${atendente.id}`)
       for (const [k, ms] of JANELAS_DE_FOLLOWUP) if (esperandoResposta(l, ms, agora)) soma(k)
     } else {
       for (const lt of (l.lead_tags || []) as any[]) soma(`tag:${lt.tag_id}`)
@@ -462,7 +467,6 @@ export default function LeadList({
     : [
         { chave: 'all', rotulo: 'Todas' },
         { chave: 'nao_lidas', rotulo: 'Não lidas', contagem: contagem.nao_lidas },
-        ...atendentes.map((a) => ({ chave: `atendente:${a.id}`, rotulo: a.nome, cor: a.cor, contagem: contagem[`atendente:${a.id}`], titulo: `Conversas que ${a.nome} está atendendo` })),
         ...(ETIQUETAS_DA_LINHA[linha ?? ''] ?? [])
           .map((nome) => allTags.find((t: any) => t.name === nome))
           .filter(Boolean)
