@@ -93,7 +93,19 @@
   var msBairrosL = window.criarMultiSelecao($("f-bairros"), { dica: "todos os bairros", aoMudar: aoMudarFiltro });
   var msTiposL = window.criarMultiSelecao($("f-tipos"), { dica: "todos os tipos", aoMudar: aoMudarFiltro });
   var msCondosL = window.criarMultiSelecao($("f-condominios"), { dica: "todos os condomínios", aoMudar: aoMudarFiltro });
-  var MS_DA_LISTA = { bairros: [msBairrosL, "Bairro"], tipos: [msTiposL, "Tipo"], condominios: [msCondosL, "Condomínio"] };
+  /* CONJUNTO E AVENIDA (Pedro, 30/09: "quero essas listas de filtros lá no nosso
+     site, para pesquisar por conjunto ou avenida"). As mesmas listas da Nay
+     (nai_lugar_conjunto / nai_lugar_avenida): o conjunto traz o bairro dele, a
+     avenida traz os bairros por onde passa. Somam com os bairros marcados. */
+  // HTML antigo no cache (sem os dois campos) não pode derrubar a tela
+  function msSeTiver(el, cfg) {
+    return el ? window.criarMultiSelecao(el, cfg)
+      : { valores: function () { return []; }, definir: function () {}, opcoes: function () {}, limpar: function () {} };
+  }
+  var msConjuntosL = msSeTiver($("f-conjuntos"), { dica: "digite o conjunto", aoMudar: aoMudarFiltro });
+  var msAvenidasL = msSeTiver($("f-avenidas"), { dica: "digite a avenida", aoMudar: aoMudarFiltro });
+  var MS_DA_LISTA = { bairros: [msBairrosL, "Bairro"], conjuntos: [msConjuntosL, "Conjunto"],
+                      avenidas: [msAvenidasL, "Avenida"], tipos: [msTiposL, "Tipo"], condominios: [msCondosL, "Condomínio"] };
   // o link de outra tela (?condo=ID) continua filtrando pelo id do condomínio
   var condoDoLink = null;
 
@@ -243,7 +255,8 @@
       porGrupo[g.grupo] += g.multi ? v.length : (v ? 1 : 0);
     });
     porGrupo.imovel += msTiposL.valores().length;
-    porGrupo.onde += msBairrosL.valores().length + msCondosL.valores().length + (condoDoLink ? 1 : 0);
+    porGrupo.onde += msBairrosL.valores().length + msConjuntosL.valores().length + msAvenidasL.valores().length +
+                     msCondosL.valores().length + (condoDoLink ? 1 : 0);
     if (form.elements.vmin.value || form.elements.vmax.value) porGrupo.valor++;
     form.querySelectorAll(".ux-qtd[data-g]").forEach(function (e) {
       var q = porGrupo[e.dataset.g] || 0;
@@ -1374,6 +1387,13 @@
       msBairrosL.opcoes(op(d.bairros));
       msTiposL.opcoes(op(d.tipos));
       msCondosL.opcoes(op(d.condominios));
+      // o bairro vai no rótulo: digitar "parque 10" também acha os conjuntos de lá
+      msConjuntosL.opcoes((d.conjuntos || []).map(function (x) {
+        return { valor: x.valor, rotulo: x.valor + " · " + x.bairro, n: x.n };
+      }));
+      msAvenidasL.opcoes((d.avenidas || []).map(function (x) {
+        return { valor: x.valor, rotulo: x.valor + " · " + (x.bairros || []).join(", "), n: x.n };
+      }));
     })
     .catch(function () {});
   if (qs.get("status")) st.status = [qs.get("status")];

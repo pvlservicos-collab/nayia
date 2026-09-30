@@ -1598,8 +1598,24 @@ def api_imoveis_lista():
     def varios(nome):
         return [x.strip()[:80] for x in a.getlist(nome) if x and x.strip()][:60]
     bairros = varios("bairros")
+    # CONJUNTO E AVENIDA (Pedro, 30/09): viram os bairros deles, e somam com os
+    # bairros marcados -- é tudo "onde". O conjunto pega também o condomínio de
+    # mesmo nome (o Viver Melhor 4 do catálogo está na Colônia Terra Nova).
+    conjuntos = varios("conjuntos")
+    avenidas = varios("avenidas")
+    onde, onde_p = [], []
     if bairros:
-        base.append(("v.bairro = ANY(%s)", [bairros]))
+        onde.append("v.bairro = ANY(%s)")
+        onde_p.append(bairros)
+    if conjuntos:
+        onde.append("EXISTS (SELECT 1 FROM nai_lugar_conjunto c WHERE c.nome = ANY(%s) "
+                    "AND (v.bairro = c.bairro OR nai_lugar_normal(v.condominio) ~ c.expressao))")
+        onde_p.append(conjuntos)
+    if avenidas:
+        onde.append("v.bairro IN (SELECT unnest(a.bairros) FROM nai_lugar_avenida a WHERE a.nome = ANY(%s))")
+        onde_p.append(avenidas)
+    if onde:
+        base.append(("(" + " OR ".join(onde) + ")", onde_p))
     tipos = varios("tipos")
     if tipos:
         base.append(("v.tipo = ANY(%s)", [tipos]))
@@ -1894,8 +1910,22 @@ def api_imoveis_opcoes():
             return [{"valor": l["valor"], "n": l["n"]} for l in todas_linhas(conn,
                 "SELECT " + coluna + " AS valor, count(*) AS n FROM vw_imoveis_todos "
                 "WHERE coalesce(btrim(" + coluna + "), '') <> '' GROUP BY 1 ORDER BY 1")]
+        # CONJUNTOS E AVENIDAS (Pedro, 30/09): as listas da Nay (206). O conjunto
+        # conta o bairro dele e o condomínio de mesmo nome; a avenida, os bairros dela.
+        conjuntos = [{"valor": l["valor"], "bairro": l["bairro"], "n": l["n"]} for l in todas_linhas(conn, """
+            SELECT c.nome AS valor, c.bairro, count(v.codigo) AS n
+              FROM nai_lugar_conjunto c
+              LEFT JOIN vw_imoveis_todos v
+                ON v.bairro = c.bairro OR nai_lugar_normal(v.condominio) ~ c.expressao
+             WHERE c.ativo GROUP BY 1, 2 ORDER BY 1""")]
+        avenidas = [{"valor": l["valor"], "bairros": l["bairros"], "n": l["n"]} for l in todas_linhas(conn, """
+            SELECT a.nome AS valor, a.bairros, count(v.codigo) AS n
+              FROM nai_lugar_avenida a
+              LEFT JOIN vw_imoveis_todos v ON v.bairro = ANY (a.bairros)
+             WHERE a.ativo GROUP BY 1, 2 ORDER BY 1""")]
         return jsonify({"bairros": lista("bairro"), "tipos": lista("tipo"),
-                        "condominios": lista("condominio")}), 200, {"Cache-Control": "public, max-age=300"}
+                        "condominios": lista("condominio"), "conjuntos": conjuntos,
+                        "avenidas": avenidas}), 200, {"Cache-Control": "public, max-age=300"}
     finally:
         conn.close()
 
