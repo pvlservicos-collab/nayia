@@ -282,6 +282,11 @@ BEGIN
                               'contato_id', v_contato, 'papel', v_papel);
   END IF;
 
+  -- 223: a resposta dele à pergunta do perfil ("só serve com elevador?") vai para o perfil
+  IF v_papel = 'corretor' THEN
+    PERFORM nai_perfil_resposta(v_contato, v_texto, v_turno);
+  END IF;
+
   -- 141b: a etapa e atualizada ANTES de montar o cabecalho. Dentro do
   -- jsonb_build_object a ordem de avaliacao nao e garantida, e o contexto
   -- saiu com a etapa velha ("recebeu o imovel") no turno do "sim" da visita.
@@ -339,7 +344,8 @@ BEGIN
     -- 141: A ETAPA vem na frente do contexto (identificacao / recebeu o
     -- imovel / agendamento de visita) -- e o que a mantem no fio da conversa.
     'etapa', CASE WHEN v_papel = 'corretor' THEN (SELECT e.etapa FROM nai_etapa_contato e WHERE e.contato_id = v_contato) END,
-    'contexto', CASE WHEN v_papel = 'corretor' THEN nai_etapa_para_o_modelo(v_contato) || E'\n' || coalesce(nai_retomada_texto(v_contato), '') ELSE '' END
+    'contexto', CASE WHEN v_papel = 'corretor' THEN nai_etapa_para_o_modelo(v_contato) || E'\n' || coalesce(nai_retomada_texto(v_contato), '')
+                        || coalesce(E'\n' || nai_perfil_texto(v_contato), '') ELSE '' END
                 || nai_contexto(v_papel, v_contato, v_visita, v_teste)
                 || CASE WHEN v_papel IN ('corretor', 'tel')
                         THEN nai_giria_explica(v_texto) ELSE '' END,

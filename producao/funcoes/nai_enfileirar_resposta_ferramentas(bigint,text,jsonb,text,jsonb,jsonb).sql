@@ -133,6 +133,26 @@ BEGIN
     END IF;
   END IF;
 
+  -- 223: ELE PERGUNTOU DO ELEVADOR: depois da resposta, a pergunta do perfil
+  -- ("Para o seu cliente, só serve imóvel com elevador?"), uma vez por perfil
+  BEGIN
+    IF v_contato IS NOT NULL AND v_papel = 'corretor' AND coalesce(p_escreveu, '') ~* 'elevador'
+       AND EXISTS (SELECT 1 FROM nai_saida s WHERE s.turno_id = p_turno)
+       AND NOT EXISTS (SELECT 1 FROM nai_perfil_ativo(v_contato) pa
+                        WHERE pa.exige ? 'elevador' OR pa.pendente = 'elevador') THEN
+      PERFORM nai_perfil_gravar(v_contato, false, NULL, NULL, NULL, NULL, NULL, NULL);
+      UPDATE nai_perfil_cliente SET pendente = 'elevador', pendente_em = now()
+       WHERE id = (SELECT id FROM nai_perfil_ativo(v_contato));
+      -- uma pergunta por vez: a sugestão de visita deste turno sai (volta depois)
+      DELETE FROM nai_saida WHERE turno_id = p_turno AND motivo = 'sugere_visita' AND estado = 'pendente';
+      PERFORM nai_enfileirar_texto(p_turno, NULL, v_contato, 'turno',
+        'Para o seu cliente, só serve imóvel com elevador?', 'perfil_do_cliente', 95);
+      PERFORM nai_anotar(p_turno, 24, 'perfil_do_cliente', 'mudou', 'perguntou se o cliente só aceita com elevador');
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    NULL;   -- a pergunta do perfil nunca derruba a resposta
+  END;
+
   RETURN v_r;
 END;
 $function$;

@@ -41,9 +41,33 @@ DECLARE
   v_lug_rx       text;     -- 206: o nome do conjunto (condominio de mesmo nome vem primeiro)
   v_lug_rotulo   text;     -- 206: "Parque 10 de Novembro (bairro do Conjunto Eldorado)"
   v_ultima       text;     -- 215: a última pergunta do filtro que ela fez (24 h)
+  v_perfil       nai_perfil_cliente;  -- 223: o perfil do cliente deste pedido
+  v_pedido_novo  boolean := false;    -- 223: bairro ou valor diferente do perfil
+  v_elev         boolean := false;    -- 223: o cliente só aceita com elevador
 BEGIN
   SELECT * INTO t FROM nai_turno WHERE id = p_turno;
   SELECT * INTO k FROM nai_contato WHERE id = t.contato_id;
+
+  -- 223: O PERFIL DO CLIENTE. Bairro ou valor DIFERENTE do perfil em andamento é
+  -- pedido novo (Pedro: "pediu locação em um bairro até 4k, depois locação em outro a
+  -- partir de 3k"); senão, o que a chamada não trouxe vem do perfil.
+  SELECT * INTO v_perfil FROM nai_perfil_ativo(k.id);
+  IF v_perfil.id IS NOT NULL THEN
+    v_pedido_novo :=
+         (nullif(btrim(coalesce(p_bairro, '')), '') IS NOT NULL AND v_perfil.bairros IS NOT NULL
+          AND NOT nai_sem_preferencia_de_bairro(p_bairro)
+          AND nay_normalizar_lugar(p_bairro, true) <> nay_normalizar_lugar(v_perfil.bairros, true))
+      OR (v_teto IS NOT NULL AND v_perfil.teto IS NOT NULL AND abs(v_teto - v_perfil.teto) > 0.1 * v_perfil.teto);
+    IF NOT v_pedido_novo THEN
+      p_bairro   := coalesce(nullif(btrim(coalesce(p_bairro, '')), ''), v_perfil.bairros);
+      p_teto     := coalesce(nullif(btrim(coalesce(p_teto, '')), ''), v_perfil.teto::text);
+      p_quartos  := coalesce(nullif(btrim(coalesce(p_quartos, '')), ''), v_perfil.quartos);
+      p_mobilia  := coalesce(nullif(btrim(coalesce(p_mobilia, '')), ''), v_perfil.mobilia);
+      v_teto     := coalesce(nay_maior_valor(p_teto), nay_valor_em_reais(p_teto));
+      v_mob      := lower(unaccent(btrim(coalesce(p_mobilia, ''))));
+      v_elev     := coalesce((v_perfil.exige->>'elevador')::boolean, false);
+    END IF;
+  END IF;
 
   -- 218: QUARTOS -- "1 ou 2" é de 1 a 2 (antes virava 12); "2 ou mais" é 2 para cima
   SELECT min(x[1]::int), max(x[1]::int) INTO v_q_min, v_q_max
@@ -118,6 +142,13 @@ BEGIN
                     WHEN v_rotulo IN ('casa', 'cobertura', 'sala', 'chácara') THEN 'nenhuma ' || v_rotulo
                     ELSE 'nenhum ' || v_rotulo END;
   v_diz     := CASE WHEN v_negocio = 'venda' THEN 'venda' ELSE 'locação' END;
+  -- 223: o "não" educado diz o que falta ("nenhum apartamento com elevador")
+  IF v_elev THEN v_nada := v_nada || ' com elevador'; END IF;
+  -- 223: grava o perfil deste pedido (o que veio preenche; pedido novo começa outro)
+  PERFORM nai_perfil_gravar(k.id, v_pedido_novo, p_bairro, v_teto, p_quartos, p_mobilia, v_negocio, v_tipo);
+  IF v_pedido_novo THEN
+    PERFORM nai_anotar(p_turno, 7, 'perfil_do_cliente', 'mudou', 'pedido novo: outro bairro ou outro valor');
+  END IF;
 
   -- O TETO E DELE, MAS A LISTA E NOSSA (100, Tel 23/09). Ele pediu os
   -- valores, ou o que existe cabe numa mensagem: mostra, nao peneira.
@@ -281,7 +312,7 @@ BEGIN
      WHERE (v_livre OR nay_normalizar_lugar(i.bairro, true) LIKE '%' || nay_normalizar_lugar(p_bairro, true) || '%'
             OR i.bairro = ANY (v_lug_bairros))
        AND nai_oferta_serve(i, k.telefone, v_teto, v_q, v_sem, v_com, v_negocio, v_tipo)
-       AND (v_q_min IS NULL OR coalesce(i.quartos, 0) BETWEEN v_q_min AND v_q_max)  -- 218
+       AND (v_q_min IS NULL OR coalesce(i.quartos, 0) BETWEEN v_q_min AND v_q_max) AND (NOT v_elev OR nai_imovel_tem_elevador(i.codigo) IS TRUE)  -- 218
      ORDER BY (v_lug_rx IS NOT NULL AND nai_lugar_normal(i.condominio_nome) ~ v_lug_rx) DESC, 2 LIMIT 5) z;
 
   -- 219: AO REDOR PELO MAPA -- divisa ou até 3 km dos bairros pedidos (um ou vários)
@@ -301,7 +332,7 @@ BEGIN
          AND nay_normalizar_lugar(i.bairro, true) NOT LIKE '%' || nay_normalizar_lugar(p_bairro, true) || '%'
          AND i.bairro <> ALL (coalesce(v_lug_bairros, '{}'::text[]))
          AND nai_oferta_serve(i, k.telefone, v_teto, v_q, v_sem, v_com, v_negocio, v_tipo)
-       AND (v_q_min IS NULL OR coalesce(i.quartos, 0) BETWEEN v_q_min AND v_q_max)  -- 218
+       AND (v_q_min IS NULL OR coalesce(i.quartos, 0) BETWEEN v_q_min AND v_q_max) AND (NOT v_elev OR nai_imovel_tem_elevador(i.codigo) IS TRUE)  -- 218
        ORDER BY (v_lug_rx IS NOT NULL AND nai_lugar_normal(i.condominio_nome) ~ v_lug_rx) DESC, 2 LIMIT 5) z;
   END IF;
 
@@ -316,7 +347,7 @@ BEGIN
        WHERE (v_livre OR nay_normalizar_lugar(i.bairro, true) LIKE '%' || nay_normalizar_lugar(p_bairro, true) || '%'
               OR i.bairro = ANY (v_lug_bairros))
          AND nai_oferta_serve(i, k.telefone, NULL, v_q, v_sem, v_com, v_negocio, v_tipo)
-         AND (v_q_min IS NULL OR coalesce(i.quartos, 0) BETWEEN v_q_min AND v_q_max)
+         AND (v_q_min IS NULL OR coalesce(i.quartos, 0) BETWEEN v_q_min AND v_q_max) AND (NOT v_elev OR nai_imovel_tem_elevador(i.codigo) IS TRUE)
          AND CASE WHEN v_negocio = 'venda'
                   THEN coalesce(i.valor_venda, 0) > 0
                        AND i.valor_venda <= v_teto * (1 + nai_cfg_int('faixa_acima_pct', 10) / 100.0)
@@ -332,7 +363,7 @@ BEGIN
           FROM imoveis i
          WHERE i.bairro = ANY (v_viz)
            AND nai_oferta_serve(i, k.telefone, NULL, v_q, v_sem, v_com, v_negocio, v_tipo)
-           AND (v_q_min IS NULL OR coalesce(i.quartos, 0) BETWEEN v_q_min AND v_q_max)
+           AND (v_q_min IS NULL OR coalesce(i.quartos, 0) BETWEEN v_q_min AND v_q_max) AND (NOT v_elev OR nai_imovel_tem_elevador(i.codigo) IS TRUE)
            AND CASE WHEN v_negocio = 'venda'
                     THEN coalesce(i.valor_venda, 0) > 0
                          AND i.valor_venda <= v_teto * (1 + nai_cfg_int('faixa_acima_pct', 10) / 100.0)
@@ -370,7 +401,7 @@ BEGIN
          WHERE (v_livre OR nay_normalizar_lugar(i.bairro, true) LIKE '%' || nay_normalizar_lugar(p_bairro, true) || '%'
             OR i.bairro = ANY (v_lug_bairros))
            AND nai_oferta_serve(i, k.telefone, v_teto, v_q, v_sem, v_com, v_negocio, NULL)
-           AND (v_q_min IS NULL OR coalesce(i.quartos, 0) BETWEEN v_q_min AND v_q_max)  -- 218
+           AND (v_q_min IS NULL OR coalesce(i.quartos, 0) BETWEEN v_q_min AND v_q_max) AND (NOT v_elev OR nai_imovel_tem_elevador(i.codigo) IS TRUE)  -- 218
          ORDER BY (v_lug_rx IS NOT NULL AND nai_lugar_normal(i.condominio_nome) ~ v_lug_rx) DESC, 2 LIMIT 5) z;
       IF v_aqui IS NOT NULL THEN
         RETURN QUERY SELECT
