@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { ChatCircleText, CalendarCheck } from '@phosphor-icons/react'
+import { ChatCircleText, CalendarCheck, ClipboardText } from '@phosphor-icons/react'
 
 /**
  * As abas da Parceria, na faixa de cima da tela (Pedro, 29/09/2026: "quero que
@@ -13,7 +13,7 @@ import { ChatCircleText, CalendarCheck } from '@phosphor-icons/react'
  * Depois das abas, até o canto direito, vem a barra de métricas (`children`):
  * fica à vista no chat e na agenda, não é aba (Pedro, 29/09).
  */
-export type AbaDaParceria = 'conversas' | 'visitas'
+export type AbaDaParceria = 'conversas' | 'visitas' | 'fechamento'
 
 export default function AbasParceria({ aba, aoMudar, naoLidas, visitasAbertas, children }: {
   aba: AbaDaParceria
@@ -45,6 +45,7 @@ export default function AbasParceria({ aba, aoMudar, naoLidas, visitasAbertas, c
       <div className="wa-abas__abas" role="tablist" aria-label="Abas da Parceria">
         {aba_('conversas', 'Conversas', ChatCircleText, naoLidas, 'As conversas do WhatsApp da Parceria')}
         {aba_('visitas', 'Visitas agendadas', CalendarCheck, visitasAbertas, 'As visitas que a Nay agendou, com o andamento e as datas')}
+        {aba_('fechamento', 'Fechamento', ClipboardText, 0, 'Os checklists de aluguel e venda para o contrato')}
       </div>
       {children}
     </div>

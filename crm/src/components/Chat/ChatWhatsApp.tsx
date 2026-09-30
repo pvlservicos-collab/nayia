@@ -12,9 +12,11 @@ import NotAuthorized from '@/components/Shared/NotAuthorized'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 import AbasParceria, { type AbaDaParceria } from './AbasParceria'
 import VisitasAgendadas from './VisitasAgendadas'
+import FechamentoChecklists from './FechamentoChecklists'
 import BarraDeMetricas from './BarraDeMetricas'
 import BarraDaCaptacao from './BarraDaCaptacao'
 import CardDoDonoCaptacao from './CardDoDonoCaptacao'
+import EtapaDoLead from './EtapaDoLead'
 import PainelContatoParceria from './PainelContatoParceria'
 
 /** Última conversa aberta nesta tela, pra reabrir no próximo acesso. */
@@ -291,6 +293,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
       numero={identidade.numero}
       selectedLeadId={displayedLead?.id}
       onSelectLead={handleSelectLead}
+      aoAbrirPorId={abrirConversaPorId}
       onUpdateLead={handleUpdateLead}
       loading={false}
       organizationId={organizationId}
@@ -349,7 +352,12 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
         currentPipelineId={currentPipelineId}
         onPipelineChange={handlePipelineChange}
         onClose={modo === 'gaveta' ? alternarPainel : undefined}
-        extra={linha === 'captacao' ? <CardDoDonoCaptacao key={displayedLead.id} leadId={displayedLead.id} /> : undefined}
+        extra={linha === 'captacao'
+          ? <CardDoDonoCaptacao key={displayedLead.id} leadId={displayedLead.id} />
+          : undefined}
+        topo={ehParceria
+          ? <EtapaDoLead key={displayedLead.id} lead={displayedLead} onUpdateLead={handleUpdateLead} />
+          : undefined}
       />
     )
     if (modo === 'lateral') return antigo
@@ -379,6 +387,8 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
         {!naConversa && abas}
         {ehParceria && aba === 'visitas' ? (
           <div className="flex-1 min-h-0 flex"><VisitasAgendadas aoAbrirConversa={abrirConversaPorId} destaque={visitaDestaque} /></div>
+        ) : ehParceria && aba === 'fechamento' ? (
+          <div className="flex-1 min-h-0 overflow-y-auto"><FechamentoChecklists /></div>
         ) : mobileView === 'list' ? (
           <div className="flex-1 min-h-0">{lista}</div>
         ) : (
@@ -396,6 +406,8 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
       <div className="flex flex-1 min-h-0">
         {ehParceria && aba === 'visitas' ? (
           <VisitasAgendadas aoAbrirConversa={abrirConversaPorId} destaque={visitaDestaque} />
+        ) : ehParceria && aba === 'fechamento' ? (
+          <div className="flex-1 min-h-0 overflow-y-auto"><FechamentoChecklists /></div>
         ) : (
           <>
             {/* A lista: 30% da tela, entre 300 e 440 px, como no WhatsApp Web */}

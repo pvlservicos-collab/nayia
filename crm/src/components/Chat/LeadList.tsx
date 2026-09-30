@@ -12,8 +12,10 @@ import { useCaptacaoDonos } from '@/hooks/useCaptacaoDonos'
 import { montarAtendentes, atendenteDaConversa, type Atendente } from '@/lib/atendentes'
 import LeadListItem from './LeadListItem'
 import ChatFilterTabs, { type ChatTab, type FiltroDaLista } from './ChatFilterTabs'
+import BuscaDaLista, { casaNaBusca } from './BuscaDaLista'
 import { conversaEstaNaLinha, type LinhaWhatsapp } from '@/lib/leadChannel'
 import { pedeResposta } from '@/lib/esperaResposta'
+import { etapaDaParceria, escolhaAMao } from '@/lib/etapaDaParceria'
 
 /*
  * FOLLOW-UP DA PARCERIA (Pedro, 29/09/2026): "Últimas 6h | Últimas 24h | Essa
@@ -61,6 +63,8 @@ interface LeadListProps {
   numero?: string
   selectedLeadId?: string
   onSelectLead: (lead: LeadWithOwner) => void
+  /** abrir conversa pelo id: a busca da etapa Proprietários precisa (30/09) */
+  aoAbrirPorId?: (leadId: string) => void
   onUpdateLead?: (leadId: string, updates: Partial<LeadWithOwner>) => void
   loading: boolean
   organizationId?: string | null
@@ -114,6 +118,7 @@ export default function LeadList({
   numero,
   selectedLeadId,
   onSelectLead,
+  aoAbrirPorId,
   onUpdateLead,
   loading,
   organizationId,
@@ -122,6 +127,8 @@ export default function LeadList({
   const [search, setSearch] = useState('')
   const [buscaAberta, setBuscaAberta] = useState(false)
   const [activeTab, setActiveTab] = useState<ChatTab>('all')
+  // a busca por nome/número, só na etapa Proprietários (30/09)
+  const [buscaDono, setBuscaDono] = useState('')
   const [verArquivadas, setVerArquivadas] = useState(false)
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ visible: false, x: 0, y: 0, lead: null })
 
@@ -148,6 +155,30 @@ export default function LeadList({
   const rayssa = useMemo(
     () => atendentes.find((a) => a.nome.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().startsWith('rayssa')),
     [atendentes])
+
+  /* TEL x RAYSSA (Pedro, 30/09): "todo mundo da aba Tel e que tenha a tag Tel
+     joga para a Rayssa, ela tava respondendo pelo login dele".
+     A Nay marca "o Tel está com a conversa" nos dois casos -- o que separa é o
+     motivo ('Rayssa: …', migração 201) e quem mandou a última mensagem manual.
+     Quem atendeu pelo login manda: se a última foi dela, é dela, mesmo quando
+     a Nay diz "o Tel escreveu pelo celular" (esse aviso é o eco de QUALQUER
+     mensagem manual pela linha, não sabe de quem foi). */
+  const daRayssa = (l: LeadWithOwner, m: any, atendente?: { nome: string } | null) => {
+    const aMao = escolhaAMao(l as any)
+    if (aMao === 'rayssa') return true
+    if (aMao === 'tel') return false      // mandado para o Tel no card: não é dela
+    return (!!rayssa && atendente?.nome === rayssa.nome) || !!(m?.telMotivo || '').startsWith('Rayssa:')
+  }
+  const doTel = (l: LeadWithOwner, m: any, atendente?: { nome: string } | null) => {
+    const aMao = escolhaAMao(l as any)
+    if (aMao === 'tel') return true
+    if (aMao === 'rayssa') return false
+    return atendente?.nome === 'Tel' || (!!m?.telAtendendo && !daRayssa(l, m, atendente))
+  }
+  /* QUEM ESTÁ COM UMA PESSOA SAI DAS ETAPAS: a conversa não está mais no fluxo
+     da Nay, então não faz sentido contá-la em Todos nem em Visitas. */
+  const comAlguem = (l: LeadWithOwner, m: any, atendente?: { nome: string } | null) =>
+    doTel(l, m, atendente) || daRayssa(l, m, atendente)
 
   const [tagFilterOpen, setTagFilterOpen] = useState(false)
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
@@ -357,12 +388,18 @@ export default function LeadList({
     atendenteDoLead[l.id] = atendente
     if (ehParceria) {
       const m = marcas[l.id]
-      if (m?.proprietario) soma('proprietarios')
-      // proprietário não entra em Visitas: a etapa dele é só a dele
-      if (m?.visitaAberta && !m?.proprietario) soma('visitas')
-      if (atendente?.nome === rayssa?.nome && rayssa) soma('rayssa')
+      // uma conversa, UMA etapa (ver src/lib/etapaDaParceria.ts)
+      const falta = pedeResposta(l)
+      const comPessoa = comAlguem(l, m, atendente)
+      if (!comPessoa) {
+        const etapa = etapaDaParceria(l, m)
+        soma(etapa)
+        // a bolinha de quem falta responder (Pedro, 30/09); Todos não, é só da Nay
+        if (falta) soma(`faltam:${etapa}`)
+      }
+      if (daRayssa(l, m, atendente)) { soma('rayssa'); if (falta) soma('faltam:rayssa') }
       // "Tel": a Nay diz que ele está com a conversa OU ele mandou pelo login dele
-      if (m?.telAtendendo || atendente?.nome === 'Tel') soma('tel')
+      if (doTel(l, m, atendente)) { soma('tel'); if (falta) soma('faltam:tel') }
       if (atendente && atendente.nome !== 'Tel') soma(`atendente:${atendente.id}`)
       for (const [k, ms] of JANELAS_DE_FOLLOWUP) if (esperandoResposta(l, ms, agora)) soma(k)
     } else {
@@ -383,14 +420,17 @@ export default function LeadList({
            a Nay volta a atender". Por isso a marca é `visitaAberta`, que a Nay
            já apaga sozinha ao fechar a visita -- não tem nada para arquivar
            aqui, a conversa volta de graça. */
-        { chave: 'all', rotulo: 'Todos', grupo: 'etapa', titulo: 'A Nay atende aqui. Sem os proprietários, que têm a etapa deles.' },
-        { chave: 'visitas', rotulo: 'Visitas', grupo: 'etapa', contagem: contagem.visitas,
+        { chave: 'all', rotulo: 'Todos', grupo: 'etapa', contagem: contagem.todos,
+          titulo: 'A Nay atende aqui. Quem está em outra etapa não aparece.' },
+        { chave: 'visitas', rosa: true, rotulo: 'Visitas', grupo: 'etapa', contagem: contagem.visitas, faltam: contagem['faltam:visitas'],
           titulo: 'Com visita aberta — quem atende é a Rayssa. Fechou a visita, volta para Todos e a Nay volta a atender.' },
-        { chave: 'proprietarios', rotulo: 'Proprietários', grupo: 'etapa', contagem: contagem.proprietarios,
+        { chave: 'proprietarios', rosa: true, rotulo: 'Proprietários', grupo: 'etapa', contagem: contagem.proprietarios, faltam: contagem['faltam:proprietarios'],
           titulo: 'Quem a Nay sabe que é dono de imóvel. Só aparece aqui.' },
-        { chave: 'tel', rotulo: 'Tel', grupo: 'pessoa', contagem: contagem.tel, titulo: 'O Tel está atendendo (a Nay parou por ele, ou ele mandou pelo login dele)' },
+        { chave: 'fechamento', rosa: true, rotulo: 'Fechamento', grupo: 'etapa', contagem: contagem.fechamento, faltam: contagem['faltam:fechamento'],
+          titulo: 'Já pediu o checklist — está juntando a documentação. Entra aqui sozinho quando a Nay manda o checklist.' },
+        { chave: 'tel', rotulo: 'Tel', grupo: 'pessoa', contagem: contagem.tel, faltam: contagem['faltam:tel'], titulo: 'O Tel está atendendo (a Nay parou por ele, ou ele mandou pelo login dele)' },
         ...(rayssa
-          ? [{ chave: 'rayssa', rotulo: rayssa.nome, grupo: 'pessoa' as const, cor: rayssa.cor, contagem: contagem.rayssa,
+          ? [{ chave: 'rayssa', rotulo: rayssa.nome, grupo: 'pessoa' as const, cor: rayssa.cor, contagem: contagem.rayssa, faltam: contagem['faltam:rayssa'],
                titulo: `${rayssa.nome} está atendendo (mandou a última mensagem da equipe, pelo login dela)` }]
           : []),
       ]
@@ -419,12 +459,15 @@ export default function LeadList({
        não vão aparecer em outras etapas, só ali, para ficar mais organizado".
        Vale para as ETAPAS (Todos, Visitas). Tel e Rayssa são quem atende, não
        etapa: se o Tel está com um proprietário, ele aparece na aba do Tel. */
-    if (activeTab === 'all') return !ehParceria || !marcas[l.id]?.proprietario
+    if (ehParceria && (activeTab === 'all' || activeTab === 'visitas'
+        || activeTab === 'proprietarios' || activeTab === 'fechamento')) {
+      if (comAlguem(l, marcas[l.id], atendenteDoLead[l.id])) return false
+      return etapaDaParceria(l, marcas[l.id]) === (activeTab === 'all' ? 'todos' : activeTab)
+    }
+    if (activeTab === 'all') return true
     if (activeTab === 'nao_lidas') return !!l.is_unread || l.id === selectedLeadId
-    if (activeTab === 'proprietarios') return !!marcas[l.id]?.proprietario
-    if (activeTab === 'visitas') return !!marcas[l.id]?.visitaAberta && !marcas[l.id]?.proprietario
-    if (activeTab === 'rayssa') return !!rayssa && atendenteDoLead[l.id]?.nome === rayssa.nome
-    if (activeTab === 'tel') return !!marcas[l.id]?.telAtendendo || atendenteDoLead[l.id]?.nome === 'Tel'
+    if (activeTab === 'rayssa') return daRayssa(l, marcas[l.id], atendenteDoLead[l.id])
+    if (activeTab === 'tel') return doTel(l, marcas[l.id], atendenteDoLead[l.id])
     const janela = JANELAS_DE_FOLLOWUP.find(([k]) => k === activeTab)
     if (janela) return esperandoResposta(l, janela[1], agora)
     if (activeTab.startsWith('tag:')) return (l.lead_tags || []).some((lt: any) => `tag:${lt.tag_id}` === activeTab)
@@ -432,17 +475,19 @@ export default function LeadList({
     return true
   }
 
+  const buscandoDono = ehParceria && activeTab === 'proprietarios' && buscaDono.trim().length > 0
   const filtradas = visiveis
     .filter(passaNoFiltro)
+    .filter((hit) => !buscandoDono || casaNaBusca(buscaDono, hit.lead))
     .filter((hit) => selectedTagIds.length === 0 || hit.lead.lead_tags?.some((lt: any) => selectedTagIds.includes(lt.tag_id)))
 
   /* O ANDRÉ EM CIMA, EM VISITAS (Tel, 30/09): "o André vai ficar fixado em cima
      das conversas porque ele é da equipe e faz parte disso". Quem é da equipe
-     vem da Nay (`equipe`: Tel, Rayssa e o acompanhante) -- em Visitas quem
-     aparece com essa marca é justamente quem acompanha a visita. Só reordena,
-     não filtra: ninguém some por causa disso. */
+     vem da Nay: `acompanhante` é exatamente ele (migração 197), e não o
+     `equipe`, que pega Tel e Rayssa junto. Só reordena, não filtra: ninguém
+     some por causa disso. */
   if (ehParceria && activeTab === 'visitas') {
-    filtradas.sort((a, b) => Number(!!marcas[b.lead.id]?.equipe) - Number(!!marcas[a.lead.id]?.equipe))
+    filtradas.sort((a, b) => Number(!!marcas[b.lead.id]?.acompanhante) - Number(!!marcas[a.lead.id]?.acompanhante))
   }
 
   const visibleHits = filtradas.slice(0, displayLimit)
@@ -575,6 +620,15 @@ export default function LeadList({
               </div>
             )}
             <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtros} />
+            {ehParceria && activeTab === 'proprietarios' && (
+              <BuscaDaLista
+                texto={buscaDono}
+                aoMudar={setBuscaDono}
+                achados={filtradas.length}
+                aoAbrir={(id) => aoAbrirPorId?.(id)}
+                placeholder="Procurar proprietário por nome ou número"
+              />
+            )}
           </>
         )}
       </div>

@@ -61,6 +61,13 @@ interface LeadDetailsSidebarProps {
   onGoToConversation?: () => void
   /** Um bloco da linha, logo abaixo do nome (captação: o card do proprietário, 29/09). */
   extra?: React.ReactNode
+  /**
+   * Um bloco NO TOPO do card, logo abaixo do nome (Parceria: o menu de etapas,
+   * 30/09). O `extra` cai depois das etiquetas e dos contadores -- longe
+   * demais para uma coisa que se usa a toda hora: o Tel abriu o card e não
+   * achou. Aqui é a primeira coisa que ele vê.
+   */
+  topo?: React.ReactNode
 }
 
 interface Appointment {
@@ -90,6 +97,7 @@ export default function LeadDetailsSidebar({
   onClose,
   onGoToConversation,
   extra,
+  topo,
 }: LeadDetailsSidebarProps) {
   const ownerName = lead.owner?.profiles?.full_name || ''
   const ownerInitials = ownerName
@@ -433,6 +441,8 @@ export default function LeadDetailsSidebar({
               <LeadBadges lead={lead} size="md" />
             </div>
           )}
+
+          {topo}
 
           {onGoToConversation && (
             <button

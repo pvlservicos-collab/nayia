@@ -22,6 +22,20 @@ export interface MarcaDaNay {
   etapaDesde: string | null
   /** Tel, Rayssa (a voz do Tel): nem proprietário nem corretor (migração 173) */
   equipe: boolean
+  /**
+   * JÁ PEDIU O CHECKLIST (30/09): a Nay só manda o checklist a quem pediu, e
+   * quem pede a documentação está fechando. É o que joga a conversa para a
+   * etapa Fechamento sozinha.
+   */
+  checklist: boolean
+  /* A 197 (sessão nay-ia-1b): o que a Nay realmente passou à Rayssa. */
+  /** o corretor confirmou e a visita é da Rayssa -- é a etapa Visitas */
+  visitaRayssa: boolean
+  /** está em `nai_fechamento` (a Nay se cala até a Rayssa concluir) */
+  fechamentoId: number | null
+  fechamentoDesde: string | null
+  /** o André, que acompanha a visita: fica fixado no topo de Visitas */
+  acompanhante: boolean
 }
 
 /** A chave geral da Nay (modo e pausa): vermelho para todos quando ela está parada. */

@@ -17,6 +17,8 @@ import { authenticateRequest, apiError } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { leads } from '@/lib/schema'
 import { publishEvent, channels, events } from '@/lib/realtime'
+import { DESTINOS_DA_PARCERIA } from '@/lib/etapaDaParceria'
+import { marcarEtapaNaNay } from '@/lib/nayLeitura'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -26,7 +28,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const auth = await authenticateRequest(req)
     const { id } = await params
     const corpo = await req.json().catch(() => ({}))
-    const [lead] = await db.select({ id: leads.id }).from(leads)
+    const [lead] = await db.select({ id: leads.id, phone: leads.phone }).from(leads)
       .where(and(eq(leads.id, id), eq(leads.organizationId, auth.organizationId), isNull(leads.deletedAt))).limit(1)
     if (!lead) return apiError(404, 'Contato não encontrado.')
 
@@ -43,6 +45,38 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
                  || jsonb_build_object('observacao', ${observacao}::text, 'observacao_em', now()::text),
                updated_at = now()
          WHERE id = ${id}`)
+    }
+    /* A ETAPA, MUDADA NA MÃO (Tel, 30/09): "preciso que dê para mudar lá no
+       card do cliente a etapa dele". Vale mais que o que a Nay deduziu -- ver
+       src/lib/etapaDaParceria.ts. 'todos' apaga a escolha e devolve a conversa
+       para a regra automática, em vez de prender ela em Todos para sempre. */
+    if (typeof corpo.etapa === 'string') {
+      const etapa = corpo.etapa.trim()
+      // 'tel' não é etapa do CRM: quem mostra a aba Tel é a marca da Nay
+      // (telAtendendo). Aqui ele só avisa a Nay e limpa a escolha manual.
+      const paraPessoa = etapa === 'tel' || etapa === 'rayssa'
+      if (!DESTINOS_DA_PARCERIA.includes(etapa as any)) return apiError(400, 'Etapa desconhecida.')
+      /* E A NAY PRECISA SABER (migração 201): sem isto a escolha só arrumava a
+         lista, e a Nay seguia respondendo quem estava preso em Fechamento.
+
+         'rayssa' foi por um tempo como 'tel' aqui, porque o banco não conhecia
+         a Rayssa. Desde a migração 208 ele conhece: a Nay cala do mesmo jeito,
+         mas a marca fica 'Rayssa: ...' em vez de parecer do Tel. */
+      const quem = auth.userId ? 'CRM ' + auth.userId.slice(0, 8) : 'CRM'
+      const recado = await marcarEtapaNaNay(lead.phone || '', etapa, quem)
+      if (paraPessoa) {
+        await db.execute(sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb)
+                 || jsonb_build_object('etapa_parceria', ${etapa}::text, 'etapa_parceria_em', now()::text),
+                 updated_at = now() WHERE id = ${id}`)
+        await publishEvent(channels.orgLeads(auth.organizationId), events.LEAD_UPDATED, { id })
+        return Response.json({ ok: true, recado })
+      }
+      await db.execute(etapa === 'todos'
+        ? sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) - 'etapa_parceria',
+                     updated_at = now() WHERE id = ${id}`
+        : sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb)
+                     || jsonb_build_object('etapa_parceria', ${etapa}::text, 'etapa_parceria_em', now()::text),
+                     updated_at = now() WHERE id = ${id}`)
     }
     await publishEvent(channels.orgLeads(auth.organizationId), events.LEAD_UPDATED, { id })
     return Response.json({ ok: true })

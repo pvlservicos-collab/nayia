@@ -35,6 +35,14 @@ export interface FiltroDaLista {
    * Sem grupo, o filtro sai como sempre saiu (captação, oficial).
    */
   grupo?: 'etapa' | 'pessoa'
+  /** borda esquerda rosa: as etapas para onde a conversa VAI (Tel, 30/09) */
+  rosa?: boolean
+  /**
+   * Quantos falam por último e esperam resposta (Pedro, 30/09: "uma bolinha com
+   * um número no lado direito de gente que falta responder em cada fluxo, menos
+   * o Todos, que é só da Nay"). A regra é a de lib/esperaResposta.
+   */
+  faltam?: number
 }
 
 /** mantido para quem ainda importa o tipo antigo */
@@ -65,11 +73,11 @@ function ChatFilterTabs({ ativo, aoMudar, filtros }: ChatFilterTabsProps) {
         // A barrinha que separa as etapas de quem atende: só onde o grupo muda.
         const separa = f.grupo === 'pessoa' && filtros[i - 1]?.grupo === 'etapa'
         const classe = f.grupo
-          ? `wa-etapa wa-etapa--${f.grupo} ${on ? 'wa-etapa--on' : ''}`
+          ? `wa-fase wa-fase--${f.grupo} ${f.rosa ? 'wa-fase--rosa' : ''} ${on ? 'wa-fase--on' : ''}`
           : `wa-chip ${on ? 'wa-chip--on' : ''}`
         return (
           <span key={f.chave} className="contents">
-            {separa && <span className="wa-etapa__risco" aria-hidden="true" />}
+            {separa && <span className="wa-fase__risco" aria-hidden="true" />}
             <button
               type="button"
               role="tab"
@@ -81,6 +89,11 @@ function ChatFilterTabs({ ativo, aoMudar, filtros }: ChatFilterTabsProps) {
               {f.cor && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: f.cor }} />}
               {f.rotulo}
               {f.contagem !== undefined && f.contagem > 0 && <span className="wa-chip__n">{f.contagem}</span>}
+              {!!f.faltam && (
+                <span className="wa-fase__faltam" title={`${f.faltam} esperando resposta`}>
+                  {f.faltam > 99 ? '99+' : f.faltam}
+                </span>
+              )}
             </button>
           </span>
         )

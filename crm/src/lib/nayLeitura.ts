@@ -57,7 +57,32 @@ export async function marcasDaNay(telefones: string[]): Promise<Map<string, Marc
       etapa: l.etapa ?? null,
       etapaDesde: iso(l.etapa_desde),
       equipe: l.equipe === true,
+      checklist: l.checklist === true,
+      // preenchidos logo abaixo, pela 197
+      visitaRayssa: false,
+      fechamentoId: null,
+      fechamentoDesde: null,
+      acompanhante: false,
     })
+  }
+
+  /* O QUE A NAY PASSOU À RAYSSA (migração 197, sessão nay-ia-1b).
+   *
+   * "Visita aberta" NÃO é a etapa Visitas: enquanto a Nay ainda coleta e
+   * confirma, ela continua atendendo o corretor. A conversa só vira Visitas
+   * quando o corretor confirma e a visita passa para a Rayssa
+   * (`visita_rayssa`) -- é daí até a hora da visita + 120 min que a Nay se
+   * cala. Fechamento é o mesmo: quem manda é `nai_fechamento`, que sabe
+   * quando a Rayssa conclui e devolve a pessoa para Todos. A marca
+   * `checklist` sozinha não sabe disso e prenderia a conversa para sempre. */
+  const rr = await naydb().query('SELECT * FROM crm_parceria_com_a_rayssa($1::text[])', [unicos])
+  for (const l of rr.rows) {
+    const m = mapa.get(String(l.telefone))
+    if (!m) continue
+    m.visitaRayssa = l.visita_rayssa === true
+    m.fechamentoId = l.fechamento_id != null ? Number(l.fechamento_id) : null
+    m.fechamentoDesde = iso(l.fechamento_desde)
+    m.acompanhante = l.acompanhante === true
   }
   return mapa
 }
@@ -320,4 +345,60 @@ export async function relatorioDaCaptacao(): Promise<{ telefone: string | null; 
   const r = await naydb().query('SELECT * FROM crm_captacao_relatorio()')
   const l = r.rows[0] || {}
   return { telefone: l.telefone ? String(l.telefone) : null, mensagem: String(l.mensagem || '') }
+}
+
+/**
+ * ONDE CADA CORRETOR PAROU (migração 203, sessão nay-ia-1b): o resumo da
+ * conversa e o próximo passo, da revisão de 30/09. É o que falta para quem
+ * abre uma conversa velha saber o que já foi dito.
+ */
+export interface Retomada {
+  etapa: string | null
+  resumo: string | null
+  proximoPasso: string | null
+  imoveis: number[]
+  criadoEm: string | null
+  validoAte: string | null
+}
+
+export async function retomadaDaParceria(telefones: string[]): Promise<Map<string, Retomada>> {
+  const mapa = new Map<string, Retomada>()
+  const unicos = Array.from(new Set(telefones.filter(Boolean)))
+  if (!unicos.length) return mapa
+  const r = await naydb().query('SELECT * FROM crm_parceria_retomada($1::text[])', [unicos])
+  for (const l of r.rows) {
+    mapa.set(String(l.telefone), {
+      etapa: l.etapa ?? null,
+      resumo: l.resumo ?? null,
+      proximoPasso: l.proximo_passo ?? null,
+      imoveis: Array.isArray(l.imoveis) ? l.imoveis.map(Number) : [],
+      criadoEm: iso(l.criado_em),
+      validoAte: iso(l.valido_ate),
+    })
+  }
+  return mapa
+}
+
+/**
+ * A ETAPA ESCOLHIDA À MÃO, DITA À NAY (migração 201).
+ *
+ * Sem isto, escolher a etapa no card só organizava a lista: a Nay continuava
+ * respondendo quem estava "preso" em Fechamento. Agora a escolha cala ou
+ * solta a Nay de verdade -- 'visitas' por 7 dias, 'tel' até o DEVOLVER,
+ * 'todos' devolve a conversa a ela.
+ *
+ * Nunca derruba quem chamou: a etapa no CRM já foi gravada, e perder o aviso
+ * à Nay é ruim, mas perder a mudança que a pessoa fez na tela é pior.
+ */
+export async function marcarEtapaNaNay(telefone: string, etapa: string, quem: string): Promise<string | null> {
+  if (!telefone) return null
+  try {
+    const r = await naydb().query('SELECT * FROM crm_etapa_manual($1::text, $2::text, $3::text)',
+      [telefone, etapa, quem.slice(0, 60)])
+    const l = r.rows[0]
+    return l?.ok === true ? (l.mensagem ?? null) : null
+  } catch (err: any) {
+    console.error('[etapa manual] a Nay não recebeu', err?.message || err)
+    return null
+  }
 }

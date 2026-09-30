@@ -30,6 +30,8 @@ import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 import { LeadDetailsSidebar } from '@/components/Chat'
 import { X, Plus } from '@phosphor-icons/react'
 import { linkDaConversa } from '@/lib/links'
+import EtapaDoLead from '@/components/Chat/EtapaDoLead'
+import { getLinhaWhatsapp } from '@/lib/leadChannel'
 
 const ORDEM_DO_FUNIL: Record<string, number> = { oficial: 0, parceria: 1, captacao: 2 }
 function rotuloDoFunil(p: { name: string; settings?: any }) {
@@ -623,6 +625,13 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
               currentPipelineId={selectedPipelineId ?? undefined}
               onPipelineChange={handleDetailPipelineChange}
               onClose={() => setDetailLead(null)}
+              /* O MENU DE ETAPAS TAMBÉM AQUI (Tel, 30/09): o card do lead se
+                 abre por dois caminhos -- pelo chat e por este quadro. Estava
+                 só no chat, e é por aqui que ele abre. Só na Parceria: as
+                 etapas são dela. */
+              topo={getLinhaWhatsapp(detailLead) === 'parceria'
+                ? <EtapaDoLead key={detailLead.id} lead={detailLead} onUpdateLead={handleDetailUpdateLead} />
+                : undefined}
               onGoToConversation={() => {
                 setDetailLead(null)
                 router.push(linkDaConversa(detailLead.id))
