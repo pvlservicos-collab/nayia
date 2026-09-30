@@ -177,6 +177,16 @@ except Exception:  # noqa: BLE001
 def senha_do_admin_confere():
     import base64
     import hmac
+    # O PAINEL DE IMOVEIS DENTRO DO CRM (Pedro, 30/09/2026): o CRM serve a aba
+    # de imoveis do site por um proxy dele, que confere o login do CRM e manda
+    # este segredo de maquina no lugar da senha do /admin. O segredo SO abre as
+    # rotas de IMOVEIS: treino, regras e o resto do admin continuam pedindo a
+    # senha de gente. Segredo vazio = porta fechada.
+    segredo = os.environ.get("CRM_PAINEL_SEGREDO", "")
+    veio = request.headers.get("X-Painel-Crm", "")
+    if (segredo and veio and request.path.startswith("/admin/api/imoveis")
+            and hmac.compare_digest(veio, segredo)):
+        return True
     htpasswd = os.environ.get("ADMIN_HTPASSWD", "")
     if ":" not in htpasswd or _CTX_ADMIN is None:
         return False

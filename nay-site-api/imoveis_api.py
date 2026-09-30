@@ -83,6 +83,18 @@ def _conectar(url=None):
 def _admin_autenticado():
     """TELEFONE DE PROPRIETARIO E DADO PESSOAL. Por isso esta rota passa pela
     mesma senha do /admin, como a de Vagas -- e nao pelo /api aberto."""
+    # O PAINEL DE IMOVEIS DENTRO DO CRM (Pedro, 30/09/2026): "quero que puxe a
+    # aba do site como esta no site, com todas as funcoes, para dentro do crm".
+    # O CRM mostra esta mesma pagina por um proxy dele, e quem ja entrou no CRM
+    # nao digita a senha do /admin de novo: o proxy confere o login do CRM e
+    # manda este segredo de maquina. Segredo vazio = porta fechada; e ele SO
+    # abre /admin/api/imoveis -- o olx_api importa esta funcao, e captacao e
+    # OLX continuam pedindo a senha de gente.
+    segredo = os.environ.get("CRM_PAINEL_SEGREDO", "")
+    veio = request.headers.get("X-Painel-Crm", "")
+    if (segredo and veio and request.path.startswith("/admin/api/imoveis")
+            and hmac.compare_digest(veio, segredo)):
+        return True
     if ":" not in ADMIN_HTPASSWD or _CTX is None:
         return False
     usuario_ok, hash_ok = ADMIN_HTPASSWD.split(":", 1)

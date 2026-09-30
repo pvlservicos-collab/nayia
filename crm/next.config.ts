@@ -15,7 +15,9 @@ const config: NextConfig = {
    */
   async headers() {
     return [{
-      source: '/:path((?!_next/static|_next/image|icons|fonts|logos).*)',
+      // `assets` e `admin`: os arquivos do site servidos por dentro do CRM trazem
+      // o cache que o nginx do site decidiu (src/lib/painelDoSite.ts)
+      source: '/:path((?!_next/static|_next/image|icons|fonts|logos|assets|admin).*)',
       headers: [{ key: 'Cache-Control', value: 'no-store, must-revalidate' }],
     }]
   },
