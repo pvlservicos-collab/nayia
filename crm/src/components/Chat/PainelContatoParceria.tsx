@@ -121,11 +121,12 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
     setTirando(true)
     try {
       const r = await fetch(`/api/leads/${lead.id}/contato`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ etapa: 'todos' }),
+        // 'soltar' (212): tira só a etiqueta; 'todos' fechava o fechamento aberto junto
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ etapa: 'soltar' }),
       })
       if (!r.ok) throw new Error('não tirou')
       const depois = { ...((lead as any).custom_attributes || {}) }
-      delete depois.etapa_parceria
+      if (depois.etapa_parceria === 'tel' || depois.etapa_parceria === 'rayssa') delete depois.etapa_parceria
       onUpdateLead?.(lead.id, { custom_attributes: depois } as any)
       // a marca da Nay muda na hora: sem isto a etiqueta ficaria até o próximo minuto
       void recarregarMarcasDaParceria(true)
@@ -486,7 +487,8 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
             {/* A ETIQUETA DE QUEM ESTÁ COM A CONVERSA, com × (Tel, 30/09): "quero
                 tirar a etiqueta de tel ou rayssa lá no card do contato também, e
                 aí ele sai da tag deles do chat". Tirar devolve a conversa à Nay
-                (crm_etapa_manual 'todos': limpa a marca de humano). */}
+                (crm_etapa_manual 'soltar', 212: limpa só a marca de humano; a
+                etapa e o fechamento aberto ficam). */}
             {comQuem && (
               <span className="wa-marca !pr-1 inline-flex items-center gap-1" style={{ color: 'var(--wa-tag-tel)' }} title={marca?.telMotivo || ''}>
                 {comQuem === 'rayssa' ? 'Com a Rayssa' : 'Com o Tel'}

@@ -52,6 +52,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
        para a regra automática, em vez de prender ela em Todos para sempre. */
     if (typeof corpo.etapa === 'string') {
       const etapa = corpo.etapa.trim()
+      /* O × DA ETIQUETA "COM O TEL / COM A RAYSSA" (migração 212): 'soltar' só
+         tira a marca de humano na Nay. 'todos' também concluía o fechamento
+         aberto e trocava a etapa escolhida à mão. Aqui sai só a escolha de
+         PESSOA do card (tel/rayssa); uma etapa escolhida (Visitas, Fechamento...)
+         fica. */
+      if (etapa === 'soltar') {
+        const quem = auth.userId ? 'CRM ' + auth.userId.slice(0, 8) : 'CRM'
+        const recado = await marcarEtapaNaNay(lead.phone || '', 'soltar', quem)
+        await db.execute(sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) - 'etapa_parceria',
+                 updated_at = now() WHERE id = ${id} AND custom_attributes->>'etapa_parceria' IN ('tel', 'rayssa')`)
+        await publishEvent(channels.orgLeads(auth.organizationId), events.LEAD_UPDATED, { id })
+        return Response.json({ ok: true, recado })
+      }
       // 'tel' não é etapa do CRM: quem mostra a aba Tel é a marca da Nay
       // (telAtendendo). Aqui ele só avisa a Nay e limpa a escolha manual.
       const paraPessoa = etapa === 'tel' || etapa === 'rayssa'
