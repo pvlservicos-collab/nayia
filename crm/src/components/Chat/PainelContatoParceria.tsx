@@ -35,6 +35,7 @@ import { ESTADO_DA_VISITA, type ItemDoHistorico } from '@/lib/tiposNay'
 import TrilhaDaNay from './TrilhaDaNay'
 import EscolherImoveis, { useOpcoesDoDisparo, type ImovelParaEnviar } from '@/components/Disparo/EscolherImoveis'
 import EtapaDoLead from './EtapaDoLead'
+import { escolhaAMao } from '@/lib/etapaDaParceria'
 
 const LARGURA_GUARDADA = 'crm:largura-card-parceria'
 const LARGURA_MIN = 300
@@ -108,6 +109,29 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
 }) {
   const { marca: marcaDoContato, historico, carregando, erro, recarregar } = useContatoNay(lead.id)
   const { marcas, nay } = useParceriaMarcas(true)
+  /* com quem está a conversa: a escolha do card manda; senão, a marca da Nay */
+  const escolhaDoCard = escolhaAMao(lead as any)
+  const marcaDaPessoa = marcas[lead.id]
+  const comQuem: 'tel' | 'rayssa' | null =
+    escolhaDoCard === 'rayssa' || (escolhaDoCard !== 'tel' && (marcaDaPessoa?.telMotivo || '').startsWith('Rayssa:')) ? 'rayssa'
+      : escolhaDoCard === 'tel' || marcaDaPessoa?.telAtendendo ? 'tel' : null
+  const [tirando, setTirando] = useState(false)
+  async function tirarDaPessoa() {
+    if (tirando) return
+    setTirando(true)
+    try {
+      const r = await fetch(`/api/leads/${lead.id}/contato`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ etapa: 'todos' }),
+      })
+      if (!r.ok) throw new Error('não tirou')
+      const depois = { ...((lead as any).custom_attributes || {}) }
+      delete depois.etapa_parceria
+      onUpdateLead?.(lead.id, { custom_attributes: depois } as any)
+      // a marca da Nay muda na hora: sem isto a etiqueta ficaria até o próximo minuto
+      void recarregarMarcasDaParceria(true)
+    } catch { /* a etiqueta continua ali: é o próprio aviso de que não saiu */ }
+    finally { setTirando(false) }
+  }
   const marca = marcaDoContato ?? marcas[lead.id] ?? null
 
   /* ── largura, puxando a borda ── */
@@ -459,7 +483,19 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
               </span>
             )}
             {marca?.proprietario && <span className="wa-marca" style={{ color: 'var(--wa-tag-prop)' }}>Proprietário</span>}
-            {marca?.telAtendendo && <span className="wa-marca" style={{ color: 'var(--wa-tag-tel)' }} title={marca.telMotivo || ''}>Com o Tel</span>}
+            {/* A ETIQUETA DE QUEM ESTÁ COM A CONVERSA, com × (Tel, 30/09): "quero
+                tirar a etiqueta de tel ou rayssa lá no card do contato também, e
+                aí ele sai da tag deles do chat". Tirar devolve a conversa à Nay
+                (crm_etapa_manual 'todos': limpa a marca de humano). */}
+            {comQuem && (
+              <span className="wa-marca !pr-1 inline-flex items-center gap-1" style={{ color: 'var(--wa-tag-tel)' }} title={marca?.telMotivo || ''}>
+                {comQuem === 'rayssa' ? 'Com a Rayssa' : 'Com o Tel'}
+                <button type="button" onClick={tirarDaPessoa} disabled={tirando}
+                        aria-label={`Tirar a etiqueta ${comQuem === 'rayssa' ? 'da Rayssa' : 'do Tel'}`}
+                        title="Tirar: a conversa sai da aba e volta para a Nay"
+                        className="rounded-full px-1 leading-none hover:opacity-70">×</button>
+              </span>
+            )}
             {!marca && carregando && <span className="text-[13px]" style={{ color: 'var(--wa-text-2)' }}>Perguntando à Nay…</span>}
           </div>
           {/* a trilha da Nay com o contato, ativa ou parada (Pedro, 29/09) */}
