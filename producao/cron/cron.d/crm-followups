@@ -1,0 +1,3 @@
+# FOLLOW-UP AGENDADO (30/09/2026): envia os agendamentos do card do contato que venceram.
+# Ver crm/src/app/api/cron/followups/route.ts. Mesmo segredo da conferencia.
+* * * * * root docker exec crm-imobeasy sh -c 'wget -q -T 100 -O /dev/null --header="x-cron-segredo: $CRON_SEGREDO" --post-data="" http://127.0.0.1:3000/api/cron/followups' >/dev/null 2>&1
