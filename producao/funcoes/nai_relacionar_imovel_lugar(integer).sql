@@ -32,6 +32,7 @@ BEGIN
       FROM cj CROSS JOIN base b
      WHERE (b.condo <> '' AND b.condo ~ cj.expressao)
         OR (b.rua <> '' AND cj.bn = b.bn AND b.rua ~ cj.expressao)
+        OR (b.bn <> '' AND b.bn ~ cj.expressao)   -- 231: o bairro tem o nome do conjunto
      GROUP BY b.codigo
   ), m_av AS (
     SELECT b.codigo, array_agg(av.nome ORDER BY av.nome) AS nomes

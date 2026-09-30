@@ -1673,8 +1673,11 @@ def api_imoveis_lista():
         onde.append("v.bairro = ANY(%s)")
         onde_p.append(bairros)
     if conjuntos:
-        onde.append("EXISTS (SELECT 1 FROM nai_lugar_conjunto c WHERE c.nome = ANY(%s) "
-                    "AND (v.bairro = c.bairro OR nai_lugar_normal(v.condominio) ~ c.expressao))")
+        # 231: o conjunto vale para o bairro dele, para o bairro de mesmo nome e para o
+        # imóvel ligado em imovel_lugar (Parque das Laranjeiras = Flores + o bairro homônimo)
+        onde.append("(v.bairro IN (SELECT unnest(nai_bairros_do_conjunto(x)) FROM unnest(%s::text[]) x)"
+                    " OR v.codigo IN (SELECT l.codigo FROM imovel_lugar l WHERE l.conjuntos && %s::text[]))")
+        onde_p.append(conjuntos)
         onde_p.append(conjuntos)
     if avenidas:
         # 229: também o imóvel que tem a avenida no endereço, fora dos bairros da lista
@@ -1986,11 +1989,16 @@ def api_imoveis_opcoes():
         # CONJUNTOS E AVENIDAS (Pedro, 30/09): as listas da Nay (206). O conjunto
         # conta o bairro dele e o condomínio de mesmo nome; a avenida, os bairros dela.
         conjuntos = [{"valor": l["valor"], "bairro": l["bairro"], "zona": l["zona"], "n": l["n"]} for l in todas_linhas(conn, """
-            SELECT c.nome AS valor, c.bairro, c.zona, count(v.codigo) AS n
-              FROM nai_lugar_conjunto c
-              LEFT JOIN vw_imoveis_todos v
-                ON v.bairro = c.bairro OR nai_lugar_normal(v.condominio) ~ c.expressao
-             WHERE c.ativo GROUP BY 1, 2, 3 ORDER BY 1""")]
+            WITH v AS MATERIALIZED (SELECT codigo, bairro FROM vw_imoveis_todos),
+                 cb AS MATERIALIZED (SELECT c.nome, c.zona, nai_bairros_do_conjunto(c.nome) AS bs
+                                       FROM nai_lugar_conjunto c WHERE c.ativo),
+                 u AS (SELECT cb.nome, v.codigo FROM cb JOIN v ON v.bairro = ANY (cb.bs)
+                       UNION
+                       SELECT cb.nome, l.codigo FROM cb JOIN imovel_lugar l ON cb.nome = ANY (l.conjuntos)
+                        JOIN v ON v.codigo = l.codigo)
+            SELECT cb.nome AS valor, array_to_string(cb.bs, ' / ') AS bairro, cb.zona, count(u.codigo) AS n
+              FROM cb LEFT JOIN u ON u.nome = cb.nome
+             GROUP BY 1, 2, 3 ORDER BY 1""")]
         # 229: a avenida conta também o imóvel que a tem no endereço (imovel_lugar)
         avenidas = [{"valor": l["valor"], "bairros": l["bairros"], "n": l["n"]} for l in todas_linhas(conn, """
             WITH v AS MATERIALIZED (SELECT codigo, bairro FROM vw_imoveis_todos),
