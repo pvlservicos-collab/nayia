@@ -8,7 +8,11 @@ DECLARE
   k        nai_contato;
   b        record;
   v_teto   numeric := coalesce(nay_maior_valor(p_teto), nay_valor_em_reais(p_teto));
-  v_q      int := NULLIF(regexp_replace(coalesce(p_quartos, ''), '[^0-9]', '', 'g'), '')::int;
+  v_q      int;            -- 218: um número só = exato (como antes); faixa fica em v_q_min/v_q_max
+  v_q_min  int;
+  v_q_max  int;
+  v_multi  boolean := false;  -- 218: vários lugares na mesma resposta
+  v_mais_barato boolean := false;  -- 218: a faixa vazia, e saíram os mais em conta
   v_mob    text := lower(unaccent(btrim(coalesce(p_mobilia, ''))));
   v_sem    boolean;
   v_com    boolean;
@@ -41,15 +45,38 @@ BEGIN
   SELECT * INTO t FROM nai_turno WHERE id = p_turno;
   SELECT * INTO k FROM nai_contato WHERE id = t.contato_id;
 
+  -- 218: QUARTOS -- "1 ou 2" é de 1 a 2 (antes virava 12); "2 ou mais" é 2 para cima
+  SELECT min(x[1]::int), max(x[1]::int) INTO v_q_min, v_q_max
+    FROM regexp_matches(coalesce(p_quartos, ''), '([0-9]{1,2})', 'g') AS x
+   WHERE x[1]::int BETWEEN 1 AND 10;
+  IF v_q_min IS NOT NULL AND lower(unaccent(coalesce(p_quartos, ''))) ~ '(\+|ou mais|no minimo|pelo menos|a partir)' THEN
+    v_q_max := 10;
+  END IF;
+  v_q := CASE WHEN v_q_min IS NOT NULL AND v_q_min = v_q_max THEN v_q_min END;
+
   -- 206: CONJUNTO E AVENIDA (Pedro, 30/09: "quando algum corretor perguntar de
   -- algum conjunto ... ela mande imoveis do bairro"; e a avenida, com os
   -- bairros dela). Só o bairro que a CHAMADA trouxe (215): o texto da mensagem
   -- pode ser um card colado ou um endereço, e isso não é resposta de região.
   v_lug_bairros := nai_bairros_do_lugar(p_bairro);
+  -- 218: VÁRIOS LUGARES ("Adrianópolis, Vieiralves"): cada pedaço vira os bairros
+  -- dele -- o do conjunto/avenida, ou o bairro do catálogo que bate com o nome
+  IF p_bairro ~ '(,|;|/|\me\M|\mou\M)' THEN
+    SELECT array_agg(DISTINCT z.b), nai_lista_pt(array_agg(DISTINCT z.nome))
+      INTO v_lug_bairros, v_lug_rotulo
+      FROM (SELECT initcap(btrim(p.x)) AS nome,
+                   unnest(coalesce(nai_bairros_do_lugar(p.x),
+                          ARRAY(SELECT DISTINCT i.bairro FROM imoveis i
+                                 WHERE coalesce(btrim(i.bairro), '') <> ''
+                                   AND nay_normalizar_lugar(i.bairro, true) LIKE '%' || nay_normalizar_lugar(p.x, true) || '%'))) AS b
+              FROM unnest(regexp_split_to_array(p_bairro, '\s*(,|;|/|\me\M|\mou\M)\s*')) AS p(x)
+             WHERE length(btrim(p.x)) >= 3) z;
+    v_multi := v_lug_bairros IS NOT NULL;
+  END IF;
   IF v_lug_bairros IS NOT NULL THEN
     v_lug_rx := (SELECT string_agg('(' || l.expressao || ')', '|') FROM nai_lugar_citado(p_bairro) l
                   WHERE l.tipo = 'conjunto');
-    v_lug_rotulo := nai_lugar_rotulo(p_bairro);
+    IF NOT v_multi THEN v_lug_rotulo := nai_lugar_rotulo(p_bairro); END IF;
     PERFORM nai_anotar(p_turno, 7, 'lugar_vira_bairro', 'mudou',
                        left(p_bairro || ' -> ' || array_to_string(v_lug_bairros, ', '), 200));
   END IF;
@@ -143,7 +170,7 @@ BEGIN
   v_tem_filtro := v_teto IS NOT NULL
                OR (nullif(btrim(coalesce(p_bairro, '')), '') IS NOT NULL AND NOT v_livre)
                OR (nullif(v_mob, '') IS NOT NULL AND v_mob !~ '(tanto faz|indiferente|qualquer)')
-               OR v_tipo IS NOT NULL OR v_q IS NOT NULL;
+               OR v_tipo IS NOT NULL OR v_q_min IS NOT NULL;
 
   -- LOCACAO OU VENDA antes de listar (144), quando a conversa nao disse e o
   -- valor tambem nao diz (ate R$ 30 mil e aluguel; de R$ 100 mil para cima e venda).
@@ -248,6 +275,7 @@ BEGIN
      WHERE (v_livre OR nay_normalizar_lugar(i.bairro, true) LIKE '%' || nay_normalizar_lugar(p_bairro, true) || '%'
             OR i.bairro = ANY (v_lug_bairros))
        AND nai_oferta_serve(i, k.telefone, v_teto, v_q, v_sem, v_com, v_negocio, v_tipo)
+       AND (v_q_min IS NULL OR coalesce(i.quartos, 0) BETWEEN v_q_min AND v_q_max)  -- 218
      ORDER BY (v_lug_rx IS NOT NULL AND nai_lugar_normal(i.condominio_nome) ~ v_lug_rx) DESC, 2 LIMIT 5) z;
 
   v_viz := CASE WHEN v_livre THEN '{}'::text[]
@@ -264,7 +292,32 @@ BEGIN
          AND nay_normalizar_lugar(i.bairro, true) NOT LIKE '%' || nay_normalizar_lugar(p_bairro, true) || '%'
          AND i.bairro <> ALL (coalesce(v_lug_bairros, '{}'::text[]))
          AND nai_oferta_serve(i, k.telefone, v_teto, v_q, v_sem, v_com, v_negocio, v_tipo)
+       AND (v_q_min IS NULL OR coalesce(i.quartos, 0) BETWEEN v_q_min AND v_q_max)  -- 218
        ORDER BY (v_lug_rx IS NOT NULL AND nai_lugar_normal(i.condominio_nome) ~ v_lug_rx) DESC, 2 LIMIT 5) z;
+  END IF;
+
+  -- 218: A FAIXA VAZIA, MAS HÁ O QUE CABE NO VALOR ("até 4 mil" e o #5724 de
+  -- R$ 2.600 ficava de fora da faixa de 3.200 a 4.400)
+  IF v_aqui IS NULL AND v_alt IS NULL AND v_teto IS NOT NULL THEN
+    SELECT string_agg(nai_bloco_oferta(z.c, v_negocio), E'\n\n' ORDER BY z.v DESC) INTO v_aqui FROM (
+      SELECT i.codigo AS c,
+             CASE WHEN v_negocio = 'venda' THEN i.valor_venda
+                  ELSE coalesce(i.valor_aluguel, i.valor_venda) END AS v
+        FROM imoveis i
+       WHERE (v_livre OR nay_normalizar_lugar(i.bairro, true) LIKE '%' || nay_normalizar_lugar(p_bairro, true) || '%'
+              OR i.bairro = ANY (v_lug_bairros))
+         AND nai_oferta_serve(i, k.telefone, NULL, v_q, v_sem, v_com, v_negocio, v_tipo)
+         AND (v_q_min IS NULL OR coalesce(i.quartos, 0) BETWEEN v_q_min AND v_q_max)
+         AND CASE WHEN v_negocio = 'venda'
+                  THEN coalesce(i.valor_venda, 0) > 0
+                       AND i.valor_venda <= v_teto * (1 + nai_cfg_int('faixa_acima_pct', 10) / 100.0)
+                  ELSE coalesce(i.valor_aluguel, 0) > 0
+                       AND i.valor_aluguel <= v_teto * (1 + nai_cfg_int('faixa_acima_pct', 10) / 100.0) END
+       ORDER BY 2 DESC LIMIT 5) z;
+    v_mais_barato := v_aqui IS NOT NULL;
+    IF v_mais_barato THEN
+      PERFORM nai_anotar(p_turno, 7, 'faixa_vazia_mais_em_conta', 'mudou', 'nada na faixa do valor: saíram os que cabem nele');
+    END IF;
   END IF;
 
   -- NADA AQUI NEM PERTO (105, Tel 23/09: "nao e para ocorrer esse tipo de
@@ -291,6 +344,7 @@ BEGIN
          WHERE (v_livre OR nay_normalizar_lugar(i.bairro, true) LIKE '%' || nay_normalizar_lugar(p_bairro, true) || '%'
             OR i.bairro = ANY (v_lug_bairros))
            AND nai_oferta_serve(i, k.telefone, v_teto, v_q, v_sem, v_com, v_negocio, NULL)
+           AND (v_q_min IS NULL OR coalesce(i.quartos, 0) BETWEEN v_q_min AND v_q_max)  -- 218
          ORDER BY (v_lug_rx IS NOT NULL AND nai_lugar_normal(i.condominio_nome) ~ v_lug_rx) DESC, 2 LIMIT 5) z;
       IF v_aqui IS NOT NULL THEN
         RETURN QUERY SELECT
@@ -362,7 +416,7 @@ BEGIN
   SELECT coalesce((SELECT a.area FROM nai_area_citada(p_bairro) a LIMIT 1), v_nome_b)
     INTO v_nome_b;
   -- 206: conjunto e avenida dizem de que bairro e a lista (o Vieiralves segue a regra de cima)
-  IF v_lug_rotulo IS NOT NULL AND NOT EXISTS (SELECT 1 FROM nai_area_citada(p_bairro)) THEN
+  IF v_lug_rotulo IS NOT NULL AND (v_multi OR NOT EXISTS (SELECT 1 FROM nai_area_citada(p_bairro))) THEN
     v_nome_b := v_lug_rotulo;
   END IF;
 
@@ -378,7 +432,11 @@ BEGIN
   END IF;
 
   IF v_aqui IS NOT NULL THEN
-    v_txt := CASE WHEN v_livre THEN 'Tenho estas opções:'
+    v_txt := CASE WHEN v_mais_barato AND v_livre
+                    THEN 'Nessa faixa de valor eu não tenho, mas tenho estas opções mais em conta:'
+                  WHEN v_mais_barato
+                    THEN 'No ' || v_nome_b || ', nessa faixa de valor eu não tenho, mas tenho estas opções mais em conta:'
+                  WHEN v_livre THEN 'Tenho estas opções:'
                   ELSE 'No ' || v_nome_b || ' eu tenho estas opções:' END
              || E'\n\n' || v_aqui;
     IF v_alt IS NOT NULL THEN

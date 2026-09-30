@@ -61,6 +61,10 @@ BEGIN
         OR lower(unaccent(regexp_replace(v_palavras[i + j - 1], '[^[:alnum:]]', '', 'g'))) = ANY (ARRAY[
              'na','no','em','de','da','do','das','dos','a','o','as','os','um','uma','uns','umas',
              'para','pra','com','sem','por','pelo','pela','e','ou','que','se']));
+      -- 218: número solto na janela não é pedaço de nome ("ponta negra 2 quartos"
+      -- virava "ponta negra ii quartos" e o número de quartos sumia)
+      CONTINUE WHEN j > 1 AND EXISTS (SELECT 1 FROM unnest(v_palavras[i : i + j - 1]) w
+                                       WHERE regexp_replace(w, '[^[:alnum:]]', '', 'g') ~ '^[0-9]+$');
 
       -- QUANTAS LETRAS PODEM ESTAR ERRADAS, no maximo. Sai do piso. O TETO DA
       -- BUSCA e folgado de proposito: a conta final compara com o MAIOR dos dois
