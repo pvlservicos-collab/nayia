@@ -1665,6 +1665,9 @@ def api_imoveis_lista():
     # mesmo nome (o Viver Melhor 4 do catálogo está na Colônia Terra Nova).
     conjuntos = varios("conjuntos")
     avenidas = varios("avenidas")
+    # ZONA (Pedro, 30/09: "por bairro, por zona e por avenida"): a zona do bairro
+    # (bairro_zona) e a que o imóvel tem em imovel_lugar (229)
+    zonas = varios("zonas")
     onde, onde_p = [], []
     if bairros:
         onde.append("v.bairro = ANY(%s)")
@@ -1674,8 +1677,16 @@ def api_imoveis_lista():
                     "AND (v.bairro = c.bairro OR nai_lugar_normal(v.condominio) ~ c.expressao))")
         onde_p.append(conjuntos)
     if avenidas:
-        onde.append("v.bairro IN (SELECT unnest(a.bairros) FROM nai_lugar_avenida a WHERE a.nome = ANY(%s))")
+        # 229: também o imóvel que tem a avenida no endereço, fora dos bairros da lista
+        onde.append("(v.bairro IN (SELECT unnest(a.bairros) FROM nai_lugar_avenida a WHERE a.nome = ANY(%s))"
+                    " OR v.codigo IN (SELECT l.codigo FROM imovel_lugar l WHERE l.avenidas && %s::text[]))")
         onde_p.append(avenidas)
+        onde_p.append(avenidas)
+    if zonas:
+        onde.append("(v.bairro IN (SELECT z.bairro FROM bairro_zona z WHERE z.zona = ANY(%s))"
+                    " OR v.codigo IN (SELECT l.codigo FROM imovel_lugar l WHERE l.zona = ANY(%s)))")
+        onde_p.append(zonas)
+        onde_p.append(zonas)
     if onde:
         base.append(("(" + " OR ".join(onde) + ")", onde_p))
     tipos = varios("tipos")
@@ -1974,20 +1985,32 @@ def api_imoveis_opcoes():
                 "WHERE coalesce(btrim(" + coluna + "), '') <> '' GROUP BY 1 ORDER BY 1")]
         # CONJUNTOS E AVENIDAS (Pedro, 30/09): as listas da Nay (206). O conjunto
         # conta o bairro dele e o condomínio de mesmo nome; a avenida, os bairros dela.
-        conjuntos = [{"valor": l["valor"], "bairro": l["bairro"], "n": l["n"]} for l in todas_linhas(conn, """
-            SELECT c.nome AS valor, c.bairro, count(v.codigo) AS n
+        conjuntos = [{"valor": l["valor"], "bairro": l["bairro"], "zona": l["zona"], "n": l["n"]} for l in todas_linhas(conn, """
+            SELECT c.nome AS valor, c.bairro, c.zona, count(v.codigo) AS n
               FROM nai_lugar_conjunto c
               LEFT JOIN vw_imoveis_todos v
                 ON v.bairro = c.bairro OR nai_lugar_normal(v.condominio) ~ c.expressao
-             WHERE c.ativo GROUP BY 1, 2 ORDER BY 1""")]
+             WHERE c.ativo GROUP BY 1, 2, 3 ORDER BY 1""")]
+        # 229: a avenida conta também o imóvel que a tem no endereço (imovel_lugar)
         avenidas = [{"valor": l["valor"], "bairros": l["bairros"], "n": l["n"]} for l in todas_linhas(conn, """
-            SELECT a.nome AS valor, a.bairros, count(v.codigo) AS n
-              FROM nai_lugar_avenida a
-              LEFT JOIN vw_imoveis_todos v ON v.bairro = ANY (a.bairros)
+            WITH v AS MATERIALIZED (SELECT codigo, bairro FROM vw_imoveis_todos),
+                 u AS (SELECT a.nome, v.codigo FROM nai_lugar_avenida a JOIN v ON v.bairro = ANY (a.bairros) WHERE a.ativo
+                       UNION
+                       SELECT a.nome, l.codigo FROM nai_lugar_avenida a JOIN imovel_lugar l ON a.nome = ANY (l.avenidas)
+                        JOIN v ON v.codigo = l.codigo WHERE a.ativo)
+            SELECT a.nome AS valor, a.bairros, count(u.codigo) AS n
+              FROM nai_lugar_avenida a LEFT JOIN u ON u.nome = a.nome
              WHERE a.ativo GROUP BY 1, 2 ORDER BY 1""")]
+        # ZONA (229): os bairros de cada zona (bairro_zona) e quantos imóveis
+        zonas = [{"valor": l["valor"], "bairros": l["bairros"], "n": l["n"]} for l in todas_linhas(conn, """
+            WITH v AS MATERIALIZED (SELECT codigo, bairro FROM vw_imoveis_todos)
+            SELECT z.zona AS valor, array_agg(DISTINCT z.bairro ORDER BY z.bairro) AS bairros,
+                   count(DISTINCT v.codigo) AS n
+              FROM bairro_zona z LEFT JOIN v ON v.bairro = z.bairro
+             GROUP BY 1 ORDER BY 1""")]
         return jsonify({"bairros": lista("bairro"), "tipos": lista("tipo"),
                         "condominios": lista("condominio"), "conjuntos": conjuntos,
-                        "avenidas": avenidas}), 200, {"Cache-Control": "public, max-age=300"}
+                        "avenidas": avenidas, "zonas": zonas}), 200, {"Cache-Control": "public, max-age=300"}
     finally:
         conn.close()
 

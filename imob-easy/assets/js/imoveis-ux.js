@@ -104,7 +104,9 @@
   }
   var msConjuntosL = msSeTiver($("f-conjuntos"), { dica: "digite o conjunto", aoMudar: aoMudarFiltro });
   var msAvenidasL = msSeTiver($("f-avenidas"), { dica: "digite a avenida", aoMudar: aoMudarFiltro });
-  var MS_DA_LISTA = { bairros: [msBairrosL, "Bairro"], conjuntos: [msConjuntosL, "Conjunto"],
+  // ZONA (229): leste, norte, oeste, sul, centro-sul, centro-oeste -- os bairros dela
+  var msZonasL = msSeTiver($("f-zonas"), { dica: "todas as zonas", aoMudar: aoMudarFiltro });
+  var MS_DA_LISTA = { bairros: [msBairrosL, "Bairro"], zonas: [msZonasL, "Zona"], conjuntos: [msConjuntosL, "Conjunto"],
                       avenidas: [msAvenidasL, "Avenida"], tipos: [msTiposL, "Tipo"], condominios: [msCondosL, "Condomínio"] };
   // o link de outra tela (?condo=ID) continua filtrando pelo id do condomínio
   var condoDoLink = null;
@@ -255,7 +257,7 @@
       porGrupo[g.grupo] += g.multi ? v.length : (v ? 1 : 0);
     });
     porGrupo.imovel += msTiposL.valores().length;
-    porGrupo.onde += msBairrosL.valores().length + msConjuntosL.valores().length + msAvenidasL.valores().length +
+    porGrupo.onde += msBairrosL.valores().length + msZonasL.valores().length + msConjuntosL.valores().length + msAvenidasL.valores().length +
                      msCondosL.valores().length + (condoDoLink ? 1 : 0);
     if (form.elements.vmin.value || form.elements.vmax.value) porGrupo.valor++;
     form.querySelectorAll(".ux-qtd[data-g]").forEach(function (e) {
@@ -1389,7 +1391,11 @@
       msCondosL.opcoes(op(d.condominios));
       // o bairro vai no rótulo: digitar "parque 10" também acha os conjuntos de lá
       msConjuntosL.opcoes((d.conjuntos || []).map(function (x) {
-        return { valor: x.valor, rotulo: x.valor + " · " + x.bairro, n: x.n };
+        return { valor: x.valor, rotulo: x.valor + " · " + x.bairro + (x.zona ? " · zona " + x.zona : ""), n: x.n };
+      }));
+      // a zona mostra os bairros dela: digitar "coroado" também acha a zona leste
+      msZonasL.opcoes((d.zonas || []).map(function (x) {
+        return { valor: x.valor, rotulo: "Zona " + x.valor + " · " + (x.bairros || []).join(", "), n: x.n };
       }));
       msAvenidasL.opcoes((d.avenidas || []).map(function (x) {
         return { valor: x.valor, rotulo: x.valor + " · " + (x.bairros || []).join(", "), n: x.n };
