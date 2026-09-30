@@ -337,7 +337,11 @@ BEGIN
   -- #0000". Quando ela pergunta QUAL imovel -- citando codigo, ou pedindo o
   -- codigo a ele -- a pergunta vira a ficha de cada candidato. Sem foto: as
   -- fotos saem quando ele confirmar.
-  IF v_corretor AND position('📍' IN v_texto) = 0 AND v_texto ~ '\?' THEN
+  -- 222: a LISTA da busca (blocos "*Nome #1234*") não vira ficha: ela termina com
+  -- "Qual deles é de seu interesse?" e a parede trocava a lista inteira por fichas
+  IF v_corretor AND position('📍' IN v_texto) = 0 AND v_texto ~ '\?'
+     AND v_texto !~ ' #[0-9]{3,5}\*'
+     AND NOT ('buscar_por_perfil' = ANY (coalesce(t.ferramentas, '{}'))) THEN
     IF v_texto ~* ('(\me\s+(esse|este)\M|\mseria\s+(esse|este|o)\M|voc[eê]\s+(quer|fala|diz)[^?]{0,50}\d{3,5}'
                    || '|qual\s+(deles|desses|dos)\M|de\s+qual\s+(im[oó]vel|deles)|mais\s+informa[cç][oõ]es\s+do\s+im[oó]vel)') THEN
       SELECT coalesce(array_agg(DISTINCT x::int), '{}') INTO v_cands

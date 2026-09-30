@@ -102,7 +102,10 @@ BEGIN
   -- reconhece o card que ele acabou de colar, na PRIMEIRA mensagem --
   -- sem isso, quem cola o card e pede outras opcoes na mesma mensagem
   -- cairia no caminho de quem chegou do zero.
-  v_direta := nai_imovel_da_conversa(k.id, t.texto) IS NULL;
+  v_direta := nai_imovel_da_conversa(k.id, t.texto) IS NULL
+              OR NOT (cardinality(nay_codigos_citados(coalesce(t.texto, ''))) > 0
+                      OR coalesce(t.texto, '') ~* 'c[oó]digo:'
+                      OR coalesce(array_length(nai_imovel_pelo_condominio(coalesce(t.texto, ''), ''), 1), 0) > 0);
 
   -- VENDA NAO E ALUGUEL, CASA NAO E APARTAMENTO (98, Tel 22/09). A sequencia
   -- de perguntas gasta tres mensagens: quando a busca roda, o texto do turno e
@@ -133,8 +136,11 @@ BEGIN
              OR (nai_sem_preferencia_de_bairro(t.texto)
                  AND (v_ultima = 'regiao' OR lower(unaccent(coalesce(t.texto, ''))) ~ '(bairro|regiao|lugar|local|zona)'));
   v_mostra_logo := nai_pede_os_valores(concat_ws(' ', t.texto, p_bairro))
-                   OR nai_quantos_no_bairro(p_bairro, k.telefone, v_q, v_negocio, v_tipo)
-                      BETWEEN 1 AND nai_cfg_int('limite_sem_teto', 5);
+                   -- 222: "o bairro tem pouca coisa" só com bairro dado (sem bairro,
+                   -- a conta era da cidade inteira e pulava a pergunta do valor)
+                   OR (nullif(btrim(coalesce(p_bairro, '')), '') IS NOT NULL AND NOT nai_e_a_cidade(p_bairro)
+                       AND nai_quantos_no_bairro(p_bairro, k.telefone, v_q, v_negocio, v_tipo)
+                           BETWEEN 1 AND nai_cfg_int('limite_sem_teto', 5));
   IF v_mostra_logo THEN
     PERFORM nai_anotar(p_turno, 7, 'mostra_sem_peneirar', 'mudou',
                        'ele pediu os valores, ou o bairro tem pouca coisa');
@@ -451,7 +457,10 @@ BEGIN
               THEN 'Nessa faixa de valor eu não tenho, mas tenho este um pouco mais em conta:' || E'\n\n'
             ELSE '' END
        || (SELECT cc.texto_pronto FROM nai_card_do_imovel(
-         (regexp_match(coalesce(v_aqui, '') || coalesce(v_alt, ''), ' #([0-9]{3,5})\*'))[1]::int) cc)),
+         (regexp_match(coalesce(v_aqui, '') || coalesce(v_alt, ''), ' #([0-9]{3,5})\*'))[1]::int) cc)
+       -- 222: o semimobiliado pergunta se serve
+       || CASE WHEN coalesce(v_aqui, '') || coalesce(v_alt, '') ~ 'está 80% mobiliado'
+               THEN E'\n\n' || 'Esse imóvel está 80% mobiliado, serve para seu cliente?' ELSE '' END),
       ('e um imovel so nesse perfil: mande o card EXATAMENTE como veio. O sistema manda as '
        || 'fotos e a sugestao de visita logo depois.')::text;
     RETURN;
@@ -477,6 +486,10 @@ BEGIN
   -- perguntar De qual deles a Sra. quer mais informacoes? isso tem que ser
   -- padrao apos o envio de uma lista"). Vem daqui, e nao do prompt, para nao
   -- depender de ela lembrar.
+  -- 222: sem outra pergunta (a parede de uma pergunta por mensagem cortaria)
+  IF coalesce(v_aqui, '') || coalesce(v_alt, '') ~ 'está 80% mobiliado' THEN
+    v_txt := v_txt || E'\n\n' || 'Os semimobiliados estão 80% mobiliados.';
+  END IF;
   v_txt := v_txt || E'\n\n' || 'Qual deles é de seu interesse? Assim, posso lhe enviar mais informações e detalhes.';
   -- 146: e continua oferecendo os filtros que ainda nao foram usados
   v_falta := array_remove(ARRAY[
