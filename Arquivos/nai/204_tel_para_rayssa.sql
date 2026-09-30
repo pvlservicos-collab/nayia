@@ -1,0 +1,14 @@
+-- 204 (Pedro, 30/09/2026): "todo mundo da aba Tel e que tenha a tag Tel joga para a
+-- Rayssa, ela tava respondendo pelo login dele". APLICADO À MÃO em 30/09 (registro):
+--
+-- crmdb: as 90 mensagens manuais da Parceria mandadas pelo login do Tel desde 29/09
+-- passaram para o membro da Rayssa (backup dos ids e do autor antigo em
+-- /root/backups-crm/autoria_tel_para_rayssa-*.tsv). A de 26/09 ficou do Tel.
+--   UPDATE lead_activities a SET actor_member_id = '<rayssa>'
+--    WHERE a.lead_id IN (<leads da linha whatsapp_zapi>) AND a.actor_member_id = '<tel>'
+--      AND a.metadata->>'direction' = 'outbound' AND a.created_at >= '2026-09-29 00:00-04';
+--
+-- naydb: as 27 marcas da revisão (199) viraram "Rayssa: ..." (a Nay continua calada;
+-- o CRM mostra no filtro da Rayssa). Backup em /root/backups-funcoes/marcas_revisao_para_rayssa-*.tsv.
+--   UPDATE nai_contato SET humano_motivo = left('Rayssa: ' || humano_motivo, 200)
+--    WHERE humano_motivo LIKE 'revisão 30/09:%';
