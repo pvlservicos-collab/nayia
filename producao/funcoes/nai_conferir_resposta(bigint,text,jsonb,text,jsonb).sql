@@ -298,7 +298,7 @@ BEGIN
 
   -- 13 --------------------------------------------- UMA PERGUNTA POR MENSAGEM
   IF v_corretor THEN
-    v_novo := nai_uma_pergunta_da_sequencia(v_texto);
+    v_novo := nai_uma_pergunta_da_sequencia(v_texto, t.contato_id);  -- 225: só o que falta
     IF v_novo IS NOT NULL THEN
       v_texto := v_novo;
       v_guarda := coalesce(v_guarda || '+', '') || 'sequencia_uma_pergunta';
@@ -378,6 +378,19 @@ BEGIN
     PERFORM nai_anotar(p_turno, 14, 'visita_confirmada_pelo_corretor', 'mudou', 'o banco confirmou');
     RETURN jsonb_build_object('acao', 'responder', 'guarda', 'visita_confirmada_pelo_corretor', 'codigo', NULL,
                               'texto', nai_texto_corretor_confirmou());
+  END IF;
+
+  -- 14n ------------------------- ALUGAR OU COMPRAR, ANTES DO CARD (225)
+  IF v_corretor AND NOT v_ident AND v_texto ~* 'C[óo]digo:\s*\d{3,5}'
+     AND (SELECT count(*) FROM regexp_matches(v_texto, 'C[óo]digo:\s*\d{3,5}', 'gi')) = 1 THEN
+    v_novo := nai_negocio_antes_do_card(t.contato_id,
+                (regexp_match(v_texto, 'C[óo]digo:\s*(\d{3,5})', 'i'))[1]::int, p_escreveu);
+    IF v_novo IS NOT NULL THEN
+      v_texto  := v_novo;
+      v_ident  := true;
+      v_guarda := coalesce(v_guarda || '+', '') || 'negocio_antes_do_card';
+      PERFORM nai_anotar(p_turno, 14, 'negocio_antes_do_card', 'mudou', 'imóvel de locação e venda: perguntou qual dos dois');
+    END IF;
   END IF;
 
   -- 15 ------------------------------------------- DE QUAIS IMÓVEIS SÃO AS FOTOS

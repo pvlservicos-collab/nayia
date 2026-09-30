@@ -16,7 +16,7 @@ AS $function$
     WHEN s0 ~ '^\s*(o|a|os|as|este|esse|esta|essa)\s+(arquivo|imagem|documento|print|foto|video|audio|pdf)s?\s+(mostra|apresenta|e|eh|contem|traz|exibe|parece|tem|possui)\M'
                                                             THEN NULL
     WHEN s ~ '\m(casa|casas|sobrado)\M'                     THEN 'Casa%'
-    WHEN s ~ '\m(apartamento|apartamentos|apto|aptos|ap)\M' THEN 'Apartamento%'
+    WHEN s ~ '\m(apartamento|apartamentos|apto|aptos|ap|apt|apts|ape|apes|apart\w*|kitnet|kitnets|kitinete|quitinete|studio|studios|loft|lofts)\M' THEN 'Apartamento%'
     WHEN s ~ '\m(cobertura|coberturas)\M'                   THEN 'Cobertura%'
     WHEN s ~ '\m(flat|flats)\M'                             THEN 'Flat%'
     WHEN s ~ '\m(salas?|conjuntos?)\s+(comercial|comerciais)\M'

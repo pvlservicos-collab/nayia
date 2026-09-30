@@ -71,7 +71,7 @@ BEGIN
 
   -- 218: QUARTOS -- "1 ou 2" é de 1 a 2 (antes virava 12); "2 ou mais" é 2 para cima
   SELECT min(x[1]::int), max(x[1]::int) INTO v_q_min, v_q_max
-    FROM regexp_matches(coalesce(p_quartos, ''), '([0-9]{1,2})', 'g') AS x
+    FROM regexp_matches(nai_numeros_por_extenso(coalesce(p_quartos, '')), '([0-9]{1,2})', 'g') AS x
    WHERE x[1]::int BETWEEN 1 AND 10;
   IF v_q_min IS NOT NULL AND lower(unaccent(coalesce(p_quartos, ''))) ~ '(\+|ou mais|no minimo|pelo menos|a partir)' THEN
     v_q_max := 10;
@@ -298,8 +298,9 @@ BEGIN
     v_livre := true;
   END IF;
 
-  v_sem := v_mob ~ '\m(sem|nao|vazio)\M';
-  v_com := NOT v_sem AND v_mob ~ '\m(com|mobiliad|semi|modulad|planejad)';
+  -- 225: palavras parecidas ("mobilhado", "com móveis", "equipado"; "vazio", "desocupado")
+  v_sem := v_mob ~ '\m(sem|nao|vazio|vazia|desocupad\w*|desmobiliad\w*|nada de movei\w*)' AND v_mob !~ '\msemi';
+  v_com := NOT v_sem AND v_mob ~ '(\m(com|mobili\w*|mobilh\w*|mobilad\w*|semi\w*|modulad\w*|planejad\w*|equipad\w*|montad\w*)|movei\w*|movel\M)';
 
   -- O FORMATO E DO TEL (13/09, depois do teste: "me mandou 2 imoveis de forma
   -- desformatada, quero algo assim bem formatado"). Um bloco por imovel, com o
@@ -338,7 +339,9 @@ BEGIN
 
   -- 218: A FAIXA VAZIA, MAS HÁ O QUE CABE NO VALOR ("até 4 mil" e o #5724 de
   -- R$ 2.600 ficava de fora da faixa de 3.200 a 4.400)
-  IF v_aqui IS NULL AND v_alt IS NULL AND v_teto IS NOT NULL THEN
+  -- 225: SÓ SE ELE PEDIR ("pode ser mais em conta"). Pedro, 30/09: "o filtro é
+  -- 20% a menos ou 10% a mais; o cara queria coisa de 4 mil e ela mandou de 2.500".
+  IF v_aqui IS NULL AND v_alt IS NULL AND v_teto IS NOT NULL AND nai_pede_mais_em_conta(t.texto) THEN
     SELECT string_agg(nai_bloco_oferta(z.c, v_negocio), E'\n\n' ORDER BY z.v DESC) INTO v_aqui FROM (
       SELECT i.codigo AS c,
              CASE WHEN v_negocio = 'venda' THEN i.valor_venda
@@ -431,6 +434,14 @@ BEGIN
        ORDER BY similarity(lower(unaccent(i.bairro)), lower(unaccent(coalesce(p_bairro, '')))) DESC
        LIMIT 1;
 
+      -- 225: parecido o bastante entra sem perguntar (Pedro: "use palavras
+      -- semelhantes em todos os parâmetros de filtros")
+      IF v_perto IS NOT NULL
+         AND similarity(lower(unaccent(v_perto)), lower(unaccent(coalesce(p_bairro, '')))) >= 0.60 THEN
+        PERFORM nai_anotar(p_turno, 7, 'bairro_parecido', 'mudou', p_bairro || ' -> ' || v_perto);
+        RETURN QUERY SELECT * FROM nai_buscar_por_perfil(p_turno, v_perto, p_teto, p_quartos, p_mobilia);
+        RETURN;
+      END IF;
       IF v_perto IS NOT NULL
          AND similarity(lower(unaccent(v_perto)), lower(unaccent(coalesce(p_bairro, '')))) >= 0.45 THEN
         RETURN QUERY SELECT
@@ -456,6 +467,11 @@ BEGIN
                  || ' nesse perfil agora, nem nos bairros aqui pertinho.' END
        || CASE WHEN v_teto IS NULL AND NOT v_sem_valor
                THEN ' Me diz até que valor o cliente vai, que eu procuro em toda a cidade.'
+               -- 225: a faixa é firme; mais em conta só se ele pedir
+               WHEN v_teto IS NOT NULL
+               THEN ' Eu procurei entre R$ ' || nai_valor_curto(v_teto * (1 - nai_cfg_int('faixa_abaixo_pct', 20) / 100.0))
+                    || ' e R$ ' || nai_valor_curto(v_teto * (1 + nai_cfg_int('faixa_acima_pct', 10) / 100.0))
+                    || '. Se o cliente aceitar algo mais em conta ou outro bairro, me fala que eu vejo aqui.'
                ELSE '' END)::text,
       ('nao existe nada no perfil pedido' || coalesce(' (' || v_rotulo || ')', '')
        || '. NAO ofereca outro tipo nem outra finalidade no lugar. Pergunte outro bairro '

@@ -15,5 +15,6 @@ AS $function$
              WHEN 'valor'    THEN 'at[ée] que valor'
              WHEN 'regiao'   THEN '(em qual bairro|qual regi[ãa]o|alguma regi[ãa]o|em qual outro)'
              WHEN 'abertura' THEN 'vou fazer um filtro com voc'
+             WHEN 'negocio'  THEN 'alugar ou (para )?comprar'  -- 225
              ELSE '^$' END);
 $function$;

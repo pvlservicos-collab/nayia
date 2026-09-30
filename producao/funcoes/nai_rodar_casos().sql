@@ -33,6 +33,8 @@ BEGIN
       WHEN 'automatica' THEN nai_e_resposta_automatica(c.frase)::text  -- 213
       WHEN 'lugar'      THEN coalesce(nai_bairros_do_lugar(c.frase)::text, '-')  -- 206
       WHEN 'foto'       THEN coalesce(nai_deve_mandar_fotos(NULL, '', c.frase), false)::text  -- 224
+      WHEN 'mais_em_conta' THEN nai_pede_mais_em_conta(c.frase)::text  -- 225
+      WHEN 'extenso'    THEN nai_numeros_por_extenso(c.frase)  -- 225
       ELSE '(pergunta desconhecida: ' || c.pergunta || ')'
     END;
     passou := (v = c.esperado);

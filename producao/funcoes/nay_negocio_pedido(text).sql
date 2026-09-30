@@ -5,8 +5,9 @@ CREATE OR REPLACE FUNCTION public.nay_negocio_pedido(p_texto text)
 AS $function$
 DECLARE
   t text := lower(unaccent(coalesce(p_texto,'')));
-  v boolean := t ~ '\m(venda|vender|vendas|comprar|compra|a venda|vendo)\M';
-  l boolean := t ~ '\m(locacao|aluguel|alugar|aluga|alugado|locar)\M';
+  -- 225: palavras parecidas (financia -> venda; inquilino, alugue -> locação)
+  v boolean := t ~ '\m(venda|vendas|vender|vende|vendo|vendido|vendida|comprar|compra|compro|comprador\w*|a venda|financi\w*|adquirir|investimento|investir)\M';
+  l boolean := t ~ '\m(locacao|locacoes|aluguel|alugueis|alug\w*|locar|locado|locada|locatari\w*|inquilin\w*|para morar de aluguel)\M';
   v_valor numeric;
 BEGIN
   IF v AND l THEN RETURN 'ambos'; END IF;

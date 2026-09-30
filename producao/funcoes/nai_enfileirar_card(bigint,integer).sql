@@ -12,6 +12,13 @@ BEGIN
       'não achei nenhum imóvel com o código ' || p_codigo || '. confere pra mim?', 'codigo_inexistente', 1);
     RETURN jsonb_build_object('ok', true, 'achou', false);
   END IF;
+  -- 225: imóvel de locação e venda, conversa sem negócio: pergunta antes do card
+  IF nai_negocio_antes_do_card(t.contato_id, p_codigo, t.texto) IS NOT NULL THEN
+    PERFORM nai_enfileirar_texto(p_turno, NULL, t.contato_id, 'turno',
+      nai_negocio_antes_do_card(t.contato_id, p_codigo, t.texto), 'resposta', 1);
+    PERFORM nai_anotar(p_turno, 14, 'negocio_antes_do_card', 'mudou', 'imóvel de locação e venda: perguntou qual dos dois');
+    RETURN jsonb_build_object('ok', true, 'achou', true, 'fotos', 0, 'perguntou', 'negocio');
+  END IF;
   PERFORM nai_enfileirar_texto(p_turno, NULL, t.contato_id, 'turno', v_card, 'card', 1);
   -- 224: o codigo solto ("5724") leva o card; a foto so se ele pediu
   IF NOT EXISTS (SELECT 1 FROM imoveis WHERE codigo = p_codigo AND coalesce(e_parceiro, false))
