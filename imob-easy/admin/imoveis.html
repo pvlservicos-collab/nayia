@@ -34,6 +34,7 @@
     <button class="abas__item" role="tab" type="button" data-painel-abre="imoveis" data-grupo="casa" aria-selected="false">Casas <span class="abas__n" data-conta-tipo="casa">—</span></button>
     <button class="abas__item" role="tab" type="button" data-painel-abre="imoveis" data-grupo="outros" aria-selected="false">Outros <span class="abas__n" data-conta-tipo="outros">—</span></button>
     <button class="abas__item" role="tab" type="button" data-painel-abre="anuncios" aria-selected="false">Anúncios</button>
+    <button class="abas__item" role="tab" type="button" data-painel-abre="condominios" aria-selected="false">Condomínios</button>
     <button class="abas__item" role="tab" type="button" data-painel-abre="imoveis" data-vista="mapa" aria-selected="false">Mapa</button>
   </div>
 
@@ -251,6 +252,35 @@
     </div>
   </div>
 
+  <!-- ===================== CONDOMÍNIOS (Pedro, 30/09) ===================== -->
+  <div data-painel="condominios" hidden>
+    <div class="cd-barra">
+      <input id="cd-busca" type="search" placeholder="Buscar condomínio, bairro ou construtora" aria-label="Buscar condomínio">
+      <select id="cd-mostrar" aria-label="Mostrar">
+        <option value="">Todos</option>
+        <option value="ficha">Com ficha (ano, torres, lazer)</option>
+        <option value="antigo">Com características do site antigo</option>
+        <option value="disponivel">Com imóvel disponível</option>
+      </select>
+      <span class="cd-resumo" id="cd-resumo"></span>
+    </div>
+    <div class="tabela-envolucro">
+      <div class="tabela-rolagem">
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th scope="col">Condomínio</th>
+              <th scope="col">Imóveis (disp. / total)</th>
+              <th scope="col">Ficha</th>
+              <th scope="col">Lazer e características</th>
+            </tr>
+          </thead>
+          <tbody id="cd-corpo"><tr><td colspan="4">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <!-- ===================== FICHA (gaveta) ===================== -->
@@ -265,5 +295,6 @@
 <script src="../assets/js/seletor-condominio.js"></script>
 <script src="../assets/js/multiselecao.js"></script>
 <script src="../assets/js/imoveis-ux.js?v=20260930-lugares"></script>
+<script src="../assets/js/condominios-aba.js?v=20260930"></script>
 </body>
 </html>

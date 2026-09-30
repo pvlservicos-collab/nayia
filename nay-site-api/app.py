@@ -833,6 +833,68 @@ def api_condominios():
         conn.close()
 
 
+@app.route("/api/condominios/aba")
+def api_condominios_aba():
+    """A ABA CONDOMÍNIOS de Todos os imóveis (Pedro, 30/09/2026: "põe a aba
+    condomínios listando tudo, também com as características que pegamos do site
+    antigo"). Cada condomínio do cadastro, mais as fichas sem cadastro (migração
+    210), com:
+      * os imóveis ligados pelo id OU pelo nome (o mesmo de /api/condominios), ou
+        pelos `nomes_no_imovel` da ficha;
+      * a ficha (ano, construtora, torres, andares, lazer...), quando existe;
+      * `antigo`: as características do condomínio lidas dos anúncios do site
+        antigo (imovel_ficha), com quantos imóveis dele citam cada uma.
+    Sem dado pessoal."""
+    conn = conectar()
+    try:
+        linhas = todas_linhas(conn, """
+            WITH v AS (SELECT codigo, condo_id, status, lower(nay_sem_acento(condominio)) AS cn
+                         FROM vw_imoveis_todos),
+                 base AS (SELECT 'c' || c.id AS chave, c.id AS condo_id, c.nome, c.bairro, f.id AS ficha_id
+                            FROM condominios c LEFT JOIN condominio_ficha f ON f.condominio_id = c.id
+                          UNION ALL
+                          SELECT 'f' || f.id, NULL, f.nome, f.bairro, f.id
+                            FROM condominio_ficha f
+                           WHERE f.condominio_id IS NULL OR NOT EXISTS (SELECT 1 FROM condominios c WHERE c.id = f.condominio_id)),
+                 nomes AS (SELECT b.chave, lower(nay_sem_acento(b.nome)) AS cn FROM base b
+                           UNION
+                           SELECT b.chave, lower(nay_sem_acento(x)) FROM base b
+                             JOIN condominio_ficha f ON f.id = b.ficha_id, unnest(f.nomes_no_imovel) x),
+                 lig AS (SELECT b.chave, v.codigo, v.status FROM base b JOIN v ON v.condo_id = b.condo_id
+                         UNION
+                         SELECT n.chave, v.codigo, v.status FROM nomes n JOIN v ON v.condo_id IS NULL AND v.cn = n.cn),
+                 cont AS (SELECT chave, count(*) AS imoveis,
+                                 count(*) FILTER (WHERE status = 'Disponível') AS disponiveis
+                            FROM lig GROUP BY chave),
+                 carac AS (SELECT lig.chave, x AS item, count(DISTINCT lig.codigo) AS n
+                             FROM lig JOIN imovel_ficha fi ON fi.codigo = lig.codigo,
+                                  unnest(fi.caracteristicas_condominio) x
+                            GROUP BY 1, 2),
+                 antigo AS (SELECT chave, json_agg(json_build_object('item', item, 'n', n) ORDER BY n DESC, item) AS lista
+                              FROM carac GROUP BY chave)
+            SELECT b.chave, b.condo_id, b.nome, b.bairro,
+                   coalesce(cont.imoveis, 0) AS imoveis, coalesce(cont.disponiveis, 0) AS disponiveis,
+                   antigo.lista AS antigo,
+                   CASE WHEN f.id IS NOT NULL THEN json_build_object(
+                     'tipo', f.tipo, 'endereco', f.endereco, 'ano', f.ano_lancamento, 'construtora', f.construtora,
+                     'revestimento', f.revestimento, 'torres', f.torres, 'andares', f.andares,
+                     'aptos_por_andar', f.aptos_por_andar, 'elevador', f.elevador, 'unidades', f.unidades,
+                     'lazer', f.lazer, 'fonte', f.fonte) END AS ficha
+              FROM base b
+              LEFT JOIN cont ON cont.chave = b.chave
+              LEFT JOIN antigo ON antigo.chave = b.chave
+              LEFT JOIN condominio_ficha f ON f.id = b.ficha_id
+             ORDER BY (f.id IS NULL), lower(nay_sem_acento(b.nome))
+        """)
+        return jsonify([{
+            "chave": l["chave"], "id": l["condo_id"], "nome": l["nome"], "bairro": l["bairro"],
+            "imoveis": l["imoveis"], "disponiveis": l["disponiveis"],
+            "antigo": l["antigo"] or [], "ficha": l["ficha"],
+        } for l in linhas]), 200, {"Cache-Control": "public, max-age=120"}
+    finally:
+        conn.close()
+
+
 @app.route("/api/anuncios")
 def api_anuncios():
     conn = conectar()
