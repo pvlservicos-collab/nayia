@@ -1,2 +1,0 @@
-"""Setor TRACE.
-"""
