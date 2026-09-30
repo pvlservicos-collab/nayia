@@ -118,7 +118,7 @@
     var campo = document.querySelector('[data-chave="' + chave + '"]');
     if (!campo) return;
     botao.disabled = true;
-    fetch(API + "/api/nai/config", {
+    fetch("/admin/api/nai/config", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chave: chave, valor: campo.value })
@@ -138,7 +138,7 @@
   function carregarPrompt() {
     papelAtual = elemento("nay-papel").value;
     elemento("nay-prompt-info").textContent = "carregando…";
-    fetch(API + "/api/nai/prompt/" + papelAtual)
+    fetch("/admin/api/nai/prompt/" + papelAtual)
       .then(function (r) { return r.json(); })
       .then(function (p) {
         elemento("nay-prompt").value = p.texto || "";
@@ -153,7 +153,7 @@
   function salvarPrompt() {
     var aviso = elemento("nay-prompt-aviso");
     aviso.textContent = "salvando…";
-    fetch(API + "/api/nai/prompt/" + papelAtual, {
+    fetch("/admin/api/nai/prompt/" + papelAtual, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ texto: elemento("nay-prompt").value, versao: versaoAtual, por: "painel" })

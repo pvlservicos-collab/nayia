@@ -218,7 +218,7 @@
 
   function carregarPrompt() {
     elemento("cap-prompt-info").textContent = "carregando…";
-    fetch(API + "/api/nai/prompt/captacao")
+    fetch("/admin/api/nai/prompt/captacao")
       .then(function (r) { return r.json(); })
       .then(function (p) {
         elemento("cap-prompt").value = p.texto || "";
@@ -233,7 +233,7 @@
   function salvarPrompt() {
     var aviso = elemento("cap-prompt-aviso");
     aviso.textContent = "salvando…";
-    fetch(API + "/api/nai/prompt/captacao", {
+    fetch("/admin/api/nai/prompt/captacao", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ texto: elemento("cap-prompt").value, versao: versaoPrompt, por: "painel" })

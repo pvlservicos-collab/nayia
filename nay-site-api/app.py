@@ -3993,15 +3993,27 @@ def _maquina_do_crm_confere():
         request.headers.get("x-captacao-segredo", ""), segredo)
 
 
+# O PROMPT E A CONFIGURACAO DA NAY PEDEM SENHA (30/09). PUT /api/nai/config
+# (modo, pausada, envio_simulado, numeros_teste...) e PUT /api/nai/prompt/<papel>
+# respondiam sem senha em api.imobeasy.online: qualquer um calava a Nay ou
+# reescrevia o que ela diz, sem registro de quem foi (entrevista de 29/09,
+# pergunta 50). Mesma guarda da captacao; as telas passam a chamar pelo
+# proprio dominio (/admin/api/...), onde o navegador ja manda a senha.
+_PREFIXOS_NAI_PAINEL = ("/api/nai/config", "/api/nai/prompt", "/admin/api/nai/config", "/admin/api/nai/prompt")
+
+
 @app.before_request
 def _captacao_exige_senha():
     if request.method != "OPTIONS" and request.path.startswith(_PREFIXOS_CAPTACAO) \
             and not senha_do_admin_confere() and not _maquina_do_crm_confere():
         return _sem_senha()
+    if request.method != "OPTIONS" and request.path.startswith(_PREFIXOS_NAI_PAINEL) \
+            and not senha_do_admin_confere():
+        return _sem_senha()
 
 
 for _regra in list(app.url_map.iter_rules()):
-    if _regra.rule.startswith(("/api/captacao", "/api/nai/captacao")):
+    if _regra.rule.startswith(("/api/captacao", "/api/nai/captacao", "/api/nai/config", "/api/nai/prompt")):
         app.add_url_rule("/admin" + _regra.rule, endpoint=_regra.endpoint + "__admin",
                          view_func=app.view_functions[_regra.endpoint],
                          methods=sorted(m for m in _regra.methods if m not in ("HEAD", "OPTIONS")))
