@@ -20,7 +20,9 @@ interface UseLeadSearchResult {
   mode: 'client' | 'server'
 }
 
-export function useLeadSearch(query: string): UseLeadSearchResult {
+/** `linha`: a busca do servidor fica só no número da aba (parceria, oficial,
+ * captacao) -- busca de verdade em todo o número (Pedro, 30/09). */
+export function useLeadSearch(query: string, linha?: string | null): UseLeadSearchResult {
   const { leads } = useLeadsContext()
   const [serverHits, setServerHits] = useState<SearchHit[] | null>(null)
   const [loading, setLoading] = useState(false)
@@ -51,7 +53,7 @@ export function useLeadSearch(query: string): UseLeadSearchResult {
         const res = await fetch('/api/leads/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ q: trimmed }),
+          body: JSON.stringify({ q: trimmed, ...(linha ? { linha } : {}) }),
           signal: ctl.signal,
         })
         if (!res.ok) throw new Error(`search failed (${res.status})`)
@@ -73,7 +75,7 @@ export function useLeadSearch(query: string): UseLeadSearchResult {
       clearTimeout(timer)
       ctl.abort()
     }
-  }, [trimmed])
+  }, [trimmed, linha])
 
   // Empty query → return full list with a synthetic matchType='title' so the
   // downstream component can render unchanged.

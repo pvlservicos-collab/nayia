@@ -5,6 +5,7 @@ import { Sparkle, X, Play, Pause, Microphone, ArrowBendUpLeft, Check, Checks, Wa
 import { LeadActivityWithActor, LeadWithOwner } from '@/lib/types'
 import { formatTime } from '@/lib/utils'
 import ImovelCitado from './ImovelCitado'
+import DocumentoPdf, { ehPdf } from './VisualizadorPdf'
 import { useAuth } from '@/hooks'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 
@@ -312,6 +313,8 @@ function MediaRenderer({ metadata, isOutgoing, onImageClick, senderAvatar, mostr
   if (type === 'document') {
     const nome = metadata.media_filename || 'Documento'
     const ext = (String(nome).split('.').pop() || metadata.media_mimetype?.split('/')[1] || 'arquivo').toUpperCase().slice(0, 5)
+    // PDF abre no próprio chat, sem baixar (Pedro, 30/09) -- ver VisualizadorPdf
+    if (ehPdf(nome, metadata.media_mimetype)) return <DocumentoPdf url={url} nome={nome} ext="PDF" />
     return (
       <a href={url} target="_blank" rel="noopener noreferrer" download={metadata.media_filename || undefined}
          className="flex items-center gap-3 p-2.5 rounded-[6px] w-[300px] max-w-full mb-0.5" style={{ background: 'var(--wa-quote)' }}

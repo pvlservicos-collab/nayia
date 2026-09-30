@@ -220,7 +220,7 @@ export default function LeadList({
   const DISPLAY_INCREMENT = 20
   const [displayLimit, setDisplayLimit] = useState(INITIAL_DISPLAY)
 
-  const { results: searchResults, loading: searching } = useLeadSearch(search)
+  const { results: searchResults, loading: searching } = useLeadSearch(search, linha)
 
   // Rolagem infinita
   useEffect(() => {
@@ -370,9 +370,11 @@ export default function LeadList({
 
   // Lista de CONVERSAS, não de leads cadastrados (ver ehConversaVisivel). Na
   // busca a regra é suspensa: aí a pessoa procura alguém para começar a falar.
+  // BUSCA EM TODO O NÚMERO (Pedro, 30/09): buscando, entra tudo -- arquivadas também
+  const buscando = search.trim().length > 0
   const visiveis = verArquivadas
     ? arquivadas
-    : search.trim() ? semArquivados : semArquivados.filter((hit) => ehConversaVisivel(hit.lead))
+    : buscando ? ordenados : semArquivados.filter((hit) => ehConversaVisivel(hit.lead))
 
   /* ── Os filtros de cima ── */
   const atendenteDoLead: Record<string, Atendente | undefined> = {}
@@ -476,10 +478,14 @@ export default function LeadList({
   }
 
   const buscandoDono = ehParceria && activeTab === 'proprietarios' && buscaDono.trim().length > 0
+  /* BUSCA DE VERDADE EM TODO O NÚMERO (Pedro, 30/09/2026: "a lupa de buscar
+     contato nas conversas quero que funcione como uma busca real de leads em todo
+     o número; hoje se eu tô no Tel só acho quem é do Tel"). Com a lupa, a aba
+     (etapa, Tel/Rayssa, não lidas, etiqueta) não filtra: acha no número inteiro. */
   const filtradas = visiveis
-    .filter(passaNoFiltro)
-    .filter((hit) => !buscandoDono || casaNaBusca(buscaDono, hit.lead))
-    .filter((hit) => selectedTagIds.length === 0 || hit.lead.lead_tags?.some((lt: any) => selectedTagIds.includes(lt.tag_id)))
+    .filter((hit) => buscando || passaNoFiltro(hit))
+    .filter((hit) => buscando || !buscandoDono || casaNaBusca(buscaDono, hit.lead))
+    .filter((hit) => buscando || selectedTagIds.length === 0 || hit.lead.lead_tags?.some((lt: any) => selectedTagIds.includes(lt.tag_id)))
 
   /* O ANDRÉ EM CIMA, EM VISITAS (Tel, 30/09): "o André vai ficar fixado em cima
      das conversas porque ele é da equipe e faz parte disso". Quem é da equipe
@@ -644,10 +650,15 @@ export default function LeadList({
           </button>
         )}
 
+        {buscando && filtradas.length > 0 && (
+          <div className="px-4 pt-1 pb-1.5 text-[12.5px]" style={{ color: 'var(--wa-text-2)' }}>
+            {filtradas.length} {filtradas.length === 1 ? 'conversa' : 'conversas'} em todo o número (todas as abas)
+          </div>
+        )}
         {filtradas.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-[70%] px-8 text-center text-[14px]" style={{ color: 'var(--wa-text-2)' }}>
             {searching ? 'Buscando…'
-              : search.trim() ? 'Nenhuma conversa encontrada'
+              : search.trim() ? 'Ninguém com esse nome ou número neste WhatsApp'
               : activeTab !== 'all' ? 'Nenhuma conversa neste filtro'
               : verArquivadas ? 'Nenhuma conversa arquivada'
               : 'Nenhuma conversa ainda. Só aparece aqui quem já trocou mensagem.'}
