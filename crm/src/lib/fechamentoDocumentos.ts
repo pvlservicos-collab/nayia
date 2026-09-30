@@ -101,10 +101,12 @@ const REGRAS: [string, RegExp][] = [
   ['matricula', /\bmatricula\b/],
   ['certidao_estado_civil', /\bcertidao\b/],
   ['contrato_social_cnpj', /contrato social|\bcnpj\b/],
-  ['comprovante_renda', /contra ?cheque|holerite|\brenda\b|\bextrato|imposto de renda|\birpf\b|declaracao de ir\b|pro labore|\bdecore\b/],
+  // medido nas conversas reais (30/09): "recibodepagamento DE PROLABORE", "Faturamento"
+  ['comprovante_renda', /contra ?cheque|holerite|\brenda\b|\bextrato|imposto de renda|\birpf\b|declaracao de ir\b|pro ?labore|recibo ?de ?pagamento|\bfaturamento\b|\bdecore\b/],
   ['comprovante_residencia', /comprovante de (residencia|endereco)|conta de (luz|energia|agua)|amazonas energia|aguas de manaus|\bresidencia\b|\bfatura\b/],
   ['creci', /\bcreci\b/],
-  ['rg_cnh', /\brg\b|\bidentidade\b|\bcnh\b|habilitacao|carteira de motorista|\bdoc (frente|verso)\b|\bfrente e verso\b/],
+  // "REPUBLICA FEDERATIVA DO BRASIL.pdf" é o cabeçalho do RG/CNH; "exportado pela CDT" é a CNH digital
+  ['rg_cnh', /\brg\b|\bidentidade\b|\bcnh\b|habilitacao|carteira de motorista|\bdoc (frente|verso)\b|\bfrente e verso\b|republica federativa do brasil|\bcdt\b|carteira digital de transito/],
   ['cpf', /\bcpf\b/],
 ]
 
