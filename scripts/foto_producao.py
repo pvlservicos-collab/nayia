@@ -29,14 +29,26 @@ def limpo(t: str | None) -> str:
     return s
 
 
+def _limpar(pasta: Path) -> None:
+    """Apaga o CONTEÚDO da pasta, não a pasta: no Windows, pasta aberta num terminal
+    não pode ser apagada, e o rmtree deixava a pasta vazia e o mkdir estourava."""
+    if not pasta.exists():
+        return
+    for f in sorted(pasta.rglob("*"), reverse=True):
+        if f.is_file():
+            f.unlink()
+        elif f.is_dir():
+            shutil.rmtree(f, ignore_errors=True)
+
+
 def _nome_de_arquivo(s: str) -> str:
     return re.sub(r"[^\w().,+-]+", "_", s).strip("_")
 
 
 def funcoes(banco: dict, destino: Path) -> int:
     pasta = destino / "funcoes"
-    shutil.rmtree(pasta, ignore_errors=True)
-    pasta.mkdir(parents=True)
+    _limpar(pasta)
+    pasta.mkdir(parents=True, exist_ok=True)
     for f in banco["funcoes"] or []:
         tipos = ",".join(t.strip().replace(" ", "_") for t in (f["tipos"] or "").split(",") if t.strip())
         (pasta / _nome_de_arquivo(f"{f['nome']}({tipos}).sql")).write_text(limpo(f["def"]).rstrip() + ";\n",
@@ -46,8 +58,8 @@ def funcoes(banco: dict, destino: Path) -> int:
 
 def fluxos(bruto: Path, destino: Path) -> list[str]:
     pasta = destino / "n8n"
-    shutil.rmtree(pasta, ignore_errors=True)
-    pasta.mkdir(parents=True)
+    _limpar(pasta)
+    pasta.mkdir(parents=True, exist_ok=True)
     nomes = []
     for w in json.loads((bruto / "workflows.json").read_text(encoding="utf-8")):
         texto = limpo(json.dumps(w, ensure_ascii=False, indent=1))
@@ -58,8 +70,8 @@ def fluxos(bruto: Path, destino: Path) -> list[str]:
 
 def cron(bruto: Path, destino: Path) -> None:
     pasta = destino / "cron"
-    shutil.rmtree(pasta, ignore_errors=True)
-    (pasta / "cron.d").mkdir(parents=True)
+    _limpar(pasta)
+    (pasta / "cron.d").mkdir(parents=True, exist_ok=True)
     partes = re.split(r"^### (.+)$", (bruto / "cron.txt").read_text(encoding="utf-8"), flags=re.M)
     (pasta / "root.crontab").write_text(limpo(partes[0]).strip() + "\n", encoding="utf-8")
     for arq, conteudo in zip(partes[1::2], partes[2::2], strict=False):
@@ -72,8 +84,8 @@ def config_e_prompts(banco: dict, destino: Path) -> None:
         for c in banco["config"] or []]
     (destino / "nai_config.tsv").write_text("\n".join(linhas) + "\n", encoding="utf-8")
     pasta = destino / "prompts"
-    shutil.rmtree(pasta, ignore_errors=True)
-    pasta.mkdir(parents=True)
+    _limpar(pasta)
+    pasta.mkdir(parents=True, exist_ok=True)
     for p in banco["prompts"] or []:
         cab = (f"<!-- nai_prompt papel={p['papel']} versao={p['versao']} atualizado_em={(p['atualizado_em'] or '')[:16]}"
                f" por={p['atualizado_por'] or '-'} -->\n")
