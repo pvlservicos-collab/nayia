@@ -1,0 +1,15 @@
+[Unit]
+Description=Publicador de grupos -- servico HTTP (Flask, POST /comando)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/nay-publicador
+EnvironmentFile=/root/nay-publicador/.env
+ExecStart=/root/nay-publicador/.venv/bin/python /root/nay-publicador/servidor.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,107 @@
+[
+ [
+  "Nay envia para o grupo alto padrão 4567",
+  true,
+  false
+ ],
+ [
+  "envia para o grupo alto padrao o 4567",
+  true,
+  false
+ ],
+ [
+  "Nay manda para o grupo alto padrão o 4567",
+  true,
+  false
+ ],
+ [
+  "posta no grupo alto padrão 4567",
+  true,
+  true
+ ],
+ [
+  "publica no grupo alto padrão o 4567",
+  true,
+  true
+ ],
+ [
+  "Nay publica no alto padrão easy o 4567",
+  true,
+  true
+ ],
+ [
+  "Nay posta no alto padrao para anunciar easy 4567",
+  true,
+  true
+ ],
+ [
+  "Nay encaminha para o grupo alto padrão 4567",
+  true,
+  false
+ ],
+ [
+  "envia para o grupo alto padrão 4567 mesmo assim",
+  true,
+  false
+ ],
+ [
+  "Nay envia o 5750 pro corretor do alto padrão",
+  false,
+  false
+ ],
+ [
+  "Nay publica no anunciar easy o 4567",
+  false,
+  true
+ ],
+ [
+  "Nay posta o 5750",
+  false,
+  true
+ ],
+ [
+  "Nay manda o 5750 pro Sergio",
+  false,
+  false
+ ],
+ [
+  "envia 92 9450-0381 o 5739",
+  false,
+  false
+ ],
+ [
+  "bom dia Nay",
+  false,
+  false
+ ],
+ [
+  "Nay VAGAS",
+  false,
+  false
+ ],
+ [
+  "posta 5750 no grupo alto padrão todo dia as 12:30",
+  true,
+  true
+ ],
+ [
+  "posta 5750 no grupo  padrão segunda, quarta e sexta as 08",
+  true,
+  true
+ ],
+ [
+  "posta no grupo  padrão o 5750 seg, qua e sex as 8h",
+  true,
+  true
+ ],
+ [
+  "posta no grupo  padrão o 5750 as 08:00 segunda, quarta e sexta",
+  true,
+  true
+ ],
+ [
+  "posta no grupo  padrão o 5750 todo sabado as 10h",
+  true,
+  true
+ ]
+]

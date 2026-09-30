@@ -1,0 +1,24 @@
+{#
+  Uma página só para dizer o que deu errado, em português e sem enfeite.
+
+  POR QUE EXISTE SEPARADA: o projeto já pagou caro por mensagem genérica --
+  "erro inesperado" manda a pessoa adivinhar. As três coisas que dão errado
+  aqui são bem diferentes (link que não é do OLX, a OLX recusando o IP, e
+  falta de credencial do admin) e cada uma tem uma saída diferente. O
+  `detalhe` explica, e `itens` lista o que falta quando é uma lista.
+
+  Detalhe interno (traceback, DATABASE_URL) nunca chega aqui: quem monta o
+  texto é captacao.py, e a exceção crua fica só no log.
+#}
+{% extends "captacao_base.html" %}
+{% block titulo %}{{ titulo }}{% endblock %}
+{% block conteudo %}
+<div class="ruim">
+  <strong>{{ titulo }}</strong>
+  <p>{{ detalhe }}</p>
+  {% if itens %}
+  <ul class="itens">{% for i in itens %}<li>{{ i }}</li>{% endfor %}</ul>
+  {% endif %}
+</div>
+<p><a href="{{ voltar }}">Voltar</a></p>
+{% endblock %}

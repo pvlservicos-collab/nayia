@@ -51,9 +51,16 @@ Thumbs.db
 colagem/
 *.zip
 
-# nay-publicador e o ESPELHO do que esta deployado em /root/nay-publicador,
-# tem repositorio git proprio e um .env de verdade dentro. O fonte e Arquivos/.
-nay-publicador/
+# nay-publicador e o ESPELHO do que esta deployado em /root/nay-publicador.
+# Desde 30/09/2026 mora AQUI (Pedro: "garanta que esse projeto so esteja em
+# pvlservicos-collab/nayia"); o repositorio proprio dele (Telsobreira) saiu.
+# O .env de verdade continua fora do git (a regra .env acima vale para ele).
+nay-publicador/.venv/
+nay-publicador/logs/
+nay-publicador/fotos_captacao/
+nay-publicador/catalogo.json
+nay-publicador/*.bk_*
+nay-publicador/*.orig
 
 # CRM (Next.js)
 crm/node_modules/

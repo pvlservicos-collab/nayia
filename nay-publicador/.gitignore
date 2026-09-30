@@ -1,0 +1,10 @@
+*.csv
+*.pyc
+.DS_Store
+.claude/settings.local.json
+.env
+.venv/
+__pycache__/
+atualiza*.sql
+catalogo.json
+fotos_captacao/

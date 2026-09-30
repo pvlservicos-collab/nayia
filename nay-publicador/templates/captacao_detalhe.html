@@ -1,0 +1,178 @@
+{#
+  A tela de UMA captação: o que veio do OLX, o que falta, e o botão de publicar.
+
+  A ORDEM DA PÁGINA é a ordem da conversa real do Tel com o proprietário:
+  primeiro o que FALTA (é o que ele precisa perguntar agora, com a pessoa na
+  frente), depois as DÚVIDAS, depois o que já veio para conferir, e só no fim
+  o texto cru do anúncio. Obrigatório em cima de tudo -- é o que trava a
+  publicação, e no celular o que está embaixo não é lido.
+
+  O que veio do OLX aparece EDITÁVEL, não como enfeite. Motivo medido em
+  02/09/2026: o dado do OLX é pior que o nosso e não tem dono a quem cobrar --
+  o primeiro anúncio pego sem escolher era uma fazenda de 12.000 hectares com
+  "R$ 1.500 / Aluguel", que é R$ 1.500 POR HECTARE, à venda. Campo que não dá
+  para corrigir vira erro que vai para o site.
+
+  O botão de publicar só aparece quando não há pendência. Enquanto a
+  credencial do admin da Imob Easy não existir, a tela LISTA o que falta em
+  vez de mostrar um botão que finge.
+#}
+{% extends "captacao_base.html" %}
+{% block titulo %}{{ c.titulo or 'Captação' }}{% endblock %}
+{% block conteudo %}
+
+{% if mensagem %}<div class="bom">{{ mensagem }}</div>{% endif %}
+
+<span class="etiqueta s-{{ c.status }}">{{ c.status }}</span>
+<h1 style="margin-top:8px">{{ c.titulo or 'Sem título no anúncio' }}</h1>
+<p class="fraco">
+  #{{ c.id }}{% if c.olx_id %} · OLX {{ c.olx_id }}{% endif %}
+  {%- if c.codigo_site %} · código no site {{ c.codigo_site }}{% endif %}
+  <br><a href="{{ c.link }}" rel="noreferrer noopener" target="_blank">ver o anúncio no OLX</a>
+</p>
+
+{% if c.status == 'erro' and c.erro %}
+  <div class="ruim"><strong>O site recusou.</strong> {{ c.erro }}</div>
+{% endif %}
+
+{% if fotos %}
+<h2>Fotos ({{ fotos|length }})</h2>
+<div class="cartao">
+  <div class="fotos">
+    {% for f in fotos %}<img src="{{ f.url }}" alt="foto {{ loop.index }}" loading="lazy">{% endfor %}
+  </div>
+  <p class="fraco" style="margin-bottom:0">Vêm do OLX na ordem do anúncio.
+    Baixar foto funciona até do servidor; só a leitura da página é que
+    depende de IP liberado.</p>
+</div>
+{% endif %}
+
+<form method="post" action="/captacao/{{ c.id }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+
+  <h2>Falta preencher</h2>
+  {% if not faltando %}
+    <div class="cartao fraco">
+      {% if campos %}Nada faltando.{% else %}
+      Não sei dizer: o módulo que compara os campos (<code>captacao_campos.py</code>)
+      ainda não existe. Enquanto isso, confira tudo à mão lá embaixo.{% endif %}
+    </div>
+  {% else %}
+    <div class="cartao">
+      {% for campo in faltando %}
+      <div class="campo">
+        <label {% if not campo.subcampos %}for="c_{{ campo.nome }}"{% endif %}>
+          {{ campo.rotulo }}{% if campo.obrigatorio %} <span class="obrig">· obrigatório</span>{% endif %}
+        </label>
+        {% if campo.subcampos %}
+          {# Uma pergunta, DUAS caixas -- e cada caixa tem o nome da coluna de
+             verdade. A tela não sabe se "390000" é venda ou aluguel, e chutar
+             seria pôr o preço de venda na linha do aluguel. Quem sabe é quem
+             está com o proprietário na frente, então ela pergunta. Enquanto
+             isto era uma caixa só chamada `campo_valor`, a resposta caía numa
+             chave que ninguém lia e a pergunta voltava para sempre. #}
+          <p class="fraco" style="margin-top:0">Preencha o que for o caso — um dos dois basta.</p>
+          {% for sub in campo.subcampos %}
+          <label for="c_{{ sub.nome }}" style="font-weight:400">{{ sub.rotulo }}</label>
+          <input type="text" id="c_{{ sub.nome }}" name="campo_{{ sub.nome }}"
+                 value="" autocomplete="off" style="margin-bottom:8px">
+          {% endfor %}
+        {% elif campo.nome in ('descricao', 'caracteristicas') %}
+          <textarea id="c_{{ campo.nome }}" name="campo_{{ campo.nome }}"></textarea>
+        {% else %}
+          <input type="text" id="c_{{ campo.nome }}" name="campo_{{ campo.nome }}"
+                 value="" autocomplete="off">
+        {% endif %}
+        {% if campo.ajuda %}<p class="fraco">{{ campo.ajuda }}</p>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if duvidas %}
+  <h2>Perguntar ao proprietário</h2>
+  <div class="cartao">
+    <ul class="itens">
+      {% for d in duvidas %}<li>{{ d.pergunta }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <div class="campo cartao">
+    <label for="c_anotacoes">{{ 'Anotações da conversa com o proprietário' }}</label>
+    <textarea id="c_anotacoes" name="campo_anotacoes">{{ campos.get('anotacoes', '') }}</textarea>
+    <p class="fraco" style="margin-bottom:0">O que ele falou e não cabe em campo
+      nenhum. Fica guardado aqui na captação, não vai para o site.</p>
+  </div>
+
+  {% if preenchidos %}
+  <h2>Já preenchido — confira</h2>
+  <div class="cartao">
+    {% for campo in preenchidos %}
+    <div class="campo">
+      <label for="p_{{ campo.nome }}">{{ campo.rotulo }}</label>
+      {% if campo.nome in ('descricao', 'caracteristicas') %}
+        <textarea id="p_{{ campo.nome }}" name="campo_{{ campo.nome }}">{{ campo.valor }}</textarea>
+      {% else %}
+        <input type="text" id="p_{{ campo.nome }}" name="campo_{{ campo.nome }}"
+               value="{{ campo.valor }}" autocomplete="off">
+      {% endif %}
+    </div>
+    {% endfor %}
+    <p class="fraco" style="margin-bottom:0">Apagar o conteúdo remove o campo —
+      vazio aqui quer dizer "não sei", não "zero".</p>
+  </div>
+  {% endif %}
+
+  <button>Salvar</button>
+</form>
+
+<h2>Publicar no site</h2>
+{% if avisos %}
+{# Aviso NÃO é pendência: não impede de publicar. Foto que faltou é o caso --
+   travar o imóvel inteiro porque 2 de 16 fotos não baixaram o deixaria fora
+   do site por causa de uma URL morta. #}
+<div class="aviso">
+  <ul class="itens" style="padding-left:18px">
+    {% for a in avisos %}<li>{{ a }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% if pendencias %}
+<div class="aviso">
+  <strong>Ainda não dá para publicar.</strong> Nada foi enviado ao site:
+  <ul class="itens">{% for p in pendencias %}<li>{{ p }}</li>{% endfor %}</ul>
+</div>
+{% elif c.status == 'publicado' %}
+<div class="bom">Já está no site{% if c.codigo_site %} com o código
+  {{ c.codigo_site }}{% endif %}. A varredura horária traz para o banco da Nay
+  em até uma hora — não precisa fazer mais nada.</div>
+{% else %}
+<form method="post" action="/captacao/{{ c.id }}/publicar" class="cartao">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <p class="fraco">Vai cadastrar no admin da imobeasy.com com o que está
+    salvo aqui, e subir as {{ fotos|length }} foto(s).</p>
+  <button>Cadastrar no site</button>
+</form>
+{% endif %}
+
+<h2>O que veio do OLX, cru</h2>
+<div class="cartao">
+  <table>
+    <tr><td class="rot">Preço no anúncio</td>
+        <td>{{ dados.get('preco_texto') or '—' }}
+          {%- if dados.get('preco_rotulo') %} ({{ dados.get('preco_rotulo') }}){% endif %}</td></tr>
+    <tr><td class="rot">Bairro</td><td>{{ dados.get('bairro') or '—' }}</td></tr>
+    <tr><td class="rot">Município</td><td>{{ dados.get('municipio') or '—' }}</td></tr>
+    <tr><td class="rot">Rua</td><td>{{ dados.get('logradouro') or '—' }}</td></tr>
+    <tr><td class="rot">CEP</td><td>{{ dados.get('cep') or '—' }}</td></tr>
+    {% for nome, valor in (dados.get('campos') or {}).items() %}
+    <tr><td class="rot">{{ nome }}</td><td>{{ valor }}</td></tr>
+    {% endfor %}
+  </table>
+  <p class="fraco">O preço vem como texto de propósito: converter aqui foi o
+    que fez uma fazenda de 12.000 hectares virar "aluguel de R$ 1.500".</p>
+  <h2 style="margin-top:16px">Descrição do proprietário</h2>
+  <pre class="cru">{{ dados.get('descricao') or '(o anúncio não trouxe descrição)' }}</pre>
+</div>
+{% endblock %}

@@ -1,0 +1,564 @@
+{
+  "_por_que": [
+    "A gramatica de 'saiu do mercado' vive em TRES lugares: interpretar_comando.py,",
+    "e os nos `Comando do Tel` e `Rotear para o agente` do n8n. Se divergirem, ou o",
+    "comando morre (o Tel escreve e nada acontece) ou o Tel recebe resposta DUPLA --",
+    "uma do publicador e outra do agente. Este arquivo e a fonte unica: o teste",
+    "Python e o teste JS leem daqui, entao divergencia vira teste vermelho.",
+    "",
+    "O Tel pediu a forma com o CODIGO NA FRENTE em 09/09 ('5712 Alugado'), que e",
+    "como ele escreve olhando a grade -- a grade lista codigo primeiro.",
+    "",
+    "`comando` significa: o no do n8n manda para o publicador. `motivo` so existe quando a acao e liberar_vaga. `acao_python` cobra, no teste Python, que o comando caia na acao certa -- 'posta 5712' e comando, mas nao e liberar.",
+    "",
+    "O mesmo arquivo cobre a taxa inclusa (`5729 incluso a tx`), pelo mesmo motivo: a regra vive no Python e nos dois nos do n8n. `acao_python` diz qual acao o comando tem que virar; `incluso` cobra o sentido, que e onde errar custa caro -- marcar taxa inclusa num imovel que nao tem faz o corretor levar cliente com a conta errada.",
+    "",
+    "E cobre tambem a lista por categoria (`Nay lista de apartamento para locacao`), pelo mesmo motivo: a palavra LISTA entrou no literal de verbos dos dois nos.",
+    "",
+    "E cobre o DISPARO da lista (`Nay dispara lista de apartamento para locacao`), pedido do Tel em 09/09. Aqui a divergencia e a mais cara do arquivo: se o no do n8n nao reconhecer, o comando morre calado; se reconhecer o que o Python le como outra coisa, a lista errada sai em 13 grupos, sem desfazer. `destino` diz se vai para os grupos de parceiro ou so para o do Easy.",
+    "",
+    "O NEGOCIO NULO e caso de teste de primeira classe desde 09/09: 'Nay lista de apartamentos' sem dizer venda ou locacao tem que PERGUNTAR, nunca supor. Antes supunha locacao calada, e a lista de venda -- que o Tel tambem usa -- nunca chegava. `negocio: null` no caso significa 'ela pergunta'.",
+    "",
+    "A PALAVRA 'lista' e OPCIONAL desde 09/09 a tarde: no WhatsApp o Tel escreveu 'dispara apartamentos para locacao no anunciar easy' e ouviu 'nao entendi', porque a gramatica foi montada a partir da frase escrita aqui, que trazia 'lista'. Sem a palavra, so um SUBSTANTIVO de categoria abre o caminho, e codigo ou hora na frase o fecham -- senao 'posta a casa 5750' viraria lista.",
+    "",
+    "A LISTA NA GRADE (Tel, 10/09: 'preciso disparar a lista de imoveis todo dia'): hora na frase deixa de ser motivo para descartar e passa a criar vaga. `horario` e `recorrencia` no caso cobram o que foi agendado -- vaga errada nao erra uma vez, erra todo dia."
+  ],
+  "casos": [
+    {
+      "texto": "5712 Alugado",
+      "comando": true,
+      "codigo": "5712",
+      "motivo": "alugado"
+    },
+    {
+      "texto": "5712 alugado",
+      "comando": true,
+      "codigo": "5712",
+      "motivo": "alugado"
+    },
+    {
+      "texto": "5712 ALUGADO",
+      "comando": true,
+      "codigo": "5712",
+      "motivo": "alugado"
+    },
+    {
+      "texto": "5712 Vendido",
+      "comando": true,
+      "codigo": "5712",
+      "motivo": "vendido"
+    },
+    {
+      "texto": "5712 - alugado",
+      "comando": true,
+      "codigo": "5712",
+      "motivo": "alugado"
+    },
+    {
+      "texto": "5712: vendido",
+      "comando": true,
+      "codigo": "5712",
+      "motivo": "vendido"
+    },
+    {
+      "texto": "5712 ja alugou",
+      "comando": true,
+      "codigo": "5712",
+      "motivo": "alugado"
+    },
+    {
+      "texto": "5712 já alugou",
+      "comando": true,
+      "codigo": "5712",
+      "motivo": "alugado"
+    },
+    {
+      "texto": "5712 alugada",
+      "comando": true,
+      "codigo": "5712",
+      "motivo": "alugado"
+    },
+    {
+      "texto": "5712 vendeu",
+      "comando": true,
+      "codigo": "5712",
+      "motivo": "vendido"
+    },
+    {
+      "texto": "Nay 5712 alugado",
+      "comando": true,
+      "codigo": "5712",
+      "motivo": "alugado"
+    },
+    {
+      "texto": "@Nay 5712 vendido",
+      "comando": true,
+      "codigo": "5712",
+      "motivo": "vendido"
+    },
+    {
+      "texto": "Nay, 5712 alugado",
+      "comando": true,
+      "codigo": "5712",
+      "motivo": "alugado"
+    },
+    {
+      "texto": "ALUGOU 5712",
+      "comando": true,
+      "codigo": "5712",
+      "motivo": "alugado"
+    },
+    {
+      "texto": "VENDEU 5712",
+      "comando": true,
+      "codigo": "5712",
+      "motivo": "vendido"
+    },
+    {
+      "texto": "Nay ALUGOU 5712",
+      "comando": true,
+      "codigo": "5712",
+      "motivo": "alugado"
+    },
+    {
+      "_nota": "codigo sozinho e o caminho de consulta, nao comando -- o corretor manda isso o dia inteiro",
+      "texto": "5712",
+      "comando": false
+    },
+    {
+      "_nota": "sem verbo nenhum nao e comando",
+      "texto": "5712 alguma coisa",
+      "comando": false
+    },
+    {
+      "_nota": "e comando SIM, mas do caminho de postar -- o no manda para o publicador do mesmo jeito. O que ele NAO pode e virar liberar_vaga: 'posta' nao tira imovel do mercado. Quem separa isso e o interpretar_comando, e o teste Python cobra a acao certa.",
+      "texto": "posta 5712",
+      "comando": true,
+      "acao_python": "postar_agora"
+    },
+    {
+      "_nota": "pergunta de corretor sobre imovel alugado nao pode virar comando",
+      "texto": "esse 5712 ja foi alugado?",
+      "comando": false
+    },
+    {
+      "_nota": "o verbo tem que colar no codigo; frase solta e conversa",
+      "texto": "o imovel 5712 foi alugado ontem",
+      "comando": false
+    },
+    {
+      "_nota": "Nayara nao e Nay",
+      "texto": "Nayara 5712 alugado",
+      "comando": false
+    },
+    {
+      "texto": "5729 incluso a tx",
+      "comando": true,
+      "acao_python": "marcar_taxa",
+      "incluso": true
+    },
+    {
+      "texto": "5729 tx inclusa",
+      "comando": true,
+      "acao_python": "marcar_taxa",
+      "incluso": true
+    },
+    {
+      "texto": "5729 taxa inclusa",
+      "comando": true,
+      "acao_python": "marcar_taxa",
+      "incluso": true
+    },
+    {
+      "texto": "5729 condominio incluso",
+      "comando": true,
+      "acao_python": "marcar_taxa",
+      "incluso": true
+    },
+    {
+      "texto": "5729 tx incluida",
+      "comando": true,
+      "acao_python": "marcar_taxa",
+      "incluso": true
+    },
+    {
+      "_nota": "a NEGATIVA e a que corrige erro -- sem ela nao ha como desfazer",
+      "texto": "5729 sem a tx",
+      "comando": true,
+      "acao_python": "marcar_taxa",
+      "incluso": false
+    },
+    {
+      "texto": "5729 nao incluso a tx",
+      "comando": true,
+      "acao_python": "marcar_taxa",
+      "incluso": false
+    },
+    {
+      "_nota": "a negacao DEPOIS da palavra taxa -- a primeira versao lia isto como INCLUSA, o oposto",
+      "texto": "5729 tx nao inclusa",
+      "comando": true,
+      "acao_python": "marcar_taxa",
+      "incluso": false
+    },
+    {
+      "_nota": "informar o VALOR da taxa e outra coisa, nao pode virar 'inclusa'",
+      "texto": "5729 taxa 450",
+      "comando": false
+    },
+    {
+      "texto": "Nay lista de apartamento para locação",
+      "comando": true,
+      "acao_python": "listar_categoria",
+      "categoria": "apartamento",
+      "negocio": "locacao"
+    },
+    {
+      "texto": "lista de casa de condomínio para locação",
+      "comando": true,
+      "acao_python": "listar_categoria",
+      "categoria": "casa_condominio",
+      "negocio": "locacao"
+    },
+    {
+      "_nota": "'casa de condominio' TEM que ser testado antes de 'casa', senao vira via publica",
+      "texto": "Nay lista de casa de via pública",
+      "comando": true,
+      "acao_python": "listar_categoria",
+      "categoria": "casa_via_publica",
+      "negocio": null
+    },
+    {
+      "texto": "Nay lista de salas comerciais",
+      "comando": true,
+      "acao_python": "listar_categoria",
+      "categoria": "sala",
+      "negocio": null,
+      "_nota": "sem dizer venda ou locacao: PERGUNTA (Tel, 09/09)"
+    },
+    {
+      "texto": "lista de apartamentos para venda",
+      "comando": true,
+      "acao_python": "listar_categoria",
+      "categoria": "apartamento",
+      "negocio": "venda"
+    },
+    {
+      "texto": "Nay lista de casas",
+      "comando": true,
+      "acao_python": "listar_categoria",
+      "categoria": "casa_via_publica",
+      "negocio": null,
+      "_nota": ""
+    },
+    {
+      "_nota": "categoria que nao existe nao vira lista vazia -- vira nao reconhecido, para ele saber que errou",
+      "texto": "Nay lista de imóveis",
+      "comando": true,
+      "acao_python": "nao_reconhecido"
+    },
+    {
+      "texto": "Nay dispara lista de apartamento para locação",
+      "comando": true,
+      "acao_python": "disparar_lista",
+      "categoria": "apartamento",
+      "negocio": "locacao",
+      "destino": "parceiros"
+    },
+    {
+      "_nota": "a frase do Tel para o grupo Easy -- nao diz nem a categoria nem o negocio, entao pergunta as duas coisas",
+      "texto": "Nay dispara lista no imóveis para anunciar easy",
+      "comando": true,
+      "acao_python": "disparar_lista",
+      "categoria": null,
+      "negocio": null,
+      "destino": "easy"
+    },
+    {
+      "texto": "dispara lista de sala comercial no anunciar easy",
+      "comando": true,
+      "acao_python": "disparar_lista",
+      "categoria": "sala",
+      "negocio": null,
+      "destino": "easy",
+      "_nota": ""
+    },
+    {
+      "texto": "Nay posta a lista de casa em condomínio para locação",
+      "comando": true,
+      "acao_python": "disparar_lista",
+      "categoria": "casa_condominio",
+      "negocio": "locacao",
+      "destino": "parceiros"
+    },
+    {
+      "_nota": "MANDA/ENVIA nao estavam no literal de verbos do n8n -- so entram colados em LISTA, para nao transformar conversa em comando",
+      "texto": "Nay manda a lista de apartamento para locação",
+      "comando": true,
+      "acao_python": "disparar_lista",
+      "categoria": "apartamento",
+      "negocio": "locacao",
+      "destino": "parceiros"
+    },
+    {
+      "texto": "Nay dispara lista de apartamento para venda",
+      "comando": true,
+      "acao_python": "disparar_lista",
+      "categoria": "apartamento",
+      "negocio": "venda",
+      "destino": "parceiros"
+    },
+    {
+      "_nota": "o escape da trava de repeticao",
+      "texto": "dispara lista de apartamento para locação de novo",
+      "comando": true,
+      "acao_python": "disparar_lista",
+      "categoria": "apartamento",
+      "negocio": "locacao",
+      "destino": "parceiros",
+      "de_novo": true
+    },
+    {
+      "_nota": "verbo de grupo com destinatario pessoal e RECUSA, nunca disparo -- a mesma parede do 'posta o 5750 pro Rogerio'",
+      "texto": "Nay envia a lista de apartamento pro Sergio",
+      "comando": true,
+      "acao_python": "envio_recusado"
+    },
+    {
+      "_nota": "disparar IMOVEL continua sendo postar_agora -- 'dispara' sozinho nao vira lista",
+      "texto": "Nay dispara o 5750",
+      "comando": true,
+      "acao_python": "postar_agora"
+    },
+    {
+      "_nota": "sem verbo na frente nao e comando: conversa que fala de lista nao pode disparar nada",
+      "texto": "me manda depois a lista de compras do mercado",
+      "comando": false
+    },
+    {
+      "_nota": "sem 'para': e a forma que ele disse que usa",
+      "texto": "Nay lista de apartamentos locação",
+      "comando": true,
+      "acao_python": "listar_categoria",
+      "categoria": "apartamento",
+      "negocio": "locacao"
+    },
+    {
+      "texto": "Nay lista de apartamentos venda",
+      "comando": true,
+      "acao_python": "listar_categoria",
+      "categoria": "apartamento",
+      "negocio": "venda"
+    },
+    {
+      "_nota": "aluguel e a mesma coisa que locacao",
+      "texto": "lista de apartamentos de aluguel",
+      "comando": true,
+      "acao_python": "listar_categoria",
+      "categoria": "apartamento",
+      "negocio": "locacao"
+    },
+    {
+      "_nota": "sem negocio: PERGUNTA, nunca supoe locacao",
+      "texto": "Nay lista de apartamentos",
+      "comando": true,
+      "acao_python": "listar_categoria",
+      "categoria": "apartamento",
+      "negocio": null
+    },
+    {
+      "_nota": "os dois negocios na mesma frase sao duas listas diferentes -- pergunta",
+      "texto": "Nay lista de apartamentos para venda e locação",
+      "comando": true,
+      "acao_python": "listar_categoria",
+      "categoria": "apartamento",
+      "negocio": null
+    },
+    {
+      "_nota": "no disparo, negocio ausente nao pode virar 13 grupos com a lista errada",
+      "texto": "Nay dispara lista de apartamento",
+      "comando": true,
+      "acao_python": "disparar_lista",
+      "categoria": "apartamento",
+      "negocio": null,
+      "destino": "parceiros"
+    },
+    {
+      "texto": "Nay dispara lista de sala comercial para venda",
+      "comando": true,
+      "acao_python": "disparar_lista",
+      "categoria": "sala",
+      "negocio": "venda",
+      "destino": "parceiros"
+    },
+    {
+      "_nota": "A FRASE QUE ELE ESCREVEU DE VERDADE no WhatsApp, sem a palavra 'lista'",
+      "texto": "dispara apartamentos para locação no anunciar easy",
+      "comando": true,
+      "acao_python": "disparar_lista",
+      "categoria": "apartamento",
+      "negocio": "locacao",
+      "destino": "easy"
+    },
+    {
+      "texto": "dispara casas em condomínio para venda",
+      "comando": true,
+      "acao_python": "disparar_lista",
+      "categoria": "casa_condominio",
+      "negocio": "venda",
+      "destino": "parceiros"
+    },
+    {
+      "texto": "manda as salas comerciais para locação",
+      "comando": true,
+      "acao_python": "disparar_lista",
+      "categoria": "sala",
+      "negocio": "locacao",
+      "destino": "parceiros"
+    },
+    {
+      "_nota": "sem 'lista' e sem negocio: pergunta, nao dispara",
+      "texto": "dispara apartamentos",
+      "comando": true,
+      "acao_python": "disparar_lista",
+      "categoria": "apartamento",
+      "negocio": null,
+      "destino": "parceiros"
+    },
+    {
+      "_nota": "CODIGO na frase fecha o caminho da lista -- 'casa' aqui nao e categoria, e o imovel",
+      "texto": "posta a casa 5750",
+      "comando": true,
+      "acao_python": "postar_agora"
+    },
+    {
+      "_nota": "o comando que ele mais usa nao pode virar lista",
+      "texto": "dispara o 4159",
+      "comando": true,
+      "acao_python": "postar_agora"
+    },
+    {
+      "_nota": "SEM CODIGO e COM hora: desde 10/09 e agendamento de LISTA, nao imovel. Como nao diz venda nem locacao, o publicador PERGUNTA -- nao agenda nada.",
+      "texto": "posta as casas de condomínio terça às 9h",
+      "comando": true,
+      "acao_python": "agendar_lista",
+      "categoria": "casa_condominio",
+      "negocio": null,
+      "destino": "parceiros",
+      "horario": "09:00",
+      "recorrencia": "semanal",
+      "dias_semana": [
+        2
+      ]
+    },
+    {
+      "texto": "dispara apartamentos para locação todo dia às 9h",
+      "comando": true,
+      "acao_python": "agendar_lista",
+      "categoria": "apartamento",
+      "negocio": "locacao",
+      "destino": "parceiros",
+      "horario": "09:00",
+      "recorrencia": "diaria"
+    },
+    {
+      "_nota": "hora com dois pontos: o CODIGO_RE aceita 2 digitos, entao '08:00' virava os codigos 08 e 00 e a frase era descartada",
+      "texto": "Nay dispara lista de apartamento para locação todo dia as 08:00",
+      "comando": true,
+      "acao_python": "agendar_lista",
+      "categoria": "apartamento",
+      "negocio": "locacao",
+      "destino": "parceiros",
+      "horario": "08:00",
+      "recorrencia": "diaria"
+    },
+    {
+      "texto": "dispara salas comerciais para locação terça e quinta às 17h",
+      "comando": true,
+      "acao_python": "agendar_lista",
+      "categoria": "sala",
+      "negocio": "locacao",
+      "destino": "parceiros",
+      "horario": "17:00",
+      "recorrencia": "semanal",
+      "dias_semana": [
+        2,
+        4
+      ]
+    },
+    {
+      "texto": "dispara apartamentos para venda no easy todo dia às 7h",
+      "comando": true,
+      "acao_python": "agendar_lista",
+      "categoria": "apartamento",
+      "negocio": "venda",
+      "destino": "easy",
+      "horario": "07:00",
+      "recorrencia": "diaria"
+    },
+    {
+      "_nota": "fala de hora e nao diz quando: NAO agenda e NAO dispara agora",
+      "texto": "dispara apartamentos para locação às 9h",
+      "comando": true,
+      "acao_python": "agenda_incompleta"
+    },
+    {
+      "_nota": "o desfazer -- sem ele a lista sairia todo dia para sempre",
+      "texto": "tira a lista de apartamento para locação",
+      "comando": true,
+      "acao_python": "remover_lista_da_grade",
+      "categoria": "apartamento",
+      "negocio": "locacao"
+    },
+    {
+      "texto": "remove a lista de sala comercial da grade",
+      "comando": true,
+      "acao_python": "remover_lista_da_grade",
+      "categoria": "sala",
+      "negocio": null
+    },
+    {
+      "_nota": "tirar IMOVEL da grade continua igual",
+      "texto": "tira o 5750",
+      "comando": true,
+      "acao_python": "remover_da_grade"
+    },
+    {
+      "_nota": "agendar IMOVEL continua igual -- o codigo manda, nao a palavra 'casa'",
+      "texto": "posta o 5750 todo dia às 14h",
+      "comando": true,
+      "acao_python": "criar_vaga"
+    },
+    {
+      "_nota": "agenda de visitas -- o comando que o Tel definiu",
+      "texto": "agenda de visitas",
+      "comando": true,
+      "acao_python": "agenda_de_visitas"
+    },
+    {
+      "texto": "Nay agenda de visitas",
+      "comando": true,
+      "acao_python": "agenda_de_visitas"
+    },
+    {
+      "texto": "visitas agendadas",
+      "comando": true,
+      "acao_python": "agenda_de_visitas"
+    },
+    {
+      "texto": "visitas do dia",
+      "comando": true,
+      "acao_python": "agenda_de_visitas"
+    },
+    {
+      "texto": "visita agendada",
+      "comando": true,
+      "acao_python": "agenda_de_visitas"
+    },
+    {
+      "texto": "agenda",
+      "comando": true,
+      "acao_python": "agenda_de_visitas"
+    }
+  ]
+}

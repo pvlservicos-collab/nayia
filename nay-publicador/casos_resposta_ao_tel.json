@@ -1,0 +1,20 @@
+[
+  ["sim", "sim"], ["Sim", "sim"], ["s", "sim"], ["sim pode", "sim"],
+  ["pode", "sim"], ["pode sim", "sim"], ["Pode postar novamente", "sim"],
+  ["pode postar de novo", "sim"], ["posta de novo", "sim"], ["posta novamente", "sim"],
+  ["sim, pode postar de novo por favor", "sim"], ["Nay pode postar", "sim"],
+  ["ok", "sim"], ["isso", "sim"], ["isso mesmo", "sim"], ["quero", "sim"],
+  ["claro", "sim"], ["confirmo", "sim"], ["manda", "sim"], ["reposta", "sim"],
+  ["pode sim, por favor!", "sim"], ["blz", "sim"],
+
+  ["não", "nao"], ["nao", "nao"], ["Não precisa", "nao"], ["n", "nao"],
+  ["deixa", "nao"], ["deixa quieto", "nao"], ["esquece", "nao"], ["cancela", "nao"],
+  ["não, obrigado", "nao"], ["agora não", "nao"], ["melhor não", "nao"],
+  ["não posta", "nao"],
+
+  ["por favor", "nada"], ["de novo", "nada"], ["nay", "nada"], ["", "nada"],
+  ["sim\nposta o 5750", "nada"], ["pode postar o 5750", "nada"],
+  ["posta no anunciar easy 1885", "nada"], ["1885", "nada"],
+  ["sim, os dois", "nada"], ["não sei", "nada"], ["não, manda o 5718", "nada"],
+  ["pode ser amanhã?", "nada"], ["simples", "nada"], ["okay vou ver", "nada"]
+]

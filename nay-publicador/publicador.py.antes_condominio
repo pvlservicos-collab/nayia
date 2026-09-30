@@ -1,0 +1,2406 @@
+"""
+Ponto de entrada único do publicador de grupos.
+
+processar_comando(texto) interpreta um comando do Tel e executa a ação
+correspondente, sempre devolvendo o texto de resposta que a Nay manda
+de volta no WhatsApp -- confirmação do que foi feito, ou o erro.
+
+Só cola módulos que já existem e são puros (interpretar_comando,
+buscar_imovel, montar_destinos, montar_mensagem, enviar_zapi,
+liberar_vaga) com o banco real -- nenhum deles muda de comportamento
+aqui, só passam a ser chamados com dado de verdade em vez de dado de
+teste.
+
+`conexao` é injetável (usado nos testes, com um banco falso) -- quando
+não é passada, processar_comando abre uma conexão real e fecha sozinha
+ao terminar. Comando não reconhecido nunca abre conexão nenhuma.
+"""
+from buscar_imovel import anuncio_encontrado, buscar_imovel
+from pedido_de_imoveis import (LIMITE_POR_ENVIO, casar_condominios,
+                               condominios_do_catalogo, condominios_parecidos,
+                               e_titulo_ou_recado, imoveis_do_pedido,
+                               valor_escrito)
+from enviar_zapi import (PAUSA_ANTES_TEXTO, PAUSA_ENTRE_GRUPOS, enviar_imovel,
+                         enviar_texto, id_da_mensagem)
+from interpretar_comando import (NOME_DA_CATEGORIA, NOMES_DE_CATEGORIA,
+                                 interpretar_comando)
+from liberar_vaga import descrever_vaga, liberar_codigo
+from montar_destinos import carregar_grupos_db, montar_lista_destinos
+from montar_mensagem import montar_aviso_de_saida, _fmt_valor, montar_mensagem
+
+import datetime
+import json
+from zoneinfo import ZoneInfo
+
+FUSO_MANAUS = ZoneInfo("America/Manaus")
+import re
+import time
+
+import db
+
+
+# O AVISO QUANDO O ANÚNCIO NÃO ESTÁ NO AR (Tel, 14/09): o 2944 estava
+# ARQUIVADO no site, e ele só descobriu porque o card saiu vazio. Pediu que a
+# Nay avise na hora, para ele consertar no site antes de postar.
+#
+# "deve estar", e não "está": a página pública responde o mesmo
+# `/nao-encontrado` para arquivado e para código que não existe, e o servidor
+# não tem login do admin. Arquivado é o caso comum; a frase diz o provável e
+# o que fazer, sem afirmar o que não dá para ver.
+def aviso_fora_do_ar(onde, codigo=None):
+    # Sem código quando quem relata já põe "NNNN: " na frente (`_postar_agora`,
+    # a grade) -- senão o Tel leria "2944: ⚠️ 2944: ...".
+    prefixo = f"{codigo}: " if codigo else ""
+    return (f"⚠️ {prefixo}o anúncio não está no ar no site -- deve estar arquivado. "
+            f"não postei nada {onde}. publica no site e me pede de novo.")
+
+
+def processar_comando(texto, conexao=None):
+    comando = interpretar_comando(texto)
+    acao = comando["acao"]
+    # A FRASE ORIGINAL FICA DISPONÍVEL a quem precisar do catálogo para
+    # decidir. O parser é puro (não vê banco) e por isso não pode saber se
+    # "as casas do morada dos pássaros" nomeia um condomínio de verdade --
+    # quem sabe é daqui para dentro. `setdefault` porque quem já traz o texto
+    # (a recusa, o pedido sem destino) traz o dele, que é o que foi lido.
+    #
+    # ESTA LINHA JÁ FALTOU UMA VEZ, em 15/09: a parede do `_disparar_lista`
+    # existia, o teste dela passava (chamava a função direto, com o texto no
+    # dicionário) e a lista saiu nos 15 grupos assim mesmo. Testar o módulo
+    # não é testar o caminho -- por isso o teste de `processar_comando`
+    # abaixo dela existe.
+    comando.setdefault("texto", texto)
+
+    if acao == "nao_reconhecido":
+        return _nao_reconhecido(comando["texto"])
+
+    # Recusa não consulta nada e não escreve nada -- abrir conexão para
+    # devolver uma frase pronta era gasto à toa, e escondia no teste o fato
+    # de que a recusa não toca no banco.
+    if acao == "envio_recusado":
+        return comando["motivo"]
+
+    fechar_ao_sair = conexao is None
+    conn = conexao or db.conectar()
+    try:
+        if acao == "postar_agora":
+            return _postar_agora(comando["codigos"], conn)
+        if acao == "criar_vaga":
+            return _criar_vaga(comando, conn)
+        if acao == "liberar_vaga":
+            return _liberar_vaga(comando["codigo"], conn,
+                                 comando.get("motivo"))
+        if acao == "remover_da_grade":
+            return _remover_da_grade(comando["codigo"], conn)
+        if acao == "listar_categoria":
+            return _listar_categoria(conn, comando["categoria"],
+                                     comando["negocio"])
+        if acao == "disparar_lista":
+            return _disparar_lista(comando, conn)
+        if acao == "agendar_lista":
+            return _agendar_lista(comando, conn)
+        if acao == "remover_lista_da_grade":
+            return _remover_lista_da_grade(comando, conn)
+        if acao == "marcar_taxa":
+            return _marcar_taxa(comando["codigo"], conn, comando["incluso"])
+        if acao == "listar_vagas":
+            return _listar_vagas(conn)
+        if acao == "agenda_de_visitas":
+            return _agenda_de_visitas(conn)
+        if acao == "postar_easy":
+            return _postar_easy(comando["codigo"], conn,
+                                de_novo=comando.get("de_novo", False))
+        if acao == "responder_pergunta":
+            return _responder_pergunta(comando, conn)
+        if acao == "agenda_incompleta":
+            # Nao posta: o texto fala de agenda e algo nao foi entendido.
+            # Postar em 14 grupos nao tem desfazer; perguntar custa uma frase.
+            return ("entendi que e para agendar, mas nao peguei tudo. me manda "
+                    "assim: Nay posta o <codigo> terca e quinta as 17h. "
+                    "Nao postei nada.")
+        if acao == "enviar_para_corretor":
+            return _enviar_para_corretor(comando, conn)
+        if acao == "enviar_sem_destino":
+            return _envio_sem_destino(comando, conn)
+        if acao == "postar_por_nome":
+            return _postar_por_nome(comando, conn)
+        if acao == "escolha_do_posta":
+            return _escolha_do_posta(comando, conn)
+        if acao == "enviar_lista_para_corretor":
+            return _enviar_lista_para_corretor(comando, conn)
+        if acao == "escolher_codigos":
+            return _escolher_codigos(comando, conn)
+        raise RuntimeError(f"ação desconhecida do parser: {acao}")
+    finally:
+        if fechar_ao_sair:
+            conn.close()
+
+
+def _resolver_corretor(destino, conn):
+    """Descobre para quem mandar. Devolve (telefone, nome) ou (None, motivo).
+
+    Ordem: telefone explicito -> nome exato -> primeiro nome unico.
+    NUNCA resolve nome ambiguo: mandar a carteira de imoveis para o
+    corretor errado nao tem desfazer, e o projeto ja trata "atender uma
+    pessoa achando que e outra" como o pior resultado possivel.
+
+    Numero nao cadastrado NAO envia: o Tel decidiu em 31/08 que ela avisa e
+    ele manda cadastrar. Um digito trocado mandaria imoveis a um estranho.
+    """
+    bruto = (destino or "").strip()
+    so_digitos = re.sub(r"[^0-9]", "", bruto)
+
+    if len(so_digitos) >= 8:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT telefone, nome FROM corretores "
+                " WHERE aprovado AND ativo "
+                "   AND right(regexp_replace(telefone,'[^0-9]','','g'),8) = right(%s,8)",
+                (so_digitos,),
+            )
+            achados = cur.fetchall()
+        if len(achados) == 1:
+            return achados[0]["telefone"], achados[0]["nome"] or bruto
+        if not achados:
+            return None, (
+                f"o numero {bruto} nao esta cadastrado nos corretores. me manda o "
+                "nome dele que eu cadastro, ou confirma o numero. nao mandei nada."
+            )
+        return None, f"achei mais de um corretor com o final {so_digitos[-8:]}. me passa o nome."
+
+    # Limpa artigos e o rotulo "corretor": "o corretor Sergio" -> "Sergio"
+    nome = re.sub(r"^(o|a|os|as|pro|pra|para)\s+", "", bruto, flags=re.IGNORECASE).strip()
+    nome = re.sub(r"^corretor[ae]?\s+", "", nome, flags=re.IGNORECASE).strip()
+    if not nome:
+        return None, "para quem eu mando? me diz o nome ou o telefone."
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT telefone, nome FROM corretores "
+            " WHERE aprovado AND ativo AND coalesce(nome,'') <> '' "
+            "   AND (lower(unaccent(nome)) = lower(unaccent(%s)) "
+            "        OR lower(unaccent(split_part(btrim(nome),' ',1))) = lower(unaccent(%s)))",
+            (nome, nome),
+        )
+        achados = cur.fetchall()
+
+    if len(achados) == 1:
+        return achados[0]["telefone"], achados[0]["nome"]
+    if not achados:
+        return None, (
+            f"nao achei corretor chamado {nome}. me manda o telefone dele que eu "
+            "cadastro e ja envio."
+        )
+    nomes = ", ".join(a["nome"] for a in achados[:4])
+    return None, f"tem mais de um {nome}: {nomes}. qual deles? pode me mandar o telefone."
+
+
+def _enviar_para_corretor(comando, conn):
+    """Manda card e TODAS as fotos de cada imovel para um corretor.
+
+    O Tel decidiu em 31/08: quando ele pede, vai o texto e todas as fotos.
+    Este envio nao conta no teto de uma mensagem por dia -- quem pediu foi
+    ele, nao e cobranca da Nay.
+    """
+    # SEM CÓDIGO, COM DESCRIÇÃO: "envia toda as casas que temos para locação
+    # até 4.200 para corretora Flavia Soares 92 9131-8844" (Tel, 14/09). Vai
+    # pelo MESMO caminho da lista colada, que já sabe resolver no catálogo,
+    # perguntar quando não fecha e segurar tudo até ele responder. Dois
+    # caminhos para "descobrir o imóvel e mandar" divergiriam na primeira
+    # edição -- e o que diverge é quando ela pergunta e quando manda.
+    if not comando.get("codigos") and (comando.get("pedido") or "").strip():
+        return _enviar_lista_para_corretor(
+            {"destino": comando["destino"], "nome_dito": comando.get("nome_dito"),
+             "linhas": [comando["pedido"]]}, conn)
+
+    telefone, nome, aviso = _destinatario(conn, comando)
+    if telefone is None:
+        return nome  # aqui `nome` carrega o motivo da recusa
+
+    codigos = comando.get("codigos") or []
+    if not codigos:
+        return (
+            f"nao entendi qual imovel mandar para {nome}. me passa o codigo, ou "
+            "diga o condominio e se e venda ou locacao."
+        )
+
+    return aviso + _mandar_os_codigos(conn, telefone, nome, codigos)
+
+
+def _destinatario(conn, comando):
+    """(telefone, nome, aviso) -- ou (None, motivo, "") quando não dá para mandar.
+
+    CADASTRA QUEM JÁ CONVERSOU. A regra de 31/08 é não mandar para número fora
+    do cadastro, e o motivo dela é o DÍGITO TROCADO: imóvel indo para um
+    estranho. Em 14/09 o Tel pediu envio para a Flávia Soares, que não estava
+    em `corretores` mas já tinha mandado 56 mensagens para a Nay por aquele
+    número -- o risco que a regra existe para evitar não estava lá. Eu cadastrei
+    à mão, e ele pediu que a Nay faça o mesmo.
+
+    Então só entra quem o próprio número já provou existir (mensagem RECEBIDA
+    dele). Número sem histórico continua recusado, como sempre.
+
+    E QUEM JÁ ESTÁ NA TABELA, DESATIVADO, NÃO É REATIVADO: aí alguém decidiu
+    tirar, e passar por cima disso por causa de um pedido de envio seria
+    desfazer a decisão calado.
+    """
+    telefone, nome = _resolver_corretor(comando["destino"], conn)
+    if telefone is not None:
+        return telefone, nome, ""
+    novo = _cadastrar_quem_ja_conversou(conn, comando["destino"],
+                                        comando.get("nome_dito"))
+    if not novo:
+        return None, nome, ""
+    return novo[0], novo[1], (
+        f"({novo[1]} não estava no cadastro de corretores. cadastrei agora -- "
+        "esse número já conversou com a Nay.)\n\n")
+
+
+def _cadastrar_quem_ja_conversou(conn, destino, nome_dito):
+    digitos = re.sub(r"[^0-9]", "", destino or "")
+    if len(digitos) < 10:
+        return None
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT 1 FROM corretores "
+            " WHERE right(regexp_replace(telefone,'[^0-9]','','g'),8) = right(%s,8)",
+            (digitos,))
+        if cur.fetchone():
+            return None
+        cur.execute(
+            "SELECT telefone, nome FROM mensagens "
+            " WHERE direcao = 'recebida' AND telefone NOT LIKE '%%@lid' "
+            "   AND right(regexp_replace(telefone,'[^0-9]','','g'),8) = right(%s,8) "
+            " ORDER BY id DESC LIMIT 1", (digitos,))
+        visto = cur.fetchone()
+    if not visto:
+        return None
+    nome = (nome_dito or visto.get("nome") or "").strip() or None
+    # O nome que ELE DIGITOU é `manual`: sem isso a sincronização de cada
+    # mensagem troca "Flávia Soares" pelo nome de perfil dela na primeira
+    # mensagem seguinte -- e a `nome_origem` existe justamente para separar os
+    # dois (nome_do_whatsapp.sql).
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO corretores (telefone, nome, aprovado, ativo, origem, nome_origem) "
+            "VALUES (%s, %s, true, true, 'cadastrado pelo Tel ao pedir envio', %s) "
+            "ON CONFLICT (telefone) DO NOTHING RETURNING telefone, nome",
+            (visto["telefone"], nome, "manual" if nome_dito else "whatsapp"))
+        linha = cur.fetchone()
+    conn.commit()
+    return (linha["telefone"], linha["nome"] or visto["telefone"]) if linha else None
+
+
+def _saudacao(agora):
+    """"bom dia" / "boa tarde" / "boa noite" pela hora de MANAUS.
+
+    O fuso e explicito porque o servidor roda em UTC: as 22h de Manaus ja sao
+    02h em UTC, e a saudacao sairia "bom dia" para quem esta de noite. E o
+    mesmo tropeco que a agenda de visitas teve em 11/09.
+    """
+    h = agora.astimezone(FUSO_MANAUS).hour
+    if h < 12:
+        return "bom dia"
+    if h < 18:
+        return "boa tarde"
+    return "boa noite"
+
+
+def _falou_com_ela_hoje(conn, telefone):
+    """Ja houve conversa com esta pessoa HOJE?
+
+    O PEDIDO (Tel, 23/09): mandando o mesmo imovel para duas corretoras, ele
+    separou os casos -- "o da Geina ela ja esta em contato entao ela tem que
+    mandar normal o imovel, mas no segundo ... nao foi falado nada de mensagem
+    no dia, entao ela manda: oi boa tarde! segue a opcao de imovel que fiquei
+    de te enviar".
+
+    Card caindo do nada e o que ele ja tinha reclamado em 31/08. Chegar SEM
+    cumprimento no meio de uma conversa viva e o problema oposto, e os dois
+    incomodam.
+
+    O DIA E O DE MANAUS, nao o do servidor (que roda em UTC): entre 20h e
+    meia-noite daqui, `current_date` la ja virou, e quem acabou de falar com
+    ela seria tratado como quem sumiu ha dias.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT 1 FROM mensagens "
+            " WHERE right(regexp_replace(telefone,'[^0-9]','','g'),8) = right(%s,8) "
+            "   AND (criada_em AT TIME ZONE 'America/Manaus')::date "
+            "     = (now() AT TIME ZONE 'America/Manaus')::date "
+            " LIMIT 1",
+            (re.sub(r"[^0-9]", "", telefone or ""),))
+        return cur.fetchone() is not None
+
+
+def _mandar_os_codigos(conn, telefone, nome, codigos):
+    """O laco de envio: card e TODAS as fotos, um imovel por vez.
+
+    UM LUGAR SO, porque agora sao DOIS caminhos que chegam aqui -- o envio
+    por codigo ("Nay manda o 5750 pro Sergio") e o envio por LISTA colada
+    (11/09). Dois lacos de envio lado a lado divergiriam na primeira edicao,
+    e o que diverge aqui e a protecao contra reenvio.
+    """
+    # Uma linha ANTES, dizendo o que vem. O Tel apontou em 31/08 que os
+    # imoveis chegaram ao Gustavo sem nenhuma palavra em volta -- card e
+    # foto caindo do nada. Ele escreveu a frase que queria ver:
+    # "Gustavo segue as opcoes que fiquei de te enviar".
+    primeiro_nome = (nome or "").split()[0] if (nome or "").strip() else ""
+    # NOME QUE É TELEFONE NÃO É NOME (15/09). Corretor cadastrado sem nome faz
+    # `_resolver_corretor` devolver o próprio número digitado no lugar do nome,
+    # e a abertura saía "92, segue as opções..." -- pego antes de mandar para o
+    # 92 8113-3331, que está em `corretores` sem nome. Sem letra, sem vocativo.
+    if not any(ch.isalpha() for ch in primeiro_nome):
+        primeiro_nome = ""
+    quantos = len(codigos)
+    # QUEM NAO FALOU COM ELA HOJE RECEBE SAUDACAO (Tel, 23/09). Para quem esta
+    # no meio de uma conversa, cumprimentar de novo soa telegrama; para quem
+    # nao fala com ela ha dias, o card caindo sem uma palavra e o que ele ja
+    # tinha reclamado em 31/08.
+    abertura = ""
+    try:
+        if not _falou_com_ela_hoje(conn, telefone):
+            abertura = "oi, " + _saudacao(datetime.datetime.now(FUSO_MANAUS)) + "! "
+    except Exception:
+        pass          # sem saber, nao cumprimenta -- e o de sempre
+    try:
+        enviar_texto(
+            telefone,
+            abertura
+            + (f"{primeiro_nome}, segue" if primeiro_nome and not abertura
+               else "segue")
+            + (" as opções que fiquei de te enviar" if quantos > 1
+               else " o imóvel que fiquei de te enviar")
+            + " 👇"
+        )
+    except Exception:
+        pass  # a frase e cortesia; sem ela o envio continua valendo
+
+    linhas, enviados = [], 0
+    for codigo in codigos:
+        try:
+            imovel = buscar_imovel(codigo)
+        except Exception as exc:
+            linhas.append(f"{codigo}: nao consegui buscar no site ({exc})")
+            continue
+        # PÁGINA VAZIA É "NÃO ACHEI", não imóvel -- o corretor recebia
+        # "📍 Imóvel 4 / Código: 4" sem foto (14/09). Ver `anuncio_encontrado`.
+        if not anuncio_encontrado(imovel):
+            linhas.append(f"{codigo}: nao achei esse codigo no site")
+            continue
+
+        # NAO reenvia o que ele ja recebeu nas ultimas 12h. O 3495 saiu duas
+        # vezes para o Gustavo em 31/08 porque nada olhava `envios` antes.
+        # Doze horas, e nao "nunca": reenviar dias depois e legitimo, ele
+        # pode ter perdido no meio da conversa.
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM envios WHERE codigo = %s AND destino = 'corretor' "
+                "  AND right(regexp_replace(telefone,'[^0-9]','','g'),8) = right(%s,8) "
+                "  AND enviado_em > now() - interval '12 hours' LIMIT 1",
+                (str(codigo), re.sub(r"[^0-9]", "", telefone)),
+            )
+            if cur.fetchone():
+                linhas.append(f"{codigo}: ja mandei para ele hoje, nao repeti")
+                continue
+
+        texto_msg = montar_mensagem(imovel, {"aceita_venda": True, "aceita_locacao": True})
+        fotos = [f for f in (imovel.get("fotos") or []) if f]
+        try:
+            resultado = enviar_imovel(telefone, texto_msg, fotos)
+        except Exception as exc:
+            linhas.append(f"{codigo}: falhou no envio ({exc})")
+            continue
+
+        enviados += 1
+        # O ID do TEXTO, que é o card -- é ele que o corretor marca ao
+        # responder, não a foto.
+        _registrar_envio_corretor(conn, codigo, telefone,
+                                  id_da_mensagem((resultado or {}).get("texto")))
+        linhas.append(f"{codigo} ({imovel.get('condominio') or imovel.get('tipo')}): "
+                      f"enviado com {len(fotos)} foto(s)")
+
+    cabecalho = (f"mandei {enviados} imovel(is) para {nome}:" if enviados
+                 else f"nao consegui mandar nada para {nome}:")
+    return cabecalho + "\n" + "\n".join(linhas)
+
+
+LINK_DO_ANUNCIO = "https://imobeasy.com/imoveis/"
+
+
+def _imoveis_da_linha(conn, linha):
+    """De que imoveis esta linha fala. A regra mora em `envio_por_descricao.sql`.
+
+    FAIXA 5 NAO ENTRA: ali o nome so se PARECE com o do cadastro, e dali sai
+    "voce quis dizer?", nunca afirmacao -- a mesma parede do
+    `nay_disponibilidade_no_condominio`. Aqui seria pior que la: afirmar manda
+    a carteira para o corretor, e envio de WhatsApp nao desfaz.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT codigo, faixa, negocio, no_mercado "
+            "  FROM nay_imoveis_da_linha(%s) WHERE faixa < 5 ORDER BY codigo",
+            (linha,))
+        return cur.fetchall()
+
+
+def _envio_pendente_aberto(conn):
+    """O envio que ficou esperando a resposta dele, se ainda vale.
+
+    FALHA FECHADA por construcao: sem linha aberta devolve None, e quem
+    chama recusa com o comando pronto. A janela vem de
+    `config.envio_pendente_minutos` -- estado sem prazo vira resposta errada
+    dias depois, e a carteira iria para o corretor da lista ANTERIOR.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT e.* FROM envio_pendente e "
+            " WHERE e.fechado_em IS NULL "
+            "   AND e.criado_em > now() - (coalesce((SELECT valor FROM config "
+            "         WHERE chave = 'envio_pendente_minutos'),'60') || ' minutes')"
+            "       ::interval "
+            " ORDER BY e.id DESC LIMIT 1")
+        return cur.fetchone()
+
+
+def _fechar_envio_pendente(conn, motivo):
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE envio_pendente SET fechado_em = now(), fechado_motivo = %s "
+            " WHERE fechado_em IS NULL", (motivo,))
+    conn.commit()
+
+
+def _resolver_as_linhas(conn, linhas):
+    """Cada linha colada vira codigo, pergunta, ou recusa dita.
+
+    LINHA REPETIDA NAO E ENGANO. A colagem do Tel em 11/09 trazia
+    "Estilo Golf / 2 quartos sendo 1 suite / 2.6k" DUAS VEZES, e o catalogo
+    tem exatamente dois imoveis assim (5719 e 5728) -- porque
+    `nay_linha_da_lista` nao e injetora. Deduplicar por texto entregaria um
+    imovel e esconderia o outro. Entao a contagem vai junto, e a decisao
+    dele (11/09) foi perguntar uma vez e aceitar os dois codigos.
+    """
+    contagem = {}
+    for linha in linhas:
+        # O TÍTULO NÃO É IMÓVEL. Desde 15/09 a lista sai com "🔥 ... 🔥" em cima
+        # e ele cola a mensagem inteira; sem pular, a resposta traria "não achei
+        # imóvel para: 🔥 APARTAMENTOS PARA LOCAÇÃO...". A regra de o que é
+        # título mora em `pedido_de_imoveis.e_titulo_ou_recado` -- uma só, a
+        # mesma que lê a lista colada pelo corretor.
+        if e_titulo_ou_recado(linha):
+            continue
+        contagem[linha] = contagem.get(linha, 0) + 1
+
+    codigos, ambiguas, sem_casar, fora = [], [], [], []
+    for linha, vezes in contagem.items():
+        # SÓ A LINHA NO FORMATO DA LISTA DELA ("nome / quartos / valor") passa
+        # pelo casamento reverso. Frase DESCRITA vai direto ao leitor de pedido.
+        # Medido na prova de 14/09: "o acquarelle de 3 quartos para locação"
+        # passava primeiro por `nay_imoveis_da_linha`, que não lê negócio nem a
+        # política de oferta, e devolvia CINCO candidatos -- três de venda e
+        # dois de parceiro fora do site. O certo era um só, o 5611.
+        achados = _imoveis_da_linha(conn, linha) if " / " in linha else []
+        if not achados:
+            # NÃO É LINHA DA LISTA DELA -- é pedido DESCRITO: "os dois
+            # acquarelle de 2 e 3 quartos para locação", "a casa do morada do
+            # pássaros" (Tel, 14/09). `imoveis_do_pedido` lê condomínio,
+            # categoria, quartos, negócio e valor, sempre na política da lista
+            # oficial (nosso e no ar).
+            pedido = imoveis_do_pedido(conn, linha)
+            if pedido["tipo"] == "ignorar":
+                continue
+            if pedido["tipo"] == "nada":
+                sem_casar.append(pedido.get("motivo") or linha)
+            elif pedido["tipo"] == "codigos":
+                codigos.extend(c for c in pedido["codigos"] if c not in codigos)
+            else:
+                ambiguas.append({"linha": linha, "vezes": vezes,
+                                 "candidatos": pedido["codigos"],
+                                 "descricoes": pedido.get("descricoes") or {}})
+            continue
+        if len(achados) == 1:
+            unico = achados[0]
+            # Reconhecer o imovel e poder envia-lo sao decisoes diferentes.
+            # Recusa DIZENDO qual: sumico calado foi o que escondeu 112
+            # apartamentos de venda em 09/09, e quem tira imovel do site e
+            # ele -- a decisao de mandar assim mesmo e dele, nao minha.
+            if not unico["no_mercado"]:
+                fora.append((unico["codigo"], linha))
+            elif unico["codigo"] not in codigos:
+                codigos.append(unico["codigo"])
+            continue
+        ambiguas.append({"linha": linha, "vezes": vezes,
+                         "candidatos": [a["codigo"] for a in achados]})
+    return codigos, ambiguas, sem_casar, fora
+
+
+def _frase_das_pendencias(ambiguas, sem_casar, fora):
+    """O que ela diz quando nao pode mandar ainda.
+
+    NUNCA escreve "Codigo: NNNN". O no `Achar codigo na resposta` do n8n roda
+    /C[oo]digo:\\s*(\\d{3,5})/gi na resposta DELA e, se casar, busca as fotos
+    e manda -- para o chat do proprio Tel. Medido: link puro nao dispara, e
+    "Codigo: 5719" dispara. Por isso aqui vai o link e o numero solto.
+    """
+    partes = []
+    # UMA LINHA POR VEZ. Com duas linhas em aberto, TODA resposta curta dele
+    # ("os dois", "o primeiro") e ambigua -- dois de qual linha? E como nada
+    # sai antes da lista inteira fechar (decisao dele em 11/09), perguntar uma
+    # por vez nao custa nada e faz a resposta curta sempre ter um referente so.
+    if ambiguas:
+        a = ambiguas[0]
+        cabeca = (f'tenho {len(a["candidatos"])} que servem para:'
+                  if a.get("descricoes") else
+                  f'tenho {len(a["candidatos"])} iguais nesta linha:'
+                  if a["vezes"] == 1 else
+                  f'esta linha veio {a["vezes"]}x e tenho '
+                  f'{len(a["candidatos"])} iguais:')
+        # NUMERADAS, porque senao "o primeiro" e um ordinal contra uma lista
+        # que nao tem ordem escrita -- chute com cara de escolha.
+        descricoes = a.get("descricoes") or {}
+        opcoes = "\n".join(
+            f"{i}) {LINK_DO_ANUNCIO}{c}"
+            + (f" -- {descricoes[c]}" if descricoes.get(c) else "")
+            for i, c in enumerate(a["candidatos"], 1))
+        partes.append(cabeca + "\n" + a["linha"] + "\n" + opcoes)
+        if len(ambiguas) > 1:
+            partes.append(f"(depois desta ainda tenho {len(ambiguas) - 1} "
+                          "linha(s) para resolver)")
+    if ambiguas:
+        # A PERGUNTA TEM QUE ENSINAR UMA RESPOSTA QUE EU LEIA -- a licao de
+        # 12/09. A versao anterior dizia 'ou os dois: "Nay codigo 5719 e
+        # 5728"', ele respondeu **"os dois"** (a frase que a propria pergunta
+        # sugeria) e caiu no AGENTE, que devolveu uma lista sem nexo.
+        #
+        # Agora a forma natural vem PRIMEIRO e e a mais curta: ela funciona, e
+        # e a que ele vai escrever de qualquer jeito.
+        primeiro = ambiguas[0]["candidatos"][0]
+        if len(ambiguas[0]["candidatos"]) == 2:
+            partes.append('quais? responde "os dois" -- ou, para um so, '
+                          f'"o primeiro" ou "codigo {primeiro}"')
+        else:
+            partes.append('quais? responde "todos" -- ou, para um so, '
+                          f'"o primeiro" ou "codigo {primeiro}"')
+    if fora:
+        partes.append("saiu do site, NAO vou mandar:\n"
+                      + "\n".join(f"{c} — {l}" for c, l in fora))
+    if sem_casar:
+        partes.append("nao achei imovel para:\n" + "\n".join(sem_casar))
+    return "\n\n".join(partes)
+
+
+def _parecidos_com(conn, texto):
+    """" você quis dizer X?" -- o que o catálogo tem de parecido, ou nada."""
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT nay_normalizar_lugar(%s, true) AS frase", (texto,))
+            frase = ((cur.fetchone() or {}).get("frase") or texto)
+        nomes = condominios_parecidos(frase, condominios_do_catalogo(conn))
+    except Exception:
+        return ""
+    if not nomes:
+        return ""
+    return "\n\nvocê quis dizer " + ", ".join(nomes) + "?"
+
+
+def _envio_sem_destino(comando, conn):
+    """Ele descreveu o imóvel e esqueceu para quem (15/09).
+
+    Literal dele, sem destinatário nenhum:
+
+        Nay envia casa para venda em condomínio de 250 mil a 600 mil nos
+        bairros parque dez, flores e compensa
+
+    O QUE ACONTECIA ANTES: o único "para" da frase era o de "para venda", e a
+    Nay saía procurando um corretor chamado "venda em condomínio de 250 mil a
+    600 mil nos bairros...". A resposta era sobre corretor -- ele não teria
+    como saber que o pedido em si tinha sido entendido.
+
+    ENTÃO ELA MOSTRA O QUE ACHOU E DEVOLVE A FRASE PRONTA, com o destino no
+    fim. Não manda nada: sem destinatário não há o que mandar, e adivinhar
+    para quem é o pior erro possível neste projeto.
+    """
+    pedido = (comando.get("pedido") or "").strip()
+    texto = (comando.get("texto") or "").strip()
+    achado = imoveis_do_pedido(conn, pedido) if pedido else {"tipo": "ignorar"}
+
+    if achado["tipo"] in ("codigos", "ambiguo"):
+        codigos = achado["codigos"]
+        quantos = (f"{len(codigos)} imóveis ({', '.join(codigos[:LIMITE_POR_ENVIO])}"
+                   + (", ..." if len(codigos) > LIMITE_POR_ENVIO else "") + ")"
+                   if len(codigos) > 1 else f"1 imóvel (o {codigos[0]})")
+        cabeca = f"esse pedido dá {quantos}, mas você não disse para quem."
+        # O TETO POR LEVA JÁ AVISA AQUI. Sem isto ele manda de novo com o
+        # destinatário só para ouvir que são imóveis demais -- duas idas e
+        # voltas para a mesma informação que eu já tenho na mão.
+        if len(codigos) > LIMITE_POR_ENVIO:
+            cabeca += (f" e é muito para uma leva só (o limite é "
+                       f"{LIMITE_POR_ENVIO}): estreita com bairro, quartos ou "
+                       "uma faixa de valor menor.")
+    elif achado["tipo"] == "nada":
+        cabeca = ("não achei imóvel para " + achado["motivo"]
+                  + _parecidos_com(conn, pedido)
+                  + "\n\n(e também faltou dizer para quem mandar.)")
+    else:
+        cabeca = ("entendi que é para enviar imóvel, mas não achei o imóvel "
+                  "nem o destinatário." + _parecidos_com(conn, pedido))
+
+    return (cabeca + "\n\nme manda de novo com o destino no fim -- o número "
+            "do corretor, o nome dele, ou os dois:\n\n"
+            + texto + " para 92 9999-9999\n\nnão mandei nada.")
+
+
+def _enviar_lista_para_corretor(comando, conn):
+    """A lista colada: descobre os codigos e manda -- ou pergunta primeiro.
+
+    O PEDIDO (Tel, 11/09), literal:
+
+        Nay envia esses imoveis para o numero 92994717316
+        Arezzo Residencial / 2 quartos / 2.5k
+        Ariranhas / 2 quartos / 2.6k (incluso a tx)
+        Estilo Golf / 2 quartos sendo 1 suite / 2.6k
+        Estilo Golf / 2 quartos sendo 1 suite / 2.6k
+
+    SEGURA TUDO ATE ELE RESPONDER -- decisao dele em 11/09, para o corretor
+    receber uma leva so em vez de duas. E por isso o estado guarda o envio
+    COMPLETO: destinatario e tudo que ja resolveu.
+    """
+    telefone, nome, aviso_cadastro = _destinatario(conn, comando)
+    if telefone is None:
+        return nome  # aqui `nome` carrega o motivo da recusa
+
+    codigos, ambiguas, sem_casar, fora = _resolver_as_linhas(
+        conn, comando["linhas"])
+
+    # TETO POR LEVA. "todos os apartamentos de venda" são centenas, e cada um
+    # leva ~1 minuto com fotos -- o corretor recebe por horas e ninguém lê.
+    # Acima do teto não sai nada: ela diz quantos são e pede para estreitar.
+    if len(codigos) > LIMITE_POR_ENVIO:
+        return (f"esse pedido dá {len(codigos)} imóveis para {nome} -- é muito "
+                f"para mandar de uma vez (o limite é {LIMITE_POR_ENVIO}). me manda "
+                "de novo com um teto de valor, o bairro ou os quartos. "
+                "nao mandei nada.")
+
+    if not codigos and not ambiguas:
+        # "dessa lista" só quando é lista mesmo. O pedido DESCRITO entra aqui
+        # como uma linha só, e dizer "lista" para quem escreveu uma frase
+        # confunde -- foi o que o Tel leu em 15/09.
+        e_lista = len(comando["linhas"]) > 1 or any(
+            " / " in l for l in comando["linhas"])
+        o_que = "nenhum imovel dessa lista" if e_lista else "nenhum imovel assim"
+        # E DIZ O QUE EXISTE DE PARECIDO (15/09). "envia o vista dos cedros"
+        # morria em "não consegui identificar nenhum imóvel assim" -- o imóvel
+        # estava no ar, o cadastro é que escreve "Vistas dos Cedros". Recusa
+        # que não ensina faz ele tentar de novo às cegas.
+        parecidos = ""
+        if not e_lista:
+            parecidos = _parecidos_com(conn, comando["linhas"][0])
+        return (f"nao consegui identificar {o_que} para {nome}. "
+                "nao mandei nada." + parecidos + "\n\n"
+                + _frase_das_pendencias([], sem_casar, fora))
+
+    # Lista nova fecha a anterior: com duas em aberto, "Nay codigo 5719" seria
+    # ambiguo e ela aplicaria a pergunta errada -- mandando a carteira para o
+    # corretor da lista passada. O indice unico garante uma so.
+    anterior = _envio_pendente_aberto(conn)
+    _fechar_envio_pendente(conn, "trocado")
+
+    if not ambiguas:
+        resposta = _mandar_os_codigos(conn, telefone, nome, codigos)
+        rabo = _frase_das_pendencias([], sem_casar, fora)
+        return aviso_cadastro + resposta + ("\n\n" + rabo if rabo else "")
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO envio_pendente (destino_telefone, destino_nome, "
+            "  codigos, ambiguas, sem_casar, fora_do_site) "
+            "VALUES (%s,%s,%s,%s::jsonb,%s,%s)",
+            (telefone, nome, codigos, json.dumps(ambiguas, ensure_ascii=False),
+             sem_casar, [c for c, _ in fora]))
+    conn.commit()
+
+    aviso = aviso_cadastro + (
+        "(a lista anterior que estava em aberto eu descartei)\n\n"
+        if anterior else "")
+    return (f"{aviso}nao mandei nada ainda para {nome} -- resolvo a lista inteira "
+            f"e mando de uma vez.\n\n"
+            + _frase_das_pendencias(ambiguas, sem_casar, fora))
+
+
+def _codigos_da_escolha(comando, ambiguas):
+    """Traduz "os dois" / "ambos" / "o primeiro" nos codigos de verdade.
+
+    O PARSER NAO PODE FAZER ISSO. Ele nao conhece os candidatos -- quem tem a
+    lista em aberto na mao e aqui. Devolve (codigos, motivo_da_recusa): com
+    motivo preenchido, NAO ENVIA.
+
+    FALHA FECHADA em toda duvida. "os dois" com duas linhas ambiguas em aberto
+    e dois de QUAL linha? Nao se adivinha: envio de WhatsApp nao desfaz.
+    """
+    if comando.get("codigos"):
+        return comando["codigos"], None
+
+    todos = [c for a in ambiguas for c in a["candidatos"]]
+
+    # "ambos", "todos", "tudo" -- tudo que ela ofereceu, de todas as linhas.
+    if comando.get("todos"):
+        return todos, None
+
+    # A PERGUNTA MOSTRA UMA LINHA POR VEZ, entao "os dois" e "o primeiro" tem
+    # um referente so: a linha que ela acabou de mostrar. Foi o que consertou a
+    # ambiguidade de raiz -- antes, com duas linhas em aberto, toda resposta
+    # curta dele era ambigua e a unica saida era recusar.
+    aqui = ambiguas[0]["candidatos"]
+
+    quantos = comando.get("quantos")
+    if quantos:
+        # A CONTA TEM QUE FECHAR. "os dois" com tres candidatos nao e escolha,
+        # e uma frase que nao cabe -- e escolher dois dos tres seria eu
+        # inventando quais.
+        if len(aqui) == quantos:
+            return aqui, None
+        return [], (f"você disse {quantos}, mas nesta linha são {len(aqui)}. "
+                    'me manda o código, ou "todos".')
+
+    posicao = comando.get("posicao")
+    if posicao:
+        if posicao == -1:
+            return [aqui[-1]], None
+        if posicao > len(aqui):
+            return [], (f"só tenho {len(aqui)} nesta linha. me manda o código.")
+        return [aqui[posicao - 1]], None
+
+    return [], None
+
+
+def _escolher_codigos(comando, conn):
+    """"Nay codigo 5719" -- ele desempatando, e o envio saindo inteiro.
+
+    O PORTAO FALHA FECHADO: so envia se houver envio em aberto, dentro da
+    janela, E se os codigos que ele deu forem candidatos de verdade daquela
+    lista. Sem isso, "Nay codigo 5719" depois de a janela vencer mandaria a
+    carteira para o corretor da lista ANTERIOR -- e este projeto trata
+    "atender uma pessoa achando que e outra" como o pior resultado possivel.
+    """
+    pendente = _envio_pendente_aberto(conn)
+    if not pendente:
+        # "NAY CODIGO 5725" TAMBEM RESPONDE A PERGUNTA DO `posta <nome>`
+        # (15/09). Sao duas perguntas diferentes que aceitam a mesma frase;
+        # se nao ha lista de envio em aberto e ha uma pergunta de postagem,
+        # ele so pode estar respondendo esta. Com as DUAS abertas quem manda e
+        # a lista de envio, que ja era dona desta frase.
+        um = (comando.get("codigos") or [None])[0]
+        if um and _pergunta_do_posta_aberta(conn):
+            return _escolha_do_posta({"codigo": um, "texto": comando.get("texto")},
+                                     conn)
+        # A recusa carrega o comando PRONTO, que e o padrao do projeto para
+        # quando falta contexto (`_perguntar_o_negocio`, a trava de lista, o
+        # DESCARTAR TUDO SIM): a resposta dele volta auto-contida.
+        if um:
+            return ("nao tenho nenhuma lista esperando resposta agora. se e para "
+                    f"mandar o {um}, me diz para quem: "
+                    f'"Nay envia o {um} para <nome ou numero>". nao mandei nada.')
+        # "os dois" sem lista em aberto nao diz NADA sobre qual imovel --
+        # nem sequer da para oferecer o comando pronto.
+        return ("nao tenho nenhuma lista esperando resposta agora, entao nao sei "
+                "de quais imoveis voce falou. me manda a lista de novo, ou "
+                '"Nay envia o <codigo> para <nome ou numero>". nao mandei nada.')
+
+    ambiguas = pendente["ambiguas"] or []
+    if isinstance(ambiguas, str):
+        ambiguas = json.loads(ambiguas)
+
+    escolhidos, recusa = _codigos_da_escolha(comando, ambiguas)
+    if recusa:
+        return recusa + "\n\n" + _frase_das_pendencias(ambiguas, [], [])
+    if not escolhidos:
+        return ("nao entendi qual voce quer. nao mandei nada.\n\n"
+                + _frase_das_pendencias(ambiguas, [], []))
+
+    de_verdade = {c for a in ambiguas for c in a["candidatos"]}
+    intrusos = [c for c in escolhidos if c not in de_verdade]
+    aceitos = [c for c in escolhidos if c in de_verdade]
+
+    if not aceitos:
+        return ("esse codigo nao esta entre os que eu te ofereci. nao mandei "
+                "nada.\n\n"
+                + _frase_das_pendencias(ambiguas, [], []))
+
+    # Linha resolvida e a que teve ALGUM candidato escolhido. O que sobrar
+    # continua pendurado: nada sai enquanto a lista inteira nao fechar, que
+    # foi a decisao dele.
+    sobraram = [a for a in ambiguas
+                if not any(c in aceitos for c in a["candidatos"])]
+
+    codigos = list(dict.fromkeys((pendente["codigos"] or []) + aceitos))
+
+    if sobraram:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE envio_pendente SET codigos = %s, ambiguas = %s::jsonb "
+                " WHERE id = %s",
+                (codigos, json.dumps(sobraram, ensure_ascii=False),
+                 pendente["id"]))
+        conn.commit()
+        aviso = (f"o {', '.join(intrusos)} nao estava na lista, ignorei.\n\n"
+                 if intrusos else "")
+        return (aviso + "anotei. ainda falta resolver:\n\n"
+                + _frase_das_pendencias(sobraram, [], []))
+
+    _fechar_envio_pendente(conn, "enviado")
+    resposta = _mandar_os_codigos(conn, pendente["destino_telefone"],
+                                  pendente["destino_nome"], codigos)
+    rabo = _frase_das_pendencias(
+        [], pendente["sem_casar"] or [],
+        [(c, "") for c in (pendente["fora_do_site"] or [])])
+    aviso = (f"o {', '.join(intrusos)} nao estava na lista, ignorei.\n\n"
+             if intrusos else "")
+    return aviso + resposta + ("\n\n" + rabo if rabo else "")
+
+
+def _registrar_envio_corretor(conn, codigo, telefone, message_id=None):
+    """Deixa rastro em `envios`, como o disparo de grupo passou a fazer.
+
+    GUARDA O message_id (01/09): quando o corretor marca este card, a
+    Z-API manda o ID dele em `referenceMessageId`, e `nay_imovel_da_citacao`
+    devolve o código por igualdade. Sem o ID guardado, a Nay só pode
+    perguntar de qual imóvel se trata.
+
+    Nunca derruba: a mensagem ja saiu quando isto roda.
+    """
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO envios (codigo, telefone, destino, message_id) "
+                "VALUES (%s,%s,'corretor',%s)",
+                (str(codigo), str(telefone), message_id),
+            )
+        conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+
+def _fotos_para_grupo(imovel, grupo):
+    """9 dos 10 grupos recebem só a capa (1a foto); só o grupo com
+    todas_fotos=true recebe a lista inteira (decisão do Tel)."""
+    fotos = imovel["fotos"]
+    if grupo.get("todas_fotos"):
+        return fotos
+    return fotos[:1]
+
+
+def _avisos_dados_incompletos(imovel):
+    """area==0 ou vagas==0 é dado provavelmente incompleto na extração,
+    não motivo pra recusar o post -- só um aviso separado pro Tel
+    confirmar com o proprietário."""
+    avisos = []
+    if imovel.get("area") == 0:
+        avisos.append(
+            f"Aviso: o imóvel {imovel['codigo']} está com metragem zerada -- "
+            "confirme com o proprietário."
+        )
+    if imovel.get("vagas") == 0:
+        avisos.append(
+            f"Aviso: o imóvel {imovel['codigo']} está com vagas zeradas -- "
+            "confirme com o proprietário."
+        )
+
+    # A TAXA QUE NINGUÉM MARCOU. O Tel reclamou em 14/09 que o card do 5718
+    # saiu sem "(incluso a tx)". A regra funcionava -- provado no 3714, que
+    # tem a marca e sai com o sufixo; o que faltava era o DADO. Medido no
+    # mesmo dia: **50 dos 85 imóveis de locação no mercado não têm nenhuma
+    # informação de taxa**, e o site não publica o campo em lugar nenhum.
+    #
+    # Então o aviso fecha o laço: ele já recebe esta confirmação a cada
+    # disparo, e a frase traz o comando pronto. Uma linha por disparo enche a
+    # lacuna com o tempo, em vez de exigir que ele repasse 50 imóveis.
+    #
+    # Só quando NÃO SE SABE. Taxa inclusa marcada e taxa por fora com valor
+    # são as duas informações -- avisar sobre elas seria cobrar o que já está
+    # respondido.
+    tem_aluguel = (imovel.get("valor_aluguel") or 0) > 0
+    incluso = (imovel.get("incluso_no_aluguel") or "")
+    taxa_por_fora = (imovel.get("taxa_condominio") or 0) > 0
+    if tem_aluguel and "condom" not in incluso.lower() and not taxa_por_fora:
+        avisos.append(
+            f"Aviso: não sei se a taxa de condomínio está inclusa no aluguel "
+            f"do {imovel['codigo']}, então o card saiu sem \"(incluso a tx)\". "
+            f"Se está inclusa, me manda: {imovel['codigo']} incluso a tx"
+        )
+    return avisos
+
+
+def _registrar_publicacao(conn, codigo, grupo, message_id=None):
+    """Anota que este código foi para este grupo, agora.
+
+    POR QUE ISSO EXISTE (31/08): o corretor responde ao card do grupo
+    perguntando "esse está 100% mobiliado?" -- e não havia como saber de
+    qual imóvel ele falava. A Z-API não manda mensagem citada (conferido
+    em 22 payloads), então a única pista possível é o que a gente mesma
+    acabou de postar. Sem este registro, `envios` tinha 20 linhas e
+    NENHUMA de grupo: o publicador postava e esquecia.
+
+    Nunca derruba o envio: a mensagem já saiu quando isto roda, e falhar
+    aqui não pode fazer o chamador achar que o envio falhou.
+    """
+    if conn is None:
+        return
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO envios (codigo, telefone, destino, grupo_nome, message_id) "
+                "VALUES (%s, %s, 'grupo', %s, %s)",
+                (str(codigo), str(grupo.get("id_grupo", "")), grupo.get("nome"),
+                 message_id),
+            )
+        conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+
+def _so_esse_negocio(imovel, negocio):
+    """O mesmo imóvel, visto por um lado só.
+
+    "posta o jardim das cerejeiras para locação" em um imóvel que tem venda E
+    locação tem que sair como card de LOCAÇÃO. Em vez de ensinar o negócio a
+    cada peça do caminho (destinos, card, fotos), some com o valor do outro
+    lado: `negocios_do_grupo` -- a regra única que decide grupo e card --
+    passa a enxergar um imóvel de um negócio só, e tudo o mais segue igual.
+    """
+    if negocio not in ("venda", "locacao"):
+        return imovel
+    copia = dict(imovel)
+    copia["valor_venda" if negocio == "locacao" else "valor_aluguel"] = None
+    return copia
+
+
+def _postar_codigo(codigo, grupos, conn=None, negocio=None):
+    """Busca um código no site e posta em cada grupo elegível.
+
+    Devolve um dict com o resultado estruturado (sucesso, quantos
+    grupos, avisos, ou o erro) -- usado tanto por _postar_agora (comando
+    imediato) quanto por disparar_grade.py (vaga agendada), pra não
+    duplicar a lógica de buscar + decidir destinos + montar mensagem por
+    grupo + enviar em dois lugares (doc 27, Parte 4.3).
+
+    Falha isolada por código: um problema em buscar_imovel ou em
+    enviar_imovel vira um resultado de erro, nunca uma exceção que sobe
+    -- quem chama para vários códigos (postar_agora, uma vaga com mais
+    de 1 código) precisa que a falha de um não trave os outros.
+    """
+    try:
+        imovel = buscar_imovel(codigo)
+    except Exception as exc:
+        return {
+            "codigo": codigo, "sucesso": False, "grupos_atingidos": 0,
+            "erro": f"não consegui buscar no site ({exc})", "avisos": [],
+        }
+    # Sem isto a página vazia caía em "nenhum grupo elegível (sem valor de
+    # venda nem de locação)" -- recusava, mas mandava o Tel procurar valor num
+    # imóvel que não existe.
+    if not anuncio_encontrado(imovel):
+        return {
+            "codigo": codigo, "sucesso": False, "grupos_atingidos": 0,
+            "erro": aviso_fora_do_ar("nos grupos"), "avisos": [],
+        }
+
+    imovel = _so_esse_negocio(imovel, negocio)
+    destinos = montar_lista_destinos(imovel, grupos)
+    if not destinos:
+        if negocio:
+            lado = "locação" if negocio == "locacao" else "venda"
+            return {
+                "codigo": codigo, "sucesso": False, "grupos_atingidos": 0,
+                "erro": f"não tem valor de {lado} nesse imóvel (ou nenhum "
+                        f"grupo aceita {lado} nessa faixa)", "avisos": [],
+            }
+        return {
+            "codigo": codigo, "sucesso": False, "grupos_atingidos": 0,
+            "erro": "nenhum grupo elegível (sem valor de venda nem de locação)",
+            "avisos": [],
+        }
+
+    nome_imovel = imovel.get("condominio") or imovel.get("tipo") or codigo
+    grupos_atingidos = 0
+    try:
+        for grupo in destinos:
+            texto_msg = montar_mensagem(imovel, grupo)
+            resultado = enviar_imovel(grupo["id_grupo"], texto_msg,
+                                      _fotos_para_grupo(imovel, grupo))
+            grupos_atingidos += 1  # só conta depois do envio ter dado certo de verdade
+            # É o card do GRUPO que o corretor marca e traz para o privado
+            # -- foi exatamente isso que o Victor fez em 01/09.
+            _registrar_publicacao(conn, codigo, grupo,
+                                  id_da_mensagem((resultado or {}).get("texto")))
+    except Exception as exc:
+        # grupos_atingidos já reflete quantos ENVIOS DE VERDADE aconteceram
+        # antes da falha -- zerar isso aqui seria relatar errado e podia
+        # levar a reenviar pros grupos que já tinham recebido.
+        return {
+            "codigo": codigo, "sucesso": False, "grupos_atingidos": grupos_atingidos,
+            "nome_imovel": nome_imovel,
+            "erro": f"falha ao enviar ({exc})", "avisos": [],
+        }
+
+    return {
+        "codigo": codigo, "sucesso": True,
+        "grupos_atingidos": grupos_atingidos,
+        "nome_imovel": nome_imovel,
+        "erro": None, "avisos": _avisos_dados_incompletos(imovel),
+    }
+
+
+def _postar_agora(codigos, conn, negocio=None):
+    grupos = carregar_grupos_db(conn)
+    linhas = []
+    for codigo in codigos:
+        r = _postar_codigo(codigo, grupos, conn, negocio)
+        if r["sucesso"]:
+            linhas.append(f"{r['codigo']} ({r['nome_imovel']}): postado em {r['grupos_atingidos']} grupo(s)")
+            linhas.extend(r["avisos"])
+        elif r["grupos_atingidos"] > 0:
+            linhas.append(
+                f"{r['codigo']} ({r['nome_imovel']}): postado em {r['grupos_atingidos']} "
+                f"grupo(s) antes de falhar -- {r['erro']}"
+            )
+        else:
+            linhas.append(f"{r['codigo']}: {r['erro']}")
+
+    return "Pronto:\n" + "\n".join(linhas)
+
+
+def _abrir_pergunta_do_posta(conn, nome, candidatos, negocio):
+    """Guarda a pergunta e devolve se havia outra aberta.
+
+    UMA SÓ EM ABERTO (índice único): com duas, "locação" seria ambíguo e ela
+    postaria o imóvel da pergunta passada -- em 14 grupos, sem desfazer.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE pergunta_ao_tel SET respondida_em = now(), resposta = 'trocada' "
+            " WHERE respondida_em IS NULL RETURNING id")
+        anterior = cur.fetchone()
+        cur.execute(
+            "INSERT INTO pergunta_ao_tel (acao, nome, candidatos, negocio) "
+            "VALUES ('postar_por_nome', %s, %s, %s)",
+            (nome, candidatos, negocio))
+    conn.commit()
+    return bool(anterior)
+
+
+def _linha_da_opcao(imovel, negocio):
+    """Uma opção da pergunta: código, o que é e quanto custa."""
+    linha = imovel["linha_venda"] if negocio == "venda" else imovel["linha_locacao"]
+    lado = "venda" if negocio == "venda" else "locação"
+    return f"{imovel['codigo']} -- {linha} ({lado})"
+
+
+def _opcoes_dos_candidatos(imoveis, negocio):
+    """(linhas para ele ler, [(codigo, negocio)]) -- uma opção por NEGÓCIO.
+
+    O imóvel que tem venda E locação aparece DUAS vezes de propósito: são dois
+    cards diferentes, e é escolhendo um deles que ele responde as duas
+    perguntas de uma vez (qual imóvel e qual negócio)."""
+    linhas, pares = [], []
+    for im in imoveis:
+        for lado in ("locacao", "venda"):
+            if negocio and lado != negocio:
+                continue
+            if not im["valor_aluguel" if lado == "locacao" else "valor_venda"]:
+                continue
+            linhas.append(_linha_da_opcao(im, lado))
+            pares.append((im["codigo"], lado))
+    return linhas, pares
+
+
+def _imoveis_do_condominio(conn, nomes, negocio=None):
+    """Os imóveis NOSSOS e NO AR desses condomínios, com o que a pergunta
+    precisa mostrar: a linha da lista de cada lado e os dois valores."""
+    filtros = ["nay_condominio_de_verdade(i.tipo, i.condominio_nome) = ANY(%s)"]
+    params = [nomes]
+    if negocio == "locacao":
+        filtros.append("coalesce(i.valor_aluguel,0) > 0")
+    elif negocio == "venda":
+        filtros.append("coalesce(i.valor_venda,0) > 0")
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT i.codigo::text AS codigo, "
+            "       nay_esta_no_mercado(i.disponivel, i.bloqueado, i.publicado_no_site) AS no_ar, "
+            "       coalesce(i.e_parceiro,false) AS parceiro, "
+            "       i.valor_aluguel, i.valor_venda, "
+            "       nay_custo_cheio(i.codigo::text,'locacao') AS cheio_locacao, "
+            "       nay_linha_da_lista(i.codigo::text, "
+            "         nay_categoria_do_imovel(i.tipo, i.condominio_nome), 'locacao') AS linha_locacao, "
+            "       nay_linha_da_lista(i.codigo::text, "
+            "         nay_categoria_do_imovel(i.tipo, i.condominio_nome), 'venda') AS linha_venda "
+            "  FROM imoveis i WHERE " + " AND ".join(filtros) +
+            " ORDER BY coalesce(i.valor_aluguel, i.valor_venda), i.codigo", params)
+        todos = cur.fetchall()
+    return todos
+
+
+def _postar_por_nome(comando, conn):
+    """"Posta o jardim das cerejeiras" -- o imóvel pelo NOME (Tel, 15/09).
+
+    Ele: *"eu nunca lembro por código e preciso que neste caso quando eu pedir
+    pelo nome do condomínio, ela procure e me pergunte se é para venda ou
+    locação"*.
+
+    PERGUNTA SEMPRE QUE ELE NÃO DISSE O NEGÓCIO, que foi o pedido literal --
+    e é também a regra desta casa: postagem em 14 grupos não tem desfazer, e
+    perguntar custa uma frase. Com mais de um imóvel, a pergunta mostra código
+    e valor, que é como ele pediu para escolher.
+    """
+    nome = (comando.get("nome") or "").strip()
+    negocio = comando.get("negocio")
+    # Pelo BANCO, como o pedido descrito: "parque dez" vira "parque 10", que é
+    # como a chave do condomínio está guardada.
+    with conn.cursor() as cur:
+        cur.execute("SELECT nay_normalizar_lugar(%s, true) AS frase", (nome,))
+        frase = ((cur.fetchone() or {}).get("frase") or nome)
+    nomes = casar_condominios(frase, condominios_do_catalogo(conn))
+    if not nomes:
+        return (f'não achei condomínio com o nome "{nome}". me manda o código '
+                "do imóvel, ou o nome como está no cadastro. não postei nada."
+                + _parecidos_com(conn, nome))
+
+    imoveis = _imoveis_do_condominio(conn, nomes, negocio)
+    nossos = [i for i in imoveis if i["no_ar"] and not i["parceiro"]]
+    if not nossos:
+        fora = [i["codigo"] for i in imoveis if not i["no_ar"] and not i["parceiro"]]
+        parc = [i["codigo"] for i in imoveis if i["parceiro"]]
+        lado = ""
+        if negocio:
+            lado = " para locação" if negocio == "locacao" else " para venda"
+        detalhe = ""
+        if fora:
+            detalhe = " (fora do site: " + ", ".join(fora[:8]) + ")"
+        elif parc:
+            detalhe = " (só de parceiro: " + ", ".join(parc[:8]) + ")"
+        return (f"não tenho imóvel no ar do {', '.join(nomes)}{lado}{detalhe}. "
+                "não postei nada.")
+
+    linhas, pares = _opcoes_dos_candidatos(nossos, negocio)
+    if not pares:
+        return (f"não tenho imóvel no ar do {', '.join(nomes)} desse lado. "
+                "não postei nada.")
+
+    # UMA OPÇÃO SÓ E O NEGÓCIO JÁ DITO: não tem o que perguntar.
+    if len(pares) == 1 and negocio:
+        codigo, lado = pares[0]
+        return _postar_agora([codigo], conn, lado)
+
+    trocada = _abrir_pergunta_do_posta(
+        conn, ", ".join(nomes), [f"{c}:{lado}" for c, lado in pares], negocio)
+    aviso = "(a pergunta anterior eu descartei)\n\n" if trocada else ""
+
+    if len(pares) == 1:
+        codigo, lado = pares[0]
+        lado_txt = "LOCAÇÃO" if lado == "locacao" else "VENDA"
+        return (f"{aviso}achei um só no {', '.join(nomes)}:\n\n{linhas[0]}\n\n"
+                f"posto para {lado_txt}? me responde \"{lado_txt.lower()}\" "
+                f"ou \"{codigo}\". não postei nada ainda.")
+
+    corpo = "\n".join(linhas)
+    return (f"{aviso}o {', '.join(nomes)} tem {len(pares)} opções no ar:\n\n"
+            f"{corpo}\n\nqual delas? me responde com o código ou com o valor "
+            "(ou \"locação\"/\"venda\", se for isso que decide). "
+            "não postei nada ainda.")
+
+
+def _linhas_das_opcoes(conn, pares):
+    """As mesmas linhas da primeira pergunta, para os pares que sobraram."""
+    codigos = sorted({c for c, _ in pares})
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT i.codigo::text AS codigo, "
+            "       nay_linha_da_lista(i.codigo::text, "
+            "         nay_categoria_do_imovel(i.tipo, i.condominio_nome), 'locacao') AS linha_locacao, "
+            "       nay_linha_da_lista(i.codigo::text, "
+            "         nay_categoria_do_imovel(i.tipo, i.condominio_nome), 'venda') AS linha_venda "
+            "  FROM imoveis i WHERE i.codigo::text = ANY(%s)", (codigos,))
+        por_codigo = {l["codigo"]: l for l in cur.fetchall()}
+    linhas = []
+    for c, lado in pares:
+        im = por_codigo.get(c)
+        if im:
+            linhas.append(_linha_da_opcao(dict(im, codigo=c), lado))
+    return linhas
+
+
+def _pergunta_do_posta_aberta(conn):
+    """A pergunta do `posta <nome>` que está esperando resposta, dentro da
+    janela de `pergunta_ao_tel_minutos`. Fora da janela não vale: um "locação"
+    de hoje respondendo pergunta de ontem postaria o imóvel errado."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, nome, candidatos, negocio FROM pergunta_ao_tel "
+            " WHERE respondida_em IS NULL AND acao = 'postar_por_nome' "
+            "   AND criada_em > now() - (coalesce((SELECT valor FROM config "
+            "         WHERE chave = 'pergunta_ao_tel_minutos'),'30') || ' minutes')::interval "
+            " ORDER BY id DESC LIMIT 1")
+        return cur.fetchone()
+
+
+def _fechar_pergunta_do_posta(conn, id_pergunta, resposta):
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE pergunta_ao_tel SET respondida_em = now(), resposta = %s "
+            " WHERE id = %s AND respondida_em IS NULL RETURNING id",
+            (resposta, id_pergunta))
+        tomou = cur.fetchone()
+    conn.commit()
+    # TOMA A PERGUNTA NUM UPDATE SÓ: ele repete "locação" achando que não
+    # pegou, e a segunda vez não acha mais linha aberta -- em vez de postar
+    # duas vezes nos 14 grupos.
+    return bool(tomou)
+
+
+def _valor_da_opcao(conn, codigo, lado):
+    """Quanto a opção custa, no mesmo número que a linha da lista mostra --
+    para locação isso é o CUSTO CHEIO (com a taxa por fora somada)."""
+    with conn.cursor() as cur:
+        if lado == "venda":
+            cur.execute("SELECT valor_venda AS v FROM imoveis WHERE codigo::text = %s",
+                        (codigo,))
+        else:
+            cur.execute(
+                "SELECT nay_custo_cheio(%s,'locacao') AS v, valor_aluguel AS bruto "
+                "  FROM imoveis WHERE codigo::text = %s", (codigo, codigo))
+        linha = cur.fetchone() or {}
+    return [x for x in (linha.get("v"), linha.get("bruto")) if x is not None]
+
+
+def _escolha_do_posta(comando, conn):
+    """"locação", "5725", "3.6k" -- ele escolhendo o que ela ofereceu.
+
+    O PEDIDO (Tel, 15/09): *"se estiver mais de uma opção ela vai me mandar o
+    jardim das cerejeiras com o valor e código para eu decidir e respondo com
+    ela pelo valor ou código que ela me enviou"*.
+
+    SÓ POSTA O QUE ELA OFERECEU: a resposta escolhe DENTRO de `candidatos`.
+    Um código que não estava na pergunta não posta nada -- ele pode estar
+    falando de outro imóvel, e postagem em 14 grupos não desfaz.
+    """
+    pergunta = _pergunta_do_posta_aberta(conn)
+    if not pergunta:
+        return ("não tenho nenhuma pergunta minha esperando resposta agora. "
+                "não postei nada.")
+
+    pares = [tuple(c.split(":", 1)) for c in (pergunta["candidatos"] or [])
+             if ":" in c]
+    negocio = comando.get("negocio")
+    codigo = comando.get("codigo")
+    valor = comando.get("valor")
+
+    if negocio:
+        restantes = [p for p in pares if p[1] == negocio]
+        lado_txt = "locação" if negocio == "locacao" else "venda"
+        if not restantes:
+            return (f"não tenho opção de {lado_txt} no {pergunta['nome']}. "
+                    "não postei nada.")
+    else:
+        restantes = [p for p in pares if p[0] == codigo] if codigo else []
+        # NÚMERO PODE SER CÓDIGO OU VALOR, e nesta ordem: ela imprime o código
+        # na frente de cada opção, mas o valor está na mesma linha e ele
+        # escreve "3600" onde ela escreveu "3.6k".
+        if not restantes:
+            alvo = valor_escrito(conn, valor or codigo or "")
+            if alvo is not None:
+                restantes = [p for p in pares
+                             if any(abs(float(v) - float(alvo)) < 0.01
+                                    for v in _valor_da_opcao(conn, p[0], p[1]))]
+        if not restantes:
+            if codigo:
+                return (f"o {codigo} não estava nas opções que eu te mandei. "
+                        "me responde com um dos códigos da lista. não postei nada.")
+            return (f"nenhuma das opções que eu te mandei custa {valor}. "
+                    "me responde com o código. não postei nada.")
+
+    if len(restantes) > 1:
+        # AINDA FALTA ESCOLHER: refaz a pergunta com o que sobrou, sem postar.
+        # É o caso de "locação" quando há dois imóveis de locação no mesmo
+        # condomínio -- a resposta estreitou, não resolveu.
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE pergunta_ao_tel SET candidatos = %s, negocio = %s "
+                " WHERE id = %s",
+                ([f"{c}:{l}" for c, l in restantes], negocio, pergunta["id"]))
+        conn.commit()
+        linhas = _linhas_das_opcoes(conn, restantes)
+        return (f"ficaram {len(restantes)} opções:\n\n" + "\n".join(linhas)
+                + "\n\nme responde com o código. não postei nada ainda.")
+
+    codigo, lado = restantes[0]
+    if not _fechar_pergunta_do_posta(conn, pergunta["id"], comando.get("texto")):
+        return "essa pergunta já tinha sido respondida. não postei de novo."
+    return _postar_agora([codigo], conn, lado)
+
+
+def _criar_vaga(comando, conn):
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO vagas (horario, tipo_recorrencia, dias_semana, data_unica, codigos) "
+            "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+            (
+                comando["horario"],
+                comando["tipo_recorrencia"],
+                comando.get("dias_semana"),
+                comando.get("data_unica"),
+                comando["codigos"],
+            ),
+        )
+        vaga_id = cur.fetchone()["id"]
+    conn.commit()
+
+    vaga = {
+        "tipo_recorrencia": comando["tipo_recorrencia"],
+        "horario": comando["horario"],
+        "dias_semana": comando.get("dias_semana"),
+        "data_unica": comando.get("data_unica"),
+    }
+    codigos_txt = ", ".join(comando["codigos"])
+    return f"Vaga #{vaga_id} criada: {descrever_vaga(vaga)}, códigos {codigos_txt}."
+
+
+def _tirar_codigo_das_vagas(codigo, conn):
+    """Tira um código de toda vaga onde ele estiver e devolve as
+    mudanças aplicadas (lista vazia se não estava em nenhuma).
+
+    Trabalho de banco compartilhado por liberar_vaga (VENDEU/ALUGOU) e
+    remover_da_grade (TIRA/REMOVE): na tabela as duas fazem exatamente
+    a mesma coisa, o que muda é só o significado pro Tel. Escrita num
+    lugar só pra não divergirem sem ninguém perceber (doc 27, Parte
+    4.3) -- o dia em que "vendeu" também marcar o imóvel no site, a
+    diferença vai estar no handler, não aqui.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, horario, tipo_recorrencia, dias_semana, data_unica, codigos FROM vagas"
+        )
+        vagas = cur.fetchall()
+
+    mudancas = liberar_codigo(vagas, codigo)
+    if not mudancas:
+        return mudancas  # nada a atualizar -- não commita à toa
+
+    with conn.cursor() as cur:
+        for m in mudancas:
+            cur.execute(
+                "UPDATE vagas SET codigos = %s WHERE id = %s",
+                (m["codigos_depois"], m["vaga_id"]),
+            )
+    conn.commit()
+    return mudancas
+
+
+def _marcar_indisponivel(codigo, conn):
+    """Tira o imóvel da oferta e mata o que dependia dele.
+
+    Sem isto, `VENDEU` só limpava a grade: as buscas usam
+    `coalesce(disponivel, true)` e continuavam oferecendo, o lembrete
+    continuava cobrando e a entrega pendente continuava devendo.
+    """
+    resumo = []
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE imoveis SET disponivel = false, sincronizado_em = now() "
+            " WHERE codigo::text = %s AND coalesce(disponivel, true) RETURNING codigo",
+            (str(codigo),))
+        if cur.fetchone():
+            resumo.append("marquei como indisponível")
+
+        cur.execute(
+            "UPDATE lembrete SET estado='morto', motivo_fim='imovel saiu do mercado', "
+            "atualizado_em=now() WHERE codigo = %s AND estado IN "
+            "('agendado','enviado','congelado')", (str(codigo),))
+        if cur.rowcount:
+            resumo.append(f"cancelei {cur.rowcount} lembrete(s)")
+
+        cur.execute(
+            "UPDATE entrega_pendente SET estado='cancelada' "
+            " WHERE codigo = %s AND estado='devendo'", (str(codigo),))
+        if cur.rowcount:
+            resumo.append(f"cancelei {cur.rowcount} entrega(s) pendente(s)")
+
+        # Esquece o que sabia do imóvel. Conhecimento de imóvel vendido,
+        # reusado depois, é pior que conhecimento nenhum: parece atual e
+        # não é. Decisão do Tel em 01/09 -- "só apagar quando o imóvel não
+        # estiver disponível".
+        cur.execute("SELECT nay_esquecer_imovel(%s) AS n", (str(codigo),))
+        n = (cur.fetchone() or {}).get("n") or 0
+        if n:
+            resumo.append(f"esqueci {n} informação(ões) que eu sabia dele")
+    conn.commit()
+    return resumo
+
+
+def _imovel_para_o_aviso(codigo, conn):
+    """Os dados do aviso de saída: o BANCO de base, o SITE por cima.
+
+    O banco garante o aviso mesmo quando o anúncio já saiu do ar -- o Tel às
+    vezes tira do site antes de escrever "alugado". O site, quando ainda tem o
+    anúncio, é a mesma fonte do card (lê inclusive o "Incluso no Aluguel" que
+    mora no comentário HTML), então o aviso bate com o card que os corretores
+    viram. Página que não abre não derruba nada: fica o banco.
+
+    `area_util` sai do banco como Decimal -- sem converter, o card diria
+    "88.0m2".
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT tipo, condominio_nome, bairro, sol, area_util, quartos, suites, "
+            "       valor_aluguel, valor_venda, "
+            "       extras->>'incluso no aluguel' AS incluso "
+            "  FROM imoveis WHERE codigo::text = %s", (str(codigo),))
+        linha = cur.fetchone() or {}
+
+    def _num(v):
+        return float(v) if v is not None else None
+
+    imovel = {
+        "codigo": str(codigo),
+        "tipo": linha.get("tipo"),
+        "condominio": linha.get("condominio_nome"),
+        "bairro": linha.get("bairro"),
+        "sol": linha.get("sol"),
+        "area": int(linha["area_util"]) if linha.get("area_util") else None,
+        "quartos": linha.get("quartos"),
+        "suites": linha.get("suites"),
+        "valor_aluguel": _num(linha.get("valor_aluguel")),
+        "valor_venda": _num(linha.get("valor_venda")),
+        "incluso_no_aluguel": linha.get("incluso"),
+    }
+    try:
+        vivo = buscar_imovel(str(codigo))
+    except Exception:
+        vivo = None
+    # dict vazio do anúncio fora do ar é TRUTHY -- sem `tipo`, a página não
+    # ensinou nada e não pode apagar o que o banco sabe.
+    if vivo and vivo.get("tipo"):
+        for chave in ("tipo", "condominio", "bairro", "sol", "area",
+                      "area_e_construida", "quartos", "suites", "valor_aluguel",
+                      "valor_venda", "incluso_no_aluguel"):
+            if vivo.get(chave) not in (None, ""):
+                imovel[chave] = vivo[chave]
+    return imovel
+
+
+def _avisar_easy_que_saiu(codigo, conn, motivo):
+    """Avisa no grupo Easy que o imóvel saiu do mercado.
+
+    O Tel pediu em 09/09: "vai automaticamente postar lá no grupo e avisar os
+    corretores que anunciam que não está mais disponível". São corretores que
+    pegaram o imóvel para anunciar -- se ninguém avisa, eles seguem anunciando
+    e levando cliente para um imóvel que não existe mais.
+
+    O TEXTO É UM CARD RESUMIDO desde 15/09 (`montar_aviso_de_saida`). Até ali
+    era a linha `smart tower itapuranga alugado cod: 5712`; o Tel pediu bairro,
+    sol, metragem, quartos e valor, porque o condomínio tem vários imóveis e o
+    corretor precisa reconhecer QUAL anúncio tirar do ar.
+
+    NUNCA DERRUBA O COMANDO: a mudança no banco já aconteceu quando isto roda,
+    e falhar aqui não pode fazer o Tel achar que o imóvel continua na grade.
+    O que der errado vira linha na resposta, não exceção.
+    """
+    try:
+        texto = montar_aviso_de_saida(_imovel_para_o_aviso(codigo, conn), motivo)
+
+        grupos = [g for g in carregar_grupos_db(conn) if g.get("todas_fotos")]
+        if not grupos:
+            return "não achei o grupo do Easy para avisar -- ninguém foi avisado"
+
+        avisados = 0
+        for grupo in grupos:
+            enviar_texto(grupo["id_grupo"], texto)
+            avisados += 1
+        return f'avisei no Easy: "{texto}"'
+    except Exception as exc:
+        return (f"NÃO consegui avisar no grupo Easy ({exc}) -- "
+                f"o imóvel saiu da grade, mas os corretores que anunciam "
+                f"ainda não sabem")
+
+
+def _liberar_vaga(codigo, conn, motivo=None):
+    mudancas = _tirar_codigo_das_vagas(codigo, conn)
+    extra = _marcar_indisponivel(codigo, conn)
+
+    if not mudancas and not extra:
+        return f"{codigo} não estava em nenhuma vaga e já estava fora da oferta."
+
+    linhas = [f"{codigo} removido de {len(mudancas)} vaga(s)." if mudancas
+              else f"{codigo} não estava em nenhuma vaga."]
+    linhas.extend(m["aviso"] for m in mudancas if m["aviso"])
+    if extra:
+        linhas.append("Também " + ", ".join(extra) + ".")
+
+    # O aviso só sai quando o imóvel ACABOU de sair da oferta -- é o que
+    # "marquei como indisponível" significa, e o UPDATE que o gera só casa uma
+    # vez (`AND coalesce(disponivel, true)`). Sem essa amarra, repetir o
+    # comando postaria o mesmo aviso de novo no grupo, e WhatsApp não tem
+    # desfazer.
+    if motivo and "marquei como indisponível" in extra:
+        linhas.append(_avisar_easy_que_saiu(codigo, conn, motivo))
+    return "\n".join(linhas)
+
+
+def _remover_da_grade(codigo, conn):
+    """Mesma escrita no banco que _liberar_vaga, resposta diferente de
+    propósito: não afirma nem sugere que o imóvel foi vendido/alugado,
+    porque TIRA/REMOVE é só reorganização de horário."""
+    mudancas = _tirar_codigo_das_vagas(codigo, conn)
+    if not mudancas:
+        return f"{codigo} não estava na grade."
+
+    linhas = [f"{codigo} removido da grade."]
+    linhas.extend(m["aviso"] for m in mudancas if m["aviso"])
+    return "\n".join(linhas)
+
+
+# Palavras que todo condomínio tem e que não ajudam a reconhecer nenhum.
+# "Parque" NÃO entra: "Condomínio Parque Imperial" sem ela vira "imperial",
+# que é outro lugar. Tirar demais é pior que deixar uma palavra a mais.
+_GENERICAS_DO_NOME = ("condominio", "condomínio", "residencial",
+                      "edificio", "edifício", "ed.")
+
+
+def _nome_curto(imovel):
+    """O nome pelo qual o Tel reconhece o imóvel, do jeito que ele escreve.
+
+    Pedido dele em 09/09, com exemplos: `2247 acquarelle 4.6k`,
+    `5673 jardim das cerejeiras 3.6k`, e para imóvel de rua
+    `1192 casa parque dez 5k`.
+
+    Em condomínio, o nome do condomínio sem as palavras genéricas. Em via
+    pública -- que aqui, como no card do disparo, é o imóvel SEM condomínio --
+    o tipo mais o bairro.
+    """
+    condominio = (imovel.get("condominio_nome") or "").strip()
+    if condominio:
+        palavras = [p for p in condominio.split()
+                    if p.lower().strip(".") not in
+                    [g.strip(".") for g in _GENERICAS_DO_NOME]]
+        return " ".join(palavras).lower() or condominio.lower()
+
+    tipo = (imovel.get("tipo") or "").strip().lower() or "imóvel"
+    bairro = (imovel.get("bairro") or "").strip().lower()
+    return f"{tipo} {bairro}".strip()
+
+
+def _valor_curto(valor):
+    """4600 vira "4.6k", 900000 vira "900k", 2100000 vira "2.1M".
+
+    O Tel pediu o "M" em 09/09: "quando o imóvel passar de 1.000.000 poderíamos
+    colocar assim 1M... porque no caso dá para entender que é de milhão".
+    Numa lista de nove linhas lida de relance, "2.1M" não se confunde com nada;
+    "2100k" se confunde com "210k".
+
+    Ponto e não vírgula porque foi assim que ele escreveu os exemplos. Até duas
+    casas, sem zero à toa: 2750 vira "2.75k", não "2.8k" -- arredondar o
+    aluguel de um imóvel na lista dele seria informação errada de graça.
+
+    A unidade sai do valor JÁ ARREDONDADO, senão 999.999 viraria "1000k" --
+    tecnicamente certo e ilegível.
+    """
+    if not valor:
+        return None
+
+    def _texto(n):
+        return f"{n:.2f}".rstrip("0").rstrip(".")
+
+    if round(valor / 1000, 2) >= 1000:
+        return f"{_texto(valor / 1000000)}M"
+    return f"{_texto(valor / 1000)}k"
+
+
+def _resumo_dos_codigos(conn, codigos):
+    """`{codigo: "acquarelle 4.6k"}` para os códigos pedidos.
+
+    Lê do BANCO, não do site: são até nove códigos por listagem e ler ao vivo
+    seriam nove requisições para uma lista que o Tel olha de relance. O preço
+    é que imóvel cadastrado na última hora ainda não está na tabela -- e aí
+    sai só o código, que é o que aparecia antes.
+    """
+    if not codigos:
+        return {}
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT codigo::text AS codigo, tipo, condominio_nome, bairro, "
+            "       valor_venda, valor_aluguel "
+            "  FROM imoveis WHERE codigo::text = ANY(%s)", (list(codigos),))
+        linhas = cur.fetchall()
+
+    resumo = {}
+    for i in linhas:
+        # Quando o imóvel tem os dois, os DOIS aparecem: escolher um
+        # esconderia do Tel metade do que ele está disparando.
+        valores = [v for v in (_valor_curto(i["valor_venda"]), _valor_curto(i["valor_aluguel"])) if v]
+        partes = [_nome_curto(i)] + ([" / ".join(valores)] if valores else [])
+        resumo[i["codigo"]] = " ".join(p for p in partes if p)
+    return resumo
+
+
+def _perguntar_o_negocio(categoria, como_pedir):
+    """"É para locação ou para venda?" -- a pergunta que ele pediu em 09/09.
+
+    ANTES ELA SUPUNHA LOCAÇÃO. O Tel: *"quando eu mandar assim ela tem que me
+    perguntar se é para venda ou locação, porque... quando pedir para venda
+    ela precisa mandar também que vou precisar"*. Supor calado fazia a lista
+    de venda nunca chegar, e ele não tinha como saber que faltava uma palavra.
+
+    A pergunta traz as DUAS frases prontas, com a categoria que ele já
+    escreveu, para a resposta ser um copiar e colar em vez de outra rodada de
+    adivinhação. `como_pedir` é o verbo do caminho ("lista de", "dispara lista
+    de") -- a mesma pergunta serve aos dois.
+    """
+    nome = NOME_DA_CATEGORIA.get(categoria, categoria)
+    return (f'é para LOCAÇÃO ou para VENDA? Me manda '
+            f'"Nay {como_pedir} {nome} para locação" ou '
+            f'"Nay {como_pedir} {nome} para venda".')
+
+
+def _listar_categoria(conn, categoria, negocio):
+    """A lista pronta, montada no BANCO.
+
+    A regra de formatação mora em `lista_de_imoveis.sql` e não aqui de
+    propósito: é a mesma regra que a Nay vai usar quando um corretor pedir a
+    lista, e regra de negócio em dois lugares diverge sozinha -- o padrão 4.3
+    do HISTORICO, que já custou caro neste projeto.
+    """
+    if not negocio:
+        return _perguntar_o_negocio(categoria, "lista de")
+
+    with conn.cursor() as cur:
+        cur.execute("SELECT texto_pronto FROM nay_lista_de_imoveis(%s, %s)",
+                    (categoria, negocio))
+        linha = cur.fetchone()
+    return (linha or {}).get("texto_pronto") or "não consegui montar a lista."
+
+
+
+# Quanto cabe numa mensagem de texto. MEDIDO em 09/09 contra o catálogo real:
+# a lista de apartamento para LOCAÇÃO (o pedido do Tel) tem 33 itens e 1.755
+# caracteres, mas a de apartamento para VENDA tem 118 itens e **6.600**, e a
+# de casa em condomínio para venda tem 4.498. Uma delas sozinha estoura o
+# limite de 4.096 que várias rotas de WhatsApp aplicam -- e o sintoma seria o
+# pior deste projeto: o Tel escreve o comando e nada chega em grupo nenhum.
+#
+# 3.500 é folgado de propósito. Não medi o teto real da Z-API (medir exigiria
+# postar num grupo, que não desfaz), então o número é conservador em vez de
+# apertado.
+LIMITE_TEXTO_WHATSAPP = 3500
+
+
+def _pedacos_da_lista(texto, limite=LIMITE_TEXTO_WHATSAPP):
+    """Quebra a lista em mensagens que cabem, sempre em LINHA INTEIRA.
+
+    Cortar no meio de uma linha partiria "3 quartos sendo 1 suíte / 4.6k" em
+    duas mensagens e o corretor leria valor errado. Cada pedaço depois do
+    primeiro repete o título com "(continuação)", senão quem chega no meio da
+    rolagem não sabe do que é a lista.
+    """
+    if len(texto) <= limite:
+        return [texto]
+
+    linhas = texto.split("\n")
+    titulo = linhas[0]
+    continuacao = f"{titulo} (continuação)"
+
+    pedacos = []
+    atual = [titulo]
+    tamanho = len(titulo)
+    for linha in linhas[1:]:
+        if atual and tamanho + 1 + len(linha) > limite:
+            pedacos.append("\n".join(atual))
+            atual = [continuacao]
+            tamanho = len(continuacao)
+        atual.append(linha)
+        tamanho += 1 + len(linha)
+    if len(atual) > 1:
+        pedacos.append("\n".join(atual))
+    return pedacos
+
+
+# As categorias de lista que são de imóvel COMERCIAL -- as que o grupo
+# "🟢 Comercial" recebe. Hoje só a de sala comercial existe como lista.
+CATEGORIAS_COMERCIAIS = frozenset({"sala"})
+
+
+def _nome_de_lugar_na_lista(conn, texto):
+    """A frase da lista nomeia um CONDOMÍNIO de verdade? Então não é lista.
+
+    MEDIDO em 15/09: "envia as casas do morada dos pássaros para aluguel" tem
+    a palavra "casas" e caía no disparo da lista INTEIRA de casas de locação,
+    em todos os grupos parceiros -- por causa de uma frase que fala de UM
+    condomínio. Postagem em grupo não desfaz.
+
+    Aqui e não no parser porque só quem vê o catálogo sabe que "morada dos
+    pássaros" é um condomínio e "parceiros" não é.
+    """
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT nay_normalizar_lugar(%s, true) AS frase", (texto,))
+            frase = ((cur.fetchone() or {}).get("frase") or texto)
+        return casar_condominios(frase, condominios_do_catalogo(conn))
+    except Exception:
+        return []
+
+
+def _disparar_lista(comando, conn, pausa=time.sleep):
+    """Manda a lista pronta NOS GRUPOS. Pedido do Tel em 09/09:
+
+        Nay dispara lista de apartamento para locação   -> grupos de parceiro
+        Nay dispara lista no imóveis para anunciar easy -> só o grupo do Easy
+
+    É o MESMO texto que o `Nay lista de ...` mostra na tela -- montado pela
+    mesma função do banco, para o que ele confere na tela ser o que sai.
+
+    Quatro paredes, porque disparo em grupo não desfaz:
+
+    1. **Sem categoria não dispara.** O segundo exemplo dele não diz qual
+       lista; adivinhar mandaria a lista errada para 13 grupos.
+    2. **Lista vazia não sai.** "não tenho nenhum imóvel nessa categoria"
+       é resposta para ELE, não mensagem para os grupos.
+    3. **Repetição trava** por `nay_reservar_disparo_de_lista` (janela em
+       `config.lista_repete_minutos`), com escape se ele escrever "de novo".
+       O CLAUDE.md registra que `postar_agora` não tem essa proteção e que
+       reenviar posta duas vezes em 14 grupos, sem desfazer.
+    4. **`aceita_locacao` é respeitado**: o grupo "SÓ TERCEIROS COMPRA, VEN"
+       não recebe lista de locação. A trava é este cruzamento em código, não
+       instrução de prompt -- doc 27, Parte 4.3.
+    """
+    categoria = comando.get("categoria")
+    negocio = comando.get("negocio")
+    destino = "easy" if comando.get("destino") == "easy" else "parceiros"
+    no_easy = " no anunciar easy" if destino == "easy" else ""
+    onde_txt = "no anunciar easy" if destino == "easy" else "nos grupos"
+
+    if not categoria:
+        return ('não disparei nada: você não disse QUAL lista. Me manda '
+                f'assim: "Nay dispara lista de apartamento para locação'
+                f'{no_easy}". '
+                f'As categorias são: {", ".join(NOMES_DE_CATEGORIA)}.')
+
+    # SEM NEGÓCIO NÃO DISPARA. Na lista de tela supor custaria uma pergunta a
+    # mais; aqui custaria a lista errada em 13 grupos, sem desfazer.
+    if not negocio:
+        return ("não disparei nada: "
+                + _perguntar_o_negocio(categoria, "dispara lista de")
+                    .replace('para locação"', f'para locação{no_easy}"')
+                    .replace('para venda"', f'para venda{no_easy}"'))
+
+    negocio_txt = "venda" if negocio == "venda" else "locação"
+
+    # NOMEOU UM CONDOMÍNIO? ENTÃO NÃO É A LISTA DA CATEGORIA (15/09).
+    # "envia as casas do morada dos pássaros para aluguel" tem "casas" e caía
+    # aqui -- a lista INTEIRA de casas de locação em todos os grupos, por uma
+    # frase que fala de um condomínio só. Recusa que ensina os dois caminhos.
+    lugares = _nome_de_lugar_na_lista(conn, comando.get("texto") or "")
+    if lugares:
+        lugar = lugares[0]
+        return (f'você nomeou o {lugar}, e a lista de {NOME_DA_CATEGORIA.get(categoria, categoria)} '
+                f'vai INTEIRA para os grupos -- não disparei nada.\n\n'
+                f'se é para mandar os imóveis do {lugar} para alguém: '
+                f'"Nay envia os imóveis do {lugar} para {negocio_txt} para <nome ou número>".\n'
+                f'se é para postar nos grupos: "Nay posta o {lugar} para {negocio_txt}".\n'
+                f'se era a lista mesmo, tira o nome: '
+                f'"Nay dispara lista de {NOME_DA_CATEGORIA.get(categoria, categoria)} para {negocio_txt}".')
+
+    with conn.cursor() as cur:
+        cur.execute("SELECT texto_pronto, quantos FROM nay_lista_de_imoveis(%s, %s)",
+                    (categoria, negocio))
+        linha = cur.fetchone() or {}
+    texto = linha.get("texto_pronto")
+    quantos = linha.get("quantos") or 0
+    if not texto or not quantos:
+        return (f"não tenho nenhum imóvel dessa categoria para {negocio_txt} "
+                f"no momento -- não mandei nada {onde_txt}.")
+
+    grupos = carregar_grupos_db(conn)
+    if destino == "easy":
+        destinos = [g for g in grupos if g.get("todas_fotos")]
+        if not destinos:
+            return ("não achei o grupo do Easy (todas_fotos=true) no banco -- "
+                    "não mandei nada.")
+    else:
+        campo = "aceita_venda" if negocio == "venda" else "aceita_locacao"
+        destinos = [g for g in grupos
+                    if not g.get("todas_fotos") and g.get(campo)]
+        if not destinos:
+            return (f"nenhum grupo de parceiro aceita {negocio_txt} -- "
+                    f"não mandei nada.")
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, ja_foi_em FROM nay_reservar_disparo_de_lista(%s,%s,%s,%s)",
+            (categoria, negocio, destino, bool(comando.get("de_novo"))))
+        reserva = cur.fetchone() or {}
+    conn.commit()  # a reserva vale JÁ -- o envio abaixo leva dezenas de segundos
+
+    if not reserva.get("id"):
+        quando = reserva["ja_foi_em"].strftime("%d/%m às %H:%M")
+        return (f"essa mesma lista já saiu {onde_txt} em {quando} -- não "
+                f"mandei de novo. Se for para repetir mesmo assim, escreva "
+                f"\"Nay dispara lista de {categoria.replace('_', ' ')} para "
+                f"{negocio_txt} de novo\".")
+
+    pedacos = _pedacos_da_lista(texto)
+
+    # A LISTA DE CADA GRUPO (15/09). O grupo Alto Padrão só aceita locação de
+    # 6.500 em diante e venda de 1.000.000 em diante, de condomínio -- e a
+    # decisão do Tel foi que ele recebe a lista FILTRADA, com o título
+    # recalculado, e nada quando nenhum imóvel passa. Grupo sem regra recebe o
+    # texto de sempre, sem consulta a mais. Grupos com a mesma regra
+    # compartilham uma consulta só.
+    por_regra = {}
+
+    def _pedacos_do_grupo(grupo):
+        # GRUPO SÓ COMERCIAL (15/09) não recebe lista residencial nenhuma. A
+        # única lista comercial que existe é a de sala (que já traz loja em
+        # condomínio); apartamento, casa e lote pulam o grupo e a resposta diz.
+        if grupo.get("so_comercial") and categoria not in CATEGORIAS_COMERCIAIS:
+            return [], 0
+        piso = grupo.get("venda_minima" if negocio == "venda" else "aluguel_minimo")
+        so_cond = bool(grupo.get("so_condominio"))
+        if piso is None and not so_cond:
+            return pedacos, quantos
+        chave = (piso, so_cond)
+        if chave not in por_regra:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT texto_pronto, quantos "
+                    "  FROM nay_lista_de_imoveis(%s, %s, %s, %s)",
+                    (categoria, negocio, piso, so_cond))
+                achado = cur.fetchone() or {}
+            n = achado.get("quantos") or 0
+            por_regra[chave] = ((_pedacos_da_lista(achado["texto_pronto"])
+                                 if n else []), n)
+        return por_regra[chave]
+
+    enviados = []
+    sem_nada = []           # grupos em que nenhum imóvel passa na regra
+    filtrados = {}          # grupo -> quantos recebeu, quando diferente do total
+    erro = None
+    try:
+        for grupo in destinos:
+            seus_pedacos, seus_quantos = _pedacos_do_grupo(grupo)
+            if not seus_quantos:
+                sem_nada.append(grupo["nome"])
+                continue
+            # A pausa é ENTRE ENVIOS, não entre grupos da lista: grupo pulado
+            # não conta, senão a cadência anti-banimento esperaria à toa.
+            if enviados:
+                pausa(PAUSA_ENTRE_GRUPOS)
+            for j, pedaco in enumerate(seus_pedacos):
+                if j:
+                    pausa(PAUSA_ANTES_TEXTO)
+                enviar_texto(grupo["id_grupo"], pedaco)
+            # Só depois do envio ter dado certo de verdade -- relatar grupo
+            # que não recebeu levaria a NÃO reenviar para quem ficou de fora.
+            enviados.append(grupo["nome"])
+            if seus_quantos != quantos:
+                filtrados[grupo["nome"]] = seus_quantos
+    except Exception as exc:
+        erro = str(exc)
+
+    with conn.cursor() as cur:
+        if enviados:
+            cur.execute("UPDATE lista_disparada SET quantos=%s, grupos=%s "
+                        " WHERE id=%s", (quantos, enviados, reserva["id"]))
+        else:
+            # Zero grupos: a reserva travaria o comando por 30 minutos sem
+            # nada ter saído. Tira a reserva para ele poder tentar de novo --
+            # é o buraco que o `postar_easy` deixa aberto de propósito e que
+            # aqui dá para fechar, porque nada chegou a sair.
+            cur.execute("DELETE FROM lista_disparada WHERE id=%s",
+                        (reserva["id"],))
+    conn.commit()
+
+    nomes = ", ".join(enviados)
+    if erro and enviados:
+        return (f"mandei a lista ({quantos} imóveis) em {len(enviados)} de "
+                f"{len(destinos)} grupo(s) e aí falhou: {erro}. "
+                f"Receberam: {nomes}. NÃO reenvie o comando -- esses "
+                f"receberiam duas vezes.")
+    if erro:
+        return (f"não consegui mandar a lista em grupo nenhum: {erro}. "
+                f"Nada saiu, pode tentar de novo.")
+    em_partes = f" em {len(pedacos)} partes" if len(pedacos) > 1 else ""
+    resposta = (f"lista de {quantos} imóvel(is) enviada{em_partes} em "
+                f"{len(enviados)} grupo(s): {nomes}.")
+    # A regra do grupo aparece na resposta: o Tel precisa saber que o Alto
+    # Padrão recebeu 3 e não 27, e que num disparo sem imóvel que passe ele
+    # ficou de fora -- senão parece falha.
+    for nome, n in filtrados.items():
+        resposta += f"\n{nome} recebeu só {n} (a regra de valor dele)."
+    if sem_nada:
+        resposta += ("\nnão receberam, porque nenhum imóvel da lista passa na "
+                     "regra deles: " + ", ".join(sem_nada) + ".")
+    return resposta
+
+
+
+def _descrever_lista(vaga):
+    """"lista de apartamento para locação (nos grupos)" -- como ela aparece
+    para o Tel no `Nay VAGAS` e nas confirmações."""
+    nome = NOME_DA_CATEGORIA.get(vaga.get("categoria"), vaga.get("categoria"))
+    negocio = "venda" if vaga.get("negocio") == "venda" else "locação"
+    onde = ("no anunciar easy" if vaga.get("destino") == "easy"
+            else "nos grupos de parceiro")
+    return f"lista de {nome} para {negocio} {onde}"
+
+
+def _agendar_lista(comando, conn):
+    """"dispara apartamentos para locação todo dia às 9h" -- a lista entra na
+    grade, do mesmo jeito que um imóvel entra.
+
+    As MESMAS duas perguntas do disparo imediato valem aqui, e por um motivo
+    mais forte: uma vaga errada não erra uma vez, erra todo dia. Sem categoria
+    ou sem negócio, não agenda -- pergunta.
+    """
+    categoria = comando.get("categoria")
+    negocio = comando.get("negocio")
+    if not categoria:
+        return ('não agendei nada: você não disse QUAL lista. Me manda assim: '
+                '"Nay dispara lista de apartamento para locação todo dia às 9h". '
+                f'As categorias são: {", ".join(NOMES_DE_CATEGORIA)}.')
+    if not negocio:
+        return ("não agendei nada: "
+                + _perguntar_o_negocio(categoria, "dispara lista de")
+                    .replace('locação"', 'locação todo dia às 9h"')
+                    .replace('venda"', 'venda todo dia às 9h"'))
+
+    vaga = {"horario": comando["horario"],
+            "tipo_recorrencia": comando["tipo_recorrencia"],
+            "dias_semana": comando.get("dias_semana"),
+            "data_unica": None,
+            "categoria": categoria, "negocio": negocio,
+            "destino": comando.get("destino") or "parceiros"}
+
+    with conn.cursor() as cur:
+        # ON CONFLICT sobre o índice único: repetir o comando não cria uma
+        # segunda vaga igual. Sem isso ele repetiria achando que não pegou, e
+        # os grupos receberiam a lista duas vezes por dia, para sempre.
+        cur.execute(
+            "INSERT INTO vagas (horario, tipo_recorrencia, dias_semana,"
+            "                   codigos, categoria, negocio, destino) "
+            "VALUES (%s, %s, %s, '{}', %s, %s, %s) "
+            "ON CONFLICT DO NOTHING RETURNING id",
+            (vaga["horario"], vaga["tipo_recorrencia"], vaga["dias_semana"],
+             vaga["categoria"], vaga["negocio"], vaga["destino"]))
+        criada = cur.fetchone()
+    conn.commit()
+
+    quando = descrever_vaga(vaga)
+    if not criada:
+        return (f"essa vaga já existia: {_descrever_lista(vaga)}, {quando}. "
+                f"Não criei outra igual.")
+    return (f"Vaga #{criada['id']} criada: {_descrever_lista(vaga)}, {quando}. "
+            f"A partir de agora sai sozinha.")
+
+
+def _remover_lista_da_grade(comando, conn):
+    """"tira a lista de apartamento para locação". O contrário do agendar.
+
+    Sem isto ele criaria a vaga e não teria como desfazer, e a lista sairia
+    todo dia para sempre -- capacidade que falta vira promessa quebrada.
+    """
+    categoria = comando.get("categoria")
+    if not categoria:
+        return ('qual lista eu tiro da grade? Me manda assim: "Nay tira a '
+                'lista de apartamento para locação". Você pode ver o que está '
+                'agendado com "Nay VAGAS".')
+
+    negocio = comando.get("negocio")
+    destino = comando.get("destino") or "parceiros"
+    with conn.cursor() as cur:
+        # Negócio ausente aqui NÃO trava: tirar demais da grade não manda
+        # nada para ninguém, e o pior que acontece é ele agendar de novo. É o
+        # oposto do disparo, onde adivinhar custa 13 grupos.
+        cur.execute(
+            "DELETE FROM vagas"
+            " WHERE categoria = %s AND destino = %s"
+            "   AND (%s::text IS NULL OR negocio = %s)"
+            " RETURNING id, horario, tipo_recorrencia, dias_semana,"
+            "           data_unica, categoria, negocio, destino",
+            (categoria, destino, negocio, negocio))
+        tiradas = cur.fetchall()
+    conn.commit()
+
+    if not tiradas:
+        nome = NOME_DA_CATEGORIA.get(categoria, categoria)
+        return f"não havia lista de {nome} na grade."
+    linhas = ["Tirei da grade:"]
+    linhas.extend(f"- {_descrever_lista(v)}, {descrever_vaga(v)}"
+                  for v in tiradas)
+    return "\n".join(linhas)
+
+
+
+def _marcar_taxa(codigo, conn, incluso):
+    """Marca (ou desmarca) que a taxa de condomínio já está no aluguel.
+
+    O SITE NÃO PUBLICA ISSO. Conferido no HTML inteiro do 5729 em 09/09: não
+    existe nem o rótulo "Taxa de Condomínio" na página. O dado veio da
+    importação de agosto, e por isso dos 182 imóveis de locação disponíveis só
+    92 o têm -- os que faltam são exatamente os cadastrados depois. Sem este
+    comando, todo imóvel novo sai do disparo sem o "(incluso a tx)" e o Tel
+    dependeria de alguém editar o banco à mão.
+
+    Grava a mesma chave que a importação usou (`extras -> 'incluso no
+    aluguel'`), com o mesmo texto, para o card e a Nay continuarem lendo de um
+    lugar só.
+    """
+    with conn.cursor() as cur:
+        cur.execute("SELECT codigo, condominio_nome, tipo, bairro, valor_aluguel "
+                    "  FROM imoveis WHERE codigo::text = %s", (str(codigo),))
+        imovel = cur.fetchone()
+    if not imovel:
+        return (f"não achei o {codigo} no catálogo. Se você cadastrou agora, a "
+                f"varredura traz em até uma hora e aí o comando funciona.")
+
+    # Sem aluguel a marca não aparece em lugar nenhum -- o "(incluso a tx)" só
+    # sai ao lado do valor de locação. Dizer "marquei" seria mentira útil.
+    if not imovel.get("valor_aluguel"):
+        return (f"o {codigo} não tem valor de locação no cadastro, então o "
+                f"\"(incluso a tx)\" não teria onde aparecer. Confira o anúncio.")
+
+    with conn.cursor() as cur:
+        if incluso:
+            cur.execute(
+                "UPDATE imoveis SET extras = coalesce(extras,'{}'::jsonb) "
+                "  || jsonb_build_object('incluso no aluguel','Taxa de Condomínio') "
+                " WHERE codigo::text = %s", (str(codigo),))
+        else:
+            # Tira só a chave, não o `extras` inteiro: lá dentro moram também
+            # "aceita financiamento" e "aceita permuta".
+            cur.execute(
+                "UPDATE imoveis SET extras = coalesce(extras,'{}'::jsonb) "
+                "  - 'incluso no aluguel' WHERE codigo::text = %s", (str(codigo),))
+    conn.commit()
+
+    nome = _nome_curto(imovel)
+    if incluso:
+        return (f"{codigo} {nome}: marquei que a taxa de condomínio está "
+                f"inclusa. O card passa a sair \"Locação: R$ "
+                f"{_fmt_valor(imovel['valor_aluguel'])} (incluso a tx)\".")
+    return (f"{codigo} {nome}: tirei a marca de taxa inclusa. O card volta a "
+            f"sair só com o valor.")
+
+
+def _listar_vagas(conn):
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, horario, tipo_recorrencia, dias_semana, data_unica, "
+            "       codigos, categoria, negocio, destino "
+            "FROM vagas ORDER BY horario"
+        )
+        vagas = cur.fetchall()
+
+    if not vagas:
+        return "Nenhuma vaga cadastrada ainda."
+
+    todos = {c for v in vagas for c in (v["codigos"] or [])}
+    resumo = _resumo_dos_codigos(conn, todos)
+
+    linhas = ["Grade atual:"]
+    for vaga in vagas:
+        # Vaga de LISTA não tem código -- sem este ramo ela apareceria como
+        # "vaga livre" e ele acharia que não havia nada agendado ali.
+        if vaga.get("categoria"):
+            linhas.append(f"- {descrever_vaga(vaga)}: {_descrever_lista(vaga)}")
+            continue
+        codigos = vaga["codigos"] or []
+        if not codigos:
+            corpo = "vaga livre"
+        else:
+            # Código que não está na tabela sai sozinho, sem nome inventado.
+            corpo = ", ".join(
+                f"{c} {resumo[c]}" if resumo.get(c) else c for c in codigos)
+        linhas.append(f"- {descrever_vaga(vaga)}: {corpo}")
+    return "\n".join(linhas)
+
+
+def _agenda_de_visitas(conn):
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, codigo, descricao, corretor, data_hora, confirmada "
+            "FROM visita WHERE data_hora > now() "
+            "ORDER BY data_hora"
+        )
+        visitas = cur.fetchall()
+
+    if not visitas:
+        return "Nenhuma visita agendada."
+
+    linhas = ["Agenda de visitas:"]
+    hoje = datetime.datetime.now(FUSO_MANAUS).date()
+    for v in visitas:
+        dh = v["data_hora"]
+        if hasattr(dh, "date"):
+            d = dh.date()
+            hora = dh.strftime("%Hh%M") if dh.hour or dh.minute else ""
+        else:
+            d = hoje
+            hora = ""
+        if d == hoje:
+            dia = "HOJE"
+        elif d == hoje + datetime.timedelta(days=1):
+            dia = "amanhã"
+        else:
+            dia = d.strftime("%d/%m")
+        status = "✓" if v["confirmada"] else "⏳"
+        cod = f' cod:{v["codigo"]}' if v.get("codigo") else ""
+        linhas.append(
+            f"- {status} {dia} {hora} — {v['descricao']}{cod} "
+            f"({v['corretor']})")
+    return "\n".join(linhas)
+
+
+def _perguntar_ao_tel(conn, acao, codigo):
+    """Grava a pergunta que o "sim" dele vai responder. Uma só em aberto.
+
+    A anterior é FECHADA como 'trocada', não deixada viva: com duas abertas,
+    "sim" seria ambíguo e postaria a errada. O índice único garante uma só.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE pergunta_ao_tel SET respondida_em = now(), resposta = 'trocada' "
+            " WHERE respondida_em IS NULL")
+        cur.execute("INSERT INTO pergunta_ao_tel (acao, codigo) VALUES (%s, %s)",
+                    (acao, str(codigo)))
+    conn.commit()
+
+
+def _responder_pergunta(comando, conn):
+    """O "sim" ou o "não" do Tel à pergunta que ela fez.
+
+    O PEDIDO (Tel, 14/09): "quero que poste novamente mas ela me perguntando e
+    eu confirmando". Na conversa real, "Pode postar novamente" caiu no agente,
+    que não sabia de qual imóvel se falava.
+
+    A PERGUNTA É TOMADA NUM UPDATE SÓ (`... WHERE respondida_em IS NULL
+    RETURNING`): dois "sim" seguidos -- ele repete achando que não pegou -- não
+    postam duas vezes, porque só o primeiro acha a linha aberta.
+
+    E NÃO RESPONDE com pendência esperando o mesmo "sim"
+    (`pendencia_rascunho`): a mesma palavra dispararia duas coisas
+    irreversíveis. Aí ela devolve a frase explícita, que não depende de estado.
+    """
+    with conn.cursor() as cur:
+        cur.execute("SELECT 1 FROM pendencia_rascunho LIMIT 1")
+        pendencia = cur.fetchone()
+        cur.execute(
+            "SELECT id, acao, codigo, nome, candidatos FROM pergunta_ao_tel "
+            " WHERE respondida_em IS NULL ORDER BY id DESC LIMIT 1")
+        aberta = cur.fetchone()
+    if aberta and pendencia and aberta.get("acao") != "postar_por_nome":
+        return ('tem uma resposta de pendência esperando seu "sim" também, então '
+                'não sei a qual você respondeu. para postar de novo, escreve: '
+                f'"posta no anunciar easy de novo o {aberta["codigo"]}". '
+                'não postei nada.')
+
+    # "SIM" NÃO RESPONDE A PERGUNTA DO `posta <nome>` (15/09): lá a resposta é
+    # qual imóvel ou qual negócio, e um "sim" não diz nenhum dos dois. Sem esta
+    # parede o "sim" CONSUMIA a pergunta aberta e ela morria em "não sei
+    # responder a pergunta 'postar_por_nome'" -- ele teria que recomeçar.
+    do_posta = aberta if (aberta or {}).get("acao") == "postar_por_nome" else None
+    if do_posta:
+        if comando["resposta"] == "nao":
+            _fechar_pergunta_do_posta(conn, do_posta["id"], "nao")
+            return f"ok, deixei o {do_posta['nome']} quieto. não postei nada."
+        pares = [tuple(c.split(":", 1)) for c in (do_posta["candidatos"] or [])
+                 if ":" in c]
+        if len({l for _, l in pares}) > 1:
+            return ('é para LOCAÇÃO ou para VENDA? me responde com uma das '
+                    'duas palavras, ou com o código. não postei nada.')
+        return ("me responde com o código do que você quer que eu poste: "
+                + ", ".join(sorted({c for c, _ in pares})) + ". não postei nada.")
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE pergunta_ao_tel SET respondida_em = now(), resposta = %s "
+            " WHERE respondida_em IS NULL AND acao = 'repostar_easy' "
+            "   AND criada_em > now() - (coalesce((SELECT valor FROM config "
+            "         WHERE chave = 'pergunta_ao_tel_minutos'),'30') || ' minutes')::interval "
+            " RETURNING acao, codigo",
+            (comando["resposta"],))
+        pergunta = cur.fetchone()
+    conn.commit()
+
+    if not pergunta:
+        return "não tenho nenhuma pergunta sua esperando resposta agora. não fiz nada."
+    if comando["resposta"] == "nao":
+        return f"ok, não postei o {pergunta['codigo']} de novo."
+    if pergunta["acao"] == "repostar_easy":
+        return _postar_easy(pergunta["codigo"], conn, de_novo=True)
+    return f"não sei responder a pergunta '{pergunta['acao']}'. não fiz nada."
+
+
+def _desfazer_reserva_easy(conn, codigo, antes):
+    """Devolve `easy_publicacoes` ao que era antes da reserva: sem linha, se
+    ela nasceu agora; com a data anterior, se o "de novo" a renovou. Falha em
+    silêncio -- a resposta ao Tel ("não postei nada") vale com ou sem isto."""
+    try:
+        with conn.cursor() as cur:
+            if antes is None:
+                cur.execute("DELETE FROM easy_publicacoes WHERE codigo = %s", (codigo,))
+            else:
+                cur.execute("UPDATE easy_publicacoes SET publicado_em = %s WHERE codigo = %s",
+                            (antes, codigo))
+        conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+
+def _postar_easy(codigo, conn, de_novo=False):
+    """Comando dedicado do grupo todas_fotos=true (hoje só "IMÓVEIS
+    PARA ANUNCIAR EASY"), fora do fluxo normal (Mudança 2). Cada
+    código só entra uma vez. Sem checagem de aceita_venda/
+    aceita_locacao pro grupo Easy -- o pedido não previu esse filtro
+    pra este comando, então não inventei um.
+
+    Condição de corrida real vista em produção (25/08): a versão
+    anterior fazia SELECT (checa) -> busca+envia -> INSERT (grava),
+    com uma janela de segundos/minutos entre checar e gravar. Duas
+    chamadas pro mesmo código nesse intervalo passavam as duas pela
+    checagem e postavam as duas. Conserto: reserva o código PRIMEIRO,
+    de forma atômica (INSERT ... ON CONFLICT DO NOTHING ... RETURNING)
+    -- o Postgres serializa INSERTs concorrentes na mesma chave
+    primária, então não existe mais janela entre checar e gravar
+    quando é a mesma operação. A reserva é commitada na hora, antes de
+    buscar/enviar (que pode levar minutos) -- segurar a transação
+    aberta até o fim do envio trocaria "corrida" por "trava a fila
+    inteira por minutos a cada chamada".
+
+    QUANDO NADA SAIU, A RESERVA É DESFEITA (14/09): o site falhou ou não
+    achou o anúncio. Antes ela ficava, e o código passava a constar como
+    postado sem ter ido nada ao grupo -- o próximo pedido cairia em "já foi
+    postado". Falha no ENVIO continua deixando a reserva: ali parte das
+    fotos pode ter saído, e liberar convidaria a repetir no grupo.
+    """
+    # POSTAR DE NOVO também é reserva atômica (14/09): o `DO UPDATE ... WHERE`
+    # só renova a data se a postagem anterior tiver mais de 10 minutos, e o
+    # RETURNING só volta linha quando renovou. Dois "sim" seguidos, ou o comando
+    # repetido, não postam duas vezes -- a mesma corrida que motivou a reserva.
+    #
+    # O `antes` guarda a data que o "de novo" sobrescreve: se nada sair, é ela
+    # que volta. O CTE lê o retrato de ANTES do comando, que é o que se quer.
+    with conn.cursor() as cur:
+        if de_novo:
+            cur.execute(
+                "WITH anterior AS (SELECT publicado_em FROM easy_publicacoes WHERE codigo = %s) "
+                "INSERT INTO easy_publicacoes (codigo) VALUES (%s) "
+                "ON CONFLICT (codigo) DO UPDATE SET publicado_em = now() "
+                " WHERE easy_publicacoes.publicado_em < now() - interval '10 minutes' "
+                "RETURNING codigo, (SELECT publicado_em FROM anterior) AS antes",
+                (codigo, codigo),
+            )
+        else:
+            cur.execute(
+                "INSERT INTO easy_publicacoes (codigo) VALUES (%s) "
+                "ON CONFLICT (codigo) DO NOTHING RETURNING codigo",
+                (codigo,),
+            )
+        reservado = cur.fetchone()
+
+    if not reservado:
+        conn.rollback()
+        with conn.cursor() as cur:
+            cur.execute("SELECT publicado_em FROM easy_publicacoes WHERE codigo = %s", (codigo,))
+            linha = cur.fetchone()
+        quando = linha["publicado_em"].astimezone(FUSO_MANAUS)
+        if de_novo:
+            return (f"{codigo} foi postado no Easy agora há pouco "
+                    f"({quando.strftime('%Hh%M')}). não postei de novo para não repetir.")
+        # A RECUSA VIRA PERGUNTA (Tel, 14/09). A frase ensina a resposta mais
+        # curta primeiro, e é uma que o parser lê -- a lição do "os dois" de
+        # 12/09. E nunca escreve "Código: NNNN", que o nó de fotos leria.
+        _perguntar_ao_tel(conn, "repostar_easy", codigo)
+        return (f"o {codigo} já foi postado no Easy em {quando.strftime('%d/%m/%Y')}. "
+                'quer que eu poste de novo? responde "sim" -- ou "não".')
+
+    conn.commit()  # reserva valendo já -- ninguém mais reserva este código
+    antes = reservado.get("antes")
+
+    try:
+        imovel = buscar_imovel(codigo)
+    except Exception as exc:
+        _desfazer_reserva_easy(conn, codigo, antes)
+        return f"{codigo}: não consegui buscar no site ({exc}). não postei nada no Easy."
+    if not anuncio_encontrado(imovel):
+        _desfazer_reserva_easy(conn, codigo, antes)
+        return aviso_fora_do_ar("no Easy", codigo)
+
+    grupos_easy = [g for g in carregar_grupos_db(conn) if g.get("todas_fotos")]
+    if not grupos_easy:
+        return f"{codigo}: nenhum grupo com todas_fotos=true configurado no banco."
+
+    nome_imovel = imovel.get("condominio") or imovel.get("tipo") or codigo
+
+    # Falha isolada, igual _postar_codigo faz desde o doc 29. Este laço
+    # era o único caminho de envio do projeto SEM proteção: uma exceção
+    # aqui subia até servidor.py, que devolve 500 e retorna ANTES de
+    # avisar o Tel pelo WhatsApp -- ou seja, metade da mensagem saía no
+    # grupo e ele não ficava sabendo de nada.
+    #
+    # O Easy é o caso mais exposto justamente por levar TODAS as fotos
+    # (11 no código 2943, 6s de pausa entre cada): a janela em que a
+    # Z-API pode falhar no meio é de mais de um minuto.
+    grupos_atingidos = 0
+    try:
+        for grupo in grupos_easy:
+            texto_msg = montar_mensagem(imovel, grupo)
+            resultado = enviar_imovel(grupo["id_grupo"], texto_msg,
+                                      _fotos_para_grupo(imovel, grupo))
+            grupos_atingidos += 1  # só conta depois do envio inteiro ter dado certo
+            # O EASY TAMBÉM PRECISA SER REGISTRADO (01/09). Ele era o único
+            # caminho de envio que postava e esquecia: sem linha em `envios`
+            # não há `message_id`, e sem `message_id` a citação não resolve.
+            # A Waldyrene respondeu ao card do Smart Tower Itapuranga postado
+            # aqui, escreveu "ainda disponivel", e a Nay teve que perguntar de
+            # qual imóvel ela falava -- com o dado na mão e sem onde procurar.
+            _registrar_publicacao(conn, codigo, grupo,
+                                  id_da_mensagem((resultado or {}).get("texto")))
+    except Exception as exc:
+        # Deliberadamente menciona o envio PARCIAL: grupos_atingidos conta
+        # só os grupos que receberam tudo, então o grupo em que falhou
+        # pode ter recebido o texto e parte das fotos sem aparecer nesta
+        # contagem. Dizer "0 grupos" e calar isso faria o Tel achar que
+        # nada saiu, quando saiu -- e WhatsApp não tem desfazer.
+        return (
+            f"{codigo} ({nome_imovel}): falhei no meio do envio pro Easy -- {exc}. "
+            f"{grupos_atingidos} grupo(s) receberam tudo; o grupo onde parou pode "
+            f"ter recebido o texto e parte das fotos. O código segue marcado como "
+            f"postado, então não sai de novo por engano -- me avise se quiser liberar."
+        )
+
+    linhas = [
+        f"{codigo} ({nome_imovel}) postado no Easy, com todas as fotos, "
+        f"em {len(grupos_easy)} grupo(s)."
+    ]
+    linhas.extend(_avisos_dados_incompletos(imovel))
+    return "\n".join(linhas)
+
+
+def _nao_reconhecido(texto_original):
+    return (
+        f'Não entendi o comando "{texto_original}". '
+        'Exemplos que eu reconheço: "posta o 5750", '
+        '"posta o 5750 todo dia às 14h", '
+        '"posta 5750, 5751 e 5752 terça e quinta às 9h", '
+        '"VENDEU 5750", "ALUGOU 5750", "tira o 5750", "VAGAS", '
+        '"publica no anunciar easy o 5750", "agenda de visitas", '
+        '"envia esses imóveis para <nome ou número>" e a lista embaixo.'
+    )

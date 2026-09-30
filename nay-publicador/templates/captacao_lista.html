@@ -1,0 +1,63 @@
+{#
+  A tela inicial: o campo de colar o link, e a lista do que já foi captado.
+
+  O campo de link vem PRIMEIRO, antes da lista, porque é o que o Tel abre a
+  tela para fazer -- ele está com o proprietário na frente, com o link no
+  WhatsApp. A lista é consulta; colar é a ação.
+
+  A lista mostra o status porque as quatro situações pedem coisas diferentes:
+  `rascunho` falta preencher, `pronto` falta mandar, `publicado` já está no
+  site (e a varredura horária traz para o banco da Nay sozinha), `erro` o
+  site recusou.
+#}
+{% extends "captacao_base.html" %}
+{% block titulo %}Captações{% endblock %}
+{% block conteudo %}
+
+{% if mensagem %}<div class="bom">{{ mensagem }}</div>{% endif %}
+
+{% if faltando %}
+<div class="aviso">
+  <strong>Esta tela ainda não está inteira.</strong> Falta no disco:
+  <ul class="itens">{% for f in faltando %}<li>{{ f }}</li>{% endfor %}</ul>
+  Captar o anúncio funciona; publicar no site, não.
+</div>
+{% endif %}
+
+<form method="post" action="/captar" class="cartao">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <div class="campo">
+    <label for="link">Link do anúncio do proprietário no OLX</label>
+    <input type="url" id="link" name="link" inputmode="url" autocomplete="off"
+           placeholder="https://www.olx.com.br/...">
+    <p class="fraco">Cole o endereço inteiro. Eu leio o que der (título,
+      descrição, quartos, valor, fotos) e pergunto o resto.</p>
+  </div>
+  <button>Ler o anúncio</button>
+</form>
+
+<h2>Captações ({{ captacoes|length }})</h2>
+{% if not captacoes %}
+  <div class="cartao fraco">Nada captado ainda.</div>
+{% else %}
+<div class="cartao" style="padding:0 14px">
+  {% for c in captacoes %}
+  <a class="lista-item" href="/captacao/{{ c.id }}" style="padding:12px 0">
+    <span class="etiqueta s-{{ c.status }}">{{ c.status }}</span>
+    <strong style="display:block;margin:6px 0 2px">
+      {{ c.titulo or c.link }}
+    </strong>
+    <span class="fraco">
+      #{{ c.id }}
+      {%- if c.olx_id %} · OLX {{ c.olx_id }}{% endif %}
+      {%- if c.codigo_site %} · site {{ c.codigo_site }}{% endif %}
+      {%- if c.criado_em %} · {{ c.criado_em|quando }}{% endif %}
+    </span>
+    {% if c.status == 'erro' and c.erro %}
+      <span class="fraco" style="color:var(--alerta)">{{ c.erro }}</span>
+    {% endif %}
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

@@ -23,7 +23,7 @@ O backend inteiro do publicador está construído, testado e no ar.
 
 **Infraestrutura no servidor:**
 - Tudo roda em `/root/nay-publicador/`, com `.venv` configurado
-- Ponte git funcionando: Mac edita → commit/push → `git pull` no servidor. Repo privado `github.com/Telsobreira/nay-publicador`
+- ~~Ponte git: Mac edita → commit/push → `git pull` no servidor, repo `Telsobreira/nay-publicador`~~ — desligada em 30/09/2026: o código do publicador mora em `pvlservicos-collab/nayia` (pasta `nay-publicador/`, espelho de `/root/nay-publicador`), e o servidor não tem mais remoto no GitHub
 - Tabela `grupos` com colunas `aceita_venda`/`aceita_locacao` (só "SÓ TERCEIROS COMPRA, VEN" tem locação=false)
 - Tabela `vagas` criada (grade de horários, com os CHECKs de consistência)
 - Serviço HTTP `servidor.py` (Flask) rodando como **systemd** (`nay-publicador.service`): sempre ligado, reinicia sozinho, sobe no boot

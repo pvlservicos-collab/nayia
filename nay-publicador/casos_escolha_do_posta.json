@@ -1,0 +1,50 @@
+{
+  "_comentario": [
+    "A resposta do Tel a pergunta do `posta <nome do condominio>` (15/09).",
+    "`escolha` e o que o PORTAO do n8n decide: a frase chega ao publicador",
+    "quando ha pergunta aberta. `acao` e o que o Python entende dela.",
+    "Os dois lados rodam estes mesmos casos -- teste_regex_escolha_do_posta.js",
+    "e teste_postar_por_nome.py -- entao divergencia vira teste vermelho."
+  ],
+  "casos": [
+    {"texto": "locação",       "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "locacao",       "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "é locação",     "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "e locacao",     "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "para locação",  "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "pra locação",   "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "de locação",    "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "aluguel",       "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "alugar",        "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "venda",         "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "é venda",       "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "para venda",    "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "vender",        "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "5725",          "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "o 5725",        "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "esse 5725",     "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "5725.",         "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "3.6k",          "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "o de 3.6k",     "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "3.600",         "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "R$ 3.600",      "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "750k",          "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "2.8 mil",       "escolha": true,  "acao": "escolha_do_posta"},
+    {"texto": "1.2M",          "escolha": true,  "acao": "escolha_do_posta"},
+
+    {"texto": "codigo 5725",   "escolha": true,  "acao": "escolher_codigos"},
+    {"texto": "Nay codigo 5725", "escolha": true, "acao": "escolher_codigos"},
+
+    {"texto": "1",             "escolha": false, "acao": "nao_reconhecido"},
+    {"texto": "2",             "escolha": false, "acao": "nao_reconhecido"},
+    {"texto": "12",            "escolha": false, "acao": "nao_reconhecido"},
+    {"texto": "bom dia",       "escolha": false, "acao": "nao_reconhecido"},
+    {"texto": "obrigado",      "escolha": false, "acao": "nao_reconhecido"},
+    {"texto": "posta o 5750",  "escolha": false, "acao": "postar_agora"},
+    {"texto": "5750 alugado",  "escolha": false, "acao": "liberar_vaga"},
+    {"texto": "Nay VAGAS",     "escolha": false, "acao": "listar_vagas"},
+    {"texto": "agenda de visitas", "escolha": false, "acao": "agenda_de_visitas"},
+    {"texto": "manda os dois", "escolha": false, "acao": "escolher_codigos"},
+    {"texto": "posta o jardim das cerejeiras", "escolha": false, "acao": "postar_por_nome"}
+  ]
+}

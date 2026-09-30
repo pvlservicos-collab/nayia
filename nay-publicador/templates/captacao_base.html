@@ -1,0 +1,89 @@
+{#
+  Esqueleto de todas as telas da captação (captacao.py).
+
+  POR QUE EXISTE: o Tel usa o CELULAR para captar imóvel -- ele está na rua,
+  falando com o proprietário, e é ali que ele cola o link e responde o que
+  falta. Então tudo aqui é uma coluna só, botão grande, e `font-size:16px` nos
+  campos (abaixo disso o iOS dá zoom sozinho ao focar e a tela "pula").
+
+  Sem framework de CSS de propósito: é uma folha curta e legível, e não
+  depende de CDN nenhum -- esta tela roda do Mac e do servidor, e uma delas
+  pode estar sem internet boa no meio de uma captação.
+#}
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titulo %}Captação{% endblock %} — Imob Easy</title>
+<style>
+  :root { --tinta:#1b1d21; --fraco:#6b7280; --linha:#e3e6ea; --fundo:#f6f7f9;
+          --acao:#0b6b3a; --alerta:#8a1c1c; --aviso:#8a5a00; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+         font:16px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { background:#fff; border-bottom:1px solid var(--linha);
+           padding:12px 16px; display:flex; align-items:center; gap:12px; }
+  header a { color:var(--tinta); text-decoration:none; font-weight:600; }
+  header form { margin-left:auto; }
+  main { max-width:760px; margin:0 auto; padding:16px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  h2 { font-size:16px; margin:24px 0 8px; }
+  p { margin:8px 0; }
+  .fraco { color:var(--fraco); font-size:14px; }
+  .cartao { background:#fff; border:1px solid var(--linha); border-radius:10px;
+            padding:14px; margin-bottom:12px; }
+  label { display:block; font-weight:600; font-size:14px; margin-bottom:4px; }
+  input[type=text], input[type=password], input[type=url], textarea, select {
+    width:100%; padding:11px; font-size:16px; border:1px solid #c8cdd4;
+    border-radius:8px; background:#fff; color:var(--tinta); }
+  textarea { min-height:90px; }
+  .campo { margin-bottom:14px; }
+  button { font-size:16px; padding:12px 16px; border-radius:8px; border:0;
+           background:var(--acao); color:#fff; font-weight:600; width:100%;
+           cursor:pointer; }
+  button.discreto { background:#fff; color:var(--tinta); border:1px solid #c8cdd4; }
+  .aviso { background:#fff8e6; border:1px solid #e6d29a; border-radius:8px;
+           padding:12px; margin-bottom:12px; color:var(--aviso); }
+  .ruim { background:#fdeceb; border:1px solid #eab9b5; border-radius:8px;
+          padding:12px; margin-bottom:12px; color:var(--alerta); }
+  .bom { background:#eaf5ee; border:1px solid #a9d4bb; border-radius:8px;
+         padding:12px; margin-bottom:12px; color:var(--acao); }
+  .etiqueta { display:inline-block; font-size:12px; font-weight:700;
+              padding:2px 8px; border-radius:999px; border:1px solid var(--linha); }
+  .s-rascunho { background:#eef1f4; color:#4b5563; }
+  .s-pronto   { background:#e7f0ff; color:#1d4ed8; }
+  .s-publicado{ background:#eaf5ee; color:var(--acao); }
+  .s-erro     { background:#fdeceb; color:var(--alerta); }
+  .obrig { color:var(--alerta); }
+  ul.itens { margin:8px 0 0; padding-left:20px; }
+  ul.itens li { margin-bottom:6px; }
+  .lista-item { display:block; text-decoration:none; color:inherit; }
+  .lista-item + .lista-item { border-top:1px solid var(--linha); }
+  .fotos { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr));
+           gap:6px; }
+  .fotos img { width:100%; height:96px; object-fit:cover; border-radius:6px;
+               background:#e9ecef; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  td { padding:6px 0; border-bottom:1px solid var(--linha); vertical-align:top; }
+  td.rot { color:var(--fraco); width:42%; }
+  pre.cru { white-space:pre-wrap; word-break:break-word; font:13px/1.5 ui-monospace,
+            Menlo, monospace; background:#fbfcfd; border:1px solid var(--linha);
+            border-radius:8px; padding:10px; margin:0; }
+</style>
+</head>
+<body>
+<header>
+  <a href="/">Captação de imóveis</a>
+  {% if pode_sair is not defined or pode_sair %}
+  <form method="post" action="/sair">
+    <input type="hidden" name="csrf" value="{{ csrf|default('') }}">
+    <button class="discreto" style="width:auto;padding:6px 12px;font-size:14px">Sair</button>
+  </form>
+  {% endif %}
+</header>
+<main>
+{% block conteudo %}{% endblock %}
+</main>
+</body>
+</html>

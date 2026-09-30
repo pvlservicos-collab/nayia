@@ -1,0 +1,119 @@
+# 32 — O que falta na Nay
+
+*Levantado em 31/08/2026 por sete agentes em paralelo: quatro auditando por
+lentes diferentes (o corretor, o Tel, a operação, as peças pela metade),
+dois atacando a própria lista (o buraco que ninguém viu, a priorização
+errada) e um consolidando. 33 itens levantados, 24 do red team.*
+
+## Auditoria de 01/09 (noite): mensagem marcada e número da unidade
+
+O Tel reportou dois erros na conversa com o Gustavo. Doze cenários
+auditados em paralelo, 56 achados. **O que foi corrigido:**
+
+| o quê | como estava | como ficou |
+|---|---|---|
+| código do imóvel | o modelo preenchia o parâmetro com o que estava na memória de conversa — passou `5717` numa pergunta sobre o `4946` | `nay_codigo_confirmado`: só vale código que o corretor escreveu ou card único que ela mandou |
+| número do apartamento | ela prometia verificar; o prompt já proibia em 4 lugares | `nay_pede_localizacao_da_unidade` recusa no banco, antes de virar pendência |
+| mensagem citada | o código procurava `referencedMessage`; o campo real é `referenceMessageId` | capturado; ela sabe que é resposta e pergunta em vez de supor |
+| descrição do anúncio | 3 anúncios publicam "apto 801", "apart. 601" e ela repetiria | `nay_descricao_segura` raspa antes de chegar no modelo |
+| pendência sem código | juntava corretores diferentes — e desde 01/09 essa lista virou lista de ENVIO | sem código, cada um fica com a sua |
+| entrega que falha no meio | devolvia a dívida inteira e reenviava a abertura a cada minuto | volta a dever só o que não saiu |
+| "4 mil" | lido como R$ 4, e ela dizia que o orçamento era abaixo do piso | `nay_valor_em_reais`, 16 formas |
+| "encontrei 8 opções" | contava depois do LIMIT havendo 66 | "encontrei 66 (mostrando 8)" |
+| imóvel de parceiro na entrega | card cheio e todas as fotos, 75% do catálogo | não vira dívida; responde na conversa, onde a redução vale |
+| ficha privada de visita | texto livre do Tel ia cru para ela | raspada também |
+| dívida sem prazo | pedido de terça chegava sábado | expira em 24h |
+
+Também: a vaga semanal do 5717 que o Tel pediu **nunca tinha sido
+criada** — o comando virou disparo imediato e o agendamento se perdeu.
+Criada agora (vaga #6, terça/quinta/sábado às 17h). E as pendências 24 e
+25 foram corrigidas no banco: a 24 estava aberta com o código errado.
+
+**Depois da verificação adversarial** — 23 achados confirmados, 19
+refutados (a maioria dos refutados eram coisas já corrigidas durante a
+sessão, que os verificadores encontraram no estado novo). Mais três
+críticos entraram e foram fechados:
+
+- **`imovel_por_codigo` entregava a descrição inteira de imóvel de
+  PARCEIRO**, enquanto o card esconde tudo de propósito: endereço, CEP,
+  valor, e em 8 casos a posição financeira do proprietário ("Entrada de
+  R$ 170.000 | Saldo devedor: R$ 101.000"). 469 dos 909 parceiros têm
+  descrição. Gate fecha por `COALESCE(i.e_parceiro, true)`.
+- **`imovel_do_disparo` olhava os grupos e ignorava a conversa.** Nos 3
+  casos reais em que o corretor disse "esse" sem código, a lista de cards
+  privados continha o certo e a janela de grupo errou ou não soube.
+  Passou a chamar `nay_qual_imovel($1)` com o telefone.
+- **`DESCARTAR` não revogava resposta gravada.** Agora revoga.
+
+**O que ainda NÃO foi corrigido** (nenhum é do bloco que o Tel reportou):
+
+- Duas regras `[endereco]` contraditórias na tabela `regras`: uma libera
+  "o endereço do CONDOMÍNIO (rua e número) e também a torre, o andar", a
+  outra proíbe "logradouro, rua nem número de NENHUM imóvel". **É decisão
+  do Tel**, não bug — a terceira regra dele diz "o endereço do prédio é
+  público, o número da unidade nunca", que resolveria a favor da primeira.
+- `Registrar envio` grava só o primeiro código, e grava mesmo quando
+  nenhum card saiu — e é essa tabela que sustenta a confirmação do código.
+- Resposta de busca com 4 cards dispara as fotos dos 4 — 30 fotos, 3
+  imóveis que ninguém pediu.
+- Card colado com mais de um código pega o primeiro e afirma ao modelo
+  que é "o imóvel escolhido"; card de outra imobiliária passa igual.
+- `\d{3,5}` sem borda perde o imóvel 45 (existe e está publicado).
+- A instrumentação de payload grava em `imagem_estrutura`;
+  `payload_estrutura` foi criada para isso e tem zero linhas.
+- Seis cenários não chegaram a ser verificados adversarialmente (a
+  auditoria bateu no teto da sessão): fotos do imóvel errado, entrega
+  automática, andar e bloco, red team livre, escalar sem código e
+  contexto de conversa. Os achados deles estão acima, mas sem o passo
+  cético.
+- Cada redação nova da mesma pergunta abre pendência nova e cobra o Tel
+  de novo (é o limiar de 0.5, e baixá-lo junta perguntas diferentes).
+- Publicação no grupo "ANUNCIAR EASY" não deixa linha em `envios`.
+- `nay_memoria` nunca foi podada — 2.362 linhas e crescendo.
+
+---
+
+## Estado em 01/09/2026: o bloco AGORA está fechado
+
+Os seis itens foram corrigidos, cada um verificado contra o banco ou o
+site real antes de subir. O que ficou de fora está listado depois.
+
+| # | item | como ficou |
+|---|---|---|
+| 1 | qualquer corretor podia responder pendência | parede de identidade em `nay_responder_conversando`: o telefone vem do fluxo, o modelo não forja |
+| 2 | `VENDEU` não tirava da oferta | marca `disponivel = false` e cancela lembrete e entrega do imóvel; `tira` segue sendo só horário |
+| 3 | busca por bairro sem acento | `nay_normalizar_lugar` nos dois lados; e o vazio agora distingue três causas em vez de mentir uma |
+| 4 | cadeia de entrega solta em três pontos | teto por 8 últimos dígitos, janela 08h–20h importada do lembrete, e valor deixou de virar código |
+| 5 | pendência não fechava o ciclo | `pendencia_interessado` + `resposta_a_entregar` + relógio que cobra o Tel |
+| 6 | varredura dependia de lembrar de rodar | `sincronizar_catalogo.py` no cron de hora em hora, com alarme por WhatsApp se envelhecer |
+
+**Um sétimo, que não estava na lista e apareceu no caminho:** havia duas
+`nay_responder_conversando` no banco — a de 4 argumentos com a parede do
+item 1 e a antiga de 3, **sem parede nenhuma**, ainda chamável.
+`CREATE OR REPLACE` com assinatura diferente cria sobrecarga, não
+substitui. Os cinco fluxos chamavam só a nova; a antiga foi removida.
+
+**O que mudou de tamanho na medição:** o item que dizia "~330 imóveis
+fora do site continuam sendo oferecidos" é na verdade **19** — os outros
+321 não têm valor e já eram invisíveis à busca, que exige valor > 0. E a
+regra 2 do projeto diz explicitamente que fora do site **não** é o mesmo
+que indisponível, então filtrá-los escondia imóvel que você pode vender.
+Ficou como está, e é decisão sua.
+
+**Ainda depende só de você** (nada disso é código):
+
+- ligar o webhook de saída no painel da Z-API — 2.956 recebidas, zero
+  enviadas, metade da conversa invisível;
+- mandar uma resposta marcada real no WhatsApp, para fechar a questão da
+  mensagem citada;
+- marcar a fachada nos ~50 imóveis mais postados;
+- **o prazo da cobrança de pendência**: pus 4 horas por conta própria.
+  Muda com `UPDATE config SET valor='6' WHERE chave='pendencia_horas_para_cobrar';`
+- rotação das credenciais Z-API — você disse para deixar para outro
+  momento, está anotado e fora desta lista.
+
+O bloco DEPOIS e o UM DIA seguem valendo como escritos abaixo.
+
+---
+
+{'summary': 'Levanta o que falta para fechar as frentes abertas da Nay, com red team', 'agentCount': 7, 'logs': ['33 itens levantados', '24 itens do red team'], 'result': {'levantados': 33, 'red_team': 24, 'sintese': '# Nay — o que falta (31/08/2026)\n\n## 1. O que está pronto de verdade\nSó o que já rodou com corretor real:\n\n- **Porteiro**: os 1.050 de `corretores` passam, o resto não. Falha fechada, já corrigido depois do vazamento de 30/08.\n- **Pausa geral** por `config.atendimento_pausado` — vale na hora, sem restart.\n- **Resolução de `@lid`** para telefone, aprendendo sozinha em `identidade_lid`.\n- **Card colado vira instrução**, não eco. Apurado em 22 payloads reais.\n- **Reação e figurinha** não viram mais "não consigo abrir esse arquivo".\n- **Consulta de imóvel**: por código, resumo do condomínio, listar no condomínio. É o que ela mais faz.\n- **Publicador**: `posta`, `vagas`, `tira`, `VENDEU`, `publica no easy` — rodando nos 14 grupos com cadência anti-banimento.\n- **Escalar ao Tel + `RESPOSTA <id>`** e o reuso da resposta antiga no mesmo imóvel.\n- **Alarme de erro** por WhatsApp e Telegram, dizendo o nó.\n- **Gravação dos dois lados** em `mensagens` — mas só a metade que entra (ver bloco 3).\n\nNão entram aqui, porque nunca rodaram: lembrete de retorno (`lembrete` vazia), ciclo de visita do Fernando (`visitas` com zero linhas desde sempre), comando por nome (só 83 de 1.050 têm nome), responder pendência conversando (subiu 31/08, ainda sem uso real).\n\n## 2. O que falta\n\n### AGORA — quebra ou custa dinheiro do jeito que está\n\n1. **Qualquer corretor pode responder pendência no lugar do Tel.** `nay_responder_conversando` recebe `pendencia_id`, `texto` e `msg_id`, e não checa telefone nenhum — a irmã dela, `nay_guardar_como_funciona_visita`, já tem essa parede. Uma frase de um corretor grava resposta falsa em `pendencias.resposta`, ela sai para quem espera, e a partir dali é reusada para todo mundo que perguntar parecido naquele imóvel. Não tem desfazer.\n\n2. **`VENDEU`/`ALUGOU` tira da grade e não tira da oferta.** Só mexe em `vagas`; `imoveis.disponivel` fica como estava e as buscas usam `coalesce(disponivel, true)` — sem informação, elas oferecem. O corretor monta visita e leva cliente a imóvel que você deu por vendido semana passada.\n\n3. **A busca por bairro só acerta quem digita com acento.** `ILIKE` sem `unaccent` e sem apelido: 394 dos 1.172 imóveis moram em bairro com acento ou número. Quem escreve "taruma", "adrianopolis" ou "parque dez" ouve "não temos imóvel disponível nesse perfil" — mentira sobre um terço do catálogo, e ainda gera fila de demanda não atendida que não existe.\n\n4. **A cadeia de entrega automática está solta em três pontos.** O teto de 1 contato por dia compara telefone por igualdade crua (o mesmo corretor chega com 12 e com 13 dígitos, então vira duas pessoas) e é lido antes de qualquer escrita, com dois crons de minuto em minuto podendo cair juntos; `entregar_pendentes.py` não tem janela de horário (o irmão dele tem 08h–20h), então dívida criada às 23h50 vira card e 15 fotos às 23h53; e o detector de dívida trata qualquer número de 3 a 5 dígitos como código — "o cliente vai até 5000 de aluguel" vira o imóvel 5000. Com 1.050 pessoas, isso não é hipótese.\n\n5. **A pendência não fecha o ciclo.** O segundo corretor que perguntar a mesma coisa do mesmo imóvel ouve "ainda estou verificando" e não fica ligado a pendência nenhuma — quando você responde, só o primeiro recebe, e não há registro de que o segundo existiu. E nada tem relógio: ninguém te cobra, nada volta ao corretor. O Leonan esperou dois dias por uma resposta que estava na descrição do site.\n\n6. **A varredura do catálogo depende de você lembrar de rodar.** Já ficou 11 dias parada sem ninguém notar; em 27/08 os códigos 2943 e 5750 estavam vivos no site e não existiam na tabela, e o corretor ouvia "não encontrei o imóvel". Falta cron semanal com aborto automático se o diff passar de X%, e aviso quando `max(sincronizado_em)` envelhecer.\n\n### DEPOIS — melhora muito, pode esperar\n\n- **`Nay PENDENTES` + resumo em hora fixa.** Hoje pendência, lembrete e escalação só existem como mensagem no momento em que acontecem. Se você estiver em visita, rolou a tela e sumiu.\n- **Vigia do canal de entrada.** Se a instância Z-API cair, nada erra — só para de chegar mensagem, e o alarme não dispara. Silêncio fica igual a dia calmo.\n- **Os primeiros 40 segundos.** Nenhum sinal de recebido até a primeira resposta; o corretor reenvia ou liga. E print com legenda ("esse tá disponível?") ainda cai no pedido de código, com o texto dele na mesma mensagem.\n- **Fachada.** `e_fachada` e `e_capa` existem desde o começo e nunca foram lidas por uma linha de código. "Tem a frente?" hoje dispara 15 fotos em 90 segundos.\n- **Os campos que faltam**: área de lazer, quintal, quem paga o quê, quantas cauções, financiamento — mais os 201 de 868 publicados sem descrição nenhuma. Cada um vira escalação repetida, oito vezes no mesmo condomínio.\n- **Comando para aprovar corretor.** O publicador já promete "me manda o nome que eu cadastro", e esse comando não existe — hoje é psql no servidor enquanto o parceiro novo espera.\n- **Identidade do Tel em quatro cópias**, todas com igualdade crua de telefone. No dia em que você chegar com o 9 na frente ou como `@lid` não resolvido, seus comandos morrem em silêncio.\n- **`postar_agora` sem proteção contra repetição** — reenviar posta duas vezes em 14 grupos, sem desfazer.\n\n### UM DIA\nPoda de `nay_memoria` (2.234 linhas e crescendo), ciclo do Fernando em `visitas`, unificar a gramática de comando (quatro cópias divergindo sozinhas), bairro vizinho na busca, marcação de foto por tipo (lazer, planta).\n\n## 3. O que depende só de você\n\n**Ação que ninguém mais faz:**\n- **Ligar o webhook de saída no painel da Z-API.** É opção no painel, não código. Sem isso são 2.956 recebidas e zero enviadas: metade da conversa invisível, e diagnóstico feito no escuro.\n- **Mandar uma resposta marcada real no WhatsApp** com a captura ligada, para fechar de vez a questão da mensagem citada.\n- **Marcar a fachada nos ~50 imóveis mais postados** (ou dizer quem marca).\n- **Rotação das credenciais Z-API**, hoje em texto puro nos nós — você já adiou para o fim do projeto, só não deixe passar em branco.\n\n**Decisões que travam trabalho pronto para começar:**\n- Em quantas horas você quer ser cobrado numa pendência, em quantas ela volta ao corretor, e o que ela diz quando volta de mãos vazias.\n- `VENDEU` passa a marcar o imóvel como indisponível de verdade? Se sim, `tira` vira o único jeito de reorganizar horário.\n- Frequência da varredura e o percentual de mudança que a faz parar sozinha.\n- Que horas chega o resumo diário, e se chega nos dias vazios.\n- O que é política fixa da Imob Easy (caução, quem paga o quê) e o que é por imóvel — misturar isso já quebrou o caso vizinho antes.\n- Quem pode ser aprovado por comando.\n\n## 4. A ordem que eu faria\n\n1. Parede de identidade no `responder_pendencia`\n2. Bairro sem acento\n3. `VENDEU` marcando indisponível\n4. Cadeia de entrega (teto por 8 dígitos + reserva antes de enviar + janela de horário + código vs. valor)\n5. Pendência fechando o ciclo (lista de interessados + relógio)\n6. Varredura no cron\n7. Depois: `PENDENTES` e o resumo diário\n\n**Por que a primeira:** é a única em que o estrago não fica parado. Resposta errada gravada em `pendencias.resposta` é reusada para todo mundo que perguntar parecido naquele imóvel, para sempre, e não existe desfazer nem registro de que veio de fora. As outras cinco causam dano que dá para consertar depois; essa contamina a base. E o conserto é copiar uma parede que já existe no arquivo ao lado, passando o telefone do `Juntar mensagens` — minutos de trabalho, nenhuma decisão sua.'}, 'workflowProgress': [{'type': 'workflow_phase', 'index': 1, 'title': 'Auditar'}, {'type': 'workflow_phase', 'index': 2, 'title': 'Atacar'}, {'type': 'workflow_phase', 'index': 3, 'title': 'Sintese'}, {'type': 'workflow_agent', 'index': 1, 'label': 'lente:1', 'phaseIndex': 1, 'phaseTitle': 'Auditar', 'agentId': 'a58a1139e3d6db9ea', 'model': 'claude-opus-5', 'state': 'done', 'startedAt': 1788227697808, 'queuedAt': 1788227694588, 'attempt': 1, 'lastToolName': 'StructuredOutput', 'promptPreview': 'PROJETO "Nay": assistente de WhatsApp de uma imobiliaria em Manaus (Imob Easy),\natendendo 1.050 corretores parceiros. Dono: Tel. n8n + PostgreSQL + Z-API +\num publicador em Python com systemd e cron. A pergunta dele agora e:\n"o que falta para finalizar essas etapas? tem algo pendente?"\n\nO QUE ESTA NO AR E FUNCIONANDO (31/08/2026):\n - porteiro: so os 1.050 de `corretores` sao atendidos; falha FECHA…', 'lastProgressAt': 1788228109917, 'tokens': 98795, 'toolCalls': 26, 'durationMs': 412108, 'resultPreview': '{"itens":[{"titulo":"A pendência aberta de um corretor faz a Nay calar o próximo que perguntar a mesma coisa — e o segundo nunca recebe a resposta","porque_importa":"No `escalar_resposta_por_imovel.sql` o ramo `esperar` procura pendência aberta por código + similaridade de assunto e NÃO filtra telefone; ele também não grava nada em `escalacoes`. O segundo corretor ouve \'ainda estou verificando\' e …'}, {'type': 'workflow_agent', 'index': 2, 'label': 'lente:2', 'phaseIndex': 1, 'phaseTitle': 'Auditar', 'agentId': 'adc70b125d0d750aa', 'model': 'claude-opus-5', 'state': 'done', 'startedAt': 1788227698224, 'queuedAt': 1788227694588, 'attempt': 1, 'lastToolName': 'StructuredOutput', 'promptPreview': 'PROJETO "Nay": assistente de WhatsApp de uma imobiliaria em Manaus (Imob Easy),\natendendo 1.050 corretores parceiros. Dono: Tel. n8n + PostgreSQL + Z-API +\num publicador em Python com systemd e cron. A pergunta dele agora e:\n"o que falta para finalizar essas etapas? tem algo pendente?"\n\nO QUE ESTA NO AR E FUNCIONANDO (31/08/2026):\n - porteiro: so os 1.050 de `corretores` sao atendidos; falha FECHA…', 'lastProgressAt': 1788228026383, 'tokens': 81316, 'toolCalls': 24, 'durationMs': 327616, 'resultPreview': '{"itens":[{"titulo":"A varredura do catálogo continua sendo o Tel lembrando de rodar: não tem cron nem alarme de idade","porque_importa":"O cérebro da Nay lê a tabela `imoveis`, e ela só é atualizada quando alguém abre o terminal da Hostinger e roda a sequência do doc 25 à mão. Já ficou 11 dias parada sem ninguém perceber, e em 27/08 os códigos 2943 e 5750 estavam vivos no site e não existiam na t…'}, {'type': 'workflow_agent', 'index': 3, 'label': 'lente:3', 'phaseIndex': 1, 'phaseTitle': 'Auditar', 'agentId': 'a99608ffc54476a03', 'model': 'claude-opus-5', 'state': 'done', 'startedAt': 1788227697846, 'queuedAt': 1788227694589, 'attempt': 1, 'lastToolName': 'StructuredOutput', 'promptPreview': 'PROJETO "Nay": assistente de WhatsApp de uma imobiliaria em Manaus (Imob Easy),\natendendo 1.050 corretores parceiros. Dono: Tel. n8n + PostgreSQL + Z-API +\num publicador em Python com systemd e cron. A pergunta dele agora e:\n"o que falta para finalizar essas etapas? tem algo pendente?"\n\nO QUE ESTA NO AR E FUNCIONANDO (31/08/2026):\n - porteiro: so os 1.050 de `corretores` sao atendidos; falha FECHA…', 'lastProgressAt': 1788228029468, 'tokens': 82623, 'toolCalls': 25, 'durationMs': 330700, 'resultPreview': '{"itens":[{"titulo":"Nenhum backup automático do naydb: tudo que a Nay aprendeu mora só num volume Docker de um VPS","porque_importa":"O catálogo é reconstruível pela varredura, mas o aprendizado não é. `regras` (26+), `imovel_privado.como_funciona_visita`, `proprietario_acompanha`, `identidade_lid`, `corretores` (1.050 aprovados, com o Tel dentro — sem ela os comandos dele morrem), `pendencias.re…'}, {'type': 'workflow_agent', 'index': 4, 'label': 'lente:4', 'phaseIndex': 1, 'phaseTitle': 'Auditar', 'agentId': 'a6e7a4e23ec78bfb6', 'model': 'claude-opus-5', 'state': 'done', 'startedAt': 1788227697834, 'queuedAt': 1788227694589, 'attempt': 1, 'lastToolName': 'StructuredOutput', 'promptPreview': 'PROJETO "Nay": assistente de WhatsApp de uma imobiliaria em Manaus (Imob Easy),\natendendo 1.050 corretores parceiros. Dono: Tel. n8n + PostgreSQL + Z-API +\num publicador em Python com systemd e cron. A pergunta dele agora e:\n"o que falta para finalizar essas etapas? tem algo pendente?"\n\nO QUE ESTA NO AR E FUNCIONANDO (31/08/2026):\n - porteiro: so os 1.050 de `corretores` sao atendidos; falha FECHA…', 'lastProgressAt': 1788228117219, 'tokens': 104733, 'toolCalls': 37, 'durationMs': 418453, 'resultPreview': '{"itens":[{"titulo":"Antes de pôr os dois crons novos no crontab, fechar os três furos que fazem o mesmo imóvel sair duas vezes","porque_importa":"`envios` é a única parede contra reenvio e tem só um escritor: o publicador em Python (`_registrar_envio_corretor` e `_registrar_publicacao`). O caminho normal — a Nay responde e o nó `Preparar envio do agente` manda card + fotos — não grava nada. Então…'}, {'type': 'workflow_agent', 'index': 5, 'label': 'ataque:buraco', 'phaseIndex': 2, 'phaseTitle': 'Atacar', 'agentId': 'ad1f9aa42e7893e5a', 'model': 'claude-opus-5', 'state': 'done', 'startedAt': 1788228134621, 'queuedAt': 1788228119466, 'attempt': 1, 'lastToolName': 'StructuredOutput', 'promptPreview': 'PROJETO "Nay": assistente de WhatsApp de uma imobiliaria em Manaus (Imob Easy),\natendendo 1.050 corretores parceiros. Dono: Tel. n8n + PostgreSQL + Z-API +\num publicador em Python com systemd e cron. A pergunta dele agora e:\n"o que falta para finalizar essas etapas? tem algo pendente?"\n\nO QUE ESTA NO AR E FUNCIONANDO (31/08/2026):\n - porteiro: so os 1.050 de `corretores` sao atendidos; falha FECHA…', 'lastProgressAt': 1788228676380, 'tokens': 145543, 'toolCalls': 34, 'durationMs': 541757, 'resultPreview': '{"itens":[{"titulo":"A ferramenta que responde pendência não checa QUEM está falando — qualquer um dos 1.050 pode responder no lugar do Tel, e a mentira vira aprendizado permanente","porque_importa":"`nay_guardar_como_funciona_visita` tem a parede de identidade (`como_funciona_visita.sql:91`: `IF v_tel <> \'559294717316\'`). A irmã dela, `nay_responder_conversando`, recebe só `p_pendencia_id, p_text…'}, {'type': 'workflow_agent', 'index': 6, 'label': 'ataque:prioridade', 'phaseIndex': 2, 'phaseTitle': 'Atacar', 'agentId': 'a450159366801884d', 'model': 'claude-opus-5', 'state': 'done', 'startedAt': 1788228128872, 'queuedAt': 1788228119467, 'attempt': 1, 'lastToolName': 'StructuredOutput', 'promptPreview': 'PROJETO "Nay": assistente de WhatsApp de uma imobiliaria em Manaus (Imob Easy),\natendendo 1.050 corretores parceiros. Dono: Tel. n8n + PostgreSQL + Z-API +\num publicador em Python com systemd e cron. A pergunta dele agora e:\n"o que falta para finalizar essas etapas? tem algo pendente?"\n\nO QUE ESTA NO AR E FUNCIONANDO (31/08/2026):\n - porteiro: so os 1.050 de `corretores` sao atendidos; falha FECHA…', 'lastProgressAt': 1788228476274, 'tokens': 66832, 'toolCalls': 17, 'durationMs': 347399, 'resultPreview': '{"itens":[{"titulo":"SOBE e muda de alvo: o buraco não é o VENDEU, é que NENHUMA ferramenta filtra `publicado_no_site` — ~330 imóveis fora do site continuam sendo oferecidos hoje","porque_importa":"MUDANÇA: mantenho pequeno/alto, mas o conserto proposto está no lugar errado e, do jeito que foi escrito, planta um bug. Grep em todo o projeto: `publicado_no_site` não aparece em NENHUMA ferramenta de …'}, {'type': 'workflow_agent', 'index': 7, 'label': 'sintese', 'phaseIndex': 3, 'phaseTitle': 'Sintese', 'agentId': 'a2047ab7887d9ad03', 'model': 'claude-opus-5', 'state': 'done', 'startedAt': 1788228682657, 'queuedAt': 1788228678960, 'attempt': 1, 'promptPreview': 'PROJETO "Nay": assistente de WhatsApp de uma imobiliaria em Manaus (Imob Easy),\natendendo 1.050 corretores parceiros. Dono: Tel. n8n + PostgreSQL + Z-API +\num publicador em Python com systemd e cron. A pergunta dele agora e:\n"o que falta para finalizar essas etapas? tem algo pendente?"\n\nO QUE ESTA NO AR E FUNCIONANDO (31/08/2026):\n - porteiro: so os 1.050 de `corretores` sao atendidos; falha FECHA…', 'lastProgressAt': 1788228762796, 'tokens': 40899, 'toolCalls': 0, 'durationMs': 80136, 'resultPreview': '# Nay — o que falta (31/08/2026)\n\n## 1. O que está pronto de verdade\nSó o que já rodou com corretor real:\n\n- **Porteiro**: os 1.050 de `corretores` passam, o resto não. Falha fechada, já corrigido depois do vazamento de 30/08.\n- **Pausa geral** por `config.atendimento_pausado` — vale na hora, sem restart.\n- **Resolução de `@lid`** para telefone, aprendendo sozinha em `identidade_lid`.\n- **Card col…'}], 'totalTokens': 620741, 'totalToolCalls': 163}
