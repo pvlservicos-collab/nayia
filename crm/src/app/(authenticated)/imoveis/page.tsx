@@ -9,35 +9,20 @@
  * Não é cópia: é a própria página do site (Todos, Apartamentos, Casas, Outros,
  * Anúncios, Condomínios, Mapa, exportar, seleção, edição), servida pelo CRM em
  * /admin/imoveis.html -- ver src/lib/painelDoSite.ts. O que mudar no site
- * aparece aqui sem deploy do CRM.
+ * aparece aqui sem deploy do CRM. Ela vem sem o menu do site e no tema (claro
+ * ou escuro) de quem está usando o CRM -- ver src/lib/painelDoSiteTema.ts.
  *
  * O PESO: nada disso entra no pacote do CRM. A página só é buscada quando
  * alguém abre esta aba, e dentro dela as abas e a gaveta já carregam sob
  * demanda, como no site.
  *
- * A aba antiga (a que manda o card para uma conversa) continua em
- * /imoveis/antiga. Mandar imóvel pelo chat segue igual: `/3050` no campo de
- * mensagem.
+ * A tela antiga saiu (Pedro: "já tem a função enviar lá em cima"). Mandar
+ * imóvel para uma conversa continua pelo Enviar imóvel e pelo `/3050` no chat.
  */
-import Link from 'next/link'
-import { useState } from 'react'
-
 export default function ImoveisPage() {
-  const [carregou, setCarregou] = useState(false)
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-end gap-3 px-4 py-1 text-xs text-muted">
-        {!carregou && <span className="mr-auto">Abrindo a aba de imóveis do site…</span>}
-        <Link href="/imoveis/antiga" className="underline opacity-80 hover:opacity-100">
-          Mandar imóvel para uma conversa (tela antiga)
-        </Link>
-      </div>
-      <iframe
-        src="/admin/imoveis.html"
-        title="Imóveis"
-        onLoad={() => setCarregou(true)}
-        className="flex-1 w-full border-0 bg-white"
-      />
+      <iframe src="/admin/imoveis.html" title="Imóveis" className="flex-1 w-full border-0" />
     </div>
   )
 }

@@ -15,6 +15,8 @@
  *    O resto do admin (captação, vagas, prompt da Nay) NÃO é servido aqui: o
  *    segredo de máquina abriria tudo, e ninguém pediu tudo.
  */
+import { TEMA_DO_CRM } from '@/lib/painelDoSiteTema'
+
 const WEB = process.env.SITE_WEB_INTERNA || 'http://nay-site-web'
 const API = process.env.SITE_API_INTERNA || 'http://nay-site-api:8092'
 
@@ -48,15 +50,13 @@ export async function arquivoDoSite(caminho: string, busca: string, pedido: Head
 }
 
 /**
- * A página, com o menu e o rodapé do site escondidos: dentro do CRM o menu é o
- * do CRM, e dois menus um em cima do outro só confundem. O resto da página
- * fica como é -- é só um estilo a mais, nada do site é reescrito.
+ * A página, sem o menu e o rodapé do site e com o tema (claro/escuro) de quem
+ * está usando o CRM -- ver painelDoSiteTema.ts. Nada do site é reescrito.
  */
 export async function paginaDoSite(arquivo: string, busca: string): Promise<Response> {
   const r = await fetch(`${WEB}/admin/${arquivo}${busca}`, { cache: 'no-store' })
   if (!r.ok) return new Response('Página do site indisponível.', { status: r.status })
-  const html = (await r.text()).replace('</head>',
-    '<style>[data-layout-topo],[data-layout-rodape],.pular-conteudo{display:none!important}</style></head>')
+  const html = (await r.text()).replace('</head>', TEMA_DO_CRM + '</head>')
   return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } })
 }
 
