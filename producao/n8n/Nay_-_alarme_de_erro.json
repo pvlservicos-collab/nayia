@@ -1,0 +1,122 @@
+{
+ "id": "4NJbiUC7P5W2BvJH",
+ "nome": "Nay - alarme de erro",
+ "ativo": true,
+ "atualizado_em": "2026-08-31 15:09:49",
+ "nodes": [
+  {
+   "parameters": {},
+   "id": "e2c671bc-7648-4456-a749-c24394ecf15c",
+   "name": "Quando a Nay falhar",
+   "type": "n8n-nodes-base.errorTrigger",
+   "typeVersion": 1,
+   "position": [
+    0,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.z-api.io/instances/<REDIGIDO>/token/<REDIGIDO>/send-text",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Client-Token",
+       "value": "<REDIGIDO>"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ phone: '[telefone …7316]', message: $json.mensagem }) }}",
+    "options": {}
+   },
+   "id": "f8dcfcd6-d5f9-46ed-8708-76252041b7df",
+   "name": "Avisar o Tel",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    512,
+    48
+   ]
+  },
+  {
+   "parameters": {
+    "chatId": "8221814418",
+    "text": "={{ $('Montar aviso').first().json.mensagem }}",
+    "additionalFields": {}
+   },
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    -144,
+    -144
+   ],
+   "id": "ddc9df8f-213a-48d9-bf85-f89cd476d515",
+   "name": "Avisar no Telegram",
+   "webhookId": "5632a720-a0e0-4765-aac4-cd76e86074c9",
+   "credentials": {
+    "telegramApi": {
+     "id": "ygm2AeyvJBPC0Twv",
+     "name": "Telegram account"
+    }
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    200,
+    0
+   ],
+   "id": "a5ace4a0-1a1f-48a5-a51c-214ed87f68eb",
+   "name": "Montar aviso",
+   "parameters": {
+    "jsCode": "// Monta o texto do alarme a partir do payload do Error Trigger.\n//\n// O BUG QUE ISSO CONSERTA (medido em 27/08): cada no de envio montava o\n// texto por conta propria a partir de $json -- e no n8n $json e a saida do\n// no ANTERIOR, nao a do gatilho. Como 'Avisar o Tel' vinha DEPOIS do\n// Telegram, ele lia a resposta da API do Telegram, onde nao existe\n// 'workflow' nem 'execution'. Resultado no WhatsApp do Tel:\n//   Workflow: ?  /  No: ?  /  Erro: ?\n// Um alarme que nao diz o que falhou custa exatamente o tempo que deveria\n// economizar.\n//\n// Ler do gatilho pelo nome e seguro aqui: o Error Trigger SEMPRE roda --\n// e ele que dispara este fluxo. Nao e o caso da Parte 4.2 do historico.\nconst e = $('Quando a Nay falhar').first().json || {};\n\nconst nome = (e.workflow && e.workflow.name) ? e.workflow.name : null;\n\n// 'execution' e a forma quando a falha e de execucao; 'trigger' e a forma\n// quando a falha e na ativacao do gatilho. Cobrir as duas.\nconst no = (e.execution && e.execution.lastNodeExecuted) ? e.execution.lastNodeExecuted\n         : (e.trigger && e.trigger.error && e.trigger.error.node) ? e.trigger.error.node\n         : null;\n\nconst erro = (e.execution && e.execution.error && e.execution.error.message) ? e.execution.error.message\n           : (e.trigger && e.trigger.error && e.trigger.error.message) ? e.trigger.error.message\n           : (e.error && e.error.message) ? e.error.message\n           : null;\n\nconst execId = (e.execution && e.execution.id) ? e.execution.id : null;\n\nlet m = '\\u{1F6A8} A Nay falhou';\nm += '\\n\\nFluxo: ' + (nome || '?');\nm += '\\nNo: ' + (no || '?');\nm += '\\nErro: ' + (erro || '?');\nif (execId) { m += '\\nExecucao: ' + execId; }\n\n// Rede de seguranca: se algum campo essencial nao veio, manda o payload\n// cru. Assim a PROXIMA falha se explica sozinha, seja qual for a forma.\nif (!nome || !no || !erro) {\n  let cru;\n  try { cru = JSON.stringify(e); } catch (x) { cru = String(e); }\n  m += '\\n\\n(nao reconheci o formato do aviso. payload cru:)\\n' + cru.slice(0, 600);\n}\n\nreturn [{ json: { mensagem: m } }];"
+   }
+  }
+ ],
+ "connections": {
+  "Quando a Nay falhar": {
+   "main": [
+    [
+     {
+      "node": "Montar aviso",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Montar aviso": {
+   "main": [
+    [
+     {
+      "node": "Avisar o Tel",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Avisar o Tel": {
+   "main": [
+    [
+     {
+      "node": "Avisar no Telegram",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false
+ }
+}

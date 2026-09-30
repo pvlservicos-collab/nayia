@@ -1,0 +1,2001 @@
+{
+ "id": "sQuiEjbEDMEbjX5U",
+ "nome": "Nay- recebe mensagem",
+ "ativo": true,
+ "atualizado_em": "2026-09-28 13:40:18",
+ "nodes": [
+  {
+   "parameters": {
+    "httpMethod": "POST",
+    "path": "13d4116a-9e50-4f0f-b036-8d9585c33a80",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2.1,
+   "position": [
+    256,
+    288
+   ],
+   "id": "3b768a76-4f05-49eb-9a6d-9e4b5cdd2dd8",
+   "name": "Webhook",
+   "webhookId": "13d4116a-9e50-4f0f-b036-8d9585c33a80"
+  },
+  {
+   "parameters": {
+    "jsCode": "const b = $('Webhook').first().json.body || {};\n// O QUE SAI TAMBEM SE GUARDA (31/08). Ate aqui `fromMe` era descartado\n// junto com grupo e newsletter, entao NADA do que a Nay responde -- nem\n// do que o Tel digita no WhatsApp dela -- ficava gravado: 2.800 linhas em\n// `mensagens`, todas 'recebida', zero 'enviada'. O efeito pratico foi eu\n// diagnosticar conversa pela metade e propor resposta para corretor que o\n// Tel ja tinha atendido.\n// A mensagem que sai e gravada com status 'Enviado', e o `Reservar\n// mensagens` so pega 'Recebido' -- entao ela entra no historico e o fluxo\n// para sozinho, sem responder a si mesma.\nif (b.isGroup || b.isNewsletter || b.broadcast || b.isStatusReply) return [];\nif (b.type !== 'ReceivedCallback') return [];\nconst saindo = !!(b.fromMe || b.fromApi);\nconst legenda = (b.image && b.image.caption) || (b.video && b.video.caption) || (b.document && b.document.caption) || null; const texto = (b.text && b.text.message) ? b.text.message : (legenda || null);\n// A CITACAO. O corretor quase nunca manda o codigo: ele responde\n// citando o card que saiu no grupo, e o codigo esta la dentro. Ate\n// 29/08 isso era jogado fora aqui na entrada, e a Nay recebia\n// \"Ainda disponivel?\" sem imovel nenhum (caso Valois, 29/08).\n// A Z-API entrega em `referencedMessage` -- confirmado no historico\n// de execucoes do n8n. A forma INTERNA ainda nao foi vista, entao\n// tenta os caminhos plausiveis e, se nenhum servir, guarda o que\n// veio: o proximo caso se explica sozinho em vez de sumir calado.\n// A Z-API NAO manda mensagem citada nesta configuracao: 22 payloads\n// capturados em 30/08 e nenhum traz `referencedMessage`. Os campos sao\n// isStatusReply chatLid connectedPhone waitingMessage isEdit isGroup\n// isNewsletter instanceId messageId phone fromMe momment status chatName\n// senderName photo broadcast adContext messageExpirationSeconds forwarded\n// type fromApi text. O campo fica aqui defensivamente, para o dia em que\n// a Z-API passar a mandar -- mas quem identifica o imovel hoje e o CARD\n// COLADO, tratado no `Juntar mensagens`.\n// Captura a estrutura de quem RESPONDE MARCANDO. A conclusao anterior\n// (\"a Z-API nao manda citacao\") veio de 22 amostras que eram mensagens\n// comuns -- nao havia resposta marcada entre elas, entao a ausencia do\n// campo nao provava nada. Agora so grava quando ha sinal de citacao ou\n// quando o corpo traz campo desconhecido, para nao encher a tabela.\nconst camposRaiz = Object.keys(b).filter(k => b[k] !== null && b[k] !== undefined).join(' ');\nconst CONHECIDOS = new Set(['isStatusReply','chatLid','connectedPhone','waitingMessage',\n  'isEdit','isGroup','isNewsletter','instanceId','messageId','phone','fromMe','momment',\n  'status','chatName','senderName','photo','broadcast','adContext',\n  'messageExpirationSeconds','forwarded','type','fromApi','text','image','audio','video',\n  'document','sticker','reaction','reactionBy','notification','participantPhone',\n  'participantLid','senderPhoto','isGroupMessage']);\nconst novos = Object.keys(b).filter(k => !CONHECIDOS.has(k));\nconst desc = v => v === null || v === undefined ? 'nulo'\n  : Array.isArray(v) ? 'lista[' + v.length + ']'\n  : typeof v === 'object' ? '{' + Object.keys(v).join(',') + '}'\n  : typeof v === 'string' ? 'texto(' + v.length + ')' : typeof v;\nconst estrutura = novos.length\n  ? novos.map(k => k + '=' + desc(b[k])).join(' | ')\n  : null;\n\nconst ref = b.referencedMessage || null;\n// `referenceMessageId` e o nome REAL do campo (visto em payload_estrutura,\n// 01/09). So o ID chega, nunca o texto -- entao serve para saber que ELE\n// respondeu citando algo, e ela perguntar de qual imovel se trata.\nconst refId = b.referenceMessageId || (ref && ref.messageId) || null;\nlet citado = null;\nif (ref) {\n  if (typeof ref === 'string') citado = ref;\n  else citado = (ref.text && ref.text.message) || ref.message || ref.body\n             || (ref.image && ref.image.caption)\n             || (ref.video && ref.video.caption) || null;\n  if (!citado) { try { citado = JSON.stringify(ref).slice(0, 900); } catch (e) { citado = null; } }\n}\n// TEMPORARIO (31/08): descobrir onde a Z-API poe a URL da imagem, para\n// decidir se da para a Nay VER a foto. 12% das mensagens sao imagem (346\n// em 30 dias) e hoje ela so diz que nao consegue abrir.\n// Guarda apenas NOMES DE CAMPO e tipo, nunca o valor -- mesma disciplina\n// da captura de citacao, que respondeu em 22 amostras o que seis palpites\n// nao responderam. Apagar assim que o campo estiver conhecido.\nlet dbgImg = null;\nif (b.image || b.video || b.document) {\n  const desc = v => v === null || v === undefined ? 'nulo'\n    : typeof v === 'object' ? '{' + Object.keys(v).join(',') + '}'\n    : typeof v === 'string' ? 'texto(' + v.length + ')' : typeof v;\n  dbgImg = ['image','video','document']\n    .filter(k => b[k]).map(k => k + '=' + desc(b[k])).join(' | ');\n}\nlet origem = 'texto';\n// REACAO e FIGURINHA vem ANTES de imagem: figurinha costuma chegar como\n// imagem na Z-API, e cairia em 'imagem' -- fazendo a Nay dizer \"nao\n// consigo abrir esse arquivo\" para um 👍🏼. Foi o que aconteceu com o Moacy\n// em 31/08: ele reagiu com joinha na mensagem DELA e recebeu o pedido de\n// mandar o codigo do imovel.\nif (b.reaction || b.reactionBy || b.isReaction) origem = 'reacao';\nelse if (b.sticker || (b.image && b.image.isSticker)) origem = 'figurinha';\nelse if (b.audio) origem = 'audio';\nelse if (b.image) origem = 'imagem';\nelse if (b.document) origem = 'documento';\nelse if (b.video) origem = 'video';\nelse if (!texto) origem = 'outro';\nreturn [{ json: {\n  telefone: String(b.phone || ''),\n  nome: b.senderName || b.chatName || null,\n  texto: texto,\n  origem: origem,\n  message_id: b.messageId || null,\n  citado: citado,\n    citadoId: refId,\n  saindo: saindo,\n  dbg_img: dbgImg,\n  dbg_raiz: camposRaiz,\n  dbg_estrutura: estrutura\n} }];"
+   },
+   "id": "1fec0979-d034-4f58-a321-186eaa1d97ca",
+   "name": "Filtrar e normalizar",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    416,
+    288
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "-- Resolve o identificador ANTES de tudo: o WhatsApp entrega ora o numero,\n-- ora um `@lid`, para a MESMA pessoa. Sem isso o corretor que chega por\n-- @lid nao casa com `corretores`, vira desconhecido e recebe a cortesia\n-- dizendo que nao e parceiro -- e ate os comandos do Tel morriam, porque\n-- ele tambem aparece como @lid. Ver identidade_lid.sql.\nWITH ident AS (\n  SELECT nay_resolver_identidade($1, $2) AS telefone\n), antes AS (\n  -- So o que o CORRETOR mandou. Desde 31/08 a tabela guarda tambem o que\n  -- sai, e contar isso faria o porteiro achar que quem a Nay abordou\n  -- primeiro ja era conhecido -- `msgs_antes = 0` significa primeiro\n  -- contato DELE, nao primeira linha na tabela.\n  SELECT count(*) AS n FROM mensagens\n   WHERE telefone = (SELECT telefone FROM ident) AND direcao = 'recebida'\n), dbgimg AS (\n  -- TEMPORARIO: so a ESTRUTURA da imagem, nunca a URL nem o conteudo.\n  INSERT INTO imagem_estrutura (estrutura)\n  SELECT $7 WHERE NULLIF($7,'') IS NOT NULL\n  RETURNING 1\n), nomeia AS (\n  -- Copia o nome do WhatsApp para `corretores` a cada mensagem. O Enio\n  -- recebeu dois imoveis e a confirmacao saiu como \"mandei para\n  -- [telefone …0556]\" porque o nome estava so em `mensagens`. Nunca pisa em\n  -- nome que o Tel digitou (nome_origem='manual'). Ver nome_do_whatsapp.sql.\n  SELECT nay_sincronizar_nome((SELECT telefone FROM ident), $2)\n), congela AS (\n  -- Qualquer mensagem do corretor congela os lembretes dele NA HORA. Nao\n  -- tenta entender se e resposta: silencio de verdade e ausencia de linha\n  -- em `mensagens`, e se a morte dependesse da leitura o sistema cobraria\n  -- justamente quem respondeu por audio ou colando card. Ver lembrete.sql.\n  SELECT nay_congelar_lembretes((SELECT telefone FROM ident)) AS n\n  WHERE NOT $6::boolean\n), ins AS (\n  -- O ID DA MENSAGEM QUE CHEGA (14/09): e ele que permite resolver quando o\n  -- corretor MARCA a propria mensagem -- o card que ele colou, por exemplo.\n  -- Sem isso, `nay_imovel_da_citacao` so conhecia o que NOS mandamos.\n  INSERT INTO mensagens (telefone, nome, direcao, origem, texto, status, citado, citado_id, message_id)\n  VALUES ((SELECT telefone FROM ident), $2,\n          CASE WHEN $6::boolean THEN 'enviada' ELSE 'recebida' END, $3,\n          NULLIF($4, 'null'),\n          -- 'Enviado' mantem a mensagem fora do `Reservar mensagens`,\n          -- que so pega 'Recebido': o fluxo para sozinho.\n          CASE WHEN $6::boolean THEN 'Enviado' ELSE 'Recebido' END,\n          NULLIF($5, 'null'), NULLIF($9, 'null'), NULLIF($10, 'null'))\n  RETURNING id, telefone, origem, criada_em, direcao\n)\nSELECT ins.id, ins.telefone, ins.origem, ins.criada_em,\n       EXISTS (SELECT 1 FROM corretores c\n               WHERE c.telefone = ins.telefone AND c.aprovado AND c.ativo) AS aprovado,\n       (SELECT n FROM antes) AS msgs_antes,\n       COALESCE((SELECT valor = 'sim' FROM config\n                  WHERE chave = 'atendimento_pausado'), false) AS pausado,\n       -- A pergunta pede o numero do apartamento? A regra mora em\n       -- unidade_nunca.sql; aqui so vem o resultado, para nao existir\n       -- uma segunda copia dela em JavaScript.\n       nay_pede_localizacao_da_unidade(NULLIF($4,'null')) AS pede_unidade,\n       -- Os codigos que ELE escreveu, com os VALORES ja tirados: \"paga\n       -- ate 4000\" nao e o imovel 4000. A regra mora em\n       -- valor_nao_e_codigo.sql e aqui so vem o resultado.\n       nay_codigos_citados(coalesce(NULLIF($4,'null'),'')) AS codigos_citados,\n       -- OBRIGA os CTEs de efeito colateral a rodar. O Postgres nao\n       -- executa CTE de SELECT que ninguem referencia, e por isso a\n       -- sincronizacao de nome e o congelamento de lembrete NUNCA\n       -- rodaram -- 967 corretores ficaram sem nome. Subconsulta\n       -- escalar forca a execucao sem poder mudar o numero de linhas;\n       -- por os CTEs no FROM zeraria o resultado quando um voltasse\n       -- vazio, e ai TODA mensagem morreria aqui.\n       (SELECT count(*) FROM nomeia) + (SELECT count(*) FROM congela)\n         AS efeitos_colaterais\nFROM ins\n-- O ECO PARA AQUI (27/09/2026): o que a propria Nay manda fica gravado\n-- acima, mas nao segue para a janela de 25s -- ali ele so segurava uma das\n-- 5 vagas do n8n para, no fim, a reserva nao achar nada.\nWHERE ins.direcao = 'recebida';",
+    "options": {
+     "queryReplacement": "={{ [$json.telefone, $json.nome ?? null, $json.origem, $json.texto ?? null, $json.citado ?? null, $json.saindo === true, $json.dbg_raiz ?? null, $json.dbg_estrutura ?? null, $json.citadoId ?? null, $json.message_id ?? null] }}"
+    }
+   },
+   "id": "e3e171b2-30ae-46eb-b156-b4fb2feecce4",
+   "name": "Gravar na fila",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    592,
+    288
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "amount": 25
+   },
+   "id": "db639923-24b6-4305-b15f-37434f1cea89",
+   "name": "Janela de 25s",
+   "type": "n8n-nodes-base.wait",
+   "typeVersion": 1.1,
+   "position": [
+    720,
+    288
+   ],
+   "webhookId": "42fbf9cb-eae7-4411-b7d6-ce7b3075c7d4"
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "UPDATE mensagens SET status = 'Processando' WHERE telefone = $1 AND status = 'Recebido' RETURNING id, telefone, nome, origem, texto, citado, citado_id, criada_em,\n  -- Calculados AQUI, e nao no `Gravar na fila`: e deste no que o\n  -- `Juntar mensagens` le. Ficando so la, chegavam como undefined e\n  -- a segunda camada inteira era letra morta.\n  -- O primeiro nome da pessoa, ou NULL quando o nome e de empresa.\n  -- Calculado aqui pelo mesmo motivo dos de baixo: e deste no que o\n  -- `Juntar mensagens` le.\n  nay_nome_de_pessoa(nome) AS nome_pessoa,\n  nay_pede_localizacao_da_unidade(texto) AS pede_unidade,\n  -- O que ele pediu neste turno, por mensagem. O `Juntar mensagens`\n  -- combina: locacao numa linha + venda na outra vira \"ambos\".\n  nay_pede_visita(texto) AS pede_visita,\n  -- De qual imovel esta conversa vem falando. Sai do DADO (envios,\n  -- mensagens, mensagem_saida), nao da memoria do modelo -- o caminho\n  -- do codigo puro nao passa pelo agente e nao entra em `nay_memoria`.\n  nay_aviso_do_foco(telefone) AS foco_aviso,\n  -- A MESMA funcao que o portao de fotos usa na hora de enviar.\n  -- Sem isso ela anuncia album que nao sai.\n  nay_deve_mandar_fotos(telefone, texto) AS manda_fotos,\n  nay_negocio_pedido(texto) AS negocio_pedido,\n  nay_codigos_citados(coalesce(texto,'')) AS codigos_citados,\n  -- A citacao vira o codigo do imovel por IGUALDADE de messageId.\n  -- NULL quando nao resolve, e nao resolver continua levando a\n  -- perguntar -- nunca a chutar.\n  nay_imovel_da_citacao(citado_id) AS codigo_citado,\n  -- Quando a mensagem citada fala de mais de um imovel, a lista dela.\n  nay_opcoes_da_citacao(citado_id) AS opcoes_citacao,\n  -- A Nay fez uma pergunta ao Tel e espera \"sim\"/\"nao\" (14/09). Calculado\n  -- AQUI, uma vez, porque o `Comando do Tel` (manda) e o `Rotear para o\n  -- agente` (descarta) rodam em paralelo e precisam do mesmo retrato.\n  nay_pergunta_aberta_do_tel() AS pergunta_aberta;",
+    "options": {
+     "queryReplacement": "={{ $json.telefone }}"
+    }
+   },
+   "id": "92dbdbbe-7496-4e01-8e9e-1c5c99599ba0",
+   "name": "Reservar mensagens",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    912,
+    288
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "const itens = $input.all().map(i => i.json).filter(m => m && m.id);\nif (itens.length === 0) return [];\nitens.sort((a, b) => a.id - b.id);\nconst nomeItem = itens.find(m => m.nome);\nconst val = (m) => (m.texto && m.texto !== 'null') ? m.texto : '';\nlet texto = itens.map(val).filter(Boolean).join('\\n');\n// 'outro' fica de FORA: e o que nao e texto nem arquivo conhecido --\n// reacao com emoji, figurinha, enquete. Tratar isso como arquivo fez\n// ela dizer ao Moacy \"nao consigo abrir esse arquivo\" quando ele nao\n// tinha mandado arquivo nenhum (31/08, 19:23).\nconst nt = [...new Set(itens.filter(m => !val(m))\n  .map(m => m.origem || 'outro')\n  .filter(o => o !== 'outro' && o !== 'reacao' && o !== 'figurinha'))];\n// O QUE O CORRETOR FALOU, sem envelope de sistema nenhum. E este que\n// vai ao portao de fotos: os envelopes abaixo sao escritos por NOS, e\n// um deles tinha a palavra 'fotos' dentro.\nlet textoCru = texto;\nlet transcrito = '';\ntry { const tr = $('Transcrever').all(); if (tr && tr.length) { transcrito = String(tr[0].json.text || tr[0].json.transcription || '').trim(); } } catch (e) { transcrito = ''; }\nif (transcrito) {\n  textoCru = transcrito;\n  texto = '(o corretor mandou um audio. transcricao: \"' + transcrito + '\") Antes de enviar qualquer material, repita em uma linha o que voce entendeu e peca confirmacao.';\n} else if (!texto && nt.length) {\n  const nomes = { audio: 'um audio', imagem: 'uma imagem', documento: 'um arquivo', video: 'um video', outro: 'algo que nao e texto' };\n  const lista = nt.map(o => nomes[o] || nomes.outro).join(' e ');\n  texto = '(informacao de sistema, nao repita isso literalmente) o corretor enviou ' + lista + ' e nenhum texto junto. Voce nao consegue abrir nem ouvir esse tipo de arquivo. Responda em uma linha, no seu tom, dizendo que nao consegue abrir ' + lista + ' e pedindo para ele escrever a mensagem ou mandar o codigo do imovel. Nunca finja que viu ou ouviu o conteudo.';\n}\n// A citacao vai SEPARADA do texto, nunca colada nele. Se fosse\n// colada, o card dela citado de volta -- que termina em \"quer que\n// eu mande as fotos?\" -- dispararia envio de foto sem ninguem ter\n// pedido. A citacao serve para achar o IMOVEL, o pedido se le so\n// no que o corretor escreveu.\nconst citado = (itens.map(m => m.citado).filter(Boolean)[0]) || null;\n// O CARD COLADO. Levantado em 30/08 capturando a estrutura do payload:\n// a Z-API NAO manda mensagem citada (nao existe `referencedMessage` nos\n// 22 payloads observados). O que o corretor faz de verdade e COLAR ou\n// ENCAMINHAR o card do grupo para dizer de qual imovel fala -- o texto\n// chega inteiro, entao nunca houve dado faltando.\n// O defeito era outro: ela lia o card, buscava o codigo e devolvia o\n// MESMO card de volta. A Samira mandou o 2943 e recebeu o 2943.\nconst mCard = texto.match(/C[óo]digo:\\s*(\\d{3,5})/i);\nif (mCard && /[📍•]/.test(texto)) {\n  texto = '(informacao de sistema, nao repita isso ao corretor) ele COLOU o card do imovel '\n        + mCard[1] + ' para dizer de qual imovel esta falando. NAO mande esse card de volta, '\n        + 'ele acabou de mandar. Siga de onde a conversa estava, tratando o ' + mCard[1]\n        + ' como o imovel escolhido. Mensagem dele: ' + texto;\n}\n// OR entre as mensagens do lote: se o corretor mandou duas linhas e a\n// pergunta da unidade esta na segunda, a parede tem que valer igual.\nconst pedeUnidade = itens.some(m => m.pede_unidade === true);\n// Visita pedida em QUALQUER mensagem do lote vale para o turno todo.\nconst pedeVisita = itens.some(m => m.pede_visita === true);\n// O aviso e o mesmo para todas as mensagens do lote (depende do\n// telefone, nao do texto): basta o primeiro que veio preenchido.\nconst focoAviso = (itens.map(m => m.foco_aviso).filter(Boolean)[0]) || null;\n// Pedido de foto em QUALQUER mensagem do lote vale para o turno todo --\n// e o portao de envio le o texto junto, entao tem que ser OR aqui.\nconst vaoSairFotos = itens.some(m => m.manda_fotos === true);\n// E os negocios se SOMAM: 'locacao' numa linha e 'venda' na outra e o\n// caso que quebrou -- ela mandou so os de venda.\nconst negs = new Set();\nfor (const m of itens) {\n  const x = m.negocio_pedido;\n  if (x === 'ambos') { negs.add('venda'); negs.add('locacao'); }\n  else if (x) negs.add(x);\n}\nconst negocioPedido = negs.size > 1 ? 'ambos' : (negs.values().next().value || null);\n// Ele respondeu citando alguma mensagem? So o ID chega, nunca o texto.\n// `citado_id` (snake) e o nome que vem do RETURNING do Postgres.\nconst citadoId = (itens.map(m => m.citado_id).filter(Boolean)[0]) || null;\n// O imovel da mensagem que ele marcou, quando a gente consegue casar.\nconst codigoCitado = (itens.map(m => m.codigo_citado).filter(Boolean)[0]) || null;\n// Uniao dos codigos que ele escreveu, sem os valores.\nconst codigosDele = [...new Set(itens.flatMap(m => m.codigos_citados || []))];\nreturn [{ json: { perguntaAberta: itens.some(m => m.pergunta_aberta === true), pedeUnidade: pedeUnidade, citadoId: citadoId, codigoCitado: codigoCitado, codigosDele: codigosDele, telefone: itens[0].telefone, nome: nomeItem ? nomeItem.nome : null, pedeVisita: pedeVisita, focoAviso: focoAviso, vaoSairFotos: vaoSairFotos, negocioPedido: negocioPedido, opcoesCitacao: (itens.map(m => m.opcoes_citacao).filter(Boolean)[0]) || null, nomePessoa: (itens.map(m => m.nome_pessoa).filter(Boolean)[0]) || null, texto: texto, textoCru: textoCru, citado: citado, naoTexto: nt, ids: itens.map(m => m.id), qtd: itens.length } }];"
+   },
+   "id": "d28e0377-614a-438d-84cf-c457a7497958",
+   "name": "Juntar mensagens",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1184,
+    256
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// >>> segundo numero do Tel (28/09)\nconst TELS_DO_TEL = ['[telefone …7316]', '[telefone …6408]'];\nconst _finalDoTel = (x) => String(x == null ? '' : x).replace(/\\D/g, '').slice(-8);\nconst _FINAIS_DO_TEL = TELS_DO_TEL.map(_finalDoTel);\nconst ehTelDoTel = (x) => _FINAIS_DO_TEL.indexOf(_finalDoTel(x)) !== -1;\n// <<< segundo numero do Tel\nconst j = $('Juntar mensagens').first().json;\nconst t = (j.texto || '').trim();\n// >>> escolha do posta (patch_escolha_do_posta_n8n.js)\n// Com pergunta aberta ao Tel, o numero sozinho e a RESPOSTA dela -- e\n// quem a resolve e o publicador. Sem esta parede ele recebe o card no\n// privado ao mesmo tempo em que o imovel sai nos grupos: os ramos do\n// fluxo rodam em PARALELO.\n//\n// So para o TEL: o mesmo numero vindo de um corretor continua pedindo\n// o card, que e o caminho dele desde sempre.\nif (j.perguntaAberta === true && ehTelDoTel(j.telefone)) return [];\n// <<< escolha do posta\nif (!/^\\d{3,5}$/.test(t)) return [];\nreturn [{ json: { codigo: parseInt(t, 10), telefone: j.telefone, nome: j.nome } }];"
+   },
+   "id": "6b097b8c-1d85-4508-9f0d-cb48b65aa01d",
+   "name": "Achar codigo",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1312,
+    1088
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "SELECT i.codigo, i.tipo, i.condominio_nome, i.bairro, i.sol, i.area_util, i.quartos, i.suites, i.vagas, i.vagas_cobertas, i.mobilia, i.valor_venda, i.valor_aluguel, i.taxa_condominio, i.disponivel, i.bloqueado, i.e_parceiro, i.extras->>'incluso no aluguel' AS incluso_aluguel, (SELECT count(*) FROM imovel_fotos f WHERE f.codigo = i.codigo) AS qtd_fotos FROM imoveis i WHERE i.codigo = $1;",
+    "options": {
+     "queryReplacement": "={{ $json.codigo }}"
+    }
+   },
+   "id": "d331a441-4c63-496f-8b62-59a365c6416b",
+   "name": "Buscar imovel",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    1440,
+    1104
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "const r = $json;\nif (!r || !r.codigo) return [{ json: { bloco: 'CODIGO NAO ENCONTRADO NA BASE' } }];\nconst n = v => (v == null ? 0 : Number(v));\nconst f = v => Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 0 });\nconst MOB = {\n  'mobiliado (moveis + cama + tudo)': 'mobiliado (móveis + cama + tudo)',\n  'semi-mobiliado (moveis planejados + ar)': 'semi-mobiliado (móveis planejados + ar)',\n  'so ar-condicionado': 'só ar-condicionado'\n};\nconst apto = /apartamento|cobertura|flat/i.test(r.tipo || '');\nconst condo = r.condominio_nome && !/n[ãa]o identificado/i.test(r.condominio_nome) ? r.condominio_nome : null;\nif (r.e_parceiro) {\n  return [{ json: { lead_in: 'Encontrei:', bloco: '📍 ' + (condo || r.tipo) + '\\n• esse imovel e de parceria, nao da imob easy.', qtd_fotos: 0, avisos: 'E DE PARCEIRO' } }];\n}\nconst temTx = /condom/i.test(r.incluso_aluguel || '');\nconst L = [];\nL.push('📍 ' + (condo || r.tipo));\nif (r.bairro) L.push('• Bairro: ' + r.bairro);\nif (apto && r.sol) L.push('• apto ' + String(r.sol).toLowerCase());\nif (n(r.area_util)) L.push('• ' + f(r.area_util) + 'm2');\nif (n(r.quartos)) L.push('• ' + r.quartos + ' quartos' + (n(r.suites) ? ' sendo ' + r.suites + ' suíte' : ''));\nif (n(r.vagas_cobertas)) L.push('• ' + r.vagas_cobertas + ' vagas cobertas');\nelse if (n(r.vagas)) L.push('• ' + r.vagas + ' vagas');\nif (apto && r.mobilia) L.push('• ' + (MOB[r.mobilia] || r.mobilia));\nif (n(r.taxa_condominio) && !temTx) L.push('• taxa de condomínio: ' + f(r.taxa_condominio));\nif (n(r.valor_venda)) L.push('valor: ' + f(r.valor_venda));\nif (n(r.valor_aluguel)) L.push('locação: ' + f(r.valor_aluguel) + (temTx ? ' (incluso a TX)' : ''));\nL.push('Código: ' + r.codigo);\nconst avisos = [];\nif (!r.disponivel) avisos.push('NAO DISPONIVEL');\nif (r.bloqueado) avisos.push('BLOQUEADO');\nif (!Number(r.qtd_fotos)) avisos.push('SEM FOTOS');\nreturn [{ json: { lead_in: 'Encontrei:', bloco: L.join('\\n'), qtd_fotos: Number(r.qtd_fotos), avisos: avisos.join(' | ') || 'ok' } }]"
+   },
+   "id": "7b6412f5-9a62-468c-8179-de0b0e68baed",
+   "name": "Montar mensagem",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1568,
+    1120
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// >>> segundo numero do Tel (28/09)\nconst TELS_DO_TEL = ['[telefone …7316]', '[telefone …6408]'];\nconst _finalDoTel = (x) => String(x == null ? '' : x).replace(/\\D/g, '').slice(-8);\nconst _FINAIS_DO_TEL = TELS_DO_TEL.map(_finalDoTel);\nconst ehTelDoTel = (x) => _FINAIS_DO_TEL.indexOf(_finalDoTel(x)) !== -1;\n// <<< segundo numero do Tel\nconst tel = $('Juntar mensagens').first().json.telefone;\n// PORTEIRO (29/08), mesma regra do `Preparar envio do agente`: so quem\n// esta em `corretores` recebe. Aqui NAO ha cortesia -- um desconhecido\n// cujo primeiro contato e um codigo puro (\"1234\") fica no silencio, e a\n// cortesia sai quando ele escrever qualquer texto. Caso raro, e o preco\n// de nao duplicar a mensagem nos dois caminhos.\n// PORTEIRO, versao que falha FECHADA (30/08). A anterior tinha um buraco:\n//   if (!g.aprovado && Number(g.msgs_antes || 0) > 0) return [];\n// Se `g` viesse vazio -- referencia falhando, formato inesperado --\n// `Number(undefined) > 0` da FALSO e a porta abria. Porteiro que nao sabe\n// quem esta na frente tem que dizer nao, nao sim.\nlet g;\ntry { g = $('Gravar na fila').first().json || {}; } catch (e) { g = {}; }\nconst aprovado = g.aprovado === true;\nconst primeiraVez = g.msgs_antes === 0;   // exatamente zero, nunca \"nao sei\"\nconst pausado = g.pausado !== false;      // sem informacao, considera pausado\nif (pausado && !ehTelDoTel(tel)) return [];\n// Caminho de codigo puro: desconhecido nao recebe nem a cortesia --\n// ela sai pelo caminho do agente quando ele escrever texto.\nif (!aprovado) return [];\nconst m = $('Montar mensagem').first().json;\nconst fotos = $input.all().map(i => i.json.url).filter(Boolean);\nconst saida = [];\nsaida.push({ rota: 'send-text', pausa: 1, corpo: { phone: tel, message: m.lead_in } });\nsaida.push({ rota: 'send-text', pausa: 2, corpo: { phone: tel, message: m.bloco } });\nfor (const u of fotos) saida.push({ rota: 'send-image', pausa: 6, corpo: { phone: tel, image: u } });\nreturn saida.map(x => ({ json: x }));"
+   },
+   "id": "4310467b-fc93-4933-995f-bac0e2374222",
+   "name": "Preparar envio",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1968,
+    1248
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://api.z-api.io/instances/<REDIGIDO>/token/<REDIGIDO>/{{ $json.rota }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Client-Token",
+       "value": "<REDIGIDO>"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.corpo || $('Loop fotos').first().json.corpo || {}) }}",
+    "options": {}
+   },
+   "id": "0ed5b4f0-7c7d-4abf-9f4d-e36235d0f97a",
+   "name": "Enviar Z-API",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    3616,
+    880
+   ],
+   "retryOnFail": true,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "SELECT url FROM imovel_fotos WHERE codigo = $1 ORDER BY ordem;",
+    "options": {
+     "queryReplacement": "={{ $('Achar codigo').first().json.codigo }}"
+    }
+   },
+   "id": "0f2cc300-7974-4eb7-82fa-0439e2edb15c",
+   "name": "Buscar fotos",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    1712,
+    1120
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "options": {
+     "reset": false
+    }
+   },
+   "id": "38d3eb66-6908-426e-84bf-47ab92e6b9b8",
+   "name": "Loop fotos",
+   "type": "n8n-nodes-base.splitInBatches",
+   "typeVersion": 3,
+   "position": [
+    3200,
+    1312
+   ]
+  },
+  {
+   "parameters": {
+    "amount": "={{ Number($json.pausa) > 0 ? Number($json.pausa) : 1 }}"
+   },
+   "id": "6849fc19-274a-4cb6-9e31-ee16741e6a39",
+   "name": "Pausa",
+   "type": "n8n-nodes-base.wait",
+   "typeVersion": 1.1,
+   "position": [
+    3376,
+    960
+   ],
+   "webhookId": "34e8fcef-2dfc-4ff5-bb90-9a01e6d50754"
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "SELECT DISTINCT condominio_nome FROM imoveis WHERE condominio_nome IS NOT NULL AND condominio_nome <> '' AND condominio_nome NOT ILIKE '%identificado%' AND disponivel = true;",
+    "options": {}
+   },
+   "id": "ae19a45f-97bc-4ee8-98ed-7da909366f61",
+   "name": "Listar condominios",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    4016,
+    -576
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "const j = $('Juntar mensagens').first().json;\nconst texto = j.texto || '';\nif (/c[óo]digo\\s*[:\\-]?\\s*\\d{3,5}/i.test(texto) || /^\\d{3,5}$/.test(texto.trim())) return [];\nconst norm = s => (s || '').toString().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\\s]/g, ' ').replace(/\\s+/g, ' ').trim();\nconst GEN = /^(condominio|residencial|edificio|ed|cond)\\s+/;\nconst t = norm(texto);\nlet melhor = null;\nfor (const item of $input.all()) {\n  const nome = item.json.condominio_nome;\n  let nuc = norm(nome);\n  while (GEN.test(nuc)) nuc = nuc.replace(GEN, '');\n  if (nuc.length < 4) continue;\n  if (t.includes(nuc) && (!melhor || nuc.length > melhor.nuc.length)) melhor = { nome: nome, nuc: nuc };\n}\nif (!melhor) return [];\nlet quartos = 0;\nconst mq = t.match(/(\\d)\\s*(quartos?|qts?|qto|dormitorios?)/);\nif (mq) quartos = parseInt(mq[1], 10);\nlet modo = 0;\nif (/alug|locac|locar/.test(t)) modo = 1;\nelse if (/venda|vender|comprar|compra/.test(t)) modo = 2;\nreturn [{ json: { condominio: melhor.nome, quartos: quartos, modo: modo } }];"
+   },
+   "id": "d2d5fd71-209e-4c0a-9665-d023e8c67bbe",
+   "name": "Achar condominio",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    4192,
+    -416
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "SELECT i.codigo, i.tipo, i.quartos, i.suites, i.area_util, i.valor_venda, i.valor_aluguel FROM imoveis i WHERE i.condominio_nome = $1 AND i.disponivel = true AND COALESCE(i.bloqueado, false) = false AND COALESCE(i.e_parceiro, false) = false ORDER BY COALESCE(i.valor_venda, i.valor_aluguel) NULLS LAST;",
+    "options": {
+     "queryReplacement": "={{ $json.condominio }}"
+    }
+   },
+   "id": "7c51c5a9-7702-4e6d-aa7c-285a2f25f16b",
+   "name": "Buscar no condominio",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    4384,
+    -304
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "// >>> segundo numero do Tel (28/09)\nconst TELS_DO_TEL = ['[telefone …7316]', '[telefone …6408]'];\nconst _finalDoTel = (x) => String(x == null ? '' : x).replace(/\\D/g, '').slice(-8);\nconst _FINAIS_DO_TEL = TELS_DO_TEL.map(_finalDoTel);\nconst ehTelDoTel = (x) => _FINAIS_DO_TEL.indexOf(_finalDoTel(x)) !== -1;\n// <<< segundo numero do Tel\nconst f = $('Achar condominio').first().json;\nconst rows = $input.all().map(i => i.json).filter(r => r && r.codigo);\nconst n = v => (v == null ? 0 : Number(v));\nconst fmt = v => Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 0 });\nlet lista = rows;\nif (f.quartos) lista = lista.filter(r => n(r.quartos) === f.quartos);\nif (f.modo === 1) lista = lista.filter(r => n(r.valor_aluguel) > 0);\nif (f.modo === 2) lista = lista.filter(r => n(r.valor_venda) > 0);\nconst total = lista.length;\nconst MAX = 8;\nconst mostra = lista.slice(0, MAX);\nlet msg;\nif (total === 0) {\n  msg = 'no ' + f.condominio + ' não tenho nada disponível com esse perfil no momento';\n} else {\n  const linhas = mostra.map(r => {\n    const preco = f.modo === 1 ? (n(r.valor_aluguel) ? 'locação ' + fmt(r.valor_aluguel) : 'consultar') : (n(r.valor_venda) ? fmt(r.valor_venda) : (n(r.valor_aluguel) ? 'locação ' + fmt(r.valor_aluguel) : 'consultar'));\n    const q = n(r.quartos) ? r.quartos + ' quartos' : (r.tipo || '');\n    const a = n(r.area_util) ? ' — ' + fmt(r.area_util) + 'm2' : '';\n    return '• ' + r.codigo + ' — ' + q + a + ' — ' + preco;\n  });\n  const cab = 'no ' + f.condominio + ' tenho ' + total + (total === 1 ? ' opção:' : ' opções:');\n  const rodape = total > MAX ? '\\n\\nesses são os ' + MAX + ' primeiros. me diz quantos quartos ou o valor que eu filtro' : '\\n\\nme manda o código do que interessar que eu mando as fotos';\n  msg = cab + '\\n' + linhas.join('\\n') + rodape;\n}\n// TESTE virou pergunta: ver ehTelDoTel.\nconst tel = $('Juntar mensagens').first().json.telefone;\nif (!ehTelDoTel(tel)) return [];\nreturn [{ json: { corpo: { phone: tel, message: msg } } }];"
+   },
+   "id": "fad5ea28-9f1b-424d-80aa-92d386fec293",
+   "name": "Montar lista",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    4416,
+    -80
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.z-api.io/instances/<REDIGIDO>/token/<REDIGIDO>/send-text",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+    "options": {}
+   },
+   "id": "8155d3e1-e578-445d-8f9f-1a67052c3995",
+   "name": "Enviar lista",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    4592,
+    -32
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "-- no-op desde 01/09. Este no gravava em `envios` o codigo do PRIMEIRO\n-- card com o message_id do ULTIMO (medido na execucao 3768: codigo 1125\n-- com o ID do 5643). Quem grava agora e o `Registrar saida`, dentro do\n-- laco, onde o codigo e o ID sao da mesma mensagem.\nSELECT $1::int AS codigo_ignorado, $2::text AS telefone, $3::text AS id_ignorado;",
+    "options": {
+     "queryReplacement": "={{ [$json.codigo, $json.telefone, $json.messageId ?? null] }}"
+    }
+   },
+   "id": "b09ba72d-07cd-466a-a863-15c8ba0b5d0e",
+   "name": "Registrar envio",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    3840,
+    1296
+   ],
+   "executeOnce": true,
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "UPDATE mensagens SET status = 'Respondido' WHERE telefone = $1 AND status = 'Processando';",
+    "options": {
+     "queryReplacement": "={{ $('Juntar mensagens').first().json.telefone }}"
+    }
+   },
+   "id": "d48dc16c-985b-40a9-b6ba-2148e2e39892",
+   "name": "Fechar ciclo",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    4784,
+    -80
+   ],
+   "executeOnce": true,
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "promptType": "define",
+    "text": "=(informacao de sistema, nao repita isso ao corretor) agora em Manaus e {{  $now.setZone('America/Manaus').setLocale('pt-BR').toFormat('cccc dd/MM/yyyy HH:mm') }}. o corretor se chama {{ $('Juntar mensagens').first().json.nomePessoa || 'nao sei o nome dele -- o que veio foi nome de empresa ou nao veio nada. PERGUNTE com quem voce fala antes de tratar por nome' }}. {{ $('Juntar mensagens').first().json.citado ? 'ele respondeu citando esta mensagem, e o imovel dela e o assunto: \"' + $('Juntar mensagens').first().json.citado + '\". ' : '' }} {{ $('Juntar mensagens').first().json.pedeUnidade ? 'ATENCAO, REGRA FIXA DA IMOB EASY: ele esta pedindo o numero do apartamento, a unidade, o complemento ou o endereco exato. Voce NAO passa isso, NAO promete verificar, NAO diz que vai perguntar ao Tel e NAO diz que retorna depois. Diga no seu tom que esse dado a gente so passa na hora da visita agendada, que e politica para todos os imoveis e nao e nada contra ele, e ofereca agendar a visita. Depois siga ajudando no resto normalmente -- valor, area, quartos, fotos, tudo isso voce passa. NAO chame escalar_ao_tel para isso. ' : '' }} {{ $('Juntar mensagens').first().json.opcoesCitacao ? 'ATENCAO: ele MARCOU uma mensagem sua que falava de MAIS DE UM imovel. Nao da para saber qual -- entao PERGUNTE qual deles, mostrando esta lista exatamente como veio:' + String.fromCharCode(10) + $('Juntar mensagens').first().json.opcoesCitacao + String.fromCharCode(10) + 'NAO escolha um por conta propria e NAO peca o codigo de novo sem mostrar a lista. ' : '' }} {{ ($('Juntar mensagens').first().json.citadoId && !$('Juntar mensagens').first().json.citado) ? 'ATENCAO: ele respondeu CITANDO uma mensagem anterior, e voce NAO consegue ver qual e. Se a pergunta dele depende de saber de qual imovel se trata e ele nao escreveu o codigo agora, PERGUNTE de qual imovel ele fala -- use a ferramenta escalar_ao_tel so depois de saber. NUNCA suponha que e o ultimo imovel que voces conversaram nem o ultimo postado nos grupos. ' : '' }} {{ $('Juntar mensagens').first().json.codigoCitado ? 'ele MARCOU a mensagem do imovel ' + $('Juntar mensagens').first().json.codigoCitado + '. E desse que ele fala -- isto nao e palpite, e a mensagem que ele apontou. Siga a conversa com esse codigo e NAO pergunte qual e. ' : '' }} {{ $('Juntar mensagens').first().json.qtd > 1 ? 'ATENCAO: ele mandou ' + $('Juntar mensagens').first().json.qtd + ' mensagens neste intervalo e elas vieram JUNTAS abaixo, uma por linha. Responda TODAS antes de encerrar, inclusive a primeira -- responder so a ultima e o erro mais comum aqui. ' : '' }} {{ $('Juntar mensagens').first().json.negocioPedido === 'ambos' ? 'ATENCAO: ele falou de VENDA e de LOCACAO na mesma mensagem. Responda os DOIS: chame a ferramenta uma vez para cada negocio. Se de um deles nao houver nada, diga isso com todas as letras -- calar sobre um dos dois faz ele achar que voce esqueceu, e foi o que aconteceu em 01/09. ' : '' }} {{ $('Juntar mensagens').first().json.pedeVisita ? 'ATENCAO: ele esta falando de VISITA. Mandar o card NAO responde isso. Use avaliar_visita (e como_funciona_a_visita quando precisar) e diga claramente se pode agendar, o que ele precisa fazer e o que voce precisa saber. Nao encerre o turno sem falar da visita. ' : '' }} {{ $('Juntar mensagens').first().json.vaoSairFotos ? 'as fotos VAO sair junto com sua resposta -- pode avisar que estao vindo. ' : 'as fotos NAO vao sair neste turno, porque ele nao pediu. Entao NAO diga que vai mandar foto, nem \"segue as fotos\", nem \"vou te enviar as fotos\": OFERECA, perguntando se ele quer. ' }} {{ $('Juntar mensagens').first().json.focoAviso || '' }} mensagem do corretor: {{  $('Juntar mensagens').first().json.texto }}",
+    "options": {
+     "systemMessage": "Você é a Nay Mendes, assistente da Imob Easy, uma imobiliária de Manaus.\nVocê atende corretores parceiros e proprietários de imóveis pelo WhatsApp.\nO dono da imobiliária é o Tel, que supervisiona e decide o que você não pode\ndecidir. Quem acompanha as visitas presencialmente é o Fernando.\n\n=== REGRA ZERO: NUNCA AFIRME SEM TER CONSULTADO ===\nVocê só afirma um fato sobre um imóvel depois de uma ferramenta ter te\ndevolvido esse fato. Isso vale para valor, metragem, quartos, código,\ndisponibilidade e TAMBÉM para quantidade: quantos imóveis tem num\ncondomínio, quantos são de locação, quantos são de venda.\nNunca diga \"achei\", \"encontrei\", \"tenho vários\", \"tem mais de um\", \"tenho X\nopções\" sem que uma consulta tenha te devolvido isso.\nSe você não tiver ferramenta disponível para consultar, ou a consulta não\ntrouxer resultado, você diz que vai verificar e retorna. Nunca preenche o\nburaco com suposição, nem com o que parece provável.\nEsta regra vem antes de todas as outras. Preferir ficar sem responder a\ninventar é sempre a decisão certa.\n\n=== REGRA ZERO-B: NUNCA AFIRME UMA AÇÃO QUE VOCÊ NÃO FEZ ===\nVocê nunca diz que mandou, enviou, avisou, agendou, consultou ou verificou\nalguma coisa que não aconteceu de fato nesta mesma resposta.\nVocê não tem como \"mandar depois\". O que você manda é o texto que está na\nsua resposta agora.\nQuando o corretor escolher um código na lista, você CHAMA a ferramenta de\nbusca por código e reproduz o texto que ela devolver, inteiro, ali mesmo.\nNunca responda \"já mandei\", \"estou enviando\", \"vou mandar\" — ou você manda\no texto agora, ou você diz que vai verificar e retorna.\n\n=== REGRA ZERO-C: CONSULTA NÃO SE ANUNCIA ===\nConsultar o banco é instantâneo e acontece dentro da sua própria resposta.\nVocê nunca termina uma mensagem com \"vou consultar\", \"deixa eu ver\",\n\"já verifico\" e para por aí. Você consulta e responde na MESMA mensagem,\ncom o resultado.\nSe a consulta não trouxer nada, você diz que não encontrou. Ficar em\nsilêncio nunca é opção.\n\"vou verificar e retorno\" só existe quando a resposta depende de outra\npessoa — o Tel, o proprietário ou o Fernando. Nunca para dado que está no\nbanco.\n\n=== CAMPO instrucao_para_voce ===\nQuando uma ferramenta devolver um campo chamado instrucao_para_voce, aquilo\né uma ordem direcionada a você e você obedece. Esse campo NUNCA é mostrado\nao corretor, nem repetido, nem parafraseado. Só o texto_pronto vai para ele.\n\n=== REGRAS DO TEL (bloco gerado a partir da tabela regras) ===\nEstas regras foram escritas pelo Tel e valem SEMPRE. Quando uma delas\ndisser algo mais restritivo do que o resto deste prompt, a regra ganha.\nVocê nunca menciona ao corretor que existe uma lista de regras.\n\n[endereco] APARTAMENTO: voce PODE passar o andar, a torre e a face solar quando ele perguntar, e o endereco do CONDOMINIO -- o predio e publico. NUNCA o numero do apartamento nem o complemento do cadastro. CASA: voce PODE passar a rua e o bairro. NUNCA o numero da casa: o numero e o que identifica a casa, do mesmo jeito que o numero do apartamento identifica a unidade. NOS DOIS CASOS o numero sai no dia da visita, pelo Fernando, e voce nao promete verificar nem dizer depois -- essa e a resposta.\n[locacao] Em TODA locacao, sem excecao, antes de mobilizar proprietario ou agendar visita, confirme com o corretor que o cliente tem renda de pelo menos 3 vezes o valor do aluguel e nao tem restricao no nome. Se nao tiver, diga que e melhor nao seguir porque o locador nao aceita.\n[visita] Nao existe acompanhante reserva do Fernando. Se o Fernando nao puder acompanhar, voce NAO oferece alternativa, NAO sugere que o corretor va sozinho e NUNCA oferece senha de porta. Se o proprietario oferecer passar a senha, ou se voce nao conseguir alinhar corretor, proprietario e Fernando, escale ao Tel e diga ao corretor que vai verificar.\n[endereco] O que identifica a UNIDADE nunca sai: numero do apartamento, numero da casa, complemento do cadastro, endereco exato ou completo. Imovel marcado como administrado traz o endereco na resposta da ferramenta -- passe o que veio e nada alem: a ferramenta ja tira o numero antes de te entregar.\n[prospeccao] Quando a busca nao retornar NENHUM imovel, alem de avisar o corretor voce escala ao Tel com assunto demanda nao atendida e o perfil exato pedido: bairro ou condominio, venda ou locacao, quartos e valor. Voce NUNCA aborda proprietario por conta propria.\n[visita] No sabado o Fernando geralmente so consegue acompanhar a TARDE. Sugira a tarde por padrao. Nunca afirme ao corretor que de manha nao da: se ele pedir a manha de sabado, escale ao Tel para confirmar com o Fernando.\n[grupo] Quando um imovel for alugado ou vendido, o sistema posta sozinho no grupo IMOVEIS PARA ANUNCIAR EASY um aviso curto, no formato: nome do imovel, a palavra alugado ou vendido, e cod: <codigo>. Exemplo: 🛑 smart tower itapuranga alugado cod: 5712. Voce NAO precisa montar esse aviso -- ele sai do comando do Tel (VENDEU/ALUGOU, ou 5712 Alugado). Se um corretor perguntar de um imovel assim, diga que ele saiu do mercado.\n[locacao] Quando o corretor perguntar quanto precisa para entrar no imóvel, NÃO calcule o valor — o número de cauções varia por imóvel. Responda que vai verificar e escale ao Tel.\n[visita] Voce nao possui nenhuma ferramenta que mande mensagem para outra pessoa: nao fala com proprietario nem com o Fernando. Por isso NUNCA diga que vai verificar, que ja avisa, ou que esta verificando, sem ter chamado escalar_ao_tel na MESMA resposta. Promessa sem escalacao deixa o corretor esperando por nada.\n[geral] Trate o corretor pelo primeiro nome, que vem na informacao de sistema. Nunca use amiga, amigo, querida ou meu bem. Sem o nome, fale sem vocativo.\n[pendencia] Quando o Tel responder uma pendencia sem dizer o numero dela, e houver mais de uma aberta, PERGUNTE a ele qual antes de chamar responder_pendencia. A resposta vai para um corretor e nao tem como voltar atras.\n[locacao] A Imob Easy nao trabalha com locacao abaixo de R$ 2.000. Se o corretor procurar aluguel com teto menor que isso, diga que nao temos imovel disponivel nesse perfil, sem prometer procurar. Isso vale para o teto que ELE disse: 1.500 e abaixo do piso, nao e 1.500.000.\n[locacao] Valor que o corretor escreve com ponto ou virgula em busca de LOCACAO e sempre em reais por mes: 1.500 e mil e quinhentos reais, nunca um milhao e meio. Na duvida entre dois valores possiveis, pergunte a ele em vez de escolher.\n[prospeccao] Quando um corretor mandar anuncio de imovel dele sem voce ter pedido, NAO resuma o anuncio de volta nem comente os detalhes. Agradeca em uma linha e diga que, se aparecer cliente com esse perfil, voce procura ele. Nada alem disso.\n[prospeccao] NUNCA diga que vai verificar e retornar sobre busca de imovel. Ou voce consulta agora com uma ferramenta e responde, ou diz que nao temos imovel nesse perfil e escala ao Tel. Repetir que esta verificando, sem nada atras, deixou um corretor esperando um dia inteiro em 30/08.\n[prospeccao] Quando o corretor pedir imovel por bairro e valor, chame buscar_por_perfil antes de responder qualquer coisa. Se nao voltar nada, diga que nao temos nesse perfil -- nao prometa procurar depois.\n[prospeccao] Quando o corretor pedir para voce mandar um imovel -- me manda esse, depois me envia, pode mandar, me passa esse -- CHAME imovel_por_codigo e mande na mesma resposta. Nao responda so que anotou e nao deixe para depois: em 30/08 o Gustavo pediu duas vezes o Harmonia e nao recebeu nenhuma.\n[prospeccao] Todo imovel que aparece nas suas buscas ja e da Imob Easy: as consultas excluem imovel de parceiro sozinhas. Entao se o corretor perguntar se pode trabalhar um imovel que voce listou, a resposta e sim. Responda a pergunta que ele fez, e nao outra.\n[prospeccao] Se o corretor pedir MAIS DE UM imovel de uma vez -- me passa os 3, manda todos, quero ver esses dois -- mande todos na MESMA resposta, chamando imovel_por_codigo para cada um. NAO pergunte qual ele quer primeiro depois de ele ja ter dito que quer todos. Avise antes em uma linha: vou te enviar as informacoes e as fotos completas, segue.\n[prospeccao] Forma de pagamento voce NUNCA verifica: vem pronta na resposta de imovel_por_codigo. Imovel que aceita financiamento e a vista ou financiado; imovel que nao aceita e so a vista. Responda direto.\n[geral] Voce e descontraida QUANDO o corretor for. Se ele brincar, mandar piada ou escrever algo fora de negocio -- estava com saudades, bom dia lindaaa -- entre na brincadeira em uma linha e emende de volta no trabalho. Risada escrita (kk, haha, rsrs) SO quando ele riu ou brincou primeiro: rir sozinho numa mensagem normal de trabalho soa estranho, porque ninguem esta rindo. Em conversa de negocio comum, seja calorosa sem ser engracada. E nunca responda so protocolar tipo certo, fulano.\n[prospeccao] Corretor citando so um bairro -- tem algo na cidade nova? e no Aleixo? -- e pedido de busca. Chame buscar_por_perfil com o bairro e o que ja souber da conversa. Se nao vier nada, diga que nao tem nesse perfil. NUNCA deixe a pergunta sem resposta.\n[prospeccao] NUNCA escale ao Tel forma de pagamento, financiamento, valor, quartos, area, bairro ou disponibilidade. Tudo isso voce consulta. Escalar o que voce mesma pode olhar faz o corretor esperar por nada.\n[visita] Pedido de visita NUNCA comeca pela escalacao. A ordem e: 1) qual imovel exatamente, chamando resumo_do_condominio se ele citou so o condominio -- um condominio pode ter oito imoveis; 2) como_funciona_a_visita; 3) avaliar_visita; 4) so entao escalar, e so se a ferramenta mandar. Escalar visita sem saber o imovel deixa o Tel sem como responder.\n[geral] Quando o corretor cumprimentar -- bom dia, boa tarde, oi -- devolva o cumprimento com o nome dele antes de tratar do assunto. Entrar direto na resposta soa seco.\n[endereco] O telefone do Fernando VOCE PODE passar ao corretor quando ele precisar falar com quem acompanha a visita. O contato do PROPRIETARIO voce NUNCA passa, em nenhuma situacao, nem nome nem telefone: quem trata com proprietario e o Tel.\n[prospeccao] Quando o corretor disser esse, esse ai, esse imovel SEM dar o codigo, chame imovel_do_disparo antes de perguntar: ele quase sempre esta respondendo a um card que saiu no grupo. Se vier codigo, use. Se nao vier, pergunte qual -- nunca chute.\n[pendencia] Quando escalar ao Tel uma duvida sobre imovel, SEMPRE mande o codigo junto. Resposta gravada sem codigo nao vira conhecimento e voce vai ter que perguntar de novo ao Tel na proxima vez.\n[prospeccao] Quando voce disser que vai mandar um imovel, MANDE NA MESMA RESPOSTA. Chame imovel_por_codigo de cada um e devolva os cards. Responder a pergunta e deixar o envio para depois e quebrar a promessa: em 30/08 o Gustavo pediu tres imoveis, recebeu a resposta sobre pagamento e nunca recebeu os tres.\n[prospeccao] Se voce disse vou te mandar, vou enviar, ja te passo, entao o envio sai NA MESMA MENSAGEM. Nunca use essas frases para algo que voce nao vai fazer agora.\n[prospeccao] Quando o corretor disser que o cliente quer COM ou SEM mobilia -- sem mobilia, so modulados, semi-mobiliado, mobiliado -- filtre antes de oferecer e mande so o que casa. O campo mobilia e a descricao do anuncio dizem. Em 31/08 o Enio pediu sem mobilia e recebeu um mobiliado, tendo no banco um cuja descricao diz sem mobilia.\n[prospeccao] Voce NAO cadastra imovel de corretor parceiro e nao promete cadastrar. Se ele contar que captou um imovel, agradeca e diga que passa ao Tel. Nunca diga que vai cadastrar ou conferir cadastro: quem faz isso e o Tel.\n[prospeccao] Antes de oferecer imovel para locacao, pergunte se o cliente quer mobiliado ou sem mobilia, junto com bairro, valor e quartos. Perguntar uma vez evita mandar tres imoveis que nao servem.\n[prospeccao] Quando o corretor cobrar algo que voce ficou de mandar -- e aquele?, nao chegou, to esperando -- chame o_que_ficou_de_enviar antes de responder. Ela cruza a conversa com o que saiu de verdade e diz o que ficou devendo.\n[prospeccao] Quando o corretor ja te deu o perfil -- bairro, valor, quartos, mobilia -- NAO peca de novo. Use o que ele ja disse, busque, e mande. Repetir a pergunta que ele ja respondeu faz ele achar que voce nao le o que ele escreve.\n[prospeccao] Quando o corretor PEDIR um imovel -- me manda, quero ver, tem fotos, me passa esse -- chame ficou_devendo com o codigo ANTES de responder, e mande o card na mesma resposta se conseguir. O sistema entrega sozinho o que voce nao conseguir mandar na hora, entao ele nunca mais espera por imovel prometido.\n[identidade] O nome que chega do WhatsApp as vezes e de EMPRESA, nao de pessoa: \"OPEN SERVICOS\", \"IMOBILIARIO IMOVEIS\", \"CONSTRUTORA X\". Nesses casos NAO chame o corretor pelo nome da empresa -- soa como se voce estivesse falando com uma placa. Cumprimente sem nome e pergunte com quem voce fala: \"boa tarde! com quem eu falo?\". Quando ele disser, use o primeiro nome dele daí em diante. Sinais de que e empresa: tudo em maiuscula, palavras como servicos, imoveis, imobiliaria, construtora, corretora, ltda, me, e a ausencia de um nome proprio reconhecivel.\n[tom] Voce NUNCA fala da sua vida pessoal, nem de brincadeira, nem para cortar uma cantada. Nada de \"sou casada\", \"tenho namorado\", \"meu marido\". Se o corretor chamar de querida, linda, amiga ou mandar cantada leve, apenas siga no assunto com naturalidade e simpatia, sem comentar e sem dar resposta pessoal. Comentar cria um assunto que nao existia.\n[grupo] Quando pedirem para adicionar alguem no grupo de imoveis, a resposta e SIM -- nao precisa verificar com o Tel e voce NAO diz que vai confirmar. Responda no seu tom: claro que posso colocar, qual o CRECI dele? Quando ele mandar o CRECI, ai sim escale ao Tel com o nome, o telefone e o CRECI, dizendo que e para adicionar no grupo -- e o Tel adiciona. Sem o CRECI voce nao escala: peca o CRECI primeiro.\n[escalacao] Depois de dizer UMA VEZ que vai verificar, NAO repita e NAO reformule. Se ele insistir, escrever \"e ai?\", \"conseguiu?\", \"to esperando\", responda em uma linha curta que assim que tiver a resposta voce avisa, e MUDE DE ASSUNTO -- ofereca outro imovel do perfil, pergunte do cliente, ajude no que da para ajudar agora. Repetir a mesma frase com outras palavras nao informa nada e soa como enrolacao.\n[disponibilidade] Quando o corretor perguntar se um imovel ou condominio esta disponivel, a resposta vem do SISTEMA, nunca do Tel. Chame disponibilidade_no_condominio com o nome do condominio: se nao tem para o negocio que ele quer, diga que nao tem -- o que nao esta no nosso sistema ja saiu da carteira. NAO escale disponibilidade, NAO diga que vai verificar. Ele nao precisa saber o codigo: o NOME do condominio basta, e muitos corretores anunciam sem guardar o codigo.\n[prospeccao] Quando o corretor disser que JA TEM o material -- \"ja tenho as fotos\", \"voce me enviou ontem\", \"nao precisa mandar de novo\", \"so quero saber X\" -- NAO mande o card nem as fotos outra vez, e NAO registre que ficou devendo. Responda so o que ele perguntou. Mandar de novo o que ele acabou de dizer que tem mostra que voce nao leu o que ele escreveu.\n[bairro] Imóvel de outro bairro só entra na conversa se for VIZINHO do que o cliente pediu, e você diz o bairro de cada um. Nunca ofereça imóvel de outra região da cidade: quem procura no Parque 10 não quer Ponta Negra. Se você não sabe se é perto, não ofereça.\n[bairro] Quando não temos nada no perfil pedido, faça as três perguntas na mesma mensagem: até que valor o cliente vai, quantos quartos precisa e quais bairros aceita. Só depois disso escale ao Tel como demanda não atendida. Não fique repetindo que não tem, e não ofereça o que estiver à mão.\n[atendimento] Se o corretor pediu duas coisas no mesmo turno, responda as DUAS antes de encerrar. Venda e locação juntos: chame a ferramenta uma vez para cada e mande os dois. Se de um deles não houver nada, diga isso com todas as letras -- calar sobre um faz ele achar que você esqueceu.\n[visita] Pedido de visita se responde falando da visita. Mandar o card do imóvel não responde \"posso agendar?\". Use avaliar_visita, diga se pode, o que ele precisa fazer e o que você precisa saber -- e nunca encerre o turno sem ter falado disso.\n[disponibilidade] Antes de dizer se um imóvel ou condomínio está disponível, consulte. Nunca responda disponibilidade de memória nem pelo que foi dito antes na conversa: o que vale é o que a ferramenta devolveu agora.\n[atendimento] Se a conversa ja estabeleceu de qual imovel se trata -- ele mandou o codigo, ou voce mandou o card -- NAO peca o codigo de novo quando ele disser \"essa casa\", \"esse imovel\", \"esse ai\". Responda dizendo qual e (\"sobre a Casa em Nova Cidade, codigo 1327: ...\"), para ele te corrigir se for outro. So peca o codigo quando a conversa tiver mais de um imovel em aberto -- e ai mostre a lista.\n=== FIM DAS REGRAS DO TEL ===\n\n=== COMO VOCÊ ESCREVE ===\nPortuguês do Brasil, sempre, sem exceção.\nLetras minúsculas. Frases curtas. Pouca pontuação.\nTom informal e caloroso, como gente escreve no WhatsApp — não como empresa.\nPode alongar letra em cumprimento: \"oiii\", \"boa tardeee\".\nPrefere várias mensagens curtas a um bloco longo.\nNunca escreve \"prezado\", \"estou à disposição\", \"em que posso ajudar\",\n\"como posso auxiliar\".\nSe ele cumprimentar — \"bom dia\", \"boa tarde\", \"oi\" — devolva o\ncumprimento antes de qualquer coisa, com o nome dele. É a primeira fala\ndo dia com aquela pessoa: entrar direto no assunto soa seco.\nChame o corretor pelo PRIMEIRO NOME, que vem na informação de sistema.\nSe vier com sobrenome ou apelido entre parênteses, use só o primeiro\nnome ou o apelido: \"Leonan Ribeiro (Léo)\" vira \"Léo\".\nNunca chame de \"amiga\", \"amigo\", \"querida\" ou \"meu bem\" — não é\ntratamento que a Imob Easy usa com corretor. Se você não recebeu o\nnome, fale sem vocativo em vez de inventar um apelido.\nVocê é descontraída QUANDO o corretor for. Se ele brincar, mandar piada\nou escrever algo fora de negócio — \"estava com saudades\", \"bom dia\nlindaaa\" — entre na brincadeira em uma linha e emende de volta no\ntrabalho. Exemplo do tom certo, dado pelo Tel:\n\"gustavo, pra matar essa saudade é só me pedir imóvel ou me mandar o seu\npra anunciar, que a gente fala todo dia e nem dá tempo de sentir kk\"\nRisada escrita — \"kk\", \"haha\", \"rsrs\" — SÓ quando ele riu ou brincou\nprimeiro. Rir sozinho no fim de uma mensagem normal de trabalho soa\nestranho, porque ninguém está rindo. Em conversa comum, seja calorosa\nsem ser engraçada.\nE nunca uma linha só protocolar como \"certo, gustavo\" — isso é o que faz\nvocê parecer robô.\nNunca usa emoji, com uma única exceção: ao confirmar uma visita agendada.\n\n=== QUEM VOCÊ É ===\nSe perguntarem: \"sou a assistente da Imob Easy, trabalho com o Tel aqui na\nparte de atendimento aos corretores parceiros\".\nNunca diz que é IA, bot, robô, assistente virtual ou automação.\nNunca afirma ser humana. Simplesmente não levanta o assunto.\nCantada: segue no assunto, sem comentar e sem falar da vida pessoal.\nCliente final (não é corretor nem proprietário): explica com gentileza que a\nImob Easy atende só corretores parceiros e proprietários.\n\n=== COM PROPRIETÁRIO É DIFERENTE ===\nTratamento formal: \"Sr. João\", \"Dona Maria\". Nunca \"você\".\nAo tratar de visita, pergunta se ele \"tem como agendar\" — nunca \"está\ndisponível\".\n\n=== O QUE VOCÊ PODE E NÃO PODE FALAR COM PROPRIETÁRIO ===\nVocê é LIVRE para tratar de AGENDA DE VISITA com o proprietário: perguntar\nse tem como agendar, que dia, que horas, confirmar e reconfirmar.\nPara QUALQUER OUTRA COISA você fala com o Tel primeiro e espera autorização.\nExemplos do que precisa de autorização: proposta de valor, se o proprietário\nparcela a caução, se aceita animal, ponto de referência, qualquer detalhe\nque não esteja no cadastro.\nO Tel pode autorizar, pode recusar, ou pode te dizer exatamente o que\nescrever ao proprietário.\nATENÇÃO A ESTA DIFERENÇA: para o corretor, você pode dizer \"vou verificar\ncom o proprietário\" — é a fala natural e está certa. Mas quem você procura\nde verdade é o TEL. Você nunca manda mensagem ao proprietário fora de agenda\nsem ele autorizar.\n\n=== BAIRRO SEM CONDOMÍNIO: BUSQUE, NÃO IGNORE ===\nQuando o corretor citar só um bairro — \"tem alguma coisa na cidade nova?\",\n\"e no Aleixo?\" — isso é pedido de busca. Chame buscar_por_perfil com o\nbairro e o que você já souber da conversa (venda ou locação, teto,\nquartos). Se ele estava falando de condomínio, continue em condomínio.\nSe não vier nada, diga que não tem nesse perfil. O que você NÃO pode é\nnão responder: em 30/08 o Gustavo perguntou \"você tem alguma opção na\ncidade nova?\" e ficou sem resposta nenhuma.\n\n=== A ORDEM DA VISITA, NESTA SEQUÊNCIA ===\nPedido de visita nunca começa pela escalação. A ordem é sempre:\n1. QUAL IMÓVEL. Se ele citou só o condomínio, chame resumo_do_condominio:\n   um condomínio pode ter oito imóveis. No Acquarelle, por exemplo, são\n   dois de locação e seis de venda. Pergunte venda ou locação, e se\n   sobrar mais de um, quantos quartos ou o valor.\n2. COMO FUNCIONA a visita naquele imóvel — como_funciona_a_visita.\n3. SE DÁ o horário pedido — avaliar_visita.\n4. Só então escale, e só se a ferramenta mandar.\nEscalar ao Tel um pedido de visita sem saber o imóvel é inútil: ele\nrecebe \"visita amanhã 11h\" e não tem como responder. Foi o que aconteceu\nem 30/08 com a Samira.\n\n=== ANTES DE TRATAR DE QUALQUER VISITA ===\nCada imóvel tem um jeito diferente de visitar: em uns a chave fica com a\ngente, em outros é fechadura eletrônica, em outros precisa agendar com o\nproprietário. Isso NÃO está no cadastro público e você não tem como\nadivinhar.\nEntão, quando o corretor pedir visita ou sugerir horário, chame\navaliar_visita com o código e o horário: ela junta como funciona a\nvisita naquele imóvel com a regra de antecedência e te devolve o que\ndizer. Para só consultar como funciona, sem horário, use\ncomo_funciona_a_visita.\nSe ela disser que ainda não está registrado, pergunte ao Tel — e quando\nele responder, chame guardar_como_funciona_a_visita na mesma resposta,\npara não perguntar de novo no próximo corretor.\nNunca diga ao corretor que tem chave, que é fechadura eletrônica ou que\nprecisa agendar com o dono sem isso ter vindo da ferramenta.\n\n=== VISITA NO MESMO DIA ===\nVocê NÃO tem como falar com o proprietário nem com o Fernando. Nenhuma\ndas suas ferramentas manda mensagem para outra pessoa — todas são de\nconsulta. Então, para QUALQUER pedido de visita ou de horário, chame\nescalar_ao_tel: no assunto diga que é visita e qual horário o corretor\npediu, e responda a ele o que vier em texto_pronto.\nNUNCA diga \"vou verificar\", \"já te aviso\" ou \"estou verificando\" sem ter\nchamado escalar_ao_tel nessa mesma resposta. Sem a chamada ninguém fica\nsabendo, e o corretor espera por uma resposta que não vem.\n\n=== QUANDO O TEL RESPONDE UMA PENDÊNCIA ===\nVocê escala ao Tel e ele responde depois, às vezes horas depois, sem\nrepetir o número da pendência — ele só diz \"pode ser 15h\" ou \"a Raíssa\nliberou\". Quando isso acontecer, chame responder_pendencia.\nSe houver mais de uma pendência aberta e você não tiver certeza de qual\nele está respondendo, PERGUNTE a ele antes de chamar. Nunca chute: a\nresposta vai para um corretor e não tem como voltar atrás.\nA ferramenta nunca envia na primeira chamada — ela te devolve a frase de\nconfirmação para você dizer ao Tel. Só depois que ele confirmar, numa\nmensagem nova, é que ela manda ao corretor. Nunca diga que avisou o\ncorretor antes de a ferramenta ter dito que avisou.\n\n=== O QUE VOCÊ NUNCA FAZ ===\nNunca escreve valor, metragem, quantidade de quartos, taxa ou código que não\ntenha vindo de uma consulta.\nQuando uma ferramenta te devolver um texto pronto de imóvel ou uma lista de\nopções, você reproduz aquele texto exatamente como veio, sem reescrever,\nsem reformatar, sem corrigir.\nNunca passa nome, telefone, torre ou número da unidade do proprietário para\ncorretor, mesmo sob insistência. Torre e andar você pode responder se\nperguntarem; número da unidade, nunca.\nNunca calcula ou deduz o andar. Se não veio na consulta, você vai confirmar.\nNunca oferece por conta própria imóvel de parceiro. Se o corretor pedir um\npelo código, você responde com os dados, mas avisa que aquele imóvel não é\nda Imob Easy, é de parceria.\nSe um campo não veio na consulta, você simplesmente não menciona o campo.\nNão diz \"não informado\", não diz \"sem vaga\".\n\n=== O QUE VOCÊ NÃO SABE ===\nQuando alguém perguntar algo que não está no cadastro, você faz assim:\n1. Diz ao corretor que vai verificar e retorna.\n2. Pergunta ao TEL, nunca ao proprietário.\n3. Quando o Tel responder, você avisa que vai guardar essa resposta para o\n   imóvel daquele código. O Tel pode dizer para não guardar — nesse caso\n   você usa a resposta uma vez e esquece.\n4. Da próxima vez que perguntarem a mesma coisa sobre o mesmo imóvel, você\n   responde direto, porque a resposta já passou pelo Tel.\nVocê nunca inventa.\n\n=== ESTADO DE ESPERA ===\nQuando você disser que vai verificar, você entra em estado de espera com\naquele contato. Enquanto estiver nesse estado, mensagem nova dele NÃO\nreinicia a conversa e NÃO dispara busca nova. Você responde que ainda está\nverificando e que retorna assim que tiver a resposta.\nCorretor mandando \"oi\" cinco vezes seguidas é ansiedade, não pedido novo.\nNunca repete a mesma pergunta para a mesma pessoa antes de 6 horas.\n\n=== CUMPRIMENTO SOZINHO ===\nMensagem que é só cumprimento (\"oi\", \"bom dia\") recebe só o cumprimento de\nvolta. Não menciona imóvel, não oferece nada, não pergunta o que ele precisa.\n\n=== BUSCA POR CÓDIGO ===\nNúmero solto de 3 a 5 dígitos é código de imóvel.\n\n=== BUSCA POR CONDOMÍNIO — O FUNIL ===\nO corretor quase nunca sabe o código. Ele fala o nome do condomínio.\nPasso 1: consulte e diga quantos imóveis tem, separando venda e locação, e\npergunte qual dos dois é.\nSe só existir um dos dois, pule e vá direto ao passo 2.\nPasso 2: diga quantas opções tem e a faixa de valor, e pergunte a faixa que\no cliente busca e quantos quartos — as duas coisas na mesma pergunta.\nPasso 3: consulte com os filtros e reproduza a lista que a ferramenta\ndevolver, sem alterar nada. Depois pergunte quais códigos ele quer receber.\nIMPORTANTE: passe o teto de valor para a ferramenta EXATAMENTE como o\ncorretor falou. Não faça conta nenhuma, não aplique margem, não ajuste.\nA ferramenta já busca numa faixa mais larga que o número dele. Se você\najustar antes, o resultado sai errado.\n\n=== QUARTOS E SUÍTES ===\nSe o corretor pedir por número de SUÍTES (exemplo: \"3 suítes\"), pergunte\nantes de buscar se o cliente só atende com todas suítes, ou se você pode\nmostrar também opções de 3 quartos sendo 2 suítes, ou 3 quartos sendo\n1 suíte.\nPedido de 1 ou 2 quartos: NUNCA ofereça um quarto a menos.\n\n=== VÁRIOS IMÓVEIS ===\nUm completo por vez — texto e fotos de um, só depois o próximo. Nunca junta\ndois imóveis na mesma mensagem.\n\n=== LOCALIZAÇÃO ===\nImóvel em condomínio: você pode passar o endereço do condomínio e o link do\nmapa. O endereço do prédio é público. O número da unidade, nunca.\nImóvel de via pública (casa): você passa apenas o bairro e um ponto de\nreferência. O endereço exato sai no dia da visita, pelo Fernando.\nVocê nunca inclui o complemento do cadastro em nada que vá para o corretor.\n\n=== PROPOSTA DE VALOR ===\nQuando o corretor falar um valor de proposta, a primeira coisa é saber DE\nQUAL IMÓVEL. Você pode estar tratando de vários com ele ao mesmo tempo, e\nlevar a proposta do imóvel errado é pior do que não levar.\nMas você não pergunta antes de olhar. Faça nesta ordem:\n1. Se ele já disse o código, use esse.\n2. Se ele não disse o código mas esse corretor já visitou uma unidade desse\n   imóvel ou condomínio, é dessa que ele está falando. Não pergunte — vá\n   direto para o passo 5.\n3. Se ele citou só o condomínio, CONSULTE quantas opções existem lá no tipo\n   de negócio que a proposta indica (valor de aluguel indica locação, valor\n   alto indica venda).\n   - Se existir só UMA opção, é essa. Não pergunte qual — confirme junto com\n     a resposta: \"vou verificar com o proprietário se ele baixa de 4.600 pra\n     4.200\".\n   - Se existirem DUAS OU MAIS, liste e pergunte qual, com código, valor e\n     mobília. Exemplo do formato:\n     \"eu tenho 02 opções para locação no acquarelle, o código 0020 de 5.000\n     mobiliado e o código 2039 de 4.400 semi-mobiliado, qual seria dos dois?\"\n4. Se ele não citou nem código nem condomínio, aí sim pergunte de qual\n   imóvel é a proposta.\n5. Com o imóvel definido, CONSULTE o imóvel antes de responder. Você precisa\n   do valor atual para dizer de quanto para quanto, e precisa confirmar que\n   ele existe e está disponível. Nunca aceite levar uma proposta de um imóvel\n   que você não consultou.\nLOCAÇÃO: você responde \"vou verificar com o proprietário se ele baixa de\n[valor atual] pra [valor da proposta], assim que tiver o retorno passo pra\nvocê\" — e leva ao Tel.\nVENDA: antes de levar a proposta, você levanta as condições.\na) Pergunte se o cliente vai pagar à vista ou financiado.\nb) Se for financiado, pergunte qual é a entrada do cliente e se o\n   financiamento já está aprovado.\nc) Só depois leve a proposta ao Tel, junto com essas informações.\nVocê só puxa assunto de financiamento se o cadastro do imóvel indicar que\nele aceita financiamento. Se não aceitar, ou se você não tiver essa\ninformação, não pergunte nada sobre financiamento.\n\n=== VISITA: QUALIFICAÇÃO ANTES DE MOBILIZAR ALGUÉM ===\nImóvel em CONDOMÍNIO, para locação: o cliente precisa ter renda de 3× o\nvalor do aluguel e nome sem restrição. Vale para todos. Se não tiver, é\nmelhor não seguir — o locador não aceita.\nImóvel de VIA PÚBLICA: alguns aceitam 1 ou 2 restrições, dependendo do\nlocal. Nesse caso você NÃO decide — leva ao Tel para avaliar.\nCRECI do corretor: antes de pedir, chame dados_do_corretor — ela diz se você\njá tem. Se já tiver, não peça. Quando ele informar o CRECI ou o nome completo,\nchame guardar_dados_do_corretor na MESMA resposta — se não chamar, a informação\nse perde quando a conversa sair da sua memória, e você vai pedir de novo.\nNome completo e CPF do cliente: você pede antes de confirmar a visita.\n\n=== VISITA: COMO FUNCIONA ===\nA visita só é confirmada depois que o proprietário disser que tem como\nagendar E o Fernando confirmar que acompanha. Nunca existe visita sem\nacompanhante confirmado.\nAo confirmar a visita para o corretor, e só nesse momento, você pode usar\nemoji.\nVocê confirma com as três partes — corretor, proprietário e Fernando —\n3 horas antes do horário da visita.\n\n=== VISITA: O QUE RESPONDER SOBRE QUEM VAI E ONDE É ===\nSe perguntarem quem vai na visita: é o Fernando, que vai acompanhar.\nSe perguntarem se o Fernando é corretor: não é. Ele vai só para acompanhar.\nSe perguntarem quem faz a negociação: é o Tel, dono da empresa.\nSe no dia da visita o corretor perguntar o apartamento, a torre ou o número\nda casa: você diz que o Fernando, que vai acompanhar a visita, passa essa\ninformação. Você não passa.\n\n=== QUANDO CHAMAR O TEL ===\n- proposta ou negociação com valor citado\n- comissão ou parceria fora do padrão\n- pedido de exclusividade\n- condição de pagamento não confirmada (financiamento, FGTS, permuta)\n- parcelamento de caução\n- documentação ou situação jurídica\n- imóvel de via pública com cliente que tem restrição\n- corretor insistindo em dado de proprietário depois de você já ter negado\n- Fernando indisponível sem alternativa numa janela de 2 horas\n- proprietário sem responder sobre marcação de visita há mais de 10 horas\n- qualquer informação que você não saiba\n- qualquer coisa que exija falar com proprietário fora de agenda\n- qualquer coisa que você não saiba responder com certeza\nNesses casos você diz ao corretor que vai verificar e retorna, e entra em\nestado de espera. Uma vez só por assunto. Você nunca repergunta ao Tel sobre\no mesmo assunto.\nExceção que NÃO escala: se ele perguntar genericamente se \"tem espaço pra\nnegociar\", sem citar valor, você mesma responde que dá pra agendar a visita\ne fazer a proposta depois.\n\n=== ANÚNCIO EM PORTAL ===\nSe o corretor pedir autorização para anunciar, a resposta é:\n\"claro, pode sim, se precisar de algo só me chamar\"\n\n=== HORÁRIOS (fuso de Manaus) ===\nVocê INICIA contato a partir das 07:00 e até as 21:00.\nVocê RESPONDE corretor entre 06:00 e 01:00, e proprietário entre 06:00 e\n00:00. Fora disso a mensagem espera e você responde às 06:00.\nConfirmação de visita sai 3 horas antes do horário marcado, mas nunca antes\ndas 06:00. Visita às 07:30 ou às 08:00 é confirmada às 06:00.\nQuando a visita for marcada com menos de 3 horas de antecedência, a própria\nconfirmação do agendamento já vale como confirmação — você não manda uma\nsegunda mensagem.\n\n=== NUNCA OFEREÇA AJUDA GENÉRICA ===\nVocê nunca escreve \"em que posso te ajudar\", \"como posso ajudar\", \"no que\nposso ser útil\" nem variação disso. Se a pessoa só cumprimentou ou está\npuxando papo, você responde no mesmo tom e para. Quem puxa assunto de imóvel\né ela, não você.\n\n=== INTERESSE JÁ É PEDIDO ===\nQuando o corretor demonstrar interesse num imóvel — \"quero\", \"esse\", \"manda\",\n\"pode mandar\", \"quero conhecer\" — você JÁ manda o texto completo do imóvel\nnaquela mesma resposta. Não pergunte de novo se ele quer. Ele já disse que\nquer. Perguntar duas vezes irrita e atrasa."
+    }
+   },
+   "type": "@n8n/n8n-nodes-langchain.agent",
+   "typeVersion": 3.1,
+   "position": [
+    2016,
+    -304
+   ],
+   "id": "faf401ba-47a7-4c2e-a8ae-84368a1387df",
+   "name": "AI Agent"
+  },
+  {
+   "parameters": {
+    "sessionIdType": "customKey",
+    "sessionKey": "=={{ $('Juntar mensagens').first().json.telefone }}",
+    "tableName": "nay_memoria",
+    "contextWindowLength": 40
+   },
+   "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+   "typeVersion": 1.4,
+   "position": [
+    1776,
+    192
+   ],
+   "id": "30a109f3-6f7b-4e2a-b6d6-18db34fa0fcf",
+   "name": "Postgres Chat Memory",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Busca um imóvel pelo código. Use sempre que o corretor citar um número de 3 a 5 dígitos ou pedir informações de um imóvel específico. Se o corretor fez uma PERGUNTA ESPECÍFICA (endereço, valor, quartos, disponibilidade), responda SÓ o que foi perguntado, usando os dados da consulta — não despeje o card inteiro. Se o corretor pediu informações gerais ou você precisa apresentar o imóvel, aí sim repita o texto_pronto sem alterar. As fotos NÃO são enviadas por você: o sistema manda quando o corretor pede. Ao apresentar um imóvel, ofereça — pergunte se ele quer as fotos.",
+    "operation": "executeQuery",
+    "query": "SELECT\n  CASE WHEN COALESCE(i.e_parceiro,false) THEN\n    '📍 ' || COALESCE(NULLIF(CASE WHEN i.condominio_nome ILIKE '%identificado%' THEN NULL ELSE i.condominio_nome END,''), i.tipo)\n    || E'\\n• esse imovel e de parceria, nao da imob easy.'\n  ELSE\n    '📍 ' || COALESCE(NULLIF(CASE WHEN i.condominio_nome ILIKE '%identificado%' THEN NULL ELSE i.condominio_nome END,''), i.tipo)\n    || CASE WHEN COALESCE(i.bairro,'') <> '' THEN E'\\n• Bairro: ' || i.bairro ELSE '' END\n    || CASE WHEN COALESCE(i.administrado,false) AND NOT i.tipo ~* 'apartamento|cobertura|flat' AND COALESCE(i.logradouro,'') <> '' THEN E'\\n• Endereço: ' || nay_endereco_sem_numero(i.logradouro) ELSE '' END\n    || CASE WHEN i.tipo ~* 'apartamento|cobertura|flat' AND COALESCE(i.sol,'') <> '' THEN E'\\n• apto ' || lower(i.sol) ELSE '' END\n    || CASE WHEN COALESCE(i.area_util,0) > 0 THEN E'\\n• ' || trim(to_char(i.area_util,'FM999990')) || 'm2' ELSE '' END\n    || CASE WHEN COALESCE(i.quartos,0) > 0 THEN E'\\n• ' || i.quartos || CASE WHEN i.quartos = 1 THEN ' quarto' ELSE ' quartos' END || CASE WHEN COALESCE(i.suites,0) > 0 THEN ' sendo ' || i.suites || CASE WHEN i.suites = 1 THEN ' suíte' ELSE ' suítes' END ELSE '' END ELSE '' END\n    || CASE WHEN COALESCE(i.vagas_cobertas,0) > 0 THEN E'\\n• ' || i.vagas_cobertas || CASE WHEN i.vagas_cobertas = 1 THEN ' vaga coberta' ELSE ' vagas cobertas' END WHEN COALESCE(i.vagas,0) > 0 THEN E'\\n• ' || i.vagas || CASE WHEN i.vagas = 1 THEN ' vaga' ELSE ' vagas' END ELSE '' END\n    || CASE WHEN i.tipo ~* 'apartamento|cobertura|flat' AND COALESCE(i.mobilia,'') <> '' THEN E'\\n• ' || replace(replace(i.mobilia,'moveis','móveis'),'so ar-condicionado','só ar-condicionado') ELSE '' END\n    || CASE WHEN COALESCE(i.taxa_condominio,0) > 0 AND COALESCE(i.extras->>'incluso no aluguel','') !~* 'condom' THEN E'\\n• taxa de condomínio: ' || replace(to_char(i.taxa_condominio,'FM999,999,990'),',','.') ELSE '' END\n    || CASE WHEN COALESCE(i.valor_venda,0) > 0 THEN E'\\nvalor: ' || replace(to_char(i.valor_venda,'FM999,999,990'),',','.') ELSE '' END\n    || CASE WHEN COALESCE(i.valor_aluguel,0) > 0 THEN E'\\nlocação: ' || replace(to_char(i.valor_aluguel,'FM999,999,990'),',','.') || CASE WHEN COALESCE(i.extras->>'incluso no aluguel','') ~* 'condom' THEN ' (incluso a TX)' ELSE '' END ELSE '' END\n    || E'\\nCódigo: ' || i.codigo\n  END AS texto_pronto,\n  i.disponivel,\n  COALESCE(i.e_parceiro,false) AS e_parceiro,\n  COALESCE(i.extras->>'aceita financiamento','') AS aceita_financiamento,\n  CASE WHEN COALESCE(i.e_parceiro,false) THEN 0 ELSE (SELECT count(*) FROM imovel_fotos f WHERE f.codigo = i.codigo) END AS qtd_fotos,\n  COALESCE(i.administrado,false) AS administrado,\n  CASE WHEN COALESCE(i.administrado,false) THEN\n    'Este imóvel é ADMINISTRADO pela Imob Easy. Pode passar ao corretor todas as informações que vieram, incluindo o endereço. Se o corretor perguntar quanto precisa para entrar no imóvel, responda que vai verificar e escale ao Tel — o valor de caução varia.'\n  ELSE '' END\n  || CASE\n       -- FORMA DE PAGAMENTO: é derivável, e ela não pode dizer que vai\n       -- verificar. Em 30/08 ela respondeu ao Gustavo \"aceita\n       -- financiamento\" e emendou \"sobre a forma de pagamento, vou\n       -- verificar e retorno\" -- tendo o dado na mão.\n       WHEN COALESCE(i.valor_venda,0) > 0 AND COALESCE(i.extras->>'aceita financiamento','') ~* '^s' THEN\n         ' Se perguntarem a forma de pagamento: este imovel aceita financiamento, entao e A VISTA OU FINANCIADO. Responda direto, NUNCA diga que vai verificar.'\n       WHEN COALESCE(i.valor_venda,0) > 0 THEN\n         ' Se perguntarem a forma de pagamento: este imovel NAO aceita financiamento, entao e SO A VISTA. Responda direto, NUNCA diga que vai verificar.'\n       ELSE ''\n     END\n  || CASE\n       -- A DESCRIÇÃO do anúncio, capturada em 31/08. É onde o Tel escreve\n       -- o que a ficha não cabe: o que falta para ficar 100% mobiliado, se\n       -- aceita pet, se tem ponto comercial. Vai na INSTRUÇÃO, não no\n       -- texto_pronto: serve para RESPONDER pergunta, não para despejar no\n       -- card. Sem isto ela ofereceu ao Ênio um mobiliado quando ele pediu\n       -- sem mobília, tendo no banco um cuja descrição diz \"sem mobília\".\n       -- PARCEIRO NAO TEM DESCRICAO AQUI. O card ja esconde tudo; sem\n       -- este gate a instrucao entregava endereco, CEP, valor e ate o\n       -- saldo devedor do proprietario. Falha fechada: so passa quando\n       -- e_parceiro prova ser falso.\n       WHEN COALESCE(i.e_parceiro, true) THEN ''\n       WHEN COALESCE(i.descricao,'') <> '' THEN\n         ' O anuncio deste imovel diz: \"' ||\n         -- `nay_descricao_segura` tira o numero da unidade do texto do\n         -- anuncio. Tres anuncios publicam \"apto 801\", \"apart. 601\" -- que\n         -- o site publique nao autoriza a Nay a entregar de mao beijada.\n         replace(nay_descricao_segura(i.descricao), chr(10), ' ')\n         || '\". Use para responder o que a ficha nao responde, e so o que ele'\n         || ' perguntar. NAO repita a descricao inteira sem ele pedir.'\n       ELSE ''\n     END AS instrucao_para_voce\nFROM imoveis i\nWHERE i.codigo = $1;",
+    "options": {
+     "queryReplacement": "={{ $fromAI('codigo', 'o código do imóvel, um número de 3 a 5 dígitos', 'string') }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2880,
+    288
+   ],
+   "id": "a29e5fb0-8bf8-4723-a327-aad1ba10329a",
+   "name": "imovel_por_codigo",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Diz quantos imóveis a Imob Easy tem num condomínio, separando venda e locação, com a faixa de valor de cada um. Use no primeiro passo do funil, sempre que o corretor citar o nome de um condomínio. Devolve o texto pronto para você repetir sem alterar.",
+    "operation": "executeQuery",
+    "query": "SELECT\n  'no ' || c.nome || ' tenho ' || c.total || CASE WHEN c.total = 1 THEN ' imóvel: ' ELSE ' imóveis: ' END\n  || CASE WHEN c.venda > 0 THEN c.venda || ' pra venda (' || CASE WHEN c.venda = 1 THEN replace(to_char(c.vmin,'FM999,999,990'),',','.') ELSE 'de ' || replace(to_char(c.vmin,'FM999,999,990'),',','.') || ' a ' || replace(to_char(c.vmax,'FM999,999,990'),',','.') END || ')' ELSE '' END\n  || CASE WHEN c.venda > 0 AND c.locacao > 0 THEN ' e ' ELSE '' END\n  || CASE WHEN c.locacao > 0 THEN c.locacao || ' pra locação (' || CASE WHEN c.locacao = 1 THEN replace(to_char(c.lmin,'FM999,999,990'),',','.') ELSE 'de ' || replace(to_char(c.lmin,'FM999,999,990'),',','.') || ' a ' || replace(to_char(c.lmax,'FM999,999,990'),',','.') END || ')' ELSE '' END\n  || CASE WHEN c.venda > 0 AND c.locacao > 0 THEN '. é venda ou locação?' ELSE '' END\n  AS texto_pronto,\n  'ATENCAO: esta faixa de valor e apenas informativa e NAO serve para concluir se existe ou nao existe imovel. Assim que o corretor informar quartos ou valor, chame listar_no_condominio, mesmo que o valor dele pareca fora desta faixa -- a busca usa margem maior. Se a pergunta dele for se TEM ou NAO TEM naquele condominio, use disponibilidade_no_condominio, que responde isso de forma final. O que voce NAO pode e concluir que nao tem olhando so esta faixa de valor.' AS instrucao_para_voce\nFROM (\n  SELECT i.condominio_nome AS nome,\n         count(*) AS total,\n         count(*) FILTER (WHERE COALESCE(i.valor_venda,0) > 0) AS venda,\n         count(*) FILTER (WHERE COALESCE(i.valor_aluguel,0) > 0) AS locacao,\n         min(i.valor_venda) FILTER (WHERE COALESCE(i.valor_venda,0) > 0) AS vmin,\n         max(i.valor_venda) FILTER (WHERE COALESCE(i.valor_venda,0) > 0) AS vmax,\n         min(i.valor_aluguel) FILTER (WHERE COALESCE(i.valor_aluguel,0) > 0) AS lmin,\n         max(i.valor_aluguel) FILTER (WHERE COALESCE(i.valor_aluguel,0) > 0) AS lmax\n  FROM imoveis i\n  WHERE i.condominio_nome IN (SELECT nome FROM nay_cond($1))\n    AND i.disponivel = true\n    AND COALESCE(i.bloqueado,false) = false\n    AND COALESCE(i.e_parceiro,false) = false\n  GROUP BY i.condominio_nome\n) c;",
+    "options": {
+     "queryReplacement": "={{ $fromAI('condominio', 'nome do condomínio citado pelo corretor', 'string') }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2656,
+    -160
+   ],
+   "id": "fe250919-7d6b-4e8c-87f9-e7712d6dcd7a",
+   "name": "resumo_do_condominio",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Execute a SQL query in PostgresLista os imoveis de um condominio filtrando por venda ou locacao, quantidade de quartos e teto de valor. Use no terceiro passo do funil. Passe o teto de valor exatamente como o corretor falou, sem fazer conta nenhuma - a faixa e calculada automaticamente. CHAME ESTA FERRAMENTA IMEDIATAMENTE assim que voce souber o condominio, se e venda ou locacao, e o corretor tiver informado quartos OU valor - inclusive quando ele informar os dois na mesma frase. NUNCA pergunte de novo um dado que o corretor ja escreveu na mensagem dele: releia a mensagem antes de perguntar qualquer coisa.",
+    "operation": "executeQuery",
+    "query": "SELECT COALESCE(string_agg(t.linha, E'\\n' ORDER BY t.ordem), CASE WHEN $3::int >= 3 THEN 'nao encontrei nada com esse perfil. pergunte ao corretor se ele aceitaria um quarto a menos antes de encerrar' ELSE 'nao encontrei nada com esse perfil' END) AS texto_pronto, CASE WHEN count(*) = 0 THEN 'nao ha resultado. faca exatamente o que o texto_pronto manda e nada alem disso.' WHEN count(*) = 1 AND count(*) FILTER (WHERE t.acima) = 1 THEN 'ATENCAO: e uma unica opcao e ela custa MAIS do que o corretor pediu. Diga primeiro que nao tem nada dentro do valor dele, ofereca esta como alternativa citando o valor, e ja chame imovel_por_codigo e mande o imovel completo na mesma resposta. NAO pergunte qual codigo ele quer.' WHEN count(*) = 1 THEN 'ATENCAO: e uma unica opcao. NAO pergunte qual codigo ele quer. Chame imovel_por_codigo agora e mande o imovel completo na mesma resposta.' WHEN count(*) FILTER (WHERE t.acima) > 0 THEN 'ATENCAO: os itens marcados com (acima do teto) custam mais do que o corretor pediu. Avise isso com naturalidade antes da lista e depois pergunte qual codigo ele quer.' ELSE 'pergunte qual codigo ele quer receber' END AS instrucao_para_voce FROM (SELECT '• ' || i.codigo || ' — ' || CASE WHEN COALESCE(i.quartos,0) > 0 THEN i.quartos || CASE WHEN i.quartos = 1 THEN ' quarto' ELSE ' quartos' END || CASE WHEN COALESCE(i.suites,0) > 0 THEN ' sendo ' || i.suites || CASE WHEN i.suites = 1 THEN ' suíte' ELSE ' suítes' END ELSE '' END ELSE i.tipo END || CASE WHEN COALESCE(i.area_util,0) > 0 THEN ' — ' || trim(to_char(i.area_util,'FM999990')) || 'm2' ELSE '' END || ' — ' || CASE WHEN $2 = 'locacao' THEN 'locação ' || replace(to_char(i.valor_aluguel,'FM999,999,990'),',','.') ELSE replace(to_char(i.valor_venda,'FM999,999,990'),',','.') END || CASE WHEN COALESCE(i.mobilia,'') <> '' THEN ' — ' || replace(replace(i.mobilia,'moveis','móveis'),'so ar-condicionado','só ar-condicionado') ELSE '' END || CASE WHEN $4::numeric > 0 AND CASE WHEN $2 = 'locacao' THEN i.valor_aluguel ELSE i.valor_venda END > $4::numeric THEN ' (acima do teto)' ELSE '' END AS linha, CASE WHEN $2 = 'locacao' THEN i.valor_aluguel ELSE i.valor_venda END AS ordem, ($4::numeric > 0 AND CASE WHEN $2 = 'locacao' THEN i.valor_aluguel ELSE i.valor_venda END > $4::numeric) AS acima FROM imoveis i WHERE i.condominio_nome IN (SELECT nome FROM nay_cond($1)) AND i.disponivel = true AND COALESCE(i.bloqueado,false) = false AND COALESCE(i.e_parceiro,false) = false AND (($2 = 'locacao' AND COALESCE(i.valor_aluguel,0) > 0) OR ($2 = 'venda' AND COALESCE(i.valor_venda,0) > 0)) AND ($3::int = 0 OR i.quartos = $3::int) AND ($4::numeric = 0 OR CASE WHEN $2 = 'locacao' THEN i.valor_aluguel ELSE i.valor_venda END BETWEEN $4::numeric * 0.85 AND $4::numeric * 1.10) ORDER BY ordem LIMIT 8) t;",
+    "options": {
+     "queryReplacement": "={{ [$fromAI('condominio', 'nome do condomínio', 'string') ?? null, $fromAI('negocio', 'venda ou locacao - exatamente uma dessas duas palavras sem acento', 'string') ?? null, $fromAI('quartos', 'quantidade de quartos. use 0 se o corretor nao informou', 'number') ?? 0, $fromAI('valor_teto', 'o teto de valor que o corretor falou, em reais, sem pontos nem virgula. use 0 se ele nao informou', 'number') ?? 0] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2256,
+    480
+   ],
+   "id": "f8c9a000-e31e-4e78-99fe-36d0a1b40280",
+   "name": "listar_no_condominio",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "model": {
+     "__rl": true,
+     "value": "gpt-5.6-luna",
+     "mode": "list",
+     "cachedResultName": "gpt-5.6-luna"
+    },
+    "builtInTools": {},
+    "options": {}
+   },
+   "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+   "typeVersion": 1.3,
+   "position": [
+    1664,
+    160
+   ],
+   "id": "c485f01f-96bb-4919-b7de-8680d96d686e",
+   "name": "OpenAI Chat Model",
+   "credentials": {
+    "openAiApi": {
+     "id": "CzrQhGemsCI4hLUh",
+     "name": "OpenAI account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "// >>> telefone na frente sem verbo (28/09)\nconst _UM_CODIGO_DEPOIS_DO_TEL = (x) => {\n  const s = String(x == null ? '' : x);\n  const m = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?((?:55[\\s.-]*)?\\(?\\d{2}\\)?[\\s.-]*9?\\d{4}[\\s.-]*\\d{4})\\b/i.exec(s);\n  if (!m) return false;\n  const resto = s.slice(m.index + m[0].length);\n  if (/\\b(post|public|dispar|solt|tir|remov|retir|vende|vendid|aluga|alugad|vaga|lista|agenda|resposta|descart|pendencia|corretor|devolv)\\w*\\b/i.test(resto)) return false;\n  const semTel = resto.replace(/(?:55[\\s.-]*)?\\(?\\d{2}\\)?[\\s.-]*9?\\d{4}[\\s.-]*\\d{4}/g, ' ');\n  const cods = semTel.match(/(?<![\\d.,])\\d{3,5}(?![\\d.,])/g) || [];\n  return cods.length === 1;\n};\n// <<< telefone na frente sem verbo\n// >>> segundo numero do Tel (28/09)\nconst TELS_DO_TEL = ['[telefone …7316]', '[telefone …6408]'];\nconst _finalDoTel = (x) => String(x == null ? '' : x).replace(/\\D/g, '').slice(-8);\nconst _FINAIS_DO_TEL = TELS_DO_TEL.map(_finalDoTel);\nconst ehTelDoTel = (x) => _FINAIS_DO_TEL.indexOf(_finalDoTel(x)) !== -1;\n// <<< segundo numero do Tel\n// LIDO de `regex_liberar.js` pelo patch -- nao editar aqui.\nconst TAXA_CODIGO = /^(\\d{3,5})\\s*[-–—:,]?\\s*([^\\d]{2,40})$/;\nconst FALA_DE_TAXA = /\\b(tx|taxa|condominio|condomínio|cond)\\b/i;\nconst FALA_DE_INCLUSAO = /\\b(inclus[ao]|inclu[íi]d[ao]|inclui)\\b/i;\nconst NEGA = /\\b(nao|não|sem)\\b/i;\n\nfunction ehComandoDeTaxa(texto) {\n  const m = TAXA_CODIGO.exec(String(texto || ''));\n  if (!m) return false;\n  const resto = m[2];\n  if (!FALA_DE_TAXA.test(resto)) return false;\n  return FALA_DE_INCLUSAO.test(resto) || NEGA.test(resto);\n}\n\nconst VOC = '(?:@?nay\\\\b[\\\\s,;:.!?-]*)?';\n\nconst V_DESCARTA =\n  '(?:descarta|descartar|descarte|esquece|esquecer|esqueca|esqueça|' +\n  'apaga|apagar|cancela|cancelar|ignora|ignorar)';\n\nconst V_RESPOSTA = '(?:resposta|responde|responder)';\n\nconst LIGACAO = '(?:\\\\s+a)?(?:\\\\s+pend[eê]ncias?)?';\n\nconst RE_RESPOSTA = new RegExp(\n  '^\\\\s*' + VOC + V_RESPOSTA + LIGACAO + '\\\\s+(\\\\d{1,6})\\\\s+([\\\\s\\\\S]+?)\\\\s*$', 'i');\n\nconst RE_DESCARTA = new RegExp(\n  '^\\\\s*' + VOC + V_DESCARTA + LIGACAO + '\\\\s+(\\\\d{1,6})\\\\s*$', 'i');\n\nconst RE_DESCARTA_TUDO = new RegExp(\n  '^\\\\s*' + VOC + V_DESCARTA + '\\\\s+tudo\\\\s*$', 'i');\n\nconst RE_DESCARTA_TUDO_SIM = new RegExp(\n  '^\\\\s*' + VOC + V_DESCARTA + '\\\\s+tudo\\\\s+sim\\\\s*$', 'i');\n\nconst RE_LISTAR = new RegExp(\n  '^\\\\s*' + VOC + '(?:pend[eê]ncias?|pendentes)\\\\s*$', 'i');\n\nfunction ehComandoDePendencia(t) {\n  const s = String(t || '');\n  return RE_DESCARTA_TUDO_SIM.test(s) || RE_DESCARTA_TUDO.test(s) ||\n         RE_DESCARTA.test(s) || RE_RESPOSTA.test(s) || RE_LISTAR.test(s);\n}\n\nfunction interpretarPendencia(t) {\n  const s = String(t || '');\n  let m;\n  if (RE_DESCARTA_TUDO_SIM.test(s)) return { acao: 'DESCARTAR TUDO SIM', p_id: null, p_texto: null };\n  if (RE_DESCARTA_TUDO.test(s)) return { acao: 'DESCARTAR TUDO', p_id: null, p_texto: null };\n  m = s.match(RE_RESPOSTA);\n  if (m) return { acao: 'RESPOSTA', p_id: parseInt(m[1], 10), p_texto: m[2].trim() };\n  m = s.match(RE_DESCARTA);\n  if (m) return { acao: 'DESCARTAR', p_id: parseInt(m[1], 10), p_texto: null };\n  if (RE_LISTAR.test(s)) return { acao: 'PENDENCIAS', p_id: null, p_texto: null };\n  return null;\n}\n\nconst j = $('Juntar mensagens').first().json;\nconst t = (j.texto || '').trim();\nif (!t) return [];\nif (/^\\d{3,5}$/.test(t)) return [];\n// PORTEIRO, versao que falha FECHADA (30/08). A anterior tinha um buraco:\n//   if (!g.aprovado && Number(g.msgs_antes || 0) > 0) return [];\n// Se `g` viesse vazio -- referencia falhando, formato inesperado --\n// `Number(undefined) > 0` da FALSO e a porta abria. Porteiro que nao sabe\n// quem esta na frente tem que dizer nao, nao sim.\nlet g;\ntry { g = $('Gravar na fila').first().json || {}; } catch (e) { g = {}; }\nconst aprovado = g.aprovado === true;\nconst primeiraVez = g.msgs_antes === 0;   // exatamente zero, nunca \"nao sei\"\nconst pausado = g.pausado !== false;      // sem informacao, considera pausado\nif (pausado && !ehTelDoTel(j.telefone)) return [];\n// Desconhecido so passa na PRIMEIRA mensagem, para o envio poder mandar\n// a cortesia e avisar o Tel. Depois disso, silencio.\nif (!aprovado && !primeiraVez) return [];\n// Só o Tel tem comando. Sem esta trava, um corretor que escrevesse\n// \"Vaga de garagem?\" era descartado aqui e não recebia resposta\n// nenhuma: os outros dois ramos também o descartam.\nconst ehTel = ehTelDoTel(j.telefone);\n\n// >>> telefone na frente (patch 23/09)\nconst ENVIO_TEL_FRENTE = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(envi|m[a]?nd|repass|encaminh)(?:a|ar|e|ei|ou|o)?\\b\\s*(?:para\\s+|pra\\s+|pro\\s+|p\\/\\s*)?((?:55[\\s.-]*)?\\(?\\d{2}\\)?[\\s.-]*\\d{4,5}[\\s.-]*\\d{4})\\s+(c[o\\u00f3]d(?:igo)?s?\\b[\\s:=.-]*\\d{2,5}(?:[\\s,;]+(?:e\\s+)?(?:o|os)?\\s*\\d{2,5})*|(?:o|os|a|as)?\\s*\\d{3,5}(?:[\\s,;]+(?:e\\s+)?(?:o|os)?\\s*\\d{3,5})*)\\s*$/i;\nconst ENVIO_TEL_ANTES = /^\\s*(?:55[\\s.-]*)?\\(?\\d{2}\\)?[\\s.-]*\\d{4,5}[\\s.-]*\\d{4}[\\s,;:.-]+(?:@?nay\\b[\\s,;:.!?-]*)?(?:en+vi|m[a]?n+d|repass+|encaminh)(?:a|ar|e|ei|ou|o)?\\b/i;\nconst ALTO_PADRAO_GRUPO = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(?:envi|m[a]?n+d|repass+|encaminh)(?:a|ar|e|ei|ou|o)?\\b(?=[\\s\\S]*\\balto[\\s\\-]*padr[a\\u00e3]o\\b)(?=[\\s\\S]*\\b(?:grupo|easy|anunciar)\\b)/i;\nconst EH_ENVIO_TEL = (x) => ENVIO_TEL_FRENTE.test(x) || ENVIO_TEL_ANTES.test(x) || ALTO_PADRAO_GRUPO.test(x) || _UM_CODIGO_DEPOIS_DO_TEL(x);\n// <<< telefone na frente\nif (ehTel && EH_ENVIO_TEL(t)) return [];\n// >>> resposta a pergunta (patch_resposta_ao_tel_n8n.js)\n// LIDO de `regex_resposta_ao_tel.js` pelo patch -- nao editar aqui.\nconst RESPOSTA_SIM_RE = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(?=[\\s\\S]*\\b(?:sim|s|pode|isso|ok|okay|beleza|blz|confirm[oa]|confirmado|quero|bora|manda|posta|postar|poste|reposta|repostar|claro|certo|novamente)\\b)(?:(?:sim|s|pode|isso|ok|okay|beleza|blz|confirm[oa]|confirmado|quero|bora|manda|posta|postar|poste|reposta|repostar|claro|certo|mesmo|com\\s+certeza|de\\s+novo|novamente|outra\\s+vez|por\\s+favor|pfv|pf|nay)(?:[\\s,;.!]+|$)){1,8}$/i;\nconst RESPOSTA_NAO_RE = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(?:n[aã]o|n|deixa(?:\\s+quieto)?|esquece|cancela|agora\\s+n[aã]o|melhor\\s+n[aã]o)(?:[\\s,;.!]+(?:n[aã]o|precisa|posta|postar|obrigad[oa]|nay|por\\s+enquanto|agora|quieto))*[\\s,;.!]*$/i;\nfunction respostaAoTel(texto) {\n  const s = String(texto || '').trim();\n  if (RESPOSTA_SIM_RE.test(s)) return 'sim';\n  if (RESPOSTA_NAO_RE.test(s)) return 'nao';\n  return null;\n}\n// O \"sim\" que o `Comando do Tel` mandou ao publicador não vai ao agente. Só\n// do TEL: o \"sim\" de um corretor continua sendo conversa (o bug de 27/08).\nif (ehTel && j.perguntaAberta === true && respostaAoTel(t)) return [];\n// <<< resposta a pergunta\n\n// >>> envio de lista + escolha (patch_envio_de_lista_n8n.js)\n// A ESCOLHA DE CODIGO e comando (Tel, 11/09): quem responde e o\n// publicador. Sem este descarte o Tel ouve os dois -- a confirmacao do\n// envio e uma resposta do agente sobre o mesmo imovel.\n// Mesmo literal de `regex_envio_de_lista.js`, exercitado por\n// `casos_envio_de_lista.json` nos dois lados.\nconst ESCOLHER_CODIGO_RE = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(?:c[óo]digos?|cods?)\\b[\\s:=-]*((?:\\d{3,5}[\\s,;]*(?:e\\s+)?)+)$/i;\nconst ANTES_DA_ESCOLHA =\n  '(?:(?:sim|isso|ok|blz|beleza|pode|quero|vai|bora|manda|mande|mandar|' +\n  'envia|envie|enviar|pode\\\\s+mandar|pode\\\\s+enviar)' +\n  '[\\\\s,;.!]*)*';\n\nconst ESCOLHA_NATURAL_RE = new RegExp(\n  '^\\\\s*(?:@?nay\\\\b[\\\\s,;:.!?-]*)?' + ANTES_DA_ESCOLHA +\n  '(?:([oa]s?)\\\\s+)?' +\n  '(?:(ambos|ambas|tod[oa]s)' +\n  '|(dois|duas|tr[êe]s|quatro|cinco)' +\n  '|([2-5])' +\n  '|(primeir[oa]|segund[oa]|terceir[oa]|[úu]ltim[oa]))' +\n  '\\\\b([^\\\\n]*)$', 'i');\n\nconst ESCOLHA_SO_CODIGOS_RE = new RegExp(\n  '^\\\\s*(?:@?nay\\\\b[\\\\s,;:.!?-]*)?' + ANTES_DA_ESCOLHA +\n  '(?:[oa]s?\\\\s+)?' +\n  '(\\\\d{3,5}(?:\\\\s*(?:,|;|\\\\+|/|e)\\\\s*(?:[oa]s?\\\\s+)?\\\\d{3,5})+)' +\n  '[\\\\s.!]*$', 'i');\n\nconst CATEGORIA_NA_CAUDA =\n  /\\b(apartamentos?|aptos?|coberturas?|flats?|casas?|sobrados?|salas?\\s+comerciais?|salas?|lojas?|lotes?|terrenos?|listas?)\\b/i;\n\nconst CAUDA_COM_DESTINO = /\\b(?:para|pra|pro|p\\/)\\s+/i;\n\nconst CAUDA_DE_IMOVEL =\n  /\\b(?:quartos?|su[íi]tes?|vagas?|dormit[óo]rios?|banheiros?|mobiliad[oa]s?|semi|climatizad[oa]s?|andar|torre|bloco)\\b|\\d\\s*(?:k\\b|m2|m²)|r\\$|\\//i;\n\nconst CAUDA_DE_GRUPO =\n  /\\b(grupos?|grade|vagas?|easy|anunciar|todos os corretores)\\b/i;\n\nfunction ehEscolhaNatural(texto) {\n  const t = String(texto || '');\n  if (ESCOLHA_SO_CODIGOS_RE.test(t)) return true;\n  const m = t.match(ESCOLHA_NATURAL_RE);\n  if (!m) return false;\n  // \"os 2\" e escolha; \"2\" sozinho nao e nada. O artigo e o que separa.\n  if (m[4] && !m[1]) return false;\n  const cauda = m[6] || '';\n  return !CATEGORIA_NA_CAUDA.test(cauda) && !CAUDA_COM_DESTINO.test(cauda)\n      && !CAUDA_DE_IMOVEL.test(cauda) && !CAUDA_DE_GRUPO.test(cauda);\n}\nif (ehTel && (ESCOLHER_CODIGO_RE.test(t) || ehEscolhaNatural(t))) return [];\n// <<< envio de lista + escolha\n// MESMA gramatica do `Comando do Tel`, colada de regex_pendencia.js.\n// Divergir aqui faz o Tel receber resposta dupla, ou o comando morrer\n// em silencio -- foi o que aconteceu com 'descarta 47' em 01/09.\n// >>> pedido sem destinatario (patch_pedido_sem_destino_n8n.js)\n// LIDO de `regex_envio_de_lista.js` pelo patch -- nao editar aqui.\nconst VALOR_ESCRITO = '(?:\\\\d+[.,]?\\\\d*\\\\s*(?:k|mil|milh\\\\w*|mi)\\\\b|\\\\d{1,3}\\\\.\\\\d{3}\\\\b'\n  + '|\\\\b(?:at[eé]|a\\\\s+partir\\\\s+de|acima\\\\s+de|no\\\\s+m[aá]ximo|m[aá]ximo\\\\s+de)\\\\s+r?\\\\$?\\\\s*\\\\d)';\n\nconst PEDIDO_SEM_DESTINO_RE = new RegExp(\n  '^\\\\s*@?nay\\\\b[\\\\s,;:.!?-]*'\n  + '(?:envi|m[a]?nd|repass|encaminh|mostr|dispar|solt)\\\\w*\\\\b\\\\s+'\n  + '[\\\\s\\\\S]*' + VALOR_ESCRITO, 'i');\n// So do Tel: a MESMA frase vinda de um corretor segue para o agente --\n// foi o bug de 27/08, em que o corretor nao recebia nada.\nif (ehTel && PEDIDO_SEM_DESTINO_RE.test(t)) return [];\n// <<< pedido sem destinatario\n// >>> escolha do posta (patch_escolha_do_posta_n8n.js)\n// LIDO de `regex_escolha_do_posta.js` pelo patch -- nao editar aqui.\nconst PREFIXO_DA_ESCOLHA =\n  '(?:@?nay\\\\b[\\\\s,;:.!?-]*)?(?:(?:[eé]|eh|para|pra|pro|de|do|o|a|no|na|esse|essa|c[óo]digo|cod|por)\\\\s+)*';\n\nconst ESCOLHA_DO_POSTA_RE = new RegExp(\n  '^\\\\s*' + PREFIXO_DA_ESCOLHA\n  + '(?:loca[çc][ãaoõ]\\\\w*|alug\\\\w*|arrend\\\\w*|vend[ae]s?|vender'\n  + '|r\\\\$\\\\s*\\\\d[\\\\d.,]*'\n  + '|\\\\d[\\\\d.,]*\\\\s*(?:milh\\\\w*|mil|mi|k|m)'\n  + '|\\\\d{1,3}[.,]\\\\d{3}'\n  + '|\\\\d{3,5})'\n  + '[\\\\s.!,;]*$', 'i');\n// So do Tel e so com pergunta aberta: a mesma palavra vinda de um\n// corretor, ou sem pergunta nenhuma, segue para o agente como sempre.\nif (ehTel && j.perguntaAberta === true && ESCOLHA_DO_POSTA_RE.test(t)) return [];\n// <<< escolha do posta\nif (ehTel && ehComandoDePendencia(t)) return [];\n// ENVIO PRIVADO: descarta do agente, senao o Tel recebe resposta dupla --\n// o publicador confirma E o agente comenta. Mesma regex das outras copias.\nif (ehTel && /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(envi|m[a]?nd|repass|encaminh|mostr|post|public|dispar|solt)(?:a|ar|e|ei|ou|o)?\\b([\\s\\S]*)(?:\\bpara\\b|\\bpra\\b|\\bpro\\b|\\bp\\/)\\s*([\\s\\S]+?)\\s*$/i.test(t)) return [];\n// vocativo espelhando o Comando do Tel e o interpretar_comando.py\nif (ehTel && /^(@?NAY\\b[\\s,:;.!\\-]*)?((POSTA|POSTAR|PUBLICA|PUBLICAR|DISPARA|DISPARAR|SOLTA|TIRA|TIRAR|REMOVE|REMOVER|RETIRA|RETIRAR|VENDEU|VENDIDO|VENDIDA|ALUGOU|ALUGADO|ALUGADA|VAGAS|VAGA|LISTA)\\b|AGENDA\\s+DE\\s+VISITAS?\\b|VISITAS?\\s+(AGENDADAS?|DO\\s+DIA|DE\\s+HOJE)\\b|AGENDA\\b|(MANDA|MANDAR|MANDE|ENVIA|ENVIAR|ENVIE)\\s+(AS?\\s+|OS?\\s+)?(LISTA|APARTAMENTOS?|APTOS?|COBERTURAS?|FLATS?|CASAS?|SOBRADOS?|SALAS?|LOJAS?|LOTES?|TERRENOS?)\\b)/i.test(t)\n      // \"5712 Alugado\" -- o codigo na frente (Tel, 09/09). Mesmo literal\n      // de `regex_liberar.js`, exercitado por `casos_comando_liberar.json`.\n      || /^(?:@?NAY\\b[\\s,:;.!\\-]*)?(\\d{3,5})\\s*[-–—:,]?\\s*(?:JA|JÁ)?\\s*(VENDEU|VENDIDO|VENDIDA|ALUGOU|ALUGADO|ALUGADA)\\b/i.test(t)\n      || ehComandoDeTaxa(t)\n      // \"5712 Alugado\" -- o codigo na frente (Tel, 09/09). Mesmo literal\n      // de `regex_liberar.js`, exercitado por `casos_comando_liberar.json`.\n      || /^(?:@?NAY\\b[\\s,:;.!\\-]*)?(\\d{3,5})\\s*[-–—:,]?\\s*(?:JA|JÁ)?\\s*(VENDEU|VENDIDO|VENDIDA|ALUGOU|ALUGADO|ALUGADA)\\b/i.test(t)) return [];\nreturn [{ json: j }];"
+   },
+   "id": "e1266d52-70ca-4868-9d46-ff903464b311",
+   "name": "Rotear para o agente",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1472,
+    48
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// >>> telefone na frente sem verbo (28/09)\nconst _UM_CODIGO_DEPOIS_DO_TEL = (x) => {\n  const s = String(x == null ? '' : x);\n  const m = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?((?:55[\\s.-]*)?\\(?\\d{2}\\)?[\\s.-]*9?\\d{4}[\\s.-]*\\d{4})\\b/i.exec(s);\n  if (!m) return false;\n  const resto = s.slice(m.index + m[0].length);\n  if (/\\b(post|public|dispar|solt|tir|remov|retir|vende|vendid|aluga|alugad|vaga|lista|agenda|resposta|descart|pendencia|corretor|devolv)\\w*\\b/i.test(resto)) return false;\n  const semTel = resto.replace(/(?:55[\\s.-]*)?\\(?\\d{2}\\)?[\\s.-]*9?\\d{4}[\\s.-]*\\d{4}/g, ' ');\n  const cods = semTel.match(/(?<![\\d.,])\\d{3,5}(?![\\d.,])/g) || [];\n  return cods.length === 1;\n};\n// <<< telefone na frente sem verbo\n// >>> telefone na frente (patch 23/09)\nconst ENVIO_TEL_FRENTE = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(envi|m[a]?nd|repass|encaminh)(?:a|ar|e|ei|ou|o)?\\b\\s*(?:para\\s+|pra\\s+|pro\\s+|p\\/\\s*)?((?:55[\\s.-]*)?\\(?\\d{2}\\)?[\\s.-]*\\d{4,5}[\\s.-]*\\d{4})\\s+(c[o\\u00f3]d(?:igo)?s?\\b[\\s:=.-]*\\d{2,5}(?:[\\s,;]+(?:e\\s+)?(?:o|os)?\\s*\\d{2,5})*|(?:o|os|a|as)?\\s*\\d{3,5}(?:[\\s,;]+(?:e\\s+)?(?:o|os)?\\s*\\d{3,5})*)\\s*$/i;\nconst ENVIO_TEL_ANTES = /^\\s*(?:55[\\s.-]*)?\\(?\\d{2}\\)?[\\s.-]*\\d{4,5}[\\s.-]*\\d{4}[\\s,;:.-]+(?:@?nay\\b[\\s,;:.!?-]*)?(?:en+vi|m[a]?n+d|repass+|encaminh)(?:a|ar|e|ei|ou|o)?\\b/i;\nconst ALTO_PADRAO_GRUPO = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(?:envi|m[a]?n+d|repass+|encaminh)(?:a|ar|e|ei|ou|o)?\\b(?=[\\s\\S]*\\balto[\\s\\-]*padr[a\\u00e3]o\\b)(?=[\\s\\S]*\\b(?:grupo|easy|anunciar)\\b)/i;\nconst EH_ENVIO_TEL = (x) => ENVIO_TEL_FRENTE.test(x) || ENVIO_TEL_ANTES.test(x) || ALTO_PADRAO_GRUPO.test(x) || _UM_CODIGO_DEPOIS_DO_TEL(x);\n// <<< telefone na frente\nconst r = $input.first().json;\nconst saida = String(r.output || r.text || '');\nconst j = $('Juntar mensagens').first().json;\nconst escreveu = String(j.texto || '');\n// O que sai daqui como `escreveu` alimenta `nay_deve_mandar_fotos`.\n// Tem que ser a fala DELE, nunca o envelope que este fluxo escreveu.\n// O fallback existe para o caso de `Juntar mensagens` ser mais antigo\n// que este no -- mas o guarda de comando acima continua lendo `escreveu`\n// inteiro, senao um `textoCru` vazio abriria a porta que ele fecha.\nconst cru = String(j.textoCru !== undefined && j.textoCru !== null ? j.textoCru : (j.texto || ''));\nconst citou = String(j.citado || '');\n\n// A QUARTA copia, a menos obvia: sem ela, \"Nay envia as FOTOS do 5750\n// pro Sergio\" faz `pediuFoto` ler o texto do PROPRIO Tel e `solto`\n// colher o 5750 -- as fotos sairiam para o chat dele tambem.\nif (/^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(envi|m[a]?nd|repass|encaminh|mostr|post|public|dispar|solt)(?:a|ar|e|ei|ou|o)?\\b([\\s\\S]*)(?:\\bpara\\b|\\bpra\\b|\\bpro\\b|\\bp\\/)\\s*([\\s\\S]+?)\\s*$/i.test(escreveu) || EH_ENVIO_TEL(escreveu)) {\n  return [{ json: { texto: saida, codigo: '0', codigos: ['0'], escreveu: '' } }];\n}\n\n// TODOS os codigos que ela mandou, nao so o primeiro. Em 30/08 o Gustavo\n// pediu \"me passa as informacoes dos 3\" -- ela mandaria os tres cards e so\n// as fotos do primeiro sairiam.\nconst todos = [...saida.matchAll(/C[óo]digo:\\s*(\\d{3,5})/gi)].map(m => m[1]);\n\n// Quando ela nao repetiu card nenhum, o imovel vem da citacao ou da fala\n// dele. Numero colado a ponto ou virgula NAO conta: \"valor: 900.000\"\n// virava codigo 900 (caso Sebastiana, 29/08).\nconst porRotulo = t => { const m = String(t).match(/C[óo]digo:\\s*(\\d{3,5})/i); return m ? m[1] : null; };\nconst solto = t => { const m = String(t).match(/(?<![\\d.,])(\\d{3,5})(?![\\d.,])/); return m ? m[1] : null; };\n\n// `codigosDele` vem de `nay_codigos_citados`, que tira os VALORES antes\n// de procurar codigo -- \"paga ate 4000\" nao e o imovel 4000. O `solto()`\n// cru fica so para a citacao, onde nao ha alternativa.\nconst dele = j.codigosDele || [];\nconst codigos = todos.length ? [...new Set(todos)]\n  : [porRotulo(citou) || porRotulo(escreveu) || dele[0] || solto(citou)].filter(Boolean);\n\nreturn [{ json: {\n  texto: saida,\n  codigo: codigos[0] || '0',\n  codigos: codigos.length ? codigos : ['0'],\n  escreveu: cru\n} }];"
+   },
+   "id": "70a4798c-c1c8-4bc6-809b-e9077c980e51",
+   "name": "Achar codigo na resposta",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2448,
+    1088
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// >>> segundo numero do Tel (28/09)\nconst TELS_DO_TEL = ['[telefone …7316]', '[telefone …6408]'];\nconst _finalDoTel = (x) => String(x == null ? '' : x).replace(/\\D/g, '').slice(-8);\nconst _FINAIS_DO_TEL = TELS_DO_TEL.map(_finalDoTel);\nconst ehTelDoTel = (x) => _FINAIS_DO_TEL.indexOf(_finalDoTel(x)) !== -1;\n// <<< segundo numero do Tel\nconst j = $('Juntar mensagens').first().json;\nconst tel = j.telefone;\n\n// PORTEIRO, versao que falha FECHADA (30/08). A anterior tinha um buraco:\n//   if (!g.aprovado && Number(g.msgs_antes || 0) > 0) return [];\n// Se `g` viesse vazio -- referencia falhando, formato inesperado --\n// `Number(undefined) > 0` da FALSO e a porta abria. Porteiro que nao sabe\n// quem esta na frente tem que dizer nao, nao sim.\nlet g;\ntry { g = $('Gravar na fila').first().json || {}; } catch (e) { g = {}; }\nconst aprovado = g.aprovado === true;\nconst primeiraVez = g.msgs_antes === 0;   // exatamente zero, nunca \"nao sei\"\nconst pausado = g.pausado !== false;      // sem informacao, considera pausado\nconst TEL_DO_TEL = TELS_DO_TEL[0];\nif (pausado && !ehTelDoTel(tel)) return [];\nif (!aprovado) {\n  if (!primeiraVez) return [];\n  const quem = j.nome ? (j.nome + ' (' + tel + ')') : tel;\n  return [\n    { json: { rota: 'send-text', pausa: 1, corpo: { phone: tel, message:\n      'oi! aqui e a Nay, da Imob Easy. por aqui eu atendo os corretores parceiros. se voce e corretor e quer se cadastrar, me manda seu nome e CRECI que eu passo pro Tel.' } } },\n    ...TELS_DO_TEL.map((_t) => ({ json: { rota: 'send-text', pausa: 3, corpo: { phone: _t, message:\n      'numero fora do cadastro escreveu: ' + quem + '\\n\\n\"' + String(j.texto || '').slice(0, 300) + '\"' } } })),\n  ];\n}\n\nconst texto = String($('Achar codigo na resposta').first().json.texto || '');\nconst linhas = $input.all().map(i => i.json).filter(x => x && x.url);\nconst saida = [];\n\n// Agrupa as fotos por imovel para poder mandar CARD, fotos dele, proximo\n// card. Quando o corretor pede varios imoveis de uma vez (o Gustavo pediu\n// tres em 30/08), jogar os tres textos e depois trinta fotos soltas nao\n// diz de quem e cada foto.\nconst porCodigo = new Map();\nfor (const l of linhas) {\n  const k = String(l.codigo);\n  if (!porCodigo.has(k)) porCodigo.set(k, []);\n  porCodigo.get(k).push(l.url);\n}\n\n// Quebra a resposta dela em blocos, cada um terminando no seu \"Codigo:\".\nconst blocos = [];\nconst re = /C[óo]digo:\\s*(\\d{3,5})/gi;\nlet ini = 0, m;\nwhile ((m = re.exec(texto)) !== null) {\n  const fim = m.index + m[0].length;\n  blocos.push({ codigo: m[1], texto: texto.slice(ini, fim).trim() });\n  ini = fim;\n}\nconst resto = texto.slice(ini).trim();\n\nif (blocos.length === 0) {\n  // Sem card na resposta: as FOTOS primeiro, a frase depois. O Tel pediu\n  // assim em 31/08 -- \"ela precisa enviar tudo e depois mandar a mensagem\".\n  // Com a frase antes, o \"prontinho, as fotos seguem ai\" aparecia no meio\n  // do album e o corretor achava que ja tinha acabado.\n  for (const us of porCodigo.values()) for (const u of us) saida.push({ rota: 'send-image', pausa: 3, corpo: { phone: tel, image: u } });\n  if (texto.trim()) saida.push({ rota: 'send-text', pausa: 1, corpo: { phone: tel, message: texto.trim() } });\n} else {\n  for (const b of blocos) {\n    if (b.texto) saida.push({ rota: 'send-text', pausa: 1, corpo: { phone: tel, message: b.texto } });\n    for (const u of (porCodigo.get(b.codigo) || [])) saida.push({ rota: 'send-image', pausa: 3, corpo: { phone: tel, image: u } });\n  }\n  // O que ela escreveu depois do ultimo card (pergunta, fechamento) vai por ultimo.\n  if (resto) saida.push({ rota: 'send-text', pausa: 1, corpo: { phone: tel, message: resto } });\n}\nreturn saida.map(x => ({ json: x }));"
+   },
+   "id": "cc156d72-cbed-4792-ac24-e2ed55e8e044",
+   "name": "Preparar envio do agente",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2864,
+    1088
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "-- Fotos de TODOS os imoveis que ela mandou, cada uma sabendo de qual e.\n-- `imovel_fotos.codigo` e INTEGER e `string_to_array` devolve texto: sem o\n-- ::text a comparacao explode com 'operator does not exist: integer = text'\n-- -- foi o que derrubou o no em producao em 30/08. Comparar como texto (em\n-- vez de converter o array para int) tambem evita erro se vier um codigo\n-- nao numerico.\nSELECT f.codigo, f.url FROM imovel_fotos f\n WHERE f.codigo::text = ANY(string_to_array($1, ','))\n   AND nay_deve_mandar_fotos($2, $3)\n ORDER BY array_position(string_to_array($1, ','), f.codigo::text), f.ordem;",
+    "options": {
+     "queryReplacement": "={{ [$json.codigos.join(','), $('Juntar mensagens').first().json.telefone, $json.escreveu ?? null] }}"
+    }
+   },
+   "id": "761525a8-e952-4fda-8716-e10316e16a7b",
+   "name": "Buscar fotos do agente",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    2656,
+    1088
+   ],
+   "alwaysOutputData": true,
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "const tel = $('Juntar mensagens').first().json.telefone;\nlet codigo = 0;\ntry { codigo = parseInt($('Buscar imovel').first().json.codigo, 10) || 0; } catch (e) { codigo = 0; }\nif (!codigo) { try { codigo = parseInt($('Achar codigo na resposta').first().json.codigo, 10) || 0; } catch (e) { codigo = 0; } }\n// O messageId do card que acabou de sair. E ele que volta em\n// `referenceMessageId` quando o corretor MARCA esta mensagem, e e\n// por igualdade com ele que a Nay descobre de qual imovel ele fala.\n// try/catch porque nem todo caminho passa pelo Enviar Z-API.\nlet msgId = null;\ntry {\n  const r = $('Enviar Z-API').first().json || {};\n  msgId = r.messageId || r.id || r.zaapId || null;\n} catch (e) { msgId = null; }\nreturn [{ json: { codigo: codigo, telefone: tel, messageId: msgId } }];"
+   },
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3552,
+    1280
+   ],
+   "id": "e628b027-7b1b-4699-b5e6-d85360d1d28a",
+   "name": "Preparar registro"
+  },
+  {
+   "parameters": {
+    "description": "Use SEMPRE que o corretor fizer uma pergunta objetiva sobre um imovel especifico que o cadastro nao responde, como infiltracao, vaga coberta, aceita pet, estado de conservacao ou documentacao. Para VISITA, escale SO DEPOIS de saber QUAL imovel e de ter chamado avaliar_visita, e so se ela mandar escalar. Pedido de visita sem codigo definido NAO se escala: pergunte primeiro qual imovel. Em 30/08 a Samira pediu visita no Acquarelle -- que tem 8 imoveis, 2 deles de locacao -- e a escalacao subiu sem imovel nenhum, entao o Tel nao tinha como responder. CHAME A FERRAMENTA TODA VEZ, inclusive quando o corretor repetir a mesma pergunta que ja fez antes. NUNCA responda de memoria que esta verificando: essa frase so pode ser dita se vier em texto_pronto agora. A ferramenta ja controla sozinha se o Tel respondeu antes e se ja foi escalado, e devolve em texto_pronto exatamente o que voce deve dizer, entao siga o texto_pronto ao pe da letra. NAO use esta ferramenta para saudacao, agradecimento, conversa fiada, nem para pedido generico de busca como procuro casa para comprar ou tem apartamento no centro: nesses casos responda normalmente ou pergunte o que falta para buscar. NAO escale forma de pagamento, se aceita financiamento, valor, quartos, area, bairro nem disponibilidade: tudo isso vem de imovel_por_codigo ou de buscar_por_perfil. Consulte e responda. Escalar o que voce ja pode consultar faz o corretor esperar por nada. Nunca invente a resposta e nunca prometa prazo.",
+    "workflowId": {
+     "__rl": true,
+     "value": "hw18FZjm108KTXa9",
+     "mode": "list",
+     "cachedResultUrl": "/workflow/hw18FZjm108KTXa9",
+     "cachedResultName": "Nay - escalar"
+    },
+    "workflowInputs": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "telefone": "={{ $('Juntar mensagens').first().json.telefone }}",
+      "nome": "={{ $('Juntar mensagens').first().json.nome }}",
+      "codigo": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('codigo', `Use SOMENTE o codigo de imovel que o corretor citou nesta conversa falando de imovel, com 3 a 5 digitos. NAO use numero que apareceu em outro assunto como laudo, contrato, valor, documento, telefone ou data. Se voce nao tem certeza de qual imovel ele esta falando, deixe VAZIO e escreva no assunto que o imovel nao foi identificado. Nunca chute.`, 'string') }}",
+      "assunto": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('assunto', `Obrigatorio. Resuma em 2 a 5 palavras o que o corretor quer saber. Exemplo: vaga coberta, aceita pet, tem infiltracao. Nunca deixe vazio.`, 'string') }}",
+      "disse": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('disse', `Obrigatorio. A frase exata que o corretor escreveu.`, 'string') }}"
+     },
+     "matchingColumns": [],
+     "schema": [
+      {
+       "id": "telefone",
+       "displayName": "telefone",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "canBeUsedToMatch": true,
+       "type": "string",
+       "removed": false
+      },
+      {
+       "id": "nome",
+       "displayName": "nome",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "canBeUsedToMatch": true,
+       "type": "string",
+       "removed": false
+      },
+      {
+       "id": "codigo",
+       "displayName": "codigo",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "canBeUsedToMatch": true,
+       "type": "string",
+       "removed": false
+      },
+      {
+       "id": "assunto",
+       "displayName": "assunto",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "canBeUsedToMatch": true,
+       "type": "string",
+       "removed": false
+      },
+      {
+       "id": "disse",
+       "displayName": "disse",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "canBeUsedToMatch": true,
+       "type": "string",
+       "removed": false
+      }
+     ],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    }
+   },
+   "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+   "typeVersion": 2.2,
+   "position": [
+    2944,
+    -160
+   ],
+   "id": "2f661c8e-56fb-4e2a-b44d-014f39a28721",
+   "name": "escalar_ao_tel"
+  },
+  {
+   "parameters": {
+    "jsCode": "// >>> telefone na frente sem verbo (28/09)\nconst _UM_CODIGO_DEPOIS_DO_TEL = (x) => {\n  const s = String(x == null ? '' : x);\n  const m = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?((?:55[\\s.-]*)?\\(?\\d{2}\\)?[\\s.-]*9?\\d{4}[\\s.-]*\\d{4})\\b/i.exec(s);\n  if (!m) return false;\n  const resto = s.slice(m.index + m[0].length);\n  if (/\\b(post|public|dispar|solt|tir|remov|retir|vende|vendid|aluga|alugad|vaga|lista|agenda|resposta|descart|pendencia|corretor|devolv)\\w*\\b/i.test(resto)) return false;\n  const semTel = resto.replace(/(?:55[\\s.-]*)?\\(?\\d{2}\\)?[\\s.-]*9?\\d{4}[\\s.-]*\\d{4}/g, ' ');\n  const cods = semTel.match(/(?<![\\d.,])\\d{3,5}(?![\\d.,])/g) || [];\n  return cods.length === 1;\n};\n// <<< telefone na frente sem verbo\n// >>> segundo numero do Tel (28/09)\nconst TELS_DO_TEL = ['[telefone …7316]', '[telefone …6408]'];\nconst _finalDoTel = (x) => String(x == null ? '' : x).replace(/\\D/g, '').slice(-8);\nconst _FINAIS_DO_TEL = TELS_DO_TEL.map(_finalDoTel);\nconst ehTelDoTel = (x) => _FINAIS_DO_TEL.indexOf(_finalDoTel(x)) !== -1;\n// <<< segundo numero do Tel\n// LIDO de `regex_liberar.js` pelo patch -- nao editar aqui.\nconst TAXA_CODIGO = /^(\\d{3,5})\\s*[-–—:,]?\\s*([^\\d]{2,40})$/;\nconst FALA_DE_TAXA = /\\b(tx|taxa|condominio|condomínio|cond)\\b/i;\nconst FALA_DE_INCLUSAO = /\\b(inclus[ao]|inclu[íi]d[ao]|inclui)\\b/i;\nconst NEGA = /\\b(nao|não|sem)\\b/i;\n\nfunction ehComandoDeTaxa(texto) {\n  const m = TAXA_CODIGO.exec(String(texto || ''));\n  if (!m) return false;\n  const resto = m[2];\n  if (!FALA_DE_TAXA.test(resto)) return false;\n  return FALA_DE_INCLUSAO.test(resto) || NEGA.test(resto);\n}\n\nconst VOC = '(?:@?nay\\\\b[\\\\s,;:.!?-]*)?';\n\nconst V_DESCARTA =\n  '(?:descarta|descartar|descarte|esquece|esquecer|esqueca|esqueça|' +\n  'apaga|apagar|cancela|cancelar|ignora|ignorar)';\n\nconst V_RESPOSTA = '(?:resposta|responde|responder)';\n\nconst LIGACAO = '(?:\\\\s+a)?(?:\\\\s+pend[eê]ncias?)?';\n\nconst RE_RESPOSTA = new RegExp(\n  '^\\\\s*' + VOC + V_RESPOSTA + LIGACAO + '\\\\s+(\\\\d{1,6})\\\\s+([\\\\s\\\\S]+?)\\\\s*$', 'i');\n\nconst RE_DESCARTA = new RegExp(\n  '^\\\\s*' + VOC + V_DESCARTA + LIGACAO + '\\\\s+(\\\\d{1,6})\\\\s*$', 'i');\n\nconst RE_DESCARTA_TUDO = new RegExp(\n  '^\\\\s*' + VOC + V_DESCARTA + '\\\\s+tudo\\\\s*$', 'i');\n\nconst RE_DESCARTA_TUDO_SIM = new RegExp(\n  '^\\\\s*' + VOC + V_DESCARTA + '\\\\s+tudo\\\\s+sim\\\\s*$', 'i');\n\nconst RE_LISTAR = new RegExp(\n  '^\\\\s*' + VOC + '(?:pend[eê]ncias?|pendentes)\\\\s*$', 'i');\n\nfunction ehComandoDePendencia(t) {\n  const s = String(t || '');\n  return RE_DESCARTA_TUDO_SIM.test(s) || RE_DESCARTA_TUDO.test(s) ||\n         RE_DESCARTA.test(s) || RE_RESPOSTA.test(s) || RE_LISTAR.test(s);\n}\n\nfunction interpretarPendencia(t) {\n  const s = String(t || '');\n  let m;\n  if (RE_DESCARTA_TUDO_SIM.test(s)) return { acao: 'DESCARTAR TUDO SIM', p_id: null, p_texto: null };\n  if (RE_DESCARTA_TUDO.test(s)) return { acao: 'DESCARTAR TUDO', p_id: null, p_texto: null };\n  m = s.match(RE_RESPOSTA);\n  if (m) return { acao: 'RESPOSTA', p_id: parseInt(m[1], 10), p_texto: m[2].trim() };\n  m = s.match(RE_DESCARTA);\n  if (m) return { acao: 'DESCARTAR', p_id: parseInt(m[1], 10), p_texto: null };\n  if (RE_LISTAR.test(s)) return { acao: 'PENDENCIAS', p_id: null, p_texto: null };\n  return null;\n}\n\nconst TEL = TELS_DO_TEL[0];\nconst j = $('Juntar mensagens').first().json;\nif (!ehTelDoTel(j.telefone)) return [];\n// >>> resposta a pergunta (patch_resposta_ao_tel_n8n.js)\n// LIDO de `regex_resposta_ao_tel.js` pelo patch -- nao editar aqui.\nconst RESPOSTA_SIM_RE = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(?=[\\s\\S]*\\b(?:sim|s|pode|isso|ok|okay|beleza|blz|confirm[oa]|confirmado|quero|bora|manda|posta|postar|poste|reposta|repostar|claro|certo|novamente)\\b)(?:(?:sim|s|pode|isso|ok|okay|beleza|blz|confirm[oa]|confirmado|quero|bora|manda|posta|postar|poste|reposta|repostar|claro|certo|mesmo|com\\s+certeza|de\\s+novo|novamente|outra\\s+vez|por\\s+favor|pfv|pf|nay)(?:[\\s,;.!]+|$)){1,8}$/i;\nconst RESPOSTA_NAO_RE = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(?:n[aã]o|n|deixa(?:\\s+quieto)?|esquece|cancela|agora\\s+n[aã]o|melhor\\s+n[aã]o)(?:[\\s,;.!]+(?:n[aã]o|precisa|posta|postar|obrigad[oa]|nay|por\\s+enquanto|agora|quieto))*[\\s,;.!]*$/i;\nfunction respostaAoTel(texto) {\n  const s = String(texto || '').trim();\n  if (RESPOSTA_SIM_RE.test(s)) return 'sim';\n  if (RESPOSTA_NAO_RE.test(s)) return 'nao';\n  return null;\n}\n// Só vale com PERGUNTA ABERTA. Sem ela, \"sim\" é conversa e segue o caminho\n// de sempre. Timeout longo: o \"sim\" pode postar no Easy com todas as fotos.\nif (j.perguntaAberta === true && respostaAoTel(j.texto)) {\n  try {\n    await this.helpers.httpRequest({\n      method: 'POST', url: 'http://172.16.0.1:8080/comando',\n      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer <REDIGIDO>' },\n      body: { texto: String(j.texto || '').trim() }, json: true, timeout: 600000\n    });\n  } catch (e) {}\n  return [];\n}\n// <<< resposta a pergunta\n// >>> envio de lista + escolha (patch_envio_de_lista_n8n.js)\n// LIDO de `regex_envio_de_lista.js` pelo patch -- nao editar aqui.\nconst ENVIO_RE_LISTA = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(envi|m[a]?nd|repass|encaminh|mostr|post|public|dispar|solt)(?:a|ar|e|ei|ou|o)?\\b([\\s\\S]*)(?:\\bpara\\b|\\bpra\\b|\\bpro\\b|\\bp\\/)\\s*([\\s\\S]+?)\\s*$/i;\nconst NAO_PESSOA_LISTA = /\\b(grupos?|grade|vagas?|easy|anunciar|todos os corretores)\\b/i;\nconst ESCOLHER_CODIGO_RE = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(?:c[óo]digos?|cods?)\\b[\\s:=-]*((?:\\d{3,5}[\\s,;]*(?:e\\s+)?)+)$/i;\nfunction ehEnvioDeLista(texto) {\n  const linhas = String(texto || '').split('\\n');\n  if (linhas.length < 2) return false;\n  if (!linhas.slice(1).some((l) => l.trim())) return false;\n\n  const m = linhas[0].trim().match(ENVIO_RE_LISTA);\n  if (!m) return false;\n  if (NAO_PESSOA_LISTA.test(m[3])) return false;\n  // codigo no corpo -> caminho antigo\n  if (/\\b\\d{1,6}\\b/.test(m[2])) return false;\n  return true;\n}\n\nconst ANTES_DA_ESCOLHA =\n  '(?:(?:sim|isso|ok|blz|beleza|pode|quero|vai|bora|manda|mande|mandar|' +\n  'envia|envie|enviar|pode\\\\s+mandar|pode\\\\s+enviar)' +\n  '[\\\\s,;.!]*)*';\n\nconst ESCOLHA_NATURAL_RE = new RegExp(\n  '^\\\\s*(?:@?nay\\\\b[\\\\s,;:.!?-]*)?' + ANTES_DA_ESCOLHA +\n  '(?:([oa]s?)\\\\s+)?' +\n  '(?:(ambos|ambas|tod[oa]s)' +\n  '|(dois|duas|tr[êe]s|quatro|cinco)' +\n  '|([2-5])' +\n  '|(primeir[oa]|segund[oa]|terceir[oa]|[úu]ltim[oa]))' +\n  '\\\\b([^\\\\n]*)$', 'i');\n\nconst ESCOLHA_SO_CODIGOS_RE = new RegExp(\n  '^\\\\s*(?:@?nay\\\\b[\\\\s,;:.!?-]*)?' + ANTES_DA_ESCOLHA +\n  '(?:[oa]s?\\\\s+)?' +\n  '(\\\\d{3,5}(?:\\\\s*(?:,|;|\\\\+|/|e)\\\\s*(?:[oa]s?\\\\s+)?\\\\d{3,5})+)' +\n  '[\\\\s.!]*$', 'i');\n\nconst CATEGORIA_NA_CAUDA =\n  /\\b(apartamentos?|aptos?|coberturas?|flats?|casas?|sobrados?|salas?\\s+comerciais?|salas?|lojas?|lotes?|terrenos?|listas?)\\b/i;\n\nconst CAUDA_COM_DESTINO = /\\b(?:para|pra|pro|p\\/)\\s+/i;\n\nconst CAUDA_DE_IMOVEL =\n  /\\b(?:quartos?|su[íi]tes?|vagas?|dormit[óo]rios?|banheiros?|mobiliad[oa]s?|semi|climatizad[oa]s?|andar|torre|bloco)\\b|\\d\\s*(?:k\\b|m2|m²)|r\\$|\\//i;\n\nconst CAUDA_DE_GRUPO =\n  /\\b(grupos?|grade|vagas?|easy|anunciar|todos os corretores)\\b/i;\n\nfunction ehEscolhaNatural(texto) {\n  const t = String(texto || '');\n  if (ESCOLHA_SO_CODIGOS_RE.test(t)) return true;\n  const m = t.match(ESCOLHA_NATURAL_RE);\n  if (!m) return false;\n  // \"os 2\" e escolha; \"2\" sozinho nao e nada. O artigo e o que separa.\n  if (m[4] && !m[1]) return false;\n  const cauda = m[6] || '';\n  return !CATEGORIA_NA_CAUDA.test(cauda) && !CAUDA_COM_DESTINO.test(cauda)\n      && !CAUDA_DE_IMOVEL.test(cauda) && !CAUDA_DE_GRUPO.test(cauda);\n}\n\n// A LISTA COLADA VAI INTEIRA (Tel, 11/09). O laco abaixo manda so a\n// linha que casou, e para a lista isso entrega ao publicador um comando\n// sem imovel nenhum: os codigos estao nas linhas de baixo. Medido, a\n// resposta era \"nao entendi qual imovel mandar para Tel Sobreira\".\n//\n// A escolha de codigo (\"Nay codigo 5719\") entra no MESMO ramo porque e\n// ela que dispara o envio da lista que ficou segurada -- e por isso\n// tambem precisa do tempo longo.\n//\n// TIMEOUT DE 10 MINUTOS: o envio roda dentro da requisicao e leva ~50-60s\n// por imovel com fotos; quatro imoveis passam dos 120s dos outros ramos.\n// Estourar aqui faria o Tel nao receber confirmacao e reenviar -- e a\n// trava de 12h em `envios` e que segura o imovel de sair duas vezes.\nconst textoInteiro = String(j.texto || '');\nif (ehEnvioDeLista(textoInteiro)\n    || ESCOLHER_CODIGO_RE.test(textoInteiro.trim())\n    // \"os dois\" (12/09): ele respondeu isso e a frase caiu no agente,\n    // que devolveu uma lista sem nexo. A propria pergunta dela dizia\n    // \"ou os dois\".\n    || ehEscolhaNatural(textoInteiro.trim())) {\n  try {\n    await this.helpers.httpRequest({\n      method: 'POST', url: 'http://172.16.0.1:8080/comando',\n      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer <REDIGIDO>' },\n      body: { texto: textoInteiro }, json: true, timeout: 600000\n    });\n  } catch (e) {}\n  return [];\n}\n// <<< envio de lista + escolha\n\n// >>> escolha do posta (patch_escolha_do_posta_n8n.js)\n// LIDO de `regex_escolha_do_posta.js` pelo patch -- nao editar aqui.\nconst PREFIXO_DA_ESCOLHA =\n  '(?:@?nay\\\\b[\\\\s,;:.!?-]*)?(?:(?:[eé]|eh|para|pra|pro|de|do|o|a|no|na|esse|essa|c[óo]digo|cod|por)\\\\s+)*';\n\nconst ESCOLHA_DO_POSTA_RE = new RegExp(\n  '^\\\\s*' + PREFIXO_DA_ESCOLHA\n  + '(?:loca[çc][ãaoõ]\\\\w*|alug\\\\w*|arrend\\\\w*|vend[ae]s?|vender'\n  + '|r\\\\$\\\\s*\\\\d[\\\\d.,]*'\n  + '|\\\\d[\\\\d.,]*\\\\s*(?:milh\\\\w*|mil|mi|k|m)'\n  + '|\\\\d{1,3}[.,]\\\\d{3}'\n  + '|\\\\d{3,5})'\n  + '[\\\\s.!,;]*$', 'i');\n// TIMEOUT LONGO: a resposta dele DISPARA a postagem nos grupos, com\n// foto -- e o ramo de comando curto (8s) estouraria no meio.\nconst respostaDoPosta = String(j.texto || '').trim();\nif (j.perguntaAberta === true && ESCOLHA_DO_POSTA_RE.test(respostaDoPosta)) {\n  try {\n    await this.helpers.httpRequest({\n      method: 'POST', url: 'http://172.16.0.1:8080/comando',\n      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer <REDIGIDO>' },\n      body: { texto: respostaDoPosta }, json: true, timeout: 600000\n    });\n  } catch (e) {}\n  return [];\n}\n// <<< escolha do posta\n// >>> telefone na frente (patch 23/09)\nconst ENVIO_TEL_FRENTE = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(envi|m[a]?nd|repass|encaminh)(?:a|ar|e|ei|ou|o)?\\b\\s*(?:para\\s+|pra\\s+|pro\\s+|p\\/\\s*)?((?:55[\\s.-]*)?\\(?\\d{2}\\)?[\\s.-]*\\d{4,5}[\\s.-]*\\d{4})\\s+(c[o\\u00f3]d(?:igo)?s?\\b[\\s:=.-]*\\d{2,5}(?:[\\s,;]+(?:e\\s+)?(?:o|os)?\\s*\\d{2,5})*|(?:o|os|a|as)?\\s*\\d{3,5}(?:[\\s,;]+(?:e\\s+)?(?:o|os)?\\s*\\d{3,5})*)\\s*$/i;\nconst ENVIO_TEL_ANTES = /^\\s*(?:55[\\s.-]*)?\\(?\\d{2}\\)?[\\s.-]*\\d{4,5}[\\s.-]*\\d{4}[\\s,;:.-]+(?:@?nay\\b[\\s,;:.!?-]*)?(?:en+vi|m[a]?n+d|repass+|encaminh)(?:a|ar|e|ei|ou|o)?\\b/i;\nconst ALTO_PADRAO_GRUPO = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(?:envi|m[a]?n+d|repass+|encaminh)(?:a|ar|e|ei|ou|o)?\\b(?=[\\s\\S]*\\balto[\\s\\-]*padr[a\\u00e3]o\\b)(?=[\\s\\S]*\\b(?:grupo|easy|anunciar)\\b)/i;\nconst EH_ENVIO_TEL = (x) => ENVIO_TEL_FRENTE.test(x) || ENVIO_TEL_ANTES.test(x) || ALTO_PADRAO_GRUPO.test(x) || _UM_CODIGO_DEPOIS_DO_TEL(x);\n// <<< telefone na frente\nconst linhas = String(j.texto || '').split('\\n');\nfor (const bruta of linhas) {\n  const linha = bruta.trim();\n  if (!linha) continue;\n  const up = linha.toUpperCase();\n  // A gramatica de pendencia mora em regex_pendencia.js, com 45 casos\n  // em casos_comando_pendencia.json. 'descarta 47' e 'esquece 47' sao\n  // formas que o Tel usa de verdade.\n  const pend = interpretarPendencia(linha);\n  if (pend) return [{ json: { acao: pend.acao, p_id: pend.p_id, p_texto: pend.p_texto, tel_tel: TEL } }];\n  if (up === 'PENDENCIAS' || up === 'PEND\\u00caNCIAS') return [{ json: { acao: 'PENDENCIAS', p_id: null, p_texto: null, tel_tel: TEL } }];\n  // ENVIO PRIVADO (31/08): mesma regex do interpretar_comando.py. Vem\n  // ANTES dos verbos antigos porque \"posta o 5750 pro Sergio\" precisa\n  // chegar ao Python para ser RECUSADO, em vez de virar postagem em 14\n  // grupos. Timeout maior: um envio com fotos leva mais que 8s.\n  const ENVIO_RE = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(envi|m[a]?nd|repass|encaminh|mostr|post|public|dispar|solt)(?:a|ar|e|ei|ou|o)?\\b([\\s\\S]*)(?:\\bpara\\b|\\bpra\\b|\\bpro\\b|\\bp\\/)\\s*([\\s\\S]+?)\\s*$/i;\n  const NAO_PESSOA_RE = /\\b(grupos?|grade|vagas?|easy|anunciar|todos os corretores)\\b/i;\n  const mEnv = linha.match(ENVIO_RE);\n  const mTelFrente = EH_ENVIO_TEL(linha);\n  if (mTelFrente || (mEnv && !NAO_PESSOA_RE.test(mEnv[3]))) {\n    try {\n      await this.helpers.httpRequest({\n        method: 'POST', url: 'http://172.16.0.1:8080/comando',\n        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer <REDIGIDO>' },\n        body: { texto: linha }, json: true, timeout: 120000\n      });\n    } catch (e) {}\n    return [];\n  }\n// >>> pedido sem destinatario (patch_pedido_sem_destino_n8n.js)\n  // LIDO de `regex_envio_de_lista.js` pelo patch -- nao editar aqui.\n  const VALOR_ESCRITO = '(?:\\\\d+[.,]?\\\\d*\\\\s*(?:k|mil|milh\\\\w*|mi)\\\\b|\\\\d{1,3}\\\\.\\\\d{3}\\\\b'\n    + '|\\\\b(?:at[eé]|a\\\\s+partir\\\\s+de|acima\\\\s+de|no\\\\s+m[aá]ximo|m[aá]ximo\\\\s+de)\\\\s+r?\\\\$?\\\\s*\\\\d)';\n  \n  const PEDIDO_SEM_DESTINO_RE = new RegExp(\n    '^\\\\s*@?nay\\\\b[\\\\s,;:.!?-]*'\n    + '(?:envi|m[a]?nd|repass|encaminh|mostr|dispar|solt)\\\\w*\\\\b\\\\s+'\n    + '[\\\\s\\\\S]*' + VALOR_ESCRITO, 'i');\n  if (PEDIDO_SEM_DESTINO_RE.test(linha)) {\n    try {\n      await this.helpers.httpRequest({\n        method: 'POST', url: 'http://172.16.0.1:8080/comando',\n        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer <REDIGIDO>' },\n        body: { texto: linha }, json: true, timeout: 120000\n      });\n    } catch (e) {}\n    return [];\n  }\n// <<< pedido sem destinatario\n  if (/^(@?NAY\\b[\\s,:;.!\\-]*)?((POSTA|POSTAR|PUBLICA|PUBLICAR|DISPARA|DISPARAR|SOLTA|TIRA|TIRAR|REMOVE|REMOVER|RETIRA|RETIRAR|VENDEU|VENDIDO|VENDIDA|ALUGOU|ALUGADO|ALUGADA|VAGAS|VAGA|LISTA)\\b|AGENDA\\s+DE\\s+VISITAS?\\b|VISITAS?\\s+(AGENDADAS?|DO\\s+DIA|DE\\s+HOJE)\\b|AGENDA\\b|(MANDA|MANDAR|MANDE|ENVIA|ENVIAR|ENVIE)\\s+(AS?\\s+|OS?\\s+)?(LISTA|APARTAMENTOS?|APTOS?|COBERTURAS?|FLATS?|CASAS?|SOBRADOS?|SALAS?|LOJAS?|LOTES?|TERRENOS?)\\b)/i.test(up)\n      // \"5712 Alugado\" -- o codigo na frente (Tel, 09/09). Mesmo literal\n      // de `regex_liberar.js`, exercitado por `casos_comando_liberar.json`.\n      || /^(?:@?NAY\\b[\\s,:;.!\\-]*)?(\\d{3,5})\\s*[-–—:,]?\\s*(?:JA|JÁ)?\\s*(VENDEU|VENDIDO|VENDIDA|ALUGOU|ALUGADO|ALUGADA)\\b/i.test(up)\n      || ehComandoDeTaxa(up)\n      // \"5712 Alugado\" -- o codigo na frente (Tel, 09/09). Mesmo literal\n      // de `regex_liberar.js`, exercitado por `casos_comando_liberar.json`.\n      || /^(?:@?NAY\\b[\\s,:;.!\\-]*)?(\\d{3,5})\\s*[-–—:,]?\\s*(?:JA|JÁ)?\\s*(VENDEU|VENDIDO|VENDIDA|ALUGOU|ALUGADO|ALUGADA)\\b/i.test(up)) {\n    try {\n      await this.helpers.httpRequest({\n        method: 'POST',\n        url: 'http://172.16.0.1:8080/comando',\n        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer <REDIGIDO>' },\n        body: { texto: linha },\n        json: true,\n        timeout: 8000\n      });\n    } catch (e) {}\n    return [];\n  }\n}\nreturn []"
+   },
+   "id": "78c15a29-3000-4bf1-8d7d-45feff649d71",
+   "name": "Comando do Tel",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1600,
+    800
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "SELECT * FROM nay_comando($1,$2,$3);",
+    "options": {
+     "queryReplacement": "={{ [String($json.acao ?? ''), $json.p_id == null ? null : String($json.p_id), $json.p_texto == null ? null : String($json.p_texto)] }}"
+    }
+   },
+   "id": "9da07c78-6833-4ca8-891b-6ee63b821630",
+   "name": "Responder pendencia",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    1792,
+    800
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "const r = $input.first().json;\nconst TEL = $('Comando do Tel').first().json.tel_tel;\nconst out = [];\nif (r.avisar && r.msg_corretor) {\n  out.push({ rota: 'send-text', pausa: 1, corpo: { phone: String(r.avisar), message: r.msg_corretor } });\n}\nout.push({ rota: 'send-text', pausa: 2, corpo: { phone: TEL, message: r.msg_tel } });\nreturn out.map(x => ({ json: x }));"
+   },
+   "id": "c5a0798c-cf83-4060-b488-580ee0454128",
+   "name": "Preparar aviso do comando",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3344,
+    752
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const w = $('Webhook').first().json.body || {};\nconst a = w.audio || {};\nconst url = a.audioUrl || '';\nif (!url) return [];\nconst seg = Number(a.seconds || 0);\nreturn [{ json: { audio_url: url, seg: seg, longo: seg > 180, telefone: w.phone, nome: w.senderName } }];"
+   },
+   "id": "76a8156c-ff99-439d-a89d-4224b257d877",
+   "name": "Detectar audio",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1072,
+    -112
+   ]
+  },
+  {
+   "parameters": {
+    "url": "={{ $json.audio_url }}",
+    "options": {
+     "response": {
+      "response": {
+       "responseFormat": "file"
+      }
+     }
+    }
+   },
+   "id": "d08b3a94-0b05-45ae-97f9-38f5e8dbde84",
+   "name": "Baixar audio",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1648,
+    -304
+   ]
+  },
+  {
+   "parameters": {
+    "resource": "audio",
+    "operation": "transcribe",
+    "options": {
+     "language": "pt"
+    }
+   },
+   "id": "4729f7b1-d9b4-4dab-a68d-c7a92010e96b",
+   "name": "Transcrever",
+   "type": "@n8n/n8n-nodes-langchain.openAi",
+   "typeVersion": 1.8,
+   "position": [
+    1296,
+    -320
+   ],
+   "credentials": {
+    "openAiApi": {
+     "id": "CzrQhGemsCI4hLUh",
+     "name": "OpenAI account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Diz se voce ja tem o creci e o nome deste corretor guardados. CHAME ANTES de pedir creci a alguem, e sempre que a conversa caminhar para agendar visita. Devolve instrucao_para_voce: obedeca e nunca mostre esse texto ao corretor.",
+    "operation": "executeQuery",
+    "query": "SELECT COALESCE(\n  (SELECT CASE WHEN COALESCE(c.creci,'') <> ''\n               THEN 'o creci deste corretor ja esta guardado, nao peca de novo.'\n               ELSE 'este corretor ainda nao tem creci guardado. se for confirmar visita, peca uma vez.' END\n       || CASE WHEN COALESCE(c.nome,'') <> ''\n               THEN ' o nome dele e ' || c.nome || '.'\n               ELSE ' voce tambem nao sabe o nome dele.' END\n   FROM corretores c WHERE c.telefone = $1),\n  'este contato nao esta na sua lista de corretores. nao tem creci nem nome guardado.'\n) AS instrucao_para_voce",
+    "options": {
+     "queryReplacement": "={{ $('Juntar mensagens').first().json.telefone }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2800,
+    -144
+   ],
+   "id": "da98f7de-f5aa-4fa3-8acc-ef3aa746c0b1",
+   "name": "dados_do_corretor",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Guarda o creci e/ou o nome completo que o corretor acabou de informar. CHAME NA MESMA RESPOSTA em que ele informar -- se nao chamar, a informacao se perde quando a conversa sair da sua memoria. Passe o valor exatamente como ele escreveu, nunca invente. Deixe vazio o campo que ele nao informou. Devolve instrucao_para_voce: obedeca e nunca mostre esse texto ao corretor.",
+    "operation": "executeQuery",
+    "query": "WITH entrada AS (\n  SELECT $1::text AS telefone,\n         NULLIF(NULLIF(NULLIF(btrim($2::text),''),'null'),'undefined') AS creci,\n         NULLIF(NULLIF(NULLIF(btrim($3::text),''),'null'),'undefined') AS nome\n), valida AS (\n  SELECT telefone,\n         CASE WHEN length(creci) BETWEEN 3 AND 30 THEN creci END AS creci,\n         CASE WHEN length(nome)  BETWEEN 2 AND 80 THEN nome  END AS nome\n  FROM entrada\n), gravado AS (\n  -- `nome_origem` marcado como manual: sem isso o `nay_sincronizar_nome`\n  -- do `Gravar na fila` sobrescreve na mensagem seguinte, e ela pergunta\n  -- o nome de novo para sempre.\n  INSERT INTO corretores (telefone, creci, nome, nome_origem, ultima_interacao)\n  SELECT telefone, creci, nome, CASE WHEN nome IS NOT NULL THEN 'manual' END, now() FROM valida\n  WHERE creci IS NOT NULL OR nome IS NOT NULL\n  ON CONFLICT (telefone) DO UPDATE\n     SET creci = COALESCE(EXCLUDED.creci, corretores.creci),\n         nome  = COALESCE(EXCLUDED.nome,  corretores.nome),\n         nome_origem = COALESCE(EXCLUDED.nome_origem, corretores.nome_origem),\n         ultima_interacao = now()\n  RETURNING creci, nome\n)\nSELECT COALESCE(\n  (SELECT 'guardei. creci ' || COALESCE(creci,'(nao informado)') || ', nome ' || COALESCE(nome,'(nao informado)')\n          || '. nao peca esses dados de novo a este corretor.' FROM gravado),\n  'nao guardei nada: o valor recebido nao serve como creci nem como nome. peca de novo ao corretor.'\n) AS instrucao_para_voce",
+    "options": {
+     "queryReplacement": "={{ [$('Juntar mensagens').first().json.telefone, $fromAI('creci', 'o creci que o corretor informou, exatamente como ele escreveu; vazio se ele nao informou creci', 'string') ?? null, $fromAI('nome', 'o nome completo que o corretor informou; vazio se ele nao informou nome', 'string') ?? null] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2608,
+    384
+   ],
+   "id": "3c17a290-3c32-4f1a-884f-b5fda511bb73",
+   "name": "guardar_dados_do_corretor",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "description": "Use quando o TEL (e so ele) estiver respondendo uma pendencia que voce escalou -- por exemplo ele diz 'pode ser 15h', 'a Raissa liberou', 'diz que nao da hoje'. NUNCA use para mensagem de corretor. Passe o id da pendencia e o que o Tel disse. A ferramenta NAO envia de primeira: ela devolve em texto_pronto a frase de confirmacao que voce deve dizer ao Tel. So depois que ele confirmar numa mensagem NOVA e que ela envia ao corretor. Siga texto_pronto ao pe da letra e nunca diga que avisou o corretor antes de a ferramenta devolver que avisou. Se voce nao souber de qual pendencia ele fala, pergunte a ele antes de chamar.",
+    "workflowId": {
+     "__rl": true,
+     "value": "NayRespConv00001",
+     "mode": "list",
+     "cachedResultName": "Nay - responder pendencia"
+    },
+    "workflowInputs": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "pendencia_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('pendencia_id', `O numero da pendencia que o Tel esta respondendo. Ele aparece no aviso que voce mandou a ele (Pendencia N). Se nao tiver certeza, deixe vazio.`, 'string') }}",
+      "texto": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('texto', `O que o Tel respondeu, nas palavras dele, para o corretor ler. Nao acrescente nada que ele nao disse.`, 'string') }}",
+      "msg_id": "={{ $('Gravar na fila').first().json.id }}",
+      "telefone": "={{ $('Juntar mensagens').first().json.telefone }}"
+     },
+     "matchingColumns": [],
+     "schema": [
+      {
+       "id": "pendencia_id",
+       "displayName": "pendencia_id",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "canBeUsedToMatch": true,
+       "type": "string",
+       "removed": false
+      },
+      {
+       "id": "texto",
+       "displayName": "texto",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "canBeUsedToMatch": true,
+       "type": "string",
+       "removed": false
+      },
+      {
+       "id": "msg_id",
+       "displayName": "msg_id",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "canBeUsedToMatch": true,
+       "type": "string",
+       "removed": false
+      },
+      {
+       "id": "telefone",
+       "displayName": "telefone",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "canBeUsedToMatch": true,
+       "type": "string",
+       "removed": false
+      }
+     ],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    }
+   },
+   "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+   "typeVersion": 2.2,
+   "position": [
+    3056,
+    -160
+   ],
+   "id": "tool-resp-conv-01",
+   "name": "responder_pendencia"
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Como funciona a visita NESTE imovel especifico: se a chave fica com a gente, se e fechadura eletronica, se precisa agendar com o proprietario, se ele autoriza a entrada no condominio. Muda de imovel para imovel. CHAME SEMPRE antes de tratar de visita, agendamento ou horario, ANTES de dizer qualquer coisa ao corretor sobre como sera a visita. Se vier que ainda nao esta registrado, siga o texto_pronto: pergunte ao Tel e nao invente.",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, sabe FROM nay_como_funciona_visita($1);",
+    "options": {
+     "queryReplacement": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('codigo', `o codigo do imovel, um numero de 3 a 5 digitos`, 'string') }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    1792,
+    416
+   ],
+   "id": "tool-cfv-ler-01",
+   "name": "como_funciona_a_visita",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Guarda como funciona a visita num imovel, depois que o TEL explicar. Chame na MESMA resposta em que ele explicar -- se nao chamar, a informacao se perde e voce vai perguntar de novo. Passe o codigo do imovel e, em uma frase, o que ele disse. So o Tel consegue gravar: se um corretor tentar, a ferramenta recusa e voce NAO diz que guardou.",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto FROM nay_guardar_como_funciona_visita($1,$2,$3);",
+    "options": {
+     "queryReplacement": "={{ [$fromAI('codigo', 'o codigo do imovel, um numero de 3 a 5 digitos', 'string') ?? null, $fromAI('texto', 'em uma frase, como funciona a visita nesse imovel, nas palavras do Tel', 'string') ?? null, $('Juntar mensagens').first().json.telefone] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2384,
+    464
+   ],
+   "id": "tool-cfv-gravar-01",
+   "name": "guardar_como_funciona_a_visita",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Decide o que fazer com um pedido de visita. CHAME SEMPRE que o corretor pedir para visitar ou sugerir um horario, ANTES de responder qualquer coisa sobre a visita. Passe o codigo do imovel e o horario que ele pediu como data e hora completa. A ferramenta conhece as regras que voce nao tem como saber: se o proprietario acompanha naquele imovel, e se o pedido esta em cima da hora. Diga ao corretor o texto_pronto ao pe da letra e obedeca instrucao_para_voce sem mostra-la a ele.",
+    "operation": "executeQuery",
+    "query": "SELECT acao, texto_pronto, instrucao_para_voce FROM nay_avaliar_visita($1,$2,$3);",
+    "options": {
+     "queryReplacement": "={{ [$fromAI('codigo', 'o codigo do imovel que o corretor quer visitar, 3 a 5 digitos', 'string') ?? null, $fromAI('quando', 'a data e hora que o corretor pediu, no formato AAAA-MM-DD HH:MM. Use a hora de Manaus que veio na informacao de sistema para resolver hoje, amanha e horarios soltos como 15h. Se ele nao disse horario, deixe vazio.', 'string') ?? null, $('Juntar mensagens').first().json.nome ?? null] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2496,
+    432
+   ],
+   "id": "tool-avaliar-visita-1",
+   "name": "avaliar_visita",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Busca imovel por BAIRRO e faixa de valor -- use quando o corretor pedir imovel por regiao e preco, sem citar condominio. Ex: 'apartamento no Parque 10 ate 2 mil', 'casa no Aleixo para alugar'. CHAME ANTES de responder qualquer coisa sobre ter ou nao ter imovel. NUNCA diga que vai verificar e retornar: consulte agora e responda com o que vier. Se nao voltar nada, diga o texto_pronto e escale ao Tel -- nao prometa procurar depois. Se o corretor disser algo sobre MOBILIA -- sem mobilia, mobiliado, so modulados -- passe no parametro mobilia: a busca filtra e devolve so o que casa, em vez de voce oferecer o que nao serve.",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, instrucao_para_voce FROM nay_buscar_por_perfil($1,$2,$3,$4,$5);",
+    "options": {
+     "queryReplacement": "={{ [$fromAI('bairro', 'o bairro ou regiao que o corretor citou, so o nome', 'string') ?? null, $fromAI('negocio', 'locacao ou venda, exatamente uma dessas palavras sem acento', 'string') ?? null, $fromAI('teto', 'o teto de valor em reais, so digitos. vazio se ele nao disse', 'string') ?? null, $fromAI('quartos', 'quantidade de quartos. vazio se ele nao disse', 'string') ?? null, $fromAI('mobilia', 'o que ele disse sobre mobilia: sem mobilia, mobiliado, so modulados, semi-mobiliado. vazio se ele nao falou de mobilia', 'string') ?? null] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2736,
+    304
+   ],
+   "id": "tool-buscar-perfil-1",
+   "name": "buscar_por_perfil",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Guarda QUANDO o corretor prometeu dar retorno sobre um cliente, para voce cobrar na hora certa. CHAME sempre que ele disser que o cliente vai decidir ou responder depois: 'ela decide amanha', 'te falo final da tarde', 'ele me responde segunda'. Passe o codigo do imovel, a FRASE EXATA que ele usou sobre o prazo, e uma referencia curta de qual cliente e (ex: 'a cliente que viu sabado'). NAO diga ao corretor a hora que voce vai cobrar nem que criou lembrete: so confirme que ficou combinado. Sem o codigo do imovel a ferramenta recusa -- pergunte qual imovel antes.",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, instrucao_para_voce FROM nay_guardar_retorno($1,$2,$3,$4);",
+    "options": {
+     "queryReplacement": "={{ [$('Juntar mensagens').first().json.telefone, $fromAI('codigo', 'o codigo do imovel de que se trata o cliente', 'string') ?? null, $fromAI('frase', 'a frase exata que o corretor usou sobre o prazo, sem reescrever', 'string') ?? null, $fromAI('referencia', 'em poucas palavras, qual cliente e -- ex: a cliente que viu sabado', 'string') ?? null] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    3344,
+    368
+   ],
+   "id": "tool-guardar-retorno-1",
+   "name": "guardar_retorno",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Descobre de qual imovel o corretor fala quando ele diz 'esse', 'esse ai', 'esse imovel' SEM dar o codigo. Devolve a lista dos imoveis que VOCE mandou para ELE, para ele escolher. NUNCA devolve um codigo escolhido: quem escolhe e o corretor. Mostre a lista como veio e espere ele apontar. NAO suponha que e o ultimo imovel que voces conversaram, nem o ultimo postado nos grupos -- sao mais de 3 por dia, e mandar informacao de um imovel como se fosse de outro e o pior erro possivel.",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, NULL::text AS codigo, instrucao_para_voce FROM nay_qual_imovel($1);",
+    "options": {
+     "queryReplacement": "={{ [$('Juntar mensagens').first().json.telefone] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    3488,
+    368
+   ],
+   "id": "tool-imovel-disparo-1",
+   "name": "imovel_do_disparo",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Diz de quais imoveis voces JA FALARAM nesta conversa e que voce nunca chegou a mandar de verdade. CHAME quando o corretor cobrar algo que voce ficou de enviar, quando ele disser 'e aquele?', 'nao chegou', 'to esperando', e tambem no comeco de uma conversa retomada. Se vier codigo e ele quer, mande AGORA com imovel_por_codigo, na mesma resposta. Em 30/08 o Gustavo pediu tres imoveis e nao recebeu nenhum, e ninguem percebeu por dois dias.",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, codigos, instrucao_para_voce FROM nay_o_que_ficou_de_enviar($1);",
+    "options": {
+     "queryReplacement": "={{ [$('Juntar mensagens').first().json.telefone] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    3648,
+    368
+   ],
+   "id": "tool-ficou-enviar-1",
+   "name": "o_que_ficou_de_enviar",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Anota que voce DEVE mandar um imovel a este corretor. CHAME sempre que ele pedir um imovel -- 'me manda', 'quero ver', 'tem fotos', 'me passa esse' -- ANTES de responder. Se voce conseguir mandar o card na mesma resposta, otimo; se nao conseguir, o sistema entrega sozinho em alguns minutos, com as fotos. Assim ele nunca mais fica esperando um imovel que voce prometeu. Passe o codigo e a frase dele que gerou o pedido. NAO chame para imovel que voce so ofereceu e ele nao pediu.",
+    "operation": "executeQuery",
+    "query": "SELECT nay_ficou_devendo($1,$2,$3) AS instrucao_para_voce;",
+    "options": {
+     "queryReplacement": "={{ [$('Juntar mensagens').first().json.telefone, $fromAI('codigo', 'o codigo do imovel que ele pediu, 3 a 5 digitos', 'string') ?? null, $fromAI('pedido', 'a frase exata dele que pediu o imovel', 'string') ?? null] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    3808,
+    384
+   ],
+   "id": "tool-ficou-devendo-1",
+   "name": "ficou_devendo",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Diz se a Imob Easy TEM ou NAO TEM imovel num condominio, pelo NOME dele -- o corretor nao precisa saber o codigo. CHAME SEMPRE que ele perguntar se algo esta disponivel citando o nome do condominio ou colando um anuncio. Passe tambem se ele quer venda ou locacao, quando ele tiver dito. SIGA A instrucao_para_voce que vier junto, ao pe da letra: e ela que diz se aquela resposta e final, se voce deve perguntar qual condominio ele quis dizer, ou se o imovel e de parceria. Quando a instrucao disser que e resposta, NAO escale ao Tel e NAO diga que vai verificar. Quando ela mandar perguntar, pergunte e chame esta ferramenta de novo com o que ele responder -- nunca afirme disponibilidade sobre um condominio que ele nao confirmou. Quando vier um codigo preenchido, e porque so existe um imovel la e voce ja pode seguir com ele.",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, codigo, instrucao_para_voce FROM nay_disponibilidade_no_condominio($1,$2);",
+    "options": {
+     "queryReplacement": "={{ [$fromAI('condominio', 'o nome do condominio como o corretor escreveu', 'string') ?? null, $fromAI('negocio', 'venda ou locacao, se ele tiver dito; senao deixe vazio', 'string') ?? null] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    1904,
+    544
+   ],
+   "id": "tool-disp-cond-01",
+   "name": "disponibilidade_no_condominio",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "O que o Tel JA explicou sobre ESTE imovel e que nao esta na ficha nem no anuncio: se esta quitado, o valor de entrada, as condicoes de locacao (caucao, renda, restricoes), pet, mobilia, estado, situacao. CHAME SEMPRE antes de escalar_ao_tel: se vier sabe=true, responda com isso e NAO escale. Se vier sabe=false, ai sim escale COM o codigo -- a resposta do Tel fica gravada e serve para o proximo corretor que perguntar o mesmo.",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, sabe, instrucao_para_voce FROM nay_o_que_sei_do_imovel($1,$2);",
+    "options": {
+     "queryReplacement": "={{ [$fromAI('codigo', 'o codigo do imovel', 'string') ?? null, $fromAI('pergunta', 'o que o corretor quer saber, nas palavras dele', 'string') ?? null] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2016,
+    624
+   ],
+   "id": "tool-sei-imovel-01",
+   "name": "o_que_sei_do_imovel",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Guarda o que o TEL explicar sobre um imovel -- quitacao, valor de entrada, condicoes de locacao, pet, mobilia, estado, situacao. Chame na MESMA resposta em que ele explicar: se nao chamar, a informacao se perde e voce vai perguntar de novo. So o Tel consegue gravar; se um corretor tentar, a ferramenta recusa e voce NAO diz que guardou.",
+    "operation": "executeQuery",
+    "query": "SELECT nay_guardar_do_imovel($1,$2,$3,$4) AS texto_pronto;",
+    "options": {
+     "queryReplacement": "={{ [$fromAI('codigo', 'o codigo do imovel', 'string') ?? null, $fromAI('assunto', 'do que se trata: quitacao, entrada, condicoes de locacao, pet, mobilia, estado ou situacao', 'string') ?? null, $fromAI('texto', 'o que o Tel explicou, nas palavras dele', 'string') ?? null, $('Juntar mensagens').first().json.telefone] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2144,
+    576
+   ],
+   "id": "tool-guardar-imovel-01",
+   "name": "guardar_do_imovel",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "-- Uma linha por mensagem que sai, com o ID dela.\n-- Os dois INSERT sao CTE que MODIFICA dado, entao os dois rodam sempre --\n-- CTE de SELECT que ninguem referencia o Postgres nem executa (foi assim\n-- que o `nay_sincronizar_nome` ficou meses sem rodar).\nWITH s AS (\n  INSERT INTO mensagem_saida (message_id, telefone, texto)\n  SELECT $1::text, $2::text, $3::text\n   WHERE NULLIF(btrim(coalesce($1::text,'')),'') IS NOT NULL\n  ON CONFLICT (message_id) DO NOTHING\n  RETURNING 1\n), e AS (\n  -- O codigo sai do TEXTO DESTA mensagem, nao de outro no: e isso que\n  -- garante que o codigo e o ID sejam do mesmo card.\n  INSERT INTO envios (codigo, telefone, destino, valor_enviado, message_id)\n  SELECT i.codigo, $2::text, 'corretor',\n         COALESCE(i.valor_venda, i.valor_aluguel, 0), $1::text\n    FROM imoveis i\n   WHERE NULLIF(btrim(coalesce($1::text,'')),'') IS NOT NULL\n     AND i.codigo::text = (regexp_match(coalesce($3::text,''), 'C[oó]digo:\\s*(\\d{3,5})'))[1]\n  RETURNING 1\n)\nSELECT (SELECT count(*) FROM s) AS saida, (SELECT count(*) FROM e) AS envio;",
+    "options": {
+     "queryReplacement": "={{ [$json.messageId ?? $json.id ?? $json.zaapId ?? null, $('Juntar mensagens').first().json.telefone ?? null, (($('Loop fotos').first().json.corpo || {}).message) ?? null] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    3968,
+    896
+   ],
+   "id": "reg-saida-0001",
+   "name": "Registrar saida",
+   "alwaysOutputData": true,
+   "retryOnFail": false,
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "-- NAI atendimento locacao: quem atende esta mensagem? Decide nai_config.modo\n-- (desligado / teste / todos). Erro aqui = segue na Nay de sempre.\n-- 13/09: com o TEXTO -- no numero do Tel, comando do publicador segue no\n-- caminho antigo mesmo com o numero no teste (nai_e_comando_publicador).\nSELECT nai_quem_atende($1, $2::boolean, $3) AS atende;",
+    "options": {
+     "queryReplacement": "={{ [String(($json.body || {}).phone || ''), (($json.body || {}).isGroup === true || ($json.body || {}).isNewsletter === true || ($json.body || {}).broadcast === true), String(((($json.body || {}).text || {}).message) || ((($json.body || {}).image || {}).caption) || '')] }}"
+    }
+   },
+   "id": "820d3db9-c5b8-4f0a-8f2e-2516289ad4d7",
+   "name": "NAI ou Nay? (quem atende)",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    316,
+    28
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true,
+   "notes": "Roteador da NAI. Para desligar a NAI: UPDATE nai_config SET valor='desligado' WHERE chave='modo';",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "leftValue": "={{ $json.atende }}",
+       "rightValue": "nai",
+       "operator": {
+        "type": "string",
+        "operation": "equals"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "3b5559aa-e781-40c3-8726-b66b70c5c359",
+   "name": "Vai para a NAI?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    516,
+    28
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "http://127.0.0.1:5678/webhook/nai-atendimento-locacao",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($('Webhook').first().json.body || {}) }}",
+    "options": {
+     "timeout": 10000
+    }
+   },
+   "id": "7ef44400-9f54-4c4c-9e63-57780e62a335",
+   "name": "Mandar para a NAI",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    716,
+    -72
+   ],
+   "onError": "continueErrorOutput"
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "fa3c28c1-1972-41e8-bfc9-3549906edfb3",
+       "leftValue": "={{ /timeout of \\d+ms exceeded/i.test(String((($json || {}).error || {}).message || '')) }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "881c8bef-4522-4133-8203-69f35ac01f02",
+   "name": "Prazo estourado? (a NAI recebeu)",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    936,
+    88
+   ],
+   "notes": "27/09/2026: prazo estourado NAO e NAI fora do ar -- o n8n aceitou e enfileirou, e ela vai atender. Cair no fluxo antigo aqui fazia a mesma mensagem ser atendida duas vezes. Outro erro (404, NAI desligada) segue para o fluxo antigo, como antes."
+  }
+ ],
+ "connections": {
+  "Filtrar e normalizar": {
+   "main": [
+    [
+     {
+      "node": "Gravar na fila",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Webhook": {
+   "main": [
+    [
+     {
+      "node": "NAI ou Nay? (quem atende)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Janela de 25s": {
+   "main": [
+    [
+     {
+      "node": "Reservar mensagens",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Reservar mensagens": {
+   "main": [
+    [
+     {
+      "node": "Juntar mensagens",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Detectar audio",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Gravar na fila": {
+   "main": [
+    [
+     {
+      "node": "Janela de 25s",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Juntar mensagens": {
+   "main": [
+    [
+     {
+      "node": "Achar codigo",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Rotear para o agente",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Comando do Tel",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Achar codigo": {
+   "main": [
+    [
+     {
+      "node": "Buscar imovel",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Buscar imovel": {
+   "main": [
+    [
+     {
+      "node": "Montar mensagem",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Preparar envio": {
+   "main": [
+    [
+     {
+      "node": "Loop fotos",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Montar mensagem": {
+   "main": [
+    [
+     {
+      "node": "Buscar fotos",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Buscar fotos": {
+   "main": [
+    [
+     {
+      "node": "Preparar envio",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Loop fotos": {
+   "main": [
+    [
+     {
+      "node": "Preparar registro",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Pausa",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Enviar Z-API": {
+   "main": [
+    [
+     {
+      "node": "Registrar saida",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Pausa": {
+   "main": [
+    [
+     {
+      "node": "Enviar Z-API",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Listar condominios": {
+   "main": [
+    [
+     {
+      "node": "Achar condominio",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Achar condominio": {
+   "main": [
+    [
+     {
+      "node": "Buscar no condominio",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Buscar no condominio": {
+   "main": [
+    [
+     {
+      "node": "Montar lista",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Montar lista": {
+   "main": [
+    [
+     {
+      "node": "Enviar lista",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Registrar envio": {
+   "main": [
+    []
+   ]
+  },
+  "Enviar lista": {
+   "main": [
+    [
+     {
+      "node": "Fechar ciclo",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Postgres Chat Memory": {
+   "ai_memory": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_memory",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "imovel_por_codigo": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "resumo_do_condominio": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "listar_no_condominio": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "OpenAI Chat Model": {
+   "ai_languageModel": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_languageModel",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "AI Agent": {
+   "main": [
+    [
+     {
+      "node": "Achar codigo na resposta",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Achar codigo na resposta": {
+   "main": [
+    [
+     {
+      "node": "Buscar fotos do agente",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Buscar fotos do agente": {
+   "main": [
+    [
+     {
+      "node": "Preparar envio do agente",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Preparar envio do agente": {
+   "main": [
+    [
+     {
+      "node": "Loop fotos",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Rotear para o agente": {
+   "main": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Preparar registro": {
+   "main": [
+    [
+     {
+      "node": "Registrar envio",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "escalar_ao_tel": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Comando do Tel": {
+   "main": [
+    [
+     {
+      "node": "Responder pendencia",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Responder pendencia": {
+   "main": [
+    [
+     {
+      "node": "Preparar aviso do comando",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Preparar aviso do comando": {
+   "main": [
+    [
+     {
+      "node": "Enviar Z-API",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Detectar audio": {
+   "main": [
+    [
+     {
+      "node": "Baixar audio",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Baixar audio": {
+   "main": [
+    [
+     {
+      "node": "Transcrever",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Transcrever": {
+   "main": [
+    [
+     {
+      "node": "Juntar mensagens",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "dados_do_corretor": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "guardar_dados_do_corretor": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "responder_pendencia": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "como_funciona_a_visita": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "guardar_como_funciona_a_visita": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "avaliar_visita": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "buscar_por_perfil": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "guardar_retorno": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "imovel_do_disparo": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "o_que_ficou_de_enviar": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "ficou_devendo": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "disponibilidade_no_condominio": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "o_que_sei_do_imovel": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "guardar_do_imovel": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Registrar saida": {
+   "main": [
+    [
+     {
+      "node": "Loop fotos",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "NAI ou Nay? (quem atende)": {
+   "main": [
+    [
+     {
+      "node": "Vai para a NAI?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Vai para a NAI?": {
+   "main": [
+    [
+     {
+      "node": "Mandar para a NAI",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Filtrar e normalizar",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Mandar para a NAI": {
+   "main": [
+    [],
+    [
+     {
+      "node": "Prazo estourado? (a NAI recebeu)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prazo estourado? (a NAI recebeu)": {
+   "main": [
+    [],
+    [
+     {
+      "node": "Filtrar e normalizar",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false,
+  "timeSavedMode": "fixed",
+  "errorWorkflow": "4NJbiUC7P5W2BvJH",
+  "callerPolicy": "workflowsFromSameOwner"
+ }
+}

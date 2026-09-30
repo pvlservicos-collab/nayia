@@ -1,0 +1,200 @@
+{
+ "id": "NayRespConv00001",
+ "nome": "Nay - responder pendencia",
+ "ativo": true,
+ "atualizado_em": "2026-09-04 20:58:21.030",
+ "nodes": [
+  {
+   "parameters": {
+    "workflowInputs": {
+     "values": [
+      {
+       "name": "pendencia_id"
+      },
+      {
+       "name": "texto"
+      },
+      {
+       "name": "msg_id"
+      },
+      {
+       "name": "telefone"
+      }
+     ]
+    }
+   },
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "typeVersion": 1.1,
+   "position": [
+    0,
+    208
+   ],
+   "id": "rc-trigger-001",
+   "name": "Receber chamada"
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "SELECT acao, texto_pronto, avisar, msg_corretor FROM nay_responder_conversando($1,$2,$3,$4);",
+    "options": {
+     "queryReplacement": "={{ [$json.pendencia_id, $json.texto, $json.msg_id, $json.telefone] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    224,
+    208
+   ],
+   "id": "rc-consulta-001",
+   "name": "Consultar",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "leftValue": "={{ $json.acao }}",
+       "rightValue": "enviar",
+       "operator": {
+        "type": "string",
+        "operation": "equals"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    560,
+    208
+   ],
+   "id": "rc-if-0001",
+   "name": "Pode enviar?"
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.z-api.io/instances/<REDIGIDO>/token/<REDIGIDO>/send-text",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Client-Token",
+       "value": "<REDIGIDO>"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ phone: $('Consultar').first().json.avisar, message: $('Consultar').first().json.msg_corretor }) }}",
+    "options": {}
+   },
+   "id": "rc-envio-0001",
+   "name": "Avisar corretor",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    896,
+    144
+   ],
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "s1",
+       "name": "texto_pronto",
+       "value": "={{ $('Consultar').first().json.texto_pronto }}",
+       "type": "string"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    1104,
+    272
+   ],
+   "id": "rc-devolver-001",
+   "name": "Devolver"
+  }
+ ],
+ "connections": {
+  "Receber chamada": {
+   "main": [
+    [
+     {
+      "node": "Consultar",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Consultar": {
+   "main": [
+    [
+     {
+      "node": "Pode enviar?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Pode enviar?": {
+   "main": [
+    [
+     {
+      "node": "Avisar corretor",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Devolver",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Avisar corretor": {
+   "main": [
+    [
+     {
+      "node": "Devolver",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false
+ }
+}

@@ -1,0 +1,6 @@
+# A CONFERÊNCIA RÁPIDA DO CRM (29/09/2026, Pedro: "preciso do máximo de
+# velocidade nas mensagens no CRM, mostra logo"): a cada ~10 s, os últimos 3
+# minutos até 8 s atrás (ver crm/src/app/api/cron/espelho-nay/route.ts,
+# ?rapida=1). Começa 5 s depois do minuto cheio para não cair junto com a
+# rodada de minuto (/etc/cron.d/crm-espelho-nay), que continua olhando 40 min.
+* * * * * root sleep 5; for i in 1 2 3 4 5 6; do docker exec crm-imobeasy sh -c 'wget -q -T 9 -O /dev/null --header="x-cron-segredo: $CRON_SEGREDO" --post-data="" "http://127.0.0.1:3000/api/cron/espelho-nay?rapida=1"' >/dev/null 2>&1; sleep 8; done

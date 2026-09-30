@@ -1,0 +1,3180 @@
+{
+ "id": "NaiAtendLocacao1",
+ "nome": "NAI atendimento locação",
+ "ativo": true,
+ "atualizado_em": "2026-09-28 15:34:27",
+ "nodes": [
+  {
+   "parameters": {
+    "content": "## NAI atendimento locação\nCópia do \"Nay- recebe mensagem\" + a visita de verdade (proprietário, Fernando, lembretes).\n\n**Toda mensagem que sai passa pela caixa `nai_saida`** e pelo CHECK DUPLO: o banco confere que o destino é parte da conversa ou da visita, e o nó \"Conferir cabeçalho\" confere de novo em JavaScript antes da Z-API.\n\n**Quem cai aqui:** decide `nai_config.modo` (desligado / teste / todos). O fluxo antigo pergunta ao banco em cada mensagem.",
+    "height": 300,
+    "width": 620
+   },
+   "name": "📌 NAI atendimento locação",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    -528,
+    -624
+   ],
+   "id": "81519023-ad4f-4fdf-a028-119e1e9c5e70"
+  },
+  {
+   "parameters": {
+    "content": "## 🧪 MODO TESTE — SÓ O TEL [telefone …2835])\nEnquanto `nai_config.modo = teste`:\n- só o número de teste cai aqui;\n- o que iria para PROPRIETÁRIO, FERNANDO ou TEL vai para o número de teste, com etiqueta;\n- nada sai para número fora da lista (parede no banco).\n\n**Para ir pra valer:**\n`UPDATE nai_config SET valor='todos' WHERE chave='modo';`",
+    "height": 300,
+    "width": 620,
+    "color": 3
+   },
+   "name": "🧪 MODO TESTE",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    -528,
+    -304
+   ],
+   "id": "c1959da9-d962-40cc-aa7d-1066608e763a"
+  },
+  {
+   "parameters": {
+    "httpMethod": "POST",
+    "path": "nai-atendimento-locacao",
+    "options": {}
+   },
+   "name": "Webhook",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2.1,
+   "position": [
+    -832,
+    368
+   ],
+   "webhookId": "907b9acd-c01a-4510-b31e-10cd3402aa56",
+   "id": "1c827214-4a4d-4dd0-89ac-d01327630cec"
+  },
+  {
+   "parameters": {
+    "jsCode": "const b = $input.first().json.body || {};\n// O QUE SAI TAMBEM SE GUARDA (31/08). Ate aqui `fromMe` era descartado\n// junto com grupo e newsletter, entao NADA do que a Nay responde -- nem\n// do que o Tel digita no WhatsApp dela -- ficava gravado: 2.800 linhas em\n// `mensagens`, todas 'recebida', zero 'enviada'. O efeito pratico foi eu\n// diagnosticar conversa pela metade e propor resposta para corretor que o\n// Tel ja tinha atendido.\n// A mensagem que sai e gravada com status 'Enviado', e o `Reservar\n// mensagens` so pega 'Recebido' -- entao ela entra no historico e o fluxo\n// para sozinho, sem responder a si mesma.\nif (b.isGroup || b.isNewsletter || b.broadcast || b.isStatusReply) return [];\nif (b.type !== 'ReceivedCallback') return [];\nconst saindo = !!(b.fromMe || b.fromApi);\nconst legenda = (b.image && b.image.caption) || (b.video && b.video.caption) || (b.document && b.document.caption) || null; const texto = (b.text && b.text.message) ? b.text.message : (legenda || null);\n// A CITACAO. O corretor quase nunca manda o codigo: ele responde\n// citando o card que saiu no grupo, e o codigo esta la dentro. Ate\n// 29/08 isso era jogado fora aqui na entrada, e a Nay recebia\n// \"Ainda disponivel?\" sem imovel nenhum (caso Valois, 29/08).\n// A Z-API entrega em `referencedMessage` -- confirmado no historico\n// de execucoes do n8n. A forma INTERNA ainda nao foi vista, entao\n// tenta os caminhos plausiveis e, se nenhum servir, guarda o que\n// veio: o proximo caso se explica sozinho em vez de sumir calado.\n// A Z-API NAO manda mensagem citada nesta configuracao: 22 payloads\n// capturados em 30/08 e nenhum traz `referencedMessage`. Os campos sao\n// isStatusReply chatLid connectedPhone waitingMessage isEdit isGroup\n// isNewsletter instanceId messageId phone fromMe momment status chatName\n// senderName photo broadcast adContext messageExpirationSeconds forwarded\n// type fromApi text. O campo fica aqui defensivamente, para o dia em que\n// a Z-API passar a mandar -- mas quem identifica o imovel hoje e o CARD\n// COLADO, tratado no `Juntar mensagens`.\n// Captura a estrutura de quem RESPONDE MARCANDO. A conclusao anterior\n// (\"a Z-API nao manda citacao\") veio de 22 amostras que eram mensagens\n// comuns -- nao havia resposta marcada entre elas, entao a ausencia do\n// campo nao provava nada. Agora so grava quando ha sinal de citacao ou\n// quando o corpo traz campo desconhecido, para nao encher a tabela.\nconst camposRaiz = Object.keys(b).filter(k => b[k] !== null && b[k] !== undefined).join(' ');\nconst CONHECIDOS = new Set(['isStatusReply','chatLid','connectedPhone','waitingMessage',\n  'isEdit','isGroup','isNewsletter','instanceId','messageId','phone','fromMe','momment',\n  'status','chatName','senderName','photo','broadcast','adContext',\n  'messageExpirationSeconds','forwarded','type','fromApi','text','image','audio','video',\n  'document','sticker','reaction','reactionBy','notification','participantPhone',\n  'participantLid','senderPhoto','isGroupMessage']);\nconst novos = Object.keys(b).filter(k => !CONHECIDOS.has(k));\nconst desc = v => v === null || v === undefined ? 'nulo'\n  : Array.isArray(v) ? 'lista[' + v.length + ']'\n  : typeof v === 'object' ? '{' + Object.keys(v).join(',') + '}'\n  : typeof v === 'string' ? 'texto(' + v.length + ')' : typeof v;\nconst estrutura = novos.length\n  ? novos.map(k => k + '=' + desc(b[k])).join(' | ')\n  : null;\n\nconst ref = b.referencedMessage || null;\n// `referenceMessageId` e o nome REAL do campo (visto em payload_estrutura,\n// 01/09). So o ID chega, nunca o texto -- entao serve para saber que ELE\n// respondeu citando algo, e ela perguntar de qual imovel se trata.\nconst refId = b.referenceMessageId || (ref && ref.messageId) || null;\nlet citado = null;\nif (ref) {\n  if (typeof ref === 'string') citado = ref;\n  else citado = (ref.text && ref.text.message) || ref.message || ref.body\n             || (ref.image && ref.image.caption)\n             || (ref.video && ref.video.caption) || null;\n  if (!citado) { try { citado = JSON.stringify(ref).slice(0, 900); } catch (e) { citado = null; } }\n}\n// TEMPORARIO (31/08): descobrir onde a Z-API poe a URL da imagem, para\n// decidir se da para a Nay VER a foto. 12% das mensagens sao imagem (346\n// em 30 dias) e hoje ela so diz que nao consegue abrir.\n// Guarda apenas NOMES DE CAMPO e tipo, nunca o valor -- mesma disciplina\n// da captura de citacao, que respondeu em 22 amostras o que seis palpites\n// nao responderam. Apagar assim que o campo estiver conhecido.\nlet dbgImg = null;\nif (b.image || b.video || b.document) {\n  const desc = v => v === null || v === undefined ? 'nulo'\n    : typeof v === 'object' ? '{' + Object.keys(v).join(',') + '}'\n    : typeof v === 'string' ? 'texto(' + v.length + ')' : typeof v;\n  dbgImg = ['image','video','document']\n    .filter(k => b[k]).map(k => k + '=' + desc(b[k])).join(' | ');\n}\n// A URL DA MIDIA FICA NA LINHA DA MENSAGEM (22/09). O ramo que le a\n// imagem so enxerga UMA midia -- a do webhook que ganhou a janela --,\n// entao de cinco fotos quatro se perdiam. Guardada aqui, o turno inteiro\n// tem todas: `msg_ids` ja aponta para elas.\nconst midiaUrl = (b.image && (b.image.imageUrl || b.image.url))\n  || (b.audio && b.audio.audioUrl)\n  || (b.document && (b.document.documentUrl || b.document.url))\n  || (b.video && (b.video.videoUrl || b.video.url)) || null;\nlet origem = 'texto';\n// REACAO e FIGURINHA vem ANTES de imagem: figurinha costuma chegar como\n// imagem na Z-API, e cairia em 'imagem' -- fazendo a Nay dizer \"nao\n// consigo abrir esse arquivo\" para um 👍🏼. Foi o que aconteceu com o Moacy\n// em 31/08: ele reagiu com joinha na mensagem DELA e recebeu o pedido de\n// mandar o codigo do imovel.\nif (b.reaction || b.reactionBy || b.isReaction) origem = 'reacao';\nelse if (b.sticker || (b.image && b.image.isSticker)) origem = 'figurinha';\nelse if (b.audio) origem = 'audio';\nelse if (b.image) origem = 'imagem';\nelse if (b.document) origem = 'documento';\nelse if (b.video) origem = 'video';\nelse if (!texto) origem = 'outro';\nreturn [{ json: {\n  telefone: String(b.phone || ''),\n  nome: b.senderName || b.chatName || null,\n  texto: texto,\n  origem: origem,\n  midia_url: midiaUrl,\n  message_id: b.messageId || null,\n  citado: citado,\n    citadoId: refId,\n  saindo: saindo,\n  // QUEM ESCREVEU: A NAY OU O TEL? (Tel, 16/09)\n  //\n  // Aqui dizia `!!b.fromMe && !b.fromApi`, partindo de que o que o Tel digita\n  // no celular chega com fromApi=false. NAO CHEGA: medido nas 154 execucoes\n  // entre 13:05 e 13:19, 129 mensagens tinham fromMe=true e 124 delas tambem\n  // fromApi=true -- inclusive as que ele digitou. A conta dava false, o ramo\n  // que pausa a conversa nunca rodava, e a Nay voltava a falar por cima dele.\n  // Foi o que ele viu no chat do Sr. Fiuza: ele atendeu das 13:05 as 13:17, e\n  // ela respondeu as 13:46.\n  //\n  // O QUE SEPARA DE VERDADE e o message_id: a Nay grava o id de 100% do que\n  // envia (121 de 121 hoje) na caixa de saida. Das 689 mensagens que sairam\n  // hoje, 98 casam com a caixa dela -- as outras 591 sao dele.\n  //\n  // Entao aqui passa tudo o que sai, e quem decide e `nai_tel_assumiu`, que ja\n  // compara o id e o texto com a caixa de saida. Na duvida ela fica calada,\n  // que e o lado certo de errar.\n  tel_celular: !!b.fromMe,\n  dbg_img: dbgImg,\n  dbg_raiz: camposRaiz,\n  dbg_estrutura: estrutura\n} }];"
+   },
+   "id": "ab9909db-1f12-4bb1-a789-e65d03db6e47",
+   "name": "Filtrar e normalizar",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -624,
+    368
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "leftValue": "={{ $json.tel_celular }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "name": "Foi o Tel pelo celular?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    -432,
+    624
+   ],
+   "id": "93442b38-e9ff-4988-8254-7fe7d288a661"
+  },
+  {
+   "parameters": {
+    "amount": 15
+   },
+   "name": "Espera 15s (eco)",
+   "type": "n8n-nodes-base.wait",
+   "typeVersion": 1.1,
+   "position": [
+    -224,
+    624
+   ],
+   "webhookId": "7af66529-7c93-484e-b3c4-d6279be21634",
+   "id": "d5b26c23-a887-4415-ab9f-181d9c37aa6a"
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "-- O TEL ASSUMIU ESTE CHAT (pedido do Tel, 11/09): a NAI para de mandar\n-- mensagem para essa pessoa. nai_tel_assumiu confere antes se nao e eco\n-- do que a propria NAI mandou (mesmo ID ou mesmo texto) -- por isso a\n-- espera de 15s: da tempo do 'Confirmar envio' gravar o ID. Volta com\n-- o comando DEVOLVER <telefone>.\nSELECT nai_tel_assumiu($1, $2, $3) AS r;",
+    "options": {
+     "queryReplacement": "={{ [ $('Filtrar e normalizar').first().json.telefone, $('Filtrar e normalizar').first().json.message_id ?? '', $('Filtrar e normalizar').first().json.texto ?? '' ] }}"
+    }
+   },
+   "name": "O Tel assumiu a conversa",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    -32,
+    624
+   ],
+   "id": "9a00fdb7-9906-48f9-93be-fbbe960bf07d",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "-- A NAI grava na MESMA tabela `mensagens` (a historia do corretor continua\n-- uma so), marcando fluxo='nai'. O telefone e gravado COMO CHEGOU: o @lid\n-- NAO e trocado por um telefone adivinhado pelo nome.\nWITH ins AS (\n  -- O ID DA MENSAGEM QUE CHEGA (14/09): e ele que faz a MARCACAO resolver\n  -- quando o corretor marca a propria mensagem (o card que ele colou). O fluxo\n  -- antigo ja guardava; este, que atende o numero em teste, nao guardava -- e\n  -- foi por isso que \"marquei o imovel e ela nao identificou\" continuou\n  -- acontecendo depois do conserto do dia 14.\n  INSERT INTO mensagens (telefone, nome, direcao, origem, texto, status, citado, citado_id, fluxo, message_id, midia_url)\n  VALUES ($1, $2, CASE WHEN $6::boolean THEN 'enviada' ELSE 'recebida' END, $3,\n          NULLIF($4, 'null'), CASE WHEN $6::boolean THEN 'Enviado' ELSE 'Recebido' END,\n          NULLIF($5, 'null'), NULLIF($7, 'null'), 'nai', NULLIF($8, 'null'), NULLIF($9, 'null'))\n  RETURNING id, telefone, origem, criada_em, direcao\n), nomeia AS (\n  SELECT nay_sincronizar_nome((SELECT telefone FROM ins), $2)\n), congela AS (\n  SELECT nay_congelar_lembretes((SELECT telefone FROM ins)) AS n WHERE NOT $6::boolean\n)\nSELECT ins.id, ins.telefone, ins.origem, ins.criada_em, ins.direcao,\n       -- quanto esperar antes de responder, para juntar as mensagens que ele\n       -- ainda esta digitando (Tel, 15/09). Muda por UPDATE, sem deploy.\n       -- POR PESSOA desde 28/09 (147): 20 s para todo mundo, os testes\n       -- internos a parte -- a mesma conta da trava da rajada no banco.\n       nai_janela_segundos(ins.telefone) AS janela,\n       (SELECT count(*) FROM nomeia) + (SELECT count(*) FROM congela) AS efeitos_colaterais\nFROM ins\n-- O ECO PARA AQUI (27/09/2026): gravado acima, mas sem ocupar vaga do n8n\n-- na janela -- a reserva so pega 'Recebido', entao ele nunca tinha o que\n-- fazer la. O ramo \"Foi o Tel pelo celular?\" e outro e continua igual.\nWHERE ins.direcao = 'recebida';",
+    "options": {
+     "queryReplacement": "={{ [$json.telefone, $json.nome ?? null, $json.origem, $json.texto ?? null, $json.citado ?? null, $json.saindo === true, $json.citadoId ?? null, $json.message_id ?? null, $json.midia_url ?? null] }}"
+    }
+   },
+   "name": "Gravar na fila",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    -432,
+    368
+   ],
+   "id": "065497db-386c-48e4-ad7c-0af0189acba5",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "amount": "={{ $('Gravar na fila').first().json.janela || 25 }}"
+   },
+   "id": "28fff9a3-441f-48dc-b9d6-cbeb58f99e69",
+   "name": "Janela de 25s",
+   "type": "n8n-nodes-base.wait",
+   "typeVersion": 1.1,
+   "position": [
+    -224,
+    368
+   ],
+   "webhookId": "dea13aa0-b1aa-41e6-8c14-04bb27325796"
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "UPDATE mensagens SET status = 'Processando' WHERE telefone = $1 AND status = 'Recebido' AND fluxo = 'nai' RETURNING id, telefone, nome, origem, texto, citado, citado_id, criada_em,\n  -- Calculados AQUI, e nao no `Gravar na fila`: e deste no que o\n  -- `Juntar mensagens` le. Ficando so la, chegavam como undefined e\n  -- a segunda camada inteira era letra morta.\n  -- O primeiro nome da pessoa, ou NULL quando o nome e de empresa.\n  -- Calculado aqui pelo mesmo motivo dos de baixo: e deste no que o\n  -- `Juntar mensagens` le.\n  nay_nome_de_pessoa(nome) AS nome_pessoa,\n  nay_pede_localizacao_da_unidade(texto) AS pede_unidade,\n  -- O que ele pediu neste turno, por mensagem. O `Juntar mensagens`\n  -- combina: locacao numa linha + venda na outra vira \"ambos\".\n  nay_pede_visita(texto) AS pede_visita,\n  -- De qual imovel esta conversa vem falando. Sai do DADO (envios,\n  -- mensagens, mensagem_saida), nao da memoria do modelo -- o caminho\n  -- do codigo puro nao passa pelo agente e nao entra em `nay_memoria`.\n  nay_aviso_do_foco(telefone) AS foco_aviso,\n  -- A MESMA funcao que o portao de fotos usa na hora de enviar.\n  -- Sem isso ela anuncia album que nao sai.\n  nay_deve_mandar_fotos(telefone, texto) AS manda_fotos,\n  nay_negocio_pedido(texto) AS negocio_pedido,\n  nay_codigos_citados(coalesce(texto,'')) AS codigos_citados,\n  -- A citacao vira o codigo do imovel por IGUALDADE de messageId.\n  -- NULL quando nao resolve, e nao resolver continua levando a\n  -- perguntar -- nunca a chutar.\n  nay_imovel_da_citacao(citado_id) AS codigo_citado,\n  -- Quando a mensagem citada fala de mais de um imovel, a lista dela.\n  nay_opcoes_da_citacao(citado_id) AS opcoes_citacao;",
+    "options": {
+     "queryReplacement": "={{ $json.telefone }}"
+    }
+   },
+   "name": "Reservar mensagens",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    -32,
+    368
+   ],
+   "id": "edc1ba6f-709e-4dba-a9d9-c40bb436ca80",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "// SO MENSAGEM ENTRA AQUI (Tel, 16/09, corrigindo erro meu do mesmo dia).\n// O no \"Ler imagem (GPT)\" tambem desagua neste, e a resposta da OpenAI traz um\n// campo `id` que e texto -- \"chatcmpl-EOm3J...\". O filtro antigo so olhava se\n// havia `id`, entao essa resposta entrava na lista como se fosse mensagem, e o\n// \"Abrir turno\" quebrava com `invalid input syntax for type bigint`.\n// Id de mensagem e sempre numero: e isso que este filtro exige agora.\n// AS MENSAGENS VEM SEMPRE DE \"Reservar mensagens\" (Tel, 16/09). Pelo $input,\n// na segunda passada chegava so a resposta da OpenAI e a lista ficava vazia.\nlet bruto;\ntry { bruto = $('Reservar mensagens').all().map(i => i.json); }\ncatch (e) { bruto = $input.all().map(i => i.json); }\nconst itens = bruto\n  .filter(m => m && m.id !== undefined && m.id !== null && /^[0-9]+$/.test(String(m.id)));\nif (itens.length === 0) return [];\n\n// ESPERAR O RAMO DA MIDIA. Se ha audio ou imagem no lote e a leitura ainda nao\n// terminou, esta passada nao produz nada: quem abre o turno e a passada\n// seguinte, ja com o texto do audio ou da imagem na mao. Sem isto o turno\n// nascia vazio e a porta decidia \"assunto que nao e de corretor\".\n//\n// So espera o que REALMENTE vem: se \"Detectar audio\"/\"Detectar imagem\" rodou e\n// nao devolveu item (midia sem url, mensagem que saiu daqui), nao ha nada que\n// esperar e a mensagem segue. E os nos do ramo tem onError, entao ate a falha\n// da API devolve o controle para ca.\nfunction rodou(no) {\n  try { const r = $(no).all(); return { sim: true, itens: (r || []).length }; }\n  catch (e) { return { sim: false, itens: 0 }; }\n}\n// QUEM DECIDE SE HA LEITURA A ESPERAR E O WEBHOOK, nao os nos detectores\n// (corrigindo erro meu de 16/09 13:16). Na PRIMEIRA passada os detectores\n// ainda nao rodaram, entao perguntar a eles devolvia \"nao ha nada vindo\" e a\n// espera nunca acontecia -- o mesmo audio abria dois turnos.\n//\n// O corpo do webhook esta disponivel desde o inicio e diz, sozinho, se vai\n// haver transcricao ou leitura: e a mesma condicao que \"Detectar audio\" e\n// \"Detectar imagem\" usam para decidir se produzem item.\nconst w = $('Webhook').first().json.body || {};\nconst midiaDaqui = !!(w.fromMe || w.fromApi || w.isGroup || w.isNewsletter\n                      || w.broadcast || w.isStatusReply || w.type !== 'ReceivedCallback');\nconst urlAudio = (w.audio && w.audio.audioUrl) || '';\nconst urlImg   = (w.image && (w.image.imageUrl || w.image.url)) || '';\nconst urlDoc   = (w.document && (w.document.documentUrl || w.document.url)) || '';\nconst mimeDoc  = String((w.document && (w.document.mimeType || w.document.mimetype)) || '');\nconst vaiTranscrever = !midiaDaqui && !!urlAudio;\nconst vaiLerImagem   = !midiaDaqui && (!!urlImg || (!!urlDoc && /pdf|image/i.test(mimeDoc)));\n// O CRITERIO E TER ITEM, NAO \"TER RODADO\" (corrigindo erro meu de 16/09 13:05).\n// `$('No').all()` NAO lança quando o no ainda nao executou: devolve vazio. Com\n// `.sim` a espera nunca acontecia, as duas passadas produziam saida e o mesmo\n// arquivo abria DOIS turnos -- foi o que aconteceu com o Sr. Leonardo, turnos\n// 8391 e 8392 para a mensagem 14015.\n//\n// Zero itens quer dizer \"ainda nao veio\". Se a leitura falhar, o no tem\n// onError e devolve um item com o erro dentro -- entao a espera termina e a\n// mensagem segue para o Tel, sem travar.\n// Espera a leitura que o webhook prometeu. Zero itens = ainda nao veio; os\n// nos do ramo tem onError, entao ate a falha devolve item e a espera termina.\nif (vaiTranscrever && rodou('Transcrever').itens === 0) return [];\nif (vaiLerImagem   && rodou('Ler imagem (GPT)').itens === 0) return [];\nitens.sort((a, b) => a.id - b.id);\nconst nomeItem = itens.find(m => m.nome);\nconst val = (m) => (m.texto && m.texto !== 'null') ? m.texto : '';\nlet texto = itens.map(val).filter(Boolean).join('\\n');\n// 'outro' fica de FORA: e o que nao e texto nem arquivo conhecido --\n// reacao com emoji, figurinha, enquete. Tratar isso como arquivo fez\n// ela dizer ao Moacy \"nao consigo abrir esse arquivo\" quando ele nao\n// tinha mandado arquivo nenhum (31/08, 19:23).\nconst nt = [...new Set(itens.filter(m => !val(m))\n  .map(m => m.origem || 'outro')\n  .filter(o => o !== 'outro' && o !== 'reacao' && o !== 'figurinha'))];\n// O QUE O CORRETOR FALOU, sem envelope de sistema nenhum. E este que\n// vai ao portao de fotos: os envelopes abaixo sao escritos por NOS, e\n// um deles tinha a palavra 'fotos' dentro.\nlet textoCru = texto;\nlet transcrito = '';\ntry { const tr = $('Transcrever').all(); if (tr && tr.length) { transcrito = String(tr[0].json.text || tr[0].json.transcription || '').trim(); } } catch (e) { transcrito = ''; }\n// A LEITURA DA IMAGEM (Tel, 16/09), no mesmo molde da transcricao do audio.\n// O no roda com onError, entao aqui pode chegar tanto a resposta do GPT quanto\n// um erro: so vale o que tiver texto de verdade dentro.\nlet lidoNaImagem = '';\nlet tipoDaMidia = 'imagem';\ntry {\n  const im = $('Ler imagem (GPT)').all();\n  if (im && im.length) {\n    const j = im[0].json || {};\n    const ch = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';\n    lidoNaImagem = String(ch || '').trim();\n  }\n} catch (e) { lidoNaImagem = ''; }\ntry {\n  const dt = $('Detectar imagem').all();\n  if (dt && dt.length) { tipoDaMidia = String((dt[0].json || {}).tipo || 'imagem'); }\n} catch (e) { tipoDaMidia = 'imagem'; }\nif (transcrito) {\n  textoCru = transcrito;\n  texto = '(o corretor mandou um audio. transcricao: \"' + transcrito + '\") '\n        + 'Atenda o que ele pediu nesta resposta, sem esperar confirmacao. Diga numa linha '\n        + 'curta o que voce entendeu e ja entregue junto -- por exemplo \"Entendi que o Sr. '\n        + 'quer as fotos do Acquarelle, ja te mando!\". Transcricao erra nome de condominio: '\n        + 'quando o imovel que voce entendeu nao for o da conversa, confirme qual e antes de '\n        + 'mandar material daquele imovel.';\n} else if (lidoNaImagem) {\n  // A IMAGEM FOI LIDA (Tel, 16/09). Vale como se ele tivesse escrito: o\n  // corretor que manda o print do anuncio ou a foto do imovel esta dizendo de\n  // qual imovel fala, e agora ela enxerga isso.\n  //\n  // A LEGENDA VEM NA FRENTE. Foto com legenda e o caso comum -- \"esse ainda\n  // esta disponivel?\" com o print junto -- e a pergunta dele nao pode ser\n  // trocada pela descricao da foto. `textoCru`, que e o que vai ao portao de\n  // fotos, continua sendo o que ELE escreveu quando ele escreveu algo.\n  const dele = String(texto || '').trim();\n  if (!dele) { textoCru = lidoNaImagem; }\n  texto = (dele ? dele + '\\n' : '')\n        + '(informacao de sistema, nao repita isso literalmente) ele mandou '\n        + (tipoDaMidia === 'arquivo' ? 'um arquivo' : 'uma imagem')\n        + ' e voce leu. Conteudo: \"' + lidoNaImagem + '\". '\n        + (dele ? 'Responda a mensagem dele acima usando isto. '\n                : 'Responda o que ele quer a partir disso. ')\n        + 'Fale no seu tom, sem dizer que leu nem descrever a imagem de volta.';\n} else if (!texto && nt.length) {\n  // A MIDIA VAI PARA O TEL (Tel, 16/09): \"ela NUNCA deve falar que nao le\n  // imagem; se nao conseguir, manda a imagem ao Tel\".\n  //\n  // Aqui estava a origem da frase. Este trecho MANDAVA ela dizer que nao\n  // consegue abrir -- e foi o que o Sr. Ribamar ouviu as 05:32, depois de\n  // mandar treze fotos, e o proprio Tel as 05:30. Nao adiantava proibir a\n  // frase no prompt: a ordem chegava dentro do texto do turno.\n  //\n  // Este ramo so roda quando a leitura acima falhou (API fora do ar, arquivo\n  // que o GPT nao abre). Entao ela cala e o Tel ve a midia no WhatsApp dele.\n  const nomes = { audio: 'um audio', imagem: 'uma imagem', documento: 'um arquivo', video: 'um video', outro: 'algo que nao e texto' };\n  const lista = nt.map(o => nomes[o] || nomes.outro).join(' e ');\n  texto = '(informacao de sistema, nao repita isso literalmente) ele enviou ' + lista\n        + ' e nenhum texto junto, e voce nao conseguiu abrir. Chame escalar_ao_tel '\n        + 'NESTA resposta e mande o texto_pronto que ela devolver, exatamente como veio: '\n        + 'e uma linha curta avisando que recebeu, para ele nao ficar sem resposta. '\n        + 'Depois dela o Tel assume. A frase \"nao consigo abrir\" nao vai para ele em '\n        + 'forma nenhuma.';\n}\n// A citacao vai SEPARADA do texto, nunca colada nele. Se fosse\n// colada, o card dela citado de volta -- que termina em \"quer que\n// eu mande as fotos?\" -- dispararia envio de foto sem ninguem ter\n// pedido. A citacao serve para achar o IMOVEL, o pedido se le so\n// no que o corretor escreveu.\nconst citado = (itens.map(m => m.citado).filter(Boolean)[0]) || null;\n// O CARD COLADO. Levantado em 30/08 capturando a estrutura do payload:\n// a Z-API NAO manda mensagem citada (nao existe `referencedMessage` nos\n// 22 payloads observados). O que o corretor faz de verdade e COLAR ou\n// ENCAMINHAR o card do grupo para dizer de qual imovel fala -- o texto\n// chega inteiro, entao nunca houve dado faltando.\n// O defeito era outro: ela lia o card, buscava o codigo e devolvia o\n// MESMO card de volta. A Samira mandou o 2943 e recebeu o 2943.\nconst mCard = texto.match(/C[óo]digo:\\s*(\\d{3,5})/i);\nif (mCard && /[📍•]/.test(texto)) {\n  texto = '(informacao de sistema, nao repita isso ao corretor) ele COLOU o card do imovel '\n        + mCard[1] + ' para dizer de qual imovel esta falando. NAO mande esse card de volta, '\n        + 'ele acabou de mandar. Siga de onde a conversa estava, tratando o ' + mCard[1]\n        + ' como o imovel escolhido. Mensagem dele: ' + texto;\n}\n// OR entre as mensagens do lote: se o corretor mandou duas linhas e a\n// pergunta da unidade esta na segunda, a parede tem que valer igual.\nconst pedeUnidade = itens.some(m => m.pede_unidade === true);\n// Visita pedida em QUALQUER mensagem do lote vale para o turno todo.\nconst pedeVisita = itens.some(m => m.pede_visita === true);\n// O aviso e o mesmo para todas as mensagens do lote (depende do\n// telefone, nao do texto): basta o primeiro que veio preenchido.\nconst focoAviso = (itens.map(m => m.foco_aviso).filter(Boolean)[0]) || null;\n// Pedido de foto em QUALQUER mensagem do lote vale para o turno todo --\n// e o portao de envio le o texto junto, entao tem que ser OR aqui.\nconst vaoSairFotos = itens.some(m => m.manda_fotos === true);\n// E os negocios se SOMAM: 'locacao' numa linha e 'venda' na outra e o\n// caso que quebrou -- ela mandou so os de venda.\nconst negs = new Set();\nfor (const m of itens) {\n  const x = m.negocio_pedido;\n  if (x === 'ambos') { negs.add('venda'); negs.add('locacao'); }\n  else if (x) negs.add(x);\n}\nconst negocioPedido = negs.size > 1 ? 'ambos' : (negs.values().next().value || null);\n// Ele respondeu citando alguma mensagem? So o ID chega, nunca o texto.\n// `citado_id` (snake) e o nome que vem do RETURNING do Postgres.\nconst citadoId = (itens.map(m => m.citado_id).filter(Boolean)[0]) || null;\n// O imovel da mensagem que ele marcou, quando a gente consegue casar.\nconst codigoCitado = (itens.map(m => m.codigo_citado).filter(Boolean)[0]) || null;\n// Uniao dos codigos que ele escreveu, sem os valores.\nconst codigosDele = [...new Set(itens.flatMap(m => m.codigos_citados || []))];\nreturn [{ json: { pedeUnidade: pedeUnidade, citadoId: citadoId, codigoCitado: codigoCitado, codigosDele: codigosDele, telefone: itens[0].telefone, nome: nomeItem ? nomeItem.nome : null, pedeVisita: pedeVisita, focoAviso: focoAviso, vaoSairFotos: vaoSairFotos, negocioPedido: negocioPedido, opcoesCitacao: (itens.map(m => m.opcoes_citacao).filter(Boolean)[0]) || null, nomePessoa: (itens.map(m => m.nome_pessoa).filter(Boolean)[0]) || null, texto: texto, textoCru: textoCru, citado: citado, naoTexto: nt, ids: itens.map(m => m.id), qtd: itens.length } }];"
+   },
+   "id": "74a55806-3678-48c5-bdcd-fd83cf47af6b",
+   "name": "Juntar mensagens",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    176,
+    368
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const w = $('Webhook').first().json.body || {};\n// Mesma parede do \"Detectar imagem\" (16/09): audio que SAI daqui nao volta\n// para ser transcrito. Nunca quebrou nada porque a resposta do Whisper nao tem\n// campo `id`, mas transcrever o proprio audio e gasto sem uso.\nif (w.isGroup || w.isNewsletter || w.broadcast || w.isStatusReply) return [];\nif (w.type !== 'ReceivedCallback') return [];\nif (w.fromMe || w.fromApi) return [];\nconst a = w.audio || {};\nconst url = a.audioUrl || '';\nif (!url) return [];\nconst seg = Number(a.seconds || 0);\nreturn [{ json: { audio_url: url, seg: seg, longo: seg > 180, telefone: w.phone, nome: w.senderName } }];"
+   },
+   "id": "d282ca11-a98a-4260-8d9e-7ac1c36693e3",
+   "name": "Detectar audio",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    176,
+    592
+   ]
+  },
+  {
+   "parameters": {
+    "url": "={{ $json.audio_url }}",
+    "options": {
+     "response": {
+      "response": {
+       "responseFormat": "file"
+      }
+     }
+    }
+   },
+   "id": "221e4098-0564-4031-a31e-9f0ead8814c1",
+   "name": "Baixar audio",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    368,
+    592
+   ],
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.openai.com/v1/audio/transcriptions",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "openAiApi",
+    "sendBody": true,
+    "contentType": "multipart-form-data",
+    "bodyParameters": {
+     "parameters": [
+      {
+       "parameterType": "formBinaryData",
+       "name": "file",
+       "inputDataFieldName": "data"
+      },
+      {
+       "name": "model",
+       "value": "gpt-4o-transcribe"
+      },
+      {
+       "name": "language",
+       "value": "pt"
+      },
+      {
+       "name": "prompt",
+       "value": "Conversa entre corretores de imóveis em Manaus, Amazonas. Bairros: Adrianópolis, Aleixo, Alvorada, Cachoeirinha, Centro, Chapada, Cidade de Deus, Cidade Nova, Colônia Santo Antônio, Colônia Terra Nova, Compensa, Coroado, Da Paz, Dom Pedro, Flores, Japiim, Lago Azul, Lírio do Vale, Nossa Senhora das Graças, Nova Cidade, Nova Esperança, Novo Aleixo, Parque 10 de Novembro, Parque das Laranjeiras, Petrópolis, Planalto, Ponta Negra, Praça 14 de Janeiro, Raiz, Santa Etelvina, Santo Agostinho, Santo Antônio, São Francisco, São Geraldo, São Jorge, São José Operário, Tarumã, Tarumã-Açu, Zumbi dos Palmares. Condomínios: Acquarelle, Alphaville, Ilhas Gregas, Gran Vista, Morada dos Pássaros, Ponta Negra I e II, Itapuranga, Reserva do Parque, Smart Downtown, Vitta Club House, Passaredo, Forest Hill, Quinta das Marinas, Mundi Resort, Evidence Ponta Negra, Living Comfort, Park Golf. Fala-se de aluguel, locação, venda, quartos, suíte, vaga, mobiliado, semimobiliado, condomínio, visita e código do imóvel."
+      }
+     ]
+    },
+    "options": {
+     "timeout": 45000
+    }
+   },
+   "name": "Transcrever",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "id": "c8472348-6248-4112-b01d-b144f3e600b6",
+   "position": [
+    576,
+    592
+   ],
+   "credentials": {
+    "openAiApi": {
+     "id": "CzrQhGemsCI4hLUh",
+     "name": "OpenAI account"
+    }
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "-- O CABECALHO do turno: quem escreveu, em que papel, qual visita, qual memoria.\nSELECT nai_abrir_turno($1, $2, $3, $4, ARRAY(SELECT jsonb_array_elements_text($5::jsonb)::bigint)) AS cab;",
+    "options": {
+     "queryReplacement": "={{ [$json.telefone, $json.nome ?? null, ($json.textoCru ?? $json.texto ?? ''), $json.citadoId ?? null, JSON.stringify($json.ids || [])] }}"
+    }
+   },
+   "name": "Abrir turno",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    368,
+    368
+   ],
+   "id": "a08ec7fe-d77d-4c6e-854f-4831fb457647",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "// >>> telefone na frente (patch 23/09)\nconst ENVIO_TEL_FRENTE = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(envi|m[a]?nd|repass|encaminh)(?:a|ar|e|ei|ou|o)?\\b\\s*(?:para\\s+|pra\\s+|pro\\s+|p\\/\\s*)?((?:55[\\s.-]*)?\\(?\\d{2}\\)?[\\s.-]*\\d{4,5}[\\s.-]*\\d{4})\\s+(c[o\\u00f3]d(?:igo)?s?\\b[\\s:=.-]*\\d{2,5}(?:[\\s,;]+(?:e\\s+)?(?:o|os)?\\s*\\d{2,5})*|(?:o|os|a|as)?\\s*\\d{3,5}(?:[\\s,;]+(?:e\\s+)?(?:o|os)?\\s*\\d{3,5})*)\\s*$/i;\nconst ENVIO_TEL_ANTES = /^\\s*(?:55[\\s.-]*)?\\(?\\d{2}\\)?[\\s.-]*\\d{4,5}[\\s.-]*\\d{4}[\\s,;:.-]+(?:@?nay\\b[\\s,;:.!?-]*)?(?:en+vi|m[a]?n+d|repass+|encaminh)(?:a|ar|e|ei|ou|o)?\\b/i;\nconst ALTO_PADRAO_GRUPO = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(?:envi|m[a]?n+d|repass+|encaminh)(?:a|ar|e|ei|ou|o)?\\b(?=[\\s\\S]*\\balto[\\s\\-]*padr[a\\u00e3]o\\b)(?=[\\s\\S]*\\b(?:grupo|easy|anunciar)\\b)/i;\nconst EH_ENVIO_TEL = (x) => ENVIO_TEL_FRENTE.test(x) || ENVIO_TEL_ANTES.test(x) || ALTO_PADRAO_GRUPO.test(x);\n// <<< telefone na frente\n// LIDO de `regex_liberar.js` pelo patch -- nao editar aqui.\nconst TAXA_CODIGO = /^(\\d{3,5})\\s*[-–—:,]?\\s*([^\\d]{2,40})$/;\nconst FALA_DE_TAXA = /\\b(tx|taxa|condominio|condomínio|cond)\\b/i;\nconst FALA_DE_INCLUSAO = /\\b(inclus[ao]|inclu[íi]d[ao]|inclui)\\b/i;\nconst NEGA = /\\b(nao|não|sem)\\b/i;\n\nfunction ehComandoDeTaxa(texto) {\n  const m = TAXA_CODIGO.exec(String(texto || ''));\n  if (!m) return false;\n  const resto = m[2];\n  if (!FALA_DE_TAXA.test(resto)) return false;\n  return FALA_DE_INCLUSAO.test(resto) || NEGA.test(resto);\n}\n\nconst VOC = '(?:@?nay\\\\b[\\\\s,;:.!?-]*)?';\n\nconst V_DESCARTA =\n  '(?:descarta|descartar|descarte|esquece|esquecer|esqueca|esqueça|' +\n  'apaga|apagar|cancela|cancelar|ignora|ignorar)';\n\nconst V_RESPOSTA = '(?:resposta|responde|responder)';\n\nconst LIGACAO = '(?:\\\\s+a)?(?:\\\\s+pend[eê]ncias?)?';\n\nconst RE_RESPOSTA = new RegExp(\n  '^\\\\s*' + VOC + V_RESPOSTA + LIGACAO + '\\\\s+(\\\\d{1,6})\\\\s+([\\\\s\\\\S]+?)\\\\s*$', 'i');\n\nconst RE_DESCARTA = new RegExp(\n  '^\\\\s*' + VOC + V_DESCARTA + LIGACAO + '\\\\s+(\\\\d{1,6})\\\\s*$', 'i');\n\nconst RE_DESCARTA_TUDO = new RegExp(\n  '^\\\\s*' + VOC + V_DESCARTA + '\\\\s+tudo\\\\s*$', 'i');\n\nconst RE_DESCARTA_TUDO_SIM = new RegExp(\n  '^\\\\s*' + VOC + V_DESCARTA + '\\\\s+tudo\\\\s+sim\\\\s*$', 'i');\n\nconst RE_LISTAR = new RegExp(\n  '^\\\\s*' + VOC + '(?:pend[eê]ncias?|pendentes)\\\\s*$', 'i');\n\nfunction ehComandoDePendencia(t) {\n  const s = String(t || '');\n  return RE_DESCARTA_TUDO_SIM.test(s) || RE_DESCARTA_TUDO.test(s) ||\n         RE_DESCARTA.test(s) || RE_RESPOSTA.test(s) || RE_LISTAR.test(s);\n}\n\nfunction interpretarPendencia(t) {\n  const s = String(t || '');\n  let m;\n  if (RE_DESCARTA_TUDO_SIM.test(s)) return { acao: 'DESCARTAR TUDO SIM', p_id: null, p_texto: null };\n  if (RE_DESCARTA_TUDO.test(s)) return { acao: 'DESCARTAR TUDO', p_id: null, p_texto: null };\n  m = s.match(RE_RESPOSTA);\n  if (m) return { acao: 'RESPOSTA', p_id: parseInt(m[1], 10), p_texto: m[2].trim() };\n  m = s.match(RE_DESCARTA);\n  if (m) return { acao: 'DESCARTAR', p_id: parseInt(m[1], 10), p_texto: null };\n  if (RE_LISTAR.test(s)) return { acao: 'PENDENCIAS', p_id: null, p_texto: null };\n  return null;\n}\n\n\n// ===== NAI: o caminho sai do CABECALHO (Abrir turno), nunca do texto solto.\nfunction ehComandoAntigo(t) {\n  return ehComandoDePendencia(t)\n    || EH_ENVIO_TEL(t)\n    || /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(envi|m[a]?nd|repass|encaminh|mostr|post|public|dispar|solt)(?:a|ar|e|ei|ou|o)?\\b([\\s\\S]*)(?:\\bpara\\b|\\bpra\\b|\\bpro\\b|\\bp\\/)\\s*([\\s\\S]+?)\\s*$/i.test(t)\n    || /^(@?NAY\\b[\\s,:;.!\\-]*)?((POSTA|POSTAR|PUBLICA|PUBLICAR|DISPARA|DISPARAR|SOLTA|TIRA|TIRAR|REMOVE|REMOVER|RETIRA|RETIRAR|VENDEU|VENDIDO|VENDIDA|ALUGOU|ALUGADO|ALUGADA|VAGAS|VAGA|LISTA)\\b|(MANDA|MANDAR|MANDE|ENVIA|ENVIAR|ENVIE)\\s+(AS?\\s+|OS?\\s+)?(LISTA|APARTAMENTOS?|APTOS?|COBERTURAS?|FLATS?|CASAS?|SOBRADOS?|SALAS?|LOJAS?|LOTES?|TERRENOS?)\\b)/i.test(t)\n    || /^(?:@?NAY\\b[\\s,:;.!\\-]*)?(\\d{3,5})\\s*[-–—:,]?\\s*(?:JA|JÁ)?\\s*(VENDEU|VENDIDO|VENDIDA|ALUGOU|ALUGADO|ALUGADA)\\b/i.test(t)\n    || ehComandoDeTaxa(t);\n}\nconst j = $('Juntar mensagens').first().json;\nlet cab = {};\ntry { cab = $('Abrir turno').first().json.cab || {}; } catch (e) { cab = {}; }\nif (cab.ok !== true) return [];                       // sem cabecalho, nada sai\nconst papel = cab.papel;\nconst t = String(cab.texto || '').trim();\nconst envelope = String(j.texto || '').trim();\nif (papel === 'tel') {\n  // Comando da NAI (VISITAS, VISITA N, ACESSO, ASSUMIR, DEVOLVER e, desde\n  // 15/09, AGENDA DE VISITAS). Quem decide e o banco, em `cab.comando_nai`;\n  // a regex abaixo fica como reserva para cabecalho antigo.\n  if (cab.comando_nai === true) return [{ json: { rota: 'tel_nai' } }];\n  if (/^\\s*(@?nay[\\s,:;.!-]*)?(visitas\\s*$|visita\\s+#?\\d+\\s+\\S|acesso\\s+\\d{3,5}\\s+\\S|(assumir|devolver)\\s+\\S)/i.test(t)) return [{ json: { rota: 'tel_nai' } }];\n  if (ehComandoAntigo(t)) return [{ json: { rota: cab.teste === true ? 'aviso_teste' : 'tel_antigo' } }];\n  return envelope ? [{ json: { rota: 'agente' } }] : [];\n}\nif (cab.pausado !== false) return [];                  // pausada (ou sem saber): silencio\nif (papel === 'proprietario') return t ? [{ json: { rota: 'proprietario' } }] : [];\nif (papel === 'motoboy') return t ? [{ json: { rota: 'motoboy' } }] : [];\n// corretor -- o porteiro, que falha FECHADO\n// A PORTA primeiro (Tel, 15/09): com a regra publica ligada, quem decide e\n// `nai_deve_atender`, no banco. false = silencio; true = atende mesmo sem\n// estar em `corretores` (gente nova que chega do grupo perguntando de\n// imovel). Indefinido = regra desligada, e vale o porteiro de sempre.\nif (cab.atende === false) return [];\nif (cab.atende !== true && cab.aprovado !== true) return cab.primeira_vez === true ? [{ json: { rota: 'cortesia' } }] : [];\n// NUMERO SOLTO: so e codigo de imovel quando ela NAO acabou de perguntar o\n// valor. Em 13/09 ela perguntou a faixa de preco, ele respondeu \"3500\" e\n// levou \"nao achei nenhum imovel com o codigo 3500\".\nif (/^\\d{3,5}$/.test(t) && cab.esperando_valor !== true) return [{ json: { rota: 'codigo', codigo: parseInt(t, 10) } }];\nif (!envelope) return [];\nreturn [{ json: { rota: 'agente' } }];\n"
+   },
+   "name": "Rotear pelo cabeçalho",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    576,
+    368
+   ],
+   "id": "802ee69e-30b0-4136-959d-2c33d8f12bdc"
+  },
+  {
+   "parameters": {
+    "rules": {
+     "values": [
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 2
+        },
+        "conditions": [
+         {
+          "leftValue": "={{ $json.rota }}",
+          "rightValue": "agente",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "agente"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 2
+        },
+        "conditions": [
+         {
+          "leftValue": "={{ $json.rota }}",
+          "rightValue": "codigo",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "codigo"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 2
+        },
+        "conditions": [
+         {
+          "leftValue": "={{ $json.rota }}",
+          "rightValue": "cortesia",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "cortesia"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 2
+        },
+        "conditions": [
+         {
+          "leftValue": "={{ $json.rota }}",
+          "rightValue": "proprietario",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "proprietario"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 2
+        },
+        "conditions": [
+         {
+          "leftValue": "={{ $json.rota }}",
+          "rightValue": "motoboy",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "motoboy"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 2
+        },
+        "conditions": [
+         {
+          "leftValue": "={{ $json.rota }}",
+          "rightValue": "tel_nai",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "tel_nai"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 2
+        },
+        "conditions": [
+         {
+          "leftValue": "={{ $json.rota }}",
+          "rightValue": "tel_antigo",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "tel_antigo"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 2
+        },
+        "conditions": [
+         {
+          "leftValue": "={{ $json.rota }}",
+          "rightValue": "aviso_teste",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "aviso_teste"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 2
+        },
+        "conditions": [
+         {
+          "id": "49176c5d-6a70-4c7c-b06d-d5f2fda3ded3",
+          "leftValue": "={{ $json.rota }}",
+          "rightValue": "secretaria",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "secretaria"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "name": "Qual caminho?",
+   "type": "n8n-nodes-base.switch",
+   "typeVersion": 3.2,
+   "position": [
+    1184,
+    784
+   ],
+   "id": "8a1b53b5-4c79-4bac-ba84-09693c537a10"
+  },
+  {
+   "parameters": {
+    "promptType": "define",
+    "text": "=(informação de sistema, não repita isso ao corretor) agora em Manaus é {{ $now.setZone('America/Manaus').setLocale('pt-BR').toFormat('cccc dd/MM/yyyy HH:mm') }}. {{ $('Abrir turno').first().json.cab.vocativo ? 'trate o corretor por: ' + $('Abrir turno').first().json.cab.vocativo + ' (Sr./Sra. + primeiro nome, como na captacao). ' : '' }}{{ $('Juntar mensagens').first().json.nomePessoa ? 'o nome dele e ' + $('Juntar mensagens').first().json.nomePessoa + '. ' : 'nao sei o nome dele -- pergunte com quem voce fala antes de tratar por nome. ' }}{{ $('Juntar mensagens').first().json.citado ? 'ele respondeu citando esta mensagem, e o imovel dela e o assunto: \"' + $('Juntar mensagens').first().json.citado + '\". ' : '' }}{{ $('Juntar mensagens').first().json.codigoCitado ? 'ele MARCOU a mensagem do imovel ' + $('Juntar mensagens').first().json.codigoCitado + '. E desse que ele fala: siga com esse codigo e NAO pergunte qual e. ' : '' }}{{ $('Juntar mensagens').first().json.opcoesCitacao ? 'ele marcou uma mensagem sua que falava de MAIS DE UM imovel. Pergunte qual, mostrando esta lista como veio:' + String.fromCharCode(10) + $('Juntar mensagens').first().json.opcoesCitacao + String.fromCharCode(10) : '' }}{{ ($('Juntar mensagens').first().json.citadoId && !$('Juntar mensagens').first().json.citado) ? 'ele respondeu CITANDO uma mensagem que voce nao consegue ver. Se a pergunta depende de saber qual imovel e, PERGUNTE. Nunca suponha. ' : '' }}{{ $('Juntar mensagens').first().json.qtd > 1 ? 'ele mandou ' + $('Juntar mensagens').first().json.qtd + ' mensagens neste intervalo, juntas abaixo: responda TODAS. ' : '' }}{{ $('Juntar mensagens').first().json.pedeVisita ? 'ele falou de VISITA: chame pedir_visita NESTA resposta, com o codigo e o horario que ele disse. ' : '' }}{{ $('Juntar mensagens').first().json.vaoSairFotos ? (($('Juntar mensagens').first().json.codigoCitado || ($('Juntar mensagens').first().json.codigosDele || []).length) ? 'as fotos VAO sair junto com a sua resposta -- pode avisar que estao vindo. ' : 'ele pediu FOTO, mas voce ainda NAO sabe de qual imovel: pergunte qual e NAO diga que as fotos estao vindo. ') : 'as fotos NAO saem neste turno, porque ele nao pediu: nao diga que vai mandar foto, ofereca. ' }}{{ $('Abrir turno').first().json.cab.contexto || '' }} mensagem do corretor: {{ $('Juntar mensagens').first().json.texto }}",
+    "options": {
+     "systemMessage": "={{ (() => {\n  const p = $('Abrir turno').first().json?.cab?.prompt;\n  if (typeof p === 'string' && p.trim().length > 500) return p;\n  throw new Error('PROMPT_VAZIO: nai_prompt do papel nao veio do banco');\n})() }}",
+     "returnIntermediateSteps": true
+    }
+   },
+   "name": "NAI (corretor)",
+   "type": "@n8n/n8n-nodes-langchain.agent",
+   "typeVersion": 3.1,
+   "position": [
+    1696,
+    -752
+   ],
+   "id": "20f9a421-c3c2-40c8-ba94-15493a0934e2"
+  },
+  {
+   "parameters": {
+    "model": {
+     "__rl": true,
+     "value": "gpt-5.6-sol",
+     "mode": "list",
+     "cachedResultName": "gpt-5.6-sol"
+    },
+    "builtInTools": {},
+    "options": {}
+   },
+   "name": "GPT (corretor)",
+   "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+   "typeVersion": 1.3,
+   "position": [
+    1264,
+    -480
+   ],
+   "id": "9c10fb72-2478-4e5e-90d1-cc18d04c7625",
+   "credentials": {
+    "openAiApi": {
+     "id": "CzrQhGemsCI4hLUh",
+     "name": "OpenAI account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "sessionIdType": "customKey",
+    "sessionKey": "={{ $('Abrir turno').first().json.cab.memoria }}",
+    "tableName": "nai_memoria",
+    "contextWindowLength": 20
+   },
+   "name": "Memória (corretor)",
+   "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+   "typeVersion": 1.4,
+   "position": [
+    1600,
+    -480
+   ],
+   "id": "fb737c92-15df-451c-9dd7-1d6dc802f111",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Devolve o card pronto de um imovel.\nUse quando: ele citar um numero de 3 a 5 digitos, ou pedir o card.\nNao use para pergunta pontual de um dado: ai e o_que_sei_do_imovel.\nArg: codigo.",
+    "operation": "executeQuery",
+    "query": "SELECT c.texto_pronto,\n  i.disponivel,\n  COALESCE(i.e_parceiro,false) AS e_parceiro,\n  COALESCE(i.extras->>'aceita financiamento','') AS aceita_financiamento,\n  c.qtd_fotos,\n  COALESCE(i.administrado,false) AS administrado,\n  CASE WHEN COALESCE(i.administrado,false) THEN\n    'Este imóvel é ADMINISTRADO pela Imob Easy. Pode passar ao corretor todas as informações que vieram, incluindo o endereço. Se o corretor perguntar quanto precisa para entrar no imóvel, responda que vai verificar e escale ao Tel — o valor de caução varia.'\n  ELSE '' END\n  || CASE\n       -- FORMA DE PAGAMENTO: é derivável, e ela não pode dizer que vai\n       -- verificar. Em 30/08 ela respondeu ao Gustavo \"aceita\n       -- financiamento\" e emendou \"sobre a forma de pagamento, vou\n       -- verificar e retorno\" -- tendo o dado na mão.\n       WHEN COALESCE(i.valor_venda,0) > 0 AND COALESCE(i.extras->>'aceita financiamento','') ~* '^s' THEN\n         ' Se perguntarem a forma de pagamento: este imovel aceita financiamento, entao e A VISTA OU FINANCIADO. Responda direto, NUNCA diga que vai verificar.'\n       WHEN COALESCE(i.valor_venda,0) > 0 THEN\n         ' Se perguntarem a forma de pagamento: este imovel NAO aceita financiamento, entao e SO A VISTA. Responda direto, NUNCA diga que vai verificar.'\n       ELSE ''\n     END\n  || CASE\n       -- A DESCRIÇÃO do anúncio, capturada em 31/08. É onde o Tel escreve\n       -- o que a ficha não cabe: o que falta para ficar 100% mobiliado, se\n       -- aceita pet, se tem ponto comercial. Vai na INSTRUÇÃO, não no\n       -- texto_pronto: serve para RESPONDER pergunta, não para despejar no\n       -- card. Sem isto ela ofereceu ao Ênio um mobiliado quando ele pediu\n       -- sem mobília, tendo no banco um cuja descrição diz \"sem mobília\".\n       -- PARCEIRO NAO TEM DESCRICAO AQUI. O card ja esconde tudo; sem\n       -- este gate a instrucao entregava endereco, CEP, valor e ate o\n       -- saldo devedor do proprietario. Falha fechada: so passa quando\n       -- e_parceiro prova ser falso.\n       WHEN COALESCE(i.e_parceiro, true) THEN ''\n       WHEN COALESCE(i.descricao,'') <> '' THEN\n         ' O anuncio deste imovel diz: \"' ||\n         -- `nay_descricao_segura` tira o numero da unidade do texto do\n         -- anuncio. Tres anuncios publicam \"apto 801\", \"apart. 601\" -- que\n         -- o site publique nao autoriza a Nay a entregar de mao beijada.\n         replace(nay_descricao_segura(i.descricao), chr(10), ' ')\n         || '\". Use para responder o que a ficha nao responde, e so o que ele'\n         || ' perguntar. NAO repita a descricao inteira sem ele pedir.'\n       ELSE ''\n     END AS instrucao_para_voce\nFROM imoveis i\nCROSS JOIN LATERAL nai_card_do_imovel(i.codigo) c\nWHERE i.codigo = $1;",
+    "options": {
+     "queryReplacement": "={{ $fromAI('codigo', 'o código do imóvel, um número de 3 a 5 dígitos', 'string') }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    1744,
+    -496
+   ],
+   "id": "a023e17e-ee53-4b95-86da-ff4b5b96e919",
+   "name": "imovel_por_codigo",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Devolve quantos imoveis temos num condominio, separando venda e locacao, com a faixa de valor.\nUse quando: ele citar o nome de um condominio.\nArg: nome (como ele escreveu).",
+    "operation": "executeQuery",
+    "query": "SELECT\n  'no ' || c.nome || ' tenho ' || c.total || CASE WHEN c.total = 1 THEN ' imóvel: ' ELSE ' imóveis: ' END\n  || CASE WHEN c.venda > 0 THEN c.venda || ' pra venda (' || CASE WHEN c.venda = 1 THEN replace(to_char(c.vmin,'FM999,999,990'),',','.') ELSE 'de ' || replace(to_char(c.vmin,'FM999,999,990'),',','.') || ' a ' || replace(to_char(c.vmax,'FM999,999,990'),',','.') END || ')' ELSE '' END\n  || CASE WHEN c.venda > 0 AND c.locacao > 0 THEN ' e ' ELSE '' END\n  || CASE WHEN c.locacao > 0 THEN c.locacao || ' pra locação (' || CASE WHEN c.locacao = 1 THEN replace(to_char(c.lmin,'FM999,999,990'),',','.') ELSE 'de ' || replace(to_char(c.lmin,'FM999,999,990'),',','.') || ' a ' || replace(to_char(c.lmax,'FM999,999,990'),',','.') END || ')' ELSE '' END\n  || CASE WHEN c.venda > 0 AND c.locacao > 0 THEN '. é venda ou locação?' ELSE '' END\n  AS texto_pronto,\n  'ATENCAO: esta faixa de valor e apenas informativa e NAO serve para concluir se existe ou nao existe imovel. Assim que o corretor informar quartos ou valor, chame listar_no_condominio, mesmo que o valor dele pareca fora desta faixa -- a busca usa margem maior. Se a pergunta dele for se TEM ou NAO TEM naquele condominio, use disponibilidade_no_condominio, que responde isso de forma final. O que voce NAO pode e concluir que nao tem olhando so esta faixa de valor.' AS instrucao_para_voce\nFROM (\n  SELECT i.condominio_nome AS nome,\n         count(*) AS total,\n         count(*) FILTER (WHERE COALESCE(i.valor_venda,0) > 0) AS venda,\n         count(*) FILTER (WHERE COALESCE(i.valor_aluguel,0) > 0) AS locacao,\n         min(i.valor_venda) FILTER (WHERE COALESCE(i.valor_venda,0) > 0) AS vmin,\n         max(i.valor_venda) FILTER (WHERE COALESCE(i.valor_venda,0) > 0) AS vmax,\n         min(i.valor_aluguel) FILTER (WHERE COALESCE(i.valor_aluguel,0) > 0) AS lmin,\n         max(i.valor_aluguel) FILTER (WHERE COALESCE(i.valor_aluguel,0) > 0) AS lmax\n  FROM imoveis i\n  WHERE i.condominio_nome IN (SELECT nome FROM nay_cond($1))\n    AND i.disponivel = true\n    AND COALESCE(i.bloqueado,false) = false\n    AND COALESCE(i.e_parceiro,false) = false\n  GROUP BY i.condominio_nome\n) c;",
+    "options": {
+     "queryReplacement": "={{ $fromAI('condominio', 'nome do condomínio citado pelo corretor', 'string') }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    1952,
+    -480
+   ],
+   "id": "bbe75c77-d0a1-447d-b339-1c2915784408",
+   "name": "resumo_do_condominio",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Devolve a lista de imoveis de um condominio, filtrada.\nUse quando: souber o condominio, venda ou locacao, e quartos OU valor.\nArg: condominio, negocio, quartos, teto (o valor como ele falou, sem fazer conta).",
+    "operation": "executeQuery",
+    "query": "SELECT COALESCE(string_agg(t.linha, E'\\n' ORDER BY t.ordem), CASE WHEN $3::int >= 3 THEN 'nao encontrei nada com esse perfil. pergunte ao corretor se ele aceitaria um quarto a menos antes de encerrar' ELSE 'nao encontrei nada com esse perfil' END) AS texto_pronto, CASE WHEN count(*) = 0 THEN 'nao ha resultado. faca exatamente o que o texto_pronto manda e nada alem disso.' WHEN count(*) = 1 AND count(*) FILTER (WHERE t.acima) = 1 THEN 'ATENCAO: e uma unica opcao e ela custa MAIS do que o corretor pediu. Diga primeiro que nao tem nada dentro do valor dele, ofereca esta como alternativa citando o valor, e ja chame imovel_por_codigo e mande o imovel completo na mesma resposta. NAO pergunte qual codigo ele quer.' WHEN count(*) = 1 THEN 'ATENCAO: e uma unica opcao. NAO pergunte qual codigo ele quer. Chame imovel_por_codigo agora e mande o imovel completo na mesma resposta.' WHEN count(*) FILTER (WHERE t.acima) > 0 THEN 'ATENCAO: os itens marcados com (acima do teto) custam mais do que o corretor pediu. Avise isso com naturalidade antes da lista e depois pergunte qual codigo ele quer.' ELSE 'pergunte qual codigo ele quer receber' END AS instrucao_para_voce FROM (SELECT '• ' || i.codigo || ' — ' || CASE WHEN COALESCE(i.quartos,0) > 0 THEN i.quartos || CASE WHEN i.quartos = 1 THEN ' quarto' ELSE ' quartos' END || CASE WHEN COALESCE(i.suites,0) > 0 THEN ' sendo ' || i.suites || CASE WHEN i.suites = 1 THEN ' suíte' ELSE ' suítes' END ELSE '' END ELSE i.tipo END || CASE WHEN COALESCE(i.area_util,0) > 0 THEN ' — ' || trim(to_char(i.area_util,'FM999990')) || 'm2' ELSE '' END || ' — ' || CASE WHEN $2 = 'locacao' THEN 'locação ' || replace(to_char(i.valor_aluguel,'FM999,999,990'),',','.') ELSE replace(to_char(i.valor_venda,'FM999,999,990'),',','.') END || CASE WHEN COALESCE(i.mobilia,'') <> '' THEN ' — ' || replace(replace(i.mobilia,'moveis','móveis'),'so ar-condicionado','só ar-condicionado') ELSE '' END || CASE WHEN $4::numeric > 0 AND CASE WHEN $2 = 'locacao' THEN i.valor_aluguel ELSE i.valor_venda END > $4::numeric THEN ' (acima do teto)' ELSE '' END AS linha, CASE WHEN $2 = 'locacao' THEN i.valor_aluguel ELSE i.valor_venda END AS ordem, ($4::numeric > 0 AND CASE WHEN $2 = 'locacao' THEN i.valor_aluguel ELSE i.valor_venda END > $4::numeric) AS acima FROM imoveis i WHERE i.condominio_nome IN (SELECT nome FROM nay_cond($1)) AND i.disponivel = true AND COALESCE(i.bloqueado,false) = false AND COALESCE(i.e_parceiro,false) = false AND (($2 = 'locacao' AND COALESCE(i.valor_aluguel,0) > 0) OR ($2 = 'venda' AND COALESCE(i.valor_venda,0) > 0)) AND ($3::int = 0 OR i.quartos = $3::int) AND ($4::numeric = 0 OR CASE WHEN $2 = 'locacao' THEN i.valor_aluguel ELSE i.valor_venda END BETWEEN $4::numeric * 0.85 AND $4::numeric * 1.10) ORDER BY ordem LIMIT 8) t;",
+    "options": {
+     "queryReplacement": "={{ [$fromAI('condominio', 'nome do condomínio', 'string') ?? null, $fromAI('negocio', 'venda ou locacao - exatamente uma dessas duas palavras sem acento', 'string') ?? null, $fromAI('quartos', 'quantidade de quartos. use 0 se o corretor nao informou', 'number') ?? 0, $fromAI('valor_teto', 'o teto de valor que o corretor falou, em reais, sem pontos nem virgula. use 0 se ele nao informou', 'number') ?? 0] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2096,
+    -480
+   ],
+   "id": "f516c86f-e689-4bf5-b054-c56e85ec55cf",
+   "name": "listar_no_condominio",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Busca imovel de LOCACAO por BAIRRO e faixa de valor, e traz tambem os bairros ao redor.\nUse quando: ele pedir por regiao e preco. Chame antes de dizer se tem ou nao tem.\nNAO USE se ele citou o nome de um CONDOMINIO: ai e disponibilidade_no_condominio.\nArg: bairro, negocio, teto, quartos, mobilia (as palavras dele).",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_buscar_por_perfil($1::bigint, $2, $3, $4, $5);",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('bairro', 'o bairro ou regiao que o corretor citou, so o nome', 'string') ?? null, $fromAI('teto', 'o teto de valor em reais, so digitos. vazio se ele nao disse', 'string') ?? null, $fromAI('quartos', 'quantidade de quartos. vazio se ele nao disse', 'string') ?? null, $fromAI('mobilia', 'o que ele disse sobre mobilia: sem mobilia, mobiliado, so modulados, semi-mobiliado. vazio se nao falou', 'string') ?? null] }}"
+    }
+   },
+   "name": "buscar_por_perfil",
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2256,
+    -480
+   ],
+   "id": "cdf98272-5871-4eb7-bb7e-adb15a2984b4",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Diz se temos ou nao imovel num CONDOMINIO, pelo nome dele.\nUse SEMPRE que ele citar o nome de um condominio, ou colar um anuncio. Esta vem antes de\nbuscar_por_perfil: condominio tem nome, bairro nao.\nArg: nome (como ele escreveu), negocio.\nSiga a instrucao_para_voce que vier junto.",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, codigo, instrucao_para_voce FROM nay_disponibilidade_no_condominio($1,$2);",
+    "options": {
+     "queryReplacement": "={{ [$fromAI('condominio', 'o nome do condominio como o corretor escreveu', 'string') ?? null, $fromAI('negocio', 'venda ou locacao, se ele tiver dito; senao deixe vazio', 'string') ?? null] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2400,
+    -480
+   ],
+   "id": "c7a4a137-44a6-4c25-95d1-802d590ccc29",
+   "name": "disponibilidade_no_condominio",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Responde uma pergunta sobre UM imovel: comodos, area, andar, valores, IPTU, endereco, pet,\nlazer, e o que o Tel ja explicou dele.\nUse quando: ele perguntar um dado. Chame antes de escalar_ao_tel.\nArg: codigo, pergunta (nas palavras dele).",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, sabe, instrucao_para_voce FROM nai_o_que_sei_do_imovel($1,$2);",
+    "options": {
+     "queryReplacement": "={{ [$fromAI('codigo', 'o codigo do imovel', 'string') ?? null, $fromAI('pergunta', 'o que o corretor quer saber, nas palavras dele', 'string') ?? null] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2544,
+    -480
+   ],
+   "id": "64ee33c7-bb72-4cf9-804a-ac656774e437",
+   "name": "o_que_sei_do_imovel",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Grava o que o TEL explicar de um imovel.\nUse quando: o Tel explicar algo -- na MESMA resposta.\nSe quem falou foi corretor, a ferramenta recusa.\nArg: codigo, o_que.",
+    "operation": "executeQuery",
+    "query": "SELECT nay_guardar_do_imovel($1,$2,$3,$4) AS texto_pronto;",
+    "options": {
+     "queryReplacement": "={{ [$fromAI('codigo', 'o codigo do imovel', 'string') ?? null, $fromAI('assunto', 'do que se trata: quitacao, entrada, condicoes de locacao, pet, mobilia, estado ou situacao', 'string') ?? null, $fromAI('texto', 'o que o Tel explicou, nas palavras dele', 'string') ?? null, $('Juntar mensagens').first().json.telefone] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2704,
+    -480
+   ],
+   "id": "07ba4e04-892d-4f07-a414-57389e4049d6",
+   "name": "guardar_do_imovel",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Devolve a lista dos imoveis que voce mandou para ele, para ele escolher.\nUse quando: ele disser 'esse' sem dar o codigo.\nNunca devolve um codigo escolhido.",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, NULL::text AS codigo, instrucao_para_voce FROM nay_qual_imovel($1);",
+    "options": {
+     "queryReplacement": "={{ [$('Juntar mensagens').first().json.telefone] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    1824,
+    -96
+   ],
+   "id": "f99788b5-6656-44db-8fce-ad7c2613057d",
+   "name": "imovel_do_disparo",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "description": "Use quando o TEL (e so ele) estiver respondendo uma pendencia que voce escalou -- por exemplo ele diz 'pode ser 15h', 'a Raissa liberou', 'diz que nao da hoje'. NUNCA use para mensagem de corretor. Passe o id da pendencia e o que o Tel disse. A ferramenta NAO envia de primeira: ela devolve em texto_pronto a frase de confirmacao que voce deve dizer ao Tel. So depois que ele confirmar numa mensagem NOVA e que ela envia ao corretor. Siga texto_pronto ao pe da letra e nunca diga que avisou o corretor antes de a ferramenta devolver que avisou. Se voce nao souber de qual pendencia ele fala, pergunte a ele antes de chamar.",
+    "workflowId": {
+     "__rl": true,
+     "value": "NayRespConv00001",
+     "mode": "list",
+     "cachedResultName": "Nay - responder pendencia"
+    },
+    "workflowInputs": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "pendencia_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('pendencia_id', `O numero da pendencia que o Tel esta respondendo. Ele aparece no aviso que voce mandou a ele (Pendencia N). Se nao tiver certeza, deixe vazio.`, 'string') }}",
+      "texto": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('texto', `O que o Tel respondeu, nas palavras dele, para o corretor ler. Nao acrescente nada que ele nao disse.`, 'string') }}",
+      "msg_id": "={{ $('Gravar na fila').first().json.id }}",
+      "telefone": "={{ $('Juntar mensagens').first().json.telefone }}"
+     },
+     "matchingColumns": [],
+     "schema": [
+      {
+       "id": "pendencia_id",
+       "displayName": "pendencia_id",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "canBeUsedToMatch": true,
+       "type": "string",
+       "removed": false
+      },
+      {
+       "id": "texto",
+       "displayName": "texto",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "canBeUsedToMatch": true,
+       "type": "string",
+       "removed": false
+      },
+      {
+       "id": "msg_id",
+       "displayName": "msg_id",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "canBeUsedToMatch": true,
+       "type": "string",
+       "removed": false
+      },
+      {
+       "id": "telefone",
+       "displayName": "telefone",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "canBeUsedToMatch": true,
+       "type": "string",
+       "removed": false
+      }
+     ],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    }
+   },
+   "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+   "typeVersion": 2.2,
+   "position": [
+    1712,
+    -32
+   ],
+   "id": "e2d04090-f0a4-4761-9a59-ee5c8625a06a",
+   "name": "responder_pendencia"
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Avisa o Tel e passa o chat para ele.\nUse quando: nenhuma ferramenta de consulta trouxe a resposta.\nArg: assunto (uma linha).",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto FROM nai_escalar($1::bigint, $2, $3, $4);",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('codigo', 'o codigo do imovel, 3 a 5 digitos; vazio se nao houver', 'string') ?? null, $fromAI('assunto', 'do que se trata, em poucas palavras', 'string') ?? null, $fromAI('disse', 'o que o corretor disse, nas palavras dele', 'string') ?? null] }}"
+    }
+   },
+   "name": "escalar_ao_tel",
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    1952,
+    160
+   ],
+   "id": "0df124f6-3ef7-4a8d-827b-435545e4a2f9",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Diz se voce ja tem nome completo, CPF e CRECI dele.\nUse quando: antes de pedir esses dados.\nDevolve instrucao_para_voce: nunca mostre a ele.",
+    "operation": "executeQuery",
+    "query": "SELECT instrucao_para_voce FROM nai_dados_do_corretor_tool($1::bigint);",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id] }}"
+    }
+   },
+   "name": "dados_do_corretor",
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2128,
+    160
+   ],
+   "id": "0335ea84-6b46-44c4-9001-d0c19a430d7d",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Pede a visita e conduz o resto: confere o horario, fala com o proprietario, sobe ao Tel quando precisa.\nUse quando: souber QUAL imovel e QUANDO.\nArg: codigo, quando (AAAA-MM-DD HH:MM, Manaus).",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_pedir_visita($1::bigint, $2, $3, $4);",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('codigo', 'o codigo do imovel, 3 a 5 digitos', 'string') ?? null, $fromAI('quando', 'data e hora pedidas, formato AAAA-MM-DD HH:MM, hora de Manaus. vazio se ele nao disse', 'string') ?? null, '' ] }}"
+    }
+   },
+   "name": "pedir_visita",
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2288,
+    160
+   ],
+   "id": "5d8337d4-9539-409b-b258-7fbc732e7e74",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Grava os dados da visita: do corretor (nome, CPF, CRECI) e do visitante (nome, CPF).\nUse quando: ele mandar qualquer um -- na MESMA resposta.\nArg: como ele escreveu; vazio o que nao veio.",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_guardar_dados_visita($1::bigint, $2, $3, $4, $5, $6, $7);",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('codigo', 'codigo do imovel da visita, se ele disse; senao vazio', 'string') ?? null, $fromAI('visitante_nome', 'nome completo do visitante; vazio se nao veio', 'string') ?? null, $fromAI('visitante_cpf', 'CPF do visitante; vazio se nao veio', 'string') ?? null, $fromAI('corretor_nome', 'nome completo do proprio corretor; vazio se nao veio', 'string') ?? null, $fromAI('corretor_cpf', 'CPF do proprio corretor; vazio se nao veio', 'string') ?? null, $fromAI('corretor_creci', 'CRECI do corretor; vazio se nao veio', 'string') ?? null] }}"
+    }
+   },
+   "name": "guardar_dados_da_visita",
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2416,
+    80
+   ],
+   "id": "00931c82-098a-4670-b7ba-2e105d93aaeb",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Registra o que o corretor respondeu sobre o horario que o proprietario sugeriu.\nArg: aceita (sim se topou), outro_quando (AAAA-MM-DD HH:MM).",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_responder_horario($1::bigint, $2, $3, $4);",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('codigo', 'codigo do imovel, se souber', 'string') ?? null, $fromAI('aceita', 'sim se ele topou o horario sugerido pelo proprietario, nao se nao topou', 'string') ?? null, $fromAI('outro_quando', 'outro horario que ele propoe, AAAA-MM-DD HH:MM; vazio se nao disse', 'string') ?? null] }}"
+    }
+   },
+   "name": "responder_horario_do_proprietario",
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2816,
+    -48
+   ],
+   "id": "c38106e4-cb3f-4ebb-a3e6-48c422baf1da",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Muda o horario de uma visita ja pedida.\nArg: codigo, quando (AAAA-MM-DD HH:MM).",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_mudar_horario($1::bigint, $2, $3);",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('codigo', 'codigo do imovel', 'string') ?? null, $fromAI('quando', 'novo horario, AAAA-MM-DD HH:MM', 'string') ?? null] }}"
+    }
+   },
+   "name": "mudar_horario_da_visita",
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2976,
+    -48
+   ],
+   "id": "c4977327-7423-4b95-9b56-f289c86880c4",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Registra como foi a visita e passa o chat ao Tel.\nArg: resultado = quer_alugar, nao_gostou, pensando ou nao_foi.",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_resultado_visita($1::bigint, $2, $3, $4);",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('codigo', 'codigo do imovel, se souber', 'string') ?? null, $fromAI('resultado', 'quer_alugar, nao_gostou, pensando ou nao_foi', 'string') ?? null, $fromAI('obs', 'o que ele contou, em poucas palavras', 'string') ?? null] }}"
+    }
+   },
+   "name": "resultado_da_visita",
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    3904,
+    272
+   ],
+   "id": "ffe12b43-06b5-4c97-80bc-dbaaa497890e",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "// >>> telefone na frente (patch 23/09)\nconst ENVIO_TEL_FRENTE = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(envi|m[a]?nd|repass|encaminh)(?:a|ar|e|ei|ou|o)?\\b\\s*(?:para\\s+|pra\\s+|pro\\s+|p\\/\\s*)?((?:55[\\s.-]*)?\\(?\\d{2}\\)?[\\s.-]*\\d{4,5}[\\s.-]*\\d{4})\\s+(c[o\\u00f3]d(?:igo)?s?\\b[\\s:=.-]*\\d{2,5}(?:[\\s,;]+(?:e\\s+)?(?:o|os)?\\s*\\d{2,5})*|(?:o|os|a|as)?\\s*\\d{3,5}(?:[\\s,;]+(?:e\\s+)?(?:o|os)?\\s*\\d{3,5})*)\\s*$/i;\nconst ENVIO_TEL_ANTES = /^\\s*(?:55[\\s.-]*)?\\(?\\d{2}\\)?[\\s.-]*\\d{4,5}[\\s.-]*\\d{4}[\\s,;:.-]+(?:@?nay\\b[\\s,;:.!?-]*)?(?:en+vi|m[a]?n+d|repass+|encaminh)(?:a|ar|e|ei|ou|o)?\\b/i;\nconst ALTO_PADRAO_GRUPO = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(?:envi|m[a]?n+d|repass+|encaminh)(?:a|ar|e|ei|ou|o)?\\b(?=[\\s\\S]*\\balto[\\s\\-]*padr[a\\u00e3]o\\b)(?=[\\s\\S]*\\b(?:grupo|easy|anunciar)\\b)/i;\nconst EH_ENVIO_TEL = (x) => ENVIO_TEL_FRENTE.test(x) || ENVIO_TEL_ANTES.test(x) || ALTO_PADRAO_GRUPO.test(x);\n// <<< telefone na frente\nconst r = $input.first().json;\nconst saida = String(r.output || r.text || '');\nconst j = $('Juntar mensagens').first().json;\nconst escreveu = String(j.texto || '');\n// O que sai daqui como `escreveu` alimenta `nay_deve_mandar_fotos`.\n// Tem que ser a fala DELE, nunca o envelope que este fluxo escreveu.\n// O fallback existe para o caso de `Juntar mensagens` ser mais antigo\n// que este no -- mas o guarda de comando acima continua lendo `escreveu`\n// inteiro, senao um `textoCru` vazio abriria a porta que ele fecha.\nconst cru = String(j.textoCru !== undefined && j.textoCru !== null ? j.textoCru : (j.texto || ''));\nconst citou = String(j.citado || '');\n\n// A QUARTA copia, a menos obvia: sem ela, \"Nay envia as FOTOS do 5750\n// pro Sergio\" faz `pediuFoto` ler o texto do PROPRIO Tel e `solto`\n// colher o 5750 -- as fotos sairiam para o chat dele tambem.\nif (/^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(envi|m[a]?nd|repass|encaminh|mostr|post|public|dispar|solt)(?:a|ar|e|ei|ou|o)?\\b([\\s\\S]*)(?:\\bpara\\b|\\bpra\\b|\\bpro\\b|\\bp\\/)\\s*([\\s\\S]+?)\\s*$/i.test(escreveu) || EH_ENVIO_TEL(escreveu)) {\n  return [{ json: { texto: saida, codigo: '0', codigos: ['0'], escreveu: '' } }];\n}\n\n// TODOS os codigos que ela mandou, nao so o primeiro. Em 30/08 o Gustavo\n// pediu \"me passa as informacoes dos 3\" -- ela mandaria os tres cards e so\n// as fotos do primeiro sairiam.\nconst todos = [...saida.matchAll(/C[óo]digo:\\s*(\\d{3,5})/gi)].map(m => m[1]);\n\n// Quando ela nao repetiu card nenhum, o imovel vem da citacao ou da fala\n// dele. Numero colado a ponto ou virgula NAO conta: \"valor: 900.000\"\n// virava codigo 900 (caso Sebastiana, 29/08).\nconst porRotulo = t => { const m = String(t).match(/C[óo]digo:\\s*(\\d{3,5})/i); return m ? m[1] : null; };\nconst solto = t => { const m = String(t).match(/(?<![\\d.,])(\\d{3,5})(?![\\d.,])/); return m ? m[1] : null; };\n\n// `codigosDele` vem de `nay_codigos_citados`, que tira os VALORES antes\n// de procurar codigo -- \"paga ate 4000\" nao e o imovel 4000. O `solto()`\n// cru fica so para a citacao, onde nao ha alternativa.\nconst dele = j.codigosDele || [];\nconst codigos = todos.length ? [...new Set(todos)]\n  : [porRotulo(citou) || j.codigoCitado || porRotulo(escreveu) || dele[0] || solto(citou)].filter(Boolean);\n\n\n// SEM PEDIDO, SEM IMOVEL (71). Quem manda o card e as fotos e ESTE no,\n// por uma regex na resposta dela -- nao o modelo, e nenhuma conferencia\n// do fim pergunta \"ele pediu isso?\". Entao a parede mora aqui.\n//\n// `pediu_imovel` vem do Jev, pelo `Decidir quem responde`. So barra\n// quando a resposta e um NAO explicito: ausente, nulo ou caminho que\n// nem passou pelo Jev (codigo solto, cortesia) seguem como hoje.\nlet pediu = null;\ntry { pediu = $('Decidir quem responde').first().json.pediu_imovel; } catch (e) { pediu = null; }\nif (pediu === false) {\n  return [{ json: { texto: saida, codigo: '0', codigos: ['0'], escreveu: cru } }];\n}\nreturn [{ json: {\n  texto: saida,\n  codigo: codigos[0] || '0',\n  codigos: codigos.length ? codigos : ['0'],\n  escreveu: cru\n} }];"
+   },
+   "id": "9d436501-1e75-479b-8ea2-92ead8a805ab",
+   "name": "Achar codigo na resposta",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2000,
+    -752
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "-- Imoveis da resposta que estao SEM foto na tabela: esses serao lidos no site agora.\nSELECT nai_fotos_faltando(ARRAY(SELECT jsonb_array_elements_text($1::jsonb)::int)) AS faltando;",
+    "options": {
+     "queryReplacement": "={{ [JSON.stringify(($json.codigos || []).map(String).filter(c => /^\\d{3,5}$/.test(c) && c !== '0'))] }}"
+    }
+   },
+   "name": "Fotos faltando?",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    2192,
+    -752
+   ],
+   "id": "5fb11a70-1199-4880-9e66-6b0d35466c72",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "// CHECAGEM DUPLA DAS FOTOS (camada 2). A tabela nao tinha foto deste\n// imovel: le o anuncio AO VIVO no site, como o publicador faz, e o banco\n// grava antes de responder. Caso Regiane (01/09): 2014 com 24 fotos no\n// anuncio e zero na tabela -- ela disse que nao tinha.\nconst r = $('Achar codigo na resposta').first().json;\nconst falt = (($input.first().json || {}).faltando || []).slice(0, 3);\nconst lidas = [];\nfor (const c of falt) {\n  try {\n    const html = String(await this.helpers.httpRequest({ method: 'GET', url: 'https://imobeasy.com/anuncios/' + c, timeout: 15000, json: false }) || '');\n    const ini = html.indexOf('id=\"imagens\"');\n    if (ini < 0) continue;\n    const fim = html.indexOf('</ul>', ini);\n    const trecho = html.slice(ini, fim > ini ? fim : ini + 300000);\n    const urls = [];\n    for (const m of trecho.matchAll(/<a\\b[^>]*>/g)) {\n      const tag = m[0];\n      if (!/class=\"[^\"]*gallery-item/.test(tag)) continue;\n      const h = tag.match(/href=\"([^\"]+)\"/);\n      if (!h) continue;\n      const u = h[1].startsWith('http') ? h[1] : 'https://imobeasy.com' + h[1];\n      if (!urls.includes(u)) urls.push(u);\n    }\n    lidas.push({ codigo: Number(c), urls });\n  } catch (e) { /* site fora: segue; a guarda de promessa avisa o Tel */ }\n}\nreturn [{ json: { texto: r.texto, codigos: r.codigos, escreveu: r.escreveu, fotos_site: lidas } }];\n"
+   },
+   "name": "Buscar fotos no site",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2400,
+    -752
+   ],
+   "id": "9bfe49f8-9278-4e22-a5f1-05fc6746f9f4"
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "-- Monta a resposta na caixa de saida: card, fotos DAQUELE card, resto do texto.\n-- Guardas: negou foto que existe -> corrige; prometeu foto que nao existe -> Tel.\nSELECT nai_enfileirar_resposta_ferramentas($1::bigint, $2, $3::jsonb, $4, $5::jsonb, $6::jsonb) AS r;",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $json.texto ?? '', JSON.stringify($json.codigos || []), $json.escreveu ?? '', JSON.stringify($json.fotos_site || []), ($('NAI (corretor)').isExecuted && Array.isArray($('NAI (corretor)').first().json.intermediateSteps)) ? JSON.stringify($('NAI (corretor)').first().json.intermediateSteps.map(x => (x.action || {}).tool).filter(Boolean)) : null] }}"
+    }
+   },
+   "name": "Enfileirar resposta",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    2800,
+    112
+   ],
+   "id": "53dd6fc3-0456-4b1a-b34e-01c99486bd78",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "promptType": "define",
+    "text": "=(informacao de sistema, nao repita) agora em Manaus e {{ $now.setZone('America/Manaus').setLocale('pt-BR').toFormat('cccc dd/MM/yyyy HH:mm') }}. {{ $('Abrir turno').first().json.cab.vocativo ? 'trate por: ' + $('Abrir turno').first().json.cab.vocativo + '. ' : '' }}{{ $('Abrir turno').first().json.cab.contexto || '' }} mensagem dele: {{ $('Abrir turno').first().json.cab.texto }}",
+    "options": {
+     "systemMessage": "={{ (() => {\n  const p = $('Abrir turno').first().json?.cab?.prompt;\n  if (typeof p === 'string' && p.trim().length > 500) return p;\n  throw new Error('PROMPT_VAZIO: nai_prompt do papel nao veio do banco');\n})() }}"
+    }
+   },
+   "name": "NAI (proprietário)",
+   "type": "@n8n/n8n-nodes-langchain.agent",
+   "typeVersion": 3.1,
+   "position": [
+    1840,
+    784
+   ],
+   "id": "739a2d76-8659-466b-b065-fe6d94299248"
+  },
+  {
+   "parameters": {
+    "model": {
+     "__rl": true,
+     "value": "gpt-5.6-sol",
+     "mode": "list",
+     "cachedResultName": "gpt-5.6-sol"
+    },
+    "builtInTools": {},
+    "options": {}
+   },
+   "name": "GPT (proprietário)",
+   "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+   "typeVersion": 1.3,
+   "position": [
+    1744,
+    1008
+   ],
+   "id": "c058d19b-7968-4ea8-9add-1d91f76db0b7",
+   "credentials": {
+    "openAiApi": {
+     "id": "CzrQhGemsCI4hLUh",
+     "name": "OpenAI account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "sessionIdType": "customKey",
+    "sessionKey": "={{ $('Abrir turno').first().json.cab.memoria }}",
+    "tableName": "nai_memoria",
+    "contextWindowLength": 40
+   },
+   "name": "Memória (proprietário)",
+   "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+   "typeVersion": 1.4,
+   "position": [
+    1888,
+    1008
+   ],
+   "id": "7260700a-fd02-41de-b2e9-6ba81aac71a4",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Registra a resposta do PROPRIETARIO sobre a visita.\nArg: decisao = aceita, outro_horario, recusa, acesso, cancela ou duvida.",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_resposta_proprietario($1::bigint, $2, $3, $4, $5, $6);",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('decisao', 'aceita, outro_horario, recusa, acesso, cancela ou duvida', 'string') ?? null, $fromAI('quando', 'se sugeriu horario: AAAA-MM-DD HH:MM (Manaus); senao vazio', 'string') ?? null, $fromAI('acesso', 'como se entra: chave com a gente, o Fernando pega a chave, fechadura eletronica, ou ele abre; vazio se nao falou', 'string') ?? null, $fromAI('detalhe', 'onde e a partir de que horas pegar a chave, ou a duvida dele; vazio se nada', 'string') ?? null, $fromAI('senha', 'a senha da fechadura, se ele passou; senao vazio', 'string') ?? null] }}"
+    }
+   },
+   "name": "resposta_do_proprietario",
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2048,
+    1008
+   ],
+   "id": "9ef9bc56-692e-46ca-861d-8a1f2832d29f",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "return [{ json: { texto: String($input.first().json.output || ''), codigos: [], escreveu: '', fotos_site: [] } }];"
+   },
+   "name": "Resposta do proprietário",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2144,
+    784
+   ],
+   "id": "3c468c88-c3a1-45f5-9b99-286a95051d51"
+  },
+  {
+   "parameters": {
+    "promptType": "define",
+    "text": "=(informacao de sistema, nao repita) agora em Manaus e {{ $now.setZone('America/Manaus').setLocale('pt-BR').toFormat('cccc dd/MM/yyyy HH:mm') }}. {{ $('Abrir turno').first().json.cab.vocativo ? 'trate por: ' + $('Abrir turno').first().json.cab.vocativo + '. ' : '' }}{{ $('Abrir turno').first().json.cab.contexto || '' }} mensagem dele: {{ $('Abrir turno').first().json.cab.texto }}",
+    "options": {
+     "systemMessage": "={{ (() => {\n  const p = $('Abrir turno').first().json?.cab?.prompt;\n  if (typeof p === 'string' && p.trim().length > 500) return p;\n  throw new Error('PROMPT_VAZIO: nai_prompt do papel nao veio do banco');\n})() }}"
+    }
+   },
+   "name": "NAI (Fernando)",
+   "type": "@n8n/n8n-nodes-langchain.agent",
+   "typeVersion": 3.1,
+   "position": [
+    1824,
+    1200
+   ],
+   "id": "69b5f2e6-c454-4948-93ce-1a7e80c841d0"
+  },
+  {
+   "parameters": {
+    "model": {
+     "__rl": true,
+     "value": "gpt-5.6-sol",
+     "mode": "list",
+     "cachedResultName": "gpt-5.6-sol"
+    },
+    "builtInTools": {},
+    "options": {}
+   },
+   "name": "GPT (Fernando)",
+   "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+   "typeVersion": 1.3,
+   "position": [
+    1728,
+    1424
+   ],
+   "id": "20da4596-c676-45f7-9610-c17e34aeda8b",
+   "credentials": {
+    "openAiApi": {
+     "id": "CzrQhGemsCI4hLUh",
+     "name": "OpenAI account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "sessionIdType": "customKey",
+    "sessionKey": "={{ $('Abrir turno').first().json.cab.memoria }}",
+    "tableName": "nai_memoria",
+    "contextWindowLength": 40
+   },
+   "name": "Memória (Fernando)",
+   "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+   "typeVersion": 1.4,
+   "position": [
+    1872,
+    1424
+   ],
+   "id": "502d6d79-ae01-4dd6-b8e0-c38a750a3145",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Registra a resposta do FERNANDO sobre uma visita.\nArg: decisao = confirma, nao_pode, problema ou outro.",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_resposta_motoboy($1::bigint, $2, $3, $4);",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('visita', 'o numero da visita, se souber', 'string') ?? null, $fromAI('decisao', 'confirma, nao_pode, problema ou outro', 'string') ?? null, $fromAI('obs', 'o que ele disse, em poucas palavras', 'string') ?? null] }}"
+    }
+   },
+   "name": "resposta_do_motoboy",
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "position": [
+    2032,
+    1424
+   ],
+   "id": "b032c66c-d1c2-4aef-9ce7-0d6a1fdffbe3",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "return [{ json: { texto: String($input.first().json.output || ''), codigos: [], escreveu: '', fotos_site: [] } }];"
+   },
+   "name": "Resposta do Fernando",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2128,
+    1200
+   ],
+   "id": "c4450965-0986-4e2c-afc6-52968b51594a"
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "SELECT nai_enfileirar_card($1::bigint, $2::int) AS r;",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $json.codigo] }}"
+    }
+   },
+   "name": "Enfileirar card do código",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    1904,
+    480
+   ],
+   "id": "ce8a2b92-9a05-4f4f-b051-7f7356fd2c2c",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "SELECT nai_enfileirar_cortesia($1::bigint, $2) AS r;",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $('Juntar mensagens').first().json.texto ?? ''] }}"
+    }
+   },
+   "name": "Enfileirar cortesia",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    1904,
+    592
+   ],
+   "id": "ae329457-f60e-4881-b3de-d2fbf0061e14",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "-- VISITAS / VISITA <id> OK|CANCELA|HORARIO|AVISA|FERNANDO OK / ACESSO <codigo> <como>\nSELECT * FROM nai_comando_tel($1::bigint, $2);",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $('Abrir turno').first().json.cab.texto ?? ''] }}"
+    }
+   },
+   "name": "Comando de visita (Tel)",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    1904,
+    1600
+   ],
+   "id": "4dca5dbe-92fa-4ca0-97a3-8853d194f855",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "SELECT nai_enfileirar_texto($1::bigint, NULL, $2::bigint, 'turno', $3, 'aviso_teste', 1) AS id;",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $('Abrir turno').first().json.cab.contato_id, '🧪 no teste, os comandos antigos (RESPOSTA, posta, dispara...) continuam pelo seu número principal. Aqui só VISITAS, VISITA <n> ... e ACESSO.'] }}"
+    }
+   },
+   "name": "Aviso no teste",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    1872,
+    1792
+   ],
+   "id": "751253ec-ce6b-4c18-8640-b41661acf90f",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "// LIDO de `regex_liberar.js` pelo patch -- nao editar aqui.\nconst TAXA_CODIGO = /^(\\d{3,5})\\s*[-–—:,]?\\s*([^\\d]{2,40})$/;\nconst FALA_DE_TAXA = /\\b(tx|taxa|condominio|condomínio|cond)\\b/i;\nconst FALA_DE_INCLUSAO = /\\b(inclus[ao]|inclu[íi]d[ao]|inclui)\\b/i;\nconst NEGA = /\\b(nao|não|sem)\\b/i;\n\nfunction ehComandoDeTaxa(texto) {\n  const m = TAXA_CODIGO.exec(String(texto || ''));\n  if (!m) return false;\n  const resto = m[2];\n  if (!FALA_DE_TAXA.test(resto)) return false;\n  return FALA_DE_INCLUSAO.test(resto) || NEGA.test(resto);\n}\n\nconst VOC = '(?:@?nay\\\\b[\\\\s,;:.!?-]*)?';\n\nconst V_DESCARTA =\n  '(?:descarta|descartar|descarte|esquece|esquecer|esqueca|esqueça|' +\n  'apaga|apagar|cancela|cancelar|ignora|ignorar)';\n\nconst V_RESPOSTA = '(?:resposta|responde|responder)';\n\nconst LIGACAO = '(?:\\\\s+a)?(?:\\\\s+pend[eê]ncias?)?';\n\nconst RE_RESPOSTA = new RegExp(\n  '^\\\\s*' + VOC + V_RESPOSTA + LIGACAO + '\\\\s+(\\\\d{1,6})\\\\s+([\\\\s\\\\S]+?)\\\\s*$', 'i');\n\nconst RE_DESCARTA = new RegExp(\n  '^\\\\s*' + VOC + V_DESCARTA + LIGACAO + '\\\\s+(\\\\d{1,6})\\\\s*$', 'i');\n\nconst RE_DESCARTA_TUDO = new RegExp(\n  '^\\\\s*' + VOC + V_DESCARTA + '\\\\s+tudo\\\\s*$', 'i');\n\nconst RE_DESCARTA_TUDO_SIM = new RegExp(\n  '^\\\\s*' + VOC + V_DESCARTA + '\\\\s+tudo\\\\s+sim\\\\s*$', 'i');\n\nconst RE_LISTAR = new RegExp(\n  '^\\\\s*' + VOC + '(?:pend[eê]ncias?|pendentes)\\\\s*$', 'i');\n\nfunction ehComandoDePendencia(t) {\n  const s = String(t || '');\n  return RE_DESCARTA_TUDO_SIM.test(s) || RE_DESCARTA_TUDO.test(s) ||\n         RE_DESCARTA.test(s) || RE_RESPOSTA.test(s) || RE_LISTAR.test(s);\n}\n\nfunction interpretarPendencia(t) {\n  const s = String(t || '');\n  let m;\n  if (RE_DESCARTA_TUDO_SIM.test(s)) return { acao: 'DESCARTAR TUDO SIM', p_id: null, p_texto: null };\n  if (RE_DESCARTA_TUDO.test(s)) return { acao: 'DESCARTAR TUDO', p_id: null, p_texto: null };\n  m = s.match(RE_RESPOSTA);\n  if (m) return { acao: 'RESPOSTA', p_id: parseInt(m[1], 10), p_texto: m[2].trim() };\n  m = s.match(RE_DESCARTA);\n  if (m) return { acao: 'DESCARTAR', p_id: parseInt(m[1], 10), p_texto: null };\n  if (RE_LISTAR.test(s)) return { acao: 'PENDENCIAS', p_id: null, p_texto: null };\n  return null;\n}\n\n// NAI: o papel vem do CABECALHO. Publicador (posta, dispara...) so fora do teste.\nlet cab = {};\ntry { cab = $('Abrir turno').first().json.cab || {}; } catch (e) { cab = {}; }\nif (cab.papel !== 'tel' || cab.teste === true) return [];\nconst TEL = String(cab.telefone);\n// >>> telefone na frente (patch 23/09)\nconst ENVIO_TEL_FRENTE = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(envi|m[a]?nd|repass|encaminh)(?:a|ar|e|ei|ou|o)?\\b\\s*(?:para\\s+|pra\\s+|pro\\s+|p\\/\\s*)?((?:55[\\s.-]*)?\\(?\\d{2}\\)?[\\s.-]*\\d{4,5}[\\s.-]*\\d{4})\\s+(c[o\\u00f3]d(?:igo)?s?\\b[\\s:=.-]*\\d{2,5}(?:[\\s,;]+(?:e\\s+)?(?:o|os)?\\s*\\d{2,5})*|(?:o|os|a|as)?\\s*\\d{3,5}(?:[\\s,;]+(?:e\\s+)?(?:o|os)?\\s*\\d{3,5})*)\\s*$/i;\nconst ENVIO_TEL_ANTES = /^\\s*(?:55[\\s.-]*)?\\(?\\d{2}\\)?[\\s.-]*\\d{4,5}[\\s.-]*\\d{4}[\\s,;:.-]+(?:@?nay\\b[\\s,;:.!?-]*)?(?:en+vi|m[a]?n+d|repass+|encaminh)(?:a|ar|e|ei|ou|o)?\\b/i;\nconst ALTO_PADRAO_GRUPO = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(?:envi|m[a]?n+d|repass+|encaminh)(?:a|ar|e|ei|ou|o)?\\b(?=[\\s\\S]*\\balto[\\s\\-]*padr[a\\u00e3]o\\b)(?=[\\s\\S]*\\b(?:grupo|easy|anunciar)\\b)/i;\nconst EH_ENVIO_TEL = (x) => ENVIO_TEL_FRENTE.test(x) || ENVIO_TEL_ANTES.test(x) || ALTO_PADRAO_GRUPO.test(x);\n// <<< telefone na frente\nconst linhas = String(cab.texto || '').split('\\n');\nfor (const bruta of linhas) {\n  const linha = bruta.trim();\n  if (!linha) continue;\n  const up = linha.toUpperCase();\n  // A gramatica de pendencia mora em regex_pendencia.js, com 45 casos\n  // em casos_comando_pendencia.json. 'descarta 47' e 'esquece 47' sao\n  // formas que o Tel usa de verdade.\n  const pend = interpretarPendencia(linha);\n  if (pend) return [{ json: { acao: pend.acao, p_id: pend.p_id, p_texto: pend.p_texto, tel_tel: TEL } }];\n  if (up === 'PENDENCIAS' || up === 'PEND\\u00caNCIAS') return [{ json: { acao: 'PENDENCIAS', p_id: null, p_texto: null, tel_tel: TEL } }];\n  // ENVIO PRIVADO (31/08): mesma regex do interpretar_comando.py. Vem\n  // ANTES dos verbos antigos porque \"posta o 5750 pro Sergio\" precisa\n  // chegar ao Python para ser RECUSADO, em vez de virar postagem em 14\n  // grupos. Timeout maior: um envio com fotos leva mais que 8s.\n  const ENVIO_RE = /^\\s*(?:@?nay\\b[\\s,;:.!?-]*)?(envi|m[a]?nd|repass|encaminh|mostr|post|public|dispar|solt)(?:a|ar|e|ei|ou|o)?\\b([\\s\\S]*)(?:\\bpara\\b|\\bpra\\b|\\bpro\\b|\\bp\\/)\\s*([\\s\\S]+?)\\s*$/i;\n  const NAO_PESSOA_RE = /\\b(grupos?|grade|vagas?|easy|anunciar|todos os corretores)\\b/i;\n  const mEnv = linha.match(ENVIO_RE);\n  const mTelFrente = EH_ENVIO_TEL(linha);\n  if (mTelFrente || (mEnv && !NAO_PESSOA_RE.test(mEnv[3]))) {\n    try {\n      await this.helpers.httpRequest({\n        method: 'POST', url: 'http://172.16.0.1:8080/comando',\n        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer <REDIGIDO>' },\n        body: { texto: linha }, json: true, timeout: 120000\n      });\n    } catch (e) {}\n    return [];\n  }\n  if (/^(@?NAY\\b[\\s,:;.!\\-]*)?((POSTA|POSTAR|PUBLICA|PUBLICAR|DISPARA|DISPARAR|SOLTA|TIRA|TIRAR|REMOVE|REMOVER|RETIRA|RETIRAR|VENDEU|VENDIDO|VENDIDA|ALUGOU|ALUGADO|ALUGADA|VAGAS|VAGA|LISTA)\\b|(MANDA|MANDAR|MANDE|ENVIA|ENVIAR|ENVIE)\\s+(AS?\\s+|OS?\\s+)?(LISTA|APARTAMENTOS?|APTOS?|COBERTURAS?|FLATS?|CASAS?|SOBRADOS?|SALAS?|LOJAS?|LOTES?|TERRENOS?)\\b)/i.test(up)\n      // \"5712 Alugado\" -- o codigo na frente (Tel, 09/09). Mesmo literal\n      // de `regex_liberar.js`, exercitado por `casos_comando_liberar.json`.\n      || /^(?:@?NAY\\b[\\s,:;.!\\-]*)?(\\d{3,5})\\s*[-–—:,]?\\s*(?:JA|JÁ)?\\s*(VENDEU|VENDIDO|VENDIDA|ALUGOU|ALUGADO|ALUGADA)\\b/i.test(up)\n      || ehComandoDeTaxa(up)\n      // \"5712 Alugado\" -- o codigo na frente (Tel, 09/09). Mesmo literal\n      // de `regex_liberar.js`, exercitado por `casos_comando_liberar.json`.\n      || /^(?:@?NAY\\b[\\s,:;.!\\-]*)?(\\d{3,5})\\s*[-–—:,]?\\s*(?:JA|JÁ)?\\s*(VENDEU|VENDIDO|VENDIDA|ALUGOU|ALUGADO|ALUGADA)\\b/i.test(up)) {\n    try {\n      await this.helpers.httpRequest({\n        method: 'POST',\n        url: 'http://172.16.0.1:8080/comando',\n        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer <REDIGIDO>' },\n        body: { texto: linha },\n        json: true,\n        timeout: 8000\n      });\n    } catch (e) {}\n    return [];\n  }\n}\nreturn []"
+   },
+   "id": "b58c6204-46f3-479e-b2b3-10bbf05db504",
+   "name": "Comando do Tel",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1360,
+    2192
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "SELECT * FROM nay_comando($1,$2,$3);",
+    "options": {
+     "queryReplacement": "={{ [String($json.acao ?? ''), $json.p_id == null ? null : String($json.p_id), $json.p_texto == null ? null : String($json.p_texto)] }}"
+    }
+   },
+   "id": "1450de43-73d9-4e91-8937-6c8216b1bbeb",
+   "name": "Responder pendencia",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    1584,
+    2752
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "const r = $input.first().json;\nconst TEL = $('Comando do Tel').first().json.tel_tel;\nconst out = [];\nif (r.avisar && r.msg_corretor) {\n  out.push({ rota: 'send-text', pausa: 1, corpo: { phone: String(r.avisar), message: r.msg_corretor } });\n}\nout.push({ rota: 'send-text', pausa: 2, corpo: { phone: TEL, message: r.msg_tel } });\nreturn out.map(x => ({ json: x }));"
+   },
+   "id": "809e189f-f526-4078-9ee8-7d7db9b4c276",
+   "name": "Preparar aviso do comando",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1888,
+    2816
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://api.z-api.io/instances/<REDIGIDO>/token/<REDIGIDO>/{{ $json.rota }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Client-Token",
+       "value": "<REDIGIDO>"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 1500
+      }
+     }
+    }
+   },
+   "name": "Enviar aviso do comando",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    2352,
+    2848
+   ],
+   "id": "ac294986-aada-49ed-b5fc-3a98583cb801",
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "SELECT nai_fechar_turno($1::bigint) AS lote;",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id] }}"
+    }
+   },
+   "name": "Fechar turno",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    3056,
+    112
+   ],
+   "executeOnce": true,
+   "id": "4bbd460c-3f89-4abb-b750-67f178e2e33d",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "minutes",
+       "minutesInterval": 1
+      }
+     ]
+    }
+   },
+   "name": "Agenda (todo minuto)",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    3280,
+    832
+   ],
+   "notesInFlow": true,
+   "id": "5c16d17e-ac4c-4063-bbaf-b0529ca6c872",
+   "notes": "Lembretes, cobrancas e avisos das visitas. Quem decide o que venceu e nai_agenda_tick()."
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "SELECT nai_agenda_tick() AS n, NULL::bigint AS lote;",
+    "options": {}
+   },
+   "name": "Agenda da NAI",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    3536,
+    832
+   ],
+   "id": "067d8dc5-ccd5-4da8-9260-e8f5ae3c37c3",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "-- Pega o que esta pronto para sair. lote = turno (resposta, sai na hora);\n-- NULL = o que a NAI inicia (respeita a janela de horario). Aqui ficam as\n-- paredes: pausa, modo teste (redireciona e nunca sai para fora da lista),\n-- repeticao e foto que nao confere.\nSELECT * FROM nai_liberar_saida($1::bigint);",
+    "options": {
+     "queryReplacement": "={{ [$json.lote ?? null] }}"
+    }
+   },
+   "name": "Liberar saída",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    4016,
+    192
+   ],
+   "id": "3b155a40-d336-4013-bee4-18bd6660af84",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "// CHECK DUPLO, segunda metade: recalcula a chave do destino em JavaScript\n// (implementacao independente da do banco) e compara com a que o banco\n// mandou. Qualquer divergencia = nao envia.\nfunction chave(p) {\n  p = String(p || '');\n  if (/@lid$/i.test(p)) { const d = p.replace(/\\D/g, ''); return d ? 'lid:' + d : null; }\n  let d = p.replace(/\\D/g, '');\n  if (!d) return null;\n  if ((d.length === 10 || d.length === 11) && !d.startsWith('55')) d = '55' + d;\n  if (/^55\\d{10,11}$/.test(d)) return d.slice(0, 4) + d.slice(-8);\n  return d;\n}\nreturn $input.all().map(it => {\n  const j = it.json || {};\n  let motivo = null;\n  if (!j.id) motivo = 'sem_id';\n  else if (!j.corpo || String(j.corpo.phone) !== String(j.telefone)) motivo = 'telefone_do_corpo_diferente';\n  else if (!j.chave_esperada || chave(j.telefone) !== String(j.chave_esperada)) motivo = 'chave_nao_confere_js';\n  else if (j.rota !== 'send-text' && j.rota !== 'send-image') motivo = 'rota_invalida';\n  // A COLAGEM (12/09) mora no nosso site, nao no do catalogo: sem esta excecao\n  // ela saia SEMPRE barrada aqui (foto_sem_codigo) -- visto no teste de 13/09.\n  // So passa a colagem DAQUELE imovel: o arquivo tem o numero do codigo.\n  else if (j.rota === 'send-image' && !(Number(j.codigo) > 0 && (/^https:\\/\\/imobeasy\\.com\\/system\\/pictures\\//.test(String(j.corpo.image || ''))\n           || String(j.corpo.image || '') === 'https://imobeasy.online/colagens/' + Number(j.codigo) + '.jpg'))) motivo = 'foto_sem_codigo';\n  else if (j.rota === 'send-text' && !String(j.corpo.message || '').trim()) motivo = 'texto_vazio';\n  return { json: { ...j, enviar: motivo === null, motivo } };\n});\n"
+   },
+   "name": "Conferir cabeçalho",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    4208,
+    192
+   ],
+   "id": "de45c07d-bb5a-4af8-a46e-f3bdabd51b34"
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "leftValue": "={{ $json.enviar }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "name": "Pode enviar?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    4416,
+    192
+   ],
+   "id": "98d882d6-e537-40c2-abcd-f0f80794256d"
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://api.z-api.io/instances/<REDIGIDO>/token/<REDIGIDO>/{{ $json.rota }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Client-Token",
+       "value": "<REDIGIDO>"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 2000
+      }
+     }
+    }
+   },
+   "name": "Enviar Z-API",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    4608,
+    96
+   ],
+   "id": "a12a06f6-541b-4693-9bb2-18fc111c7830",
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "-- Grava o ID da mensagem (e alimenta mensagem_saida/envios, para a citacao).\nSELECT nai_confirmar_envio($1::bigint, $2::jsonb) AS r;",
+    "options": {
+     "queryReplacement": "={{ [$('Conferir cabeçalho').item.json.id, JSON.stringify($json || {})] }}"
+    }
+   },
+   "name": "Confirmar envio",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    4816,
+    96
+   ],
+   "id": "ecac38c9-12ff-4cbd-925e-ce5c62e60fb4",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "SELECT nai_registrar_bloqueio($1::bigint, $2);",
+    "options": {
+     "queryReplacement": "={{ [$json.id, $json.motivo ?? 'conferencia'] }}"
+    }
+   },
+   "name": "Registrar bloqueio",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    4608,
+    320
+   ],
+   "id": "e913a96c-8c36-41fa-9f43-4cdfbca91f02",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "// LER IMAGEM E ARQUIVO (Tel, 16/09): \"cria um fluxo que le imagem, audio e\n// arquivo com a api do gpt\". O audio ja era transcrito no ramo ao lado; a\n// imagem nao tinha caminho nenhum, e o corretor ouvia \"nao consigo abrir a\n// imagem\".\n//\n// A Z-API entrega a midia no proprio corpo do webhook -- `image.imageUrl`,\n// `document.documentUrl`. Sem url, este ramo nao roda e o fluxo segue como era.\n//\n// O CORPO DO PEDIDO VAI MONTADO DAQUI (16/09). Escrito como expressao no\n// proprio httpRequest, o no devolvia {\"error\":\"invalid syntax\"} em 31ms: o\n// parser do n8n nao aceita `{{ JSON.stringify({...}) }}` comecando com chave.\n// Montado aqui e mandado como string, a mesma chamada leu a foto do 5709.\nconst w = $('Webhook').first().json.body || {};\n\n// SO LE O QUE CHEGA, NUNCA O QUE SAI (Tel, 16/09 -- corrigindo erro meu do\n// mesmo dia). Este ramo lia o webhook direto, sem as exclusoes que o \"Filtrar\n// e normalizar\" faz logo ali do lado. Resultado: cada foto que a PROPRIA NAY\n// manda -- e ela manda quatro por card -- era enviada ao GPT para ser\n// descrita. Alem do gasto, foi isso que quebrou o \"Abrir turno\" as 12:41: a\n// resposta da OpenAI entrava na lista de mensagens do lote.\n//\n// As mesmas condicoes do \"Filtrar e normalizar\", pela mesma razao.\nif (w.isGroup || w.isNewsletter || w.broadcast || w.isStatusReply) return [];\nif (w.type !== 'ReceivedCallback') return [];\nif (w.fromMe || w.fromApi) return [];\n\nconst img = w.image || {};\nconst doc = w.document || {};\nconst url = img.imageUrl || img.url || '';\nconst docUrl = doc.documentUrl || doc.url || '';\nconst mime = String(doc.mimeType || doc.mimetype || '');\n// PDF e imagem o GPT le pela url. Planilha, .docx, video e audio nao passam\n// por aqui: audio tem o ramo dele, e o resto vai para o Tel.\nconst docLegivel = docUrl && /pdf|image/i.test(mime);\nconst alvo = url || (docLegivel ? docUrl : '');\nif (!alvo) return [];\n\nconst prompt = 'Voce trabalha numa imobiliaria de Manaus. Descreva em portugues, '\n  + 'em ate 5 linhas, o que este arquivo mostra. Quando for imovel, diga o que da '\n  + 'para ver: comodo, estado, mobilia. Quando for print de conversa, anuncio ou '\n  + 'documento, transcreva o texto que aparece. Codigo de imovel, valor e endereco '\n  + 'escreva exatamente como aparecem.';\n\nconst corpo = JSON.stringify({\n  model: 'gpt-4o-mini',\n  max_tokens: 400,\n  messages: [{ role: 'user', content: [\n    { type: 'text', text: prompt },\n    { type: 'image_url', image_url: { url: alvo } }\n  ]}]\n});\n\nreturn [{ json: {\n  midia_url: alvo,\n  tipo: url ? 'imagem' : 'arquivo',\n  corpo: corpo,\n  telefone: w.phone,\n  nome: w.senderName\n} }];"
+   },
+   "id": "nai-detectar-imagem-0001",
+   "name": "Detectar imagem",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    176,
+    768
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.openai.com/v1/chat/completions",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "openAiApi",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ $json.corpo }}",
+    "options": {
+     "timeout": 30000
+    }
+   },
+   "id": "nai-ler-imagem-gpt-0001",
+   "name": "Ler imagem (GPT)",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    560,
+    768
+   ],
+   "credentials": {
+    "openAiApi": {
+     "id": "CzrQhGemsCI4hLUh",
+     "name": "OpenAI account"
+    }
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "url": "={{ $json.midia_url }}",
+    "options": {
+     "response": {
+      "response": {
+       "responseFormat": "file"
+      }
+     },
+     "timeout": 25000
+    }
+   },
+   "name": "Baixar imagem",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "id": "dfb8d165-8f7a-4c4e-9bac-a011fd14641d",
+   "position": [
+    288,
+    768
+   ],
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "// O GPT LE O ARQUIVO, NAO A URL (22/09).\n// Mandando a url da Z-API, quem precisa alcancar a foto e a OpenAI --\n// e midia de WhatsApp expira e as vezes nem abre de fora. Baixando aqui\n// (como o audio ja fazia) e mandando o arquivo, a leitura nao depende de\n// ninguem alcancar nada.\n//\n// O BINARIO NAO ESTA EM `binary.data.data` (medido em 22/09). Este n8n\n// guarda arquivo em DISCO: aquele campo vem com a etiqueta\n// 'filesystem-v2', e foi exatamente isso que viajou para a OpenAI --\n// 'data:image/png;base64,filesystem-v2' --, que respondeu 'you uploaded\n// an unsupported image'. Quem traz os bytes e o helper abaixo.\nconst ent = $('Detectar imagem').first().json;\nconst OK = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];\nlet b64 = '', mime = 'image/jpeg';\ntry {\n  const bin = $input.first().binary || {};\n  const chave = bin.data ? 'data' : Object.keys(bin)[0];\n  const d = bin[chave] || {};\n  if (OK.indexOf(String(d.mimeType || '')) >= 0) { mime = d.mimeType; }\n  const buf = await this.helpers.getBinaryDataBuffer(0, chave);\n  b64 = buf.toString('base64');\n} catch (e) { b64 = ''; }\nconst corpo = JSON.parse(ent.corpo);\n// Sem o arquivo na mao, volta a valer a url: pior ler pela url do que\n// nao ler.\nif (b64) {\n  corpo.messages[0].content[1].image_url.url = 'data:' + mime + ';base64,' + b64;\n}\nreturn [{ json: Object.assign({}, ent, { corpo: JSON.stringify(corpo),\n                                        veio_arquivo: !!b64,\n                                        bytes_lidos: b64.length }) }];"
+   },
+   "name": "Montar leitura da imagem",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "id": "609359fd-7cf0-47a7-b881-df881f06069e",
+   "position": [
+    416,
+    768
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "4d642588-5200-4321-b71f-7b9d8494fca9",
+       "leftValue": "={{ $json.rota }}",
+       "rightValue": "agente",
+       "operator": {
+        "type": "string",
+        "operation": "equals"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "name": "Precisa da mente?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "id": "b41db0fb-4a2f-4813-8afe-2fda8917aa69",
+   "position": [
+    1040,
+    352
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// O ESTADO E O QUE O JEV LE (77). Ele nao le imagem nem banco: le isto.\n// A descricao que o GPT fez da foto e a transcricao do audio entram aqui.\n//\n// A MUDANCA: antes iam quatro campos (mensagem, quem fala, leitura da\n// imagem, imovel em foco). Agora vai o estado inteiro -- inclusive a\n// ULTIMA FALA DELA e os imoveis JA MOSTRADOS e RECUSADOS. Sem isso,\n// \"esse nao\" e \"pode ser\" nao tem contra o que ser interpretados.\nconst base = $json;\nconst j = $('Juntar mensagens').first().json || {};\nconst cab = $('Abrir turno').first().json.cab || {};\nconst texto = String(j.texto || cab.texto || '').slice(0, 1500);\n\nlet est = {};\ntry { est = $('Ler estado').first().json.estado || {}; } catch (e) { est = {}; }\n\nlet leitura = '';\ntry {\n  const im = $('Ler imagem (GPT)').all();\n  if (im && im.length) {\n    const c = ((im[0].json || {}).choices || [])[0];\n    leitura = String(((c || {}).message || {}).content || '').trim();\n  }\n} catch (e) { leitura = ''; }\n\nconst estado = {\n  mensagem: texto || '(sem texto)',\n  quem_fala: est.papel || 'corretor',\n  nome: est.nome || '',\n  leitura_das_imagens: leitura || '',\n  imovel_em_foco: est.codigo_foco ? String(est.codigo_foco) : '',\n  imoveis_ja_mostrados: (est.codigos_mostrados || []).join(', '),\n  imoveis_que_ele_recusou: (est.codigos_rejeitados || []).join(', '),\n  ultima_coisa_que_a_nay_disse: String(est.ultima_fala_dela || '').slice(0, 500),\n  tem_visita_pendente: est.visita_pendente ? 'sim' : 'nao',\n  ultimas_trocas: (est.ultimas_trocas || []).map(function (t) {\n    return 'ele: ' + String(t.ele || '').slice(0,160) + ' | ela: ' + String(t.ela || '').slice(0,160);\n  }).join(' // '),\n};\n\n// OS CANDIDATOS. O Jev ESCOLHE entre opcoes -- ele nao extrai texto.\n// Pedir \"qual codigo ele quer\" em texto livre devolveria numero\n// inventado; oferecer 5727 / 5718 / nenhum devolve escolha com\n// probabilidade. Teto de 8: lista longa piora a escolha.\nconst cands = [];\nfunction poe(v) {\n  const s = String(v || '').replace(/\\D/g, '');\n  if (s.length >= 3 && s.length <= 5 && cands.indexOf(s) < 0) cands.push(s);\n}\npoe(est.codigo_foco);\n(j.codigosDele || []).forEach(poe);\n(est.codigos_mostrados || []).forEach(poe);\nconst candidatos = cands.slice(0, 8);\n\nfunction escolhasDeCodigo(comOutro) {\n  const o = {};\n  candidatos.forEach(function (c) { o[c] = 'E o imovel de codigo ' + c + '.'; });\n  o.nenhum = 'Nenhum imovel especifico nesta mensagem.';\n  if (comOutro) o.outro_nao_listado = 'Um imovel que nao esta nesta lista.';\n  return o;\n}\n\nconst perguntas = {\n  intencao: {\n    type: 'choice',\n    instructions: 'O que ele quer NESTA mensagem? Leia junto com a ultima coisa que a Nay disse.',\n    criteria: {\"pedir_imovel\":\"Ele quer RECEBER imovel: pede card, fotos, opcoes, valores, ou descreve o que o cliente dele procura para a gente mandar.\",\"rejeitar_imovel\":\"Ele esta RECUSANDO um imovel que ja mostramos: nao gostou, o cliente nao gostou, nao serve, quer outro no lugar.\",\"pergunta_sobre_imovel\":\"Ele pergunta um DADO de um imovel que ja esta na conversa: valor, quartos, area, andar, condominio, disponibilidade, documentacao.\",\"visita\":\"Ele quer marcar, remarcar, confirmar ou cancelar uma visita.\",\"resultado_visita\":\"Ele esta contando COMO FOI uma visita que ja aconteceu, ou o que o cliente achou depois de ver.\",\"cortesia\":\"So cumprimento, agradecimento ou confirmacao curta, sem assunto novo: oi, bom dia, ok, obrigado, blz.\",\"oferta_de_imovel\":\"Ele esta OFERECENDO um imovel DELE para a imobiliaria, ou perguntando como anunciar com a gente.\",\"assunto_geral\":\"Nao e sobre imovel do nosso catalogo: recado, duvida sobre a imobiliaria, parceria, comissao, grupo, reclamacao, assunto pessoal.\"}\n  },\n  codigo_quer: {\n    type: 'choice',\n    instructions: 'Qual imovel ele quer receber ou saber nesta mensagem?',\n    criteria: escolhasDeCodigo(true),\n  },\n  codigo_rejeita: {\n    type: 'choice',\n    instructions: 'Qual imovel ele esta RECUSANDO nesta mensagem? So quando ele diz que nao serve ou nao gostou.',\n    criteria: escolhasDeCodigo(false),\n  },\n  oferta: {\n    type: 'noul',\n    instructions: 'A pessoa esta oferecendo um imovel DELA para a imobiliaria?',\n    criteria: { true: 'Diz que tem um imovel e quer enviar, cadastrar ou anunciar com a gente.', false: 'Esta perguntando sobre imovel nosso, ou falando de outra coisa.' },\n  },\n  cortesia: {\n    type: 'noul',\n    instructions: 'A mensagem e apenas cortesia, sem assunto novo?',\n    criteria: { true: 'So agradecimento, confirmacao ou saudacao: ok, obrigado, bom dia, blz.', false: 'Tem pergunta, pedido ou informacao nova.' },\n  },\n  o_que_mandou: {\n    type: 'choice',\n    instructions: 'O que a pessoa mandou nas imagens ou arquivos?',\n    criteria: { anuncio_dele: 'Fotos ou print de um imovel DELE, que ele quer oferecer.', documento: 'Documento, contrato, comprovante, ficha, print de conversa.', duvida_sobre_nosso: 'Foto de um imovel NOSSO, perguntando algo sobre ele.', nao_da_para_saber: 'Nao veio imagem, ou nao da para dizer pelo que veio.' },\n  },\n};\n\nconst corpo = JSON.stringify({\n  model: 'typesafe/jev-1.13',\n  state: estado,\n  questions: perguntas,\n});\nreturn [{ json: Object.assign({}, base, { corpo, texto_lido: texto, candidatos: candidatos }) }];"
+   },
+   "name": "Montar pergunta ao Jev",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "id": "5de1d13e-54ca-4ff9-a594-6401da3ed805",
+   "position": [
+    1552,
+    320
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://openrouter.ai/api/alpha/decisions",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ $json.corpo }}",
+    "options": {
+     "timeout": 25000
+    }
+   },
+   "name": "Jev decide",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "id": "c978d5e7-1587-455c-9c0a-c9cba14d0610",
+   "position": [
+    1744,
+    320
+   ],
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "openrouterJev01",
+     "name": "OpenRouter (Jev)"
+    }
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "// O JEV DEVOLVE NUMERO, nao prosa: uma probabilidade por pergunta.\n// Aqui so se empacota; quem compara com os pisos e o banco, em\n// `nai_decidir_com_jev` -- para o Tel poder mexer sem deploy.\n//\n// SE O JEV CAIR (o no tem onError), nao para nada: vale a reserva\n// pelo proprio texto, e a conferencia do banco corrige por cima.\nconst j = $json || {};\nconst a = j.answers || {};\nconst tem = Object.keys(a).length > 0;\n\nif (!tem) {\n  const t = String(($('Montar pergunta ao Jev').first().json || {}).texto_lido || '')\n    .toLowerCase();\n  const deImovel = /(imovel|imóvel|apartamento|casa|aluguel|loca|venda|visita|foto|dispon|c[oó]digo|condom)/.test(t);\n  return [{ json: { jev: {}, reserva: true,\n                    atendente: deImovel ? 'imoveis' : 'secretaria' } }];\n}\n\nreturn [{ json: { jev: Object.assign({}, a, {\n  modelo: j.model || null,\n  custo: (j.usage && j.usage.cost) || null,\n}), reserva: false } }];"
+   },
+   "name": "Ler o Jev",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "id": "3926f58b-5ef0-496f-94d1-67bcbdc00fe5",
+   "position": [
+    1936,
+    336
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "-- A ROTA de hoje continua igual. O que muda: a INTENCAO passa a ser\n-- GRAVADA, com quem decidiu e com quanta certeza. A partir daqui existe\n-- um lugar onde a decisao do turno esta escrita, e depurar vira SELECT.\n--\n-- MATERIALIZED nao e enfeite: sem ele o Postgres pode inlinar a CTE e\n-- rodar as funcoes fora de ordem. Mesmo assim nada quebra (tudo tem\n-- padrao seguro), mas os campos viriam errados.\nWITH d AS MATERIALIZED (\n  SELECT nai_decidir_com_jev($1::bigint, $2::jsonb) AS atendente\n), i AS MATERIALIZED (\n  SELECT nai_decidir_v2(\n           $1::bigint,\n           $2::jsonb #>> '{intencao,choice}',\n           ($2::jsonb #>> '{intencao,confidence}')::real,\n           'jev',\n           CASE WHEN $2::jsonb #>> '{codigo_quer,choice}' ~ '^[0-9]{3,5}$'\n                THEN ARRAY[($2::jsonb #>> '{codigo_quer,choice}')::int] ELSE '{}'::int[] END,\n           CASE WHEN $2::jsonb #>> '{codigo_rejeita,choice}' ~ '^[0-9]{3,5}$'\n                THEN ARRAY[($2::jsonb #>> '{codigo_rejeita,choice}')::int] ELSE '{}'::int[] END,\n           $2::jsonb) AS intencao\n)\nSELECT d.atendente,\n       i.intencao,\n       nai_pediu_imovel($1::bigint) AS pediu_imovel,\n       (SELECT texto FROM nai_prompt WHERE papel = 'secretaria') AS prompt_secretaria\n  FROM d, i;",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, JSON.stringify($json.jev || {})] }}"
+    }
+   },
+   "name": "Decidir quem responde",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "id": "d0f9ec51-6aaf-49bf-a422-74b092cb2b95",
+   "position": [
+    2128,
+    336
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "// Devolve o MESMO item que o roteador montou, so trocando a rota: os nos\n// de baixo leem campos dele.\nconst base = $('Rotear pelo cabeçalho').first().json;\nconst d = $('Decidir quem responde').first().json || {};\nconst at = d.atendente === 'secretaria' ? 'secretaria' : 'agente';\nreturn [{ json: Object.assign({}, base, { rota: at, atendente: d.atendente }) }];"
+   },
+   "name": "Rota da mente",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "id": "3083f279-f5f7-47f8-9602-57498f857e88",
+   "position": [
+    2288,
+    304
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "-- As fotos do turno viram fotos da ficha aberta. Sem ficha aberta,\n-- devolve 0 e nada acontece.\nSELECT nai_sec_guardar_fotos_do_turno($1::bigint) AS n;",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id] }}"
+    }
+   },
+   "name": "Fotos do cadastro",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "id": "ff721493-6b79-4bfe-9d71-12803bbf6a71",
+   "position": [
+    1584,
+    1968
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "promptType": "define",
+    "text": "=(informação de sistema, não repita isso a ele) agora em Manaus é {{ $now.setZone('America/Manaus').setLocale('pt-BR').toFormat('cccc dd/MM/yyyy HH:mm') }}. {{ $('Abrir turno').first().json.cab.vocativo ? 'trate por: ' + $('Abrir turno').first().json.cab.vocativo + '. ' : '' }}{{ $('Juntar mensagens').first().json.qtd > 1 ? 'ele mandou ' + $('Juntar mensagens').first().json.qtd + ' mensagens neste intervalo, juntas abaixo: responda TODAS. ' : '' }}{{ $('Fotos do cadastro').first().json.n > 0 ? 'ele mandou ' + $('Fotos do cadastro').first().json.n + ' foto(s), e elas ja entraram na ficha do imovel dele: nao peca de novo. ' : '' }}\n\n{{ $('Juntar mensagens').first().json.texto }}",
+    "options": {
+     "systemMessage": "={{ (() => {\n  const p = $('Decidir quem responde').first().json?.prompt_secretaria;\n  if (typeof p === 'string' && p.trim().length > 300) return p;\n  throw new Error('PROMPT_VAZIO: nai_prompt da secretaria nao veio do banco');\n})() }}",
+     "returnIntermediateSteps": true
+    }
+   },
+   "name": "NAI (secretária)",
+   "type": "@n8n/n8n-nodes-langchain.agent",
+   "typeVersion": 3.1,
+   "id": "514413c2-0dc7-43ce-ab7f-f88cbed44bea",
+   "position": [
+    1984,
+    2032
+   ]
+  },
+  {
+   "parameters": {
+    "model": {
+     "__rl": true,
+     "value": "gpt-5.6-sol",
+     "mode": "list",
+     "cachedResultName": "gpt-5.6-sol"
+    },
+    "builtInTools": {},
+    "options": {}
+   },
+   "name": "GPT (secretária)",
+   "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+   "typeVersion": 1.3,
+   "id": "1521cf27-6c11-4df8-92a0-9487974d1eca",
+   "position": [
+    1696,
+    2384
+   ],
+   "credentials": {
+    "openAiApi": {
+     "id": "CzrQhGemsCI4hLUh",
+     "name": "OpenAI account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "sessionIdType": "customKey",
+    "sessionKey": "={{ $('Abrir turno').first().json.cab.memoria }}-sec",
+    "tableName": "nai_memoria",
+    "contextWindowLength": 20
+   },
+   "name": "Memória (secretária)",
+   "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+   "typeVersion": 1.4,
+   "id": "c38be0ec-6c46-463b-98ba-2a703569bb5b",
+   "position": [
+    1856,
+    2384
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "O que o Tel ja me ensinou sobre isso.\nUse SEMPRE que ele perguntar alguma coisa, antes de qualquer outra coisa.\nArg: pergunta (nas palavras dele).",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_sec_consultar($1::bigint, $2);",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('pergunta', 'o que ele quer saber, nas palavras dele', 'string') ?? null] }}"
+    }
+   },
+   "name": "consultar_o_que_sei",
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "id": "a34f9414-840e-4ee5-af4c-6023154dd8ce",
+   "position": [
+    2016,
+    2384
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Manda a pergunta dele para o Tel e avisa que voce ja responde.\nUse quando consultar_o_que_sei nao souber.\nArg: pergunta (nas palavras dele).",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_sec_perguntar_ao_tel($1::bigint, $2);",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('pergunta', 'a pergunta dele, nas palavras dele', 'string') ?? null] }}"
+    }
+   },
+   "name": "perguntar_ao_tel",
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "id": "a4fbeda2-c71e-442d-bc54-1a39cb564baf",
+   "position": [
+    2192,
+    2384
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Abre a ficha do imovel que ELE esta oferecendo e devolve a proxima pergunta.\nUse quando ele disser que tem um imovel para mandar.\nSem argumento.",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_sec_abrir_cadastro($1::bigint);",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id] }}"
+    }
+   },
+   "name": "abrir_cadastro_de_imovel",
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "id": "ce05ebd5-bba2-4f9f-9caf-1026a07756c2",
+   "position": [
+    2352,
+    2384
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "descriptionType": "manual",
+    "toolDescription": "Guarda o que ele respondeu sobre o imovel dele e devolve a proxima pergunta.\nMande so o que ele disse nesta mensagem; o resto deixe vazio.\nArgs: tipo, finalidade, condominio, bairro, quartos, valor, mobilia, descricao.",
+    "operation": "executeQuery",
+    "query": "SELECT texto_pronto, instrucao_para_voce FROM nai_sec_guardar_do_imovel($1::bigint, $2, $3, $4, $5, $6, NULL, NULL, NULL, $7, NULL, $8, $9);",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('tipo', 'apartamento, casa, terreno...', 'string') ?? null, $fromAI('finalidade', 'venda ou locacao', 'string') ?? null, $fromAI('condominio', 'o nome do condominio', 'string') ?? null, $fromAI('bairro', 'o bairro', 'string') ?? null, $fromAI('quartos', 'quantos quartos', 'string') ?? null, $fromAI('valor', 'o valor que ele pediu', 'string') ?? null, $fromAI('mobilia', 'mobiliado, semimobiliado ou vazio', 'string') ?? null, $fromAI('descricao', 'o que ele contou do imovel, nas palavras dele', 'string') ?? null] }}"
+    }
+   },
+   "name": "guardar_do_imovel_novo",
+   "type": "n8n-nodes-base.postgresTool",
+   "typeVersion": 2.7,
+   "id": "701a3786-8afe-488c-930a-23f886b4e50d",
+   "position": [
+    2528,
+    2384
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "// A caixa de saida e a MESMA da Nay de locacao: quem divide o texto em\n// mensagens, guarda e libera o envio ja esta pronto ali.\nconst a = $('NAI (secretária)').first().json || {};\nconst j = $('Juntar mensagens').first().json || {};\nreturn [{ json: {\n  texto: String(a.output || '').trim(),\n  codigos: [],\n  escreveu: j.texto || '',\n  fotos_site: []\n} }];"
+   },
+   "name": "Resposta da secretária",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "id": "2b41723c-0785-4122-92f5-251206ca939a",
+   "position": [
+    2608,
+    1712
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "-- O ESTADO DA CONVERSA, em jsonb, pronto para o classificador.\n-- Substitui o envelope de texto que hoje polui a nai_memoria.\nSELECT nai_estado_v2((SELECT contato_id FROM nai_turno WHERE id = $1::bigint), 3) AS estado;",
+    "options": {
+     "queryReplacement": "={{ [$('Abrir turno').first().json.cab.turno_id] }}"
+    }
+   },
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.6,
+   "position": [
+    1362,
+    450
+   ],
+   "id": "ler-estado-v2-0001",
+   "name": "Ler estado",
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "http://172.16.0.9:3000/api/webhooks/zapi?org_id=a47991bb-80e3-43ad-9838-02258ebac5d2",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body || $json) }}",
+    "options": {
+     "timeout": 8000
+    }
+   },
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    -712,
+    628
+   ],
+   "id": "espelhar-crm-0001",
+   "name": "Espelhar no CRM",
+   "onError": "continueRegularOutput",
+   "retryOnFail": false,
+   "alwaysOutputData": false
+  }
+ ],
+ "connections": {
+  "Webhook": {
+   "main": [
+    [
+     {
+      "node": "Filtrar e normalizar",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Espelhar no CRM",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Filtrar e normalizar": {
+   "main": [
+    [
+     {
+      "node": "Gravar na fila",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Foi o Tel pelo celular?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Foi o Tel pelo celular?": {
+   "main": [
+    [
+     {
+      "node": "Espera 15s (eco)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Espera 15s (eco)": {
+   "main": [
+    [
+     {
+      "node": "O Tel assumiu a conversa",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Gravar na fila": {
+   "main": [
+    [
+     {
+      "node": "Janela de 25s",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Janela de 25s": {
+   "main": [
+    [
+     {
+      "node": "Reservar mensagens",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Reservar mensagens": {
+   "main": [
+    [
+     {
+      "node": "Juntar mensagens",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Detectar audio",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Detectar imagem",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Detectar audio": {
+   "main": [
+    [
+     {
+      "node": "Baixar audio",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Baixar audio": {
+   "main": [
+    [
+     {
+      "node": "Transcrever",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Transcrever": {
+   "main": [
+    [
+     {
+      "node": "Juntar mensagens",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Juntar mensagens": {
+   "main": [
+    [
+     {
+      "node": "Abrir turno",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Abrir turno": {
+   "main": [
+    [
+     {
+      "node": "Rotear pelo cabeçalho",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Rotear pelo cabeçalho": {
+   "main": [
+    [
+     {
+      "node": "Precisa da mente?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Qual caminho?": {
+   "main": [
+    [
+     {
+      "node": "NAI (corretor)",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Enfileirar card do código",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Enfileirar cortesia",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "NAI (proprietário)",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "NAI (Fernando)",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Comando de visita (Tel)",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Comando do Tel",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Aviso no teste",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Fotos do cadastro",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GPT (corretor)": {
+   "ai_languageModel": [
+    [
+     {
+      "node": "NAI (corretor)",
+      "type": "ai_languageModel",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GPT (proprietário)": {
+   "ai_languageModel": [
+    [
+     {
+      "node": "NAI (proprietário)",
+      "type": "ai_languageModel",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GPT (Fernando)": {
+   "ai_languageModel": [
+    [
+     {
+      "node": "NAI (Fernando)",
+      "type": "ai_languageModel",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Memória (corretor)": {
+   "ai_memory": [
+    [
+     {
+      "node": "NAI (corretor)",
+      "type": "ai_memory",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Memória (proprietário)": {
+   "ai_memory": [
+    [
+     {
+      "node": "NAI (proprietário)",
+      "type": "ai_memory",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Memória (Fernando)": {
+   "ai_memory": [
+    [
+     {
+      "node": "NAI (Fernando)",
+      "type": "ai_memory",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "imovel_por_codigo": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (corretor)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "resumo_do_condominio": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (corretor)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "listar_no_condominio": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (corretor)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "buscar_por_perfil": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (corretor)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "disponibilidade_no_condominio": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (corretor)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "o_que_sei_do_imovel": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (corretor)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "guardar_do_imovel": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (corretor)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "imovel_do_disparo": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (corretor)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "responder_pendencia": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (corretor)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "escalar_ao_tel": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (corretor)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "dados_do_corretor": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (corretor)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "pedir_visita": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (corretor)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "guardar_dados_da_visita": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (corretor)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "responder_horario_do_proprietario": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (corretor)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "mudar_horario_da_visita": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (corretor)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "resultado_da_visita": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (corretor)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "resposta_do_proprietario": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (proprietário)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "resposta_do_motoboy": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (Fernando)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "NAI (corretor)": {
+   "main": [
+    [
+     {
+      "node": "Achar codigo na resposta",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Achar codigo na resposta": {
+   "main": [
+    [
+     {
+      "node": "Fotos faltando?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Fotos faltando?": {
+   "main": [
+    [
+     {
+      "node": "Buscar fotos no site",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Buscar fotos no site": {
+   "main": [
+    [
+     {
+      "node": "Enfileirar resposta",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "NAI (proprietário)": {
+   "main": [
+    [
+     {
+      "node": "Resposta do proprietário",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Resposta do proprietário": {
+   "main": [
+    [
+     {
+      "node": "Enfileirar resposta",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "NAI (Fernando)": {
+   "main": [
+    [
+     {
+      "node": "Resposta do Fernando",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Resposta do Fernando": {
+   "main": [
+    [
+     {
+      "node": "Enfileirar resposta",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Enfileirar resposta": {
+   "main": [
+    [
+     {
+      "node": "Fechar turno",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Enfileirar card do código": {
+   "main": [
+    [
+     {
+      "node": "Fechar turno",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Enfileirar cortesia": {
+   "main": [
+    [
+     {
+      "node": "Fechar turno",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Comando de visita (Tel)": {
+   "main": [
+    [
+     {
+      "node": "Fechar turno",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Aviso no teste": {
+   "main": [
+    [
+     {
+      "node": "Fechar turno",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Fechar turno": {
+   "main": [
+    [
+     {
+      "node": "Liberar saída",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Agenda (todo minuto)": {
+   "main": [
+    [
+     {
+      "node": "Agenda da NAI",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Agenda da NAI": {
+   "main": [
+    [
+     {
+      "node": "Liberar saída",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Liberar saída": {
+   "main": [
+    [
+     {
+      "node": "Conferir cabeçalho",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Conferir cabeçalho": {
+   "main": [
+    [
+     {
+      "node": "Pode enviar?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Pode enviar?": {
+   "main": [
+    [
+     {
+      "node": "Enviar Z-API",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Registrar bloqueio",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Enviar Z-API": {
+   "main": [
+    [
+     {
+      "node": "Confirmar envio",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Comando do Tel": {
+   "main": [
+    [
+     {
+      "node": "Responder pendencia",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Responder pendencia": {
+   "main": [
+    [
+     {
+      "node": "Preparar aviso do comando",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Preparar aviso do comando": {
+   "main": [
+    [
+     {
+      "node": "Enviar aviso do comando",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Detectar imagem": {
+   "main": [
+    [
+     {
+      "node": "Baixar imagem",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Ler imagem (GPT)": {
+   "main": [
+    [
+     {
+      "node": "Juntar mensagens",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Baixar imagem": {
+   "main": [
+    [
+     {
+      "node": "Montar leitura da imagem",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Montar leitura da imagem": {
+   "main": [
+    [
+     {
+      "node": "Ler imagem (GPT)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Precisa da mente?": {
+   "main": [
+    [
+     {
+      "node": "Ler estado",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Qual caminho?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Decidir quem responde": {
+   "main": [
+    [
+     {
+      "node": "Rota da mente",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Rota da mente": {
+   "main": [
+    [
+     {
+      "node": "Qual caminho?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "consultar_o_que_sei": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (secretária)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "perguntar_ao_tel": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (secretária)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "abrir_cadastro_de_imovel": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (secretária)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "guardar_do_imovel_novo": {
+   "ai_tool": [
+    [
+     {
+      "node": "NAI (secretária)",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "GPT (secretária)": {
+   "ai_languageModel": [
+    [
+     {
+      "node": "NAI (secretária)",
+      "type": "ai_languageModel",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Memória (secretária)": {
+   "ai_memory": [
+    [
+     {
+      "node": "NAI (secretária)",
+      "type": "ai_memory",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Fotos do cadastro": {
+   "main": [
+    [
+     {
+      "node": "NAI (secretária)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "NAI (secretária)": {
+   "main": [
+    [
+     {
+      "node": "Resposta da secretária",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Resposta da secretária": {
+   "main": [
+    [
+     {
+      "node": "Enfileirar resposta",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Montar pergunta ao Jev": {
+   "main": [
+    [
+     {
+      "node": "Jev decide",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Jev decide": {
+   "main": [
+    [
+     {
+      "node": "Ler o Jev",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Ler o Jev": {
+   "main": [
+    [
+     {
+      "node": "Decidir quem responde",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Ler estado": {
+   "main": [
+    [
+     {
+      "node": "Montar pergunta ao Jev",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "errorWorkflow": "4NJbiUC7P5W2BvJH",
+  "callerPolicy": "workflowsFromSameOwner",
+  "binaryMode": "separate"
+ }
+}

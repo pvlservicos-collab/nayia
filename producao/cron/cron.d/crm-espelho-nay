@@ -1,0 +1,5 @@
+# A CONFERÊNCIA DO CRM COM A NAY (29/09/2026): traz para o CRM a mensagem da
+# Parceria que não chegou pelo espelho do n8n (comando do Tel, card do
+# publicador, o que chegou com o CRM reiniciando). Olha os últimos 40 minutos.
+# O segredo mora no .env do CRM (CRON_SEGREDO); ver crm/src/lib/espelhoDaNay.ts.
+* * * * * root docker exec crm-imobeasy sh -c 'wget -q -T 240 -O /dev/null --header="x-cron-segredo: $CRON_SEGREDO" --post-data="" http://127.0.0.1:3000/api/cron/espelho-nay' >/dev/null 2>&1

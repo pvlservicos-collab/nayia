@@ -1,0 +1,244 @@
+{
+ "id": "hw18FZjm108KTXa9",
+ "nome": "Nay - escalar",
+ "ativo": true,
+ "atualizado_em": "2026-08-29 18:59:09",
+ "nodes": [
+  {
+   "parameters": {
+    "workflowInputs": {
+     "values": [
+      {
+       "name": "telefone"
+      },
+      {
+       "name": "nome"
+      },
+      {
+       "name": "codigo"
+      },
+      {
+       "name": "assunto"
+      },
+      {
+       "name": "disse"
+      }
+     ]
+    }
+   },
+   "id": "8ab662e9-bef0-4c3e-b67d-37b5b6436c3c",
+   "name": "Receber chamada",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "typeVersion": 1.1,
+   "position": [
+    -1728,
+    -208
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "SELECT acao, texto_pronto, id_pendencia FROM nay_escalar($1,$2,$3,$4,$5);",
+    "options": {
+     "queryReplacement": "={{ [$json.telefone, $json.nome ?? null, $json.codigo ?? null, $json.assunto ?? null, $json.disse ?? null] }}"
+    }
+   },
+   "id": "e2d05c28-5174-4eb2-89e0-bb888dd8c421",
+   "name": "Consultar escalacao",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    -1520,
+    -208
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "iR8sKG7vjnpQSWio",
+     "name": "Banco Nay"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "leftValue": "={{ $json.acao }}",
+       "rightValue": "escalar",
+       "operator": {
+        "type": "string",
+        "operation": "equals"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "id": "5d2a1dd9-68d9-4149-8ae3-6fc455dcd5c3",
+   "name": "Tem que escalar?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2,
+   "position": [
+    -1280,
+    -208
+   ]
+  },
+  {
+   "parameters": {
+    "chatId": "8221814418",
+    "text": "={{ '🔔 Pendencia ' + $json.id_pendencia + '\\nCorretor: ' + $('Receber chamada').first().json.nome + '\\nAssunto: ' + $('Receber chamada').first().json.assunto + '\\nDisse: ' + $('Receber chamada').first().json.disse + '\\n\\nResponda com: RESPOSTA ' + $json.id_pendencia + ' <sua resposta>' }}",
+    "additionalFields": {
+     "appendAttribution": false
+    }
+   },
+   "id": "c124bfe3-f43d-4aa0-b30c-71091c6860ed",
+   "name": "Avisar Telegram",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    -1072,
+    -320
+   ],
+   "webhookId": "28b5feaf-5a20-4569-8a50-4d9a7dd02bc6",
+   "credentials": {
+    "telegramApi": {
+     "id": "ygm2AeyvJBPC0Twv",
+     "name": "Telegram account"
+    }
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.z-api.io/instances/<REDIGIDO>/token/<REDIGIDO>/send-text",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Client-Token",
+       "value": "<REDIGIDO>"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ phone: '[telefone …7316]', message: '🔔 Pendencia ' + $json.id_pendencia + '\\nCorretor: ' + $('Receber chamada').first().json.nome + '\\nAssunto: ' + $('Receber chamada').first().json.assunto + '\\nDisse: ' + $('Receber chamada').first().json.disse + '\\n\\nResponda com: RESPOSTA ' + $json.id_pendencia + ' <sua resposta>' }) }}",
+    "options": {}
+   },
+   "id": "cbabd25b-840b-4921-a846-ec6d9d8922b6",
+   "name": "Avisar WhatsApp",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    -1072,
+    -144
+   ],
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "s1",
+       "name": "texto_pronto",
+       "value": "={{ $('Consultar escalacao').first().json.texto_pronto }}",
+       "type": "string"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "id": "82674953-9af5-415f-aea3-994779f0d294",
+   "name": "Devolver",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    -800,
+    -208
+   ]
+  }
+ ],
+ "connections": {
+  "Receber chamada": {
+   "main": [
+    [
+     {
+      "node": "Consultar escalacao",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Consultar escalacao": {
+   "main": [
+    [
+     {
+      "node": "Tem que escalar?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Tem que escalar?": {
+   "main": [
+    [
+     {
+      "node": "Avisar Telegram",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Avisar WhatsApp",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Devolver",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Avisar Telegram": {
+   "main": [
+    [
+     {
+      "node": "Devolver",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Avisar WhatsApp": {
+   "main": [
+    [
+     {
+      "node": "Devolver",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false
+ }
+}

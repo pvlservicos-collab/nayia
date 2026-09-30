@@ -1,0 +1,2 @@
+# troca do espelho do CRM no n8n (29/09/2026), uma vez: 30/09 03:30 Manaus = 07:30 UTC. O script apaga este arquivo.
+30 7 30 9 * root sh /root/espelho_madrugada.sh

@@ -1,0 +1,3 @@
+# OS FUNIS DO CRM ANDAM SOZINHOS (29/09/2026): a etapa da captação e a da Nay
+# viram a etapa do card. Ver crm/src/lib/funis.ts. Mesmo segredo da conferência.
+* * * * * root docker exec crm-imobeasy sh -c 'wget -q -T 240 -O /dev/null --header="x-cron-segredo: $CRON_SEGREDO" --post-data="" http://127.0.0.1:3000/api/cron/funis' >/dev/null 2>&1

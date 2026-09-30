@@ -1,0 +1,70 @@
+chave	valor	atualizado_em
+_agenda_rodou_em	2026-09-30 00:48:15	2026-09-30T00:48
+antecedencia_minima_horas	3	2026-09-10T18:41
+apresentacao_proprietario	Olá! Este é o número que usamos somente para agendamentos de visitas.	2026-09-15T15:31
+aprovacao_lembrete_min	30	2026-09-28T10:35
+aprovador_visita_nome	Rayssa	2026-09-28T10:35
+aprovador_visita_telefone	[telefone …6408]	2026-09-28T10:43
+aviso_motoboy_min	30	2026-09-10T18:41
+aviso_tel_horas_antes	2	2026-09-10T18:41
+cola_solta_no_catalogo	sim	2026-09-24T17:15
+comando_telefones	[telefone …7316],[telefone …6408]	2026-09-19T18:06
+conferencia_barra_texto_orfao	sim	2026-09-24T12:32
+conferencia_confere_texto	sim	2026-09-24T12:46
+conferencia_passe_citado	sim	2026-09-24T12:32
+dados_lembretes_max	3	2026-09-10T18:41
+dados_primeiro_lembrete_min	3	2026-09-10T18:41
+documentos_locacao	✅ INQUILINO (LOCATÁRIO) — de CADA pessoa que vai assinar  - RG e CPF ou CNH (frente e verso, legível) - Nacionalidade, profissão, estado civil - Telefone/WhatsApp e e-mail - Endereço completo com CEP (se for comercial, avisar) - Comprovante de residência - Se PJ: contrato social, CNPJ e documentos do sócios - Comprovante de renda: 3 últimos contracheques ou, se autônomo, 6 últimos extratos bancários - Data de início da locação	2026-09-22T16:12
+documentos_venda	✅ VENDEDOR (PROPRIETÁRIO)  - RG e CPF ou CNH (e do cônjuge, se casado) - Certidão de casamento ou nascimento atualizada - Comprovante de residência - Matrícula atualizada do imóvel (Cartório de Registro de Imóveis) - Carnê do IPTU do ano ou certidão negativa de IPTU - Declaração de quitação do condomínio (se for condomínio) - Certidões negativas: débitos federais, trabalhistas, protestos e ações cíveis  ✅ COMPRADOR — de CADA pessoa que vai assinar  - RG e CPF ou CNH (frente e verso, legível) - Certidão de casamento ou nascimento - Nacionalidade, profissão, estado civil - Telefone/WhatsApp e e-mail - Comprovante de residência - Se for financiar: comprovante de renda (3 contracheques ou IR) e extrato do FGTS - Se PJ: contrato social, CNPJ e documentos dos sócios	2026-09-29T15:09
+envio_simulado	nao	2026-09-22T13:47
+escalacao_expira_horas	24	2026-09-29T21:04
+escala_sem_parar	[telefone …2835],[telefone …7316],[telefone …6408]	2026-09-13T17:29
+faixa_abaixo_pct	20	2026-09-28T11:08
+faixa_acima_pct	10	2026-09-16T14:07
+followup_fim	18:00	2026-09-28T10:35
+followup_inicio	09:00	2026-09-28T10:35
+followup_ligado	sim	2026-09-28T10:39
+followup_por_minuto	2	2026-09-28T10:35
+gap_tel_min	30	2026-09-16T11:58
+grupos_sincronizados_em	2026-09-28 06:11	2026-09-28T06:11
+inicio_manha	08:00	2026-09-10T18:41
+inicio_noite	18:00	2026-09-10T18:41
+inicio_tarde	12:00	2026-09-10T18:41
+janela_fim	22:00	2026-09-10T18:41
+janela_inicio	06:00	2026-09-10T18:41
+janela_segundos	20	2026-09-28T11:33
+janela_segundos_teste	15	2026-09-28T11:33
+jev_piso_cortesia	0.70	2026-09-24T11:50
+jev_piso_imovel	0.50	2026-09-24T11:50
+jev_piso_oferta	0.60	2026-09-24T11:50
+jev_piso_pedido	0.60	2026-09-24T23:11
+lembrete_corretor_min	60	2026-09-10T18:41
+limite_sem_teto	5	2026-09-23T09:16
+modo	todos	2026-09-22T13:47
+numeros_teste	[telefone …2835],[telefone …0001]	2026-09-19T18:06
+passe_citado_ate	2	2026-09-24T12:42
+pausada	nao	2026-09-19T18:06
+pedido_ignora_anuncio	sim	2026-09-24T12:34
+pedido_ignora_oferta	sim	2026-09-24T12:32
+piso_correcao_nome	0.80	2026-09-23T09:53
+piso_venda	100000	2026-09-22T18:13
+pos_visita_min	60	2026-09-10T18:41
+proprietario_pelo_tel	nao	2026-09-28T10:39
+reenvio_motoboy_min	30	2026-09-10T18:41
+reenvio_proprietario_min	30	2026-09-10T18:41
+reenvios_proprietario_max	3	2026-09-10T18:41
+regra_publico	sim	2026-09-13T22:01
+regra_publico_desde	2026-09-28 07:00:02-04	2026-09-28T07:00
+resposta_parceria	Sim, aceitamos parceria em todos os nossos imóveis, o que precisar pode contar com a gente!	2026-09-28T00:15
+secretaria_ligada	sim	2026-09-22T18:33
+segundos_por_foto	2.5	2026-09-23T13:06
+so_corretor_da_lista	sim	2026-09-18T23:40
+so_estes_numeros		2026-09-28T07:00
+telefone_teste_destino	[telefone …2835]	2026-09-19T18:06
+tel_telefone	[telefone …7316]	2026-09-10T18:41
+trace_dias	30	2026-09-19T15:31
+trace_nivel	completo	2026-09-19T15:31
+trace_payload	sim	2026-09-19T15:31
+treino_espelho	[telefone …0001]	2026-09-19T23:40
+v2_piso_intencao	0.60	2026-09-25T09:48
+visita_sem_aprovacao	sim	2026-09-29T13:09
