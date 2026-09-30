@@ -29,6 +29,9 @@ BEGIN
       WHEN 'negocio_valor' THEN coalesce(nai_negocio_pelo_valor(c.frase), '-')  -- 190
       WHEN 'tipo_conversa'    THEN coalesce(nai_tipo_das_falas(string_to_array(c.frase, ' || ')), '-')
       WHEN 'negocio_conversa' THEN coalesce(nai_negocio_das_falas(string_to_array(c.frase, ' || ')), '-')
+      WHEN 'codigos'    THEN nay_codigos_citados(c.frase)::text  -- 213
+      WHEN 'automatica' THEN nai_e_resposta_automatica(c.frase)::text  -- 213
+      WHEN 'lugar'      THEN coalesce(nai_bairros_do_lugar(c.frase)::text, '-')  -- 206
       ELSE '(pergunta desconhecida: ' || c.pergunta || ')'
     END;
     passou := (v = c.esperado);

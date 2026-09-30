@@ -273,6 +273,15 @@ BEGIN
     END IF;
   END IF;
 
+  -- 213: a RESPOSTA AUTOMÁTICA do WhatsApp Business do corretor ("estou ausente",
+  -- "retornarei seu contato") não é mensagem dele: fica gravada e a Nay não responde.
+  -- Em 30/09 uma delas ("Que 2026 seja um ano...") fez a Nay mandar um imóvel.
+  IF v_papel = 'corretor' AND nai_e_resposta_automatica(v_texto) THEN
+    UPDATE nai_turno SET fechado_em = now() WHERE id = v_turno;
+    RETURN jsonb_build_object('ok', false, 'motivo', 'resposta_automatica', 'turno_id', v_turno,
+                              'contato_id', v_contato, 'papel', v_papel);
+  END IF;
+
   -- 141b: a etapa e atualizada ANTES de montar o cabecalho. Dentro do
   -- jsonb_build_object a ordem de avaliacao nao e garantida, e o contexto
   -- saiu com a etapa velha ("recebeu o imovel") no turno do "sim" da visita.
