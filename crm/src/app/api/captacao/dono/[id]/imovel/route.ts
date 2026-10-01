@@ -5,8 +5,12 @@
  *                    campos vazios, a situação não muda) e as fotos marcadas;
  *   { codigo: null } "Cadastrar imóvel": pré-cadastro novo (Rascunho), ligado
  *                    ao dono, com a ficha de imóvel novo e as fotos marcadas.
- * `fotos` são ids das mensagens de foto desta conversa. Devolve o código e o
- * endereço do editor do site, onde a equipe completa e escolhe a situação.
+ *   { dados }        o que a pessoa preencheu no popup (01/10/2026): entra por
+ *                    CIMA do que estava, porque ela preencheu olhando os
+ *                    valores de hoje. A situação continua fora: quem põe no ar
+ *                    é o humano, no editor.
+ * `fotos` são ids das mensagens de foto desta conversa. Devolve o código, o
+ * quanto o cadastro ficou preenchido (244) e o endereço do editor do site.
  */
 import { NextRequest } from 'next/server'
 import { authenticateRequest, apiError } from '@/lib/api-auth'
@@ -29,7 +33,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const dono = await donoDaConversa(organizationId, id)
     if (!dono) return apiError(404, 'Esta conversa não é de um proprietário da captação.')
 
-    const feito = await cadastrarNoSite(dono.captacaoId, codigo)
+    const feito = await cadastrarNoSite(dono.captacaoId, codigo, corpo?.dados)
 
     // as fotos marcadas, só desta conversa, na ordem em que ele mandou
     const daConversa = (await fotosDaConversa(id, 200)).filter((f) => pedidas.has(f.id)).reverse()

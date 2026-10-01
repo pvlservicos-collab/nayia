@@ -720,6 +720,84 @@ def _codigos_do_dono(cur, lead):
     return cods
 
 
+# 246 (Pedro, 01/10/2026): "uma opção de alterar os dados do imóvel dele lá pelo
+# card, e uma opção de cadastrar novo imóvel que abre um popup... esse popup vai
+# ter encima uma porcentagem que vai se preenchendo conforme eu vou adicionando
+# informações". O popup manda `dados` com o que a pessoa preencheu olhando os
+# valores de hoje -- então aqui o que ela escreveu SUBSTITUI o que estava, ao
+# contrário da ficha da conversa (que só preenche campo vazio).
+# A situação NÃO entra na lista: quem põe no ar é o humano, no editor.
+CAMPOS_DO_POPUP = {
+    "tipo": ("tipo", "texto"), "bairro": ("bairro", "texto"),
+    "condominio": ("condominio_nome", "texto"), "condoId": ("condo_id", "int"),
+    "logradouro": ("logradouro", "texto"), "numero": ("numero", "texto"),
+    "complemento": ("complemento", "texto"), "cidade": ("cidade", "texto"),
+    "estado": ("estado", "texto"),
+    "quartos": ("quartos", "int"), "suites": ("suites", "int"),
+    "banheiros": ("banheiros", "int"), "vagas": ("vagas", "int"),
+    "vagasCobertas": ("vagas_cobertas", "int"),
+    "areaUtil": ("area_util", "numero"), "areaTotal": ("area_total", "numero"),
+    "andar": ("andar", "texto"), "sol": ("sol", "texto"), "mobilia": ("mobilia", "texto"),
+    "taxaCondominio": ("taxa_condominio", "numero"), "iptu": ("iptu", "numero"),
+    "aluguel": ("valor_aluguel", "numero"), "venda": ("valor_venda", "numero"),
+    "descricao": ("descricao", "texto"),
+    "caracteristicas": ("caracteristicas", "lista"),
+}
+
+
+def _valor_do_popup(bruto, forma):
+    """None = "não mexe"; "" (texto vazio) e [] = apagar o que estava."""
+    if bruto is None:
+        return None, False
+    if forma == "lista":
+        if not isinstance(bruto, list):
+            return None, False
+        itens = [str(x).strip() for x in bruto if str(x or "").strip()]
+        return itens, True
+    if forma in ("int", "numero"):
+        t = str(bruto).strip().replace(".", "").replace(",", ".") if forma == "numero" else str(bruto).strip()
+        if t == "":
+            return None, True            # apaga
+        try:
+            return (int(float(t)) if forma == "int" else float(t)), True
+        except ValueError:
+            return None, False
+    t = str(bruto).strip()
+    return (t or None), True
+
+
+def _aplicar_dados_do_popup(cur, codigo, dados):
+    """Grava os campos que o popup mandou. Devolve os nomes que entraram."""
+    if not isinstance(dados, dict):
+        return []
+    sets, valores, entraram = [], [], []
+    for chave, (coluna, forma) in CAMPOS_DO_POPUP.items():
+        if chave not in dados:
+            continue
+        valor, vale = _valor_do_popup(dados.get(chave), forma)
+        if not vale:
+            continue
+        tipo_sql = {"int": "int", "numero": "numeric", "lista": "text[]"}.get(forma, "text")
+        sets.append(psycopg2.sql.SQL("{} = %s::" + tipo_sql).format(psycopg2.sql.Identifier(coluna)))
+        valores.append(valor)
+        entraram.append(coluna)
+    incluso = str(dados.get("inclusoNoAluguel") or "").strip()
+    if incluso:
+        sets.append(psycopg2.sql.SQL(
+            "extras = coalesce(extras, '{}'::jsonb) || jsonb_build_object('incluso no aluguel', %s::text)"))
+        valores.append(incluso)
+        entraram.append("incluso no aluguel")
+    if not sets:
+        return []
+    cur.execute(psycopg2.sql.SQL("UPDATE imoveis SET {} WHERE codigo = %s").format(
+        psycopg2.sql.SQL(", ").join(sets)), valores + [codigo])
+    # o condomínio escolhido na lista também liga o imóvel ao cadastro dele
+    if "condo_id" in entraram:
+        cur.execute("UPDATE imoveis SET condominio_nome = coalesce(nullif(btrim(condominio_nome), ''), "
+                    "(SELECT nome FROM condominios WHERE id = imoveis.condo_id)) WHERE codigo = %s", (codigo,))
+    return entraram
+
+
 @olx_bp.route("/api/captacao/crm/imovel", methods=["POST"])
 def captacao_crm_imovel():
     if not _maquina_ok():
@@ -759,8 +837,18 @@ def captacao_crm_imovel():
             incluso = _incluso_do_dono(d.get("incluso"))
 
             if codigo is not None:
+                puxado = False
                 if codigo not in _codigos_do_dono(cur, lead):
-                    return jsonify({"erro": "o imóvel %s não é deste proprietário" % codigo}), 403
+                    # 246: dá para PUXAR um pré-cadastro (Rascunho -- é onde a OLX
+                    # deixa o que foi capturado) e ligá-lo a este dono. Imóvel que
+                    # já está no ar, de outra pessoa, continua barrado.
+                    cur.execute("SELECT status, proprietario_id FROM imoveis WHERE codigo = %s FOR UPDATE", (codigo,))
+                    alvo = cur.fetchone()
+                    if not alvo:
+                        return jsonify({"erro": "o imóvel %s não está no catálogo" % codigo}), 404
+                    if (alvo["status"] or "") != "Rascunho" or alvo["proprietario_id"]:
+                        return jsonify({"erro": "o imóvel %s não é deste proprietário" % codigo}), 403
+                    puxado = True
                 sets = [psycopg2.sql.SQL("{0} = coalesce({0}, captacao_numero(%s)::{1})").format(
                             psycopg2.sql.Identifier(col),
                             psycopg2.sql.SQL("int" if col in ("quartos", "suites", "banheiros", "vagas") else "numeric"))
@@ -784,6 +872,10 @@ def captacao_crm_imovel():
                 if not cur.fetchone():
                     return jsonify({"erro": "o imóvel %s não está no catálogo" % codigo}), 404
                 final = codigo
+                if puxado and lead["proprietario_id"]:
+                    cur.execute("INSERT INTO imovel_privado (codigo, proprietario_id) VALUES (%s, %s) "
+                                "ON CONFLICT (codigo) DO UPDATE SET proprietario_id = EXCLUDED.proprietario_id",
+                                (final, lead["proprietario_id"]))
             else:
                 tipo = str(d.get("tipo") or "").strip().capitalize() or None
                 cur.execute("""
@@ -812,11 +904,16 @@ def captacao_crm_imovel():
                     cur.execute("INSERT INTO imovel_privado (codigo, proprietario_id) VALUES (%s, %s) "
                                 "ON CONFLICT (codigo) DO UPDATE SET proprietario_id = EXCLUDED.proprietario_id",
                                 (final, lead["proprietario_id"]))
+            # 246: o que a pessoa preencheu no popup entra por cima
+            campos = _aplicar_dados_do_popup(cur, final, corpo.get("dados"))
             if ficha_serve:
                 cur.execute("UPDATE captacao_cadastro SET estado = 'aplicado', codigo = %s, aplicado_em = now(), "
                             "aplicado_por = 'crm', atualizado_em = now() WHERE id = %s", (final, ficha["id"]))
+            cur.execute("SELECT nai_imovel_pontos(%s) AS p", (final,))
+            pontos = cur.fetchone()["p"]
         conn.commit()
         return jsonify({"ok": True, "codigo": final, "novo": codigo is None, "usou_ficha": ficha_serve,
+                        "campos": campos, "pontuacao": pontos,
                         "editor": "%s/imovel-editar.html?codigo=%s" % (URL_ADMIN, final)})
     except Exception as exc:  # noqa: BLE001
         conn.rollback()

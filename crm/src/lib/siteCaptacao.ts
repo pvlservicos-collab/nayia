@@ -17,19 +17,33 @@ function segredo(): string {
   return s
 }
 
-export interface CadastroNoSite { codigo: number; novo: boolean; usouFicha: boolean; editor: string }
+export interface CadastroNoSite {
+  codigo: number; novo: boolean; usouFicha: boolean; editor: string
+  /** os campos que o popup gravou (01/10/2026) */
+  campos?: string[]
+  /** quanto o cadastro ficou preenchido, pela régua do banco (244) */
+  pontuacao?: { pct: number; falta: string[]; falta_essencial: string[] } | null
+}
 
-/** Com `codigo`: atualiza o imóvel do dono (só campos vazios). Sem: pré-cadastro novo (Rascunho). */
-export async function cadastrarNoSite(captacaoId: number, codigo: number | null): Promise<CadastroNoSite> {
+/**
+ * Com `codigo`: atualiza aquele imóvel (do dono, ou um pré-cadastro em
+ * Rascunho que ele está puxando). Sem: pré-cadastro novo. `dados` é o que a
+ * pessoa preencheu no popup do card e entra por cima do que estava.
+ */
+export async function cadastrarNoSite(captacaoId: number, codigo: number | null, dados?: Record<string, unknown>): Promise<CadastroNoSite> {
   const r = await fetch(`${BASE}/api/captacao/crm/imovel`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-captacao-segredo': segredo() },
-    body: JSON.stringify({ captacao_id: captacaoId, codigo }),
+    body: JSON.stringify({ captacao_id: captacaoId, codigo, dados: dados && typeof dados === 'object' ? dados : undefined }),
     signal: AbortSignal.timeout(30_000),
   })
   const j = await r.json().catch(() => ({} as any))
   if (!r.ok || !j?.ok) throw Object.assign(new Error(j?.erro || j?.detalhe || `site respondeu ${r.status}`), { status: r.status === 403 ? 403 : 502 })
-  return { codigo: Number(j.codigo), novo: !!j.novo, usouFicha: !!j.usou_ficha, editor: String(j.editor) }
+  return {
+    codigo: Number(j.codigo), novo: !!j.novo, usouFicha: !!j.usou_ficha, editor: String(j.editor),
+    campos: Array.isArray(j.campos) ? j.campos.map(String) : [],
+    pontuacao: j.pontuacao || null,
+  }
 }
 
 /** Uma foto da conversa para o imóvel; `fotoId` (o id da mensagem) não deixa ir duas vezes. */

@@ -15,7 +15,7 @@ import VisitasAgendadas from './VisitasAgendadas'
 import FechamentoChecklists from './FechamentoChecklists'
 import BarraDeMetricas from './BarraDeMetricas'
 import BarraDaCaptacao from './BarraDaCaptacao'
-import CardDoDonoCaptacao from './CardDoDonoCaptacao'
+import PainelContatoCaptacao from './PainelContatoCaptacao'
 import PainelContatoParceria from './PainelContatoParceria'
 
 /** Última conversa aberta nesta tela, pra reabrir no próximo acesso. */
@@ -338,6 +338,20 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
         />
       )
     }
+    /* A CAPTAÇÃO TEM O CARD DELA (Pedro, 01/10/2026): "quero reformular
+       totalmente o card de proprietário lá do WhatsApp de captação, quero
+       informações úteis lá no card". O card genérico do CRM (pedido, venda,
+       agenda) não é desta linha: aqui só se fala com quem tem imóvel. */
+    if (linha === 'captacao') {
+      return (
+        <PainelContatoCaptacao
+          key={displayedLead.id}
+          lead={displayedLead}
+          modo={modo}
+          aoFechar={alternarPainel}
+        />
+      )
+    }
     const antigo = (
       <LeadDetailsSidebar
         key={displayedLead.id}
@@ -352,9 +366,6 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
         currentPipelineId={currentPipelineId}
         onPipelineChange={handlePipelineChange}
         onClose={modo === 'gaveta' ? alternarPainel : undefined}
-        extra={linha === 'captacao'
-          ? <CardDoDonoCaptacao key={displayedLead.id} leadId={displayedLead.id} />
-          : undefined}
       />
     )
     if (modo === 'lateral') return antigo

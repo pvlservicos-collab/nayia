@@ -35,3 +35,19 @@ export async function fotosDaConversa(leadId: string, limite = 80): Promise<Arra
   return (r.rows as Array<{ id: string; url: string; created_at: string | Date }>)
     .map((x) => ({ id: x.id, url: x.url, em: new Date(x.created_at).toISOString() }))
 }
+
+/**
+ * O que a pessoa escreveu nesta conversa, juntado num texto só (246): é daqui
+ * que sai o "preencher automático" do condomínio -- o corretor já disse o nome
+ * em algum momento, e não queremos que alguém digite de novo.
+ */
+export async function textoDaConversa(leadId: string, limite = 60): Promise<string> {
+  const r = await db.execute(sql`
+    SELECT content FROM lead_activities
+     WHERE lead_id = ${leadId}::uuid
+       AND metadata->>'direction' = 'inbound'
+       AND coalesce(content, '') <> ''
+     ORDER BY created_at DESC
+     LIMIT ${limite}`)
+  return (r.rows as Array<{ content: string }>).map((x) => x.content).join(' \n ').slice(0, 4000)
+}

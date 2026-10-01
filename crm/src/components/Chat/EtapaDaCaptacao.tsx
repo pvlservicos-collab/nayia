@@ -1,0 +1,104 @@
+'use client'
+
+/**
+ * A ETAPA NO CARD DA CAPTAÇÃO (Pedro, 01/10/2026): "adicione lá na aba captação
+ * a mesma ferramenta de mudar a etapa do lead que nem na parceria, mas com as
+ * etapas da captação, e adicione lá mais uma etapa: follow-up".
+ *
+ * Mesmo desenho do EtapaDoLead da Parceria: escolher só acende o Salvar; nada
+ * sai daqui até clicar. "Todos" solta e devolve a etapa à campanha; "Com o Tel"
+ * cala a Nay para essa pessoa até voltar para Todos (migração 242).
+ */
+import { useEffect, useState } from 'react'
+
+export const ETAPAS_DA_CAPTACAO: Array<{ chave: string; rotulo: string; titulo: string; pessoa?: boolean }> = [
+  { chave: 'todos', rotulo: 'Todos', titulo: 'Solta: a etapa volta a ser a que a campanha diz' },
+  { chave: 'em_andamento', rotulo: 'Em andamento', titulo: 'Respondeu e a conversa ainda não fechou' },
+  { chave: 'followup', rotulo: 'Follow-up', titulo: 'Para voltar a falar com essa pessoa' },
+  { chave: 'sem_resposta', rotulo: 'Sem resposta', titulo: 'Recebeu a mensagem e não respondeu' },
+  { chave: 'disponiveis', rotulo: 'Disponíveis', titulo: 'O imóvel dele está disponível' },
+  { chave: 'alugados', rotulo: 'Alugados', titulo: 'O imóvel dele está alugado' },
+  { chave: 'quer_vender', rotulo: 'Quer vender', titulo: 'Ele quer vender' },
+  { chave: 'ja_vendeu', rotulo: 'Já vendeu', titulo: 'Ele já vendeu' },
+  { chave: 'tem_outro_imovel', rotulo: 'Tem outro imóvel', titulo: 'Ele falou de outro imóvel' },
+  { chave: 'com_o_tel', rotulo: 'Com o Tel', titulo: 'A Nay para de responder essa pessoa', pessoa: true },
+]
+
+export const ROTULO_DA_ETAPA_DA_CAPTACAO: Record<string, string> =
+  Object.fromEntries(ETAPAS_DA_CAPTACAO.map((e) => [e.chave, e.rotulo]))
+
+export default function EtapaDaCaptacao({ leadId, etapaManual, abas, aoMudar }: {
+  leadId: string
+  /** a etapa escolhida à mão, quando alguém escolheu (242) */
+  etapaManual: string | null
+  /** as abas que a campanha deduziu, quando ninguém escolheu (236) */
+  abas: string[]
+  aoMudar?: (etapa: string) => void
+}) {
+  /* onde ele está hoje: a escolha da mão manda; senão, a primeira aba da campanha */
+  const ondeEsta = etapaManual || abas[0] || 'todos'
+  const [escolhido, setEscolhido] = useState(ondeEsta)
+  const [salvando, setSalvando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+  const [recado, setRecado] = useState<string | null>(null)
+  useEffect(() => { setEscolhido(ondeEsta); setErro(null); setRecado(null) }, [leadId, ondeEsta])
+  const mudou = escolhido !== ondeEsta
+
+  async function salvar() {
+    if (salvando || !mudou) return
+    setSalvando(true); setErro(null); setRecado(null)
+    try {
+      const r = await fetch(`/api/leads/${leadId}/captacao-etapa`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ etapa: escolhido }),
+      })
+      const j = await r.json().catch(() => ({} as any))
+      if (!r.ok || j?.ok === false) throw new Error(j?.mensagem || j?.error || 'não salvou')
+      setRecado(String(j?.mensagem || 'Pronto.'))
+      aoMudar?.(escolhido)
+    } catch (e: any) {
+      setErro(e?.message || 'não salvou')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  return (
+    <div className="px-4 py-3 border-b border-[var(--chat-border)]">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--chat-text-secondary)] mb-2">Etapa da captação</p>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {ETAPAS_DA_CAPTACAO.map((e) => (
+          <span key={e.chave} className="contents">
+            {e.pessoa && <span className="wa-fase__risco" aria-hidden="true" />}
+            <button type="button" onClick={() => setEscolhido(e.chave)} disabled={salvando} title={e.titulo}
+                    className={`wa-fase wa-fase--${e.pessoa ? 'pessoa' : 'etapa'}`
+                      + `${e.chave !== 'todos' && !e.pessoa ? ' wa-fase--rosa' : ''}`
+                      + `${escolhido === e.chave ? ' wa-fase--on' : ''}`}>
+              {e.rotulo}
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <button type="button" onClick={salvar} disabled={!mudou || salvando} className="wa-botao-principal">
+          {salvando ? 'Salvando…' : 'Salvar'}
+        </button>
+        {mudou && !salvando && (
+          <span className="text-[11px] text-[var(--chat-text-secondary)]">
+            vai para {ROTULO_DA_ETAPA_DA_CAPTACAO[escolhido]} ao salvar
+          </span>
+        )}
+      </div>
+      {(erro || recado) && (
+        <p className={`mt-2 text-[11.5px] leading-4 ${erro ? 'text-red-500' : 'text-emerald-500'}`}>{erro || recado}</p>
+      )}
+      {!erro && !recado && (
+        <p className="mt-2 text-[11px] text-[var(--chat-text-secondary)]">
+          {etapaManual
+            ? 'Preso aqui por você. Escolha Todos e salve para devolver a etapa à campanha.'
+            : 'A etapa está saindo do que a campanha gravou nesta conversa.'}
+        </p>
+      )}
+    </div>
+  )
+}

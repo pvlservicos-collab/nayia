@@ -281,6 +281,8 @@ export interface DonoDaCaptacao {
   codigo: string | null; bairro: string | null; tipo: string | null; captacaoId: number; imoveis: number
   /** as abas da captação em que a IA pôs a pessoa (migração 236) */
   abas: string[]
+  /** a etapa escolhida à mão no CRM, quando alguém escolheu (migração 242) */
+  etapaManual: string | null
 }
 
 export async function donosDaCaptacao(): Promise<DonoDaCaptacao[]> {
@@ -290,6 +292,7 @@ export async function donosDaCaptacao(): Promise<DonoDaCaptacao[]> {
     codigo: l.codigo ?? null, bairro: l.bairro ?? null, tipo: l.tipo ?? null, captacaoId: Number(l.captacao_id),
     imoveis: Number(l.imoveis || 1),
     abas: Array.isArray(l.abas) ? l.abas.map(String) : [],
+    etapaManual: l.etapa_manual ?? null,
   }))
 }
 
@@ -317,6 +320,95 @@ export async function imoveisDoDono(captacaoId: number): Promise<{ imoveis: Imov
     })),
     ficha: f ? { id: Number(f.ficha_id), tipo: String(f.tipo), codigo: num(f.codigo), estado: String(f.estado), dados: f.dados || {}, fotos: Number(f.fotos || 0) } : null,
   }
+}
+
+/* ===================================================================
+ * O CADASTRO PELO CARD DA CAPTAÇÃO (migração 246, Pedro 01/10/2026)
+ * =================================================================== */
+
+export interface CondominioDaLista {
+  id: number; nome: string; bairro: string | null; endereco: string | null
+  /** de onde veio o endereço: 'ficha' (condominio_ficha) ou 'imoveis' (a moda do logradouro) */
+  enderecoDe: 'ficha' | 'imoveis' | null
+  /** de quantos imóveis saiu o endereço, quando saiu dos imóveis */
+  base: number; cidade: string; estado: string; imoveis: number
+  andares: string | null; elevador: string | null; torres: string | null; construtora: string | null
+  lazer: string[]
+}
+export interface RascunhoParaPuxar {
+  codigo: number; tipo: string; bairro: string; condominio: string; condoId: number | null
+  origem: string; aluguel: number; venda: number; fotos: number; dono: string | null; criado: string | null
+}
+export interface OpcoesDoCadastro {
+  condominios: CondominioDaLista[]
+  caracteristicas: Array<{ nome: string; usos: number }>
+  tipos: string[]
+  bairros: string[]
+  rascunhos: RascunhoParaPuxar[]
+}
+
+/* A lista é grande (483 condomínios) e muda pouco: guardada por 5 minutos
+   nesta instância, para o popup abrir na hora. */
+let opcoesGuardadas: { em: number; dados: OpcoesDoCadastro } | null = null
+
+export async function opcoesDoCadastro(): Promise<OpcoesDoCadastro> {
+  if (opcoesGuardadas && Date.now() - opcoesGuardadas.em < 5 * 60_000) return opcoesGuardadas.dados
+  const r = await naydb().query('SELECT crm_captacao_cadastro_opcoes() AS o')
+  const o = (r.rows[0]?.o || {}) as any
+  const dados: OpcoesDoCadastro = {
+    condominios: Array.isArray(o.condominios) ? o.condominios : [],
+    caracteristicas: Array.isArray(o.caracteristicas) ? o.caracteristicas : [],
+    tipos: Array.isArray(o.tipos) ? o.tipos.filter(Boolean).sort((a: string, b: string) => a.localeCompare(b, 'pt-BR')) : [],
+    bairros: Array.isArray(o.bairros) ? o.bairros : [],
+    rascunhos: Array.isArray(o.rascunhos) ? o.rascunhos : [],
+  }
+  opcoesGuardadas = { em: Date.now(), dados }
+  return dados
+}
+
+/** O "preencher automático": o condomínio que a pessoa citou no texto. */
+export async function condominioPeloTexto(texto: string): Promise<Array<{ id: number; nome: string; bairro: string | null }>> {
+  const t = String(texto || '').slice(0, 4000)
+  if (t.trim().length < 4) return []
+  const r = await naydb().query('SELECT * FROM crm_condominio_pelo_texto($1::text)', [t])
+  return r.rows.map((l: any) => ({ id: Number(l.id), nome: String(l.nome), bairro: l.bairro ?? null }))
+}
+
+/** Quanto cada imóvel está preenchido, 0 a 100% -- a mesma régua da aba Imóveis (244). */
+export interface PontuacaoDoImovel { codigo: number; pct: number; falta: string[]; faltaEssencial: string[] }
+
+export async function pontuacaoDosImoveis(codigos: number[]): Promise<Record<number, PontuacaoDoImovel>> {
+  const limpos = Array.from(new Set((codigos || []).map(Number).filter((n) => Number.isInteger(n) && n > 0)))
+  if (!limpos.length) return {}
+  const r = await naydb().query('SELECT * FROM crm_imoveis_pontuacao($1::int[])', [limpos])
+  const mapa: Record<number, PontuacaoDoImovel> = {}
+  for (const l of r.rows as any[]) {
+    mapa[Number(l.codigo)] = {
+      codigo: Number(l.codigo), pct: Number(l.pct || 0),
+      falta: Array.isArray(l.falta) ? l.falta.map(String) : [],
+      faltaEssencial: Array.isArray(l.falta_essencial) ? l.falta_essencial.map(String) : [],
+    }
+  }
+  return mapa
+}
+
+/** O que a campanha sabe do corretor, para o card (migração 247). */
+export async function donoDaCampanha(captacaoId: number): Promise<Record<string, any> | null> {
+  const r = await naydb().query('SELECT crm_captacao_dono_cadastro($1::bigint) AS d', [captacaoId])
+  return (r.rows[0]?.d as Record<string, any>) || null
+}
+
+/** Os campos de hoje de um imóvel, para o popup abrir preenchido. */
+export async function imovelParaCadastro(codigo: number): Promise<Record<string, any> | null> {
+  const r = await naydb().query('SELECT crm_imovel_para_cadastro($1::int) AS i', [codigo])
+  return (r.rows[0]?.i as Record<string, any>) || null
+}
+
+/** A etapa da captação escolhida à mão (migração 242). */
+export async function escolherEtapaDaCaptacao(telefone: string, etapa: string, quem: string): Promise<{ ok: boolean; mensagem: string }> {
+  const r = await naydb().query('SELECT * FROM crm_captacao_etapa_manual($1::text, $2::text, $3::text)', [telefone, etapa, quem])
+  const l = r.rows[0]
+  return { ok: !!l?.ok, mensagem: String(l?.mensagem || 'Sem resposta.') }
 }
 
 /** Os números da barra da captação (migração 178). As etapas são as do funil do CRM. */
