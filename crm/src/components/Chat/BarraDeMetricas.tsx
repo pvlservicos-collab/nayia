@@ -21,7 +21,7 @@ import { X } from '@phosphor-icons/react'
 import type { LeadWithOwner } from '@/lib/types'
 import type { EstadoDaNay, MarcaDaNay } from '@/lib/tiposNay'
 import { formatPhone } from '@/lib/utils'
-import { pedeResposta } from '@/lib/esperaResposta'
+import { pedeResposta, JANELA_DE_RESPOSTA } from '@/lib/esperaResposta'
 import { escolhaAMao, etapaDaParceria, ROTULO_DA_ETAPA } from '@/lib/etapaDaParceria'
 
 type PainelDaNay = {
@@ -31,7 +31,7 @@ type PainelDaNay = {
 }
 
 const MINUTO = 60_000
-const JANELA = 24 * 60 * MINUTO
+const JANELA = JANELA_DE_RESPOSTA   // 24 h, a mesma das bolinhas das etapas (01/10)
 const TOLERANCIA = 2 * MINUTO
 
 /** Onde a conversa está: a etapa, ou com quem (a mesma regra das abas). */

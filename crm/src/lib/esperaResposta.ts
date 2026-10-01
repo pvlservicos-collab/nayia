@@ -10,12 +10,35 @@
  * "sim" e saudação continuam contando: "sim" depois de "quer visitar?" pede
  * ação, e "bom dia" abre conversa.
  */
+/*
+ * 01/10/2026, Pedro: "os círculos da etapa no CRM estão errados, é para
+ * aparecer só quantas pessoas falta responder; hoje em proprietário tem 7 mas
+ * tá todo mundo respondido".
+ *
+ * Medido nos 7: "Por nada" e "Ta" entravam na conta (a lista de cortesia não
+ * tinha nenhum dos dois), o número INTERNO da Imob Easy (8595-6408) contava
+ * como pessoa, e cinco eram de 25 a 30/09 -- conversa velha, não gente
+ * esperando. A janela de 24 h, que a barra de métricas já usava, não valia
+ * para os círculos: a barra dizia uma coisa e a bolinha outra.
+ */
 // uma ou mais destas, e nada mais: "ok", "ok obrigado", "show valeu"
-const CORTESIA = /^(?:(?:ok+|okay|blz|beleza|certo|certinho|show|top|otimo|perfeito|combinado|fechado|joia|obrigad[oa]s?|muito|obg|vlw|valeu|de nada|imagina|entendi|entendido|ta bom|ta certo|tamo junto|abraco|abs)\s?)+$/
+const CORTESIA = /^(?:(?:ok+|okay|blz|beleza|certo|certinho|show|top|otimo|perfeito|combinado|fechado|joia|obrigad[oa]s?|muito|obg|vlw|valeu|de nada|por nada|imagina|entendi|entendido|ta|tah|ta bom|ta certo|ta otimo|esta bem|esta bom|esta certo|esta otimo|tudo bem|tudo certo|tranquilo|sem problema|sem problemas|isso|isso mesmo|exato|exatamente|uhum|aham|ata|legal|maravilha|otima|boa|bacana|grato|grata|agradec[oi]|disponha|tamo junto|abraco|abs|figurinha)\s?)+$/
 
-/** Os dois números da Nay: Parceria (Z-API) e API oficial. Lead deles é eco, não pessoa. */
-const NUMEROS_DA_NAY = ['94453618', '84560874']
+/*
+ * Os números que são NOSSOS: a Nay na Parceria (Z-API), a Nay na API oficial e
+ * a Imob Easy (8595-6408, o número com os poderes do Tel). Lead deles é eco ou
+ * conversa interna, não pessoa esperando atendimento.
+ */
+const NUMEROS_INTERNOS = ['94453618', '84560874', '85956408']
 
+/** Quanto tempo uma mensagem sem resposta ainda conta como "falta responder". */
+export const JANELA_DE_RESPOSTA = 24 * 60 * 60 * 1000
+
+/*
+ * "[Figurinha]" entra na lista: figurinha fecha a conversa, como a reação.
+ * "[áudio]" e "[foto]" NÃO entram -- áudio sem transcrição e foto do corretor
+ * pedem que alguém olhe.
+ */
 export function soCortesia(texto: string | null | undefined): boolean {
   const cru = String(texto || '').trim()
   if (!cru) return false
@@ -27,7 +50,17 @@ export function soCortesia(texto: string | null | undefined): boolean {
 }
 
 export function ehNumeroDaNay(phone: string | null | undefined): boolean {
-  return NUMEROS_DA_NAY.includes(String(phone || '').replace(/\D/g, '').slice(-8))
+  return NUMEROS_INTERNOS.includes(String(phone || '').replace(/\D/g, '').slice(-8))
+}
+
+/**
+ * A mensagem dela ainda está dentro da janela? Sem isto, quem escreveu há cinco
+ * dias e nunca foi respondido fica na bolinha para sempre -- e aí ela deixa de
+ * ser "quem falta responder agora" e vira um passivo histórico.
+ */
+export function dentroDaJanela(quando: string | null | undefined, agora = Date.now(), janela = JANELA_DE_RESPOSTA): boolean {
+  const t = Date.parse(String(quando || ''))
+  return Number.isFinite(t) && agora - t <= janela
 }
 
 /** A última mensagem é da pessoa, pede resposta e não é a própria Nay. */

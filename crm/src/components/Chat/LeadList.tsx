@@ -14,7 +14,7 @@ import LeadListItem from './LeadListItem'
 import ChatFilterTabs, { type ChatTab, type FiltroDaLista } from './ChatFilterTabs'
 import BuscaDaLista, { casaNaBusca } from './BuscaDaLista'
 import { conversaEstaNaLinha, type LinhaWhatsapp } from '@/lib/leadChannel'
-import { pedeResposta } from '@/lib/esperaResposta'
+import { pedeResposta, dentroDaJanela } from '@/lib/esperaResposta'
 import { etapaDaParceria, escolhaAMao } from '@/lib/etapaDaParceria'
 
 /*
@@ -417,7 +417,11 @@ export default function LeadList({
     if (ehParceria) {
       const m = marcas[l.id]
       // uma conversa, UMA etapa (ver src/lib/etapaDaParceria.ts)
-      const falta = pedeResposta(l)
+      /* A BOLINHA É "QUEM FALTA RESPONDER AGORA" (Pedro, 01/10): só conta a
+         mensagem das últimas 24 h, a mesma janela da barra de métricas. Sem
+         isso, quem escreveu há cinco dias e nunca foi respondido ficava na
+         conta para sempre -- era o caso de 5 dos 7 de Proprietários. */
+      const falta = pedeResposta(l) && dentroDaJanela(l.last_activity_at, agora)
       const comPessoa = comAlguem(l, m, atendente)
       if (!comPessoa) {
         const etapa = etapaDaParceria(l, m)
