@@ -20,6 +20,7 @@
 (function () {
   "use strict";
 
+  var topo = document.querySelector(".nv__topo");
   var cartoes = document.getElementById("ed-cartoes");
   var lado = document.getElementById("nv-lado");
   var fita = document.getElementById("nv-fita");
@@ -64,6 +65,17 @@
     for (var i = 0; i < EMOJI.length; i++) if (EMOJI[i][0].test(s)) return EMOJI[i][1];
     return "✨";
   }
+
+  /* A ALTURA DA FAIXA, MEDIDA: o rolar para uma seção e a barra de situação
+     presa (no editar) se apoiam nela. Chutar um valor fixo faria a barra cobrir
+     o título do cartão quando o texto da faixa quebra em duas linhas. */
+  function medirTopo() {
+    if (!topo) return;
+    document.body.style.setProperty("--nv-topo-alt", Math.round(topo.getBoundingClientRect().height) + "px");
+  }
+  medirTopo();
+  window.addEventListener("resize", medirTopo);
+  if (window.ResizeObserver && topo) new ResizeObserver(medirTopo).observe(topo);
 
   function esc(t) {
     return String(t == null ? "" : t)
@@ -180,6 +192,7 @@
     });
     espiar();
     atualizar();
+    medirTopo();
   }
 
   function atualizar() {

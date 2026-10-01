@@ -115,6 +115,7 @@
 
 /* ---- os cartões (o HTML é o do motor) ----------------------------------- */
 .nv .ed__cartoes { display: block; }
+.nv--editar .ed__cartao { scroll-margin-top: calc(var(--nv-topo-alt) + 76px); }
 .nv .ed__cartao {
   background: var(--nv-sup); border: 1px solid var(--nv-linha);
   border-top: 1px solid var(--nv-linha); border-left: 4px solid var(--gc);
@@ -235,20 +236,37 @@
 /* a chave de ligar/desligar continua a mesma, só respirando mais */
 .nv .ed__chave { font-size: 13.5px; font-weight: 600; }
 
-/* ---- a faixa do motor: só o aviso e o estado do salvar ------------------ */
+/* ---- a faixa do motor --------------------------------------------------
+   No CADASTRO ela só tem o aviso e o estado do salvar.
+   No EDITAR ela é a faixa da SITUAÇÃO (situação, "no site", "chega na Nay",
+   excluir) -- e aí fica presa embaixo da faixa de cima, porque a situação é o
+   que manda no anúncio e precisa estar sempre à mão. */
 .nv .ed__estado {
   position: static; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
   background: var(--nv-sup); border: 1px solid var(--nv-linha); border-radius: 14px;
   padding: 12px 16px; margin-bottom: 16px; box-shadow: none;
 }
+.nv--editar .ed__estado {
+  position: sticky; top: calc(var(--nv-topo-alt) + 8px); z-index: 15;
+  box-shadow: 0 8px 20px rgba(28, 27, 34, .07);
+}
 .nv .ed__estado-novo { font-size: 13px; color: var(--nv-fraco); }
 .nv .ed__estado-salvar { margin-left: auto; display: flex; align-items: center; gap: 12px; }
-/* o botão de verdade fica escondido: quem aparece é o da faixa de cima, que
-   clica neste -- dois botões iguais na tela só confundem */
-.nv #ed-salvar { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* o botão de verdade não aparece: quem aparece é o da faixa de cima, que clica
+   neste -- dois botões iguais na tela só confundem. display:none mesmo, para
+   não deixar um botão invisível no caminho de quem anda pelo teclado. */
+.nv #ed-salvar { display: none; }
 .nv .ed__status-salvar { font-size: 13px; }
+.nv .ed__excluir { font-size: 13px; }
 
 .nv .ed__aviso { border-radius: 14px; }
+
+/* o código do imóvel, no título */
+.nv .ed__codigo { font-weight: 700; color: var(--nv-marca); }
+
+/* as fotos, no mesmo arredondado dos cartões */
+.nv .ed__fotos { border-radius: 14px; margin-bottom: 16px; }
+.nv .ed__falta { border-radius: 14px; }
 
 @media (max-width: 960px) {
   .nv { --nv-topo-alt: 156px; }

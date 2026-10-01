@@ -28,7 +28,7 @@ import { createPortal } from 'react-dom'
 import {
   X, CheckCircle, ArrowSquareOut, MagnifyingGlass, Buildings, Sparkle, Images, Plus, CircleNotch,
 } from '@phosphor-icons/react'
-import { pontuacaoDoCadastro, corDaPontuacao, type CamposDoCadastro } from '@/lib/pontuacaoDoCadastro'
+import { pontuacaoDoCadastro, detalheDoCadastro, corDaPontuacao, type CamposDoCadastro } from '@/lib/pontuacaoDoCadastro'
 import type { CondominioDaLista, OpcoesDoCadastro, RascunhoParaPuxar } from '@/lib/nayLeitura'
 
 export interface FotoDaConversa { id: string; url: string; em: string }
@@ -37,6 +37,20 @@ export interface AlvoDoCadastro {
   codigo: number | null
   titulo: string
 }
+
+/* AS SEÇÕES, no desenho do site (01/10/2026): a mesma tarja de cor, o mesmo
+   ícone e a mesma ordem da tela de imovel-novo.html. `regua` diz quais campos
+   da régua do banco (244) pesam em cada uma -- o nome é o que a régua usa, não
+   um nome novo, para a barra da seção e a porcentagem do topo nunca brigarem. */
+const SECOES: Array<{ id: string; nome: string; ico: string; cor: string; regua: string[] }> = [
+  { id: 'local', nome: 'Localização', ico: '⌖', cor: '#3B6FD8', regua: ['bairro', 'condomínio', 'endereço'] },
+  { id: 'imovel', nome: 'O imóvel', ico: '⌂', cor: '#7C4FD9',
+    regua: ['tipo', 'quartos', 'suítes', 'banheiros', 'vagas', 'vagas cobertas', 'área', 'mobília', 'andar', 'sol'] },
+  { id: 'valores', nome: 'Valores', ico: '$', cor: '#C26A22', regua: ['valor', 'taxa de condomínio', 'IPTU'] },
+  { id: 'oquetem', nome: 'O que tem', ico: '✓', cor: '#23827A', regua: ['características'] },
+  { id: 'descricao', nome: 'Descrição', ico: '✎', cor: '#5A6170', regua: ['descrição'] },
+  { id: 'fotos', nome: 'Fotos', ico: '✦', cor: '#2F7AA6', regua: ['fotos'] },
+]
 
 const MOBILIAS = ['Mobiliado', 'Semi-Mobiliado', 'Sem mobília']
 const SOIS = ['Manhã', 'Tarde']
@@ -53,17 +67,39 @@ function paraSalvar(c: CamposDoCadastro): Record<string, unknown> {
   return d
 }
 
-function Campo({ rotulo, children, largo }: { rotulo: string; children: React.ReactNode; largo?: boolean }) {
+/** Um campo da grade. `cheio` acende o ✓ verde e esverdeia a borda; `tam` é o
+    tamanho em colunas (1, 2, 3 ou 6), como no desenho do site. */
+function Campo({ rotulo, children, tam, cheio, sub }: {
+  rotulo: string; children: React.ReactNode; tam?: 1 | 2 | 3 | 6; cheio?: boolean; sub?: string
+}) {
   return (
-    <label className={`flex flex-col gap-1 ${largo ? 'col-span-2' : ''}`}>
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--chat-text-muted)]">{rotulo}</span>
+    <label className={`cad-campo${tam && tam !== 2 ? ` cad-campo--s${tam}` : ''}${cheio ? ' cad-campo--cheio' : ''}`}>
+      <span className="cad-campo__rot">{rotulo}</span>
       {children}
+      {sub && <span className="cad-campo__sub">{sub}</span>}
     </label>
   )
 }
 
-const classeDoCampo =
-  'h-8 px-2 rounded-lg text-[13px] bg-[var(--chat-bg-field)] text-[var(--chat-text-primary)] border border-[var(--chat-border)] outline-none focus:border-[var(--chat-accent)]'
+/** O cabeçalho de uma seção, com o quanto dela está preenchido. */
+function Secao({ s, feito, de, children }: {
+  s: { id: string; nome: string; ico: string; cor: string }; feito: number; de: number; children: React.ReactNode
+}) {
+  const cheio = de > 0 && feito === de
+  return (
+    <section className="cad-sec" id={`cad-${s.id}`} style={{ ['--cad-c' as any]: s.cor }}>
+      <div className="cad-sec__h">
+        <span className="cad-sec__ico" aria-hidden="true">{s.ico}</span>
+        <h3 className="cad-sec__nome">{s.nome}</h3>
+        <span className={`cad-sec__badge${cheio ? ' cad-sec__badge--cheio' : ''}`}>
+          {de === 0 ? '' : cheio ? '✓ Completo' : `${feito} de ${de}`}
+        </span>
+      </div>
+      <div className="cad-sec__b">{children}</div>
+    </section>
+  )
+}
+
 
 export default function CadastroDeImovel({ leadId, donoNome, temProprietario, alvo, fotos, condominiosCitados, aoFechar, aoPronto }: {
   leadId: string
@@ -146,6 +182,24 @@ export default function CadastroDeImovel({ leadId, donoNome, temProprietario, al
   /* A BARRA DE CIMA: anda a cada tecla. As fotos marcadas contam, porque vão
      junto no mesmo salvar. */
   const pont = useMemo(() => pontuacaoDoCadastro(campos, fotosJa + marcadas.size, temDono), [campos, fotosJa, marcadas, temDono])
+  /* a mesma régua, aberta por seção: a fita do topo e o "3 de 8" de cada
+     cabeçalho saem daqui, então não há dois juízos sobre o que falta */
+  const porSecao = useMemo(() => {
+    const mapa: Record<string, { feito: number; de: number; peso: number; pesoFeito: number }> = {}
+    for (const s of SECOES) mapa[s.id] = { feito: 0, de: 0, peso: 0, pesoFeito: 0 }
+    for (const f of detalheDoCadastro(campos, fotosJa + marcadas.size, temDono)) {
+      const sec = SECOES.find((x) => x.regua.includes(f.campo))
+      if (!sec) continue                      // 'proprietário' não é campo desta janela
+      const m = mapa[sec.id]
+      m.de++; m.peso += f.peso
+      if (f.tem) { m.feito++; m.pesoFeito += f.peso }
+    }
+    return mapa
+  }, [campos, fotosJa, marcadas, temDono])
+  const irPara = (id: string) => {
+    const el = document.getElementById(`cad-${id}`)
+    if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }
 
   const condos = opcoes?.condominios || []
   const condosFiltrados = useMemo(() => {
@@ -260,14 +314,33 @@ export default function CadastroDeImovel({ leadId, donoNome, temProprietario, al
               <X size={20} weight="bold" />
             </button>
           </div>
-          <div className="mt-3 flex items-center gap-2">
-            <div className="flex-1 h-2.5 rounded-full bg-[var(--chat-bg-hover)] overflow-hidden">
-              <div className="h-full rounded-full transition-[width] duration-200"
-                   style={{ width: `${pont.pct}%`, background: corDaPontuacao(pont.pct) }} />
+          <div className="mt-3 flex items-end gap-3">
+            <div className="flex items-baseline gap-1.5 flex-shrink-0">
+              <b className="text-[26px] font-extrabold leading-none tabular-nums tracking-tight"
+                 style={{ color: corDaPontuacao(pont.pct) }}>{pont.pct}<small className="text-[14px]">%</small></b>
+              <span className="text-[12px] text-[var(--chat-text-muted)]">completo</span>
             </div>
-            <b className="text-[13px] tabular-nums" style={{ color: corDaPontuacao(pont.pct) }}>{pont.pct}%</b>
+            <div className="flex-1 min-w-0">
+              <div className="cad-fita">
+                {SECOES.map((sec) => {
+                  const m = porSecao[sec.id]
+                  const p = m.peso ? (m.pesoFeito / m.peso) * 100 : 0
+                  return (
+                    <button key={sec.id} type="button" onClick={() => irPara(sec.id)}
+                            title={`${sec.nome}: ${Math.round(p)}%`} aria-label={sec.nome}
+                            style={{ ['--cad-c' as any]: sec.cor, flex: m.peso || 1 }}>
+                      <i style={{ width: `${p}%` }} />
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <span className="text-[11px] flex-shrink-0" style={{ color: temDono ? '#3f9c6d' : 'var(--chat-text-muted)' }}
+                  title={temDono ? 'O contato já tem proprietário no cadastro' : 'Este contato ainda não tem proprietário no cadastro'}>
+              {temDono ? '✓ dono' : 'sem dono'}
+            </span>
           </div>
-          <p className="text-[11px] text-[var(--chat-text-muted)] mt-1 leading-4">
+          <p className="text-[11px] text-[var(--chat-text-muted)] mt-1.5 leading-4">
             {pont.falta.length === 0
               ? 'Cadastro completo pela régua da aba Imóveis.'
               : <>Falta: {pont.falta.join(', ')}.</>}
@@ -311,13 +384,13 @@ export default function CadastroDeImovel({ leadId, donoNome, temProprietario, al
             </section>
           )}
 
-          {/* ── condomínio: lista com endereço, automático, ou à mão ── */}
-          <section>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--chat-text-muted)] mb-1.5">Condomínio</p>
+          {/* ── Localização: o condomínio (lista, automático ou à mão) e o endereço ── */}
+          <Secao s={SECOES[0]} feito={porSecao.local.feito} de={porSecao.local.de}>
+            <p className="cad-campo__rot mb-1.5">Condomínio</p>
             <div className="flex flex-wrap items-center gap-1.5">
               <input value={campos.condominio ?? ''} onChange={(e) => mudar({ condominio: e.target.value })}
                      placeholder="nome do condomínio (ou deixe vazio se é imóvel de rua)"
-                     className={`${classeDoCampo} flex-1 min-w-[180px]`} />
+                     className="cad-campo flex-1 min-w-[180px] !h-9" />
               <button type="button" onClick={() => setListaDeCondos((v) => !v)} title="Escolher na lista, com os endereços"
                       className="inline-flex items-center gap-1 text-[12.5px] font-semibold px-2.5 py-1.5 rounded-full border border-[var(--chat-border)] text-[var(--chat-text-secondary)] hover:bg-[var(--chat-bg-hover)]">
                 <Buildings size={14} /> Lista ({condos.length})
@@ -355,61 +428,99 @@ export default function CadastroDeImovel({ leadId, donoNome, temProprietario, al
               </div>
             )}
             {aviso && <p className="text-[11.5px] text-[var(--chat-accent)] mt-1.5">{aviso}</p>}
-          </section>
 
-          {/* ── os campos ── */}
-          <section className="grid grid-cols-2 gap-x-3 gap-y-2.5">
-            <Campo rotulo="Tipo">
-              <input list="cad-tipos" value={campos.tipo ?? ''} onChange={(e) => mudar({ tipo: e.target.value })} className={classeDoCampo} placeholder="Apartamento, Casa…" />
-              <datalist id="cad-tipos">{(opcoes?.tipos || []).map((t) => <option key={t} value={t} />)}</datalist>
-            </Campo>
-            <Campo rotulo="Bairro">
-              <input list="cad-bairros" value={campos.bairro ?? ''} onChange={(e) => mudar({ bairro: e.target.value })} className={classeDoCampo} />
-              <datalist id="cad-bairros">{(opcoes?.bairros || []).map((b) => <option key={b} value={b} />)}</datalist>
-            </Campo>
-            <Campo rotulo="Aluguel (R$)"><input value={campos.aluguel ?? ''} onChange={(e) => mudar({ aluguel: e.target.value })} className={classeDoCampo} inputMode="decimal" /></Campo>
-            <Campo rotulo="Venda (R$)"><input value={campos.venda ?? ''} onChange={(e) => mudar({ venda: e.target.value })} className={classeDoCampo} inputMode="decimal" /></Campo>
-            <Campo rotulo="Quartos"><input value={campos.quartos ?? ''} onChange={(e) => mudar({ quartos: e.target.value })} className={classeDoCampo} inputMode="numeric" /></Campo>
-            <Campo rotulo="Suítes"><input value={campos.suites ?? ''} onChange={(e) => mudar({ suites: e.target.value })} className={classeDoCampo} inputMode="numeric" /></Campo>
-            <Campo rotulo="Banheiros"><input value={campos.banheiros ?? ''} onChange={(e) => mudar({ banheiros: e.target.value })} className={classeDoCampo} inputMode="numeric" /></Campo>
-            <Campo rotulo="Vagas"><input value={campos.vagas ?? ''} onChange={(e) => mudar({ vagas: e.target.value })} className={classeDoCampo} inputMode="numeric" /></Campo>
-            <Campo rotulo="Vagas cobertas"><input value={campos.vagasCobertas ?? ''} onChange={(e) => mudar({ vagasCobertas: e.target.value })} className={classeDoCampo} inputMode="numeric" /></Campo>
-            <Campo rotulo="Área útil (m²)"><input value={campos.areaUtil ?? ''} onChange={(e) => mudar({ areaUtil: e.target.value })} className={classeDoCampo} inputMode="decimal" /></Campo>
-            <Campo rotulo="Área total (m²)"><input value={campos.areaTotal ?? ''} onChange={(e) => mudar({ areaTotal: e.target.value })} className={classeDoCampo} inputMode="decimal" /></Campo>
-            <Campo rotulo="Andar"><input value={campos.andar ?? ''} onChange={(e) => mudar({ andar: e.target.value })} className={classeDoCampo} /></Campo>
-            <Campo rotulo="Mobília">
-              <select value={campos.mobilia ?? ''} onChange={(e) => mudar({ mobilia: e.target.value })} className={classeDoCampo}>
-                <option value="">—</option>{MOBILIAS.map((m) => <option key={m} value={m}>{m}</option>)}
-              </select>
-            </Campo>
-            <Campo rotulo="Sol">
-              <select value={campos.sol ?? ''} onChange={(e) => mudar({ sol: e.target.value })} className={classeDoCampo}>
-                <option value="">—</option>{SOIS.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </Campo>
-            <Campo rotulo="Taxa de condomínio (R$)"><input value={campos.taxaCondominio ?? ''} onChange={(e) => mudar({ taxaCondominio: e.target.value })} className={classeDoCampo} inputMode="decimal" /></Campo>
-            <Campo rotulo="IPTU (R$)"><input value={campos.iptu ?? ''} onChange={(e) => mudar({ iptu: e.target.value })} className={classeDoCampo} inputMode="decimal" /></Campo>
-            <Campo rotulo="Incluso no aluguel" largo>
-              <input value={campos.inclusoNoAluguel ?? ''} onChange={(e) => mudar({ inclusoNoAluguel: e.target.value })} className={classeDoCampo}
-                     placeholder="ex.: condomínio e IPTU" />
-            </Campo>
-            <Campo rotulo="Rua" largo><input value={campos.logradouro ?? ''} onChange={(e) => mudar({ logradouro: e.target.value })} className={classeDoCampo} /></Campo>
-            <Campo rotulo="Número"><input value={campos.numero ?? ''} onChange={(e) => mudar({ numero: e.target.value })} className={classeDoCampo} /></Campo>
-            <Campo rotulo="Complemento (torre, apto)"><input value={campos.complemento ?? ''} onChange={(e) => mudar({ complemento: e.target.value })} className={classeDoCampo} /></Campo>
-            <Campo rotulo="Cidade"><input value={campos.cidade ?? ''} onChange={(e) => mudar({ cidade: e.target.value })} className={classeDoCampo} /></Campo>
-            <Campo rotulo="Estado"><input value={campos.estado ?? ''} onChange={(e) => mudar({ estado: e.target.value })} className={classeDoCampo} maxLength={2} /></Campo>
-            <Campo rotulo="Descrição" largo>
-              <textarea value={campos.descricao ?? ''} onChange={(e) => mudar({ descricao: e.target.value })} rows={3}
-                        className="px-2 py-1.5 rounded-lg text-[13px] bg-[var(--chat-bg-field)] text-[var(--chat-text-primary)] border border-[var(--chat-border)] outline-none focus:border-[var(--chat-accent)] resize-y" />
-            </Campo>
-          </section>
+            <div className="cad-grade mt-3">
+              <Campo rotulo="Bairro" cheio={!!campos.bairro?.trim()}>
+                <input list="cad-bairros" value={campos.bairro ?? ''} onChange={(e) => mudar({ bairro: e.target.value })} />
+                <datalist id="cad-bairros">{(opcoes?.bairros || []).map((b) => <option key={b} value={b} />)}</datalist>
+              </Campo>
+              <Campo rotulo="Rua" tam={3} cheio={!!campos.logradouro?.trim()}>
+                <input value={campos.logradouro ?? ''} onChange={(e) => mudar({ logradouro: e.target.value })} />
+              </Campo>
+              <Campo rotulo="Número" tam={1}>
+                <input value={campos.numero ?? ''} onChange={(e) => mudar({ numero: e.target.value })} />
+              </Campo>
+              <Campo rotulo="Complemento (torre, apto)" tam={3}>
+                <input value={campos.complemento ?? ''} onChange={(e) => mudar({ complemento: e.target.value })} />
+              </Campo>
+              <Campo rotulo="Andar" tam={1}>
+                <input value={campos.andar ?? ''} onChange={(e) => mudar({ andar: e.target.value })} />
+              </Campo>
+              <Campo rotulo="Cidade">
+                <input value={campos.cidade ?? ''} onChange={(e) => mudar({ cidade: e.target.value })} />
+              </Campo>
+              <Campo rotulo="Estado" tam={1}>
+                <input value={campos.estado ?? ''} onChange={(e) => mudar({ estado: e.target.value })} maxLength={2} />
+              </Campo>
+            </div>
+          </Secao>
 
-          {/* ── características ── */}
-          <section>
+          {/* ── O imóvel ── */}
+          <Secao s={SECOES[1]} feito={porSecao.imovel.feito} de={porSecao.imovel.de}>
+            <div className="cad-grade">
+              <Campo rotulo="Tipo" cheio={!!campos.tipo?.trim()}>
+                <input list="cad-tipos" value={campos.tipo ?? ''} onChange={(e) => mudar({ tipo: e.target.value })} placeholder="Apartamento, Casa…" />
+                <datalist id="cad-tipos">{(opcoes?.tipos || []).map((t) => <option key={t} value={t} />)}</datalist>
+              </Campo>
+              <Campo rotulo="Quartos" tam={1} cheio={!!String(campos.quartos ?? '').trim()}>
+                <input value={campos.quartos ?? ''} onChange={(e) => mudar({ quartos: e.target.value })} inputMode="numeric" />
+              </Campo>
+              <Campo rotulo="Suítes" tam={1} cheio={!!String(campos.suites ?? '').trim()}>
+                <input value={campos.suites ?? ''} onChange={(e) => mudar({ suites: e.target.value })} inputMode="numeric" />
+              </Campo>
+              <Campo rotulo="Banheiros" tam={1} cheio={!!String(campos.banheiros ?? '').trim()}>
+                <input value={campos.banheiros ?? ''} onChange={(e) => mudar({ banheiros: e.target.value })} inputMode="numeric" />
+              </Campo>
+              <Campo rotulo="Vagas" tam={1} cheio={!!String(campos.vagas ?? '').trim()}>
+                <input value={campos.vagas ?? ''} onChange={(e) => mudar({ vagas: e.target.value })} inputMode="numeric" />
+              </Campo>
+              <Campo rotulo="Vagas cobertas" tam={1} cheio={!!String(campos.vagasCobertas ?? '').trim()}>
+                <input value={campos.vagasCobertas ?? ''} onChange={(e) => mudar({ vagasCobertas: e.target.value })} inputMode="numeric" />
+              </Campo>
+              <Campo rotulo="Área útil (m²)" cheio={Number(String(campos.areaUtil ?? '').replace(',', '.')) > 0}>
+                <input value={campos.areaUtil ?? ''} onChange={(e) => mudar({ areaUtil: e.target.value })} inputMode="decimal" />
+              </Campo>
+              <Campo rotulo="Área total (m²)">
+                <input value={campos.areaTotal ?? ''} onChange={(e) => mudar({ areaTotal: e.target.value })} inputMode="decimal" />
+              </Campo>
+              <Campo rotulo="Mobília" cheio={!!campos.mobilia?.trim()}>
+                <select value={campos.mobilia ?? ''} onChange={(e) => mudar({ mobilia: e.target.value })}>
+                  <option value="">—</option>{MOBILIAS.map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </Campo>
+              <Campo rotulo="Sol" cheio={!!campos.sol?.trim()}>
+                <select value={campos.sol ?? ''} onChange={(e) => mudar({ sol: e.target.value })}>
+                  <option value="">—</option>{SOIS.map((x) => <option key={x} value={x}>{x}</option>)}
+                </select>
+              </Campo>
+            </div>
+          </Secao>
+
+          {/* ── Valores ── */}
+          <Secao s={SECOES[2]} feito={porSecao.valores.feito} de={porSecao.valores.de}>
+            <div className="cad-grade">
+              <Campo rotulo="Aluguel (R$)" cheio={Number(String(campos.aluguel ?? '').replace(/\./g, '').replace(',', '.')) > 0}>
+                <input value={campos.aluguel ?? ''} onChange={(e) => mudar({ aluguel: e.target.value })} inputMode="decimal" />
+              </Campo>
+              <Campo rotulo="Venda (R$)" cheio={Number(String(campos.venda ?? '').replace(/\./g, '').replace(',', '.')) > 0}>
+                <input value={campos.venda ?? ''} onChange={(e) => mudar({ venda: e.target.value })} inputMode="decimal" />
+              </Campo>
+              <Campo rotulo="Taxa de condomínio (R$)" cheio={!!String(campos.taxaCondominio ?? '').trim()}>
+                <input value={campos.taxaCondominio ?? ''} onChange={(e) => mudar({ taxaCondominio: e.target.value })} inputMode="decimal" />
+              </Campo>
+              <Campo rotulo="IPTU (R$)" cheio={!!String(campos.iptu ?? '').trim()}>
+                <input value={campos.iptu ?? ''} onChange={(e) => mudar({ iptu: e.target.value })} inputMode="decimal" />
+              </Campo>
+              <Campo rotulo="Incluso no aluguel" tam={6} sub="ex.: condomínio e IPTU">
+                <input value={campos.inclusoNoAluguel ?? ''} onChange={(e) => mudar({ inclusoNoAluguel: e.target.value })} />
+              </Campo>
+            </div>
+          </Secao>
+
+          {/* ── O que tem ── */}
+          <Secao s={SECOES[3]} feito={porSecao.oquetem.feito} de={porSecao.oquetem.de}>
             <div className="flex items-center justify-between gap-2 mb-1.5">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--chat-text-muted)]">
-                Características ({caracUsadas.length})
-              </p>
+              <p className="cad-campo__rot">Características ({caracUsadas.length})</p>
               <button type="button" onClick={usarLazerDoCondominio}
                       className="text-[12px] font-semibold text-[var(--chat-accent)] hover:underline">usar as do condomínio</button>
             </div>
@@ -434,20 +545,29 @@ export default function CadastroDeImovel({ leadId, donoNome, temProprietario, al
               setNovaCarac('')
             }}>
               <input value={novaCarac} onChange={(e) => setNovaCarac(e.target.value)} placeholder="outra característica"
-                     className={`${classeDoCampo} flex-1`} />
+                     className="cad-campo flex-1 !h-9" />
               <button type="submit" className="w-8 h-8 rounded-lg flex items-center justify-center border border-[var(--chat-border)] text-[var(--chat-text-secondary)]" aria-label="Adicionar característica">
                 <Plus size={14} weight="bold" />
               </button>
             </form>
-          </section>
+          </Secao>
+
+          {/* ── Descrição ── */}
+          <Secao s={SECOES[4]} feito={porSecao.descricao.feito} de={porSecao.descricao.de}>
+            <div className="cad-grade">
+              <Campo rotulo="Descrição do anúncio" tam={6} cheio={!!campos.descricao?.trim()}>
+                <textarea value={campos.descricao ?? ''} onChange={(e) => mudar({ descricao: e.target.value })} rows={3} />
+              </Campo>
+            </div>
+          </Secao>
 
           {/* ── as fotos que ele já mandou ── */}
-          <section>
+          <Secao s={SECOES[5]} feito={porSecao.fotos.feito} de={porSecao.fotos.de}>
             <div className="flex items-center justify-between gap-2 mb-1.5">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--chat-text-muted)]">
+              <p className="cad-campo__rot">
                 <Images size={13} className="inline -mt-0.5 mr-1" />
                 Fotos da conversa: {marcadas.size} de {fotos.length}
-                {fotosJa > 0 && <span className="normal-case font-normal"> · o imóvel já tem {fotosJa}</span>}
+                {fotosJa > 0 && <span className="normal-case"> · o imóvel já tem {fotosJa}</span>}
               </p>
               {fotos.length > 0 && (
                 <button type="button" onClick={() => setMarcadas(marcadas.size === fotos.length ? new Set() : new Set(fotos.map((f) => f.id)))}
@@ -472,7 +592,7 @@ export default function CadastroDeImovel({ leadId, donoNome, temProprietario, al
                 })}
               </div>
             )}
-          </section>
+          </Secao>
         </div>
 
         {/* ── salvar ── */}

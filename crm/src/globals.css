@@ -1547,3 +1547,70 @@ html {
 .barra-calma .painel-barra__lista { top: 100%; }
 /* na Captação a barra é uma LINHA no topo da coluna: não estica para baixo (30/09) */
 .barra-calma--linha { flex: 0 0 auto; align-content: center; }
+
+/* ==========================================================================
+   O CADASTRO DE IMÓVEL NO CRM, no desenho do site (Pedro, 01/10/2026:
+   "lá em criar imóvel no CRM também nesse mesmo layout").
+
+   É o mesmo vocabulário da tela do site (imob-easy/assets/css/imovel-novo.css):
+   seção com a tarja de cor na esquerda, cabeçalho com ícone e o quanto está
+   preenchido, grade de 6 colunas, ✓ verde no campo cheio e a fita por seção.
+   As cores das seções são as mesmas de lá; o resto vem das variáveis do chat,
+   para a janela continuar no tema (claro ou escuro) do CRM.
+   ========================================================================== */
+.cad-fita { display: flex; gap: 3px; height: 8px; }
+.cad-fita button {
+  position: relative; flex: 1; border: 0; padding: 0; border-radius: 3px; cursor: pointer; overflow: hidden;
+  background: color-mix(in srgb, var(--cad-c) 16%, transparent);
+}
+.cad-fita button i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--cad-c); transition: width .3s ease; }
+
+.cad-sec {
+  border: 1px solid var(--chat-border); border-left: 4px solid var(--cad-c);
+  border-radius: 14px; background: var(--chat-bg-base);
+  scroll-margin-top: 8px;   /* a fita do topo rola até aqui */
+}
+.cad-sec__h {
+  display: flex; align-items: center; gap: 10px; padding: 11px 14px;
+  border-bottom: 1px solid var(--chat-border);
+}
+.cad-sec__ico {
+  width: 26px; height: 26px; border-radius: 8px; flex: none; display: grid; place-items: center;
+  font-size: 13px; font-weight: 700;
+  background: color-mix(in srgb, var(--cad-c) 16%, transparent); color: var(--cad-c);
+}
+.cad-sec__nome { font-size: 14.5px; font-weight: 700; color: var(--chat-text-primary); }
+.cad-sec__dica { font-size: 11.5px; color: var(--chat-text-muted); margin-top: 1px; }
+.cad-sec__badge {
+  margin-left: auto; font-size: 12px; font-weight: 600; color: var(--chat-text-muted);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.cad-sec__badge--cheio { color: #3f9c6d; }
+.cad-sec__b { padding: 14px; }
+
+.cad-grade { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.cad-campo { grid-column: span 2; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.cad-campo--s1 { grid-column: span 1; }
+.cad-campo--s3 { grid-column: span 3; }
+.cad-campo--s6 { grid-column: span 6; }
+.cad-campo__rot {
+  display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em; color: var(--chat-text-muted);
+}
+.cad-campo__rot::after { content: "✓"; color: #3f9c6d; font-size: 11px; opacity: 0; transition: opacity .2s; }
+.cad-campo--cheio .cad-campo__rot::after { opacity: 1; }
+.cad-campo input, .cad-campo select, .cad-campo textarea {
+  width: 100%; min-height: 36px; padding: 7px 10px; border-radius: 10px; font-size: 13.5px;
+  background: var(--chat-bg-field); color: var(--chat-text-primary);
+  border: 1.5px solid var(--chat-border); outline: none;
+}
+.cad-campo input:focus, .cad-campo select:focus, .cad-campo textarea:focus { border-color: var(--chat-accent); }
+.cad-campo--cheio input, .cad-campo--cheio select, .cad-campo--cheio textarea { border-color: #8fd0b4; }
+.cad-campo textarea { resize: vertical; min-height: 72px; line-height: 1.45; }
+.cad-campo__sub { font-size: 11px; color: var(--chat-text-muted); }
+
+@media (max-width: 640px) {
+  .cad-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cad-campo, .cad-campo--s3, .cad-campo--s6 { grid-column: span 2; }
+  .cad-campo--s1 { grid-column: span 1; }
+}

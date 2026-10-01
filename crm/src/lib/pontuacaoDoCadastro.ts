@@ -66,15 +66,14 @@ const NAO_E_CONDOMINIO = new Set([
   'predio', 'terreno', 'condominio nao identificado',
 ])
 
-export function pontuacaoDoCadastro(c: CamposDoCadastro, fotos: number, temDono: boolean): Pontuacao {
+function regua(c: CamposDoCadastro, fotos: number, temDono: boolean): Array<[string, number, boolean, boolean, BlocoDoPeso]> {
   const tipo = semAcento(String(c.tipo || ''))
   const condoNome = semAcento(String(c.condominio || '').trim())
   const emCondominio = condoNome !== '' && !NAO_E_CONDOMINIO.has(condoNome)
   const vertical = /^(apartamento|flat|cobertura|sala|kitnet|studio)/.test(tipo)
   const aluga = (numero(c.aluguel) || 0) > 0
   const incluso = semAcento(String(c.inclusoNoAluguel || ''))
-
-  const regua: Array<[string, number, boolean, boolean, BlocoDoPeso]> = [
+  return [
     ['tipo', 8, cheio(c.tipo), true, 'essencial'],
     ['bairro', 8, cheio(c.bairro), true, 'essencial'],
     ['valor', 8, (numero(c.aluguel) || 0) > 0 || (numero(c.venda) || 0) > 0, true, 'essencial'],
@@ -96,12 +95,29 @@ export function pontuacaoDoCadastro(c: CamposDoCadastro, fotos: number, temDono:
     ['IPTU', 3, numero(c.iptu) !== null || /iptu/.test(incluso), true, 'detalhe'],
     ['vagas cobertas', 3, numero(c.vagasCobertas) !== null, !/^(lote|terreno)/.test(tipo), 'detalhe'],
   ]
+}
+
+export interface CampoDaRegua { campo: string; peso: number; tem: boolean; bloco: BlocoDoPeso }
+
+/**
+ * A régua aberta, campo por campo (só o que SE APLICA a este imóvel). O popup
+ * do CRM usa isto para a barra de cada seção -- assim não existe uma segunda
+ * tabela de pesos andando por aí, que um dia discordaria desta.
+ */
+export function detalheDoCadastro(c: CamposDoCadastro, fotos: number, temDono: boolean): CampoDaRegua[] {
+  return regua(c, fotos, temDono)
+    .filter(([, , , aplica]) => aplica)
+    .map(([campo, peso, tem, , bloco]) => ({ campo, peso, tem, bloco }))
+}
+
+export function pontuacaoDoCadastro(c: CamposDoCadastro, fotos: number, temDono: boolean): Pontuacao {
+  const lista = regua(c, fotos, temDono)
 
   let pontos = 0
   let de = 0
   const falta: string[] = []
   const faltaEssencial: string[] = []
-  for (const [campo, peso, tem, aplica, bloco] of regua) {
+  for (const [campo, peso, tem, aplica, bloco] of lista) {
     if (!aplica) continue
     de += peso
     if (tem) pontos += peso
