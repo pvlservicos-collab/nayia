@@ -23,6 +23,10 @@
  * E A MÃO MANDA SOBRE A NAY: o que alguém escolhe no card do lead
  * (`custom_attributes.etapa_parceria`) vale mais que o que a Nay deduziu. Quem
  * está olhando a conversa sabe de coisa que o banco não sabe.
+ *
+ * MENOS A VISITA (01/10/2026): visita passada à equipe é fato, e é temporária.
+ * Ela ganha da escolha à mão enquanto durar; depois a escolha volta a valer. Só
+ * 'fechamento' escolhido à mão ganha dela, porque é etapa mais adiante.
  */
 import type { MarcaDaNay } from '@/lib/tiposNay'
 
@@ -62,6 +66,15 @@ export function etapaDaParceria(
   marca: MarcaDaNay | undefined,
 ): EtapaParceria {
   const aMao = etapaEscolhidaAMao(lead)
+  /* A VISITA CONFIRMADA GANHA DA ESCOLHA À MÃO (Pedro, 01/10/2026: "foi
+     confirmado a visita mas ela não moveu a corretora para a aba da etapa de
+     visita, isso precisa acontecer").
+     A visita é FATO e é TEMPORÁRIA: acaba na hora dela + 120 min e a escolha à
+     mão volta a valer sozinha. Sem isto, quem foi marcado "Todos" uma vez nunca
+     mais aparecia em Visitas -- foi o caso da Solange em 01/10, com a visita
+     #1062 confirmada e o card parado em Todos.
+     'fechamento' escolhido à mão continua ganhando: é mais adiante que visita. */
+  if (marca?.visitaRayssa && aMao !== 'fechamento') return 'visitas'
   if (aMao) return aMao
   if (marca?.proprietario) return 'proprietarios'
   // O André mora em Visitas (Pedro, 30/09): ele acompanha, então está sempre

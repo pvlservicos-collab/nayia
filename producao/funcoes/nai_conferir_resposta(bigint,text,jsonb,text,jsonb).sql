@@ -3,6 +3,7 @@ CREATE OR REPLACE FUNCTION public.nai_conferir_resposta(p_turno bigint, p_texto 
  LANGUAGE plpgsql
 AS $function$
 DECLARE
+  v_fora   text;
   t        nai_turno;
   k        nai_contato;
   v_texto  text := btrim(coalesce(p_texto, ''));
@@ -284,11 +285,14 @@ BEGIN
   END IF;
   PERFORM nai_anotar(p_turno, 11, 'visita_sem_ferramenta', 'passou', NULL);
 
-  -- 12 ------------------------------------------------------ CITOU O TEL
-  IF t.papel IN ('corretor', 'proprietario', 'motoboy') AND v_texto ~* '\mtel\M' THEN
-    v_texto := nai_tirar_frase(v_texto, '\mtel\M');
-    v_guarda := coalesce(v_guarda || '+', '') || 'citou_o_tel_cortado';
-    PERFORM nai_anotar(p_turno, 12, 'citou_o_tel', 'cortou', 'quem sobe para o Tel não conta para ninguém');
+  -- 12 ------------------------------------- CITOU O TEL OU QUEM CUIDA DA VISITA
+  -- 255: a Nay é uma só. O nome de quem trata a visita por dentro (nai_config
+  -- aprovador_visita_nome) sai da frase como o do Tel já saía.
+  v_fora := '\m(tel|' || regexp_replace(lower(nai_cfg('aprovador_visita_nome', 'Rayssa')), '[^a-zà-ú]', '', 'g') || ')\M';
+  IF t.papel IN ('corretor', 'proprietario', 'motoboy') AND v_texto ~* v_fora THEN
+    v_texto := nai_tirar_frase(v_texto, v_fora);
+    v_guarda := coalesce(v_guarda || '+', '') || 'citou_quem_e_de_dentro';
+    PERFORM nai_anotar(p_turno, 12, 'citou_o_tel', 'cortou', 'nome de quem é de dentro não vai para fora');
     IF v_texto = '' THEN
       RETURN jsonb_build_object('acao', 'silencio', 'guarda', v_guarda);
     END IF;
