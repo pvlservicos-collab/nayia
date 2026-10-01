@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css">
-<link rel="stylesheet" href="../assets/css/imoveis-ux.css?v=20260930-pontuacao">
+<link rel="stylesheet" href="../assets/css/imoveis-ux.css?v=20261001-largura">
 <meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
 </head>
 <body class="admin" data-pagina="imoveis">
@@ -139,18 +139,9 @@
     <!-- ===================== DIREITA ===================== -->
     <section class="ux-direita">
 
-      <!-- filtro por data em dois passos -->
-      <div class="ux-datas">
-        <div class="ux-datas__tit"><span class="ux-ico">📅</span><b>Filtro por data</b>
-          <span class="ux-dica">Escolha primeiro qual data, depois o período.</span></div>
-        <div class="ux-passo"><div class="ux-rot ux-rot--forte">1. Qual data?</div><div class="ux-ops" id="qual-data"></div></div>
-        <div class="ux-passo"><div class="ux-rot ux-rot--forte">2. Qual período? <span id="explica-periodo"></span></div><div class="ux-ops" id="periodo-data"></div></div>
-        <div class="ux-datas__rodape">
-          <div class="ux-resumo" id="resumo-data"></div>
-          <button class="ux-limpar" type="button" id="limpar-data">Tirar filtro de data</button>
-        </div>
-      </div>
-
+      <!-- O cartão "Filtro por data" saiu em 01/10/2026 (Pedro: "retira essa parte do
+           imóveis do site e do crm"). O atalho "contratos terminando em 90 dias"
+           continua filtrando por data e aparece nas etiquetas do que está filtrado. -->
       <div class="ux-atalhos" id="atalhos"></div>
 
       <div class="ux-linha">
@@ -334,7 +325,7 @@
 <script src="../assets/js/admin.js"></script>
 <script src="../assets/js/seletor-condominio.js"></script>
 <script src="../assets/js/multiselecao.js"></script>
-<script src="../assets/js/imoveis-ux.js?v=20260930-pontuacao"></script>
+<script src="../assets/js/imoveis-ux.js?v=20261001-excluir"></script>
 <script src="../assets/js/condominios-aba.js?v=20260930"></script>
 <script src="../assets/js/cadastro-pendente.js?v=20261001"></script>
 </body>

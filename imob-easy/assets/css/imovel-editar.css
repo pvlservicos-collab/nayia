@@ -3,7 +3,10 @@
    em cima, e cada conjunto de dados num cartão com cor e ícone próprios.
    ========================================================================== */
 
-.ed { max-width: 1180px; }
+/* Largura (Pedro, 01/10/2026: "está comprimido"): a edição acompanha a lista e
+   usa a tela, com um teto para os dois cartões lado a lado não virarem faixas. */
+body.admin .conteudo { max-width: 1680px; padding-left: 20px; padding-right: 20px; }
+.ed { max-width: none; }
 /* o [hidden] tem que vencer o display dos blocos: sem isto a caixa escura das
    fotos (e a amarela do "falta preencher") apareciam vazias no cadastro */
 .ed [hidden] { display: none !important; }
@@ -232,4 +235,38 @@
   .ed__estado-salvar { margin-left: 0; width: 100%; justify-content: space-between; }
   .ed__miniaturas { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .ed__visor img { max-width: 100vw; }
+}
+
+/* ---- quem já está no condomínio (01/10/2026): a listinha contra o imóvel duplicado ---- */
+.ed [data-envolve="condominio"] { grid-column: 1 / -1; }
+.ed__no-condo {
+  margin-top: 8px; border: 1px solid var(--borda-forte); border-left: 4px solid var(--laranja);
+  border-radius: 12px; padding: 10px 12px; background: var(--superficie-2);
+}
+.ed__no-condo-tit { margin: 0 0 8px; font-size: 13px; line-height: 1.4; color: var(--texto-medio); }
+.ed__no-condo-tit b { color: var(--texto); }
+.ed__no-condo-tit--vazio { margin: 0; color: var(--texto-fraco); }
+.ed__no-condo-lista { list-style: none; margin: 0; padding: 0; max-height: 264px; overflow-y: auto; display: grid; gap: 4px; }
+.ed__no-condo-lista a, .ed__no-condo-so-consulta {
+  display: grid; grid-template-columns: 54px 104px minmax(120px, 1fr) minmax(0, 2fr); gap: 10px; align-items: center;
+  padding: 6px 8px; border-radius: 8px; border: 1px solid var(--borda); background: var(--superficie);
+  color: var(--texto); font-size: 13px; text-decoration: none;
+}
+.ed__no-condo-lista a:hover, .ed__no-condo-lista a:focus-visible { border-color: var(--roxo); background: var(--roxo-suave); text-decoration: none; outline: none; }
+.ed__no-condo-cod { font-weight: 700; font-variant-numeric: tabular-nums; }
+.ed__no-condo-sit {
+  justify-self: start; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--sc); background: var(--sb); border-radius: 999px; padding: 2px 9px; white-space: nowrap;
+}
+.ed__no-condo-unidade { font-weight: 600; }
+.ed__no-condo-resto { color: var(--texto-fraco); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 700px) {
+  .ed__no-condo-lista a, .ed__no-condo-so-consulta { grid-template-columns: 54px 1fr; }
+  .ed__no-condo-resto { grid-column: 1 / -1; white-space: normal; }
+}
+
+/* ---- excluir: discreto ao lado do Salvar, vermelho só quando o mouse chega ---- */
+.ed__excluir { color: var(--texto-fraco); }
+.btn-neutro.ed__excluir:hover, .btn-neutro.ed__excluir:focus-visible {
+  background: var(--vermelho-suave); border-color: var(--vermelho); color: #b42323;
 }

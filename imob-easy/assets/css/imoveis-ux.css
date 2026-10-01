@@ -12,6 +12,11 @@
    ========================================================================== */
 
 /* ---- a moldura ---- */
+/* A tela ocupa a largura toda (Pedro, 01/10/2026: "aumenta a largura da sessão de
+   imóveis lateralmente na tela no crm e no site porque está comprimido"). O teto
+   de 1240px do admin.css continua valendo para as outras páginas: esta folha só
+   é carregada em imoveis.html. */
+body.admin .conteudo { max-width: none; padding-left: 20px; padding-right: 20px; }
 .ux-grid { display: grid; grid-template-columns: 272px 1fr; gap: 20px; align-items: start; }
 .ux-direita { min-width: 0; }
 .cabecalho-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -88,6 +93,17 @@
 .ux-datas .op[aria-pressed="true"] { background: #c4762f; border-color: #c4762f; }
 .ux-datas__rodape { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
 .ux-meses { width: 96px; padding: 5px 10px; font-size: var(--fs-xs); border-radius: 999px; border: 1px solid var(--borda); }
+
+/* ---- excluir: o botão discreto que fica vermelho só quando o mouse chega ---- */
+.btn-mini--perigo { color: var(--texto-fraco); }
+.btn-mini.btn-mini--perigo:hover, .btn-mini.btn-mini--perigo:focus-visible {
+  background: var(--vermelho-suave); border-color: var(--vermelho); color: #b42323;
+}
+/* Ver e Editar lado a lado, Excluir embaixo dos dois: três botões na mesma
+   altura que os dois ocupavam empilhados (a linha da tabela não cresce) */
+.tabela--ux .acoes-celula { display: inline-grid; grid-template-columns: auto auto; gap: 6px; }
+.tabela--ux .acoes-celula > * { text-align: center; justify-content: center; }
+.tabela--ux .acoes-celula .btn-mini--perigo { grid-column: 1 / -1; }
 
 /* ---- atalhos, contagem, etiquetas ---- */
 .ux-atalhos { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }

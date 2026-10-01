@@ -120,7 +120,9 @@
       itens: [["Disponível", "Disponível", "#3f9c6d"], ["Alugado", "Alugado", "#7c3aed"],
               ["Vendido", "Vendido", "#8a8296"], ["Rascunho", "Rascunho", "#8a8296"],
               ["Em revisão", "Em revisão", "#c4762f"], ["Arquivado", "Arquivado", "#8a8296"],
-              ["Removido", "Removido", "#b42323"], ["Indisponível", "Indisponível", "#b42323"]]
+              ["Removido", "Removido", "#b42323"], ["Indisponível", "Indisponível", "#b42323"],
+              // o excluído some da lista; só aparece marcando aqui (e daqui volta)
+              ["Excluído", "Excluído", "#5d566a"]]
     },
     confirmar: { chave: "confirmar", faceta: "confirmar", grupo: "sit", itens: [["sim", "Precisa confirmar"]] },
     quartos: { chave: "quartos", faceta: "quartos", grupo: "imovel",
@@ -280,6 +282,10 @@
   }
 
   function desenharData() {
+    /* O cartão "Filtro por data" saiu da tela em 01/10/2026 (pedido do Pedro).
+       O filtro em si continua (o atalho dos contratos usa); sem o cartão não
+       há o que desenhar. */
+    if (!$("qual-data")) return;
     $("qual-data").innerHTML = QUAL_DATA.map(function (q) {
       return '<button type="button" class="op" data-qual="' + q[0] + '" aria-pressed="' +
         (st.dataCampo === q[0] ? "true" : "false") + '">' + q[1] + "</button>";
@@ -397,7 +403,8 @@
   var COR_SITUACAO = {
     "Disponível": ["#2f7d58", "#e8f7f0"], "Alugado": ["#6d28d9", "#f1eaff"], "Vendido": ["#5d566a", "#efedf3"],
     "Rascunho": ["#5d566a", "#efedf3"], "Em revisão": ["#a8662f", "#fdf2ea"], "Arquivado": ["#5d566a", "#efedf3"],
-    "Removido": ["#b42323", "#fdeef1"], "Indisponível": ["#b42323", "#fdeef1"]
+    "Removido": ["#b42323", "#fdeef1"], "Indisponível": ["#b42323", "#fdeef1"],
+    "Excluído": ["#5d566a", "#efedf3"]
   };
   function corDaSituacao(s) {
     var c = COR_SITUACAO[s] || ["#5d566a", "#efedf3"];
@@ -449,6 +456,41 @@
       });
   }
 
+  /* EXCLUIR IMÓVEL (Pedro, 01/10/2026: "e também uma opção de excluir imóvel").
+     Linha de imóvel nunca se apaga do banco (regra da casa): excluir é a situação
+     "Excluído", que tira do site, da Nay e DESTA LISTA. Quem marca "Excluído" no
+     filtro de situação vê os excluídos e traz de volta trocando a situação. */
+  function excluirImovel(cod) {
+    var imovel = (window.IMOVEIS_NA_TELA || {})[cod];
+    if (!imovel) return;
+    var nome = [imovel.condominio || imovel.tipo, imovel.bairro].filter(Boolean).join(", ");
+    if (!window.confirm("Excluir o imóvel " + cod + (nome ? " (" + nome + ")" : "") + "?\n\n" +
+        "Ele sai do site, da Nay e desta lista.\n" +
+        "Fica guardado em Situação > Excluído, de onde dá para trazer de volta.")) return;
+    var botao = document.querySelector('[data-excluir="' + cod + '"]');
+    if (botao) botao.disabled = true;
+    fetch("/admin/api/imoveis/" + encodeURIComponent(cod), {
+      method: "PUT", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "Excluído" })
+    })
+      .then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (d) {
+          if (!r.ok) throw new Error((d.detalhes && d.detalhes.join("; ")) || d.erro || ("HTTP " + r.status));
+          return d;
+        });
+      })
+      .then(function () {
+        fecharFicha();
+        avisar("Imóvel " + cod + " excluído. Está em Situação > Excluído, se precisar voltar.");
+        carregar();   // a lista e as contagens, já sem ele
+      })
+      .catch(function (e) {
+        if (botao) botao.disabled = false;
+        avisar("Não consegui excluir o " + cod + ": " + e.message, true);
+      });
+  }
+
   /* um recado curto no canto, que some sozinho */
   function avisar(texto, erro) {
     var t = document.getElementById("ux-recado");
@@ -482,7 +524,9 @@
 
   function linha(i) {
     var acoes = i.noCatalogo
-      ? '<a class="btn-mini" href="imovel-editar.html?codigo=' + esc(i.codigo) + '">Editar</a>'
+      ? '<a class="btn-mini" href="imovel-editar.html?codigo=' + esc(i.codigo) + '">Editar</a>' +
+        (i.status === "Excluído" ? "" :
+          '<button class="btn-mini btn-mini--perigo" type="button" data-excluir="' + esc(i.codigo) + '">Excluir</button>')
       : '<span class="btn-mini" title="Imóvel só do admin antigo: não está no catálogo, então não abre no editor">só consulta</span>';
     return '<tr data-codigo="' + esc(i.codigo) + '" tabindex="0" class="' + (i.noCatalogo ? "" : "fora-catalogo") + '">' +
       '<td><span class="cod">' + esc(i.codigo) + "</span>" +
@@ -889,6 +933,8 @@
     if (achar("#ux-veu")) return fecharFicha();
     var sugestao = achar("[data-sugestao]");
     if (sugestao) return abrirSugestao(sugestao.dataset.sugestao);
+    var excluir = achar("[data-excluir]");
+    if (excluir) return excluirImovel(excluir.dataset.excluir);
     var ver = achar("[data-ver]");
     if (ver) return abrirFicha(ver.dataset.ver);
     var linhaTab = achar("#corpo-imoveis tr[data-codigo]");
@@ -932,7 +978,7 @@
       recomecar();
     }
   });
-  $("limpar-data").addEventListener("click", function () {
+  if ($("limpar-data")) $("limpar-data").addEventListener("click", function () {
     st.dataCampo = ""; st.dataPer = ""; st.dataMeses = ""; recomecar();
   });
 

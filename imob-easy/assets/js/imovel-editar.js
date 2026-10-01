@@ -55,7 +55,8 @@
   var COR_SITUACAO = {
     "Disponível": ["#2f7d58", "#e8f7f0"], "Alugado": ["#6d28d9", "#f1eaff"], "Vendido": ["#5d566a", "#efedf3"],
     "Rascunho": ["#5d566a", "#efedf3"], "Em revisão": ["#a8662f", "#fdf2ea"], "Arquivado": ["#5d566a", "#efedf3"],
-    "Removido": ["#b42323", "#fdeef1"], "Indisponível": ["#b42323", "#fdeef1"]
+    "Removido": ["#b42323", "#fdeef1"], "Indisponível": ["#b42323", "#fdeef1"],
+    "Excluído": ["#5d566a", "#efedf3"]
   };
   function corDaSituacao(s) {
     var c = COR_SITUACAO[s] || ["#5d566a", "#efedf3"];
@@ -325,7 +326,8 @@
     if (nome === "condominio") {
       return '<div class="' + classes + '" data-envolve="condominio"><label for="ed-condominio">Condomínio</label>' +
         '<input class="entrada" type="text" id="ed-condominio" placeholder="Digite o nome e escolha na lista">' +
-        '<span class="ed__dica" id="ed-condo-dica"></span></div>';
+        '<span class="ed__dica" id="ed-condo-dica"></span>' +
+        '<div class="ed__no-condo" id="ed-no-condo" hidden></div></div>';
     }
     if (tipo === "booleano") {
       return '<div class="' + classes + ' ed__campo--chave"' + envolve + '>' +
@@ -409,6 +411,7 @@
       '<div class="ed__estado-item"><span class="ed__nay" id="ed-nay"></span></div>' +
       (item.e_parceiro ? '<div class="ed__estado-item"><span class="ed__selo ed__selo--parceiro">imóvel de parceiro</span></div>' : "") +
       '<div class="ed__estado-salvar"><span class="ed__status-salvar" id="ed-status-salvar" role="status"></span>' +
+        (sit === "Excluído" ? "" : '<button class="btn-neutro ed__excluir" type="button" id="ed-excluir">Excluir imóvel</button>') +
         '<button class="btn-azul" type="submit" id="ed-salvar" disabled>Salvar</button></div>';
     atualizarNay();
   }
@@ -584,6 +587,89 @@
      SÓ PREENCHE CAMPO VAZIO. Quem já digitou um endereço sabe de algo que o
      cadastro não sabe, e sobrescrever por conta própria apagaria isso em
      silêncio. O que não coube vai escrito na dica, para a pessoa decidir. */
+  /* ---- quem já está no condomínio (Pedro, 01/10/2026) ----------------------
+     "quando eu crie um imóvel e escolha um condomínio ele já mostre uma listinha
+     de outros imóveis no condomínio para eu não acabar criando o imóvel
+     duplicado". Aparece na hora em que o condomínio é escolhido, com a unidade
+     (torre, apartamento...) de cada um, que é o que diz se é o mesmo imóvel.
+     Cada linha abre o imóvel em outra aba, para conferir sem perder o que já foi
+     digitado aqui. */
+  var pedidoDoCondo = 0;
+  function mostrarDoCondominio() {
+    var caixa = $("ed-no-condo");
+    if (!caixa) return;
+    var escolhido = seletorCondo && seletorCondo.valores()[0];
+    if (!escolhido || !escolhido.id) { caixa.hidden = true; caixa.innerHTML = ""; return; }
+    var meu = ++pedidoDoCondo;   // trocou de condomínio no meio: vale só a última resposta
+    caixa.hidden = false;
+    caixa.innerHTML = '<p class="ed__no-condo-tit">Procurando os imóveis já cadastrados neste condomínio…</p>';
+    fetch("api/imoveis/do-condominio/" + encodeURIComponent(escolhido.id), { credentials: "same-origin" })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function (d) {
+        if (meu !== pedidoDoCondo) return;
+        var itens = (d.itens || []).filter(function (i) { return String(i.codigo) !== String(codigo || ""); });
+        if (!itens.length) {
+          caixa.innerHTML = '<p class="ed__no-condo-tit ed__no-condo-tit--vazio">Nenhum ' + (novo ? "" : "outro ") +
+            "imóvel cadastrado neste condomínio.</p>";
+          return;
+        }
+        var total = Math.max(itens.length, (d.total || 0) - ((d.itens || []).length - itens.length));
+        caixa.innerHTML =
+          '<p class="ed__no-condo-tit"><b>' + (total === 1 ? "Já existe 1 imóvel" : "Já existem " + total + " imóveis") +
+            " neste condomínio.</b> Confira se não é o mesmo antes de " + (novo ? "cadastrar" : "salvar") + ":</p>" +
+          '<ul class="ed__no-condo-lista">' + itens.map(function (i) {
+            var partes = [i.tipo, i.quartos ? i.quartos + " quarto" + (i.quartos > 1 ? "s" : "") : "",
+                          i.area ? Math.round(i.area) + " m²" : ""].filter(Boolean).join(", ");
+            var miolo = '<span class="ed__no-condo-cod">' + esc(i.codigo) + "</span>" +
+              '<span class="ed__no-condo-sit" style="' + corDaSituacao(i.status) + '">' + esc(i.status) + "</span>" +
+              '<span class="ed__no-condo-unidade">' + (i.unidade ? esc(i.unidade) : "sem unidade informada") + "</span>" +
+              '<span class="ed__no-condo-resto">' + esc([partes, i.valor, i.proprietario].filter(Boolean).join(" · ")) + "</span>";
+            return "<li>" + (i.noCatalogo
+              ? '<a href="imovel-editar.html?codigo=' + encodeURIComponent(i.codigo) + '" target="_blank" rel="noopener" title="Abrir em outra aba">' + miolo + "</a>"
+              : '<span class="ed__no-condo-so-consulta" title="Imóvel só do admin antigo">' + miolo + "</span>") + "</li>";
+          }).join("") + "</ul>" +
+          (total > itens.length ? '<p class="ed__dica">Mostrando ' + itens.length + " de " + total + ".</p>" : "");
+      })
+      .catch(function () {
+        if (meu !== pedidoDoCondo) return;
+        caixa.innerHTML = '<p class="ed__no-condo-tit ed__no-condo-tit--vazio">Não consegui buscar os imóveis deste condomínio. ' +
+          "Confira na lista de imóveis antes de cadastrar.</p>";
+      });
+  }
+
+  /* ---- excluir (Pedro, 01/10/2026: "e também uma opção de excluir imóvel") ---
+     Linha de imóvel nunca se apaga do banco: excluir é a situação "Excluído",
+     que tira do site, da Nay e da lista. Volta pelo filtro Situação > Excluído. */
+  function excluirEsteImovel() {
+    if (novo || !codigo) return;
+    if (!window.confirm("Excluir o imóvel " + codigo + "?\n\n" +
+        "Ele sai do site, da Nay e da lista de imóveis.\n" +
+        "Fica guardado em Situação > Excluído, de onde dá para trazer de volta.")) return;
+    var botao = $("ed-excluir"), status = $("ed-status-salvar");
+    if (botao) botao.disabled = true;
+    fetch("api/imoveis/" + encodeURIComponent(codigo), {
+      method: "PUT", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "Excluído" })
+    })
+      .then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (d) {
+          if (!r.ok) throw new Error((d.detalhes && d.detalhes.join("; ")) || d.erro || ("HTTP " + r.status));
+        });
+      })
+      .then(function () { window.location.href = "imoveis.html"; })
+      .catch(function (e) {
+        if (botao) botao.disabled = false;
+        if (status) {
+          status.className = "ed__status-salvar ed__status-salvar--erro";
+          status.textContent = "Não consegui excluir: " + e.message;
+        }
+      });
+  }
+  document.addEventListener("click", function (e) {
+    if (e.target && e.target.id === "ed-excluir") excluirEsteImovel();
+  });
+
   function preencherDoCondominio() {
     var escolhido = seletorCondo && seletorCondo.valores()[0];
     if (!escolhido || !escolhido.id) return;
@@ -704,7 +790,7 @@
     if (campoCondo && window.criarSeletorCondominio) {
       seletorCondo = window.criarSeletorCondominio(campoCondo, {
         multiplo: false,
-        aoMudar: function () { atualizarBotao(); preencherDoCondominio(); }
+        aoMudar: function () { atualizarBotao(); preencherDoCondominio(); mostrarDoCondominio(); }
       });
       if (condoInicial) seletorCondo.definir([condoInicial]);
       if (!novo && item.condominio_nome && !item.condo_id) {

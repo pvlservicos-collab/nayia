@@ -810,7 +810,7 @@ def api_condominios():
             params.append(q)
         linhas = todas_linhas(conn, """
             WITH v AS (SELECT codigo, condo_id, status, lower(nay_sem_acento(condominio)) AS cn
-                         FROM vw_imoveis_todos),
+                         FROM vw_imoveis_todos WHERE status <> 'Excluído'),
                  cn AS (SELECT id, lower(nay_sem_acento(nome)) AS nn FROM condominios),
                  lig AS (SELECT cn.id, v.codigo, v.status FROM cn JOIN v ON v.condo_id = cn.id
                          UNION
@@ -859,7 +859,7 @@ def api_condominios_aba():
     try:
         linhas = todas_linhas(conn, """
             WITH v AS (SELECT codigo, condo_id, status, lower(nay_sem_acento(condominio)) AS cn
-                         FROM vw_imoveis_todos),
+                         FROM vw_imoveis_todos WHERE status <> 'Excluído'),
                  base AS (SELECT 'c' || c.id AS chave, c.id AS condo_id, c.nome, c.bairro, f.id AS ficha_id
                             FROM condominios c LEFT JOIN condominio_ficha f ON f.condominio_id = c.id
                           UNION ALL
@@ -1569,7 +1569,7 @@ def api_cadastro_pendente():
         "fotos": l["fotos"], "fotosDeFora": l["fotos_de_fora"], "dono": l["dono"],
         "quando": l["atualizado"].isoformat() if l["atualizado"] else None,
         "dados": l["dados"] or None,
-    } for l in linhas]
+    } for l in linhas if l["status"] != STATUS_EXCLUIDO]   # imóvel excluído não pede mais cadastro
     # o mais incompleto primeiro: é o que mais precisa de gente
     itens.sort(key=lambda x: (x["fonte"] != "ficha", x["pct"] if x["pct"] is not None else -1, -(x["codigo"] or 0)))
     return jsonify({"itens": itens, "total": len(itens)})
@@ -1678,6 +1678,69 @@ def api_imovel_privado(codigo):
         conn.close()
 
 
+@app.route("/admin/api/imoveis/do-condominio/<int:cid>")
+def api_imoveis_do_condominio(cid):
+    """OS IMÓVEIS QUE JÁ EXISTEM NO CONDOMÍNIO (Pedro, 01/10/2026: "quando eu crie
+    um imóvel e escolha um condomínio ele já mostre uma listinha de outros imóveis
+    no condomínio para eu não acabar criando o imóvel duplicado").
+
+    Ligados pelo id OU pelo nome (o mesmo critério da lista e da aba Condomínios).
+    Vem com a UNIDADE (torre, bloco, apartamento, casa, lote): é ela que diz se é o
+    mesmo imóvel -- e por ser dado privado, só com a senha do /admin. O Excluído
+    fica de fora."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    # DUAS LEITURAS, cada uma com o papel que enxerga a sua parte: a visão dos
+    # imóveis é do papel de leitura; a unidade (imovel_privado) só o de escrita lê.
+    conn = conectar()
+    try:
+        linhas = todas_linhas(conn, """
+            SELECT v.codigo, v.status, v.tipo, v.quartos, v.area_total, v.valor_venda, v.valor_aluguel,
+                   v.valor_texto, v.proprietario_nome, v.no_catalogo,
+                   count(*) OVER () AS total
+              FROM vw_imoveis_todos v
+             WHERE (v.condo_id = %s
+                    OR (v.condo_id IS NULL AND lower(nay_sem_acento(v.condominio)) =
+                        (SELECT lower(nay_sem_acento(nome)) FROM condominios WHERE id = %s)))
+               AND v.status <> %s
+             ORDER BY (v.status = 'Disponível') DESC, v.codigo DESC
+             LIMIT 200""", (cid, cid, STATUS_EXCLUIDO))
+    finally:
+        conn.close()
+    unidades = {}
+    if linhas:
+        conn = conectar_escrita()
+        try:
+            for u in todas_linhas(conn, "SELECT codigo, torre, bloco, unidade, casa, lote FROM imovel_privado "
+                                        "WHERE codigo = ANY(%s)", ([l["codigo"] for l in linhas],)):
+                unidades[u["codigo"]] = u
+        finally:
+            conn.close()
+
+    def valor(l):
+        partes = []
+        if l["valor_venda"]:
+            partes.append("Venda " + formatar_reais(l["valor_venda"]))
+        if l["valor_aluguel"]:
+            partes.append("Aluguel " + formatar_reais(l["valor_aluguel"]))
+        return " · ".join(partes) or (l["valor_texto"] or "")
+
+    def unidade(l):
+        u = unidades.get(l["codigo"]) or {}
+        rotulos = (("torre", "Torre"), ("bloco", "Bloco"), ("unidade", "Apto"), ("casa", "Casa"), ("lote", "Lote"))
+        return " · ".join(r + " " + str(u[c]).strip() for c, r in rotulos if u.get(c) and str(u[c]).strip())
+
+    return jsonify({
+        "total": linhas[0]["total"] if linhas else 0,
+        "itens": [{
+            "codigo": str(l["codigo"]), "status": l["status"], "tipo": l["tipo"] or "",
+            "quartos": l["quartos"], "area": float(l["area_total"]) if l["area_total"] else None,
+            "valor": valor(l), "unidade": unidade(l),
+            "proprietario": l["proprietario_nome"] or "", "noCatalogo": l["no_catalogo"],
+        } for l in linhas],
+    })
+
+
 @app.route("/admin/api/imoveis/valores")
 def api_imovel_valores():
     """As listas que descem no cadastro, tiradas do proprio catalogo: as de
@@ -1722,11 +1785,20 @@ def _csv(cabecalho, linhas, nome):
                               headers={"Content-Disposition": 'attachment; filename="%s.csv"' % nome})
 
 
+# EXCLUIR IMÓVEL (Pedro, 01/10/2026: "e também uma opção de excluir imóvel").
+# Linha de `imoveis` NUNCA se apaga (regra do CLAUDE.md), então excluir é uma
+# situação: "Excluído". Como toda situação que não é Disponível, sai do site e
+# da Nay (ver api_imovel_salvar) e fica travado contra a leitura do site antigo.
+# A diferença para "Removido" (que é o que a planilha do site antigo chama de
+# removido, 755 imóveis) é que o Excluído SOME DA LISTA: só aparece para quem
+# marca "Excluído" no filtro de situação -- e de lá dá para trazer de volta,
+# trocando a situação.
+STATUS_EXCLUIDO = "Excluído"
 STATUS_IMOVEL = ("Disponível", "Alugado", "Vendido", "Arquivado", "Removido",
-                 "Rascunho", "Em revisão", "Indisponível", "Fora do site")
+                 "Rascunho", "Em revisão", "Indisponível", "Fora do site", STATUS_EXCLUIDO)
 # O que se escolhe na lista suspensa: "Fora do site" não é situação, é anúncio.
 STATUS_EDITAVEIS = ("Disponível", "Alugado", "Vendido", "Rascunho", "Em revisão",
-                    "Arquivado", "Removido", "Indisponível")
+                    "Arquivado", "Removido", "Indisponível", STATUS_EXCLUIDO)
 
 
 
@@ -1793,6 +1865,12 @@ def api_imoveis_lista():
     status = [x for x in str(a.get("status") or "").split(",") if x in STATUS_IMOVEL]
     if status:
         grupos.setdefault("status", []).append(("v.status = ANY(%s)", [status]))
+    else:
+        # sem situação marcada, o Excluído não aparece (nem na lista, nem no mapa,
+        # nem nas contagens dos outros filtros). Fica no grupo "status" de
+        # propósito: a contagem ao lado de cada situação ignora o próprio grupo,
+        # e é assim que o número de "Excluído" continua à vista no filtro.
+        grupos.setdefault("status", []).append(("v.status <> %s", [STATUS_EXCLUIDO]))
 
     grupo = a.get("grupo")
     if grupo in ("apartamento", "casa", "outros", "sem_tipo"):
@@ -2001,7 +2079,7 @@ def api_imoveis_lista():
                    count(*) FILTER (WHERE e_parceiro) AS parceiros,
                    count(*) FILTER (WHERE fotos > 0) AS com_foto,
                    count(*) AS todos
-              FROM vw_imoveis_todos""")[0]
+              FROM vw_imoveis_todos WHERE status <> %s""", (STATUS_EXCLUIDO,))[0]
 
         # ---- a base das contagens: uma leitura, o resto e conta no Python ----
         where_base, params_base = montar(base)
@@ -2017,7 +2095,7 @@ def api_imoveis_lista():
 
         # como cada grupo ja escolhido peneira a base, em Python
         PENEIRA = {
-            "status": lambda l: l["status"] in status,
+            "status": lambda l: (l["status"] in status) if status else l["status"] != STATUS_EXCLUIDO,
             "tipo": lambda l: ((not grupo or l["grupo_tipo"] == grupo)
                                and (not tipo or (l["tipo"] or "").lower().startswith(tipo.lower()))),
             "fin": lambda l: (l["e_venda"] if fin == "venda" else l["e_aluguel"]),
