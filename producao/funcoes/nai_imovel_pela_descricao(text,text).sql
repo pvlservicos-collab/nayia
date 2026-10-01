@@ -14,12 +14,10 @@ BEGIN
   -- O BAIRRO. Mesmo criterio de nai_pedido_de_perfil: casa o nome inteiro e,
   -- para nome de tres palavras ou mais, as duas primeiras -- ninguem escreve
   -- "Parque 10 de Novembro" no WhatsApp.
-  SELECT b.bairro INTO v_bairro FROM (
-    SELECT DISTINCT i.bairro FROM imoveis i WHERE nullif(btrim(i.bairro), '') IS NOT NULL) b
-   WHERE s_lugar LIKE '%' || nay_normalizar_lugar(b.bairro, true) || '%'
-      OR (array_length(string_to_array(nay_normalizar_lugar(b.bairro, true), ' '), 1) >= 3
-          AND s_lugar LIKE '%' ||
-              array_to_string((string_to_array(nay_normalizar_lugar(b.bairro, true), ' '))[1:2], ' ') || '%')
+  -- 241: a tabela bairro_normal no lugar da varredura
+  SELECT b.bairro INTO v_bairro FROM bairro_normal b
+   WHERE s_lugar LIKE '%' || b.normal || '%'
+      OR (b.dois IS NOT NULL AND s_lugar LIKE '%' || b.dois || '%')
    ORDER BY length(b.bairro) DESC LIMIT 1;
 
   -- SEM BAIRRO NAO HA BUSCA. "Tem casa?" sozinho traria o catalogo inteiro, e

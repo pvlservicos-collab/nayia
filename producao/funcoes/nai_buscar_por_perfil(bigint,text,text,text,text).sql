@@ -57,7 +57,11 @@ BEGIN
          (nullif(btrim(coalesce(p_bairro, '')), '') IS NOT NULL AND v_perfil.bairros IS NOT NULL
           AND NOT nai_sem_preferencia_de_bairro(p_bairro)
           AND nay_normalizar_lugar(p_bairro, true) <> nay_normalizar_lugar(v_perfil.bairros, true))
-      OR (v_teto IS NOT NULL AND v_perfil.teto IS NOT NULL AND abs(v_teto - v_perfil.teto) > 0.1 * v_perfil.teto);
+      OR (v_teto IS NOT NULL AND v_perfil.teto IS NOT NULL AND abs(v_teto - v_perfil.teto) > 0.1 * v_perfil.teto)
+      -- 241: trocou de locação para venda (ou o contrário) = outro cliente, outro pedido
+      OR (v_perfil.negocio IS NOT NULL
+          AND nai_negocio_das_falas(array[concat_ws(' ', t.texto, p_teto)]) IS NOT NULL
+          AND nai_negocio_das_falas(array[concat_ws(' ', t.texto, p_teto)]) <> v_perfil.negocio);
     IF NOT v_pedido_novo THEN
       p_bairro   := coalesce(nullif(btrim(coalesce(p_bairro, '')), ''), v_perfil.bairros);
       p_teto     := coalesce(nullif(btrim(coalesce(p_teto, '')), ''), v_perfil.teto::text);
@@ -136,7 +140,12 @@ BEGIN
   -- so "700 mil". O que ele pediu no comeco esta nos turnos de tras -- por
   -- isso a leitura e da CONVERSA, e nao so desta mensagem.
   v_negocio := nai_negocio_da_conversa(k.id, concat_ws(' ', t.texto, p_teto));
-  v_tipo    := nai_tipo_da_conversa(k.id, concat_ws(' ', t.texto, p_bairro));
+  -- 241: PEDIDO NOVO, TIPO NOVO. Só vale o tipo dito NESTE pedido -- senão a casa do
+  -- pedido anterior responde pelo apartamento deste. Sem tipo, a busca pergunta
+  -- "casa ou apartamento?" (152), que é o certo.
+  v_tipo    := CASE WHEN v_pedido_novo
+                    THEN nai_tipo_pedido(concat_ws(' ', t.texto, p_bairro))
+                    ELSE nai_tipo_da_conversa(k.id, concat_ws(' ', t.texto, p_bairro)) END;
   v_rotulo  := nai_rotulo_do_tipo(v_tipo);
   v_nada    := CASE WHEN v_rotulo IS NULL THEN 'nenhum imóvel'
                     WHEN v_rotulo IN ('casa', 'cobertura', 'sala', 'chácara') THEN 'nenhuma ' || v_rotulo

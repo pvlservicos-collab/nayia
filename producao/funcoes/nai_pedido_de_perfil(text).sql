@@ -17,12 +17,10 @@ BEGIN
   -- busca: "tem algo em Ponta Negra?" nao fala a palavra "apartamento".
   -- Casa o nome inteiro; e, para nome de tres palavras ou mais, as duas
   -- primeiras -- ninguem escreve "Parque 10 de Novembro" no WhatsApp.
-  SELECT b.bairro INTO v_bairro FROM (
-    SELECT DISTINCT i.bairro FROM imoveis i WHERE nullif(btrim(i.bairro), '') IS NOT NULL) b
-   WHERE s_lugar LIKE '%' || nay_normalizar_lugar(b.bairro, true) || '%'
-      OR (array_length(string_to_array(nay_normalizar_lugar(b.bairro, true), ' '), 1) >= 3
-          AND s_lugar LIKE '%' ||
-              array_to_string((string_to_array(nay_normalizar_lugar(b.bairro, true), ' '))[1:2], ' ') || '%')
+  -- 241: a tabela bairro_normal no lugar da varredura (222 ms -> 1 ms)
+  SELECT b.bairro INTO v_bairro FROM bairro_normal b
+   WHERE s_lugar LIKE '%' || b.normal || '%'
+      OR (b.dois IS NOT NULL AND s_lugar LIKE '%' || b.dois || '%')
    ORDER BY length(b.bairro) DESC LIMIT 1;
 
   -- ------------------------------------------------------------ e uma BUSCA?
@@ -31,7 +29,11 @@ BEGIN
   -- entao sem eles a regex vira so o primeiro pedaco -- e quebra.
   v_busca := s ~ ('\m(procuro|procurando|proucurando|busco|buscando|preciso de|precisa de|'
                  || 'teria|tem algum|tem alguma|tem algo|tem apartamento|tem apto|tem casa|tem kit|'
-                 || 'voce tem|vc tem|vcs tem|voces tem|tens|quero um|quero uma|queria um|queria uma|'
+                 || 'voce tem|vc tem|vcs tem|voces tem|tens|tu tem|tu tens|quero um|quero uma|queria um|queria uma|'
+                 -- 241: medido no corpus de 12 dias -- o jeito que eles escrevem
+                 || 'quer um|quer uma|teria algum|teria alguma|voce teria|vc teria|'
+                 || 'alguma locacao|alguma venda|algum para alugar|algo para alugar|algo para comprar|'
+                 || 'com um cliente|com uma cliente|para alugar|pra alugar|para comprar|pra comprar|'
                  || 'tenho cliente|meu cliente|cliente quer|cliente procura|cliente busca|'
                  -- 16/09: "Estou com uma cliente querendo algo, com modulados e
                  -- ar, ate 4.200" nao era reconhecido como busca. Quem diz
