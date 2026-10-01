@@ -61,6 +61,36 @@ BEGIN
   -- 16/09: a leitura da pausa passou a ser uma so, em `nai_tel_com_a_conversa`
   -- -- que sabe do gap. Antes eram tres copias de
   -- `humano_assumiu_em IS NOT NULL`, e com a janela entrando elas iam divergir.
+  -- 240: A DÚVIDA ERA DE OUTRO IMÓVEL. Chat pausado por "dúvida fora da base" e ele
+  -- MARCA ou CITA um imóvel diferente do que foi escalado: a pausa cai e a Nay
+  -- atende (a base pode saber a resposta do imóvel certo). O Tel é avisado.
+  DECLARE
+    v_irmaos bigint[] := coalesce(nai_contato_irmaos(v_contato), ARRAY[v_contato]);
+    v_cit    int;
+    v_esc    int;
+  BEGIN
+    IF EXISTS (SELECT 1 FROM nai_contato c WHERE c.id = ANY (v_irmaos) AND c.humano_motivo ~ '^duvida fora da base') THEN
+      v_cit := coalesce(
+        nullif(regexp_replace(coalesce(nay_imovel_da_citacao(p_citado_id), ''), '\D', '', 'g'), '')::int,
+        (SELECT x::int FROM unnest(coalesce(nay_codigos_citados(v_texto), '{}'::text[])) x
+          WHERE x ~ '^[0-9]{3,5}$' AND EXISTS (SELECT 1 FROM imoveis i WHERE i.codigo = x::int) LIMIT 1));
+      SELECT t.codigo INTO v_esc FROM nai_turno t
+       WHERE t.contato_id = ANY (v_irmaos) AND 'escalar' = ANY (coalesce(t.ferramentas, '{}'))
+       ORDER BY t.id DESC LIMIT 1;
+      IF v_cit IS NOT NULL AND v_cit IS DISTINCT FROM v_esc THEN
+        UPDATE nai_contato SET humano_assumiu_em = NULL, humano_motivo = NULL WHERE id = ANY (v_irmaos);
+        BEGIN
+          PERFORM nai_avisar_tel(NULL, NULL,
+            'Tel, pode desconsiderar a dúvida de ' || coalesce(nullif(btrim(p_nome), ''), 'um corretor')
+            || coalesce(' sobre o ' || nai_ref_imovel(v_esc), '') || ': ela falava de outro imóvel ('
+            || coalesce(nai_ref_imovel(v_cit), 'código ' || v_cit) || '), marcou o card e eu voltei a atender.',
+            'duvida_era_de_outro_imovel');
+        EXCEPTION WHEN others THEN NULL;   -- o aviso nunca derruba o atendimento
+        END;
+      END IF;
+    END IF;
+  END;
+
   IF nai_tel_com_a_conversa(v_contato)
      AND NOT (v_teste AND v_texto ~* '^\s*(t|tel)\s*[:\-–]') THEN
     UPDATE mensagens SET status = 'Com o Tel' WHERE id = ANY (coalesce(p_ids, '{}')) AND status IN ('Recebido', 'Processando');

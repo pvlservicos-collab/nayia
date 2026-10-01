@@ -49,11 +49,15 @@ BEGIN
   -- O QUE ESTA DE PE. `nai_oferta_serve` e o mesmo crivo que a busca usa: o
   -- que ela nao ofereceria numa busca tambem nao serve para identificar aqui.
   SELECT coalesce(array_agg(z.c ORDER BY z.v), '{}') INTO v_cods FROM (
-    SELECT i.codigo AS c, i.valor_aluguel AS v FROM imoveis i
+    -- 240: locação E venda, e inclusive o que já foi enviado a ele (é justamente
+    -- do que ele recebeu que ele costuma perguntar)
+    SELECT i.codigo AS c, coalesce(nullif(i.valor_aluguel, 0), i.valor_venda) AS v FROM imoveis i
      WHERE nay_normalizar_lugar(i.bairro, true) = nay_normalizar_lugar(v_bairro, true)
        AND i.tipo ILIKE v_tipo
-       AND nai_oferta_serve(i, coalesce(p_telefone, ''), NULL, NULL, false, false)
-     ORDER BY i.valor_aluguel LIMIT 9) z;
+       AND nay_esta_no_mercado(i.disponivel, i.bloqueado, i.publicado_no_site)
+       AND NOT coalesce(i.e_parceiro, false)
+       AND (coalesce(i.valor_aluguel, 0) > 0 OR coalesce(i.valor_venda, 0) > 0)
+     ORDER BY 2 LIMIT 9) z;
 
   IF coalesce(array_length(v_cods, 1), 0) = 0 THEN
     RETURN jsonb_build_object('achou', false, 'bairro', v_bairro, 'rotulo', v_rotulo, 'vazio', true);

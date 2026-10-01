@@ -84,6 +84,31 @@ BEGIN
   ) y WHERE c IS NOT NULL AND EXISTS (SELECT 1 FROM imoveis i WHERE i.codigo = y.c);
 
   v_cods := ARRAY(SELECT c FROM unnest(v_cods) c WHERE nai_finalidade_serve(c, v_neg) OR c = ANY (v_dele));  -- 190
+  -- 240: ELE DESCREVEU O IMÓVEL (tipo + bairro: "o apartamento da Chapada"). Só
+  -- serve o que bate; sem isto valia o último imóvel da conversa, de outro tipo e
+  -- outro bairro (Raquel, 30/09: a casa do Parque 10 no lugar do 9004).
+  IF nai_tipo_pedido(p_texto) IS NOT NULL THEN
+    DECLARE
+      v_desc  jsonb := nai_imovel_pela_descricao(p_texto, k.telefone);
+      v_bate  int[];
+    BEGIN
+      IF v_desc ? 'bairro' THEN
+        v_bate := ARRAY(SELECT i.codigo FROM imoveis i
+                         WHERE i.codigo = ANY (v_cods) AND i.tipo ILIKE nai_tipo_pedido(p_texto)
+                           AND nay_normalizar_lugar(i.bairro, true) = nay_normalizar_lugar(v_desc->>'bairro', true));
+        IF coalesce(array_length(v_bate, 1), 0) = 1 THEN
+          RETURN v_bate[1];
+        ELSIF coalesce(array_length(v_bate, 1), 0) >= 2 THEN
+          v_cods := v_bate;
+        ELSIF coalesce((v_desc->>'quantos')::int, 0) = 1 THEN
+          RETURN (v_desc->'codigos'->>0)::int;     -- o único do catálogo com essa descrição
+        ELSE
+          RETURN NULL;                             -- descreveu outro imóvel: ela pergunta qual
+        END IF;
+      END IF;
+    END;
+  END IF;
+
   IF coalesce(array_length(v_cods, 1), 0) = 0 THEN RETURN NULL; END IF;
 
   -- 3. ele chamou pelo NOME ("me manda foto do arezzo")
