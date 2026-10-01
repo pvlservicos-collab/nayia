@@ -49,6 +49,9 @@ numerada em `Arquivos/nai/NNN_*.sql` (a próxima é a maior + 1) → `./scripts/
 
 ## n8n (fluxo `NAI atendimento locação`, `producao/n8n/`)
 - Import só de madrugada (espelho-madrugada). Modelo/memória: pela interface. Ler execuções: sqlite só leitura (scratch `n8nq.sh`).
+- O procedimento da madrugada está em `scripts/madrugada/` (cópia em `/root/`): exporta o fluxo vivo, aplica um
+  patch de UM nó com contagem exata, reimporta, religa e reinicia, e devolve o backup se os fluxos não voltarem
+  ativos. Travas: só 1h–5h de Manaus e só com a Nay parada. Depois do import, rodar `./scripts/foto_producao.sh`.
 - Testar sem WhatsApp: espelho `…0001` via `/root/nai_treino_rodar.py` ou POST no webhook `172.16.0.2:5678/webhook/nai-atendimento-locacao`.
 
 ## Regras que valem sempre
