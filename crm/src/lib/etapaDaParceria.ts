@@ -20,13 +20,22 @@
  * costuma vir DEPOIS da visita, e quem está juntando documento não está mais
  * esperando visita.
  *
- * E A MÃO MANDA SOBRE A NAY: o que alguém escolhe no card do lead
- * (`custom_attributes.etapa_parceria`) vale mais que o que a Nay deduziu. Quem
- * está olhando a conversa sabe de coisa que o banco não sabe.
+ * O FATO MANDA, A MÃO NÃO TRANCA (Pedro, 01/10/2026: "não quero isso de escolha
+ * à mão ganhar de nada, isso tudo é um estado temporário").
  *
- * MENOS A VISITA (01/10/2026): visita passada à equipe é fato, e é temporária.
- * Ela ganha da escolha à mão enquanto durar; depois a escolha volta a valer. Só
- * 'fechamento' escolhido à mão ganha dela, porque é etapa mais adiante.
+ * Até 01/10 a escolha do card (`custom_attributes.etapa_parceria`) ganhava de
+ * tudo e não vencia: quem foi marcado "Todos" uma vez nunca mais aparecia em
+ * Visitas, mesmo com visita confirmada -- foi o caso da Solange, com a visita
+ * #1062 marcada e o card parado em Todos.
+ *
+ * Agora: proprietário, acompanhante, fechamento e visita (o que a Nay SABE)
+ * decidem sempre. A escolha à mão só preenche o vazio -- quando a Nay não sabe
+ * nada -- e vale 7 dias, a mesma validade que a Nay dá à escolha dela
+ * (`nai_etapa_manual.valido_ate`, migração 201). Nada aqui é permanente.
+ *
+ * Escolher "Todos" continua tendo efeito de verdade, e é do lado da Nay:
+ * `crm_etapa_manual` conclui o fechamento aberto e tira a marca de humano -- o
+ * FATO sai, e a conversa volta para Todos por consequência, não por trava.
  */
 import type { MarcaDaNay } from '@/lib/tiposNay'
 
@@ -61,26 +70,30 @@ export function etapaEscolhidaAMao(lead: { custom_attributes?: any } | null | un
   return v && (ETAPAS_DA_PARCERIA as readonly string[]).includes(v) ? (v as EtapaParceria) : null
 }
 
+/** A escolha do card dura 7 dias, como a da Nay. Depois ela não conta mais. */
+export const VALIDADE_DA_ESCOLHA_MS = 7 * 24 * 3600_000
+
+function escolhaAindaValida(lead: { custom_attributes?: any } | null | undefined, agora = Date.now()): EtapaParceria | null {
+  const etapa = etapaEscolhidaAMao(lead)
+  if (!etapa) return null
+  const em = Date.parse(String(lead?.custom_attributes?.etapa_parceria_em || ''))
+  // escolha antiga sem data: conta (é de antes de guardarmos a data)
+  if (!Number.isFinite(em)) return etapa
+  return agora - em <= VALIDADE_DA_ESCOLHA_MS ? etapa : null
+}
+
 export function etapaDaParceria(
   lead: { custom_attributes?: any } | null | undefined,
   marca: MarcaDaNay | undefined,
+  agora = Date.now(),
 ): EtapaParceria {
-  const aMao = etapaEscolhidaAMao(lead)
-  /* A VISITA CONFIRMADA GANHA DA ESCOLHA À MÃO (Pedro, 01/10/2026: "foi
-     confirmado a visita mas ela não moveu a corretora para a aba da etapa de
-     visita, isso precisa acontecer").
-     A visita é FATO e é TEMPORÁRIA: acaba na hora dela + 120 min e a escolha à
-     mão volta a valer sozinha. Sem isto, quem foi marcado "Todos" uma vez nunca
-     mais aparecia em Visitas -- foi o caso da Solange em 01/10, com a visita
-     #1062 confirmada e o card parado em Todos.
-     'fechamento' escolhido à mão continua ganhando: é mais adiante que visita. */
-  if (marca?.visitaRayssa && aMao !== 'fechamento') return 'visitas'
-  if (aMao) return aMao
+  /* O QUE A NAY SABE decide, nesta ordem (a de sempre): proprietário é regra do
+     Tel e manda sobre tudo; fechamento é mais adiante que visita; o André mora
+     em Visitas porque acompanha. */
   if (marca?.proprietario) return 'proprietarios'
-  // O André mora em Visitas (Pedro, 30/09): ele acompanha, então está sempre
-  // nessa etapa, mesmo sem visita passada à Rayssa no nome dele.
   if (marca?.acompanhante) return 'visitas'
   if (marca?.fechamentoId != null) return 'fechamento'
   if (marca?.visitaRayssa) return 'visitas'
-  return 'todos'
+  // a Nay não sabe de nada: aí vale o que alguém escolheu, enquanto for recente
+  return escolhaAindaValida(lead, agora) ?? 'todos'
 }
