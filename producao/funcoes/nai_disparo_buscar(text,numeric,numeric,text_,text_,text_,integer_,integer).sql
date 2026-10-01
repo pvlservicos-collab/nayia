@@ -7,6 +7,7 @@ AS $function$
   WITH f AS (
     SELECT nullif(btrim(lower(coalesce(p_finalidade, ''))), '') AS fin,
            (SELECT array_agg(nay_normalizar_lugar(x, true)) FROM unnest(p_bairros) x WHERE btrim(x) <> '') AS bairros,
+           (SELECT array_agg(btrim(x)) FROM unnest(p_bairros) x WHERE btrim(x) <> '') AS lugares,
            (SELECT array_agg(lower(btrim(x))) FROM unnest(p_mobilias) x WHERE btrim(x) <> '') AS mobs,
            (SELECT array_agg(btrim(x)) FROM unnest(p_tipos) x WHERE btrim(x) <> '') AS tipos,
            (SELECT array_agg(x) FROM unnest(p_quartos) x WHERE x IS NOT NULL) AS qts
@@ -24,6 +25,7 @@ AS $function$
      AND (f.fin IS NULL
           OR (f.fin = 'aluguel' AND coalesce(i.valor_aluguel, 0) > 0)
           OR (f.fin = 'venda' AND coalesce(i.valor_venda, 0) > 0))
+     -- o preço continua firme: sem preço não cabe em faixa de preço
      AND (CASE f.fin
             WHEN 'aluguel' THEN (p_vmin IS NULL OR i.valor_aluguel >= p_vmin) AND (p_vmax IS NULL OR i.valor_aluguel <= p_vmax)
             WHEN 'venda'   THEN (p_vmin IS NULL OR i.valor_venda >= p_vmin) AND (p_vmax IS NULL OR i.valor_venda <= p_vmax)
@@ -31,13 +33,26 @@ AS $function$
               OR (nullif(i.valor_aluguel, 0) >= coalesce(p_vmin, 0) AND nullif(i.valor_aluguel, 0) <= coalesce(p_vmax, 1e12))
               OR (nullif(i.valor_venda, 0) >= coalesce(p_vmin, 0) AND nullif(i.valor_venda, 0) <= coalesce(p_vmax, 1e12))
           END)
+     -- ONDE: bairro, e também conjunto e avenida (o mesmo da aba Imóveis, 229/231)
      AND (f.bairros IS NULL OR EXISTS (
-            SELECT 1 FROM unnest(f.bairros) b WHERE nay_normalizar_lugar(i.bairro, true) LIKE '%' || b || '%'))
+            SELECT 1 FROM unnest(f.bairros) b WHERE nay_normalizar_lugar(i.bairro, true) LIKE '%' || b || '%')
+          OR i.bairro IN (SELECT unnest(nai_bairros_do_conjunto(x)) FROM unnest(f.lugares) x)
+          OR EXISTS (SELECT 1 FROM imovel_lugar l
+                      WHERE l.codigo = i.codigo AND (l.conjuntos && f.lugares OR l.avenidas && f.lugares)))
+     -- MOBÍLIA: o que não sabemos não é escondido (Pedro, 01/10). O campo
+     -- PREENCHIDO manda: quem pede "Mobiliado" não recebe o que o cadastro diz
+     -- ser semi -- isso não é flexibilidade, é o filtro deixar de filtrar. A
+     -- dúvida só entra quando o campo está VAZIO; aí quem olha a tela decide
+     -- (a coluna mobília aparece vazia na lista).
      AND (f.mobs IS NULL
+          OR coalesce(btrim(i.mobilia), '') = ''
           OR ('mobiliado' = ANY (f.mobs) AND lower(unaccent(coalesce(i.mobilia, ''))) LIKE 'mobiliad%')
           OR ('semi' = ANY (f.mobs) AND lower(unaccent(coalesce(i.mobilia, ''))) LIKE 'semi%'))
-     AND (f.tipos IS NULL OR EXISTS (SELECT 1 FROM unnest(f.tipos) t WHERE i.tipo ILIKE t || '%'))
-     AND (f.qts IS NULL OR coalesce(i.quartos, 0) = ANY (f.qts)
+     -- TIPO e QUARTOS: idem, sem o dado não descarta
+     AND (f.tipos IS NULL OR coalesce(btrim(i.tipo), '') = ''
+          OR EXISTS (SELECT 1 FROM unnest(f.tipos) t WHERE i.tipo ILIKE t || '%'))
+     AND (f.qts IS NULL OR i.quartos IS NULL
+          OR coalesce(i.quartos, 0) = ANY (f.qts)
           OR (4 = ANY (f.qts) AND coalesce(i.quartos, 0) >= 4))
    ORDER BY CASE WHEN f.fin = 'venda' THEN i.valor_venda
                  ELSE coalesce(nullif(i.valor_aluguel, 0), i.valor_venda) END ASC NULLS LAST,

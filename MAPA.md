@@ -9,6 +9,7 @@ numerada em `Arquivos/nai/NNN_*.sql` (a próxima é a maior + 1) → `./scripts/
 |---|---|---|
 | a busca por bairro/valor/quartos/mobília, a ordem das perguntas do filtro | `nai_buscar_por_perfil` | 190, 222, 225 |
 | a faixa de valor (-20%/+10%) | `nai_oferta_serve`, `nai_pede_mais_em_conta`; chaves `faixa_abaixo_pct`/`faixa_acima_pct` | 225 |
+| busca de GENTE x busca da NAY | gente: `nai_disparo_buscar` (não esconde o que não sabemos; entende conjunto/avenida) e `/api/imoveis-lista`. Nay: `nai_oferta_serve` (estrita: mobiliado é só o campo mobília) | 253 |
 | o perfil do cliente (elevador etc.) | `nai_perfil_*`, tabela `nai_perfil_cliente` | 223 |
 | o que a Nay diz antes de mandar (conferências 1–24) | `nai_conferir_resposta` | 213–216, 224 |
 | como a resposta vira mensagens (card, foto, sugestão de visita) | `nai_enfileirar_resposta`, `nai_enfileirar_card` | 224 |

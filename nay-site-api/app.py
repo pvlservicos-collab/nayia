@@ -1939,12 +1939,19 @@ def api_imoveis_lista():
     elif fin == "aluguel":
         grupos.setdefault("fin", []).append(("(coalesce(v.valor_aluguel, 0) > 0 OR v.valor_texto ILIKE 'Aluguel%%')", []))
 
+    # FLEXIBILIDADE NA BUSCA DE GENTE (Pedro, 01/10/2026: "quero flexibilidade na
+    # hora de buscar imoveis manualmente... em todos os lugares onde podemos
+    # buscar manualmente hoje"). O filtro nao esconde o imovel por falta do dado
+    # filtrado: quartos/vagas em branco continuam aparecendo, e quem olha a
+    # tela ve a coluna vazia. Sao 3 e 2 imoveis hoje -- mas eram justamente os
+    # que desapareciam sem ninguem entender por que. O mesmo criterio da tela
+    # Enviar imovel (migracao 253). O PRECO continua firme: sem preco nao cabe
+    # numa faixa de preco.
     for chave, col, nome in (("quartos", "v.quartos", "quartos"), ("vagas", "v.vagas", "vagas")):
         val = str(a.get(chave) or "")
-        if val.endswith("+") and val[:-1].isdigit():
-            grupos.setdefault(nome, []).append((col + " >= %s", [int(val[:-1])]))
-        elif val.isdigit():
-            grupos.setdefault(nome, []).append((col + " >= %s", [int(val)]))
+        n = val[:-1] if val.endswith("+") else val
+        if n.isdigit():
+            grupos.setdefault(nome, []).append(("(" + col + " >= %s OR " + col + " IS NULL)", [int(n)]))
 
     # FAIXA DE VALOR NA COLUNA DA FINALIDADE (28/09). Antes o minimo/maximo
     # comparava com coalesce(venda, aluguel): com "Aluguel" marcado, o imovel
@@ -2099,8 +2106,9 @@ def api_imoveis_lista():
             "tipo": lambda l: ((not grupo or l["grupo_tipo"] == grupo)
                                and (not tipo or (l["tipo"] or "").lower().startswith(tipo.lower()))),
             "fin": lambda l: (l["e_venda"] if fin == "venda" else l["e_aluguel"]),
-            "quartos": lambda l: (l["quartos"] or 0) >= int(re.sub(r"[^\d]", "", a.get("quartos") or "0") or 0),
-            "vagas": lambda l: (l["vagas"] or 0) >= int(re.sub(r"[^\d]", "", a.get("vagas") or "0") or 0),
+            # 01/10: igual ao SQL -- em branco nao e escondido
+            "quartos": lambda l: l["quartos"] is None or l["quartos"] >= int(re.sub(r"[^\d]", "", a.get("quartos") or "0") or 0),
+            "vagas": lambda l: l["vagas"] is None or l["vagas"] >= int(re.sub(r"[^\d]", "", a.get("vagas") or "0") or 0),
             "parceiro": lambda l: l["e_parceiro"] if a.get("parceiro") == "sim" else not l["e_parceiro"],
             "dono": lambda l: (not l["tem_dono"]) if a.get("sem_dono") == "1" else l["tem_dono"],
             "anuncio": lambda l: l["publicado_no_site"] if a.get("anunciado") == "sim" else not l["publicado_no_site"],
