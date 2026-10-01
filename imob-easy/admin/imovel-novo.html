@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Novo imóvel — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/imovel-editar.css?v=20261001-condo">
+<link rel="stylesheet" href="../assets/css/imovel-novo.css?v=20261001">
+<meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
+</head>
+<body class="admin nv" data-pagina="imoveis">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<!--
+  NOVO IMÓVEL, REDESENHADO (Pedro, 01/10/2026: "pega lá e implementa no site,
+  arquivo html novo imóvel cadastro redesenhado").
+
+  O que é novo aqui é a CASCA: a faixa de cima com a porcentagem e a fita de
+  completude por seção, o menu lateral das seções (com o resumo em emoji) e o
+  botão de cadastrar sempre à vista.
+
+  O MOTOR É O MESMO da tela de editar (assets/js/imovel-editar.js): os ids que
+  ele procura estão todos aqui (ed-form, ed-estado, ed-cartoes, ed-titulo...),
+  então quem grava, quem acha o condomínio, quem cuida do proprietário e quem
+  avisa "falta o dono" continua sendo aquele arquivo -- nada de regra de
+  cadastro duplicada em dois lugares. O que esta página acrescenta vive em
+  assets/js/imovel-novo.js, que só LÊ o formulário para desenhar o progresso.
+
+  Depois de cadastrar, o próprio motor leva para imovel-editar.html?criado=1,
+  onde se escolhe a situação. Aqui o imóvel nasce rascunho, como antes.
+-->
+<header class="nv__topo">
+  <div class="nv__topo-in">
+    <div class="nv__ttl">
+      <a class="nv__voltar" href="imoveis.html">&larr; Imóveis</a>
+      <h1 id="ed-titulo">Novo imóvel</h1>
+      <p class="nv__sub" id="ed-sub"></p>
+    </div>
+    <div class="nv__medidor">
+      <div class="nv__medidor-linha">
+        <div class="nv__pct" id="nv-pct">0<small>%</small></div>
+        <div class="nv__medidor-rot">completo</div>
+      </div>
+      <div class="nv__fita" id="nv-fita" role="img" aria-label="Quanto está preenchido em cada seção"></div>
+    </div>
+    <button class="nv__cta" type="button" id="nv-cta">Cadastrar imóvel</button>
+  </div>
+</header>
+
+<main class="nv__wrap ed" id="conteudo">
+  <aside class="nv__lado" id="nv-lado" aria-label="Seções do cadastro"></aside>
+
+  <div class="nv__corpo">
+    <div id="ed-carregando" class="ed__aviso">Carregando os campos…</div>
+
+    <form id="ed-form" hidden novalidate>
+      <!-- o aviso e o botão de verdade; o botão de cima é um atalho para ele -->
+      <div class="ed__estado" id="ed-estado"></div>
+
+      <!-- o motor usa estes dois só quando o imóvel já existe; no cadastro ficam vazios -->
+      <section class="ed__fotos" id="ed-fotos" hidden></section>
+      <div class="ed__falta" id="ed-falta" hidden></div>
+
+      <div class="ed__cartoes" id="ed-cartoes"></div>
+    </form>
+  </div>
+</main>
+
+<!-- a foto grande: o motor procura este bloco mesmo sem foto nenhuma -->
+<dialog class="ed__visor" id="ed-visor" aria-label="Foto do imóvel">
+  <button type="button" class="ed__visor-fechar" data-visor="fechar" aria-label="Fechar">✕</button>
+  <button type="button" class="ed__visor-seta ed__visor-seta--ant" data-visor="ant" aria-label="Foto anterior">‹</button>
+  <img id="ed-visor-img" alt="">
+  <button type="button" class="ed__visor-seta ed__visor-seta--prox" data-visor="prox" aria-label="Próxima foto">›</button>
+  <div class="ed__visor-conta" id="ed-visor-conta"></div>
+</dialog>
+
+<!-- o aviso do proprietário: o salvar pergunta quando o imóvel está sem dono -->
+<dialog class="ed__aviso-dono" id="ed-dono-aviso" aria-labelledby="ed-dono-aviso-titulo">
+  <h2 id="ed-dono-aviso-titulo">Falta o proprietário</h2>
+  <p>Este imóvel está sem os dados do dono (a OLX não traz). Sem eles, a Nay não tem como falar com o proprietário para marcar visita.</p>
+  <div class="ed__aviso-dono-botoes">
+    <button type="button" class="btn-azul" data-aviso-dono="preencher">Preencher agora</button>
+    <button type="button" class="btn-neutro" data-aviso-dono="salvar">Salvar sem o proprietário</button>
+  </div>
+</dialog>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/seletor-condominio.js"></script>
+<script>
+  /* o motor é o mesmo da tela de editar, e ele só nasce vazio com ?novo=1 --
+     aqui isso é o normal, então o endereço não precisa dizer */
+  (function () {
+    var p = new URLSearchParams(location.search);
+    if (p.get("novo") !== "1" && !p.get("codigo")) {
+      p.set("novo", "1");
+      history.replaceState(null, "", location.pathname + "?" + p.toString());
+    }
+  })();
+</script>
+<script src="../assets/js/imovel-editar.js?v=20261001-condo"></script>
+<script src="../assets/js/imovel-novo.js?v=20261001"></script>
+</body>
+</html>
