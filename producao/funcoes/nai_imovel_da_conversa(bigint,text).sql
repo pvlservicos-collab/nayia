@@ -111,6 +111,24 @@ BEGIN
 
   IF coalesce(array_length(v_cods, 1), 0) = 0 THEN RETURN NULL; END IF;
 
+  -- 2b. 257: A PERGUNTA CITA OUTRO CONDOMÍNIO. Se o nome que ele escreveu é de
+  -- um condomínio e NENHUM imóvel da mesa é desse condomínio, não há imóvel da
+  -- conversa: ela pergunta de qual é. Era aqui que a taxa do Acquarelle saía
+  -- como resposta da pergunta sobre o Vitta Club House (01/10, 17:48).
+  IF btrim(q) <> '' THEN
+    DECLARE v_outro int;
+    BEGIN
+      v_outro := nai_condominio_da_pergunta(p_texto);
+      IF v_outro IS NOT NULL AND NOT EXISTS (
+           SELECT 1 FROM imoveis i, condominios cd
+            WHERE i.codigo = ANY (v_cods) AND cd.id = v_outro
+              AND (i.condo_id = cd.id
+                   OR nay_sem_acento(lower(btrim(coalesce(i.condominio_nome, '')))) = nay_sem_acento(lower(btrim(cd.nome))))) THEN
+        RETURN NULL;
+      END IF;
+    END;
+  END IF;
+
   -- 3. ele chamou pelo NOME ("me manda foto do arezzo")
   IF btrim(q) <> '' THEN
     SELECT i.codigo INTO v_cod FROM imoveis i
