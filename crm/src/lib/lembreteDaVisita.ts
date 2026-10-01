@@ -10,38 +10,10 @@
 import { sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 
-const FUSO = 'America/Manaus'
 export const LEMBRETE_PADRAO_MIN = 60
 
-const diaEm = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: FUSO })   // AAAA-MM-DD em Manaus
-
-/** "hoje às 15:00" / "amanhã às 15:00" / "dia 03/10 às 15:00", visto de QUANDO o lembrete sai. */
-export function quandoNoLembrete(visita: Date, enviadoEm: Date): string {
-  const hora = visita.toLocaleTimeString('pt-BR', { timeZone: FUSO, hour: '2-digit', minute: '2-digit' })
-  const diaVisita = diaEm(visita)
-  if (diaVisita === diaEm(enviadoEm)) return `hoje às ${hora}`
-  if (diaVisita === diaEm(new Date(enviadoEm.getTime() + 86_400_000))) return `amanhã às ${hora}`
-  const [, m, d] = diaVisita.split('-')
-  return `dia ${d}/${m} às ${hora}`
-}
-
-/** O primeiro nome, só se parecer nome de gente ("Alecsandro Reboucas👔" -> "Alecsandro"). */
-export function primeiroNome(nome: string | null | undefined): string | null {
-  const p = String(nome || '').trim().split(/\s+/)[0]?.replace(/[^\p{L}'-]/gu, '') || ''
-  if (p.length < 2 || /^\d/.test(p)) return null
-  return p[0].toUpperCase() + p.slice(1).toLowerCase()
-}
-
-/** O texto de sempre, para quem não escreveu um. Português de gente, sem cerimônia. */
-export function textoDoLembrete(para: 'corretor' | 'proprietario', nome: string | null, visita: Date, enviadoEm: Date,
-                                imovel: string | null, imovelDoDono: string | null): string {
-  const oi = primeiroNome(nome) ? `Oi, ${primeiroNome(nome)}!` : 'Oi!'
-  const quando = quandoNoLembrete(visita, enviadoEm)
-  const onde = para === 'proprietario'
-    ? (imovelDoDono || 'no seu imóvel')
-    : (imovel ? `no ${imovel}` : 'no imóvel')
-  return `${oi} Passando para lembrar da visita ${quando} ${onde}. Qualquer imprevisto, me avisa por aqui.`
-}
+// o texto (modelo, marcas, "hoje às 15:00") mora em lembreteDaVisitaTexto.ts, sem banco: a tela também usa
+export { MODELO_DO_LEMBRETE, preencherLembrete, primeiroNome, quandoNoLembrete, textoDoLembrete } from '@/lib/lembreteDaVisitaTexto'
 
 export async function agendarLembreteDaVisita(p: {
   organizacao: string; leadId: string; visita: number; minutosAntes: number; mensagem: string

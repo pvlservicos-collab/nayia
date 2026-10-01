@@ -500,21 +500,28 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
               agendar manualmente, vou pôr o corretor, a duração e o dia, e posso
               adicionar um lembrete ali mesmo". O azul separa do follow-up (verde):
               um é mensagem, o outro entra na agenda. */}
-          {marca?.proprietario && (
-            <div className="w-full mt-4 text-left">
-              {visitaAberta ? (
-                <AgendarVisita key={lead.id} imoveis={marca.imoveisDoDono} proprietarioLeadId={lead.id}
-                               aoCancelar={() => setVisitaAberta(false)} />
-              ) : (
-                <button type="button" onClick={() => setVisitaAberta(true)}
-                        className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-semibold"
-                        style={{ background: '#2563eb', color: '#fff' }}
-                        title="Agendar uma visita à mão: corretor, dia, duração e lembrete">
-                  <CalendarPlus size={14} weight="fill" /> Agendar visita
-                </button>
-              )}
-            </div>
-          )}
+          {/* NO CARD DE TODA CONVERSA (Pedro, 01/10: "quero que isso fique lá no card da
+              conversa ... dentro do chat"). Antes só aparecia no card do dono. No card
+              do dono, os imóveis são os dele e o lembrete dele sai por esta conversa;
+              em qualquer outro, quem está aberto já vem como o corretor da visita. */}
+          <div className="w-full mt-4 text-left">
+            {visitaAberta ? (
+              marca?.proprietario
+                ? <AgendarVisita key={lead.id} imoveis={marca.imoveisDoDono} proprietarioLeadId={lead.id}
+                                 aoCancelar={() => setVisitaAberta(false)} />
+                : <AgendarVisita key={lead.id}
+                                 corretorInicial={{ leadId: lead.id, nome: lead.title || 'este contato',
+                                                    fim: String(lead.phone || '').replace(/[^0-9]/g, '').slice(-4) }}
+                                 aoCancelar={() => setVisitaAberta(false)} />
+            ) : (
+              <button type="button" onClick={() => setVisitaAberta(true)}
+                      className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-semibold"
+                      style={{ background: '#2563eb', color: '#fff' }}
+                      title="Agendar uma visita à mão: corretor, dia, duração e lembrete">
+                <CalendarPlus size={14} weight="fill" /> Agendar visita
+              </button>
+            )}
+          </div>
 
           {/* observação (Pedro, 29/09: "um quadradinho de observação, caixa de mensagem para escrever") */}
           <div className="w-full mt-4 text-left">

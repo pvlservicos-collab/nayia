@@ -17,7 +17,7 @@ import { leads, profiles } from '@/lib/schema'
 import { agendarVisita, visitasDaNay } from '@/lib/nayLeitura'
 import { conversaPorChave, conversasDaParceria } from '@/lib/conversasDaParceria'
 import { abrirLeadDaLinha } from '@/lib/abrirLead'
-import { LEMBRETE_PADRAO_MIN, agendarLembreteDaVisita, textoDoLembrete } from '@/lib/lembreteDaVisita'
+import { LEMBRETE_PADRAO_MIN, MODELO_DO_LEMBRETE, agendarLembreteDaVisita, preencherLembrete } from '@/lib/lembreteDaVisita'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -125,9 +125,9 @@ export async function POST(req: NextRequest) {
           if (!d.leadId) { avisos.push(`Não consegui abrir a conversa do ${d.para} para o lembrete.`); continue }
           await agendarLembreteDaVisita({
             organizacao: auth.organizationId, leadId: d.leadId, visita: v.visita, minutosAntes: minutos,
-            // texto próprio só serve para UM destino; com dois, cada um leva o seu de sempre
-            mensagem: proprio && destinos.length === 1 ? proprio
-              : textoDoLembrete(d.para, d.nome, quando, enviarEm, v.imovel, v.imovelDoDono),
+            // o texto da janela (o padrão ou o que a pessoa escreveu) vale para cada destino:
+            // as marcas {nome}, {quando} e {imóvel} são trocadas pelo que vale para ELE
+            mensagem: preencherLembrete(proprio || MODELO_DO_LEMBRETE, d.para, d.nome, quando, enviarEm, v.imovel, v.imovelDoDono),
             enviarEm, criadoPor: auth.userId, criadoPorNome: perfil?.nome?.trim() || null,
           })
           lembretes.push({ para: d.para, quando: enviarEm.toISOString() })

@@ -18,9 +18,22 @@
  * A visita nasce da equipe (migração 250): a Nay não manda nada sozinha. Quem
  * avisa é o lembrete marcado aqui -- uma mensagem agendada na conversa do
  * corretor e/ou do proprietário, que segue a visita se ela mudar de hora.
+ *
+ * O LEMBRETE VEM DESMARCADO E COM A MENSAGEM PRONTA (Pedro, 01/10/2026: "esse
+ * lembrete quero desmarcado e já com uma mensagem padrão pronta lá na janela
+ * ... desmarca corretor e proprietário"). Corretor e Proprietário começam
+ * apagados: quem agenda escolhe para quem vai, e sem ninguém marcado a visita
+ * entra na agenda sem lembrete. A mensagem padrão já está escrita na caixa, com
+ * as marcas {nome}, {quando} e {imóvel}, que a rota troca para cada pessoa --
+ * ver src/lib/lembreteDaVisitaTexto.ts.
+ *
+ * ESTÁ NO CARD DE TODA CONVERSA da Parceria, não só no do proprietário (mesmo
+ * pedido: "quero que isso fique lá no card da conversa"). No card de um
+ * corretor ele já vem escolhido (`corretorInicial`) e o código é digitado.
  */
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarPlus, CircleNotch, Clock, CalendarBlank, BellRinging, X } from '@phosphor-icons/react'
+import { MODELO_DO_LEMBRETE } from '@/lib/lembreteDaVisitaTexto'
 
 const AZUL = '#2563eb'
 const AZUL_SUAVE = 'color-mix(in srgb, #2563eb 14%, transparent)'
@@ -38,11 +51,14 @@ const DURACOES: Array<[number, string]> = [[30, '30 min'], [60, '1 h'], [90, '1h
 /* por padrão, 1 hora antes (Pedro, 01/10) */
 const ANTECEDENCIAS: Array<[number, string]> = [[30, '30 min antes'], [60, '1 hora antes'], [120, '2 horas antes'], [1440, '1 dia antes']]
 
-export default function AgendarVisita({ imoveis, proprietarioLeadId, codigoInicial, quandoInicial, aoAgendar, aoCancelar }: {
+export default function AgendarVisita({ imoveis, proprietarioLeadId, corretorInicial, codigoInicial, quandoInicial, aoAgendar, aoCancelar }: {
   /** os imóveis do dono deste card (aí o código é escolhido, não digitado) */
   imoveis?: string[]
-  /** a conversa do proprietário: o lembrete dele sai por ela */
+  /** a conversa do proprietário: o lembrete dele sai por ela. SÓ no card do dono --
+      num card de corretor, o lembrete do proprietário iria para a conversa errada. */
   proprietarioLeadId?: string
+  /** aberto no card de um corretor: ele já vem escolhido (dá para trocar) */
+  corretorInicial?: Corretor
   codigoInicial?: string
   /** dia/hora já escolhidos (o + da agenda pode abrir num horário) */
   quandoInicial?: Date
@@ -52,17 +68,17 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, codigoInici
   const [corretores, setCorretores] = useState<Corretor[]>([])
   const [codigo, setCodigo] = useState(codigoInicial || imoveis?.[0] || '')
   const [buscaCorretor, setBuscaCorretor] = useState('')
-  const [corretor, setCorretor] = useState<Corretor | null>(null)
+  const [corretor, setCorretor] = useState<Corretor | null>(corretorInicial || null)
   const [atalho, setAtalho] = useState<'hoje' | 'amanha' | 'data'>(quandoInicial ? 'data' : 'amanha')
   const [dia, setDia] = useState(() => quandoInicial
     ? `${quandoInicial.getFullYear()}-${dois(quandoInicial.getMonth() + 1)}-${dois(quandoInicial.getDate())}` : diaMais(1))
   const [hora, setHora] = useState(() => quandoInicial ? `${dois(quandoInicial.getHours())}:${dois(quandoInicial.getMinutes())}` : '10:00')
   const [duracao, setDuracao] = useState(60)
-  const [lembrar, setLembrar] = useState(true)
   const [antes, setAntes] = useState(60)
-  const [paraCorretor, setParaCorretor] = useState(true)
-  const [paraDono, setParaDono] = useState(true)
-  const [mensagem, setMensagem] = useState('')
+  // desmarcados de propósito: o lembrete só existe para quem for marcado aqui
+  const [paraCorretor, setParaCorretor] = useState(false)
+  const [paraDono, setParaDono] = useState(false)
+  const [mensagem, setMensagem] = useState(MODELO_DO_LEMBRETE)
   const [salvando, setSalvando] = useState(false)
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null)
 
@@ -90,7 +106,7 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, codigoInici
     if (a === 'amanha') setDia(diaMais(1))
   }
 
-  const doisDestinos = lembrar && paraCorretor && paraDono
+  const comLembrete = paraCorretor || paraDono
 
   async function agendar() {
     if (salvando) return
@@ -107,7 +123,7 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, codigoInici
           corretor: corretor ? { leadId: corretor.leadId, nome: corretor.nome } : { telefone: numeroDigitado },
           quando: quando.toISOString(),
           duracaoMin: duracao,
-          lembrete: lembrar && (paraCorretor || paraDono)
+          lembrete: comLembrete
             ? { minutosAntes: antes, corretor: paraCorretor, proprietario: paraDono, mensagem: mensagem.trim() || undefined }
             : undefined,
           proprietarioLeadId,
@@ -118,10 +134,12 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, codigoInici
       const partes = [String(j.mensagem || 'Visita agendada.')]
       if (Array.isArray(j.lembretes) && j.lembretes.length) {
         partes.push(`Lembrete para ${j.lembretes.map((l: any) => (l.para === 'corretor' ? 'o corretor' : 'o proprietário')).join(' e ')}.`)
+      } else if (!comLembrete) {
+        partes.push('Sem lembrete: ninguém foi marcado.')
       }
       if (Array.isArray(j.avisos)) partes.push(...j.avisos)
       setAviso({ ok: true, texto: partes.join(' ') })
-      setMensagem('')
+      setMensagem(MODELO_DO_LEMBRETE)
       aoAgendar?.(Number(j.visita))
     } catch (e: any) {
       setAviso({ ok: false, texto: e?.message || 'Não consegui agendar.' })
@@ -213,29 +231,29 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, codigoInici
         ))}
       </div>
 
-      {/* o lembrete: ligado, 1 hora antes */}
-      <label className="flex items-center gap-1.5 text-[13px] mb-1.5 cursor-pointer" style={{ color: 'var(--wa-text)' }}>
-        <input type="checkbox" checked={lembrar} onChange={(e) => setLembrar(e.target.checked)} style={{ accentColor: AZUL }} />
+      {/* o lembrete: ninguém marcado, 1 hora antes, e a mensagem padrão já escrita */}
+      <p className="flex items-center gap-1.5 text-[13px] mb-1.5" style={{ color: 'var(--wa-text)' }}>
         <BellRinging size={15} style={{ color: AZUL }} /> Lembrete da visita
-      </label>
-      {lembrar && (
-        <div className="pl-1 mb-2.5">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <select value={antes} onChange={(e) => setAntes(Number(e.target.value))} aria-label="Quanto antes da visita"
-                    className="h-7 rounded-lg px-2 text-[12.5px]" style={campo}>
-              {ANTECEDENCIAS.map(([m, r]) => <option key={m} value={m}>{r}</option>)}
-            </select>
-            <span className="text-[12.5px]" style={{ color: 'var(--wa-text-2)' }}>para</span>
-            <button type="button" onClick={() => setParaCorretor((v) => !v)} aria-pressed={paraCorretor} className={classeChip} style={chip(paraCorretor)}>Corretor</button>
-            <button type="button" onClick={() => setParaDono((v) => !v)} aria-pressed={paraDono} className={classeChip} style={chip(paraDono)}>Proprietário</button>
-          </div>
-          <textarea value={mensagem} onChange={(e) => setMensagem(e.target.value)} rows={2} maxLength={4000} disabled={doisDestinos}
-                    placeholder={doisDestinos
-                      ? 'Com os dois marcados, cada um recebe o lembrete de sempre: "Oi, Fulano! Passando para lembrar da visita hoje às 15:00…"'
-                      : 'Deixe vazio para o lembrete de sempre, ou escreva o seu'}
-                    className="w-full mt-1.5 rounded-lg px-2.5 py-1.5 text-[13px] leading-5 resize-y disabled:opacity-70" style={campo} />
+      </p>
+      <div className="pl-1 mb-2.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <select value={antes} onChange={(e) => setAntes(Number(e.target.value))} aria-label="Quanto antes da visita"
+                  className="h-7 rounded-lg px-2 text-[12.5px]" style={campo}>
+            {ANTECEDENCIAS.map(([m, r]) => <option key={m} value={m}>{r}</option>)}
+          </select>
+          <span className="text-[12.5px]" style={{ color: 'var(--wa-text-2)' }}>para</span>
+          <button type="button" onClick={() => setParaCorretor((v) => !v)} aria-pressed={paraCorretor} className={classeChip} style={chip(paraCorretor)}>Corretor</button>
+          <button type="button" onClick={() => setParaDono((v) => !v)} aria-pressed={paraDono} className={classeChip} style={chip(paraDono)}>Proprietário</button>
         </div>
-      )}
+        <textarea value={mensagem} onChange={(e) => setMensagem(e.target.value)} rows={3} maxLength={4000}
+                  aria-label="Mensagem do lembrete"
+                  className="w-full mt-1.5 rounded-lg px-2.5 py-1.5 text-[13px] leading-5 resize-y" style={campo} />
+        <p className="text-[11px] mt-1 leading-4" style={{ color: 'var(--wa-text-2)' }}>
+          {comLembrete
+            ? <>Cada um recebe a mensagem com o seu nome, a hora e o imóvel no lugar de {'{nome}'}, {'{quando}'} e {'{imóvel}'}.</>
+            : <>Marque <b>Corretor</b> e/ou <b>Proprietário</b> para mandar. Sem ninguém marcado, a visita entra na agenda sem lembrete.</>}
+        </p>
+      </div>
 
       <button type="button" onClick={() => void agendar()} disabled={salvando}
               className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-semibold disabled:opacity-50"
