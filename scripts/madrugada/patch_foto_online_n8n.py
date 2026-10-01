@@ -27,11 +27,12 @@ DE = """  else if (j.rota === 'send-image' && !(Number(j.codigo) > 0 && (/^https
 
 PARA = """  else if (j.rota === 'send-image' && !(Number(j.codigo) > 0 && (/^https:\\/\\/imobeasy\\.com\\/system\\/pictures\\//.test(String(j.corpo.image || ''))
            // AS FOTOS DO SITE NOVO (01/10): imovel cadastrado por nos tem a foto em
-           // imobeasy.online/fotos/<codigo>/ -- ou fotos-captacao/olx/<codigo>/, o
-           // que veio da OLX. Eram 18 imoveis (5551, 9004...) barrados aqui como
-           // foto_sem_codigo, queimando a trava de 24 h sem mandar nada. Aqui o
-           // CODIGO no caminho e conferido: /fotos/5551/ so vale para o 5551.
-           || new RegExp('^https://imobeasy\\\\.online/fotos(-captacao/olx)?/' + Number(j.codigo) + '/').test(String(j.corpo.image || ''))
+           // imobeasy.online/fotos/<codigo>/ -- ou em fotos-captacao/<de onde
+           // veio>/<codigo>/ (olx, whatsapp, crm). Eram 18 imoveis (5551, 9004...)
+           // barrados aqui como foto_sem_codigo, queimando a trava de 24 h sem
+           // mandar nada. Aqui o CODIGO no caminho e conferido: /fotos/5551/ so
+           // vale para o 5551.
+           || new RegExp('^https://imobeasy\\\\.online/fotos(-captacao/[a-z]+)?/' + Number(j.codigo) + '/').test(String(j.corpo.image || ''))
            || String(j.corpo.image || '') === 'https://imobeasy.online/colagens/' + Number(j.codigo) + '.jpg'))) motivo = 'foto_sem_codigo';"""
 
 

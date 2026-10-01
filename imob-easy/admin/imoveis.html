@@ -36,6 +36,8 @@
     <button class="abas__item" role="tab" type="button" data-painel-abre="anuncios" aria-selected="false">Anúncios</button>
     <button class="abas__item" role="tab" type="button" data-painel-abre="condominios" aria-selected="false">Condomínios</button>
     <button class="abas__item" role="tab" type="button" data-painel-abre="imoveis" data-vista="mapa" aria-selected="false">Mapa</button>
+    <!-- 248 (Pedro, 01/10): o que precisa de gente para terminar o cadastro -->
+    <button class="abas__item" role="tab" type="button" data-painel-abre="pendentes" aria-selected="false">CADASTRO PENDENTE</button>
   </div>
 
   <div data-painel="imoveis">
@@ -260,6 +262,37 @@
   </div>
 
   <!-- ===================== CONDOMÍNIOS (Pedro, 30/09) ===================== -->
+  <!-- ===================== CADASTRO PENDENTE ===================== -->
+  <div data-painel="pendentes" hidden>
+    <div class="cp-barra">
+      <input id="cp-busca" type="search" placeholder="Código, condomínio, bairro, dono ou motivo" aria-label="Buscar no cadastro pendente">
+      <select id="cp-filtro" aria-label="Mostrar">
+        <option value="">Tudo o que espera gente</option>
+        <option value="essencial">Falta o essencial (está no ar)</option>
+        <option value="rascunho">Pré-cadastro (Rascunho / OLX)</option>
+        <option value="foto">Problema de foto</option>
+        <option value="bloqueado">Bloqueado: a Nay não oferece</option>
+        <option value="ficha">Ficha da conversa sem cadastro</option>
+      </select>
+      <span class="cp-resumo" id="cp-resumo"></span>
+    </div>
+    <div class="tabela-envolucro">
+      <div class="tabela-rolagem">
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th scope="col">Imóvel</th>
+              <th scope="col">Cadastro</th>
+              <th scope="col">Por que está aqui</th>
+              <th scope="col">O que fazer</th>
+            </tr>
+          </thead>
+          <tbody id="cp-corpo"><tr><td colspan="4">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <div data-painel="condominios" hidden>
     <div class="cd-barra">
       <input id="cd-busca" type="search" placeholder="Buscar condomínio, bairro ou construtora" aria-label="Buscar condomínio">
@@ -303,5 +336,6 @@
 <script src="../assets/js/multiselecao.js"></script>
 <script src="../assets/js/imoveis-ux.js?v=20260930-pontuacao"></script>
 <script src="../assets/js/condominios-aba.js?v=20260930"></script>
+<script src="../assets/js/cadastro-pendente.js?v=20261001"></script>
 </body>
 </html>

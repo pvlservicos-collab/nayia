@@ -1531,6 +1531,127 @@ def _proprietario_do_imovel(conn, codigo):
     return dono
 
 
+# =====================================================================
+# CADASTRO PENDENTE (Pedro, 01/10/2026): "cria a ferramenta completa de cadastro
+# de imóveis importando tudo direitinho, e lá em imóveis cria uma aba CADASTRO
+# PENDENTE e põe lá esses para cadastro por humano".
+#
+#   GET  /admin/api/imoveis/cadastro-pendente   a lista, com o motivo de cada um
+#        (migração 248): Rascunho, bloqueado, no ar sem foto, faltando campo
+#        essencial, foto em link que vai expirar, e a ficha que o dono ditou na
+#        conversa e ninguém cadastrou.
+#   POST /admin/api/imoveis/<codigo>/importar   "importa tudo direitinho": baixa
+#        para o nosso servidor a foto que mora num link de fora (a da Z-API
+#        expira e nem passa na conferência do envio), e puxa a ficha da
+#        conversa, o condomínio, o endereço dele e o proprietário -- só em campo
+#        VAZIO. A situação do imóvel não é tocada: publicar é decisão de gente.
+# Atrás da senha do /admin (e do segredo do painel do CRM, como as outras rotas
+# de /admin/api/imoveis).
+# =====================================================================
+PASTA_IMPORTADO = os.environ.get("FOTOS_CAPTACAO_PASTA", "/fotos")
+URL_IMPORTADO = os.environ.get("FOTOS_CAPTACAO_URL", "https://imobeasy.online/fotos-captacao")
+
+
+@app.route("/admin/api/imoveis/cadastro-pendente")
+def api_cadastro_pendente():
+    if not senha_do_admin_confere():
+        return jsonify({"erro": "sem permissao"}), 401
+    conn = conectar()
+    try:
+        linhas = todas_linhas(conn, "SELECT * FROM nai_cadastro_pendente()")
+    finally:
+        conn.close()
+    itens = [{
+        "fonte": l["fonte"], "codigo": l["codigo"], "fichaId": l["ficha_id"],
+        "titulo": l["titulo"], "tipo": l["tipo"], "bairro": l["bairro"], "condominio": l["condominio"],
+        "origem": l["origem"], "status": l["status"], "pct": l["pct"],
+        "falta": list(l["falta"] or []), "motivos": list(l["motivos"] or []),
+        "fotos": l["fotos"], "fotosDeFora": l["fotos_de_fora"], "dono": l["dono"],
+        "quando": l["atualizado"].isoformat() if l["atualizado"] else None,
+        "dados": l["dados"] or None,
+    } for l in linhas]
+    # o mais incompleto primeiro: é o que mais precisa de gente
+    itens.sort(key=lambda x: (x["fonte"] != "ficha", x["pct"] if x["pct"] is not None else -1, -(x["codigo"] or 0)))
+    return jsonify({"itens": itens, "total": len(itens)})
+
+
+def _baixar_foto(url):
+    """Baixa uma foto de fora. Devolve (bytes, extensao) ou (None, motivo)."""
+    import urllib.request
+    pedido = urllib.request.Request(url, headers={"User-Agent": "imobeasy-importador/1.0"})
+    with urllib.request.urlopen(pedido, timeout=25) as r:  # noqa: S310
+        dados = r.read(12 * 1024 * 1024)
+    if len(dados) < 1024:
+        return None, "arquivo muito pequeno (%s bytes)" % len(dados)
+    if dados[:3] == b"\xff\xd8\xff":
+        return dados, "jpg"
+    if dados[:8] == b"\x89PNG\r\n\x1a\n":
+        return dados, "png"
+    if dados[:4] == b"RIFF" and dados[8:12] == b"WEBP":
+        return dados, "webp"
+    return None, "nao e jpg, png nem webp"
+
+
+@app.route("/admin/api/imoveis/<int:codigo>/importar", methods=["POST"])
+def api_cadastro_importar(codigo):
+    if not senha_do_admin_confere():
+        return jsonify({"erro": "sem permissao"}), 401
+    conn = conectar_escrita()
+    fotos_ok, fotos_erro = 0, []
+    try:
+        # 1. a foto que mora num link de fora vem para o nosso servidor
+        de_fora = todas_linhas(conn, r"""
+            SELECT url FROM imovel_fotos
+             WHERE codigo = %s AND url !~ '^https://imobeasy\.(com|online)/'
+             ORDER BY ordem""", (codigo,))
+        conn.rollback()
+        if de_fora:
+            pasta = os.path.join(PASTA_IMPORTADO, "importado", str(codigo))
+            try:
+                os.makedirs(pasta, exist_ok=True)
+            except OSError as exc:
+                fotos_erro.append("nao consegui criar a pasta: %s" % exc)
+                de_fora = []
+        for n, l in enumerate(de_fora, start=1):
+            try:
+                dados, ext = _baixar_foto(l["url"])
+                if dados is None:
+                    fotos_erro.append("%02d: %s" % (n, ext))
+                    continue
+                nome = "%02d.%s" % (n, ext)
+                alvo = os.path.join(PASTA_IMPORTADO, "importado", str(codigo), nome)
+                temporario = alvo + ".parcial"
+                with open(temporario, "wb") as f:
+                    f.write(dados)
+                os.replace(temporario, alvo)
+                nova = "%s/importado/%s/%s" % (URL_IMPORTADO, codigo, nome)
+                with conn.cursor() as cur:
+                    cur.execute("SELECT nai_foto_trocar_url(%s, %s, %s) AS n", (codigo, l["url"], nova))
+                    if cur.fetchone()["n"]:
+                        fotos_ok += 1
+                conn.commit()
+            except Exception as exc:  # noqa: BLE001
+                conn.rollback()
+                fotos_erro.append("%02d: %s" % (n, str(exc)[:80]))
+
+        # 2. o resto: ficha da conversa, condomínio, endereço, proprietário
+        with conn.cursor() as cur:
+            cur.execute("SELECT nai_cadastro_importar(%s) AS r", (codigo,))
+            r = cur.fetchone()["r"] or {}
+        conn.commit()
+    except Exception as exc:  # noqa: BLE001
+        conn.rollback()
+        return jsonify({"erro": exc.__class__.__name__, "detalhe": str(exc)[:200]}), 500
+    finally:
+        conn.close()
+    if r.get("erro"):
+        return jsonify(r), 404
+    r["fotosImportadas"] = fotos_ok
+    r["fotosErro"] = fotos_erro
+    r["editor"] = "/admin/imovel-editar.html?codigo=%s" % codigo
+    return jsonify(r)
+
+
 @app.route("/admin/api/imoveis/<int:codigo>/privado")
 def api_imovel_privado(codigo):
     """A UNIDADE (torre, apartamento, bloco, casa, lote) e a LOCACAO ATUAL do
