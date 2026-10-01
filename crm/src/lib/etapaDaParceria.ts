@@ -15,8 +15,9 @@
  *   fechamento    está em `nai_fechamento`: recebeu o checklist e a Nay não
  *                 responde até a Rayssa concluir.
  *
- * A ORDEM IMPORTA quando vale mais de uma: proprietário manda sobre tudo (é
- * regra dele); depois fechamento, que é mais adiante que visita -- o checklist
+ * A ORDEM IMPORTA quando vale mais de uma: fechamento na frente (é o ponto mais
+ * adiante, e o único que alguém abre de propósito -- 01/10, o caso do Ícaro);
+ * depois proprietário, que é regra dele; e visita por último -- o checklist
  * costuma vir DEPOIS da visita, e quem está juntando documento não está mais
  * esperando visita.
  *
@@ -87,12 +88,21 @@ export function etapaDaParceria(
   marca: MarcaDaNay | undefined,
   agora = Date.now(),
 ): EtapaParceria {
-  /* O QUE A NAY SABE decide, nesta ordem (a de sempre): proprietário é regra do
-     Tel e manda sobre tudo; fechamento é mais adiante que visita; o André mora
-     em Visitas porque acompanha. */
+  /* O QUE A NAY SABE decide, nesta ordem: FECHAMENTO na frente de tudo (ver
+     abaixo); depois proprietário, que é regra do Tel; o André mora em Visitas
+     porque acompanha; e a visita passada à Rayssa por último.
+
+     FECHAMENTO ANTES DE PROPRIETÁRIO (Pedro, 01/10: "coloco em fechamento e não
+     vai o Ícaro"). O Ícaro Correia é dono do 5725, e dono ganhava de tudo: ele
+     ia para Proprietários mesmo com o fechamento #6 aberto, e o Fechamento
+     ficava vazio. Fechamento é o único estado que ALGUÉM ABRE de propósito, e é
+     o ponto mais adiante da jornada -- quem está juntando documento não está
+     mais sendo "o dono de um imóvel do catálogo". Também é o mais temporário:
+     escolher Todos conclui o fechamento e a pessoa volta a Proprietários
+     sozinha, por consequência. */
+  if (marca?.fechamentoId != null) return 'fechamento'
   if (marca?.proprietario) return 'proprietarios'
   if (marca?.acompanhante) return 'visitas'
-  if (marca?.fechamentoId != null) return 'fechamento'
   if (marca?.visitaRayssa) return 'visitas'
   // a Nay não sabe de nada: aí vale o que alguém escolheu, enquanto for recente
   return escolhaAindaValida(lead, agora) ?? 'todos'
