@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css">
-<link rel="stylesheet" href="../assets/css/imoveis-ux.css">
+<link rel="stylesheet" href="../assets/css/imoveis-ux.css?v=20260930-pontuacao">
 <meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
 </head>
 <body class="admin" data-pagina="imoveis">
@@ -85,6 +85,8 @@
         <div class="ux-corpo">
           <div><div class="ux-rot">Está no site</div><div class="ux-ops" data-f="anuncio"></div></div>
           <div><div class="ux-rot">Fotos</div><div class="ux-ops" data-f="foto"></div></div>
+          <!-- 244: quanto o cadastro está preenchido (Pedro, 30/09) -->
+          <div><div class="ux-rot">Cadastro preenchido</div><div class="ux-ops" data-f="cadastro"></div></div>
           <p class="ux-dica">Só imóvel no site chega na Nay. Estar disponível e estar anunciado são duas coisas.</p>
         </div>
       </details>
@@ -159,6 +161,8 @@
             <option value="maior">Maior valor</option>
             <option value="vencimento">Contrato terminando antes</option>
             <option value="fotos">Com mais fotos</option>
+            <option value="falta">Cadastro mais incompleto</option>
+            <option value="completo">Cadastro mais completo</option>
             <option value="codigo">Código (maior primeiro)</option>
           </select>
         </div>
@@ -220,6 +224,7 @@
                 <th scope="col">Condomínio</th>
                 <th scope="col">Endereço</th>
                 <th scope="col">Datas</th>
+                <th scope="col">Cadastro</th>
                 <th scope="col">Proprietário</th>
                 <th scope="col" class="col-acoes">Ações</th>
               </tr>
@@ -296,7 +301,7 @@
 <script src="../assets/js/admin.js"></script>
 <script src="../assets/js/seletor-condominio.js"></script>
 <script src="../assets/js/multiselecao.js"></script>
-<script src="../assets/js/imoveis-ux.js?v=20260930-zonas"></script>
+<script src="../assets/js/imoveis-ux.js?v=20260930-pontuacao"></script>
 <script src="../assets/js/condominios-aba.js?v=20260930"></script>
 </body>
 </html>

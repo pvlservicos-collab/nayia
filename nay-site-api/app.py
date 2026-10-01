@@ -1608,6 +1608,25 @@ STATUS_EDITAVEIS = ("Disponível", "Alugado", "Vendido", "Rascunho", "Em revisã
                     "Arquivado", "Removido", "Indisponível")
 
 
+
+# 244 (Pedro, 30/09): as faixas de preenchimento do cadastro, para filtrar e contar.
+# A régua de pontos é do banco (nai_imovel_pontos / vw_imovel_pontuacao).
+FAIXAS_DO_CADASTRO = {
+    "100": (100, 100),
+    "90": (90, 99),
+    "75": (75, 89),
+    "50": (50, 74),
+    "baixo": (0, 49),
+}
+
+
+def _na_faixa_do_cadastro(pct, faixa):
+    if faixa not in FAIXAS_DO_CADASTRO:
+        return True
+    de, ate = FAIXAS_DO_CADASTRO[faixa]
+    return de <= (pct or 0) <= ate
+
+
 @app.route("/api/imoveis-lista")
 def api_imoveis_lista():
     """TODOS os imoveis, paginado, com filtros de verdade e a CONTAGEM AO LADO
@@ -1635,6 +1654,12 @@ def api_imoveis_lista():
     # desencontrar a ordem dos %s.
     base = []      # busca, lugar, valor, data -- valem para tudo
     grupos = {}    # as facetas, uma lista de condicoes por grupo
+    # 244: a faixa de preenchimento do cadastro (completo, quase, incompleto...)
+    faixa_cad = str(a.get("cadastro") or "").strip()
+    if faixa_cad in FAIXAS_DO_CADASTRO:
+        de, ate = FAIXAS_DO_CADASTRO[faixa_cad]
+        grupos.setdefault("cadastro", []).append(
+            ("v.codigo IN (SELECT codigo FROM vw_imovel_pontuacao WHERE pct BETWEEN %s AND %s)", [de, ate]))
 
     q = str(a.get("q") or "").strip()[:80]
     if q:
@@ -1833,14 +1858,21 @@ def api_imoveis_lista():
              "maior": col_ordem + " DESC NULLS LAST",
              "codigo": "v.codigo DESC",
              "vencimento": "v.vencimento ASC NULLS LAST",
-             "fotos": "v.fotos DESC, v.codigo DESC"}.get(a.get("ordem"), "v.criado DESC NULLS LAST, v.codigo DESC")
+             "fotos": "v.fotos DESC, v.codigo DESC",
+             # 244: do mais incompleto para o mais completo, e o contrário
+             "falta": "pt.pct ASC NULLS LAST, v.codigo DESC",   # quem não está no catálogo não tem pontuação: vai para o fim
+             "completo": "pt.pct DESC NULLS LAST, v.codigo DESC"}.get(a.get("ordem"), "v.criado DESC NULLS LAST, v.codigo DESC")
 
     conn = conectar()
     try:
         geo_col = (", g.lat, g.lon, g.precisao AS geo_precisao, g.bairro AS geo_bairro" if mapa else "")
         geo_join = (" LEFT JOIN imovel_geo g ON g.codigo = v.codigo " if mapa else " ")
-        linhas = todas_linhas(conn, "SELECT v.*" + geo_col + ", count(*) OVER () AS total FROM vw_imoveis_todos v" +
-                              geo_join + where + " ORDER BY " + ordem + " LIMIT %s OFFSET %s",
+        # QUANTO O CADASTRO ESTÁ PREENCHIDO (244, Pedro 30/09): o pct e o que falta
+        linhas = todas_linhas(conn, "SELECT v.*" + geo_col +
+                              ", pt.pct AS cadastro_pct, pt.falta AS cadastro_falta"
+                              ", count(*) OVER () AS total FROM vw_imoveis_todos v" +
+                              geo_join + " LEFT JOIN vw_imovel_pontuacao pt ON pt.codigo = v.codigo " + where +
+                              " ORDER BY " + ordem + " LIMIT %s OFFSET %s",
                               tuple(params + [per, (page - 1) * per]))
         resumo = todas_linhas(conn, """
             SELECT count(*) FILTER (WHERE status = 'Disponível' AND coalesce(valor_aluguel, 0) > 0) AS aluguel,
@@ -1855,10 +1887,12 @@ def api_imoveis_lista():
         crus = todas_linhas(conn, """
             SELECT v.codigo, v.status, v.tipo, v.grupo_tipo, v.publicado_no_site, v.fotos, v.quartos, v.vagas,
                    v.e_parceiro, v.financia, v.precisa_confirmacao,
+                   coalesce(pt.pct, 0) AS cadastro_pct,
                    coalesce(v.proprietario_nome, '') <> '' AS tem_dono,
                    (coalesce(v.valor_venda, 0) > 0 OR v.valor_texto ILIKE 'Venda%%') AS e_venda,
                    (coalesce(v.valor_aluguel, 0) > 0 OR v.valor_texto ILIKE 'Aluguel%%') AS e_aluguel
-              FROM vw_imoveis_todos v """ + where_base, tuple(params_base))
+              FROM vw_imoveis_todos v
+              LEFT JOIN vw_imovel_pontuacao pt ON pt.codigo = v.codigo """ + where_base, tuple(params_base))
 
         # como cada grupo ja escolhido peneira a base, em Python
         PENEIRA = {
@@ -1874,6 +1908,8 @@ def api_imoveis_lista():
             "foto": lambda l: (l["fotos"] > 0) if a.get("com_foto") == "sim" else (l["fotos"] == 0),
             "confirmar": lambda l: l["precisa_confirmacao"],
             "financia": lambda l: l["financia"] == a.get("financia"),
+            # 244: a faixa de preenchimento do cadastro
+            "cadastro": lambda l: _na_faixa_do_cadastro(l["cadastro_pct"], a.get("cadastro")),
         }
 
         def sem(nome):
@@ -1903,6 +1939,8 @@ def api_imoveis_lista():
             "confirmar": contar("confirmar", {"sim": lambda l: l["precisa_confirmacao"]}),
             "financia": contar("financia", {"Sim": lambda l: l["financia"] == "Sim",
                                             "Não": lambda l: l["financia"] == "Não"}),
+            "cadastro": contar("cadastro", {f: (lambda l, f=f: _na_faixa_do_cadastro(l["cadastro_pct"], f))
+                                            for f in FAIXAS_DO_CADASTRO}),
         }
 
         def valor(l):
@@ -1924,6 +1962,8 @@ def api_imoveis_lista():
             "suites": l["suites"], "banheiros": l["banheiros"],
             "area": float(l["area_total"]) if l["area_total"] else None,
             "fotos": l["fotos"], "capa": l["capa"],
+            # 244: quanto o cadastro está preenchido, e o que falta
+            "cadastroPct": l.get("cadastro_pct"), "cadastroFalta": list(l.get("cadastro_falta") or []),
             "anunciado": l["publicado_no_site"], "precisaConfirmar": l["precisa_confirmacao"],
             "criado": l["criado"].date().isoformat() if l["criado"] else None,
             "vencimento": l["vencimento"].isoformat() if l["vencimento"] else None,

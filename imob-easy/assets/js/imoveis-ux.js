@@ -131,6 +131,13 @@
                itens: [["sim", "No site"], ["nao", "Fora do site"]] },
     foto: { chave: "foto", faceta: "foto", grupo: "anuncio",
             itens: [["sim", "Com foto"], ["nao", "Sem foto"]] },
+    /* 244 (Pedro, 30/09): "uma pontuação de 0 a 100% de quantas informações temos
+       sobre o imóvel, quem tá completo 100% e os que faltarem menos". A régua é do
+       banco (nai_imovel_pontos): o essencial para a Nay oferecer pesa mais. */
+    cadastro: { chave: "cadastro", faceta: "cadastro", grupo: "anuncio",
+                itens: [["100", "100% completo", "#3f9c6d"], ["90", "90 a 99%", "#3f9c6d"],
+                        ["75", "75 a 89%", "#c4762f"], ["50", "50 a 74%", "#c4762f"],
+                        ["baixo", "abaixo de 50%", "#b42323"]] },
     fin: { chave: "fin", faceta: "fin", grupo: "valor",
            itens: [["aluguel", "Aluguel"], ["venda", "Venda"]] },
     financia: { chave: "financia", faceta: "financia", grupo: "valor",
@@ -142,7 +149,7 @@
   };
   var NOME = {
     status: "Situação", confirmar: "Situação", quartos: "Quartos", vagas: "Vagas",
-    anuncio: "Anúncio", foto: "Fotos", fin: "Finalidade", financia: "Financia",
+    anuncio: "Anúncio", foto: "Fotos", cadastro: "Cadastro", fin: "Finalidade", financia: "Financia",
     dono: "Proprietário", parceiro: "De quem é"
   };
 
@@ -458,6 +465,21 @@
     avisar.t = setTimeout(function () { t.hidden = true; }, erro ? 7000 : 4000);
   }
 
+  /* 244: o quanto o cadastro está preenchido, com o que falta na dica. Verde do 90
+     para cima, âmbar até 50, vermelho abaixo -- a mesma escala do filtro. */
+  function selo(i) {
+    if (i.cadastroPct == null) return '<span class="sub">—</span>';
+    var p = Number(i.cadastroPct);
+    var cor = p >= 90 ? "#3f9c6d" : p >= 50 ? "#c4762f" : "#b42323";
+    var falta = (i.cadastroFalta || []);
+    var dica = falta.length ? "Falta: " + falta.join(", ") : "Cadastro completo";
+    return '<span class="pontuacao" title="' + esc(dica) + '">' +
+      '<span class="pontuacao__barra"><i style="width:' + p + '%;background:' + cor + '"></i></span>' +
+      '<b style="color:' + cor + '">' + p + '%</b></span>' +
+      (falta.length ? '<div class="sub">falta ' + esc(falta.slice(0, 2).join(", ")) +
+        (falta.length > 2 ? " +" + (falta.length - 2) : "") + "</div>" : "");
+  }
+
   function linha(i) {
     var acoes = i.noCatalogo
       ? '<a class="btn-mini" href="imovel-editar.html?codigo=' + esc(i.codigo) + '">Editar</a>'
@@ -481,6 +503,7 @@
                                    i.area ? Math.round(i.area) + " m²" : ""].filter(Boolean).join(", ")) + "</div></td>" +
       "<td>" + esc(i.endereco || "—") + '<div class="sub">' + esc(i.bairro || "") + "</div></td>" +
       "<td>" + celulaDatas(i) + "</td>" +
+      "<td>" + selo(i) + "</td>" +
       "<td>" + (i.proprietario
         ? '<button type="button" class="btn-mini" data-dono="' + esc(i.codigo) + '">' + esc(i.proprietario) + "</button>"
         : '<span class="sub">sem proprietário</span>') + "</td>" +

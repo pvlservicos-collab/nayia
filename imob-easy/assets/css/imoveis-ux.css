@@ -340,3 +340,10 @@
   box-shadow: 0 12px 30px rgba(20, 10, 40, .3);
 }
 .ux-recado--erro { background: #b42323; }
+
+/* 244 (Pedro, 30/09): quanto o cadastro do imóvel está preenchido, de 0 a 100%.
+   A barrinha e o número na coluna "Cadastro" da lista; a dica diz o que falta. */
+.pontuacao { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.pontuacao__barra { width: 54px; height: 6px; border-radius: 999px; background: var(--borda, #d9dce3); overflow: hidden; }
+.pontuacao__barra i { display: block; height: 100%; border-radius: 999px; }
+.pontuacao b { font-size: var(--fs-xs, 12px); font-variant-numeric: tabular-nums; }
