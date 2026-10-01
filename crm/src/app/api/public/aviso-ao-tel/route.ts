@@ -7,6 +7,13 @@
  *   POST  { "mensagem": "...", "origem": "Grok" }     com a chave no cabeçalho
  *         Authorization: Bearer <chave>   (ou  x-aviso-chave: <chave>)
  *   GET   ?chave=<chave>&mensagem=...                 para robô que só sabe abrir link
+ *   POST  { "hora", "cifrado", "assinatura" }         O AVISO LACRADO, o único jeito
+ *         que vale pela porta 80 (src/lib/avisoLacrado.ts): a nuvem do bot do
+ *         Grok corta o HTTPS para cá, então ele manda por HTTP com o texto
+ *         cifrado e assinado -- a chave nunca viaja.
+ *
+ * A CHAVE PURA SÓ VALE POR HTTPS. Pela porta 80 ela é recusada: aceitar seria
+ * ensinar alguém a mandá-la aberta pela internet.
  *
  * A chave é AVISO_TEL_CHAVE no .env do CRM (não está no git). Sem ela
  * configurada, a porta fica fechada (503) -- nunca aberta.
@@ -22,6 +29,7 @@
 import { NextRequest } from 'next/server'
 import { timingSafeEqual } from 'node:crypto'
 import { naydb } from '@/lib/nayDisparo'
+import { abrirAvisoLacrado } from '@/lib/avisoLacrado'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -36,13 +44,26 @@ function chaveConfere(veio: string | null): boolean | null {
 
 async function atender(req: NextRequest, corpo: Record<string, unknown>): Promise<Response> {
   const q = req.nextUrl.searchParams
-  const bearer = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '').trim()
-  const chave = bearer || req.headers.get('x-aviso-chave') || q.get('chave') || String(corpo.chave || '') || null
-  const confere = chaveConfere(chave)
-  if (confere === null) return Response.json({ ok: false, mensagem: 'Aviso ao Tel não está configurado.' }, { status: 503 })
-  if (!confere) return Response.json({ ok: false, mensagem: 'Chave errada.' }, { status: 401 })
+  const segredo = process.env.AVISO_TEL_CHAVE || ''
+  if (!segredo) return Response.json({ ok: false, mensagem: 'Aviso ao Tel não está configurado.' }, { status: 503 })
 
-  const mensagem = String(corpo.mensagem ?? corpo.message ?? corpo.texto ?? corpo.text ?? q.get('mensagem') ?? q.get('message') ?? '').trim()
+  let mensagem: string
+  if (corpo.cifrado !== undefined || corpo.assinatura !== undefined) {
+    // O AVISO LACRADO: quem prova que é o bot é a assinatura, não a chave
+    const aberto = abrirAvisoLacrado(segredo, corpo.hora, corpo.cifrado, corpo.assinatura)
+    if (!aberto.ok) return Response.json({ ok: false, mensagem: `Não aceitei: ${aberto.motivo}.` }, { status: 401 })
+    mensagem = aberto.mensagem
+  } else {
+    // a chave pura: só por HTTPS (o Traefik diz por onde o pedido entrou)
+    const porHttps = (req.headers.get('x-forwarded-proto') || '').split(',')[0].trim() === 'https'
+    const bearer = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '').trim()
+    const chave = bearer || req.headers.get('x-aviso-chave') || q.get('chave') || String(corpo.chave || '') || null
+    if (!porHttps) {
+      return Response.json({ ok: false, mensagem: 'Pela porta 80 só aceito o aviso lacrado (hora, cifrado, assinatura). Não mande a chave por aqui.' }, { status: 400 })
+    }
+    if (!chaveConfere(chave)) return Response.json({ ok: false, mensagem: 'Chave errada.' }, { status: 401 })
+    mensagem = String(corpo.mensagem ?? corpo.message ?? corpo.texto ?? corpo.text ?? q.get('mensagem') ?? q.get('message') ?? '').trim()
+  }
   const origem = String(corpo.origem ?? q.get('origem') ?? 'Grok').trim()
   if (!mensagem) return Response.json({ ok: false, mensagem: 'Faltou a mensagem.' }, { status: 400 })
 

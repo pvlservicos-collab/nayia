@@ -1,0 +1,28 @@
+# A ÚNICA ROTA DO CRM QUE ATENDE PELA PORTA 80 (01/10/2026).
+# Cópia de /docker/traefik/dynamic/aviso-ao-tel.yml no srv1894338.
+#
+# Por que existe: o bot do Grok que avisa o Tel roda numa nuvem cujo filtro de
+# saída (Cloudflare WARP + Gateway) corta todo HTTPS para os nossos servidores
+# e deixa passar a porta 80. Medido com captura no servidor em 01/10: as
+# conexões dele abriam na 443 e não chegava um byte.
+#
+# O que passa por aqui: SÓ o POST em /api/public/aviso-ao-tel. Todo o resto da
+# porta 80 continua sendo redirecionado para HTTPS, como sempre.
+#
+# Por que é seguro deixar sem HTTPS: por esta porta o CRM só aceita o AVISO
+# LACRADO (crm/src/lib/avisoLacrado.ts) -- texto cifrado e assinado com a chave
+# que só o bot e o servidor têm. A chave pura é recusada pela porta 80.
+#
+# A prioridade: o redirecionamento 80 -> 443 é um router interno do Traefik com
+# prioridade 2147483646 (MaxInt32 - 1). Este tem que ser maior para ganhar dele.
+#
+# Arquivo recarregado sozinho (providers.file.watch). Não reinicia nada.
+# Para desfazer: apagar o arquivo no servidor.
+http:
+  routers:
+    aviso-ao-tel-http:
+      rule: "Host(`crm.imobeasy.online`) && Path(`/api/public/aviso-ao-tel`) && Method(`POST`)"
+      entryPoints:
+        - web
+      priority: 3000000000
+      service: crm@docker
