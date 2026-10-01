@@ -448,18 +448,23 @@ export default function LeadList({
            aberta mesmo; quando finaliza ou passa o tempo ela volta para todos e
            a Nay volta a atender". Por isso a marca é `visitaAberta`, que a Nay
            já apaga sozinha ao fechar a visita -- não tem nada para arquivar
-           aqui, a conversa volta de graça. */
-        { chave: 'all', rotulo: 'Todos', grupo: 'etapa', contagem: contagem.todos,
+           aqui, a conversa volta de graça.
+
+           30/09 -> 01/10, Pedro: "retira esse número que conta quantas pessoas
+           tem, deixa só o número de pessoas para responder em cada etapa". Cada
+           etapa mostra UM número: quem falou por último e está esperando. O
+           Todos continua sem número -- é a etapa da Nay, ela responde. */
+        { chave: 'all', rotulo: 'Todos', grupo: 'etapa',
           titulo: 'A Nay atende aqui. Quem está em outra etapa não aparece.' },
-        { chave: 'visitas', rosa: true, rotulo: 'Visitas', grupo: 'etapa', contagem: contagem.visitas, faltam: contagem['faltam:visitas'],
+        { chave: 'visitas', rosa: true, rotulo: 'Visitas', grupo: 'etapa', faltam: contagem['faltam:visitas'],
           titulo: 'Com visita aberta — quem atende é a Rayssa. Fechou a visita, volta para Todos e a Nay volta a atender.' },
-        { chave: 'proprietarios', rosa: true, rotulo: 'Proprietários', grupo: 'etapa', contagem: contagem.proprietarios, faltam: contagem['faltam:proprietarios'],
+        { chave: 'proprietarios', rosa: true, rotulo: 'Proprietários', grupo: 'etapa', faltam: contagem['faltam:proprietarios'],
           titulo: 'Quem a Nay sabe que é dono de imóvel. Só aparece aqui.' },
-        { chave: 'fechamento', rosa: true, rotulo: 'Fechamento', grupo: 'etapa', contagem: contagem.fechamento, faltam: contagem['faltam:fechamento'],
+        { chave: 'fechamento', rosa: true, rotulo: 'Fechamento', grupo: 'etapa', faltam: contagem['faltam:fechamento'],
           titulo: 'Já pediu o checklist — está juntando a documentação. Entra aqui sozinho quando a Nay manda o checklist.' },
-        { chave: 'tel', rotulo: 'Tel', grupo: 'pessoa', contagem: contagem.tel, faltam: contagem['faltam:tel'], titulo: 'O Tel está atendendo (a Nay parou por ele, ou ele mandou pelo login dele)' },
+        { chave: 'tel', rotulo: 'Tel', grupo: 'pessoa', faltam: contagem['faltam:tel'], titulo: 'O Tel está atendendo (a Nay parou por ele, ou ele mandou pelo login dele)' },
         ...(rayssa
-          ? [{ chave: 'rayssa', rotulo: rayssa.nome, grupo: 'pessoa' as const, cor: rayssa.cor, contagem: contagem.rayssa, faltam: contagem['faltam:rayssa'],
+          ? [{ chave: 'rayssa', rotulo: rayssa.nome, grupo: 'pessoa' as const, cor: rayssa.cor, faltam: contagem['faltam:rayssa'],
                titulo: `${rayssa.nome} está atendendo (mandou a última mensagem da equipe, pelo login dela)` }]
           : []),
       ]

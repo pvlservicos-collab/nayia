@@ -96,7 +96,16 @@ export async function nayLigada(): Promise<EstadoDaNay> {
 
 export async function visitasDaNay(desde?: string | null, ate?: string | null): Promise<VisitaDaNay[]> {
   const r = await naydb().query('SELECT * FROM crm_visitas($1::date, $2::date)', [desde || null, ate || null])
+  // 250: a duração e quem agendou à mão vêm à parte, para não mexer na crm_visitas
+  const extra = new Map<number, { duracaoMin: number | null; criadaNoCrmPor: string | null }>()
+  if (r.rows.length) {
+    const e = await naydb().query('SELECT * FROM crm_visitas_extra($1::bigint[])', [r.rows.map((l: any) => Number(l.id))])
+    for (const l of e.rows as any[]) {
+      extra.set(Number(l.id), { duracaoMin: l.duracao_min != null ? Number(l.duracao_min) : null, criadaNoCrmPor: l.criada_no_crm_por ?? null })
+    }
+  }
   return r.rows.map((l: any) => ({
+    ...(extra.get(Number(l.id)) || {}),
     id: Number(l.id),
     codigo: l.codigo != null ? Number(l.codigo) : null,
     imovel: l.imovel ?? null,
@@ -124,6 +133,34 @@ export async function visitasDaNay(desde?: string | null, ate?: string | null): 
     proprietarioNome: l.proprietario_nome ?? null,
     visitanteNome: l.visitante_nome ?? null,
   }))
+}
+
+/**
+ * AGENDAR VISITA À MÃO (Pedro, 01/10/2026; migração 250). A visita nasce da
+ * equipe ('com_rayssa'): a Nay não manda nada sozinha -- quem avisa é o
+ * lembrete que a pessoa marca no CRM. Devolve o telefone do dono e do corretor
+ * SÓ para o servidor achar a conversa de cada um; não vai para a tela.
+ */
+export interface VisitaAgendada {
+  ok: boolean; mensagem: string; visita: number | null
+  corretorTelefone: string | null; corretorNome: string | null
+  proprietarioTelefone: string | null; proprietarioNome: string | null
+  imovel: string | null; imovelDoDono: string | null
+}
+
+export async function agendarVisita(codigo: number, corretorTelefone: string, corretorNome: string | null,
+                                    quando: Date, duracaoMin: number, quem: string): Promise<VisitaAgendada> {
+  const r = await naydb().query(
+    'SELECT * FROM crm_visita_agendar($1::int, $2::text, $3::text, $4::timestamptz, $5::int, $6::text)',
+    [codigo, corretorTelefone, corretorNome, quando.toISOString(), duracaoMin, quem])
+  const l = r.rows[0] || {}
+  return {
+    ok: l.ok === true, mensagem: String(l.mensagem || 'Sem resposta da Nay.'),
+    visita: l.visita != null ? Number(l.visita) : null,
+    corretorTelefone: l.corretor_telefone ?? null, corretorNome: l.corretor_nome ?? null,
+    proprietarioTelefone: l.proprietario_telefone ?? null, proprietarioNome: l.proprietario_nome ?? null,
+    imovel: l.imovel ?? null, imovelDoDono: l.imovel_do_dono ?? null,
+  }
 }
 
 export async function eventosDaVisita(id: number): Promise<EventoDaVisita[]> {

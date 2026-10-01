@@ -10,9 +10,14 @@
  * chat dele com um clique. As chaves de telefone ficam aqui no servidor.
  */
 import { NextRequest } from 'next/server'
+import { and, eq, isNull } from 'drizzle-orm'
 import { authenticateRequest, apiError } from '@/lib/api-auth'
-import { visitasDaNay } from '@/lib/nayLeitura'
+import { db } from '@/lib/db'
+import { leads, profiles } from '@/lib/schema'
+import { agendarVisita, visitasDaNay } from '@/lib/nayLeitura'
 import { conversaPorChave, conversasDaParceria } from '@/lib/conversasDaParceria'
+import { abrirLeadDaLinha } from '@/lib/abrirLead'
+import { LEMBRETE_PADRAO_MIN, agendarLembreteDaVisita, textoDoLembrete } from '@/lib/lembreteDaVisita'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -37,5 +42,101 @@ export async function GET(req: NextRequest) {
   } catch (err: any) {
     console.error('[parceria/visitas]', err?.message || err)
     return apiError(err?.status || 500, err?.message || 'Não consegui ler as visitas da Nay.')
+  }
+}
+
+/**
+ * POST /api/parceria/visitas -- AGENDAR VISITA À MÃO (Pedro, 01/10/2026): "eu vou
+ * agendar manualmente, vou pôr o corretor, a duração e o dia, e posso adicionar
+ * um lembrete ali mesmo... por padrão o lembrete já vem configurado para 1 hora
+ * antes". Vale para o botão azul do card e para o + da agenda.
+ *
+ *   { codigo, corretor: { leadId? | telefone, nome? }, quando, duracaoMin,
+ *     lembrete?: { minutosAntes, corretor, proprietario, mensagem? },
+ *     proprietarioLeadId? }
+ *
+ * A visita nasce da equipe (migração 250): a Nay não manda nada sozinha. O
+ * lembrete é uma mensagem agendada na conversa de cada um (o mesmo cron do
+ * follow-up), presa à visita -- excluir ou arrastar a visita leva o lembrete.
+ */
+export async function POST(req: NextRequest) {
+  try {
+    const auth = await authenticateRequest(req)
+    if (!auth.userId) return apiError(403, 'Só quem entra no CRM agenda visita.')
+    const corpo = await req.json().catch(() => ({} as any))
+
+    const codigo = /^\d{1,6}$/.test(String(corpo?.codigo ?? '')) ? Number(corpo.codigo) : null
+    if (!codigo) return apiError(400, 'Diga o código do imóvel.')
+    const quando = new Date(String(corpo?.quando || ''))
+    if (Number.isNaN(quando.getTime())) return apiError(400, 'Escolha o dia e a hora.')
+    const duracaoMin = Math.round(Number(corpo?.duracaoMin) || 60)
+
+    // o corretor: pela conversa dele (escolhido na lista) ou pelo número digitado
+    let corretorLead: string | null = null
+    let corretorTelefone = String(corpo?.corretor?.telefone || '').replace(/\D/g, '')
+    let corretorNome: string | null = String(corpo?.corretor?.nome || '').trim().slice(0, 120) || null
+    if (corpo?.corretor?.leadId) {
+      const [l] = await db.select({ id: leads.id, telefone: leads.phone, titulo: leads.title }).from(leads)
+        .where(and(eq(leads.id, String(corpo.corretor.leadId)), eq(leads.organizationId, auth.organizationId), isNull(leads.deletedAt)))
+        .limit(1)
+      if (!l?.telefone) return apiError(404, 'Não achei a conversa desse corretor.')
+      corretorLead = l.id
+      corretorTelefone = l.telefone.replace(/\D/g, '')
+      corretorNome = corretorNome || l.titulo || null
+    }
+    if (corretorTelefone.length < 10) return apiError(400, 'Escolha o corretor ou digite o número dele com DDD.')
+
+    const [perfil] = await db.select({ nome: profiles.fullName }).from(profiles).where(eq(profiles.id, auth.userId)).limit(1)
+    const quem = perfil?.nome?.trim() || 'alguém no CRM'
+
+    const v = await agendarVisita(codigo, corretorTelefone, corretorNome, quando, duracaoMin, quem)
+    if (!v.ok || !v.visita) return Response.json({ ok: false, mensagem: v.mensagem }, { status: 409 })
+
+    /* ---- o lembrete (opcional; por padrão, 1 hora antes) ---- */
+    const avisos: string[] = []
+    const lembretes: Array<{ para: string; quando: string }> = []
+    const l = corpo?.lembrete
+    if (l && (l.corretor || l.proprietario)) {
+      const minutos = Math.max(0, Math.min(7 * 24 * 60, Math.round(Number(l.minutosAntes ?? LEMBRETE_PADRAO_MIN))))
+      const enviarEm = new Date(quando.getTime() - minutos * 60_000)
+      const proprio = String(l.mensagem || '').trim().slice(0, 4000)
+      if (enviarEm.getTime() < Date.now() + 60_000) {
+        avisos.push('A hora do lembrete já passou: a visita ficou agendada, sem lembrete.')
+      } else {
+        const destinos: Array<{ para: 'corretor' | 'proprietario'; leadId: string | null; nome: string | null }> = []
+        if (l.corretor) {
+          const aberto = corretorLead ? { id: corretorLead } : await abrirLeadDaLinha(auth.organizationId, corretorTelefone, corretorNome)
+          destinos.push({ para: 'corretor', leadId: aberto?.id || null, nome: v.corretorNome || corretorNome })
+        }
+        if (l.proprietario) {
+          let dono: string | null = null
+          if (corpo?.proprietarioLeadId) {
+            const [d] = await db.select({ id: leads.id }).from(leads)
+              .where(and(eq(leads.id, String(corpo.proprietarioLeadId)), eq(leads.organizationId, auth.organizationId), isNull(leads.deletedAt)))
+              .limit(1)
+            dono = d?.id || null
+          } else if (v.proprietarioTelefone) {
+            dono = (await abrirLeadDaLinha(auth.organizationId, v.proprietarioTelefone, v.proprietarioNome))?.id || null
+          }
+          if (!dono) avisos.push('O imóvel não tem proprietário com telefone no cadastro: o lembrete dele não foi agendado.')
+          else destinos.push({ para: 'proprietario', leadId: dono, nome: v.proprietarioNome })
+        }
+        for (const d of destinos) {
+          if (!d.leadId) { avisos.push(`Não consegui abrir a conversa do ${d.para} para o lembrete.`); continue }
+          await agendarLembreteDaVisita({
+            organizacao: auth.organizationId, leadId: d.leadId, visita: v.visita, minutosAntes: minutos,
+            // texto próprio só serve para UM destino; com dois, cada um leva o seu de sempre
+            mensagem: proprio && destinos.length === 1 ? proprio
+              : textoDoLembrete(d.para, d.nome, quando, enviarEm, v.imovel, v.imovelDoDono),
+            enviarEm, criadoPor: auth.userId, criadoPorNome: perfil?.nome?.trim() || null,
+          })
+          lembretes.push({ para: d.para, quando: enviarEm.toISOString() })
+        }
+      }
+    }
+    return Response.json({ ok: true, mensagem: v.mensagem, visita: v.visita, lembretes, avisos }, { status: 201 })
+  } catch (err: any) {
+    console.error('[parceria/visitas] agendar', err?.message || err)
+    return apiError(err?.status || 500, err?.message || 'Não consegui agendar a visita.')
   }
 }

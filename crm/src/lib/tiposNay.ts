@@ -74,6 +74,10 @@ export interface VisitaDaNay {
   atualizadoEm: string | null
   resultado: string | null
   motivo: string | null
+  /** duração em minutos, quando a visita foi agendada à mão no CRM (250) */
+  duracaoMin?: number | null
+  /** quem agendou à mão no CRM; ausente = a visita veio da Nay (250) */
+  criadaNoCrmPor?: string | null
   corretorNome: string | null
   corretorChaves: string[]
   proprietarioNome: string | null

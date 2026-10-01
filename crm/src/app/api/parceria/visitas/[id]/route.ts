@@ -11,6 +11,7 @@
  * O nome de quem fez vai para o andamento da visita.
  */
 import { NextRequest } from 'next/server'
+import { cancelarLembretesDaVisita, moverLembretesDaVisita } from '@/lib/lembreteDaVisita'
 import { eq } from 'drizzle-orm'
 import { authenticateRequest, apiError } from '@/lib/api-auth'
 import { db } from '@/lib/db'
@@ -67,6 +68,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const quem = perfil?.nome?.trim() || 'alguém no CRM'
 
     const r = await mexerNaVisita(n, acao, quem, quando)
+    /* O LEMBRETE SEGUE A VISITA (01/10/2026, drizzle 0132): excluída, o lembrete
+       que ainda não saiu não sai mais; mudou de hora, ele vai junto. Erro aqui
+       não desfaz a ação na visita -- só fica registrado. */
+    if (r.ok) {
+      try {
+        if (acao === 'excluir') await cancelarLembretesDaVisita(n)
+        if (acao === 'horario' && quando) await moverLembretesDaVisita(n, quando)
+      } catch (e: any) {
+        console.error('[parceria/visitas] lembrete da visita', n, e?.message || e)
+      }
+    }
     return Response.json(r, { status: r.ok ? 200 : 409 })
   } catch (err: any) {
     return apiError(err?.status || 500, err?.message || 'Não consegui mexer na visita.')

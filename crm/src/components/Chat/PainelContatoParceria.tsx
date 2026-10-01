@@ -25,7 +25,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   X, User, PaperPlaneRight, CalendarCheck, ChatCircleDots, House, ArrowClockwise, CircleNotch, WarningCircle, CheckCircle,
-  PencilSimple, Check, Copy, Plus, FolderSimple, FileText, UploadSimple, Trash, Robot,
+  PencilSimple, Check, Copy, Plus, FolderSimple, FileText, UploadSimple, Trash, Robot, CalendarPlus,
 } from '@phosphor-icons/react'
 import type { LeadWithOwner } from '@/lib/types'
 import { formatPhone } from '@/lib/utils'
@@ -37,6 +37,7 @@ import EscolherImoveis, { useOpcoesDoDisparo, type ImovelParaEnviar } from '@/co
 import EtapaDoLead from './EtapaDoLead'
 import { escolhaAMao } from '@/lib/etapaDaParceria'
 import AgendarFollowup from './AgendarFollowup'
+import AgendarVisita from './AgendarVisita'
 
 const LARGURA_GUARDADA = 'crm:largura-card-parceria'
 const LARGURA_MIN = 300
@@ -139,6 +140,8 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
     finally { setTirando(false) }
   }
   const marca = marcaDoContato ?? marcas[lead.id] ?? null
+  /* o formulário azul de agendar visita, fechado até pedirem (card do proprietário) */
+  const [visitaAberta, setVisitaAberta] = useState(false)
 
   /* ── largura, puxando a borda ── */
   const [largura, setLargura] = useState<number>(LARGURA_PADRAO)
@@ -492,6 +495,26 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
 
           {/* agendar follow-up (Pedro, 30/09): mensagem + amanhã / uma semana / data + hora */}
           <AgendarFollowup leadId={lead.id} />
+
+          {/* AGENDAR VISITA, em azul, no card do proprietário (Pedro, 01/10): "eu vou
+              agendar manualmente, vou pôr o corretor, a duração e o dia, e posso
+              adicionar um lembrete ali mesmo". O azul separa do follow-up (verde):
+              um é mensagem, o outro entra na agenda. */}
+          {marca?.proprietario && (
+            <div className="w-full mt-4 text-left">
+              {visitaAberta ? (
+                <AgendarVisita key={lead.id} imoveis={marca.imoveisDoDono} proprietarioLeadId={lead.id}
+                               aoCancelar={() => setVisitaAberta(false)} />
+              ) : (
+                <button type="button" onClick={() => setVisitaAberta(true)}
+                        className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-semibold"
+                        style={{ background: '#2563eb', color: '#fff' }}
+                        title="Agendar uma visita à mão: corretor, dia, duração e lembrete">
+                  <CalendarPlus size={14} weight="fill" /> Agendar visita
+                </button>
+              )}
+            </div>
+          )}
 
           {/* observação (Pedro, 29/09: "um quadradinho de observação, caixa de mensagem para escrever") */}
           <div className="w-full mt-4 text-left">

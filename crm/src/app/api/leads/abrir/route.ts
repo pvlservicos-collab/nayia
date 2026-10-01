@@ -9,21 +9,11 @@
  */
 import { NextRequest } from 'next/server'
 import { authenticateRequest, apiError } from '@/lib/api-auth'
-import { db } from '@/lib/db'
-import { leads } from '@/lib/schema'
-import { acharLeadDaLinha, integracaoDoTipo } from '@/lib/leadDaLinha'
+import { abrirLeadDaLinha } from '@/lib/abrirLead'
+import { integracaoDoTipo } from '@/lib/leadDaLinha'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-
-/** 55 + DDD + número, com e sem o 9 (as duas formas que o banco já guarda). */
-function formas(digitos: string): string[] {
-  const d = digitos.startsWith('55') ? digitos : '55' + digitos
-  const ddd = d.slice(2, 4), resto = d.slice(4)
-  const com9 = resto.length === 8 ? '9' + resto : resto
-  const sem9 = resto.length === 9 && resto.startsWith('9') ? resto.slice(1) : resto
-  return [...new Set([`55${ddd}${com9}`, `55${ddd}${sem9}`])]
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,18 +31,10 @@ export async function POST(req: NextRequest) {
     const linha = await integracaoDoTipo(auth.organizationId, tipo)
     if (!linha) return apiError(400, 'Essa linha de WhatsApp não está configurada.')
 
-    const [principal] = formas(digitos)
-    const existente = await acharLeadDaLinha(auth.organizationId, formas(digitos), linha)
-    if (existente) return Response.json({ id: existente.id, novo: false })
-
-    const [criado] = await db.insert(leads).values({
-      organizationId: auth.organizationId,
-      integrationId: linha,
-      title: nome || principal,
-      phone: principal,
-      customAttributes: { origem: 'aberta_no_crm' },
-    }).returning({ id: leads.id })
-    return Response.json({ id: criado.id, novo: true })
+    // achar ou criar: a mesma regra do lembrete da visita (src/lib/abrirLead.ts)
+    const aberto = await abrirLeadDaLinha(auth.organizationId, digitos, nome, tipo)
+    if (!aberto) return apiError(400, 'Não consegui abrir a conversa com esse número.')
+    return Response.json(aberto)
   } catch (err: any) {
     console.error('[abrir conversa]', err?.message || err)
     return apiError(err?.status || 500, err?.message || 'Não consegui abrir a conversa.')

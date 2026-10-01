@@ -30,8 +30,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import {
   ArrowClockwise, CalendarCheck, ChatCircleText, CaretDown, CaretUp, MagnifyingGlass, X, CircleNotch, Warning,
-  CheckCircle, Trash, Clock, PencilSimple, Check,
+  CheckCircle, Trash, Clock, PencilSimple, Check, Plus,
 } from '@phosphor-icons/react'
+import { createPortal } from 'react-dom'
+import AgendarVisita from './AgendarVisita'
 import { useVisitasParceria, eventosDaVisita, mexerNaVisita } from '@/hooks/useVisitasParceria'
 import type { Arrasto } from './AgendaDeVisitas'
 import { ESTADO_DA_VISITA, EVENTO_DA_VISITA, type EventoDaVisita, type VisitaNaTela } from '@/lib/tiposNay'
@@ -195,6 +197,12 @@ function Andamento({ id }: { id: number }) {
   )
 }
 
+/** 90 -> "1h30", 60 -> "1 h", 30 -> "30 min" */
+function duracaoCurta(min: number): string {
+  const h = Math.floor(min / 60), m = min % 60
+  return h === 0 ? `${m} min` : m === 0 ? `${h} h` : `${h}h${String(m).padStart(2, '0')}`
+}
+
 function CartaoDaVisita({ v, destacada, aoAbrirConversa, aoEscolher }: {
   v: VisitaNaTela; destacada: boolean; aoAbrirConversa: (leadId: string) => void; aoEscolher: (id: number) => void
 }) {
@@ -233,6 +241,9 @@ function CartaoDaVisita({ v, destacada, aoAbrirConversa, aoEscolher }: {
             {v.proprietarioNome && <span>Proprietário: <span style={{ color: 'var(--wa-text)' }}>{v.proprietarioNome}</span></span>}
             {v.visitanteNome && <span>Visitante: <span style={{ color: 'var(--wa-text)' }}>{v.visitanteNome}</span></span>}
             {v.acesso && <span>Acesso: <span style={{ color: 'var(--wa-text)' }}>{ACESSO[v.acesso] || v.acesso}</span></span>}
+            {/* 250: a visita agendada à mão diz quanto dura e quem agendou */}
+            {v.duracaoMin ? <span>Duração: <span style={{ color: 'var(--wa-text)' }}>{duracaoCurta(v.duracaoMin)}</span></span> : null}
+            {v.criadaNoCrmPor && <span style={{ color: '#2563eb' }}>Agendada à mão por {v.criadaNoCrmPor}</span>}
           </div>
           {v.aberta && v.aguardando && (
             <p className="mt-1 text-[13px]" style={{ color: cor }}>Esperando {AGUARDANDO[v.aguardando] || v.aguardando}.</p>
@@ -480,6 +491,8 @@ export default function VisitasAgendadas({ aoAbrirConversa, destaque }: { aoAbri
   const [busca, setBusca] = useState('')
   const ladoALado = useLadoALado()
   const [modo, setModo] = useState<'lista' | 'agenda'>('lista')
+  /* o popup do + (agendar visita à mão, 01/10) */
+  const [agendando, setAgendando] = useState(false)
 
   const abertas = visitas.filter((v) => v.aberta).length
 
@@ -589,13 +602,30 @@ export default function VisitasAgendadas({ aoAbrirConversa, destaque }: { aoAbri
           <div className="min-w-0">
             <h1 className="text-[20px] font-bold leading-6" style={{ color: 'var(--wa-text)' }}>Visitas agendadas</h1>
             <p className="text-[12.5px] leading-4" style={{ color: 'var(--wa-text-2)' }}>
-              A Nay preenche sozinha: cada visita que ela agenda aparece aqui, com o andamento e as datas.
+              A Nay preenche sozinha, e você agenda à mão pelo botão azul: toda visita aparece aqui, com o andamento e as datas.
             </p>
           </div>
-          <button type="button" onClick={() => void recarregar()} className="wa-icone-btn ml-auto" title="Atualizar agora">
+          {/* O + DA AGENDA (Pedro, 01/10): "lá em agenda também um + que vai agendar
+              pela agenda também". Azul, como o botão do card: é visita, não mensagem. */}
+          <button type="button" onClick={() => setAgendando(true)}
+                  className="ml-auto inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[13.5px] font-semibold flex-shrink-0"
+                  style={{ background: '#2563eb', color: '#fff' }} title="Agendar uma visita à mão">
+            <Plus size={16} weight="bold" /> Agendar visita
+          </button>
+          <button type="button" onClick={() => void recarregar()} className="wa-icone-btn" title="Atualizar agora">
             {carregando ? <CircleNotch size={20} className="animate-spin" /> : <ArrowClockwise size={20} />}
           </button>
         </div>
+        {agendando && createPortal(
+          <div className="chat-theme fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60" onClick={() => setAgendando(false)}>
+            <div role="dialog" aria-label="Agendar visita" onClick={(e) => e.stopPropagation()}
+                 className="w-full max-w-md max-h-[92vh] overflow-y-auto rounded-2xl shadow-2xl" style={{ background: 'var(--wa-panel)' }}>
+              <AgendarVisita aoCancelar={() => setAgendando(false)}
+                             aoAgendar={(id) => { void recarregar(); setSelecionada(id); setPedido((n) => n + 1) }} />
+            </div>
+          </div>,
+          document.body,
+        )}
         <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
           {!ladoALado && (
             <div className="flex w-full gap-2 mb-1">

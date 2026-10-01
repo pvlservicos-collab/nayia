@@ -31,6 +31,8 @@ numerada em `Arquivos/nai/NNN_*.sql` (a próxima é a maior + 1) → `./scripts/
 | quanto o cadastro de um imóvel está preenchido (0 a 100%) | `nai_imovel_pontos`, `vw_imovel_pontuacao`, `crm_imoveis_pontuacao` | 244, 245, 246 |
 | o popup de cadastro no card da captação (condomínios com endereço, pré-cadastro, características) | `crm_captacao_cadastro_opcoes`, `crm_condominio_pelo_texto`, `crm_imovel_para_cadastro`, `crm_captacao_dono_cadastro` | 246, 247 |
 | o que falta cadastrar e quem termina (aba CADASTRO PENDENTE) | `nai_cadastro_pendente`, `nai_cadastro_importar`, `nai_foto_trocar_url` | 248, 249 |
+| visita agendada à mão no CRM (nasce da equipe, a Nay não manda nada) | `crm_visita_agendar`, `crm_visitas_extra`; colunas `nai_visita.duracao_min` / `criada_no_crm_por` | 250 |
+| robô de fora (Grok) avisa o Tel, com limite por hora/dia | `crm_avisar_tel`, tabela `aviso_externo`; chaves `aviso_externo_por_hora` / `_por_dia` | 251 |
 
 ## Site (imobeasy.online)
 - API Flask: `nay-site-api/app.py` + `nay-site-api/olx_api.py` (OLX e o cadastro vindo do CRM).
@@ -48,6 +50,9 @@ numerada em `Arquivos/nai/NNN_*.sql` (a próxima é a maior + 1) → `./scripts/
   e rotas `src/app/api/captacao/*`, `src/app/api/leads/[id]/captacao-etapa`. Quem grava o imóvel é a API do site
   (`nay-site-api/olx_api.py`, `/api/captacao/crm/imovel`), com a senha de máquina.
 - Banco do CRM: `crm/drizzle/NNNN_*.sql` (tabela nova com `SET LOCAL ROLE crm`).
+- Agendar visita (azul): `src/components/Chat/AgendarVisita.tsx` no card do proprietário e no + da agenda (`VisitasAgendadas.tsx`);
+  rota `POST /api/parceria/visitas`; o lembrete é um follow-up preso à visita (`src/lib/lembreteDaVisita.ts`, drizzle 0132).
+- Aviso de robô ao Tel: `src/app/api/public/aviso-ao-tel/route.ts`; a chave é `AVISO_TEL_CHAVE` no `.env` do servidor (fora do git).
 
 ## n8n (fluxo `NAI atendimento locação`, `producao/n8n/`)
 - Import só de madrugada (espelho-madrugada). Modelo/memória: pela interface. Ler execuções: sqlite só leitura (scratch `n8nq.sh`).
