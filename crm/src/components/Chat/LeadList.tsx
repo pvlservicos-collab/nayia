@@ -14,7 +14,7 @@ import LeadListItem from './LeadListItem'
 import ChatFilterTabs, { type ChatTab, type FiltroDaLista } from './ChatFilterTabs'
 import BuscaDaLista, { casaNaBusca } from './BuscaDaLista'
 import { conversaEstaNaLinha, type LinhaWhatsapp } from '@/lib/leadChannel'
-import { pedeResposta, dentroDaJanela } from '@/lib/esperaResposta'
+import { pedeResposta } from '@/lib/esperaResposta'
 import { etapaDaParceria, escolhaAMao } from '@/lib/etapaDaParceria'
 
 /*
@@ -417,27 +417,31 @@ export default function LeadList({
     if (ehParceria) {
       const m = marcas[l.id]
       // uma conversa, UMA etapa (ver src/lib/etapaDaParceria.ts)
-      /* A BOLINHA É "QUEM FALTA RESPONDER AGORA" (Pedro, 01/10): só conta a
-         mensagem das últimas 24 h, a mesma janela da barra de métricas. Sem
-         isso, quem escreveu há cinco dias e nunca foi respondido ficava na
-         conta para sempre -- era o caso de 5 dos 7 de Proprietários. */
-      const falta = pedeResposta(l) && dentroDaJanela(l.last_activity_at, agora)
+      /* A BOLINHA É A CONTAGEM DE MENSAGENS SEM LER (Pedro, 01/10), em todas
+         as etapas -- inclusive Todos. A contagem vem de /api/leads, que soma as
+         mensagens dela depois da nossa última resposta nas conversas marcadas
+         como não lidas. "Quem falta responder" continua existindo, mas na barra
+         de métricas lá em cima, que é onde ele pediu. */
+      const semLer = Number(l.nao_lidas || 0)
       const comPessoa = comAlguem(l, m, atendente)
       if (!comPessoa) {
         const etapa = etapaDaParceria(l, m)
         soma(etapa)
-        // a bolinha de quem falta responder (Pedro, 30/09); Todos não, é só da Nay
-        if (falta) soma(`faltam:${etapa}`)
+        if (semLer) contagem[`semler:${etapa}`] = (contagem[`semler:${etapa}`] ?? 0) + semLer
       }
-      if (daRayssa(l, m, atendente)) { soma('rayssa'); if (falta) soma('faltam:rayssa') }
+      if (daRayssa(l, m, atendente)) { soma('rayssa'); if (semLer) contagem['semler:rayssa'] = (contagem['semler:rayssa'] ?? 0) + semLer }
       // "Tel": a Nay diz que ele está com a conversa OU ele mandou pelo login dele
-      if (doTel(l, m, atendente)) { soma('tel'); if (falta) soma('faltam:tel') }
+      if (doTel(l, m, atendente)) { soma('tel'); if (semLer) contagem['semler:tel'] = (contagem['semler:tel'] ?? 0) + semLer }
       for (const [k, ms] of JANELAS_DE_FOLLOWUP) if (esperandoResposta(l, ms, agora)) soma(k)
     } else {
       for (const lt of (l.lead_tags || []) as any[]) soma(`tag:${lt.tag_id}`)
       if (atendente) soma(`atendente:${atendente.id}`)
       // as abas da captação (migração 236)
-      if (linha === 'captacao') for (const a of donos[l.id]?.abas || []) soma(`cap:${a}`)
+      if (linha === 'captacao') for (const a of donos[l.id]?.abas || []) {
+        soma(`cap:${a}`)
+        const semLer = Number(l.nao_lidas || 0)
+        if (semLer) contagem[`semler:cap:${a}`] = (contagem[`semler:cap:${a}`] ?? 0) + semLer
+      }
     }
   }
 
@@ -458,17 +462,17 @@ export default function LeadList({
            tem, deixa só o número de pessoas para responder em cada etapa". Cada
            etapa mostra UM número: quem falou por último e está esperando. O
            Todos continua sem número -- é a etapa da Nay, ela responde. */
-        { chave: 'all', rotulo: 'Todos', grupo: 'etapa',
+        { chave: 'all', rotulo: 'Todos', grupo: 'etapa', naoLidas: contagem['semler:todos'],
           titulo: 'A Nay atende aqui. Quem está em outra etapa não aparece.' },
-        { chave: 'visitas', rosa: true, rotulo: 'Visitas', grupo: 'etapa', faltam: contagem['faltam:visitas'],
+        { chave: 'visitas', rosa: true, rotulo: 'Visitas', grupo: 'etapa', naoLidas: contagem['semler:visitas'],
           titulo: 'Com visita aberta — quem atende é a Rayssa. Fechou a visita, volta para Todos e a Nay volta a atender.' },
-        { chave: 'proprietarios', rosa: true, rotulo: 'Proprietários', grupo: 'etapa', faltam: contagem['faltam:proprietarios'],
+        { chave: 'proprietarios', rosa: true, rotulo: 'Proprietários', grupo: 'etapa', naoLidas: contagem['semler:proprietarios'],
           titulo: 'Quem a Nay sabe que é dono de imóvel. Só aparece aqui.' },
-        { chave: 'fechamento', rosa: true, rotulo: 'Fechamento', grupo: 'etapa', faltam: contagem['faltam:fechamento'],
+        { chave: 'fechamento', rosa: true, rotulo: 'Fechamento', grupo: 'etapa', naoLidas: contagem['semler:fechamento'],
           titulo: 'Já pediu o checklist — está juntando a documentação. Entra aqui sozinho quando a Nay manda o checklist.' },
-        { chave: 'tel', rotulo: 'Tel', grupo: 'pessoa', faltam: contagem['faltam:tel'], titulo: 'O Tel está atendendo (a Nay parou por ele, ou ele mandou pelo login dele)' },
+        { chave: 'tel', rotulo: 'Tel', grupo: 'pessoa', naoLidas: contagem['semler:tel'], titulo: 'O Tel está atendendo (a Nay parou por ele, ou ele mandou pelo login dele)' },
         ...(rayssa
-          ? [{ chave: 'rayssa', rotulo: rayssa.nome, grupo: 'pessoa' as const, cor: rayssa.cor, faltam: contagem['faltam:rayssa'],
+          ? [{ chave: 'rayssa', rotulo: rayssa.nome, grupo: 'pessoa' as const, cor: rayssa.cor, naoLidas: contagem['semler:rayssa'],
                titulo: `${rayssa.nome} está atendendo (mandou a última mensagem da equipe, pelo login dela)` }]
           : []),
       ]
@@ -476,7 +480,8 @@ export default function LeadList({
     ? [
         { chave: 'all', rotulo: 'Todos', grupo: 'etapa' as const },
         ...ABAS_DA_CAPTACAO.map((a) => ({ chave: `cap:${a.chave}`, rotulo: a.rotulo, cor: a.cor, titulo: a.titulo,
-                                          grupo: (a.pessoa ? 'pessoa' : 'etapa') as 'pessoa' | 'etapa', contagem: contagem[`cap:${a.chave}`] })),
+                                          grupo: (a.pessoa ? 'pessoa' : 'etapa') as 'pessoa' | 'etapa', contagem: contagem[`cap:${a.chave}`],
+                                          naoLidas: contagem[`semler:cap:${a.chave}`] })),
       ]
     : [
         { chave: 'all', rotulo: 'Todas' },

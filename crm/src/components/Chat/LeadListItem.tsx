@@ -170,7 +170,13 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
           </span>
           <span className="ml-auto flex items-center gap-1.5 pl-1 flex-shrink-0">
             {lead.is_pinned && <PushPin size={16} weight="fill" className="-rotate-45" style={{ color: 'var(--wa-text-2)' }} />}
-            {naoLida && <span className="wa-badge" aria-label="Mensagem não lida">&nbsp;</span>}
+            {naoLida && (
+              /* o número, como no WhatsApp (01/10): é a mesma conta das bolinhas
+                 das etapas, então dá para somar com o olho e conferir */
+              <span className="wa-badge" aria-label={`${lead.nao_lidas || 1} sem ler`}>
+                {(lead.nao_lidas || 1) > 99 ? '99+' : (lead.nao_lidas || 1)}
+              </span>
+            )}
           </span>
         </div>
 
@@ -190,6 +196,7 @@ export default memo(LeadListItem, (a, b) => (
   a.lead.title === b.lead.title &&
   a.lead.avatar_url === b.lead.avatar_url &&
   a.lead.is_unread === b.lead.is_unread &&
+  a.lead.nao_lidas === b.lead.nao_lidas &&
   a.lead.is_pinned === b.lead.is_pinned &&
   a.lead.last_message_content === b.lead.last_message_content &&
   a.lead.last_message_sender_type === b.lead.last_message_sender_type &&

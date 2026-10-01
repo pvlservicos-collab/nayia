@@ -62,6 +62,8 @@ export interface Lead {
   last_message_content?: string
   last_message_sender_type?: 'lead' | 'ai' | 'ai_agent' | 'human' | 'system_other'
   is_unread?: boolean
+  /** quantas mensagens dela estão sem ler nesta conversa (0 quando lida) -- /api/leads */
+  nao_lidas?: number
   is_pinned?: boolean
   is_archived?: boolean
   is_group?: boolean

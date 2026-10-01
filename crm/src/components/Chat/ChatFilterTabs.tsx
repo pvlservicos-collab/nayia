@@ -38,11 +38,14 @@ export interface FiltroDaLista {
   /** borda esquerda rosa: as etapas para onde a conversa VAI (Tel, 30/09) */
   rosa?: boolean
   /**
-   * Quantos falam por último e esperam resposta (Pedro, 30/09: "uma bolinha com
-   * um número no lado direito de gente que falta responder em cada fluxo, menos
-   * o Todos, que é só da Nay"). A regra é a de lib/esperaResposta.
+   * A BOLINHA DA ETAPA (Pedro, 01/10/2026): "as bolinhas nas etapas do WhatsApp
+   * Parceria seja a contagem real de mensagens não lidas em todas as etapas".
+   *
+   * Era "quem falta responder" (30/09) e passou a ser o que o WhatsApp mostra:
+   * mensagens sem ler. Em TODAS as etapas, inclusive Todos. Soma o
+   * `nao_lidas` de cada conversa da etapa (/api/leads).
    */
-  faltam?: number
+  naoLidas?: number
 }
 
 /** mantido para quem ainda importa o tipo antigo */
@@ -89,9 +92,9 @@ function ChatFilterTabs({ ativo, aoMudar, filtros }: ChatFilterTabsProps) {
               {f.cor && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: f.cor }} />}
               {f.rotulo}
               {f.contagem !== undefined && f.contagem > 0 && <span className="wa-chip__n">{f.contagem}</span>}
-              {!!f.faltam && (
-                <span className="wa-fase__faltam" title={`${f.faltam} esperando resposta`}>
-                  {f.faltam > 99 ? '99+' : f.faltam}
+              {!!f.naoLidas && (
+                <span className="wa-fase__faltam" title={`${f.naoLidas} mensage${f.naoLidas > 1 ? 'ns' : 'm'} sem ler`}>
+                  {f.naoLidas > 99 ? '99+' : f.naoLidas}
                 </span>
               )}
             </button>

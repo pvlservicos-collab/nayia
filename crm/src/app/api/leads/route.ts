@@ -187,8 +187,34 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    /* QUANTAS MENSAGENS ESTÃO SEM LER (Pedro, 01/10/2026: "as bolinhas nas
+       etapas do WhatsApp Parceria seja a contagem real de mensagens não
+       lidas"). O CRM guarda só `is_unread` por conversa, não o estado de cada
+       mensagem -- então a contagem é a das mensagens DELA depois da nossa
+       última resposta, que é o que o WhatsApp mostra no balãozinho.
+       Só para as conversas marcadas como não lidas: hoje são 2 na Parceria,
+       então isto não pesa na lista. */
+    const naoLidas: Record<string, number> = {}
+    const idsNaoLidos = rows.filter((r) => r.lead.isUnread).map((r) => r.lead.id)
+    if (idsNaoLidos.length > 0) {
+      const contagem = await db.execute(sql`
+        SELECT a.lead_id, count(*)::int AS n
+          FROM lead_activities a
+         WHERE a.organization_id = ${auth.organizationId}
+           AND a.lead_id = ANY(${sql.raw(`ARRAY['${idsNaoLidos.join("','")}']::uuid[]`)})
+           AND a.metadata->>'direction' = 'inbound'
+           AND a.created_at > coalesce((SELECT max(b.created_at) FROM lead_activities b
+                                         WHERE b.lead_id = a.lead_id
+                                           AND b.metadata->>'direction' = 'outbound'),
+                                       '-infinity'::timestamptz)
+         GROUP BY a.lead_id`)
+      for (const l of contagem.rows as Array<{ lead_id: string; n: number }>) naoLidas[l.lead_id] = Number(l.n) || 0
+    }
+
     const result = rows.map((r) => ({
       ...mapLead(r.lead),
+      // a conversa marcada à mão como não lida, sem mensagem nova dela, conta 1
+      nao_lidas: r.lead.isUnread ? (naoLidas[r.lead.id] || 1) : 0,
       // Grupo não é atendimento de lead: fica fora das etiquetas e da aba Humano.
       ...(scope === 'conversas' && {
         autores_manuais: r.lead.isGroup ? [] : atendimento[r.lead.id]?.autores ?? [],
