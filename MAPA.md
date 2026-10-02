@@ -89,6 +89,11 @@ prompt: comece pelo `nay onde`.
   o script de exemplo por `assets/js/imovel-publico.js`. Mudou o desenho? Gere de novo, não edite o `imovel.html`.
   Dados: `site_imovel_publico(código)` por `/api/imovel-publico/<código>` (só a região: sem rua, número, CEP, andar).
   O nginx serve `/imovel/…` com `scripts/servidor/nginx_pagina_do_imovel.sh`. "Ver Imóvel" do site: `site.js`.
+- A tela `/imoveis` (02/10, 275), o link que vai para os corretores acharem e se enviarem imóveis: desenho do Pedro
+  (`Telaenviarmovel.html`, na raiz); `python scripts/montar_pagina_de_enviar.py` gera `imob-easy/imoveis.html` trocando o
+  script de exemplo por `assets/js/imoveis-enviar.js` (mapa Leaflet no lugar do ilustrativo). Dados:
+  `site_imoveis_para_enviar()` por `/api/imoveis-para-enviar` (só o que a Nay oferece; sem rua, número, andar ou dono).
+  Abre já num imóvel, numa busca ou em Alugar: `/imoveis?codigo=5717`, `?q=Ponta Negra`, `?alugar`.
 - "Me envia" (o corretor digita o próprio WhatsApp): `POST /api/me-envia` → `site_me_envia()` → `nai_disparo_enfileirar`
   (as paredes de sempre: parceiro não sai, 24h por pessoa) com tetos por número, por IP e por dia. Registro em
   `privado.me_envia`; quem mais se envia: `site_me_envia_ranking(dias)` em `/admin/api/me-envia/ranking` (senha do /admin),

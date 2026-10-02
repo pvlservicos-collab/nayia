@@ -1,0 +1,5 @@
+# Vigia do WhatsApp da Nay (02/10/2026): avisa no grupo quando um número desconecta da Z-API,
+# guarda a fila presa e reenvia devagar na volta. Ver /root/vigia_whatsapp/vigia_whatsapp.py.
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+* * * * * root flock -n /run/vigia_whatsapp_parceria.lock python3 /root/vigia_whatsapp/vigia_whatsapp.py parceria >> /var/log/vigia_whatsapp.log 2>&1
+* * * * * root flock -n /run/vigia_whatsapp_captacao.lock python3 /root/vigia_whatsapp/vigia_whatsapp.py captacao >> /var/log/vigia_whatsapp.log 2>&1

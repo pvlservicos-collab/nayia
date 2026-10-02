@@ -4541,6 +4541,22 @@ def api_me_envia():
         conn.close()
 
 
+# A TELA /imoveis (Pedro, 02/10/2026): "um link /imoveis que vou mandar para os
+# corretores acharem os imoveis e se enviarem pelo whatsapp". A lista inteira
+# vem de site_imoveis_para_enviar() (275): so o que a Nay oferece, sem rua,
+# numero, CEP, andar ou dono. O envio e o mesmo /api/me-envia da pagina do imovel.
+@app.route("/api/imoveis-para-enviar")
+def api_imoveis_para_enviar():
+    conn = conectar()
+    try:
+        linhas = todas_linhas(conn, "SELECT site_imoveis_para_enviar() AS r")
+        resposta = jsonify({"imoveis": (linhas[0]["r"] if linhas else None) or []})
+        resposta.headers["Cache-Control"] = "public, max-age=120"
+        return resposta
+    finally:
+        conn.close()
+
+
 # Quem mais se envia imoveis. Tem telefone: so com a senha do /admin.
 @app.route("/admin/api/me-envia/ranking")
 def admin_me_envia_ranking():
