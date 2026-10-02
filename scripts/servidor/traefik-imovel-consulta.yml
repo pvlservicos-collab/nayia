@@ -1,0 +1,20 @@
+# A CONSULTA DE IMÓVEIS DO GROKBOT PELA PORTA 80 (01/10/2026).
+# Cópia de /docker/traefik/dynamic/imovel-consulta.yml no srv1894338.
+#
+# Mesmo motivo do aviso-ao-tel.yml: a nuvem do bot do Grok corta o HTTPS para os
+# nossos servidores e deixa passar a porta 80. Por aqui o CRM só aceita o PEDIDO
+# LACRADO (crm/src/lib/botDeImoveis.ts) -- o token puro é recusado na porta 80.
+#
+# O que passa: SÓ o POST nas duas rotas da consulta. Todo o resto da porta 80
+# continua indo para HTTPS. A prioridade tem de ser maior que a do redirecionamento
+# (2147483646).
+#
+# Recarregado sozinho (providers.file.watch). Para desfazer: apagar o arquivo.
+http:
+  routers:
+    imovel-consulta-http:
+      rule: "Host(`crm.imobeasy.online`) && (Path(`/api/public/imovel-consulta`) || Path(`/api/public/imovel-consulta/vincular`)) && Method(`POST`)"
+      entryPoints:
+        - web
+      priority: 3000000000
+      service: crm@docker
