@@ -1300,6 +1300,7 @@ def api_imovel_salvar(codigo):
                 return jsonify({"erro": "não encontrado"}), 404
             _gravar_privado(cur, codigo, unidade, ficha, vencimento)
             pid = _gravar_proprietario(cur, codigo, dono, dono_novo)
+            _guardar_no_condominio(cur, codigo, corpo, gravar)
         conn.commit()
         resposta = {"status": "salvo", "codigo": codigo, "proprietario_id": pid}
         if dono is not None:   # o dono como ficou gravado (pode ter ligado a quem já era dono)
@@ -2553,7 +2554,9 @@ def api_condominio_endereco(cid):
                    mode() WITHIN GROUP (ORDER BY i.cidade)
                      FILTER (WHERE coalesce(i.cidade, '') <> '')     AS cidade,
                    mode() WITHIN GROUP (ORDER BY i.estado)
-                     FILTER (WHERE coalesce(i.estado, '') <> '')     AS estado
+                     FILTER (WHERE coalesce(i.estado, '') <> '')     AS estado,
+                   mode() WITHIN GROUP (ORDER BY i.numero)
+                     FILTER (WHERE coalesce(i.numero, '') <> '')     AS numero
               FROM condominios c
               LEFT JOIN imoveis i ON i.condo_id = c.id
              WHERE c.id = %s
@@ -2567,13 +2570,23 @@ def api_condominio_endereco(cid):
         # andares, construtora e ano da condominio_ficha (210/229), quando existe.
         ficha = todas_linhas(conn, """
             SELECT f.lazer, f.elevador, f.andares, f.aptos_por_andar, f.torres, f.construtora,
-                   f.ano_lancamento, f.revestimento, f.endereco, f.unidades
+                   f.ano_lancamento, f.revestimento, f.endereco, f.unidades,
+                   f.logradouro, f.numero, f.bairro, f.cidade, f.estado, f.cep
               FROM condominio_ficha f WHERE f.condominio_id = %s LIMIT 1""", (cid,))
         f = ficha[0] if ficha else None
         def inteiro(txt):
             m = re.search(r"\d+", str(txt or ""))
             return int(m.group(0)) if m else None
+        # O CONDOMÍNIO GUARDA O PRÓPRIO ENDEREÇO (273, Pedro 02/10: "quando selecionei
+        # condomínio não puxou o número"). A ordem: o que está nos campos da ficha; senão o
+        # endereço em texto da ficha ("Av. X, nº 4731, Bairro Y, Manaus - AM"); senão o mais
+        # comum entre os imóveis já ligados.
+        do_texto = _endereco_em_partes(f["endereco"]) if f else {}
+        def dado(campo, reserva=None):
+            return ((f or {}).get(campo) or do_texto.get(campo) or reserva or None)
         return jsonify({
+            "numero": dado("numero", l["numero"]),
+            "cep": dado("cep"),
             "id": cid,
             "nome": l["nome"],
             "base": l["base"],
@@ -2593,17 +2606,62 @@ def api_condominio_endereco(cid):
                 "unidades": f["unidades"],
             },
             # o bairro do cadastro manda; o dos imoveis e a reserva
-            "bairro": l["bairro_cadastro"] or l["bairro_imoveis"],
-            "logradouro": l["logradouro"],
-            "cidade": l["cidade"],
-            "estado": l["estado"],
-            # SEM CEP de proposito: a role de leitura do site nao tem SELECT na
-            # coluna `cep` de `imoveis` (as permissoes dela sao por coluna).
+            "bairro": l["bairro_cadastro"] or dado("bairro", l["bairro_imoveis"]),
+            "logradouro": dado("logradouro", l["logradouro"]),
+            "cidade": dado("cidade", l["cidade"]),
+            "estado": dado("estado", l["estado"]),
+            # O CEP so vem da ficha do condominio: a role de leitura do site nao tem
+            # SELECT na coluna `cep` de `imoveis` (as permissoes dela sao por coluna).
             # Pedir a coluna derruba a rota inteira com "permission denied for
             # table imoveis" -- foi o que aconteceu ao subir isto em 30/09.
         })
     finally:
         conn.close()
+
+
+def _endereco_em_partes(texto):
+    """"Av. Cosme Ferreira, nº 4731, Bairro Aleixo, Manaus - AM" em rua, numero, cidade e
+    estado. E o formato das fichas de condominio escritas a mao (30/09)."""
+    partes = [p.strip() for p in str(texto or "").split(",") if p.strip()]
+    if not partes:
+        return {}
+    d = {"logradouro": partes[0]}
+    for p in partes[1:]:
+        m = re.match(r"^(?:n[ºo°.]*\s*)?(\d[\w/-]*|s/?n)$", p, re.I)
+        if m and "numero" not in d:
+            d["numero"] = m.group(1)
+            continue
+        m = re.match(r"^(.+?)\s*[-/]\s*([A-Za-z]{2})$", p)
+        if m and not re.match(r"^bairro\b", p, re.I):
+            d["cidade"], d["estado"] = m.group(1).strip(), m.group(2).upper()
+    return d
+
+
+def _guardar_no_condominio(cur, codigo, corpo, extras):
+    """O que se digita no cadastro de um imovel e que e DO CONDOMINIO (endereco, numero, CEP,
+    andares, elevadores, caracteristicas do condominio) fica guardado no condominio, para o
+    proximo imovel dele ja nascer preenchido (273, Pedro 02/10: "nao quero ter que digitar a
+    mesma informacao 2 vezes"). Num savepoint: se isto falhar, o imovel e salvo do mesmo jeito."""
+    dados = {k: str(corpo[k]).strip() for k in ("logradouro", "numero", "bairro", "cidade", "estado", "cep")
+             if str(corpo.get(k) or "").strip()}
+    if (extras or {}).get("caracteristicas do condominio"):
+        dados["lazer"] = [x.strip() for x in re.split(r"[,\n]", extras["caracteristicas do condominio"]) if x.strip()]
+    for k in ("andares", "elevadores"):
+        if (extras or {}).get(k):
+            dados[k] = str(extras[k])
+    if not dados:
+        return
+    cur.execute("SAVEPOINT do_condominio")
+    try:
+        cur.execute("SELECT condo_id, tipo FROM imoveis WHERE codigo = %s", (codigo,))
+        l = cur.fetchone()
+        if l and l["condo_id"]:
+            dados["vertical"] = bool(re.match(r"\s*(apartamento|flat|cobertura|studio|kitnet|loft|sala)", str(l["tipo"] or ""), re.I))
+            cur.execute("SELECT site_condominio_guardar(%s, %s)", (l["condo_id"], psycopg2.extras.Json(dados)))
+        cur.execute("RELEASE SAVEPOINT do_condominio")
+    except Exception as exc:  # noqa: BLE001
+        cur.execute("ROLLBACK TO SAVEPOINT do_condominio")
+        app.logger.warning("condominio nao guardou os dados do imovel %s: %s", codigo, exc.__class__.__name__)
 
 
 @app.route("/api/imoveis/campos")
@@ -2735,6 +2793,7 @@ def api_imovel_criar():
             novo = cur.fetchone()["codigo"]
             _gravar_privado(cur, novo, unidade, ficha, vencimento)
             _gravar_proprietario(cur, novo, dono, True)
+            _guardar_no_condominio(cur, novo, corpo, gravar)
         conn.commit()
         return jsonify({"status": "criado", "codigo": novo}), 201
     except Exception as exc:  # noqa: BLE001

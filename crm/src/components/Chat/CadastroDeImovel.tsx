@@ -45,7 +45,7 @@ export interface AlvoDoCadastro {
 const SECOES: Array<{ id: string; nome: string; ico: string; cor: string; regua: string[] }> = [
   { id: 'local', nome: 'Localização', ico: '⌖', cor: '#3B6FD8', regua: ['bairro', 'condomínio', 'endereço'] },
   { id: 'imovel', nome: 'O imóvel', ico: '⌂', cor: '#7C4FD9',
-    regua: ['tipo', 'quartos', 'suítes', 'banheiros', 'vagas', 'vagas cobertas', 'área', 'mobília', 'andar', 'sol'] },
+    regua: ['tipo', 'quartos', 'suítes', 'banheiros', 'vagas', 'vagas cobertas', 'área', 'mobília', 'sol'] },
   { id: 'valores', nome: 'Valores', ico: '$', cor: '#C26A22', regua: ['valor', 'taxa de condomínio', 'IPTU'] },
   { id: 'oquetem', nome: 'O que tem', ico: '✓', cor: '#23827A', regua: ['características'] },
   { id: 'descricao', nome: 'Descrição', ico: '✎', cor: '#5A6170', regua: ['descrição'] },
@@ -224,6 +224,21 @@ export default function CadastroDeImovel({ leadId, donoNome, temProprietario, al
       cidade: c.cidade || 'Manaus',
       estado: c.estado || 'AM',
     })
+    // O NÚMERO vem do cadastro do condomínio (Pedro, 02/10: "quando selecionei condomínio não
+    // puxou o número"). A lista só traz o endereço num texto; a rota do site (aberta) devolve
+    // rua e número separados. Só entra em campo vazio, ou no que esta mesma escolha preencheu.
+    fetch(`https://api.imobeasy.online/api/condominios/${c.id}/endereco`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((e) => {
+        if (!e) return
+        setCampos((atual) => ({
+          ...atual,
+          logradouro: e.logradouro && (!atual.logradouro?.trim() || atual.logradouro === (c.endereco || ''))
+            ? String(e.logradouro) : atual.logradouro,
+          numero: atual.numero?.trim() ? atual.numero : String(e.numero || ''),
+        }))
+      })
+      .catch(() => {})
     setListaDeCondos(false)
     setBuscaCondo('')
     setAviso(c.endereco
@@ -442,9 +457,6 @@ export default function CadastroDeImovel({ leadId, donoNome, temProprietario, al
               </Campo>
               <Campo rotulo="Complemento (torre, apto)" tam={3}>
                 <input value={campos.complemento ?? ''} onChange={(e) => mudar({ complemento: e.target.value })} />
-              </Campo>
-              <Campo rotulo="Andar" tam={1}>
-                <input value={campos.andar ?? ''} onChange={(e) => mudar({ andar: e.target.value })} />
               </Campo>
               <Campo rotulo="Cidade">
                 <input value={campos.cidade ?? ''} onChange={(e) => mudar({ cidade: e.target.value })} />

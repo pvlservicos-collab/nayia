@@ -527,6 +527,7 @@ nay_tratamento_por_nome
 nay_valor_curto	nay_linha_da_lista, nay_lista_de_imoveis
 nay_valor_em_reais	nai_buscar_por_perfil, nai_negocio_do_pedido, nai_negocio_pelo_valor, nai_pedido_de_perfil, nai_sec_guardar_do_imovel, nay_buscar_por_perfil
 nay_valor_escrito	nay_partes_da_linha
+site_condominio_guardar	
 site_imovel_publico	
 site_me_envia	
 site_me_envia_ranking	

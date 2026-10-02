@@ -20,6 +20,11 @@ lazer  text[]  NOT NULL  padrão '{}'::text[]
 fonte  text
 criado_em  timestamp with time zone  NOT NULL  padrão now()
 atualizado_em  timestamp with time zone  NOT NULL  padrão now()
+logradouro  text
+numero  text
+cidade  text
+estado  text
+cep  text
 
 ## índices
 CREATE UNIQUE INDEX condominio_ficha_condominio_id_key ON public.condominio_ficha USING btree (condominio_id)
@@ -38,7 +43,7 @@ nay_leitura: SELECT
 nay_site_leitura: SELECT
 
 ## funções que escrevem aqui
-(nenhuma função; quem escreve é o n8n, o site ou o CRM)
+site_condominio_guardar
 
 ## funções que citam
-crm_captacao_cadastro_opcoes, nai_cadastro_importar
+crm_captacao_cadastro_opcoes, nai_cadastro_importar, site_condominio_guardar

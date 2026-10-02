@@ -138,8 +138,12 @@
     motivo_bloqueio: { rotulo: "Motivo do bloqueio", largo: true, lista: true }
   };
   var GRUPOS = [
-    { titulo: "Localização", icone: "⌖", cor: "#2f6fb8", fundo: "#eaf2fb",
-      campos: ["condominio", "logradouro", "numero", "complemento", "bairro", "cidade", "estado", "cep", "andar"] },
+    // O ENDEREÇO É DO CONDOMÍNIO (Pedro, 02/10: "não quero ter que digitar a mesma informação 2
+    // vezes... as informações do condomínio já são fixas"). Escolheu o condomínio, vem tudo dele;
+    // o que for corrigido aqui o servidor guarda NO condomínio (273). "Andar não precisa": saiu.
+    { titulo: "Condomínio e endereço", icone: "⌖", cor: "#2f6fb8", fundo: "#eaf2fb",
+      nota: "Escolha o condomínio e o endereço dele vem sozinho, com número e CEP. O que você completar ou corrigir aqui fica guardado no condomínio: o próximo imóvel dele já nasce preenchido.",
+      campos: ["condominio", "logradouro", "numero", "complemento", "bairro", "cidade", "estado", "cep"] },
     { titulo: "Unidade", icone: "⌗", cor: "#4338ca", fundo: "#eef0ff", privado: true,
       nota: "O site e a Nay nunca mostram isso ao cliente.",
       campos: ["p:torre", "p:bloco", "p:unidade", "p:casa", "p:lote"] },
@@ -280,7 +284,8 @@
       "</div>" +
       '<input type="hidden" data-campo="x:caracteristicas do condominio" value="' + esc(condominio.join(", ")) + '">' +
       datalist("caracteristicas") +
-      '<span class="ed__dica">A Nay procura nas duas listas ("tem piscina?"). ⇄ passa o item para o outro grupo.</span>' +
+      '<span class="ed__dica">A Nay procura nas duas listas ("tem piscina?"). ⇄ passa o item para o outro grupo. ' +
+        "As do condomínio vêm sozinhas quando ele é escolhido, e o que você acrescentar nelas fica guardado no condomínio.</span>" +
       "</div>";
   }
 
@@ -678,13 +683,24 @@
       .then(function (e) {
         if (!e) return;
         var postos = [], divergentes = [];
-        [["logradouro", "a rua"], ["bairro", "o bairro"], ["cidade", "a cidade"],
+        [["logradouro", "a rua"], ["numero", "o número"], ["bairro", "o bairro"], ["cidade", "a cidade"],
          ["estado", "o estado"], ["cep", "o CEP"]].forEach(function (par) {
           var campo = $("ed-" + par[0]), valor = e[par[0]];
-          if (!campo || !valor) return;
+          if (!campo) return;
           var atual = String(campo.value || "").trim();
-          if (!atual) {
+          // o que EU pus do condomínio anterior sai junto com ele (trocou de condomínio, troca o endereço)
+          var eraDoOutro = campo.dataset.doCondominio != null && atual === campo.dataset.doCondominio;
+          if (!valor) {
+            if (eraDoOutro && atual) {
+              campo.value = ""; delete campo.dataset.doCondominio;
+              campo.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+            return;
+          }
+          valor = String(valor);
+          if (!atual || eraDoOutro) {
             campo.value = valor;
+            campo.dataset.doCondominio = valor;
             campo.dispatchEvent(new Event("input", { bubbles: true }));
             postos.push(par[1]);
           } else if (atual.toLowerCase() !== String(valor).toLowerCase()) {
@@ -726,14 +742,16 @@
         var recado = [];
         if (daFicha.length) recado.push("Da ficha do condomínio: " + daFicha.join(", ") + ".");
         if (postos.length) {
-          recado.push("Preenchi " + postos.join(", ") + " pelo condomínio" +
-            (e.base ? " (do que está cadastrado em " + e.base + " imóvel" + (e.base === 1 ? "" : "is") + " dele)" : "") + ".");
+          recado.push("Preenchi " + postos.join(", ") + " pelo cadastro do condomínio.");
         }
         if (divergentes.length) {
           recado.push("Não mexi no que já estava escrito — mas " + divergentes.join("; ") + ".");
         }
-        if (!postos.length && !divergentes.length) {
-          recado.push("Esse condomínio ainda não tem endereço em nenhum imóvel cadastrado.");
+        var faltam = [["logradouro", "a rua"], ["numero", "o número"], ["cep", "o CEP"]]
+          .filter(function (par) { return !e[par[0]]; }).map(function (par) { return par[1]; });
+        if (faltam.length) {
+          recado.push("Este condomínio ainda não tem " + faltam.join(", ") +
+            ": preencha uma vez aqui e fica guardado nele.");
         }
         dica.textContent = recado.join(" ");
       })

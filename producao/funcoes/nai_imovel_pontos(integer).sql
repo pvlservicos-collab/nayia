@@ -48,7 +48,6 @@ BEGIN
       ('taxa de condomínio',4, i.taxa_condominio IS NOT NULL OR v_incluso ~ 'condom',                v_condo AND v_aluga, 'importante'),
       -- detalhe (15)
       ('suítes',            3, i.suites IS NOT NULL,                                                 coalesce(i.tipo,'') !~* '^(lote|terreno|galp|loja|sala)', 'detalhe'),
-      ('andar',             3, coalesce(btrim(i.andar), '') <> '',                                   v_vertical,          'detalhe'),
       ('sol',               3, coalesce(btrim(i.sol), '') <> '',                                     true,                'detalhe'),
       ('IPTU',              3, i.iptu IS NOT NULL OR v_incluso ~ 'iptu',                              true,                'detalhe'),
       ('vagas cobertas',    3, i.vagas_cobertas IS NOT NULL,                                          coalesce(i.tipo,'') !~* '^(lote|terreno)', 'detalhe')

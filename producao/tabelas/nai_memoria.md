@@ -1,4 +1,4 @@
-# nai_memoria  (tabela, ~10187 linhas)
+# nai_memoria  (tabela, ~10342 linhas)
 
 ## colunas
 id  integer  NOT NULL  padrão nextval('nai_memoria_id_seq'::regclass)

@@ -20,7 +20,7 @@ nay_site_leitura: SELECT
 nay_site_leitura, só nestas colunas: SELECT(id, nome, bairro)
 
 ## funções que escrevem aqui
-(nenhuma função; quem escreve é o n8n, o site ou o CRM)
+site_condominio_guardar
 
 ## funções que citam
-crm_captacao_cadastro_opcoes, crm_condominio_pelo_texto, nai_cadastro_importar, nai_imovel_da_conversa, nay_disponibilidade_no_condominio
+crm_captacao_cadastro_opcoes, crm_condominio_pelo_texto, nai_cadastro_importar, nai_imovel_da_conversa, nay_disponibilidade_no_condominio, site_condominio_guardar

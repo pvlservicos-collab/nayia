@@ -90,7 +90,6 @@ function regua(c: CamposDoCadastro, fotos: number, temDono: boolean): Array<[str
     ['descrição', 4, cheio(c.descricao), true, 'importante'],
     ['taxa de condomínio', 4, numero(c.taxaCondominio) !== null || /condom/.test(incluso), emCondominio && aluga, 'importante'],
     ['suítes', 3, numero(c.suites) !== null, !/^(lote|terreno|galp|loja|sala)/.test(tipo), 'detalhe'],
-    ['andar', 3, cheio(c.andar), vertical, 'detalhe'],
     ['sol', 3, cheio(c.sol), true, 'detalhe'],
     ['IPTU', 3, numero(c.iptu) !== null || /iptu/.test(incluso), true, 'detalhe'],
     ['vagas cobertas', 3, numero(c.vagasCobertas) !== null, !/^(lote|terreno)/.test(tipo), 'detalhe'],
