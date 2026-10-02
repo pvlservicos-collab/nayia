@@ -63,6 +63,7 @@ imoveis_pkey: PRIMARY KEY (codigo)
 
 ## gatilhos
 CREATE TRIGGER bairro_normal_do_imovel AFTER INSERT OR DELETE OR UPDATE OF bairro ON public.imoveis FOR EACH STATEMENT EXECUTE FUNCTION nai_bairro_normal_gatilho()
+CREATE TRIGGER imoveis_a_situacao_manda BEFORE INSERT OR UPDATE ON public.imoveis FOR EACH ROW EXECUTE FUNCTION imoveis_a_situacao_manda()
 CREATE TRIGGER imoveis_aviso_de_saida AFTER UPDATE OF disponivel ON public.imoveis FOR EACH ROW EXECUTE FUNCTION nay_enfileirar_aviso_de_saida()
 CREATE TRIGGER imovel_lugar_do_imovel AFTER INSERT OR UPDATE OF bairro, logradouro, condominio_nome ON public.imoveis FOR EACH ROW EXECUTE FUNCTION nai_imovel_lugar_gatilho()
 

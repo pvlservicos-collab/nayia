@@ -535,6 +535,15 @@
         '<div class="sub">' + (i.fotos ? i.fotos + " foto" + (i.fotos > 1 ? "s" : "") : "sem foto") + "</div></td>" +
       "<td>" + seletorDeSituacao(i) +
         '<div class="sub" style="margin-top:5px">' + (i.anunciado ? "no site" : "fora do site") + "</div>" +
+        /* a Nay atende? (Pedro, 02/10: "se tá disponível para mim é para estar para a Nay"): só o
+           nosso, Disponível, no site e sem bloqueio chega nela -- o que foge disso fica escrito */
+        (i.status === "Disponível" && !i.parceiro
+          ? (i.anunciado && !i.bloqueado
+              ? '<div class="sub" style="color:#2f7d58">a Nay oferece</div>'
+              : '<div><span class="etiqueta etiqueta--laranja" title="Abra o imóvel e ' +
+                (i.bloqueado ? "tire o bloqueio" : "ligue o No site") + ' para a Nay voltar a oferecer">a Nay NÃO oferece: ' +
+                (i.bloqueado ? "bloqueado" : "fora do site") + "</span></div>")
+          : "") +
         (i.precisaConfirmar ? '<div class="sub">precisa confirmar</div>' : "") + "</td>" +
       "<td>" + (precos(i).length
           ? precos(i).map(function (x) {
@@ -704,7 +713,9 @@
         "<div><b>Anúncio</b>" + (i.anunciado ? "No site" : "Fora do site") + "</div>" +
         "<div><b>Financiamento</b>" + esc(i.financia) + "</div>" +
         "<div><b>De quem é</b>" + (i.parceiro ? "Parceiro" : "Nosso (proprietário)") + "</div>" +
-        "<div><b>Chega na Nay</b>" + (i.anunciado && !i.parceiro && i.status === "Disponível" ? "Sim" : "Não") + "</div>" +
+        "<div><b>Chega na Nay</b>" + (i.anunciado && !i.parceiro && !i.bloqueado && i.status === "Disponível" ? "Sim"
+          : "Não" + (i.parceiro ? " (parceiro)" : i.status !== "Disponível" ? " (não está Disponível)"
+                     : i.bloqueado ? " (bloqueado)" : " (fora do site)")) + "</div>" +
       "</div></div>" +
 
       '<div class="ux-bloco"><h3>Características</h3><div class="ux-dois">' +

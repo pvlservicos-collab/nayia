@@ -2173,6 +2173,8 @@ def api_imoveis_lista():
             # 244: quanto o cadastro está preenchido, e o que falta
             "cadastroPct": l.get("cadastro_pct"), "cadastroFalta": list(l.get("cadastro_falta") or []),
             "anunciado": l["publicado_no_site"], "precisaConfirmar": l["precisa_confirmacao"],
+            # 274: a lista diz se a Nay oferece (nosso, Disponível, no site e sem bloqueio)
+            "bloqueado": bool(l.get("bloqueado")),
             "criado": l["criado"].date().isoformat() if l["criado"] else None,
             "vencimento": l["vencimento"].isoformat() if l["vencimento"] else None,
             **({"lat": l.get("lat"), "lon": l.get("lon"), "precisao": l.get("geo_precisao"),
