@@ -1,4 +1,4 @@
-# nai_contato  (tabela, ~531 linhas)
+# nai_contato  (tabela, ~534 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('nai_contato_id_seq'::regclass)

@@ -1,4 +1,4 @@
-# imovel_fotos  (tabela, ~17940 linhas)
+# imovel_fotos  (tabela, ~18184 linhas)
 
 ## colunas
 id  integer  NOT NULL  padrão nextval('imovel_fotos_id_seq'::regclass)
