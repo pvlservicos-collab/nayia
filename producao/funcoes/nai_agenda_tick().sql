@@ -279,6 +279,13 @@ BEGIN
     RAISE WARNING 'nai_lembretes_disparar: %', SQLERRM;
   END;
 
+  -- 266: as visitas do bloco (manhã/tarde/noite) para o Tel ligar. Erro aqui nunca para a agenda.
+  BEGIN
+    n := n + nai_visitas_do_bloco_avisar();
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'nai_visitas_do_bloco_avisar: %', SQLERRM;
+  END;
+
   -- 141: o follow-up do dia seguinte. Um erro aqui nunca para a agenda das visitas.
   BEGIN
     n := n + nai_followup_rodar();

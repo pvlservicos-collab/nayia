@@ -1,5 +1,5 @@
 chave	valor	atualizado_em
-_agenda_rodou_em	2026-10-02 08:44:15	2026-10-02T08:44
+_agenda_rodou_em	2026-10-02 08:54:15	2026-10-02T08:54
 antecedencia_minima_horas	3	2026-09-10T18:41
 apresentacao_proprietario	Oi! Esse é o número de visitas da Imob Easy.	2026-09-30T10:15
 aprovacao_lembrete_min	30	2026-09-28T10:35
@@ -56,6 +56,10 @@ reenvios_proprietario_max	3	2026-09-10T18:41
 regra_publico	sim	2026-09-13T22:01
 regra_publico_desde	2026-09-28 07:00:02-04	2026-09-28T07:00
 resposta_parceria	Sim, aceitamos parceria em todos os nossos imóveis, o que precisar pode contar com a gente!	2026-09-28T00:15
+resumo_tel_ligado	sim	2026-10-02T08:54
+resumo_tel_manha	08:30	2026-10-02T08:54
+resumo_tel_noite	18:00	2026-10-02T08:54
+resumo_tel_tarde	12:00	2026-10-02T08:54
 secretaria_ligada	sim	2026-09-22T18:33
 segundos_por_foto	2.5	2026-09-23T13:06
 so_corretor_da_lista	sim	2026-09-18T23:40
