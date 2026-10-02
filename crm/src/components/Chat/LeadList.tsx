@@ -6,7 +6,8 @@ import { MagnifyingGlass, PushPin, Archive, ArrowCounterClockwise, ArrowLeft, Ta
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 import { useLeadSearch } from '@/hooks/useLeadSearch'
 import { DIAS_CONVERSA_IMPORTADA } from '@/lib/conversas'
-import { useTags, useOrganizationMembers } from '@/hooks'
+import { useAuth, useTags, useOrganizationMembers } from '@/hooks'
+import { soRespondeNaCaptacao } from '@/lib/captacaoSoResponde'
 import { useParceriaMarcas } from '@/hooks/useParceriaMarcas'
 import { useCaptacaoDonos } from '@/hooks/useCaptacaoDonos'
 import { montarAtendentes, atendenteDaConversa, type Atendente } from '@/lib/atendentes'
@@ -144,6 +145,8 @@ export default function LeadList({
   organizationId,
 }: LeadListProps) {
   const ehParceria = linha === 'parceria'
+  const { profileName, user } = useAuth()
+  const semLupa = soRespondeNaCaptacao(profileName || user?.name)
   const [search, setSearch] = useState('')
   const [buscaAberta, setBuscaAberta] = useState(false)
   const [activeTab, setActiveTab] = useState<ChatTab>('all')
@@ -594,7 +597,9 @@ export default function LeadList({
           )}
 
           <div className="ml-auto flex items-center gap-1">
-            {!verArquivadas && (
+            {/* A lupa de cima não aparece para quem só responde na captação (Pedro, 02/10/2026: "retira a
+                lupa lá de cima para a Rayssa"): era por ela que a conversa nova era aberta. */}
+            {!verArquivadas && !semLupa && (
               <button type="button" onClick={() => setBuscaAberta((v) => !v)} aria-expanded={buscaAberta}
                       className={`wa-icone-btn ${buscaAberta || search ? 'wa-icone-btn--on' : ''}`} title="Pesquisar conversa (nome ou número)">
                 <MagnifyingGlass size={20} />
