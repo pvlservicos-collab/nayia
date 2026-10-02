@@ -737,6 +737,12 @@
         (i.fotos ? '<span class="ux-dica">carregando…</span>' : '<span class="ux-dica">Este imóvel não tem foto nossa.</span>') +
       "</div></div>" +
 
+      /* a página nova do imóvel (02/10): endereço inteiro, porque esta tela também abre dentro do CRM */
+      (i.anunciado && i.status === "Disponível"
+        ? '<a class="btn-neutro btn-bloco" style="margin-top:12px;text-align:center" target="_blank" rel="noopener" ' +
+          'href="https://imobeasy.online/imovel/' + encodeURIComponent(i.codigo) + '">Ver como o corretor vê (página do imóvel)</a>'
+        : '<p class="ux-dica" style="margin-top:12px">Sem página pública: só imóvel disponível e anunciado no site tem.</p>') +
+
       (i.noCatalogo
         ? '<a class="btn-azul btn-bloco" style="margin-top:12px" href="imovel-editar.html?codigo=' + esc(i.codigo) + '">Abrir / editar imóvel</a>'
         : '<p class="ux-dica" style="margin-top:12px">Imóvel só do admin antigo: não abre no editor.</p>');

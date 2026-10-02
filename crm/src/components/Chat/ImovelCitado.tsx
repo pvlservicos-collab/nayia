@@ -153,6 +153,13 @@ export default function ImovelCitado({
 {imovel.card}
             </pre>
 
+            {/* A página nova do imóvel (Pedro, 02/10): a mesma que o corretor abre no site.
+                Só existe para imóvel disponível e anunciado; fora disso ela mesma avisa. */}
+            <a href={`https://imobeasy.online/imovel/${imovel.codigo}`} target="_blank" rel="noreferrer"
+               className="mt-3 block text-center text-[12.5px] font-semibold text-ink border border-line rounded-xl py-2 hover:brightness-110 transition">
+              Abrir a página do imóvel
+            </a>
+
             {imovel.fotos.length > 0 && (
               <>
                 <p className="text-[11px] text-muted mt-3 mb-1">
