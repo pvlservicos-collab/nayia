@@ -7,6 +7,7 @@ import { useLeadsContext } from '@/contexts/LeadsContext'
 import { LeadList, ChatWindow, LeadDetailsSidebar } from '@/components/Chat'
 import { LeadWithOwner } from '@/lib/types'
 import { CAMINHO_DA_LINHA, getLinhaWhatsapp, type LinhaWhatsapp } from '@/lib/leadChannel'
+import { AVISO_DA_CAPTACAO, soRespondeNaCaptacao } from '@/lib/captacaoSoResponde'
 import { useParceriaMarcas } from '@/hooks/useParceriaMarcas'
 import NotAuthorized from '@/components/Shared/NotAuthorized'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
@@ -384,7 +385,16 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
     </AbasParceria>
   ) : linha === 'captacao' ? (
     // a barra da captação (Pedro, 29/09): hoje, as etapas e o relatório ao Tel
-    <BarraDaCaptacao leads={allLeads} />
+    <>
+      {/* quem só responde na captação vê o aviso sempre que abre esta tela (Pedro, 02/10) */}
+      {soRespondeNaCaptacao(profileName || user?.name) && (
+        <div role="alert" className="px-4 py-2.5 text-[13.5px] font-medium leading-snug"
+             style={{ background: '#FEF3C7', color: '#78350F', borderBottom: '1px solid #F59E0B' }}>
+          ⚠️ {AVISO_DA_CAPTACAO}
+        </div>
+      )}
+      <BarraDaCaptacao leads={allLeads} />
+    </>
   ) : null
 
   /* ── Celular: uma tela por vez; na Parceria as abas ficam em cima ── */

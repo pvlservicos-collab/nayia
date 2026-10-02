@@ -8,10 +8,20 @@
  * Quem usa passa o texto para o filtro da lista (`aoMudar`) e diz quantas
  * conversas sobraram (`achados`). Quando o texto é um telefone (10 a 13
  * dígitos) e não sobrou nenhuma, aparece "Abrir conversa com ...": cria (ou
- * acha) o lead na linha da Parceria e abre.
+ * acha) o lead e abre.
+ *
+ * A LUPA DE CIMA PERGUNTA POR QUAL NÚMERO (Pedro, 02/10/2026): "ela tá abrindo
+ * por padrão no de captação mas não é para fazer isso, é para a abinha da lupa
+ * abrir para escolher o de parceria ou de captação". Antes a conversa nascia na
+ * linha da aba em que a pessoa estava. Agora são dois botões, Parceria e
+ * Captação; escolher a outra linha leva para a tela dela, já na conversa.
+ * Quem só responde na captação (captacaoSoResponde.ts) vê a Captação apagada.
  */
 import { useState } from 'react'
 import { MagnifyingGlass, ChatCircleText, X } from '@phosphor-icons/react'
+import { useAuth } from '@/hooks'
+import { CAMINHO_DA_LINHA, type LinhaWhatsapp } from '@/lib/leadChannel'
+import { RECUSA_DA_CAPTACAO, soRespondeNaCaptacao } from '@/lib/captacaoSoResponde'
 
 export function casaNaBusca(texto: string, lead: { title?: string | null; phone?: string | null }): boolean {
   const t = texto.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -22,10 +32,15 @@ export function casaNaBusca(texto: string, lead: { title?: string | null; phone?
   return nome.includes(t)
 }
 
+const ESCOLHAS: Array<{ linha: LinhaWhatsapp; rotulo: string }> = [
+  { linha: 'parceria', rotulo: 'Parceria' },
+  { linha: 'captacao', rotulo: 'Captação' },
+]
+
 export default function BuscaDaLista({ texto, aoMudar, achados, aoAbrir, placeholder, linha, soBotao }: {
-  /** em qual número a conversa nova abre (parceria, captacao, oficial) */
+  /** a linha da tela em que a busca está (parceria, captacao, oficial) */
   linha?: string
-  /** só o botão "Abrir conversa com ...", sem o campo (a lupa de cima já tem o campo) */
+  /** só os botões "Iniciar conversa", sem o campo (a lupa de cima já tem o campo) */
   soBotao?: boolean
   texto: string
   aoMudar: (t: string) => void
@@ -33,26 +48,32 @@ export default function BuscaDaLista({ texto, aoMudar, achados, aoAbrir, placeho
   aoAbrir: (leadId: string) => void
   placeholder?: string
 }) {
-  const [abrindo, setAbrindo] = useState(false)
+  const { profileName, user } = useAuth()
+  const soResponde = soRespondeNaCaptacao(profileName || user?.name)
+  const [abrindo, setAbrindo] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const digitos = texto.replace(/\D/g, '')
   const ehNumero = digitos.length >= 10 && digitos.length <= 13 && /^[\d\s()+-]+$/.test(texto.trim())
 
-  async function abrir() {
-    setAbrindo(true)
+  async function abrir(escolhida: string) {
+    setAbrindo(escolhida)
     setErro(null)
     try {
       const r = await fetch('/api/leads/abrir', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telefone: digitos, linha: linha || 'parceria' }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telefone: digitos, linha: escolhida }),
       })
       const j = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(j?.error || j?.message || 'Não consegui abrir a conversa.')
       aoMudar('')
-      aoAbrir(j.id)
+      // conversa de outra linha mora em outra tela: vai para lá, já aberta
+      const caminho = CAMINHO_DA_LINHA[escolhida as LinhaWhatsapp]
+      if (escolhida !== (linha || 'parceria') && caminho) window.location.href = `${caminho}?leadId=${j.id}`
+      else aoAbrir(j.id)
     } catch (e: any) {
       setErro(e?.message || 'Não consegui abrir a conversa.')
     } finally {
-      setAbrindo(false)
+      setAbrindo(null)
     }
   }
 
@@ -60,11 +81,25 @@ export default function BuscaDaLista({ texto, aoMudar, achados, aoAbrir, placeho
     if (!ehNumero || achados > 0) return null
     return (
       <div className="px-4 pb-2">
-        <button type="button" onClick={abrir} disabled={abrindo}
-                className="flex items-center gap-2 text-sm font-medium wa-busca__abrir">
-          <ChatCircleText size={16} />
-          {abrindo ? 'Abrindo…' : `Iniciar conversa com ${texto.trim()}`}
-        </button>
+        <p className="text-[12.5px] mb-1.5" style={{ color: 'var(--wa-text-2)' }}>
+          Iniciar conversa com {texto.trim()} por qual WhatsApp?
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {ESCOLHAS.map((e) => {
+            const barrada = e.linha === 'captacao' && soResponde
+            return (
+              <button key={e.linha} type="button" onClick={() => abrir(e.linha)} disabled={!!abrindo || barrada}
+                      title={barrada ? RECUSA_DA_CAPTACAO : `Abrir a conversa pelo WhatsApp da ${e.rotulo}`}
+                      className="flex items-center gap-2 text-sm font-medium wa-busca__abrir disabled:opacity-45 disabled:cursor-not-allowed">
+                <ChatCircleText size={16} />
+                {abrindo === e.linha ? 'Abrindo…' : e.rotulo}
+              </button>
+            )
+          })}
+        </div>
+        {soResponde && (
+          <p className="mt-1.5 text-xs" style={{ color: 'var(--wa-text-2)' }}>{RECUSA_DA_CAPTACAO}</p>
+        )}
         {erro && <p className="mt-1 text-xs text-red-600">{erro}</p>}
       </div>
     )
@@ -86,7 +121,7 @@ export default function BuscaDaLista({ texto, aoMudar, achados, aoAbrir, placeho
         )}
       </label>
       {ehNumero && achados === 0 && (
-        <button type="button" onClick={abrir} disabled={abrindo}
+        <button type="button" onClick={() => abrir(linha || 'parceria')} disabled={!!abrindo}
                 className="mt-2 flex items-center gap-2 text-sm font-medium wa-busca__abrir">
           <ChatCircleText size={16} />
           {abrindo ? 'Abrindo…' : `Abrir conversa com ${texto.trim()}`}

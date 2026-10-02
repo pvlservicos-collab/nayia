@@ -116,6 +116,9 @@ prompt: comece pelo `nay onde`.
   corta HTTPS para cá. A rota da porta 80 é `/docker/traefik/dynamic/aviso-ao-tel.yml` (cópia em `scripts/servidor/`), e o
   redirecionamento 80→443 do Traefik ficou com prioridade 2000000000 para ela poder passar.
 
+- Abrir conversa pela lupa de cima: `src/components/Chat/BuscaDaLista.tsx` pergunta Parceria ou Captação (`/api/leads/abrir`). Quem só responde na captação (a Rayssa): `src/lib/captacaoSoResponde.ts` (lista e aviso) e
+  `captacaoSoRespondeServidor.ts` (a parede, chamada em `abrir`, `messages` e `enviar-imovel`).
+
 ## n8n (fluxo `NAI atendimento locação`, `producao/n8n/`)
 - Import só de madrugada (espelho-madrugada). Modelo/memória: pela interface. Ler execuções: sqlite só leitura (scratch `n8nq.sh`).
 - O procedimento da madrugada está em `scripts/madrugada/` (cópia em `/root/`): exporta o fluxo vivo, aplica um

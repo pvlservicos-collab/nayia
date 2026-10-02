@@ -11,6 +11,7 @@ import { NextRequest } from 'next/server'
 import { authenticateRequest, apiError } from '@/lib/api-auth'
 import { abrirLeadDaLinha } from '@/lib/abrirLead'
 import { integracaoDoTipo } from '@/lib/leadDaLinha'
+import { recusaAbrirNaCaptacao } from '@/lib/captacaoSoRespondeServidor'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -30,6 +31,9 @@ export async function POST(req: NextRequest) {
     const tipo = TIPO_DA_LINHA[String(corpo?.linha || 'parceria')] || 'whatsapp_zapi'
     const linha = await integracaoDoTipo(auth.organizationId, tipo)
     if (!linha) return apiError(400, 'Essa linha de WhatsApp não está configurada.')
+    // quem só responde na captação não abre conversa por lá (Pedro, 02/10)
+    const recusa = await recusaAbrirNaCaptacao(auth.memberId, tipo)
+    if (recusa) return apiError(403, recusa)
 
     // achar ou criar: a mesma regra do lembrete da visita (src/lib/abrirLead.ts)
     const aberto = await abrirLeadDaLinha(auth.organizationId, digitos, nome, tipo)

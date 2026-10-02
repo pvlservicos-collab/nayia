@@ -27,6 +27,7 @@ import { getChannelAdapter } from '@/lib/channels/registry'
 import { channels, events, publishEvent } from '@/lib/realtime'
 import { cardDoImovel } from '@/lib/imoveisNay'
 import { etapaEmAtendimentoDoMesmoPipeline } from '@/lib/etapaDaLinha'
+import { recusaEscreverNaCaptacao } from '@/lib/captacaoSoRespondeServidor'
 
 /** Quantas fotos no máximo. Mandar 18 fotos de uma vez é spam, não atendimento. */
 const TETO_DE_FOTOS = 8
@@ -50,6 +51,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .limit(1)
     if (!lead) return apiError(404, 'Conversa não encontrada.')
     if (!lead.phone && !lead.externalId) return apiError(400, 'Essa conversa não tem telefone.')
+    // quem só responde na captação não começa conversa por lá (Pedro, 02/10)
+    const recusa = await recusaEscreverNaCaptacao(auth.organizationId, auth.memberId, lead.id)
+    if (recusa) return apiError(403, recusa)
 
     const imovel = await cardDoImovel(codigo)
 

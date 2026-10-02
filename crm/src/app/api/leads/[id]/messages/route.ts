@@ -13,6 +13,7 @@ import { isOrgAdmin } from '@/lib/admin-auth'
 import { isUniqueViolation } from '@/lib/db-helpers'
 import { acharLeadDaLinha } from '@/lib/leadDaLinha'
 import { etapaEmAtendimentoDoMesmoPipeline } from '@/lib/etapaDaLinha'
+import { recusaEscreverNaCaptacao } from '@/lib/captacaoSoRespondeServidor'
 
 const CHANNEL_LABELS: Record<string, string> = {
   whatsapp_zapi: 'Z-API',
@@ -202,6 +203,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     const direction = body.direction || 'outbound'
+    // Quem só responde na captação não COMEÇA conversa por lá (Pedro, 02/10): a mensagem de gente,
+    // para fora, numa conversa em que a pessoa ainda não escreveu, é recusada antes de sair.
+    if (body.type === 'whatsapp' && direction === 'outbound' && actualLeadId) {
+      const recusa = await recusaEscreverNaCaptacao(auth.organizationId, auth.memberId, actualLeadId)
+      if (recusa) return apiError(403, recusa)
+    }
     const metadata: Record<string, any> = {
       source: body.source,
       direction,
