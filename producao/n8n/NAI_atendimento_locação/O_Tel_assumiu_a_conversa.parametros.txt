@@ -1,0 +1,1 @@
+={{ [ $('Filtrar e normalizar').first().json.telefone, $('Filtrar e normalizar').first().json.message_id ?? '', $('Filtrar e normalizar').first().json.texto ?? '' ] }}

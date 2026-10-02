@@ -1,0 +1,2 @@
+Registra a resposta do FERNANDO sobre uma visita.
+Arg: decisao = confirma, nao_pode, problema ou outro.

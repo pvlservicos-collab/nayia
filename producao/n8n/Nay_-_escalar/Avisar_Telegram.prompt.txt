@@ -1,0 +1,1 @@
+={{ '🔔 Pendencia ' + $json.id_pendencia + '\nCorretor: ' + $('Receber chamada').first().json.nome + '\nAssunto: ' + $('Receber chamada').first().json.assunto + '\nDisse: ' + $('Receber chamada').first().json.disse + '\n\nResponda com: RESPOSTA ' + $json.id_pendencia + ' <sua resposta>' }}

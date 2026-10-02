@@ -1,0 +1,3 @@
+Devolve quantos imoveis temos num condominio, separando venda e locacao, com a faixa de valor.
+Use quando: ele citar o nome de um condominio.
+Arg: nome (como ele escreveu).

@@ -1,0 +1,4 @@
+Busca imovel de LOCACAO por BAIRRO e faixa de valor, e traz tambem os bairros ao redor.
+Use quando: ele pedir por regiao e preco. Chame antes de dizer se tem ou nao tem.
+NAO USE se ele citou o nome de um CONDOMINIO: ai e disponibilidade_no_condominio.
+Arg: bairro, negocio, teto, quartos, mobilia (as palavras dele).

@@ -1,0 +1,3 @@
+Devolve a lista dos imoveis que voce mandou para ele, para ele escolher.
+Use quando: ele disser 'esse' sem dar o codigo.
+Nunca devolve um codigo escolhido.

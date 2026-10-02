@@ -1,0 +1,71 @@
+# captacao_leads  (tabela, ~365 linhas)
+
+## colunas
+id  bigint  NOT NULL
+telefone  text  NOT NULL
+nome  text
+tratamento  text
+proprietario_id  integer
+codigo  text
+imovel_desc  text
+condominio  text
+bairro  text
+tipo_imovel  text
+lista_id  bigint
+quem_importou  text
+status  text  NOT NULL  padrão 'novo'::text
+etapa  text  padrão 'novo'::text
+tentativas  integer  NOT NULL  padrão 0
+opt_out  boolean  NOT NULL  padrão false
+pergunta_pendente  text
+ultimo_envio_em  timestamp with time zone
+respondeu_em  timestamp with time zone
+situacao  text
+contrato_ate  text
+tem_outro_imovel  boolean  NOT NULL  padrão false
+motivo_fim  text
+fechado_em  timestamp with time zone
+criado_em  timestamp with time zone  NOT NULL  padrão now()
+atualizado_em  timestamp with time zone  NOT NULL  padrão now()
+tratamento_manual  boolean  NOT NULL  padrão false
+imoveis_prop  jsonb  NOT NULL  padrão '[]'::jsonb   -- TODOS os imoveis que este proprietario tem conosco, congelados na importacao. A campanha manda UMA mensagem por pessoa (telefone e UNIQUE), citando um imovel; sem esta coluna a IA nao saberia dos outros e trataria um imovel que ja e nosso como se fosse novidade.
+telefone_chave  text  padrão nay_fone_chave(telefone)
+quer_vender  boolean  NOT NULL  padrão false   -- O proprietario QUER vender (nao confundir com situacao=vendido, que e quem ja vendeu).
+valor_venda_pedido  text   -- Quanto ele quer pedir na venda, nas palavras dele.
+humano_assumiu_em  timestamp with time zone   -- O Tel assumiu este chat: a Nay nao responde mais aqui e o disparo/lembrete nao chamam.
+humano_motivo  text
+chat_lid  text
+valor_locacao_pedido  text   -- Valor da locacao que o proprietario informou na campanha, nas palavras dele (Tel, 14/09).
+situacao_por  text   -- Quem gravou a situacao: NULL/ia = a ferramenta do agente; rede = o gatilho de 15/09, quando a IA nao gravou.
+canal  text   -- Por qual número o dono escreveu por último: oficial (8456-0874, via CRM) ou zapi (8595-6408). A Nay responde por ele. (154, 28/09)
+
+## índices
+CREATE INDEX captacao_leads_chat_lid ON public.captacao_leads USING btree (chat_lid) WHERE (chat_lid IS NOT NULL)
+CREATE INDEX captacao_leads_fila_idx ON public.captacao_leads USING btree (status, id) WHERE (NOT opt_out)
+CREATE INDEX captacao_leads_followup_idx ON public.captacao_leads USING btree (status, ultimo_envio_em) WHERE (respondeu_em IS NULL)
+CREATE INDEX captacao_leads_situacao_idx ON public.captacao_leads USING btree (situacao, atualizado_em DESC)
+CREATE UNIQUE INDEX captacao_leads_fone_chave_uk ON public.captacao_leads USING btree (telefone_chave)
+CREATE UNIQUE INDEX captacao_leads_pkey ON public.captacao_leads USING btree (id)
+CREATE UNIQUE INDEX captacao_leads_telefone_key ON public.captacao_leads USING btree (telefone)
+
+## restrições
+captacao_lead_etapa_ok: CHECK (((etapa IS NULL) OR (etapa = ANY (ARRAY['novo'::text, 'aguardando_situacao'::text, 'aguardando_prazo'::text, 'aguardando_mes'::text, 'aguardando_valor'::text, 'aguardando_outros'::text, 'concluido'::text]))))
+captacao_lead_situacao_ok: CHECK (((situacao IS NULL) OR (situacao = ANY (ARRAY['disponivel'::text, 'alugado'::text, 'vendido'::text]))))
+captacao_lead_status_ok: CHECK ((status = ANY (ARRAY['novo'::text, 'reservado'::text, 'enviado'::text, 'erro'::text, 'respondendo'::text, 'concluido'::text, 'sem_whatsapp'::text])))
+captacao_lead_telefone_cru: CHECK ((telefone ~ '^[0-9]{12,13}$'::text))
+captacao_lead_tratamento_ok: CHECK (((tratamento IS NULL) OR (tratamento = ANY (ARRAY['Sr.'::text, 'Sra.'::text]))))
+captacao_leads_pkey: PRIMARY KEY (id)
+captacao_leads_telefone_key: UNIQUE (telefone)
+
+## permissões
+nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
+nay_core: SELECT
+nay_leitura: SELECT
+nay_site_escrita: DELETE, INSERT, SELECT, UPDATE
+nay_site_leitura: SELECT
+
+## funções que escrevem aqui
+captacao_encerrar, captacao_guardar_lid_do_eco, captacao_rede_da_situacao, crm_captacao_etapa_manual
+
+## funções que citam
+captacao_ainda_e_da_ia, captacao_disparo_liberado, captacao_encerrar, captacao_ficha, captacao_ficha_aviso, captacao_frase_outros, captacao_guardar_lid_do_eco, captacao_lead_por_contato, captacao_rede_da_situacao, crm_captacao_dono_cadastro, crm_captacao_donos, crm_captacao_etapa_manual, crm_captacao_funil, crm_captacao_imoveis_do_dono, crm_captacao_mensagens, crm_captacao_placar, crm_captacao_relatorio, crm_contato_da_mensagem, crm_parceria_marcas, crm_telefone_do_lid, nai_cadastro_pendente, nai_e_proprietario_contato

@@ -1,0 +1,4 @@
+Responde uma pergunta sobre UM imovel: comodos, area, andar, valores, IPTU, endereco, pet,
+lazer, e o que o Tel ja explicou dele.
+Use quando: ele perguntar um dado. Chame antes de escalar_ao_tel.
+Arg: codigo, pergunta (nas palavras dele).

@@ -1,0 +1,5 @@
+Diz se temos ou nao imovel num CONDOMINIO, pelo nome dele.
+Use SEMPRE que ele citar o nome de um condominio, ou colar um anuncio. Esta vem antes de
+buscar_por_perfil: condominio tem nome, bairro nao.
+Arg: nome (como ele escreveu), negocio.
+Siga a instrucao_para_voce que vier junto.

@@ -1,0 +1,2 @@
+Muda o horario de uma visita ja pedida.
+Arg: codigo, quando (AAAA-MM-DD HH:MM).

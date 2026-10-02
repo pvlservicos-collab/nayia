@@ -1,0 +1,1 @@
+SELECT i.codigo, i.tipo, i.quartos, i.suites, i.area_util, i.valor_venda, i.valor_aluguel FROM imoveis i WHERE i.condominio_nome = $1 AND i.disponivel = true AND COALESCE(i.bloqueado, false) = false AND COALESCE(i.e_parceiro, false) = false ORDER BY COALESCE(i.valor_venda, i.valor_aluguel) NULLS LAST;

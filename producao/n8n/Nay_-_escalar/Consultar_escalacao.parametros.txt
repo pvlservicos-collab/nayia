@@ -1,0 +1,1 @@
+={{ [$json.telefone, $json.nome ?? null, $json.codigo ?? null, $json.assunto ?? null, $json.disse ?? null] }}

@@ -6,11 +6,27 @@ no `naydb`). O que roda de verdade é o que está no servidor, e a foto disso é
 
 ## Onde está a verdade
 - `producao/funcoes/<nome>(<tipos>).sql`: cada função viva do schema public, como está no banco.
-- `producao/n8n/`: os fluxos ativos do n8n (segredos redigidos).
+- `producao/tabelas/<tabela>.md`: colunas, índices, restrições, gatilhos, **permissões por papel**
+  e as funções que escrevem nela e que a citam (public e privado).
+- `producao/quem_chama.tsv`: para cada função, quem a chama.
+- `producao/n8n/`: os fluxos ativos do n8n (segredos redigidos), em JSON e **abertos em pasta**:
+  `producao/n8n/<fluxo>/<nó>.js|.sql|.prompt.txt` e `_mapa.md` (tipo, modelo, ligações).
 - `producao/cron/`: o crontab do root e o /etc/cron.d do srv1894338.
 - `producao/nai_config.tsv`, `producao/prompts/` (nai_prompt com versão) e
   `producao/n8n_variaveis_de_ambiente.txt` (só os nomes).
 - Regerar: `./scripts/foto_producao.sh` (só leitura; uns 10 s).
+
+## Achar antes de perguntar ao servidor
+Medido em 01/10: num pedido da Nay, de cada 10 comandos, 5 a 7 eram para DESCOBRIR
+(que coluna existe, quem chama a função, o que tem no nó do n8n) indo ao servidor — e
+vários voltavam com "column does not exist". Tudo isso está na foto. A ordem é:
+1. `./scripts/nay onde "<frase ou nome>"`: acha em banco, nós do n8n, CRM e site (0,3 s).
+2. `./scripts/nay fn <função>`: o arquivo vivo, quem a chama, as migrações que a citam.
+3. `./scripts/nay tabela <tabela>`: colunas e permissões. **Antes de escrever SQL**, e antes de
+   usar uma tabela numa rota do site ou do CRM (o papel pode não ter acesso).
+4. Só então `./scripts/nay q` (naydb) ou `./scripts/nay crmq` (crmdb), para DADO, não para estrutura.
+5. `./scripts/nay ensaio migracao.sql testes.sql` ensaia a própria migração (o COMMIT vira
+   ROLLBACK): não se monta mais cópia "_ensaio" à mão.
 
 ## `Arquivos/nai` é histórico
 Os `.sql` numerados contam como se chegou aqui, mas o banco está à frente deles:
@@ -35,4 +51,7 @@ o que foi corrigido no banco.
 - Nunca apagar linha de `imoveis`.
 - Nada de segredo no git: token, senha, chave, URL da Z-API com instância.
 - Import de fluxo no n8n só de madrugada, pelo procedimento do espelho-madrugada.
-- Atalhos: `./scripts/nay` (q, ensaio, backup, aplicar, bateria, conversa, site, crm) e o mapa pedido → função em `MAPA.md`.
+- Atalhos: `./scripts/nay` (onde, fn, tabela, q, crmq, ensaio, backup, aplicar, bateria, conversa, site, crm)
+  e o mapa pedido → função em `MAPA.md`. Mudou algo que o mapa não cobre? Acrescente a linha no mesmo commit.
+- Script com aspas ou barras invertidas vai em ARQUIVO (Write) e depois roda; em heredoc do Git Bash
+  as aspas quebram e `\\` vira `\`.

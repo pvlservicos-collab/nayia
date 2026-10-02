@@ -1,0 +1,3 @@
+Devolve a lista de imoveis de um condominio, filtrada.
+Use quando: souber o condominio, venda ou locacao, e quartos OU valor.
+Arg: condominio, negocio, quartos, teto (o valor como ele falou, sem fazer conta).

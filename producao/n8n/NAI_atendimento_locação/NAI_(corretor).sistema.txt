@@ -1,0 +1,5 @@
+={{ (() => {
+  const p = $('Abrir turno').first().json?.cab?.prompt;
+  if (typeof p === 'string' && p.trim().length > 500) return p;
+  throw new Error('PROMPT_VAZIO: nai_prompt do papel nao veio do banco');
+})() }}

@@ -1,0 +1,3 @@
+Avisa o Tel e passa o chat para ele.
+Use quando: nenhuma ferramenta de consulta trouxe a resposta.
+Arg: assunto (uma linha).

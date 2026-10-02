@@ -1,0 +1,1 @@
+={{ [$('Abrir turno').first().json.cab.turno_id, $fromAI('codigo', 'codigo do imovel, se souber', 'string') ?? null, $fromAI('resultado', 'quer_alugar, nao_gostou, pensando ou nao_foi', 'string') ?? null, $fromAI('obs', 'o que ele contou, em poucas palavras', 'string') ?? null] }}

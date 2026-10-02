@@ -1,0 +1,1 @@
+={{ [String(($json.body || {}).phone || ''), (($json.body || {}).isGroup === true || ($json.body || {}).isNewsletter === true || ($json.body || {}).broadcast === true), String(((($json.body || {}).text || {}).message) || ((($json.body || {}).image || {}).caption) || '')] }}

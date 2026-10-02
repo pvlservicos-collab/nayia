@@ -1,0 +1,1 @@
+={{ [$json.codigos.join(','), $('Juntar mensagens').first().json.telefone, $json.escreveu ?? null] }}

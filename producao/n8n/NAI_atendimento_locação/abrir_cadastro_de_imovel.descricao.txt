@@ -1,0 +1,3 @@
+Abre a ficha do imovel que ELE esta oferecendo e devolve a proxima pergunta.
+Use quando ele disser que tem um imovel para mandar.
+Sem argumento.

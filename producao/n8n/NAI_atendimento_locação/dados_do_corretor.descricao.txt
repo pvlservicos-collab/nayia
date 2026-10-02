@@ -1,0 +1,3 @@
+Diz se voce ja tem nome completo, CPF e CRECI dele.
+Use quando: antes de pedir esses dados.
+Devolve instrucao_para_voce: nunca mostre a ele.

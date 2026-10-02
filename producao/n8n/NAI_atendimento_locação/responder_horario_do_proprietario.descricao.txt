@@ -1,0 +1,2 @@
+Registra o que o corretor respondeu sobre o horario que o proprietario sugeriu.
+Arg: aceita (sim se topou), outro_quando (AAAA-MM-DD HH:MM).

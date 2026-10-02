@@ -56,6 +56,116 @@ def funcoes(banco: dict, destino: Path) -> int:
     return len(banco["funcoes"] or [])
 
 
+def tabelas(banco: dict, destino: Path) -> int:
+    """Uma ficha por tabela/view em producao/tabelas/: colunas, índices, restrições,
+    gatilhos, quem pode o quê e QUAIS FUNÇÕES A CITAM. É o que tira do caminho o
+    "column does not exist" e o "permission denied" descobertos só no ensaio."""
+    pasta = destino / "tabelas"
+    _limpar(pasta)
+    pasta.mkdir(parents=True, exist_ok=True)
+    # cada função é lida UMA vez: os nomes que ela cita e as tabelas em que escreve.
+    # (Procurar tabela por tabela em função por função levava a foto de 10 s a 40 s.)
+    citam: dict[str, set[str]] = {}
+    escrevem_em: dict[str, set[str]] = {}
+    for f in banco["funcoes"] or []:
+        d = f["def"] or ""
+        for palavra in set(re.findall(r"[A-Za-z_][\w.]*", d)):
+            citam.setdefault(palavra.removeprefix("public."), set()).add(f["nome"])
+        for alvo in set(re.findall(r"(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+(?:ONLY\s+)?([A-Za-z_][\w.]*)", d, re.I)):
+            escrevem_em.setdefault(alvo.removeprefix("public."), set()).add(f["nome"])
+    for t in banco.get("tabelas") or []:
+        nome = t["nome"]
+        cheio = nome if t["schema"] == "public" else f"{t['schema']}.{nome}"
+        usam = sorted(citam.get(cheio, set()))
+        escrevem = sorted(escrevem_em.get(cheio, set()))
+        ls = [f"# {cheio}  ({t['tipo']}, ~{t['linhas']} linhas)"]
+        if t.get("comentario"):
+            ls.append(limpo(t["comentario"]))
+        ls.append("\n## colunas")
+        for c in t.get("colunas") or []:
+            extra = ("  NOT NULL" if c["obrigatoria"] else "") + (f"  padrão {c['padrao']}" if c.get("padrao") else "")
+            nota = f"   -- {limpo(c['comentario'])}" if c.get("comentario") else ""
+            ls.append(f"{c['nome']}  {c['tipo']}{extra}{nota}")
+        for titulo, chave in (("índices", "indices"), ("restrições", "restricoes"), ("gatilhos", "gatilhos")):
+            if t.get(chave):
+                ls.append(f"\n## {titulo}")
+                ls += [limpo(x) for x in t[chave]]
+        ls.append("\n## permissões")
+        for papel, privs in sorted((t.get("permissoes") or {}).items()):
+            ls.append(f"{papel}: {privs}")
+        for papel, privs in sorted((t.get("permissoes_por_coluna") or {}).items()):
+            ls.append(f"{papel}, só nestas colunas: {privs}")
+        if not t.get("permissoes") and not t.get("permissoes_por_coluna"):
+            ls.append("(só o dono)")
+        ls.append("\n## funções que escrevem aqui")
+        ls.append(", ".join(escrevem) or "(nenhuma função; quem escreve é o n8n, o site ou o CRM)")
+        ls.append("\n## funções que citam")
+        ls.append(", ".join(usam) or "(nenhuma)")
+        if t.get("definicao"):
+            ls.append("\n## definição da view")
+            ls.append(limpo(t["definicao"]))
+        (pasta / (_nome_de_arquivo(cheio) + ".md")).write_text("\n".join(ls) + "\n", encoding="utf-8")
+    return len(banco.get("tabelas") or [])
+
+
+def quem_chama(banco: dict, destino: Path) -> None:
+    """producao/quem_chama.tsv: para cada função, quem a chama. Antes de mexer numa
+    função, é aqui que se vê o que mais muda junto -- sem ir ao servidor."""
+    fs = banco["funcoes"] or []
+    nomes = sorted({f["nome"] for f in fs})
+    chamada_por: dict[str, set[str]] = {}
+    for f in fs:   # cada função é lida uma vez: tudo o que ela chama
+        for alvo in set(re.findall(r"(?<![\w.])([A-Za-z_]\w*)\s*\(", f["def"] or "")):
+            if alvo != f["nome"]:
+                chamada_por.setdefault(alvo, set()).add(f["nome"])
+    linhas = ["funcao\tchamada_por"]
+    for nome in nomes:
+        linhas.append(f"{nome}\t{', '.join(sorted(chamada_por.get(nome, set())))}")
+    (destino / "quem_chama.tsv").write_text("\n".join(linhas) + "\n", encoding="utf-8")
+
+
+# o que vale ler de cada nó do n8n, e com que extensão sai
+_PARTES_DO_NO = (("jsCode", "js"), ("query", "sql"), ("text", "prompt.txt"), ("jsonBody", "corpo.txt"),
+                 ("toolDescription", "descricao.txt"), ("description", "descricao.txt"), ("content", "nota.md"))
+_PARTES_DAS_OPCOES = (("systemMessage", "sistema.txt"), ("queryReplacement", "parametros.txt"))
+
+
+def _nos_do_fluxo(w: dict, pasta: Path) -> None:
+    """O fluxo aberto em arquivos: um por pedaço de código/SQL/prompt de cada nó, e
+    um _mapa.md com a ordem das ligações. No JSON o código de um nó é UMA linha com
+    \\n escapado -- impossível de ler e de procurar; era por isso que cada dúvida
+    sobre o fluxo virava um export no servidor."""
+    pasta.mkdir(parents=True, exist_ok=True)
+    liga = {}
+    for origem, saidas in (w.get("connections") or {}).items():
+        for tipo, grupos in (saidas or {}).items():
+            for g in grupos or []:
+                for alvo in g or []:
+                    liga.setdefault(origem, []).append(alvo["node"] + ("" if tipo == "main" else f" [{tipo}]"))
+    mapa = [f"# {w['nome']}  (id {w.get('id')}, atualizado em {str(w.get('atualizado_em') or '')[:16]})", "",
+            "nó | tipo | modelo/extra | vai para", "---|---|---|---"]
+    for n in sorted(w.get("nodes") or [], key=lambda x: (x.get("position") or [0, 0])[0]):
+        p = n.get("parameters") or {}
+        base = _nome_de_arquivo(n["name"])
+        for chave, ext in _PARTES_DO_NO:
+            v = p.get(chave)
+            if isinstance(v, str) and len(v.strip()) > 40:
+                (pasta / f"{base}.{ext}").write_text(limpo(v).rstrip() + "\n", encoding="utf-8")
+        op = p.get("options") if isinstance(p.get("options"), dict) else {}
+        for chave, ext in _PARTES_DAS_OPCOES:
+            v = op.get(chave)
+            if isinstance(v, str) and len(v.strip()) > 40:
+                (pasta / f"{base}.{ext}").write_text(limpo(v).rstrip() + "\n", encoding="utf-8")
+        modelo = p.get("model")
+        extra = (modelo.get("value") if isinstance(modelo, dict) else modelo) or ""
+        if n.get("disabled"):
+            extra = (str(extra) + " DESATIVADO").strip()
+        if n.get("onError"):
+            extra = (str(extra) + f" onError={n['onError']}").strip()
+        mapa.append(f"{n['name']} | {n['type'].split('.')[-1]} | {extra} | {', '.join(liga.get(n['name'], []))}")
+    (pasta / "_mapa.md").write_text(limpo("\n".join(mapa)) + "\n", encoding="utf-8")
+
+
 def fluxos(bruto: Path, destino: Path) -> list[str]:
     pasta = destino / "n8n"
     _limpar(pasta)
@@ -64,6 +174,7 @@ def fluxos(bruto: Path, destino: Path) -> list[str]:
     for w in json.loads((bruto / "workflows.json").read_text(encoding="utf-8")):
         texto = limpo(json.dumps(w, ensure_ascii=False, indent=1))
         (pasta / (_nome_de_arquivo(w["nome"]) + ".json")).write_text(texto + "\n", encoding="utf-8")
+        _nos_do_fluxo(w, pasta / _nome_de_arquivo(w["nome"]))
         nomes.append(w["nome"])
     return nomes
 
@@ -96,6 +207,8 @@ def main(bruto: Path, destino: Path) -> int:
     banco = json.loads((bruto / "banco.json").read_text(encoding="utf-8"))
     destino.mkdir(parents=True, exist_ok=True)
     n = funcoes(banco, destino)
+    nt = tabelas(banco, destino)
+    quem_chama(banco, destino)
     nomes = fluxos(bruto, destino)
     cron(bruto, destino)
     config_e_prompts(banco, destino)
@@ -104,11 +217,15 @@ def main(bruto: Path, destino: Path) -> int:
         "# Foto da produção (gerada por scripts/foto_producao.sh; não edite à mão)\n\n"
         f"Tirada em {datetime.now():%d/%m/%Y %H:%M}. Segredos trocados por {R}; telefones só com os 4 últimos.\n\n"
         f"- funcoes/: {n} funções vivas do schema public, uma por arquivo (nome e tipos dos argumentos)\n"
-        f"- n8n/: os fluxos ativos ({', '.join(nomes)})\n"
+        f"- tabelas/: {nt} tabelas e views (public e privado): colunas, índices, restrições, gatilhos,\n"
+        "  permissões por papel e as funções que escrevem nelas e que as citam\n"
+        "- quem_chama.tsv: para cada função, quem a chama\n"
+        f"- n8n/: os fluxos ativos ({', '.join(nomes)}), em JSON e ABERTOS em pasta: um arquivo por\n"
+        "  código/SQL/prompt de cada nó e um _mapa.md com o tipo, o modelo e as ligações\n"
         "- cron/: o crontab do root e /etc/cron.d do srv1894338\n"
         "- nai_config.tsv, prompts/ (nai_prompt com versão), n8n_variaveis_de_ambiente.txt (só os nomes)\n",
         encoding="utf-8")
-    print(f"producao/: {n} funções, {len(nomes)} fluxos ({', '.join(nomes)}), "
+    print(f"producao/: {n} funções, {nt} tabelas, {len(nomes)} fluxos ({', '.join(nomes)}), "
           f"{len(banco['config'] or [])} chaves de config, {len(banco['prompts'] or [])} prompts")
     return 0
 

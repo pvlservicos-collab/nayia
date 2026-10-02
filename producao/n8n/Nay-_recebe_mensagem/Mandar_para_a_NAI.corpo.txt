@@ -1,0 +1,1 @@
+={{ JSON.stringify($('Webhook').first().json.body || {}) }}

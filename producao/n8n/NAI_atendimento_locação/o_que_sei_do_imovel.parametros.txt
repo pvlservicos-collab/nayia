@@ -1,0 +1,1 @@
+={{ [$fromAI('codigo', 'o codigo do imovel', 'string') ?? null, $fromAI('pergunta', 'o que o corretor quer saber, nas palavras dele', 'string') ?? null] }}

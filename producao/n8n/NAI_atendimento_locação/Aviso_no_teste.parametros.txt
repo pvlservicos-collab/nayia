@@ -1,0 +1,1 @@
+={{ [$('Abrir turno').first().json.cab.turno_id, $('Abrir turno').first().json.cab.contato_id, '🧪 no teste, os comandos antigos (RESPOSTA, posta, dispara...) continuam pelo seu número principal. Aqui só VISITAS, VISITA <n> ... e ACESSO.'] }}

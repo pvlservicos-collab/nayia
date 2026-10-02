@@ -1,0 +1,3 @@
+Grava os dados da visita: do corretor (nome, CPF, CRECI) e do visitante (nome, CPF).
+Use quando: ele mandar qualquer um -- na MESMA resposta.
+Arg: como ele escreveu; vazio o que nao veio.

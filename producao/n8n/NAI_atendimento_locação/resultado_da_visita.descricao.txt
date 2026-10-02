@@ -1,0 +1,2 @@
+Registra como foi a visita e passa o chat ao Tel.
+Arg: resultado = quer_alugar, nao_gostou, pensando ou nao_foi.

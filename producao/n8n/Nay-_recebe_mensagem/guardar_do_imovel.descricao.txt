@@ -1,0 +1,1 @@
+Guarda o que o TEL explicar sobre um imovel -- quitacao, valor de entrada, condicoes de locacao, pet, mobilia, estado, situacao. Chame na MESMA resposta em que ele explicar: se nao chamar, a informacao se perde e voce vai perguntar de novo. So o Tel consegue gravar; se um corretor tentar, a ferramenta recusa e voce NAO diz que guardou.

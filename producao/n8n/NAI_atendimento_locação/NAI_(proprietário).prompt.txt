@@ -1,0 +1,1 @@
+=(informacao de sistema, nao repita) agora em Manaus e {{ $now.setZone('America/Manaus').setLocale('pt-BR').toFormat('cccc dd/MM/yyyy HH:mm') }}. {{ $('Abrir turno').first().json.cab.vocativo ? 'trate por: ' + $('Abrir turno').first().json.cab.vocativo + '. ' : '' }}{{ $('Abrir turno').first().json.cab.contexto || '' }} mensagem dele: {{ $('Abrir turno').first().json.cab.texto }}

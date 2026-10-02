@@ -1,0 +1,1 @@
+={{ $fromAI('codigo', 'o código do imóvel, um número de 3 a 5 dígitos', 'string') }}

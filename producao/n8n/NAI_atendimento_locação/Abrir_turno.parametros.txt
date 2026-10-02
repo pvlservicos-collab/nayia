@@ -1,0 +1,1 @@
+={{ [$json.telefone, $json.nome ?? null, ($json.textoCru ?? $json.texto ?? ''), $json.citadoId ?? null, JSON.stringify($json.ids || [])] }}

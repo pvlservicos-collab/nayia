@@ -1,0 +1,1 @@
+={{ [JSON.stringify(($json.codigos || []).map(String).filter(c => /^\d{3,5}$/.test(c) && c !== '0'))] }}

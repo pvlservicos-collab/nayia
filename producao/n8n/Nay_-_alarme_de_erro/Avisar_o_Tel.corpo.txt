@@ -1,0 +1,1 @@
+={{ JSON.stringify({ phone: '[telefone …7316]', message: $json.mensagem }) }}

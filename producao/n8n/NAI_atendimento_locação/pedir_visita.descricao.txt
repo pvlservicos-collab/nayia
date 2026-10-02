@@ -1,0 +1,3 @@
+Pede a visita e conduz o resto: confere o horario, fala com o proprietario, sobe ao Tel quando precisa.
+Use quando: souber QUAL imovel e QUANDO.
+Arg: codigo, quando (AAAA-MM-DD HH:MM, Manaus).

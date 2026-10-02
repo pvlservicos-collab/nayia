@@ -1,0 +1,1 @@
+={{ JSON.stringify({ phone: $('Consultar').first().json.avisar, message: $('Consultar').first().json.msg_corretor }) }}

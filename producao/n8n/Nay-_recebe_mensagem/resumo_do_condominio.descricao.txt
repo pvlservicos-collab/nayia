@@ -1,0 +1,1 @@
+Diz quantos imóveis a Imob Easy tem num condomínio, separando venda e locação, com a faixa de valor de cada um. Use no primeiro passo do funil, sempre que o corretor citar o nome de um condomínio. Devolve o texto pronto para você repetir sem alterar.

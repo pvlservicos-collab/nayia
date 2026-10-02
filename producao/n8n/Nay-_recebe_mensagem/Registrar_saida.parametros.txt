@@ -1,0 +1,1 @@
+={{ [$json.messageId ?? $json.id ?? $json.zaapId ?? null, $('Juntar mensagens').first().json.telefone ?? null, (($('Loop fotos').first().json.corpo || {}).message) ?? null] }}

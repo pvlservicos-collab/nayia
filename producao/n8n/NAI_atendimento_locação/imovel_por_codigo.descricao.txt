@@ -1,0 +1,4 @@
+Devolve o card pronto de um imovel.
+Use quando: ele citar um numero de 3 a 5 digitos, ou pedir o card.
+Nao use para pergunta pontual de um dado: ai e o_que_sei_do_imovel.
+Arg: codigo.

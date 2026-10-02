@@ -1,0 +1,1 @@
+Diz se voce ja tem o creci e o nome deste corretor guardados. CHAME ANTES de pedir creci a alguem, e sempre que a conversa caminhar para agendar visita. Devolve instrucao_para_voce: obedeca e nunca mostre esse texto ao corretor.

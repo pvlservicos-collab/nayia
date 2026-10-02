@@ -1,7 +1,12 @@
 #!/bin/bash
 # nay: o caminho curto de toda mudança na Nay. Uso, na raiz do nayia (Git Bash):
+#   ANTES DE IR AO SERVIDOR, o que é local (da foto em producao/):
+#   ./scripts/nay tabela <nome>                  colunas, índices, permissões por papel, quem escreve nela
+#   ./scripts/nay fn <nome>                      o arquivo da função viva, quem a chama, migrações que a citam
+#   ./scripts/nay onde <palavra ou frase>        onde aparece: banco, nós do n8n, CRM, site
 #   ./scripts/nay q  arquivo.sql|"SELECT ..."   consulta SÓ LEITURA no naydb
-#   ./scripts/nay ensaio arquivo.sql             roda numa transação que TERMINA EM ROLLBACK
+#   ./scripts/nay crmq arquivo.sql|"SELECT ..." consulta SÓ LEITURA no banco do CRM (crmdb)
+#   ./scripts/nay ensaio migracao.sql [testes.sql]   ensaia a PRÓPRIA migração: o COMMIT vira ROLLBACK; os testes rodam antes
 #   ./scripts/nay backup fn1 fn2 ... [rotulo]    pg_get_functiondef para /root/backups-funcoes/<fn>-<data>-<rotulo>.sql
 #   ./scripts/nay aplicar arquivo.sql            aplica (o arquivo tem BEGIN/COMMIT), tira a foto e mostra o git status
 #   ./scripts/nay bateria                        nai_rodar_casos(): passou/total e as que falharam
@@ -19,10 +24,41 @@ case "$cmd" in
   q)
     { if [ -f "${1:-}" ]; then cat "$1"; else printf '%s\n' "$*"; fi; } | lf | ssh -o ConnectTimeout=20 $SRV "docker exec -i -e PGOPTIONS='-c default_transaction_read_only=on -c statement_timeout=60000' nay-postgres psql -U nay -d naydb -X -v ON_ERROR_STOP=1 -P pager=off -A -F' | '" ;;
   ensaio)
-    f="$1"
-    if grep -qiE '^\s*COMMIT\s*;' "$f"; then echo "RECUSADO: tem COMMIT; troque por ROLLBACK;"; exit 1; fi
-    if ! tail -5 "$f" | grep -qi '^ROLLBACK;'; then echo "RECUSADO: precisa terminar em ROLLBACK;"; exit 1; fi
-    lf < "$f" | ssh -o ConnectTimeout=20 $SRV "docker exec -i -e PGOPTIONS='-c statement_timeout=120000 -c lock_timeout=3000' $PSQL" ;;
+    # ENSAIA A PRÓPRIA MIGRAÇÃO (02/10): o arquivo de verdade tem BEGIN ... COMMIT;
+    # aqui o COMMIT do fim sai e entra ROLLBACK, sem tocar no arquivo. O segundo
+    # argumento, opcional, são os testes que rodam DENTRO da transação, antes do
+    # ROLLBACK. Antes era preciso montar uma cópia "_ensaio" à mão a cada vez --
+    # e foi a cópia desatualizada que escondeu erro mais de uma vez.
+    f="$1"; t="${2:-}"
+    [ -f "$f" ] || { echo "não achei $f"; exit 1; }
+    [ -z "$t" ] || [ -f "$t" ] || { echo "não achei os testes $t"; exit 1; }
+    n=$(grep -ciE '^\s*COMMIT\s*;' "$f" || true)
+    if [ "$n" -gt 1 ]; then echo "RECUSADO: $n COMMITs no arquivo; o ensaio só sabe trocar um"; exit 1; fi
+    if [ "$n" -eq 0 ] && ! tail -5 "$f" | grep -qi '^ROLLBACK;'; then echo "RECUSADO: sem COMMIT, o arquivo precisa terminar em ROLLBACK;"; exit 1; fi
+    if [ -n "$t" ] && grep -qiE '^\s*(COMMIT|BEGIN)\s*;' "$t"; then echo "RECUSADO: os testes não podem ter BEGIN nem COMMIT"; exit 1; fi
+    montado=$({ sed -E '/^[[:space:]]*[Cc][Oo][Mm][Mm][Ii][Tt][[:space:]]*;/d' "$f"; [ -z "$t" ] || { echo; cat "$t"; }; [ "$n" -eq 0 ] || { echo; echo "ROLLBACK;"; }; } | lf)
+    if printf '%s\n' "$montado" | grep -qiE '^\s*COMMIT\s*;'; then echo "RECUSADO: sobrou COMMIT depois de montar"; exit 1; fi
+    printf '%s\n' "$montado" | ssh -o ConnectTimeout=20 $SRV "docker exec -i -e PGOPTIONS='-c statement_timeout=120000 -c lock_timeout=3000' $PSQL" ;;
+  crmq)
+    # consulta SÓ LEITURA no banco do CRM (crmdb, que mora no mesmo nay-postgres)
+    { if [ -f "${1:-}" ]; then cat "$1"; else printf '%s\n' "$*"; fi; } | lf | ssh -o ConnectTimeout=20 $SRV "docker exec -i -e PGOPTIONS='-c default_transaction_read_only=on -c statement_timeout=60000' nay-postgres psql -U nay -d crmdb -X -v ON_ERROR_STOP=1 -P pager=off -A -F' | '" ;;
+  tabela)
+    # LOCAL, sem servidor: colunas, permissões e quem escreve (da foto)
+    for n in "$@"; do
+      a=$(ls "$RAIZ/producao/tabelas/" | grep -iE "^(privado\.)?$n\.md$" | head -1)
+      [ -n "$a" ] && cat "$RAIZ/producao/tabelas/$a" || { echo "sem tabela '$n' na foto. Parecidas:"; ls "$RAIZ/producao/tabelas/" | grep -i "$n" | sed 's/\.md$//' | head -15; }
+    done ;;
+  fn)
+    # LOCAL: o arquivo da função viva, quem a chama e as últimas migrações que a citam
+    n="$1"
+    ls "$RAIZ/producao/funcoes/" | grep -iE "^$n\(" | sed "s#^#producao/funcoes/#" || true
+    grep -iE "^$n	" "$RAIZ/producao/quem_chama.tsv" | sed 's/	/  <- chamada por: /' || true
+    echo "migrações que a citam (as 5 últimas): $(grep -lE "\b$n\b" "$RAIZ"/Arquivos/nai/[0-9]*.sql 2>/dev/null | sed 's#.*/##' | sort -V | tail -5 | tr '\n' ' ')" ;;
+  onde)
+    # LOCAL: onde uma palavra ou frase aparece em tudo o que roda (banco, n8n, CRM, site)
+    # (git grep, e não o grep do Git Bash: aquele aborta com -i em texto com acento)
+    git -C "$RAIZ" -c core.quotepath=false grep -nIiF --untracked -- "$*" -- producao crm/src nay-site-api imob-easy/assets/js imob-easy/admin MAPA.md ':!*.json' \
+      | cut -c1-220 | head -60 ;;
   backup)
     args=("$@"); rot="${args[-1]}"; unset 'args[-1]'; [ ${#args[@]} -eq 0 ] && { args=("$rot"); rot="manual"; }
     for fn in "${args[@]}"; do
@@ -57,5 +93,5 @@ case "$cmd" in
       ssh -o ConnectTimeout=20 $SRV "cat > '/docker/crm/app/$f'" < "$RAIZ/crm/$f" || { echo "FALHOU copiar $f"; exit 1; }
     done
     ssh -o ConnectTimeout=20 $SRV 'cd /docker/crm && docker compose up -d --build 2>&1 | tail -2; docker ps --filter name=crm-imobeasy --format "{{.Names}} {{.Status}}"' ;;
-  *) sed -n 2,12p "$0" ;;
+  *) sed -n 2,17p "$0" ;;
 esac

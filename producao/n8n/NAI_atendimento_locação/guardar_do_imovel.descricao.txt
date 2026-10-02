@@ -1,0 +1,4 @@
+Grava o que o TEL explicar de um imovel.
+Use quando: o Tel explicar algo -- na MESMA resposta.
+Se quem falou foi corretor, a ferramenta recusa.
+Arg: codigo, o_que.

@@ -1,0 +1,1 @@
+={{ $('Juntar mensagens').first().json.telefone }}

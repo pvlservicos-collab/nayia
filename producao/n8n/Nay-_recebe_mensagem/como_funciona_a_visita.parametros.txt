@@ -1,0 +1,1 @@
+={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('codigo', `o codigo do imovel, um numero de 3 a 5 digitos`, 'string') }}

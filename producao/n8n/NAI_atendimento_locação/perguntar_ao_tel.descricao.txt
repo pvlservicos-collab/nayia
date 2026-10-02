@@ -1,0 +1,3 @@
+Manda a pergunta dele para o Tel e avisa que voce ja responde.
+Use quando consultar_o_que_sei nao souber.
+Arg: pergunta (nas palavras dele).

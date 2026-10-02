@@ -1,0 +1,1 @@
+={{ [$('Juntar mensagens').first().json.telefone, $fromAI('creci', 'o creci que o corretor informou, exatamente como ele escreveu; vazio se ele nao informou creci', 'string') ?? null, $fromAI('nome', 'o nome completo que o corretor informou; vazio se ele nao informou nome', 'string') ?? null] }}

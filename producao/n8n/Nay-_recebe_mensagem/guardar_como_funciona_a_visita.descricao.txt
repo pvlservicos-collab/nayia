@@ -1,0 +1,1 @@
+Guarda como funciona a visita num imovel, depois que o TEL explicar. Chame na MESMA resposta em que ele explicar -- se nao chamar, a informacao se perde e voce vai perguntar de novo. Passe o codigo do imovel e, em uma frase, o que ele disse. So o Tel consegue gravar: se um corretor tentar, a ferramenta recusa e voce NAO diz que guardou.

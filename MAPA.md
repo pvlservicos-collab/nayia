@@ -4,6 +4,20 @@ O que roda é `producao/funcoes/<nome>(<tipos>).sql` (foto do banco). Toda mudan
 numerada em `Arquivos/nai/NNN_*.sql` (a próxima é a maior + 1) → `./scripts/nay ensaio` →
 `./scripts/nay backup` → `./scripts/nay aplicar` → commit. Comandos: `./scripts/nay`.
 
+## Achar em segundos (tudo local, da foto)
+| quero saber | comando |
+|---|---|
+| onde está uma frase que ela disse, um nome, uma chave de config | `./scripts/nay onde "frase"` |
+| o que uma função faz, quem a chama, que migrações mexeram nela | `./scripts/nay fn nai_x` |
+| as colunas de uma tabela, quem pode ler/escrever, que funções gravam nela | `./scripts/nay tabela nome` |
+| o que um nó do n8n faz (código, SQL, prompt) | `producao/n8n/<fluxo>/<nó>.js\|.sql\|.prompt.txt` |
+| a ordem dos nós, o modelo de cada agente, o que está desativado | `producao/n8n/<fluxo>/_mapa.md` |
+| o prompt vivo de cada papel | `producao/prompts/<papel>.md` |
+| os textos e números de configuração | `producao/nai_config.tsv` |
+
+Frase seca que ela mandou no WhatsApp quase sempre mora numa FUNÇÃO (`nai_texto_*`), não no
+prompt: comece pelo `nay onde`.
+
 ## Pedido → função (banco)
 | pedido do Tel/Pedro | função viva | migração-exemplo |
 |---|---|---|
@@ -34,6 +48,13 @@ numerada em `Arquivos/nai/NNN_*.sql` (a próxima é a maior + 1) → `./scripts/
 | o que falta cadastrar e quem termina (aba CADASTRO PENDENTE) | `nai_cadastro_pendente`, `nai_cadastro_importar`, `nai_foto_trocar_url` | 248, 249 |
 | visita agendada à mão no CRM (nasce da equipe, a Nay não manda nada) | `crm_visita_agendar`, `crm_visitas_extra`; colunas `nai_visita.duracao_min` / `criada_no_crm_por` | 250 |
 | robô de fora (Grok) avisa o Tel, com limite por hora/dia | `crm_avisar_tel`, tabela `aviso_externo`; chaves `aviso_externo_por_hora` / `_por_dia` | 251 |
+| o texto do PEDIDO de visita e o "anotei a sua visita" | `nai_texto_confirmar_visita`, `nai_texto_corretor_confirmou` | 255 |
+| ela não cita colega (Tel, Rayssa) para quem é de fora | conferência 12 em `nai_conferir_resposta`; chave `aprovador_visita_nome`; prompt do corretor | 255, 256 |
+| de qual imóvel é a pergunta (nome de condomínio na frase) | `nai_imovel_da_conversa`, `nai_condominio_da_pergunta`, `crm_condominio_pelo_texto` | 240, 257 |
+| qual modelo cada agente usa; ligar/desligar a leitura de imagem | nós do n8n (`_mapa.md`); `scripts/madrugada/patch_modelo_n8n.py`, `patch_sem_ler_imagem.py`, `modelo_madrugada.sh` | — |
+| bot de fora CONSULTA se um anúncio já é nosso | `crm_imovel_candidatos`, `crm_imovel_vincular_anuncio`, tabela `imovel_anuncio`; `crm/docs/bots/webhook-consulta.md` | 258, 262, 263 |
+| bot de fora CADASTRA imóvel para aprovação (aba Imóveis da OLX Bot) | `crm_olx_bot_receber`, tabela `privado.olx_bot_imovel`; rotas `/admin/api/olx-bot` em `olx_api.py`; `captacao-olx-bot.js`; `crm/docs/bots/webhook-cadastro.md` | 260, 261, 264 |
+| ligar qualquer bot novo a um webhook nosso | `crm/docs/bots/COMO-LIGAR-O-GROK-A-UM-WEBHOOK.md`; `crm/src/lib/botDeImoveis.ts` | — |
 
 ## Site (imobeasy.online)
 - API Flask: `nay-site-api/app.py` + `nay-site-api/olx_api.py` (OLX e o cadastro vindo do CRM).

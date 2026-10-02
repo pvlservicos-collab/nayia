@@ -1,0 +1,1 @@
+={{ [$('Juntar mensagens').first().json.telefone, $fromAI('codigo', 'o codigo do imovel que ele pediu, 3 a 5 digitos', 'string') ?? null, $fromAI('pedido', 'a frase exata dele que pediu o imovel', 'string') ?? null] }}

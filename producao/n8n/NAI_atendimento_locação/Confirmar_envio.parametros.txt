@@ -1,0 +1,1 @@
+={{ [$('Conferir cabeçalho').item.json.id, JSON.stringify($json || {})] }}

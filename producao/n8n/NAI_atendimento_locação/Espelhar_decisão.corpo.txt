@@ -1,0 +1,6 @@
+={{ (() => {
+  let tr = null, li = null;
+  try { const x = $('Transcrever').all(); if (x.length) tr = String(x[0].json.text || x[0].json.transcription || '') || null; } catch (e) {}
+  try { const im = $('Ler imagem (GPT)').all(); if (im.length) { const c = ((im[0].json || {}).choices || [])[0]; li = String(((c || {}).message || {}).content || '') || null; } } catch (e) {}
+  return JSON.stringify({ turno_id: $json.cab.turno_id, transcricao_audio: tr, leitura_imagem: li });
+})() }}

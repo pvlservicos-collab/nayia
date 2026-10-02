@@ -1,0 +1,2 @@
+Registra a resposta do PROPRIETARIO sobre a visita.
+Arg: decisao = aceita, outro_horario, recusa, acesso, cancela ou duvida.

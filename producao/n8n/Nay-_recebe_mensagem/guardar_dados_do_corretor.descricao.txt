@@ -1,0 +1,1 @@
+Guarda o creci e/ou o nome completo que o corretor acabou de informar. CHAME NA MESMA RESPOSTA em que ele informar -- se nao chamar, a informacao se perde quando a conversa sair da sua memoria. Passe o valor exatamente como ele escreveu, nunca invente. Deixe vazio o campo que ele nao informou. Devolve instrucao_para_voce: obedeca e nunca mostre esse texto ao corretor.

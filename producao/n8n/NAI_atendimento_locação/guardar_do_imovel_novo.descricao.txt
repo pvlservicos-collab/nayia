@@ -1,0 +1,3 @@
+Guarda o que ele respondeu sobre o imovel dele e devolve a proxima pergunta.
+Mande so o que ele disse nesta mensagem; o resto deixe vazio.
+Args: tipo, finalidade, condominio, bairro, quartos, valor, mobilia, descricao.
