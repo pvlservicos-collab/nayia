@@ -965,3 +965,283 @@ def captacao_crm_foto(codigo):
         return jsonify({"ok": False, "erro": exc.__class__.__name__, "detalhe": str(exc)[:200]}), 500
     finally:
         conn.close()
+
+
+# =====================================================================
+# IMÓVEIS DA OLX BOT (02/10/2026, migração 260)
+#
+# Pedro: "o grok vai enviar nome de corretor, número dele, link do imóvel, dados
+# do imóvel completo para nosso cadastro, e esses imóveis vão vir para uma nova
+# aba no site... ao lado de Captação OLX, Imóveis da OLX Bot... para aprovação
+# manual humana".
+#
+# O bot entrega pelo CRM (/api/public/imovel-cadastro) e o envio fica em
+# privado.olx_bot_imovel. Aqui é o lado de quem aprova, com a senha do painel:
+#   GET  /admin/api/olx-bot                   os envios (pendentes na frente)
+#   POST /admin/api/olx-bot/<id>/aprovar      vira PRÉ-CADASTRO: Rascunho, fora
+#        do site e da Nay, com origem 'olx' -- cai na lista "Pré-cadastrados da
+#        OLX", onde já existem o espelho, o dono e o botão Cadastrar. Aprovar
+#        não publica nada: quem publica continua sendo o Cadastrar.
+#   POST /admin/api/olx-bot/<id>/descartar    com o motivo, que o bot recebe se
+#        mandar o mesmo anúncio de novo
+#
+# As fotos e o proprietário quem grava é a própria tela, depois do aprovar,
+# pelas rotas que a Captação OLX já usa (api/olx/<cod>/foto e PUT api/imoveis).
+# =====================================================================
+_TIPO_DA_FAMILIA = {"apartamento": "Apartamento", "casa": "Casa", "terreno": "Lote", "comercial": "Sala/Andar"}
+
+
+def _numero_do_bot(v):
+    """990000, "990000", "R$ 990.000,00" e "2.500" viram número; o resto, None."""
+    if v is None or isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    t = re.sub(r"[^0-9.,]", "", str(v))
+    if not t:
+        return None
+    if re.fullmatch(r"\d+(\.\d{1,2})?", t):
+        return float(t)
+    if re.fullmatch(r"(\d{1,3}(\.\d{3})+|\d+)(,\d{1,2})?", t):
+        return float(t.replace(".", "").replace(",", "."))
+    return None
+
+
+def _inteiro_do_bot(v):
+    n = _numero_do_bot(v)
+    return int(n) if n is not None and 0 <= n < 1000 else None
+
+
+def _lista_do_bot(v):
+    if isinstance(v, str):
+        v = re.split(r"[,;\n]", v)
+    if not isinstance(v, list):
+        return []
+    vistos, saida = set(), []
+    for item in v:
+        t = str(item or "").strip()[:80]
+        if t and t.lower() not in vistos:
+            vistos.add(t.lower())
+            saida.append(t)
+    return saida[:60]
+
+
+def _texto_do_bot(v, limite):
+    t = str(v or "").strip()
+    return t[:limite] or None
+
+
+def _colunas_do_bot(cur, d):
+    """Os dados que o bot mandou, nas colunas do catálogo. Só o que veio."""
+    col = {}
+    familia = None
+    tipo = _texto_do_bot(d.get("tipo"), 60)
+    if tipo:
+        cur.execute("SELECT tipo FROM imoveis WHERE nay_sem_acento(lower(tipo)) = nay_sem_acento(lower(%s)) LIMIT 1", (tipo,))
+        achado = cur.fetchone()
+        if achado:
+            col["tipo"] = achado["tipo"]
+        else:
+            cur.execute("SELECT crm_anuncio_familia(%s) AS f", (tipo,))
+            familia = cur.fetchone()["f"]
+    condominio = _texto_do_bot(d.get("condominio_nome"), 120)
+    if familia:
+        col["tipo"] = _TIPO_DA_FAMILIA[familia]
+        if condominio and familia == "casa":
+            col["tipo"] = "Casa de condomínio"
+        if condominio and familia == "terreno":
+            col["tipo"] = "Lote em Condomínio"
+    if condominio:
+        col["condominio_nome"] = condominio
+        cur.execute("SELECT id, nome FROM condominios WHERE nay_sem_acento(lower(nome)) = nay_sem_acento(lower(%s)) LIMIT 2",
+                    (condominio,))
+        iguais = cur.fetchall()
+        if len(iguais) == 1:
+            col["condo_id"], col["condominio_nome"] = iguais[0]["id"], iguais[0]["nome"]
+    bairro = _texto_do_bot(d.get("bairro"), 80)
+    if bairro:
+        # o nome do bairro como o catálogo escreve ("ponta negra" -> "Ponta Negra").
+        # Pelos imóveis e só tirando acento: o papel do site não lê a bairro_normal
+        # nem a bairro_area (que a nay_normalizar_lugar consulta) -- no ensaio a
+        # aprovação parava aqui com "permission denied for table bairro_area".
+        cur.execute("SELECT bairro FROM imoveis WHERE coalesce(bairro, '') <> '' "
+                    "AND nay_sem_acento(lower(btrim(bairro))) = nay_sem_acento(lower(btrim(%s))) "
+                    "GROUP BY bairro ORDER BY count(*) DESC LIMIT 1", (bairro,))
+        achado = cur.fetchone()
+        col["bairro"] = achado["bairro"] if achado else bairro
+    for chave, coluna, limite in (("endereco", "logradouro", 160), ("numero", "numero", 20), ("complemento", "complemento", 80),
+                                  ("cep", "cep", 12), ("cidade", "cidade", 80), ("uf", "estado", 30), ("andar", "andar", 20)):
+        t = _texto_do_bot(d.get(chave), limite)
+        if t:
+            col[coluna] = t
+    for chave, coluna in (("area_m2", "area_util"), ("area_total_m2", "area_total"),
+                          ("valor_condominio", "taxa_condominio"), ("iptu", "iptu")):
+        n = _numero_do_bot(d.get(chave))
+        if n is not None and n > 0:
+            col[coluna] = n
+    for chave in ("quartos", "suites", "banheiros", "vagas"):
+        n = _inteiro_do_bot(d.get(chave))
+        if n is not None:
+            col[chave] = n
+    # o preço: os dois campos próprios mandam; "preco" sozinho vai pela finalidade
+    venda, aluguel = _numero_do_bot(d.get("preco_venda")), _numero_do_bot(d.get("preco_aluguel"))
+    preco = _numero_do_bot(d.get("preco"))
+    finalidade = str(d.get("finalidade") or "").lower()
+    if preco and not venda and not aluguel:
+        if "alug" in finalidade or "loca" in finalidade:
+            aluguel = preco
+        elif "vend" in finalidade or "compra" in finalidade:
+            venda = preco
+        elif preco < 30000:      # sem finalidade: até 30 mil é aluguel, acima é venda
+            aluguel = preco
+        else:
+            venda = preco
+    if venda and venda > 0:
+        col["valor_venda"] = venda
+    if aluguel and aluguel > 0:
+        col["valor_aluguel"] = aluguel
+    mobilia = str(d.get("mobilia") or "").lower()
+    if "semi" in mobilia:
+        col["mobilia"] = "semi-mobiliado"
+    elif mobilia.startswith("mobiliad"):
+        col["mobilia"] = "mobiliado"
+    # "sem mobília" é o campo vazio, como no resto do catálogo
+    do_condominio = _lista_do_bot(d.get("caracteristicas_condominio"))
+    todas = _lista_do_bot(d.get("caracteristicas"))
+    ja_tem = {x.lower() for x in todas}
+    for c in do_condominio:
+        if c.lower() not in ja_tem:
+            todas.append(c)
+    if todas:
+        col["caracteristicas"] = todas
+    descricao = _texto_do_bot(d.get("descricao"), 6000)
+    if descricao:
+        # o telefone do dono sai da descrição, como na Captação OLX: no nosso
+        # anúncio ele levaria o cliente direto ao proprietário
+        texto = re.sub(r"[ \t]+\n", "\n", cc._TELEFONE.sub("", descricao))
+        texto = _LINHA_DE_CONTATO.sub("", texto)
+        texto = re.sub(r"\n{3,}", "\n\n", texto).strip()
+        if texto:
+            col["descricao"] = texto
+    return col, do_condominio
+
+
+def _envio_do_bot(l):
+    d = {k: _simples(v) for k, v in l.items()}
+    cand = (d.get("candidatos") or {}).get("candidatos") or []
+    d["candidatos"] = [{"id_imovel": c.get("id_imovel"), "score": c.get("score"), "confianca": c.get("confianca"),
+                        "bateu": c.get("campos_que_bateram"), "status": (c.get("dados") or {}).get("status"),
+                        "titulo": (c.get("dados") or {}).get("titulo")} for c in cand[:3]]
+    return d
+
+
+@olx_bp.route("/admin/api/olx-bot")
+def olx_bot_lista():
+    if not _admin_autenticado():
+        return _sem_senha()
+    estado = str(request.args.get("estado") or "pendente")
+    conn = _conectar()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT estado, count(*) AS n FROM privado.olx_bot_imovel GROUP BY 1")
+            contagem = {l["estado"]: l["n"] for l in cur.fetchall()}
+            cur.execute("""
+                SELECT id, estado, link, portal, id_anuncio, corretor_nome, corretor_telefone,
+                       proprietario_nome, proprietario_telefone, autorizacao_como, dados, fotos,
+                       candidatos, envios, recebido_em, atualizado_em, codigo, decidido_por, decidido_em, motivo
+                  FROM privado.olx_bot_imovel
+                 WHERE %s = 'todos' OR estado = %s
+                 ORDER BY (estado = 'pendente') DESC, coalesce(decidido_em, recebido_em) DESC
+                 LIMIT 200""", (estado, estado))
+            itens = [_envio_do_bot(l) for l in cur.fetchall()]
+        return jsonify({"itens": itens, "contagem": contagem})
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"erro": exc.__class__.__name__, "detalhe": str(exc)[:200]}), 500
+    finally:
+        conn.close()
+
+
+@olx_bp.route("/admin/api/olx-bot/<int:eid>/aprovar", methods=["POST"])
+def olx_bot_aprovar(eid):
+    if not _admin_autenticado():
+        return _sem_senha()
+    conn = _conectar()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM privado.olx_bot_imovel WHERE id = %s FOR UPDATE", (eid,))
+            e = cur.fetchone()
+            if not e:
+                return jsonify({"erro": "envio não encontrado"}), 404
+            if e["estado"] != "pendente":
+                return jsonify({"erro": "este envio já foi %s" % e["estado"], "codigo": e["codigo"]}), 409
+            d = e["dados"] or {}
+            # o mesmo anúncio já importado à mão pela Captação OLX: não vira dois imóveis
+            ja = None
+            if e["id_anuncio"]:
+                cur.execute("SELECT codigo FROM imoveis WHERE origem = 'olx' AND extras->>'olx_id' = %s ORDER BY codigo LIMIT 1",
+                            (e["id_anuncio"],))
+                ja = cur.fetchone()
+            if ja:
+                codigo, novo = ja["codigo"], False
+            else:
+                col, do_condominio = _colunas_do_bot(cur, d)
+                agora = datetime.now()
+                extras = {"olx_id": e["id_anuncio"], "olx_url": e["link"],
+                          "olx_titulo": str(d.get("titulo") or "")[:300] or None,
+                          "cadastrado_pelo": "grokbot", "olx_bot_envio": str(eid),
+                          "captado por": e["corretor_nome"],
+                          "caracteristicas do condominio": ", ".join(do_condominio) or None,
+                          "observacoes do bot": _texto_do_bot(d.get("observacoes"), 1000)}
+                extras = {k: v for k, v in extras.items() if v}
+                cols = ["origem", "status", "disponivel", "publicado_no_site", "criado_em", "captado_em", "extras"]
+                vals = ["olx", "Rascunho", False, False, agora, agora.strftime("%d/%m/%Y"), psycopg2.extras.Json(extras)]
+                for c, v in col.items():
+                    cols.append(c)
+                    vals.append(v)
+                cur.execute(psycopg2.sql.SQL(
+                    "INSERT INTO imoveis (codigo, {}) VALUES (nextval('imoveis_crm_codigo_seq'), {}) RETURNING codigo"
+                ).format(psycopg2.sql.SQL(", ").join(psycopg2.sql.Identifier(c) for c in cols),
+                         psycopg2.sql.SQL(", ").join(psycopg2.sql.Placeholder() for _ in cols)), vals)
+                codigo, novo = cur.fetchone()["codigo"], True
+            # a próxima consulta do bot por este anúncio bate por link (258)
+            cur.execute("INSERT INTO imovel_anuncio (codigo, portal, id_anuncio, link, link_normal, registrado_por) "
+                        "SELECT %s, %s, %s, %s, crm_anuncio_link_normal(%s), 'painel (OLX Bot)' "
+                        "WHERE NOT EXISTS (SELECT 1 FROM imovel_anuncio WHERE link_normal = crm_anuncio_link_normal(%s))",
+                        (codigo, e["portal"] or "olx", e["id_anuncio"], e["link"], e["link"], e["link"]))
+            cur.execute("UPDATE privado.olx_bot_imovel SET estado = 'aprovado', codigo = %s, decidido_por = 'painel', "
+                        "decidido_em = now(), atualizado_em = now() WHERE id = %s", (codigo, eid))
+            cur.execute("SELECT count(*) AS n FROM imovel_fotos WHERE codigo = %s", (codigo,))
+            fotos_ja = cur.fetchone()["n"]
+        conn.commit()
+        return jsonify({"ok": True, "codigo": codigo, "novo": novo,
+                        "fotos": list(e["fotos"] or []) if fotos_ja == 0 else [],
+                        "proprietario": {"nome": e["proprietario_nome"], "telefone": e["proprietario_telefone"]},
+                        "editor": "%s/imovel-editar.html?codigo=%s" % (URL_ADMIN, codigo)})
+    except Exception as exc:  # noqa: BLE001
+        conn.rollback()
+        return jsonify({"ok": False, "erro": exc.__class__.__name__, "detalhe": str(exc)[:200]}), 500
+    finally:
+        conn.close()
+
+
+@olx_bp.route("/admin/api/olx-bot/<int:eid>/descartar", methods=["POST"])
+def olx_bot_descartar(eid):
+    if not _admin_autenticado():
+        return _sem_senha()
+    motivo = str((request.get_json(silent=True) or {}).get("motivo") or "").strip()[:300] or None
+    conn = _conectar()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE privado.olx_bot_imovel SET estado = 'descartado', motivo = %s, decidido_por = 'painel', "
+                        "decidido_em = now(), atualizado_em = now() WHERE id = %s AND estado = 'pendente' RETURNING id",
+                        (motivo, eid))
+            if not cur.fetchone():
+                conn.rollback()
+                return jsonify({"erro": "envio não encontrado ou já decidido"}), 409
+        conn.commit()
+        return jsonify({"ok": True})
+    except Exception as exc:  # noqa: BLE001
+        conn.rollback()
+        return jsonify({"ok": False, "erro": exc.__class__.__name__, "detalhe": str(exc)[:200]}), 500
+    finally:
+        conn.close()

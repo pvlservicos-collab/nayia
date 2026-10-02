@@ -204,3 +204,28 @@
 .cad__recado { font-size: 13px; color: var(--texto-fraco, #6b6478); }
 .cad__recado a { color: var(--roxo, #6d28d9); font-weight: 600; }
 .cad__nota { font-size: 13px; color: var(--texto-fraco, #6b6478); margin: 4px 0; }
+
+/* ---- Imóveis da OLX Bot (02/10/2026): os envios do grokbot esperando aprovação.
+   O cartão reaproveita o .olx-item; aqui só o que é dele. */
+.bot-conta {
+  display: inline-block; min-width: 20px; margin-left: 6px; padding: 1px 7px; border-radius: 999px;
+  background: #b42323; color: #fff; font-size: 12px; font-weight: 700; line-height: 1.5; text-align: center;
+}
+.bot-filtro { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.bot-filtro__botao[aria-current="true"] { background: #2b2140; color: #fff; border-color: #2b2140; }
+.bot-item { grid-template-columns: minmax(0, 1fr); }
+.bot-item__topo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+.bot-item__topo b { font-size: 15px; }
+.bot-item__topo a { font-size: 12.5px; }
+.bot-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 6px 18px; font-size: 13px; }
+.bot-grade span { color: var(--texto-fraco, #6b6478); }
+.bot-bloco { padding: 9px 12px; border-radius: 10px; background: #f6f4fa; font-size: 13px; line-height: 1.5; }
+.bot-bloco--autoriza { background: #e8f7f0; }
+.bot-bloco--parecido { background: #fdf2ea; }
+.bot-bloco b { display: block; font-size: 12px; letter-spacing: .02em; text-transform: uppercase; color: var(--texto-fraco, #6b6478); }
+.bot-fotos { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.bot-fotos img { width: 84px; height: 64px; flex: none; object-fit: cover; border-radius: 8px; background: #eeeaf4; }
+.bot-descricao { font-size: 13px; line-height: 1.5; white-space: pre-line; max-height: 7.5em; overflow: auto; }
+.bot-item .olx-item__acoes { grid-column: 1 / -1; }
+.bot-motivo { flex: 1 1 220px; min-width: 0; }
+

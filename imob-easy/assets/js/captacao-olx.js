@@ -42,6 +42,8 @@
   /* ---- as duas abas do topo ------------------------------------------------ */
   var abas = [$("aba-whatsapp"), $("aba-olx")];
   if (!abas[0] || !abas[1]) return;
+  // 02/10: a terceira aba, "Imóveis da OLX Bot" (captacao-olx-bot.js cuida do conteúdo)
+  if ($("aba-olxbot")) abas.push($("aba-olxbot"));
   var listaCarregada = false;
   function mostrar(qual) {
     abas.forEach(function (b) {
@@ -51,16 +53,19 @@
       $(b.getAttribute("aria-controls")).hidden = !sim;
     });
     if (qual === "olx" && !listaCarregada) { listaCarregada = true; carregarLista(); }
+    if (qual === "olxbot") document.dispatchEvent(new CustomEvent("olxbot:mostrar"));
   }
+  // um envio do bot aprovado vira pré-cadastro: a lista da OLX recarrega na próxima visita
+  document.addEventListener("olx:recarregar", function () { listaCarregada = false; });
   abas.forEach(function (b, k) {
     b.addEventListener("click", function () {
       var qual = b.id.slice(4);
       mostrar(qual);
-      history.replaceState(null, "", location.pathname + location.search + (qual === "olx" ? "#olx" : ""));
+      history.replaceState(null, "", location.pathname + location.search + (qual === "whatsapp" ? "" : "#" + qual));
     });
     b.addEventListener("keydown", function (e) {
       if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-      var outra = abas[(k + 1) % 2];
+      var outra = abas[(k + (e.key === "ArrowRight" ? 1 : abas.length - 1)) % abas.length];
       outra.focus();
       outra.click();
     });
@@ -459,6 +464,7 @@
     var h = location.hash;
     if (h.indexOf("#olx=") !== 0) {
       if (h === "#olx") mostrar("olx");
+      if (h === "#olxbot" && $("aba-olxbot")) mostrar("olxbot");
       return;
     }
     var pacote = null;

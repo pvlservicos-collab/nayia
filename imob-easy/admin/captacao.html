@@ -110,6 +110,9 @@
   <div class="cap-topo" role="tablist" aria-label="Tipo de captação" data-estado-proprio>
     <button class="cap-topo__aba" type="button" role="tab" id="aba-whatsapp" aria-controls="painel-whatsapp" aria-selected="true">Captação WhatsApp</button>
     <button class="cap-topo__aba" type="button" role="tab" id="aba-olx" aria-controls="painel-olx" aria-selected="false" tabindex="-1">Captação OLX</button>
+    <!-- 02/10/2026 (Pedro): "criando uma aba ao lado de Captação OLX, Imóveis da
+         OLX Bot": o que o grokbot manda cadastrar, esperando aprovação de gente. -->
+    <button class="cap-topo__aba" type="button" role="tab" id="aba-olxbot" aria-controls="painel-olxbot" aria-selected="false" tabindex="-1">Imóveis da OLX Bot <span class="bot-conta" id="bot-conta" hidden></span></button>
   </div>
 
   <div id="painel-whatsapp" role="tabpanel" aria-labelledby="aba-whatsapp">
@@ -281,6 +284,20 @@
     <h2 class="painel__titulo" style="margin-top:28px">Pré-cadastrados da OLX</h2>
     <div class="olx-lista" id="olx-lista"><p class="olx-nota">Carregando…</p></div>
   </div><!-- /painel-olx -->
+
+  <div id="painel-olxbot" role="tabpanel" aria-labelledby="aba-olxbot" hidden>
+    <p class="pagina-subtitulo" style="margin-bottom:16px">
+      Imóveis que o <strong>bot</strong> achou na OLX e mandou cadastrar, com o corretor e a autorização do proprietário.
+      Nada daqui está no site nem na Nay: <strong>Aprovar</strong> cria o pré-cadastro (rascunho) e leva para
+      <em>Captação OLX › Pré-cadastrados</em>, onde você confere e clica em Cadastrar.
+    </p>
+    <div class="bot-filtro" role="group" aria-label="Quais envios mostrar">
+      <button class="btn-neutro bot-filtro__botao" type="button" data-bot-estado="pendente" aria-current="true">Esperando aprovação</button>
+      <button class="btn-neutro bot-filtro__botao" type="button" data-bot-estado="aprovado">Aprovados</button>
+      <button class="btn-neutro bot-filtro__botao" type="button" data-bot-estado="descartado">Descartados</button>
+    </div>
+    <div class="olx-lista" id="bot-lista"><p class="olx-nota">Carregando…</p></div>
+  </div><!-- /painel-olxbot -->
 </main>
 
 <!-- Popup 1: escolher a lista e desmarcar quem não deve receber. -->
@@ -356,6 +373,7 @@
 <script src="../assets/js/layout.js"></script>
 <script src="../assets/js/captacao.js"></script>
 <script src="../assets/js/captacao-olx.js"></script>
+<script src="../assets/js/captacao-olx-bot.js"></script>
 <script src="../assets/js/captacao-cadastros.js"></script>
 </body>
 </html>
