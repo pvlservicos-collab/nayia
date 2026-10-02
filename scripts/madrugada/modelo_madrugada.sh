@@ -16,8 +16,10 @@ MODELO=gpt-6-luna
 TS=$(date +%Y%m%d_%H%M)
 BK=/root/backups-n8n/bk_${TS}_antes_modelo.json
 NOVO=/root/n8n_modelo_novo.json
+NOVO2=/root/n8n_modelo_e_imagem.json
 exec >> "$LOG" 2>&1
 echo "=== $(TZ=America/Manaus date '+%d/%m %H:%M') Manaus: começando ($MODELO)"
+rm -f "$NOVO" "$NOVO2"   # sobra de tentativa anterior não entra no import
 rm -f /etc/cron.d/modelo-madrugada   # uma vez só
 
 H=$(TZ=America/Manaus date +%H)
@@ -45,7 +47,12 @@ fi
 mkdir -p /root/backups-n8n
 docker exec $N8N n8n export:workflow --all --output=/tmp/bk_modelo.json >/dev/null 2>&1
 docker cp $N8N:/tmp/bk_modelo.json "$BK" || { echo "backup falhou: desisti"; exit 1; }
-python3 /root/patch_modelo_n8n.py "$BK" "$NOVO" "$MODELO" || { echo "patch falhou (ou não havia o que trocar): nada mudou"; exit 1; }
+python3 /root/patch_modelo_n8n.py "$BK" "$NOVO" "$MODELO" || { echo "patch do modelo falhou (ou não havia o que trocar): nada mudou"; exit 1; }
+
+# a Nay não lê mais imagem (Pedro, 01/10). Onde não há o ramo, o script diz
+# "nada a fazer" e sai 0; se uma âncora não bater, ele para tudo.
+python3 /root/patch_sem_ler_imagem.py "$NOVO" "$NOVO2" || { echo "patch da imagem falhou: nada mudou"; exit 1; }
+if [ -f "$NOVO2" ]; then NOVO="$NOVO2"; fi
 
 # QUEM ESTAVA ATIVO: o import desativa os fluxos, e sem religar um por um a Nay
 # fica muda. Guardo os ids ANTES de qualquer coisa.
