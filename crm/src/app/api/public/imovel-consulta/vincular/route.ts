@@ -18,7 +18,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
-  const pedido = await pedidoDoBot(req)
+  const pedido = await pedidoDoBot(req, 'consulta')
   if (!pedido.ok) return pedido.resposta
   const c = pedido.corpo
   const codigo = Number(String(c.id_imovel ?? c.codigo ?? '').replace(/\D/g, ''))

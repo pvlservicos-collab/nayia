@@ -22,8 +22,12 @@ echo "=== $(TZ=America/Manaus date '+%d/%m %H:%M') Manaus: começando ($MODELO)"
 rm -f "$NOVO" "$NOVO2"   # sobra de tentativa anterior não entra no import
 rm -f /etc/cron.d/modelo-madrugada   # uma vez só
 
+# AGORA=1 pula a trava da hora -- só com ordem de quem manda (Pedro, 01/10 às
+# 23:28: "roda logo tudo"). As outras travas continuam: espera a Nay parar,
+# backup antes, e devolve o backup se os fluxos não voltarem.
 H=$(TZ=America/Manaus date +%H)
-if [ "$H" -lt 1 ] || [ "$H" -ge 5 ]; then echo "fora da madrugada ($H h): não fiz nada"; exit 0; fi
+if [ "${AGORA:-}" = "1" ]; then echo "AGORA=1: rodando fora da janela ($H h), por ordem"
+elif [ "$H" -lt 1 ] || [ "$H" -ge 5 ]; then echo "fora da madrugada ($H h): não fiz nada"; exit 0; fi
 
 N8N=$(docker ps --format '{{.Names}}' | grep -i n8n | head -1)
 if [ -z "$N8N" ]; then echo "não achei o container do n8n: desisti"; exit 1; fi

@@ -12,7 +12,7 @@
  *            condominio_nome, area_m2, area_total_m2, quartos, suites, banheiros,
  *            vagas, andar, mobilia, caracteristicas[], caracteristicas_condominio[],
  *            fotos[], observacoes }
- *   sai    { ok, id_cadastro, situacao: "pendente", ja_existia, parecido_com, mensagem }
+ *   sai    { ok, id_cadastro, situacao: "pendente", ja_existia, fotos_recebidas, mensagem }
  *          ou { ok: false, codigo_erro, erro }
  *
  * NADA DAQUI VIRA IMÓVEL SOZINHO: o que chega fica em `privado.olx_bot_imovel`
@@ -22,7 +22,9 @@
  * "sem_autorizacao"`, HTTP 422). O prompt do bot manda não enviar; a recusa aqui
  * existe para o dia em que o modelo esquecer a instrução.
  *
- * Quem pode entrar é a mesma regra da consulta (src/lib/botDeImoveis.ts).
+ * ESTE WEBHOOK É DE OUTRO BOT, com outro token (BOT_CADASTRO_CHAVE): o token
+ * da consulta não entra aqui, e este não consulta o catálogo. Ver
+ * src/lib/botDeImoveis.ts.
  */
 import { NextRequest } from 'next/server'
 import { naydb } from '@/lib/nayDisparo'
@@ -34,7 +36,7 @@ export const dynamic = 'force-dynamic'
 const STATUS_DO_ERRO: Record<string, number> = { sem_autorizacao: 422, faltam_campos: 400, formato: 400, grande_demais: 413 }
 
 export async function POST(req: NextRequest) {
-  const pedido = await pedidoDoBot(req)
+  const pedido = await pedidoDoBot(req, 'cadastro')
   if (!pedido.ok) return pedido.resposta
   try {
     const r = await naydb().query('SELECT crm_olx_bot_receber($1::jsonb) AS r', [JSON.stringify(pedido.corpo)])

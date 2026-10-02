@@ -1,0 +1,17 @@
+# O CADASTRO DE IMÓVEIS DO BOT PELA PORTA 80 (02/10/2026).
+# Cópia de /docker/traefik/dynamic/imovel-cadastro.yml no srv1894338.
+#
+# É OUTRO webhook, de OUTRO bot: não divide rota, token nem limite com a consulta
+# (imovel-consulta.yml). Mesmo motivo dos dois: a nuvem dos bots do Grok corta o
+# HTTPS para os nossos servidores e deixa passar a porta 80. Por aqui o CRM só
+# aceita o PEDIDO LACRADO, com o token do cadastro (crm/src/lib/botDeImoveis.ts).
+#
+# Recarregado sozinho (providers.file.watch). Para desfazer: apagar o arquivo.
+http:
+  routers:
+    imovel-cadastro-http:
+      rule: "Host(`crm.imobeasy.online`) && Path(`/api/public/imovel-cadastro`) && Method(`POST`)"
+      entryPoints:
+        - web
+      priority: 3000000000
+      service: crm@docker

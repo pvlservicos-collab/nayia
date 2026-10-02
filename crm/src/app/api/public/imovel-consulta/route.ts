@@ -23,7 +23,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
-  const pedido = await pedidoDoBot(req)
+  const pedido = await pedidoDoBot(req, 'consulta')
   if (!pedido.ok) return pedido.resposta
   const anuncio = pedido.corpo
   if (!String(anuncio.link ?? '').trim()) return erroDoBot(400, 'Faltou o "link" do anúncio.')

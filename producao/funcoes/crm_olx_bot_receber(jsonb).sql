@@ -108,11 +108,8 @@ BEGIN
   RETURN jsonb_build_object('ok', true, 'id_cadastro', v_novo::text, 'situacao', 'pendente',
     'ja_existia', v_ja.id IS NOT NULL,
     'fotos_recebidas', coalesce(array_length(v_fotos, 1), 0),
-    -- o bot fica sabendo se parece com algo que já é nosso
-    'parecido_com', CASE WHEN coalesce((v_cand ->> 'melhor_score')::int, 0) >= 45
-        THEN jsonb_build_object('id_imovel', v_cand -> 'candidatos' -> 0 ->> 'id_imovel',
-                                'score', (v_cand ->> 'melhor_score')::int,
-                                'confianca', v_cand -> 'candidatos' -> 0 ->> 'confianca') END,
+    -- 261: sem `parecido_com`. Este webhook é de outro bot e não devolve nada
+    -- da consulta; os parecidos ficam só no envio, para quem aprova.
     'mensagem', CASE WHEN v_ja.id IS NOT NULL THEN 'Atualizei o cadastro que já estava esperando aprovação.'
                      ELSE 'Recebido. Fica esperando a aprovação de uma pessoa da Imob Easy.' END);
 EXCEPTION WHEN others THEN

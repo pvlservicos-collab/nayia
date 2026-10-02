@@ -2,7 +2,7 @@
  "id": "sQuiEjbEDMEbjX5U",
  "nome": "Nay- recebe mensagem",
  "ativo": true,
- "atualizado_em": "2026-09-28 13:40:18",
+ "atualizado_em": "2026-10-02 03:31:01",
  "nodes": [
   {
    "parameters": {
@@ -506,9 +506,9 @@
    "parameters": {
     "model": {
      "__rl": true,
-     "value": "gpt-5.6-luna",
+     "value": "gpt-6-luna",
      "mode": "list",
-     "cachedResultName": "gpt-5.6-luna"
+     "cachedResultName": "gpt-6-luna"
     },
     "builtInTools": {},
     "options": {}
