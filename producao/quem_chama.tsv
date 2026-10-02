@@ -318,6 +318,7 @@ nai_pergunta_de_catalogo	nai_mente_registrar, nai_rodar_casos
 nai_pergunta_de_imovel	nai_deve_atender
 nai_pergunta_parceria	nai_conferir_resposta, nai_escalar
 nai_pergunta_qual_imovel	nai_enfileirar_resposta
+nai_pergunta_se_da_para_visitar	
 nai_pergunta_status	nai_enfileirar_resposta, nai_o_que_sei_do_imovel
 nai_perguntar_se_e_corretor	
 nai_pode_comandar	nai_abrir_turno, nai_e_da_equipe_contato, nai_e_voz_do_tel, nai_liberar_saida, nai_lista_governa, nai_quem_atende, nai_sincronizar_grupos

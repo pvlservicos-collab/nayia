@@ -9,7 +9,7 @@ AS $function$
     WHEN public.nai_e_da_equipe_contato(p_contato) THEN false
     -- visita é do sistema velho: a mensagem fala de visita...
     WHEN public.nay_sem_acento(lower(coalesce(p_texto, '')))
-         ~ '\m(visita|visitas|visitar|visitacao|agendar|agendamento|agenda|reagendar|remarcar|desmarcar)\M' THEN false
+         ~ '\m(visita|visitas|visitar|visitacao|agendar|agendamento|agenda|reagendar|remarcar|desmarcar)\M' AND NOT public.nai_pergunta_se_da_para_visitar(p_texto) THEN false
     -- ...ou ele tem visita em andamento (ou acabou de acontecer: o resultado dela vem em seguida)
     WHEN EXISTS (SELECT 1 FROM public.nai_visita v
                   WHERE v.corretor_id = ANY (coalesce(public.nai_contato_irmaos(p_contato), ARRAY[p_contato]))
