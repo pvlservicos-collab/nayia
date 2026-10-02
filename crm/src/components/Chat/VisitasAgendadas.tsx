@@ -485,6 +485,39 @@ function PainelDaVisita({ v, aoFechar, aoAbrirConversa, aoMexer }: {
   )
 }
 
+/* O RELÓGIO DA AGENDA (Pedro, 02/10: "coloca um relógio lá na aba agenda, hora em
+   Manaus"). Toda visita aqui é no horário de Manaus, e quem agenda pode estar com
+   o computador em outro fuso: o relógio é a referência de "agora" da própria
+   agenda. A hora sai do fuso America/Manaus, não do relógio da máquina.
+   Começa vazio e só preenche no navegador (a hora do servidor não é a de quem vê),
+   e anda no virar do minuto, sem segundos -- relógio com segundo piscando distrai. */
+function RelogioDeManaus() {
+  const [agora, setAgora] = useState<Date | null>(null)
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>
+    const bater = () => {
+      const d = new Date()
+      setAgora(d)
+      t = setTimeout(bater, 60_000 - (d.getSeconds() * 1000 + d.getMilliseconds()) + 50)
+    }
+    bater()
+    return () => clearTimeout(t)
+  }, [])
+  if (!agora) return <div className="ml-auto" />
+  const hora = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Manaus', hour: '2-digit', minute: '2-digit' }).format(agora)
+  const dia = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Manaus', weekday: 'short', day: '2-digit', month: '2-digit' })
+    .format(agora).replace('.', '')
+  return (
+    <div className="ml-auto flex items-center gap-2 flex-shrink-0 px-3 h-9 rounded-full"
+         style={{ background: 'var(--wa-app)', border: '1px solid var(--wa-divider)' }}
+         title="Hora de Manaus: é nela que todas as visitas da agenda estão marcadas">
+      <Clock size={18} style={{ color: 'var(--wa-green)' }} />
+      <span className="text-[17px] font-bold leading-none tabular-nums" style={{ color: 'var(--wa-text)' }}>{hora}</span>
+      <span className="text-[12px] leading-none hidden sm:inline" style={{ color: 'var(--wa-text-2)' }}>{dia} · Manaus</span>
+    </div>
+  )
+}
+
 export default function VisitasAgendadas({ aoAbrirConversa, destaque }: { aoAbrirConversa: (leadId: string) => void; destaque?: number | null }) {
   const { visitas, carregando, erro, recarregar } = useVisitasParceria(true)
   const [filtro, setFiltro] = useState<Filtro>('andamento')
@@ -605,10 +638,11 @@ export default function VisitasAgendadas({ aoAbrirConversa, destaque }: { aoAbri
               A Nay preenche sozinha, e você agenda à mão pelo botão azul: toda visita aparece aqui, com o andamento e as datas.
             </p>
           </div>
+          <RelogioDeManaus />
           {/* O + DA AGENDA (Pedro, 01/10): "lá em agenda também um + que vai agendar
               pela agenda também". Azul, como o botão do card: é visita, não mensagem. */}
           <button type="button" onClick={() => setAgendando(true)}
-                  className="ml-auto inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[13.5px] font-semibold flex-shrink-0"
+                  className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[13.5px] font-semibold flex-shrink-0"
                   style={{ background: '#2563eb', color: '#fff' }} title="Agendar uma visita à mão">
             <Plus size={16} weight="bold" /> Agendar visita
           </button>
