@@ -32,4 +32,4 @@ nay_site_leitura, só nestas colunas: SELECT(codigo, caracteristicas_condominio)
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-nai_bloco_oferta, nai_card_do_imovel, nai_ficha_caracteristicas, nai_ficha_completa, nai_ficha_texto_livre, nai_ficha_valor, nai_imovel_tem_elevador, nai_mobilia_da_lista
+nai_bloco_oferta, nai_card_do_imovel, nai_ficha_caracteristicas, nai_ficha_completa, nai_ficha_texto_livre, nai_ficha_valor, nai_imovel_tem_elevador, nai_mobilia_da_lista, site_imovel_publico

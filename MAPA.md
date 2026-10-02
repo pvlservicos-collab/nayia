@@ -69,6 +69,14 @@ prompt: comece pelo `nay onde`.
 - Admin estático: `imob-easy/admin/*.html` + `imob-easy/assets/js/*.js` (Imóveis: `imoveis-ux.js`; condomínios: `condominios-aba.js`; cadastro pendente: `cadastro-pendente.js`).
   As rotas de `/admin/api/imoveis/...` pedem a senha do /admin -- e também abrem com o segredo do painel dentro do CRM.
   Troque o `?v=` do script no HTML quando mudar o JS.
+- A página pública do imóvel (02/10, 271): `imobeasy.online/imovel/<código>-<nome>`. O desenho é do Pedro
+  (`Novateladeverimovel.html`, na raiz); `python scripts/montar_pagina_do_imovel.py` gera `imob-easy/imovel.html` trocando
+  o script de exemplo por `assets/js/imovel-publico.js`. Mudou o desenho? Gere de novo, não edite o `imovel.html`.
+  Dados: `site_imovel_publico(código)` por `/api/imovel-publico/<código>` (só a região: sem rua, número, CEP, andar).
+  O nginx serve `/imovel/…` com `scripts/servidor/nginx_pagina_do_imovel.sh`. "Ver Imóvel" do site: `site.js`.
+- "Me envia" (o corretor digita o próprio WhatsApp): `POST /api/me-envia` → `site_me_envia()` → `nai_disparo_enfileirar`
+  (as paredes de sempre: parceiro não sai, 24h por pessoa) com tetos por número, por IP e por dia. Registro em
+  `privado.me_envia`; quem mais se envia: `site_me_envia_ranking(dias)` em `/admin/api/me-envia/ranking` (senha do /admin).
 
 ## CRM (crm.imobeasy.online, Next.js) — `crm/`
 - Nay no card do contato: `src/components/Chat/PainelContatoParceria.tsx` + `src/app/api/leads/[id]/nay/route.ts` + `src/lib/nayLeitura.ts`.

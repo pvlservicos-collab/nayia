@@ -88,7 +88,8 @@
             especificacao("Garagem", "garagem", item.garagem) +
           "</div>" +
           '<dl class="imovel__preco"><dt>' + escapar(item.rotuloPreco) + "</dt><dd>" + escapar(item.preco) + "</dd></dl>" +
-          '<a class="btn-roxo btn-bloco" href="#">Ver Imóvel</a>' +
+          /* a página do imóvel (02/10): só o que veio da API tem código; o exemplo estático fica sem link */
+          '<a class="btn-roxo btn-bloco" href="' + (item.codigo ? "/imovel/" + encodeURIComponent(item.codigo) : "#") + '">Ver Imóvel</a>' +
         "</div>" +
       "</article>"
     );

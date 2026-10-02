@@ -4429,6 +4429,75 @@ def api_saude():
         return jsonify({"status": "erro", "detalhe": exc.__class__.__name__}), 200
 
 
+# A PAGINA PUBLICA DO IMOVEL (Pedro, 02/10/2026): imobeasy.online/imovel/<codigo>.
+# Rota ABERTA, sem senha. Tudo o que ela mostra sai de site_imovel_publico()
+# (migracao 271), que nao devolve rua, numero, complemento, CEP nem andar, e
+# so responde imovel publicado e disponivel. Nao monte o imovel aqui com
+# SELECT em `imoveis`: o filtro do que pode aparecer mora na funcao.
+@app.route("/api/imovel-publico/<int:codigo>")
+def api_imovel_publico(codigo):
+    conn = conectar()
+    try:
+        linhas = todas_linhas(conn, "SELECT site_imovel_publico(%s) AS imovel", (codigo,))
+        imovel = linhas[0]["imovel"] if linhas else None
+        if not imovel:
+            return jsonify({"erro": "não encontrado"}), 404
+        return jsonify(imovel)
+    finally:
+        conn.close()
+
+
+# "ME ENVIA O IMOVEL" (Pedro, 02/10/2026): o corretor digita o WhatsApp dele na
+# pagina publica e recebe o card e as fotos pela Nay. Quem manda e quem segura
+# e site_me_envia() (271): cai na mesma caixa do "Enviar imovel" do painel, com
+# as paredes de sempre (parceiro nao sai, indisponivel nao sai, 24 h por pessoa)
+# e com TETOS por numero, por IP e no total do dia -- a rota e aberta e qualquer
+# um pode digitar qualquer numero. Cada pedido fica em privado.me_envia.
+@app.route("/api/me-envia", methods=["POST"])
+def api_me_envia():
+    corpo = request.get_json(silent=True) or {}
+    telefone = str(corpo.get("telefone") or "")[:30]
+    codigos = []
+    for c in (corpo.get("codigos") or [])[:30]:
+        try:
+            codigos.append(int(c))
+        except (TypeError, ValueError):
+            continue
+    # O Traefik sobrescreve X-Real-Ip com quem conectou; o X-Forwarded-For o
+    # proprio visitante preenche, entao nao serve para teto.
+    ip = (request.headers.get("X-Real-Ip") or request.remote_addr or "")[:64]
+    conn = conectar_escrita()
+    try:
+        linhas = todas_linhas(conn, "SELECT site_me_envia(%s, %s, %s) AS r", (telefone, codigos, ip))
+        conn.commit()
+        r = linhas[0]["r"] if linhas else {"ok": False, "mensagem": "Não foi possível enviar agora."}
+        return jsonify(r), (200 if r.get("ok") else 429 if r.get("teto") else 422)
+    except Exception as exc:  # noqa: BLE001
+        conn.rollback()
+        app.logger.warning("me-envia falhou: %s", exc.__class__.__name__)
+        return jsonify({"ok": False, "mensagem": "Não foi possível enviar agora. Tente de novo em alguns minutos."}), 500
+    finally:
+        conn.close()
+
+
+# Quem mais se envia imoveis. Tem telefone: so com a senha do /admin.
+@app.route("/admin/api/me-envia/ranking")
+def admin_me_envia_ranking():
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    dias = max(1, min(_inteiro(request.args.get("dias"), 30), 365))
+    conn = conectar_escrita()
+    try:
+        linhas = todas_linhas(conn, "SELECT * FROM site_me_envia_ranking(%s)", (dias,))
+        for l in linhas:
+            for campo in ("primeiro", "ultimo"):
+                if l.get(campo) is not None:
+                    l[campo] = l[campo].isoformat()
+        return jsonify({"dias": dias, "ranking": linhas})
+    finally:
+        conn.close()
+
+
 # O painel do cerebro (trace por execucao). Em try/except de proposito: se
 # este modulo falhar ao importar, as rotas do site continuam de pe e so o
 # painel novo fica fora do ar.
