@@ -63,7 +63,8 @@ só não conta ponto.
       "campos_divergentes": [{ "campo": "preco", "banco": 950000, "anuncio": 990000 }],
       "dados": {
         "titulo": "...", "tipo": "...", "preco": 950000, "preco_venda": 950000, "preco_aluguel": null,
-        "bairro": "...", "cidade": "...", "endereco": "Avenida Joaquim Nabuco", "numero": "1908",
+        "bairro": "...", "cidade": "...", "endereco": "Avenida Joaquim Nabuco, 1908",
+        "rua": "Avenida Joaquim Nabuco", "numero": "1908",
         "complemento": null, "cep": "...", "condominio_nome": "...",
         "area_m2": 120, "quartos": 3, "suites": 1, "banheiros": 2, "vagas": 2, "valor_condominio": 650,
         "links_portais": ["..."], "proprietario_telefone_final": "**99",
@@ -80,8 +81,9 @@ só não conta ponto.
   vem resposta vazia.** Qualquer coisa que não seja JSON com `consulta_ok: true` é
   falha, não é "não é nosso": tente de novo.
 - No máximo 10 candidatos, por `score` (0 a 100).
-- `endereco` traz **só a rua**; o número vem em `numero` e o resto em `complemento`
-  (migração 262, a pedido do bot: no sistema dele são campos separados).
+- `endereco` traz rua e número **juntos**; os mesmos dados vêm também separados em
+  `rua`, `numero` e `complemento` (migrações 262/263). Quem consome usa `endereco`
+  OU `rua` + `numero` -- nunca `endereco` + `numero`, que repetiria o número.
 
 ## Como a nota é dada
 
