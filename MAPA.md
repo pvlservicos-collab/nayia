@@ -51,6 +51,9 @@ prompt: comece pelo `nay onde`.
 | o texto do PEDIDO de visita e o "anotei a sua visita" | `nai_texto_confirmar_visita`, `nai_texto_corretor_confirmou` | 255 |
 | ela não cita colega (Tel, Rayssa) para quem é de fora | conferência 12 em `nai_conferir_resposta`; chave `aprovador_visita_nome`; prompt do corretor | 255, 256 |
 | o Tel recebe as visitas do bloco (manhã/tarde/noite) para ligar ao dono que não respondeu | `nai_visitas_do_bloco_avisar` (dentro do `nai_agenda_tick`), tabela `nai_aviso_bloco`; chaves `resumo_tel_manha` / `_tarde` / `_noite` / `_ligado` | 265 (texto), 266 |
+| o imóvel que está NA FRENTE dele (último card/lista da Nay, 2 h): "manda aí", "quero as fotos", "as duas" | `nai_imoveis_na_frente`; passo 3b de `nai_imovel_da_conversa`; gatilho duplo em `nai_deve_mandar_fotos`; conferência 15 | 267 |
+| o tipo (casa/apto) que continua de um pedido para o outro | `nai_buscar_por_perfil` (`v_tipo`): mesmo negócio e perfil de até 3 h herdam; negócio diferente pergunta (241) | 241, 267 |
+| "que aceite financiamento" num pedido de busca não sobe ao Tel | conferência 05p em `nai_conferir_resposta` | 191, 267 |
 | de qual imóvel é a pergunta (nome de condomínio na frase) | `nai_imovel_da_conversa`, `nai_condominio_da_pergunta`, `crm_condominio_pelo_texto` | 240, 257 |
 | qual modelo cada agente usa; ligar/desligar a leitura de imagem | nós do n8n (`_mapa.md`); `scripts/madrugada/patch_modelo_n8n.py`, `patch_sem_ler_imagem.py`, `modelo_madrugada.sh` | — |
 | bot de fora CONSULTA se um anúncio já é nosso | `crm_imovel_candidatos`, `crm_imovel_vincular_anuncio`, tabela `imovel_anuncio`; `crm/docs/bots/webhook-consulta.md` | 258, 262, 263 |

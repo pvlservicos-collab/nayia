@@ -1,4 +1,4 @@
-# nai_estado_conversa  (tabela, ~228 linhas)
+# nai_estado_conversa  (tabela, ~232 linhas)
 Estado estruturado da conversa. Substitui o envelope de texto que hoje polui a nai_memoria.
 
 ## colunas

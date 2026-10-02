@@ -134,6 +134,13 @@ $para$  v_tipo    := CASE WHEN v_pedido_novo
                                         AND v_perfil.atualizado_em > now() - interval '3 hours'
                                        THEN v_perfil.tipo END)$para$);
 
+-- e, no MESMO pedido, o tipo que o perfil já guardou vale quando as falas da
+-- janela não o repetem (no ensaio: perfil com "Casa" gravado e a busca perguntando
+-- "casa ou apartamento?")
+SELECT pg_temp.trocar('nai_buscar_por_perfil(bigint,text,text,text,text)'::regprocedure,
+$de$                    ELSE nai_tipo_da_conversa(k.id, concat_ws(' ', t.texto, p_bairro)) END;$de$,
+$para$                    ELSE coalesce(nai_tipo_da_conversa(k.id, concat_ws(' ', t.texto, p_bairro)), v_perfil.tipo) END;$para$);
+
 -- ------------------------------------- 3 e 4. de qual imóvel ele está falando
 SELECT pg_temp.trocar('nai_imovel_da_conversa(bigint,text)'::regprocedure,
 $de$  v_dele  int[];  -- 190$de$,
@@ -144,8 +151,11 @@ $para$  v_dele  int[];  -- 190
 SELECT pg_temp.trocar('nai_imovel_da_conversa(bigint,text)'::regprocedure,
 $de$  v_cods := ARRAY(SELECT c FROM unnest(v_cods) c WHERE nai_finalidade_serve(c, v_neg) OR c = ANY (v_dele));  -- 190$de$,
 $para$  v_cods := ARRAY(SELECT c FROM unnest(v_cods) c WHERE nai_finalidade_serve(c, v_neg) OR c = ANY (v_dele));  -- 190
-  v_frente := ARRAY(SELECT c FROM unnest(nai_imoveis_na_frente(p_contato)) c
-                     WHERE nai_finalidade_serve(c, v_neg) OR c = ANY (v_dele));                              -- 267
+  -- 267: a frente NÃO passa pelo filtro de finalidade. Foi a Nay que pôs esses
+  -- imóveis ali; numa conversa ainda sem negócio definido o filtro esvaziava a
+  -- frente e voltava a valer "o único da mesa" -- outro imóvel (visto no ensaio).
+  -- A parede de venda x locação continua no portão de fotos e na caixa de saída.
+  v_frente := nai_imoveis_na_frente(p_contato);
   v_cods := v_cods || ARRAY(SELECT c FROM unnest(v_frente) c WHERE NOT (c = ANY (v_cods)));$para$);
 
 -- o nome: pelo NÚCLEO, na borda da palavra, e nunca por palavra de tipo/genérica
@@ -235,9 +245,12 @@ BEGIN
   -- resposta é um "manda aí": o que falta mandar são as fotos. Só vale com imóvel
   -- na frente dele (2 h), em fala curta, e nunca num pedido de busca ("me manda
   -- uma casa no Flores" é pedido de imóvel, não de foto).
-  IF p_contato IS NOT NULL AND length(v_txt) <= 60
+  IF p_contato IS NOT NULL AND length(v_txt) <= 40
      AND v_txt ~ '\m(manda|mande|mandar|envia|envie|enviar|encaminha|encaminhe|encaminhar)\M'
-     AND v_txt !~ '\m(nao|depois|amanha|mais tarde)\M'
+     AND v_txt !~ '\m(nao|depois|amanha|mais tarde|outr[oa]s?|opc(ao|oes)|mais)\M'
+     -- pedido novo dentro da fala ("me manda uma casa no Flores até 500 mil") não é
+     -- "manda aí": tem tipo, número ou é pedido de perfil
+     AND v_txt !~ '[0-9]' AND nai_tipo_pedido(p_escreveu) IS NULL
      AND NOT coalesce((nai_pedido_de_perfil(p_escreveu) ->> 'e_pedido')::boolean, false)
      AND coalesce(array_length(nai_imoveis_na_frente(p_contato), 1), 0) >= 1 THEN
     RETURN true;

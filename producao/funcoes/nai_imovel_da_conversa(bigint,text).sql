@@ -14,6 +14,7 @@ DECLARE
   n       int;
   v_neg   text;   -- 190
   v_dele  int[];  -- 190
+  v_frente int[]; -- 267: o último lote que a Nay pôs na conversa
 BEGIN
   SELECT * INTO k FROM nai_contato WHERE id = p_contato;
   IF k.id IS NULL THEN RETURN NULL; END IF;
@@ -84,6 +85,12 @@ BEGIN
   ) y WHERE c IS NOT NULL AND EXISTS (SELECT 1 FROM imoveis i WHERE i.codigo = y.c);
 
   v_cods := ARRAY(SELECT c FROM unnest(v_cods) c WHERE nai_finalidade_serve(c, v_neg) OR c = ANY (v_dele));  -- 190
+  -- 267: a frente NÃO passa pelo filtro de finalidade. Foi a Nay que pôs esses
+  -- imóveis ali; numa conversa ainda sem negócio definido o filtro esvaziava a
+  -- frente e voltava a valer "o único da mesa" -- outro imóvel (visto no ensaio).
+  -- A parede de venda x locação continua no portão de fotos e na caixa de saída.
+  v_frente := nai_imoveis_na_frente(p_contato);
+  v_cods := v_cods || ARRAY(SELECT c FROM unnest(v_frente) c WHERE NOT (c = ANY (v_cods)));
   -- 240: ELE DESCREVEU O IMÓVEL (tipo + bairro: "o apartamento da Chapada"). Só
   -- serve o que bate; sem isto valia o último imóvel da conversa, de outro tipo e
   -- outro bairro (Raquel, 30/09: a casa do Parque 10 no lugar do 9004).
@@ -131,12 +138,42 @@ BEGIN
 
   -- 3. ele chamou pelo NOME ("me manda foto do arezzo")
   IF btrim(q) <> '' THEN
-    SELECT i.codigo INTO v_cod FROM imoveis i
+    -- 267: era a PRIMEIRA PALAVRA do nome, solta, em qualquer lugar da fala. O
+    -- imóvel 1360 tem o condomínio gravado como "Casa", e "Casa" (o tipo que a
+    -- Raquel pediu) virou o 1360; "Parque 10" virou o Parque dos Ingleses (9004).
+    -- Agora: a primeira palavra do núcleo, se for um nome de verdade; se ela for
+    -- genérica, o núcleo inteiro. Sempre na borda da palavra, e nunca palavra de tipo.
+    SELECT i.codigo INTO v_cod
+      FROM imoveis i
+      CROSS JOIN LATERAL (SELECT nai_condominio_nucleo(nai_condominio_ok(i.condominio_nome)) AS nucleo) n
+      CROSS JOIN LATERAL (SELECT CASE
+                 WHEN length(split_part(n.nucleo, ' ', 1)) >= 4
+                  AND split_part(n.nucleo, ' ', 1) NOT IN ('parque', 'jardim', 'jardins', 'vila', 'village', 'villa', 'solar',
+                        'morada', 'reserva', 'portal', 'porto', 'ilha', 'ilhas', 'torre', 'torres', 'life', 'smart', 'grand',
+                        'green', 'park', 'alto', 'novo', 'nova', 'santa', 'santo', 'saint', 'ponta', 'vista', 'bela', 'belo')
+                 THEN split_part(n.nucleo, ' ', 1) ELSE n.nucleo END AS p) w
      WHERE i.codigo = ANY (v_cods)
-       AND coalesce(nai_condominio_ok(i.condominio_nome), '') <> ''
-       AND position(lower(unaccent(split_part(nai_condominio_ok(i.condominio_nome), ' ', 1))) IN q) > 0
+       AND coalesce(n.nucleo, '') <> ''
+       AND length(w.p) >= 4
+       AND w.p NOT IN ('casa', 'casas', 'apartamento', 'apartamentos', 'apto', 'flat', 'predio', 'livre', 'lote',
+                       'terreno', 'sala', 'loja', 'kitnet', 'sobrado', 'galpao', 'cobertura', 'imovel')
+       AND q ~ ('\m' || regexp_replace(w.p, '([.^$*+?()\[\]{}|\\-])', '\\\1', 'g') || '\M')
      LIMIT 1;
     IF v_cod IS NOT NULL THEN RETURN v_cod; END IF;
+  END IF;
+
+  -- 3b. 267: O QUE ESTÁ NA FRENTE DELE. O último lote que a Nay pôs na conversa
+  -- (2 h) manda mais que "o imóvel do último turno": um só, é dele que ele fala;
+  -- dois ou mais, ela pergunta qual -- a não ser que ele já viesse falando de um
+  -- deles. Em 01/10 a Raquel recebeu dois cards, pediu "as fotos" e saíram 7 fotos
+  -- de um terceiro imóvel, o do "último turno", que ela nunca tinha visto.
+  IF coalesce(array_length(v_frente, 1), 0) = 1 THEN
+    RETURN v_frente[1];
+  ELSIF coalesce(array_length(v_frente, 1), 0) >= 2 THEN
+    SELECT t.codigo INTO v_cod FROM nai_turno t
+     WHERE t.contato_id = p_contato AND t.codigo IS NOT NULL AND t.criado_em > now() - interval '2 hours'
+     ORDER BY t.id DESC LIMIT 1;
+    RETURN CASE WHEN v_cod = ANY (v_frente) THEN v_cod END;
   END IF;
 
   -- 4. o imóvel do ÚLTIMO turno que tratou de um imóvel: é dele que ele fala

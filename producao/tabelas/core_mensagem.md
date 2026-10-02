@@ -1,4 +1,4 @@
-# core_mensagem  (tabela, ~903 linhas)
+# core_mensagem  (tabela, ~950 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('core_mensagem_id_seq'::regclass)

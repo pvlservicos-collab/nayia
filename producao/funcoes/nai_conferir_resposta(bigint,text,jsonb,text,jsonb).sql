@@ -177,8 +177,18 @@ BEGIN
       PERFORM nai_anotar(p_turno, 5, 'pagamento_da_ficha', 'mudou', 'afirmacao de pagamento corrigida pela ficha');
     END IF;
     IF coalesce(array_length(v_pg.sem_dado, 1), 0) > 0 THEN
-      v_texto := v_pg.texto;
-      IF nai_assunto_sensivel(coalesce(p_escreveu, '')) IN ('pagamento', 'fgts', 'permuta') OR btrim(v_texto) = '' THEN
+      -- 267: pedido de perfil ("procuro casa... que aceite financiamento") não é
+      -- pergunta de pagamento. Em 01/10 isso calou a Nay por 1h36 com a Raquel.
+      IF 'buscar_por_perfil' = ANY (coalesce(t.ferramentas, '{}'))
+         OR coalesce((nai_pedido_de_perfil(coalesce(p_escreveu, '')) ->> 'e_pedido')::boolean, false) THEN
+        IF btrim(coalesce(v_pg.texto, '')) <> '' THEN v_texto := v_pg.texto; END IF;
+      ELSE
+        v_texto := v_pg.texto;
+      END IF;
+      IF (nai_assunto_sensivel(coalesce(p_escreveu, '')) IN ('pagamento', 'fgts', 'permuta')
+          AND NOT ('buscar_por_perfil' = ANY (coalesce(t.ferramentas, '{}'))
+                   OR coalesce((nai_pedido_de_perfil(coalesce(p_escreveu, '')) ->> 'e_pedido')::boolean, false)))
+         OR btrim(v_texto) = '' THEN
         v_base := nai_escalar_calado(p_turno, p_escreveu, 'forma de pagamento que a ficha nao diz',
                                      (SELECT c FROM unnest(v_pg.sem_dado) c WHERE c > 0 LIMIT 1));
         IF v_base IS NULL THEN
@@ -412,6 +422,11 @@ BEGIN
   IF v_gate AND coalesce(array_length(v_cods, 1), 0) = 0
      AND NOT ('buscar_por_perfil' = ANY (coalesce(t.ferramentas, '{}'))) THEN
     v_cods := array_remove(ARRAY[coalesce(v_alvo, nai_imovel_da_conversa(t.contato_id, p_escreveu))], NULL);
+    -- 267: ela perguntou "de qual?" e ele respondeu "as duas": os que estão na frente
+    IF coalesce(array_length(v_cods, 1), 0) = 0
+       AND lower(unaccent(coalesce(p_escreveu, ''))) ~ '\m(as duas|os dois|ambas|ambos|todas|todos|as 2|os 2)\M' THEN
+      v_cods := (nai_imoveis_na_frente(t.contato_id))[1:3];
+    END IF;
   END IF;
   -- SEM IMOVEL NAO HA FOTO. Com o portao sempre aberto, ele continuava "true"
   -- mesmo quando nao se sabe de qual imovel se fala -- e os passos seguintes

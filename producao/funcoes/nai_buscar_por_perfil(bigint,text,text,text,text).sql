@@ -144,8 +144,13 @@ BEGIN
   -- pedido anterior responde pelo apartamento deste. Sem tipo, a busca pergunta
   -- "casa ou apartamento?" (152), que é o certo.
   v_tipo    := CASE WHEN v_pedido_novo
-                    THEN nai_tipo_pedido(concat_ws(' ', t.texto, p_bairro))
-                    ELSE nai_tipo_da_conversa(k.id, concat_ws(' ', t.texto, p_bairro)) END;
+                    THEN coalesce(nai_tipo_pedido(concat_ws(' ', t.texto, p_bairro)),
+                                  -- 267: mesmo negócio, pedido de até 3 h atrás: é o mesmo tipo
+                                  CASE WHEN v_perfil.tipo IS NOT NULL
+                                        AND v_perfil.negocio IS NOT DISTINCT FROM v_negocio
+                                        AND v_perfil.atualizado_em > now() - interval '3 hours'
+                                       THEN v_perfil.tipo END)
+                    ELSE coalesce(nai_tipo_da_conversa(k.id, concat_ws(' ', t.texto, p_bairro)), v_perfil.tipo) END;
   v_rotulo  := nai_rotulo_do_tipo(v_tipo);
   v_nada    := CASE WHEN v_rotulo IS NULL THEN 'nenhum imóvel'
                     WHEN v_rotulo IN ('casa', 'cobertura', 'sala', 'chácara') THEN 'nenhuma ' || v_rotulo
