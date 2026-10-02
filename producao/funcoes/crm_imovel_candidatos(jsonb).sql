@@ -232,7 +232,12 @@ BEGIN
               'preco_venda', nullif(t.valor_venda, 0),
               'preco_aluguel', nullif(t.valor_aluguel, 0),
               'bairro', t.bairro, 'cidade', t.cidade,
-              'endereco', nullif(concat_ws(', ', nullif(btrim(t.logradouro), ''), nullif(btrim(t.numero), '')), ''),
+              -- 262: rua e número separados (o bot grava em campos separados)
+              'endereco', nullif(btrim(regexp_replace(regexp_replace(coalesce(t.logradouro, ''),
+                            ',\s*(n[º°o.]?\s*)?[0-9].*$', ''), '\s*,\s*(-|,|$).*$', ''), ' ,-'), ''),
+              'numero', coalesce(nullif(btrim(t.numero), ''),
+                                 (regexp_match(coalesce(t.logradouro, ''), ',\s*(?:n[º°o.]?\s*)?([0-9]+[A-Za-z]?)'))[1]),
+              'complemento', nullif(btrim(t.complemento), ''),
               'cep', t.cep,
               'condominio_nome', CASE WHEN NOT (coalesce(t.nucleo, '') = ANY (LIXO)) THEN t.condominio_nome END,
               'area_m2', t.area, 'quartos', t.quartos, 'suites', t.suites,
