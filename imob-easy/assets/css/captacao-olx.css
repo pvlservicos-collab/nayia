@@ -213,19 +213,47 @@
 }
 .bot-filtro { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .bot-filtro__botao[aria-current="true"] { background: #2b2140; color: #fff; border-color: #2b2140; }
-.bot-item { grid-template-columns: minmax(0, 1fr); }
-.bot-item__topo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
-.bot-item__topo b { font-size: 15px; }
+/* O cartão no desenho do cadastro de imóveis (Pedro, 02/10: "igual à área de
+   cadastrar imóveis, porém menor e em formato de card"): as mesmas seções, com a
+   cor de cada uma na borda esquerda e no ícone (--gc), em ponto menor. */
+.bot-item { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 14px; }
+.bot-item__topo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.bot-item__topo b { font-size: 15.5px; flex: 1 1 240px; min-width: 0; }
 .bot-item__topo a { font-size: 12.5px; }
-.bot-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 6px 18px; font-size: 13px; }
-.bot-grade span { color: var(--texto-fraco, #6b6478); }
+.bot-fotos { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.bot-fotos img { width: 92px; height: 68px; flex: none; object-fit: cover; border-radius: 8px; background: #eeeaf4; }
+.bot-fotos__mais { flex: none; font-size: 12.5px; font-weight: 700; color: var(--texto-fraco, #6b6478); padding: 0 6px; }
+.bot-fotos--vazio {
+  padding: 10px 12px; border: 1.5px dashed #e0b9a0; border-radius: 10px; background: #fdf7f2;
+  font-size: 12.5px; color: #a8662f; font-weight: 600;
+}
+.bot-secoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px; }
+.bot-sec {
+  border: 1px solid var(--borda, #e2dfe8); border-left: 4px solid var(--gc); border-radius: 10px;
+  padding: 8px 10px 10px; background: var(--superficie, #fff); min-width: 0;
+}
+.bot-sec--larga { grid-column: 1 / -1; }
+.bot-sec__titulo { display: flex; align-items: center; gap: 7px; margin: 0 0 7px; font-size: 12.5px; font-weight: 700; }
+.bot-sec__icone {
+  display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 6px;
+  background: color-mix(in srgb, var(--gc) 13%, #fff); color: var(--gc); font-size: 12px; font-weight: 700;
+}
+.bot-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; margin: 0; }
+.bot-grade--4 { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.bot-dado { min-width: 0; }
+.bot-dado--largo { grid-column: 1 / -1; }
+.bot-dado dt { font-size: 10.5px; letter-spacing: .03em; text-transform: uppercase; color: var(--texto-fraco, #6b6478); }
+.bot-dado dd { margin: 1px 0 0; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.bot-dado dd.bot-vazio { font-weight: 500; color: var(--texto-fraco, #6b6478); font-style: italic; }
+.bot-autoriza { margin-top: 2px; padding: 6px 8px; border-radius: 8px; background: #e8f7f0; }
+.bot-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.bot-chips + .bot-chips { margin-top: 6px; }
+.bot-chips__rot { font-size: 10.5px; letter-spacing: .03em; text-transform: uppercase; color: var(--texto-fraco, #6b6478); margin-right: 2px; }
+.bot-descricao { margin: 0; font-size: 13px; line-height: 1.5; white-space: pre-line; max-height: 6em; overflow: auto; }
+.bot-falta { font-size: 12.5px; color: #a8662f; }
+.bot-falta--fotos { flex: 1 1 100%; padding: 8px 10px; border-radius: 10px; background: #fdf7f2; line-height: 1.6; }
 .bot-bloco { padding: 9px 12px; border-radius: 10px; background: #f6f4fa; font-size: 13px; line-height: 1.5; }
-.bot-bloco--autoriza { background: #e8f7f0; }
 .bot-bloco--parecido { background: #fdf2ea; }
 .bot-bloco b { display: block; font-size: 12px; letter-spacing: .02em; text-transform: uppercase; color: var(--texto-fraco, #6b6478); }
-.bot-fotos { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
-.bot-fotos img { width: 84px; height: 64px; flex: none; object-fit: cover; border-radius: 8px; background: #eeeaf4; }
-.bot-descricao { font-size: 13px; line-height: 1.5; white-space: pre-line; max-height: 7.5em; overflow: auto; }
 .bot-item .olx-item__acoes { grid-column: 1 / -1; }
 .bot-motivo { flex: 1 1 220px; min-width: 0; }
-

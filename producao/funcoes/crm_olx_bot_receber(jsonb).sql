@@ -108,6 +108,12 @@ BEGIN
   RETURN jsonb_build_object('ok', true, 'id_cadastro', v_novo::text, 'situacao', 'pendente',
     'ja_existia', v_ja.id IS NOT NULL,
     'fotos_recebidas', coalesce(array_length(v_fotos, 1), 0),
+    -- 264: quantas fotos o cadastro TEM (com os reenvios) e o que falta
+    'fotos_guardadas', (SELECT coalesce(array_length(o.fotos, 1), 0) FROM privado.olx_bot_imovel o WHERE o.id = v_novo),
+    'avisos', (SELECT CASE WHEN coalesce(array_length(o.fotos, 1), 0) = 0
+                 THEN jsonb_build_array('Veio sem fotos. Reenvie o MESMO link com a lista "fotos" (os links https das imagens do anúncio, em img.olx.com.br): o cadastro que já está na fila é completado, não duplica.')
+                 ELSE '[]'::jsonb END
+                 FROM privado.olx_bot_imovel o WHERE o.id = v_novo),
     -- 261: sem `parecido_com`. Este webhook é de outro bot e não devolve nada
     -- da consulta; os parecidos ficam só no envio, para quem aprova.
     'mensagem', CASE WHEN v_ja.id IS NOT NULL THEN 'Atualizei o cadastro que já estava esperando aprovação.'

@@ -57,7 +57,11 @@ mande null — nunca invente):
   "mobilia"     "mobiliado" | "semimobiliado" | "sem mobília"
   "caracteristicas"            lista: ["Varanda", "Ar condicionado", ...]
   "caracteristicas_condominio" lista: ["Piscina", "Academia", ...]
-  "fotos"       lista com os links https das fotos do anúncio (img.olx.com.br)
+  "fotos"       lista com os links https das fotos do anúncio (img.olx.com.br),
+                na ordem em que aparecem (a primeira é a capa). MANDE SEMPRE: o
+                nosso servidor não consegue abrir a página do anúncio, só baixar
+                as imagens pelos links que você mandar. Sem "fotos", o imóvel
+                entra sem foto nenhuma.
   "proprietario_nome", "proprietario_telefone"
   "observacoes" o que mais a pessoa que aprova precisa saber
 
@@ -65,7 +69,11 @@ Números podem ir como número (990000) ou texto ("R$ 990.000,00").
 
 RESPOSTA
   Sucesso (200): { "ok": true, "id_cadastro": "12", "situacao": "pendente",
-                   "ja_existia": false, "fotos_recebidas": 8, "mensagem": "..." }
+                   "ja_existia": false, "fotos_recebidas": 8, "fotos_guardadas": 8,
+                   "avisos": [], "mensagem": "..." }
+    - "avisos": lista do que ficou faltando (vazia = tudo certo). Se vier o aviso
+      de que faltam fotos, reenvie o MESMO link com a lista "fotos".
+    - "fotos_guardadas": quantas fotos o cadastro tem, somando os reenvios.
     - "ja_existia": true = esse anúncio já estava na fila; os dados novos
       completaram os antigos (pode reenviar só o que mudou).
     - "situacao": "aprovado" ou "descartado" = uma pessoa já decidiu; não reenvie.
