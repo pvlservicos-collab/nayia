@@ -5,6 +5,8 @@ CREATE OR REPLACE FUNCTION public.nai_core_atende(p_contato bigint, p_texto text
 AS $function$
   SELECT CASE
     WHEN lower(coalesce(public.nai_cfg('core_atende', 'nao'), 'nao')) <> 'sim' THEN false
+    -- 270: a equipe (Tel, Pedro, Rayssa, acompanhante) continua com a Nay velha
+    WHEN public.nai_e_da_equipe_contato(p_contato) THEN false
     -- visita é do sistema velho: a mensagem fala de visita...
     WHEN public.nay_sem_acento(lower(coalesce(p_texto, '')))
          ~ '\m(visita|visitas|visitar|visitacao|agendar|agendamento|agenda|reagendar|remarcar|desmarcar)\M' THEN false

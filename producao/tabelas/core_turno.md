@@ -1,4 +1,4 @@
-# core_turno  (tabela, ~690 linhas)
+# core_turno  (tabela, ~778 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('core_turno_id_seq'::regclass)
@@ -20,6 +20,7 @@ fechado_em  timestamp with time zone
 
 ## índices
 CREATE INDEX core_turno_chave ON public.core_turno USING btree (chave, criado_em)
+CREATE UNIQUE INDEX core_turno_exec_id ON public.core_turno USING btree (exec_id) WHERE (exec_id IS NOT NULL)
 CREATE UNIQUE INDEX core_turno_pkey ON public.core_turno USING btree (id)
 
 ## restrições
