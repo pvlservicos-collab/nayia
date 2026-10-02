@@ -312,6 +312,22 @@ BEGIN
                               'contato_id', v_contato, 'papel', v_papel);
   END IF;
 
+  -- 269: O NÚCLEO NOVO (nay-core) ATENDE ESTE TURNO. Só o turno que ia para o agente
+  -- do corretor (as mesmas condições do "Rotear pelo cabeçalho"), sem imagem nem
+  -- documento, e que nai_core_atende() não segura aqui (visita, cadastro, teste).
+  -- ok falso = o fluxo não manda nada; quem responde é o núcleo, lendo nai_core_turno.
+  IF v_papel = 'corretor' AND NOT v_pausado
+     AND (CASE WHEN lower(coalesce(nai_cfg('regra_publico', 'nao'), 'nao')) = 'sim' THEN v_porta.atende END) IS DISTINCT FROM false
+     AND ((CASE WHEN lower(coalesce(nai_cfg('regra_publico', 'nao'), 'nao')) = 'sim' THEN v_porta.atende END) IS TRUE
+          OR v_aprov IS TRUE)
+     AND jsonb_array_length(nai_midias_do_turno(v_turno)) = 0
+     AND nai_core_atende(v_contato, v_texto) THEN
+    INSERT INTO nai_core_turno (turno_id) VALUES (v_turno) ON CONFLICT DO NOTHING;
+    UPDATE nai_turno SET fechado_em = now() WHERE id = v_turno;
+    RETURN jsonb_build_object('ok', false, 'motivo', 'core_atende', 'turno_id', v_turno,
+                              'contato_id', v_contato, 'papel', v_papel);
+  END IF;
+
   -- 223: a resposta dele à pergunta do perfil ("só serve com elevador?") vai para o perfil
   IF v_papel = 'corretor' THEN
     PERFORM nai_perfil_resposta(v_contato, v_texto, v_turno);

@@ -23,6 +23,18 @@ BEGIN
                       AND (btrim(s.texto) = btrim(p_texto) OR btrim(s.resposta->>'texto_final') = btrim(p_texto)
                            OR position(btrim(p_texto) IN coalesce(s.texto, '')) > 0));
 
+  -- 269: o ECO DO NÚCLEO NOVO (core_saida).
+  IF NOT v_eco THEN
+    v_eco := EXISTS (SELECT 1 FROM core_saida s
+                      WHERE nullif(p_message_id, '') IS NOT NULL AND s.message_id = p_message_id)
+          OR EXISTS (SELECT 1 FROM core_saida s
+                      WHERE s.chave_destino = v_chave AND s.estado IN ('enviando', 'enviado')
+                        AND s.criado_em > now() - interval '15 minutes'
+                        AND (   (s.tipo = 'imagem' AND nullif(btrim(coalesce(p_texto, '')), '') IS NULL)
+                             OR (s.tipo = 'texto' AND nullif(btrim(coalesce(p_texto, '')), '') IS NOT NULL
+                                 AND btrim(s.texto) = btrim(p_texto))));
+  END IF;
+
   -- 194 (30/09): o ECO DA FOTO. Sem texto e com foto nossa saindo para a
   -- mesma pessoa (ou a linha irma dela) nos ultimos 15 min: e eco nosso.
   -- O id ainda nao foi gravado porque "Confirmar envio" so roda no fim do lote.

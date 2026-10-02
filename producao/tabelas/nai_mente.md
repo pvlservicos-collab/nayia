@@ -1,4 +1,4 @@
-# nai_mente  (tabela, ~1138 linhas)
+# nai_mente  (tabela, ~1159 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('nai_mente_id_seq'::regclass)

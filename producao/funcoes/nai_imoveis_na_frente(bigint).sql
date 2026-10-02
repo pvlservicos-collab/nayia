@@ -29,6 +29,18 @@ AS $function$
       FROM envios e, k
      WHERE k.fim8 <> '' AND right(regexp_replace(coalesce(e.telefone, ''), '\D', '', 'g'), 8) = k.fim8
        AND e.enviado_em > now() - interval '2 hours' AND e.codigo ~ '^[0-9]{3,5}$'
+    UNION ALL   -- 269: card e resposta do núcleo novo
+    SELECT s.criado_em, s.codigo
+      FROM core_saida s, k
+     WHERE s.chave_destino IN (SELECT c.chave FROM nai_contato c WHERE c.id = ANY (k.ids))
+       AND s.codigo IS NOT NULL AND s.tipo <> 'imagem' AND s.papel_destino = 'turno'
+       AND s.estado IN ('enviado', 'enviando', 'pendente') AND s.criado_em > now() - interval '2 hours'
+    UNION ALL   -- 269: lista do núcleo novo ("Código: N")
+    SELECT s.criado_em, m[1]::int
+      FROM core_saida s, k, regexp_matches(s.texto, 'C[óo]digo:\s*(\d{3,5})', 'gi') m
+     WHERE s.chave_destino IN (SELECT c.chave FROM nai_contato c WHERE c.id = ANY (k.ids))
+       AND s.codigo IS NULL AND s.tipo = 'texto' AND s.papel_destino = 'turno'
+       AND s.estado IN ('enviado', 'enviando', 'pendente') AND s.criado_em > now() - interval '2 hours'
   )
   SELECT coalesce(array_agg(DISTINCT ev.c), '{}')
     FROM ev

@@ -1,5 +1,5 @@
 chave	valor	atualizado_em
-_agenda_rodou_em	2026-10-02 13:18:15	2026-10-02T13:18
+_agenda_rodou_em	2026-10-02 14:00:15	2026-10-02T14:00
 antecedencia_minima_horas	3	2026-09-10T18:41
 apresentacao_proprietario	Oi! Esse é o número de visitas da Imob Easy.	2026-09-30T10:15
 aprovacao_lembrete_min	30	2026-09-28T10:35
@@ -12,6 +12,8 @@ comando_telefones	[telefone …7316],[telefone …6408]	2026-09-19T18:06
 conferencia_barra_texto_orfao	sim	2026-09-24T12:32
 conferencia_confere_texto	sim	2026-09-24T12:46
 conferencia_passe_citado	sim	2026-09-24T12:32
+core_atende	nao	2026-10-02T14:00
+core_atende_so		2026-10-02T14:00
 dados_lembretes_max	3	2026-09-10T18:41
 dados_primeiro_lembrete_min	3	2026-09-10T18:41
 documentos_locacao	✅ INQUILINO (LOCATÁRIO) — de CADA pessoa que vai assinar  - RG e CPF ou CNH (frente e verso, legível) - Nacionalidade, profissão, estado civil - Telefone/WhatsApp e e-mail - Endereço completo com CEP (se for comercial, avisar) - Comprovante de residência - Se PJ: contrato social, CNPJ e documentos do sócios - Comprovante de renda: 3 últimos contracheques ou, se autônomo, 6 últimos extratos bancários - Data de início da locação	2026-09-22T16:12
