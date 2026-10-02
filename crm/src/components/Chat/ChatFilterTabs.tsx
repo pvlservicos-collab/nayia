@@ -46,6 +46,11 @@ export interface FiltroDaLista {
    * `nao_lidas` de cada conversa da etapa (/api/leads).
    */
   naoLidas?: number
+  /**
+   * A BOLINHA DAS ETAPAS DA PARCERIA (Pedro, 02/10/2026): quantas PESSOAS têm
+   * mensagem sem ler, não quantas mensagens. Quando vem, é ela que aparece.
+   */
+  pessoas?: number
 }
 
 /** mantido para quem ainda importa o tipo antigo */
@@ -92,7 +97,12 @@ function ChatFilterTabs({ ativo, aoMudar, filtros }: ChatFilterTabsProps) {
               {f.cor && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: f.cor }} />}
               {f.rotulo}
               {f.contagem !== undefined && f.contagem > 0 && <span className="wa-chip__n">{f.contagem}</span>}
-              {!!f.naoLidas && (
+              {!!f.pessoas && (
+                <span className="wa-fase__faltam" title={`${f.pessoas} pessoa${f.pessoas > 1 ? 's' : ''} para responder`}>
+                  {f.pessoas > 99 ? '99+' : f.pessoas}
+                </span>
+              )}
+              {!f.pessoas && !!f.naoLidas && (
                 <span className="wa-fase__faltam" title={`${f.naoLidas} mensage${f.naoLidas > 1 ? 'ns' : 'm'} sem ler`}>
                   {f.naoLidas > 99 ? '99+' : f.naoLidas}
                 </span>

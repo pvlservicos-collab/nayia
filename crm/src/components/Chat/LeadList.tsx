@@ -417,12 +417,13 @@ export default function LeadList({
     if (ehParceria) {
       const m = marcas[l.id]
       // uma conversa, UMA etapa (ver src/lib/etapaDaParceria.ts)
-      /* A BOLINHA É A CONTAGEM DE MENSAGENS SEM LER (Pedro, 01/10), em todas
-         as etapas -- inclusive Todos. A contagem vem de /api/leads, que soma as
-         mensagens dela depois da nossa última resposta nas conversas marcadas
-         como não lidas. "Quem falta responder" continua existindo, mas na barra
-         de métricas lá em cima, que é onde ele pediu. */
-      const semLer = Number(l.nao_lidas || 0)
+      /* A BOLINHA DA ETAPA É O NÚMERO DE PESSOAS, não de mensagens (Pedro, 02/10:
+         "quero que as notificações na bolinha lá na aba parceria não seja o número
+         de mensagens mas sim o número de pessoas a responder"). Em 01/10 ela somava
+         as mensagens sem ler: uma pessoa que mandou 12 mensagens virava 12. Agora
+         cada conversa com mensagem sem ler conta 1, em todas as etapas, inclusive
+         Todos. O balãozinho de cada conversa continua mostrando quantas mensagens. */
+      const semLer = Number(l.nao_lidas || 0) > 0 || !!l.is_unread ? 1 : 0
       const comPessoa = comAlguem(l, m, atendente)
       if (!comPessoa) {
         const etapa = etapaDaParceria(l, m)
@@ -462,17 +463,17 @@ export default function LeadList({
            tem, deixa só o número de pessoas para responder em cada etapa". Cada
            etapa mostra UM número: quem falou por último e está esperando. O
            Todos continua sem número -- é a etapa da Nay, ela responde. */
-        { chave: 'all', rotulo: 'Todos', grupo: 'etapa', naoLidas: contagem['semler:todos'],
+        { chave: 'all', rotulo: 'Todos', grupo: 'etapa', pessoas: contagem['semler:todos'],
           titulo: 'A Nay atende aqui. Quem está em outra etapa não aparece.' },
-        { chave: 'visitas', rosa: true, rotulo: 'Visitas', grupo: 'etapa', naoLidas: contagem['semler:visitas'],
+        { chave: 'visitas', rosa: true, rotulo: 'Visitas', grupo: 'etapa', pessoas: contagem['semler:visitas'],
           titulo: 'Com visita aberta — quem atende é a Rayssa. Fechou a visita, volta para Todos e a Nay volta a atender.' },
-        { chave: 'proprietarios', rosa: true, rotulo: 'Proprietários', grupo: 'etapa', naoLidas: contagem['semler:proprietarios'],
+        { chave: 'proprietarios', rosa: true, rotulo: 'Proprietários', grupo: 'etapa', pessoas: contagem['semler:proprietarios'],
           titulo: 'Quem a Nay sabe que é dono de imóvel. Só aparece aqui.' },
-        { chave: 'fechamento', rosa: true, rotulo: 'Fechamento', grupo: 'etapa', naoLidas: contagem['semler:fechamento'],
+        { chave: 'fechamento', rosa: true, rotulo: 'Fechamento', grupo: 'etapa', pessoas: contagem['semler:fechamento'],
           titulo: 'Já pediu o checklist — está juntando a documentação. Entra aqui sozinho quando a Nay manda o checklist.' },
-        { chave: 'tel', rotulo: 'Tel', grupo: 'pessoa', naoLidas: contagem['semler:tel'], titulo: 'O Tel está atendendo (a Nay parou por ele, ou ele mandou pelo login dele)' },
+        { chave: 'tel', rotulo: 'Tel', grupo: 'pessoa', pessoas: contagem['semler:tel'], titulo: 'O Tel está atendendo (a Nay parou por ele, ou ele mandou pelo login dele)' },
         ...(rayssa
-          ? [{ chave: 'rayssa', rotulo: rayssa.nome, grupo: 'pessoa' as const, cor: rayssa.cor, naoLidas: contagem['semler:rayssa'],
+          ? [{ chave: 'rayssa', rotulo: rayssa.nome, grupo: 'pessoa' as const, cor: rayssa.cor, pessoas: contagem['semler:rayssa'],
                titulo: `${rayssa.nome} está atendendo (mandou a última mensagem da equipe, pelo login dela)` }]
           : []),
       ]
