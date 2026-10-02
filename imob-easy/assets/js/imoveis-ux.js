@@ -1148,6 +1148,26 @@
       'font-family="Rubik,Arial,sans-serif" fill="#4c1d95">' + n + "</text></svg>";
   }
 
+  /* O PREÇO DENTRO DO PINO (Pedro, 02/10/2026: "implementa o preço no nosso mapa atual em todo lugar mas
+     dentro do pin do mapa, porém sem crescer junto com a tela e deixa pequeno para facilitar a visualização").
+     O pino continua roxo, agora com o valor escrito: pequeno e de tamanho FIXO (não segue o zoom). Vários
+     imóveis no mesmo ponto mostram o menor preço e "+N"; o balão lista todos. Com o filtro em só aluguel ou
+     só venda, o preço é o desse negócio. O mesmo pino está na tela pública /imoveis (imoveis-enviar.js). */
+  function precoCurto(n) {
+    return n >= 1e6 ? (n / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 2 }) + " mi"
+      : n >= 1e4 ? Math.round(n / 1e3).toLocaleString("pt-BR") + " mil"
+      : (n / 1e3).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mil";
+  }
+  function valorNoMapa(i) {
+    var so = mf.fin.length === 1 ? mf.fin[0] : null;
+    return so === "aluguel" ? i.valorAluguel : so === "venda" ? i.valorVenda : (i.valorAluguel || i.valorVenda);
+  }
+  function pinDePreco(g) {
+    var vs = g.map(valorNoMapa).filter(function (v) { return v > 0; }).sort(function (a, b) { return a - b; });
+    return '<span class="ux-preco-pin">' + (vs.length ? precoCurto(vs[0]) : "s/ valor") +
+      (g.length > 1 ? "<i>+" + (g.length - 1) + "</i>" : "") + "</span>";
+  }
+
   /* O TAMANHO DO PIN SEGUE O ZOOM DO MAPA: afastado, a cidade inteira na tela,
      o pin é menor -- senão, do mesmo tamanho com o mapa encolhido, ele cobre a
      cidade ("não precisa os ícones crescerem quando eu diminuo o zoom"). Perto,
@@ -1376,9 +1396,8 @@
       nLugares++;
       var um = g.length === 1;
       var m = L.marker([g[0].lat, g[0].lon], {
-        icon: L.divIcon({ className: "ux-pin-icone", html: um ? pinDeUm() : pinDeVarios(g.length),
-                          iconSize: um ? [26, 38] : [34, 48], iconAnchor: um ? [13, 35] : [17, 45],
-                          popupAnchor: um ? [0, -24] : [0, -32] }),
+        icon: L.divIcon({ className: "ux-pin-icone", html: pinDePreco(g),
+                          iconSize: [0, 0], iconAnchor: [0, 0], popupAnchor: [0, -26] }),
         title: um ? "#" + g[0].codigo + " · " + (g[0].condominio || g[0].tipo || "") : g.length + " imóveis neste ponto",
         riseOnHover: true
       });
@@ -1393,8 +1412,9 @@
     var porSit = {};
     comPonto.forEach(function (i) { porSit[i.status] = (porSit[i.status] || 0) + 1; });
     $("mapa-legenda").innerHTML =
-      '<span class="ux-leg-pin">' + pinDeUm() + "1 imóvel</span>" +
-      '<span class="ux-leg-pin">' + pinDeVarios(3) + "vários no mesmo ponto (clique para a lista)</span>" +
+      '<span class="ux-leg-pin"><span class="ux-preco-pin ux-preco-pin--leg">480 mil</span>o preço do imóvel</span>' +
+      '<span class="ux-leg-pin"><span class="ux-preco-pin ux-preco-pin--leg">350 mil<i>+2</i></span>' +
+        "vários no mesmo ponto: o menor preço (clique para a lista)</span>" +
       "<span>" + Object.keys(porSit).sort(function (a, b) { return porSit[b] - porSit[a]; }).map(function (s) {
         return esc(s) + " " + porSit[s];
       }).join(" · ") + "</span>";

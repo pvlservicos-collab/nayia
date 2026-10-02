@@ -276,6 +276,24 @@ body.admin .conteudo { max-width: none; padding-left: 20px; padding-right: 20px;
 .leaflet-pane .ux-pin-icone .ux-pin ellipse { pointer-events: none; }
 .leaflet-marker-icon.ux-pin-icone:hover { z-index: 9999 !important; }
 
+/* O PINO COM O PREÇO DENTRO (02/10/2026): roxo da casa, pequeno e de tamanho FIXO (não segue o zoom nem
+   a tela). É o mesmo da tela pública /imoveis (o estilo de lá mora em scripts/montar_pagina_de_enviar.py). */
+.ux-preco-pin {
+  position: absolute; left: 0; top: 0; transform: translate(-50%, calc(-100% - 5px));
+  white-space: nowrap; cursor: pointer; pointer-events: auto;
+  font: 700 10.5px/1 Rubik, Barlow, Arial, sans-serif; letter-spacing: .01em; color: #fff;
+  padding: 4px 7px; border-radius: 9px; font-variant-numeric: tabular-nums;
+  background: linear-gradient(160deg, #a78bfa 0%, #7c3aed 45%, #4c1d95 100%);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .35);
+}
+.ux-preco-pin::after {
+  content: ""; position: absolute; left: 50%; bottom: -5px; transform: translateX(-50%);
+  border: 5px solid transparent; border-top-color: #5b21b6; border-bottom: 0;
+}
+.ux-preco-pin i { font-style: normal; font-weight: 600; font-size: 9.5px; opacity: .85; margin-left: 4px; }
+.ux-preco-pin--leg { position: relative; display: inline-block; transform: none; cursor: default; margin-right: 2px; }
+.ux-preco-pin--leg::after { display: none; }
+
 /* .leaflet-tooltip junto: o CSS do Leaflet chega depois e ganharia no empate */
 .leaflet-tooltip.ux-rotulo-bairro {
   background: transparent; border: 0; box-shadow: none; font-weight: 700; font-size: 11px; white-space: nowrap; padding: 0;

@@ -11,8 +11,9 @@
    O que mudou do exemplo para o de verdade:
      - os imóveis vêm de GET /api/imoveis-para-enviar: só o que a Nay oferece
        (nosso, Disponível, no site, sem bloqueio). Sem rua, número ou andar;
-     - o mapa ilustrativo virou mapa de verdade (Leaflet + OpenStreetMap), com os
-       mesmos pinos de preço. O ponto é a REGIÃO do imóvel (arredondado), não a porta;
+     - o mapa ilustrativo virou o MESMO mapa do nosso painel (Leaflet + OpenStreetMap com
+       fundo escuro, divisas e nomes dos bairros), um pino por ponto com o preço pequeno
+       dentro. O ponto é a REGIÃO do imóvel (arredondado), não a porta;
      - "Ver" abre a página do imóvel (/imovel/<código>);
      - "Me envia" chama POST /api/me-envia: a Nay manda o card e as fotos, com os
        tetos e as paredes de sempre. A lista de selecionados e o número ficam no
@@ -97,70 +98,141 @@ function syncF(id, F) {
 }
 const resetF = F => { F.loc = ""; F.tipo = ""; F.quartos.clear(); F.vagas.clear(); F.min = ""; F.max = ""; };
 
-/* ===== o mapa de verdade (Leaflet), com os pinos de preço do desenho ===== */
+/* ===== o mapa: o MESMO do nosso painel =====
+   Pedro, 02/10/2026: "esse mapa tá estranho, não é o mesmo mapa nosso, que deve ser aberto como tema escuro
+   de início; pode ter o preço, mas pequeno". É o mapa da aba Mapa do admin (imoveis-ux.js): OpenStreetMap com
+   o filtro escuro, as divisas e os nomes dos bairros, e UM pino por ponto. O preço vai dentro do pino, pequeno
+   e de tamanho fixo (não cresce com a tela nem com o zoom); vários imóveis no mesmo ponto mostram o menor
+   preço e "+N", e o balão lista todos. A rodinha rola a PÁGINA (a lista fica embaixo do mapa); Ctrl + rodinha,
+   os botões ou dois dedos aproximam o mapa. */
 const mapEl = $("#map"), world = $("#world");
 const toque = matchMedia("(pointer:coarse)").matches;
-let mapa = null, camada = null;
+const TKEY = "imobeasy_mapa_tema";
+let mapa = null, camada = null, camadaBairros = null, camadaRotulos = null;
+let tema = "escuro"; try { tema = localStorage.getItem(TKEY) === "cinza" ? "cinza" : "escuro"; } catch (e) { /* sem armazenamento */ }
+const corDoTema = () => tema === "escuro" ? "#c4b5fd" : "#6d28d9";
+function aplicarTema() {
+  world.classList.toggle("mapa--escuro", tema === "escuro");
+  world.classList.toggle("mapa--cinza", tema !== "escuro");
+  if (camadaBairros) camadaBairros.eachLayer(l => { if (l.setStyle) l.setStyle({ color: corDoTema(), fillColor: corDoTema() }); });
+  const b = $("#ztema");
+  if (b) { b.innerHTML = i(tema === "escuro" ? "sun" : "moon"); b.setAttribute("aria-label", tema === "escuro" ? "Mapa claro" : "Mapa escuro"); drawIcons(); }
+}
+function mostrarRotulos() {
+  if (!mapa) return;
+  if (mapa.getZoom() >= 13) camadaRotulos.addTo(mapa); else mapa.removeLayer(camadaRotulos);
+}
+function carregarBairros() {
+  fetch(API + "/api/mapa/bairros")
+    .then(r => r.ok ? r.json() : [])
+    .then(bs => {
+      bs.forEach(b => {
+        if (b.poligono) {
+          L.geoJSON(b.poligono, { interactive: false, style: { color: corDoTema(), weight: 1.2, opacity: .6, fillColor: corDoTema(), fillOpacity: .04 } }).addTo(camadaBairros);
+        }
+        L.tooltip({ permanent: true, direction: "center", className: "ux-rotulo-bairro", interactive: false, pane: "rotulosBairro" })
+          .setLatLng([b.lat, b.lon]).setContent(esc(b.bairro)).addTo(camadaRotulos);
+      });
+      mostrarRotulos();
+    })
+    .catch(() => { /* sem as divisas o mapa continua servindo */ });
+}
 function criarMapa() {
   if (mapa || !window.L) return;
   /* no celular, um dedo rola a página e dois dedos mexem no mapa (como no desenho) */
-  mapa = L.map(world, { zoomControl: false, dragging: !toque, tap: false }).setView(MANAUS, 12);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "&copy; OpenStreetMap" }).addTo(mapa);
+  mapa = L.map(world, { zoomControl: false, dragging: !toque, tap: false, scrollWheelZoom: false, minZoom: 10 }).setView(MANAUS, 12);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, subdomains: "abc", attribution: "&copy; OpenStreetMap" }).addTo(mapa);
   mapa.attributionControl.setPrefix(false).setPosition("bottomleft");
+  camadaBairros = L.layerGroup().addTo(mapa);
+  mapa.createPane("rotulosBairro");                      // os nomes dos bairros ficam ABAIXO dos pinos
+  mapa.getPane("rotulosBairro").style.zIndex = 450;
+  mapa.getPane("rotulosBairro").style.pointerEvents = "none";
+  camadaRotulos = L.layerGroup();
   camada = L.layerGroup().addTo(mapa);
   mapa.on("click", closePopup);
+  mapa.on("zoomend", mostrarRotulos);
+  world.addEventListener("wheel", e => {
+    if (!e.ctrlKey) return;                              // sem Ctrl a rodinha é da página
+    e.preventDefault();
+    mapa.setZoomAround(mapa.mouseEventToLatLng(e), mapa.getZoom() + (e.deltaY < 0 ? 1 : -1));
+  }, { passive: false });
+  const z = document.querySelector(".zoom");
+  if (z && !$("#ztema")) z.insertAdjacentHTML("beforeend", '<button id="ztema" type="button"></button>');
+  aplicarTema();
+  carregarBairros();
 }
-/* imóveis do mesmo condomínio caem no mesmo ponto: abre em leque para os pinos não se cobrirem */
-function espalhar(list) {
-  const vistos = {};
-  return list.filter(m => m.lat != null && m.lon != null).map(m => {
-    const k = m.lat + "|" + m.lon, n = vistos[k] = (vistos[k] || 0) + 1;
-    if (n === 1) return { m, lat: m.lat, lon: m.lon };
-    const ang = (n - 1) * 2.4, r = 0.0007 * Math.sqrt(n - 1);
-    return { m, lat: m.lat + r * Math.sin(ang), lon: m.lon + r * Math.cos(ang) };
+
+/* um pino por PONTO: imóveis do mesmo condomínio caem no mesmo lugar */
+function lugares(list) {
+  const por = new Map();
+  list.forEach(m => {
+    if (m.lat == null || m.lon == null) return;
+    const k = m.lat + "|" + m.lon;
+    if (!por.has(k)) por.set(k, { lat: m.lat, lon: m.lon, ims: [] });
+    por.get(k).ims.push(m);
   });
+  const saida = [...por.values()];
+  saida.forEach(g => g.ims.sort((a, b) => preco(a) - preco(b)));
+  return saida;
 }
+let pontos = [];
+const lugarDe = c => pontos.find(g => g.ims.some(m => String(m.codigo) === String(c)));
+/* o preço dentro do pino: curto ("480 mil", "1,2 mi", "2,7 mil") */
+const curto = n => n >= 1e6 ? (n / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 2 }) + " mi"
+  : n >= 1e4 ? Math.round(n / 1e3).toLocaleString("pt-BR") + " mil"
+  : (n / 1e3).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mil";
+
 function viewArea() { return { top: ($("#mtop") ? $("#mtop").offsetHeight : 0) + 26, lado: 46 }; }
 function fit() {
   if (!mapa) return;
   mapa.invalidateSize();
-  const pts = espalhar(base().filter(m => matchF(m, FM)));
+  const pts = lugares(base().filter(m => matchF(m, FM)));
   if (!pts.length) { mapa.setView(MANAUS, 12); return; }
   const v = viewArea();
   mapa.fitBounds(L.latLngBounds(pts.map(p => [p.lat, p.lon])), { paddingTopLeft: [v.lado, v.top + 30], paddingBottomRight: [v.lado, 30], maxZoom: 15, animate: false });
+  if (mapa.getZoom() < 12) mapa.setZoom(12, { animate: false });      // nunca mais longe que a cidade
 }
 function centerOn(m) {
   if (!mapa || m.lat == null) return;
-  const p = pontoDe(m.codigo) || { lat: m.lat, lon: m.lon };
-  mapa.setView([p.lat, p.lon], Math.max(mapa.getZoom(), 15), { animate: false });
-  mapa.panBy([0, -110], { animate: false });       // o popup abre para cima do pino
+  mapa.setView([m.lat, m.lon], Math.max(mapa.getZoom(), 15), { animate: false });
+  // o balão abre para cima do pino: o pino desce para o balão caber abaixo dos filtros
+  mapa.panBy([0, -Math.round(mapEl.clientHeight * 0.3)], { animate: false });
 }
-let pontos = [];
-const pontoDe = c => pontos.find(p => String(p.m.codigo) === String(c));
 
-/* ===== pinos e popup ===== */
+/* ===== pinos e balão ===== */
 const pickBtn = (m, full) => `<button class="pick" data-pick="${m.codigo}" aria-pressed="${isSel(m.codigo)}"${full ? ' style="width:100%"' : ""}>${isSel(m.codigo) ? i("circle-check") + "Selecionado" : i("circle-plus") + "Selecionar"}</button>`;
+function pinHTML(g) {
+  const sel = g.ims.some(m => isSel(m.codigo)), foco = g.ims.some(m => String(m.codigo) === String(focusCode));
+  const menor = g.ims[0], n = g.ims.length;
+  return `<button class="ux-preco-pin${sel ? " sel" : ""}${foco ? " focus" : ""}" data-pin="${menor.codigo}" aria-label="${esc(n === 1 ? menor.titulo : n + " imóveis neste ponto")}, a partir de ${esc(short(preco(menor)))}">${curto(preco(menor))}${n > 1 ? `<i>+${n - 1}</i>` : ""}</button>`;
+}
+function balaoHTML(g) {
+  const fechar = `<button class="x" data-closepop aria-label="Fechar">${i("x")}</button>`;
+  if (g.ims.length === 1) {
+    const pm = g.ims[0];
+    return `<div class="popup">${fechar}<img src="${esc(foto(pm, "large"))}" alt=""><div class="pb"><b>${esc(pm.titulo)}</b><small>${esc(local(pm))} · Cód. ${pm.codigo}</small><div class="pp">${priceTxt(pm)}</div><div style="display:flex;gap:6px"><button class="vbtn" data-ver="${pm.codigo}">${i("eye")}Ver</button>${pickBtn(pm, true)}</div></div></div>`;
+  }
+  const nomes = [...new Set(g.ims.map(m => m.condominio || ""))];
+  const titulo = nomes.length === 1 && nomes[0] ? nomes[0] : "Vários imóveis neste ponto";
+  return `<div class="popup popup--lugar">${fechar}<div class="pb"><b>${esc(titulo)}</b><small>${g.ims.length} imóveis · ${esc(g.ims[0].bairro || "Manaus")}</small><div class="pl-lista">${g.ims.map(m =>
+    `<div class="pl${String(m.codigo) === String(focusCode) ? " focus" : ""}"><img src="${esc(foto(m, "small"))}" alt=""><span><b>${priceTxt(m)}</b><small>${esc([m.tipo, m.quartos ? m.quartos + (m.quartos === 1 ? " quarto" : " quartos") : "", "Cód. " + m.codigo].filter(Boolean).join(" · "))}</small></span><button class="vbtn" data-ver="${m.codigo}" aria-label="Ver o imóvel ${m.codigo}">${i("eye")}</button><button class="pick" data-pick="${m.codigo}" aria-pressed="${isSel(m.codigo)}" aria-label="${isSel(m.codigo) ? "Tirar" : "Selecionar"} o imóvel ${m.codigo}">${i(isSel(m.codigo) ? "circle-check" : "circle-plus")}</button></div>`).join("")}</div></div></div>`;
+}
 function renderMap() {
   const list = base().filter(m => matchF(m, FM));
-  pontos = espalhar(list);
-  const sem = list.length - pontos.length;
-  $("#mapCount").textContent = !carregou ? "" : `${pontos.length} ${pontos.length === 1 ? "imóvel" : "imóveis"} no mapa` + (sem ? ` · ${sem} sem ponto no mapa (estão na lista)` : "");
+  pontos = lugares(list);
+  const noMapa = pontos.reduce((s, g) => s + g.ims.length, 0), sem = list.length - noMapa;
+  $("#mapCount").textContent = !carregou ? "" : `${noMapa} ${noMapa === 1 ? "imóvel" : "imóveis"} no mapa` + (sem ? ` · ${sem} sem ponto no mapa (estão na lista)` : "");
   if (!mapa) return;
   camada.clearLayers();
-  pontos.forEach(p => {
-    const m = p.m, s = isSel(m.codigo), f = String(m.codigo) === String(focusCode);
-    L.marker([p.lat, p.lon], {
-      zIndexOffset: f ? 900 : s ? 500 : 0, keyboard: false,
-      icon: L.divIcon({ className: "pinw", iconSize: null, html: `<button class="pin${s ? " sel" : ""}${f ? " focus" : ""}" data-pin="${m.codigo}" aria-label="${esc(m.titulo)}, ${esc(short(preco(m)))}">${short(preco(m))}</button>` })
-    }).addTo(camada);
+  pontos.forEach(g => {
+    const foco = g.ims.some(m => String(m.codigo) === String(focusCode)), sel = g.ims.some(m => isSel(m.codigo));
+    L.marker([g.lat, g.lon], { zIndexOffset: foco ? 900 : sel ? 500 : 0, keyboard: false,
+      icon: L.divIcon({ className: "pinw", iconSize: null, html: pinHTML(g) }) }).addTo(camada);
   });
-  const pp = popCode && pontoDe(popCode);
-  if (pp) {
-    const pm = pp.m;
-    L.marker([pp.lat, pp.lon], {
-      zIndexOffset: 5000, keyboard: false,
-      icon: L.divIcon({ className: "pinw", iconSize: null, html: `<div class="popup"><button class="x" data-closepop aria-label="Fechar">${i("x")}</button><img src="${esc(foto(pm, "large"))}" alt=""><div class="pb"><b>${esc(pm.titulo)}</b><small>${esc(local(pm))} · Cód. ${pm.codigo}</small><div class="pp">${priceTxt(pm)}</div><div style="display:flex;gap:6px"><button class="vbtn" data-ver="${pm.codigo}">${i("eye")}Ver</button>${pickBtn(pm, true)}</div></div></div>` })
-    }).addTo(camada);
+  const aberto = popCode && lugarDe(popCode);
+  if (aberto) {
+    L.marker([aberto.lat, aberto.lon], { zIndexOffset: 5000, keyboard: false,
+      icon: L.divIcon({ className: "pinw", iconSize: null, html: balaoHTML(aberto) }) }).addTo(camada);
   }
 }
 function closePopup() { if (popCode) { popCode = null; renderMap(); drawIcons(); } }
@@ -338,6 +410,7 @@ document.addEventListener("click", e => {
   if (t.id === "zin" && mapa) mapa.zoomIn();
   if (t.id === "zout" && mapa) mapa.zoomOut();
   if (t.id === "zfit") { closePopup(); fit(); }
+  if (t.id === "ztema") { tema = tema === "escuro" ? "cinza" : "escuro"; try { localStorage.setItem(TKEY, tema); } catch (err) { /* idem */ } aplicarTema(); }
   if (t.id === "send") meEnvia();
 });
 document.addEventListener("keydown", e => {
