@@ -26,7 +26,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import {
-  X, User, House, ArrowClockwise, Copy, Check, Plus, PencilSimple, Images, CircleNotch,
+  X, User, House, ArrowClockwise, Copy, Check, Plus, PencilSimple, Images, CircleNotch, Robot,
 } from '@phosphor-icons/react'
 import type { LeadWithOwner } from '@/lib/types'
 import { formatPhone } from '@/lib/utils'
@@ -143,6 +143,30 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar }: {
     try { await navigator.clipboard.writeText(numero); setCopiado(true); setTimeout(() => setCopiado(false), 1500) } catch { /* sem área de transferência */ }
   }
 
+  const [mexendoNaNay, setMexendoNaNay] = useState<'parar' | 'voltar' | null>(null)
+  const [avisoDaNay, setAvisoDaNay] = useState<{ ok: boolean; texto: string } | null>(null)
+  useEffect(() => { setAvisoDaNay(null) }, [lead.id])
+  async function pararOuVoltar(acao: 'parar' | 'voltar') {
+    if (mexendoNaNay) return
+    setMexendoNaNay(acao); setAvisoDaNay(null)
+    try {
+      const r = await fetch(`/api/leads/${lead.id}/captacao-etapa`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ etapa: acao === 'parar' ? 'com_o_tel' : 'todos' }),
+      })
+      const j = await r.json().catch(() => ({} as any))
+      if (!r.ok || j?.ok === false) throw new Error(j?.mensagem || j?.error || 'Não consegui.')
+      setAvisoDaNay({ ok: true, texto: acao === 'parar'
+        ? 'Nay parada para esta pessoa. A conversa foi para a etapa Com o Tel.'
+        : 'A Nay voltou a atender esta pessoa: responde na próxima mensagem dela.' })
+      await ler()
+    } catch (e: any) {
+      setAvisoDaNay({ ok: false, texto: e?.message || 'Não consegui.' })
+    } finally {
+      setMexendoNaNay(null)
+    }
+  }
+
   const dono = d?.dono || null
   const c = d?.campanha || null
   const imoveis = d?.imoveis || []
@@ -183,6 +207,32 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar }: {
             <p className="text-[12px] mt-1" style={{ color: 'var(--wa-tag-tel)' }}>
               A Nay não responde esta pessoa{c.comOTelMotivo ? ` — ${c.comOTelMotivo}` : ''}.
             </p>
+          )}
+
+          {/* PARAR A NAY PARA ESTE CONTATO (Pedro, 02/10/2026: "quero um botão manual de
+              pausar a Nay de captação no contato"). É o atalho de um clique para a
+              etapa "Com o Tel" (242), que já cala a Nay para a pessoa; "voltar a
+              atender" é o "Todos", que solta. O mesmo par de botões da Parceria. */}
+          <div className="flex flex-wrap justify-center gap-2 mt-3">
+            <button type="button" onClick={() => void pararOuVoltar('parar')} disabled={!!mexendoNaNay || !!c?.comOTel}
+                    className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-semibold disabled:opacity-50"
+                    style={c?.comOTel
+                      ? { color: 'var(--wa-text-2)', border: '1px solid var(--wa-divider)' }
+                      : { color: 'var(--wa-tag-tel)', border: '1px solid color-mix(in srgb, var(--wa-tag-tel) 50%, transparent)' }}
+                    title="A Nay de captação para de responder esta pessoa, e o disparo e o lembrete não chamam mais">
+              {mexendoNaNay === 'parar' ? <CircleNotch size={14} className="animate-spin" /> : <Robot size={14} weight="fill" />} Parar Nay
+            </button>
+            <button type="button" onClick={() => void pararOuVoltar('voltar')} disabled={!!mexendoNaNay || !c?.comOTel}
+                    className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-semibold disabled:opacity-50"
+                    style={c?.comOTel
+                      ? { background: 'var(--wa-green)', color: 'var(--wa-green-ink)' }
+                      : { color: 'var(--wa-text-2)', border: '1px solid var(--wa-divider)' }}
+                    title="A Nay volta a responder esta pessoa na próxima mensagem dela">
+              {mexendoNaNay === 'voltar' ? <CircleNotch size={14} className="animate-spin" /> : <Robot size={14} weight="fill" />} Nay voltar a atender
+            </button>
+          </div>
+          {avisoDaNay && (
+            <p className="text-[12px] mt-2 leading-4" style={{ color: avisoDaNay.ok ? 'var(--wa-green)' : 'var(--wa-tag-tel)' }}>{avisoDaNay.texto}</p>
           )}
         </div>
 
