@@ -4,25 +4,37 @@ Tutorial geral, escrito em 02/10/2026 depois de ligar três webhooks ao Grok (av
 ao Tel, consulta de imóveis, cadastro de imóveis). Vale para qualquer webhook novo
 que more nos nossos servidores.
 
-## 1. A regra que vale sempre: o Grok não fala HTTPS com a gente
+## 1. A regra que vale sempre: a rede do Grok corta HTTPS para a gente
 
-O Grok sai para a internet pela Cloudflare (WARP + Gateway). Esse filtro **corta
-HTTPS para os nossos servidores**: a conexão abre na porta 443 e cai sem trocar um
-byte. Foi medido dos dois lados, duas vezes. Não é o seu PC, não é a VPS, e não tem
-conserto.
+O computador do Grok sai para a internet pela Cloudflare (WARP + Gateway). Esse
+filtro **corta HTTPS para os nossos servidores**: a conexão abre na porta 443 e cai
+sem trocar um byte. Foi medido dos dois lados, mais de uma vez. Não é o seu PC e não
+é a VPS: é a rede dele, e de dentro dela não tem conserto.
 
-O que passa é a **porta 80**. Como a porta 80 não é segura, o pedido vai **lacrado**:
-cifrado e assinado com o token, que nunca viaja. É assim que os três webhooks
-funcionam hoje.
+Há três caminhos. **Pergunte ao bot qual ele aceita antes de escrever o prompt** —
+cada bot decide, e eles não decidem igual:
+
+1. **HTTPS pelo seu computador** (o preferido). O bot roda a chamada a partir do seu
+   PC, que está conectado ao app e chega ao servidor sem bloqueio (testado: do seu
+   PC o HTTPS com o token responde). É HTTPS normal com `Authorization: Bearer`,
+   sem nada especial. Custo: o seu PC tem de estar ligado e conectado, e ele pede a
+   sua aprovação no começo.
+2. **Pedir ao suporte do Grok Bot para liberar o domínio** na rede dele. É o
+   conserto de verdade: depois disso o HTTPS normal funciona de qualquer lugar. Peça
+   em paralelo, mesmo usando o caminho 1.
+3. **Porta 80 com o pedido lacrado** (cifrado e assinado com o token, que nunca
+   viaja). Passa pelo filtro da rede dele — e é exatamente por isso que **um bot pode
+   se recusar a usar**: é contornar o bloqueio da própria rede. O bot do aviso ao Tel
+   aceitou em 01/10 e manda por aí desde então; o da consulta de imóveis recusou em
+   02/10 ("serve pra passar por fora do bloqueio de rede do meu computador, e isso eu
+   não faço"). Recusa de bot não se discute: usa-se o caminho 1 ou o 2.
 
 Consequências práticas:
 
-- Todo webhook para o Grok precisa de **duas portas de entrada**: HTTPS com
-  `Authorization: Bearer` (para quem consegue) e porta 80 com o pedido lacrado (para
-  o Grok).
-- No prompt do Grok, a porta 80 é o caminho **principal**, não o plano B. Se o
-  prompt mostrar HTTPS primeiro, ele tenta HTTPS, falha e volta reclamando.
-- O Grok precisa ter `curl` e `openssl` no computador dele. Tem.
+- Todo webhook nosso aceita os dois jeitos: HTTPS com `Authorization: Bearer` e
+  porta 80 com o pedido lacrado. O servidor não muda conforme o caminho escolhido.
+- O prompt do bot traz **um caminho só**, o que ele aceitou. Prompt com dois
+  caminhos faz o bot tentar o errado primeiro e voltar reclamando.
 
 ## 2. O que decidir antes de pedir o webhook
 
@@ -84,6 +96,24 @@ Regras que custaram erro para aprender:
 ## 5. O prompt para colar no Grok (molde)
 
 Troque o que está entre `<< >>`. A ordem importa: conexão primeiro, campos depois.
+
+O bloco CONEXÃO muda conforme o caminho que o bot aceitou (seção 1). Para o caminho
+1 (HTTPS pelo seu computador), o bloco inteiro é este, e os itens 1) e 5) do molde
+abaixo saem:
+
+```
+CONEXÃO
+A rede do seu computador não completa HTTPS para o servidor da Imob Easy. Rode as
+chamadas A PARTIR DO COMPUTADOR DO PEDRO, que está conectado a você e chega lá:
+  POST https://<<host>>/api/public/<<rota>>
+  Headers: Authorization: Bearer <<token deste webhook>>
+           Content-Type: application/json
+  Corpo: o JSON descrito abaixo.
+Se o computador do Pedro estiver desligado ou desconectado, pare e avise o Pedro no
+chat. Não tente outro caminho.
+```
+
+O molde completo, na variante da porta 80 (caminho 3, só para o bot que aceitar):
 
 ```
 VOCÊ <<o que o bot faz, em uma linha>>.
