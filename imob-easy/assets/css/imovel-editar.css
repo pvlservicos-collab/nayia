@@ -246,6 +246,19 @@ body.admin .conteudo { max-width: 1680px; padding-left: 20px; padding-right: 20p
 .ed__no-condo-tit { margin: 0 0 8px; font-size: 13px; line-height: 1.4; color: var(--texto-medio); }
 .ed__no-condo-tit b { color: var(--texto); }
 .ed__no-condo-tit--vazio { margin: 0; color: var(--texto-fraco); }
+/* sanfona (02/10): fechada por padrão; a seta à direita abre a lista */
+.ed__no-condo-sanfona > summary {
+  margin: 0; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px;
+}
+.ed__no-condo-sanfona > summary::-webkit-details-marker { display: none; }
+.ed__no-condo-sanfona > summary::after {
+  content: "▾"; margin-left: auto; flex: none; width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 15px; color: var(--texto);
+  background: var(--superficie); border: 1px solid var(--borda-forte); transition: transform .15s;
+}
+.ed__no-condo-sanfona[open] > summary { margin-bottom: 8px; }
+.ed__no-condo-sanfona[open] > summary::after { transform: rotate(180deg); }
+.ed__no-condo-sanfona > summary:focus-visible { outline: 2px solid var(--roxo); outline-offset: 3px; border-radius: 6px; }
 .ed__no-condo-lista { list-style: none; margin: 0; padding: 0; max-height: 264px; overflow-y: auto; display: grid; gap: 4px; }
 .ed__no-condo-lista a, .ed__no-condo-so-consulta {
   display: grid; grid-template-columns: 54px 104px minmax(120px, 1fr) minmax(0, 2fr); gap: 10px; align-items: center;

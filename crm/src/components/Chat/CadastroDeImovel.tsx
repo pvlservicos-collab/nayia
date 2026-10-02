@@ -458,6 +458,10 @@ export default function CadastroDeImovel({ leadId, donoNome, temProprietario, al
               <Campo rotulo="Complemento (torre, apto)" tam={3}>
                 <input value={campos.complemento ?? ''} onChange={(e) => mudar({ complemento: e.target.value })} />
               </Campo>
+              {/* O andar voltou em 02/10: não é obrigatório nem conta na régua, mas a Nay responde por ele. */}
+              <Campo rotulo="Andar (opcional)" tam={1}>
+                <input value={campos.andar ?? ''} onChange={(e) => mudar({ andar: e.target.value })} />
+              </Campo>
               <Campo rotulo="Cidade">
                 <input value={campos.cidade ?? ''} onChange={(e) => mudar({ cidade: e.target.value })} />
               </Campo>

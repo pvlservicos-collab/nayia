@@ -76,7 +76,9 @@
     cidade: { rotulo: "Cidade", lista: true },
     estado: { rotulo: "Estado", lista: true },
     cep: { rotulo: "CEP" },
-    andar: { rotulo: "Andar", lista: true },
+    // O andar voltou à tela em 02/10 (tinha saído no mesmo dia por "andar não precisa"): não é obrigatório nem
+    // conta como "falta preencher", mas a Nay responde por ele ("andar baixo ou médio?" no Milano).
+    andar: { rotulo: "Andar", lista: true, dica: "do apartamento; não é obrigatório, mas a Nay responde por ele" },
     // a unidade (privado)
     "p:torre": { rotulo: "Torre" },
     "p:bloco": { rotulo: "Bloco" },
@@ -143,7 +145,7 @@
     // o que for corrigido aqui o servidor guarda NO condomínio (273). "Andar não precisa": saiu.
     { titulo: "Condomínio e endereço", icone: "⌖", cor: "#2f6fb8", fundo: "#eaf2fb",
       nota: "Escolha o condomínio e o endereço dele vem sozinho, com número e CEP. O que você completar ou corrigir aqui fica guardado no condomínio: o próximo imóvel dele já nasce preenchido.",
-      campos: ["condominio", "logradouro", "numero", "complemento", "bairro", "cidade", "estado", "cep"] },
+      campos: ["condominio", "logradouro", "numero", "complemento", "bairro", "cidade", "estado", "cep", "andar"] },
     { titulo: "Unidade", icone: "⌗", cor: "#4338ca", fundo: "#eef0ff", privado: true,
       nota: "O site e a Nay nunca mostram isso ao cliente.",
       campos: ["p:torre", "p:bloco", "p:unidade", "p:casa", "p:lote"] },
@@ -619,9 +621,12 @@
           return;
         }
         var total = Math.max(itens.length, (d.total || 0) - ((d.itens || []).length - itens.length));
+        /* FECHADO POR PADRÃO (Pedro, 02/10: "põe em um menu sanfona por padrão fechado... só abre
+           quando eu clico em uma setinha do lado"): a linha diz quantos são; a lista abre na seta. */
         caixa.innerHTML =
-          '<p class="ed__no-condo-tit"><b>' + (total === 1 ? "Já existe 1 imóvel" : "Já existem " + total + " imóveis") +
-            " neste condomínio.</b> Confira se não é o mesmo antes de " + (novo ? "cadastrar" : "salvar") + ":</p>" +
+          '<details class="ed__no-condo-sanfona"><summary class="ed__no-condo-tit"><b>' +
+            (total === 1 ? "Já existe 1 imóvel" : "Já existem " + total + " imóveis") +
+            " neste condomínio.</b> Confira se não é o mesmo antes de " + (novo ? "cadastrar" : "salvar") + ".</summary>" +
           '<ul class="ed__no-condo-lista">' + itens.map(function (i) {
             var partes = [i.tipo, i.quartos ? i.quartos + " quarto" + (i.quartos > 1 ? "s" : "") : "",
                           i.area ? Math.round(i.area) + " m²" : ""].filter(Boolean).join(", ");
@@ -633,7 +638,8 @@
               ? '<a href="imovel-editar.html?codigo=' + encodeURIComponent(i.codigo) + '" target="_blank" rel="noopener" title="Abrir em outra aba">' + miolo + "</a>"
               : '<span class="ed__no-condo-so-consulta" title="Imóvel só do admin antigo">' + miolo + "</span>") + "</li>";
           }).join("") + "</ul>" +
-          (total > itens.length ? '<p class="ed__dica">Mostrando ' + itens.length + " de " + total + ".</p>" : "");
+          (total > itens.length ? '<p class="ed__dica">Mostrando ' + itens.length + " de " + total + ".</p>" : "") +
+          "</details>";
       })
       .catch(function () {
         if (meu !== pedidoDoCondo) return;
