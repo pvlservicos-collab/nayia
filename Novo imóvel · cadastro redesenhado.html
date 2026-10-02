@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Novo imóvel · Imob Easy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F6F5F9; --surface:#FFFFFF; --surface-2:#F8F8FA; --ink:#1C1B22; --muted:#6E6C78; --line:#E6E5EB;
+  --brand:#7C3AED; --brand-2:#9333EA; --brand-soft:#F1EAFE; --ok:#14865C; --ok-soft:#EAF6F0;
+  --c-local:#3B6FD8; --c-unidade:#5B55D6; --c-prop:#2F7AA6; --c-carac:#7C4FD9; --c-oquetem:#23827A;
+  --c-valores:#C26A22; --c-descricao:#5A6170; --c-captacao:#2A8768; --c-locacao:#B83C6E; --c-interno:#B83A3A;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  color-scheme:light;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 130px); scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+.top{position:sticky;top:0;z-index:20;background:rgba(246,245,249,.93);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top,0px)}
+.top-in{max-width:1240px;margin:0 auto;padding:14px 24px;display:grid;grid-template-columns:auto 1fr auto;gap:28px;align-items:center}
+.ttl a{color:var(--brand);text-decoration:none;font-size:13px}
+.ttl h1{margin:2px 0 0;font-size:21px;font-weight:800;letter-spacing:-.01em;border-left:4px solid var(--brand);padding-left:10px}
+.ttl p{margin:3px 0 0;font-size:12.5px;color:var(--muted);max-width:44ch}
+.meter-row{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+.pct{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1;color:var(--brand)}
+.pct small{font-size:15px;font-weight:700}
+.meter-lbl{font-size:13px;color:var(--muted)}
+.meter{min-width:0}
+.tape{display:flex;gap:3px;height:10px}
+.seg{position:relative;border-radius:3px;background:color-mix(in srgb,var(--c) 12%,#fff);overflow:hidden;cursor:pointer;border:0;padding:0}
+.seg i{position:absolute;inset:0 auto 0 0;width:0;background:var(--c);transition:width .35s ease}
+.cta{border:0;background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;font-weight:700;padding:12px 22px;border-radius:999px;cursor:pointer;font-size:14px;box-shadow:0 6px 18px rgba(124,58,237,.25)}
+.cta:hover{filter:brightness(1.06)}
+
+.wrap{max-width:1240px;margin:0 auto;padding:22px 24px 120px;display:grid;grid-template-columns:240px minmax(0,1fr);gap:28px;align-items:start}
+.side{position:sticky;top:130px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px}
+.nav-i{display:grid;grid-template-columns:22px 1fr auto;gap:4px 10px;align-items:center;width:100%;text-align:left;border:0;background:transparent;padding:8px 10px;border-radius:10px;cursor:pointer;font-size:14px;font-weight:500;color:var(--ink)}
+.nav-i:hover{background:var(--surface-2)}
+.nav-i.act{background:color-mix(in srgb,var(--c) 8%,#fff);font-weight:700}
+.nav-i .sw{width:22px;height:22px;border-radius:6px;background:color-mix(in srgb,var(--c) 13%,#fff);color:var(--c);display:grid;place-items:center;font-size:12px;font-weight:700}
+.nav-i.act .sw{background:var(--c);color:#fff}
+.nav-i .ct{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.nav-i .ct.full{color:var(--ok);font-weight:700}
+.nav-i .int{font-size:10.5px;font-weight:600;color:var(--muted);margin-left:6px}
+.nav-i .mini{grid-column:2/4;height:3px;border-radius:2px;background:var(--line);overflow:hidden}
+.nav-i .mini i{display:block;height:100%;width:0;background:var(--c);transition:width .35s}
+.emos{grid-column:2/4;display:flex;flex-wrap:wrap;gap:2px 6px;font-size:15px;line-height:1.3}
+.emos:empty{display:none}
+.emos span{white-space:nowrap}
+.emos b{font-size:11.5px;font-weight:600;color:var(--muted);margin-left:1px}
+
+.sec{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:14px;margin-bottom:16px;overflow:hidden}
+.sec-h{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.ico{width:28px;height:28px;border-radius:8px;background:color-mix(in srgb,var(--c) 13%,#fff);color:var(--c);display:grid;place-items:center;font-size:14px;font-weight:700;flex:none}
+.sec-h h2{margin:0;font-size:16.5px;font-weight:700}
+.sec-h .hint{font-size:12.5px;color:var(--muted);margin:1px 0 0}
+.sec-h .badge{margin-left:auto;font-size:12.5px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sec-h .badge.full{color:var(--ok)}
+.lock{font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--c);border:1.5px solid color-mix(in srgb,var(--c) 45%,#fff);padding:3px 10px;border-radius:999px;white-space:nowrap}
+.sec-b{padding:18px 18px 20px}
+.grp{margin-bottom:18px}
+.grp:last-child{margin-bottom:0}
+.grp-t{font-size:13.5px;font-weight:700;margin:0 0 10px}
+.note{font-size:12.5px;color:var(--muted);margin:12px 0 0}
+.grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px}
+.f{grid-column:span 2;min-width:0}
+.f.s1{grid-column:span 1}.f.s3{grid-column:span 3}.f.s4{grid-column:span 4}.f.s6{grid-column:span 6}
+.f label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;margin-bottom:6px}
+.f .tick{color:var(--ok);font-size:12px;opacity:0;transition:opacity .2s}
+.f.filled .tick{opacity:1}
+.f small{display:block;font-size:12px;color:var(--muted);margin-top:5px}
+.inp{display:flex;align-items:center;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);transition:border-color .15s;min-height:42px}
+.inp:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+.f.filled .inp{border-color:#A9D9C4}
+.inp input,.inp select,.inp textarea{flex:1;min-width:0;border:0;background:transparent;padding:10px 12px;outline:none;font-size:14.5px}
+.inp select{cursor:pointer}
+.inp textarea{resize:vertical;min-height:110px}
+.inp .pre,.inp .suf{font-size:13px;color:var(--muted);padding:0 10px;font-weight:600}
+.inp .pre{border-right:1px solid var(--line);background:var(--surface-2);align-self:stretch;display:flex;align-items:center;border-radius:11px 0 0 11px}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 14px;font-size:13.5px;cursor:pointer;font-weight:500}
+.chip[aria-pressed="true"]{background:var(--ok-soft);border-color:var(--ok);color:var(--ok);font-weight:700}
+.chip[aria-pressed="true"]::before{content:"✓ "}
+
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:32px;align-items:center}
+.tag{display:inline-flex;align-items:center;gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:4px 4px 4px 10px;font-size:14px;font-weight:500}
+.tag button{border:0;background:transparent;cursor:pointer;color:var(--muted);padding:2px 6px;border-radius:5px;font-size:13px}
+.tag button:hover{background:var(--line);color:var(--ink)}
+.empty{font-size:13px;color:var(--muted)}
+
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:.25s}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media (max-width:960px){
+  .top-in{grid-template-columns:1fr auto;gap:12px 16px}
+  .meter{grid-column:1/-1;order:3}
+  .wrap{grid-template-columns:1fr;padding-top:0}
+  .side{top:150px;z-index:10;display:flex;gap:6px;overflow-x:auto;border-radius:0;border-width:0 0 1px;margin:0 -24px;padding:10px 24px;background:var(--bg)}
+  .nav-i{width:auto;white-space:nowrap;grid-template-columns:22px auto auto;background:var(--surface);border:1px solid var(--line)}
+  .nav-i .mini,.nav-i .emos,.nav-i .int{display:none}
+  html{scroll-padding-top:210px}
+}
+@media (max-width:640px){
+  .top-in,.wrap{padding-left:16px;padding-right:16px}
+  .side{margin:0 -16px;padding-left:16px;padding-right:16px}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .f,.f.s3,.f.s4,.f.s6{grid-column:span 2}.f.s1{grid-column:span 1}
+  .ttl p{display:none}
+  .sec-h{flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="ttl">
+      <a href="https://imobeasy.online/admin/imoveis.html">← Imóveis</a>
+      <h1>Novo imóvel</h1>
+      <p>Nasce como rascunho, fora do site e da Nay. Depois de cadastrar, você escolhe a situação. Nenhum campo é obrigatório: preencha só o que tiver.</p>
+    </div>
+    <div class="meter">
+      <div class="meter-row"><div class="pct" id="pct">0<small>%</small></div><div class="meter-lbl">completo</div></div>
+      <div class="tape" id="tape" role="img" aria-label="Completude por seção"></div>
+    </div>
+    <button class="cta" id="save">Cadastrar imóvel</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <aside class="side" id="side" aria-label="Seções do cadastro"></aside>
+  <main id="main"></main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* Campos, tipos, opções e textos copiados do formulário atual. Nada de tipo novo. */
+const OPT = {
+  trat:["Sr.","Sra.","Dr.","Dra."],
+  cobertura:["Linear","Duplex","Triplex"],
+  simnao:["Sim","Não"]
+};
+/* w = peso na barra (3 muito importante, 2 importante, 1 complemento) */
+const SECTIONS = [
+ {id:"local",ic:"⌖",name:"Localização",c:"--c-local",groups:[{fields:[
+   {id:"condominio",l:"Condomínio",s:"s6",w:2,ph:"Digite o nome e escolha na lista"},
+   {id:"rua",l:"Rua / avenida",s:"s4",w:2},
+   {id:"numero",l:"Número",s:"s2",w:1},
+   {id:"complemento",l:"Complemento",s:"s2",w:1,help:"ponto de referência, conjunto"},
+   {id:"bairro",l:"Bairro",s:"s2",w:3},
+   {id:"cidade",l:"Cidade",s:"s2",w:1},
+   {id:"estado",l:"Estado",s:"s2",w:1},
+   {id:"cep",l:"CEP",s:"s2",w:1},
+   {id:"andar",l:"Andar",s:"s2",w:1}
+ ]}]},
+ {id:"unidade",ic:"⌗",name:"Unidade",c:"--c-unidade",int:1,hint:"O site e a Nay nunca mostram isso ao cliente.",groups:[{fields:[
+   {id:"torre",l:"Torre",s:"s2",w:1},{id:"bloco",l:"Bloco",s:"s2",w:1},{id:"apto",l:"Apartamento / sala",s:"s2",w:2},
+   {id:"casa",l:"Casa",s:"s2",w:1,help:"o número da casa (de rua ou no condomínio)"},{id:"lote",l:"Lote",s:"s2",w:1}
+ ]}]},
+ {id:"prop",ic:"✆",name:"Proprietário",c:"--c-prop",int:1,hint:"A OLX não traz o dono do imóvel: estes dados são o último passo da captação.",groups:[{fields:[
+   {id:"pnome",l:"Nome",s:"s4",w:2},
+   {id:"trat",l:"Tratamento",s:"s2",w:1,sel:"trat"},
+   {id:"ptel",l:"Telefone / WhatsApp",s:"s2",w:3,help:"é por ele que a Nay fala com o dono para marcar visita"},
+   {id:"pmail",l:"E-mail",s:"s2",w:1},
+   {id:"pdoc",l:"CPF ou CNPJ",s:"s2",w:1}
+ ]}]},
+ {id:"carac",ic:"⌂",name:"Características",c:"--c-carac",groups:[
+  {t:"O imóvel",fields:[
+   {id:"tipo",l:"Tipo",s:"s2",w:3},
+   {id:"quartos",l:"Quartos",s:"s1",w:3,num:1},
+   {id:"suites",l:"Suítes",s:"s1",w:2,num:1},
+   {id:"banheiros",l:"Banheiros",s:"s1",w:2,num:1},
+   {id:"salas",l:"Salas",s:"s1",w:1,num:1},
+   {id:"vagas",l:"Vagas",s:"s1",w:2,num:1},
+   {id:"vagascob",l:"Vagas cobertas",s:"s1",w:1,num:1},
+   {id:"mobilia",l:"Mobília",s:"s2",w:2},
+   {id:"face",l:"Face solar",s:"s2",w:1}
+  ]},
+  {t:"Medidas",fields:[
+   {id:"areautil",l:"Área útil",s:"s2",w:3,num:1,suf:"m²"},
+   {id:"areatotal",l:"Área total",s:"s2",w:1,num:1,suf:"m²"},
+   {id:"areacons",l:"Área construída",s:"s2",w:1,num:1,suf:"m²"},
+   {id:"terreno",l:"Terreno",s:"s2",w:1,num:1,suf:"m²"},
+   {id:"frente",l:"Frente",s:"s1",w:1,num:1,suf:"m"},
+   {id:"fundo",l:"Fundo",s:"s1",w:1,num:1,suf:"m"},
+   {id:"pedireito",l:"Pé-direito",s:"s2",w:1,num:1,suf:"m"}
+  ]},
+  {t:"Prédio",fields:[
+   {id:"andares",l:"Andares",s:"s2",w:1,num:1,help:"da casa ou do prédio"},
+   {id:"elevadores",l:"Elevadores",s:"s2",w:1,num:1},
+   {id:"escadas",l:"Lances de escada",s:"s1",w:1,num:1},
+   {id:"cobertura",l:"Cobertura",s:"s1",w:1,sel:"cobertura"}
+  ]}]},
+ {id:"oquetem",ic:"✓",name:"O que tem",c:"--c-oquetem",
+   tags:[{id:"tagsimovel",l:"Características do imóvel",w:1},{id:"tagscondo",l:"Características do condomínio",w:1}],
+   note:"A Nay procura nas duas listas (\"tem piscina?\"). ⇄ passa o item para o outro grupo."},
+ {id:"valores",ic:"$",name:"Valores e negócio",c:"--c-valores",groups:[
+  {fields:[
+   {id:"aluguel",l:"Aluguel",s:"s2",w:3,pre:"R$",either:"preco"},
+   {id:"venda",l:"Venda",s:"s2",w:3,pre:"R$",either:"preco"},
+   {id:"condo",l:"Condomínio",s:"s2",w:2,pre:"R$"},
+   {id:"iptu",l:"IPTU",s:"s2",w:2,pre:"R$"},
+   {id:"fin",l:"Aceita financiamento",s:"s2",w:1,sel:"simnao"},
+   {id:"permuta",l:"Permuta",s:"s2",w:1,help:"o que aceita como parte do pagamento"}
+  ]},
+  {t:"Incluso no aluguel",chips:{id:"incluso",w:1,items:["Água","Energia","Internet","Taxa de Gás","Taxa de Condomínio","IPTU"]}},
+  {t:"Garantia de aluguel",chips:{id:"garantia",w:2,items:["Depósito caução","Seguro fiança","Fiador","Título de capitalização","Carta fiança"]}}
+ ]},
+ {id:"descricao",ic:"✎",name:"Descrição",c:"--c-descricao",groups:[{fields:[{id:"desc",l:"Descrição do anúncio",s:"s6",w:2,area:1}]}]},
+ {id:"captacao",ic:"✦",name:"Captação",c:"--c-captacao",groups:[{fields:[
+   {id:"captpor",l:"Captado por",s:"s3",w:1},{id:"capem",l:"Captado em",s:"s3",w:1,date:1},
+   {id:"indic",l:"Indicado por",s:"s3",w:1},{id:"insp",l:"Inspecionado por",s:"s3",w:1}
+ ]}]},
+ {id:"locacao",ic:"⚿",name:"Locação atual",c:"--c-locacao",int:1,hint:"Fica fora do site. O vencimento é o mesmo da lista de proprietários por vencimento.",groups:[{fields:[
+   {id:"locatario",l:"Locatário",s:"s2",w:1},{id:"loccont",l:"Contato do locatário",s:"s2",w:1},
+   {id:"venc",l:"Vencimento do contrato",s:"s2",w:1,date:1},{id:"locobs",l:"Observação do aluguel",s:"s6",w:1}
+ ]}]},
+ {id:"interno",ic:"⚑",name:"Uso interno",c:"--c-interno",groups:[{fields:[{id:"obs",l:"Observações",s:"s6",w:1,area:1}]}]}
+];
+
+const state={chips:{},tags:{tagsimovel:[],tagscondo:[]}};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const allFields=s=>(s.groups||[]).flatMap(g=>g.fields||[]);
+const FIELDS=SECTIONS.flatMap(allFields);
+
+function fieldHTML(f){
+  let ctrl;
+  if(f.sel) ctrl=`<select id="${f.id}" data-f><option value="">—</option>${OPT[f.sel].map(o=>`<option>${o}</option>`).join("")}</select>`;
+  else if(f.area) ctrl=`<textarea id="${f.id}" data-f rows="5"></textarea>`;
+  else ctrl=`<input id="${f.id}" data-f type="${f.date?"date":(f.num?"number":"text")}" ${f.num?'inputmode="decimal" min="0" step="any"':""} placeholder="${esc(f.ph||"")}">`;
+  return `<div class="f ${f.s}" data-wrap="${f.id}"><label for="${f.id}">${f.l}<span class="tick" aria-hidden="true">✓</span></label>
+    <div class="inp">${f.pre?`<span class="pre">${f.pre}</span>`:""}${ctrl}${f.suf?`<span class="suf">${f.suf}</span>`:""}</div>${f.help?`<small>${f.help}</small>`:""}</div>`;
+}
+function render(){
+  let side="",main="";
+  SECTIONS.forEach(s=>{
+    const st=`--c:var(${s.c})`;
+    side+=`<button class="nav-i" data-go="${s.id}" style="${st}"><span class="sw">${s.ic}</span><span>${s.name}${s.int?'<span class="int">interno</span>':""}</span><span class="ct" data-ct="${s.id}"></span><span class="mini"><i data-mini="${s.id}"></i></span><span class="emos" data-emos="${s.id}"></span></button>`;
+    $("#tape").insertAdjacentHTML("beforeend",`<button class="seg" data-go="${s.id}" style="${st}" aria-label="${s.name}"><i data-seg="${s.id}"></i></button>`);
+    let body="";
+    (s.groups||[]).forEach(g=>{
+      body+=`<div class="grp">${g.t?`<p class="grp-t">${g.t}</p>`:""}`;
+      if(g.fields) body+=`<div class="grid">${g.fields.map(fieldHTML).join("")}</div>`;
+      if(g.chips){ state.chips[g.chips.id]=new Set(); body+=`<div class="chips">${g.chips.items.map(i=>`<button type="button" class="chip" aria-pressed="false" data-chip="${g.chips.id}" data-v="${esc(i)}">${i}</button>`).join("")}</div>`; }
+      body+=`</div>`;
+    });
+    if(s.tags){
+      body+=`<div class="grid">`+s.tags.map(t=>`<div class="f s3"><p class="grp-t">${t.l}</p><div class="tags" id="${t.id}"></div><div class="inp"><input id="in-${t.id}" data-tagin="${t.id}" placeholder="Acrescentar (Enter)" aria-label="${t.l}"></div></div>`).join("")+`</div><p class="note">${esc(s.note)}</p>`;
+    }
+    main+=`<section class="sec" id="${s.id}" style="${st}"><div class="sec-h"><span class="ico">${s.ic}</span><div><h2>${s.name}</h2>${s.hint?`<p class="hint">${s.hint}</p>`:""}</div><span class="badge" data-badge="${s.id}"></span>${s.int?'<span class="lock">USO INTERNO</span>':""}</div><div class="sec-b">${body}</div></section>`;
+  });
+  $("#side").innerHTML=side; $("#main").innerHTML=main;
+  SECTIONS.forEach(s=>document.querySelector(`.seg[data-go="${s.id}"]`).style.flex=secWeight(s).total);
+}
+
+const val=id=>{const el=document.getElementById(id);return el?String(el.value).trim():""};
+function secWeight(s){
+  let total=0,got=0,nF=0,nOk=0; const done={};
+  allFields(s).forEach(f=>{
+    if(f.either){ if(f.either in done) return; const ok=allFields(s).filter(x=>x.either===f.either).some(x=>val(x.id)); done[f.either]=1; total+=f.w;nF++; if(ok){got+=f.w;nOk++;} return; }
+    total+=f.w;nF++; if(val(f.id)){got+=f.w;nOk++;}
+  });
+  (s.groups||[]).forEach(g=>{ if(g.chips){ total+=g.chips.w;nF++; if(state.chips[g.chips.id].size){got+=g.chips.w;nOk++;} } });
+  (s.tags||[]).forEach(t=>{ total+=t.w;nF++; if(state.tags[t.id].length){got+=t.w;nOk++;} });
+  return {total,got,nF,nOk};
+}
+
+/* emojis do resumo no menu lateral */
+const EMOJI=[
+ [/ar.?condicionado|split|climatiz/,"❄️"],[/piscina/,"🏊"],[/academia|fitness|muscula/,"🏋️"],[/churrasq|gourmet/,"🍖"],
+ [/varanda|sacada/,"🌇"],[/elevador/,"🛗"],[/portaria|porteiro|seguran|vigil/,"🛡️"],[/c[aâ]mera|cftv|monitorad/,"📹"],
+ [/playground|parquinho/,"🛝"],[/brinquedoteca|kids/,"🧸"],[/\bpet\b/,"🐾"],[/sal[aã]o de festa|festa/,"🎉"],
+ [/quadra|futebol|esporte/,"⚽"],[/sauna/,"🧖"],[/garagem|estacionamento/,"🚗"],[/mobiliad|m[oó]vei/,"🛋️"],
+ [/arm[aá]rio|embutid|closet/,"🚪"],[/cozinha|planejad/,"🍳"],[/lavanderia|[aá]rea de servi/,"🧺"],[/banheira|hidro|jacuzzi/,"🛁"],
+ [/aquecedor|[aá]gua quente/,"🔥"],[/solar/,"☀️"],[/gerador/,"⚡"],[/internet|wi.?fi|fibra/,"📶"],
+ [/jardim|quintal|[aá]rea verde|bosque/,"🌳"],[/cowork|escrit[oó]rio/,"💻"],[/vista|panor[aâ]m/,"🏙️"],
+ [/acess[ií]bil|rampa|pcd/,"♿"],[/biciclet|biciclet[aá]rio/,"🚲"],[/cinema/,"🎬"],[/jogos/,"🎮"],[/horta|pomar/,"🥬"],[/interfone/,"📞"]
+];
+const emo=v=>{const s=v.toLowerCase();const m=EMOJI.find(([r])=>r.test(s));return m?m[1]:"✨"};
+function renderEmos(){
+  const seen=new Set();
+  $('[data-emos="oquetem"]').innerHTML=[...state.tags.tagsimovel,...state.tags.tagscondo].map(v=>{const e=emo(v);if(e!=="✨"&&seen.has(e))return"";seen.add(e);return `<span title="${esc(v)}">${e}</span>`}).join("");
+  const nums=[["quartos","🛏️","quartos",""],["suites","🛁","suítes",""],["banheiros","🚿","banheiros",""],["vagas","🚗","vagas",""],["areautil","📐","m² de área útil","m²"]];
+  let c=nums.filter(([id])=>val(id)).map(([id,e,l,u])=>`<span title="${val(id)} ${l}">${e}<b>${val(id)}${u}</b></span>`).join("");
+  const m=val("mobilia").toLowerCase(); if(m && !/^(sem|n[aã]o)/.test(m)) c+=`<span title="Mobília: ${esc(val("mobilia"))}">🛋️</span>`;
+  if(val("cobertura")) c+=`<span title="Cobertura ${esc(val("cobertura"))}">🏙️</span>`;
+  $('[data-emos="carac"]').innerHTML=c;
+}
+
+function update(){
+  let T=0,G=0;
+  SECTIONS.forEach(s=>{
+    const w=secWeight(s); T+=w.total; G+=w.got;
+    const p=w.total?w.got/w.total:0, full=w.nOk===w.nF;
+    $(`[data-seg="${s.id}"]`).style.width=(p*100)+"%";
+    $(`[data-mini="${s.id}"]`).style.width=(p*100)+"%";
+    const ct=$(`[data-ct="${s.id}"]`); ct.textContent=full?"✓":`${w.nOk}/${w.nF}`; ct.classList.toggle("full",full);
+    const b=$(`[data-badge="${s.id}"]`); b.textContent=full?"✓ Completo":`${w.nOk} de ${w.nF}`; b.classList.toggle("full",full);
+    $(`.seg[data-go="${s.id}"]`).title=`${s.name}: ${Math.round(p*100)}%`;
+  });
+  document.querySelectorAll("[data-wrap]").forEach(w=>{const f=FIELDS.find(x=>x.id===w.dataset.wrap); w.classList.toggle("filled", f.either?(val("aluguel")||val("venda"))!=="":val(f.id)!=="");});
+  renderEmos();
+  $("#pct").innerHTML=`${Math.round(T?G/T*100:0)}<small>%</small>`;
+}
+function renderTags(id){
+  const arr=state.tags[id];
+  document.getElementById(id).innerHTML=arr.length?arr.map((v,i)=>`<span class="tag">${esc(v)}<button title="Passar para o outro grupo" data-mv="${id}" data-i="${i}">⇄</button><button title="Remover" data-rm="${id}" data-i="${i}">✕</button></span>`).join(""):`<span class="empty">nada ainda</span>`;
+}
+function toast(t){const el=$("#toast");el.textContent=t;el.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove("show"),2600)}
+function go(id){const el=document.getElementById(id); if(el) el.scrollIntoView({block:"start"});}
+
+render(); renderTags("tagsimovel"); renderTags("tagscondo"); update();
+
+document.addEventListener("input",e=>{ if(e.target.matches("[data-f]")) update(); });
+document.addEventListener("change",e=>{ if(e.target.matches("[data-f]")) update(); });
+document.addEventListener("keydown",e=>{
+  if(e.target.matches("[data-tagin]")&&e.key==="Enter"){ e.preventDefault(); const v=e.target.value.trim(), id=e.target.dataset.tagin; if(v&&!state.tags[id].includes(v)){state.tags[id].push(v);renderTags(id);update();} e.target.value=""; }
+});
+document.addEventListener("click",e=>{
+  const t=e.target.closest("button"); if(!t) return;
+  if(t.dataset.go) go(t.dataset.go);
+  if(t.dataset.chip){ const set=state.chips[t.dataset.chip], on=t.getAttribute("aria-pressed")!=="true"; t.setAttribute("aria-pressed",on); on?set.add(t.dataset.v):set.delete(t.dataset.v); update(); }
+  if(t.dataset.rm){ state.tags[t.dataset.rm].splice(+t.dataset.i,1); renderTags(t.dataset.rm); update(); }
+  if(t.dataset.mv){ const from=t.dataset.mv, to=from==="tagsimovel"?"tagscondo":"tagsimovel"; const [v]=state.tags[from].splice(+t.dataset.i,1); if(!state.tags[to].includes(v)) state.tags[to].push(v); renderTags(from); renderTags(to); update(); }
+  if(t.id==="save") toast(`Rascunho cadastrado com ${$("#pct").textContent} preenchido`);
+});
+const io=new IntersectionObserver(ents=>ents.forEach(en=>{ if(en.isIntersecting){ document.querySelectorAll(".nav-i").forEach(n=>n.classList.toggle("act",n.dataset.go===en.target.id)); const a=$(".nav-i.act"); if(a&&innerWidth<=960) a.scrollIntoView({inline:"center",block:"nearest"}); } }),{rootMargin:"-45% 0px -50% 0px"});
+document.querySelectorAll(".sec").forEach(s=>io.observe(s));
+</script>
+</body>
+</html>
