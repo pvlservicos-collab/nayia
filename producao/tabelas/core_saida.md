@@ -40,7 +40,7 @@ nay_core: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 nay_leitura: SELECT
 
 ## funções que escrevem aqui
-(nenhuma função; quem escreve é o n8n, o site ou o CRM)
+nai_whatsapp_reenviado
 
 ## funções que citam
-nai_imoveis_na_frente, nai_tel_assumiu
+nai_imoveis_na_frente, nai_tel_assumiu, nai_whatsapp_reenviado

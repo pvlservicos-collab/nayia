@@ -62,6 +62,18 @@ prompt: comece pelo `nay onde`.
 | a chave do contato (telefone com e sem o 9, @lid); erro "nai_fone_br does not exist" no log do Postgres | `nai_chave` chama `public.nai_fone_br` e `public.nay_fone_chave`: função usada em índice tem de qualificar o que chama, porque o autovacuum e o pg_restore rodam sem search_path | 268 |
 | a Nay NOVA (nay-core) responde os corretores desde 02/10 14:13: ligar, desligar, canário, "quem respondeu?" | interruptor `core_atende` e `core_atende_so` em `nai_config`; `nai_core_atende`, o trecho 269 de `nai_abrir_turno`, `nai_core_turno`, `nai_core_escalou`; vigia em `scripts/servidor/core_vigia.sql`; o código em `C:\Users\pedro\nay-core` (`docs/CORTE.md`, `docs/PROGRESSO.md`); o pacote e a auditoria em `nay-pacote-completo/nay-pacote/` | 269 |
 
+## O número caiu? (vigia do WhatsApp, 272)
+- "Não chegou" com a caixa dizendo `enviado`: olhe primeiro a conexão. A Z-API aceita o envio mesmo desconectada e
+  guarda na fila dela; na volta solta tudo de uma vez (02/10: 68 mensagens em 2 minutos).
+- `scripts/servidor/vigia_whatsapp.py` (VPS1, `/root/vigia_whatsapp/`, cron `/etc/cron.d/vigia-whatsapp`, um por número):
+  avisa no grupo da equipe PELO OUTRO número quando um cai, guarda e limpa a fila da Z-API enquanto está fora, e na volta
+  reenvia devagar (`intervalo_s`, padrão 15 s; só das 7h às 21h; nada com mais de 12 h). Ajustes e segredos em
+  `config.json` no servidor, montado por `vigia_whatsapp_instalar.sh`. Log: `/var/log/vigia_whatsapp.log`.
+  `python3 vigia_whatsapp.py parceria --situacao` diz o que ele sabe; `--teste` manda uma linha de teste ao grupo.
+- Nenhuma função da caixa mudou. O reenvio troca o id da mensagem com `nai_whatsapp_reenviado` (caixa velha, caixa do
+  núcleo novo, `mensagem_saida`, `envios`) e no CRM (`zapi_message_id`). Teste sem enviar nada:
+  `python scripts/servidor/teste_vigia_whatsapp.py`.
+
 ## Site (imobeasy.online)
 - API Flask: `nay-site-api/app.py` + `nay-site-api/olx_api.py` (OLX e o cadastro vindo do CRM).
   (`/api/imoveis-lista` filtros; `/api/imoveis/opcoes` listas; `/api/condominios*`).

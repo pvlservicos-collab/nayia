@@ -19,7 +19,7 @@ nay_core: SELECT
 nay_leitura: SELECT
 
 ## funções que escrevem aqui
-nai_confirmar_envio
+nai_confirmar_envio, nai_whatsapp_reenviado
 
 ## funções que citam
-nai_confirmar_envio, nai_tel_assumiu, nay_codigos_da_conversa, nay_codigos_da_saida
+nai_confirmar_envio, nai_tel_assumiu, nai_whatsapp_reenviado, nay_codigos_da_conversa, nay_codigos_da_saida
