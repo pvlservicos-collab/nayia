@@ -1,4 +1,4 @@
-# captacao_cadastro  (tabela, ~13 linhas)
+# captacao_cadastro  (tabela, ~18 linhas)
 A ficha que a Nay de captação monta na conversa (164): imóvel disponível a recadastrar ou imóvel novo do dono. Um humano aplica no painel.
 
 ## colunas

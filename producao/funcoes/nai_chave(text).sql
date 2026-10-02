@@ -8,8 +8,8 @@ AS $function$
     WHEN p ILIKE '%@lid' THEN
       CASE WHEN regexp_replace(p, '\D', '', 'g') ~ '^[0-9]{6,20}$'
            THEN 'lid:' || regexp_replace(p, '\D', '', 'g') END
-    WHEN nai_fone_br(p) IS NULL THEN NULL
-    WHEN nai_fone_br(p) !~ '^[0-9]{8,15}$' THEN NULL
-    ELSE nay_fone_chave(nai_fone_br(p))
+    WHEN public.nai_fone_br(p) IS NULL THEN NULL
+    WHEN public.nai_fone_br(p) !~ '^[0-9]{8,15}$' THEN NULL
+    ELSE public.nay_fone_chave(public.nai_fone_br(p))
   END;
 $function$;

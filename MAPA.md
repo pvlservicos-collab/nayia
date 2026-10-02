@@ -59,6 +59,8 @@ prompt: comece pelo `nay onde`.
 | bot de fora CONSULTA se um anúncio já é nosso | `crm_imovel_candidatos`, `crm_imovel_vincular_anuncio`, tabela `imovel_anuncio`; `crm/docs/bots/webhook-consulta.md` | 258, 262, 263 |
 | bot de fora CADASTRA imóvel para aprovação (aba Imóveis da OLX Bot) | `crm_olx_bot_receber`, tabela `privado.olx_bot_imovel`; rotas `/admin/api/olx-bot` em `olx_api.py`; `captacao-olx-bot.js`; `crm/docs/bots/webhook-cadastro.md` | 260, 261, 264 |
 | ligar qualquer bot novo a um webhook nosso | `crm/docs/bots/COMO-LIGAR-O-GROK-A-UM-WEBHOOK.md`; `crm/src/lib/botDeImoveis.ts` | — |
+| a chave do contato (telefone com e sem o 9, @lid); erro "nai_fone_br does not exist" no log do Postgres | `nai_chave` chama `public.nai_fone_br` e `public.nay_fone_chave`: função usada em índice tem de qualificar o que chama, porque o autovacuum e o pg_restore rodam sem search_path | 268 |
+| a Nay NOVA (nay-core), em sombra desde 02/10: outro repositório | `C:\Users\pedro\nay-core` (`docs/PROGRESSO.md`, `docs/CONCILIACAO.md`); o pacote e o checklist em `nay-pacote-completo/nay-pacote/` | — |
 
 ## Site (imobeasy.online)
 - API Flask: `nay-site-api/app.py` + `nay-site-api/olx_api.py` (OLX e o cadastro vindo do CRM).

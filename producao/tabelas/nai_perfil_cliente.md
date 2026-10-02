@@ -1,4 +1,4 @@
-# nai_perfil_cliente  (tabela, ~0 linhas)
+# nai_perfil_cliente  (tabela, ~29 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('nai_perfil_cliente_id_seq'::regclass)

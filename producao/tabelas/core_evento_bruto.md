@@ -1,4 +1,4 @@
-# core_evento_bruto  (tabela, ~898 linhas)
+# core_evento_bruto  (tabela, ~1044 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('core_evento_bruto_id_seq'::regclass)
