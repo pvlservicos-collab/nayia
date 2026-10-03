@@ -17,7 +17,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 DESENHO = RAIZ / "Telaenviarmovel.html"
 SAIDA = RAIZ / "imob-easy" / "imoveis.html"
-VERSAO = "20261003a"
+VERSAO = "20261003b"
 
 html = io.open(DESENHO, encoding="utf-8").read()
 
@@ -82,15 +82,14 @@ ESTILO = """<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/le
 .pl span small{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pl .vbtn,.pl .pick{padding:6px 8px}
 
-/* NO MAPA SÓ A BUSCA, com Apartamento | Casa no canto direito dela (02/10 à noite): os filtros completos
-   ficam no painel e em cima da lista */
+/* NO MAPA SÓ A BUSCA, com Aluguel | Vendas no canto direito dela (03/10: era Apartamento | Casa): os filtros
+   completos ficam no painel e em cima da lista */
 #mapF{display:none}
 .mtop .sbox{padding-right:5px}
 .tgrp{display:flex;flex:none;gap:2px;background:var(--soft);border-radius:999px;padding:3px}
 .tgrp button{border:0;background:transparent;border-radius:999px;padding:5px 10px;font-weight:600;font-size:12.5px;color:var(--ink-2);cursor:pointer;line-height:1.1}
 .tgrp button[aria-pressed="true"]{background:var(--brand);color:#fff}
-.tgrp .sm{display:none}
-@media (max-width:520px){.tgrp .lg{display:none}.tgrp .sm{display:inline}.tgrp button{padding:5px 8px;font-size:12px}}
+@media (max-width:520px){.tgrp button{padding:5px 8px;font-size:12px}}
 /* "Selecionados" só quando houver um */
 .sel-h[hidden],.sel-list[hidden]{display:none!important}
 
@@ -160,7 +159,28 @@ ESTILO = """<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/le
 
 /* A LISTA FICA EMBAIXO DO MAPA e a página rola até ela (Pedro, 02/10): o mapa não ocupa mais a tela toda */
 @media (min-width:1024px){.map{height:min(64dvh,660px)!important}}
-@media (max-width:1023px){.map{height:max(260px,calc(100dvh - var(--head-h,58px) - var(--sheet-h,200px) - 64px))!important}}
+/* NO CELULAR O MAPA É MAIS BAIXO (Pedro, 03/10: "tá muito grande verticalmente no mobile"): cerca de um terço da
+   tela, e não mais tudo o que sobrava entre o topo e o painel de baixo */
+@media (max-width:1023px){.map{height:clamp(210px,34dvh,330px)!important}}
+
+/* O PAINEL FIXO DE BAIXO ~15% MAIS ALTO (Pedro, 03/10: "onde o cara digita o imóvel, e o card fixo de baixo, tá
+   pequeno verticalmente"): a busca do painel, o botão do filtro, o da lista, o campo do WhatsApp e o Me envia */
+.sh-top .sbox input{padding:13px 0;font-size:16px}
+.ftog{width:50px;height:50px}
+.listbtn{padding:14px 16px;font-size:15px}
+.sh-send{padding:14px 14px 16px}
+.phone{padding:18px 18px;font-size:17.5px}
+.send{padding:18px 22px;font-size:15.5px}
+@media (max-width:760px){
+  .grab{padding:7px 0 3px}
+  .sh-top{padding:0 10px 8px;gap:8px}
+  .sh-top .sbox input{padding:10px 0;font-size:15.5px}
+  .ftog{width:44px;height:44px}
+  .listbtn{padding:14px 14px;font-size:14.5px}
+  .sh-send{padding:12px 12px 14px;gap:9px}
+  .phone{padding:17px 16px;font-size:17px}
+  .send{padding:17px 18px;font-size:15px}
+}
 </style>
 </head>"""
 assert html.count("</head>") == 1
