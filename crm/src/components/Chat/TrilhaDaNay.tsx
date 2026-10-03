@@ -14,6 +14,7 @@
  */
 import { Robot } from '@phosphor-icons/react'
 import type { EstadoDaNay, MarcaDaNay } from '@/lib/tiposNay'
+import { nayEmPausa } from '@/lib/etapaDaParceria'
 
 const NOS: Array<{ chave: string; rotulo: string; dica: string }> = [
   { chave: 'identificacao', rotulo: 'Identificação', dica: 'entende o que ele procura' },
@@ -36,6 +37,7 @@ export default function TrilhaDaNay({ marca, nay }: { marca: MarcaDaNay | null; 
     ? 3
     : NOS.findIndex((n) => n.chave === marca?.etapa)
   const parada = !nay ? null : !nay.ligada ? `Nay desligada: ${nay.motivo || 'chave geral'}`
+    : nayEmPausa(marca) ? 'Nay em pausa: alguém escreveu à mão, e ela espera 30 minutos antes de voltar a responder'
     : marca?.telAtendendo ? `Nay parada nesta conversa: ${marca.telMotivo || 'o Tel está com a conversa'}`
     : null
   const ativa = !!nay && !parada

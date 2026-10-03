@@ -8,6 +8,10 @@ import type { Atendente } from '@/lib/atendentes'
 import type { EstadoDaNay } from '@/lib/tiposNay'
 import type { DonoNaLista, MarcaDaNay } from '@/lib/tiposNay'
 import { quandoCurtoEmManaus } from '@/lib/fusoDeManaus'
+import { nayEmPausa } from '@/lib/etapaDaParceria'
+
+/* 03/10: quem escreve à mão pausa a Nay por 30 min, e a conversa fica na aba dela */
+const TEXTO_DA_PAUSA = 'Nay em pausa: alguém escreveu à mão nesta conversa, e ela espera 30 minutos antes de voltar a responder'
 
 /**
  * Uma linha da lista de conversas, no desenho do WhatsApp Web (29/09/2026):
@@ -88,6 +92,7 @@ function Avatar({ lead, robo }: { lead: LeadWithOwner; robo?: { parada: boolean;
 const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono }: LeadListItemProps) => {
   const robo = nay === undefined ? null : !nay ? { parada: true, texto: 'Lendo a Nay…' }
     : !nay.ligada ? { parada: true, texto: `Nay parada: ${nay.motivo || 'desligada'}` }
+    : nayEmPausa(marca) ? { parada: true, texto: TEXTO_DA_PAUSA }
     : marca?.telAtendendo ? { parada: true, texto: `Nay parada nesta conversa: ${marca.telMotivo || 'o Tel está com a conversa'}` }
     : { parada: false, texto: 'Nay atendendo esta conversa' }
   // Conversa importada não tem prévia (a Z-API não traz mensagem antiga).
@@ -130,11 +135,13 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
         </div>
 
         <div className="flex items-center gap-1.5 mt-[2px] min-w-0">
-          {marca?.telAtendendo && (
+          {marca?.telAtendendo && (nayEmPausa(marca) ? (
+            <span className="wa-marca" style={{ color: 'var(--wa-tag-prop)' }} title={TEXTO_DA_PAUSA}>Nay em pausa</span>
+          ) : (
             <span className="wa-marca" style={{ color: 'var(--wa-text-2)' }} title={marca.telMotivo || 'O Tel está com esta conversa'}>
               {(marca.telMotivo || '').startsWith('Rayssa:') ? 'Rayssa' : 'Tel'}
             </span>
-          )}
+          ))}
           {marca?.visitaAberta && (
             <span className="wa-marca" style={{ color: 'var(--wa-text-2)' }} title="Visita em andamento">
               Visita {quandoCurto(marca.visitaQuando)}
@@ -202,6 +209,7 @@ export default memo(LeadListItem, (a, b) => (
   a.hit?.matchType === b.hit?.matchType &&
   a.hit?.snippet === b.hit?.snippet &&
   a.marca?.telAtendendo === b.marca?.telAtendendo &&
+  a.marca?.telMotivo === b.marca?.telMotivo &&
   a.marca?.visitaAberta === b.marca?.visitaAberta &&
   a.marca?.visitaQuando === b.marca?.visitaQuando &&
   a.marca?.proprietario === b.marca?.proprietario &&

@@ -125,6 +125,7 @@ prompt: comece pelo `nay onde`.
 - Etapas/abas: `src/lib/etapaDaParceria.ts`, `LeadList.tsx`, `EtapaDoLead.tsx`. Deploy: `./scripts/nay crm src/...` (4 min, ~10 s fora do ar).
   Aviso depois de salvar a etapa (03/10): `resultadoDaMudanca` e `abaDaConversa` em `etapaDaParceria.ts` dizem onde a conversa FICOU e por quê;
   a notificação é `AvisoFlutuante.tsx` (card da Parceria e da captação); `marcasDepoisDeMudar` relê as marcas da Nay na hora.
+  Pausa de 30 min (mensagem à mão) NÃO é aba Tel: `nayEmPausa`/`comAlguemPelaNay` em `etapaDaParceria.ts`; o motivo mais forte vem de `crm_parceria_marcas` (288).
 - Card da captação: `src/components/Chat/PainelContatoCaptacao.tsx` (+ `EtapaDaCaptacao.tsx`, `CadastroDeImovel.tsx`,
   `src/lib/pontuacaoDoCadastro.ts` -- a régua da 244 repetida em TS só para a barra andar enquanto se digita)
   e rotas `src/app/api/captacao/*`, `src/app/api/leads/[id]/captacao-etapa`. Quem grava o imóvel é a API do site

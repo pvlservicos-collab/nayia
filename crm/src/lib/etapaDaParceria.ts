@@ -109,9 +109,36 @@ export function etapaDaParceria(
 }
 
 /**
+ * A PAUSA NÃO É "COM O TEL" (Pedro, 03/10/2026). Quando alguém escreve à mão numa
+ * conversa, a Nay carimba "o Tel escreveu pelo celular" e fica 30 minutos calada
+ * (regra do Tel, 16/09). Até 03/10 essa marca levava a conversa para a aba Tel: ele
+ * punha em Todos, respondia a pessoa, e a conversa "voltava" para o Tel -- "coloco
+ * para Todos e não salva". Perguntado, escolheu: a Nay continua esperando os 30
+ * minutos, mas a conversa FICA NA ABA DELA, com a etiqueta "Nay em pausa". A aba Tel
+ * é só do que foi mandado para o Tel, assumido por ele ou escalado.
+ *
+ * O banco devolve o motivo MAIS FORTE entre as linhas da pessoa (migração 288):
+ * `telMotivo` só é o da pausa quando a pausa é o único motivo valendo.
+ */
+export const MOTIVO_DA_PAUSA = 'o Tel escreveu pelo celular'
+
+type MarcaDoTel = Pick<MarcaDaNay, 'telAtendendo' | 'telMotivo'> | null | undefined
+
+/** A Nay só está esperando os 30 minutos de quem escreveu à mão. */
+export function nayEmPausa(m: MarcaDoTel): boolean {
+  return !!m?.telAtendendo && m.telMotivo === MOTIVO_DA_PAUSA
+}
+
+/** Alguém está com a conversa de verdade (Tel ou Rayssa): mandada, assumida ou escalada. */
+export function comAlguemPelaNay(m: MarcaDoTel): boolean {
+  return !!m?.telAtendendo && m.telMotivo !== MOTIVO_DA_PAUSA
+}
+
+/**
  * EM QUAL ABA DA LISTA A CONVERSA APARECE: a mesma conta do LeadList. Quem está com
  * uma PESSOA (Tel ou Rayssa) sai das etapas; senão vale a etapa (o fato da Nay na
- * frente, a escolha do card só quando ela não sabe de nada).
+ * frente, a escolha do card só quando ela não sabe de nada). A pausa de 30 minutos
+ * não conta como pessoa.
  */
 export function abaDaConversa(
   lead: { custom_attributes?: any } | null | undefined,
@@ -122,7 +149,7 @@ export function abaDaConversa(
   if (aMao === 'rayssa' || aMao === 'tel') return aMao
   if (!aMao) {
     if ((marca?.telMotivo || '').startsWith('Rayssa:')) return 'rayssa'
-    if (marca?.telAtendendo) return 'tel'
+    if (comAlguemPelaNay(marca)) return 'tel'
   }
   return etapaDaParceria(lead, marca, agora)
 }
@@ -137,10 +164,7 @@ export interface ResultadoDaMudanca {
 }
 
 const EFEITO_DA_ETAPA: Record<DestinoParceria, string> = {
-  /* O GAP DO TEL explica o "pus em Todos e voltou" (medido em 03/10: Todos às 14:58,
-     mensagem à mão às 15:01, e a conversa na aba Tel de novo): mensagem escrita por
-     gente cala a Nay por 30 min e leva a conversa para a aba Tel nesse tempo. */
-  todos: 'A Nay volta a atender essa conversa. Se alguém escrever nela à mão (celular ou CRM), ela passa 30 minutos na aba Tel e volta sozinha para Todos.',
+  todos: 'A Nay volta a atender essa conversa. Se alguém escrever nela à mão (celular ou CRM), a Nay espera 30 minutos antes de responder; a conversa continua nesta aba.',
   visitas: 'Quem atende é a Rayssa; a Nay não responde. Vale por 7 dias, ou até voltar para Todos.',
   proprietarios: 'A Nay não responde essa conversa.',
   fechamento: 'Quem atende é a Rayssa, até ela concluir o fechamento.',
@@ -164,11 +188,7 @@ function oQueSegura(ficou: DestinoParceria, m: MarcaDaNay | undefined): string {
     }
     return 'alguém escolheu Visitas no card há menos de 7 dias'
   }
-  if (ficou === 'tel') {
-    return m?.telMotivo === 'o Tel escreveu pelo celular'
-      ? 'alguém escreveu nessa conversa à mão há menos de 30 minutos; a Nay espera esse tempo e a conversa volta sozinha para Todos'
-      : `a Nay marca que o Tel está com essa conversa${m?.telMotivo ? ` (${m.telMotivo})` : ''}`
-  }
+  if (ficou === 'tel') return `a Nay marca que o Tel está com essa conversa${m?.telMotivo ? ` (${m.telMotivo})` : ''}`
   if (ficou === 'rayssa') return 'a Nay marca que a Rayssa está com essa conversa'
   return 'não há visita, fechamento, nem imóvel dele que a prenda em outra etapa'
 }

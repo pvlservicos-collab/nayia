@@ -17,6 +17,7 @@ import PinnedMessagesBar from './PinnedMessagesBar'
 
 import { ChatButtonKey } from '@/hooks/useChatButtonSettings'
 import { quandoCurtoEmManaus } from '@/lib/fusoDeManaus'
+import { nayEmPausa } from '@/lib/etapaDaParceria'
 
 interface ChatWindowProps {
   lead: LeadWithOwner
@@ -60,6 +61,7 @@ function RoboDaNay({ nay, marca }: { nay: EstadoDaNay | null; marca?: MarcaDaNay
   const cor = !nay ? 'var(--wa-text-2)' : parada ? 'var(--wa-tag-tel)' : 'var(--wa-green)'
   const texto = !nay ? 'Lendo a Nay…'
     : !nay.ligada ? `Nay parada: ${nay.motivo || 'desligada'}`
+    : nayEmPausa(marca) ? 'Nay em pausa: alguém escreveu à mão nesta conversa, e ela espera 30 minutos antes de voltar a responder'
     : marca?.telAtendendo ? `Nay parada nesta conversa: ${marca.telMotivo || 'o Tel está com a conversa'}`
     : 'Nay atendendo esta conversa'
   return (
@@ -79,7 +81,8 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
   aoVoltar?: () => void
 }) {
   const partes: string[] = []
-  if (marca?.telAtendendo) partes.push('com o Tel')
+  if (nayEmPausa(marca)) partes.push('Nay em pausa (30 min)')
+  else if (marca?.telAtendendo) partes.push((marca.telMotivo || '').startsWith('Rayssa:') ? 'com a Rayssa' : 'com o Tel')
   if (marca?.visitaAberta) partes.push(`visita ${quandoCurto(marca.visitaQuando)}`)
   if (marca?.corretor) partes.push(marca.creci ? `corretor · CRECI ${marca.creci}` : 'corretor')
   if (marca?.proprietario) partes.push('proprietário')

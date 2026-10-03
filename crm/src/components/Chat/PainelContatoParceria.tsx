@@ -35,7 +35,7 @@ import { ESTADO_DA_VISITA, type ItemDoHistorico } from '@/lib/tiposNay'
 import TrilhaDaNay from './TrilhaDaNay'
 import EscolherImoveis, { useOpcoesDoDisparo, type ImovelParaEnviar } from '@/components/Disparo/EscolherImoveis'
 import EtapaDoLead from './EtapaDoLead'
-import { escolhaAMao } from '@/lib/etapaDaParceria'
+import { comAlguemPelaNay, escolhaAMao } from '@/lib/etapaDaParceria'
 import AgendarFollowup from './AgendarFollowup'
 import AgendarVisita from './AgendarVisita'
 import { FUSO_DE_MANAUS, dataHoraEmManaus, diasAteEmManaus, horaEmManaus } from '@/lib/fusoDeManaus'
@@ -116,7 +116,7 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
   const marcaDaPessoa = marcas[lead.id]
   const comQuem: 'tel' | 'rayssa' | null =
     escolhaDoCard === 'rayssa' || (escolhaDoCard !== 'tel' && (marcaDaPessoa?.telMotivo || '').startsWith('Rayssa:')) ? 'rayssa'
-      : escolhaDoCard === 'tel' || marcaDaPessoa?.telAtendendo ? 'tel' : null
+      : escolhaDoCard === 'tel' || comAlguemPelaNay(marcaDaPessoa) ? 'tel' : null
   const [tirando, setTirando] = useState(false)
   async function tirarDaPessoa() {
     if (tirando) return

@@ -47,7 +47,17 @@ AS $function$
       CROSS JOIN LATERAL (
         SELECT c.humano_assumiu_em AS em, c.humano_motivo AS motivo FROM nai_contato c
          WHERE c.id = ANY (pe.ids) AND c.humano_assumiu_em IS NOT NULL
-         ORDER BY c.humano_assumiu_em DESC LIMIT 1) u
+         -- 288: O MOTIVO QUE VALE É O MAIS FORTE, não o mais recente. A pessoa tem duas
+         -- linhas (telefone e @lid). Com a conversa escalada numa e o eco de uma mensagem
+         -- à mão caindo na outra, o motivo mais recente era "o Tel escreveu pelo celular",
+         -- e o CRM leria "pausa de 30 min" numa conversa que o Tel ASSUMIU. A marca que
+         -- não é a pausa e ainda vale (escalada dentro do prazo, CRM, visita, Rayssa) vem
+         -- na frente; a pausa só é o motivo quando é o ÚNICO.
+         ORDER BY (c.humano_motivo IS DISTINCT FROM 'o Tel escreveu pelo celular'
+                   AND NOT (c.humano_motivo ~ '^(duvida fora da base|midia)'
+                            AND nai_cfg_int('escalacao_expira_horas', 0) > 0
+                            AND c.humano_assumiu_em <= now() - make_interval(hours => nai_cfg_int('escalacao_expira_horas', 0)))) DESC,
+                  c.humano_assumiu_em DESC LIMIT 1) u
   ),
   tel AS MATERIALIZED (
     SELECT u.telefone, u.motivo, coalesce(nai_tel_com_a_conversa(u.contato_id), false) AS com_o_tel

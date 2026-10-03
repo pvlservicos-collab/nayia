@@ -16,7 +16,7 @@ import ChatFilterTabs, { type ChatTab, type FiltroDaLista } from './ChatFilterTa
 import BuscaDaLista, { casaNaBusca } from './BuscaDaLista'
 import { conversaEstaNaLinha, type LinhaWhatsapp } from '@/lib/leadChannel'
 import { pedeResposta } from '@/lib/esperaResposta'
-import { etapaDaParceria, escolhaAMao } from '@/lib/etapaDaParceria'
+import { comAlguemPelaNay, etapaDaParceria, escolhaAMao } from '@/lib/etapaDaParceria'
 
 /*
  * FOLLOW-UP DA PARCERIA (Pedro, 29/09/2026): "Últimas 6h | Últimas 24h | Essa
@@ -202,7 +202,8 @@ export default function LeadList({
     const aMao = escolhaAMao(l as any)
     if (aMao === 'tel') return true
     if (aMao) return false                // etapa escolhida à mão (inclusive Todos) tira do Tel
-    return !!m?.telAtendendo && !daRayssa(l, m, atendente)
+    // 03/10: a pausa de 30 min de quem escreveu à mão NÃO é "com o Tel" (a conversa fica na aba dela)
+    return comAlguemPelaNay(m) && !daRayssa(l, m, atendente)
   }
   /* QUEM ESTÁ COM UMA PESSOA SAI DAS ETAPAS: a conversa não está mais no fluxo
      da Nay, então não faz sentido contá-la em Todos nem em Visitas. */
