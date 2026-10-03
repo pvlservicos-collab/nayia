@@ -38,6 +38,9 @@
     captacao:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
       '<path d="M4 4h16v4H4z"/><path d="M6 8v6a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>',
+    grupos:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><circle cx="9" cy="14.5" r="1.6"/><circle cx="15" cy="14.5" r="1.6"/></svg>',
     vagas:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
       '<rect x="3.5" y="7" width="17" height="12.5" rx="2"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"/><path d="M3.5 12.5h17"/></svg>',
@@ -62,7 +65,9 @@
     { chave: "corretores",    rotulo: "Corretores",       href: "corretores.html" },
     { chave: "locacao",       rotulo: "Locação",          href: "locacao.html" },
     { chave: "oportunidades", rotulo: "Oportunidades",    href: "oportunidades.html" },
-    { chave: "captacao",      rotulo: "Captação",         href: "captacao.html" }
+    { chave: "captacao",      rotulo: "Captação",         href: "captacao.html" },
+    // A AGENDA DOS GRUPOS (Pedro, 03/10/2026): "uma aba Grupos... ao lado da captação"
+    { chave: "grupos",        rotulo: "Grupos",           href: "grupos.html" }
     /* Clientes e Vagas foram para o "Mais" (Tel, 28/09) */
   ];
 

@@ -29,7 +29,7 @@ nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 nay_leitura: SELECT
 
 ## funções que escrevem aqui
-(nenhuma função; quem escreve é o n8n, o site ou o CRM)
+site_grade_excluir, site_grade_salvar
 
 ## funções que citam
-captacao_ficha, captacao_ficha_aviso, crm_imovel_candidatos, crm_imovel_para_cadastro, nai_bloco_oferta, nai_cadastro_absorver, nai_cadastro_importar, nai_cadastro_ler, nai_card_do_banco, nai_e_anuncio_dele, nai_e_comando_publicador, nai_ficha_completa, nai_imovel_novo_falta, nai_imovel_novo_pergunta, nai_imovel_novo_subir, nai_imovel_pontos, nai_palavra_comum, nai_pedido_de_perfil, nai_resposta_da_base, nai_sec_guardar_do_imovel, nay_comando, nay_tem_numero_de_unidade, site_imoveis_para_enviar, site_imovel_publico
+captacao_ficha, captacao_ficha_aviso, crm_imovel_candidatos, crm_imovel_para_cadastro, nai_bloco_oferta, nai_cadastro_absorver, nai_cadastro_importar, nai_cadastro_ler, nai_card_do_banco, nai_e_anuncio_dele, nai_e_comando_publicador, nai_ficha_completa, nai_imovel_novo_falta, nai_imovel_novo_pergunta, nai_imovel_novo_subir, nai_imovel_pontos, nai_palavra_comum, nai_pedido_de_perfil, nai_resposta_da_base, nai_sec_guardar_do_imovel, nay_comando, nay_tem_numero_de_unidade, site_grade_agenda, site_grade_excluir, site_grade_salvar, site_imoveis_para_enviar, site_imovel_publico

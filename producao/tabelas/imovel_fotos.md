@@ -30,4 +30,4 @@ nay_site_leitura, só nestas colunas: SELECT(codigo, ordem, url, e_capa, e_facha
 nai_foto_trocar_url, nai_gravar_fotos_do_site, nai_imovel_novo_subir
 
 ## funções que citam
-crm_captacao_cadastro_opcoes, crm_captacao_imoveis_do_dono, crm_imovel_para_cadastro, nai_cadastro_importar, nai_cadastro_pendente, nai_card_do_banco, nai_conferir_resposta, nai_disparo_buscar, nai_foto_trocar_url, nai_fotos_faltando, nai_gravar_fotos_do_site, nai_imagens_do_envio, nai_imovel_novo_subir, nai_imovel_pontos, nai_liberar_saida, nai_saida_validar, site_imoveis_para_enviar, site_imovel_publico
+crm_captacao_cadastro_opcoes, crm_captacao_imoveis_do_dono, crm_imovel_para_cadastro, nai_cadastro_importar, nai_cadastro_pendente, nai_card_do_banco, nai_conferir_resposta, nai_disparo_buscar, nai_foto_trocar_url, nai_fotos_faltando, nai_gravar_fotos_do_site, nai_imagens_do_envio, nai_imovel_novo_subir, nai_imovel_pontos, nai_liberar_saida, nai_saida_validar, site_grade_agenda, site_imoveis_para_enviar, site_imovel_publico

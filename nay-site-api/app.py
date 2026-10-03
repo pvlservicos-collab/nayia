@@ -4557,6 +4557,65 @@ def api_imoveis_para_enviar():
         conn.close()
 
 
+# A AGENDA DOS GRUPOS (279, Pedro 03/10/2026): "uma aba Grupos no site, onde eu vou criar e agendar
+# mensagens com os imoveis, numa agenda geral, filtrando por grupo... e metrificar: quantas pessoas
+# chegaram nas 6 h seguintes". E a GRADE do publicador (tabela vagas): o cron disparar_grade.sh a
+# executa a cada minuto, nada de agendador novo. Tudo atras da senha do /admin.
+@app.route("/admin/api/grade")
+def admin_grade_agenda():
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    de = request.args.get("de") or None
+    ate = request.args.get("ate") or None
+    for valor in (de, ate):
+        if valor and not re.match(r"^\d{4}-\d{2}-\d{2}$", valor):
+            return jsonify({"erro": "data inválida (use AAAA-MM-DD)"}), 400
+    conn = conectar_escrita()
+    try:
+        linhas = todas_linhas(conn, "SELECT site_grade_agenda(%s::date, %s::date) AS j", (de, ate))
+        return jsonify(linhas[0]["j"] if linhas else {})
+    finally:
+        conn.close()
+
+
+@app.route("/admin/api/grade/opcoes")
+def admin_grade_opcoes():
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    conn = conectar_escrita()
+    try:
+        linhas = todas_linhas(conn, "SELECT site_grade_opcoes() AS j")
+        return jsonify(linhas[0]["j"] if linhas else {})
+    finally:
+        conn.close()
+
+
+@app.route("/admin/api/grade", methods=["POST"])
+@app.route("/admin/api/grade/<int:vaga_id>", methods=["PUT", "DELETE"])
+def admin_grade_mudar(vaga_id=None):
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    conn = conectar_escrita()
+    try:
+        with conn.cursor() as cur:
+            if request.method == "DELETE":
+                cur.execute("SELECT site_grade_excluir(%s) AS r", (vaga_id,))
+            else:
+                corpo = request.get_json(silent=True) or {}
+                if vaga_id is not None:
+                    corpo["id"] = vaga_id
+                cur.execute("SELECT site_grade_salvar(%s) AS r", (psycopg2.extras.Json(corpo),))
+            r = cur.fetchone()["r"]
+        conn.commit()
+        return jsonify(r), (200 if r.get("ok") else 422)
+    except Exception as exc:  # noqa: BLE001
+        conn.rollback()
+        app.logger.warning("grade: %s", exc.__class__.__name__)
+        return jsonify({"ok": False, "erro": "Não consegui salvar agora."}), 500
+    finally:
+        conn.close()
+
+
 # Quem mais se envia imoveis. Tem telefone: so com a senha do /admin.
 @app.route("/admin/api/me-envia/ranking")
 def admin_me_envia_ranking():

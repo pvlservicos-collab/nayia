@@ -18,7 +18,7 @@ body.admin { background: var(--fundo); }
   border-bottom: 1px solid var(--borda);
 }
 .barra-topo__interno {
-  max-width: 1240px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 12px 24px;
   display: flex;
@@ -88,7 +88,8 @@ body.admin { background: var(--fundo); }
   box-shadow: var(--sombra-1);
 }
 .nav-principal__interno {
-  max-width: 1240px;
+  /* mais largo (Pedro, 03/10: "só alargar o menu do site horizontalmente"): a aba Grupos cabe na linha */
+  max-width: 1440px;
   margin: 0 auto;
   padding: 14px 24px;
   display: flex;

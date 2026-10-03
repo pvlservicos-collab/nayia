@@ -101,6 +101,10 @@ prompt: comece pelo `nay onde`.
   Quem aponta para a página: "Ver Imóvel" do site, a ficha da aba Imóveis do admin/CRM (`imoveis-ux.js`) e o popup do
   imóvel da mensagem no CRM (`ImovelCitado.tsx`).
 
+- admin › Grupos (`admin/grupos.html`, `assets/js/grupos-agenda.js`): a agenda das mensagens de imóvel nos grupos.
+  É a GRADE do publicador (`vagas`), que `disparar_grade.sh` posta no minuto marcado; criar/editar/excluir por
+  `site_grade_salvar`/`site_grade_excluir`, a semana e a métrica de 6 h por `site_grade_agenda` (rotas `/admin/api/grade*`). 279.
+
 ## CRM (crm.imobeasy.online, Next.js) — `crm/`
 - Nay no card do contato: `src/components/Chat/PainelContatoParceria.tsx` + `src/app/api/leads/[id]/nay/route.ts` + `src/lib/nayLeitura.ts`.
 - Etapas/abas: `src/lib/etapaDaParceria.ts`, `LeadList.tsx`, `EtapaDoLead.tsx`. Deploy: `./scripts/nay crm src/...` (4 min, ~10 s fora do ar).

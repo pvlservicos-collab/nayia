@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grupos — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css?v=20261003-grupos">
+<link rel="stylesheet" href="../assets/css/grupos-agenda.css?v=20261003b">
+</head>
+<body class="admin" data-pagina="grupos">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<!--
+  A AGENDA DOS GRUPOS (Pedro, 03/10/2026): "uma aba Grupos no site, onde eu vou criar e agendar mensagens,
+  e o conteúdo da mensagem vou preencher com os imóveis... no formato de uma agenda geral lá em cima, e eu
+  podendo filtrar por grupo; adicionar, excluir, editar, metrificar a mensagem; as métricas são quantas
+  pessoas chegaram nas próximas 6 horas que enviei".
+  É a GRADE do publicador (tabela vagas), a mesma que o comando "posta ... às ..." do Tel cria: o cron
+  disparar_grade.sh manda no minuto marcado. A métrica vem de envios (o que saiu) e mensagens (quem chegou).
+  Banco: site_grade_agenda/salvar/excluir/opcoes (migração 279). Script: assets/js/grupos-agenda.js.
+-->
+<main class="conteudo ga" id="conteudo">
+  <div class="pagina-cabecalho">
+    <div>
+      <h1 class="pagina-titulo">Grupos</h1>
+      <p class="pagina-subtitulo">As mensagens de imóveis agendadas nos grupos do WhatsApp, e quem chegou depois de cada uma.</p>
+    </div>
+    <button class="btn-azul" type="button" id="ga-nova">+ Nova mensagem</button>
+  </div>
+
+  <div class="ga-barra" role="toolbar" aria-label="Período e filtro">
+    <div class="ga-nav">
+      <button type="button" class="btn-mini" id="ga-ant" aria-label="Semana anterior">‹</button>
+      <button type="button" class="btn-mini" id="ga-hoje">Esta semana</button>
+      <button type="button" class="btn-mini" id="ga-prox" aria-label="Próxima semana">›</button>
+      <strong id="ga-periodo" class="ga-periodo"></strong>
+    </div>
+    <label class="ga-filtro">Grupo
+      <select id="ga-grupo" class="entrada"><option value="">Todos os grupos</option></select>
+    </label>
+  </div>
+
+  <div class="ga-resumo" id="ga-resumo" aria-live="polite"></div>
+
+  <section class="ga-agenda" id="ga-agenda" aria-label="Agenda da semana">
+    <p class="ga-carregando">Carregando a agenda…</p>
+  </section>
+
+  <section class="ga-mensagens" aria-labelledby="ga-msgs-tit">
+    <h2 id="ga-msgs-tit">Mensagens agendadas</h2>
+    <p class="ga-dica">Os números são da semana que está na tela. <b>Chegaram</b>: quem escreveu à Nay nas 6 h depois do envio.
+      <b>Novos</b>: quem falou com ela pela primeira vez. <b>Pelo imóvel</b>: quem citou o post do grupo ou escreveu o código de um imóvel dele.
+      Mensagens no mesmo horário dividem os mesmos "chegaram"; o "pelo imóvel" é o que separa uma da outra.</p>
+    <div class="tabela-envolucro"><div class="tabela-rolagem">
+      <table class="tabela ga-tabela">
+        <thead><tr><th>Quando</th><th>Imóveis</th><th>Destino</th><th class="num">Envios</th><th class="num">Chegaram</th>
+          <th class="num">Novos</th><th class="num">Pelo imóvel</th><th class="col-acoes"></th></tr></thead>
+        <tbody id="ga-tabela"></tbody>
+      </table>
+    </div></div>
+  </section>
+</main>
+
+<!-- detalhe de um envio -->
+<dialog class="ga-dialogo" id="ga-detalhe" aria-labelledby="ga-det-tit">
+  <div class="ga-dialogo__caixa">
+    <div class="ga-dialogo__topo"><h2 id="ga-det-tit">Mensagem</h2><button type="button" class="btn-neutro" data-fechar aria-label="Fechar">✕</button></div>
+    <div id="ga-det-corpo"></div>
+  </div>
+</dialog>
+
+<!-- criar / editar -->
+<dialog class="ga-dialogo" id="ga-editor" aria-labelledby="ga-ed-tit">
+  <form class="ga-dialogo__caixa" id="ga-form" method="dialog" novalidate>
+    <div class="ga-dialogo__topo"><h2 id="ga-ed-tit">Nova mensagem</h2><button type="button" class="btn-neutro" data-fechar aria-label="Fechar">✕</button></div>
+
+    <fieldset class="ga-campo" id="ga-ed-imoveis">
+      <legend>Imóveis da mensagem <small>(até 10; cada um sai com o card e as fotos)</small></legend>
+      <div class="ga-escolhidos" id="ga-escolhidos"></div>
+      <input class="entrada" id="ga-busca" type="search" autocomplete="off" placeholder="Procurar por código, condomínio ou bairro">
+      <div class="ga-achados" id="ga-achados" role="listbox"></div>
+    </fieldset>
+    <p class="ga-dica" id="ga-ed-lista" hidden></p>
+
+    <fieldset class="ga-campo">
+      <legend>Quando</legend>
+      <div class="ga-linha">
+        <label>Horário <input class="entrada" id="ga-hora" type="time" required value="08:00"></label>
+        <div class="ga-rec" role="radiogroup" aria-label="Repetição">
+          <label><input type="radio" name="rec" value="diaria" checked> Todo dia</label>
+          <label><input type="radio" name="rec" value="semanal"> Dias da semana</label>
+          <label><input type="radio" name="rec" value="unica"> Um dia só</label>
+        </div>
+      </div>
+      <div class="ga-dias" id="ga-dias" hidden></div>
+      <label id="ga-data-rot" hidden>Dia <input class="entrada" id="ga-data" type="date"></label>
+    </fieldset>
+
+    <fieldset class="ga-campo" id="ga-ed-destino">
+      <legend>Para onde</legend>
+      <select class="entrada" id="ga-destino"></select>
+      <p class="ga-dica" id="ga-destino-dica"></p>
+    </fieldset>
+
+    <p class="ga-resumo-ed" id="ga-resumo-ed"></p>
+    <p class="ga-erro" id="ga-erro" role="alert"></p>
+    <div class="ga-dialogo__acoes">
+      <button type="button" class="btn-neutro" data-fechar>Cancelar</button>
+      <button type="submit" class="btn-azul" id="ga-salvar">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js?v=20261003-grupos"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/grupos-agenda.js?v=20261003b"></script>
+</body>
+</html>
