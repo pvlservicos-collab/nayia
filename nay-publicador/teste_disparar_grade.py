@@ -117,8 +117,21 @@ def teste_vaga_de_lista_dispara_pelo_mesmo_caminho_do_comando():
     # corte por aceita_locacao e a quebra em pedaços. Montar a mensagem num
     # segundo lugar faria os dois divergirem.
     assert chamadas == [{"categoria": "apartamento", "negocio": "locacao",
-                         "destino": "parceiros"}], chamadas
+                         "destino": "parceiros", "texto_fixo": None}], chamadas
     assert not postar.called, "vaga de lista não posta imóvel"
+
+    # A LISTA ESCRITA À MÃO NO SITE (03/10): o texto da vaga viaja no comando.
+    # Sem isto a edição feita na agenda ficaria só no banco e sairia a lista
+    # montada na hora.
+    chamadas.clear()
+    escrita = dict(vaga, texto_fixo="🔥 MINHA LISTA 🔥\n\n✅Conquista cod 5724 / 2.6k")
+    with patch("disparar_grade.carregar_grupos_db", return_value=[GRUPO_FAKE]), \
+         patch("disparar_grade._disparar_lista", side_effect=_lista_falsa), \
+         patch("disparar_grade._postar_codigo"), \
+         patch("disparar_grade.enviar_texto"):
+        disparar_grade.disparar_grade(conexao=FakeConn([escrita]), agora=AGORA,
+                                      tel_whatsapp=TEL)
+    assert [c["texto_fixo"] for c in chamadas] == [escrita["texto_fixo"]], chamadas
 
     assert len(confirmacoes) == 1
     destino, texto = confirmacoes[0]

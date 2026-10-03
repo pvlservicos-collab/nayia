@@ -27,4 +27,4 @@ nay_leitura: SELECT
 nai_confirmar_envio, nai_whatsapp_reenviado
 
 ## funções que citam
-crm_contato_historico, crm_olx_bot_receber, mensagens_uma_vez_so, nai_confirmar_envio, nai_contexto_corretor, nai_imoveis_na_frente, nai_imovel_da_conversa, nai_oferta_serve, nai_resposta_da_base, nai_saida_validar, nai_tel_assumiu, nai_whatsapp_reenviado, nay_codigo_confirmado, nay_codigos_da_conversa, nay_ficou_devendo, nay_imovel_da_citacao, nay_imovel_do_disparo, nay_o_que_ficou_de_enviar, nay_qual_imovel, site_grade_agenda
+crm_contato_historico, crm_olx_bot_receber, mensagens_uma_vez_so, nai_confirmar_envio, nai_contexto_corretor, nai_imoveis_na_frente, nai_imovel_da_conversa, nai_oferta_serve, nai_resposta_da_base, nai_saida_validar, nai_tel_assumiu, nai_whatsapp_reenviado, nay_codigo_confirmado, nay_codigos_da_conversa, nay_ficou_devendo, nay_imovel_da_citacao, nay_imovel_do_disparo, nay_o_que_ficou_de_enviar, nay_qual_imovel, site_grade_agenda, site_grade_metricas

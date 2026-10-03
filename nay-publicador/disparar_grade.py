@@ -41,7 +41,7 @@ FUSO_MANAUS = ZoneInfo("America/Manaus")
 
 QUERY_VAGAS = (
     "SELECT id, horario, tipo_recorrencia, dias_semana, data_unica, codigos, "
-    "       categoria, negocio, destino "
+    "       categoria, negocio, destino, texto_fixo "
     "FROM vagas"
 )
 
@@ -106,7 +106,9 @@ def disparar_grade(conexao=None, agora=None, tel_whatsapp=None):
             if vaga.get("categoria"):
                 resposta = _disparar_lista(
                     {"categoria": vaga["categoria"], "negocio": vaga["negocio"],
-                     "destino": vaga["destino"]}, conn)
+                     "destino": vaga["destino"],
+                     # o texto escrito à mão no site (03/10): vazio = lista montada agora
+                     "texto_fixo": vaga.get("texto_fixo")}, conn)
                 enviar_ao_tel(destino,
                               f"Vaga de {descrever_vaga(vaga)} "
                               f"({_descrever_lista(vaga)}): {resposta}",

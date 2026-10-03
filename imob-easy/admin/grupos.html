@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css?v=20261003-grupos">
-<link rel="stylesheet" href="../assets/css/grupos-agenda.css?v=20261003e">
+<link rel="stylesheet" href="../assets/css/grupos-agenda.css?v=20261003f">
 </head>
 <body class="admin" data-pagina="grupos">
 
@@ -26,6 +26,12 @@
   É a GRADE do publicador (tabela vagas), a mesma que o comando "posta ... às ..." do Tel cria: o cron
   disparar_grade.sh manda no minuto marcado. A métrica vem de envios (o que saiu) e mensagens (quem chegou).
   Banco: site_grade_agenda/salvar/excluir/opcoes (migração 279). Script: assets/js/grupos-agenda.js.
+
+  03/10 à tarde (285/286): "que crie, no criar mensagem, lista de imóveis, e editar essa mensagem
+  fisicamente" -- a mensagem pode ser uma LISTA (um texto só, um imóvel por linha), automática ou escrita à
+  mão (vagas.texto_fixo). E "uma outra aba, Grupos / Métricas, que mostra quantas vezes saiu cada mensagem
+  e uma estimativa de pessoas que chegaram marcando ela ou perguntando de imóveis dela": site_grade_metricas.
+  As abas trocam de painel pelo admin.js (data-abas-funcionais).
 -->
 <main class="conteudo ga" id="conteudo">
   <div class="pagina-cabecalho">
@@ -36,6 +42,12 @@
     <button class="btn-azul" type="button" id="ga-nova">+ Nova mensagem</button>
   </div>
 
+  <div class="abas" role="tablist" aria-label="Grupos" data-abas-funcionais>
+    <button class="abas__item" role="tab" type="button" data-painel-abre="agenda" aria-selected="true">Grupos</button>
+    <button class="abas__item" role="tab" type="button" data-painel-abre="metricas" aria-selected="false">Métricas</button>
+  </div>
+
+  <div data-painel="agenda">
   <div class="ga-barra" role="toolbar" aria-label="Período e filtro">
     <div class="ga-nav">
       <button type="button" class="btn-mini" id="ga-ant" aria-label="Semana anterior">‹</button>
@@ -67,6 +79,22 @@
       </table>
     </div></div>
   </section>
+  </div>
+
+  <!-- AS MÉTRICAS: quantas vezes cada mensagem saiu e quanta gente chegou por causa dela -->
+  <div data-painel="metricas" hidden>
+    <div class="ga-barra" role="toolbar" aria-label="Período das métricas">
+      <div class="ga-nav" id="gm-periodos" data-estado-proprio>
+        <button type="button" class="btn-mini" data-dias="7" aria-pressed="false">7 dias</button>
+        <button type="button" class="btn-mini" data-dias="30" aria-pressed="true">30 dias</button>
+        <button type="button" class="btn-mini" data-dias="90" aria-pressed="false">90 dias</button>
+        <label class="gm-data">de <input class="entrada" type="date" id="gm-de"></label>
+        <label class="gm-data">até <input class="entrada" type="date" id="gm-ate"></label>
+        <strong id="gm-periodo" class="ga-periodo"></strong>
+      </div>
+    </div>
+    <div id="gm-corpo"><p class="ga-carregando">Abra a aba para calcular as métricas…</p></div>
+  </div>
 </main>
 
 <!-- detalhe de um envio -->
@@ -84,13 +112,45 @@
 
     <div class="ga-ed-grade">
     <div class="ga-ed-campos">
+    <!-- o tipo da mensagem: só na criação (uma mensagem de imóveis não vira lista, nem o contrário) -->
+    <div class="ga-tipo" id="ga-tipo" role="radiogroup" aria-label="Tipo de mensagem">
+      <label><input type="radio" name="tipo" value="imoveis" checked><span>Imóveis <small>o card e as fotos de cada um</small></span></label>
+      <label><input type="radio" name="tipo" value="lista"><span>Lista de imóveis <small>um texto só, um imóvel por linha</small></span></label>
+    </div>
+
     <fieldset class="ga-campo" id="ga-ed-imoveis">
       <legend>Imóveis da mensagem <small>(até 10; cada um sai com o card e as fotos)</small></legend>
       <div class="ga-escolhidos" id="ga-escolhidos"></div>
       <input class="entrada" id="ga-busca" type="search" autocomplete="off" placeholder="Procurar por código, condomínio ou bairro">
       <div class="ga-achados" id="ga-achados" role="listbox"></div>
     </fieldset>
-    <p class="ga-dica" id="ga-ed-lista" hidden></p>
+
+    <fieldset class="ga-campo" id="ga-ed-lista" hidden>
+      <legend>A lista</legend>
+      <div class="ga-linha">
+        <label>Imóveis <select class="entrada" id="ga-categoria"></select></label>
+        <div class="ga-rec" role="radiogroup" aria-label="Negócio">
+          <label><input type="radio" name="neg" value="locacao" checked> Locação</label>
+          <label><input type="radio" name="neg" value="venda"> Venda</label>
+        </div>
+      </div>
+      <label class="ga-rotulo">Para onde <select class="entrada" id="ga-destino-lista"></select></label>
+      <p class="ga-dica" id="ga-lista-dica"></p>
+    </fieldset>
+
+    <fieldset class="ga-campo" id="ga-ed-texto" hidden>
+      <legend>O texto da mensagem</legend>
+      <div class="ga-modo" role="radiogroup" aria-label="Como o texto é feito">
+        <label><input type="radio" name="modo" value="auto" checked> <span><b>Automático</b> <small>montado na hora do envio, com os imóveis e os valores daquele momento</small></span></label>
+        <label><input type="radio" name="modo" value="mao"> <span><b>Escrito à mão</b> <small>sai o texto abaixo, do jeito que estiver</small></span></label>
+      </div>
+      <textarea class="entrada ga-texto" id="ga-texto" rows="12" spellcheck="false" aria-label="Texto da lista"></textarea>
+      <div class="ga-linha ga-linha--entre">
+        <button type="button" class="btn-mini" id="ga-texto-recarregar">Trazer a lista de agora</button>
+        <small class="ga-dica" id="ga-texto-conta"></small>
+      </div>
+      <p class="ga-dica" id="ga-texto-dica"></p>
+    </fieldset>
 
     <fieldset class="ga-campo">
       <legend>Quando</legend>
@@ -135,6 +195,6 @@
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/layout.js?v=20261003-grupos"></script>
 <script src="../assets/js/admin.js"></script>
-<script src="../assets/js/grupos-agenda.js?v=20261003d"></script>
+<script src="../assets/js/grupos-agenda.js?v=20261003g"></script>
 </body>
 </html>

@@ -14,6 +14,9 @@ DECLARE
   v_cods    text[];
   v_dest    text := nullif(btrim(coalesce(p->>'destino', '')), '');
   v_ruins   text[];
+  v_cat     text := nullif(btrim(coalesce(p->>'categoria', '')), '');
+  v_neg     text := nullif(btrim(coalesce(p->>'negocio', '')), '');
+  v_texto   text;
 BEGIN
   IF v_id IS NOT NULL THEN
     SELECT * INTO v_atual FROM vagas WHERE id = v_id;
@@ -39,19 +42,61 @@ BEGIN
     END IF;
   END IF;
 
-  -- o destino: um apelido de grupo que existe (vazio = cada imóvel vai aos grupos que aceitam o tipo e o valor dele)
-  IF v_dest IS NOT NULL AND v_atual.categoria IS NULL
-     AND NOT EXISTS (SELECT 1 FROM grupos g WHERE g.ativo AND g.apelido = v_dest AND v_dest <> 'lotado') THEN
-    RETURN jsonb_build_object('ok', false, 'erro', 'Esse grupo de destino não existe.');
+  -- A LISTA DE IMÓVEIS (285): nova (veio a categoria) ou a edição de uma vaga que já é de lista. O tipo da
+  -- mensagem não muda na edição: lista continua lista, imóvel continua imóvel.
+  IF (v_id IS NULL AND v_cat IS NOT NULL) OR v_atual.categoria IS NOT NULL THEN
+    v_cat  := coalesce(v_cat, v_atual.categoria);
+    v_neg  := coalesce(v_neg, v_atual.negocio);
+    v_dest := coalesce(v_dest, v_atual.destino, 'parceiros');
+    IF v_cat NOT IN ('apartamento', 'apartamento_via_publica', 'casa_condominio', 'casa_via_publica', 'sala', 'lote') THEN
+      RETURN jsonb_build_object('ok', false, 'erro', 'Escolha o tipo de imóvel da lista.');
+    END IF;
+    IF coalesce(v_neg, '') NOT IN ('locacao', 'venda') THEN
+      RETURN jsonb_build_object('ok', false, 'erro', 'Diga se a lista é de locação ou de venda.');
+    END IF;
+    IF v_dest NOT IN ('parceiros', 'easy', 'comercial') THEN
+      RETURN jsonb_build_object('ok', false, 'erro', 'Destino da lista inválido.');
+    END IF;
+    -- o texto: a chave ausente não mexe no que está gravado (a tela antiga só mudava o horário)
+    v_texto := CASE WHEN p ? 'texto_fixo' THEN nullif(btrim(coalesce(p->>'texto_fixo', '')), '') ELSE v_atual.texto_fixo END;
+    IF v_texto IS NOT NULL THEN
+      IF length(v_texto) > 20000 THEN
+        RETURN jsonb_build_object('ok', false, 'erro', 'O texto ficou grande demais (o limite é de 20 mil letras).');
+      END IF;
+      -- a parede do publicador na hora do envio é pela linha "cod 1234": sem nenhum imóvel no ar, não há lista
+      IF NOT EXISTS (SELECT 1 FROM regexp_matches(v_texto, '\mcod\.?\s*(\d{3,5})\M', 'gi') m
+                       JOIN imoveis i ON i.codigo = m[1]::int
+                      WHERE nay_esta_no_mercado(i.disponivel, i.bloqueado, i.publicado_no_site)
+                        AND NOT coalesce(i.e_parceiro, false)) THEN
+        RETURN jsonb_build_object('ok', false, 'erro',
+          'O texto precisa ter pelo menos um imóvel que está no ar, escrito como na lista: "cod 1234".');
+      END IF;
+    ELSIF (SELECT quantos FROM nay_lista_de_imoveis(v_cat, v_neg)) = 0 AND v_id IS NULL THEN
+      RETURN jsonb_build_object('ok', false, 'erro', 'Hoje não há nenhum imóvel nessa lista: nada sairia.');
+    END IF;
+    BEGIN
+      IF v_id IS NULL THEN
+        INSERT INTO vagas (horario, tipo_recorrencia, dias_semana, data_unica, categoria, negocio, destino, texto_fixo)
+        VALUES (v_hora, v_rec, CASE WHEN v_rec = 'semanal' THEN v_dias END, CASE WHEN v_rec = 'unica' THEN v_data END,
+                v_cat, v_neg, v_dest, v_texto)
+        RETURNING id INTO v_id;
+      ELSE
+        UPDATE vagas SET horario = v_hora, tipo_recorrencia = v_rec,
+                         dias_semana = CASE WHEN v_rec = 'semanal' THEN v_dias END,
+                         data_unica = CASE WHEN v_rec = 'unica' THEN v_data END,
+                         categoria = v_cat, negocio = v_neg, destino = v_dest, texto_fixo = v_texto
+         WHERE id = v_id;
+      END IF;
+    EXCEPTION WHEN unique_violation THEN
+      RETURN jsonb_build_object('ok', false, 'erro', 'Já existe essa lista, nesse horário e para esse destino.');
+    END;
+    RETURN jsonb_build_object('ok', true, 'id', v_id);
   END IF;
 
-  IF v_atual.categoria IS NOT NULL THEN
-    -- vaga de LISTA (feita pelo comando do Tel): aqui só muda o quando
-    UPDATE vagas SET horario = v_hora, tipo_recorrencia = v_rec,
-                     dias_semana = CASE WHEN v_rec = 'semanal' THEN v_dias END,
-                     data_unica = CASE WHEN v_rec = 'unica' THEN v_data END
-     WHERE id = v_id;
-    RETURN jsonb_build_object('ok', true, 'id', v_id);
+  -- o destino: um apelido de grupo que existe (vazio = cada imóvel vai aos grupos que aceitam o tipo e o valor dele)
+  IF v_dest IS NOT NULL
+     AND NOT EXISTS (SELECT 1 FROM grupos g WHERE g.ativo AND g.apelido = v_dest AND v_dest <> 'lotado') THEN
+    RETURN jsonb_build_object('ok', false, 'erro', 'Esse grupo de destino não existe.');
   END IF;
 
   -- os imóveis: na ordem escritos, sem repetir, até 10

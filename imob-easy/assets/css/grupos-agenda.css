@@ -196,6 +196,47 @@
 .ga-achado small { color: var(--texto-fraco); font-size: 12px; }
 .ga-resumo-ed { margin: 0; font-size: 14px; color: var(--texto); background: var(--superficie-2); border-radius: 10px; padding: 8px 12px; }
 
+/* ---- a LISTA de imóveis (03/10 à tarde): o tipo da mensagem, o texto e a prévia ---- */
+.ga .abas { margin: 0 0 14px; padding: 0; background: transparent; }
+.ga-tipo { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ga-tipo[hidden] { display: none; }
+.ga-tipo label { position: relative; cursor: pointer; }
+.ga-tipo input { position: absolute; opacity: 0; pointer-events: none; }
+.ga-tipo span { display: block; height: 100%; border: 1px solid var(--borda-forte); border-radius: var(--raio); padding: 8px 12px; font-weight: 700; font-size: 14px; }
+.ga-tipo span small { display: block; font-weight: 400; font-size: 12px; color: var(--texto-fraco); }
+.ga-tipo input:checked + span { border-color: var(--roxo); background: var(--roxo-suave); box-shadow: inset 0 0 0 1px var(--roxo); }
+.ga-tipo input:focus-visible + span { box-shadow: var(--foco); }
+.ga-rotulo { display: flex; align-items: center; gap: 8px; font-size: 14px; flex-wrap: wrap; }
+.ga-rotulo .entrada, .ga-linha .entrada { width: auto; min-width: 0; }
+#ga-lista-dica .ga-tacha { margin-right: 2px; }
+.ga-modo { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.ga-modo label { display: flex; align-items: flex-start; gap: 7px; cursor: pointer; }
+.ga-modo input { margin-top: 3px; flex: none; }
+.ga-modo small { color: var(--texto-fraco); font-size: 12.5px; }
+.ga-texto { display: block; width: 100%; min-height: 240px; resize: vertical; font: inherit; font-size: 13.5px; line-height: 1.45; white-space: pre-wrap; }
+.ga-texto--auto { background: var(--superficie-2); color: var(--texto-medio); cursor: default; }
+.ga-linha--entre { justify-content: space-between; }
+#ga-texto-recarregar[hidden] { display: none; }
+#ga-texto-conta { margin: 0 0 0 auto; }
+.ga-balao--lista { max-width: 96%; }
+.ga-l__cod { color: #6d28d9; }
+.ga-l--fora { text-decoration: line-through; color: #b42318; opacity: .8; }
+.ga-l--fora .ga-l__cod { color: inherit; }
+.ga-lista-mini b { display: block; font-size: 13.5px; }
+.ga-lista-mini small { color: var(--texto-fraco); }
+
+/* ---- as MÉTRICAS ---- */
+.gm-data { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--texto-medio); }
+.gm-data .entrada { width: auto; padding: 4px 8px; font-size: 13px; }
+#gm-periodos .btn-mini[aria-pressed="true"] { background: var(--roxo); border-color: var(--roxo); color: #fff; }
+.gm-tabela { min-width: 980px; }
+.gm-tabela th[title] { cursor: help; }
+.gm-pessoas { min-width: 86px; }
+.gm-barra { display: block; height: 4px; margin-top: 3px; border-radius: 2px;
+  background: linear-gradient(to right, var(--roxo) var(--p, 0%), var(--borda) var(--p, 0%)); }
+.gm-parada td { color: var(--texto-fraco); }
+#gm-corpo .ga-mensagens { margin-top: 18px; }
+
 @media (max-width: 860px) {
   .ga-det-grade, .ga-ed-grade { grid-template-columns: 1fr; }
   .ga-zap__corpo { max-height: none; }

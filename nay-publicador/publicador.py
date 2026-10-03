@@ -1161,6 +1161,46 @@ def _registrar_lista(conn, grupo, pedaco, message_id, categoria, negocio):
             pass
 
 
+def _codigos_no_ar(conn, codigos, negocio):
+    """Dos códigos escritos, os que podem sair agora: no mercado, nunca de
+    parceiro, e com valor no negócio da lista."""
+    if not codigos:
+        return set()
+    campo = "valor_venda" if negocio == "venda" else "valor_aluguel"
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT i.codigo FROM imoveis i WHERE i.codigo = ANY(%s) "
+            "   AND nay_esta_no_mercado(i.disponivel, i.bloqueado, i.publicado_no_site) "
+            "   AND NOT coalesce(i.e_parceiro, false) "
+            f"   AND coalesce(i.{campo}, 0) > 0", (sorted(codigos),))
+        return {int(l["codigo"]) for l in cur.fetchall()}
+
+
+def _lista_escrita_a_mao(texto, permitidos):
+    """(texto, quantos) da lista que o Pedro escreveu no site, só com o que pode sair.
+
+    O PEDIDO (03/10): "editar essa mensagem fisicamente, hoje tu só edita
+    horários". O texto da vaga (`vagas.texto_fixo`) sai como foi escrito -- o
+    título dele, a ordem dele, a frase que ele acrescentou. A ÚNICA coisa que o
+    publicador mexe é tirar a LINHA de imóvel que não pode mais sair: a que
+    traz um "cod 1234" fora de `permitidos`. Texto parado no tempo com imóvel
+    alugado ontem é o erro que a lista automática nunca comete; sem esta
+    parede, a lista à mão cometeria todo dia.
+
+    `quantos` conta as linhas de imóvel que sobraram: zero quer dizer que não
+    há lista para mandar.
+    """
+    linhas, quantos = [], 0
+    for linha in (texto or "").split("\n"):
+        codigos = [int(c) for c in CODIGO_NA_LISTA.findall(linha)]
+        if codigos:
+            if not all(c in permitidos for c in codigos):
+                continue
+            quantos += 1
+        linhas.append(linha)
+    return "\n".join(linhas).strip(), quantos
+
+
 def _so_esse_negocio(imovel, negocio):
     """O mesmo imóvel, visto por um lado só.
 
@@ -2228,18 +2268,31 @@ def _disparar_lista(comando, conn, pausa=time.sleep):
     # antes de montar o texto -- senão sai o que a última varredura viu, que
     # pode ser de uma hora atrás. Vem ANTES da reserva de repetição: se o
     # envio não for acontecer, não vale gastar as requisições.
-    atualizados = _atualizar_valores_do_site(
+    # A LISTA ESCRITA À MÃO NO SITE (03/10, `vagas.texto_fixo`): sai o texto do
+    # Pedro, e não o montado agora. Os valores dela não se atualizam -- reler o
+    # site seria gastar requisição para nada.
+    texto_fixo = (comando.get("texto_fixo") or "").strip()
+    atualizados = [] if texto_fixo else _atualizar_valores_do_site(
         conn, _codigos_da_lista(conn, categoria, negocio), pausa)
 
-    with conn.cursor() as cur:
-        cur.execute("SELECT texto_pronto, quantos FROM nay_lista_de_imoveis(%s, %s)",
-                    (categoria, negocio))
-        linha = cur.fetchone() or {}
-    texto = linha.get("texto_pronto")
-    quantos = linha.get("quantos") or 0
-    if not texto or not quantos:
-        return (f"não tenho nenhum imóvel dessa categoria para {negocio_txt} "
-                f"no momento -- não mandei nada {onde_txt}.")
+    if texto_fixo:
+        escritos = {int(c) for c in CODIGO_NA_LISTA.findall(texto_fixo)}
+        texto, quantos = _lista_escrita_a_mao(
+            texto_fixo, _codigos_no_ar(conn, escritos, negocio))
+        if not quantos:
+            return (f"a lista escrita à mão não tem mais nenhum imóvel no ar "
+                    f"-- não mandei nada {onde_txt}. Edite a mensagem na "
+                    f"agenda do site (Grupos).")
+    else:
+        with conn.cursor() as cur:
+            cur.execute("SELECT texto_pronto, quantos FROM nay_lista_de_imoveis(%s, %s)",
+                        (categoria, negocio))
+            linha = cur.fetchone() or {}
+        texto = linha.get("texto_pronto")
+        quantos = linha.get("quantos") or 0
+        if not texto or not quantos:
+            return (f"não tenho nenhum imóvel dessa categoria para {negocio_txt} "
+                    f"no momento -- não mandei nada {onde_txt}.")
 
     grupos = carregar_grupos_db(conn)
     if destino == "easy":
@@ -2301,6 +2354,11 @@ def _disparar_lista(comando, conn, pausa=time.sleep):
         if piso is None and not so_cond:
             return pedacos, quantos
         chave = (piso, so_cond)
+        if chave not in por_regra and texto_fixo:
+            aceitos = {int(c) for c in _codigos_da_lista(conn, categoria, negocio,
+                                                         piso, so_cond)}
+            t, n = _lista_escrita_a_mao(texto, aceitos)
+            por_regra[chave] = ((_pedacos_da_lista(t) if n else []), n)
         if chave not in por_regra:
             with conn.cursor() as cur:
                 cur.execute(

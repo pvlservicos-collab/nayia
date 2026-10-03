@@ -24,4 +24,4 @@ nay_leitura: SELECT
 nay_reservar_disparo_de_lista
 
 ## funções que citam
-nay_reservar_disparo_de_lista
+nay_reservar_disparo_de_lista, site_grade_agenda, site_grade_metricas

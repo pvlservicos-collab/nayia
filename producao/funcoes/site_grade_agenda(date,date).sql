@@ -18,7 +18,15 @@ BEGIN
     SELECT array_agg(id_grupo) AS ids FROM grupos WHERE ativo AND NOT coalesce(todas_fotos, false)
   ), vg AS (
     SELECT v.*,
-           CASE WHEN EXISTS (SELECT 1 FROM grupos g WHERE g.ativo AND g.apelido = v.destino)
+           CASE WHEN v.categoria IS NOT NULL THEN   -- a LISTA: os destinos do `_disparar_lista` do publicador
+                  (SELECT array_agg(g.id_grupo) FROM grupos g
+                    WHERE g.ativo
+                      AND CASE v.destino WHEN 'easy' THEN g.apelido = 'easy'
+                                         WHEN 'comercial' THEN g.apelido = 'comercial'
+                                         ELSE NOT coalesce(g.todas_fotos, false)
+                                              AND (CASE WHEN v.negocio = 'venda' THEN g.aceita_venda ELSE g.aceita_locacao END)
+                                              AND NOT (coalesce(g.so_comercial, false) AND v.categoria <> 'sala') END)
+                WHEN EXISTS (SELECT 1 FROM grupos g WHERE g.ativo AND g.apelido = v.destino)
                 THEN (SELECT array_agg(g.id_grupo) FROM grupos g WHERE g.ativo AND g.apelido = v.destino)
                 ELSE (SELECT ids FROM gerais) END AS previstos
       FROM vagas v
@@ -29,23 +37,37 @@ BEGIN
             OR (vg.tipo_recorrencia = 'semanal' AND extract(dow FROM d)::int = ANY (vg.dias_semana))
             OR (vg.tipo_recorrencia = 'unica' AND d::date = vg.data_unica))
        AND ((d::date + vg.horario) AT TIME ZONE 'America/Manaus') >= date_trunc('minute', vg.criado_em) - interval '1 minute'
-  ), mesma_hora AS (   -- os códigos de imóvel postados no mesmo horário (para a vaga de LISTA não tomar os posts deles)
-    SELECT oc.quando, array_agg(DISTINCT c) AS codigos
-      FROM oc JOIN vagas v ON v.id = oc.vaga_id, unnest(v.codigos) c
-     GROUP BY oc.quando
   ), env AS (
+    -- o post de IMÓVEL: o que o publicador gravou em `envios` na janela do horário
     SELECT oc.vaga_id, oc.quando,
            array_agg(DISTINCT e.grupo_nome) FILTER (WHERE e.grupo_nome IS NOT NULL) AS grupos,
            array_agg(DISTINCT e.message_id) FILTER (WHERE e.message_id IS NOT NULL) AS ids,
            array_agg(DISTINCT e.codigo) AS codigos,
            count(*) AS posts
-      FROM oc JOIN vagas v ON v.id = oc.vaga_id
+      FROM oc JOIN vagas v ON v.id = oc.vaga_id AND v.categoria IS NULL AND cardinality(v.codigos) > 0
       JOIN envios e ON e.destino = 'grupo'
                    AND e.enviado_em >= oc.quando - interval '1 minute' AND e.enviado_em < oc.quando + interval '90 minutes'
-                   AND (CASE WHEN cardinality(v.codigos) > 0 THEN e.codigo = ANY (v.codigos)
-                             ELSE NOT (e.codigo = ANY (coalesce((SELECT mh.codigos FROM mesma_hora mh WHERE mh.quando = oc.quando), '{}'::text[]))) END)
+                   AND e.codigo = ANY (v.codigos)
      WHERE oc.quando <= now()
      GROUP BY oc.vaga_id, oc.quando
+    UNION ALL
+    -- a LISTA (285): não grava em `envios`. Os grupos vêm de `lista_disparada`; os ids e os códigos, de
+    -- `envios_lista_grupo` (desde a 281). Antes, a lista tomava os posts dos imóveis que saíam depois dela.
+    SELECT oc.vaga_id, oc.quando, ld.grupos,
+           (SELECT array_agg(DISTINCT x.message_id) FROM envios_lista_grupo x
+             WHERE x.categoria = v.categoria AND x.negocio = v.negocio
+               AND x.enviado_em >= ld.enviado_em - interval '1 minute' AND x.enviado_em < ld.enviado_em + interval '60 minutes'),
+           (SELECT array_agg(DISTINCT x.codigo::text) FROM envios_lista_grupo x
+             WHERE x.categoria = v.categoria AND x.negocio = v.negocio
+               AND x.enviado_em >= ld.enviado_em - interval '1 minute' AND x.enviado_em < ld.enviado_em + interval '60 minutes'),
+           cardinality(ld.grupos)::bigint
+      FROM oc JOIN vagas v ON v.id = oc.vaga_id AND v.categoria IS NOT NULL
+      JOIN LATERAL (SELECT l.grupos, l.enviado_em FROM lista_disparada l
+                     WHERE l.categoria = v.categoria AND l.negocio = v.negocio AND l.destino = v.destino
+                       AND l.enviado_em >= oc.quando - interval '1 minute' AND l.enviado_em < oc.quando + interval '30 minutes'
+                       AND coalesce(cardinality(l.grupos), 0) > 0
+                     ORDER BY l.enviado_em LIMIT 1) ld ON true
+     WHERE oc.quando <= now()
   ), msgs0 AS MATERIALIZED (   -- o que chegou ao número da Parceria no período (+6 h)
     SELECT nai_chave(m.telefone) AS chave, m.criada_em, m.citado_id, m.texto
       FROM mensagens m
@@ -64,7 +86,8 @@ BEGIN
            count(DISTINCT s.chave) AS pessoas,
            count(DISTINCT s.chave) FILTER (WHERE s.desde >= env.quando) AS novos,
            count(DISTINCT s.chave) FILTER (WHERE s.citado_id = ANY (coalesce(env.ids, '{}'::text[]))
-                                              OR s.texto ~ ('\m(' || array_to_string(env.codigos, '|') || ')\M')) AS pelo_imovel
+                                              OR (cardinality(coalesce(env.codigos, '{}'::text[])) > 0
+                                                  AND s.texto ~ ('\m(' || array_to_string(env.codigos, '|') || ')\M'))) AS pelo_imovel
       FROM env
       LEFT JOIN msgs s ON s.criada_em >= env.quando AND s.criada_em < env.quando + interval '6 hours'
      GROUP BY env.vaga_id, env.quando
@@ -74,7 +97,7 @@ BEGIN
     'vagas', coalesce((SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
         'id', vg.id, 'horario', to_char(vg.horario, 'HH24:MI'), 'recorrencia', vg.tipo_recorrencia,
         'dias', to_jsonb(vg.dias_semana), 'data', vg.data_unica, 'destino', vg.destino,
-        'categoria', vg.categoria, 'negocio', vg.negocio, 'criada_em', vg.criado_em,
+        'categoria', vg.categoria, 'negocio', vg.negocio, 'texto_fixo', vg.texto_fixo, 'criada_em', vg.criado_em,
         'previstos', to_jsonb(vg.previstos),
         'imoveis', (SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
                         'codigo', c.cod, 'existe', i.codigo IS NOT NULL,

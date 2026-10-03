@@ -112,6 +112,12 @@ prompt: comece pelo `nay onde`.
   `site_grade_salvar`/`site_grade_excluir`, a semana e a métrica de 6 h por `site_grade_agenda` (rotas `/admin/api/grade*`). 279.
   Cor por grupo, tachinhas e a mensagem em balões de WhatsApp (texto do card, depois a metadinha ou todas as fotos):
   regras por grupo em `site_grade_opcoes` (280: todas_fotos, pisos, lotado); o card e a `colagem` por `/api/imovel-card/<código>`.
+  LISTA de imóveis pela tela (285/286): a vaga de lista (categoria, negócio, destino) se cria e se edita ali; o texto é
+  automático (montado na hora) ou ESCRITO À MÃO em `vagas.texto_fixo` — o publicador manda esse texto e só tira a linha
+  "cod 1234" do imóvel que saiu do ar (`_lista_escrita_a_mao` e `_codigos_no_ar` em `publicador.py`; `disparar_grade.py`
+  leva o `texto_fixo`). Prévia: `site_grade_lista_previa` (`/admin/api/grade/lista`).
+  Aba MÉTRICAS: `site_grade_metricas(de, ate)` (`/admin/api/grade/metricas`): vezes que cada mensagem saiu, posts, quem
+  marcou o post no privado e quem escreveu o código em 6 h; por mensagem da grade e por imóvel. Lista só conta desde a 281.
 
 ## CRM (crm.imobeasy.online, Next.js) — `crm/`
 - Nay no card do contato: `src/components/Chat/PainelContatoParceria.tsx` + `src/app/api/leads/[id]/nay/route.ts` + `src/lib/nayLeitura.ts`.

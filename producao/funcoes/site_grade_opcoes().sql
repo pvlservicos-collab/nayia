@@ -14,5 +14,17 @@ AS $function$
                                 ORDER BY g.nome) FROM grupos g), '[]'::jsonb),
     'destinos', coalesce((SELECT jsonb_agg(jsonb_build_object('apelido', d.apelido, 'grupos', d.nomes) ORDER BY d.apelido)
                             FROM (SELECT g.apelido, array_agg(g.nome ORDER BY g.nome) AS nomes FROM grupos g
-                                   WHERE g.ativo AND coalesce(g.apelido, '') NOT IN ('', 'lotado') GROUP BY g.apelido) d), '[]'::jsonb));
+                                   WHERE g.ativo AND coalesce(g.apelido, '') NOT IN ('', 'lotado') GROUP BY g.apelido) d), '[]'::jsonb),
+    -- 285: a lista de imóveis (as categorias e os destinos do publicador: interpretar_comando.py e _disparar_lista)
+    'categorias', jsonb_build_array(
+      jsonb_build_object('chave', 'apartamento', 'nome', 'Apartamento'),
+      jsonb_build_object('chave', 'apartamento_via_publica', 'nome', 'Apartamento em via pública'),
+      jsonb_build_object('chave', 'casa_condominio', 'nome', 'Casa em condomínio'),
+      jsonb_build_object('chave', 'casa_via_publica', 'nome', 'Casa em via pública'),
+      jsonb_build_object('chave', 'sala', 'nome', 'Sala comercial'),
+      jsonb_build_object('chave', 'lote', 'nome', 'Lote')),
+    'destinos_lista', jsonb_build_array(
+      jsonb_build_object('chave', 'parceiros', 'nome', 'Grupos de parceiros'),
+      jsonb_build_object('chave', 'easy', 'nome', 'Imóveis para anunciar Easy'),
+      jsonb_build_object('chave', 'comercial', 'nome', 'Comercial')));
 $function$;

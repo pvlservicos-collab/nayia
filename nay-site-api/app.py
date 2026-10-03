@@ -4594,6 +4594,48 @@ def admin_grade_opcoes():
         conn.close()
 
 
+# A LISTA DE IMOVEIS NA AGENDA (286, Pedro 03/10/2026): "que crie, no criar mensagem, lista de imoveis,
+# e editar essa mensagem fisicamente". Devolve o texto que o publicador montaria AGORA para a categoria
+# e o negocio: e o ponto de partida do que ele edita a mao na tela.
+@app.route("/admin/api/grade/lista")
+def admin_grade_lista():
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    categoria = (request.args.get("categoria") or "").strip()[:40]
+    negocio = (request.args.get("negocio") or "").strip()[:20]
+    conn = conectar_escrita()
+    try:
+        linhas = todas_linhas(conn, "SELECT site_grade_lista_previa(%s, %s) AS j", (categoria, negocio))
+        r = linhas[0]["j"] if linhas else {"ok": False, "erro": "Não consegui montar a lista."}
+        return jsonify(r), (200 if r.get("ok") else 422)
+    finally:
+        conn.close()
+
+
+# AS METRICAS DA AGENDA (286): quantas vezes cada mensagem saiu e quanta gente chegou no privado da Nay
+# marcando o post ou escrevendo o codigo do imovel nas 6 h seguintes. So contagem: nenhum telefone sai daqui.
+@app.route("/admin/api/grade/metricas")
+def admin_grade_metricas():
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    de = request.args.get("de") or None
+    ate = request.args.get("ate") or None
+    for valor in (de, ate):
+        if valor and not re.match(r"^\d{4}-\d{2}-\d{2}$", valor):
+            return jsonify({"erro": "data inválida (use AAAA-MM-DD)"}), 400
+    conn = conectar_escrita()
+    try:
+        linhas = todas_linhas(conn, "SELECT site_grade_metricas(%s::date, %s::date) AS j", (de, ate))
+        r = (linhas[0]["j"] if linhas else None) or {}
+        return jsonify(r), (422 if r.get("erro") else 200)
+    except Exception as exc:  # noqa: BLE001
+        conn.rollback()
+        app.logger.warning("grade/metricas: %s", exc.__class__.__name__)
+        return jsonify({"erro": "Não consegui calcular as métricas agora."}), 500
+    finally:
+        conn.close()
+
+
 @app.route("/admin/api/grade", methods=["POST"])
 @app.route("/admin/api/grade/<int:vaga_id>", methods=["PUT", "DELETE"])
 def admin_grade_mudar(vaga_id=None):
