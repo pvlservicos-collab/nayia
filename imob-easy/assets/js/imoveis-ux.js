@@ -1397,7 +1397,7 @@
       var um = g.length === 1;
       var m = L.marker([g[0].lat, g[0].lon], {
         icon: L.divIcon({ className: "ux-pin-icone", html: pinDePreco(g),
-                          iconSize: [0, 0], iconAnchor: [0, 0], popupAnchor: [0, -26] }),
+                          iconSize: [0, 0], iconAnchor: [0, 0], popupAnchor: [0, -24] }),
         title: um ? "#" + g[0].codigo + " · " + (g[0].condominio || g[0].tipo || "") : g.length + " imóveis neste ponto",
         riseOnHover: true
       });

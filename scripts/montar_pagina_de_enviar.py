@@ -17,7 +17,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 DESENHO = RAIZ / "Telaenviarmovel.html"
 SAIDA = RAIZ / "imob-easy" / "imoveis.html"
-VERSAO = "20261002e"
+VERSAO = "20261002f"
 
 html = io.open(DESENHO, encoding="utf-8").read()
 
@@ -48,18 +48,22 @@ ESTILO = """<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/le
 
 /* O PINO COM O PREÇO DENTRO: roxo da casa, pequeno e de tamanho FIXO (não cresce com a tela nem com o zoom) */
 .pinw{width:0!important;height:0!important;border:0;background:transparent}
-.ux-preco-pin{position:absolute;left:0;top:0;transform:translate(-50%,calc(-100% - 5px));border:0;cursor:pointer;white-space:nowrap;
-  font:700 10.5px/1 "Barlow",Arial,sans-serif;letter-spacing:.01em;color:#fff;padding:4px 7px;border-radius:9px;font-variant-numeric:tabular-nums;
-  background:linear-gradient(160deg,#a78bfa 0%,#7c3aed 45%,#4c1d95 100%);box-shadow:0 2px 5px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.35)}
-.ux-preco-pin::after{content:"";position:absolute;left:50%;bottom:-5px;transform:translateX(-50%);border:5px solid transparent;border-top-color:#5b21b6;border-bottom:0}
-.ux-preco-pin i{font-style:normal;font-weight:600;font-size:9.5px;opacity:.85;margin-left:4px}
+/* menor (02/10 à noite: "os números estão muito grandes") e a SETA mais clara: clara no fundo escuro, mais
+   comprida, com um pontinho branco exatamente no lugar do imóvel */
+.ux-preco-pin{position:absolute;left:0;top:0;transform:translate(-50%,calc(-100% - 9px));border:0;cursor:pointer;white-space:nowrap;
+  font:700 9px/1 "Barlow",Arial,sans-serif;letter-spacing:.01em;color:#fff;padding:3px 5px;border-radius:6px;font-variant-numeric:tabular-nums;
+  background:linear-gradient(160deg,#a78bfa 0%,#7c3aed 45%,#4c1d95 100%);box-shadow:0 1px 4px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.3)}
+.ux-preco-pin::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border-left:4px solid transparent;border-right:4px solid transparent;border-top:7px solid #ddd6fe}
+.ux-preco-pin::before{content:"";position:absolute;left:50%;top:calc(100% + 6px);width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:#fff;box-shadow:0 0 0 1.5px #7c3aed,0 0 3px rgba(0,0,0,.6)}
+.mapa--cinza .ux-preco-pin::after{border-top-color:#6d28d9}
+.ux-preco-pin i{font-style:normal;font-weight:600;font-size:8px;opacity:.85;margin-left:3px}
 .ux-preco-pin.sel{background:linear-gradient(160deg,#34d399 0%,#059669 55%,#065f46 100%)}
-.ux-preco-pin.sel::after{border-top-color:#047857}
+.ux-preco-pin.sel::after{border-top-color:#6ee7b7}
 .ux-preco-pin.focus{box-shadow:0 0 0 2px #fff,0 0 0 4px #7c3aed,0 2px 6px rgba(0,0,0,.5)}
 .pinw:hover{z-index:9999!important}
 
 /* o balão: o desenho estica todo svg de .world (era o mapa ilustrativo); os ícones dos botões voltam ao normal */
-.pinw .popup{left:0;top:0;cursor:default;transform:translate(-50%,calc(-100% - 34px))}
+.pinw .popup{left:0;top:0;cursor:default;transform:translate(-50%,calc(-100% - 30px))}
 .world .pinw svg{position:static;inset:auto;width:15px;height:15px;display:inline-block}
 /* ...e o tracado das divisas dos bairros (o svg do Leaflet) tambem: o tamanho e a posicao sao dele */
 .world .leaflet-pane>svg{left:0;top:0;right:auto;bottom:auto;width:auto;height:auto}
@@ -77,6 +81,48 @@ ESTILO = """<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/le
 .pl span b span{font-size:11px;color:var(--muted);font-weight:400}
 .pl span small{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pl .vbtn,.pl .pick{padding:6px 8px}
+
+/* NO MAPA SÓ A BUSCA, com Apartamento | Casa no canto direito dela (02/10 à noite): os filtros completos
+   ficam no painel e em cima da lista */
+#mapF{display:none}
+.mtop .sbox{padding-right:5px}
+.tgrp{display:flex;flex:none;gap:2px;background:var(--soft);border-radius:999px;padding:3px}
+.tgrp button{border:0;background:transparent;border-radius:999px;padding:5px 10px;font-weight:600;font-size:12.5px;color:var(--ink-2);cursor:pointer;line-height:1.1}
+.tgrp button[aria-pressed="true"]{background:var(--brand);color:#fff}
+.tgrp .sm{display:none}
+@media (max-width:520px){.tgrp .lg{display:none}.tgrp .sm{display:inline}.tgrp button{padding:5px 8px;font-size:12px}}
+/* "Selecionados" só quando houver um */
+.sel-h[hidden],.sel-list[hidden]{display:none!important}
+
+/* MAIS BAIXO EM CELULAR PEQUENO (02/10 à noite): menos altura no topo, no painel de baixo e nas linhas */
+@media (max-width:760px){
+  .site-in{padding:7px 14px}
+  .logo .mk{width:28px;height:25px}
+  .logo .w small{font-size:12px}
+  .logo .w span{font-size:21px}
+  .mtop{top:6px;left:6px;right:6px;gap:5px}
+  .sbox input{padding:8px 0;font-size:14.5px}
+  .grab{padding:5px 0 1px}
+  .sh-top{padding:0 10px 6px;gap:6px}
+  .ftog{width:38px;height:38px}
+  .listbtn{padding:7px 12px;font-size:13px}
+  .sel-h{padding:6px 12px 4px}
+  .sel-list{padding:2px 12px 8px}
+  .sel-list .it img{height:52px}
+  .sh-send{padding:6px 10px 8px;gap:8px}
+  .phone{padding:9px 14px;font-size:15px}
+  .send{padding:10px 14px}
+  .results{padding-top:10px}
+  .res-h{margin-bottom:8px}
+  .row{grid-template-columns:84px minmax(0,1fr);padding:5px;gap:9px}
+  .ri .sp{margin-top:2px}
+  .rr{gap:5px}
+}
+@media (max-width:400px){
+  .site-in{padding:6px 12px}
+  .sbox input{font-size:14px}
+  .row{grid-template-columns:76px minmax(0,1fr)}
+}
 
 /* A LISTA FICA EMBAIXO DO MAPA e a página rola até ela (Pedro, 02/10): o mapa não ocupa mais a tela toda */
 @media (min-width:1024px){.map{height:min(64dvh,660px)!important}}

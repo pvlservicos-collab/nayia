@@ -50,7 +50,9 @@ const G = { neg: "venda", q: "" };
 const preco = m => G.neg === "aluguel" ? m.aluguel : m.venda;
 const priceTxt = m => G.neg === "aluguel" ? `${brl(m.aluguel)}<span>/mês</span>` : brl(m.venda);
 const local = m => [m.condominio, m.bairro].filter(Boolean).join(" · ");
-const newF = () => ({ loc: "", tipo: "", quartos: new Set(), vagas: new Set(), min: "", max: "" });
+// grupo: o "Apartamento | Casa" da caixa de busca do mapa (02/10); casa cobre a de condomínio
+const newF = () => ({ loc: "", tipo: "", grupo: "", quartos: new Set(), vagas: new Set(), min: "", max: "" });
+const GRUPOS = { apartamento: /^(apartamento|flat|cobertura|kitnet|studio|loft)/i, casa: /^casa/i };
 const FM = newF(), FS = newF();
 let focusCode = null, popCode = null;
 const SKEY = "imobeasy_lista_envio", PKEY = "imobeasy_whatsapp";
@@ -66,13 +68,14 @@ const parseV = s => Number(String(s).replace(/\D/g, "")) || 0;
 function matchF(m, F) {
   if (F.loc) { const [k, v] = F.loc.split("|"); if (k === "b" && m.bairro !== v) return false; if (k === "c" && m.condominio !== v) return false; }
   if (F.tipo && m.tipo !== F.tipo) return false;
+  if (F.grupo && !GRUPOS[F.grupo].test(m.tipo || "")) return false;
   if (!numSel(F.quartos, m.quartos || 0) || !numSel(F.vagas, m.vagas || 0)) return false;
   if (F.min && preco(m) < parseV(F.min)) return false;
   if (F.max && preco(m) > parseV(F.max)) return false;
   return true;
 }
 const base = () => IMOVEIS.filter(m => preco(m) > 0 && matchQ(m));
-const fCount = F => (F.loc ? 1 : 0) + (F.tipo ? 1 : 0) + (F.quartos.size ? 1 : 0) + (F.vagas.size ? 1 : 0) + (F.min || F.max ? 1 : 0);
+const fCount = F => (F.loc ? 1 : 0) + (F.tipo ? 1 : 0) + (F.grupo ? 1 : 0) + (F.quartos.size ? 1 : 0) + (F.vagas.size ? 1 : 0) + (F.min || F.max ? 1 : 0);
 function fbarHTML(id) {
   const bairros = [...new Set(IMOVEIS.map(m => m.bairro).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
   const condos = [...new Set(IMOVEIS.map(m => m.condominio).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
@@ -96,7 +99,7 @@ function syncF(id, F) {
     root.querySelector(".fclr").classList.toggle("on", fCount(F) > 0);
   });
 }
-const resetF = F => { F.loc = ""; F.tipo = ""; F.quartos.clear(); F.vagas.clear(); F.min = ""; F.max = ""; };
+const resetF = F => { F.loc = ""; F.tipo = ""; F.grupo = ""; F.quartos.clear(); F.vagas.clear(); F.min = ""; F.max = ""; };
 
 /* ===== o mapa: o MESMO do nosso painel =====
    Pedro, 02/10/2026: "esse mapa tá estranho, não é o mesmo mapa nosso, que deve ser aberto como tema escuro
@@ -261,6 +264,8 @@ function renderSel() {
   const n = sel.length;
   $("#nSel").textContent = n; $("#nSel").classList.toggle("z", !n);
   $("#clearAll").hidden = !n;
+  // só aparece quando ele seleciona o primeiro (Pedro, 02/10: "não precisa mostrar de início")
+  document.querySelector(".sel-h").hidden = !n; $("#selList").hidden = !n;
   $("#selList").innerHTML = n ? sel.slice().reverse().map(x => `<div class="it"><img src="${esc(x.foto || SEM_FOTO)}" alt=""><b>${esc(x.titulo)}</b><small>${esc(x.sub)}</small><small>Cód. ${esc(x.codigo)}</small><button class="rm" data-rm="${esc(x.codigo)}" aria-label="Tirar da lista">${i("trash-2")}</button></div>`).join("")
     : `<p class="sel-empty">Nenhum ainda. Toque num imóvel do mapa ou da lista para selecionar.</p>`;
   $("#ftogBd").textContent = fCount(FS); $("#ftogBd").classList.toggle("on", fCount(FS) > 0);
@@ -332,7 +337,10 @@ function meEnvia() {
 }
 
 /* ===== render geral ===== */
-function renderAll() { renderMap(); renderList(); renderSel(); syncF("m", FM); syncF("s", FS); drawIcons(); }
+function syncGrupo() {
+  document.querySelectorAll("[data-grupo]").forEach(b => b.setAttribute("aria-pressed", b.dataset.grupo === FM.grupo));
+}
+function renderAll() { renderMap(); renderList(); renderSel(); syncF("m", FM); syncF("s", FS); syncGrupo(); drawIcons(); }
 const side = () => matchMedia("(min-width:1024px)").matches;
 function measure() {
   document.documentElement.style.setProperty("--head-h", $("#site").offsetHeight + "px");
@@ -377,6 +385,12 @@ function carregar() {
 }
 
 $("#phone").value = fmt(phone);
+/* No mapa, só a busca e, no canto direito dela, Apartamento | Casa (Pedro, 02/10: os filtros de bairro,
+   condomínio e tipo em cima do mapa ocupavam demais). Os filtros completos ficam no painel e na lista. */
+document.querySelector("#mtop .sbox").insertAdjacentHTML("beforeend",
+  '<div class="tgrp" role="group" aria-label="Apartamento ou casa">' +
+  '<button type="button" data-grupo="apartamento" aria-pressed="false"><span class="lg">Apartamento</span><span class="sm">Apto</span></button>' +
+  '<button type="button" data-grupo="casa" aria-pressed="false">Casa</button></div>');
 criarMapa(); montarFiltros(); renderAll(); measure();
 let rafM = 0, rafF = 0;
 try {
@@ -410,6 +424,10 @@ document.addEventListener("click", e => {
   if (t.id === "zin" && mapa) mapa.zoomIn();
   if (t.id === "zout" && mapa) mapa.zoomOut();
   if (t.id === "zfit") { closePopup(); fit(); }
+  if (t.dataset.grupo !== undefined && t.closest(".tgrp")) {
+    FM.grupo = FM.grupo === t.dataset.grupo ? "" : t.dataset.grupo;
+    focusCode = null; popCode = null; renderAll(); fit();
+  }
   if (t.id === "ztema") { tema = tema === "escuro" ? "cinza" : "escuro"; try { localStorage.setItem(TKEY, tema); } catch (err) { /* idem */ } aplicarTema(); }
   if (t.id === "send") meEnvia();
 });
