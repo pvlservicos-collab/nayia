@@ -34,6 +34,7 @@ import {
 } from '@phosphor-icons/react'
 import { createPortal } from 'react-dom'
 import AgendarVisita from './AgendarVisita'
+import EscolherImovelDaVisita from './EscolherImovelDaVisita'
 import { useVisitasParceria, eventosDaVisita, mexerNaVisita } from '@/hooks/useVisitasParceria'
 import type { Arrasto } from './AgendaDeVisitas'
 import { ESTADO_DA_VISITA, EVENTO_DA_VISITA, type EventoDaVisita, type VisitaNaTela } from '@/lib/tiposNay'
@@ -329,6 +330,57 @@ function CampoEditavel({ rotulo, valor, exibir, opcoes, numerico, aoSalvar }: {
   )
 }
 
+/*
+ * O LÁPIS DO IMÓVEL (Pedro, 03/10: "coloca por nome de condomínio também... essa
+ * mesma função em todas as partes da visita"). Trocar o imóvel de uma visita era
+ * digitar o código de cabeça; agora é o mesmo campo do formulário de agendar:
+ * código ou nome do condomínio, com a lista para escolher. O banco confere o
+ * código e anota no andamento, como nos outros campos do lápis.
+ */
+function CampoImovel({ v, aoSalvar }: { v: VisitaNaTela; aoSalvar: (novo: string | null) => Promise<boolean> }) {
+  const atual = v.codigo != null ? String(v.codigo) : ''
+  const [editando, setEditando] = useState(false)
+  const [codigo, setCodigo] = useState(atual)
+  const [salvando, setSalvando] = useState(false)
+  useEffect(() => { if (!editando) setCodigo(atual) }, [atual, editando])
+  if (!editando) {
+    return (
+      <span className="group/campo flex items-start gap-1.5">
+        <span className="flex-1 min-w-0">
+          Imóvel: <span style={{ color: 'var(--wa-text)' }}>{atual ? `#${atual}` : '—'}{v.imovel ? ` · ${v.imovel}` : ''}</span>
+        </span>
+        <button type="button" onClick={() => setEditando(true)} className="wa-icone-btn !w-6 !h-6 flex-shrink-0 opacity-70 hover:opacity-100"
+                title="Trocar o imóvel" aria-label="Trocar o imóvel">
+          <PencilSimple size={14} />
+        </button>
+      </span>
+    )
+  }
+  const salvar = async () => {
+    if (!codigo || codigo === atual || salvando) return
+    setSalvando(true)
+    const ok = await aoSalvar(codigo)
+    setSalvando(false)
+    if (ok) setEditando(false)
+  }
+  return (
+    <div className="flex items-start gap-1.5">
+      <span className="flex-shrink-0 mt-1.5">Imóvel:</span>
+      <div className="flex-1 min-w-0">
+        <EscolherImovelDaVisita codigo={codigo} aoMudar={setCodigo} autoFocus
+                                estilo={{ background: 'var(--wa-app)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }} />
+      </div>
+      <button type="button" onClick={() => void salvar()} disabled={salvando || !codigo || codigo === atual}
+              className="wa-icone-btn !w-7 !h-7 mt-0.5 disabled:opacity-40" title="Salvar" aria-label="Salvar o imóvel">
+        {salvando ? <CircleNotch size={14} className="animate-spin" /> : <Check size={15} weight="bold" style={{ color: 'var(--wa-green)' }} />}
+      </button>
+      <button type="button" onClick={() => { setEditando(false); setCodigo(atual) }} className="wa-icone-btn !w-7 !h-7 mt-0.5" title="Cancelar" aria-label="Cancelar">
+        <X size={14} />
+      </button>
+    </div>
+  )
+}
+
 function PainelDaVisita({ v, aoFechar, aoAbrirConversa, aoMexer }: {
   v: VisitaNaTela
   aoFechar: () => void
@@ -424,8 +476,7 @@ function PainelDaVisita({ v, aoFechar, aoAbrirConversa, aoMexer }: {
               </button>
             )}
           </span>
-          <CampoEditavel rotulo="Imóvel (código)" valor={v.codigo != null ? String(v.codigo) : null} numerico
-                         aoSalvar={(novo) => aoMexer(v.id, 'editar', undefined, { campo: 'codigo', valor: novo })} />
+          <CampoImovel v={v} aoSalvar={(novo) => aoMexer(v.id, 'editar', undefined, { campo: 'codigo', valor: novo })} />
           <CampoEditavel rotulo="Visitante" valor={v.visitanteNome}
                          aoSalvar={(novo) => aoMexer(v.id, 'editar', undefined, { campo: 'visitante_nome', valor: novo })} />
           <CampoEditavel rotulo="Proprietário" valor={v.proprietarioNome}

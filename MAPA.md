@@ -130,6 +130,9 @@ prompt: comece pelo `nay onde`.
 - Banco do CRM: `crm/drizzle/NNNN_*.sql` (tabela nova com `SET LOCAL ROLE crm`).
 - Agendar visita (azul): `src/components/Chat/AgendarVisita.tsx` no card do proprietário e no + da agenda (`VisitasAgendadas.tsx`);
   rota `POST /api/parceria/visitas`; o lembrete é um follow-up preso à visita (`src/lib/lembreteDaVisita.ts`, drizzle 0132).
+  O imóvel da visita por código OU nome do condomínio: `EscolherImovelDaVisita.tsx` + `src/lib/imovelDaVisita.ts` (fonte `/api/imoveis-nay`);
+  vale no formulário e no lápis do imóvel do painel da visita. Hora de visita e de follow-up é sempre a de MANAUS:
+  `src/lib/fusoDeManaus.ts` (formulários, card, topo da conversa e lista), nunca o relógio do computador. 03/10.
 - Aviso de robô ao Tel: `src/app/api/public/aviso-ao-tel/route.ts`; a chave é `AVISO_TEL_CHAVE` no `.env` do servidor (fora do git).
   Pela porta 80 só entra o aviso LACRADO (`src/lib/avisoLacrado.ts`: cifrado + assinado, a chave não viaja) -- a nuvem do bot
   corta HTTPS para cá. A rota da porta 80 é `/docker/traefik/dynamic/aviso-ao-tel.yml` (cópia em `scripts/servidor/`), e o

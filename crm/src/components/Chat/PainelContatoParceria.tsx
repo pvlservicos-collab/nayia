@@ -38,6 +38,7 @@ import EtapaDoLead from './EtapaDoLead'
 import { escolhaAMao } from '@/lib/etapaDaParceria'
 import AgendarFollowup from './AgendarFollowup'
 import AgendarVisita from './AgendarVisita'
+import { FUSO_DE_MANAUS, dataHoraEmManaus, diasAteEmManaus, horaEmManaus } from '@/lib/fusoDeManaus'
 
 const LARGURA_GUARDADA = 'crm:largura-card-parceria'
 const LARGURA_MIN = 300
@@ -71,20 +72,19 @@ function etiquetasDaOrganizacao() {
   return etiquetasGuardadas
 }
 
+/* A HORA DA VISITA É A DE MANAUS (Pedro, 03/10: "está com o horário de São Paulo... e na
+   agenda mesmo está horários de Manaus"). Este card mostrava a visita no relógio do
+   computador: com a máquina em Brasília, a visita das 15:00 aparecia aqui como 16:00. */
 function dataHora(iso: string | null | undefined): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+  return dataHoraEmManaus(iso)
 }
 
 function diaDoHistorico(iso: string): string {
   const d = new Date(iso)
-  const hoje = new Date()
-  const zero = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
-  const dif = Math.round((zero(hoje) - zero(d)) / 86400000)
+  const dif = -diasAteEmManaus(d)
   if (dif === 0) return 'Hoje'
   if (dif === 1) return 'Ontem'
-  return d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })
+  return d.toLocaleDateString('pt-BR', { timeZone: FUSO_DE_MANAUS, weekday: 'short', day: '2-digit', month: '2-digit' })
 }
 
 function Secao({ titulo, children, acao }: { titulo: string; children: React.ReactNode; acao?: React.ReactNode }) {
@@ -808,7 +808,7 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
                           )}
                         </span>
                         <span className="text-[11.5px] flex-shrink-0 pt-0.5" style={{ color: 'var(--wa-text-2)' }}>
-                          {new Date(h.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          {horaEmManaus(new Date(h.quando))}
                         </span>
                       </li>
                     ))}

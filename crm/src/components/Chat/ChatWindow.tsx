@@ -16,6 +16,7 @@ import ActivityComposer, { ActivityComposerHandle } from './ActivityComposer'
 import PinnedMessagesBar from './PinnedMessagesBar'
 
 import { ChatButtonKey } from '@/hooks/useChatButtonSettings'
+import { quandoCurtoEmManaus } from '@/lib/fusoDeManaus'
 
 interface ChatWindowProps {
   lead: LeadWithOwner
@@ -36,13 +37,9 @@ export interface ReplyContext {
   sender: string
 }
 
+/* a hora da visita é a de Manaus, não a do computador (src/lib/fusoDeManaus.ts) */
 function quandoCurto(iso: string | null): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const zero = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
-  const dif = Math.round((zero(d) - zero(new Date())) / 86400000)
-  const h = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-  return dif === 0 ? `hoje ${h}` : dif === 1 ? `amanhã ${h}` : `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ${h}`
+  return quandoCurtoEmManaus(iso)
 }
 
 /**

@@ -30,21 +30,30 @@
  * ESTÁ NO CARD DE TODA CONVERSA da Parceria, não só no do proprietário (mesmo
  * pedido: "quero que isso fique lá no card da conversa"). No card de um
  * corretor ele já vem escolhido (`corretorInicial`) e o código é digitado.
+ *
+ * O IMÓVEL PELO NOME (Pedro, 03/10/2026): "coloca por nome de condomínio também,
+ * ao aparecer a gente ver as opções, porque lembrar do código e ir lá ver no site
+ * nos toma tempo". O campo do imóvel é o EscolherImovelDaVisita: código ou nome,
+ * com a lista para escolher. No card do dono, cada imóvel dele mostra o nome.
+ *
+ * A HORA É A DE MANAUS (mesmo pedido: "está com o horário de São Paulo na hora de
+ * agendar... pode colocar os fusos tudo de Manaus?"). O dia e a hora digitados são
+ * lidos como hora de Manaus, e "hoje"/"amanhã" são os de Manaus, seja qual for o
+ * relógio do computador -- ver src/lib/fusoDeManaus.ts.
  */
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarPlus, CircleNotch, Clock, CalendarBlank, BellRinging, X } from '@phosphor-icons/react'
 import { MODELO_DO_LEMBRETE } from '@/lib/lembreteDaVisitaTexto'
+import { diaEmManaus, diaEmManausMais, horaEmManaus, instanteEmManaus } from '@/lib/fusoDeManaus'
+import EscolherImovelDaVisita from './EscolherImovelDaVisita'
+import { imovelPeloCodigo } from '@/lib/imovelDaVisita'
 
 const AZUL = '#2563eb'
 const AZUL_SUAVE = 'color-mix(in srgb, #2563eb 14%, transparent)'
 
 interface Corretor { leadId: string; nome: string; fim: string }
 
-const dois = (n: number) => String(n).padStart(2, '0')
-function diaMais(n: number): string {
-  const d = new Date(); d.setDate(d.getDate() + n)
-  return `${d.getFullYear()}-${dois(d.getMonth() + 1)}-${dois(d.getDate())}`
-}
+const diaMais = (n: number) => diaEmManausMais(n)
 const sem = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
 const DURACOES: Array<[number, string]> = [[30, '30 min'], [60, '1 h'], [90, '1h30'], [120, '2 h']]
@@ -70,9 +79,8 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, corretorIni
   const [buscaCorretor, setBuscaCorretor] = useState('')
   const [corretor, setCorretor] = useState<Corretor | null>(corretorInicial || null)
   const [atalho, setAtalho] = useState<'hoje' | 'amanha' | 'data'>(quandoInicial ? 'data' : 'amanha')
-  const [dia, setDia] = useState(() => quandoInicial
-    ? `${quandoInicial.getFullYear()}-${dois(quandoInicial.getMonth() + 1)}-${dois(quandoInicial.getDate())}` : diaMais(1))
-  const [hora, setHora] = useState(() => quandoInicial ? `${dois(quandoInicial.getHours())}:${dois(quandoInicial.getMinutes())}` : '10:00')
+  const [dia, setDia] = useState(() => (quandoInicial ? diaEmManaus(quandoInicial) : diaMais(1)))
+  const [hora, setHora] = useState(() => (quandoInicial ? horaEmManaus(quandoInicial) : '10:00'))
   const [duracao, setDuracao] = useState(60)
   const [antes, setAntes] = useState(60)
   // desmarcados de propósito: o lembrete só existe para quem for marcado aqui
@@ -90,6 +98,20 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, corretorIni
       .catch(() => {})
     return () => { vivo = false }
   }, [])
+
+  /* no card do dono os imóveis são os dele: o nome de cada um ao lado do código */
+  const [nomes, setNomes] = useState<Record<string, string>>({})
+  const chaveDosImoveis = (imoveis || []).join(',')
+  useEffect(() => {
+    if (!chaveDosImoveis) return
+    const ctl = new AbortController()
+    for (const c of chaveDosImoveis.split(',')) {
+      imovelPeloCodigo(c, ctl.signal)
+        .then((i) => { if (i && !ctl.signal.aborted) setNomes((n) => ({ ...n, [c]: i.nome })) })
+        .catch(() => {})
+    }
+    return () => ctl.abort()
+  }, [chaveDosImoveis])
 
   const digitos = buscaCorretor.replace(/\D/g, '')
   const sugestoes = useMemo(() => {
@@ -110,9 +132,10 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, corretorIni
 
   async function agendar() {
     if (salvando) return
-    if (!/^\d{1,6}$/.test(codigo.trim())) { setAviso({ ok: false, texto: 'Diga o código do imóvel.' }); return }
+    if (!/^\d{1,6}$/.test(codigo.trim())) { setAviso({ ok: false, texto: 'Escolha o imóvel na lista, ou digite o código dele.' }); return }
     if (!corretor && !numeroDigitado) { setAviso({ ok: false, texto: 'Escolha o corretor na lista ou digite o número dele com DDD.' }); return }
-    const quando = new Date(`${dia}T${hora}:00`)
+    // o dia e a hora do formulário são os de MANAUS, não os do relógio deste computador
+    const quando = instanteEmManaus(dia, hora)
     if (Number.isNaN(quando.getTime())) { setAviso({ ok: false, texto: 'Escolha o dia e a hora.' }); return }
     setSalvando(true); setAviso(null)
     try {
@@ -168,13 +191,16 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, corretorIni
       {imoveis && imoveis.length > 0 ? (
         <div className="flex flex-wrap gap-1.5 mb-2.5">
           {imoveis.map((c) => (
-            <button key={c} type="button" onClick={() => setCodigo(c)} aria-pressed={codigo === c} className={classeChip} style={chip(codigo === c)}>#{c}</button>
+            <button key={c} type="button" onClick={() => setCodigo(c)} aria-pressed={codigo === c}
+                    className={`${classeChip} max-w-full`} style={chip(codigo === c)} title={nomes[c] ? `${c} · ${nomes[c]}` : undefined}>
+              <span className="truncate">#{c}{nomes[c] ? ` ${nomes[c]}` : ''}</span>
+            </button>
           ))}
         </div>
       ) : (
-        <input value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric"
-               placeholder="código do imóvel" aria-label="Código do imóvel"
-               className="w-full h-8 rounded-lg px-2.5 text-[13.5px] mb-2.5" style={campo} />
+        <div className="mb-2.5">
+          <EscolherImovelDaVisita codigo={codigo} aoMudar={setCodigo} estilo={campo} />
+        </div>
       )}
 
       {/* o corretor */}
@@ -208,7 +234,7 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, corretorIni
       )}
 
       {/* o dia, a hora e a duração */}
-      <label className={rotulo} style={{ color: 'var(--wa-text-2)' }}>Dia e hora</label>
+      <label className={rotulo} style={{ color: 'var(--wa-text-2)' }}>Dia e hora <span style={{ opacity: 0.8 }}>(horário de Manaus)</span></label>
       <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
         <button type="button" onClick={() => escolher('hoje')} aria-pressed={atalho === 'hoje'} className={classeChip} style={chip(atalho === 'hoje')}>Hoje</button>
         <button type="button" onClick={() => escolher('amanha')} aria-pressed={atalho === 'amanha'} className={classeChip} style={chip(atalho === 'amanha')}>Amanhã</button>

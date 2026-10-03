@@ -5,22 +5,21 @@
  * quando quero que envie -- amanhã, uma semana, ou data específica (um ícone de
  * calendário) -- e a hora, e clico em salvar". Quem envia na hora é o servidor
  * (/api/cron/followups), pela linha desta conversa.
+ *
+ * A HORA É A DE MANAUS (Pedro, 03/10/2026: "pode colocar os fusos tudo de Manaus?").
+ * O dia e a hora digitados eram lidos no relógio do computador: com a máquina em
+ * Brasília, "09:00" saía às 08:00 de Manaus. Ver src/lib/fusoDeManaus.ts.
  */
 import { useCallback, useEffect, useState } from 'react'
 import { CalendarBlank, CircleNotch, Clock, X } from '@phosphor-icons/react'
+import { dataHoraEmManaus, diaEmManausMais, instanteEmManaus } from '@/lib/fusoDeManaus'
 
 interface Followup { id: string; mensagem: string; enviar_em: string; estado: string; criado_por_nome: string | null; erro: string | null }
 
-const doisDigitos = (n: number) => String(n).padStart(2, '0')
-/** yyyy-mm-dd do dia de hoje + n, no relógio de quem está usando */
-function diaMais(n: number): string {
-  const d = new Date(); d.setDate(d.getDate() + n)
-  return `${d.getFullYear()}-${doisDigitos(d.getMonth() + 1)}-${doisDigitos(d.getDate())}`
-}
-function quandoCurto(iso: string): string {
-  const d = new Date(iso)
-  return `${doisDigitos(d.getDate())}/${doisDigitos(d.getMonth() + 1)} às ${doisDigitos(d.getHours())}:${doisDigitos(d.getMinutes())}`
-}
+/** yyyy-mm-dd do dia de hoje + n, no calendário de Manaus */
+const diaMais = (n: number) => diaEmManausMais(n)
+/** "04/10 às 09:00", em Manaus */
+const quandoCurto = (iso: string) => dataHoraEmManaus(iso, ' às ')
 
 export default function AgendarFollowup({ leadId }: { leadId: string }) {
   const [mensagem, setMensagem] = useState('')
@@ -46,7 +45,7 @@ export default function AgendarFollowup({ leadId }: { leadId: string }) {
 
   const salvar = async () => {
     if (!mensagem.trim()) { setAviso({ ok: false, texto: 'Escreva a mensagem.' }); return }
-    const quando = new Date(`${dia}T${hora}:00`)
+    const quando = instanteEmManaus(dia, hora)
     if (Number.isNaN(quando.getTime())) { setAviso({ ok: false, texto: 'Escolha o dia e a hora.' }); return }
     setSalvando(true); setAviso(null)
     try {
@@ -97,10 +96,11 @@ export default function AgendarFollowup({ leadId }: { leadId: string }) {
           <input type="date" value={dia} min={diaMais(0)} onChange={(e) => setDia(e.target.value)}
                  aria-label="Dia do envio" className="h-7 rounded-lg px-2 text-[12.5px]" style={campo} />
         )}
-        <span className="inline-flex items-center gap-1 text-[12.5px]" style={{ color: 'var(--wa-text-2)' }}>
+        <span className="inline-flex items-center gap-1 text-[12.5px]" style={{ color: 'var(--wa-text-2)' }} title="Horário de Manaus">
           <Clock size={14} />
           <input type="time" value={hora} onChange={(e) => setHora(e.target.value)}
-                 aria-label="Hora do envio" className="h-7 rounded-lg px-2 text-[12.5px]" style={campo} />
+                 aria-label="Hora do envio (horário de Manaus)" className="h-7 rounded-lg px-2 text-[12.5px]" style={campo} />
+          <span className="text-[11.5px]">Manaus</span>
         </span>
       </div>
       <button type="button" onClick={() => void salvar()} disabled={salvando || !mensagem.trim()}

@@ -7,6 +7,7 @@ import { formatPhone, renderSnippet } from '@/lib/utils'
 import type { Atendente } from '@/lib/atendentes'
 import type { EstadoDaNay } from '@/lib/tiposNay'
 import type { DonoNaLista, MarcaDaNay } from '@/lib/tiposNay'
+import { quandoCurtoEmManaus } from '@/lib/fusoDeManaus'
 
 /**
  * Uma linha da lista de conversas, no desenho do WhatsApp Web (29/09/2026):
@@ -52,16 +53,9 @@ function nomeDoDono(nome: string | null): string {
   return primeiro.charAt(0) + primeiro.slice(1).toLowerCase()
 }
 
+/* a hora da visita é a de Manaus, não a do computador (src/lib/fusoDeManaus.ts) */
 function quandoCurto(iso: string | null): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const hoje = new Date()
-  const dia = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
-  const dif = Math.round((dia(d) - dia(hoje)) / 86400000)
-  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-  if (dif === 0) return `hoje ${hora}`
-  if (dif === 1) return `amanhã ${hora}`
-  return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ${hora}`
+  return quandoCurtoEmManaus(iso)
 }
 
 /*
