@@ -29,4 +29,4 @@ nay_leitura: SELECT
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-site_grade_agenda, site_grade_metricas
+nai_abrir_turno, site_grade_agenda, site_grade_metricas

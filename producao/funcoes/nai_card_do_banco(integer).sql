@@ -51,6 +51,18 @@ AS $function$
 • mobiliado'
               WHEN lower(coalesce(b.mobilia, '')) ~ 'ar.condicionado' THEN E'
 • climatizado' ELSE '' END
+      -- A TAXA DE CONDOMINIO, e so quando e recente (Tel, 03/10). A decisao
+      -- ("mostra?") e o formato moram em `nay_linha_da_taxa` -- UMA copia, lida
+      -- tambem pelo card do publicador (`montar_mensagem.py`). Taxa sem
+      -- carimbo nao sai: `taxa_do_card.sql` explica por que falha fechada.
+      || coalesce(E'\n' || nay_linha_da_taxa(b.taxa_condominio, b.taxa_condominio_em), '')
+      -- O BULLET EM "Venda:" NAO ENTROU, e nao foi esquecimento (03/10). Ele
+      -- escreveu o card do 9013 com "• Venda: R$ 690.000", mas a tela de Grupos
+      -- do admin (`grupos-agenda.js`) ancora TRES regex em `^Venda:` e
+      -- `^Loca..o:` cruas para tirar o valor que um grupo nao aceita. Com o
+      -- bullet elas param de casar e a tela passaria a mostrar ao Tel um post
+      -- diferente do que o grupo recebe. Para por o bullet: afrouxar as tres
+      -- para `^(?:\u2022\s*)?` ANTES, e so depois mexer aqui.
       || CASE WHEN coalesce(b.valor_venda, 0) > 0
               THEN E'
 Venda: R$ ' || replace(to_char(b.valor_venda, 'FM999,999,990'), ',', '.') ELSE '' END

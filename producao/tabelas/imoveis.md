@@ -47,6 +47,7 @@ precisa_confirmacao  boolean  NOT NULL  padrão false
 administrado  boolean  NOT NULL  padrão false
 proprietario_id  integer
 fotos_conferidas_em  timestamp with time zone
+taxa_condominio_em  timestamp with time zone   -- Quando o VALOR de taxa_condominio foi escrito pela última vez. Carimbado pelo trigger imoveis_carimbar_taxa, nunca à mão. NULL = não se sabe, e o card não mostra a taxa (regra do Tel, 03/10).
 
 ## índices
 CREATE INDEX idx_imoveis_aluguel ON public.imoveis USING btree (valor_aluguel) WHERE (valor_aluguel > (0)::numeric)
@@ -65,6 +66,7 @@ imoveis_pkey: PRIMARY KEY (codigo)
 CREATE TRIGGER bairro_normal_do_imovel AFTER INSERT OR DELETE OR UPDATE OF bairro ON public.imoveis FOR EACH STATEMENT EXECUTE FUNCTION nai_bairro_normal_gatilho()
 CREATE TRIGGER imoveis_a_situacao_manda BEFORE INSERT OR UPDATE ON public.imoveis FOR EACH ROW EXECUTE FUNCTION imoveis_a_situacao_manda()
 CREATE TRIGGER imoveis_aviso_de_saida AFTER UPDATE OF disponivel ON public.imoveis FOR EACH ROW EXECUTE FUNCTION nay_enfileirar_aviso_de_saida()
+CREATE TRIGGER imoveis_carimbar_taxa BEFORE INSERT OR UPDATE OF taxa_condominio ON public.imoveis FOR EACH ROW EXECUTE FUNCTION imoveis_carimbar_taxa()
 CREATE TRIGGER imovel_lugar_do_imovel AFTER INSERT OR UPDATE OF bairro, logradouro, condominio_nome ON public.imoveis FOR EACH ROW EXECUTE FUNCTION nai_imovel_lugar_gatilho()
 
 ## permissões

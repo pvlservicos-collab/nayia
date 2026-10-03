@@ -556,6 +556,7 @@ def _mandar_os_codigos(conn, telefone, nome, codigos):
         # responder, não a foto.
         _registrar_envio_corretor(conn, codigo, telefone,
                                   id_da_mensagem((resultado or {}).get("texto")))
+        _registrar_fotos(conn, codigo, "corretor", telefone, None, resultado)
         linhas.append(f"{codigo} ({imovel.get('condominio') or imovel.get('tipo')}): "
                       f"enviado com {len(fotos)} foto(s)"
                       + (" (ja tinha ido hoje, mandei de novo porque voce pediu)"
@@ -1025,6 +1026,42 @@ def _registrar_envio_corretor(conn, codigo, telefone, message_id=None):
             pass
 
 
+def _registrar_fotos(conn, codigo, destino, telefone, grupo_nome, resultado):
+    """Guarda o id de cada FOTO que saiu neste envio (migração 287, 03/10).
+
+    O QUE ACONTECEU: `envios` guarda só o id do TEXTO do card -- "é ele que o
+    corretor marca, não a foto", era o que se supunha em 01/09. Medido em
+    03/10: de 2 a 5 marcações por dia, no privado, apontam para uma mensagem
+    nossa que não estava registrada em lugar nenhum, e a Nay ficava sem saber
+    de que imóvel era ("Me envia esse Portinari", "manda o material desse
+    Arezzo"). O dedo vai na foto tanto quanto no texto.
+
+    Em `envios_foto`, e NÃO em `envios`: `envios` é contada (posts da agenda,
+    métricas, um imóvel por corretor por dia) e uma linha por foto
+    multiplicaria tudo. Quem lê: `nay_imovel_da_citacao` e a Nay nova.
+
+    Nunca derruba o envio: a mensagem já saiu quando isto roda.
+    """
+    if conn is None or not str(codigo).strip().isdigit():
+        return
+    ids = [i for i in (id_da_mensagem(r) for r in ((resultado or {}).get("fotos") or [])) if i]
+    if not ids:
+        return
+    try:
+        with conn.cursor() as cur:
+            cur.executemany(
+                "INSERT INTO envios_foto (message_id, codigo, destino, telefone, grupo_nome) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                [(i, int(str(codigo).strip()), destino, str(telefone or ""), grupo_nome)
+                 for i in ids])
+        conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+
 def _colagem_do_imovel(conn, codigo):
     """A "metadinha": o mosaico de 4 fotos que montamos e que mora no nosso
     site (`imovel_colagem`). Sem colagem pronta, a capa continua valendo."""
@@ -1373,6 +1410,8 @@ def _postar_codigo(codigo, grupos, conn=None, negocio=None):
             # -- foi exatamente isso que o Victor fez em 01/09.
             _registrar_publicacao(conn, codigo, grupo,
                                   id_da_mensagem((resultado or {}).get("texto")))
+            _registrar_fotos(conn, codigo, "grupo", grupo.get("id_grupo"),
+                             grupo.get("nome"), resultado)
     except Exception as exc:
         # grupos_atingidos já reflete quantos ENVIOS DE VERDADE aconteceram
         # antes da falha -- zerar isso aqui seria relatar errado e podia
@@ -3071,6 +3110,8 @@ def _postar_easy(codigo, conn, de_novo=False, apelido="easy"):
             # qual imóvel ela falava -- com o dado na mão e sem onde procurar.
             _registrar_publicacao(conn, codigo, grupo,
                                   id_da_mensagem((resultado or {}).get("texto")))
+            _registrar_fotos(conn, codigo, "grupo", grupo.get("id_grupo"),
+                             grupo.get("nome"), resultado)
     except Exception as exc:
         # Deliberadamente menciona o envio PARCIAL: grupos_atingidos conta
         # só os grupos que receberam tudo, então o grupo em que falhou

@@ -15,6 +15,14 @@ BEGIN
    WHERE e.message_id = v_id ORDER BY e.enviado_em DESC LIMIT 1;
   IF v_cod IS NOT NULL THEN RETURN v_cod; END IF;
 
+  -- 1b. A FOTO DO POST (287, 03/10). O publicador manda o texto do card e depois
+  --     a foto (a metadinha, ou todas no grupo de anunciar), e só o id do TEXTO
+  --     ia para `envios`. Quem marca a foto -- que é onde o dedo vai -- marcava
+  --     uma mensagem que a gente não conhecia.
+  SELECT f.codigo::text INTO v_cod FROM envios_foto f
+   WHERE f.message_id = v_id ORDER BY f.enviado_em DESC LIMIT 1;
+  IF v_cod IS NOT NULL THEN RETURN v_cod; END IF;
+
   -- 2. o que a NAI mandou no privado: card, foto ou colagem
   SELECT s.codigo::text INTO v_cod FROM nai_saida s
    WHERE s.message_id = v_id AND s.codigo IS NOT NULL ORDER BY s.id DESC LIMIT 1;

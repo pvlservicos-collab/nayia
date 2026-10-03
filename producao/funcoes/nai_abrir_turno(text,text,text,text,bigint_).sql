@@ -233,9 +233,19 @@ BEGIN
   -- do grupo esta falando de imovel, escreva o que escrever -- ate "Boa
   -- noite!". `nay_imovel_da_citacao` ja resolve o card do grupo, o card que ela
   -- mandou e o envio do publicador.
+  -- 287 (03/10): A LISTA DO GRUPO TAMBEM E MENSAGEM DE IMOVEL. O Osmar marcou a
+  -- lista das 07:00 e escreveu "Bom dia Colega": contato novo, a citacao nao
+  -- virava codigo (a lista tem 24) e a porta respondeu "assunto que nao e de
+  -- corretor" -- silencio. Aqui a lista so ABRE A PORTA: o codigo do turno
+  -- continua vindo de `nay_imovel_da_citacao`, que nao escolhe um imovel
+  -- qualquer da lista. Quem escolhe e a Nay nova, pelo nome ou perguntando.
   SELECT * INTO v_porta FROM nai_deve_atender(
     p_tel, v_texto,
-    nullif(regexp_replace(coalesce(nay_imovel_da_citacao(p_citado_id), ''), '\D', '', 'g'), '')::int);
+    coalesce(
+      nullif(regexp_replace(coalesce(nay_imovel_da_citacao(p_citado_id), ''), '\D', '', 'g'), '')::int,
+      (SELECT x.codigo FROM envios_lista_grupo x
+        WHERE x.message_id = nullif(btrim(coalesce(p_citado_id, '')), '')
+        ORDER BY x.posicao LIMIT 1)));
   -- A pausa geral da Nay (config.atendimento_pausado) vale para a NAI tambem --
   -- menos para o numero de teste, do mesmo jeito que a Nay antiga isenta o Tel.
   -- A PAUSA E SO A DELA (Tel, 15/09, na revisao depois de ativar).

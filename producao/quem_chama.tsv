@@ -75,6 +75,7 @@ crm_visita_realizada
 crm_visitas	
 crm_visitas_extra	
 imoveis_a_situacao_manda	
+imoveis_carimbar_taxa	
 mensagens_espera_a_rajada	
 mensagens_uma_vez_so	
 nai_abrir_turno	
@@ -491,6 +492,7 @@ nay_imovel_marcado
 nay_lembretes_devidos	
 nay_liberar_imovel_do_dia	
 nay_linha_da_lista	nay_imoveis_da_linha, nay_lista_de_imoveis
+nay_linha_da_taxa	nai_card_do_banco
 nay_linha_sem_codigo	nay_imoveis_da_linha, nay_partes_da_linha
 nay_lista_de_imoveis	site_grade_lista_previa, site_grade_salvar
 nay_maior_valor	nai_buscar_por_perfil, nai_cadastro_ler, nai_negocio_do_pedido, nai_negocio_pelo_valor, nai_pedido_do_turno, nai_rodar_casos, nai_sec_guardar_do_imovel, nay_negocio_pedido

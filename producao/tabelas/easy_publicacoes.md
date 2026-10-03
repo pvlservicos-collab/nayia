@@ -1,4 +1,4 @@
-# easy_publicacoes  (tabela, ~44 linhas)
+# easy_publicacoes  (tabela, ~85 linhas)
 
 ## colunas
 codigo  text  NOT NULL
