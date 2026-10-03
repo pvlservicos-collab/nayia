@@ -63,6 +63,9 @@ export async function POST(req: NextRequest) {
       if (body.isGroup === true || body.isGroup === 'true') {
         after(() => guardarMensagemDeGrupo(orgId, body)
           .catch((e) => console.error('[zapi webhook] grupo não guardado', body?.messageId, e?.message || e)))
+        // SÓ GUARDA (282, 03/10): desde que a mensagem de grupo passa pelo espelho do n8n, seguir adiante faria
+        // uma conversa por grupo na lista da Parceria (a da Rayssa). Grupo se lê no painel CRM › Grupos.
+        return NextResponse.json({ ok: true, grupo: true }, { status: 202 })
       }
       /*
        * `?rapido=1` é só do espelho da Nay no n8n (29/09/2026): ele roda ANTES
