@@ -96,8 +96,11 @@
     quartos: { rotulo: "Quartos" }, suites: { rotulo: "Suítes" }, banheiros: { rotulo: "Banheiros" },
     "x:salas": { rotulo: "Salas", tipo: "inteiro" },
     vagas: { rotulo: "Vagas" }, vagas_cobertas: { rotulo: "Vagas cobertas" },
-    area_util: { rotulo: "Área útil", sufixo: "m²" }, area_total: { rotulo: "Área total", sufixo: "m²" },
-    "x:area construida": { rotulo: "Área construída", tipo: "m2", sufixo: "m²" },
+    /* UM CAMPO SÓ, E SE CHAMA ÁREA CONSTRUÍDA (Pedro, 03/10/2026): "em casa se coloca na área construída
+       a metragem total, mas os imóveis estão sendo colocados na metragem de área útil; só trocar o nome onde
+       está por área construída e apagar esse outro que foi criado". O dado continua em `area_util` (é o que a
+       Nay e o card leem); o campo `x:area construida` saiu do formulário. */
+    area_util: { rotulo: "Área construída", sufixo: "m²" }, area_total: { rotulo: "Área total", sufixo: "m²" },
     "x:tamanho do terreno": { rotulo: "Terreno", tipo: "m2", sufixo: "m²" },
     "x:frente": { rotulo: "Frente", tipo: "m", sufixo: "m" },
     "x:fundo": { rotulo: "Fundo", tipo: "m", sufixo: "m" },
@@ -109,8 +112,8 @@
     sol: { rotulo: "Face solar", lista: true },
     mobilia: { rotulo: "Mobília", lista: true },
     // valores e negócio
-    valor_aluguel: { rotulo: "Aluguel", prefixo: "R$" }, valor_venda: { rotulo: "Venda", prefixo: "R$" },
-    taxa_condominio: { rotulo: "Condomínio", prefixo: "R$" }, iptu: { rotulo: "IPTU", prefixo: "R$" },
+    valor_aluguel: { rotulo: "Aluguel", prefixo: "R$", tipo: "dinheiro" }, valor_venda: { rotulo: "Venda", prefixo: "R$", tipo: "dinheiro" },
+    taxa_condominio: { rotulo: "Condomínio", prefixo: "R$", tipo: "dinheiro" }, iptu: { rotulo: "IPTU", prefixo: "R$", tipo: "dinheiro" },
     "x:aceita financiamento": { rotulo: "Aceita financiamento", tipo: "simnao" },
     "x:permuta": { rotulo: "Permuta", tipo: "texto", lista: true, dica: "o que aceita como parte do pagamento" },
     "x:incluso no aluguel": { rotulo: "Incluso no aluguel", tipo: "marcar", largo: true,
@@ -154,7 +157,7 @@
       campos: ["o:nome", "o:telefone", "o:email", "o:documento", "o:tratamento"] },
     { titulo: "Características", icone: "⌂", cor: "#6d28d9", fundo: "#f1eaff",
       campos: ["tipo", "quartos", "suites", "banheiros", "x:salas", "vagas", "vagas_cobertas", "area_util", "area_total",
-        "x:area construida", "x:tamanho do terreno", "x:frente", "x:fundo", "x:pe direito", "x:andares",
+        "x:tamanho do terreno", "x:frente", "x:fundo", "x:pe direito", "x:andares",
         "x:elevadores", "x:lances de escada", "x:tipo de cobertura", "sol", "mobilia"] },
     { titulo: "O que tem", icone: "✓", cor: "#0e7490", fundo: "#e6f6fa", largo: true,
       campos: ["caracteristicas"] },
@@ -213,9 +216,36 @@
     return item[nome];
   }
 
+  /* O DINHEIRO COM PONTO DE MILHAR (03/10/2026): "eu salvei a casa com valor de 850.000 e quando eu salvo
+     todas as informações ela volta para o valor de 750... pode colocar quando a gente preencher aparece o valor
+     assim: 750.000; hoje aparece assim: 750000". O campo era type="number": o navegador lê o ponto como vírgula
+     decimal, e "750.000" era gravado como 750 (foi assim que o 9013 ficou à venda por R$ 690). Agora é texto com
+     máscara: o ponto é SEMPRE milhar, e centavo só existe depois da vírgula. */
+  function formatarDinheiro(v) {
+    var s = String(v == null ? "" : v).replace(/[^\d,]/g, "");
+    var partes = s.split(",");
+    var inteiro = partes[0].replace(/^0+(?=\d)/, "").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    if (partes.length === 1) return inteiro;
+    return (inteiro || "0") + "," + partes.slice(1).join("").slice(0, 2);
+  }
+  // o número guardado (750000 ou 1089.5) do jeito que se escreve: "750.000", "1.089,50"
+  function dinheiroDoBanco(v) {
+    var n = Number(v);
+    if (!isFinite(n)) return "";
+    var centavos = Math.round(n * 100);
+    var resto = centavos % 100;
+    return formatarDinheiro(String((centavos - resto) / 100) + (resto ? "," + (resto < 10 ? "0" : "") + resto : ""));
+  }
+  // "750.000" -> 750000; "1.089,50" -> 1089.5; vazio -> null
+  function numeroDoDinheiro(s) {
+    var t = String(s == null ? "" : s).replace(/\./g, "").replace(",", ".").replace(/[^\d.]/g, "");
+    return t === "" || t === "." ? null : Number(t);
+  }
+
   // o que está guardado, no formato da entrada ("115.0 m2" -> 115; "27/05/2024" -> 2024-05-27)
   function paraEntrada(tipo, v) {
     if (v == null || v === "") return "";
+    if (tipo === "dinheiro") return dinheiroDoBanco(v);
     if (tipo === "m2" || tipo === "m") {
       var n = String(v).match(/\d+(?:[.,]\d+)?/);
       return n ? String(Number(n[0].replace(",", "."))) : "";
@@ -379,7 +409,8 @@
     }
     var numero = tipo === "numero" || tipo === "inteiro" || tipo === "m2" || tipo === "m";
     var entrada = '<input class="entrada" id="' + id + '"' + dados +
-      (numero ? ' type="number" inputmode="decimal"' + (tipo === "inteiro" ? ' step="1"' : ' step="0.01"') + ' min="0"' : ' type="text"') +
+      (tipo === "dinheiro" ? ' type="text" inputmode="decimal" autocomplete="off" data-dinheiro="true" placeholder="0"'
+        : numero ? ' type="number" inputmode="decimal"' + (tipo === "inteiro" ? ' step="1"' : ' step="0.01"') + ' min="0"' : ' type="text"') +
       (c.lista ? ' list="ed-lista-' + slug(nome) + '"' : "") +
       ' value="' + esc(paraEntrada(tipo, v)) + '">';
     if (c.prefixo || c.sufixo) {
@@ -565,6 +596,7 @@
     if (el.dataset.lista === "true") return el.value.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
     var v = String(el.value == null ? "" : el.value).trim();
     if (v === "") return null;
+    if (el.dataset.dinheiro === "true") return numeroDoDinheiro(v);     // "750.000" vai como 750000
     if (tipoDe(nome) === "data_br") { var p = v.split("-"); return p[2] + "/" + p[1] + "/" + p[0]; }
     return v;
   }
@@ -864,6 +896,20 @@
   });
 
   /* ---- interações ---------------------------------------------------------- */
+  /* a máscara do dinheiro: põe os pontos enquanto ele digita e devolve o cursor ao lugar. Na fase de
+     captura, para os outros ouvintes (o botão, a porcentagem do cadastro) já lerem o valor arrumado. */
+  form.addEventListener("input", function (e) {
+    var el = e.target;
+    if (!el || !el.dataset || el.dataset.dinheiro !== "true") return;
+    var antes = el.value, novo = formatarDinheiro(antes);
+    if (novo === antes) return;
+    var pos = el.selectionStart == null ? antes.length : el.selectionStart;
+    var conta = antes.slice(0, pos).replace(/[^\d,]/g, "").length;   // dígitos (e vírgula) à esquerda do cursor
+    el.value = novo;
+    var i = 0, vistos = 0;
+    while (i < novo.length && vistos < conta) { if (/[\d,]/.test(novo.charAt(i))) vistos++; i++; }
+    try { el.setSelectionRange(i, i); } catch (_) { /* campo sem seleção */ }
+  }, true);
   form.addEventListener("input", atualizarBotao);
 
   // o que tem: tirar, passar para o outro grupo, acrescentar (Enter não envia o formulário)

@@ -1189,6 +1189,11 @@ def api_imovel_fotos(codigo):
         conn.close()
 
 
+# O NÚMERO DO FORMULÁRIO, lido de um jeito só (numeros.py, 03/10/2026): "750.000" é 750000, e venda
+# abaixo de R$ 10 mil ou aluguel abaixo de R$ 100 é erro de digitação, não valor.
+from numeros import numero_br as _numero_br, valor_que_nao_existe as _valor_que_nao_existe  # noqa: E402
+
+
 @app.route("/api/imoveis/<int:codigo>", methods=["PUT"])
 @app.route("/admin/api/imoveis/<int:codigo>", methods=["PUT"])
 def api_imovel_salvar(codigo):
@@ -1256,7 +1261,12 @@ def api_imovel_salvar(codigo):
 
         try:
             if regra["tipo"] == "numero":
-                valores.append(float(valor))
+                numero = _numero_br(valor)
+                absurdo = _valor_que_nao_existe(campo, numero)
+                if absurdo:
+                    erros.append(absurdo)
+                    continue
+                valores.append(numero)
             elif regra["tipo"] == "inteiro":
                 valores.append(int(valor))
             elif regra["tipo"] == "booleano":
@@ -2751,7 +2761,11 @@ def api_imovel_criar():
             continue
         try:
             if regra["tipo"] == "numero":
-                valor = float(valor)
+                valor = _numero_br(valor)
+                absurdo = _valor_que_nao_existe(campo, valor)
+                if absurdo:
+                    erros.append(absurdo)
+                    continue
             elif regra["tipo"] == "inteiro":
                 valor = int(valor)
             elif regra["tipo"] == "booleano":

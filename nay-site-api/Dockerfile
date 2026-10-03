@@ -3,6 +3,8 @@ FROM python:3.12-slim
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+# a leitura de numero do cadastro (03/10): app.py e olx_api.py importam daqui
+COPY numeros.py .
 COPY app.py .
 # Os blueprints sao COPIADOS UM A UM de proposito (nao `COPY . .`): assim um
 # arquivo solto na pasta do servidor -- backup, .env, app.py.bk_* -- nunca

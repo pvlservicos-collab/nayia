@@ -493,7 +493,8 @@ export default function CadastroDeImovel({ leadId, donoNome, temProprietario, al
               <Campo rotulo="Vagas cobertas" tam={1} cheio={!!String(campos.vagasCobertas ?? '').trim()}>
                 <input value={campos.vagasCobertas ?? ''} onChange={(e) => mudar({ vagasCobertas: e.target.value })} inputMode="numeric" />
               </Campo>
-              <Campo rotulo="Área útil (m²)" cheio={Number(String(campos.areaUtil ?? '').replace(',', '.')) > 0}>
+              {/* "Área construída": um campo só, o mesmo nome do cadastro do site (Pedro, 03/10) */}
+              <Campo rotulo="Área construída (m²)" cheio={Number(String(campos.areaUtil ?? '').replace(',', '.')) > 0}>
                 <input value={campos.areaUtil ?? ''} onChange={(e) => mudar({ areaUtil: e.target.value })} inputMode="decimal" />
               </Campo>
               <Campo rotulo="Área total (m²)">

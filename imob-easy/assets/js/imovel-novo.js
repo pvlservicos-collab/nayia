@@ -33,7 +33,7 @@
     "p:torre": 1, "p:bloco": 1, "p:unidade": 2, "p:casa": 1, "p:lote": 1,
     "o:nome": 2, "o:tratamento": 1, "o:telefone": 3, "o:email": 1, "o:documento": 1,
     tipo: 3, quartos: 3, suites: 2, banheiros: 2, "x:salas": 1, vagas: 2, vagas_cobertas: 1, mobilia: 2, sol: 1,
-    area_util: 3, area_total: 1, "x:area construida": 1, "x:tamanho do terreno": 1,
+    area_util: 3, area_total: 1, "x:tamanho do terreno": 1,
     "x:frente": 1, "x:fundo": 1, "x:pe direito": 1,
     "x:andares": 1, "x:elevadores": 1, "x:lances de escada": 1, "x:tipo de cobertura": 1,
     caracteristicas: 2,
@@ -148,7 +148,7 @@
     }
     if (/caracter/i.test(titulo)) {
       var nums = [["quartos", "🛏️", "quartos", ""], ["suites", "🛁", "suítes", ""],
-        ["banheiros", "🚿", "banheiros", ""], ["vagas", "🚗", "vagas", ""], ["area_util", "📐", "de área útil", "m²"]];
+        ["banheiros", "🚿", "banheiros", ""], ["vagas", "🚗", "vagas", ""], ["area_util", "📐", "de área construída", "m²"]];
       var c = "";
       nums.forEach(function (n) {
         var el = cartao.querySelector('[data-campo="' + n[0] + '"]');

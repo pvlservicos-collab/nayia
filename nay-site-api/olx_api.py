@@ -38,6 +38,7 @@ import psycopg2.sql
 from flask import Blueprint, jsonify, request
 
 import captacao_campos as cc
+from numeros import numero_br, valor_que_nao_existe
 from imoveis_api import _admin_autenticado
 
 olx_bp = Blueprint("olx", __name__)
@@ -755,12 +756,14 @@ def _valor_do_popup(bruto, forma):
         itens = [str(x).strip() for x in bruto if str(x or "").strip()]
         return itens, True
     if forma in ("int", "numero"):
-        t = str(bruto).strip().replace(".", "").replace(",", ".") if forma == "numero" else str(bruto).strip()
+        t = str(bruto).strip()
         if t == "":
             return None, True            # apaga
         try:
-            return (int(float(t)) if forma == "int" else float(t)), True
-        except ValueError:
+            # 03/10: a leitura é a do numeros.py. Aqui se tirava TODO ponto: certo para "750.000", mas a
+            # área 88.5 que o próprio popup mostra virava 885 a cada salvar (o popup manda todos os campos).
+            return (int(float(t)) if forma == "int" else numero_br(t)), True
+        except (TypeError, ValueError):
             return None, False
     t = str(bruto).strip()
     return (t or None), True
@@ -776,6 +779,9 @@ def _aplicar_dados_do_popup(cur, codigo, dados):
             continue
         valor, vale = _valor_do_popup(dados.get(chave), forma)
         if not vale:
+            continue
+        # venda de R$ 750 ou aluguel de R$ 90 é dedo que escorregou: o que estava no cadastro fica
+        if forma == "numero" and valor_que_nao_existe(coluna, valor):
             continue
         tipo_sql = {"int": "int", "numero": "numeric", "lista": "text[]"}.get(forma, "text")
         sets.append(psycopg2.sql.SQL("{} = %s::" + tipo_sql).format(psycopg2.sql.Identifier(coluna)))
