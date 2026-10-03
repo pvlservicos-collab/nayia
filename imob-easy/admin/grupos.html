@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css?v=20261003-grupos">
-<link rel="stylesheet" href="../assets/css/grupos-agenda.css?v=20261003b">
+<link rel="stylesheet" href="../assets/css/grupos-agenda.css?v=20261003c">
 </head>
 <body class="admin" data-pagina="grupos">
 
@@ -43,10 +43,10 @@
       <button type="button" class="btn-mini" id="ga-prox" aria-label="Próxima semana">›</button>
       <strong id="ga-periodo" class="ga-periodo"></strong>
     </div>
-    <label class="ga-filtro">Grupo
-      <select id="ga-grupo" class="entrada"><option value="">Todos os grupos</option></select>
-    </label>
   </div>
+
+  <!-- cada grupo tem uma cor; a legenda é também o filtro (clicar num grupo deixa só as mensagens dele) -->
+  <div class="ga-legenda" id="ga-legenda" role="group" aria-label="Grupos: clique para filtrar" data-estado-proprio></div>
 
   <div class="ga-resumo" id="ga-resumo" aria-live="polite"></div>
 
@@ -70,7 +70,7 @@
 </main>
 
 <!-- detalhe de um envio -->
-<dialog class="ga-dialogo" id="ga-detalhe" aria-labelledby="ga-det-tit">
+<dialog class="ga-dialogo ga-dialogo--largo" id="ga-detalhe" aria-labelledby="ga-det-tit">
   <div class="ga-dialogo__caixa">
     <div class="ga-dialogo__topo"><h2 id="ga-det-tit">Mensagem</h2><button type="button" class="btn-neutro" data-fechar aria-label="Fechar">✕</button></div>
     <div id="ga-det-corpo"></div>
@@ -78,10 +78,12 @@
 </dialog>
 
 <!-- criar / editar -->
-<dialog class="ga-dialogo" id="ga-editor" aria-labelledby="ga-ed-tit">
+<dialog class="ga-dialogo ga-dialogo--largo" id="ga-editor" aria-labelledby="ga-ed-tit">
   <form class="ga-dialogo__caixa" id="ga-form" method="dialog" novalidate>
     <div class="ga-dialogo__topo"><h2 id="ga-ed-tit">Nova mensagem</h2><button type="button" class="btn-neutro" data-fechar aria-label="Fechar">✕</button></div>
 
+    <div class="ga-ed-grade">
+    <div class="ga-ed-campos">
     <fieldset class="ga-campo" id="ga-ed-imoveis">
       <legend>Imóveis da mensagem <small>(até 10; cada um sai com o card e as fotos)</small></legend>
       <div class="ga-escolhidos" id="ga-escolhidos"></div>
@@ -111,6 +113,15 @@
     </fieldset>
 
     <p class="ga-resumo-ed" id="ga-resumo-ed"></p>
+    </div>
+
+    <!-- a prévia: a mensagem como vai chegar no grupo, um balão para o texto e outro para a foto -->
+    <aside class="ga-ed-previa" aria-label="Como a mensagem chega no grupo">
+      <h3>Como chega no grupo</h3>
+      <div id="ga-previa"></div>
+    </aside>
+    </div>
+
     <p class="ga-erro" id="ga-erro" role="alert"></p>
     <div class="ga-dialogo__acoes">
       <button type="button" class="btn-neutro" data-fechar>Cancelar</button>
@@ -124,6 +135,6 @@
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/layout.js?v=20261003-grupos"></script>
 <script src="../assets/js/admin.js"></script>
-<script src="../assets/js/grupos-agenda.js?v=20261003b"></script>
+<script src="../assets/js/grupos-agenda.js?v=20261003c"></script>
 </body>
 </html>

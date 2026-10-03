@@ -7,6 +7,11 @@
    quero adicionar, excluir, editar, metrificar a mensagem; as métricas são
    quantas pessoas chegaram nas próximas 6 horas que enviei".
 
+   E depois: "divide cada grupo uma cor, e a mensagem está muito grande; as que
+   são vários grupos ficam com o card colorido por várias cores, como várias
+   tachinhas; e o conteúdo aparece separado como na conversa do WhatsApp
+   normal, com diferenciação de cor para ficar mais fácil entender".
+
    Cada "mensagem" é uma vaga da GRADE do publicador (tabela vagas): horário,
    repetição (todo dia, dias da semana, um dia só), os imóveis e o destino (um
    apelido de grupo, ou vazio = cada imóvel vai aos grupos que aceitam o tipo
@@ -14,6 +19,12 @@
    esta tela só cria, edita, apaga e mede. Tudo por /admin/api/grade (senha do
    painel). Os imóveis do seletor vêm de /api/imoveis-para-enviar: só o que a
    Nay oferece, e nunca de parceiro (parceria não sai nos grupos).
+
+   A CONVERSA. O publicador manda, para cada imóvel, primeiro o TEXTO do card e
+   depois a FOTO: a metadinha (4 fotos numa), ou todas as fotos nos grupos de
+   "anunciar" (todas_fotos). Cada grupo só vê os valores que aceita (o Alto
+   Padrão tem piso). A tela desenha isso com o card de hoje do imóvel
+   (/api/imovel-card, o mesmo dos grupos) e as regras de cada grupo (280).
    ========================================================================== */
 (function () {
   "use strict";
@@ -24,6 +35,15 @@
   var DIAS_LONGOS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
   var ORDEM_DIAS = [1, 2, 3, 4, 5, 6, 0];          // a semana começa na segunda
   var ROTULO_DESTINO = { alto_padrao: "Alto Padrão", alto_padrao_easy: "Alto Padrão Easy", comercial: "Comercial", easy: "Easy" };
+  /* uma cor por grupo; os grupos com apelido (os destinos que dá para escolher) ficam com as primeiras */
+  var PALETA = ["#1e88e5", "#43a047", "#fb8c00", "#8e24aa", "#00acc1", "#d81b60", "#7cb342", "#5e35b1", "#00897b", "#f4511e",
+                "#3949ab", "#c0ca33", "#6d4c41", "#039be5", "#fdd835", "#546e7a", "#ab47bc", "#26a69a", "#ec407a", "#e53935"];
+  /* a cor de cada imóvel dentro da conversa, como o nome de quem escreve num grupo do WhatsApp */
+  var ACENTOS = ["#6d28d9", "#0e7490", "#c2410c", "#be185d", "#15803d", "#1d4ed8", "#a16207", "#9333ea", "#0f766e", "#b91c1c"];
+  var SIMBOLOS = /[\u{1F000}-\u{1FAFF}\u{2190}-\u{21FF}\u{2300}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{20E3}\u{200D}]/gu;
+  var ICONE_PESSOA = '<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path fill="currentColor" d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm0 1.4c-3 0-5.6 1.5-5.6 3.6V14h11.2v-1c0-2.1-2.6-3.6-5.6-3.6z"/></svg>';
+  var ICONE_CASA = '<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path fill="currentColor" d="M8 1.5 1 7.6h2.1V14.5h3.8v-4h2.2v4h3.8V7.6H15z"/></svg>';
+  var ICONE_RELOGIO = '<svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true"><circle cx="8" cy="8" r="6.3" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M8 4.6V8l2.4 1.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>';
 
   var $ = function (id) { return document.getElementById(id); };
   function esc(v) {
@@ -47,8 +67,7 @@
   function foto(url, tam) { return url ? String(url).replace("/huge/", "/" + tam + "/") : ""; }
   /* datas em Manaus, como "AAAA-MM-DD" */
   function diaDe(d) {
-    var p = new Intl.DateTimeFormat("en-CA", { timeZone: FUSO, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
-    return p;
+    return new Intl.DateTimeFormat("en-CA", { timeZone: FUSO, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
   }
   function horaDe(d) { return new Intl.DateTimeFormat("pt-BR", { timeZone: FUSO, hour: "2-digit", minute: "2-digit" }).format(d); }
   function somaDias(iso, n) { var d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
@@ -61,11 +80,46 @@
   /* ---- estado ---- */
   var semana = segundaDe(diaDe(new Date()));
   var opcoes = { grupos: [], destinos: [] };
+  var corDoGrupo = {}, grupoPorId = {}, grupoPorNome = {};
   var dados = null;                // a resposta de /admin/api/grade
   var vagasPorId = {};
   var grupoFiltro = "";
   var imoveisCatalogo = null;      // carregado na primeira vez que a janela de editar abre
   var edicao = null;               // { id, lista, escolhidos: [{codigo,titulo,foto,...}] }
+  var detalhe = null;              // { o, v, gs, visto } a mensagem aberta
+  var cards = {};                  // código -> Promise do card (o mesmo dos grupos)
+
+  /* ---- os grupos e as cores ---- */
+  function nomeCurto(n) {
+    var s = String(n || "").replace(SIMBOLOS, "").replace(/\s+/g, " ").replace(/^[\s\-|·]+|[\s\-|·]+$/g, "").trim();
+    return s || String(n || "");
+  }
+  function iniciais(n) {
+    return nomeCurto(n).split(/[\s\-|]+/).filter(function (p) { return /^[A-Za-zÀ-ú0-9]/.test(p); }).slice(0, 2)
+      .map(function (p) { return p.charAt(0).toUpperCase(); }).join("") || "G";
+  }
+  function prepararGrupos(lista) {
+    var peso = function (g) { return g.lotado || !g.ativo ? 2 : g.apelido ? 0 : 1; };
+    var ordem = (lista || []).slice().sort(function (a, b) {
+      return peso(a) - peso(b) || String(a.apelido || "").localeCompare(String(b.apelido || "")) ||
+        nomeCurto(a.nome).localeCompare(nomeCurto(b.nome), "pt-BR");
+    });
+    corDoGrupo = {}; grupoPorId = {}; grupoPorNome = {};
+    ordem.forEach(function (g, k) { corDoGrupo[g.id] = PALETA[k % PALETA.length]; grupoPorId[g.id] = g; grupoPorNome[g.nome] = g; });
+    return ordem;
+  }
+  function cor(g) { return (g && corDoGrupo[g.id]) || "#9aa0a6"; }
+  function tacha(g, vazia) {
+    return '<i class="ga-tacha' + (vazia ? " ga-tacha--vazia" : "") + '" style="--c:' + cor(g) + '" title="' + esc(nomeCurto(g.nome)) + '"></i>';
+  }
+  /* a faixa da esquerda do cartão: uma cor só, ou as cores de todos os grupos, uma embaixo da outra */
+  function faixa(gs) {
+    if (!gs.length) return "transparent";
+    if (gs.length === 1) return cor(gs[0]);
+    return "linear-gradient(" + gs.map(function (g, k) {
+      return cor(g) + " " + (k * 100 / gs.length).toFixed(2) + "% " + ((k + 1) * 100 / gs.length).toFixed(2) + "%";
+    }).join(", ") + ")";
+  }
 
   function nomeDoDestino(v) {
     if (v.categoria) return "Lista de " + v.categoria.replace(/_/g, " ") + " (" + (v.negocio === "venda" ? "venda" : "locação") + ")";
@@ -87,15 +141,26 @@
     if (!ims.length) return "Horário livre (sem imóvel)";
     return ims.map(function (i) { return i.codigo + (i.titulo ? " · " + i.titulo : ""); }).join(" + ");
   }
+  function tituloCurto(v) {
+    if (v.categoria) return "Lista " + v.categoria.replace(/_/g, " ") + " · " + (v.negocio === "venda" ? "venda" : "locação");
+    var ims = v.imoveis || [];
+    if (ims.length === 1) return ims[0].codigo + (ims[0].titulo ? " " + ims[0].titulo : "");
+    return ims.map(function (i) { return i.codigo; }).join(", ");
+  }
 
-  /* o filtro por grupo: o que JÁ saiu conta pelos grupos que receberam; o que vai sair, pelos previstos */
+  /* os grupos de uma ocorrência: o que JÁ saiu, pelos grupos que receberam; o resto, pelos previstos */
+  function saiu(o) { return !!(o.passou && o.posts); }
+  function gruposDe(o) {
+    if (saiu(o)) return (o.grupos || []).map(function (n) { return grupoPorNome[n] || { id: n, nome: n }; });
+    var v = vagasPorId[o.vaga] || {};
+    return (v.previstos || []).map(function (id) { return grupoPorId[id]; }).filter(Boolean);
+  }
   function passaNoFiltro(o) {
     if (!grupoFiltro) return true;
-    var g = opcoes.grupos.find(function (x) { return x.id === grupoFiltro; });
-    if (!g) return true;
-    if (o.passou && o.posts) return (o.grupos || []).indexOf(g.nome) >= 0;
-    var v = vagasPorId[o.vaga];
-    return !!v && (v.previstos || []).indexOf(g.id) >= 0;
+    return gruposDe(o).some(function (g) { return g.id === grupoFiltro; });
+  }
+  function estadoDe(o) {
+    return livre(vagasPorId[o.vaga]) ? "livre" : !o.passou ? "futuro" : o.posts ? "saiu" : "falhou";
   }
 
   /* ---- carregar ---- */
@@ -113,37 +178,60 @@
       });
   }
 
-  function metricaCurta(o) {
-    if (livre(vagasPorId[o.vaga])) return '<span class="ga-st" title="Sem imóvel: nada sai. Edite para pôr imóveis.">livre</span>';
-    if (!o.passou) return '<span class="ga-st ga-st--futuro">agendada</span>';
-    if (!o.posts) return '<span class="ga-st ga-st--falhou" title="O publicador não postou (imóvel fora do ar, de parceiro ou abaixo da faixa do grupo). Ele avisa o motivo ao Tel no WhatsApp.">não saiu</span>';
-    var ng = (o.grupos || []).length;
-    return '<span class="ga-st" title="Saiu em ' + ng + (ng === 1 ? " grupo" : " grupos") + '">' + ng + (ng === 1 ? " grupo" : " grupos") + "</span>" +
-      '<span class="ga-met" title="Chegaram nas 6 h seguintes' + (o.janela_completa ? "" : " (a janela ainda está aberta)") + '"><b>' +
-        (o.pessoas || 0) + "</b> chegaram" + (o.janela_completa ? "" : "…") + "</span>" +
-      '<span class="ga-met ga-met--imovel" title="Citaram o post ou escreveram o código"><b>' + (o.pelo_imovel || 0) + "</b> pelo imóvel</span>";
+  /* a legenda das cores É o filtro: clicar num grupo deixa só as mensagens dele */
+  function desenharLegenda() {
+    var conta = {};
+    (dados.ocorrencias || []).forEach(function (o) {
+      if (livre(vagasPorId[o.vaga])) return;
+      gruposDe(o).forEach(function (g) { conta[g.id] = (conta[g.id] || 0) + 1; });
+    });
+    var visiveis = opcoes.grupos.filter(function (g) { return g.ativo && !g.lotado; });
+    $("ga-legenda").innerHTML =
+      '<button type="button" class="ga-chip" data-grupo="" aria-pressed="' + !grupoFiltro + '">Todos os grupos</button>' +
+      visiveis.map(function (g) {
+        return '<button type="button" class="ga-chip" data-grupo="' + esc(g.id) + '" aria-pressed="' + (grupoFiltro === g.id) +
+          '" style="--c:' + cor(g) + '" title="' + esc(g.nome) + '">' + tacha(g) + "<span>" + esc(nomeCurto(g.nome)) + "</span>" +
+          "<small>" + (conta[g.id] || 0) + "</small></button>";
+      }).join("");
   }
 
   function desenhar() {
-    var oc = (dados.ocorrencias || []).filter(passaNoFiltro);
-    // a agenda: uma coluna por dia
+    desenharLegenda();
+    var oc = (dados.ocorrencias || []).filter(passaNoFiltro).sort(function (a, b) { return a.quando < b.quando ? -1 : a.quando > b.quando ? 1 : 0; });
+    // a agenda: uma coluna por dia, e dentro dela um bloco por horário
     var porDia = {};
     oc.forEach(function (o) { var d = diaDe(new Date(o.quando)); (porDia[d] = porDia[d] || []).push(o); });
     var hoje = diaDe(new Date());
     $("ga-agenda").innerHTML = '<div class="ga-semana">' + [0, 1, 2, 3, 4, 5, 6].map(function (k) {
       var dia = somaDias(semana, k), lista = porDia[dia] || [];
+      var n = lista.filter(function (o) { return !livre(vagasPorId[o.vaga]); }).length;
+      var horas = [], porHora = {};
+      lista.forEach(function (o) {
+        var h = horaDe(new Date(o.quando));
+        if (!porHora[h]) { porHora[h] = []; horas.push(h); }
+        porHora[h].push(o);
+      });
       return '<div class="ga-dia' + (dia === hoje ? " ga-dia--hoje" : "") + (dia < hoje ? " ga-dia--passado" : "") + '">' +
-        '<div class="ga-dia__topo">' + esc(rotuloDia(dia)) + (lista.length ? ' <span class="ga-dia__n">' + lista.length + "</span>" : "") + "</div>" +
-        (lista.length ? lista.map(cartao).join("") : '<p class="ga-dia__vazio">nada agendado</p>') + "</div>";
+        '<div class="ga-dia__topo">' + esc(rotuloDia(dia)) + (n ? ' <span class="ga-dia__n" title="mensagens com imóvel">' + n + "</span>" : "") + "</div>" +
+        (horas.length ? horas.map(function (h) {
+          var cheios = porHora[h].filter(function (o) { return !livre(vagasPorId[o.vaga]); });
+          var livres = porHora[h].filter(function (o) { return livre(vagasPorId[o.vaga]); });
+          return '<div class="ga-hora"><span class="ga-hora__h">' + h + "</span>" + cheios.map(cartao).join("") +
+            (livres.length ? '<div class="ga-livres">' + livres.map(function (o) {
+              return '<button type="button" class="ga-livre" data-ocorrencia="' + esc(o.vaga + "|" + o.quando) +
+                '" title="Horário livre da grade: sem imóvel, nada sai. Clique para pôr imóveis.">livre</button>';
+            }).join("") + "</div>" : "") + "</div>";
+        }).join("") : '<p class="ga-dia__vazio">nada agendado</p>') + "</div>";
     }).join("") + "</div>";
 
     // o resumo da semana
-    var saiu = oc.filter(function (o) { return o.passou && o.posts; });
-    var soma = function (k) { return saiu.reduce(function (s, o) { return s + (o[k] || 0); }, 0); };
+    var saidas = oc.filter(saiu);
+    var soma = function (k) { return saidas.reduce(function (s, o) { return s + (o[k] || 0); }, 0); };
+    var comImovel = oc.filter(function (o) { return !livre(vagasPorId[o.vaga]); });
     $("ga-resumo").innerHTML =
-      '<div class="ga-cartao-num"><b>' + oc.length + "</b><span>envios na semana" + (grupoFiltro ? " (neste grupo)" : "") + "</span></div>" +
-      '<div class="ga-cartao-num"><b>' + saiu.length + "</b><span>já saíram</span></div>" +
-      '<div class="ga-cartao-num"><b>' + oc.filter(function (o) { return o.passou && !o.posts && !livre(vagasPorId[o.vaga]); }).length + '</b><span>não saíram</span></div>' +
+      '<div class="ga-cartao-num"><b>' + comImovel.length + "</b><span>mensagens na semana" + (grupoFiltro ? " (neste grupo)" : "") + "</span></div>" +
+      '<div class="ga-cartao-num"><b>' + saidas.length + "</b><span>já saíram</span></div>" +
+      '<div class="ga-cartao-num"><b>' + comImovel.filter(function (o) { return o.passou && !o.posts; }).length + "</b><span>não saíram</span></div>" +
       '<div class="ga-cartao-num ga-cartao-num--destaque"><b>' + soma("pelo_imovel") + "</b><span>chegaram pelo imóvel (6 h)</span></div>" +
       '<div class="ga-cartao-num"><b>' + soma("novos") + "</b><span>pessoas novas (6 h)</span></div>";
 
@@ -152,12 +240,13 @@
     oc.forEach(function (o) { (porVaga[o.vaga] = porVaga[o.vaga] || []).push(o); });
     var vagas = (dados.vagas || []).filter(function (v) { return porVaga[v.id] || !grupoFiltro; });
     $("ga-tabela").innerHTML = vagas.length ? vagas.map(function (v) {
-      var os = (porVaga[v.id] || []).filter(function (o) { return o.passou && o.posts; });
+      var os = (porVaga[v.id] || []).filter(saiu);
       var s = function (k) { return os.reduce(function (t, o) { return t + (o[k] || 0); }, 0); };
+      var previstos = (v.previstos || []).map(function (id) { return grupoPorId[id]; }).filter(Boolean);
       return "<tr>" +
         "<td>" + esc(descreverRepeticao(v)) + "</td>" +
         '<td class="ga-tab-imoveis">' + imoveisMini(v) + "</td>" +
-        "<td>" + esc(nomeDoDestino(v)) + "</td>" +
+        '<td><span class="ga-tab-tachas">' + previstos.map(function (g) { return tacha(g); }).join("") + "</span>" + esc(nomeDoDestino(v)) + "</td>" +
         '<td class="num">' + os.length + "</td>" +
         '<td class="num">' + s("pessoas") + "</td>" +
         '<td class="num">' + s("novos") + "</td>" +
@@ -178,52 +267,169 @@
     }).join("");
   }
 
+  /* o cartão da agenda: o imóvel numa linha, as tachinhas dos grupos embaixo */
   function cartao(o) {
     var v = vagasPorId[o.vaga] || {};
-    var q = new Date(o.quando);
-    return '<button type="button" class="ga-cartao' + (livre(v) ? " ga-cartao--livre" : o.passou ? (o.posts ? " ga-cartao--saiu" : " ga-cartao--falhou") : "") +
-        '" data-ocorrencia="' + esc(o.vaga + "|" + o.quando) + '">' +
-      '<span class="ga-cartao__hora">' + horaDe(q) + (v.recorrencia === "diaria" ? ' <i title="todo dia">↻</i>' : v.recorrencia === "semanal" ? ' <i title="dias da semana">↻</i>' : "") + "</span>" +
-      '<span class="ga-cartao__tit">' + esc(tituloDaVaga(v)) + "</span>" +
-      '<span class="ga-cartao__dest">' + esc(nomeDoDestino(v)) + "</span>" +
-      '<span class="ga-cartao__met">' + metricaCurta(o) + "</span>" +
+    var gs = gruposDe(o);
+    var estado = estadoDe(o);
+    var st = estado === "saiu" ? '<span class="ga-cartao__st ga-cartao__st--saiu" title="Saiu em ' + gs.length + (gs.length === 1 ? " grupo" : " grupos") + '">✓</span>'
+      : estado === "falhou" ? '<span class="ga-cartao__st ga-cartao__st--falhou" title="Não saiu">!</span>'
+      : '<span class="ga-cartao__st ga-cartao__st--futuro" title="Agendada">' + ICONE_RELOGIO + "</span>";
+    var num = estado === "saiu"
+      ? '<span class="ga-cartao__num" title="' + (o.pessoas || 0) + " chegaram nas 6 h" + (o.janela_completa ? "" : " (a janela ainda está aberta)") +
+          " · " + (o.pelo_imovel || 0) + " pelo imóvel · " + (o.novos || 0) + ' novos">' + ICONE_PESSOA + (o.pessoas || 0) +
+          (o.pelo_imovel ? '<b class="ga-cartao__im">' + ICONE_CASA + o.pelo_imovel + "</b>" : "") + "</span>"
+      : "";
+    return '<button type="button" class="ga-cartao ga-cartao--' + estado + '" style="--faixa:' + faixa(gs) + '" data-ocorrencia="' + esc(o.vaga + "|" + o.quando) +
+        '" title="' + esc(tituloDaVaga(v) + " — " + nomeDoDestino(v)) + '">' +
+      '<span class="ga-cartao__linha"><span class="ga-cartao__tit">' + esc(tituloCurto(v)) + "</span>" + st + "</span>" +
+      '<span class="ga-cartao__tachas' + (gs.length > 10 ? " ga-cartao__tachas--muitas" : "") + '">' + gs.map(function (g) { return tacha(g, estado === "falhou"); }).join("") + num + "</span>" +
     "</button>";
+  }
+
+  /* ---- a conversa: o post como ele chega no grupo ---- */
+  function card(codigo) {
+    var c = String(codigo);
+    if (!cards[c]) {
+      cards[c] = fetch(API + "/api/imovel-card/" + encodeURIComponent(c))
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .catch(function () { return null; });
+    }
+    return cards[c];
+  }
+  /* cada grupo só vê os valores que aceita (montar_destinos.py: aceita_venda/aceita_locacao e o piso) */
+  function textoParaGrupo(d, g) {
+    var t = d.card || "", im = d.imovel || {};
+    if (!g || (im.valor_venda == null && im.valor_aluguel == null)) return t;
+    var vendaOk = im.valor_venda != null && g.venda !== false && !(g.venda_minima != null && im.valor_venda < Number(g.venda_minima));
+    var locOk = im.valor_aluguel != null && g.locacao !== false && !(g.aluguel_minimo != null && im.valor_aluguel < Number(g.aluguel_minimo));
+    if (!vendaOk && !locOk) return null;
+    var saida = [], tirouVenda = false;
+    t.split("\n").forEach(function (l) {
+      if (/^Venda:/i.test(l) && !vendaOk) { tirouVenda = true; return; }
+      if (/^Loca[cç][aã]o:/i.test(l) && !locOk) return;
+      if (tirouVenda && /financiamento/i.test(l)) { tirouVenda = false; return; }
+      tirouVenda = false;
+      saida.push(l);
+    });
+    return saida.join("\n");
+  }
+  /* o texto do card com cada parte numa cor: título, valores, OBS e código */
+  function formatarCard(t) {
+    return t.split("\n").map(function (l) {
+      var c = /^📍/.test(l) ? "tit" : /^(Venda|Loca[cç][aã]o):/i.test(l) ? "valor" : /^C[óo]digo:/i.test(l) ? "cod"
+        : /^OBS:/i.test(l) ? "obs" : /financiamento/i.test(l) ? "fin" : "";
+      var h = esc(l).replace(/\*([^*\n]+)\*/g, "<b>$1</b>").replace(/(^|\s)_([^_\n]+)_/g, "$1<i>$2</i>");
+      return '<span class="ga-l' + (c ? " ga-l--" + c : "") + '">' + (h || "&nbsp;") + "</span>";
+    }).join("");
+  }
+  function baloesDoImovel(k, total, im, d, g, hora, estado) {
+    var acento = ACENTOS[k % ACENTOS.length];
+    var pilula = '<div class="ga-zap__pilula" style="--im:' + acento + '">' + (total > 1 ? (k + 1) + "º de " + total + " · " : "") +
+      "Imóvel " + esc(im.codigo) + (im.titulo ? " · " + esc(im.titulo) : "") + "</div>";
+    if (!d) return pilula + '<div class="ga-zap__nota ga-zap__nota--erro">Não achei o card do ' + esc(im.codigo) +
+      ". Imóvel fora do ar não sai: o publicador pula e avisa o Tel.</div>";
+    var texto = textoParaGrupo(d, g);
+    if (texto === null) return pilula + '<div class="ga-zap__nota">Este imóvel não entra neste grupo: o grupo não aceita esse negócio ou esse valor.</div>';
+    var tic = estado === "saiu" ? '<i class="ga-tic" title="Entregue">✓✓</i>' : estado === "futuro" ? '<i class="ga-tic ga-tic--relogio" title="Agendada">' + ICONE_RELOGIO + "</i>" : "";
+    var rodape = '<span class="ga-balao__hora">' + esc(hora) + tic + "</span>";
+    var todas = !!(g && g.todas_fotos);
+    var fotos = todas ? (d.fotos || []) : [d.colagem || (d.fotos || [])[0]].filter(Boolean);
+    var rotFoto = todas ? fotos.length + (fotos.length === 1 ? " foto" : " fotos, uma por mensagem") : d.colagem ? "a metadinha (4 fotos numa)" : "a capa (ainda sem metadinha)";
+    var album = fotos.slice(0, 4).map(function (u, n) {
+      var resto = n === 3 && fotos.length > 4 ? '<span class="ga-album__mais">+' + (fotos.length - 4) + "</span>" : "";
+      return '<span class="ga-album__item"><img src="' + esc(foto(u, "medium")) + '" alt="" loading="lazy">' + resto + "</span>";
+    }).join("");
+    return pilula +
+      '<div class="ga-balao ga-balao--texto" style="--im:' + acento + '"><span class="ga-balao__rot">1ª mensagem · texto</span>' +
+        formatarCard(texto) + rodape + "</div>" +
+      (fotos.length
+        ? '<div class="ga-balao ga-balao--foto" style="--im:' + acento + '"><span class="ga-balao__rot">2ª mensagem · ' + esc(rotFoto) + "</span>" +
+            '<div class="ga-album ga-album--' + Math.min(fotos.length, 4) + '">' + album + "</div>" + rodape + "</div>"
+        : '<div class="ga-zap__nota">Sem foto: vai só o texto.</div>');
+  }
+  /* alvo: onde desenhar; v: a vaga (ou a edição); g: o grupo visto (ou nada); quando: Date ou nada */
+  function desenharConversa(alvo, v, g, quando, estado, hora) {
+    var ims = v.imoveis || [];
+    var cabeca = '<div class="ga-zap__topo" style="--g:' + (g ? cor(g) : "#8696a0") + '">' +
+      '<span class="ga-zap__avatar">' + (g ? esc(iniciais(g.nome)) : "G") + "</span>" +
+      "<div><b>" + esc(g ? nomeCurto(g.nome) : "Grupos que aceitam o imóvel") + "</b><small>" +
+      (g ? (g.todas_fotos ? "grupo de anunciar: vão todas as fotos" : "Imob Easy · número da Parceria") : "cada um recebe só os valores que aceita") +
+      "</small></div></div>";
+    var dia = quando ? quando.toLocaleDateString("pt-BR", { timeZone: FUSO, weekday: "short", day: "2-digit", month: "2-digit" })
+      : estado === "previa" ? "como vai chegar" : "";
+    var corpo;
+    if (v.categoria) corpo = '<div class="ga-zap__nota">' + esc(nomeDoDestino(v)) + ": a lista é montada pelo publicador na hora do envio, com os imóveis daquele momento.</div>";
+    else if (!ims.length) corpo = '<div class="ga-zap__nota">' + (estado === "previa" ? "Escolha os imóveis: cada um vira um texto e uma foto aqui." : "Horário livre: sem imóvel, nada sai.") + "</div>";
+    else corpo = '<p class="ga-zap__carregando">Montando a conversa…</p>';
+    alvo.innerHTML = '<div class="ga-zap">' + cabeca + '<div class="ga-zap__corpo">' + (dia ? '<div class="ga-zap__dia">' + esc(dia) + "</div>" : "") + corpo + "</div></div>";
+    if (v.categoria || !ims.length) return;
+    var marca = {};
+    alvo.__marca = marca;          // se a conversa for redesenhada antes de chegar, esta resposta não vale mais
+    Promise.all(ims.map(function (i) { return card(i.codigo); })).then(function (lista) {
+      if (alvo.__marca !== marca) return;
+      var c = alvo.querySelector(".ga-zap__carregando");
+      if (!c) return;
+      c.outerHTML = lista.map(function (d, k) { return baloesDoImovel(k, ims.length, ims[k], d, g, hora, estado); }).join("");
+    });
   }
 
   /* ---- detalhe de um envio ---- */
   function abrirDetalhe(chave) {
     var p = chave.split("|"), o = (dados.ocorrencias || []).find(function (x) { return String(x.vaga) === p[0] && x.quando === p[1]; });
     if (!o) return;
-    var v = vagasPorId[o.vaga] || {}, q = new Date(o.quando);
+    var v = vagasPorId[o.vaga] || {}, gs = gruposDe(o);
+    var noFiltro = grupoFiltro && gs.find(function (g) { return g.id === grupoFiltro; });
+    detalhe = { o: o, v: v, gs: gs, visto: noFiltro || gs[0] || null };
+    var q = new Date(o.quando);
     $("ga-det-tit").textContent = q.toLocaleDateString("pt-BR", { timeZone: FUSO, weekday: "long", day: "2-digit", month: "2-digit" }) + " às " + horaDe(q);
-    var grupos = o.passou && o.posts ? (o.grupos || [])
-      : (v.previstos || []).map(function (id) { var g = opcoes.grupos.find(function (x) { return x.id === id; }); return g ? g.nome : null; }).filter(Boolean);
+    var estado = estadoDe(o);
+    var situacao = {
+      livre: '<p class="ga-situacao ga-situacao--livre">Horário livre da grade: sem imóvel, nada sai. Clique em Editar para pôr imóveis nele.</p>',
+      futuro: '<p class="ga-situacao ga-situacao--futuro">' + ICONE_RELOGIO + " Agendada. As métricas aparecem depois do envio.</p>",
+      falhou: '<p class="ga-situacao ga-situacao--falhou">Não saiu. O publicador recusa imóvel fora do ar, de parceiro ou abaixo da faixa do grupo, e avisa o motivo ao Tel no WhatsApp.</p>',
+      saiu: '<p class="ga-situacao ga-situacao--saiu">✓ Saiu em ' + gs.length + (gs.length === 1 ? " grupo" : " grupos") + ".</p>"
+    }[estado];
     $("ga-det-corpo").innerHTML =
-      '<div class="ga-det-imoveis">' + imoveisMini(v) + "</div>" +
-      '<p class="ga-dica">' + esc(descreverRepeticao(v)) + " · " + esc(nomeDoDestino(v)) + "</p>" +
-      (livre(v)
-        ? '<p class="ga-dica">Horário livre da grade: sem imóvel, nada sai. Clique em Editar para pôr imóveis nele.</p>'
-        : o.passou
-        ? (o.posts
-          ? '<div class="ga-det-num"><div><b>' + (o.pessoas || 0) + "</b><span>chegaram em 6 h</span></div>" +
-              "<div><b>" + (o.novos || 0) + "</b><span>pessoas novas</span></div>" +
-              '<div class="ga-det-num__destaque"><b>' + (o.pelo_imovel || 0) + "</b><span>pelo imóvel</span></div></div>" +
-              (o.janela_completa ? "" : '<p class="ga-dica">As 6 h ainda não acabaram: os números vão subir.</p>')
-          : '<p class="ga-erro">Não saiu. O publicador recusa imóvel fora do ar, de parceiro ou abaixo da faixa do grupo, e avisa o motivo ao Tel no WhatsApp.</p>')
-        : '<p class="ga-dica">Ainda vai sair. As métricas aparecem depois do envio.</p>') +
-      "<h3>" + (o.passou && o.posts ? "Saiu em " + grupos.length + " grupos" : "Grupos previstos (" + grupos.length + ")") + "</h3>" +
-      '<ul class="ga-det-grupos">' + grupos.map(function (n) { return "<li>" + esc(n) + "</li>"; }).join("") + "</ul>" +
-      (o.passou && o.posts ? "" : '<p class="ga-dica">Sem destino, cada imóvel vai só aos grupos que aceitam o tipo e o valor dele: a lista exata sai na hora do envio.</p>') +
-      '<div class="ga-dialogo__acoes"><button type="button" class="btn-mini btn-mini--perigo" data-excluir="' + v.id + '">Excluir a mensagem</button>' +
-        '<button type="button" class="btn-azul" data-editar="' + v.id + '">Editar</button></div>';
+      '<div class="ga-det-grade">' +
+        '<div class="ga-det-info">' + situacao +
+          '<p class="ga-dica">' + esc(descreverRepeticao(v)) + " · " + esc(nomeDoDestino(v)) + "</p>" +
+          (estado === "saiu"
+            ? '<div class="ga-det-num"><div><b>' + (o.pessoas || 0) + "</b><span>chegaram em 6 h</span></div>" +
+                "<div><b>" + (o.novos || 0) + "</b><span>pessoas novas</span></div>" +
+                '<div class="ga-det-num__destaque"><b>' + (o.pelo_imovel || 0) + "</b><span>pelo imóvel</span></div></div>" +
+                (o.janela_completa ? "" : '<p class="ga-dica">As 6 h ainda não acabaram: os números vão subir.</p>')
+            : "") +
+          (gs.length && estado !== "livre"
+            ? "<h3>" + (estado === "saiu" ? "Os grupos que receberam" : "Os grupos previstos") + " <small>(clique para ver a conversa nele)</small></h3>" +
+              '<div class="ga-det-grupos" data-estado-proprio>' + gs.map(function (g) {
+                return '<button type="button" class="ga-chip" data-ver-grupo="' + esc(g.id) + '" aria-pressed="' + (detalhe.visto && detalhe.visto.id === g.id) +
+                  '" style="--c:' + cor(g) + '">' + tacha(g, estado === "falhou") + "<span>" + esc(nomeCurto(g.nome)) + "</span></button>";
+              }).join("") + "</div>" +
+              (saiu(o) ? "" : '<p class="ga-dica">Sem destino, cada imóvel vai só aos grupos que aceitam o tipo e o valor dele: a lista exata sai na hora do envio.</p>')
+            : "") +
+          '<div class="ga-dialogo__acoes"><button type="button" class="btn-mini btn-mini--perigo" data-excluir="' + v.id + '">Excluir a mensagem</button>' +
+            '<button type="button" class="btn-azul" data-editar="' + v.id + '">Editar</button></div>' +
+        "</div>" +
+        '<div class="ga-det-conversa" id="ga-det-zap"></div>' +
+      "</div>";
+    desenharConversa($("ga-det-zap"), v, detalhe.visto, q, estado, horaDe(q));
     abrirDialogo($("ga-detalhe"));
+  }
+  function verNoGrupo(id) {
+    if (!detalhe) return;
+    detalhe.visto = detalhe.gs.find(function (g) { return g.id === id; }) || detalhe.visto;
+    document.querySelectorAll("#ga-det-corpo [data-ver-grupo]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.verGrupo === id)); });
+    var q = new Date(detalhe.o.quando);
+    desenharConversa($("ga-det-zap"), detalhe.v, detalhe.visto, q, estadoDe(detalhe.o), horaDe(q));
   }
 
   /* ---- criar e editar ---- */
   function abrirEditor(v) {
-    edicao = { id: v ? v.id : null, lista: !!(v && v.categoria), escolhidos: v && !v.categoria ? (v.imoveis || []).map(function (i) {
-      return { codigo: String(i.codigo), titulo: i.titulo, foto: i.foto, bairro: i.bairro, venda: i.venda, aluguel: i.aluguel };
-    }) : [] };
+    edicao = { id: v ? v.id : null, lista: !!(v && v.categoria), categoria: v && v.categoria, negocio: v && v.negocio,
+      escolhidos: v && !v.categoria ? (v.imoveis || []).map(function (i) {
+        return { codigo: String(i.codigo), titulo: i.titulo, foto: i.foto, bairro: i.bairro, venda: i.venda, aluguel: i.aluguel };
+      }) : [] };
     $("ga-ed-tit").textContent = v ? "Editar mensagem" : "Nova mensagem";
     $("ga-ed-imoveis").hidden = edicao.lista;
     $("ga-ed-destino").hidden = edicao.lista;
@@ -239,7 +445,7 @@
     $("ga-data").value = v && v.data ? v.data : somaDias(diaDe(new Date()), 1);
     $("ga-data").min = diaDe(new Date());
     $("ga-destino").innerHTML = '<option value="">Todos os grupos que aceitam o imóvel</option>' + opcoes.destinos.map(function (d) {
-      return '<option value="' + esc(d.apelido) + '">' + esc(ROTULO_DESTINO[d.apelido] || d.apelido) + " — " + esc(d.grupos.join(", ")) + "</option>";
+      return '<option value="' + esc(d.apelido) + '">' + esc(ROTULO_DESTINO[d.apelido] || d.apelido) + " — " + esc(d.grupos.map(nomeCurto).join(", ")) + "</option>";
     }).join("");
     $("ga-destino").value = v && v.destino ? v.destino : "";
     $("ga-busca").value = ""; $("ga-achados").innerHTML = ""; $("ga-erro").textContent = "";
@@ -269,14 +475,19 @@
       (v.recorrencia === "semanal" && !v.dias.length ? "escolha os dias" : v.recorrencia === "unica" && !v.data ? "escolha o dia" : descreverRepeticao(v)) +
       (edicao.lista ? "." : ", para " + nomeDoDestino(v).toLowerCase() + ".");
     var d = opcoes.destinos.find(function (x) { return x.apelido === v.destino; });
-    $("ga-destino-dica").textContent = v.destino
-      ? "Vai para: " + (d ? d.grupos.join(", ") : v.destino) + ". O Comercial só aceita imóvel comercial e o Alto Padrão tem valor mínimo: o publicador confere na hora."
+    var gsDestino = d ? d.grupos.map(function (nome) { return grupoPorNome[nome]; }).filter(Boolean) : [];
+    $("ga-destino-dica").innerHTML = v.destino
+      ? gsDestino.map(function (g) { return tacha(g); }).join("") + " Vai para: " + esc(d ? d.grupos.map(nomeCurto).join(", ") : v.destino) +
+        ". O Comercial só aceita imóvel comercial e o Alto Padrão tem valor mínimo: o publicador confere na hora."
       : "Cada imóvel vai aos grupos que aceitam o tipo e o valor dele (venda, locação, condomínio, comercial).";
+    // a prévia: a conversa como vai chegar (no grupo do destino, ou com o card inteiro)
+    var previa = edicao.lista ? { categoria: edicao.categoria, negocio: edicao.negocio } : { imoveis: edicao.escolhidos };
+    desenharConversa($("ga-previa"), previa, gsDestino[0] || null, null, "previa", $("ga-hora").value || "");
   }
 
   function desenharEscolhidos() {
     $("ga-escolhidos").innerHTML = edicao.escolhidos.length ? edicao.escolhidos.map(function (i, k) {
-      return '<span class="ga-escolhido">' + (i.foto ? '<img src="' + esc(foto(i.foto, "small")) + '" alt="">' : "") +
+      return '<span class="ga-escolhido" style="--im:' + ACENTOS[k % ACENTOS.length] + '">' + (i.foto ? '<img src="' + esc(foto(i.foto, "small")) + '" alt="">' : "") +
         "<b>" + esc(i.codigo) + "</b><small>" + esc(i.titulo || "") + "</small>" +
         '<button type="button" data-tirar="' + k + '" aria-label="Tirar o ' + esc(i.codigo) + '">×</button></span>';
     }).join("") : '<p class="ga-dica">Nenhum imóvel ainda.</p>';
@@ -337,6 +548,8 @@
     var t = e.target.closest ? e.target.closest("button, [data-fechar]") : null;
     if (!t) { if (e.target.tagName === "DIALOG") fecharDialogo(e.target); return; }
     if (t.hasAttribute("data-fechar")) { fecharDialogo(t.closest("dialog")); return; }
+    if (t.hasAttribute("data-grupo") && $("ga-legenda").contains(t)) { grupoFiltro = t.dataset.grupo; if (dados) desenhar(); return; }
+    if (t.dataset.verGrupo) { verNoGrupo(t.dataset.verGrupo); return; }
     if (t.dataset.ocorrencia) { abrirDetalhe(t.dataset.ocorrencia); return; }
     if (t.dataset.editar) { fecharDialogo($("ga-detalhe")); abrirEditor(vagasPorId[t.dataset.editar]); return; }
     if (t.dataset.excluir) { excluir(t.dataset.excluir); return; }
@@ -359,20 +572,16 @@
   });
   $("ga-form").addEventListener("change", function (e) {
     if (e.target.name === "rec") mostrarRepeticao();
-    resumoDoEditor();
+    if (e.target.id !== "ga-busca") resumoDoEditor();
   });
   $("ga-hora").addEventListener("input", resumoDoEditor);
   $("ga-form").addEventListener("submit", salvar);
-  $("ga-grupo").addEventListener("change", function () { grupoFiltro = this.value; if (dados) desenhar(); });
 
   /* ---- começar ---- */
   pedir("/admin/api/grade/opcoes")
     .then(function (o) {
-      opcoes = { grupos: o.grupos || [], destinos: o.destinos || [] };
-      $("ga-grupo").innerHTML = '<option value="">Todos os grupos</option>' + opcoes.grupos.filter(function (g) { return g.ativo; }).map(function (g) {
-        return '<option value="' + esc(g.id) + '">' + esc(g.nome) + "</option>";
-      }).join("");
+      opcoes = { grupos: prepararGrupos(o.grupos || []), destinos: o.destinos || [] };
     })
-    .catch(function () { /* sem as opções, a agenda ainda aparece */ })
+    .catch(function () { /* sem as opções, a agenda ainda aparece (sem as cores) */ })
     .then(carregar);
 })();

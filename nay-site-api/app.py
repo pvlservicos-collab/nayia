@@ -1067,6 +1067,9 @@ def _card_do_imovel(conn, codigo):
 
     fotos = todas_linhas(conn, "SELECT url, e_colagem FROM nai_imagens_do_envio(%s)", (codigo,))
     urls = [f["url"] for f in fotos if f["url"] and not f["e_colagem"]]
+    # A metadinha vai SEPARADA, so para quem mostra o post dos grupos (admin ›
+    # Grupos, 03/10): um envio de um para um continua usando so `fotos`.
+    colagem = todas_linhas(conn, "SELECT url FROM imovel_colagem WHERE codigo = %s", (codigo,))
 
     resumo = todas_linhas(conn, """
         SELECT codigo, status, tipo, condominio, bairro, endereco, quartos, suites,
@@ -1085,6 +1088,7 @@ def _card_do_imovel(conn, codigo):
         "card": card["texto_pronto"],
         "qtd_fotos": int(card["qtd_fotos"] or 0),
         "fotos": urls,
+        "colagem": (colagem[0]["url"] or None) if colagem else None,
         "imovel": r,
         # A parede do parceiro NAO bloqueia aqui: quem manda e uma pessoa, nao a
         # Nay. Mas a bandeira vai junto, em cima, para a tela avisar antes.

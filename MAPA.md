@@ -104,6 +104,8 @@ prompt: comece pelo `nay onde`.
 - admin › Grupos (`admin/grupos.html`, `assets/js/grupos-agenda.js`): a agenda das mensagens de imóvel nos grupos.
   É a GRADE do publicador (`vagas`), que `disparar_grade.sh` posta no minuto marcado; criar/editar/excluir por
   `site_grade_salvar`/`site_grade_excluir`, a semana e a métrica de 6 h por `site_grade_agenda` (rotas `/admin/api/grade*`). 279.
+  Cor por grupo, tachinhas e a mensagem em balões de WhatsApp (texto do card, depois a metadinha ou todas as fotos):
+  regras por grupo em `site_grade_opcoes` (280: todas_fotos, pisos, lotado); o card e a `colagem` por `/api/imovel-card/<código>`.
 
 ## CRM (crm.imobeasy.online, Next.js) — `crm/`
 - Nay no card do contato: `src/components/Chat/PainelContatoParceria.tsx` + `src/app/api/leads/[id]/nay/route.ts` + `src/lib/nayLeitura.ts`.
