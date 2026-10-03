@@ -1,4 +1,4 @@
-# captacao_escalacoes  (tabela, ~104 linhas)
+# captacao_escalacoes  (tabela, ~165 linhas)
 Escaladas da CAMPANHA de captacao. Separada de pendencias de proposito: pendencias e do atendimento a corretor e alimenta o reuso de resposta da Nay; a captacao e temporaria e nao deve sujar aquele historico.
 
 ## colunas

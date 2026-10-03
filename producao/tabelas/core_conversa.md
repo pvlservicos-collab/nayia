@@ -1,4 +1,4 @@
-# core_conversa  (tabela, ~86 linhas)
+# core_conversa  (tabela, ~93 linhas)
 
 ## colunas
 chave  text  NOT NULL
@@ -27,15 +27,16 @@ versao  integer  NOT NULL  padrão 0
 atualizado_em  timestamp with time zone  NOT NULL  padrão now()
 ultima_pergunta  text
 ultima_acao  text
+ultima_lista  integer[]  NOT NULL  padrão '{}'::integer[]
 
 ## índices
 CREATE INDEX core_conversa_estado ON public.core_conversa USING btree (estado)
 CREATE UNIQUE INDEX core_conversa_pkey ON public.core_conversa USING btree (chave)
 
 ## restrições
-core_conversa_estado_check: CHECK ((estado = ANY (ARRAY['NOVO'::text, 'IDENTIFICANDO'::text, 'FILTRO_FINALIDADE'::text, 'FILTRO_TIPO'::text, 'FILTRO_TETO'::text, 'FILTRO_REGIAO'::text, 'BUSCA'::text, 'APRESENTADO'::text, 'VISITA_PEDIDA'::text, 'ESCALADO'::text, 'HUMANO'::text, 'SILENCIO'::text])))
+core_conversa_estado_check: CHECK ((estado = ANY (ARRAY['NOVO'::text, 'IDENTIFICANDO'::text, 'FILTRO_FINALIDADE'::text, 'FILTRO_TIPO'::text, 'FILTRO_TETO'::text, 'FILTRO_REGIAO'::text, 'FILTRO_MOBILIA'::text, 'FILTRO_CLIMATIZADO'::text, 'BUSCA'::text, 'APRESENTADO'::text, 'VISITA_PEDIDA'::text, 'ESCALADO'::text, 'HUMANO'::text, 'SILENCIO'::text])))
 core_conversa_filtro_finalidade_check: CHECK ((filtro_finalidade = ANY (ARRAY['locacao'::text, 'venda'::text, 'ambos'::text, 'tanto_faz'::text])))
-core_conversa_filtro_mobilia_check: CHECK ((filtro_mobilia = ANY (ARRAY['mobiliado'::text, 'semi'::text, 'nao'::text, 'tanto_faz'::text])))
+core_conversa_filtro_mobilia_check: CHECK ((filtro_mobilia = ANY (ARRAY['mobiliado'::text, 'semi'::text, 'nao'::text, 'tanto_faz'::text, 'sem_preferencia'::text, 'climatizado'::text])))
 core_conversa_pkey: PRIMARY KEY (chave)
 
 ## permissões

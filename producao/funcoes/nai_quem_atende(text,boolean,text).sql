@@ -5,6 +5,12 @@ CREATE OR REPLACE FUNCTION public.nai_quem_atende(p_phone text, p_grupo boolean,
 AS $function$
 DECLARE v_chave text := nai_chave(p_phone);
 BEGIN
+  -- 0. MENSAGEM DE GRUPO (282): vai ao fluxo da NAI só para passar pelo "Espelhar no CRM". O "Filtrar e
+  --    normalizar" de lá descarta grupo, como o daqui. Ninguém responde grupo.
+  IF coalesce(p_grupo, false) AND coalesce(p_phone, '') ~ '-group$' THEN
+    RETURN 'nai';
+  END IF;
+
   -- 1. comando do publicador e da Nay antiga: nada muda.
   IF v_chave IS NOT NULL AND v_chave = nai_chave(nai_cfg('tel_telefone'))
      AND NOT coalesce(p_grupo, true) AND nai_e_comando_publicador(p_texto) THEN

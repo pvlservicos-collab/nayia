@@ -1126,6 +1126,41 @@ def _registrar_publicacao(conn, codigo, grupo, message_id=None):
             pass
 
 
+CODIGO_NA_LISTA = re.compile(r"\bcod\.?\s*(\d{3,5})\b", re.I)
+
+
+def _registrar_lista(conn, grupo, pedaco, message_id, categoria, negocio):
+    """Anota cada imóvel deste pedaço de lista com o id da mensagem (281, 03/10).
+
+    O card de um imóvel já ia para `envios` e a citação dele virava o código.
+    A lista saía sem registro: em 03/10 a Marciléia marcou a lista das 07:00
+    e escreveu "Esse conquista rionegro!", e a Nay não sabia de que mensagem
+    ela falava. Vai para `envios_lista_grupo`, e não para `envios`, porque a
+    Nay velha lê `envios` em ~25 funções e pegaria UM código qualquer da
+    lista. Só a Nay nova lê esta tabela, na ordem ("o primeiro").
+
+    Nunca derruba o envio: a mensagem já saiu quando isto roda.
+    """
+    if conn is None or not message_id:
+        return
+    codigos = list(dict.fromkeys(int(c) for c in CODIGO_NA_LISTA.findall(pedaco or "")))
+    if not codigos:
+        return
+    try:
+        with conn.cursor() as cur:
+            cur.executemany(
+                "INSERT INTO envios_lista_grupo (message_id, codigo, posicao, grupo_id, "
+                "grupo_nome, categoria, negocio) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                [(message_id, c, k + 1, grupo.get("id_grupo"), grupo.get("nome"),
+                  categoria, negocio) for k, c in enumerate(codigos)])
+        conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+
 def _so_esse_negocio(imovel, negocio):
     """O mesmo imóvel, visto por um lado só.
 
@@ -2295,7 +2330,9 @@ def _disparar_lista(comando, conn, pausa=time.sleep):
             for j, pedaco in enumerate(seus_pedacos):
                 if j:
                     pausa(PAUSA_ANTES_TEXTO)
-                enviar_texto(grupo["id_grupo"], pedaco)
+                resultado = enviar_texto(grupo["id_grupo"], pedaco)
+                _registrar_lista(conn, grupo, pedaco, id_da_mensagem(resultado),
+                                 categoria, negocio)
             # Só depois do envio ter dado certo de verdade -- relatar grupo
             # que não recebeu levaria a NÃO reenviar para quem ficou de fora.
             enviados.append(grupo["nome"])
