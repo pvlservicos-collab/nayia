@@ -9,7 +9,8 @@
  * sai daqui até clicar. "Todos" solta e devolve a etapa à campanha; "Com o Tel"
  * cala a Nay para essa pessoa até voltar para Todos (migração 242).
  */
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import AvisoFlutuante, { type AvisoNaTela } from './AvisoFlutuante'
 
 export const ETAPAS_DA_CAPTACAO: Array<{ chave: string; rotulo: string; titulo: string; pessoa?: boolean }> = [
   { chave: 'todos', rotulo: 'Todos', titulo: 'Solta: a etapa volta a ser a que a campanha diz' },
@@ -41,7 +42,14 @@ export default function EtapaDaCaptacao({ leadId, etapaManual, abas, aoMudar }: 
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [recado, setRecado] = useState<string | null>(null)
-  useEffect(() => { setEscolhido(ondeEsta); setErro(null); setRecado(null) }, [leadId, ondeEsta])
+  /* A NOTIFICAÇÃO (Pedro, 03/10/2026: "coloca um aviso claro quando eu mudar o status de
+     um contato... põe uma notificaçãozinha"). O recado do Salvar existia, mas este efeito
+     o apagava no mesmo instante: salvar muda `ondeEsta`, e o efeito limpava tudo. Agora o
+     recado só sai ao trocar de conversa ou ao escolher outra etapa, e sobe no pé da tela. */
+  const [aviso, setAviso] = useState<AvisoNaTela | null>(null)
+  const fecharAviso = useCallback(() => setAviso(null), [])
+  useEffect(() => { setEscolhido(ondeEsta); setErro(null) }, [leadId, ondeEsta])
+  useEffect(() => { setRecado(null) }, [leadId])
   const mudou = escolhido !== ondeEsta
 
   async function salvar() {
@@ -53,11 +61,15 @@ export default function EtapaDaCaptacao({ leadId, etapaManual, abas, aoMudar }: 
         body: JSON.stringify({ etapa: escolhido }),
       })
       const j = await r.json().catch(() => ({} as any))
-      if (!r.ok || j?.ok === false) throw new Error(j?.mensagem || j?.error || 'não salvou')
-      setRecado(String(j?.mensagem || 'Pronto.'))
+      if (!r.ok || j?.ok === false) throw new Error(j?.mensagem || j?.error || 'o servidor não aceitou a mudança')
+      const texto = String(j?.mensagem || 'Pronto.')
+      setRecado(texto)
+      setAviso({ tom: 'ok', titulo: `Salvo: ${ROTULO_DA_ETAPA_DA_CAPTACAO[escolhido] || escolhido}`, texto })
       aoMudar?.(escolhido)
     } catch (e: any) {
-      setErro(e?.message || 'não salvou')
+      const texto = e?.message || 'não salvou'
+      setErro(texto)
+      setAviso({ tom: 'erro', titulo: `Não salvou: ${ROTULO_DA_ETAPA_DA_CAPTACAO[escolhido] || escolhido}`, texto: `${texto}. Nada mudou; tente de novo.` })
     } finally {
       setSalvando(false)
     }
@@ -70,7 +82,7 @@ export default function EtapaDaCaptacao({ leadId, etapaManual, abas, aoMudar }: 
         {ETAPAS_DA_CAPTACAO.map((e) => (
           <span key={e.chave} className="contents">
             {e.pessoa && <span className="wa-fase__risco" aria-hidden="true" />}
-            <button type="button" onClick={() => setEscolhido(e.chave)} disabled={salvando} title={e.titulo}
+            <button type="button" onClick={() => { setEscolhido(e.chave); setRecado(null) }} disabled={salvando} title={e.titulo}
                     className={`wa-fase wa-fase--${e.pessoa ? 'pessoa' : 'etapa'}`
                       + `${e.chave !== 'todos' && !e.pessoa ? ' wa-fase--rosa' : ''}`
                       + `${escolhido === e.chave ? ' wa-fase--on' : ''}`}>
@@ -92,6 +104,7 @@ export default function EtapaDaCaptacao({ leadId, etapaManual, abas, aoMudar }: 
       {(erro || recado) && (
         <p className={`mt-2 text-[11.5px] leading-4 ${erro ? 'text-red-500' : 'text-emerald-500'}`}>{erro || recado}</p>
       )}
+      <AvisoFlutuante aviso={aviso} aoFechar={fecharAviso} />
       {!erro && !recado && (
         <p className="mt-2 text-[11px] text-[var(--chat-text-secondary)]">
           {etapaManual

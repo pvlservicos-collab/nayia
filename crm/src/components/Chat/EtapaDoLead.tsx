@@ -15,11 +15,22 @@
  * "Todos" não é "mover para Todos": é soltar -- do lado da Nay ele conclui o
  * fechamento aberto e tira a marca de humano, e a conversa volta por
  * consequência.
+ *
+ * O AVISO DEPOIS DE SALVAR (Pedro, 03/10/2026): "coloca um aviso claro quando eu
+ * mudar o status de um contato; tem uns que eu coloco para Todos e não salva; põe
+ * uma notificaçãozinha". Salvava, mas a tela ficava muda -- e quando um fato da
+ * Nay segura a conversa (é proprietário, tem visita confirmada...) ela nem sai do
+ * lugar, e o botão continuava dizendo "vai para Todos ao salvar". Agora, depois
+ * de salvar, a tela lê as marcas da Nay de novo, vê onde a conversa FICOU e diz:
+ * "Movido para X", ou "Não foi para X: continua em Y", com o motivo. Sai numa
+ * notificação no pé da tela e fica escrito no card. O botão aceso passou a ser a
+ * aba em que a conversa aparece na lista (`abaDaConversa`), não a última escolha.
  */
-import { useEffect, useState } from 'react'
-import { useParceriaMarcas } from '@/hooks/useParceriaMarcas'
-import { etapaDaParceria, escolhaAMao, DESTINOS_DA_PARCERIA, ROTULO_DA_ETAPA, type DestinoParceria } from '@/lib/etapaDaParceria'
+import { useCallback, useEffect, useState } from 'react'
+import { useParceriaMarcas, marcasDepoisDeMudar } from '@/hooks/useParceriaMarcas'
+import { abaDaConversa, escolhaAMao, resultadoDaMudanca, DESTINOS_DA_PARCERIA, ROTULO_DA_ETAPA, type DestinoParceria } from '@/lib/etapaDaParceria'
 import type { LeadWithOwner } from '@/lib/types'
+import AvisoFlutuante, { type AvisoNaTela } from './AvisoFlutuante'
 
 export default function EtapaDoLead({ lead, onUpdateLead, semExplicacao }: {
   lead: LeadWithOwner
@@ -30,22 +41,25 @@ export default function EtapaDoLead({ lead, onUpdateLead, semExplicacao }: {
   const { marcas } = useParceriaMarcas(true)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  const [salvo, setSalvo] = useState(false)
+  /* o que aconteceu no último Salvar: fica escrito no card e sobe na notificação */
+  const [resultado, setResultado] = useState<AvisoNaTela | null>(null)
+  const [aviso, setAviso] = useState<AvisoNaTela | null>(null)
+  const fecharAviso = useCallback(() => setAviso(null), [])
 
   const m = marcas[lead.id]
   const aMao = escolhaAMao(lead as any)
-  const comOTel = m?.telAtendendo === true && !(m?.telMotivo || '').startsWith('Rayssa:')
-  const comARayssa = (m?.telMotivo || '').startsWith('Rayssa:')
-  /* ONDE ELE ESTÁ HOJE: a escolha da mão manda; senão, o que a Nay sabe. */
-  const ondeEsta: DestinoParceria = aMao
-    ?? (comARayssa ? 'rayssa' : comOTel ? 'tel' : etapaDaParceria(lead as any, m))
+  /* ONDE ELE ESTÁ HOJE: a aba em que a conversa aparece na lista -- pessoa (Tel ou
+     Rayssa) na frente; depois a etapa, com o fato da Nay valendo mais que a escolha. */
+  const ondeEsta: DestinoParceria = abaDaConversa(lead as any, m)
 
   /* O BOTÃO SALVAR (Tel, 30/09): "um botão para salvar e quando eu salvar ele
      vai automaticamente para a etapa lá nas conversas". Escolher só acende o
      botão; nada sai daqui até ele clicar em Salvar -- um clique errado no
      menu não deve mudar a conversa de lugar. */
   const [escolhido, setEscolhido] = useState<DestinoParceria>(ondeEsta)
-  useEffect(() => { setEscolhido(ondeEsta); setSalvo(false); setErro(null) }, [lead.id, ondeEsta])
+  useEffect(() => { setEscolhido(ondeEsta); setErro(null) }, [lead.id, ondeEsta])
+  // o recado do último Salvar é desta conversa: trocou de conversa, sai
+  useEffect(() => { setResultado(null) }, [lead.id])
   const mudou = escolhido !== ondeEsta
 
   /* ONDE ELE PAROU (Pedro, 30/09): o resumo da revisão de 30/09, para quem
@@ -65,24 +79,34 @@ export default function EtapaDoLead({ lead, onUpdateLead, semExplicacao }: {
   async function salvar() {
     if (salvando || !mudou) return
     const etapa = escolhido
-    setSalvando(true); setErro(null); setSalvo(false)
+    setSalvando(true); setErro(null); setResultado(null)
     try {
       const r = await fetch(`/api/leads/${lead.id}/contato`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ etapa }),
       })
-      if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error || 'não salvou')
+      const j = await r.json().catch(() => ({} as any))
+      if (!r.ok) throw new Error(j?.error || 'o servidor não aceitou a mudança')
       // a tela não espera o próximo carregamento para mostrar a mudança
       const antes = (lead as any).custom_attributes || {}
       const depois = { ...antes }
       // 'todos' solta a conversa e devolve à Nay; o resto prende
       if (etapa === 'todos') delete depois.etapa_parceria
-      else depois.etapa_parceria = etapa
+      else { depois.etapa_parceria = etapa; depois.etapa_parceria_em = new Date().toISOString() }
       onUpdateLead?.(lead.id, { custom_attributes: depois } as any)
-      setSalvo(true)
+      /* ONDE ELA FICOU DE VERDADE: quem sabe é a Nay. Lê as marcas de novo, sem cache;
+         se a leitura falhar, vale a que já estava na tela. */
+      const novas = await marcasDepoisDeMudar().catch(() => null)
+      const res = resultadoDaMudanca(etapa, { custom_attributes: depois }, (novas || marcas)[lead.id], j?.nayRecebeu !== false)
+      const recado: AvisoNaTela = { tom: res.tom, titulo: res.titulo, texto: res.texto }
+      setResultado(recado); setAviso(recado)
+      // o botão aceso é onde ela está: sem isto ficava "vai para Todos ao salvar" para sempre
+      setEscolhido(res.ficou)
     } catch (e: any) {
-      setErro(e?.message || 'não salvou')
+      const texto = e?.message || 'não salvou'
+      setErro(texto)
+      setAviso({ tom: 'erro', titulo: `Não salvou: ${ROTULO_DA_ETAPA[etapa]}`, texto: `${texto}. Nada mudou; tente de novo.` })
     } finally {
       setSalvando(false)
     }
@@ -98,7 +122,7 @@ export default function EtapaDoLead({ lead, onUpdateLead, semExplicacao }: {
             {d === 'tel' && <span className="wa-fase__risco" aria-hidden="true" />}
             <button
               type="button"
-              onClick={() => setEscolhido(d)}
+              onClick={() => { setEscolhido(d); setResultado(null) }}
               disabled={salvando}
               title={d === 'todos'
                 ? 'Solta a conversa: a Nay volta a decidir e a atender'
@@ -123,8 +147,16 @@ export default function EtapaDoLead({ lead, onUpdateLead, semExplicacao }: {
             vai para {ROTULO_DA_ETAPA[escolhido]} ao salvar
           </span>
         )}
-        {salvo && !mudou && <span className="text-[11px] text-emerald-500">movido para {ROTULO_DA_ETAPA[ondeEsta]}</span>}
       </div>
+      {resultado && (
+        <div role="status" className="mt-2 rounded-md px-2.5 py-2 text-[12px] leading-[17px]"
+             style={{ border: `1px solid ${resultado.tom === 'ok' ? '#16a34a' : '#d97706'}`,
+                      background: `color-mix(in srgb, ${resultado.tom === 'ok' ? '#16a34a' : '#d97706'} 12%, transparent)` }}>
+          <b className="block">{resultado.titulo}</b>
+          {resultado.texto}
+        </div>
+      )}
+      <AvisoFlutuante aviso={aviso} aoFechar={fecharAviso} />
       {retomada && (retomada.resumo || retomada.proximoPasso) && (
         <div className="mt-3 rounded-md border border-[var(--chat-border)] p-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--chat-text-secondary)]">Onde parou (revisão de 30/09)</p>

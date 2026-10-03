@@ -107,3 +107,103 @@ export function etapaDaParceria(
   // a Nay não sabe de nada: aí vale o que alguém escolheu, enquanto for recente
   return escolhaAindaValida(lead, agora) ?? 'todos'
 }
+
+/**
+ * EM QUAL ABA DA LISTA A CONVERSA APARECE: a mesma conta do LeadList. Quem está com
+ * uma PESSOA (Tel ou Rayssa) sai das etapas; senão vale a etapa (o fato da Nay na
+ * frente, a escolha do card só quando ela não sabe de nada).
+ */
+export function abaDaConversa(
+  lead: { custom_attributes?: any } | null | undefined,
+  marca: MarcaDaNay | undefined,
+  agora = Date.now(),
+): DestinoParceria {
+  const aMao = escolhaAMao(lead)
+  if (aMao === 'rayssa' || aMao === 'tel') return aMao
+  if (!aMao) {
+    if ((marca?.telMotivo || '').startsWith('Rayssa:')) return 'rayssa'
+    if (marca?.telAtendendo) return 'tel'
+  }
+  return etapaDaParceria(lead, marca, agora)
+}
+
+export interface ResultadoDaMudanca {
+  /** ok: foi para onde pediram. aviso: salvou, mas ficou em outro lugar (ou a Nay não soube). */
+  tom: 'ok' | 'aviso'
+  titulo: string
+  texto: string
+  /** a aba em que a conversa está de verdade, depois de salvar */
+  ficou: DestinoParceria
+}
+
+const EFEITO_DA_ETAPA: Record<DestinoParceria, string> = {
+  /* O GAP DO TEL explica o "pus em Todos e voltou" (medido em 03/10: Todos às 14:58,
+     mensagem à mão às 15:01, e a conversa na aba Tel de novo): mensagem escrita por
+     gente cala a Nay por 30 min e leva a conversa para a aba Tel nesse tempo. */
+  todos: 'A Nay volta a atender essa conversa. Se alguém escrever nela à mão (celular ou CRM), ela passa 30 minutos na aba Tel e volta sozinha para Todos.',
+  visitas: 'Quem atende é a Rayssa; a Nay não responde. Vale por 7 dias, ou até voltar para Todos.',
+  proprietarios: 'A Nay não responde essa conversa.',
+  fechamento: 'Quem atende é a Rayssa, até ela concluir o fechamento.',
+  tel: 'A Nay não responde até o Tel devolver a conversa.',
+  rayssa: 'A Nay não responde até a conversa voltar para Todos.',
+}
+
+/** O fato que segura a conversa numa aba, em uma frase (sem ponto final). */
+function oQueSegura(ficou: DestinoParceria, m: MarcaDaNay | undefined): string {
+  if (ficou === 'fechamento') return 'tem um fechamento aberto (o checklist foi pedido ou enviado)'
+  if (ficou === 'proprietarios') {
+    if (!m?.proprietario) return 'alguém escolheu Proprietários no card há menos de 7 dias'
+    const imoveis = m.imoveisDoDono?.length ? ` (${m.imoveisDoDono.length === 1 ? 'imóvel' : 'imóveis'} ${m.imoveisDoDono.slice(0, 3).join(', ')})` : ''
+    return `é proprietário${imoveis}, e dono de imóvel aparece só em Proprietários`
+  }
+  if (ficou === 'visitas') {
+    if (m?.acompanhante) return 'é quem acompanha as visitas, e fica sempre em Visitas'
+    if (m?.visitaRayssa) {
+      return `tem visita confirmada com a Rayssa${m.visitaId ? ` (visita #${m.visitaId})` : ''}; `
+        + 'sai de Visitas sozinha quando a visita for realizada, cancelada ou excluída na agenda'
+    }
+    return 'alguém escolheu Visitas no card há menos de 7 dias'
+  }
+  if (ficou === 'tel') {
+    return m?.telMotivo === 'o Tel escreveu pelo celular'
+      ? 'alguém escreveu nessa conversa à mão há menos de 30 minutos; a Nay espera esse tempo e a conversa volta sozinha para Todos'
+      : `a Nay marca que o Tel está com essa conversa${m?.telMotivo ? ` (${m.telMotivo})` : ''}`
+  }
+  if (ficou === 'rayssa') return 'a Nay marca que a Rayssa está com essa conversa'
+  return 'não há visita, fechamento, nem imóvel dele que a prenda em outra etapa'
+}
+
+/**
+ * O QUE ACONTECEU DEPOIS DE SALVAR A ETAPA (Pedro, 03/10/2026): "coloca um aviso claro
+ * quando eu mudar o status de um contato... tem uns que eu coloco para Todos e não
+ * salva; põe uma notificaçãozinha".
+ *
+ * Salvava, mas a tela não dizia nada -- e quando um FATO da Nay segura a conversa (é
+ * proprietário, tem visita confirmada com a Rayssa, tem fechamento aberto) ela
+ * continua na mesma aba, que é a regra de 01/10 ("o fato manda, a mão não tranca").
+ * Para quem clicou, isso é "não salvou". Aqui sai a frase certa para cada caso: foi,
+ * ou não foi e por quê. `lead` e `marca` são os de DEPOIS de salvar.
+ */
+export function resultadoDaMudanca(
+  pedido: DestinoParceria,
+  lead: { custom_attributes?: any } | null | undefined,
+  marca: MarcaDaNay | undefined,
+  nayRecebeu: boolean,
+  agora = Date.now(),
+): ResultadoDaMudanca {
+  const ficou = abaDaConversa(lead, marca, agora)
+  const semANay = nayRecebeu ? '' : ' A Nay não confirmou a mudança do lado dela: salve de novo em alguns segundos.'
+  if (ficou === pedido) {
+    return nayRecebeu
+      ? { tom: 'ok', titulo: `Movido para ${ROTULO_DA_ETAPA[pedido]}`, texto: EFEITO_DA_ETAPA[pedido], ficou }
+      : { tom: 'aviso', titulo: `Movido para ${ROTULO_DA_ETAPA[pedido]}, mas a Nay não foi avisada`,
+          texto: 'A lista mudou, mas a Nay pode continuar agindo como antes. Salve de novo em alguns segundos.', ficou }
+  }
+  const soltou = pedido === 'todos' ? ' O Todos tirou a marca de atendimento por pessoa e concluiu o fechamento aberto, se havia.' : ''
+  return {
+    tom: 'aviso',
+    titulo: `Não foi para ${ROTULO_DA_ETAPA[pedido]}: continua em ${ROTULO_DA_ETAPA[ficou]}`,
+    texto: `Motivo: ${oQueSegura(ficou, marca)}.${soltou}${semANay}`,
+    ficou,
+  }
+}

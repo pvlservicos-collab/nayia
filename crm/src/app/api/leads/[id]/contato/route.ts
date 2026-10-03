@@ -44,6 +44,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const [lead] = await db.select({ id: leads.id, phone: leads.phone }).from(leads)
       .where(and(eq(leads.id, id), eq(leads.organizationId, auth.organizationId), isNull(leads.deletedAt))).limit(1)
     if (!lead) return apiError(404, 'Contato não encontrado.')
+    /* O QUE A NAY RESPONDEU À MUDANÇA DE ETAPA (03/10/2026): a tela avisa quem clicou.
+       `nayRecebeu: false` é o caso em que o CRM gravou e o banco da Nay não respondeu
+       -- a lista muda e ela segue agindo como antes, que é o "não salvou" de quem olha. */
+    let daEtapa: { recado: string | null; nayRecebeu: boolean } | null = null
 
     if (typeof corpo.apelido === 'string') {
       const apelido = corpo.apelido.trim().slice(0, 120)
@@ -102,12 +106,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
          mas a marca fica 'Rayssa: ...' em vez de parecer do Tel. */
       const quem = auth.userId ? 'CRM ' + auth.userId.slice(0, 8) : 'CRM'
       const recado = await marcarEtapaNaNay(lead.phone || '', etapa, quem)
+      daEtapa = { recado, nayRecebeu: recado != null || !lead.phone }
       if (paraPessoa) {
         await db.execute(sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb)
                  || jsonb_build_object('etapa_parceria', ${etapa}::text, 'etapa_parceria_em', now()::text),
                  updated_at = now() WHERE id = ${id}`)
         await publishEvent(channels.orgLeads(auth.organizationId), events.LEAD_UPDATED, { id })
-        return Response.json({ ok: true, recado })
+        return Response.json({ ok: true, ...daEtapa })
       }
       await db.execute(etapa === 'todos'
         ? sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) - 'etapa_parceria',
@@ -117,7 +122,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
                      updated_at = now() WHERE id = ${id}`)
     }
     await publishEvent(channels.orgLeads(auth.organizationId), events.LEAD_UPDATED, { id })
-    return Response.json({ ok: true })
+    return Response.json({ ok: true, ...(daEtapa || {}) })
   } catch (err: any) {
     return apiError(err?.status || 500, err?.message || 'Não consegui salvar.')
   }

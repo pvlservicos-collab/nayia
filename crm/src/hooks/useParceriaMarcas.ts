@@ -71,3 +71,15 @@ export function useParceriaMarcas(ativo = true) {
   }, [ativo])
   return { marcas: e.marcas, nay: e.nay, carregado: e.carregado, erro: e.erro, recarregar: recarregarMarcasDaParceria }
 }
+
+/**
+ * DEPOIS DE MEXER numa conversa (mudar a etapa, soltar): as marcas de AGORA, sem o
+ * cache do servidor. Espera a busca que já estiver no ar -- ela pode ter saído
+ * antes da mudança -- e busca de novo. É o que deixa a tela dizer na hora onde a
+ * conversa ficou, em vez de esperar o minuto da próxima leitura.
+ */
+export async function marcasDepoisDeMudar(): Promise<Record<string, MarcaDaNay>> {
+  if (buscando) await buscando
+  await recarregarMarcasDaParceria(true)
+  return estado.marcas
+}
