@@ -40,19 +40,22 @@
 
 /* a agenda: uma coluna por dia, um bloco por horário */
 .ga-agenda { margin-bottom: 26px; }
-.ga-semana { display: grid; grid-template-columns: repeat(7, minmax(150px, 1fr)); gap: 6px; overflow-x: auto; padding-bottom: 6px; }
-.ga-dia { background: var(--superficie-2); border: 1px solid var(--borda); border-radius: var(--raio); padding: 6px; min-height: 140px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+/* Pedro, 03/10: "afasta um pouco os dias, quero mais espaçamento, e a cor de fundo de dentro da agenda mais
+   acinzentada, para ser diferente dos cards das mensagens". O dia é uma coluna cinza; a mensagem, um cartão branco. */
+.ga-semana { display: grid; grid-template-columns: repeat(7, minmax(150px, 1fr)); gap: 14px; overflow-x: auto; padding: 2px 2px 8px; }
+.ga-dia { background: #e6e5eb; border: 1px solid #d9d6e0; border-radius: var(--raio); padding: 10px; min-height: 160px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .ga-dia--hoje { border-color: var(--roxo); box-shadow: 0 0 0 2px var(--roxo-suave); }
-.ga-dia__topo { font-weight: 700; font-size: 13px; color: var(--texto); padding: 1px 3px 4px; border-bottom: 1px solid var(--borda); display: flex; justify-content: space-between; align-items: center; }
+.ga-dia__topo { font-weight: 700; font-size: 13.5px; color: var(--texto); padding: 1px 2px 8px; border-bottom: 1px solid #cfcbd8; display: flex; justify-content: space-between; align-items: center; }
 .ga-dia--hoje .ga-dia__topo { color: var(--roxo); }
 .ga-dia__n { background: var(--roxo); color: #fff; border-radius: 999px; padding: 0 7px; font-size: 11px; line-height: 17px; }
 .ga-dia__vazio { color: var(--texto-fraco); font-size: 12.5px; text-align: center; margin: 14px 0; }
-.ga-hora { display: flex; flex-direction: column; gap: 3px; }
-.ga-hora__h { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--texto-fraco); font-variant-numeric: tabular-nums; margin-top: 3px; }
-.ga-hora__h::after { content: ""; flex: 1; height: 1px; background: var(--borda); }
+.ga-hora { display: flex; flex-direction: column; gap: 6px; }
+.ga-hora__h { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; color: var(--texto-fraco); font-variant-numeric: tabular-nums; margin-top: 4px; }
+.ga-hora__h::after { content: ""; flex: 1; height: 1px; background: #cfcbd8; }
 
 .ga-cartao { position: relative; display: flex; flex-direction: column; gap: 3px; width: 100%; min-width: 0; text-align: left; cursor: pointer; font: inherit;
-  background: var(--superficie); border: 1px solid var(--borda); border-radius: 8px; padding: 4px 6px 5px 11px; overflow: hidden; }
+  background: var(--superficie); border: 1px solid #d9d6e0; border-radius: 9px; padding: 6px 8px 7px 13px; overflow: hidden;
+  box-shadow: 0 1px 2px rgba(36, 29, 51, .08); }
 .ga-cartao::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--faixa, var(--borda-forte)); }
 .ga-cartao:hover { border-color: var(--roxo); }
 .ga-cartao:focus-visible { outline: none; box-shadow: var(--foco); }
@@ -71,10 +74,10 @@
 .ga-pilha__mais { margin-left: 1px; font-size: 9.5px; line-height: 1; font-weight: 700; color: var(--texto-medio); font-variant-numeric: tabular-nums; }
 .ga-cartao__num { margin-left: auto; padding-left: 7px; display: inline-flex; align-items: center; gap: 2px; font-size: 11px; color: var(--texto-medio); font-variant-numeric: tabular-nums; }
 .ga-cartao__im { display: inline-flex; align-items: center; gap: 1px; margin-left: 4px; color: var(--roxo); }
-.ga-cartao--falhou { background: #fff7f8; }
+.ga-cartao--falhou { background: #fff4f5; }
 .ga-cartao--futuro .ga-cartao__tit { font-weight: 500; }
-.ga-livres { display: flex; flex-wrap: wrap; gap: 3px; }
-.ga-livre { font: inherit; font-size: 10.5px; color: var(--texto-fraco); background: transparent; border: 1px dashed var(--borda-forte); border-radius: 999px; padding: 0 7px; line-height: 16px; cursor: pointer; }
+.ga-livres { display: flex; flex-wrap: wrap; gap: 5px; }
+.ga-livre { font: inherit; font-size: 10.5px; color: var(--texto-fraco); background: transparent; border: 1px dashed #b9b4c6; border-radius: 999px; padding: 0 7px; line-height: 16px; cursor: pointer; }
 .ga-livre:hover { border-color: var(--roxo); color: var(--roxo); }
 
 /* a tabela das mensagens */
