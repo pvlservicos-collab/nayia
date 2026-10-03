@@ -26,6 +26,10 @@ const CENARIOS = {
     'uns 300 metros de terreno', 'quero 650 mil', 'olha, agora não posso responder mais, depois te mando o resto'],
   bagunca: ['disponível', 'não sei o valor, vê aí com o Tel', 'tem 2 quartos, 80 metros, 1 vaga', 'quanto vocês cobram de comissão?',
     'ok', 'o condomínio é 500, iptu incluso no condomínio', 'mobiliado completo', 'vou mandar as fotos depois'],
+  // 03/10: foto no MEIO da ficha, sem ela ter pedido: ela não comenta a foto e segue a pergunta do cadastro
+  foto_no_meio: ['Oi, está disponível sim', '2.800', FOTO, '3 quartos, 1 suíte, 2 banheiros e 1 vaga', FOTO, 'uns 90 metros'],
+  // 03/10: foto antes de responder qualquer coisa: ela não comenta e volta à pergunta da situação
+  foto_primeiro: [FOTO, 'está disponível sim'],
 };
 
 // ---------------------------------------------------------------- as ferramentas do fluxo
@@ -96,9 +100,15 @@ async function chamarModelo(corpo) {
         // o ramo 'Foto do dono?' já guardou a foto na ficha (a API faz isto)
         await db.query(`UPDATE captacao_cadastro SET fotos = fotos || '["https://sim/foto1.jpg"]'::jsonb WHERE id = (SELECT id FROM captacao_cadastro
             WHERE lead_id = $1 AND estado IN ('coletando', 'pronto') ORDER BY (estado = 'coletando') DESC, atualizado_em DESC LIMIT 1)`, [LEAD]);
-        texto = '(ele mandou uma imagem. isso chegou bem e ja foi visto do nosso lado. agradeca em uma linha -- "Recebi, obrigada!" -- e '
-          + (l.ficha ? 'chame guardar_ficha com fotos = "recebidas" (a ficha do imovel esta aberta) e siga a instrucao que ela devolver.' : 'siga o roteiro de onde parou.')
-          + ' NAO diga que nao consegue abrir, NAO diga que nao recebeu, NAO peca para ele escrever o que esta na foto e NAO fale de sistema nenhum.)';
+        // a MESMA instrução do nó 'Juntar mensagens' para o lote só de foto (03/10, seguirSemFoto)
+        const pendenteEraFotos = /foi sobre as fotos/.test(l.ficha || '');
+        texto = '(ele mandou so foto do imovel, sem escrever nada. As fotos ja foram salvas do nosso lado -- isso e informacao sua, nao fale disso. '
+          + (l.ficha && pendenteEraFotos
+            ? 'Era a pergunta das fotos: diga so "Recebi, obrigada!", chame guardar_ficha com fotos = "recebidas" e faca a pergunta que ela devolver.'
+            : l.ficha
+            ? 'NAO chame guardar_ficha agora e nao fale das fotos: refaca, em uma linha, a ultima pergunta que voce fez (a do aviso da ficha), que ficou sem resposta.'
+            : 'Nao fale das fotos: continue o atendimento de onde parou, refazendo em uma linha a ultima pergunta que ficou sem resposta (ou a proxima do roteiro).')
+          + ' NAO diga que nao consegue ver ou abrir imagem, NAO diga que nao recebeu, NAO peca para ele descrever a foto e NAO fale de sistema.)';
       }
       let nome = String(l.nome || '').trim().replace(/^(sr|sra|dr|dra|dona)\.?\s+/i, '').split(/\s+/)[0] || '';
       if (nome && (nome === nome.toUpperCase() || nome === nome.toLowerCase())) nome = nome[0].toUpperCase() + nome.slice(1).toLowerCase();

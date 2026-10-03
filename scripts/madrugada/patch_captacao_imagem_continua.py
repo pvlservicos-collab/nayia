@@ -50,6 +50,29 @@ SEG = """WITH seg AS (
                                            AND t.status <> 'Recebido'), '-infinity'::timestamptz))) AS ja
 ), tel AS ("""
 
+# A instrução do turno só de foto. Versão 2 (03/10, achada no simulador): com a ficha aberta, mandar
+# guardar_ficha com fotos = "recebidas" no meio da ficha fazia ela PULAR a pergunta pendente (perguntou a área sem
+# ter recebido os quartos, e a mobília ficou sem pergunta). Agora só marca as fotos se a pendente ERA a das fotos
+# (o aviso da ficha diz "a última pergunta que você fez foi sobre as fotos"); senão, só refaz a pergunta pendente.
+INSTRUCAO = """const pendenteEraFotos = /foi sobre as fotos/.test(fichaAberta || '');
+if (seguirSemFoto) {
+  texto = '(ele mandou so foto' + (itens.length > 1 ? 's' : '') + ' do imovel, sem escrever nada. As fotos ja'
+        + ' foram salvas do nosso lado -- isso e informacao sua, nao fale disso. '
+        + (fichaAberta && pendenteEraFotos
+           ? 'Era a pergunta das fotos: diga so "Recebi, obrigada!", chame guardar_ficha com fotos = "recebidas" e'
+             + ' faca a pergunta que ela devolver.'
+           : fichaAberta
+           ? 'NAO chame guardar_ficha agora e nao fale das fotos: refaca, em uma linha, a ultima pergunta que voce'
+             + ' fez (a do aviso da ficha), que ficou sem resposta.'
+           : 'Nao fale das fotos: continue o atendimento de onde parou, refazendo em uma linha a ultima pergunta'
+             + ' que ficou sem resposta (ou a proxima do roteiro).')
+        + ' NAO diga que nao consegue ver ou abrir imagem, NAO diga que nao recebeu, NAO peca para ele descrever'
+        + ' a foto e NAO fale de sistema.)';
+}"""
+
+# a versão 1, que esteve no ar das 09:47 às (a troca) de 03/10: o patch a substitui pela 2
+INSTRUCAO_V1 = re.compile(r"if \(seguirSemFoto\) \{\n  texto = '\(ele mandou so foto'.*?a foto e NAO fale de sistema\.\)';\n\}", re.S)
+
 CONTINUA = """const soImagem = !texto && naoTexto.length > 0 && naoTexto.every(o => o === 'imagem');
 // ...MAS O ATENDIMENTO CONTINUA (Pedro, 03/10/2026: "pode avisar o Tel, mas deve continuar o atendimento com as
 // perguntas dele como se ignorasse a imagem" / "nunca dizer para o cliente que nao consegue ver as imagens, so
@@ -59,18 +82,7 @@ CONTINUA = """const soImagem = !texto && naoTexto.length > 0 && naoTexto.every(o
 const jaSeguiu = itens.some(m => m.ja_seguiu_depois_de_foto === true);
 const seguirSemFoto = soImagem && !jaSeguiu;
 const escreveu = itens.some(m => val(m));
-if (seguirSemFoto) {
-  texto = '(ele mandou so foto' + (itens.length > 1 ? 's' : '') + ' do imovel, sem escrever nada. As fotos ja'
-        + ' foram salvas do nosso lado -- isso e informacao sua, nao fale disso. '
-        + (fichaAberta
-           ? 'Chame guardar_ficha com fotos = "recebidas" e faca a pergunta que ela devolver. Se a pergunta que'
-             + ' estava pendente era justamente a das fotos, diga antes so "Recebi, obrigada!"; senao, nao fale'
-             + ' das fotos.'
-           : 'Nao fale das fotos: continue o atendimento de onde parou, refazendo em uma linha a ultima pergunta'
-             + ' que ficou sem resposta (ou a proxima do roteiro).')
-        + ' NAO diga que nao consegue ver ou abrir imagem, NAO diga que nao recebeu, NAO peca para ele descrever'
-        + ' a foto e NAO fale de sistema.)';
-}
+""" + INSTRUCAO + """
 """
 
 AVISO_VELHO = re.compile(
@@ -108,7 +120,15 @@ def main(entrada: str, saida: str) -> None:
 
     q = nos["Reservar mensagens"]["parameters"]["query"]
     if "ja_seguiu_depois_de_foto" in q:
-        raise SystemExit("já aplicado: nada a fazer")
+        js = nos["Juntar mensagens"]["parameters"]["jsCode"]
+        if "pendenteEraFotos" in js:
+            raise SystemExit("já aplicado (versão 2): nada a fazer")
+        if len(INSTRUCAO_V1.findall(js)) != 1:
+            raise SystemExit("versão 1 no ar, mas a instrução dela não bateu: olhar antes de aplicar")
+        nos["Juntar mensagens"]["parameters"]["jsCode"] = INSTRUCAO_V1.sub(lambda _: INSTRUCAO, js)
+        json.dump(alvo, open(saida, "w", encoding="utf-8"), ensure_ascii=False)
+        print("patch ok (versão 1 -> 2):", saida)
+        return
     q = trocar(q, "WITH tel AS (", SEG, "Reservar mensagens")
     q = trocar(q, "       captacao_ficha_aviso(l.id) AS ficha,",
                "       (SELECT ja FROM seg) AS ja_seguiu_depois_de_foto,\n"
