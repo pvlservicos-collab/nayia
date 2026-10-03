@@ -40,6 +40,9 @@ prompt: comece pelo `nay onde`.
 | card, lista bonita, ficha | `nai_card_do_imovel`, `nai_bloco_oferta`, `nai_ficha_imovel` | 222 |
 | status do imóvel (disponível/alugado) | `nai_status_do_imovel` | 214 |
 | ele MARCOU o card/lista do grupo (Nay nova) | nay-core: `contexto/resolver_imovel.resolver`, `classificador/atalhos.decidir`, `cerebro/repo.codigos_da_citacao`; listas dos grupos em `envios_lista_grupo` (publicador `_registrar_lista`) | 281, core 013 |
+| imóvel sai do mercado (Vendido, Alugado...) por qualquer caminho, e o aviso no grupo Easy | gatilho `imoveis_aviso_de_saida` → `nay_enfileirar_aviso_de_saida` (SECURITY DEFINER; motivo pela situação) → cron `avisar_saidas.sh`; pelo comando: `nai_marcar_imovel` | 289 |
+| a Nay nova enxerga na hora o imóvel que saiu ou mudou de valor | nay-core `worker.talvez_refresh` (assinatura de `imoveis` a cada ciclo, antes dos turnos); `acoes/enviar_imovel.fora_do_mercado` (só condomínio de verdade, mesmo negócio) | core 8eb01ed, 07a2f9f |
+| número digitado no cadastro ("750.000", piso de venda/aluguel) | site `imovel-editar.js` (`tipo: "dinheiro"`); API `numeros.py` (`numero_br`, `valor_que_nao_existe`) em `app.py` e `olx_api._valor_do_popup` | 03/10 |
 | ele marcou a FOTO do post, ou a lista sendo contato novo | `envios_foto` (publicador `_registrar_fotos`, uma linha por foto de grupo ou de corretor); `nay_imovel_da_citacao` (passo 1b) e nay-core `codigos_da_citacao` leem; marcar a LISTA abre a porta em `nai_abrir_turno` (o código do turno não muda). Valor por extenso ("R$ 470 mil") no validador do nay-core: `validador/validar._valores` | 287; core c15711a |
 | "os dois", "o primeiro", "entre 2 e 3" (Nay nova) | nay-core: `acoes/varios.py`, `core_conversa.ultima_lista`, `texto.faixa_em_reais`/`teto_na_escala` | core 013 |
 | qual fluxo do n8n recebe a mensagem (grupo vai à NAI só para o espelho do CRM) | `nai_quem_atende(text,boolean,text)` | 282 |
