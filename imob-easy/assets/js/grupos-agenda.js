@@ -112,6 +112,18 @@
   function tacha(g, vazia) {
     return '<i class="ga-tacha' + (vazia ? " ga-tacha--vazia" : "") + '" style="--c:' + cor(g) + '" title="' + esc(nomeCurto(g.nome)) + '"></i>';
   }
+  /* Pedro, 03/10: "quando tiver várias bolas não precisa ter todas, pode ser só uma, e uma atrás mais
+     transparente, e um + no canto". Até 2 grupos vão as bolinhas; de 3 em diante, a pilha. O grupo do
+     filtro fica na frente; os nomes de todos ficam no título (passar o mouse). */
+  function tachinhas(gs, vazia) {
+    if (gs.length <= 2) return gs.map(function (g) { return tacha(g, vazia); }).join("");
+    var frente = (grupoFiltro && gs.find(function (g) { return g.id === grupoFiltro; })) || gs[0];
+    var atras = gs.find(function (g) { return g !== frente; });
+    return '<span class="ga-pilha" title="' + esc(gs.length + " grupos: " + gs.map(function (g) { return nomeCurto(g.nome); }).join(", ")) + '">' +
+      tacha(frente, vazia).replace(/ title="[^"]*"/, "") +
+      tacha(atras, vazia).replace('class="ga-tacha', 'class="ga-tacha ga-tacha--atras').replace(/ title="[^"]*"/, "") +
+      '<b class="ga-pilha__mais">+' + (gs.length - 1) + "</b></span>";
+  }
   /* a faixa da esquerda do cartão: uma cor só, ou as cores de todos os grupos, uma embaixo da outra */
   function faixa(gs) {
     if (!gs.length) return "transparent";
@@ -246,7 +258,7 @@
       return "<tr>" +
         "<td>" + esc(descreverRepeticao(v)) + "</td>" +
         '<td class="ga-tab-imoveis">' + imoveisMini(v) + "</td>" +
-        '<td><span class="ga-tab-tachas">' + previstos.map(function (g) { return tacha(g); }).join("") + "</span>" + esc(nomeDoDestino(v)) + "</td>" +
+        '<td><span class="ga-tab-tachas">' + tachinhas(previstos) + "</span>" + esc(nomeDoDestino(v)) + "</td>" +
         '<td class="num">' + os.length + "</td>" +
         '<td class="num">' + s("pessoas") + "</td>" +
         '<td class="num">' + s("novos") + "</td>" +
@@ -283,7 +295,7 @@
     return '<button type="button" class="ga-cartao ga-cartao--' + estado + '" style="--faixa:' + faixa(gs) + '" data-ocorrencia="' + esc(o.vaga + "|" + o.quando) +
         '" title="' + esc(tituloDaVaga(v) + " — " + nomeDoDestino(v)) + '">' +
       '<span class="ga-cartao__linha"><span class="ga-cartao__tit">' + esc(tituloCurto(v)) + "</span>" + st + "</span>" +
-      '<span class="ga-cartao__tachas' + (gs.length > 10 ? " ga-cartao__tachas--muitas" : "") + '">' + gs.map(function (g) { return tacha(g, estado === "falhou"); }).join("") + num + "</span>" +
+      '<span class="ga-cartao__tachas">' + tachinhas(gs, estado === "falhou") + num + "</span>" +
     "</button>";
   }
 

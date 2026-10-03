@@ -63,10 +63,12 @@
 .ga-cartao__st--falhou { background: #fde4e8; color: #b42318; }
 .ga-cartao__st--futuro { background: #e8efff; color: #3355cc; }
 .ga-cartao__tachas { display: flex; align-items: center; flex-wrap: wrap; row-gap: 3px; min-height: 11px; padding-left: 1px; }
-.ga-cartao__tachas .ga-tacha { width: 9px; height: 9px; margin-right: -2px; }
-/* muitos grupos: as tachinhas se encostam mais, para o número caber na mesma linha */
-.ga-cartao__tachas--muitas .ga-tacha { margin-right: -4px; }
-.ga-cartao__tachas--muitas .ga-cartao__num { padding-left: 9px; }
+.ga-cartao__tachas .ga-tacha { width: 9px; height: 9px; margin-right: 2px; }
+/* muitos grupos: uma tachinha na frente, outra atrás mais transparente e o "+N" no canto */
+.ga-pilha { display: inline-flex; align-items: flex-start; flex: none; cursor: help; }
+.ga-pilha .ga-tacha { position: relative; z-index: 2; margin: 2px 0 0 !important; }
+.ga-pilha .ga-tacha--atras { z-index: 1; margin-left: -4px !important; opacity: .4; }
+.ga-pilha__mais { margin-left: 1px; font-size: 9.5px; line-height: 1; font-weight: 700; color: var(--texto-medio); font-variant-numeric: tabular-nums; }
 .ga-cartao__num { margin-left: auto; padding-left: 7px; display: inline-flex; align-items: center; gap: 2px; font-size: 11px; color: var(--texto-medio); font-variant-numeric: tabular-nums; }
 .ga-cartao__im { display: inline-flex; align-items: center; gap: 1px; margin-left: 4px; color: var(--roxo); }
 .ga-cartao--falhou { background: #fff7f8; }
