@@ -511,9 +511,14 @@
   function desenharFotos() {
     var alvo = $("ed-fotos");
     alvo.hidden = false;
+    // A BIBLIOTECA DE FOTOS (03/10/2026): o botão abre o popup de subir, reordenar e excluir
+    // (assets/js/fotos-biblioteca.js). Sem `data-foto`: clicar nele não abre a foto grande.
+    var gerenciar = function (rotulo) {
+      return '<button type="button" class="fb-abrir" data-fotos-biblioteca>' + rotulo + "</button>";
+    };
     if (!fotos.length) {
       alvo.classList.add("ed__fotos--vazio");
-      alvo.innerHTML = '<div class="ed__sem-foto">Este imóvel ainda não tem foto.</div>';
+      alvo.innerHTML = '<div class="ed__sem-foto">Este imóvel ainda não tem foto. ' + gerenciar("Subir fotos") + "</div>";
       return;
     }
     alvo.classList.remove("ed__fotos--vazio");
@@ -522,9 +527,22 @@
       '<div class="ed__miniaturas">' + fotos.slice(1).map(function (u, k) {
         return '<button type="button" class="ed__mini" data-foto="' + (k + 1) + '"><img loading="lazy" src="' + esc(u) + '" alt=""></button>';
       }).join("") + "</div>" +
-      '<div class="ed__fotos-rodape">' + fotos.length + " foto" + (fotos.length > 1 ? "s" : "") +
-        " · as fotos moram no site antigo; aqui é só para ver</div>";
+      '<div class="ed__fotos-rodape"><span>' + fotos.length + " foto" + (fotos.length > 1 ? "s" : "") +
+        " · a primeira é a capa</span>" + gerenciar("Gerenciar fotos") + "</div>";
   }
+
+  /* as fotos do imóvel, na ordem (a capa primeiro). A biblioteca chama de novo quando fecha. */
+  function carregarFotos() {
+    return fetch(window.API_BASE + "/api/imoveis/" + encodeURIComponent(codigo) + "/fotos")
+      .then(function (r) { return r.ok ? r.json() : { fotos: [] }; })
+      .then(function (d) {
+        var lista = (d.fotos || []).slice().sort(function (a, b) { return (b && b.capa ? 1 : 0) - (a && a.capa ? 1 : 0); });
+        fotos = lista.map(function (u) { return typeof u === "string" ? u : (u.url || u.arquivo); }).filter(Boolean);
+        desenharFotos();
+      })
+      .catch(function () { fotos = []; desenharFotos(); });
+  }
+  window.edFotos = { recarregar: function () { return novo ? Promise.resolve() : carregarFotos(); } };
 
   /* ---- o que mudou --------------------------------------------------------- */
   function inputDe(nome) { return form.querySelector('[data-campo="' + nome + '"]'); }
@@ -825,14 +843,7 @@
     atualizarBotao();
 
     if (!novo) {
-      fetch(window.API_BASE + "/api/imoveis/" + encodeURIComponent(codigo) + "/fotos")
-        .then(function (r) { return r.ok ? r.json() : { fotos: [] }; })
-        .then(function (d) {
-          var lista = (d.fotos || []).slice().sort(function (a, b) { return (b && b.capa ? 1 : 0) - (a && a.capa ? 1 : 0); });
-          fotos = lista.map(function (u) { return typeof u === "string" ? u : (u.url || u.arquivo); }).filter(Boolean);
-          desenharFotos();
-        })
-        .catch(function () { fotos = []; desenharFotos(); });
+      carregarFotos();
 
       /* o que falta preencher: é o que explica por que a Nay às vezes não acha o imóvel */
       fetch(window.API_BASE + "/api/imoveis/" + encodeURIComponent(codigo) + "/ficha")
@@ -1015,7 +1026,23 @@
       })
       .then(function (res) {
         if (res.ok && novo) {
-          window.location.href = "imovel-editar.html?codigo=" + encodeURIComponent(res.dados.codigo) + "&criado=1";
+          var destino = "imovel-editar.html?codigo=" + encodeURIComponent(res.dados.codigo) + "&criado=1";
+          // AS FOTOS MONTADAS NO CADASTRO (03/10): sobem agora, na ordem, para o imóvel que acabou de nascer.
+          // O imóvel já existe: foto que falhar não desfaz o cadastro, e dá para subir de novo no editor.
+          var bib = window.FotosBiblioteca;
+          if (bib && bib.pendentes && bib.pendentes()) {
+            bib.enviarPendentes(res.dados.codigo, function (n, total) {
+              status.textContent = "Cadastrado. Subindo as fotos: " + n + " de " + total + "…";
+            }).then(function (r) {
+              if (r.falhas.length) {
+                window.alert("O imóvel foi cadastrado, mas " + r.falhas.length + (r.falhas.length === 1 ? " foto não subiu" : " fotos não subiram") +
+                  ":\n\n" + r.falhas.join("\n") + "\n\nDá para subir de novo em Gerenciar fotos.");
+              }
+              window.location.href = destino;
+            });
+            return;
+          }
+          window.location.href = destino;
           return;
         }
         if (!res.ok) {

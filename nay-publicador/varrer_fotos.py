@@ -47,6 +47,16 @@ PAUSA_MAX = 2.0
 MAX_FALHAS_SEGUIDAS = 5
 
 
+# FOTOS EDITADAS À MÃO FICAM COMO ESTÃO (03/10/2026, migração 283). O Pedro passou
+# a subir, reordenar e excluir fotos na biblioteca do cadastro. `conferir` APAGA
+# E REGRAVA quando o anúncio do site antigo difere do banco -- e a ordem que ele
+# escolheu, a foto que ele tirou e a que ele subiu voltariam ao que o site
+# antigo tem na manhã seguinte. Quem está em `imovel_fotos_manual` fica fora das
+# duas listas: nem é reposto (apagou tudo porque quis), nem é conferido.
+SEM_OS_EDITADOS_A_MAO = (
+    "   AND NOT EXISTS (SELECT 1 FROM public.imovel_fotos_manual m WHERE m.codigo = i.codigo) ")
+
+
 def sem_fotos(conexao, limite=None):
     """Os nossos, disponíveis, publicados e sem NENHUMA foto na tabela.
 
@@ -60,6 +70,7 @@ def sem_fotos(conexao, limite=None):
             "   AND NOT coalesce(i.e_parceiro, false) "
             "   AND coalesce(i.publicado_no_site, false) "
             "   AND NOT EXISTS (SELECT 1 FROM imovel_fotos f WHERE f.codigo = i.codigo) "
+            + SEM_OS_EDITADOS_A_MAO +
             " ORDER BY i.codigo" + (" LIMIT %s" if limite else ""),
             (limite,) if limite else None)
         return [linha["codigo"] for linha in cur.fetchall()]
@@ -91,6 +102,7 @@ def a_conferir(conexao, limite=LIMITE_DE_CONFERENCIA):
             " WHERE coalesce(i.disponivel, true) "
             "   AND NOT coalesce(i.e_parceiro, false) "
             "   AND coalesce(i.publicado_no_site, false) "
+            + SEM_OS_EDITADOS_A_MAO +
             " ORDER BY i.fotos_conferidas_em NULLS FIRST, i.codigo "
             " LIMIT %s", (limite,))
         return [linha["codigo"] for linha in cur.fetchall()]

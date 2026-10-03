@@ -224,6 +224,41 @@ try:
 finally:
     _vf.buscar_imovel = _b
 
+# FOTOS EDITADAS À MÃO (283, 03/10): as duas listas pulam quem está em
+# imovel_fotos_manual -- senão a conferência desfaz a ordem e as fotos que o
+# Pedro subiu na biblioteca do cadastro.
+print("\n  fotos editadas à mão ficam fora das duas listas")
+
+
+class ConnSql:
+    def __init__(self):
+        self.sqls = []
+
+    def cursor(self):
+        conn = self
+
+        class C:
+            def __enter__(s):
+                return s
+
+            def __exit__(s, *a):
+                return False
+
+            def execute(s, sql, params=None):
+                conn.sqls.append(sql)
+
+            def fetchall(s):
+                return []
+        return C()
+
+
+from varrer_fotos import a_conferir, sem_fotos  # noqa: E402
+for nome, f in (("a_conferir", a_conferir), ("sem_fotos", sem_fotos)):
+    c = ConnSql()
+    f(c)
+    checar(f"{nome} pula os editados à mão",
+           "NOT EXISTS (SELECT 1 FROM public.imovel_fotos_manual m WHERE m.codigo = i.codigo)" in c.sqls[0], True)
+
 print()
 if falhas:
     print(f"{falhas} CASOS FALHARAM")

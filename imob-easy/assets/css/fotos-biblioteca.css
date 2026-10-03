@@ -1,0 +1,88 @@
+/* ==========================================================================
+   A BIBLIOTECA DE FOTOS do cadastro de imóvel (03/10/2026).
+   O script é assets/js/fotos-biblioteca.js. No editar é um popup (.fb-dialogo);
+   no criar é um campo da página (.fb-campo). A galeria (.fb) é a mesma.
+   ========================================================================== */
+
+/* o botão que abre a biblioteca, dentro da área das fotos do editor */
+.ed__fotos .fb-abrir {
+  border: 1px solid rgba(255, 255, 255, .35); background: rgba(255, 255, 255, .12); color: #fff; cursor: pointer;
+  border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 13px; font-weight: 600; overflow: visible;
+}
+.ed__fotos .fb-abrir:hover { background: rgba(255, 255, 255, .22); }
+.ed__fotos .fb-abrir:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, .45); }
+.ed__fotos--vazio .fb-abrir { border-color: var(--roxo, #6d28d9); background: var(--roxo, #6d28d9); margin-left: 8px; }
+.ed__fotos--vazio .fb-abrir:hover { background: #5b21b6; }
+.ed__fotos-rodape { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
+/* ---- o popup (editar) ---- */
+.fb-dialogo { border: 0; padding: 0; border-radius: var(--raio-lg, 22px); width: min(980px, calc(100vw - 24px));
+  max-height: calc(100dvh - 32px); box-shadow: 0 24px 60px rgba(40, 20, 80, .32); color: var(--texto, #241d33); }
+.fb-dialogo::backdrop { background: rgba(23, 18, 31, .5); }
+.fb-dialogo__caixa { display: flex; flex-direction: column; gap: 12px; padding: 18px 20px; }
+.fb-dialogo__topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.fb-dialogo__topo h2 { margin: 0; font-size: 19px; text-transform: none; }
+.fb-dialogo__x { border: 1px solid var(--borda-forte, #cabbe4); background: var(--superficie, #fff); border-radius: 999px;
+  width: 36px; height: 36px; cursor: pointer; font-size: 14px; }
+.fb-dialogo__x:hover { border-color: var(--roxo, #6d28d9); }
+.fb-dialogo__pe { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--texto-fraco, #5f5775); font-size: 14px; }
+
+/* ---- o campo (criar) ---- */
+.fb-campo { background: var(--superficie, #fff); border: 1px solid var(--borda, #e3daf2); border-radius: 14px; padding: 14px 16px 16px; margin-bottom: 16px; }
+.fb-campo__topo { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.fb-campo__topo h2 { margin: 0; font-size: 16px; text-transform: none; }
+.fb-campo__topo span { color: var(--texto-fraco, #5f5775); font-size: 13px; }
+
+/* ---- a galeria ---- */
+.fb { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.fb__soltar { display: flex; align-items: center; gap: 14px; cursor: pointer; border: 2px dashed var(--borda-forte, #cabbe4);
+  border-radius: 14px; padding: 14px 16px; background: var(--roxo-suave, #f3edff); color: var(--texto, #241d33); font-size: 14.5px; }
+.fb__soltar:hover, .fb__soltar--sobre { border-color: var(--roxo, #6d28d9); background: #ebe1ff; }
+.fb__soltar:focus-within { box-shadow: var(--foco, 0 0 0 3px rgba(109, 40, 217, .3)); }
+.fb__soltar input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.fb__soltar-ico { flex: none; width: 40px; height: 40px; border-radius: 50%; background: var(--roxo, #6d28d9); color: #fff;
+  display: grid; place-items: center; font-size: 22px; line-height: 1; }
+.fb__soltar u { color: var(--roxo, #6d28d9); text-underline-offset: 2px; }
+.fb__soltar small { display: block; color: var(--texto-fraco, #5f5775); font-size: 12.5px; margin-top: 2px; }
+.fb__nota { margin: 0; font-size: 13px; color: #6b4e00; background: #fff6d6; border-radius: 10px; padding: 8px 12px; }
+.fb__estado { margin: 0; min-height: 18px; font-size: 13.5px; color: var(--texto-fraco, #5f5775); }
+.fb__estado--ok { color: #1f7a4c; }
+.fb__estado--erro { color: #b42318; }
+.fb__vazio, .fb__dica { margin: 0; color: var(--texto-fraco, #5f5775); font-size: 13.5px; }
+.fb__vazio { text-align: center; padding: 18px 0; }
+
+.fb__grade { list-style: none; margin: 0; padding: 2px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;
+  max-height: min(56vh, 560px); overflow-y: auto; }
+.fb-campo .fb__grade { max-height: none; }
+.fb__item { position: relative; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden; background: #2c2538; cursor: grab;
+  box-shadow: 0 0 0 1px var(--borda, #e3daf2); }
+.fb__item:active { cursor: grabbing; }
+.fb__item img { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; user-select: none; }
+.fb__item:first-child { box-shadow: 0 0 0 3px var(--roxo, #6d28d9); }
+.fb__item--arrastando { opacity: .35; }
+.fb__item--antes { box-shadow: -5px 0 0 0 var(--roxo, #6d28d9), 0 0 0 1px var(--borda, #e3daf2); }
+.fb__item--depois { box-shadow: 5px 0 0 0 var(--roxo, #6d28d9), 0 0 0 1px var(--borda, #e3daf2); }
+.fb__grade--travada .fb__item { cursor: default; }
+.fb__n { position: absolute; left: 6px; top: 6px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px;
+  background: rgba(23, 18, 31, .72); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+.fb__capa { position: absolute; left: 34px; top: 6px; height: 22px; padding: 0 9px; border-radius: 999px; background: var(--roxo, #6d28d9);
+  color: #fff; font-size: 11.5px; font-weight: 700; display: grid; place-items: center; }
+.fb__acoes { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; gap: 4px; padding: 16px 6px 6px;
+  background: linear-gradient(to top, rgba(23, 18, 31, .78), transparent); }
+.fb__acoes button { width: 30px; height: 30px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .92); color: #241d33;
+  cursor: pointer; font-size: 15px; line-height: 1; display: grid; place-items: center; padding: 0; }
+.fb__acoes button:hover:not(:disabled) { background: #fff; box-shadow: 0 0 0 2px var(--roxo, #6d28d9); }
+.fb__acoes button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, .8), 0 0 0 5px var(--roxo, #6d28d9); }
+.fb__acoes button:disabled { opacity: .35; cursor: default; }
+.fb__acoes .fb__excluir { background: #fde4e8; color: #b42318; margin-left: 6px; }
+.fb__acoes .fb__excluir:hover:not(:disabled) { background: #b42318; color: #fff; box-shadow: none; }
+.fb__item--enviando img { opacity: .45; }
+.fb__vel { position: absolute; left: 0; right: 0; bottom: 0; padding: 6px 8px; background: rgba(23, 18, 31, .8); color: #fff; font-size: 12px; text-align: center; }
+.fb__vel--erro { background: #b42318; }
+.fb__vel button { border: 0; background: #fff; color: #b42318; border-radius: 999px; padding: 1px 8px; font: inherit; font-size: 11.5px; cursor: pointer; margin-left: 4px; }
+
+@media (max-width: 640px) {
+  .fb-dialogo__caixa { padding: 14px 12px; }
+  .fb__grade { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+  .fb__soltar { padding: 12px; gap: 10px; }
+}

@@ -18,6 +18,8 @@ COPY disparo_api.py .
 # a captacao pela OLX (28/09) e o tradutor do anuncio, copiado do nay-publicador
 COPY captacao_campos.py .
 COPY olx_api.py .
+# a biblioteca de fotos do cadastro (03/10): subir, reordenar e excluir
+COPY fotos_api.py .
 
 RUN useradd -m site-api
 USER site-api

@@ -28,6 +28,7 @@ prompt: comece pelo `nay onde`.
 | o que a Nay diz antes de mandar (conferências 1–24) | `nai_conferir_resposta` | 213–216, 224 |
 | como a resposta vira mensagens (card, foto, sugestão de visita) | `nai_enfileirar_resposta`, `nai_enfileirar_card` | 224 |
 | foto: quando sai | `nai_deve_mandar_fotos`, `nai_menciona_foto`, `nai_pede_envio_do_imovel` | 224 |
+| subir, reordenar e excluir as fotos do imóvel (biblioteca do cadastro) | `site_fotos_lista`, `site_foto_adicionar`, `site_fotos_ordenar`, `site_foto_apagar`; marca `imovel_fotos_manual` (a varredura `varrer_fotos.py` e `nai_gravar_fotos_do_site` pulam); API `nay-site-api/fotos_api.py`; tela `assets/js/fotos-biblioteca.js` | 283 |
 | casa/apto, venda/locação da conversa | `nai_tipo_pedido`, `nai_tipo_da_conversa`, `nay_negocio_pedido`, `nai_negocio_da_conversa` | 224, 225 |
 | paredes na caixa de saída (parceiro, finalidade, 24 h, foto errada) | gatilho `nai_saida_validar`, `nai_conferir_imoveis_da_saida`, `nai_saida_sem_sobras` | 190, 224 |
 | quem ela atende / porta / lista de corretores | `nai_deve_atender`, `nai_pode_falar`, `nai_decidir_corretor` | 228 |

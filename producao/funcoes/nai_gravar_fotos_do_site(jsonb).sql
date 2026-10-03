@@ -13,6 +13,7 @@ BEGIN
        WHERE u ~ '^https://imobeasy\.com/system/pictures/' GROUP BY u) y;
     IF v_cod IS NULL OR v_urls IS NULL OR NOT EXISTS (SELECT 1 FROM imoveis WHERE codigo = v_cod) THEN CONTINUE; END IF;
     IF EXISTS (SELECT 1 FROM imovel_fotos WHERE codigo = v_cod) THEN CONTINUE; END IF;
+    IF EXISTS (SELECT 1 FROM imovel_fotos_manual WHERE codigo = v_cod) THEN CONTINUE; END IF;   -- 283
     FOR i IN 1..array_length(v_urls, 1) LOOP
       INSERT INTO imovel_fotos (codigo, ordem, url, e_capa) VALUES (v_cod, i, v_urls[i], i = 1);
       n := n + 1;
