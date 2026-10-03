@@ -45,6 +45,7 @@ prompt: comece pelo `nay onde`.
 | prompt do corretor | tabela `nai_prompt` (versão), `nai_salvar_prompt`; texto em `producao/prompts/corretor.md` | 224 |
 | textos fixos (config) | `nai_config` (`producao/nai_config.tsv`), `nai_cfg()` | — |
 | casos de teste | `nai_caso` + `nai_rodar_casos()`; `./scripts/nay bateria` | 213+ |
+| captação: o dono manda só foto (salva, avisa o Tel, segue a pergunta do cadastro; nunca "não consigo ver") | fluxo da VPS2, nós `Reservar mensagens` (`ja_seguiu_depois_de_foto`), `Juntar mensagens` (`seguirSemFoto`) e `Preparar resposta` (`NAO_VE`); patch em `scripts/madrugada/patch_captacao_imagem_continua.py` | 03/10 |
 | etapa da captação escolhida à mão (com Follow-up) | `crm_captacao_etapa_manual`, tabela `captacao_etapa_manual`; abas em `crm_captacao_donos` | 242 |
 | quanto o cadastro de um imóvel está preenchido (0 a 100%) | `nai_imovel_pontos`, `vw_imovel_pontuacao`, `crm_imoveis_pontuacao` | 244, 245, 246 |
 | o popup de cadastro no card da captação (condomínios com endereço, pré-cadastro, características) | `crm_captacao_cadastro_opcoes`, `crm_condominio_pelo_texto`, `crm_imovel_para_cadastro`, `crm_captacao_dono_cadastro` | 246, 247 |
