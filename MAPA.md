@@ -119,6 +119,10 @@ prompt: comece pelo `nay onde`.
 - Abrir conversa pela lupa de cima: `src/components/Chat/BuscaDaLista.tsx` pergunta Parceria ou Captação (`/api/leads/abrir`). Quem só responde na captação (a Rayssa): `src/lib/captacaoSoResponde.ts` (lista e aviso) e
   `captacaoSoRespondeServidor.ts` (a parede, chamada em `abrir`, `messages` e `enviar-imovel`).
 
+- Os GRUPOS do número da Parceria (CRM › Grupos, `/chat/grupos`): `src/lib/gruposParceria.ts`, rotas `/api/parceria/grupos/**`,
+  `GruposDaParceria.tsx`. Editar só onde o número é admin; a Z-API não dá histórico: as mensagens são guardadas pelo
+  webhook do CRM (`/api/webhooks/zapi` → `nai_grupo_guardar`, em `privado.grupo_conversa`). Migrações 277 e 278.
+
 ## n8n (fluxo `NAI atendimento locação`, `producao/n8n/`)
 - Import só de madrugada (espelho-madrugada). Modelo/memória: pela interface. Ler execuções: sqlite só leitura (scratch `n8nq.sh`).
 - O procedimento da madrugada está em `scripts/madrugada/` (cópia em `/root/`): exporta o fluxo vivo, aplica um

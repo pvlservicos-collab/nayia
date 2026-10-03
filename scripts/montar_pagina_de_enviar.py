@@ -17,7 +17,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 DESENHO = RAIZ / "Telaenviarmovel.html"
 SAIDA = RAIZ / "imob-easy" / "imoveis.html"
-VERSAO = "20261002f"
+VERSAO = "20261003a"
 
 html = io.open(DESENHO, encoding="utf-8").read()
 
@@ -124,6 +124,40 @@ ESTILO = """<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/le
   .row{grid-template-columns:76px minmax(0,1fr)}
 }
 
+/* O MAPA ACORDA COM UM CLIQUE (03/10): até lá a página rola; ativo, ganha uma borda roxa */
+.map.map--ativo{box-shadow:inset 0 0 0 3px #8B3CF0}
+.map.map--ativo .maptag{background:#8B3CF0;color:#fff}
+
+/* CELULAR: o filtro do painel de baixo vai para o topo da tela, em cima da lista, preso ao rolar (03/10) */
+@media (max-width:1023px){
+  .res-f{position:sticky;top:var(--head-h,58px);z-index:20;margin:0 -10px 12px;padding:8px 10px;background:rgba(247,242,251,.97);
+    -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:0 6px 14px rgba(74,29,150,.10)}
+  .res-f{scroll-margin-top:var(--head-h,58px)}
+  #sheetF,.sheet.fopen #sheetF{display:none!important}
+  @keyframes piscaFiltro{0%,100%{box-shadow:0 6px 14px rgba(74,29,150,.10)}40%{box-shadow:0 0 0 3px #8B3CF0,0 6px 14px rgba(74,29,150,.18)}}
+  .res-f.piscando{animation:piscaFiltro 1.1s ease 2}
+}
+
+/* O PAINEL DE SE ENVIAR IMÓVEIS MAIOR (03/10: "está muito pequeno"): campo do WhatsApp, botão e escolhidos */
+.sh-send{padding:12px 14px 14px;gap:10px}
+.phone{padding:15px 18px;font-size:17px}
+.send{padding:15px 22px;font-size:15px}
+.send svg{width:20px;height:20px}
+.sel-h{padding:10px 14px 6px}
+.sel-h b{font-size:16.5px}
+.sel-list .it{flex:0 0 172px;max-width:172px;padding:6px}
+.sel-list .it img{height:84px}
+.sel-list .it b{font-size:14px}
+.listbtn{padding:12px 16px;font-size:14.5px}
+@media (max-width:760px){
+  .sh-send{padding:10px 12px 12px;gap:9px}
+  .phone{padding:14px 16px;font-size:16.5px}
+  .send{padding:14px 18px;font-size:14.5px}
+  .listbtn{padding:11px 14px;font-size:14px}
+  .sel-list .it{flex-basis:150px;max-width:150px}
+  .sel-list .it img{height:70px}
+}
+
 /* A LISTA FICA EMBAIXO DO MAPA e a página rola até ela (Pedro, 02/10): o mapa não ocupa mais a tela toda */
 @media (min-width:1024px){.map{height:min(64dvh,660px)!important}}
 @media (max-width:1023px){.map{height:max(260px,calc(100dvh - var(--head-h,58px) - var(--sheet-h,200px) - 64px))!important}}
@@ -139,7 +173,8 @@ antes = html.count("Endereço, condomínio, código ou bairro")
 assert antes >= 1, "o desenho mudou o texto da busca"
 html = html.replace("Endereço, condomínio, código ou bairro", "Condomínio, bairro ou código")   # a rua não é pública
 assert "Mapa ilustrativo" in html, "o desenho não tem mais a etiqueta do mapa"
-html = html.replace("Mapa ilustrativo", "Região aproximada do imóvel")
+html = html.replace("Mapa ilustrativo", "Clique no mapa para usar a rodinha nele")   # o script troca conforme o estado
+html = html.replace("Use dois dedos para mover o mapa", "Toque no mapa para mexer nele")
 html = html.replace("<head>", "<head>\n<!-- Gerado por scripts/montar_pagina_de_enviar.py a partir de Telaenviarmovel.html. "
                     "Não edite aqui: edite o desenho e gere de novo. -->", 1)
 

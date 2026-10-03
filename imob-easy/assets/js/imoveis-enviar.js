@@ -152,10 +152,10 @@ function criarMapa() {
   mapa.getPane("rotulosBairro").style.pointerEvents = "none";
   camadaRotulos = L.layerGroup();
   camada = L.layerGroup().addTo(mapa);
-  mapa.on("click", closePopup);
+  mapa.on("click", () => { closePopup(); ativarMapa(true); });
   mapa.on("zoomend", mostrarRotulos);
   world.addEventListener("wheel", e => {
-    if (!e.ctrlKey) return;                              // sem Ctrl a rodinha é da página
+    if (!e.ctrlKey || mapaAtivo) return;               // sem Ctrl (e com o mapa dormindo) a rodinha é da página
     e.preventDefault();
     mapa.setZoomAround(mapa.mouseEventToLatLng(e), mapa.getZoom() + (e.deltaY < 0 ? 1 : -1));
   }, { passive: false });
@@ -420,7 +420,15 @@ document.addEventListener("click", e => {
   if (t.dataset.rm) { sel = sel.filter(x => String(x.codigo) !== t.dataset.rm); saveSel(); renderAll(); }
   if (t.id === "clearAll") { sel = []; saveSel(); renderAll(); }
   if (t.id === "listbtn") $("#results").scrollIntoView({ behavior: "smooth", block: "start" });
-  if (t.id === "ftog") { const o = !$("#sheet").classList.contains("fopen"); $("#sheet").classList.toggle("fopen", o); t.setAttribute("aria-expanded", o); }
+  if (t.id === "ftog") {
+    if (!side()) {
+      // celular: o filtro NÃO cresce dentro do painel de baixo (tapava os resultados, Pedro 03/10); a página vai
+      // até a lista e o filtro dela fica preso no topo da tela enquanto ele rola os resultados
+      $("#sheet").classList.remove("fopen");
+      const f = $("#listF"); f.scrollIntoView({ behavior: "smooth", block: "start" });
+      f.classList.remove("piscando"); void f.offsetWidth; f.classList.add("piscando");
+    } else { const o = !$("#sheet").classList.contains("fopen"); $("#sheet").classList.toggle("fopen", o); t.setAttribute("aria-expanded", o); }
+  }
   if (t.id === "zin" && mapa) mapa.zoomIn();
   if (t.id === "zout" && mapa) mapa.zoomOut();
   if (t.id === "zfit") { closePopup(); fit(); }
@@ -457,12 +465,28 @@ $("#q").addEventListener("focus", () => { sugOpen = true; renderSugs(); });
 $("#q").addEventListener("input", () => { sugOpen = true; });
 $("#grab").addEventListener("click", () => $("#sheet").classList.toggle("min"));
 
-/* celular: um dedo no mapa rola a página; o aviso ensina os dois dedos */
-let hintT = null;
+/* O MAPA ACORDA COM UM CLIQUE (Pedro, 03/10: "quando a pessoa clicar dentro do mapa e rolar para baixo, ele
+   role o mapa"). Antes do clique, a rodinha e o dedo rolam a PÁGINA (a lista fica embaixo). Depois do clique
+   dentro do mapa, a rodinha aproxima/afasta e o dedo arrasta o mapa; sair dele (mouse fora, ou tocar fora no
+   celular) devolve a rolagem à página. A etiqueta de baixo do mapa diz em qual dos dois está. */
+let mapaAtivo = false, hintT = null;
 function hideHint() { const h = $("#mhint"); if (h) h.classList.remove("on"); }
+function ativarMapa(on) {
+  if (!mapa || on === mapaAtivo) return;
+  mapaAtivo = on;
+  if (on) { mapa.scrollWheelZoom.enable(); if (toque) mapa.dragging.enable(); }
+  else { mapa.scrollWheelZoom.disable(); if (toque) mapa.dragging.disable(); }
+  mapEl.classList.toggle("map--ativo", on);
+  const tag = document.querySelector(".maptag");
+  if (tag) tag.textContent = on ? (toque ? "Mapa ativo · toque fora dele para rolar a página" : "Mapa ativo · a rodinha mexe no mapa")
+                                : (toque ? "Toque no mapa para mexer nele" : "Clique no mapa para usar a rodinha nele");
+}
+mapEl.addEventListener("mouseleave", () => ativarMapa(false));
+document.addEventListener("pointerdown", e => { if (!mapEl.contains(e.target)) ativarMapa(false); }, true);
+ativarMapa(true); ativarMapa(false);          // escreve a etiqueta do jeito de agora
 if (toque) {
   mapEl.addEventListener("touchmove", e => {
-    if (e.touches.length === 1 && !e.target.closest(".mtop,.zoom,.popup,.pin")) { const h = $("#mhint"); if (h) { h.classList.add("on"); clearTimeout(hintT); hintT = setTimeout(hideHint, 1400); } }
+    if (!mapaAtivo && e.touches.length === 1 && !e.target.closest(".mtop,.zoom,.popup,.pinw")) { const h = $("#mhint"); if (h) { h.classList.add("on"); clearTimeout(hintT); hintT = setTimeout(hideHint, 1400); } }
     else hideHint();
   }, { passive: true });
 }

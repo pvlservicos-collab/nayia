@@ -139,7 +139,7 @@ function erroZapi(data: any, texto: string, status: number, fallback: string): s
   return `${fallback} (HTTP ${status})`
 }
 
-async function chamar(
+export async function chamar(
   creds: ZapiCredentials,
   caminho: string,
   init: { method?: string; body?: any } = {},

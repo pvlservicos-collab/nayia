@@ -24,6 +24,7 @@ import {
   House,
   ShieldCheck,
   PaperPlaneTilt,
+  UsersThree,
 } from '@phosphor-icons/react'
 import { useAuth, usePipeline } from '@/hooks'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -42,6 +43,9 @@ const NAV_ITEMS = [
   { label: 'WhatsApp Oficial', curto: 'Oficial', href: '/chat', icon: WhatsappLogo },
   { label: 'WhatsApp Parceria', curto: 'Parceria', href: '/chat/parceria', icon: WhatsappLogo },
   { label: 'WhatsApp Captação', curto: 'Captação', href: '/chat/captacao', icon: WhatsappLogo },
+  // OS GRUPOS DO NÚMERO DA PARCERIA (Pedro, 03/10/2026: "pode ficar do lado de captação, aba Grupos"):
+  // mensagens guardadas, participantes, planilha, e editar onde o número é admin.
+  { label: 'Grupos', curto: 'Grupos', href: '/chat/grupos', icon: UsersThree },
   // A ABA IMOVEIS (Tel, 27/09/2026): o mesmo acervo da tela do site, aqui dentro,
   // para achar imovel e mandar direto numa conversa.
   { label: 'Imóveis', href: '/imoveis', icon: Buildings },
@@ -147,6 +151,7 @@ export default function Navbar() {
       case 'WhatsApp Oficial': return !!permissions.settings?.view_chat
       case 'WhatsApp Parceria': return !!permissions.settings?.view_chat
       case 'WhatsApp Captação': return !!permissions.settings?.view_chat
+      case 'Grupos': return !!permissions.settings?.view_chat
       case 'DM Instagram': return !!permissions.settings?.view_chat
       case 'Funil de Mensagens': return !!permissions.settings?.view_funnels
       case 'Logs': return !!permissions.settings?.view_logs
@@ -166,7 +171,8 @@ export default function Navbar() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
           <img src="/logos/imobeasy-simbolo.svg" alt="Imob Easy" className="h-7 w-7 object-contain" />
-          <span className="font-display font-bold text-ink hidden sm:inline">ImobEasy CRM</span>
+          {/* o nome escrito só em tela bem larga: o menu ganhou a aba Grupos (03/10) */}
+          <span className="font-display font-bold text-ink hidden 2xl:inline">ImobEasy CRM</span>
         </Link>
 
         {/* Nav Tabs (desktop) */}
@@ -227,13 +233,16 @@ export default function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-1.5 px-2 xl:px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${isActive
+                className={`flex items-center gap-1.5 px-2 xl:px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors border ${isActive
                   ? 'bg-graphite-6 border-white/15 text-accent-2'
                   : 'border-transparent text-muted hover:bg-white/[0.06] hover:text-ink'
                   }`}
+                title={item.label}
               >
                 <Icon size={16} weight={isActive ? 'fill' : 'regular'} />
-                {item.label}
+                {/* o nome curto ("Parceria") até telas bem largas: com a aba Grupos, o menu não cabia (03/10) */}
+                <span className="2xl:hidden">{item.curto ?? item.label}</span>
+                <span className="hidden 2xl:inline">{item.label}</span>
               </Link>
             )
           })}

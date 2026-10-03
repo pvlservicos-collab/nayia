@@ -1,4 +1,4 @@
-# imovel_enviado_no_dia  (tabela, ~147 linhas)
+# imovel_enviado_no_dia  (tabela, ~212 linhas)
 
 ## colunas
 chave  text  NOT NULL

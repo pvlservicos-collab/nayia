@@ -23,4 +23,4 @@ nay_leitura: SELECT
 nai_sincronizar_grupos
 
 ## funções que citam
-nai_sincronizar_grupos
+crm_grupos_conhecidos, nai_sincronizar_grupos

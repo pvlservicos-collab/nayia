@@ -5,6 +5,7 @@ import { eq, and, isNull, sql, inArray } from 'drizzle-orm'
 import { processZapiMessage, logZapiDiagnostico } from '@/lib/zapiInbound'
 import { ZAPI_INTEGRATION_TYPE, TIPOS_ZAPI } from '@/lib/zapi'
 import { publishEvent, channels, events } from '@/lib/realtime'
+import { guardarMensagemDeGrupo } from '@/lib/gruposParceria'
 
 /**
  * Webhook único da Z-API.
@@ -57,6 +58,12 @@ export async function POST(req: NextRequest) {
 
     // Mensagem recebida (ou eco de mensagem enviada pelo celular).
     if (body.type === 'ReceivedCallback' || body.phone) {
+      // MENSAGEM DE GRUPO (03/10/2026): guardada para o painel dos grupos da Parceria -- a Z-API não
+      // entrega histórico, então só se lê o que for guardado aqui. Não muda nada do resto do caminho.
+      if (body.isGroup === true || body.isGroup === 'true') {
+        after(() => guardarMensagemDeGrupo(orgId, body)
+          .catch((e) => console.error('[zapi webhook] grupo não guardado', body?.messageId, e?.message || e)))
+      }
       /*
        * `?rapido=1` é só do espelho da Nay no n8n (29/09/2026): ele roda ANTES
        * do atendimento, então não pode esperar a foto baixar. Responde na hora e

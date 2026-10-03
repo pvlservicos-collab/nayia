@@ -29,4 +29,4 @@ nay_leitura: SELECT
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-nai_card_do_imovel, nai_comando_tel, nai_enviar_imoveis_para, nai_imagens_do_envio, nai_perguntar_se_e_corretor, nai_resposta_da_base, nai_sincronizar_grupos, nay_imovel_do_disparo, nay_qual_imovel
+crm_grupos_conhecidos, nai_card_do_imovel, nai_comando_tel, nai_enviar_imoveis_para, nai_imagens_do_envio, nai_perguntar_se_e_corretor, nai_resposta_da_base, nai_sincronizar_grupos, nay_imovel_do_disparo, nay_qual_imovel
