@@ -17,6 +17,9 @@ function urlBase64ToUint8Array(base64Url: string): Uint8Array<ArrayBuffer> {
 
 export function usePushNotifications() {
   const [status, setStatus] = useState<PushStatus>('loading')
+  // 04/10: até aqui, ligar sem as chaves no servidor falhava calado -- o botão
+  // voltava para desligado e ninguém sabia por quê. Agora a tela diz.
+  const [erro, setErro] = useState<string | null>(null)
 
   const checkStatus = useCallback(async () => {
     // Mesma checagem de iOS/instalado do InstallAppBanner.tsx — no Safari do iPhone,
@@ -52,30 +55,46 @@ export function usePushNotifications() {
   }, [checkStatus])
 
   const subscribe = useCallback(async () => {
-    const permission = await Notification.requestPermission()
-    if (permission !== 'granted') {
-      // 'denied' de verdade só quando a pessoa clica "Bloquear" — se ela só fechou o
-      // prompt sem escolher (Esc, tocar fora), o navegador devolve 'default' e ainda
-      // deixa perguntar de novo depois. Só nesse segundo caso volta pra
-      // 'unsubscribed' em vez de 'denied', senão o convite para de aparecer mesmo
-      // sem ter sido bloqueado de verdade.
-      setStatus(permission === 'denied' ? 'denied' : 'unsubscribed')
+    setErro(null)
+    const chave = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+    if (!chave) {
+      setErro('O aviso no celular ainda não foi configurado no servidor.')
       return
     }
+    try {
+      const permission = await Notification.requestPermission()
+      if (permission !== 'granted') {
+        // 'denied' de verdade só quando a pessoa clica "Bloquear" — se ela só fechou o
+        // prompt sem escolher (Esc, tocar fora), o navegador devolve 'default' e ainda
+        // deixa perguntar de novo depois. Só nesse segundo caso volta pra
+        // 'unsubscribed' em vez de 'denied', senão o convite para de aparecer mesmo
+        // sem ter sido bloqueado de verdade.
+        setStatus(permission === 'denied' ? 'denied' : 'unsubscribed')
+        return
+      }
 
-    const registration = await navigator.serviceWorker.ready
-    const sub = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
-    })
-    const json = sub.toJSON()
+      const registration = await navigator.serviceWorker.ready
+      const sub = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(chave),
+      })
+      const json = sub.toJSON()
 
-    await fetch('/api/push-subscriptions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys, userAgent: navigator.userAgent }),
-    })
-    setStatus('subscribed')
+      const r = await fetch('/api/push-subscriptions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys, userAgent: navigator.userAgent }),
+      })
+      if (!r.ok) {
+        // o aparelho aceitou mas o servidor não guardou: desfaz, senão o botão mente
+        await sub.unsubscribe().catch(() => {})
+        throw new Error(`o servidor não guardou a inscrição (${r.status})`)
+      }
+      setStatus('subscribed')
+    } catch (e: any) {
+      setErro(`Não consegui ligar o aviso neste aparelho: ${e?.message || e}`)
+      setStatus('unsubscribed')
+    }
   }, [])
 
   const unsubscribe = useCallback(async () => {
@@ -88,5 +107,5 @@ export function usePushNotifications() {
     setStatus('unsubscribed')
   }, [])
 
-  return { status, subscribe, unsubscribe }
+  return { status, subscribe, unsubscribe, erro }
 }

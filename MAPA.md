@@ -132,8 +132,11 @@ prompt: comece pelo `nay onde`.
 - "Não chega mensagem / demora a aparecer" (04/10): a mensagem chega por webhook + conferência (`src/lib/espelhoDaNay.ts`, cron de 10 s);
   a TELA se atualiza por `src/hooks/usePusher.ts` (canal compartilhado conta os usos; refaz a ligação ao voltar para a aba depois de 30 s;
   `usePusherConectado`), `src/contexts/LeadsContext.tsx` (lista: 60 s com a ligação de pé, 8 s sem ela) e `src/hooks/useParceriaMarcas.ts`
-  + `/api/parceria/marcas?esperar=1` (a aba de cada pessoa: a leitura de fundo espera a conta nova). Aviso no celular (web push,
-  `src/lib/push.ts`) existe no código mas NÃO está ligado: faltam as chaves VAPID no `.env` do servidor.
+  + `/api/parceria/marcas?esperar=1` (a aba de cada pessoa: a leitura de fundo espera a conta nova).
+- Aviso no celular (web push, 04/10): QUEM é avisado decide `src/lib/precisaDeGente.ts` (só conversa com pessoa: fora da aba Todos, Nay em
+  pausa, captação "Com o Tel" ou fora da campanha; nunca grupo, número nosso, equipe, "ok/obrigado"); QUANTO, `src/lib/push.ts` (um por
+  rajada de 10 min, nada se respondemos há menos de 5 min). Cada pessoa liga no próprio aparelho em Configurações › Notificações
+  (`usePushNotifications.ts`; no iPhone, antes, "Adicionar à Tela de Início"). Chaves VAPID só no `.env` do servidor: trocá-las desliga todos.
 - Celular (04/10): campo com 16 px `!important` (iPhone não dá mais zoom), `.aviso-no-pe` (avisos acima da barra de baixo) e a área de
   toque dos botões pequenos em `src/globals.css`; topo da agenda em `VisitasAgendadas.tsx`; popups com `dvh`.
 - Card da captação: `src/components/Chat/PainelContatoCaptacao.tsx` (+ `EtapaDaCaptacao.tsx`, `CadastroDeImovel.tsx`,

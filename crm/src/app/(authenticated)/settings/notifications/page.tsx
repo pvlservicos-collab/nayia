@@ -257,7 +257,7 @@ function ApiNotificationCard({
 /* ─── Push Notifications Card ─── */
 
 function PushNotificationsCard() {
-    const { status, subscribe, unsubscribe } = usePushNotifications()
+    const { status, subscribe, unsubscribe, erro } = usePushNotifications()
 
     return (
         <div className="bg-panel border border-line rounded-2xl shadow-sm">
@@ -289,8 +289,11 @@ function PushNotificationsCard() {
                         <div>
                             <p className="text-sm font-semibold text-ink">Ativar notificações</p>
                             <p className="text-xs text-muted mt-0.5">
-                                Saiba na hora quando chegar uma mensagem nova, mesmo com o app fechado.
+                                Avisa neste aparelho, mesmo com o app fechado, quando chega mensagem que precisa
+                                de gente: conversa que está com o Tel ou com a Rayssa, visita, fechamento e
+                                proprietário. O que a Nay responde sozinha não avisa.
                             </p>
+                            {erro && <p className="text-xs text-red-500 mt-1.5">{erro}</p>}
                         </div>
                         <Toggle
                             enabled={status === 'subscribed'}
