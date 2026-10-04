@@ -357,11 +357,23 @@ html {
 }
 
 /* iPhone dá zoom automático ao focar campo com fonte < 16px — trava isso só no mobile,
-   sem mudar o tamanho de fonte pretendido no design pra telas maiores. */
+   sem mudar o tamanho de fonte pretendido no design pra telas maiores.
+   04/10: com `!important`. Sem ele a regra perdia para qualquer classe de tamanho
+   (text-sm, .wa-busca input, .wa-entrada textarea, .cad-campo input) e o iPhone
+   dava zoom justamente na busca da lista e na caixa de digitar a mensagem. */
 @media (max-width: 767px) {
   input, textarea, select {
-    font-size: 16px;
+    font-size: 16px !important;
   }
+}
+
+/* O AVISO QUE SOBE NO PÉ DA TELA (mudança de etapa, e os avisos gerais do app).
+   No celular o pé da tela é a barra de navegação (4rem + a área do gesto): o
+   aviso sobe para cima dela em vez de cobrir os botões. */
+.aviso-no-pe { bottom: 1.5rem; }
+@media (max-width: 767px) {
+  .aviso-no-pe { bottom: calc(4.75rem + env(safe-area-inset-bottom)); }
+  .aviso-no-pe--canto { left: 0.75rem; right: 0.75rem; }
 }
 
 /* Preenchimento pra não colidir com notch/Dynamic Island (topo) e barra de
@@ -1107,6 +1119,12 @@ html {
 }
 .wa-icone-btn:hover { background: var(--wa-row-hover); }
 .wa-icone-btn--on { background: var(--wa-row-selected); color: var(--wa-text); }
+/* No dedo, o botão pequeno (lápis, x, confirmar: 24 a 32 px) continua do mesmo
+   tamanho na tela, mas a área que aceita o toque cresce 8 px para cada lado. */
+@media (pointer: coarse) {
+  .wa-icone-btn[class*="!w-"]:not(.absolute):not(.fixed) { position: relative; }
+  .wa-icone-btn[class*="!w-"]:not(.absolute):not(.fixed)::after { content: ''; position: absolute; inset: -8px; }
+}
 
 /* A caixa de digitar, flutuando sobre o papel de parede */
 .wa-entrada {

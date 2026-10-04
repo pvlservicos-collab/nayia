@@ -624,7 +624,7 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
                 <EmojiPicker
                   onEmojiClick={handleEmojiClick}
                   theme={(typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light') as Theme}
-                  width={350}
+                  width="min(350px, calc(100vw - 1.5rem))"
                   height={400}
                   searchPlaceHolder="Buscar emoji..."
                   previewConfig={{ showPreview: false }}
@@ -647,7 +647,7 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
                     onChange={(e) => setManualSearchQuery(e.target.value)}
                     onKeyDown={handleComposerKeyDown}
                     placeholder="Buscar resposta rápida..."
-                    className="glass-raised w-[340px] mb-1.5 px-3 py-2 text-sm rounded-xl text-[var(--chat-text-primary)] placeholder-[var(--chat-text-muted)] focus:outline-none focus:border-[var(--chat-accent)]/60"
+                    className="glass-raised w-[340px] max-w-[calc(100vw_-_1.5rem)] mb-1.5 px-3 py-2 text-sm rounded-xl text-[var(--chat-text-primary)] placeholder-[var(--chat-text-muted)] focus:outline-none focus:border-[var(--chat-accent)]/60"
                   />
                 )}
                 <QuickReplyPicker

@@ -681,21 +681,25 @@ export default function VisitasAgendadas({ aoAbrirConversa, destaque }: { aoAbri
   return (
     <div className="flex flex-col h-full min-w-0 flex-1" style={{ background: 'var(--wa-app)' }}>
       <div className="flex-shrink-0" style={{ background: 'var(--wa-panel)', borderBottom: '1px solid var(--wa-divider)' }}>
-        <div className="wa-topo gap-3">
-          <CalendarCheck size={26} style={{ color: 'var(--wa-green)' }} />
+        <div className="wa-topo gap-2 md:gap-3">
+          <CalendarCheck size={26} className="hidden md:block flex-shrink-0" style={{ color: 'var(--wa-green)' }} />
+          {/* No celular (04/10) o topo tinha ícone, título, três linhas de explicação,
+              relógio, "Agendar visita" e atualizar na mesma linha de 390 px: o título
+              ficava espremido. Lá fica só o título, o relógio e os dois botões (o azul
+              vira só o +); a explicação aparece do tablet para cima. */}
           <div className="min-w-0">
-            <h1 className="text-[20px] font-bold leading-6" style={{ color: 'var(--wa-text)' }}>Visitas agendadas</h1>
-            <p className="text-[12.5px] leading-4" style={{ color: 'var(--wa-text-2)' }}>
+            <h1 className="text-[17px] md:text-[20px] font-bold leading-6 truncate" style={{ color: 'var(--wa-text)' }}>Visitas agendadas</h1>
+            <p className="hidden md:block text-[12.5px] leading-4" style={{ color: 'var(--wa-text-2)' }}>
               A Nay preenche sozinha, e você agenda à mão pelo botão azul: toda visita aparece aqui, com o andamento e as datas.
             </p>
           </div>
           <RelogioDeManaus />
           {/* O + DA AGENDA (Pedro, 01/10): "lá em agenda também um + que vai agendar
               pela agenda também". Azul, como o botão do card: é visita, não mensagem. */}
-          <button type="button" onClick={() => setAgendando(true)}
-                  className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[13.5px] font-semibold flex-shrink-0"
+          <button type="button" onClick={() => setAgendando(true)} aria-label="Agendar visita"
+                  className="inline-flex items-center justify-center gap-1.5 h-9 w-9 md:w-auto md:px-3.5 rounded-full text-[13.5px] font-semibold flex-shrink-0"
                   style={{ background: '#2563eb', color: '#fff' }} title="Agendar uma visita à mão">
-            <Plus size={16} weight="bold" /> Agendar visita
+            <Plus size={16} weight="bold" /> <span className="hidden md:inline">Agendar visita</span>
           </button>
           <button type="button" onClick={() => void recarregar()} className="wa-icone-btn" title="Atualizar agora">
             {carregando ? <CircleNotch size={20} className="animate-spin" /> : <ArrowClockwise size={20} />}
@@ -704,7 +708,7 @@ export default function VisitasAgendadas({ aoAbrirConversa, destaque }: { aoAbri
         {agendando && createPortal(
           <div className="chat-theme fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60" onClick={() => setAgendando(false)}>
             <div role="dialog" aria-label="Agendar visita" onClick={(e) => e.stopPropagation()}
-                 className="w-full max-w-md max-h-[92vh] overflow-y-auto rounded-2xl shadow-2xl" style={{ background: 'var(--wa-panel)' }}>
+                 className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-2xl shadow-2xl" style={{ background: 'var(--wa-panel)' }}>
               <AgendarVisita aoCancelar={() => setAgendando(false)}
                              aoAgendar={(id) => { void recarregar(); setSelecionada(id); setPedido((n) => n + 1) }} />
             </div>

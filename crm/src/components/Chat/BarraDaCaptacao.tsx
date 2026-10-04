@@ -182,7 +182,7 @@ export default function BarraDaCaptacao({ leads }: { leads?: LeadWithOwner[] }) 
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" onClick={() => envio !== 'enviando' && setJanela(false)}>
           <div className="absolute inset-0 bg-black/50" />
           <div role="dialog" aria-label="Relatório da captação" onClick={(e) => e.stopPropagation()}
-               className="relative w-[min(440px,100%)] rounded-2xl shadow-2xl flex flex-col max-h-[85vh]"
+               className="relative w-[min(440px,100%)] rounded-2xl shadow-2xl flex flex-col max-h-[85dvh]"
                style={{ background: 'var(--wa-panel)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }}>
             <div className="flex items-center justify-between px-4 pt-3 pb-2">
               <span className="text-[15px] font-semibold">Relatório da captação</span>

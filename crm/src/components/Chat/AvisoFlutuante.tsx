@@ -40,7 +40,7 @@ export default function AvisoFlutuante({ aviso, aoFechar }: {
   const cor = COR[aviso.tom]
   const Icone = aviso.tom === 'ok' ? CheckCircle : aviso.tom === 'aviso' ? Warning : XCircle
   return createPortal(
-    <div className="chat-theme fixed z-[200] left-1/2 -translate-x-1/2 bottom-6 w-[min(92vw,480px)] pointer-events-none">
+    <div className="chat-theme aviso-no-pe fixed z-[200] left-1/2 -translate-x-1/2 w-[min(92vw,480px)] pointer-events-none">
       <div role={aviso.tom === 'ok' ? 'status' : 'alert'} aria-live={aviso.tom === 'ok' ? 'polite' : 'assertive'}
            className="pointer-events-auto flex items-start gap-2.5 rounded-xl shadow-2xl px-4 py-3"
            style={{ background: 'var(--wa-panel, #fff)', color: 'var(--wa-text, #111b21)', border: `2px solid ${cor}` }}>

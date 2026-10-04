@@ -311,7 +311,7 @@ export default function CadastroDeImovel({ leadId, donoNome, temProprietario, al
   return createPortal(
     <div className="chat-theme fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60" onClick={() => !salvando && aoFechar()}>
       <div role="dialog" aria-label={alvo.titulo} onClick={(e) => e.stopPropagation()}
-           className="w-full max-w-2xl max-h-[92vh] flex flex-col rounded-2xl border border-[var(--chat-border)] bg-[var(--chat-bg-base)] shadow-2xl">
+           className="w-full max-w-2xl max-h-[92dvh] flex flex-col rounded-2xl border border-[var(--chat-border)] bg-[var(--chat-bg-base)] shadow-2xl">
 
         {/* ── cabeçalho e a porcentagem que vai se preenchendo ── */}
         <div className="p-4 pb-3 border-b border-[var(--chat-border)]">

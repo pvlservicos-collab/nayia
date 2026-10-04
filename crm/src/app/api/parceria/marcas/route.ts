@@ -62,10 +62,18 @@ export async function GET(req: NextRequest) {
      * à Nay leva até 8 s. Com uma cópia vencida na mão, ela volta já e a conta
      * nova roda por trás -- a próxima leitura pega a fresca. Só a primeira
      * leitura (e o `?fresco=1` de quem acabou de mexer) espera a conta.
+     *
+     * `?esperar=1` (04/10, a Rayssa: "não estava chegando mensagem"): é a
+     * leitura de fundo, de minuto em minuto, que não trava clique nenhum. Ela
+     * espera a conta nova em vez de levar a vencida. Antes a tela mostrava
+     * sempre a conta da leitura ANTERIOR: a conversa que a Nay passava para a
+     * Rayssa só entrava na aba dela 1 a 2 minutos depois. A carga é a mesma
+     * (uma conta por leitura vencida); muda só quem recebe o resultado.
      */
-    if (guardada && !fresco) {
+    const esperar = req.nextUrl.searchParams.get('esperar') === '1'
+    if (guardada && !fresco && !esperar) {
       void recalcular().catch((e) => console.error('[parceria/marcas] recálculo', e?.message || e))
-      return Response.json({ marcas: guardada.marcas, nay: guardada.nay, em: guardada.em })
+      return Response.json({ marcas: guardada.marcas, nay: guardada.nay, em: guardada.em, vencida: true })
     }
     const { marcas, nay } = await recalcular()
     return Response.json({ marcas, nay, em: Date.now() })

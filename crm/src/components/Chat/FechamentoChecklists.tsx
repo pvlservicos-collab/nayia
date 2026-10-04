@@ -128,7 +128,7 @@ function Preview({ item, fechar }: { item: Item; fechar: () => void }) {
   const pdf = (item.mime || '').includes('pdf') || /\.pdf$/i.test(item.nomeArquivo || '')
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={fechar}>
-      <div className="relative bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+      <div className="relative bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[92dvh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 px-3 py-2 border-b text-sm text-black">
           <span className="font-semibold truncate">{item.documento?.rotulo || item.nomeArquivo || 'Documento'}</span>
           <span className="opacity-60 whitespace-nowrap">{tamanho(item.bytes)}</span>

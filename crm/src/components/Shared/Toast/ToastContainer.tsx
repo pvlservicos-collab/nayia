@@ -11,7 +11,7 @@ interface ToastContainerProps {
 
 export default function ToastContainer({ notifications, removeNotification }: ToastContainerProps) {
     return (
-        <div className="fixed bottom-6 left-6 z-[9999] flex flex-col items-start gap-3 pointer-events-none">
+        <div className="aviso-no-pe aviso-no-pe--canto fixed left-6 z-[9999] flex flex-col items-start gap-3 pointer-events-none">
             {notifications.map((notification) => (
                 <div key={notification.id} className="pointer-events-auto">
                     <Toast notification={notification} onClose={removeNotification} />

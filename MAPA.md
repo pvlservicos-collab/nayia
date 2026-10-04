@@ -129,6 +129,13 @@ prompt: comece pelo `nay onde`.
   Aviso depois de salvar a etapa (03/10): `resultadoDaMudanca` e `abaDaConversa` em `etapaDaParceria.ts` dizem onde a conversa FICOU e por quê;
   a notificação é `AvisoFlutuante.tsx` (card da Parceria e da captação); `marcasDepoisDeMudar` relê as marcas da Nay na hora.
   Pausa de 30 min (mensagem à mão) NÃO é aba Tel: `nayEmPausa`/`comAlguemPelaNay` em `etapaDaParceria.ts`; o motivo mais forte vem de `crm_parceria_marcas` (288).
+- "Não chega mensagem / demora a aparecer" (04/10): a mensagem chega por webhook + conferência (`src/lib/espelhoDaNay.ts`, cron de 10 s);
+  a TELA se atualiza por `src/hooks/usePusher.ts` (canal compartilhado conta os usos; refaz a ligação ao voltar para a aba depois de 30 s;
+  `usePusherConectado`), `src/contexts/LeadsContext.tsx` (lista: 60 s com a ligação de pé, 8 s sem ela) e `src/hooks/useParceriaMarcas.ts`
+  + `/api/parceria/marcas?esperar=1` (a aba de cada pessoa: a leitura de fundo espera a conta nova). Aviso no celular (web push,
+  `src/lib/push.ts`) existe no código mas NÃO está ligado: faltam as chaves VAPID no `.env` do servidor.
+- Celular (04/10): campo com 16 px `!important` (iPhone não dá mais zoom), `.aviso-no-pe` (avisos acima da barra de baixo) e a área de
+  toque dos botões pequenos em `src/globals.css`; topo da agenda em `VisitasAgendadas.tsx`; popups com `dvh`.
 - Card da captação: `src/components/Chat/PainelContatoCaptacao.tsx` (+ `EtapaDaCaptacao.tsx`, `CadastroDeImovel.tsx`,
   `src/lib/pontuacaoDoCadastro.ts` -- a régua da 244 repetida em TS só para a barra andar enquanto se digita)
   e rotas `src/app/api/captacao/*`, `src/app/api/leads/[id]/captacao-etapa`. Quem grava o imóvel é a API do site

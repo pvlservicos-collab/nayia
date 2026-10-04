@@ -78,7 +78,7 @@ export default function QuickReplyPicker({
   let runningIndex = -1
 
   return (
-    <div className="glass-raised w-[340px] max-h-[320px] overflow-y-auto rounded-xl py-2">
+    <div className="glass-raised w-[340px] max-w-[calc(100vw_-_1.5rem)] max-h-[320px] overflow-y-auto rounded-xl py-2">
       {flat.length === 0 ? (
         <div className="px-4 py-6 text-center text-xs text-[var(--chat-text-muted)]">
           {shared.length === 0 && personal.length === 0 ? (

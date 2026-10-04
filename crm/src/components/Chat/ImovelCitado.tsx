@@ -131,7 +131,7 @@ export default function ImovelCitado({
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/65"
              onClick={(e) => { e.stopPropagation(); setAberto(false) }}>
           <div onClick={(e) => e.stopPropagation()}
-               className="w-full max-w-md bg-panel border border-line rounded-2xl p-4 max-h-[88vh] overflow-y-auto">
+               className="w-full max-w-md bg-panel border border-line rounded-2xl p-4 max-h-[88dvh] overflow-y-auto">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="min-w-0">
                 <h2 className="text-base font-bold text-ink truncate">

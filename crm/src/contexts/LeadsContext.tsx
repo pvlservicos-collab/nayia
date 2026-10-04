@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo, ReactNode } from 'react'
 import { LeadWithOwner } from '@/lib/types'
 import { useAuth } from '@/hooks'
-import { usePusherChannel } from '@/hooks/usePusher'
+import { usePusherChannel, usePusherConectado } from '@/hooks/usePusher'
 import { useAtualizacaoPeriodica } from '@/hooks/useAtualizacaoPeriodica'
 
 interface StageStats {
@@ -206,9 +206,15 @@ export function LeadsProvider({ children, escopo = 'tudo' }: { children: ReactNo
    * deveria ser: uma REDE DE SEGURANÇA, não o mecanismo.
    *
    * Sem Pusher configurado, continua nos 6 segundos de antes — nada regride.
+   *
+   * 04/10 (a Rayssa: "não estava chegando mensagem"): a rede de 60 s só vale
+   * com a ligação DE PÉ. Enquanto ela está caída ou reconectando (rede ruim,
+   * celular voltando do descanso) nenhum evento chega, e a lista busca sozinha
+   * a cada 8 s até a ligação voltar.
    */
   const temPusher = !!process.env.NEXT_PUBLIC_PUSHER_KEY
-  useAtualizacaoPeriodica(() => acoes.current.fetchLeads(false), temPusher ? 60000 : 6000,
+  const pusherConectado = usePusherConectado()
+  useAtualizacaoPeriodica(() => acoes.current.fetchLeads(false), !temPusher ? 6000 : pusherConectado ? 60000 : 8000,
                           { ativo: !!organizationId })
 
   const quaisMudaram = (data: any): string[] | null => {

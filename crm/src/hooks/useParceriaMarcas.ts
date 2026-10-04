@@ -7,6 +7,11 @@
  * Uma cópia só para a tela inteira: a lista (filtros e marcas de cada linha)
  * e o card do lado leem daqui, e a busca acontece uma vez por minuto (e ao
  * voltar para a aba), não uma por componente.
+ *
+ * 04/10: a primeira leitura leva a cópia que o servidor tiver (a tela abre já);
+ * se ela veio vencida, e nas leituras de fundo, a tela ESPERA a conta nova
+ * (`?esperar=1`). Antes ela mostrava sempre a conta da leitura anterior, e a
+ * conversa que mudava de dono entrava na aba 1 a 2 minutos depois.
  */
 import { useEffect, useState } from 'react'
 import type { EstadoDaNay, MarcaDaNay } from '@/lib/tiposNay'
@@ -24,14 +29,16 @@ function avisar() {
   for (const o of ouvintes) o(estado)
 }
 
-export function recarregarMarcasDaParceria(fresco = false): Promise<void> {
+export function recarregarMarcasDaParceria(fresco = false, esperar = false): Promise<void> {
   if (buscando) return buscando
   buscando = (async () => {
+    let vencida = false
     try {
-      const r = await fetch(`/api/parceria/marcas${fresco ? '?fresco=1' : ''}`)
+      const r = await fetch(`/api/parceria/marcas${fresco ? '?fresco=1' : esperar ? '?esperar=1' : ''}`)
       const j = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`)
       estado = { marcas: j.marcas || {}, nay: j.nay ?? null, carregado: true, erro: null }
+      vencida = j.vencida === true
     } catch (e: any) {
       estado = { ...estado, carregado: true, erro: e?.message || 'Não consegui ler a Nay' }
     } finally {
@@ -39,12 +46,14 @@ export function recarregarMarcasDaParceria(fresco = false): Promise<void> {
       buscando = null
       avisar()
     }
+    // veio a cópia vencida (a tela abriu com ela): agora espera a conta nova
+    if (vencida && !fresco && !esperar) void recarregarMarcasDaParceria(false, true)
   })()
   return buscando
 }
 
 function aoVoltar() {
-  if (document.visibilityState === 'visible' && Date.now() - ultimaBusca > 20_000) void recarregarMarcasDaParceria()
+  if (document.visibilityState === 'visible' && Date.now() - ultimaBusca > 20_000) void recarregarMarcasDaParceria(false, true)
 }
 
 export function useParceriaMarcas(ativo = true) {
@@ -56,7 +65,7 @@ export function useParceriaMarcas(ativo = true) {
     if (!estado.carregado || Date.now() - ultimaBusca > CADA_MS) void recarregarMarcasDaParceria()
     if (!relogio) {
       relogio = setInterval(() => {
-        if (document.visibilityState === 'visible') void recarregarMarcasDaParceria()
+        if (document.visibilityState === 'visible') void recarregarMarcasDaParceria(false, true)
       }, CADA_MS)
       document.addEventListener('visibilitychange', aoVoltar)
     }
@@ -79,7 +88,8 @@ export function useParceriaMarcas(ativo = true) {
  * conversa ficou, em vez de esperar o minuto da próxima leitura.
  */
 export async function marcasDepoisDeMudar(): Promise<Record<string, MarcaDaNay>> {
-  if (buscando) await buscando
+  // `while`, não `if`: a leitura vencida emenda outra (a que espera a conta nova)
+  while (buscando) await buscando
   await recarregarMarcasDaParceria(true)
   return estado.marcas
 }

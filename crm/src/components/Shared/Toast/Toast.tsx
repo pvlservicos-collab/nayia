@@ -97,7 +97,7 @@ export default function Toast({ notification, onClose }: ToastProps) {
     return (
         <div
             className={`
-                relative w-[340px] bg-panel rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.35)]
+                relative w-[min(340px,calc(100vw_-_1.5rem))] bg-panel rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.35)]
                 border border-line overflow-hidden p-4
                 transition-all duration-300 ease-out
                 ${isClosing || !isVisible ? 'opacity-0 -translate-x-8 scale-95' : 'opacity-100 translate-x-0 scale-100'}
