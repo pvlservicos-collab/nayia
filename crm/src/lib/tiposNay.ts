@@ -103,6 +103,19 @@ export interface ItemDoHistorico {
   detalhe: string | null
 }
 
+/**
+ * Um imóvel que já saiu para a pessoa (crm_imoveis_enviados, migração 292), por qualquer
+ * caminho: a Nay nova, a Nay velha ou o publicador. É a mesma lista que a Nay consulta
+ * para não mandar de novo. `dias` = em quantos dias diferentes ele saiu (2+ = repetido).
+ */
+export interface ImovelEnviado {
+  codigo: number
+  imovel: string | null
+  ultimoEm: string
+  primeiroEm: string
+  dias: number
+}
+
 /** Os nomes das situações da visita, como a Rayssa lê. */
 export const ESTADO_DA_VISITA: Record<string, { rotulo: string; tom: 'andamento' | 'ok' | 'atencao' | 'fim' | 'ruim' }> = {
   confirmando: { rotulo: 'Esperando o corretor confirmar', tom: 'andamento' },

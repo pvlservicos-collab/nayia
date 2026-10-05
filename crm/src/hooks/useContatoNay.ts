@@ -6,9 +6,9 @@
  * conversa mostra o card na hora, e a busca nova corre por trás.
  */
 import { useCallback, useEffect, useState } from 'react'
-import type { ItemDoHistorico, MarcaDaNay } from '@/lib/tiposNay'
+import type { ImovelEnviado, ItemDoHistorico, MarcaDaNay } from '@/lib/tiposNay'
 
-type Dados = { marca: MarcaDaNay | null; historico: ItemDoHistorico[] }
+type Dados = { marca: MarcaDaNay | null; historico: ItemDoHistorico[]; enviados: ImovelEnviado[] }
 const guardados = new Map<string, { em: number; dados: Dados }>()
 const VALIDADE_MS = 60_000
 
@@ -24,7 +24,7 @@ export function useContatoNay(leadId: string | null | undefined) {
       const r = await fetch(`/api/leads/${leadId}/nay`)
       const j = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`)
-      const novos: Dados = { marca: j.marca ?? null, historico: j.historico || [] }
+      const novos: Dados = { marca: j.marca ?? null, historico: j.historico || [], enviados: j.enviados || [] }
       guardados.set(leadId, { em: Date.now(), dados: novos })
       setDados(novos)
       setErro(null)
@@ -42,5 +42,8 @@ export function useContatoNay(leadId: string | null | undefined) {
     if (!g || Date.now() - g.em > VALIDADE_MS) void recarregar()
   }, [leadId, recarregar])
 
-  return { marca: dados?.marca ?? null, historico: dados?.historico ?? [], carregando: carregando && !dados, erro, recarregar }
+  return {
+    marca: dados?.marca ?? null, historico: dados?.historico ?? [], enviados: dados?.enviados ?? [],
+    carregando: carregando && !dados, erro, recarregar,
+  }
 }

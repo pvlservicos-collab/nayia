@@ -13,8 +13,8 @@
  */
 import { naydb } from './nayDisparo'
 
-import type { EstadoDaNay, EventoDaVisita, ItemDoHistorico, MarcaDaNay, VisitaDaNay } from './tiposNay'
-export type { EstadoDaNay, EventoDaVisita, ItemDoHistorico, MarcaDaNay, VisitaDaNay } from './tiposNay'
+import type { EstadoDaNay, EventoDaVisita, ImovelEnviado, ItemDoHistorico, MarcaDaNay, VisitaDaNay } from './tiposNay'
+export type { EstadoDaNay, EventoDaVisita, ImovelEnviado, ItemDoHistorico, MarcaDaNay, VisitaDaNay } from './tiposNay'
 
 const iso = (v: unknown): string | null => (v instanceof Date ? v.toISOString() : v ? String(v) : null)
 
@@ -257,6 +257,18 @@ export async function historicoDaNay(telefone: string, limite = 80): Promise<Ite
     codigo: l.codigo != null ? Number(l.codigo) : null,
     imovel: l.imovel ?? null,
     detalhe: l.detalhe ?? null,
+  }))
+}
+
+/** Os imóveis que já saíram para a pessoa, do mais recente para o mais antigo (migração 292). */
+export async function imoveisEnviados(telefone: string): Promise<ImovelEnviado[]> {
+  const r = await naydb().query('SELECT * FROM crm_imoveis_enviados($1::text)', [telefone])
+  return r.rows.map((l: any) => ({
+    codigo: Number(l.codigo),
+    imovel: l.imovel ?? null,
+    ultimoEm: iso(l.ultimo_em) || '',
+    primeiroEm: iso(l.primeiro_em) || '',
+    dias: Number(l.dias || 1),
   }))
 }
 

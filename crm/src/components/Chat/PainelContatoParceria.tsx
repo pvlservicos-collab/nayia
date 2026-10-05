@@ -34,6 +34,7 @@ import { useParceriaMarcas, recarregarMarcasDaParceria } from '@/hooks/useParcer
 import { ESTADO_DA_VISITA, type ItemDoHistorico } from '@/lib/tiposNay'
 import TrilhaDaNay from './TrilhaDaNay'
 import HistoricoDeAtendimento from './HistoricoDeAtendimento'
+import ImoveisJaEnviados from './ImoveisJaEnviados'
 import EscolherImoveis, { useOpcoesDoDisparo, type ImovelParaEnviar } from '@/components/Disparo/EscolherImoveis'
 import EtapaDoLead from './EtapaDoLead'
 import { comAlguemPelaNay, escolhaAMao } from '@/lib/etapaDaParceria'
@@ -110,7 +111,7 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
   onTagsChange?: (leadId: string, tagId: string, action: 'add' | 'remove', tagObj?: any) => void
   onUpdateLead?: (leadId: string, updates: Partial<LeadWithOwner>) => void
 }) {
-  const { marca: marcaDoContato, historico, carregando, erro, recarregar } = useContatoNay(lead.id)
+  const { marca: marcaDoContato, historico, enviados, carregando, erro, recarregar } = useContatoNay(lead.id)
   const { marcas, nay } = useParceriaMarcas(true)
   /* com quem está a conversa: a escolha do card manda; senão, a marca da Nay */
   const escolhaDoCard = escolhaAMao(lead as any)
@@ -775,6 +776,13 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
             {!marca && carregando && <span className="text-[13px]" style={{ color: 'var(--wa-text-2)' }}>Perguntando à Nay…</span>}
           </div>
         </div>
+
+        {/* o que já saiu para a pessoa: a Nay não manda de novo sem ela dizer que tem interesse (Pedro, 05/10) */}
+        {enviados.length > 0 && (
+          <Secao titulo={`Imóveis já enviados (${enviados.length})`}>
+            <ImoveisJaEnviados enviados={enviados} aoEscolher={(codigo) => setPedidoDeCodigo({ codigo: String(codigo), vez: Date.now() })} />
+          </Secao>
+        )}
 
         <Secao titulo="O que já pediu, recebeu e visitou">
           {carregando && !historico.length ? (

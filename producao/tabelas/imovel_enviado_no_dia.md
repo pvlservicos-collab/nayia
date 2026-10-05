@@ -16,10 +16,11 @@ imovel_enviado_no_dia_pkey: PRIMARY KEY (chave, codigo, dia)
 
 ## permissões
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
+nay_core: SELECT
 nay_leitura: SELECT
 
 ## funções que escrevem aqui
 nai_confirmar_envio, nai_disparo_liberar, nay_liberar_imovel_do_dia, nay_reservar_imovel_do_dia
 
 ## funções que citam
-nai_confirmar_envio, nai_disparo_liberar, nai_etapa_calcular, nai_followup_rodar, nai_saida_validar, nay_imovel_ja_foi_24h, nay_liberar_imovel_do_dia, nay_reservar_imovel_do_dia
+crm_imoveis_enviados, nai_confirmar_envio, nai_disparo_liberar, nai_etapa_calcular, nai_followup_rodar, nai_saida_validar, nay_imovel_ja_foi_24h, nay_liberar_imovel_do_dia, nay_reservar_imovel_do_dia

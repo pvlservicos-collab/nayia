@@ -182,7 +182,7 @@ Nay velha, mesmo recorte: **NÃO SEI** turno a turno (teria que cruzar `nai_turn
 
 | turno | o que ele disse antes | o que ela perguntou | por que não enxergou |
 |---|---|---|---|
-| 843 (P13, 03/10 07:16) | 841: ela pergunta o valor; 843: "Entre 2 e 3" | "Até que valor?" de novo (3ª vez seguida: 841, 842, 843) | **regex e modelo não extraíram**: `_filtro` em FILTRO_TETO usa `valor_em_reais`/`faixa_em_reais`, que não leem "2 e 3" sem "mil"; a Luna devolveu `teto: null`. Só "Entre 2 e 3 mil reais" (844) passou |
+| 843 (P13, 03/10 07:16) | 841: ela pergunta o valor; 843: "Entre 2 e 3" | "Até que valor?" de novo (3ª vez seguida: 841, 842, 843) | **regex e modelo não extraíram**: `_filtro` em FILTRO_TETO usa `valor_em_reais`/`faixa_em_reais`, que não leem "2 e 3" sem "mil"; a Luna devolveu `teto: null`. Só "Entre 2 e 3 mil reais" (844) passou. **Já consertado no mesmo dia**: commit `8087a86` (03/10 10:22), teste `test_entre_2_e_3_na_pergunta_do_valor` |
 | 887 (P25, 03/10 16:40) | 886: ela pergunta a mobília; 887: "pelo menos ar condicionados" | mobília de novo | **regex não casou e modelo não extraiu**: `MOBILIA` só aceita "só (com) ar"; "pelo menos ar condicionados" não entra; `mobilia: null` |
 | 921 (P31, 04/10 14:06) | 920: colou o card do Morada dos Pássaros ("Bairro: Ponta Negra", "Venda: R$ 900.000") | 920: "Até que valor?"; 921: "Em qual bairro?" | **o card colado não vira filtro**; além disso em 920 o modelo falhou (`caminho = fallback`, classificador de reserva) |
 
@@ -345,13 +345,21 @@ Contagem sobre os 145 turnos. "Previsto" = se o repositório já descreve o cons
 | 5 | **Imóvel nomeado ignora o teto/filtro** | 896 (6 mil pedidos, 9 mil enviados), 922 | `pedir_imovel`: condomínio com 1 oferta → `apresentar` direto, sem portão de coerência | não (o portão não existe) |
 | 6 | **Foco velho responde pedido novo** | 934 (pediu Mosaico, recebeu fotos do Smile Village), 941 | `resolver()` cai em `foco_codigo`, que não vence; o pedido de foto usa o foco | não |
 | 7 | **"Não entendi" para recado, andamento ou escolha** (10 turnos; 2 viraram escalação) | 859 "ainda não deu retorno", 866 "Aguardando um retorno dele", 849 "Os dois", 904 "Tudo é interessante", 947 "Ela achou um" | o modelo devolve `nao_da_para_saber`; não há intenção de "recado/andamento"; `nao_entendi` responde o template | a139051 só limita a 2 vezes. Não |
-| 8 | **Pergunta de filtro repetida por resposta não lida** | 843 "Entre 2 e 3", 887 "pelo menos ar condicionados", 921 (card colado) | `_filtro` (regex curta) + modelo não extraem; card colado não preenche filtro | não |
+| 8 | **Pergunta de filtro repetida por resposta não lida** | 843 "Entre 2 e 3", 887 "pelo menos ar condicionados", 921 (card colado) | `_filtro` (regex curta) + modelo não extraem; card colado não preenche filtro | só o 843 (`8087a86`); os outros dois, não |
 | 9 | **Pergunta simples sobre o imóvel escala** (`nao_sei`, 5 turnos) | 814 "Andar baixo ou médio?", 878 "conseguimos chegar em 850 mil?", 900 "Qual andar?", 942 "Fica na rua…?" | a ficha não tem o dado (andar, endereço) ou é negociação; `responder_duvida` devolve `NAO_SEI` e a máquina escala e cala por 24 h | é o desenho ("se não está, escala") |
 | 10 | **Pedido em cima de card marcado mal lido** | 944 ("Quero de 7" = pedido do card), 893 (marcou o 3210 e pediu "casa assim na faixa de 6 mil": perguntou "qual deles?") | `MANDA` contém `quero/queria`; marcar o card + falar de valor diferente não é tratado como "parecido com este" | não |
 
 Fora do core, no mesmo período: 58 dos 300 últimos turnos pararam em "fora da lista de corretores" e 29 em "fora da lista: esperando/perguntar ao Tel" (`so_corretor_da_lista = sim`). Não é erro de código; é a regra ligada, e é o maior motivo de corretor sem resposta.
 
 ---
+
+### Mudou DEPOIS deste levantamento (05/10, entre 10h e 11h30 de Manaus, a pedido do Pedro)
+
+O retrato acima é de antes destas três mudanças:
+
+1. **Situação F1 (mesmo imóvel reenviado): consertada.** nay-core `846067b`, no ar. `nay/acoes/ja_enviei.py`: card ou fotos de imóvel que já saiu para a pessoa (pelo core, pela Nay velha ou pelo publicador, sem prazo) viram a pergunta de `templates/ja_mandei.md` ("já te enviei ... você tem interesse nele?"); com o "sim", o envio sai inteiro. `config/limites.yaml: nao_reenviar_mesmo_imovel_h: 0`. Migração 014 do core (leitura de `imovel_enviado_no_dia`). Testes em `tests/unit/acoes/test_ja_enviei.py`. `MANDA` e o foco sem prazo (F6, F10) **não** foram mexidos.
+2. **Captação:** migrações 291 e 291a do nayia. A fila refeita em 28/09 fazia a mensagem de abertura sair uma segunda vez (80 donos, de 29/09 a 05/10 09:47). Saíram da fila os 40 que já tinham recebido mensagem; o gatilho `captacao_ja_chamado_nao_volta` impede que quem já recebeu volte para `novo`/`erro`.
+3. **CRM:** função `crm_imoveis_enviados` (292) e o campo "Imóveis já enviados" no card do contato; função `crm_quem_mandou` (290) e a fila "Quem atendeu".
 
 ### O que eu não consegui responder
 

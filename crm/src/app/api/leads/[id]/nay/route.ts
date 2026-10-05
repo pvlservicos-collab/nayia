@@ -18,7 +18,7 @@ import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 import { authenticateRequest, apiError } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { leadActivities, leads, profiles } from '@/lib/schema'
-import { historicoDaNay, instruirANay, marcasDaNay, pararOuDevolverANay } from '@/lib/nayLeitura'
+import { historicoDaNay, imoveisEnviados, instruirANay, marcasDaNay, pararOuDevolverANay } from '@/lib/nayLeitura'
 
 /** O webhook da NAI no n8n da Nay (a mesma porta do fluxo antigo, pela rede interna). */
 const WEBHOOK_DA_NAI = process.env.NAI_WEBHOOK_URL || 'http://n8n-viux-n8n-1:5678/webhook/nai-atendimento-locacao'
@@ -36,9 +36,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       .where(and(eq(leads.id, id), eq(leads.organizationId, auth.organizationId), isNull(leads.deletedAt)))
       .limit(1)
     if (!lead) return apiError(404, 'Conversa não encontrada.')
-    if (!lead.telefone) return Response.json({ marca: null, historico: [] })
-    const [marcas, historico] = await Promise.all([marcasDaNay([lead.telefone]), historicoDaNay(lead.telefone, 80)])
-    return Response.json({ marca: marcas.get(lead.telefone) ?? null, historico })
+    if (!lead.telefone) return Response.json({ marca: null, historico: [], enviados: [] })
+    const [marcas, historico, enviados] = await Promise.all([
+      marcasDaNay([lead.telefone]), historicoDaNay(lead.telefone, 80),
+      // 292: o que já saiu para a pessoa. Se esta leitura falhar, o card abre sem a lista
+      imoveisEnviados(lead.telefone).catch((e) => { console.error('[leads/nay] enviados', e?.message || e); return [] }),
+    ])
+    return Response.json({ marca: marcas.get(lead.telefone) ?? null, historico, enviados })
   } catch (err: any) {
     console.error('[leads/nay]', err?.message || err)
     return apiError(err?.status || 500, err?.message || 'Não consegui ler a Nay.')
