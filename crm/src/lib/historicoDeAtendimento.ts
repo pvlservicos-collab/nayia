@@ -40,7 +40,11 @@ export const COR_DO_CELULAR = '#94A3B8'
 export const COR_DO_SISTEMA = '#60A5FA'
 
 export const AUTOR_NAY: AutorDoEnvio = { tipo: 'nay', nome: 'Nay', cor: COR_DA_NAY }
-export const AUTOR_CELULAR: AutorDoEnvio = { tipo: 'celular', nome: 'Celular', cor: COR_DO_CELULAR }
+/* O que é digitado direto no WhatsApp do número (celular ou WhatsApp Web) não tem conta do CRM. Pedro, 05/10:
+   "o que é essa tag Celular? é para ser por conta, Tel ou Rayssa". Quem usa o aparelho do número é o Tel (é
+   assim que a Nay também trata a mensagem manual: "o Tel escreveu"); a Rayssa atende pela conta dela no CRM.
+   A tag sai como Tel, na cor dele, com o ícone do celular para distinguir do que ele manda pelo CRM. */
+export const AUTOR_CELULAR: AutorDoEnvio = { tipo: 'celular', nome: 'Tel', cor: '#FB7185' }
 export const AUTOR_SISTEMA: AutorDoEnvio = { tipo: 'sistema', nome: 'Envio automático', cor: COR_DO_SISTEMA }
 export const AUTOR_DESCONHECIDO: AutorDoEnvio = { tipo: 'desconhecido', nome: '?', cor: COR_DO_CELULAR }
 

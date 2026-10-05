@@ -388,3 +388,25 @@ body.admin .conteudo { max-width: none; padding-left: 20px; padding-right: 20px;
 .pontuacao__barra { width: 54px; height: 6px; border-radius: 999px; background: var(--borda, #d9dce3); overflow: hidden; }
 .pontuacao__barra i { display: block; height: 100%; border-radius: 999px; }
 .pontuacao b { font-size: var(--fs-xs, 12px); font-variant-numeric: tabular-nums; }
+
+/* O ZOOM DO MAPA (05/10): no computador, uma barra de pé no canto; no celular ela some e vale a pinça. */
+.mapa-zoom {
+  position: absolute; z-index: 800; top: 12px; left: 12px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 6px 4px; border-radius: 12px; background: var(--superficie); border: 1px solid var(--borda); box-shadow: var(--sombra-1);
+}
+.mapa-zoom button {
+  width: 26px; height: 26px; border: 0; border-radius: 8px; background: transparent; color: var(--texto);
+  font-size: 18px; line-height: 1; cursor: pointer;
+}
+.mapa-zoom button:hover { background: var(--borda); }
+.mapa-zoom input[type="range"] {
+  writing-mode: vertical-lr; direction: rtl; width: 22px; height: 130px; margin: 0; cursor: pointer; accent-color: var(--marca, #2563eb);
+}
+@media (pointer: coarse) { .mapa-zoom { display: none; } }
+/* A SETINHA DE SUBIR: presa ao canto de baixo da TELA (por fora da área que arrasta o mapa), sempre à mão;
+   só existe enquanto a aba do mapa está aberta. */
+.mapa-subir {
+  position: fixed; z-index: 900; right: 6px; bottom: 10px; width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--borda);
+  background: var(--superficie); color: var(--texto); font-size: 18px; line-height: 1; cursor: pointer; box-shadow: var(--sombra-1);
+}
+.mapa-subir:hover { background: var(--borda); }

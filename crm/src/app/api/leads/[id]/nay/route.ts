@@ -93,12 +93,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     let pulouNossa = false
     for (const a of recentes) {
       const m = (a.metadata || {}) as Record<string, any>
-      // com instrução, a Nay responde AGORA: se a última palavra é nossa, pula as nossas
-      // e reentrega a última mensagem dela (das últimas 48 h)
-      if (m.direction !== 'inbound') { if (acao === 'instruir' && !dela.length) { pulouNossa = true; continue } break }
-      if (acao === 'instruir' && pulouNossa && dela.length) break
+      // A Nay responde AGORA ao que a pessoa escreveu por último (Pedro, 05/10: "quando clico em Nay voltar a
+      // atender é para ela responder a última ou as últimas mensagens do lead"). Se a última palavra da
+      // conversa é nossa (alguém respondeu à mão antes de clicar), pula as nossas e reentrega o último
+      // BLOCO de mensagens dela, das últimas 48 h. Antes isso só valia para o "atender com instrução", e só
+      // com uma mensagem.
+      if (m.direction !== 'inbound') { if (!dela.length) { pulouNossa = true; continue } break }
       if (m.is_reaction || m.deleted) continue
-      if (a.em && Date.now() - new Date(a.em).getTime() > (acao === 'instruir' ? 48 : 7 * 24) * 3600_000) break
+      if (a.em && Date.now() - new Date(a.em).getTime() > (pulouNossa ? 48 : 7 * 24) * 3600_000) break
       const texto = m.media_type === 'audio' ? (m.transcricao || '') : String(a.conteudo || '')
       const limpo = texto && !/^\[(áudio|audio|foto|imagem|vídeo|documento|figurinha)\]$/i.test(texto.trim()) ? texto.trim() : ''
       if (limpo) dela.unshift(limpo)
@@ -110,7 +112,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         reentregou: false,
         mensagem: r.mensagem + (soMidia
           ? ' A última mensagem da pessoa é foto, áudio sem transcrição ou arquivo: a Nay não tem texto para responder agora.'
-          : ' A última mensagem da conversa é nossa: a Nay responde quando a pessoa escrever.'),
+          : ' A pessoa não escreveu nada nas últimas 48 horas: a Nay responde quando ela escrever.'),
       })
     }
 

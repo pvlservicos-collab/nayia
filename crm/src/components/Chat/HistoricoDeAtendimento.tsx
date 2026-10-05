@@ -29,7 +29,7 @@ const ICONE: Record<TipoDeAutor, typeof Robot> = {
 const DICA: Record<TipoDeAutor, string> = {
   nay: 'A Nay respondeu',
   conta: 'Mandou pelo CRM, com a conta dela',
-  celular: 'Digitado direto no WhatsApp do número (celular ou WhatsApp Web), sem passar pelo CRM',
+  celular: 'Digitado direto no WhatsApp do número (celular ou WhatsApp Web), sem passar pelo CRM: é o aparelho do Tel',
   sistema: 'Envio automático do sistema (publicador)',
   desconhecido: 'Não consegui saber quem mandou',
 }

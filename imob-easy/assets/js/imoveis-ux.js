@@ -1180,9 +1180,35 @@
     mapa.getContainer().style.setProperty("--pin-escala", (f * 0.75).toFixed(3));
   }
 
+  /* A barra de zoom do computador: um controle deslizante de pé, no canto do mapa. */
+  function barraDeZoom() {
+    var caixa = L.DomUtil.create("div", "mapa-zoom");
+    caixa.innerHTML = '<button type="button" data-z="1" aria-label="Aproximar">+</button>'
+      + '<input type="range" min="10" max="19" step="1" aria-label="Zoom do mapa">'
+      + '<button type="button" data-z="-1" aria-label="Afastar">−</button>';
+    var barra = caixa.querySelector("input");
+    barra.value = mapa.getZoom();
+    barra.addEventListener("input", function () { mapa.setZoom(Number(barra.value)); });
+    [].forEach.call(caixa.querySelectorAll("button"), function (b) {
+      b.addEventListener("click", function () { mapa.setZoom(mapa.getZoom() + Number(b.dataset.z)); });
+    });
+    mapa.on("zoomend", function () { barra.value = mapa.getZoom(); });
+    L.DomEvent.disableClickPropagation(caixa);
+    L.DomEvent.disableScrollPropagation(caixa);
+    mapa.getContainer().appendChild(caixa);
+    // a setinha FORA do mapa: sobe a página (o mapa ocupa a tela inteira, e o dedo ou o mouse nele arrasta o mapa)
+    var seta = document.getElementById("mapa-subir");
+    if (seta) seta.addEventListener("click", function () { window.scrollTo({ top: 0, behavior: "smooth" }); });
+  }
+
   function iniciarMapa() {
     if (mapa || !window.L) return;
-    mapa = L.map("mapa-area", { zoomControl: true, minZoom: 10 }).setView([-3.075, -60.02], 12);
+    /* A RODINHA ROLA A PÁGINA (Pedro, 05/10: "pode tirar isso de o scroll do mouse mexer o mapa, deixa o mapa
+       mexendo quando clica e arrasta; o zoom, faz uma barra de zoom que no mobile funcione com os 2 dedos mas no
+       PC tenha uma barra"). Sem zoom pela rodinha e sem os botões +/-: no computador a barra ao lado; no
+       celular, a pinça (touchZoom, que o Leaflet já liga). */
+    mapa = L.map("mapa-area", { zoomControl: false, scrollWheelZoom: false, minZoom: 10 }).setView([-3.075, -60.02], 12);
+    barraDeZoom();
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19, subdomains: "abc",
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -1197,15 +1223,7 @@
     mapa.on("zoomend", mostrarRotulos);
     mapa.on("zoomend", escalaDosPins);
     escalaDosPins();
-    // A RODINHA NUNCA ROLA A PAGINA dentro do mapa (Tel, 28/09: "às vezes
-    // quando mexo a rodinha dentro do mapa ele rola a tela para cima"). O
-    // Leaflet segura a rodinha no mapa, mas em cima de um balão ele solta -- e
-    // a página rolava. Só a lista de um balão rola (e sem vazar para a página).
-    mapa.getContainer().addEventListener("wheel", function (e) {
-      var lista = e.target.closest && e.target.closest(".ux-lugar__lista");
-      if (lista && lista.scrollHeight > lista.clientHeight) return;
-      e.preventDefault();
-    }, { passive: false, capture: true });   // captura: o balão do Leaflet corta o evento antes de subir
+    // (05/10) a rodinha dentro do mapa rola a PÁGINA; a lista de um balão continua rolando sozinha
     // os botões dos balões: ligados direto (o Leaflet pode segurar o clique no balão)
     mapa.on("popupopen", function (e) {
       var el = e.popup.getElement();

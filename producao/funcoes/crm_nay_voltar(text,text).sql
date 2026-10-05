@@ -18,7 +18,10 @@ BEGIN
   END IF;
   v_contato := coalesce(v_contato, v_ids[1]);
 
-  UPDATE nai_contato SET humano_assumiu_em = NULL, humano_motivo = NULL WHERE id = ANY (v_ids);
+  -- 294: o clique também LIBERA a conversa para a porta. Sem isto, o que o CRM reentregava de um "contato
+  -- novo" era barrado ("assunto que não é de corretor") e ninguém respondia (três casos em 05/10).
+  UPDATE nai_contato SET humano_assumiu_em = NULL, humano_motivo = NULL, liberado_em = coalesce(liberado_em, now())
+   WHERE id = ANY (v_ids);
 
   -- 228: dono de imóvel é da Rayssa (197)
   IF EXISTS (SELECT 1 FROM unnest(v_ids) i WHERE nai_e_proprietario_contato(i)) THEN

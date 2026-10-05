@@ -55,6 +55,11 @@ BEGIN
     UPDATE nai_fechamento SET concluido_em = now(), concluido_por = v_quem
      WHERE contato_id = ANY (v_ids) AND concluido_em IS NULL;
     UPDATE nai_contato SET humano_assumiu_em = NULL, humano_motivo = NULL WHERE id = ANY (v_ids);
+  ELSE
+    -- 294: mudou de etapa (Visitas, Proprietários) com fechamento aberto: o fechamento é cancelado, senão
+    -- ele segurava a conversa em Fechamento e a tela dizia "tem um fechamento aberto"
+    UPDATE nai_fechamento SET concluido_em = now(), concluido_por = left(v_quem || ' (mudou de etapa)', 120)
+     WHERE contato_id = ANY (v_ids) AND concluido_em IS NULL;
   END IF;
   RETURN QUERY SELECT true, CASE p_etapa
     WHEN 'visitas' THEN 'Em Visitas: quem atende é a Rayssa; a Nay não responde (7 dias ou até voltar para Todos).'
