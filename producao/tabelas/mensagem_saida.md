@@ -1,4 +1,4 @@
-# mensagem_saida  (tabela, ~5756 linhas)
+# mensagem_saida  (tabela, ~6382 linhas)
 
 ## colunas
 message_id  text  NOT NULL
@@ -22,4 +22,4 @@ nay_leitura: SELECT
 nai_confirmar_envio, nai_whatsapp_reenviado
 
 ## funções que citam
-nai_confirmar_envio, nai_tel_assumiu, nai_whatsapp_reenviado, nay_codigos_da_conversa, nay_codigos_da_saida
+crm_quem_mandou, nai_confirmar_envio, nai_tel_assumiu, nai_whatsapp_reenviado, nay_codigos_da_conversa, nay_codigos_da_saida

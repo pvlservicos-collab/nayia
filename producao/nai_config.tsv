@@ -1,5 +1,5 @@
 chave	valor	atualizado_em
-_agenda_rodou_em	2026-10-03 18:30:15	2026-10-03T18:30
+_agenda_rodou_em	2026-10-05 09:17:15	2026-10-05T09:17
 antecedencia_minima_horas	3	2026-09-10T18:41
 apresentacao_proprietario	Oi! Esse é o número de visitas da Imob Easy.	2026-09-30T10:15
 aprovacao_lembrete_min	30	2026-09-28T10:35
@@ -28,7 +28,7 @@ followup_inicio	09:00	2026-09-28T10:35
 followup_ligado	sim	2026-09-28T10:39
 followup_por_minuto	2	2026-09-28T10:35
 gap_tel_min	30	2026-09-16T11:58
-grupos_sincronizados_em	2026-09-28 06:11	2026-09-28T06:11
+grupos_sincronizados_em	2026-10-05 06:11	2026-10-05T06:11
 inicio_manha	08:00	2026-09-10T18:41
 inicio_noite	18:00	2026-09-10T18:41
 inicio_tarde	12:00	2026-09-10T18:41

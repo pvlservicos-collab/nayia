@@ -1,4 +1,4 @@
-# imoveis  (tabela, ~5671 linhas)
+# imoveis  (tabela, ~5686 linhas)
 
 ## colunas
 codigo  integer  NOT NULL

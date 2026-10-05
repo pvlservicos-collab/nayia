@@ -41,6 +41,7 @@ prompt: comece pelo `nay onde`.
 | status do imóvel (disponível/alugado) | `nai_status_do_imovel` | 214 |
 | ele MARCOU o card/lista do grupo (Nay nova) | nay-core: `contexto/resolver_imovel.resolver`, `classificador/atalhos.decidir`, `cerebro/repo.codigos_da_citacao`; listas dos grupos em `envios_lista_grupo` (publicador `_registrar_lista`) | 281, core 013 |
 | imóvel sai do mercado (Vendido, Alugado...) por qualquer caminho, e o aviso no grupo Easy | gatilho `imoveis_aviso_de_saida` → `nay_enfileirar_aviso_de_saida` (SECURITY DEFINER; motivo pela situação) → cron `avisar_saidas.sh`; pelo comando: `nai_marcar_imovel` | 289 |
+| de quem é cada mensagem que saiu pelo número (a Nay, envio automático ou gente digitando), pelo id | `crm_quem_mandou(text[])` (só leitura; o CRM usa no histórico de atendimento do card) | 290 |
 | a Nay nova enxerga na hora o imóvel que saiu ou mudou de valor | nay-core `worker.talvez_refresh` (assinatura de `imoveis` a cada ciclo, antes dos turnos); `acoes/enviar_imovel.fora_do_mercado` (só condomínio de verdade, mesmo negócio) | core 8eb01ed, 07a2f9f |
 | número digitado no cadastro ("750.000", piso de venda/aluguel) | site `imovel-editar.js` (`tipo: "dinheiro"`); API `numeros.py` (`numero_br`, `valor_que_nao_existe`) em `app.py` e `olx_api._valor_do_popup` | 03/10 |
 | ele marcou a FOTO do post, ou a lista sendo contato novo | `envios_foto` (publicador `_registrar_fotos`, uma linha por foto de grupo ou de corretor); `nay_imovel_da_citacao` (passo 1b) e nay-core `codigos_da_citacao` leem; marcar a LISTA abre a porta em `nai_abrir_turno` (o código do turno não muda). Valor por extenso ("R$ 470 mil") no validador do nay-core: `validador/validar._valores` | 287; core c15711a |
@@ -129,6 +130,10 @@ prompt: comece pelo `nay onde`.
   Aviso depois de salvar a etapa (03/10): `resultadoDaMudanca` e `abaDaConversa` em `etapaDaParceria.ts` dizem onde a conversa FICOU e por quê;
   a notificação é `AvisoFlutuante.tsx` (card da Parceria e da captação); `marcasDepoisDeMudar` relê as marcas da Nay na hora.
   Pausa de 30 min (mensagem à mão) NÃO é aba Tel: `nayEmPausa`/`comAlguemPelaNay` em `etapaDaParceria.ts`; o motivo mais forte vem de `crm_parceria_marcas` (288).
+- Histórico de atendimento no card ("Quem atendeu", 05/10): fila de tags Nay / Tel / Rayssa / Celular / Envio automático em
+  `src/components/Chat/HistoricoDeAtendimento.tsx`; a conta em `src/lib/historicoDeAtendimento.ts`; a rota `src/app/api/leads/[id]/atendimento`.
+  Quem saiu pelo CRM vem da conta (`actor_member_id`, nomes e cores em `src/lib/atendentes.ts`); o eco, de `crm_quem_mandou` (290) no naydb.
+  Nada é gravado: sai das mensagens, 1 leitura ao abrir o card.
 - "Não chega mensagem / demora a aparecer" (04/10): a mensagem chega por webhook + conferência (`src/lib/espelhoDaNay.ts`, cron de 10 s);
   a TELA se atualiza por `src/hooks/usePusher.ts` (canal compartilhado conta os usos; refaz a ligação ao voltar para a aba depois de 30 s;
   `usePusherConectado`), `src/contexts/LeadsContext.tsx` (lista: 60 s com a ligação de pé, 8 s sem ela) e `src/hooks/useParceriaMarcas.ts`

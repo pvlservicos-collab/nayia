@@ -1,4 +1,4 @@
-# config  (tabela, ~16 linhas)
+# config  (tabela, ~17 linhas)
 
 ## colunas
 chave  text  NOT NULL

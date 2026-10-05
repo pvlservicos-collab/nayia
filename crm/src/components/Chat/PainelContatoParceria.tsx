@@ -33,6 +33,7 @@ import { useContatoNay } from '@/hooks/useContatoNay'
 import { useParceriaMarcas, recarregarMarcasDaParceria } from '@/hooks/useParceriaMarcas'
 import { ESTADO_DA_VISITA, type ItemDoHistorico } from '@/lib/tiposNay'
 import TrilhaDaNay from './TrilhaDaNay'
+import HistoricoDeAtendimento from './HistoricoDeAtendimento'
 import EscolherImoveis, { useOpcoesDoDisparo, type ImovelParaEnviar } from '@/components/Disparo/EscolherImoveis'
 import EtapaDoLead from './EtapaDoLead'
 import { comAlguemPelaNay, escolhaAMao } from '@/lib/etapaDaParceria'
@@ -448,6 +449,8 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
 
           {/* a trilha da Nay com o contato, ativa ou parada (Pedro, 29/09) */}
           <TrilhaDaNay marca={marca} nay={nay} />
+          {/* quem atendeu, em tags que rolam para o lado (Pedro, 05/10) */}
+          <HistoricoDeAtendimento leadId={lead.id} mexeuEm={lead.last_activity_at} />
           {/* Parar Nay / Nay voltar a atender (Pedro, 29/09) */}
           <div className="flex flex-wrap justify-center gap-2 mt-3">
             <button type="button" onClick={() => void pararOuVoltar('parar')} disabled={!!mexendoNaNay}

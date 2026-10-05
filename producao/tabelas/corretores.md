@@ -1,4 +1,4 @@
-# corretores  (tabela, ~1540 linhas)
+# corretores  (tabela, ~1548 linhas)
 
 ## colunas
 telefone  text  NOT NULL

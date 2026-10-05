@@ -1,4 +1,4 @@
-# envios_foto  (tabela, ~0 linhas)
+# envios_foto  (tabela, ~179 linhas)
 O id de cada FOTO de imóvel que o publicador mandou (grupo ou corretor), com o código (287, 03/10/2026). Existe para a marcação da foto virar o imóvel; não é contagem de posts (essa é `envios`).
 
 ## colunas
@@ -28,4 +28,4 @@ nay_leitura: SELECT
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-nay_imovel_da_citacao
+crm_quem_mandou, nay_imovel_da_citacao
