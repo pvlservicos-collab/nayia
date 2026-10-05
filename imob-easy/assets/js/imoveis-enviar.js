@@ -151,11 +151,17 @@ function criarMapa() {
   camada = L.layerGroup().addTo(mapa);
   mapa.on("click", () => { closePopup(); ativarMapa(true); });
   mapa.on("zoomend", mostrarRotulos);
-  world.addEventListener("wheel", e => {
-    if (!e.ctrlKey || mapaAtivo) return;               // sem Ctrl (e com o mapa dormindo) a rodinha é da página
-    e.preventDefault();
-    mapa.setZoomAround(mapa.mouseEventToLatLng(e), mapa.getZoom() + (e.deltaY < 0 ? 1 : -1));
-  }, { passive: false });
+  /* A RODINHA É SEMPRE DA PÁGINA (Pedro, 05/10: "ainda está dando zoom pelo scroll, sendo que pedi para trocar
+     isso pela barra que aumenta ou diminui o zoom lateralmente"). Nenhum zoom pela rodinha, nem com Ctrl, nem
+     depois de clicar no mapa. No computador o zoom é a barra deitada; no celular, a pinça de dois dedos. */
+  const barra = document.querySelector("#zbar");
+  if (barra) {
+    barra.min = 10; barra.max = 19; barra.step = 1; barra.value = mapa.getZoom();
+    barra.addEventListener("input", () => mapa.setZoom(Number(barra.value)));
+    mapa.on("zoomend", () => { barra.value = mapa.getZoom(); });
+    const caixa = barra.closest(".zbar");
+    if (caixa) { L.DomEvent.disableClickPropagation(caixa); L.DomEvent.disableScrollPropagation(caixa); }
+  }
   const z = document.querySelector(".zoom");
   if (z && !$("#ztema")) z.insertAdjacentHTML("beforeend", '<button id="ztema" type="button"></button>');
   aplicarTema();
@@ -465,12 +471,13 @@ function hideHint() { const h = $("#mhint"); if (h) h.classList.remove("on"); }
 function ativarMapa(on) {
   if (!mapa || on === mapaAtivo) return;
   mapaAtivo = on;
-  if (on) { mapa.scrollWheelZoom.enable(); if (toque) mapa.dragging.enable(); }
-  else { mapa.scrollWheelZoom.disable(); if (toque) mapa.dragging.disable(); }
+  // a rodinha não entra aqui: clicar no mapa só solta o arrasto com um dedo no celular
+  if (toque) { if (on) mapa.dragging.enable(); else mapa.dragging.disable(); }
   mapEl.classList.toggle("map--ativo", on);
   const tag = document.querySelector(".maptag");
-  if (tag) tag.textContent = on ? (toque ? "Mapa ativo · toque fora dele para rolar a página" : "Mapa ativo · a rodinha mexe no mapa")
-                                : (toque ? "Toque no mapa para mexer nele" : "Clique no mapa para usar a rodinha nele");
+  if (tag) tag.textContent = toque
+    ? (on ? "Mapa ativo · toque fora dele para rolar a página" : "Toque no mapa para mexer nele · dois dedos dão zoom")
+    : "Arraste para mover · zoom na barra";
 }
 mapEl.addEventListener("mouseleave", () => ativarMapa(false));
 document.addEventListener("pointerdown", e => { if (!mapEl.contains(e.target)) ativarMapa(false); }, true);

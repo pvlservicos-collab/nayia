@@ -351,6 +351,10 @@ body{overflow:auto}
 .leaflet-container{font-family:inherit}
 .leaflet-control-attribution{font-size:10.5px;background:rgba(255,255,255,.8)!important;border-radius:0 8px 0 0}
 .maptag{bottom:30px!important}
+/* A BARRA DE ZOOM (05/10): deitada, embaixo do mapa, só no computador; no celular vale a pinça */
+.zbar{position:absolute;left:50%;transform:translateX(-50%);bottom:26px;z-index:8;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.95);border-radius:999px;padding:6px 14px;box-shadow:0 4px 14px rgba(0,0,0,.15);color:var(--ink-2);font-size:16px;font-weight:700;line-height:1}
+.zbar input{width:200px;margin:0;accent-color:#8B3CF0;cursor:pointer}
+@media (pointer:coarse){.zbar{display:none}}
 .map{cursor:default;background:#1d1b22}
 
 /* O PINO COM O PREÇO DENTRO: roxo da casa, pequeno e de tamanho FIXO (não cresce com a tela nem com o zoom) */
@@ -517,7 +521,8 @@ body{overflow:auto}
     <span class="mcount" id="mapCount"></span>
   </div>
   <div class="zoom"><button id="zin" aria-label="Aproximar"><i data-lucide="plus"></i></button><button id="zout" aria-label="Afastar"><i data-lucide="minus"></i></button><button id="zfit" aria-label="Ver tudo"><i data-lucide="locate-fixed"></i></button></div>
-  <span class="maptag">Clique no mapa para usar a rodinha nele</span>
+  <label class="zbar" title="Zoom do mapa"><span>−</span><input type="range" id="zbar" aria-label="Zoom do mapa"><span>+</span></label>
+  <span class="maptag">Arraste para mover · zoom na barra</span>
   <div class="mhint" id="mhint">Toque no mapa para mexer nele</div>
 </main>
 
@@ -555,6 +560,6 @@ body{overflow:auto}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/assets/js/config.js"></script>
-<script src="/assets/js/imoveis-enviar.js?v=20261003b"></script>
+<script src="/assets/js/imoveis-enviar.js?v=20261005-zoom"></script>
 </body>
 </html>
