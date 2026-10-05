@@ -329,7 +329,12 @@ body{overflow:auto}
 .it b{display:block;font-size:14px;font-weight:600;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .it small{display:block;font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sel-empty{font-size:13.5px;color:var(--muted);padding:2px 2px 8px}
-.sheet.min .sh-top,.sheet.min .sel-list{display:none}
+/* 05/10: a barrinha do meio saiu; "Minimizar", no canto dos selecionados, recolhe só a lista deles (a busca e o
+   filtro continuam à mão) */
+.grab{display:none!important}
+.sheet.min .sel-list{display:none}
+.minbtn{border:1px solid var(--line-2);background:#fff;color:var(--brand);border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:600;cursor:pointer;flex:none}
+.sel-h .clear{margin-left:auto}
 .sheet.min .sel-h{border-top:0}
 @media (max-width:760px){ :root{--sheet-max:58dvh} .results{padding:12px 10px calc(var(--sheet-h,200px) + 20px)} }
 @media (min-width:1024px){
@@ -556,7 +561,7 @@ body{overflow:auto}
     </div>
     <div id="sheetF"></div>
   </div>
-  <div class="sel-h"><b>Selecionados</b><span class="n" id="nSel"></span><button class="clear" id="clearAll">Limpar</button></div>
+  <div class="sel-h"><b>Selecionados</b><span class="n" id="nSel"></span><button class="clear" id="clearAll">Limpar</button><button class="minbtn" id="minbtn" aria-expanded="true">Minimizar</button></div>
   <div class="sel-list" id="selList"></div>
   <div class="sh-send">
     <input class="phone" id="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="Seu WhatsApp com DDD" aria-label="Seu WhatsApp">
@@ -568,6 +573,6 @@ body{overflow:auto}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/assets/js/config.js"></script>
-<script src="/assets/js/imoveis-enviar.js?v=20261005-rapido"></script>
+<script src="/assets/js/imoveis-enviar.js?v=20261005-min"></script>
 </body>
 </html>

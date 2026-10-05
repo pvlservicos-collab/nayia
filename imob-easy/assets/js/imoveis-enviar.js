@@ -498,6 +498,13 @@ $("#q").addEventListener("keydown", e => {
 $("#q").addEventListener("focus", () => { sugOpen = true; renderSugs(); });
 $("#q").addEventListener("input", () => { sugOpen = true; });
 $("#grab").addEventListener("click", () => $("#sheet").classList.toggle("min"));
+/* "Minimizar" (05/10): recolhe a lista dos selecionados; o mesmo botão a traz de volta */
+$("#minbtn").addEventListener("click", () => {
+  const recolhido = $("#sheet").classList.toggle("min");
+  $("#minbtn").textContent = recolhido ? "Mostrar" : "Minimizar";
+  $("#minbtn").setAttribute("aria-expanded", !recolhido);
+  measure();
+});
 
 /* O MAPA ACORDA COM UM CLIQUE (Pedro, 03/10: "quando a pessoa clicar dentro do mapa e rolar para baixo, ele
    role o mapa"). Antes do clique, a rodinha e o dedo rolam a PÁGINA (a lista fica embaixo). Depois do clique
