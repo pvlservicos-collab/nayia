@@ -40,4 +40,4 @@ nay_site_escrita, só nestas colunas: SELECT(entregue_em, lida_em)
 captacao_status_da_mensagem
 
 ## funções que citam
-captacao_disparo_liberado, captacao_encerrar, captacao_ja_perguntou_outros, captacao_relatorio_da_vez, captacao_status_da_mensagem, captacao_vigiar, crm_captacao_mensagens, crm_captacao_placar, crm_captacao_relatorio, crm_contato_da_mensagem
+captacao_disparo_liberado, captacao_encerrar, captacao_ja_chamado_nao_volta, captacao_ja_perguntou_outros, captacao_relatorio_da_vez, captacao_status_da_mensagem, captacao_vigiar, crm_captacao_mensagens, crm_captacao_placar, crm_captacao_relatorio, crm_contato_da_mensagem

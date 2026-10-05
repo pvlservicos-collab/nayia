@@ -57,6 +57,9 @@ captacao_lead_tratamento_ok: CHECK (((tratamento IS NULL) OR (tratamento = ANY (
 captacao_leads_pkey: PRIMARY KEY (id)
 captacao_leads_telefone_key: UNIQUE (telefone)
 
+## gatilhos
+CREATE TRIGGER captacao_ja_chamado_nao_volta BEFORE UPDATE OF status ON public.captacao_leads FOR EACH ROW EXECUTE FUNCTION captacao_ja_chamado_nao_volta()
+
 ## permissões
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 nay_core: SELECT
