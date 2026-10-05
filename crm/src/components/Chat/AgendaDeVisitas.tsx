@@ -14,6 +14,11 @@
  * outro horário. Soltar NÃO grava: a tela pergunta antes (um arrasto sem
  * querer não pode mudar a visita de ninguém), e o "não" devolve ao lugar.
  *
+ * O BLOCO (Pedro, 05/10): "o card da visita mais azul para se diferenciar, e que apareça 2 pequenos cards com
+ * a foto e o número de quem está naquela visita, ou seja o corretor e o proprietário, posso ir para as conversas
+ * deles por ali ao clicar". O bloco é azul (a situação vira a bolinha e o texto da última linha) e leva os dois
+ * cartõezinhos; clicar num deles abre a conversa da pessoa, clicar no resto abre o painel da visita.
+ *
  * Carregado só no navegador (ver VisitasAgendadas: next/dynamic, ssr false).
  */
 import { useEffect, useMemo, useRef } from 'react'
@@ -39,6 +44,28 @@ export const COR_DO_TOM: Record<string, string> = {
 }
 
 const UMA_HORA = 60 * 60 * 1000
+
+export interface PessoaDaVisita { papel: 'Corretor' | 'Proprietário'; nome: string | null; telefone: string | null; avatar: string | null; leadId: string | null }
+
+/** "5592991234567" -> "(92) 99123-4567"; curto = "…4567" (a coluna da semana é estreita). */
+export function numeroDaPessoa(telefone: string | null, curto = false): string {
+  const d = (telefone || '').replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '')
+  if (!d) return 'sem número'
+  if (curto) return `…${d.slice(-4)}`
+  return d.length >= 10 ? `(${d.slice(0, 2)}) ${d.slice(2, -4)}-${d.slice(-4)}` : d
+}
+
+export function pessoasDa(v: VisitaNaTela): PessoaDaVisita[] {
+  const lista: PessoaDaVisita[] = [{
+    papel: 'Corretor', nome: v.corretorNome || v.conversa?.titulo || null, telefone: v.corretorTelefone || null,
+    avatar: v.conversa?.avatar || null, leadId: v.conversa?.leadId || null,
+  }]
+  if (v.dono || v.proprietarioNome) {
+    lista.push({ papel: 'Proprietário', nome: v.proprietarioNome, telefone: v.dono?.telefone || null,
+                 avatar: v.dono?.avatar || null, leadId: v.dono?.leadId || null })
+  }
+  return lista
+}
 
 /** Dá para mudar o horário: aberta e ainda não realizada (a Nay decide de novo no banco). */
 export function podeMudarHorario(v: VisitaNaTela) {
@@ -70,7 +97,7 @@ function eventosDasVisitas(visitas: VisitaNaTela[], selecionada: number | null):
         `agenda-evento--${tom}`,
         ...(selecionada === v.id ? ['agenda-evento--sel'] : []),
       ],
-      extendedProps: { visitaId: v.id, cor: COR_DO_TOM[tom], corretor: v.corretorNome || v.conversa?.titulo || null, estado: ESTADO_DA_VISITA[v.estado]?.rotulo || v.estado, sugerido: false },
+      extendedProps: { visitaId: v.id, cor: COR_DO_TOM[tom], corretor: v.corretorNome || v.conversa?.titulo || null, estado: ESTADO_DA_VISITA[v.estado]?.rotulo || v.estado, sugerido: false, pessoas: pessoasDa(v) },
     })
     // o horário que alguém sugeriu e ainda não foi aceito
     if (v.aberta && v.quandoSugerido && v.quandoSugerido !== v.quando) {
@@ -84,15 +111,29 @@ function eventosDasVisitas(visitas: VisitaNaTela[], selecionada: number | null):
         startEditable: false,
         durationEditable: false,
         classNames: ['agenda-evento', 'agenda-evento--sugerido'],
-        extendedProps: { visitaId: v.id, cor: 'var(--wa-tag-prop)', corretor: v.corretorNome || null, estado: 'Horário sugerido', sugerido: true },
+        extendedProps: { visitaId: v.id, cor: 'var(--wa-tag-prop)', corretor: v.corretorNome || null, estado: 'Horário sugerido', sugerido: true, pessoas: [] },
       })
     }
   }
   return eventos
 }
 
+/** O cartãozinho da pessoa dentro do bloco: foto (ou a inicial) e o número. Com conversa, o clique abre o chat
+    dela (quem ouve é o eventClick da agenda, pelo data-lead). */
+function Pessoa({ p, curto }: { p: PessoaDaVisita; curto: boolean }) {
+  const dica = `${p.papel}: ${p.nome || 'sem nome'} · ${numeroDaPessoa(p.telefone)}${p.leadId ? ' (abrir a conversa)' : ' (sem conversa no CRM)'}`
+  return (
+    <span className={`agenda-pessoa ${p.leadId ? '' : 'agenda-pessoa--sem'}`} title={dica} data-lead={p.leadId || undefined}>
+      {p.avatar
+        ? <img src={p.avatar} alt="" className="agenda-pessoa-foto" />
+        : <span className="agenda-pessoa-foto agenda-pessoa-inicial">{p.papel === 'Corretor' ? 'C' : 'P'}</span>}
+      <span className="agenda-pessoa-num">{numeroDaPessoa(p.telefone, curto)}</span>
+    </span>
+  )
+}
+
 function ConteudoDoEvento(arg: EventContentArg) {
-  const p = arg.event.extendedProps as { cor: string; corretor: string | null; estado: string; sugerido: boolean }
+  const p = arg.event.extendedProps as { cor: string; corretor: string | null; estado: string; sugerido: boolean; pessoas: PessoaDaVisita[] }
   if (arg.view.type.startsWith('list')) {
     return (
       <span className="agenda-lista-linha">
@@ -117,8 +158,12 @@ function ConteudoDoEvento(arg: EventContentArg) {
         <span className="agenda-bloco-hora">{arg.timeText}</span>
         <span className="agenda-bloco-titulo">{arg.event.title}</span>
       </span>
-      {p.corretor && <span className="agenda-bloco-sub">{p.corretor}</span>}
-      <span className="agenda-bloco-sub">{p.estado}</span>
+      {p.pessoas?.length > 0 && (
+        <span className="agenda-pessoas">
+          {p.pessoas.map((x) => <Pessoa key={x.papel} p={x} curto={arg.view.type !== 'timeGridDay'} />)}
+        </span>
+      )}
+      <span className="agenda-bloco-estado"><span className="agenda-ponto" style={{ background: p.cor }} />{p.estado}</span>
     </div>
   )
 }
@@ -136,12 +181,15 @@ export default function AgendaDeVisitas({
   visitas,
   selecionada,
   aoEscolher,
+  aoAbrirConversa,
   aoArrastar,
   visivel,
 }: {
   visitas: VisitaNaTela[]
   selecionada: number | null
   aoEscolher: (id: number) => void
+  /** clicou no cartãozinho do corretor ou do proprietário dentro da visita */
+  aoAbrirConversa: (leadId: string) => void
   aoArrastar: (a: Arrasto) => void
   /** muda quando a agenda aparece ou muda de largura: ela recalcula o tamanho */
   visivel: boolean
@@ -190,6 +238,8 @@ export default function AgendaDeVisitas({
         eventContent={ConteudoDoEvento}
         eventClick={(info) => {
           info.jsEvent.preventDefault()
+          const lead = (info.jsEvent.target as HTMLElement | null)?.closest?.('[data-lead]')?.getAttribute('data-lead')
+          if (lead) { aoAbrirConversa(lead); return }
           const id = Number(info.event.extendedProps.visitaId)
           if (id) aoEscolher(id)
         }}

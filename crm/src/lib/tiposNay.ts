@@ -87,6 +87,9 @@ export interface VisitaDaNay {
 /** A visita como a tela recebe: sem as chaves de telefone, com a conversa do corretor. */
 export type VisitaNaTela = Omit<VisitaDaNay, 'corretorChaves'> & {
   conversa: { leadId: string; titulo: string | null; avatar: string | null } | null
+  /** 293: o número do corretor e o proprietário (número e conversa, quando existe), para a agenda */
+  corretorTelefone?: string | null
+  dono?: { telefone: string | null; leadId: string | null; avatar: string | null } | null
 }
 
 export interface EventoDaVisita {

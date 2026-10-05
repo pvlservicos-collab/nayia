@@ -1,0 +1,4 @@
+# nay-core (Alteração 2, G): a avaliação do dia pelo Jev às 20:45 de Manaus (00:45 UTC) e o resumo às 21:00
+# (01:00 UTC). Saída em /docker/nay-core/relatorios/. Só leem; a avaliação grava a nota em core_avaliacao.
+45 0 * * * root cd /docker/nay-core && docker exec nay-core python scripts/avaliar_dia.py --dia $(TZ=America/Manaus date -d '1 hour ago' +\%F) > relatorios/avaliacao-$(TZ=America/Manaus date -d '1 hour ago' +\%F).txt 2>&1
+0 1 * * * root cd /docker/nay-core && docker exec nay-core python scripts/resumo_diario.py --dia $(TZ=America/Manaus date -d '1 hour ago' +\%F) > relatorios/resumo-$(TZ=America/Manaus date -d '1 hour ago' +\%F).txt 2>&1

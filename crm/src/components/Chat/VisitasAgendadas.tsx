@@ -21,6 +21,11 @@
  * O PAINEL DA VISITA (Pedro, 29/09): "quando eu clico na agenda da visita abre
  * ela em um popup à direita para eu excluir, marcar como realizada ou mudar, e
  * eu posso arrastar ela pela agenda, e também mudar o horário nesse popup".
+ * DE HOJE EM DIANTE (Pedro, 05/10): "preciso que o card da esquerda mostre as visitas a partir sempre de
+ * hoje em cima, o passado já não me importa mais ... minimalismo". A lista mostra só de hoje para a frente (a
+ * mais próxima primeiro), sem as canceladas, e o cartão ficou em três blocos curtos: quando e o imóvel, as
+ * pessoas, e o passo em que está. O andamento inteiro e os lápis continuam no painel (clicar no cartão).
+ *
  * As regras são dele e moram no banco da Nay (migração 169):
  *   - mudar o horário: NINGUÉM é avisado ("a pessoa manualmente faz isso");
  *   - realizada: a Nay pergunta ao corretor como foi (o pós-visita de sempre);
@@ -29,14 +34,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import {
-  ArrowClockwise, CalendarCheck, ChatCircleText, CaretDown, CaretUp, MagnifyingGlass, X, CircleNotch, Warning,
-  CheckCircle, Trash, Clock, PencilSimple, Check, Plus,
+  ArrowClockwise, CalendarCheck, ChatCircleText, MagnifyingGlass, X, CircleNotch, Warning,
+  CheckCircle, Trash, Clock, PencilSimple, Check, Plus, User, Key, Users, Lock,
 } from '@phosphor-icons/react'
 import { createPortal } from 'react-dom'
 import AgendarVisita from './AgendarVisita'
 import EscolherImovelDaVisita from './EscolherImovelDaVisita'
 import { useVisitasParceria, eventosDaVisita, mexerNaVisita } from '@/hooks/useVisitasParceria'
-import type { Arrasto } from './AgendaDeVisitas'
+import { numeroDaPessoa, type Arrasto } from './AgendaDeVisitas'
 import { ESTADO_DA_VISITA, EVENTO_DA_VISITA, type EventoDaVisita, type VisitaNaTela } from '@/lib/tiposNay'
 
 // a agenda só existe no navegador (o FullCalendar mede a tela)
@@ -76,8 +81,6 @@ function useLadoALado() {
   }, [])
   return lado
 }
-
-type Filtro = 'andamento' | 'encerradas' | 'todas'
 
 const TOM: Record<string, string> = {
   andamento: 'var(--wa-tag-visita)',
@@ -204,64 +207,99 @@ function duracaoCurta(min: number): string {
   return h === 0 ? `${m} min` : m === 0 ? `${h} h` : `${h}h${String(m).padStart(2, '0')}`
 }
 
+/** A linha de uma pessoa da visita: ícone, papel, nome, número e o atalho da conversa. */
+function LinhaDaPessoa({ icone, papel, nome, telefone, leadId, aoAbrirConversa }: {
+  icone: React.ReactNode; papel: string; nome: string | null; telefone?: string | null; leadId?: string | null
+  aoAbrirConversa: (leadId: string) => void
+}) {
+  return (
+    <div className="flex items-center gap-2 min-w-0 text-[13px] leading-5">
+      <span className="flex-shrink-0" style={{ color: 'var(--wa-text-2)' }} title={papel}>{icone}</span>
+      <span className="truncate" style={{ color: 'var(--wa-text)' }}>{nome || 'não identificado'}</span>
+      {telefone && <span className="flex-shrink-0 tabular-nums text-[12px]" style={{ color: 'var(--wa-text-2)' }}>{numeroDaPessoa(telefone)}</span>}
+      {leadId && (
+        <button type="button" onClick={(e) => { e.stopPropagation(); aoAbrirConversa(leadId) }}
+                className="ml-auto flex-shrink-0 wa-icone-btn !w-6 !h-6" title={`Abrir a conversa (${papel.toLowerCase()})`}
+                aria-label={`Abrir a conversa do ${papel.toLowerCase()}`}>
+          <ChatCircleText size={15} style={{ color: 'var(--wa-green)' }} />
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** Os passos em bolinhas, com o nome de cada um na dica; ao lado, só o passo de agora. */
+function PassosCurtos({ v, cor }: { v: VisitaNaTela; cor: string }) {
+  const ps = passos(v)
+  const atual = v.aberta ? ps.findIndex((p) => !p.em) : -1
+  const agora = v.aberta && v.aguardando ? `Esperando ${AGUARDANDO[v.aguardando] || v.aguardando}`
+    : !v.aberta ? (v.resultado || v.motivo || '') : ''
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      <span className="flex items-center gap-1 flex-shrink-0">
+        {ps.map((p, i) => {
+          const feito = !!p.em
+          const c = p.ruim && feito ? 'var(--wa-tag-tel)' : feito ? 'var(--wa-green)' : i === atual ? cor : 'var(--wa-divider)'
+          return <span key={i} title={`${p.rotulo}${feito ? ` · ${dataHora(p.em)}` : i === atual ? ' · agora' : ''}`}
+                       className="w-2 h-2 rounded-full" style={{ background: feito ? c : 'transparent', border: `1.5px solid ${c}` }} />
+        })}
+      </span>
+      {agora && <span className="truncate text-[12.5px]" style={{ color: v.aberta ? cor : 'var(--wa-text-2)' }}>{agora}</span>}
+    </div>
+  )
+}
+
 function CartaoDaVisita({ v, destacada, aoAbrirConversa, aoEscolher }: {
   v: VisitaNaTela; destacada: boolean; aoAbrirConversa: (leadId: string) => void; aoEscolher: (id: number) => void
 }) {
-  const [aberto, setAberto] = useState(destacada)
-  // escolhida na agenda: abre o andamento dela
-  useEffect(() => { if (destacada) setAberto(true) }, [destacada])
   const estado = ESTADO_DA_VISITA[v.estado] || { rotulo: v.estado, tom: 'fim' as const }
   const cor = TOM[estado.tom]
+  const extras = [
+    v.acesso ? (ACESSO[v.acesso] || v.acesso) : null,
+    v.duracaoMin ? duracaoCurta(v.duracaoMin) : null,
+    v.criadaNoCrmPor ? `à mão · ${v.criadaNoCrmPor}` : null,
+  ].filter(Boolean) as string[]
   return (
-    <article id={`visita-${v.id}`} className="rounded-xl px-4 py-3.5 shadow-sm cursor-pointer"
+    <article id={`visita-${v.id}`} className="rounded-xl overflow-hidden shadow-sm cursor-pointer"
              onClick={() => aoEscolher(v.id)}
              style={{ background: 'var(--wa-panel)', outline: destacada ? '2px solid var(--wa-green)' : 'none' }}>
-      <div className="flex items-start gap-4">
-        <div className="text-center flex-shrink-0 w-[62px]">
-          <p className="text-[22px] leading-7 font-semibold tabular-nums" style={{ color: 'var(--wa-text)' }}>{hora(v.quando)}</p>
-          <p className="text-[12px]" style={{ color: 'var(--wa-text-2)' }}>{diaMes(v.quando)}</p>
-        </div>
+      {/* 1. quando e o imóvel */}
+      <div className="flex items-center gap-3 px-3.5 pt-3 pb-2.5">
+        <p className="text-[21px] leading-6 font-bold tabular-nums flex-shrink-0" style={{ color: '#2563eb' }}>{hora(v.quando)}</p>
         <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-[16px] leading-[21px] font-medium truncate" style={{ color: 'var(--wa-text)', fontFamily: 'inherit' }}>
-              {v.imovel || (v.codigo ? `Imóvel ${v.codigo}` : 'Imóvel')}
-            </h3>
-            <span className="wa-marca" style={{ color: cor }}>{estado.rotulo}</span>
-            {v.urgente && <span className="wa-marca" style={{ color: 'var(--wa-tag-tel)' }}><Warning size={11} weight="bold" /> Urgente</span>}
-          </div>
-          <div className="mt-1 text-[13.5px] leading-5 flex flex-wrap gap-x-4 gap-y-0.5" style={{ color: 'var(--wa-text-2)' }}>
-            <span>
-              Corretor: <span style={{ color: 'var(--wa-text)' }}>{v.corretorNome || v.conversa?.titulo || 'não identificado'}</span>
-              {v.conversa && (
-                <button type="button" onClick={(e) => { e.stopPropagation(); aoAbrirConversa(v.conversa!.leadId) }}
-                        className="ml-2 inline-flex items-center gap-1 font-semibold hover:underline" style={{ color: 'var(--wa-green)' }}>
-                  <ChatCircleText size={14} /> conversa
-                </button>
-              )}
-            </span>
-            {v.proprietarioNome && <span>Proprietário: <span style={{ color: 'var(--wa-text)' }}>{v.proprietarioNome}</span></span>}
-            {v.visitanteNome && <span>Visitante: <span style={{ color: 'var(--wa-text)' }}>{v.visitanteNome}</span></span>}
-            {v.acesso && <span>Acesso: <span style={{ color: 'var(--wa-text)' }}>{ACESSO[v.acesso] || v.acesso}</span></span>}
-            {/* 250: a visita agendada à mão diz quanto dura e quem agendou */}
-            {v.duracaoMin ? <span>Duração: <span style={{ color: 'var(--wa-text)' }}>{duracaoCurta(v.duracaoMin)}</span></span> : null}
-            {v.criadaNoCrmPor && <span style={{ color: '#2563eb' }}>Agendada à mão por {v.criadaNoCrmPor}</span>}
-          </div>
-          {v.aberta && v.aguardando && (
-            <p className="mt-1 text-[13px]" style={{ color: cor }}>Esperando {AGUARDANDO[v.aguardando] || v.aguardando}.</p>
-          )}
-          {v.quandoSugerido && v.aberta && (
-            <p className="mt-1 text-[13px]" style={{ color: 'var(--wa-tag-prop)' }}>Horário sugerido: {dataHora(v.quandoSugerido)}</p>
-          )}
-          {!v.aberta && (v.resultado || v.motivo) && (
-            <p className="mt-1 text-[13px]" style={{ color: 'var(--wa-text-2)' }}>{v.resultado || v.motivo}</p>
-          )}
-          <Passos v={v} />
-          <button type="button" onClick={(e) => { e.stopPropagation(); setAberto((a) => !a) }}
-                  className="mt-2.5 inline-flex items-center gap-1 text-[13px] font-semibold" style={{ color: 'var(--wa-green)' }}>
-            {aberto ? <CaretUp size={14} /> : <CaretDown size={14} />} {aberto ? 'Esconder o andamento' : 'Ver o andamento completo'}
-          </button>
-          {aberto && <Andamento id={v.id} />}
+          <h3 className="text-[15px] leading-5 font-semibold truncate" style={{ color: 'var(--wa-text)', fontFamily: 'inherit' }}>
+            {v.imovel || (v.codigo ? `Imóvel ${v.codigo}` : 'Imóvel')}
+          </h3>
+          {v.codigo && <p className="text-[12px] leading-4" style={{ color: 'var(--wa-text-2)' }}>código {v.codigo}</p>}
         </div>
+        <span className="flex flex-col items-end gap-1 flex-shrink-0">
+          <span className="wa-marca" style={{ color: cor }}>{estado.rotulo}</span>
+          {v.urgente && <span className="wa-marca" style={{ color: 'var(--wa-tag-tel)' }}><Warning size={11} weight="bold" /> Urgente</span>}
+        </span>
+      </div>
+      {/* 2. as pessoas */}
+      <div className="px-3.5 py-2 flex flex-col gap-1" style={{ borderTop: '1px solid var(--wa-divider)' }}>
+        <LinhaDaPessoa icone={<User size={15} />} papel="Corretor" nome={v.corretorNome || v.conversa?.titulo || null}
+                       telefone={v.corretorTelefone} leadId={v.conversa?.leadId} aoAbrirConversa={aoAbrirConversa} />
+        {(v.proprietarioNome || v.dono) && (
+          <LinhaDaPessoa icone={<Key size={15} />} papel="Proprietário" nome={v.proprietarioNome}
+                         telefone={v.dono?.telefone} leadId={v.dono?.leadId} aoAbrirConversa={aoAbrirConversa} />
+        )}
+        {v.visitanteNome && (
+          <LinhaDaPessoa icone={<Users size={15} />} papel="Visitante" nome={v.visitanteNome} aoAbrirConversa={aoAbrirConversa} />
+        )}
+      </div>
+      {/* 3. o passo de agora e o que é da logística */}
+      <div className="px-3.5 py-2 flex flex-col gap-1.5" style={{ borderTop: '1px solid var(--wa-divider)' }}>
+        <PassosCurtos v={v} cor={cor} />
+        {v.quandoSugerido && v.aberta && (
+          <p className="text-[12.5px]" style={{ color: 'var(--wa-tag-prop)' }}>Horário sugerido: {dataHora(v.quandoSugerido)}</p>
+        )}
+        {extras.length > 0 && (
+          <p className="flex items-center gap-1.5 text-[12px] truncate" style={{ color: 'var(--wa-text-2)' }}>
+            <Lock size={13} className="flex-shrink-0" /> {extras.join(' · ')}
+          </p>
+        )}
       </div>
     </article>
   )
@@ -571,14 +609,11 @@ function RelogioDeManaus() {
 
 export default function VisitasAgendadas({ aoAbrirConversa, destaque }: { aoAbrirConversa: (leadId: string) => void; destaque?: number | null }) {
   const { visitas, carregando, erro, recarregar } = useVisitasParceria(true)
-  const [filtro, setFiltro] = useState<Filtro>('andamento')
   const [busca, setBusca] = useState('')
   const ladoALado = useLadoALado()
   const [modo, setModo] = useState<'lista' | 'agenda'>('lista')
   /* o popup do + (agendar visita à mão, 01/10) */
   const [agendando, setAgendando] = useState(false)
-
-  const abertas = visitas.filter((v) => v.aberta).length
 
   /* A visita escolhida -- pelo card do contato ("Ver o andamento em
      Visitas"), por um clique na agenda ou na lista. `pedido` conta os pedidos
@@ -589,7 +624,7 @@ export default function VisitasAgendadas({ aoAbrirConversa, destaque }: { aoAbri
     if (destaque) { setSelecionada(destaque); setPedido((n) => n + 1) }
   }, [destaque])
 
-  // a busca vale para a lista e para a agenda; a situação, só para a lista
+  // a busca vale para a lista e para a agenda
   const buscadas = useMemo(() => {
     const q = busca.trim().toLowerCase()
     return visitas.filter((v) => !q || [v.imovel, v.codigo, v.corretorNome, v.conversa?.titulo, v.proprietarioNome, v.visitanteNome]
@@ -648,31 +683,30 @@ export default function VisitasAgendadas({ aoAbrirConversa, destaque }: { aoAbri
   }, [arrasto, cancelarArrasto])
   const visitaDoArrasto = arrasto ? visitas.find((v) => v.id === arrasto.visitaId) : null
 
-  // mostra e rola até a escolhida (se o filtro a esconde, passa para "Todas")
+  // rola até a escolhida, quando ela está na lista (a de dias passados só aparece na agenda e no painel)
   const jaRolou = useRef(0)
   useEffect(() => {
     if (!selecionada || !pedido || jaRolou.current === pedido || !visitas.length) return
-    const alvo = visitas.find((v) => v.id === selecionada)
-    if (!alvo) return
-    if ((!alvo.aberta && filtro === 'andamento') || (alvo.aberta && filtro === 'encerradas')) { setFiltro('todas'); return }
     jaRolou.current = pedido
     requestAnimationFrame(() => document.getElementById(`visita-${selecionada}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }))
-  }, [selecionada, pedido, visitas, filtro, modo])
+  }, [selecionada, pedido, visitas, modo])
 
+  /* DE HOJE EM DIANTE (Pedro, 05/10): hoje em cima, a mais próxima primeiro. Ficam de fora os dias que já
+     passaram e as que não vão acontecer (cancelada, expirou). A aberta sem data vai para o fim. */
   const lista = useMemo(() => {
-    const f = buscadas
-      .filter((v) => (filtro === 'andamento' ? v.aberta : filtro === 'encerradas' ? !v.aberta : true))
-    // as que vão acontecer: a mais próxima primeiro; as que passaram: a mais recente primeiro
-    return f.sort((a, b) => {
-      const ta = new Date(a.quando || a.criadoEm || 0).getTime()
-      const tb = new Date(b.quando || b.criadoEm || 0).getTime()
-      return filtro === 'andamento' ? ta - tb : tb - ta
+    const hoje = diaEmManaus(new Date())
+    const f = buscadas.filter((v) => {
+      if (['cancelada', 'expirada'].includes(v.estado)) return false
+      if (!v.quando) return v.aberta
+      return diaEmManaus(new Date(v.quando)) >= hoje
     })
-  }, [buscadas, filtro])
+    const t = (v: VisitaNaTela) => (v.quando ? new Date(v.quando).getTime() : Number.MAX_SAFE_INTEGER)
+    return f.sort((a, b) => t(a) - t(b))
+  }, [buscadas])
 
   const grupos: Array<{ dia: string; visitas: VisitaNaTela[] }> = []
   for (const v of lista) {
-    const dia = nomeDoDia(v.quando || v.criadoEm)
+    const dia = nomeDoDia(v.quando)
     const g = grupos[grupos.length - 1]
     if (g && g.dia === dia) g.visitas.push(v)
     else grupos.push({ dia, visitas: [v] })
@@ -723,9 +757,9 @@ export default function VisitasAgendadas({ aoAbrirConversa, destaque }: { aoAbri
               ))}
             </div>
           )}
-          {([['andamento', `Em andamento${abertas ? ` (${abertas})` : ''}`], ['encerradas', 'Encerradas'], ['todas', 'Todas']] as Array<[Filtro, string]>).map(([k, r]) => (
-            <button key={k} type="button" onClick={() => setFiltro(k)} className={`wa-chip ${filtro === k ? 'wa-chip--on' : ''}`}>{r}</button>
-          ))}
+          <span className="text-[13px] font-semibold" style={{ color: 'var(--wa-text-2)' }}>
+            De hoje em diante{lista.length ? ` · ${lista.length}` : ''}
+          </span>
           <label className="wa-busca ml-auto w-full sm:w-[320px] !h-9">
             <MagnifyingGlass size={16} />
             <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Imóvel, código, corretor, proprietário…" aria-label="Buscar visita" />
@@ -744,7 +778,7 @@ export default function VisitasAgendadas({ aoAbrirConversa, destaque }: { aoAbri
           <p className="text-center text-[14px] mt-10" style={{ color: 'var(--wa-text-2)' }}>Carregando as visitas…</p>
         ) : !lista.length ? (
           <p className="text-center text-[14px] mt-10" style={{ color: 'var(--wa-text-2)' }}>
-            {busca ? 'Nenhuma visita com essa busca.' : filtro === 'andamento' ? 'Nenhuma visita em andamento agora.' : 'Nenhuma visita aqui.'}
+            {busca ? 'Nenhuma visita com essa busca.' : 'Nenhuma visita de hoje em diante.'}
           </p>
         ) : (
           <div className="w-full max-w-[980px] mx-auto flex flex-col gap-5">
@@ -766,7 +800,7 @@ export default function VisitasAgendadas({ aoAbrirConversa, destaque }: { aoAbri
       <div className={`${!ladoALado && modo === 'lista' ? 'hidden' : 'flex'} flex-1 min-w-0 flex-col p-2 sm:p-3`}>
         <LegendaDaAgenda />
         <div className="flex-1 min-h-0">
-          <AgendaDeVisitas visitas={buscadas} selecionada={selecionada} aoEscolher={escolherNaAgenda}
+          <AgendaDeVisitas visitas={buscadas} selecionada={selecionada} aoEscolher={escolherNaAgenda} aoAbrirConversa={aoAbrirConversa}
                            aoArrastar={setArrasto} visivel={ladoALado || modo === 'agenda'} />
         </div>
         {aviso && (

@@ -135,6 +135,21 @@ export async function visitasDaNay(desde?: string | null, ate?: string | null): 
   }))
 }
 
+/** 293: por visita, o telefone do corretor e o do proprietário (com as chaves dele, para achar a conversa). */
+export async function pessoasDasVisitas(ids: number[]) {
+  const mapa = new Map<number, { corretorTelefone: string | null; donoTelefone: string | null; donoChaves: string[] }>()
+  if (!ids.length) return mapa
+  const r = await naydb().query('SELECT * FROM crm_visitas_pessoas($1::bigint[])', [ids])
+  for (const l of r.rows as any[]) {
+    mapa.set(Number(l.id), {
+      corretorTelefone: l.corretor_telefone ?? null,
+      donoTelefone: l.proprietario_telefone ?? null,
+      donoChaves: Array.isArray(l.proprietario_chaves) ? l.proprietario_chaves.map(String) : [],
+    })
+  }
+  return mapa
+}
+
 /**
  * AGENDAR VISITA À MÃO (Pedro, 01/10/2026; migração 250). A visita nasce da
  * equipe ('com_rayssa'): a Nay não manda nada sozinha -- quem avisa é o

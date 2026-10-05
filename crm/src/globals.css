@@ -1231,7 +1231,7 @@ html {
 .agenda-wa .fc .fc-timegrid-now-indicator-line { border-width: 2px 0 0; }
 .agenda-wa .fc .fc-event { cursor: pointer; }
 
-/* a visita: tinta clara da cor da situação, filete à esquerda */
+/* a visita: AZUL (Pedro, 05/10: "mais azul para se diferenciar"); a situação é a bolinha da última linha */
 .agenda-wa .fc .fc-timegrid-event.agenda-evento,
 .agenda-wa .fc .fc-daygrid-event.agenda-evento { background: transparent; border: 0; box-shadow: none; }
 .agenda-bloco {
@@ -1242,14 +1242,30 @@ html {
   gap: 1px;
   padding: 3px 6px;
   border-radius: 6px;
-  background: color-mix(in srgb, var(--cor) 16%, var(--wa-panel));
-  border-left: 3px solid var(--cor);
+  background: color-mix(in srgb, #2563eb 24%, var(--wa-panel));
+  border-left: 3px solid #2563eb;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #2563eb 30%, transparent);
   color: var(--wa-text);
   font-size: 12px;
   line-height: 15px;
 }
 .agenda-bloco-linha { display: flex; gap: 5px; min-width: 0; white-space: nowrap; }
-.agenda-bloco-hora { font-weight: 600; color: var(--cor); flex-shrink: 0; }
+.agenda-bloco-hora { font-weight: 700; color: #2563eb; flex-shrink: 0; }
+:root[data-theme="dark"] .agenda-bloco-hora, .dark .agenda-bloco-hora { color: #93c5fd; }
+.agenda-bloco-estado { display: flex; align-items: center; gap: 4px; min-width: 0; color: var(--wa-text-2); font-size: 11px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agenda-bloco-estado .agenda-ponto { width: 7px; height: 7px; }
+/* os dois cartõezinhos: corretor e proprietário (foto e número); com conversa, clicam */
+.agenda-pessoas { display: flex; gap: 3px; min-width: 0; margin: 1px 0; }
+.agenda-pessoa { display: inline-flex; align-items: center; gap: 3px; min-width: 0; height: 18px; padding: 0 5px 0 1px;
+  border-radius: 999px; background: var(--wa-panel); border: 1px solid color-mix(in srgb, #2563eb 35%, transparent);
+  font-size: 10.5px; line-height: 1; font-weight: 600; color: var(--wa-text); cursor: pointer; }
+.agenda-pessoa:hover { background: color-mix(in srgb, #2563eb 14%, var(--wa-panel)); }
+.agenda-pessoa--sem { cursor: default; opacity: .7; }
+.agenda-pessoa-foto { width: 14px; height: 14px; border-radius: 999px; object-fit: cover; flex-shrink: 0; }
+.agenda-pessoa-inicial { display: inline-flex; align-items: center; justify-content: center; background: #2563eb; color: #fff;
+  font-size: 9px; font-weight: 700; }
+.agenda-pessoa-num { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 .agenda-bloco-titulo { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .agenda-bloco-sub { color: var(--wa-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .agenda-evento--ruim .agenda-bloco { opacity: .6; }

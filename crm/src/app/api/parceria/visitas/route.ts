@@ -14,7 +14,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { authenticateRequest, apiError } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { leads, profiles } from '@/lib/schema'
-import { agendarVisita, visitasDaNay } from '@/lib/nayLeitura'
+import { agendarVisita, pessoasDasVisitas, visitasDaNay } from '@/lib/nayLeitura'
 import { conversaPorChave, conversasDaParceria } from '@/lib/conversasDaParceria'
 import { abrirLeadDaLinha } from '@/lib/abrirLead'
 import { LEMBRETE_PADRAO_MIN, MODELO_DO_LEMBRETE, agendarLembreteDaVisita, preencherLembrete } from '@/lib/lembreteDaVisita'
@@ -34,9 +34,23 @@ export async function GET(req: NextRequest) {
       conversasDaParceria(auth.organizationId),
     ])
     const porChave = conversaPorChave(conversas)
+    // 293: o número do corretor e o proprietário de cada visita; se a leitura falhar, a agenda segue sem eles
+    const pessoas = await pessoasDasVisitas(visitas.map((v) => v.id)).catch((e) => {
+      console.error('[parceria/visitas] pessoas', e?.message || e)
+      return new Map() as Awaited<ReturnType<typeof pessoasDasVisitas>>
+    })
     const saida = visitas.map(({ corretorChaves, ...v }) => {
       const conversa = corretorChaves.map((ch) => porChave.get(ch)).find(Boolean) || null
-      return { ...v, conversa: conversa ? { leadId: conversa.id, titulo: conversa.titulo, avatar: conversa.avatar } : null }
+      const p = pessoas.get(v.id)
+      const doDono = p?.donoChaves.map((ch) => porChave.get(ch)).find(Boolean) || null
+      return {
+        ...v,
+        conversa: conversa ? { leadId: conversa.id, titulo: conversa.titulo, avatar: conversa.avatar } : null,
+        corretorTelefone: p?.corretorTelefone || conversa?.telefone || null,
+        dono: p?.donoTelefone || v.proprietarioNome
+          ? { telefone: p?.donoTelefone || null, leadId: doDono?.id || null, avatar: doDono?.avatar || null }
+          : null,
+      }
     })
     return Response.json({ visitas: saida, em: Date.now() })
   } catch (err: any) {

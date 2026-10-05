@@ -1,4 +1,4 @@
-# core_conversa  (tabela, ~100 linhas)
+# core_conversa  (tabela, ~110 linhas)
 
 ## colunas
 chave  text  NOT NULL
@@ -28,6 +28,7 @@ atualizado_em  timestamp with time zone  NOT NULL  padrão now()
 ultima_pergunta  text
 ultima_acao  text
 ultima_lista  integer[]  NOT NULL  padrão '{}'::integer[]
+ultima_acao_em  timestamp with time zone
 
 ## índices
 CREATE INDEX core_conversa_estado ON public.core_conversa USING btree (estado)
