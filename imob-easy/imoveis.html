@@ -364,7 +364,7 @@ body{overflow:auto}
 /* 05/10 ("os números estão muito grandes, diminui 60%, nem dá pra ver o nome dos bairros"): com a cidade inteira
    na tela o pino tem 40% do tamanho; ao aproximar ele cresce até o normal (--pin-escala, em imoveis-enviar.js).
    A ponta continua no lugar do imóvel: a escala parte dela. */
-.ux-preco-pin{position:absolute;left:0;top:0;transform:translate(-50%,calc(-100% - 9px)) scale(var(--pin-escala,.4));transform-origin:50% calc(100% + 9px);border:0;cursor:pointer;white-space:nowrap;
+.ux-preco-pin{position:absolute;left:0;top:0;transform:translate(-50%,calc(-100% - 9px)) scale(var(--pin-escala,.52));transform-origin:50% calc(100% + 9px);border:0;cursor:pointer;white-space:nowrap;
   font:700 9px/1 "Barlow",Arial,sans-serif;letter-spacing:.01em;color:#fff;padding:3px 5px;border-radius:6px;font-variant-numeric:tabular-nums;
   background:linear-gradient(160deg,#a78bfa 0%,#7c3aed 45%,#4c1d95 100%);box-shadow:0 1px 4px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.3)}
 .ux-preco-pin::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border-left:4px solid transparent;border-right:4px solid transparent;border-top:7px solid #ddd6fe}
@@ -475,7 +475,7 @@ body{overflow:auto}
 @media (min-width:1024px){.map{height:min(64dvh,660px)!important}}
 /* NO CELULAR O MAPA É MAIS BAIXO (Pedro, 03/10: "tá muito grande verticalmente no mobile"): cerca de um terço da
    tela, e não mais tudo o que sobrava entre o topo e o painel de baixo */
-@media (max-width:1023px){.map{height:clamp(210px,34dvh,330px)!important}}
+@media (max-width:1023px){.map{height:clamp(231px,37.4dvh,363px)!important}}
 
 /* O PAINEL FIXO DE BAIXO ~15% MAIS ALTO (Pedro, 03/10: "onde o cara digita o imóvel, e o card fixo de baixo, tá
    pequeno verticalmente"): a busca do painel, o botão do filtro, o da lista, o campo do WhatsApp e o Me envia */
@@ -524,8 +524,7 @@ body{overflow:auto}
     <span class="mcount" id="mapCount"></span>
   </div>
   <div class="zoom"><button id="zin" aria-label="Aproximar"><i data-lucide="plus"></i></button><button id="zout" aria-label="Afastar"><i data-lucide="minus"></i></button><button id="zfit" aria-label="Ver tudo"><i data-lucide="locate-fixed"></i></button></div>
-  <label class="zbar" title="Zoom do mapa"><span>−</span><input type="range" id="zbar" aria-label="Zoom do mapa"><span>+</span></label>
-  <span class="maptag">Arraste para mover · zoom na barra</span>
+  <span class="maptag">Arraste para mover · zoom nos botões + e −</span>
   <div class="mhint" id="mhint">Toque no mapa para mexer nele</div>
 </main>
 
@@ -562,6 +561,6 @@ body{overflow:auto}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/assets/js/config.js"></script>
-<script src="/assets/js/imoveis-enviar.js?v=20261005-pins"></script>
+<script src="/assets/js/imoveis-enviar.js?v=20261005-pins2"></script>
 </body>
 </html>

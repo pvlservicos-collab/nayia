@@ -154,7 +154,7 @@ function criarMapa() {
   /* o pino do preço segue o zoom: 40% com a cidade inteira na tela (os nomes dos bairros aparecem), normal de perto */
   const escalaDosPinos = () => {
     const z = mapa.getZoom();
-    const f = z >= 16 ? 1 : z >= 15 ? 0.8 : z >= 14 ? 0.65 : z >= 13 ? 0.5 : 0.4;
+    const f = z >= 16 ? 1.3 : z >= 15 ? 1.04 : z >= 14 ? 0.85 : z >= 13 ? 0.65 : 0.52;      // +30% sobre o de antes (05/10)
     mapa.getContainer().style.setProperty("--pin-escala", f);
   };
   mapa.on("zoomend", escalaDosPinos);
@@ -486,7 +486,7 @@ function ativarMapa(on) {
   const tag = document.querySelector(".maptag");
   if (tag) tag.textContent = toque
     ? (on ? "Mapa ativo · toque fora dele para rolar a página" : "Toque no mapa para mexer nele · dois dedos dão zoom")
-    : "Arraste para mover · zoom na barra";
+    : "Arraste para mover · zoom nos botões + e −";
 }
 mapEl.addEventListener("mouseleave", () => ativarMapa(false));
 document.addEventListener("pointerdown", e => { if (!mapEl.contains(e.target)) ativarMapa(false); }, true);
