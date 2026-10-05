@@ -60,7 +60,14 @@ BEGIN
            WHEN i.vagas_cobertas >= i.vagas THEN 'tem ' || i.vagas || CASE WHEN i.vagas = 1 THEN ' vaga coberta' ELSE ' vagas cobertas' END
            ELSE 'tem ' || i.vagas || ' vagas, sendo ' || i.vagas_cobertas || CASE WHEN i.vagas_cobertas = 1 THEN ' coberta' ELSE ' cobertas' END END;
   f_a := CASE WHEN coalesce(i.area_util, 0) > 0 THEN 'tem ' || trim(to_char(i.area_util, 'FM999990')) || ' m²' END;
-  f_an := CASE WHEN coalesce(i.andar, '') <> '' THEN
+  -- 295 (Pedro, 05/10): sem elevador, o andar é dito em lances de escada ("fica 3 andar troca por são 3
+  -- lances de escada"); e "0 lances" não existe ("como tem 0 lances se é 3 andar").
+  v_esc := nullif(regexp_replace(coalesce(nai_ficha_valor(p_codigo, 'lances de escada'), ''), '\D', '', 'g'), '');
+  IF v_esc ~ '^0+$' THEN v_esc := NULL; END IF;
+  IF v_esc IS NULL AND i.andar ~ '^[1-4]$' AND nai_imovel_tem_elevador(p_codigo) IS FALSE THEN v_esc := i.andar; END IF;
+  f_an := CASE WHEN v_esc IS NOT NULL AND nai_imovel_tem_elevador(p_codigo) IS NOT TRUE THEN
+            CASE WHEN v_esc = '1' THEN 'é 1 lance de escada' ELSE 'são ' || v_esc || ' lances de escada' END
+          WHEN coalesce(i.andar, '') <> '' THEN
             CASE WHEN i.andar ~ '^\d+$' THEN 'fica no ' || i.andar || 'º andar' ELSE 'fica no andar ' || i.andar END END;
 
   -- FOI PARA O GRUPO? (Tel, 16/09). O corretor Leonan encaminhou o card do
@@ -206,8 +213,11 @@ BEGIN
   END IF;
   -- LANCES DE ESCADA
   IF q ~ '(escada|lances)' THEN
-    v_esc := nai_ficha_valor(p_codigo, 'lances de escada');
-    IF v_esc ~ '\d' THEN r := r || ('tem ' || v_esc || CASE WHEN v_esc = '1' THEN ' lance de escada' ELSE ' lances de escada' END); END IF;
+    v_esc := nullif(regexp_replace(coalesce(nai_ficha_valor(p_codigo, 'lances de escada'), ''), '\D', '', 'g'), '');
+    -- 295: nunca "tem 0 lances"; e não repete o que a frase do andar já disse
+    IF v_esc ~ '^0*[1-9]' AND NOT EXISTS (SELECT 1 FROM unnest(r) x WHERE x ~ 'lances? de escada') THEN
+      r := r || ('tem ' || v_esc || CASE WHEN v_esc = '1' THEN ' lance de escada' ELSE ' lances de escada' END);
+    END IF;
   END IF;
 
   -- PET: so quando o anuncio fala (a frase dele, sem numero de unidade)

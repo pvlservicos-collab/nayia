@@ -1,4 +1,4 @@
-# nai_conferencia  (tabela, ~25375 linhas)
+# nai_conferencia  (tabela, ~27968 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('nai_conferencia_id_seq'::regclass)
