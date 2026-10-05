@@ -361,7 +361,10 @@ body{overflow:auto}
 .pinw{width:0!important;height:0!important;border:0;background:transparent}
 /* menor (02/10 à noite: "os números estão muito grandes") e a SETA mais clara: clara no fundo escuro, mais
    comprida, com um pontinho branco exatamente no lugar do imóvel */
-.ux-preco-pin{position:absolute;left:0;top:0;transform:translate(-50%,calc(-100% - 9px));border:0;cursor:pointer;white-space:nowrap;
+/* 05/10 ("os números estão muito grandes, diminui 60%, nem dá pra ver o nome dos bairros"): com a cidade inteira
+   na tela o pino tem 40% do tamanho; ao aproximar ele cresce até o normal (--pin-escala, em imoveis-enviar.js).
+   A ponta continua no lugar do imóvel: a escala parte dela. */
+.ux-preco-pin{position:absolute;left:0;top:0;transform:translate(-50%,calc(-100% - 9px)) scale(var(--pin-escala,.4));transform-origin:50% calc(100% + 9px);border:0;cursor:pointer;white-space:nowrap;
   font:700 9px/1 "Barlow",Arial,sans-serif;letter-spacing:.01em;color:#fff;padding:3px 5px;border-radius:6px;font-variant-numeric:tabular-nums;
   background:linear-gradient(160deg,#a78bfa 0%,#7c3aed 45%,#4c1d95 100%);box-shadow:0 1px 4px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.3)}
 .ux-preco-pin::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border-left:4px solid transparent;border-right:4px solid transparent;border-top:7px solid #ddd6fe}
@@ -546,7 +549,6 @@ body{overflow:auto}
       <button class="ftog" id="ftog" aria-label="Mostrar filtros" aria-expanded="false"><i data-lucide="sliders-horizontal"></i><span class="bd" id="ftogBd"></span></button>
     </div>
     <div id="sheetF"></div>
-    <button class="listbtn" id="listbtn" aria-controls="results"><i data-lucide="list"></i><span id="listbtnTxt">Ver lista de imóveis</span></button>
   </div>
   <div class="sel-h"><b>Selecionados</b><span class="n" id="nSel"></span><button class="clear" id="clearAll">Limpar</button></div>
   <div class="sel-list" id="selList"></div>
@@ -560,6 +562,6 @@ body{overflow:auto}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/assets/js/config.js"></script>
-<script src="/assets/js/imoveis-enviar.js?v=20261005-zoom"></script>
+<script src="/assets/js/imoveis-enviar.js?v=20261005-pins"></script>
 </body>
 </html>

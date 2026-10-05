@@ -151,6 +151,14 @@ function criarMapa() {
   camada = L.layerGroup().addTo(mapa);
   mapa.on("click", () => { closePopup(); ativarMapa(true); });
   mapa.on("zoomend", mostrarRotulos);
+  /* o pino do preço segue o zoom: 40% com a cidade inteira na tela (os nomes dos bairros aparecem), normal de perto */
+  const escalaDosPinos = () => {
+    const z = mapa.getZoom();
+    const f = z >= 16 ? 1 : z >= 15 ? 0.8 : z >= 14 ? 0.65 : z >= 13 ? 0.5 : 0.4;
+    mapa.getContainer().style.setProperty("--pin-escala", f);
+  };
+  mapa.on("zoomend", escalaDosPinos);
+  escalaDosPinos();
   /* A RODINHA É SEMPRE DA PÁGINA (Pedro, 05/10: "ainda está dando zoom pelo scroll, sendo que pedi para trocar
      isso pela barra que aumenta ou diminui o zoom lateralmente"). Nenhum zoom pela rodinha, nem com Ctrl, nem
      depois de clicar no mapa. No computador o zoom é a barra deitada; no celular, a pinça de dois dedos. */
@@ -247,7 +255,8 @@ function closePopup() { if (popCode) { popCode = null; renderMap(); drawIcons();
 const listItems = () => base().filter(m => matchF(m, FS));
 function renderList() {
   const list = listItems();
-  $("#listbtnTxt").textContent = carregou ? `Ver lista: ${list.length} ${list.length === 1 ? "imóvel" : "imóveis"}` : "Ver lista de imóveis";
+  const botaoDaLista = $("#listbtnTxt");      // o botão "Ver lista" saiu do painel fixo em 05/10
+  if (botaoDaLista) botaoDaLista.textContent = carregou ? `Ver lista: ${list.length} ${list.length === 1 ? "imóvel" : "imóveis"}` : "Ver lista de imóveis";
   $("#resCount").textContent = carregou ? `${list.length} ${list.length === 1 ? "encontrado" : "encontrados"} · toque no imóvel para selecionar` : "";
   if (!carregou) {
     $("#list").innerHTML = `<div class="empty">${falhou ? 'Não consegui carregar os imóveis agora. <button class="vbtn" data-de-novo>Tentar de novo</button>' : "Carregando os imóveis…"}</div>`;
