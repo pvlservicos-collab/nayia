@@ -319,6 +319,10 @@ body{overflow:auto}
 .sel-list .it small{font-size:12px;padding:0 2px}
 .sel-list .it .rm{position:absolute;top:8px;right:8px;width:26px;height:26px;background:rgba(255,255,255,.95);box-shadow:0 2px 6px rgba(0,0,0,.15)}
 .sel-list .it .rm svg{width:14px;height:14px}
+/* a lixeira no meio do círculo: o botão tinha o recuo padrão do navegador e o ícone saía de lado */
+.rm{padding:0;line-height:0}
+.rm svg{display:block;margin:auto}
+.send[hidden]{display:none!important}
 .sel-list .sel-empty{flex:1}
 .it{display:grid;grid-template-columns:60px minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--soft);border-radius:12px;padding:5px}
 .it img{width:60px;height:46px;border-radius:8px;object-fit:cover;display:block}
@@ -564,6 +568,6 @@ body{overflow:auto}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/assets/js/config.js"></script>
-<script src="/assets/js/imoveis-enviar.js?v=20261005-pins4"></script>
+<script src="/assets/js/imoveis-enviar.js?v=20261005-rapido"></script>
 </body>
 </html>

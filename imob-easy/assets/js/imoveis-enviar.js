@@ -31,7 +31,13 @@ let IMOVEIS = [], carregou = false, falhou = false;
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const i = n => `<i data-lucide="${n}"></i>`;
-const drawIcons = () => { try { window.lucide && lucide.createIcons(); } catch (e) { /* ícones são enfeite */ } };
+// só os <i> que ainda não viraram ícone: redesenhar todos os da página a cada clique era o que travava (05/10)
+const drawIcons = raiz => {
+  try {
+    if (!window.lucide || !(raiz || document).querySelector("i[data-lucide]")) return;
+    lucide.createIcons(raiz ? { root: raiz } : undefined);      // com `raiz`, só os ícones daquele pedaço
+  } catch (e) { /* ícones são enfeite */ }
+};
 const norm = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const brl = n => "R$ " + Number(n).toLocaleString("pt-BR");
 const short = n => n >= 1e6 ? `R$ ${(n / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} mi`
@@ -283,6 +289,8 @@ function renderSel() {
   $("#ftogBd").textContent = fCount(FS); $("#ftogBd").classList.toggle("on", fCount(FS) > 0);
   $("#sendTxt").innerHTML = enviando ? "Enviando…" : n ? `Me envia <span class="lbl-long">${n === 1 ? "o imóvel" : `os ${n}`}</span>` : "Me envia";
   $("#send").disabled = !n || enviando;
+  // o botão só aparece com o WhatsApp preenchido (Pedro, 05/10): DDD + número
+  $("#send").hidden = digits(phone).length < 10;
 }
 
 /* ===== busca (sincronizada) ===== */
@@ -326,7 +334,7 @@ function togglePick(code) {
   if (!was && sel.length >= MAX_POR_ENVIO) { toast(`Dá para se enviar até ${MAX_POR_ENVIO} imóveis de cada vez. Envie esses e escolha os próximos.`); return; }
   if (was) sel = sel.filter(x => String(x.codigo) !== String(code));
   else sel.push({ codigo: m.codigo, titulo: m.titulo, sub: `${m.bairro || "Manaus"} · ${brl(preco(m))}${G.neg === "aluguel" ? "/mês" : ""}`, foto: m.foto ? foto(m, "medium") : "" });
-  saveSel(); renderAll();
+  saveSel(); pintarEscolha(code);
   if (!was) { try { $("#nSel").animate([{ transform: "scale(1)" }, { transform: "scale(1.4)" }, { transform: "scale(1)" }], { duration: 380 }); } catch (e) { /* enfeite */ } $("#selList").scrollTop = 0; }
   toast(was ? "Tirado dos selecionados" : "Adicionado aos selecionados");
 }
@@ -346,6 +354,26 @@ function meEnvia() {
     })
     .catch(() => toast("Sem conexão. Tente de novo em instantes."))
     .then(() => { enviando = false; renderAll(); });
+}
+
+/* SELECIONAR SEM REDESENHAR A TELA (Pedro, 05/10: "está meio lagado, otimize"). Cada clique refazia o mapa
+   inteiro, a lista inteira (com as fotos) e todos os ícones da página. Agora muda só o que mudou: a linha do
+   imóvel, os botões dele, o pino dele no mapa e o painel dos selecionados. */
+function pintarEscolha(code) {
+  const on = isSel(code), m = achar(code);
+  const row = document.getElementById("row-" + code);
+  if (row) { row.classList.toggle("sel", on); row.setAttribute("aria-pressed", on); }
+  document.querySelectorAll(`[data-pick="${code}"]`).forEach(b => {
+    b.setAttribute("aria-pressed", on);
+    b.innerHTML = on ? i("circle-check") + "Selecionado" : i("circle-plus") + "Selecionar";
+    drawIcons(b);
+  });
+  const g = m && lugarDe(code);
+  if (g) {
+    const pino = document.querySelector(`.ux-preco-pin[data-pin="${g.ims[0].codigo}"]`);
+    if (pino) pino.classList.toggle("sel", g.ims.some(x => isSel(x.codigo)));
+  }
+  renderSel(); drawIcons($("#selList"));
 }
 
 /* ===== render geral ===== */
@@ -427,7 +455,7 @@ document.addEventListener("click", e => {
   if (t.matches(".mchip") && t.dataset.f) { const F = FF(t.dataset.f), s = F[t.dataset.k], n = +t.dataset.n; s.has(n) ? s.delete(n) : s.add(n); renderAll(); if (t.dataset.f === "m") fit(); }
   if (t.dataset.clear) { resetF(FF(t.dataset.clear)); renderAll(); if (t.dataset.clear === "m") fit(); }
   if (t.hasAttribute("data-qclr")) setQ("", null);
-  if (t.dataset.rm) { sel = sel.filter(x => String(x.codigo) !== t.dataset.rm); saveSel(); renderAll(); }
+  if (t.dataset.rm) { const fora = t.dataset.rm; sel = sel.filter(x => String(x.codigo) !== fora); saveSel(); pintarEscolha(fora); }
   if (t.id === "clearAll") { sel = []; saveSel(); renderAll(); }
   if (t.id === "listbtn") $("#results").scrollIntoView({ behavior: "smooth", block: "start" });
   if (t.id === "ftog") {
@@ -458,7 +486,7 @@ document.addEventListener("input", e => {
   const t = e.target;
   if (t.dataset.f && (t.dataset.k === "min" || t.dataset.k === "max")) { const d = t.value.replace(/\D/g, ""); t.value = d ? Number(d).toLocaleString("pt-BR") : ""; FF(t.dataset.f)[t.dataset.k] = t.value; renderMap(); renderList(); renderSel(); syncF(t.dataset.f, FF(t.dataset.f)); drawIcons(); }
   if (t.hasAttribute("data-q")) setQ(t.value, t);
-  if (t.id === "phone") { phone = digits(t.value); t.value = fmt(phone); t.classList.remove("bad"); $("#err").textContent = ""; try { localStorage.setItem(PKEY, phone); } catch (err) { /* idem */ } }
+  if (t.id === "phone") { phone = digits(t.value); t.value = fmt(phone); t.classList.remove("bad"); $("#err").textContent = ""; try { localStorage.setItem(PKEY, phone); } catch (err) { /* idem */ } $("#send").hidden = digits(phone).length < 10; }
 });
 $("#q").addEventListener("keydown", e => {
   const items = [...document.querySelectorAll(".sug")];
