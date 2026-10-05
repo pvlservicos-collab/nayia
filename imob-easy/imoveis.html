@@ -476,6 +476,9 @@ body{overflow:auto}
 /* NO CELULAR O MAPA É MAIS BAIXO (Pedro, 03/10: "tá muito grande verticalmente no mobile"): cerca de um terço da
    tela, e não mais tudo o que sobrava entre o topo e o painel de baixo */
 @media (max-width:1023px){.map{height:clamp(231px,37.4dvh,363px)!important}}
+/* 05/10 (Pedro): o mapa fica limpo, sem o menu da direita (zoom, centralizar, fundo) nem a etiqueta de baixo.
+   Escondidos, e não apagados: o script ainda os procura. */
+.map .zoom,.map .maptag{display:none!important}
 
 /* O PAINEL FIXO DE BAIXO ~15% MAIS ALTO (Pedro, 03/10: "onde o cara digita o imóvel, e o card fixo de baixo, tá
    pequeno verticalmente"): a busca do painel, o botão do filtro, o da lista, o campo do WhatsApp e o Me envia */
@@ -561,6 +564,6 @@ body{overflow:auto}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/assets/js/config.js"></script>
-<script src="/assets/js/imoveis-enviar.js?v=20261005-pins2"></script>
+<script src="/assets/js/imoveis-enviar.js?v=20261005-pins3"></script>
 </body>
 </html>
