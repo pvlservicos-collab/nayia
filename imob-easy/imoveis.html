@@ -9,8 +9,14 @@
 <title>Imóveis para enviar · Imob Easy</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- 06/10: o navegador já abre a conexão com quem a página vai pedir (API, mapa, bibliotecas) -->
+<link rel="preconnect" href="https://api.imobeasy.online" crossorigin>
+<link rel="preconnect" href="https://tile.openstreetmap.org">
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/lucide@1.50.0/dist/umd/lucide.min.js"></script>
+<!-- os quatro scripts têm defer: baixam junto com a página, sem travar o desenho, e rodam nesta ordem -->
+<script defer src="https://cdn.jsdelivr.net/npm/lucide@1.50.0/dist/umd/lucide.min.js"></script>
 <style>
 :root{
   --bg:#F7F2FB; --surface:#FFFFFF; --soft:#F6F1FC; --field:#F5F0FD; --ink:#17121F; --ink-2:#3A3150; --muted:#7A7290; --line:#E8E0F2; --line-2:#DCCFF0;
@@ -659,6 +665,70 @@ body{overflow:auto}
   .hpill b{display:none}
   .hpill span{display:flex;align-items:center;min-height:100%}
 }
+/* ===== 06/10 (Pedro): DESIGN FINO, sem mudar o que já é bom =====
+   Botão selecionado ganha uma sombra leve da cor dele; cards, balões e popups trocam a borda sólida por uma
+   linha quase transparente com sombrinha; transições curtas em tudo o que muda de estado. */
+:root{
+  --sh-xs:0 1px 2px rgba(23,18,31,.06),0 2px 6px rgba(74,29,150,.06);
+  --sh-sm:0 2px 6px rgba(23,18,31,.06),0 8px 22px rgba(74,29,150,.09);
+  --sh-md:0 6px 18px rgba(23,18,31,.10),0 18px 44px rgba(74,29,150,.14);
+  --sh-brand:0 3px 10px rgba(109,40,217,.28),0 1px 2px rgba(74,29,150,.18);
+  --sh-ok:0 3px 10px rgba(20,134,92,.22);
+  --line-soft:rgba(74,29,150,.08);
+}
+/* transições curtas nos botões e cartões */
+.seg button,.tgrp button,.hchip,.mchip,.tab,.pick,.vbtn,.listbtn,.minbtn,.hpfil,.hfil,.ftog,.hpill,.send,.hver,.hp-in,.phone,.rm,.sbox,.row,.hlimpa{
+  transition:background-color .15s ease,color .15s ease,border-color .15s ease,box-shadow .18s ease,transform .12s ease}
+/* BOTÕES SELECIONADOS: sombra leve roxa (ou verde, no que está na lista) */
+.seg button[aria-pressed="true"],.tgrp button[aria-pressed="true"],.hchip[aria-pressed="true"],.mchip[aria-pressed="true"]{box-shadow:var(--sh-brand)}
+.hp.open .hfil,.sheet.fopen .ftog{box-shadow:var(--sh-brand)}
+.tab[aria-selected="true"],.listbtn[aria-expanded="true"]{box-shadow:0 2px 8px rgba(109,40,217,.12)}
+.pick{box-shadow:0 2px 8px rgba(109,40,217,.22)}
+.pick[aria-pressed="true"]{box-shadow:inset 0 0 0 1.5px var(--ok),var(--sh-ok)}
+/* toque e passar o mouse: um levantar discreto */
+@media (hover:hover){
+  .hchip:not([aria-pressed="true"]):hover,.vbtn:hover,.listbtn:not([aria-expanded="true"]):hover,.minbtn:hover{box-shadow:var(--sh-xs);border-color:#CDB8F0}
+  .pick:hover{filter:brightness(1.05);box-shadow:0 4px 12px rgba(109,40,217,.3)}
+  .send:not(:disabled):hover{box-shadow:0 10px 24px rgba(109,40,217,.34);transform:translateY(-1px)}
+  .row:hover{box-shadow:var(--sh-sm)}
+}
+.seg button:active,.tgrp button:active,.hchip:active,.pick:active,.vbtn:active,.send:active,.hver:active,.listbtn:active{transform:scale(.97)}
+/* CARDS DA LISTA: borda quase transparente e sombrinha, em vez da linha sólida */
+.row{border-color:var(--line-soft);box-shadow:var(--sh-xs)}
+.row.sel{border-color:rgba(109,40,217,.55);box-shadow:0 0 0 3px var(--brand-soft),var(--sh-xs)}
+.row.focus{box-shadow:0 0 0 4px #C9B2F5,var(--sh-sm)}
+/* escolhidos no painel de baixo */
+.sel-list .it,.it{border:1px solid var(--line-soft);box-shadow:var(--sh-xs)}
+.pl{border:1px solid var(--line-soft)}
+/* BALÕES E POPUPS: sombra macia e uma linha fininha só para separar do fundo */
+.popup{border:1px solid rgba(255,255,255,.7);box-shadow:var(--sh-md)}
+.sugs,.hlist{border-color:var(--line-soft);box-shadow:var(--sh-md)}
+.hp{border-color:var(--line-soft);box-shadow:var(--sh-sm)}
+.hp-c+.hp-c,.hp-r2{border-color:rgba(74,29,150,.07)}
+.hpill,.hpfil{border-color:var(--line-soft)!important}
+/* campos: linha suave; a borda roxa aparece só no foco */
+.hp-in,.phone{border-color:var(--line-soft)}
+.hp-in:focus,.phone:focus{border-color:var(--brand)}
+/* botões redondos e pílula de Venda/Locação */
+.ftog,.hfil,.minbtn,.vbtn,.listbtn{border-color:var(--line-soft);box-shadow:var(--sh-xs)}
+.hneg .seg{box-shadow:var(--sh-xs);border-color:var(--line-soft)}
+/* barra de zoom e lupa no computador */
+.zoom,.zbar{box-shadow:var(--sh-sm)}
+/* o painel fixo de baixo: sombra mais suave e uma linha quase invisível */
+.sheet{box-shadow:0 -6px 30px rgba(74,29,150,.14),0 -1px 0 rgba(74,29,150,.06)}
+@media (min-width:1024px){ .sheet{border-left-color:var(--line-soft);box-shadow:-8px 0 28px rgba(74,29,150,.09)} }
+/* a barra de filtros fixa: sombra que desce suave */
+.hbar{box-shadow:0 4px 16px rgba(74,29,150,.07),0 1px 0 rgba(74,29,150,.04)}
+@media (max-width:760px){
+  .hp-c,.hp-c+.hp-c{border-color:var(--line-soft);box-shadow:var(--sh-xs)}
+  .hbar.aberto .hfull{box-shadow:0 24px 60px rgba(23,18,31,.32),0 0 0 1px rgba(255,255,255,.6)}
+  .hfull-h,.hfull-f{border-color:var(--line-soft)}
+  .hpill,.hpfil{box-shadow:var(--sh-sm)}
+  .hpill:active,.hpfil:active{transform:scale(.98)}
+}
+/* o Ver dentro do balão não precisa de sombra: já está dentro de uma */
+.popup .vbtn,.pl .vbtn{box-shadow:none}
+.popup .pick,.pl .pick{box-shadow:0 1px 4px rgba(109,40,217,.2)}
 </style>
 </head>
 <body>
@@ -725,8 +795,8 @@ body{overflow:auto}
 </section>
 <div class="toast" id="toast" role="status"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/assets/js/config.js"></script>
-<script src="/assets/js/imoveis-enviar.js?v=20261006-logo"></script>
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script defer src="/assets/js/config.js"></script>
+<script defer src="/assets/js/imoveis-enviar.js?v=20261006-rapido"></script>
 </body>
 </html>
