@@ -829,6 +829,45 @@ body{overflow:auto}
   .toast{left:calc(14px + min(520px,calc(100vw - var(--mapa-w,35vw) - 28px)) / 2);transform:translateX(-50%) translateY(16px)}
   .toast.show{transform:translateX(-50%) translateY(0)}
 }
+/* ===== 06/10 (Pedro): NO COMPUTADOR O MAPA OCUPA METADE DA TELA, E O PAINEL DE ENVIO EM 3D (cartão só) =====
+   "quero o mapa ocupando metade da tela" e "a aba enviar para mim tá um container com fundo roxo dentro de um
+   branco, quero um container só, com fundo com esses detalhes rosa e roxo, para se destacar da parte de trás que
+   tem os imóveis, com um efeito 3D". Sai o cartão de dentro: o painel inteiro é o gradiente roxo→rosa, com brilho
+   em cima, uma "base" mais escura embaixo (a espessura do 3D) e sombra longa; o campo e os selecionados ficam
+   brancos por cima dele. Vem por cima das regras do PC logo acima. */
+@media (min-width:1024px){
+  :root{--mapa-w:50vw}
+  .sheet{border:0;border-radius:20px;overflow:visible;
+    background:
+      radial-gradient(120% 140% at 0% 0%,rgba(255,255,255,.22) 0%,rgba(255,255,255,0) 45%),
+      radial-gradient(90% 120% at 100% 100%,rgba(230,0,126,.55) 0%,rgba(230,0,126,0) 60%),
+      linear-gradient(135deg,#5B21B6 0%,#7C3AED 45%,#C026D3 80%,#E6007E 100%);
+    box-shadow:
+      inset 0 1.5px 0 rgba(255,255,255,.45),
+      inset 0 -2px 0 rgba(0,0,0,.18),
+      0 6px 0 #3B0F7A,
+      0 8px 0 rgba(59,15,122,.55),
+      0 22px 40px rgba(76,29,149,.45),
+      0 40px 70px rgba(230,0,126,.18);
+    transform:perspective(900px) rotateX(2deg) translateY(-2px);transform-origin:50% 100%;
+    transition:transform .2s ease,box-shadow .2s ease}
+  .sheet:hover{transform:perspective(900px) rotateX(0deg) translateY(-4px)}
+  .sh-send{margin:0;padding:12px 14px;border:0;border-radius:0;background:transparent}
+  .phone{background:rgba(255,255,255,.96);border:0;box-shadow:inset 0 2px 4px rgba(40,20,80,.18),0 1px 0 rgba(255,255,255,.35)}
+  .phone:focus{box-shadow:0 0 0 3px rgba(255,255,255,.55)}
+  .send{background:#fff;color:var(--brand-dark);box-shadow:0 3px 0 #D9C8F5,0 8px 16px rgba(40,20,80,.28)}
+  .send:not(:disabled):hover{transform:translateY(-1px)}
+  .send:disabled{background:rgba(255,255,255,.35);color:#fff;opacity:1;box-shadow:none}
+  .err{color:#FFE4F1}
+  .sel-h{border:0}
+  .sel-h b{color:#fff}
+  .sel-h .n{background:#fff;color:var(--brand-dark)}
+  .sel-h .n.z{background:rgba(255,255,255,.4);color:#fff}
+  .sel-h .clear{color:rgba(255,255,255,.85)}
+  .minbtn{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.45);color:#fff}
+  .sel-list .it{background:#fff;box-shadow:0 3px 0 rgba(59,15,122,.35),0 8px 14px rgba(40,20,80,.22)}
+  .toast{left:calc(14px + min(520px,calc(100vw - var(--mapa-w) - 28px)) / 2)}
+}
 </style>
 </head>
 <body>
