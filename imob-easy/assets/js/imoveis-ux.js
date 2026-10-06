@@ -91,8 +91,23 @@
      vêm de /api/imoveis/opcoes, lá embaixo. */
   function aoMudarFiltro() { recomecar(); }
   var msBairrosL = window.criarMultiSelecao($("f-bairros"), { dica: "todos os bairros", aoMudar: aoMudarFiltro });
-  var msTiposL = window.criarMultiSelecao($("f-tipos"), { dica: "outros tipos",
+  var msOutrosTipos = window.criarMultiSelecao($("f-tipos"), { dica: "outros tipos",
     aoMudar: function () { pintarTiposRapidos(); aoMudarFiltro(); } });
+  /* Para o resto da tela os tipos são uma lista só. Por dentro, os três principais moram nos
+     botões e o campo "outros tipos" guarda (e lista) só os demais -- sem repetir os de fora. */
+  var tiposEmBotao = [];
+  function ePrincipal(v) { return TIPOS_PRINCIPAIS.indexOf(v) >= 0; }
+  var msTiposL = {
+    valores: function () { return tiposEmBotao.concat(msOutrosTipos.valores()); },
+    definir: function (vs) {
+      vs = vs || [];
+      tiposEmBotao = TIPOS_PRINCIPAIS.filter(function (t) { return vs.indexOf(t) >= 0; });
+      msOutrosTipos.definir(vs.filter(function (v) { return !ePrincipal(v); }));
+      pintarTiposRapidos();
+    },
+    limpar: function () { tiposEmBotao = []; msOutrosTipos.limpar(); },
+    opcoes: function (os) { msOutrosTipos.opcoes((os || []).filter(function (o) { return !ePrincipal(o.valor); })); }
+  };
   /* TIPOS EM BOTÃO (Pedro, 06/10: "deixa selecionável mesmo os principais, o resto no +").
      Os três principais ficam à mostra; o "+" abre o campo de várias escolhas com todos. */
   var TIPOS_PRINCIPAIS = ["Apartamento", "Casa", "Casa de condomínio"], contaDosTipos = {}, tiposAbertos = false;
@@ -117,7 +132,6 @@
       if (!b) return;
       var t = b.dataset.tipoRapido, vs = msTiposL.valores();
       msTiposL.definir(vs.indexOf(t) >= 0 ? vs.filter(function (v) { return v !== t; }) : vs.concat([t]));
-      pintarTiposRapidos();
       aoMudarFiltro();
     });
     pintarTiposRapidos();
