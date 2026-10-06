@@ -63,11 +63,21 @@
     { chave: "imoveis",       rotulo: "Todos os Imóveis", href: "imoveis.html" },
     { chave: "proprietarios", rotulo: "Proprietários",    href: "proprietarios.html" },
     { chave: "corretores",    rotulo: "Corretores",       href: "corretores.html" },
-    { chave: "locacao",       rotulo: "Locação",          href: "locacao.html" },
     { chave: "oportunidades", rotulo: "Oportunidades",    href: "oportunidades.html" },
-    { chave: "captacao",      rotulo: "Captação",         href: "captacao.html" },
+    /* 06/10/2026 (Pedro: "vou reformular o site: pega o Locação e põe dentro de Captação"): Captação abre um
+       menu com as duas páginas; nenhuma das duas mudou. */
+    { chave: "captacao",      rotulo: "Captação",         href: "captacao.html",
+      filhos: [{ rotulo: "Captação", href: "captacao.html", chave: "captacao" },
+               { rotulo: "Locação",  href: "locacao.html",  chave: "locacao" }] },
     // A AGENDA DOS GRUPOS (Pedro, 03/10/2026): "uma aba Grupos... ao lado da captação"
-    { chave: "grupos",        rotulo: "Grupos",           href: "grupos.html" }
+    { chave: "grupos",        rotulo: "Grupos",           href: "grupos.html" },
+    /* 06/10/2026 (Pedro: "vou reformular a Nay completamente, então pode juntar tudo na Nay antiga"): as quatro
+       telas da Nay de hoje num menu só. As páginas são as mesmas; saíram do "Mais". */
+    { chave: "nay-antiga",    rotulo: "Nay antiga",       href: "nay-locacao.html",
+      filhos: [{ rotulo: "Nay Locação",      href: "nay-locacao.html",   chave: "nay-locacao" },
+               { rotulo: "Nay Captação",     href: "nay-captacao.html",  chave: "nay-captacao" },
+               { rotulo: "Cérebro da Nay",   href: "nay-cerebro.html",   chave: "nay-cerebro" },
+               { rotulo: "Estrutura da Nay", href: "nay-estrutura.html", chave: "nay-estrutura" }] }
     /* Clientes e Vagas foram para o "Mais" (Tel, 28/09) */
   ];
 
@@ -75,10 +85,6 @@
     { rotulo: "Clientes",          href: "clientes.html",    chave: "clientes" },
     { rotulo: "Vagas",             href: "vagas.html",       chave: "vagas" },
     { rotulo: "Fluxo de mensagens", href: "fluxo.html",      chave: "fluxo" },
-    { rotulo: "Nay Locação",       href: "nay-locacao.html", chave: "nay-locacao" },
-    { rotulo: "Nay Captação",      href: "nay-captacao.html", chave: "nay-captacao" },
-    { rotulo: "Cérebro da Nay",    href: "nay-cerebro.html", chave: "nay-cerebro" },
-    { rotulo: "Estrutura da Nay",  href: "nay-estrutura.html", chave: "nay-estrutura" },
     { rotulo: "Condomínios",       href: "condominios.html", chave: "condominios" },
     { rotulo: "Anúncios",          href: "anuncios.html",    chave: "anuncios" },
     { rotulo: "Listas",            href: "listas.html",      chave: "listas" },
@@ -115,8 +121,20 @@
     "</header>";
 
   /* ---- Navegação principal ---- */
+  var SETA = '<svg viewBox="0 0 12 12" width="10" height="10" fill="currentColor" aria-hidden="true"><path d="M1 3.5 6 9l5-5.5Z"/></svg>';
   var itens = MENU.map(function (item) {
     var ativo = item.chave === atual;
+    if (item.filhos) {
+      var dentro = item.filhos.some(function (f) { return f.chave === atual; });
+      return '<div class="menu-mais">' +
+        '<button class="nav-principal__item' + (dentro ? " ativo" : "") + '" type="button" aria-haspopup="true" aria-expanded="false" data-abre-mais>' +
+          '<span class="icone">' + (ICONE[item.chave] || ICONE.folha) + "</span>" + item.rotulo + " " + SETA +
+        "</button>" +
+        '<ul class="menu-mais__lista" style="left:0;right:auto">' + item.filhos.map(function (f) {
+          return '<li><a href="' + f.href + '"' + (f.chave === atual ? ' aria-current="page"' : "") + ">" + f.rotulo + "</a></li>";
+        }).join("") + "</ul>" +
+      "</div>";
+    }
     return (
       '<a class="nav-principal__item" href="' + item.href + '"' + (ativo ? ' aria-current="page"' : "") + ">" +
         '<span class="icone">' + ICONE[item.chave] + "</span>" + item.rotulo +
@@ -172,26 +190,29 @@
   if (alvoRodape) alvoRodape.outerHTML = rodape;
 
   /* ---- Menu "Mais" ---- */
-  var gatilho = document.querySelector("[data-abre-mais]");
-  if (gatilho) {
-    var lista = gatilho.nextElementSibling;
-
-    function alternar(abrir) {
-      lista.dataset.aberto = abrir ? "true" : "false";
-      gatilho.setAttribute("aria-expanded", abrir ? "true" : "false");
-    }
-
-    gatilho.addEventListener("click", function (evento) {
+  /* os menus que abrem (Captação, Nay antiga e Mais): cada botão abre a própria lista e fecha as outras */
+  var gatilhos = [].slice.call(document.querySelectorAll("[data-abre-mais]"));
+  function alternar(g, abrir) {
+    var lista = g.nextElementSibling;
+    lista.dataset.aberto = abrir ? "true" : "false";
+    g.setAttribute("aria-expanded", abrir ? "true" : "false");
+  }
+  function fecharTodos(menos) { gatilhos.forEach(function (g) { if (g !== menos) alternar(g, false); }); }
+  gatilhos.forEach(function (g) {
+    g.addEventListener("click", function (evento) {
       evento.stopPropagation();
-      alternar(lista.dataset.aberto !== "true");
+      var abrir = g.nextElementSibling.dataset.aberto !== "true";
+      fecharTodos(g); alternar(g, abrir);
     });
-
+  });
+  if (gatilhos.length) {
     document.addEventListener("click", function (evento) {
-      if (!evento.target.closest(".menu-mais")) alternar(false);
+      if (!evento.target.closest(".menu-mais")) fecharTodos(null);
     });
-
     document.addEventListener("keydown", function (evento) {
-      if (evento.key === "Escape") { alternar(false); gatilho.focus(); }
+      if (evento.key !== "Escape") return;
+      var aberto = gatilhos.filter(function (g) { return g.getAttribute("aria-expanded") === "true"; })[0];
+      fecharTodos(null); if (aberto) aberto.focus();
     });
   }
 
