@@ -32,9 +32,11 @@
   var css = document.createElement("style");
   css.textContent =
     ".campo-bairro{position:relative}" +
-    ".campo-bairro__lista{position:absolute;left:0;right:0;top:100%;z-index:60;background:#fff;" +
+    // 05/10 (Pedro): a lista não aparecia -- o painel da busca tem overflow:hidden e cortava a lista
+    // que descia por dentro dele. Agora ela fica presa à tela (fixed), fora do painel, embaixo do campo.
+    ".campo-bairro__lista{position:fixed;z-index:1000;background:#fff;" +
     "border:1px solid var(--borda,#d9dce3);border-radius:var(--raio-md,8px);" +
-    "box-shadow:0 8px 24px rgba(20,30,60,.14);max-height:280px;overflow-y:auto;margin-top:4px;text-align:left}" +
+    "box-shadow:0 8px 24px rgba(20,30,60,.14);max-height:280px;overflow-y:auto;text-align:left}" +
     ".campo-bairro__lista[hidden]{display:none}" +
     ".campo-bairro__item{display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;border:0;" +
     "background:#fff;padding:9px 12px;cursor:pointer;font:inherit;font-size:var(--fs-sm,14px);color:var(--texto,#1c2533)}" +
@@ -52,7 +54,19 @@
   lista.className = "campo-bairro__lista";
   lista.setAttribute("role", "listbox");
   lista.hidden = true;
-  caixa.appendChild(lista);
+  document.body.appendChild(lista);
+
+  function posicionar() {
+    if (lista.hidden) return;
+    var r = input.getBoundingClientRect();
+    var largura = Math.max(r.width, 240);
+    lista.style.left = Math.max(8, Math.min(r.left, window.innerWidth - largura - 8)) + "px";
+    lista.style.top = (r.bottom + 4) + "px";
+    lista.style.width = largura + "px";
+    lista.style.maxHeight = Math.max(140, Math.min(280, window.innerHeight - r.bottom - 12)) + "px";
+  }
+  window.addEventListener("scroll", posicionar, true);
+  window.addEventListener("resize", posicionar);
 
   input.setAttribute("autocomplete", "off");
   input.setAttribute("role", "combobox");
@@ -76,9 +90,15 @@
 
   function desenhar() {
     var busca = normalizar(input.value);
-    mostrados = bairros.filter(function (b) {
-      return !busca || normalizar(b.bairro).indexOf(busca) >= 0;
+    // "ao digitar as letras iniciais já filtre": primeiro quem COMEÇA com o que foi digitado,
+    // depois quem tem uma palavra começando assim ("dez" acha "Parque Dez").
+    var comeca = [], palavra = [];
+    bairros.forEach(function (b) {
+      var nome = normalizar(b.bairro);
+      if (!busca || nome.indexOf(busca) === 0) comeca.push(b);
+      else if ((" " + nome).indexOf(" " + busca) >= 0) palavra.push(b);
     });
+    mostrados = comeca.concat(palavra);
     ativo = -1;
 
     if (!bairros.length) { fechar(); return; }
@@ -98,6 +118,7 @@
   function abrir() {
     lista.hidden = false;
     input.setAttribute("aria-expanded", "true");
+    posicionar();
   }
 
   function fechar() {
@@ -144,6 +165,9 @@
   });
 
   document.addEventListener("click", function (e) {
-    if (!caixa.contains(e.target)) fechar();
+    if (!caixa.contains(e.target) && !lista.contains(e.target)) fechar();
   });
+
+  // a lista já fica baixada: no primeiro toque ela desce na hora
+  carregar();
 })();
