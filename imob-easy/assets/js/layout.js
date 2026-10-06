@@ -73,7 +73,8 @@
     { chave: "grupos",        rotulo: "Grupos",           href: "grupos.html" },
     /* 06/10/2026 (Pedro: "põe a Nay antiga dentro do menu Mais e deixa no lugar um menu Nova Nay ... esse menu
        vazio por enquanto"). As telas da Nay de hoje estão no "Mais", no grupo "Nay antiga". */
-    { chave: "nova-nay",      rotulo: "Nova Nay",         href: "#", filhos: [] }
+    /* "esse Nova Nay não é uma lista, é só um menu clicável, e o conteúdo eu já coloco": vai para nova-nay.html */
+    { chave: "nova-nay",      rotulo: "Nova Nay",         href: "nova-nay.html" }
     /* Clientes e Vagas foram para o "Mais" (Tel, 28/09) */
   ];
 
@@ -140,7 +141,7 @@
     }
     return (
       '<a class="nav-principal__item" href="' + item.href + '"' + (ativo ? ' aria-current="page"' : "") + ">" +
-        '<span class="icone">' + ICONE[item.chave] + "</span>" + item.rotulo +
+        '<span class="icone">' + (ICONE[item.chave] || ICONE.folha) + "</span>" + item.rotulo +
       "</a>"
     );
   }).join("");
