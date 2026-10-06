@@ -877,6 +877,15 @@ body{overflow:auto}
   .minbtn{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.45);color:#fff}
   .sel-list .it{background:#fff;box-shadow:0 4px 10px rgba(40,20,80,.18)}
 }
+/* 06/10 (Pedro): vários bairros/condomínios -- cada escolhido vira uma etiqueta embaixo do campo, com um x */
+.hlocw{flex:1;min-width:0}
+.htags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.htags[hidden]{display:none}
+.htag{display:inline-flex;align-items:center;gap:4px;background:var(--brand-soft);color:var(--brand-dark);border:1px solid #DCCBF7;border-radius:999px;padding:3px 4px 3px 10px;font-size:12.5px;font-weight:600;line-height:1.2;max-width:100%}
+.htag button{flex:none;width:18px;height:18px;padding:0;line-height:0;border:0;border-radius:50%;background:rgba(109,40,217,.14);color:var(--brand-dark);cursor:pointer;display:grid;place-items:center}
+.htag button:hover{background:var(--brand);color:#fff}
+.htag button svg{width:11px;height:11px;display:block}
+@media (min-width:1024px){ .hlocw{flex:none;width:230px} .hloc{width:auto} .hp-r1 .hp-c:first-child{align-items:flex-start} .htags{max-width:230px} }
 </style>
 </head>
 <body>
@@ -945,6 +954,6 @@ body{overflow:auto}
 
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="/assets/js/config.js"></script>
-<script defer src="/assets/js/imoveis-enviar.js?v=20261006-barra2"></script>
+<script defer src="/assets/js/imoveis-enviar.js?v=20261006-varios"></script>
 </body>
 </html>

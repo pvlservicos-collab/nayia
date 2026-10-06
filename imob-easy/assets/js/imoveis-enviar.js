@@ -56,7 +56,7 @@ const G = { neg: "venda", q: "" };
 const preco = m => G.neg === "aluguel" ? m.aluguel : m.venda;
 const priceTxt = m => G.neg === "aluguel" ? `${brl(m.aluguel)}<span>/mês</span>` : brl(m.venda);
 const local = m => [m.condominio, m.bairro].filter(Boolean).join(" · ");
-const newF = () => ({ loc: "", tipo: "", quartos: new Set(), vagas: new Set(), mob: new Set(), min: "", max: "" });
+const newF = () => ({ locs: [], tipo: "", quartos: new Set(), vagas: new Set(), mob: new Set(), min: "", max: "" });
 const FM = newF(), FS = FM;      // 06/10: um filtro só -- o de cima vale para o mapa e para a lista
 let focusCode = null, popCode = null;
 const SKEY = "imobeasy_lista_envio", PKEY = "imobeasy_whatsapp";
@@ -70,7 +70,8 @@ function matchQ(m) { if (!G.q) return true; const q = norm(G.q); return [m.codig
 const numSel = (set, v) => !set.size || [...set].some(n => n === 4 ? v >= 4 : v === n);
 const parseV = s => Number(String(s).replace(/\D/g, "")) || 0;
 function matchF(m, F) {
-  if (F.loc) { const [k, v] = F.loc.split("|"); if (k === "b" && m.bairro !== v) return false; if (k === "c" && m.condominio !== v) return false; }
+  // VÁRIOS LUGARES (Pedro, 06/10: "dá para selecionar vários bairros"): serve o imóvel de QUALQUER um dos escolhidos
+  if (F.locs.length && !F.locs.some(l => { const [k, v] = l.split("|"); return k === "b" ? m.bairro === v : m.condominio === v; })) return false;
   if (F.tipo && m.tipo !== F.tipo) return false;
   if (!numSel(F.quartos, m.quartos || 0) || !numSel(F.vagas, m.vagas || 0)) return false;
   if (F.mob.size && !F.mob.has(m.mobilia)) return false;      // 297: 'mobiliado' | 'semi'
@@ -79,18 +80,18 @@ function matchF(m, F) {
   return true;
 }
 const base = () => IMOVEIS.filter(m => preco(m) > 0 && matchQ(m));
-const fCount = F => (F.loc ? 1 : 0) + (F.tipo ? 1 : 0) + (F.quartos.size ? 1 : 0) + (F.vagas.size ? 1 : 0) + (F.mob.size ? 1 : 0) + (F.min || F.max ? 1 : 0);
+const fCount = F => (F.locs.length ? 1 : 0) + (F.tipo ? 1 : 0) + (F.quartos.size ? 1 : 0) + (F.vagas.size ? 1 : 0) + (F.mob.size ? 1 : 0) + (F.min || F.max ? 1 : 0);
 function syncF(id, F) {
   syncH();
   ["#mapF", "#sheetF", "#listF"].forEach(s => {
     const root = $(s); if (!root || !root.firstElementChild) return;
-    root.querySelector('[data-k="loc"]').value = F.loc; root.querySelector('[data-k="tipo"]').value = F.tipo;
+    root.querySelector('[data-k="loc"]').value = F.locs[0] || ""; root.querySelector('[data-k="tipo"]').value = F.tipo;
     root.querySelector('[data-k="min"]').value = F.min; root.querySelector('[data-k="max"]').value = F.max;
     root.querySelectorAll(".mchip").forEach(c => c.setAttribute("aria-pressed", F[c.dataset.k].has(+c.dataset.n)));
     root.querySelector(".fclr").classList.toggle("on", fCount(F) > 0);
   });
 }
-const resetF = F => { F.loc = ""; F.tipo = ""; F.quartos.clear(); F.vagas.clear(); F.mob.clear(); F.min = ""; F.max = ""; };
+const resetF = F => { F.locs.length = 0; F.tipo = ""; F.quartos.clear(); F.vagas.clear(); F.mob.clear(); F.min = ""; F.max = ""; };
 
 /* ===== O FILTRO ÚNICO, FIXO EMBAIXO DO MENU (Pedro, 06/10) =====
    "quero esse filtro que tem na home ... põe o venda e locação clicável em cima da barra de pesquisa, e troca o
@@ -115,7 +116,7 @@ function painelHTML() {
       <div class="hneg"><div class="seg" role="group" aria-label="Venda ou locação"><button type="button" data-neg="venda" aria-pressed="${G.neg === "venda"}">Venda</button><button type="button" data-neg="aluguel" aria-pressed="${G.neg === "aluguel"}">Locação</button></div><button type="button" class="hclr" data-clear="m" hidden>Limpar filtros</button></div>
       <div class="hp" id="hp">
         <div class="hp-r hp-r1">
-          <div class="hp-c"><small>${e("📍")}Bairro/Condomínio</small><div class="hloc"><input class="hp-in" id="hloc" type="text" autocomplete="off" placeholder="Selecione o Bairro/Condomínio" aria-label="Bairro, condomínio ou código"><div class="hlist" id="hlist" role="listbox"></div></div></div>
+          <div class="hp-c"><small>${e("📍")}Bairro/Condomínio</small><div class="hlocw"><div class="hloc"><input class="hp-in" id="hloc" type="text" autocomplete="off" placeholder="Selecione o Bairro/Condomínio" aria-label="Bairro, condomínio ou código"><div class="hlist" id="hlist" role="listbox"></div></div><div class="htags" id="htags" hidden></div></div></div>
           <div class="hp-c"><small>${e("🏠")}Tipo de Imóvel</small><div class="hchips" id="htipos"></div></div>
         </div>
         <div class="hp-r hp-r2">
@@ -132,11 +133,12 @@ function painelHTML() {
 function resumoH() {
   const T = $("#hpT"); if (!T) return;
   const n = carregou ? listItems().length : null;
-  const onde = FM.loc ? FM.loc.split("|")[1] : "Manaus";
+  const nomes = FM.locs.map(l => l.split("|")[1]);
+  const onde = nomes.length ? (nomes.length > 2 ? nomes.slice(0, 2).join(", ") + " +" + (nomes.length - 2) : nomes.join(", ")) : "Manaus";
   T.textContent = `${FM.tipo || "Imóveis"} ${G.neg === "aluguel" ? "para alugar" : "à venda"} em ${onde}`;
   const partes = [];
   if (FM.tipo) partes.push(FM.tipo);
-  if (FM.loc) partes.push(onde);
+  if (FM.locs.length) partes.push(onde);
   if (FM.quartos.size) { const q = [...FM.quartos].sort().map(x => x === 4 ? "4+" : x); partes.push(q.join(", ") + (q.length === 1 && q[0] === 1 ? " quarto" : " quartos")); }
   if (FM.mob.size) partes.push([...FM.mob].map(x => x === "semi" ? "Semimobiliado" : "Mobiliado").join(" ou "));
   if (FM.min || FM.max) partes.push(FM.min && FM.max ? `R$ ${FM.min} a ${FM.max}` : FM.min ? `a partir de R$ ${FM.min}` : `até R$ ${FM.max}`);
@@ -167,7 +169,17 @@ function syncH() {
   hp.querySelectorAll(".mchip").forEach(c => c.setAttribute("aria-pressed", FM.quartos.has(+c.dataset.n)));
   hp.querySelectorAll("[data-mob]").forEach(c => c.setAttribute("aria-pressed", FM.mob.has(c.dataset.mob)));
   hp.querySelectorAll("input[data-k]").forEach(c => { if (c !== document.activeElement) c.value = FM[c.dataset.k]; });
-  const loc = $("#hloc"); if (loc !== document.activeElement) loc.value = FM.loc ? FM.loc.split("|")[1] : "";
+  // as etiquetas dos lugares escolhidos, embaixo do campo (o campo fica livre para escolher o próximo)
+  const tags = $("#htags");
+  if (tags) {
+    tags.hidden = !FM.locs.length;
+    tags.innerHTML = FM.locs.map(l => `<span class="htag">${esc(l.split("|")[1])}<button type="button" data-hrm="${esc(l)}" aria-label="Tirar ${esc(l.split("|")[1])}">${i("x")}</button></span>`).join("");
+    drawIcons(tags);
+    // a barra muda de altura com as etiquetas: a lista (e o popup) acompanham
+    if (tags.dataset.n !== String(FM.locs.length)) { tags.dataset.n = FM.locs.length; requestAnimationFrame(measure); }
+  }
+  const loc = $("#hloc"); if (loc && loc !== document.activeElement) loc.value = "";
+  if (loc) loc.placeholder = FM.locs.length ? "Adicionar outro bairro/condomínio" : "Selecione o Bairro/Condomínio";
   const limpar = document.querySelector(".hclr"); if (limpar) limpar.hidden = !fCount(FM);
   resumoH();
 }
@@ -178,6 +190,8 @@ function pintarLocais() {
   // primeiro quem COMEÇA com o que foi digitado, depois quem tem uma palavra começando assim
   const acha = c => { const todos = [...c.keys()].sort(ptBR); return todos.filter(n => !q || norm(n).startsWith(q)).concat(todos.filter(n => q && !norm(n).startsWith(q) && (" " + norm(n)).includes(" " + q))); };
   const bs = conta("bairro"), cs = conta("condominio");
+  const ja = new Set(FM.locs);      // o que já virou etiqueta não aparece de novo na lista
+  [bs, cs].forEach((mapa, idx) => [...mapa.keys()].forEach(n => { if (ja.has((idx ? "c|" : "b|") + n)) mapa.delete(n); }));
   const item = (k, n, c) => `<button type="button" data-hloc="${k}|${esc(n)}" role="option"><span>${esc(n)}</span><small>${c} ${c === 1 ? "imóvel" : "imóveis"}</small></button>`;
   let html = "";
   if (/^\d+$/.test(q)) html += IMOVEIS.filter(m => String(m.codigo).startsWith(q)).slice(0, 6).map(m => `<button type="button" data-go="${m.codigo}" role="option"><span>Cód. ${m.codigo} · ${esc(m.titulo)}</span></button>`).join("");
@@ -191,19 +205,23 @@ const fecharLocais = () => { const b = $("#hlist"); if (b) b.classList.remove("o
 document.addEventListener("focusin", e => { if (e.target.id === "hloc") pintarLocais(); });
 document.addEventListener("input", e => {
   if (e.target.id !== "hloc") return;
-  if (!e.target.value.trim() && FM.loc) { FM.loc = ""; renderAll(); fit(); }
   pintarLocais();
 });
 document.addEventListener("keydown", e => {
   if (e.target.id !== "hloc") return;
   if (e.key === "Escape") fecharLocais();
+  if (e.key === "Backspace" && !e.target.value && FM.locs.length) { FM.locs.pop(); renderAll(); fit(); pintarLocais(); }
   if (e.key === "Enter") { e.preventDefault(); const primeiro = document.querySelector("#hlist.open button"); if (primeiro) primeiro.click(); }
 });
 document.addEventListener("click", e => {
   if (!e.target.closest(".hloc")) fecharLocais();
   if (e.target.id === "hbar") { abrirFiltros(false); return; }      // tocou no escuro, fora do popup
   const t = e.target.closest("button"); if (!t) return;
-  if (t.dataset.hloc) { FM.loc = t.dataset.hloc; fecharLocais(); $("#hloc").blur(); renderAll(); fit(); }
+  if (t.dataset.hloc) {
+    if (!FM.locs.includes(t.dataset.hloc)) FM.locs.push(t.dataset.hloc);
+    $("#hloc").value = ""; fecharLocais(); $("#hloc").blur(); renderAll(); fit();
+  }
+  if (t.dataset.hrm) { const k = FM.locs.indexOf(t.dataset.hrm); if (k >= 0) FM.locs.splice(k, 1); renderAll(); fit(); }
   if (t.dataset.go && t.closest("#hlist")) { fecharLocais(); $("#hloc").blur(); }
   if (t.dataset.htipo) { FM.tipo = FM.tipo === t.dataset.htipo ? "" : t.dataset.htipo; renderAll(); fit(); }
   if (t.hasAttribute("data-hmais")) { hMais = !hMais; syncH(); measure(); }
