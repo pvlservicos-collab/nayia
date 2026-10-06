@@ -124,12 +124,21 @@
     $("#priceCard").innerHTML = html; $("#priceMobile").innerHTML = html;
   }
 
+  (function () {
+    var b = document.getElementById("voltar"); if (!b) return;
+    b.addEventListener("click", function () {
+      var veioDaqui = false;
+      try { veioDaqui = !!document.referrer && new URL(document.referrer).origin === location.origin; } catch (e) { /* idem */ }
+      if (veioDaqui && history.length > 1) history.back(); else location.href = "/imoveis";
+    });
+  })();
+
   /* A página é aberta: mostra a REGIÃO (condomínio, bairro, cidade), nunca a rua nem o número. */
   function renderLocal() {
     var campos = [["condominio", "Condomínio"], ["bairro", "Bairro"], ["cidade", "Cidade"]];
     var temMapa = I.geo && has(I.geo.lat) && has(I.geo.lon);
     $("#locB").innerHTML =
-      (temMapa ? '<div class="map" id="mapa"><span class="maptag" style="z-index:500">' + i("map-pin") + "Região aproximada</span></div>" : "") +
+      (temMapa ? '<div class="map mapa--escuro" id="mapa"><span class="maptag" style="z-index:500">' + i("map-pin") + "Região aproximada</span></div>" : "") +
       '<div class="addr"><b>' + esc(L.condominio || L.bairro || "") + "</b><small>" +
       esc([L.bairro, [L.cidade, L.estado].filter(has).join(" - ")].filter(has).join(", ")) + "</small></div>" + kvList(campos, L);
     if (temMapa) carregarMapa(Number(I.geo.lat), Number(I.geo.lon));
@@ -143,9 +152,27 @@
     js.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
     js.onload = function () {
       try {
-        var mapa = window.L.map("mapa", { scrollWheelZoom: false, attributionControl: true, zoomControl: true }).setView([lat, lon], 14);
-        window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 16, attribution: "© OpenStreetMap" }).addTo(mapa);
-        window.L.circle([lat, lon], { radius: 500, color: "#6D28D9", weight: 2, dashArray: "6 5", fillColor: "#6D28D9", fillOpacity: 0.16 }).addTo(mapa);
+        /* O MESMO MAPA DO /imoveis (Pedro, 06/10): escuro, com as divisas e os nomes dos bairros e o pino roxo
+           com o preço. No computador a rodinha dá zoom; no celular, a pinça. O ponto é o mesmo de lá (arredondado). */
+        var LL = window.L, toque = window.matchMedia("(pointer:coarse)").matches;
+        var mapa = LL.map("mapa", { scrollWheelZoom: !toque, attributionControl: true, zoomControl: false, minZoom: 10 }).setView([lat, lon], 14);
+        mapa.attributionControl.setPrefix(false);
+        LL.control.zoom({ position: "bottomright" }).addTo(mapa);
+        LL.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, subdomains: "abc", attribution: "&copy; OpenStreetMap" }).addTo(mapa);
+        var valor = Number(has(V.aluguel) ? V.aluguel : V.venda) || 0;
+        var curto = !valor ? "Imóvel" : valor >= 1e6 ? (valor / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 2 }) + " mi"
+          : valor >= 1e4 ? Math.round(valor / 1e3).toLocaleString("pt-BR") + " mil"
+          : (valor / 1e3).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mil";
+        LL.marker([lat, lon], { keyboard: false, interactive: false, zIndexOffset: 900,
+          icon: LL.divIcon({ className: "pinw", iconSize: null, html: '<span class="ux-preco-pin">' + esc(curto) + "</span>" }) }).addTo(mapa);
+        mapa.createPane("rotulosBairro"); mapa.getPane("rotulosBairro").style.zIndex = 450; mapa.getPane("rotulosBairro").style.pointerEvents = "none";
+        fetch(API + "/api/mapa/bairros").then(function (r) { return r.ok ? r.json() : []; }).then(function (bs) {
+          bs.forEach(function (b) {
+            if (b.poligono) LL.geoJSON(b.poligono, { interactive: false, style: { color: "#c4b5fd", weight: 1.2, opacity: .6, fillColor: "#c4b5fd", fillOpacity: .04 } }).addTo(mapa);
+            LL.tooltip({ permanent: true, direction: "center", className: "ux-rotulo-bairro", interactive: false, pane: "rotulosBairro" })
+              .setLatLng([b.lat, b.lon]).setContent(esc(b.bairro)).addTo(mapa);
+          });
+        }).catch(function () { /* sem as divisas o mapa continua servindo */ });
       } catch (e) { var m = $("#mapa"); if (m) m.remove(); }
     };
     js.onerror = function () { var m = $("#mapa"); if (m) m.remove(); };

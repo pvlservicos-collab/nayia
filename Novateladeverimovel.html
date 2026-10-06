@@ -30,7 +30,25 @@ svg.lucide{width:18px;height:18px;flex:none;stroke-width:2}
 /* topo do site */
 .site{position:sticky;top:0;z-index:30;background:#fff;box-shadow:0 2px 14px rgba(74,29,150,.07);padding-top:env(safe-area-inset-top,0px)}
 .site-in{max-width:1280px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:16px}
-.logo{display:flex;align-items:center;gap:6px;text-decoration:none;line-height:.85}
+/* 06/10 (Pedro): a seta de voltar à esquerda e a logo à direita */
+.logo{display:flex;align-items:center;gap:6px;text-decoration:none;line-height:.85;margin-left:auto}
+.voltar{flex:none;width:42px;height:42px;border-radius:50%;border:1.5px solid var(--line);background:#fff;color:var(--brand-dark);cursor:pointer;display:grid;place-items:center}
+.voltar:hover{background:var(--brand-soft)}
+.voltar svg.lucide{width:22px;height:22px}
+/* O MAPA É O MESMO DO /imoveis (06/10): OpenStreetMap com o filtro escuro, divisas e nomes dos bairros, e o pino
+   roxo com o preço. As regras são as de imoveis.html. */
+.map.mapa--escuro{background:#1d1b22}
+.mapa--escuro .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) grayscale(1) brightness(.92) contrast(.88)}
+.leaflet-tooltip.ux-rotulo-bairro{background:transparent;border:0;box-shadow:none;font-weight:700;font-size:11px;white-space:nowrap;padding:0;color:#ede9fe;text-shadow:0 0 3px #000,0 0 3px #000}
+.leaflet-tooltip.ux-rotulo-bairro::before{display:none}
+.map .leaflet-container,.map.leaflet-container{font-family:inherit}
+.map .leaflet-control-attribution{font-size:10.5px;background:rgba(255,255,255,.8)!important}
+.pinw{width:0!important;height:0!important;border:0;background:transparent}
+.ux-preco-pin{position:absolute;left:0;top:0;transform:translate(-50%,calc(-100% - 9px));white-space:nowrap;
+  font:700 12px/1 "Barlow",Arial,sans-serif;letter-spacing:.01em;color:#fff;padding:5px 8px;border-radius:7px;font-variant-numeric:tabular-nums;
+  background:linear-gradient(160deg,#a78bfa 0%,#7c3aed 45%,#4c1d95 100%);box-shadow:0 1px 4px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.3)}
+.ux-preco-pin::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid #ddd6fe}
+.ux-preco-pin::before{content:"";position:absolute;left:50%;top:calc(100% + 7px);width:6px;height:6px;margin-left:-3px;border-radius:50%;background:#fff;box-shadow:0 0 0 1.5px #7c3aed,0 0 3px rgba(0,0,0,.6)}
 .logo .mk{width:34px;height:30px}
 .logo .w{display:flex;flex-direction:column;font-weight:700;color:var(--brand-dark)}
 .logo .w small{font-size:14px;margin-left:4px}
@@ -239,6 +257,7 @@ svg.lucide{width:18px;height:18px;flex:none;stroke-width:2}
 
 <header class="site">
   <div class="site-in">
+    <button class="voltar" id="voltar" type="button" aria-label="Voltar"><i data-lucide="arrow-left"></i></button>
     <a class="logo" href="https://imobeasy.online" aria-label="Imob Easy">
       <svg class="mk" viewBox="0 0 34 30" aria-hidden="true"><path d="M3 11 L10 4 L17 11" fill="none" stroke="#E6007E" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 15 Q14 27 24 15" fill="none" stroke="#E6007E" stroke-width="4.5" stroke-linecap="round"/><rect x="24" y="6" width="7" height="5" rx="1.5" fill="#E6007E"/></svg>
       <span class="w"><small>imob</small><span>easy</span></span>
