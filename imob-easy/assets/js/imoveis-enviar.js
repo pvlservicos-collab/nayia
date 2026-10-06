@@ -80,20 +80,6 @@ function matchF(m, F) {
 }
 const base = () => IMOVEIS.filter(m => preco(m) > 0 && matchQ(m));
 const fCount = F => (F.loc ? 1 : 0) + (F.tipo ? 1 : 0) + (F.quartos.size ? 1 : 0) + (F.vagas.size ? 1 : 0) + (F.mob.size ? 1 : 0) + (F.min || F.max ? 1 : 0);
-function fbarHTML(id) {
-  const bairros = [...new Set(IMOVEIS.map(m => m.bairro).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
-  const condos = [...new Set(IMOVEIS.map(m => m.condominio).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
-  const tipos = [...new Set(IMOVEIS.map(m => m.tipo).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
-  const ch = k => [1, 2, 3, 4].map(n => `<button type="button" class="mchip" data-f="${id}" data-k="${k}" data-n="${n}" aria-pressed="false">${n === 4 ? "4+" : n}</button>`).join("");
-  return `<div class="fbar" role="group" aria-label="Filtros ${id === "m" ? "do mapa" : "da lista"}">
-    <label class="fs grow"><small>Bairro/Condomínio</small><select data-f="${id}" data-k="loc"><option value="">Todos</option><optgroup label="Bairros">${bairros.map(b => `<option value="b|${esc(b)}">${esc(b)}</option>`).join("")}</optgroup><optgroup label="Condomínios">${condos.map(c => `<option value="c|${esc(c)}">${esc(c)}</option>`).join("")}</optgroup></select></label>
-    <label class="fs"><small>Tipo de imóvel</small><select data-f="${id}" data-k="tipo"><option value="">Todos</option>${tipos.map(t => `<option>${esc(t)}</option>`).join("")}</select></label>
-    <div class="fs"><small>Quartos</small><div class="mchips">${ch("quartos")}</div></div>
-    <div class="fs"><small>Garagem</small><div class="mchips">${ch("vagas")}</div></div>
-    <div class="fs"><small>Valor</small><div class="val"><input data-f="${id}" data-k="min" inputmode="numeric" placeholder="De" aria-label="Valor mínimo">–<input data-f="${id}" data-k="max" inputmode="numeric" placeholder="Até" aria-label="Valor máximo"></div></div>
-    <button type="button" class="fclr" data-clear="${id}" aria-label="Limpar filtros">${i("rotate-ccw")}</button>
-  </div>`;
-}
 function syncF(id, F) {
   syncH();
   ["#mapF", "#sheetF", "#listF"].forEach(s => {
@@ -536,10 +522,8 @@ function measure() {
   if (mapa) mapa.invalidateSize();
 }
 function montarFiltros() {
+  // 06/10: só o filtro único de cima; as barras antigas (#mapF, #sheetF, #listF) ficam vazias e escondidas
   const hpanel = $("#hpanel"); if (hpanel) hpanel.innerHTML = painelHTML();
-  $("#mapF").innerHTML = fbarHTML("m");
-  $("#sheetF").innerHTML = fbarHTML("s");
-  $("#listF").innerHTML = fbarHTML("s");
 }
 
 /* O link pode abrir já num imóvel, numa busca ou em Alugar:

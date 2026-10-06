@@ -155,7 +155,10 @@ def cors(resp):
     # valor antigo e parecia que a mudanca tinha voltado (revisao 11/09).
     if request.method == "GET" and request.path == "/api/imoveis":
         resp.headers["Cache-Control"] = "public, max-age=60"
-    else:
+    elif "Cache-Control" not in resp.headers:
+        # 06/10 (Pedro, "otimiza o /imoveis"): a rota que já disse quanto tempo pode guardar é respeitada
+        # (imoveis-para-enviar 2 min, mapa/bairros 1 h, imoveis/opcoes 5 min). Este else apagava isso com
+        # no-store, e o /imoveis baixava 220 KB da API a cada abertura. Quem não diz nada continua no-store.
         resp.headers["Cache-Control"] = "no-store"
     return resp
 
