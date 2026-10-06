@@ -146,16 +146,19 @@
     );
   }).join("");
 
+  var grupoAberto = SUBMENU.some(function (i) { return i.recuo && i.chave === atual; });
   var subitens = SUBMENU.map(function (item) {
     var ativo = item.chave && item.chave === atual;
-    // título de grupo ("Nay antiga") e o fim do grupo (uma linha fina)
+    // GRUPO QUE ABRE E FECHA (Pedro, 06/10: "não quero esses menus ocupando tudo isso de espaço no Mais ... deixa
+    // só Nay antiga lá, e quando eu selecionar aparecem esses antigos"). Começa fechado, a não ser que a página
+    // aberta seja uma deles.
     if (item.grupo !== undefined) {
-      return item.grupo
-        ? '<li role="presentation" style="padding:10px 14px 4px;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--texto-fraco);border-top:1px solid var(--borda);margin-top:4px">' + item.grupo + "</li>"
-        : '<li role="presentation" style="border-top:1px solid var(--borda);margin:4px 0"></li>';
+      if (!item.grupo) return "";
+      return '<li><button type="button" data-abre-grupo aria-expanded="' + grupoAberto + '" style="display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;border:0;background:transparent;cursor:pointer;padding:10px 14px;border-radius:var(--raio-sm);font:inherit;font-size:var(--fs-md);color:var(--texto);text-align:left">' +
+        item.grupo + '<svg viewBox="0 0 12 12" width="10" height="10" fill="currentColor" aria-hidden="true" style="transition:transform .15s;' + (grupoAberto ? "transform:rotate(180deg)" : "") + '"><path d="M1 3.5 6 9l5-5.5Z"/></svg></button></li>';
     }
     if (item.recuo && item.href !== "#") {
-      return '<li><a href="' + item.href + '"' + (ativo ? ' aria-current="page"' : "") + ' style="padding-left:24px">' + item.rotulo + "</a></li>";
+      return '<li data-do-grupo' + (grupoAberto ? "" : " hidden") + '><a href="' + item.href + '"' + (ativo ? ' aria-current="page"' : "") + ' style="padding-left:28px">' + item.rotulo + "</a></li>";
     }
     // Sem página ainda: aparece apagado e diz isso, em vez de um link "#"
     // que não fazia nada (revisão 11/09/2026).
@@ -203,7 +206,18 @@
   if (alvoRodape) alvoRodape.outerHTML = rodape;
 
   /* ---- Menu "Mais" ---- */
-  /* os menus que abrem (Captação, Nay antiga e Mais): cada botão abre a própria lista e fecha as outras */
+  /* "Nay antiga" dentro do Mais: o clique abre e fecha só o grupo (o Mais continua aberto) */
+  document.querySelectorAll("[data-abre-grupo]").forEach(function (b) {
+    b.addEventListener("click", function (evento) {
+      evento.stopPropagation();
+      var abrir = b.getAttribute("aria-expanded") !== "true";
+      b.setAttribute("aria-expanded", abrir ? "true" : "false");
+      b.querySelector("svg").style.transform = abrir ? "rotate(180deg)" : "";
+      b.closest("ul").querySelectorAll("[data-do-grupo]").forEach(function (li) { li.hidden = !abrir; });
+    });
+  });
+
+  /* os menus que abrem (Captação e Mais): cada botão abre a própria lista e fecha as outras */
   var gatilhos = [].slice.call(document.querySelectorAll("[data-abre-mais]"));
   function alternar(g, abrir) {
     var lista = g.nextElementSibling;
