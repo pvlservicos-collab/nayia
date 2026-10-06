@@ -53,10 +53,8 @@ svg.lucide{width:18px;height:18px;flex:none;stroke-width:2}
   background:linear-gradient(160deg,#a78bfa 0%,#7c3aed 45%,#4c1d95 100%);box-shadow:0 1px 4px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.3)}
 .ux-preco-pin::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid #ddd6fe}
 .ux-preco-pin::before{content:"";position:absolute;left:50%;top:calc(100% + 7px);width:6px;height:6px;margin-left:-3px;border-radius:50%;background:#fff;box-shadow:0 0 0 1.5px #7c3aed,0 0 3px rgba(0,0,0,.6)}
-.logo .mk{width:34px;height:30px}
-.logo .w{display:flex;flex-direction:column;font-weight:700;color:var(--brand-dark)}
-.logo .w small{font-size:14px;margin-left:4px}
-.logo .w span{font-size:25px;letter-spacing:-.02em}
+/* 06/10 (Pedro): a logo é a MESMA do site (assets/img/logo.svg, 42px como na home), não mais um desenho */
+.logo img{height:42px;width:auto;display:block}
 .mode{margin-left:auto;display:flex;background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:3px}
 .mode button{border:0;background:transparent;border-radius:999px;padding:6px 14px;font-weight:500;font-size:13.5px;cursor:pointer;color:var(--muted)}
 .mode button[aria-pressed="true"]{background:var(--brand);color:#fff}
@@ -236,9 +234,7 @@ svg.lucide{width:18px;height:18px;flex:none;stroke-width:2}
 /* celulares pequenos (até 400px) */
 @media (max-width:400px){
   .site-in{padding:10px 12px}
-  .logo .mk{width:28px;height:25px}
-  .logo .w small{font-size:12px}
-  .logo .w span{font-size:19px}
+  .logo img{height:34px}
   .page{padding:0 10px 150px}
   .gal{margin:0 -10px 10px}
   .fic{padding:12px;border-radius:14px}
@@ -273,8 +269,7 @@ svg.lucide{width:18px;height:18px;flex:none;stroke-width:2}
   <div class="site-in">
     <button class="voltar" id="voltar" type="button" aria-label="Voltar"><i data-lucide="arrow-left"></i></button>
     <a class="logo" href="/" aria-label="Imob Easy">
-      <svg class="mk" viewBox="0 0 34 30" aria-hidden="true"><path d="M3 11 L10 4 L17 11" fill="none" stroke="#E6007E" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 15 Q14 27 24 15" fill="none" stroke="#E6007E" stroke-width="4.5" stroke-linecap="round"/><rect x="24" y="6" width="7" height="5" rx="1.5" fill="#E6007E"/></svg>
-      <span class="w"><small>imob</small><span>easy</span></span>
+      <img src="/assets/img/logo.svg" alt="Imob Easy">
     </a>
   </div>
 </header>

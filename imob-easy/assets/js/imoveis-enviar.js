@@ -313,7 +313,11 @@ const curto = n => n >= 1e6 ? (n / 1e6).toLocaleString("pt-BR", { maximumFractio
   : n >= 1e4 ? Math.round(n / 1e3).toLocaleString("pt-BR") + " mil"
   : (n / 1e3).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mil";
 
-function viewArea() { return { top: ($("#mtop") ? $("#mtop").offsetHeight : 0) + 26, lado: 46 }; }
+function viewArea() {
+  // no computador a barra de filtros fica por cima do mapa (06/10): os pinos não podem ficar debaixo dela
+  const barra = side() && $("#hbar") ? $("#hbar").offsetHeight : 0;
+  return { top: ($("#mtop") ? $("#mtop").offsetHeight : 0) + barra + 26, lado: 46 };
+}
 function fit() {
   if (!mapa) return;
   mapa.invalidateSize();
@@ -517,7 +521,9 @@ function pintarEscolha(code) {
 
 /* ===== render geral ===== */
 function renderAll() { renderMap(); renderList(); renderSel(); syncF("m", FM); syncF("s", FS); drawIcons(); }
-const side = () => matchMedia("(min-width:1024px)").matches;
+/* 06/10 (Pedro): o painel de envio fica EMBAIXO também no computador (não mais na lateral direita); a altura
+   dele entra na conta da lista e do mapa em toda largura de tela */
+const side = () => false;
 function measure() {
   document.documentElement.style.setProperty("--head-h", $("#site").offsetHeight + "px");
   const hbar = $("#hbar"); if (hbar) document.documentElement.style.setProperty("--hbar-h", hbar.offsetHeight + "px");

@@ -29,6 +29,8 @@ html = re.sub(r"<title>.*?</title>", "<title>Imóvel · Imob Easy</title>", html
 
 # 3. o logo aponta para a raiz do site, e a página diz de onde veio
 html = html.replace('href="https://imobeasy.online"', 'href="/"')
+# 06/10: a logo é a do site; no desenho ela vem do ar, na página sai do próprio servidor
+html = html.replace('src="https://imobeasy.online/assets/img/logo.svg"', 'src="/assets/img/logo.svg"')
 html = html.replace("<head>", "<head>\n<!-- Gerado por scripts/montar_pagina_do_imovel.py a partir de Novateladeverimovel.html. "
                     "Não edite aqui: edite o desenho e gere de novo. -->", 1)
 
