@@ -860,6 +860,23 @@ body{overflow:auto}
   .send:disabled{background:#6D28D9;opacity:.4;box-shadow:none}
   .toast{left:calc(14px + min(520px,calc(100vw - var(--mapa-w) - 28px)) / 2)}
 }
+/* 06/10 (Pedro): "deixa esse flutuante de seu WhatsApp roxo sólido atrás, igual à cor do botão marcado quando
+   marca Venda ou Locação" -- o painel de envio no PC é var(--brand) liso (sem brilho, sem 3D); por cima dele o
+   campo e as miniaturas em branco, e o Me envia branco com letra roxa para não sumir no fundo. */
+@media (min-width:1024px){
+  .sheet{background:var(--brand);border:0;box-shadow:0 14px 32px rgba(76,29,149,.30)}
+  .phone{background:#fff;border:0;box-shadow:none}
+  .phone:focus{box-shadow:0 0 0 3px rgba(255,255,255,.45)}
+  .send{background:#fff;color:var(--brand);box-shadow:0 4px 12px rgba(40,20,80,.22)}
+  .send:disabled{background:rgba(255,255,255,.28);color:#fff;opacity:1;box-shadow:none}
+  .err{color:#FFE4F1}
+  .sel-h b{color:#fff}
+  .sel-h .n{background:#fff;color:var(--brand)}
+  .sel-h .n.z{background:rgba(255,255,255,.35);color:#fff}
+  .sel-h .clear{color:rgba(255,255,255,.85)}
+  .minbtn{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.45);color:#fff}
+  .sel-list .it{background:#fff;box-shadow:0 4px 10px rgba(40,20,80,.18)}
+}
 </style>
 </head>
 <body>
