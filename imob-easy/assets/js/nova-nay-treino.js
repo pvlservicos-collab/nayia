@@ -63,31 +63,55 @@
     var cl = (document.querySelector("[name=tr-class]:checked") || {}).value || "reusar";
     $("#tr-rodar").disabled = true;
     pega("execucoes", { conversas: convs, opcoes: { classificacao: cl }, criada_por: "painel" }).then(function (r) {
-      ATUAL = r.id; carregarExecucoes(); ligarRelogio();
+      ATUAL = r.id; $("#tr-resultado").hidden = false; $("#tr-resultado").innerHTML = '<p class="painel__vazio">Rodando a rodada #' + r.id + "… ela abre sozinha quando terminar.</p>"; delete $("#tr-resultado").dataset.pronta;
+      carregarExecucoes(); ligarRelogio(); $("#tr-rodar").disabled = false;
     }).catch(function (x) { alert("Não deu para criar a execução: " + x.message); $("#tr-rodar").disabled = false; });
   });
 
   /* ---- execuções ---- */
   var EXECS = [], ATUAL = null, relogio = null;
+  function rotuloDaRodada(e) {
+    var r = e.resumo || {};
+    return "#" + e.id + " · " + dataHora(e.criada_em) + " · " + (e.conversas || 0) + " conversas" +
+      (e.estado === "pronta" ? " · mesmo imóvel " + (r.iguais || 0) + "/" + (r.comparaveis || 0) + (e.versao_codigo ? " · versão " + e.versao_codigo : "")
+        : e.estado === "rodando" ? " · rodando " + (e.feitos || 0) + "/" + (e.total_turnos || 0)
+        : " · " + e.estado);
+  }
   function carregarExecucoes() {
     return pega("execucoes").then(function (lista) {
       EXECS = lista;
-      $("#tr-execucoes").innerHTML = lista.length ? lista.map(function (e) {
-        var r = e.resumo || {}, pct = e.total_turnos ? Math.round(100 * (e.feitos || 0) / e.total_turnos) : 0;
-        return '<div class="nn-exec" data-exec="' + e.id + '"' + (e.id === ATUAL ? ' aria-current="true"' : "") + "><b>#" + e.id + "</b><div>" + esc(dataHora(e.criada_em)) + " · " + (e.conversas || 0) + " conversas · " + (e.feitos || 0) + "/" + (e.total_turnos || 0) + " turnos" + (e.versao_codigo ? " · versão " + esc(e.versao_codigo) : "") +
-          (e.estado === "rodando" || e.estado === "fila" ? '<div class="barra"><i style="width:' + pct + '%"></i></div>' : "") +
-          (e.estado === "pronta" ? "<br><small>mesmo imóvel que o velho " + (r.iguais || 0) + "/" + (r.comparaveis || 0) + " · erros de código " + (r.erros || 0) + " · modelo " + (r.modelo_chamadas || 0) + "× (" + (r.modelo_reusadas || 0) + " reusadas)</small>" : "") +
-          (e.erro ? '<br><small style="color:#b53232">' + esc(e.erro) + "</small>" : "") +
-          '</div><span>' + usd(e.custo_real) + '</span><span class="estado ' + esc(e.estado) + '">' + esc(e.estado) + "</span></div>";
-      }).join("") : '<p class="painel__vazio">Nenhuma execução ainda.</p>';
-      if (!lista.some(function (e) { return e.estado === "rodando" || e.estado === "fila"; })) { clearInterval(relogio); relogio = null; }
+      var sel = $("#tr-rodada");
+      sel.innerHTML = lista.length ? lista.map(function (e, i) {
+        return '<option value="' + e.id + '"' + (e.id === ATUAL ? " selected" : "") + ">" + esc(rotuloDaRodada(e)) + (i === 0 ? " (a mais nova)" : "") + "</option>";
+      }).join("") : "<option value=\"\">nenhuma rodada ainda</option>";
+      sel.disabled = !lista.length; $("#tr-de-novo").disabled = !lista.length;
+      var viva = lista.filter(function (e) { return e.estado === "rodando" || e.estado === "fila"; })[0], and = $("#tr-andamento");
+      if (viva) {
+        var pct = viva.total_turnos ? Math.round(100 * (viva.feitos || 0) / viva.total_turnos) : 0;
+        and.hidden = false;
+        and.innerHTML = "<span>Rodada #" + viva.id + (viva.estado === "fila" ? " na fila…" : " rodando: " + (viva.feitos || 0) + " de " + (viva.total_turnos || 0) + " mensagens") + '</span><div class="barra"><i style="width:' + pct + '%"></i></div>';
+      } else { and.hidden = true; clearInterval(relogio); relogio = null; }
     });
   }
   function ligarRelogio() {
     if (relogio) return;
-    relogio = setInterval(function () { carregarExecucoes(); if (ATUAL) { var e = EXECS.filter(function (x) { return x.id === ATUAL; })[0]; if (e && e.estado === "pronta" && !$("#tr-resultado").dataset.pronta) abrirExecucao(ATUAL); } }, 3000);
+    relogio = setInterval(function () {
+      carregarExecucoes().then(function () {
+        var e = EXECS.filter(function (x) { return x.id === ATUAL; })[0];
+        if (e && e.estado === "pronta" && !$("#tr-resultado").dataset.pronta) abrirExecucao(ATUAL, true);
+      });
+    }, 2500);
   }
-  $("#tr-execucoes").addEventListener("click", function (e) { var x = e.target.closest("[data-exec]"); if (x) abrirExecucao(Number(x.dataset.exec)); });
+  $("#tr-rodada").addEventListener("change", function () { if ($("#tr-rodada").value) abrirExecucao(Number($("#tr-rodada").value), true); });
+  /* a mesma seleção de conversas, com o código de agora: é como se confere uma correção */
+  $("#tr-de-novo").addEventListener("click", function () {
+    if (!EXEC || !EXEC.selecao) return;
+    $("#tr-de-novo").disabled = true;
+    pega("execucoes", { conversas: EXEC.selecao.conversas, opcoes: { classificacao: "reusar" }, criada_por: "painel (de novo #" + EXEC.id + ")" }).then(function (r) {
+      ATUAL = r.id; $("#tr-resultado").innerHTML = '<p class="painel__vazio">Rodando a rodada #' + r.id + "… ela abre sozinha quando terminar.</p>"; delete $("#tr-resultado").dataset.pronta;
+      carregarExecucoes(); ligarRelogio();
+    }).catch(function (x) { alert("Não deu para rodar de novo: " + x.message); $("#tr-de-novo").disabled = false; });
+  });
 
   /* ---- resultado ---- */
   /* O desenho é o da rodada de treino antiga (Cérebro › Conversa): à esquerda a lista das conversas, à direita a
@@ -108,7 +132,7 @@
     pega("execucoes/" + id).then(function (e) {
       EXEC = e; CONVS = e.conversas || []; IDX = -1; TURNOS = null;
       var r = e.resumo || {};
-      if (e.estado === "pronta") box.dataset.pronta = "1";
+      if (e.estado === "pronta") box.dataset.pronta = "1"; else if (e.estado !== "erro") ligarRelogio();
       var outras = EXECS.filter(function (x) { return x.id !== id && x.estado === "pronta"; });
       box.innerHTML = '<div class="nn-resumo"><span>Execução <b>#' + id + '</b> <span class="estado ' + esc(e.estado) + '">' + esc(e.estado) + "</span></span><span><b>" + CONVS.length + "</b> conversas · <b>" + (e.feitos || 0) + "</b>/" + e.total_turnos + " mensagens</span><span>mesmo imóvel que antes <b>" + (r.iguais || 0) + "/" + (r.comparaveis || 0) + "</b></span><span>erros de código <b>" + (r.erros || 0) + "</b></span>" + (r.segundos ? "<span>rodou em <b>" + Math.round(r.segundos) + " s</b></span>" : "") + "<span>custo <b>" + usd(e.custo_real) + "</b></span>" + (e.erro ? '<span style="color:#b53232">' + esc(e.erro) + "</span>" : "") +
         (outras.length ? '<span class="nn-comparar">comparar com <select class="selecao" id="tr-outra"><option value="">—</option>' + outras.map(function (x) { return '<option value="' + x.id + '">#' + x.id + " · " + esc(dataHora(x.criada_em)) + "</option>"; }).join("") + "</select></span>" : "") + '</div><div id="tr-comp"></div>' +
