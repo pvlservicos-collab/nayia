@@ -564,27 +564,64 @@ body{overflow:auto}
 /* Venda/Locação menor, em cima da barra (06/10) */
 .hneg .seg{padding:3px}
 .hneg .seg button{padding:5px 16px;font-size:13px}
-/* CELULAR: o filtro INTEIRO aberto (Pedro, 06/10: "quero esse menu inteiro aberto no mobile, reorganize
-   melhor"): uma linha por filtro, com o rótulo ao lado, para caber tudo sem rolar */
+/* a pílula, o cabeçalho e o rodapé da tela de filtros só existem no celular */
+.hmini,.hfull-h,.hfull-f,.emo{display:none}
+/* CELULAR, ESTILO APLICATIVO (Pedro, 06/10): em cima só a pílula com o resumo e o ícone de filtros; tocar abre a
+   tela de filtros, com as opções lado a lado e um emoji em cada grupo */
 @media (max-width:760px){
-  .hbar{padding:5px 8px 7px}
-  .hneg{margin-bottom:5px}
-  .hneg .seg button{padding:4px 14px;font-size:12.5px}
-  .hclr{font-size:12px;right:0}
-  .hp{border-radius:14px}
-  .hp-r1,.hp-r2{grid-template-columns:minmax(0,1fr)}
-  .hp-r2{border-top:0}
-  .hp-c{display:flex;align-items:center;gap:8px;padding:6px 10px;border-top:1px solid var(--line)}
-  .hp-r1 .hp-c:first-child{border-top:0}
-  .hp-c+.hp-c{border-left:0}
-  .hp-c>small{flex:none;width:54px;margin:0;font-size:11.5px;line-height:1.15}
-  .hp-r1 .hp-c:first-child>small{display:none}    /* a busca fala por si */
-  .hp-c>.hloc,.hp-c>.hchips,.hp-c>.hval{flex:1;min-width:0}
-  .hp-in{padding:8px 10px;font-size:16px}          /* 16px: o iPhone não dá zoom no campo */
-  .hchip,.mchip.hchip{padding:5px 9px;font-size:12px;min-width:32px}
-  .hchips{gap:5px}
-  .hp-l{display:none}                             /* "Tipo", sem quebrar em duas linhas */
-  .hval{gap:6px}
+  .hbar{padding:7px 10px 8px;-webkit-backdrop-filter:none;backdrop-filter:none;background:#F7F2FB}
+  .hmini{display:flex;align-items:center;gap:8px}
+  .hpill{flex:1;min-width:0;display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:#fff;border-radius:999px;
+    padding:7px 16px 7px 14px;box-shadow:0 4px 14px rgba(40,30,70,.10);cursor:pointer;text-align:left;color:var(--ink)}
+  .hpill svg{flex:none;width:18px;height:18px;color:var(--brand)}
+  .hpill span{min-width:0;display:block}
+  .hpill b{display:block;font-size:14.5px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hpill small{display:block;font-size:12px;color:var(--muted);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hpfil{position:relative;flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--ink);
+    display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 14px rgba(40,30,70,.10)}
+  .hpfil svg{width:19px;height:19px}
+  .hpfil .bd{position:absolute;top:-3px;right:-3px;min-width:18px;height:18px;border-radius:999px;background:var(--brand);color:#fff;font-size:11px;
+    font-weight:600;display:none;place-items:center;padding:0 4px;border:2px solid #fff}
+  .hpfil .bd.on{display:grid}
+
+  /* a tela de filtros: sobe por cima de tudo, com cabeçalho e rodapé presos */
+  .hfull{display:none}
+  .hbar.aberto{z-index:70}
+  html.hmodal,html.hmodal body{overflow:hidden}
+  .hbar.aberto .hfull{display:flex;flex-direction:column;position:fixed;inset:0;z-index:70;background:#F7F2FB;
+    padding-top:env(safe-area-inset-top,0px);animation:hsobe .22s ease}
+  @keyframes hsobe{from{transform:translateY(28px)}to{transform:none}}
+  .hfull-h{display:flex;align-items:center;justify-content:center;position:relative;flex:none;padding:14px 16px;background:#fff;border-bottom:1px solid var(--line)}
+  .hfull-h b{font-size:17px;font-weight:600}
+  .hfull-h button{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;border:0;background:var(--soft);
+    display:grid;place-items:center;cursor:pointer;color:var(--ink)}
+  .hfull-b{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:14px 14px 20px;-webkit-overflow-scrolling:touch}
+  .hfull-f{display:flex;align-items:center;gap:12px;flex:none;padding:12px 14px calc(12px + env(safe-area-inset-bottom,0px));background:#fff;border-top:1px solid var(--line)}
+  .hlimpa{flex:none;border:0;background:transparent;font-size:15px;font-weight:600;text-decoration:underline;color:var(--ink);cursor:pointer;padding:10px 6px}
+  .hlimpa:disabled{opacity:.35;text-decoration:none}
+  .hver{flex:1;border:0;border-radius:14px;padding:15px 16px;font-size:15.5px;font-weight:600;color:#fff;cursor:pointer;
+    background:linear-gradient(135deg,var(--brand),var(--brand-2));box-shadow:0 8px 20px rgba(109,40,217,.28)}
+
+  .hneg{margin-bottom:14px}
+  .hneg .seg{width:100%;padding:4px}
+  .hneg .seg button{flex:1;padding:10px 12px;font-size:15px}
+  .hclr{display:none!important}                    /* no celular o Limpar é o do rodapé */
+  .emo{display:inline-block;margin-right:7px;font-size:17px;line-height:1}
+  .hp{background:transparent;border:0;box-shadow:none;border-radius:0;display:grid;gap:12px}
+  .hp-r{gap:12px}
+  .hp-r1{grid-template-columns:minmax(0,1fr)}
+  .hp-r2{grid-template-columns:minmax(0,1fr) minmax(0,1fr);border-top:0}         /* Quartos e Mobília lado a lado */
+  .hp-r2 .hp-c:nth-child(1) .hchips{display:grid;grid-template-columns:1fr 1fr}  /* 1 2 / 3 4+, do tamanho dos dois de Mobília */
+  .hp-r2 .hp-c:nth-child(2) .hchips{display:grid;grid-template-columns:1fr}
+  .hp-r2 .hchip{text-align:center;padding-left:6px;padding-right:6px}
+  .hp-r2 .hp-c:last-child{grid-column:1 / -1}                                    /* Valor na largura toda */
+  .hp-c,.hp-c+.hp-c{background:#fff;border:1px solid var(--line);border-radius:16px;padding:13px 14px 14px;box-shadow:0 2px 8px rgba(40,30,70,.05)}
+  .hp-c>small{display:flex;align-items:center;font-size:14.5px;font-weight:600;color:var(--ink);margin-bottom:10px}
+  .hp-in{padding:12px 13px;font-size:16px;border-radius:12px}                     /* 16px: o iPhone não dá zoom no campo */
+  .hchips{gap:7px}
+  .hchip,.mchip.hchip{padding:9px 14px;font-size:14px;min-width:44px}
+  .hval{gap:10px}
+  .hlist{max-height:44dvh}
 }
 /* a lupa de zoom volta NO COMPUTADOR (06/10): +, −, ver tudo e claro/escuro, no canto do mapa */
 @media (pointer:fine){ .map .zoom{display:grid!important} }
@@ -660,6 +697,6 @@ body{overflow:auto}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/assets/js/config.js"></script>
-<script src="/assets/js/imoveis-enviar.js?v=20261006-aberto"></script>
+<script src="/assets/js/imoveis-enviar.js?v=20261006-app"></script>
 </body>
 </html>

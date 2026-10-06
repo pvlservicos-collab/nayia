@@ -116,18 +116,51 @@ let hMais = false;
 const ptBR = (a, b) => a.localeCompare(b, "pt-BR");
 function painelHTML() {
   const ch = [1, 2, 3, 4].map(n => `<button type="button" class="mchip hchip" data-f="m" data-k="quartos" data-n="${n}" aria-pressed="false">${n === 4 ? "4+" : n}</button>`).join("");
-  return `<div class="hneg"><div class="seg" role="group" aria-label="Venda ou locação"><button type="button" data-neg="venda" aria-pressed="${G.neg === "venda"}">Venda</button><button type="button" data-neg="aluguel" aria-pressed="${G.neg === "aluguel"}">Locação</button></div><button type="button" class="hclr" data-clear="m" hidden>Limpar filtros</button></div>
-  <div class="hp" id="hp">
-    <div class="hp-r hp-r1">
-      <div class="hp-c"><small>Bairro/Condomínio</small><div class="hloc"><input class="hp-in" id="hloc" type="text" autocomplete="off" placeholder="Selecione o Bairro/Condomínio" aria-label="Bairro, condomínio ou código"><div class="hlist" id="hlist" role="listbox"></div></div></div>
-      <div class="hp-c hp-x"><small>Tipo<span class="hp-l"> de Imóvel</span></small><div class="hchips" id="htipos"></div></div>
+  const e = x => `<span class="emo" aria-hidden="true">${x}</span>`;
+  /* CELULAR, ESTILO APLICATIVO (Pedro, 06/10: "quero que fique o menor possível lá em cima ... quando clica ali
+     abre os filtros todos listados bonitinho até com emoji"): em cima só a pílula com o resumo (.hmini); tocar
+     abre a tela de filtros (.hfull). No computador a pílula não existe e o painel fica sempre aberto. */
+  return `<div class="hmini"><button type="button" class="hpill" data-habrir aria-label="Abrir os filtros">${i("search")}<span><b id="hpT"></b><small id="hpS"></small></span></button><button type="button" class="hpfil" data-habrir aria-label="Filtros">${i("sliders-horizontal")}<span class="bd" id="hfilBd"></span></button></div>
+  <div class="hfull" id="hfull">
+    <div class="hfull-h"><b>Filtros</b><button type="button" data-hfechar aria-label="Fechar os filtros">${i("x")}</button></div>
+    <div class="hfull-b">
+      <div class="hneg"><div class="seg" role="group" aria-label="Venda ou locação"><button type="button" data-neg="venda" aria-pressed="${G.neg === "venda"}">Venda</button><button type="button" data-neg="aluguel" aria-pressed="${G.neg === "aluguel"}">Locação</button></div><button type="button" class="hclr" data-clear="m" hidden>Limpar filtros</button></div>
+      <div class="hp" id="hp">
+        <div class="hp-r hp-r1">
+          <div class="hp-c"><small>${e("📍")}Bairro/Condomínio</small><div class="hloc"><input class="hp-in" id="hloc" type="text" autocomplete="off" placeholder="Selecione o Bairro/Condomínio" aria-label="Bairro, condomínio ou código"><div class="hlist" id="hlist" role="listbox"></div></div></div>
+          <div class="hp-c"><small>${e("🏠")}Tipo de Imóvel</small><div class="hchips" id="htipos"></div></div>
+        </div>
+        <div class="hp-r hp-r2">
+          <div class="hp-c"><small>${e("🛏️")}Quartos</small><div class="hchips">${ch}</div></div>
+          <div class="hp-c"><small>${e("🛋️")}Mobília</small><div class="hchips"><button type="button" class="hchip" data-mob="mobiliado" aria-pressed="false">Mobiliado</button><button type="button" class="hchip" data-mob="semi" aria-pressed="false">Semimobiliado</button></div></div>
+          <div class="hp-c"><small>${e("💰")}Valor</small><div class="hval"><input class="hp-in" data-f="m" data-k="min" inputmode="numeric" placeholder="De" aria-label="Valor mínimo"><input class="hp-in" data-f="m" data-k="max" inputmode="numeric" placeholder="Até" aria-label="Valor máximo"></div></div>
+        </div>
+      </div>
     </div>
-    <div class="hp-r hp-r2 hp-x">
-      <div class="hp-c"><small>Quartos</small><div class="hchips">${ch}</div></div>
-      <div class="hp-c"><small>Mobília</small><div class="hchips"><button type="button" class="hchip" data-mob="mobiliado" aria-pressed="false">Mobiliado</button><button type="button" class="hchip" data-mob="semi" aria-pressed="false">Semimobiliado</button></div></div>
-      <div class="hp-c"><small>Valor</small><div class="hval"><input class="hp-in" data-f="m" data-k="min" inputmode="numeric" placeholder="De" aria-label="Valor mínimo"><input class="hp-in" data-f="m" data-k="max" inputmode="numeric" placeholder="Até" aria-label="Valor máximo"></div></div>
-    </div>
+    <div class="hfull-f"><button type="button" class="hlimpa" data-clear="m">Limpar</button><button type="button" class="hver" data-hfechar id="hver">Ver imóveis</button></div>
   </div>`;
+}
+/* o resumo da pílula: "Apartamento à venda em Ponta Negra" / "2 e 3 quartos · Mobiliado · até R$ 500.000 · 12 imóveis" */
+function resumoH() {
+  const T = $("#hpT"); if (!T) return;
+  const n = carregou ? listItems().length : null;
+  const onde = FM.loc ? FM.loc.split("|")[1] : "Manaus";
+  T.textContent = `${FM.tipo || "Imóveis"} ${G.neg === "aluguel" ? "para alugar" : "à venda"} em ${onde}`;
+  const partes = [];
+  if (FM.quartos.size) { const q = [...FM.quartos].sort().map(x => x === 4 ? "4+" : x); partes.push(q.join(", ") + (q.length === 1 && q[0] === 1 ? " quarto" : " quartos")); }
+  if (FM.mob.size) partes.push([...FM.mob].map(x => x === "semi" ? "Semimobiliado" : "Mobiliado").join(" ou "));
+  if (FM.min || FM.max) partes.push(FM.min && FM.max ? `R$ ${FM.min} a ${FM.max}` : FM.min ? `a partir de R$ ${FM.min}` : `até R$ ${FM.max}`);
+  const quantos = n == null ? "" : `${n} ${n === 1 ? "imóvel" : "imóveis"}`;
+  $("#hpS").textContent = (partes.length ? partes : ["Toque para filtrar"]).concat(quantos ? [quantos] : []).join(" · ");
+  const bd = $("#hfilBd"); if (bd) { bd.textContent = fCount(FM); bd.classList.toggle("on", fCount(FM) > 0); }
+  const ver = $("#hver"); if (ver) ver.textContent = n == null ? "Ver imóveis" : n ? `Ver ${quantos}` : "Nenhum imóvel com esses filtros";
+  const limpa = document.querySelector(".hlimpa"); if (limpa) limpa.disabled = !fCount(FM);
+}
+function abrirFiltros(on) {
+  const hbar = $("#hbar"); if (!hbar) return;
+  hbar.classList.toggle("aberto", on);
+  document.documentElement.classList.toggle("hmodal", on);
+  if (!on) { fecharLocais(); measure(); }
 }
 function pintarTiposH() {
   const el = $("#htipos"); if (!el) return;
@@ -146,6 +179,7 @@ function syncH() {
   hp.querySelectorAll("input[data-k]").forEach(c => { if (c !== document.activeElement) c.value = FM[c.dataset.k]; });
   const loc = $("#hloc"); if (loc !== document.activeElement) loc.value = FM.loc ? FM.loc.split("|")[1] : "";
   const limpar = document.querySelector(".hclr"); if (limpar) limpar.hidden = !fCount(FM);
+  resumoH();
 }
 function pintarLocais() {
   const box = $("#hlist"), q = norm($("#hloc").value.trim());
@@ -182,6 +216,9 @@ document.addEventListener("click", e => {
   if (t.dataset.go && t.closest("#hlist")) { fecharLocais(); $("#hloc").blur(); }
   if (t.dataset.htipo) { FM.tipo = FM.tipo === t.dataset.htipo ? "" : t.dataset.htipo; renderAll(); fit(); }
   if (t.hasAttribute("data-hmais")) { hMais = !hMais; syncH(); measure(); }
+  if (t.hasAttribute("data-habrir")) abrirFiltros(true);
+  if (t.hasAttribute("data-hfechar")) abrirFiltros(false);
+  if (t.dataset.go && t.closest("#hlist")) abrirFiltros(false);      // foi direto a um imóvel pelo código
   if (t.dataset.mob) { FM.mob.has(t.dataset.mob) ? FM.mob.delete(t.dataset.mob) : FM.mob.add(t.dataset.mob); renderAll(); fit(); }
 });
 
@@ -572,7 +609,7 @@ document.addEventListener("click", e => {
 document.addEventListener("keydown", e => {
   const row = e.target.closest && e.target.closest("[data-row]");
   if (row && e.target === row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); togglePick(row.dataset.row); }
-  if (e.key === "Escape") closePopup();
+  if (e.key === "Escape") { closePopup(); abrirFiltros(false); }
 });
 document.addEventListener("change", e => {
   const t = e.target;
