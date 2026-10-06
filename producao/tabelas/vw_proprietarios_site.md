@@ -25,32 +25,33 @@ nay_site_leitura: SELECT
 (nenhuma)
 
 ## definição da view
- SELECT id,
-    nome,
-    cpf,
-    email,
-    telefone,
-    COALESCE(NULLIF(btrim(status), ''::text), 'Sem etapa'::text) AS etapa,
-    NULLIF(btrim(corretor), ''::text) AS especialista,
-    criado_em,
-    ( SELECT count(DISTINCT x.codigo) AS count
-           FROM ( SELECT ip.codigo::text AS codigo
-                   FROM imovel_privado ip
-                  WHERE ip.proprietario_id = pe.id
-                UNION
-                 SELECT pai.codigo
-                   FROM proprietarios_admin_imoveis pai
-                  WHERE pai.proprietario_id = pe.id) x) AS imoveis,
-    ( SELECT string_agg(x.codigo, ', '::text ORDER BY x.codigo) AS string_agg
-           FROM ( SELECT ip.codigo::text AS codigo
-                   FROM imovel_privado ip
-                  WHERE ip.proprietario_id = pe.id
-                UNION
-                 SELECT pai.codigo
-                   FROM proprietarios_admin_imoveis pai
-                  WHERE pai.proprietario_id = pe.id) x) AS codigos,
+ WITH dono_do_imovel AS (
+         SELECT i.codigo,
+            COALESCE(ip.proprietario_id, i.proprietario_id) AS proprietario_id
+           FROM imoveis i
+             LEFT JOIN imovel_privado ip ON ip.codigo = i.codigo
+        ), do_dono AS (
+         SELECT d.proprietario_id,
+            count(*) AS imoveis,
+            string_agg(d.codigo::text, ', '::text ORDER BY d.codigo) AS codigos
+           FROM dono_do_imovel d
+          WHERE d.proprietario_id IS NOT NULL
+          GROUP BY d.proprietario_id
+        )
+ SELECT p.id,
+    COALESCE(NULLIF(btrim(p.nome), ''::text), NULLIF(btrim(pe.nome), ''::text)) AS nome,
+    COALESCE(NULLIF(btrim(p.documento), ''::text), pe.cpf) AS cpf,
+    COALESCE(NULLIF(btrim(p.email), ''::text), pe.email) AS email,
+    COALESCE(NULLIF(btrim(p.telefone), ''::text), pe.telefone) AS telefone,
+    COALESCE(NULLIF(btrim(pe.status), ''::text), 'Sem etapa'::text) AS etapa,
+    NULLIF(btrim(pe.corretor), ''::text) AS especialista,
+    pe.criado_em,
+    COALESCE(dd.imoveis, 0::bigint) AS imoveis,
+    dd.codigos,
     ( SELECT min(c.vencimento) AS min
            FROM contratos_locacao c
-          WHERE c.proprietario_id_admin = pe.id AND c.vencimento IS NOT NULL) AS vencimento
-   FROM proprietarios_export pe
-  WHERE COALESCE(corretor, ''::text) !~* 'parceir'::text AND NOT site_nao_e_dono(nome);
+          WHERE c.proprietario_id_admin = p.id AND c.vencimento IS NOT NULL) AS vencimento
+   FROM proprietarios p
+     LEFT JOIN proprietarios_export pe ON pe.id = p.id
+     LEFT JOIN do_dono dd ON dd.proprietario_id = p.id
+  WHERE COALESCE(pe.corretor, ''::text) !~* 'parceir'::text AND NOT site_nao_e_dono(COALESCE(NULLIF(btrim(p.nome), ''::text), pe.nome));

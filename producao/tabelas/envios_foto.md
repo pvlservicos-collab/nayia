@@ -1,4 +1,4 @@
-# envios_foto  (tabela, ~264 linhas)
+# envios_foto  (tabela, ~342 linhas)
 O id de cada FOTO de imóvel que o publicador mandou (grupo ou corretor), com o código (287, 03/10/2026). Existe para a marcação da foto virar o imóvel; não é contagem de posts (essa é `envios`).
 
 ## colunas
