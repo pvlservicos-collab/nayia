@@ -1,4 +1,4 @@
-# NAI atendimento locação  (id NaiAtendLocacao1, atualizado em 2026-10-02 03:31)
+# NAI atendimento locação  (id NaiAtendLocacao1, atualizado em 2026-10-06 17:50)
 
 nó | tipo | modelo/extra | vai para
 ---|---|---|---

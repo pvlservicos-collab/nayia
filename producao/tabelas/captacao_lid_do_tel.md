@@ -1,4 +1,4 @@
-# captacao_lid_do_tel  (tabela, ~107 linhas)
+# captacao_lid_do_tel  (tabela, ~168 linhas)
 
 ## colunas
 lid  text  NOT NULL
