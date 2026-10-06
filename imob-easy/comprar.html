@@ -38,9 +38,6 @@
   /* 05/10 (Pedro): tipo em botões, o resto no "+"; textos dos filtros um pouco menores */
   .filtros .opcoes__botao { font-size: 13px; padding: 5px 10px; }
   .filtros .filtros__entrada { font-size: 13px; }
-  .filtros #f-tipo-mais .opcoes__botao { font-size: 12px; padding: 4px 9px; font-weight: 500; }
-  .filtros #f-tipo-mais { margin-top: 6px; }
-  .filtros #f-tipo-mais[hidden] { display: none; }
 </style>
 </head>
 <body class="site" data-raiz="">
@@ -102,10 +99,7 @@
 
       <div class="filtros__grupo">
         <span class="filtros__rotulo" id="rot-f-tipo">Tipo de imóvel</span>
-        <div class="opcoes" role="group" aria-labelledby="rot-f-tipo" data-grupo-exclusivo id="f-tipo">
-          <div class="opcoes" id="f-tipo-principais" style="margin:0"></div>
-          <div class="opcoes" id="f-tipo-mais" hidden></div>
-        </div>
+        <div class="opcoes" role="group" aria-labelledby="rot-f-tipo" data-grupo-exclusivo id="f-tipo"></div>
       </div>
 
       <div class="filtros__grupo">
@@ -281,6 +275,6 @@
 <script src="assets/js/dados-site.js?v=20261005-filtros"></script>
 <script src="assets/js/site.js"></script>
 <script src="assets/js/busca-bairro.js?v=20261005-filtros"></script>
-<script src="assets/js/busca-filtros.js?v=20261005-tipos"></script>
+<script src="assets/js/busca-filtros.js?v=20261005-tipos2"></script>
 </body>
 </html>

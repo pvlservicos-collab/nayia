@@ -32,17 +32,46 @@
       b.setAttribute("aria-pressed", valor && b.textContent.trim() === valor ? "true" : "false");
     });
   }
-  function carregarTipos(selecao, finalidade, atual) {
-    if (!selecao) return;
+  /* TIPO EM BOTÕES (05/10, Pedro: "deixa selecionável mesmo os principais, o resto no +").
+     Os principais ficam à mostra; o "+" abre os outros tipos que têm imóvel no ar. */
+  var PRINCIPAIS = ["Apartamento", "Casa", "Casa de condomínio"];
+  var css = document.createElement("style");
+  css.textContent =
+    ".tipos{display:block}.tipos__frente{margin:0}" +
+    ".tipos__mais{margin-top:6px}.tipos__mais[hidden]{display:none}" +
+    ".tipos__mais .opcoes__botao{font-size:12px;padding:4px 9px;font-weight:500}";
+  document.head.appendChild(css);
+
+  function tiposEmBotoes(grupo, finalidade, atual) {
+    grupo.classList.add("tipos");
+    grupo.innerHTML = '<div class="opcoes tipos__frente"></div><div class="opcoes tipos__mais" hidden></div>';
+    var frenteEl = grupo.querySelector(".tipos__frente"), maisEl = grupo.querySelector(".tipos__mais");
+    function botao(nome, marcado) {
+      return '<button class="opcoes__botao" type="button" aria-pressed="' + (nome === marcado ? "true" : "false") + '">' + escapar(nome) + "</button>";
+    }
+    function abrir(aberto) {
+      var b = grupo.querySelector(".tipos__abrir");
+      maisEl.hidden = !aberto;
+      if (b) { b.setAttribute("aria-expanded", aberto ? "true" : "false"); b.textContent = aberto ? "−" : "+"; }
+    }
+    function pintar(nomes, marcado) {
+      if (marcado && nomes.indexOf(marcado) < 0) nomes = nomes.concat([marcado]);
+      var frente = PRINCIPAIS.filter(function (n) { return nomes.indexOf(n) >= 0; });
+      var resto = nomes.filter(function (n) { return frente.indexOf(n) < 0; });
+      frenteEl.innerHTML = frente.map(function (n) { return botao(n, marcado); }).join("") +
+        (resto.length ? '<button class="opcoes__botao tipos__abrir" type="button" aria-expanded="false" title="Mais tipos">+</button>' : "");
+      maisEl.innerHTML = resto.map(function (n) { return botao(n, marcado); }).join("");
+      abrir(resto.indexOf(marcado) >= 0);   // o escolhido está no resto: já vem aberto
+    }
+    grupo.addEventListener("click", function (e) {
+      if (e.target.closest(".tipos__abrir")) abrir(maisEl.hidden);
+    });
+    pintar(PRINCIPAIS.slice(), atual);      // até a lista do banco chegar
     fetch(API + "/api/tipos")
       .then(function (r) { return r.ok ? r.json() : []; })
       .then(function (lista) {
-        var opcoes = lista.filter(function (t) { return !finalidade || t[finalidade] > 0; });
-        if (!opcoes.length) return;
-        selecao.innerHTML = '<option value="">Todos</option>' + opcoes.map(function (t) {
-          return '<option value="' + escapar(t.tipo) + '">' + escapar(t.tipo) + "</option>";
-        }).join("");
-        selecao.value = atual || "";
+        var nomes = lista.filter(function (x) { return !finalidade || x[finalidade] > 0; }).map(function (x) { return x.tipo; });
+        if (nomes.length) pintar(nomes, pressionado(grupo));
       })
       .catch(function () {});
   }
@@ -50,7 +79,7 @@
   /* ---------------- Home: o PESQUISAR leva os filtros para a lista ---------------- */
   var home = document.querySelector("form.painel-busca");
   if (home) {
-    carregarTipos(home.querySelector("#tipo"), "", "");
+    tiposEmBotoes(home.querySelector("#tipo"), "", "");
     var botao = document.querySelector(".busca__enviar a"), codigo = document.getElementById("codigo");
     var ir = function (e) {
       e.preventDefault();
@@ -59,7 +88,7 @@
       if (cod) { window.location.href = "/imovel/" + cod; return; }
       var q = new URLSearchParams(), v;
       if ((v = home.querySelector("#bairro").value.trim())) q.append("bairros", v);
-      if ((v = home.querySelector("#tipo").value) && v !== "Todos") q.set("tipo", v);
+      if ((v = pressionado(home.querySelector("#tipo")))) q.set("tipo", v);
       if ((v = pressionado(home.querySelector('[aria-labelledby="rot-quartos"]')))) q.set("quartos", v);
       if ((v = pressionado(home.querySelector('[aria-labelledby="rot-garagem"]')))) q.set("garagem", v);
       if ((v = numero((home.querySelector('[aria-label="Valor mínimo"]') || {}).value))) q.set("valor_min", v);
@@ -174,34 +203,7 @@
   campo.banheiros.value = url.get("banheiros") || "";
   pressionar(campo.quartos, url.get("quartos"));
   pressionar(campo.garagem, url.get("garagem"));
-  // TIPO EM BOTÕES (05/10, Pedro: "deixa selecionável mesmo os principais, o resto no +")
-  var PRINCIPAIS = ["Apartamento", "Casa", "Casa de condomínio"];
-  var tipoPrincipais = form.querySelector("#f-tipo-principais"), tipoMais = form.querySelector("#f-tipo-mais");
-  function botaoTipo(nome, atual) {
-    return '<button class="opcoes__botao" type="button" aria-pressed="' + (nome === atual ? "true" : "false") + '">' + escapar(nome) + "</button>";
-  }
-  function pintarTipos(nomes, atual) {
-    if (atual && nomes.indexOf(atual) < 0) nomes = nomes.concat([atual]);
-    var frente = PRINCIPAIS.filter(function (n) { return nomes.indexOf(n) >= 0; });
-    var resto = nomes.filter(function (n) { return frente.indexOf(n) < 0; });
-    tipoPrincipais.innerHTML = frente.map(function (n) { return botaoTipo(n, atual); }).join("") +
-      (resto.length ? '<button class="opcoes__botao" type="button" id="f-tipo-abrir" aria-expanded="false" aria-controls="f-tipo-mais" title="Mais tipos">+</button>' : "");
-    tipoMais.innerHTML = resto.map(function (n) { return botaoTipo(n, atual); }).join("");
-    abrirMais(resto.indexOf(atual) >= 0);   // o escolhido está no resto: já vem aberto
-  }
-  function abrirMais(aberto) {
-    var b = form.querySelector("#f-tipo-abrir");
-    tipoMais.hidden = !aberto;
-    if (b) { b.setAttribute("aria-expanded", aberto ? "true" : "false"); b.textContent = aberto ? "−" : "+"; }
-  }
-  pintarTipos(PRINCIPAIS.slice(), url.get("tipo") || "");   // até a lista do banco chegar
-  fetch(API + "/api/tipos")
-    .then(function (r) { return r.ok ? r.json() : []; })
-    .then(function (lista) {
-      var nomes = lista.filter(function (t) { return t[finalidade] > 0; }).map(function (t) { return t.tipo; });
-      if (nomes.length) pintarTipos(nomes, pressionado(campo.tipo));
-    })
-    .catch(function () {});
+  tiposEmBotoes(campo.tipo, finalidade, url.get("tipo") || "");
   pintarMarcadores();
 
   // os links Comprar/Alugar levam os filtros junto
@@ -226,9 +228,6 @@
     e.preventDefault();
     somarBairro(campo.bairro.value);   // digitou e apertou Enter sem clicar na lista: vale o que digitou
     recomecar();
-  });
-  campo.tipo.addEventListener("click", function (e) {
-    if (e.target.closest("#f-tipo-abrir")) abrirMais(tipoMais.hidden);
   });
   [campo.tipo, campo.quartos, campo.garagem].forEach(function (g) {
     g.addEventListener("click", function (e) {

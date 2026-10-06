@@ -70,15 +70,8 @@
                  placeholder="Selecione o Bairro/Condomínio">
         </div>
         <div class="campo">
-          <label class="campo__rotulo" for="tipo">Tipo de Imóvel</label>
-          <select class="campo__controle" id="tipo" name="tipo">
-            <option>Todos</option>
-            <option>Apartamento</option>
-            <option>Casa</option>
-            <option>Casa de condomínio</option>
-            <option>Sala comercial</option>
-            <option>Terreno</option>
-          </select>
+          <span class="campo__rotulo" id="rot-tipo">Tipo de Imóvel</span>
+          <div class="opcoes" role="group" aria-labelledby="rot-tipo" data-grupo-exclusivo id="tipo"></div>
         </div>
       </div>
 
@@ -262,6 +255,6 @@
 <script src="assets/js/dados-site.js"></script>
 <script src="assets/js/site.js"></script>
 <script src="assets/js/busca-bairro.js?v=20261005-filtros"></script>
-<script src="assets/js/busca-filtros.js?v=20261005-filtros"></script>
+<script src="assets/js/busca-filtros.js?v=20261005-tipos2"></script>
 </body>
 </html>
