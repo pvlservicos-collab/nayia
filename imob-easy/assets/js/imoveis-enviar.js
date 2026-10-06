@@ -145,9 +145,10 @@ function carregarBairros() {
 }
 function criarMapa() {
   if (mapa || !window.L) return;
-  /* no celular, um dedo rola a página e dois dedos mexem no mapa (como no desenho).
+  /* 06/10 (Pedro): "quando eu clique dentro do mapa e arraste, ele mexa o mapa e não a tela" -- no celular
+     um dedo dentro do mapa arrasta o MAPA (dois dão zoom); a página rola por fora dele.
      No computador a rodinha dá zoom (Pedro, 06/10: sem a barra, o PC tinha ficado sem zoom nenhum). */
-  mapa = L.map(world, { zoomControl: false, dragging: !toque, tap: false, scrollWheelZoom: !toque, minZoom: 10 }).setView(MANAUS, 12);
+  mapa = L.map(world, { zoomControl: false, dragging: true, tap: false, scrollWheelZoom: !toque, minZoom: 10 }).setView(MANAUS, 12);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, subdomains: "abc", attribution: "&copy; OpenStreetMap" }).addTo(mapa);
   mapa.attributionControl.setPrefix(false).setPosition("bottomleft");
   camadaBairros = L.layerGroup().addTo(mapa);
@@ -517,20 +518,13 @@ function ativarMapa(on) {
   if (!mapa || on === mapaAtivo) return;
   mapaAtivo = on;
   // a rodinha não entra aqui: clicar no mapa só solta o arrasto com um dedo no celular
-  if (toque) { if (on) mapa.dragging.enable(); else mapa.dragging.disable(); }
   mapEl.classList.toggle("map--ativo", on);
   const tag = document.querySelector(".maptag");
   if (tag) tag.textContent = toque
-    ? (on ? "Mapa ativo · toque fora dele para rolar a página" : "Toque no mapa para mexer nele · dois dedos dão zoom")
+    ? "Arraste para mover · dois dedos dão zoom"
     : "Arraste para mover · zoom nos botões + e −";
 }
 mapEl.addEventListener("mouseleave", () => ativarMapa(false));
 document.addEventListener("pointerdown", e => { if (!mapEl.contains(e.target)) ativarMapa(false); }, true);
 ativarMapa(true); ativarMapa(false);          // escreve a etiqueta do jeito de agora
-if (toque) {
-  mapEl.addEventListener("touchmove", e => {
-    if (!mapaAtivo && e.touches.length === 1 && !e.target.closest(".mtop,.zoom,.popup,.pinw")) { const h = $("#mhint"); if (h) { h.classList.add("on"); clearTimeout(hintT); hintT = setTimeout(hideHint, 1400); } }
-    else hideHint();
-  }, { passive: true });
-}
 })();

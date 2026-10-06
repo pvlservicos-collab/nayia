@@ -507,6 +507,22 @@ body{overflow:auto}
   .phone{padding:17px 16px;font-size:17px}
   .send{padding:17px 18px;font-size:15px}
 }
+/* ===== 06/10 (Pedro) =====
+   CELULAR: o dedo dentro do mapa arrasta o mapa (a página rola por fora); o mapa é mais alto; e a busca do
+   painel de baixo ganha um respiro em cima.
+   COMPUTADOR: os filtros do painel lateral ficam atrás do ícone de filtros, ao lado da busca. */
+@media (pointer:coarse){ .map,.map .world{touch-action:none} }
+.mhint{display:none!important}
+@media (max-width:1023px){
+  .map{height:clamp(340px,58dvh,620px)!important}
+  .sh-top{padding-top:12px!important}
+}
+@media (min-width:1024px){
+  .ftog{display:grid}
+  #sheetF{display:none}
+  .sheet.fopen #sheetF{display:block}
+  .sheet #sheetF .fbar{flex-wrap:wrap;overflow:visible;row-gap:6px;padding-bottom:6px}
+}
 </style>
 </head>
 <body>
@@ -573,6 +589,6 @@ body{overflow:auto}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/assets/js/config.js"></script>
-<script src="/assets/js/imoveis-enviar.js?v=20261006-roda"></script>
+<script src="/assets/js/imoveis-enviar.js?v=20261006-mapa"></script>
 </body>
 </html>
