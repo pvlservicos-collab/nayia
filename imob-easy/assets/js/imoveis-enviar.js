@@ -315,7 +315,7 @@ const curto = n => n >= 1e6 ? (n / 1e6).toLocaleString("pt-BR", { maximumFractio
 
 function viewArea() {
   // no computador a barra de filtros fica por cima do mapa (06/10): os pinos não podem ficar debaixo dela
-  const barra = side() && $("#hbar") ? $("#hbar").offsetHeight : 0;
+  const barra = matchMedia("(min-width:1024px)").matches && $("#hbar") ? $("#hbar").offsetHeight : 0;
   return { top: ($("#mtop") ? $("#mtop").offsetHeight : 0) + barra + 26, lado: 46 };
 }
 function fit() {
