@@ -1252,7 +1252,9 @@
        mexendo quando clica e arrasta; o zoom, faz uma barra de zoom que no mobile funcione com os 2 dedos mas no
        PC tenha uma barra"). Sem zoom pela rodinha e sem os botões +/-: no computador a barra ao lado; no
        celular, a pinça (touchZoom, que o Leaflet já liga). */
-    mapa = L.map("mapa-area", { zoomControl: false, scrollWheelZoom: false, minZoom: 10 }).setView([-3.075, -60.02], 12);
+    /* 06/10 (Pedro): "para pc o mapa dá zoom com scroll" -- no computador a rodinha volta a dar zoom (a barra
+       continua); no celular segue a pinça. */
+    mapa = L.map("mapa-area", { zoomControl: false, scrollWheelZoom: !matchMedia("(pointer:coarse)").matches, minZoom: 10 }).setView([-3.075, -60.02], 12);
     barraDeZoom();
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19, subdomains: "abc",

@@ -145,8 +145,9 @@ function carregarBairros() {
 }
 function criarMapa() {
   if (mapa || !window.L) return;
-  /* no celular, um dedo rola a página e dois dedos mexem no mapa (como no desenho) */
-  mapa = L.map(world, { zoomControl: false, dragging: !toque, tap: false, scrollWheelZoom: false, minZoom: 10 }).setView(MANAUS, 12);
+  /* no celular, um dedo rola a página e dois dedos mexem no mapa (como no desenho).
+     No computador a rodinha dá zoom (Pedro, 06/10: sem a barra, o PC tinha ficado sem zoom nenhum). */
+  mapa = L.map(world, { zoomControl: false, dragging: !toque, tap: false, scrollWheelZoom: !toque, minZoom: 10 }).setView(MANAUS, 12);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, subdomains: "abc", attribution: "&copy; OpenStreetMap" }).addTo(mapa);
   mapa.attributionControl.setPrefix(false).setPosition("bottomleft");
   camadaBairros = L.layerGroup().addTo(mapa);
