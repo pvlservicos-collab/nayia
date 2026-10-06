@@ -91,7 +91,37 @@
      vêm de /api/imoveis/opcoes, lá embaixo. */
   function aoMudarFiltro() { recomecar(); }
   var msBairrosL = window.criarMultiSelecao($("f-bairros"), { dica: "todos os bairros", aoMudar: aoMudarFiltro });
-  var msTiposL = window.criarMultiSelecao($("f-tipos"), { dica: "todos os tipos", aoMudar: aoMudarFiltro });
+  var msTiposL = window.criarMultiSelecao($("f-tipos"), { dica: "outros tipos",
+    aoMudar: function () { pintarTiposRapidos(); aoMudarFiltro(); } });
+  /* TIPOS EM BOTÃO (Pedro, 06/10: "deixa selecionável mesmo os principais, o resto no +").
+     Os três principais ficam à mostra; o "+" abre o campo de várias escolhas com todos. */
+  var TIPOS_PRINCIPAIS = ["Apartamento", "Casa", "Casa de condomínio"], contaDosTipos = {}, tiposAbertos = false;
+  function pintarTiposRapidos() {
+    var alvo = $("f-tipos-rapidos");
+    if (!alvo) return;                       // HTML antigo no cache
+    var marcados = msTiposL.valores();
+    var outros = marcados.filter(function (v) { return TIPOS_PRINCIPAIS.indexOf(v) < 0; }).length;
+    if (outros) tiposAbertos = true;         // tipo escolhido lá dentro: o campo fica à vista
+    alvo.innerHTML = TIPOS_PRINCIPAIS.map(function (t) {
+      return '<button type="button" class="op" data-tipo-rapido="' + esc(t) + '" aria-pressed="' +
+        (marcados.indexOf(t) >= 0 ? "true" : "false") + '">' + esc(t) +
+        (contaDosTipos[t] != null ? '<span class="n">' + contaDosTipos[t] + "</span>" : "") + "</button>";
+    }).join("") + '<button type="button" class="op" data-tipo-mais aria-expanded="' + (tiposAbertos ? "true" : "false") +
+      '" title="Outros tipos">' + (tiposAbertos ? "−" : "+") + "</button>";
+    $("f-tipos").style.display = tiposAbertos ? "" : "none";
+  }
+  if ($("f-tipos-rapidos")) {
+    $("f-tipos-rapidos").addEventListener("click", function (e) {
+      if (e.target.closest("[data-tipo-mais]")) { tiposAbertos = !tiposAbertos; pintarTiposRapidos(); return; }
+      var b = e.target.closest("[data-tipo-rapido]");
+      if (!b) return;
+      var t = b.dataset.tipoRapido, vs = msTiposL.valores();
+      msTiposL.definir(vs.indexOf(t) >= 0 ? vs.filter(function (v) { return v !== t; }) : vs.concat([t]));
+      pintarTiposRapidos();
+      aoMudarFiltro();
+    });
+    pintarTiposRapidos();
+  }
   var msCondosL = window.criarMultiSelecao($("f-condominios"), { dica: "todos os condomínios", aoMudar: aoMudarFiltro });
   /* CONJUNTO E AVENIDA (Pedro, 30/09: "quero essas listas de filtros lá no nosso
      site, para pesquisar por conjunto ou avenida"). As mesmas listas da Nay
@@ -191,6 +221,7 @@
     $("busca-imovel").value = "";
     form.elements.vmin.value = ""; form.elements.vmax.value = "";
     Object.keys(MS_DA_LISTA).forEach(function (k) { MS_DA_LISTA[k][0].limpar(); });
+    tiposAbertos = false; pintarTiposRapidos();
     condoDoLink = null;
   }
 
@@ -1512,6 +1543,8 @@
       function op(lista) { return (lista || []).map(function (x) { return { valor: x.valor, n: x.n }; }); }
       msBairrosL.opcoes(op(d.bairros));
       msTiposL.opcoes(op(d.tipos));
+      (d.tipos || []).forEach(function (x) { contaDosTipos[x.valor] = x.n; });
+      pintarTiposRapidos();
       msCondosL.opcoes(op(d.condominios));
       // o bairro vai no rótulo: digitar "parque 10" também acha os conjuntos de lá
       msConjuntosL.opcoes((d.conjuntos || []).map(function (x) {
