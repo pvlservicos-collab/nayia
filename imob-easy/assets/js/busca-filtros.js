@@ -93,7 +93,7 @@
     var q = new URLSearchParams(), v;
     bairros.forEach(function (b) { q.append("bairros", b); });
     if ((v = campo.condominio.value.trim())) q.set("condominio", v);
-    if ((v = campo.tipo.value)) q.set("tipo", v);
+    if ((v = pressionado(campo.tipo))) q.set("tipo", v);
     if ((v = pressionado(campo.quartos))) q.set("quartos", v);
     if ((v = pressionado(campo.garagem))) q.set("garagem", v);
     if ((v = numero(campo.banheiros.value))) q.set("banheiros", v);
@@ -174,11 +174,34 @@
   campo.banheiros.value = url.get("banheiros") || "";
   pressionar(campo.quartos, url.get("quartos"));
   pressionar(campo.garagem, url.get("garagem"));
-  if (url.get("tipo")) {   // até a lista de tipos chegar, o tipo do endereço já vale
-    campo.tipo.innerHTML = '<option value="">Todos</option><option value="' + escapar(url.get("tipo")) + '">' + escapar(url.get("tipo")) + "</option>";
-    campo.tipo.value = url.get("tipo");
+  // TIPO EM BOTÕES (05/10, Pedro: "deixa selecionável mesmo os principais, o resto no +")
+  var PRINCIPAIS = ["Apartamento", "Casa", "Casa de condomínio"];
+  var tipoPrincipais = form.querySelector("#f-tipo-principais"), tipoMais = form.querySelector("#f-tipo-mais");
+  function botaoTipo(nome, atual) {
+    return '<button class="opcoes__botao" type="button" aria-pressed="' + (nome === atual ? "true" : "false") + '">' + escapar(nome) + "</button>";
   }
-  carregarTipos(campo.tipo, finalidade, url.get("tipo") || "");
+  function pintarTipos(nomes, atual) {
+    if (atual && nomes.indexOf(atual) < 0) nomes = nomes.concat([atual]);
+    var frente = PRINCIPAIS.filter(function (n) { return nomes.indexOf(n) >= 0; });
+    var resto = nomes.filter(function (n) { return frente.indexOf(n) < 0; });
+    tipoPrincipais.innerHTML = frente.map(function (n) { return botaoTipo(n, atual); }).join("") +
+      (resto.length ? '<button class="opcoes__botao" type="button" id="f-tipo-abrir" aria-expanded="false" aria-controls="f-tipo-mais" title="Mais tipos">+</button>' : "");
+    tipoMais.innerHTML = resto.map(function (n) { return botaoTipo(n, atual); }).join("");
+    abrirMais(resto.indexOf(atual) >= 0);   // o escolhido está no resto: já vem aberto
+  }
+  function abrirMais(aberto) {
+    var b = form.querySelector("#f-tipo-abrir");
+    tipoMais.hidden = !aberto;
+    if (b) { b.setAttribute("aria-expanded", aberto ? "true" : "false"); b.textContent = aberto ? "−" : "+"; }
+  }
+  pintarTipos(PRINCIPAIS.slice(), url.get("tipo") || "");   // até a lista do banco chegar
+  fetch(API + "/api/tipos")
+    .then(function (r) { return r.ok ? r.json() : []; })
+    .then(function (lista) {
+      var nomes = lista.filter(function (t) { return t[finalidade] > 0; }).map(function (t) { return t.tipo; });
+      if (nomes.length) pintarTipos(nomes, pressionado(campo.tipo));
+    })
+    .catch(function () {});
   pintarMarcadores();
 
   // os links Comprar/Alugar levam os filtros junto
@@ -204,8 +227,10 @@
     somarBairro(campo.bairro.value);   // digitou e apertou Enter sem clicar na lista: vale o que digitou
     recomecar();
   });
-  campo.tipo.addEventListener("change", recomecar);
-  [campo.quartos, campo.garagem].forEach(function (g) {
+  campo.tipo.addEventListener("click", function (e) {
+    if (e.target.closest("#f-tipo-abrir")) abrirMais(tipoMais.hidden);
+  });
+  [campo.tipo, campo.quartos, campo.garagem].forEach(function (g) {
     g.addEventListener("click", function (e) {
       if (e.target.closest("[aria-pressed]")) setTimeout(recomecar, 0);   // depois do site.js trocar o botão
     });
