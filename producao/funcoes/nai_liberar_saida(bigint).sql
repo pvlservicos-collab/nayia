@@ -76,7 +76,10 @@ BEGIN
 
     IF v_modo NOT IN ('teste', 'todos') THEN
       v_bloq := 'nai_desligada';
-    ELSIF v_pausada AND NOT v_cmd THEN
+    -- 300 (Pedro, 06/10): "não é para parar o negócio de enviar imóvel ... separa isso da Nay, o que envia
+    -- manualmente". A ENTREGA (papel 'entrega': aba Enviar imóvel do site e do CRM, "Me envia" do /imoveis e o
+    -- comando ENVIA) é pedido de gente, não resposta da Nay: a pausa dela não vale para isso.
+    ELSIF v_pausada AND NOT v_cmd AND r.papel_destino <> 'entrega' THEN
       v_bloq := 'nai_pausada';
     ELSIF v_chave_c IS DISTINCT FROM r.chave_destino THEN
       v_bloq := 'contato_mudou';
