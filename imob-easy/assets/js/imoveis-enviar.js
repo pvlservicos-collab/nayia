@@ -120,7 +120,9 @@ function painelHTML() {
   /* CELULAR, ESTILO APLICATIVO (Pedro, 06/10: "quero que fique o menor possível lá em cima ... quando clica ali
      abre os filtros todos listados bonitinho até com emoji"): em cima só a pílula com o resumo (.hmini); tocar
      abre a tela de filtros (.hfull). No computador a pílula não existe e o painel fica sempre aberto. */
-  return `<div class="hmini"><button type="button" class="hpill" data-habrir aria-label="Abrir os filtros">${i("search")}<span><b id="hpT"></b><small id="hpS"></small></span></button><button type="button" class="hpfil" data-habrir aria-label="Filtros">${i("sliders-horizontal")}<span class="bd" id="hfilBd"></span></button></div>
+  // a logo do menu de cima, menor, ao lado da busca (no celular o menu branco some)
+  const logo = document.querySelector("#site .logo");
+  return `<div class="hmini">${logo ? `<a class="hlogo" href="/" aria-label="Imob Easy">${logo.innerHTML}</a>` : ""}<button type="button" class="hpill" data-habrir aria-label="Abrir os filtros">${i("search")}<span><b id="hpT"></b><small id="hpS"></small></span></button><button type="button" class="hpfil" data-habrir aria-label="Filtros">${i("sliders-horizontal")}<span class="bd" id="hfilBd"></span></button></div>
   <div class="hfull" id="hfull">
     <div class="hfull-h"><b>Filtros</b><button type="button" data-hfechar aria-label="Fechar os filtros">${i("x")}</button></div>
     <div class="hfull-b">

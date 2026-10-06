@@ -640,6 +640,19 @@ body{overflow:auto}
 .hpfil svg,.hfull-h button svg,.zoom button svg,.popup .x svg,.sbox .clr svg,.ftog svg,.sel-list .it .rm svg{display:block;margin:0;flex:none}
 .row .ph .ck{line-height:0}
 .row .ph .ck svg,.hpill svg,.vbtn svg,.pick svg,.send svg{display:block;flex:none}
+/* NO CELULAR O MENU BRANCO DE CIMA SOME E A LOGO, MENOR, FICA AO LADO DA BUSCA (Pedro, 06/10). Só no /imoveis:
+   a página do imóvel continua com o menu dela. */
+.hlogo{display:none}
+@media (max-width:760px){
+  .site{display:none}
+  .hbar{top:0;padding-top:calc(7px + env(safe-area-inset-top,0px))}
+  .hlogo{display:flex;align-items:center;gap:4px;flex:none;text-decoration:none;line-height:.85;margin-right:1px}
+  .hlogo .mk{width:24px;height:21px}
+  .hlogo .w{display:flex;flex-direction:column;font-weight:700;color:var(--brand-dark)}
+  .hlogo .w small{font-size:9.5px;margin-left:3px}
+  .hlogo .w span{font-size:16px;letter-spacing:-.02em}
+  .hbar.aberto .hfull{top:calc(8px + env(safe-area-inset-top,0px));max-height:calc(100dvh - 24px - env(safe-area-inset-top,0px))}
+}
 /* A PÍLULA SÓ COM A LINHA CINZA (06/10): sai o título escuro; a linha fica no meio da altura, à esquerda */
 @media (max-width:760px){
   .hpill{min-height:44px}
@@ -714,6 +727,6 @@ body{overflow:auto}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/assets/js/config.js"></script>
-<script src="/assets/js/imoveis-enviar.js?v=20261006-card"></script>
+<script src="/assets/js/imoveis-enviar.js?v=20261006-logo"></script>
 </body>
 </html>

@@ -63,27 +63,9 @@ BEGIN
     RETURNING id INTO v_destino;
   END IF;
 
-  -- 3. uma linha antes, dizendo o que vem (Tel, 31/08: "card e foto caindo do
-  --    nada"), com a mesma frase do publicador
-  v_hora := extract(hour FROM now() AT TIME ZONE 'America/Manaus');
-  -- 294 (Pedro, 05/10): "não precisa ser fixa, porque às vezes nem é a primeira conversa do dia". O "Oi, bom
-  -- dia!" só vai quando ainda não houve conversa com a pessoa hoje (nossa ou dela, por qualquer caminho).
-  v_falou := EXISTS (SELECT 1 FROM nai_saida s
-                      WHERE s.contato_id = v_destino AND s.estado IN ('enviado', 'enviando')
-                        AND s.criado_em >= date_trunc('day', now() AT TIME ZONE 'America/Manaus') AT TIME ZONE 'America/Manaus')
-          OR EXISTS (SELECT 1 FROM core_saida c
-                      WHERE c.chave_destino = v_chave AND c.estado IN ('enviado', 'enviando')
-                        AND c.criado_em >= date_trunc('day', now() AT TIME ZONE 'America/Manaus') AT TIME ZONE 'America/Manaus')
-          OR EXISTS (SELECT 1 FROM mensagens m
-                      WHERE m.criada_em >= date_trunc('day', now() AT TIME ZONE 'America/Manaus') AT TIME ZONE 'America/Manaus'
-                        AND right(regexp_replace(m.telefone, '\D', '', 'g'), 8) = right(v_digitos, 8));
-  PERFORM nai_enfileirar_texto(p_turno, NULL, v_destino, 'entrega',
-    CASE WHEN v_falou THEN '' ELSE
-      'Oi, ' || CASE WHEN v_hora < 12 THEN 'bom dia' WHEN v_hora < 18 THEN 'boa tarde' ELSE 'boa noite' END || '! ' END
-    || CASE WHEN array_length(v_vao, 1) > 1
-                    THEN 'Seguem os imóveis que fiquei de te enviar.'
-                    ELSE 'Segue o imóvel que fiquei de te enviar.' END,
-    'envia_comando', v_ordem);
+  -- 3. (298, Pedro 06/10) SEM linha de abertura: "não é para ter essa mensagem fixa nos cards de envio de
+  --    imóvel ... só o card e fotos". Saiu o "Oi, boa tarde! Segue o imóvel que fiquei de te enviar." que ia
+  --    antes de todo envio (comando ENVIA, aba Enviar imóvel do site/CRM e o "Me envia" do /imoveis).
 
   -- 4. card e fotos, um imóvel de cada vez, na ordem pedida
   FOREACH c IN ARRAY v_vao LOOP

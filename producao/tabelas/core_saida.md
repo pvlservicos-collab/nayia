@@ -43,4 +43,4 @@ nay_leitura: SELECT
 nai_whatsapp_reenviado
 
 ## funções que citam
-crm_imoveis_enviados, crm_quem_mandou, nai_enviar_imoveis_para, nai_imoveis_na_frente, nai_tel_assumiu, nai_whatsapp_reenviado
+crm_imoveis_enviados, crm_quem_mandou, nai_imoveis_na_frente, nai_tel_assumiu, nai_whatsapp_reenviado
