@@ -90,87 +90,156 @@
   $("#tr-execucoes").addEventListener("click", function (e) { var x = e.target.closest("[data-exec]"); if (x) abrirExecucao(Number(x.dataset.exec)); });
 
   /* ---- resultado ---- */
+  /* O desenho é o da rodada de treino antiga (Cérebro › Conversa): à esquerda a lista das conversas, à direita a
+     conversa em balões de WhatsApp, as setas para ir de uma à outra e, embaixo, a ficha: conversou corretamente,
+     o erro e a solução. O julgamento é DA CONVERSA e fica preso à primeira mensagem real dela. */
+  var EXEC = null, CONVS = [], IDX = -1, TURNOS = null, JULG = {}, FILTRO = "todas", VER_ANTES = true;
+  function iniciais(nome) { var p = String(nome || "?").trim().split(/\s+/); return ((p[0] || "?").charAt(0) + (p.length > 1 ? p[p.length - 1].charAt(0) : "")).toUpperCase(); }
+  function julgada(c) { return c.veredito_conversa || ""; }
+  function visiveis() {
+    return CONVS.map(function (c, i) { return i; }).filter(function (i) {
+      var c = CONVS[i], v = julgada(c);
+      return FILTRO === "todas" || (FILTRO === "julgar" && !v) || (FILTRO === "erro" && v === "errado") || (FILTRO === "certo" && v === "certo") || (FILTRO === "dif" && c.diferentes > 0);
+    });
+  }
   function abrirExecucao(id, semRolar) {
     ATUAL = id; carregarExecucoes();
     var box = $("#tr-resultado"); box.hidden = false; delete box.dataset.pronta; box.innerHTML = '<p class="painel__vazio">Carregando…</p>';
     pega("execucoes/" + id).then(function (e) {
+      EXEC = e; CONVS = e.conversas || []; IDX = -1; TURNOS = null;
       var r = e.resumo || {};
       if (e.estado === "pronta") box.dataset.pronta = "1";
-      var acoes = Object.keys(r.acoes || {}).sort(function (a, b) { return r.acoes[b] - r.acoes[a]; }).map(function (a) { return esc(a) + " " + r.acoes[a]; }).join(" · ");
       var outras = EXECS.filter(function (x) { return x.id !== id && x.estado === "pronta"; });
-      box.innerHTML = '<h2 class="nn-h2">Execução #' + id + ' <span class="estado ' + esc(e.estado) + '">' + esc(e.estado) + "</span></h2>" +
-        '<div class="nn-resumo"><span>versão <b>' + esc(e.versao_codigo || "—") + "</b></span><span><b>" + (e.feitos || 0) + "</b>/" + e.total_turnos + " turnos</span><span>mesmo imóvel que o velho <b>" + (r.iguais || 0) + "/" + (r.comparaveis || 0) + "</b></span><span>erros de código <b>" + (r.erros || 0) + "</b></span><span>custo <b>" + usd(e.custo_real) + "</b></span>" + (r.segundos ? "<span>rodou em <b>" + Math.round(r.segundos) + " s</b></span>" : "") + (acoes ? "<span>ações: " + acoes + "</span>" : "") + (e.erro ? '<span style="color:#b53232">' + esc(e.erro) + "</span>" : "") + "</div>" +
-        (outras.length ? '<div class="nn-comparar">Comparar com a execução <select class="selecao" id="tr-outra"><option value="">—</option>' + outras.map(function (x) { return '<option value="' + x.id + '">#' + x.id + " · " + esc(dataHora(x.criada_em)) + "</option>"; }).join("") + '</select><span id="tr-comp"></span></div>' : "") +
-        '<div class="nn-convs">' + (e.conversas || []).map(function (c) {
-          return '<details class="nn-conv" data-chave="' + esc(c.chave) + '"><summary><b>' + esc(c.nome || "") + " <small>" + esc(fim4(c.chave)) + "</small></b><span>" + esc(dia(c.inicio)) + " " + esc(hora(c.inicio)) + "</span><span>" + c.turnos + " turnos</span><span>igual " + c.iguais + " · diferente " + c.diferentes + (c.erros ? ' · <span style="color:#b53232">' + c.erros + " erro(s)</span>" : "") + (c.marcados_errado ? " · ✗ " + c.marcados_errado : "") + (c.marcados_certo ? " · ✓ " + c.marcados_certo : "") + '</span></summary><div class="nn-turnos"><p class="painel__vazio">Carregando…</p></div></details>';
-        }).join("") + "</div>";
+      box.innerHTML = '<div class="nn-resumo"><span>Execução <b>#' + id + '</b> <span class="estado ' + esc(e.estado) + '">' + esc(e.estado) + "</span></span><span><b>" + CONVS.length + "</b> conversas · <b>" + (e.feitos || 0) + "</b>/" + e.total_turnos + " mensagens</span><span>mesmo imóvel que antes <b>" + (r.iguais || 0) + "/" + (r.comparaveis || 0) + "</b></span><span>erros de código <b>" + (r.erros || 0) + "</b></span>" + (r.segundos ? "<span>rodou em <b>" + Math.round(r.segundos) + " s</b></span>" : "") + "<span>custo <b>" + usd(e.custo_real) + "</b></span>" + (e.erro ? '<span style="color:#b53232">' + esc(e.erro) + "</span>" : "") +
+        (outras.length ? '<span class="nn-comparar">comparar com <select class="selecao" id="tr-outra"><option value="">—</option>' + outras.map(function (x) { return '<option value="' + x.id + '">#' + x.id + " · " + esc(dataHora(x.criada_em)) + "</option>"; }).join("") + "</select></span>" : "") + '</div><div id="tr-comp"></div>' +
+        '<div class="nw-palco"><div class="nw-indice"><div class="nw-indice-topo" id="nw-filtros"></div><div class="nw-itens" id="nw-itens"></div></div><div class="nw-conversa" id="nw-conversa"><p class="nw-vazio">Escolha uma conversa na lista ao lado.</p></div></div>';
       var sel = $("#tr-outra"); if (sel) sel.addEventListener("change", function () { if (sel.value) comparar(id, Number(sel.value)); });
+      desenharIndice();
+      var v = visiveis(); if (v.length) abrirConversa(v[0]);
       if (!semRolar) box.scrollIntoView({ behavior: "smooth", block: "start" });
     }).catch(function (x) { box.innerHTML = '<p class="painel__vazio">' + esc(x.message) + "</p>"; });
   }
-  /* as peças de um lado: textos na ordem; fotos seguidas do mesmo imóvel viram uma linha só ("12 fotos do 4207") */
-  function pecasHTML(lista) {
+  function desenharIndice() {
+    var n = { todas: CONVS.length, julgar: 0, erro: 0, certo: 0, dif: 0 };
+    CONVS.forEach(function (c) { var v = julgada(c); if (!v) n.julgar++; if (v === "errado") n.erro++; if (v === "certo") n.certo++; if (c.diferentes > 0) n.dif++; });
+    $("#nw-filtros").innerHTML = [["todas", "Todas"], ["julgar", "Por julgar"], ["erro", "Erro"], ["certo", "Certo"], ["dif", "Imóvel diferente"]].map(function (f) {
+      return '<button type="button" class="nw-filtro" data-filtro="' + f[0] + '" aria-pressed="' + (FILTRO === f[0]) + '">' + f[1] + " <b>" + n[f[0]] + "</b></button>";
+    }).join("");
+    var v = visiveis();
+    $("#nw-itens").innerHTML = v.length ? v.map(function (i, pos) {
+      var c = CONVS[i], jg = julgada(c);
+      var selo = jg === "certo" ? '<span class="nw-selo ok">certo</span>' : jg === "errado" ? '<span class="nw-selo erro">erro</span>' : '<span class="nw-selo">por julgar</span>';
+      return '<button type="button" class="nw-item" data-conv="' + i + '" aria-selected="' + (i === IDX) + '"><span class="nw-item-topo"><span class="nw-n">' + (pos + 1) + "</span>" + selo + (c.diferentes > 0 ? '<span class="nw-selo dif">≠ imóvel</span>' : "") + (c.erros ? '<span class="nw-selo erro">falhou</span>' : "") + (c.turnos_errado ? '<span class="nw-selo erro">✗ ' + c.turnos_errado + "</span>" : "") + (c.turnos_certo ? '<span class="nw-selo ok">✓ ' + c.turnos_certo + "</span>" : "") + '<span class="nw-n" style="margin-left:auto">' + esc(hora(c.inicio)) + '</span></span><span class="nw-item-nome">' + esc(c.nome || "(sem nome)") + " <small>" + esc(fim4(c.chave)) + '</small></span><span class="nw-item-t">' + c.turnos + (c.turnos === 1 ? " mensagem" : " mensagens") + "</span></button>";
+    }).join("") : '<p class="nw-vazio">Nada com esse filtro.</p>';
+  }
+  function abrirConversa(i) {
+    IDX = i; TURNOS = null; desenharIndice();
+    var alvo = $("#nw-conversa"); alvo.innerHTML = '<p class="nw-vazio">Carregando…</p>';
+    var sel = document.querySelector('.nw-item[aria-selected="true"]'); if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: "nearest" });
+    pega("execucoes/" + ATUAL + "/conversas/" + encodeURIComponent(CONVS[i].chave)).then(function (c) {
+      if (IDX !== i) return;
+      TURNOS = c.turnos; JULG = c.julgamento || {}; desenharConversa();
+    }).catch(function (x) { alvo.innerHTML = '<p class="nw-vazio">' + esc(x.message) + "</p>"; });
+  }
+  function balao(lado, texto, carimbo, extra) {
+    return '<div class="nw-b nw-b--' + lado + (extra ? " " + extra : "") + '">' + esc(texto) + (carimbo ? "<time>" + esc(carimbo) + "</time>" : "") + "</div>";
+  }
+  /* as peças de um lado viram balões na ordem em que saíram; fotos seguidas do mesmo imóvel, um balão "(12 fotos)" */
+  function baloes(lista, classe, carimbo) {
     var saida = [], fotos = null;
-    function fecha() { if (fotos) { saida.push('<span class="peca foto">' + fotos.n + (fotos.n === 1 ? " foto" : " fotos") + " do " + esc(fotos.codigo) + "</span>"); fotos = null; } }
+    function fecha() { if (fotos) { saida.push(balao("dela", "(" + fotos.n + (fotos.n === 1 ? " foto" : " fotos") + " do " + fotos.codigo + ")", carimbo, classe + " nw-b--fotos")); fotos = null; } }
     (lista || []).forEach(function (p) {
       if (p.tipo === "imagem") { if (fotos && fotos.codigo === p.codigo) fotos.n++; else { fecha(); fotos = { codigo: p.codigo, n: 1 }; } return; }
       fecha();
       var fora = p.para && p.para !== "turno" && p.para !== "corretor";
-      saida.push('<span class="peca' + (fora ? " aviso" : "") + '">' + (fora ? "<b>→ " + esc(p.para) + ":</b> " : "") + esc(p.texto) + "</span>");
+      saida.push(balao("dela", (fora ? "[para " + p.para + "] " : "") + (p.texto || ""), carimbo, classe + (fora ? " nw-b--aviso" : "")));
     });
     fecha();
-    return saida.length ? saida.join("") : '<i class="calou">não respondeu</i>';
+    return saida.join("");
   }
-  function turnoHTML(t, divergiuAntes) {
-    var antes = t.enviado_antes || [], nova = t.resposta_nova || [];
-    var classe = t.igual_imovel === true ? "igual" : t.igual_imovel === false ? "diferente" : "";
-    var selo = t.igual_imovel === true ? '<span class="selo ok">mesmo imóvel</span>' : t.igual_imovel === false ? '<span class="selo dif">imóvel diferente</span>' : "";
-    return '<div class="nn-t" data-turno="' + t.turno_origem + '">' +
-      (divergiuAntes ? '<div class="nn-aviso-divergiu">A partir daqui a conversa pode não fazer sentido: a mensagem seguinte do corretor respondeu ao "ANTES", não à Nay nova.</div>' : "") +
-      '<div class="msg"><span class="h">' + esc(hora(t.horario_original)) + '</span><div class="fala">' + esc(t.texto) + "</div></div>" +
-      '<div class="lado"><div class="col antes"><h4>Antes · o que foi respondido</h4>' + pecasHTML(antes) + "</div>" +
-      '<div class="col nova ' + classe + '"><h4>Nova Nay</h4>' + (t.erro ? '<span class="selo erro">erro de código</span> ' + esc(t.erro) : pecasHTML(nova)) +
-      '<div class="selos">' + selo + '<span class="selo">' + esc(t.acao || "—") + (t.template ? " · " + esc(t.template) : "") + "</span>" + ((t.imovel || []).length ? '<span class="selo">imóvel ' + esc(t.imovel.join(", ")) + "</span>" : "") + (t.estado_depois ? '<span class="selo cinza">' + esc(t.estado_depois) + "</span>" : "") + (t.modelo_chamadas ? '<span class="selo cinza">usou o modelo</span>' : "") + "</div></div></div>" +
-      '<div class="acoes"><button type="button" class="certo" aria-pressed="' + (t.veredito === "certo") + '">✓ certo</button><button type="button" class="errado" aria-pressed="' + (t.veredito === "errado") + '">✗ errado</button><input type="text" placeholder="Anotar o erro: o que ela deveria ter feito (Enter grava)" value="' + esc(t.nota || "") + '"><span class="gravou" hidden>gravado</span><button type="button" class="caminho" data-caminho="' + esc((t.caminho_nos || []).join(",")) + '">ver caminho nos nós</button></div></div>';
+  function turnoHTML(t) {
+    var antes = t.enviado_antes || [], nova = t.resposta_nova || [], h = hora(t.horario_original);
+    var selo = t.igual_imovel === false ? '<b class="dif">imóvel diferente</b> · ' : t.igual_imovel === true ? '<b class="ok">mesmo imóvel</b> · ' : "";
+    var colNova = t.erro ? balao("dela", t.erro, "", "nw-b--agora nw-b--alerta") : nova.length ? baloes(nova, "nw-b--agora", h) : '<div class="nw-calou">fica calada</div>';
+    return '<div class="nw-turno" data-turno="' + t.turno_origem + '">' + balao("dele", t.texto, h) +
+      '<div class="nw-par' + (VER_ANTES ? "" : " nw-par--so-nova") + '">' +
+        (VER_ANTES ? '<div class="nw-col nw-col--antes"><div class="nw-rot">Nay antiga · o que foi respondido</div>' + (antes.length ? baloes(antes, "", h) : '<div class="nw-calou">ninguém respondeu</div>') + "</div>" : "") +
+        '<div class="nw-col nw-col--nova' + (t.igual_imovel === false ? " dif" : "") + '"><div class="nw-rot nova">Nay nova · o que ela responde</div>' + colNova +
+          '<div class="nw-acao">' + selo + esc(t.acao || "—") + (t.template ? " · " + esc(t.template) : "") + ((t.imovel || []).length ? " · imóvel " + esc(t.imovel.join(", ")) : "") + ' · <button type="button" data-caminho="' + esc((t.caminho_nos || []).join(",")) + '">ver nos nós</button></div></div>' +
+      "</div>" +
+      '<div class="nw-julga"><button type="button" class="certo" data-turno-veredito="certo" aria-pressed="' + (t.veredito === "certo") + '">✓ certo</button><button type="button" class="errado" data-turno-veredito="errado" aria-pressed="' + (t.veredito === "errado") + '">✗ errado</button><input type="text" placeholder="Neste turno ela deveria ter… (Enter grava)" value="' + esc(t.nota || "") + '"><span class="gravou" hidden>gravado</span></div></div>';
   }
-  document.addEventListener("toggle", function (e) {
-    var d = e.target; if (!d.classList || !d.classList.contains("nn-conv") || !d.open || d.dataset.carregada) return;
-    d.dataset.carregada = "1";
-    pega("execucoes/" + ATUAL + "/conversas/" + encodeURIComponent(d.dataset.chave)).then(function (c) {
-      var divergiu = false;
-      d.querySelector(".nn-turnos").innerHTML = c.turnos.map(function (t) { var h = turnoHTML(t, divergiu); if (t.igual_imovel === false) divergiu = true; return h; }).join("");
-    }).catch(function (x) { d.querySelector(".nn-turnos").innerHTML = '<p class="painel__vazio">' + esc(x.message) + "</p>"; });
-  }, true);
+  /* o certo/errado de UM turno (o que ele gostou na primeira versão): grava na hora, a nota vai junto */
+  function julgarTurno(caixa, veredito) {
+    var id = Number(caixa.dataset.turno), nota = caixa.querySelector(".nw-julga input").value.trim();
+    pega("marcacoes", { turno_origem: id, veredito: veredito, nota: nota || null, marcado_por: "painel" }).then(function () {
+      var t = (TURNOS || []).filter(function (x) { return x.turno_origem === id; })[0];
+      if (t) { t.veredito = veredito; t.nota = nota; }
+      caixa.querySelector(".certo").setAttribute("aria-pressed", veredito === "certo");
+      caixa.querySelector(".errado").setAttribute("aria-pressed", veredito === "errado");
+      var g = caixa.querySelector(".gravou"); g.hidden = false; setTimeout(function () { g.hidden = true; }, 1600);
+      var c = CONVS[IDX]; c.turnos_errado = TURNOS.filter(function (x) { return x.veredito === "errado"; }).length; c.turnos_certo = TURNOS.filter(function (x) { return x.veredito === "certo"; }).length;
+      desenharIndice();
+    }).catch(function (x) { alert("Não gravou: " + x.message); });
+  }
+  function desenharConversa() {
+    var c = CONVS[IDX], alvo = $("#nw-conversa"), v = visiveis(), pos = v.indexOf(IDX);
+    var t0 = { nota: JULG.nota }, certo = JULG.veredito === "certo", errado = JULG.veredito === "errado";
+    var sol = (JULG.esperado && JULG.esperado.solucao) || "";
+    alvo.innerHTML =
+      '<div class="nw-topo"><span class="nw-ini">' + esc(iniciais(c.nome)) + "</span><span class=\"nw-quem\"><h4>" + esc(c.nome || "(sem nome)") + " <small>" + esc(fim4(c.chave)) + "</small></h4><small>" + esc(dia(c.inicio)) + " · " + c.turnos + (c.turnos === 1 ? " mensagem" : " mensagens") + "</small></span>" +
+        '<label class="nw-ver"><input type="checkbox" id="nw-ver-antes"' + (VER_ANTES ? " checked" : "") + "> comparar com a Nay antiga</label>" +
+        '<span class="nw-nav"><button type="button" class="nw-seta" data-ir="-1" title="Conversa anterior (←)"' + (pos <= 0 ? " disabled" : "") + '>‹</button><span class="nw-pos">' + (pos + 1) + " / " + v.length + '</span><button type="button" class="nw-seta" data-ir="1" title="Próxima conversa (→)"' + (pos >= v.length - 1 ? " disabled" : "") + ">›</button></span></div>" +
+      '<div class="nw-baloes" id="nw-baloes"><div class="nw-dia">' + esc(dia(c.inicio)) + "</div>" + TURNOS.map(turnoHTML).join("") + "</div>" +
+      '<div class="nw-ficha"><div class="nw-ficha-linha"><b class="nw-ficha-t">A conversa inteira:</b><button type="button" class="nw-ok" data-veredito="certo" aria-pressed="' + certo + '">✓ Conversou corretamente</button><button type="button" class="nw-ruim" data-veredito="errado" aria-pressed="' + errado + '">✗ Errou</button><span class="nw-marca" id="nw-marca">' + (certo ? "julgada como <b>certa</b>" : errado ? "julgada como <b>errada</b>" : "ainda não julgada") + '</span><button type="button" class="nw-seta nw-seta--grande" data-ir="1"' + (pos >= v.length - 1 ? " disabled" : "") + ">Próxima ›</button></div>" +
+        '<div class="nw-campos"><div class="nw-cx nw-cx--erro"><label for="nw-erro">O erro</label><textarea id="nw-erro" placeholder="O que ela fez de errado nesta conversa?">' + esc(t0.nota || "") + '</textarea></div><div class="nw-cx nw-cx--sol"><label for="nw-sol">A solução</label><textarea id="nw-sol" placeholder="O que ela deveria ter feito? É só uma regra? Precisa mudar alguma coisa?">' + esc(sol) + "</textarea></div></div>" +
+        '<button type="button" class="nw-salvar" id="nw-salvar">Salvar</button><span class="nw-estado" id="nw-estado"></span></div>';
+    var b = $("#nw-baloes"); b.scrollTop = 0;
+  }
+  function julgar(veredito, avancar) {
+    if (!TURNOS || !TURNOS.length) return;
+    var erro = $("#nw-erro").value.trim(), sol = $("#nw-sol").value.trim(), c = CONVS[IDX], t0 = TURNOS[0];
+    $("#nw-estado").textContent = "gravando…";
+    pega("marcacoes", { turno_origem: -t0.turno_origem, veredito: veredito, nota: erro || null, esperado: { escopo: "conversa", solucao: sol || null }, marcado_por: "painel" }).then(function () {
+      JULG = { veredito: veredito, nota: erro, esperado: { escopo: "conversa", solucao: sol } };
+      c.veredito_conversa = veredito;
+      var v = visiveis(), pos = v.indexOf(IDX);
+      if (avancar && pos >= 0 && pos < v.length - 1) return abrirConversa(v[pos + 1]);
+      desenharIndice(); desenharConversa(); $("#nw-estado").textContent = "salvo";
+    }).catch(function (x) { $("#nw-estado").textContent = "não gravou: " + x.message; });
+  }
+  function ir(passo) {
+    var v = visiveis(), pos = v.indexOf(IDX), alvo = v[pos + passo];
+    if (alvo !== undefined) abrirConversa(alvo);
+  }
   $("#tr-resultado").addEventListener("click", function (e) {
     var cam = e.target.closest("[data-caminho]");
     if (cam) { if (window.NN) window.NN.acender(cam.dataset.caminho ? cam.dataset.caminho.split(",") : []); return; }
-    var b = e.target.closest(".acoes button.certo, .acoes button.errado"); if (!b) return;
-    marcar(b.closest("[data-turno]"), b.classList.contains("certo") ? "certo" : "errado");
+    var f = e.target.closest("[data-filtro]"); if (f) { FILTRO = f.dataset.filtro; desenharIndice(); var v = visiveis(); if (v.length && v.indexOf(IDX) < 0) abrirConversa(v[0]); else if (TURNOS) desenharConversa(); return; }
+    var it = e.target.closest("[data-conv]"); if (it) return abrirConversa(Number(it.dataset.conv));
+    var s = e.target.closest("[data-ir]"); if (s) return ir(Number(s.dataset.ir));
+    var tv = e.target.closest("[data-turno-veredito]"); if (tv) return julgarTurno(tv.closest("[data-turno]"), tv.dataset.turnoVeredito);
+    var vd = e.target.closest("[data-veredito]"); if (vd) return julgar(vd.dataset.veredito, vd.dataset.veredito === "certo");
+    if (e.target.closest("#nw-salvar")) {
+      var marcado = JULG.veredito;
+      return julgar($("#nw-erro").value.trim() ? "errado" : (marcado || "errado"), false);
+    }
   });
-  function marcar(t, veredito) {
-    var nota = t.querySelector(".acoes input").value.trim();
-    pega("marcacoes", { turno_origem: Number(t.dataset.turno), veredito: veredito, nota: nota || null, marcado_por: "painel" }).then(function () {
-      t.querySelector(".certo").setAttribute("aria-pressed", veredito === "certo");
-      t.querySelector(".errado").setAttribute("aria-pressed", veredito === "errado");
-      var g = t.querySelector(".gravou"); g.hidden = false; setTimeout(function () { g.hidden = true; }, 1800);
-    }).catch(function (x) { alert("Não gravou a marcação: " + x.message); });
-  }
-  /* a nota grava com Enter (ou ao sair do campo): sem veredito ainda, anotar um erro É marcar como errado */
-  function gravarNota(e) {
-    var i = e.target.closest && e.target.closest(".acoes input"); if (!i) return;
-    if (e.type === "keydown" && e.key !== "Enter") return;
-    var t = i.closest("[data-turno]"), certo = t.querySelector(".certo").getAttribute("aria-pressed") === "true";
-    if (!i.value.trim() && !certo && t.querySelector(".errado").getAttribute("aria-pressed") !== "true") return;
-    marcar(t, certo ? "certo" : "errado");
-  }
-  $("#tr-resultado").addEventListener("keydown", gravarNota);
-  $("#tr-resultado").addEventListener("change", gravarNota);
+  $("#tr-resultado").addEventListener("change", function (e) { if (e.target.id === "nw-ver-antes") { VER_ANTES = e.target.checked; desenharConversa(); } });
+  $("#tr-resultado").addEventListener("keydown", function (e) {
+    var i = e.target.closest && e.target.closest(".nw-julga input"); if (!i || e.key !== "Enter") return;
+    var cx = i.closest("[data-turno]"); julgarTurno(cx, cx.querySelector(".certo").getAttribute("aria-pressed") === "true" ? "certo" : "errado");
+  });
+  document.addEventListener("keydown", function (e) {
+    if ($("[data-painel='treino']").hidden || !TURNOS || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    if (e.key === "ArrowRight") ir(1); else if (e.key === "ArrowLeft") ir(-1);
+  });
   function comparar(id, outra) {
     $("#tr-comp").textContent = "comparando…";
     pega("execucoes/" + id + "/comparar/" + outra).then(function (d) {
       var c = d.contagem;
-      $("#tr-comp").innerHTML = '<span class="nn-dif melhorou">melhorou ' + (c.melhorou || 0) + '</span> <span class="nn-dif piorou">piorou ' + (c.piorou || 0) + '</span> <span class="nn-dif mudou">mudou ' + (c.mudou || 0) + "</span> igual " + (c.igual || 0) +
-        (d.turnos.length ? '<div style="margin-top:6px">' + d.turnos.slice(0, 40).map(function (t) { return '<div><span class="nn-dif ' + t.diferenca + '">' + t.diferenca + "</span> " + esc(fim4(t.chave)) + " “" + esc((t.texto || "").slice(0, 80)) + "” — nova: " + esc(t.nova.acao || "—") + (t.nova.imovel ? " " + esc(t.nova.imovel.join(",")) : "") + " · antes: " + esc(t.antiga.acao || "—") + (t.antiga.imovel ? " " + esc(t.antiga.imovel.join(",")) : "") + "</div>"; }).join("") + "</div>" : "");
+      $("#tr-comp").innerHTML = '<div class="nn-comp"><span class="nn-dif melhorou">melhorou ' + (c.melhorou || 0) + '</span> <span class="nn-dif piorou">piorou ' + (c.piorou || 0) + '</span> <span class="nn-dif mudou">mudou ' + (c.mudou || 0) + "</span> igual " + (c.igual || 0) +
+        (d.turnos.length ? '<div style="margin-top:6px">' + d.turnos.slice(0, 40).map(function (t) { return '<div><span class="nn-dif ' + t.diferenca + '">' + t.diferenca + "</span> " + esc(fim4(t.chave)) + " “" + esc((t.texto || "").slice(0, 80)) + "” — nova: " + esc(t.nova.acao || "—") + (t.nova.imovel ? " " + esc(t.nova.imovel.join(",")) : "") + " · antes: " + esc(t.antiga.acao || "—") + (t.antiga.imovel ? " " + esc(t.antiga.imovel.join(",")) : "") + "</div>"; }).join("") + "</div>" : "") + "</div>";
     }).catch(function (x) { $("#tr-comp").textContent = x.message; });
   }
 
