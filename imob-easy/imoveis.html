@@ -729,6 +729,15 @@ body{overflow:auto}
 /* o Ver dentro do balão não precisa de sombra: já está dentro de uma */
 .popup .vbtn,.pl .vbtn{box-shadow:none}
 .popup .pick,.pl .pick{box-shadow:0 1px 4px rgba(109,40,217,.2)}
+/* 06/10 (Pedro): sai o texto flutuante "N imóveis no mapa"; um título em cima do mapa e outro na lista, com a
+   contagem embaixo do título */
+.mcount{display:none!important}
+.titulo-secao{margin:0;font-size:17px;font-weight:600;color:var(--brand-dark)}
+.titulo-mapa{padding:12px 14px 8px;max-width:1180px;margin:0 auto}
+.res-h{display:grid;grid-template-columns:minmax(0,1fr);gap:3px;margin:2px 2px 12px}
+.res-h .cnt{margin:0}
+@media (min-width:1024px){ .titulo-mapa{margin-right:480px;max-width:none;padding:12px 14px 8px} }
+@media (max-width:760px){ .titulo-mapa{padding:10px 12px 6px} .titulo-secao{font-size:16px} }
 </style>
 </head>
 <body>
@@ -743,6 +752,7 @@ body{overflow:auto}
 
 <div class="hbar" id="hbar"><div id="hpanel"></div></div>
 
+<h2 class="titulo-secao titulo-mapa">Visualizar imóveis por mapa</h2>
 <main class="map" id="map" aria-label="Mapa de imóveis">
   <div class="world" id="world"></div>
   <div class="mtop" id="mtop">
@@ -765,7 +775,7 @@ body{overflow:auto}
 </main>
 
 <section class="results" id="results" aria-label="Lista de imóveis">
-  <div class="res-h"><h2>Imóveis</h2><span class="cnt" id="resCount"></span><div class="seg res-seg" role="group" aria-label="Comprar ou alugar"><button data-neg="venda" aria-pressed="true">Comprar</button><button data-neg="aluguel" aria-pressed="false">Alugar</button></div></div>
+  <div class="res-h"><h2 class="titulo-secao">Visualizar imóveis por lista</h2><span class="cnt" id="resCount"></span><div class="seg res-seg" role="group" aria-label="Comprar ou alugar"><button data-neg="venda" aria-pressed="true">Comprar</button><button data-neg="aluguel" aria-pressed="false">Alugar</button></div></div>
   <div class="res-f" id="listF"></div>
   <div class="res-list" id="list"></div>
 </section>
