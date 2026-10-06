@@ -1,0 +1,21 @@
+# O enviador manual de imóveis (06/10/2026), fora do n8n e da Nay. Ver enviador_manual.py.
+# Instalar: cp nay-enviador-manual.service /etc/systemd/system/ && systemctl daemon-reload
+#           && systemctl enable --now nay-enviador-manual
+[Unit]
+Description=Nay - enviador manual de imoveis (Enviar imovel, Me envia, ENVIA) pela Z-API, sem n8n
+After=network-online.target docker.service
+Wants=network-online.target
+# não deixa um laço de falhas rápidas desligar o reinício automático
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=/root/nay-publicador
+EnvironmentFile=/root/nay-publicador/.env
+Environment=TZ=America/Manaus PYTHONUNBUFFERED=1
+ExecStart=/root/nay-publicador/.venv/bin/python -u /root/nay-publicador/enviador_manual.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
