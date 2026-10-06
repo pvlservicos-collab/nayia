@@ -2848,11 +2848,45 @@ def api_proprietarios_lista():
     if esp and esp != "Todos":
         conds.append("p.especialista = %s")
         params.append(esp)
-    ordem = {"nome": "p.nome", "recentes": "p.criado_em DESC NULLS LAST, p.id DESC"}.get(a.get("ordem"), "p.nome")
+    # 05/10 (Pedro): "põe campos para eu pesquisar" -- cada campo filtra só a sua coluna
+    nome = str(a.get("nome") or "").strip()[:80]
+    if nome:
+        conds.append("nay_sem_acento(lower(coalesce(p.nome, ''))) LIKE '%%' || nay_sem_acento(lower(%s)) || '%%'")
+        params.append(nome)
+    for campo, coluna in (("telefone", "p.telefone"), ("cpf", "p.cpf")):
+        dig = re.sub(r"\D", "", str(a.get(campo) or ""))[:20]
+        if len(dig) >= 3:
+            conds.append("regexp_replace(coalesce(" + coluna + ", ''), '\\D', '', 'g') LIKE '%%' || %s || '%%'")
+            params.append(dig)
+    email = str(a.get("email") or "").strip()[:80]
+    if email:
+        conds.append("lower(coalesce(p.email, '')) LIKE '%%' || lower(%s) || '%%'")
+        params.append(email)
+    codigo = re.sub(r"\D", "", str(a.get("codigo") or ""))[:6]
+    if codigo:
+        conds.append("(', ' || coalesce(p.codigos, '') || ',') LIKE '%%, ' || %s || ',%%'")
+        params.append(codigo)
+    if a.get("imoveis") == "com":
+        conds.append("p.imoveis > 0")
+    elif a.get("imoveis") == "sem":
+        conds.append("p.imoveis = 0")
+    # "põe uma tag se foi conectado pela captação ou não": o lead da captação desse proprietário, se houver
+    cap = ("(SELECT cl.status FROM captacao_leads cl WHERE cl.proprietario_id = p.id"
+           " ORDER BY (cl.status IN ('respondendo', 'concluido')) DESC, (cl.status = 'enviado') DESC, cl.id DESC LIMIT 1)")
+    filtro_cap = {"respondeu": cap + " IN ('respondendo', 'concluido')", "chamado": cap + " = 'enviado'",
+                  "sim": cap + " IN ('respondendo', 'concluido', 'enviado')", "fila": cap + " = 'novo'",
+                  "nao": cap + " IS NULL"}.get(str(a.get("captacao") or ""))
+    if filtro_cap:
+        conds.append(filtro_cap)
+    # do mais antigo para o mais novo por padrão (o id segue a ordem do cadastro)
+    ordem = {"antigos": "p.id", "recentes": "p.id DESC", "nome": "p.nome NULLS LAST, p.id",
+             "nome_desc": "p.nome DESC NULLS LAST, p.id", "imoveis": "p.imoveis DESC, p.id",
+             "imoveis_asc": "p.imoveis, p.id"}.get(a.get("ordem"), "p.id")
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     conn = conectar()
     try:
-        linhas = todas_linhas(conn, "SELECT p.*, count(*) OVER () AS total FROM vw_proprietarios_site p " + where +
+        linhas = todas_linhas(conn, "SELECT p.*, " + cap + " AS captacao, count(*) OVER () AS total"
+                              " FROM vw_proprietarios_site p " + where +
                               " ORDER BY " + ordem + " LIMIT %s OFFSET %s", tuple(params + [per, (page - 1) * per]))
         funil = todas_linhas(conn, "SELECT etapa, count(*) AS n FROM vw_proprietarios_site GROUP BY 1 ORDER BY 2 DESC")
         especialistas = todas_linhas(conn, "SELECT especialista FROM vw_proprietarios_site "
@@ -2862,11 +2896,13 @@ def api_proprietarios_lista():
             "cpf": mascarar_cpf(l["cpf"]) if l["cpf"] else "—", "telefone": l["telefone"] or "—",
             "email": l["email"] or "—", "imoveis": int(l["imoveis"] or 0), "codigos": l["codigos"],
             "vencimento": l["vencimento"].isoformat() if l["vencimento"] else None,
+            # novo | enviado | respondendo | concluido | sem_whatsapp | None (nunca entrou na captação)
+            "captacao": l["captacao"],
         } for l in linhas]
         if a.get("formato") == "csv":
-            return _csv(["nome", "etapa", "especialista", "telefone", "email", "imoveis", "codigos", "vencimento"],
+            return _csv(["nome", "etapa", "especialista", "telefone", "email", "imoveis", "codigos", "vencimento", "captacao"],
                         [[i["nome"], i["etapa"], i["especialista"], i["telefone"], i["email"], i["imoveis"],
-                          i["codigos"], i["vencimento"]] for i in itens], "proprietarios")
+                          i["codigos"], i["vencimento"], i["captacao"] or "fora"] for i in itens], "proprietarios")
         return jsonify({"total": linhas[0]["total"] if linhas else 0, "page": page, "per": per, "itens": itens,
                         "funil": [{"rotulo": f["etapa"], "contagem": f["n"]} for f in funil],
                         "especialistas": [e["especialista"] for e in especialistas]})
