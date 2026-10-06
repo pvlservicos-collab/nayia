@@ -342,14 +342,28 @@ function centerOn(m) {
   mapa.panBy([0, -Math.round(mapEl.clientHeight * 0.3)], { animate: false });
 }
 
-/* NO COMPUTADOR, CLICAR NUM IMÓVEL CENTRALIZA NO CARD DELE (Pedro, 06/10). O card abre para cima do pino: o
-   pino vai para o meio na horizontal e um pouco abaixo do meio na vertical, e o card fica inteiro à vista. */
+/* CLICAR NUM PONTO CENTRALIZA O CARD QUE SOBE EM CIMA DELE, NOS DOIS APARELHOS (Pedro, 06/10: "a tela mova para
+   o card que sobe em cima do ponto fique centralizado na tela"). Mede o card de verdade (ele já está na tela) e a
+   parte do mapa que está À VISTA -- abaixo do menu e do filtro presos no topo e, no celular, acima do painel de
+   baixo. Se sobra pouco mapa à vista (a página estava rolada), a página volta para o mapa; depois o mapa desliza
+   até o meio do card ficar no meio dessa área. Card mais alto que a área: fica o topo dele à vista. */
 function centralizarNoCard(code) {
-  const g = mapa && !toque && lugarDe(code); if (!g) return;
-  const ponto = mapa.latLngToContainerPoint([g.lat, g.lon]);
-  const alto = mapEl.clientHeight, card = g.ims.length > 1 ? 330 : 250;
-  const alvoY = Math.min(alto - 30, Math.max(alto / 2 + card / 2, card + 50));
-  mapa.panBy([Math.round(ponto.x - mapEl.clientWidth / 2), Math.round(ponto.y - alvoY)], { animate: true, duration: .35 });
+  if (!mapa || !lugarDe(code)) return;
+  const card = mapEl.querySelector(".pinw .popup"); if (!card) return;
+  const c = card.getBoundingClientRect(), m = mapEl.getBoundingClientRect();
+  const hbar = $("#hbar");
+  const teto = $("#site").offsetHeight + (hbar ? hbar.offsetHeight : 0);              // o que fica preso no topo
+  const chao = innerHeight - (side() ? 0 : $("#sheet").offsetHeight);                 // o painel de baixo, no celular
+  let topo = Math.max(m.top, teto), base = Math.min(m.bottom, chao), rolar = 0;
+  if (base - topo < Math.min(c.height + 40, m.height)) {                              // pouco mapa à vista
+    rolar = m.top - teto;
+    topo = teto; base = Math.min(m.bottom - rolar, chao);
+    scrollBy({ top: rolar, behavior: "smooth" });
+  }
+  const meioX = m.left + m.width / 2, meioY = (topo + base) / 2;
+  const cardY = c.top - rolar, alto = base - topo;
+  const dy = c.height + 16 > alto ? cardY - (topo + 8) : cardY + c.height / 2 - meioY;
+  mapa.panBy([Math.round(c.left + c.width / 2 - meioX), Math.round(dy)], { animate: true, duration: .35 });
 }
 
 /* ===== pinos e balão ===== */

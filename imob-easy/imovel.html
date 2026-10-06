@@ -172,8 +172,11 @@ svg.lucide{width:18px;height:18px;flex:none;stroke-width:2}
 .panel-h b{font-size:15.5px;font-weight:600}
 .panel-h small{display:block;font-size:12.5px;opacity:.85}
 .panel-h button{margin-left:auto;border:0;background:rgba(255,255,255,.18);color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;display:grid;place-items:center}
-.items{overflow-y:auto;padding:8px;display:grid;gap:6px;flex:1}
-.item{display:grid;grid-template-columns:56px 1fr auto;gap:10px;align-items:center;padding:6px;border-radius:12px;background:var(--soft)}
+/* 06/10: a linha do imóvel não pode alargar a lista (o título comprido empurrava a lixeira para fora e criava
+   rolagem de lado, com um vão estranho embaixo do número): a coluna do texto encolhe e corta com reticências */
+.items{overflow-y:auto;overflow-x:hidden;padding:8px;display:grid;grid-template-columns:minmax(0,1fr);align-content:start;gap:6px;flex:1;min-height:0}
+.item>div{min-width:0}
+.item{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px;border-radius:12px;background:var(--soft)}
 .item.new{animation:flash 1.2s ease}
 @keyframes flash{0%{background:#E2D2FF}100%{background:var(--soft)}}
 .item img{width:56px;height:44px;border-radius:8px;object-fit:cover;display:block}
@@ -344,6 +347,6 @@ svg.lucide{width:18px;height:18px;flex:none;stroke-width:2}
 <div class="toast" id="toast" role="status"></div>
 
 <script src="/assets/js/config.js"></script>
-<script src="/assets/js/imovel-publico.js?v=20261006-icones"></script>
+<script src="/assets/js/imovel-publico.js?v=20261006-lista"></script>
 </body>
 </html>
