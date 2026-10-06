@@ -71,13 +71,9 @@
                { rotulo: "Locação",  href: "locacao.html",  chave: "locacao" }] },
     // A AGENDA DOS GRUPOS (Pedro, 03/10/2026): "uma aba Grupos... ao lado da captação"
     { chave: "grupos",        rotulo: "Grupos",           href: "grupos.html" },
-    /* 06/10/2026 (Pedro: "vou reformular a Nay completamente, então pode juntar tudo na Nay antiga"): as quatro
-       telas da Nay de hoje num menu só. As páginas são as mesmas; saíram do "Mais". */
-    { chave: "nay-antiga",    rotulo: "Nay antiga",       href: "nay-locacao.html",
-      filhos: [{ rotulo: "Nay Locação",      href: "nay-locacao.html",   chave: "nay-locacao" },
-               { rotulo: "Nay Captação",     href: "nay-captacao.html",  chave: "nay-captacao" },
-               { rotulo: "Cérebro da Nay",   href: "nay-cerebro.html",   chave: "nay-cerebro" },
-               { rotulo: "Estrutura da Nay", href: "nay-estrutura.html", chave: "nay-estrutura" }] }
+    /* 06/10/2026 (Pedro: "põe a Nay antiga dentro do menu Mais e deixa no lugar um menu Nova Nay ... esse menu
+       vazio por enquanto"). As telas da Nay de hoje estão no "Mais", no grupo "Nay antiga". */
+    { chave: "nova-nay",      rotulo: "Nova Nay",         href: "#", filhos: [] }
     /* Clientes e Vagas foram para o "Mais" (Tel, 28/09) */
   ];
 
@@ -85,6 +81,13 @@
     { rotulo: "Clientes",          href: "clientes.html",    chave: "clientes" },
     { rotulo: "Vagas",             href: "vagas.html",       chave: "vagas" },
     { rotulo: "Fluxo de mensagens", href: "fluxo.html",      chave: "fluxo" },
+    /* a Nay antiga (06/10): as quatro telas da Nay de hoje, num grupo dentro do "Mais" */
+    { grupo: "Nay antiga" },
+    { rotulo: "Nay Locação",       href: "nay-locacao.html",   chave: "nay-locacao",   recuo: true },
+    { rotulo: "Nay Captação",      href: "nay-captacao.html",  chave: "nay-captacao",  recuo: true },
+    { rotulo: "Cérebro da Nay",    href: "nay-cerebro.html",   chave: "nay-cerebro",   recuo: true },
+    { rotulo: "Estrutura da Nay",  href: "nay-estrutura.html", chave: "nay-estrutura", recuo: true },
+    { grupo: "" },
     { rotulo: "Condomínios",       href: "condominios.html", chave: "condominios" },
     { rotulo: "Anúncios",          href: "anuncios.html",    chave: "anuncios" },
     { rotulo: "Listas",            href: "listas.html",      chave: "listas" },
@@ -98,7 +101,7 @@
   ];
 
   var atual = document.body.dataset.pagina || "";
-  var noSubmenu = SUBMENU.some(function (i) { return i.chave === atual; });
+  var noSubmenu = SUBMENU.some(function (i) { return i.chave && i.chave === atual; });
 
   /* ---- Barra superior ---- */
   var topo =
@@ -130,9 +133,9 @@
         '<button class="nav-principal__item' + (dentro ? " ativo" : "") + '" type="button" aria-haspopup="true" aria-expanded="false" data-abre-mais>' +
           '<span class="icone">' + (ICONE[item.chave] || ICONE.folha) + "</span>" + item.rotulo + " " + SETA +
         "</button>" +
-        '<ul class="menu-mais__lista" style="left:0;right:auto">' + item.filhos.map(function (f) {
+        '<ul class="menu-mais__lista" style="left:0;right:auto">' + (item.filhos.length ? item.filhos.map(function (f) {
           return '<li><a href="' + f.href + '"' + (f.chave === atual ? ' aria-current="page"' : "") + ">" + f.rotulo + "</a></li>";
-        }).join("") + "</ul>" +
+        }).join("") : '<li><span style="display:block;padding:10px 14px;color:var(--texto-fraco)">Vazio por enquanto</span></li>') + "</ul>" +
       "</div>";
     }
     return (
@@ -144,6 +147,15 @@
 
   var subitens = SUBMENU.map(function (item) {
     var ativo = item.chave && item.chave === atual;
+    // título de grupo ("Nay antiga") e o fim do grupo (uma linha fina)
+    if (item.grupo !== undefined) {
+      return item.grupo
+        ? '<li role="presentation" style="padding:10px 14px 4px;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--texto-fraco);border-top:1px solid var(--borda);margin-top:4px">' + item.grupo + "</li>"
+        : '<li role="presentation" style="border-top:1px solid var(--borda);margin:4px 0"></li>';
+    }
+    if (item.recuo && item.href !== "#") {
+      return '<li><a href="' + item.href + '"' + (ativo ? ' aria-current="page"' : "") + ' style="padding-left:24px">' + item.rotulo + "</a></li>";
+    }
     // Sem página ainda: aparece apagado e diz isso, em vez de um link "#"
     // que não fazia nada (revisão 11/09/2026).
     if (item.href === "#") {
