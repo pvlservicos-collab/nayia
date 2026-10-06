@@ -24,7 +24,7 @@
   }).catch(function (x) { $("#nn-versao").textContent = "painel: " + x.message; });
 
   /* ---- Nós ---- */
-  var MAPA = null, ESCALA = 0.8, atual = null;
+  var MAPA = null, ESCALA = 0.8, atual = null, ACESOS = null;   /* ACESOS: os nós de um turno do treino, acesos no grafo */
   function corDa(etapa) { return (MAPA.etapas[etapa] || {}).cor || "#7c5cff"; }
   function desenharGrafo() {
     var g = $("#nn-grafo"), nos = MAPA.nos, pos = {}, maxX = 0, maxY = 0, busca = ($("#nn-busca").value || "").trim().toLowerCase();
@@ -46,7 +46,8 @@
     g.style.width = W + "px"; g.style.height = H + "px";
     g.innerHTML = svg + nos.map(function (n) {
       var p = pos[n.id], h = n.hoje || {}, some = busca && (n.nome + " " + n.id + " " + n.descricao).toLowerCase().indexOf(busca) < 0;
-      return '<button type="button" class="nn-no' + (h.erros ? " com-erro" : "") + (!h.vezes || some ? " parado" : "") + '" data-no="' + esc(n.id) + '" style="left:' + p.x + "px;top:" + p.y + "px;--cor:" + corDa(n.etapa) + '"' + (n.id === atual ? ' aria-current="true"' : "") + ">" +
+      var aceso = ACESOS ? ACESOS.indexOf(n.id) >= 0 : null;
+      return '<button type="button" class="nn-no' + (h.erros ? " com-erro" : "") + (aceso === false || (aceso === null && (!h.vezes || some)) ? " parado" : "") + (aceso ? " aceso" : "") + '" data-no="' + esc(n.id) + '" style="left:' + p.x + "px;top:" + p.y + "px;--cor:" + corDa(n.etapa) + '"' + (n.id === atual ? ' aria-current="true"' : "") + ">" +
         "<b>" + esc(n.nome) + "</b><small>" + esc(n.id) + "</small>" +
         '<span class="nn-num">' + (h.vezes ? "hoje " + h.vezes + "×" : "sem uso hoje") + (h.erros ? ' <span class="erro">' + h.erros + " erro(s)</span>" : "") + (h.ms_medio != null ? " · " + h.ms_medio + " ms" : "") + "</span></button>";
     }).join("");
@@ -104,6 +105,7 @@
     g.style.transform = "scale(" + ESCALA + ")";
   }
   document.addEventListener("click", function (e) {
+    if (e.target.closest("[data-apagar]")) { window.NN.acender(null); return; }
     var z = e.target.closest("[data-zoom]");
     if (z) { if (z.dataset.zoom === "0") return ajustar(); ESCALA = Math.max(0.3, Math.min(1.6, ESCALA + (z.dataset.zoom === "+" ? 0.1 : -0.1))); $("#nn-grafo").style.transform = "scale(" + ESCALA + ")"; return; }
     var n = e.target.closest("[data-no]"); if (n && MAPA) return abrirNo(n.dataset.no);
@@ -116,6 +118,11 @@
     window.addEventListener("mousemove", function (e) { if (!ini) return; r.scrollLeft = ini.sl - (e.clientX - ini.x); r.scrollTop = ini.st - (e.clientY - ini.y); });
     window.addEventListener("mouseup", function () { ini = null; r.classList.remove("arrastando"); });
   })();
+  /* o treino acende no grafo o caminho de um turno */
+  window.NN = {
+    abrirAba: function (n) { abrirAba(n); },
+    acender: function (ids) { ACESOS = ids && ids.length ? ids : null; $("[data-apagar]").hidden = !ACESOS; abrirAba("nos"); if (MAPA) { desenharGrafo(); setTimeout(ajustar, 0); } window.scrollTo({ top: 0, behavior: "smooth" }); }
+  };
   function abrirAba(nome) {
     document.querySelectorAll("[data-painel-abre]").forEach(function (b) { b.setAttribute("aria-selected", b.dataset.painelAbre === nome ? "true" : "false"); });
     document.querySelectorAll("[data-painel]").forEach(function (p) { p.hidden = p.dataset.painel !== nome; });
