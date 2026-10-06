@@ -22,6 +22,7 @@ captacao_situacao_dita	captacao_rede_da_situacao
 captacao_status_da_mensagem	
 captacao_teto_hoje	captacao_disparo_liberado, captacao_relatorio_da_vez, crm_captacao_placar, crm_captacao_relatorio
 captacao_vigiar	
+core_saida_validar	
 crm_anuncio_familia	crm_imovel_candidatos
 crm_anuncio_id_do_link	crm_imovel_candidatos, crm_imovel_vincular_anuncio, crm_olx_bot_receber
 crm_anuncio_link_normal	crm_anuncio_id_do_link, crm_imovel_candidatos, crm_imovel_vincular_anuncio, crm_olx_bot_receber
@@ -80,6 +81,7 @@ crm_visitas_extra
 crm_visitas_pessoas	
 imoveis_a_situacao_manda	
 imoveis_carimbar_taxa	
+imoveis_parceiro_pelo_captador	
 mensagens_espera_a_rajada	
 mensagens_uma_vez_so	
 nai_abrir_turno	
@@ -113,6 +115,7 @@ nai_cadastro_ler	nai_cadastro_absorver
 nai_cadastro_modelo	
 nai_cadastro_pendente	
 nai_cancelar_visita	
+nai_captador_e_parceiro	imoveis_parceiro_pelo_captador
 nai_card_do_banco	nai_card_do_imovel
 nai_card_do_imovel	nai_buscar_por_perfil, nai_conferir_resposta, nai_disparo_conferir, nai_enfileirar_card, nai_enviar_imoveis_para, nai_fila_dos_outros_imoveis, nai_status_do_imovel, nay_disponibilidade_no_condominio
 nai_cfg	crm_nay_ligada, nai_abrir_turno, nai_agenda_tick, nai_apresentacao_prop, nai_aprovador_contato, nai_aprovar_visita, nai_avisar_tel, nai_cfg_int, nai_chaves_de, nai_chaves_teste, nai_checklist_enfileirar, nai_com_a_rayssa, nai_conferir_imoveis_da_saida, nai_conferir_resposta, nai_conferir_texto_da_saida, nai_corrigir_nomes, nai_decidir_com_jev, nai_decidir_v2, nai_dentro_da_janela, nai_deve_atender, nai_disparo_enfileirar, nai_e_da_equipe_contato, nai_e_voz_do_tel, nai_enfileirar_resposta, nai_enviar_checklist_para, nai_escalar, nai_espacar_depois_das_fotos, nai_fala_e_dele, nai_followup_rodar, nai_inicio_periodo, nai_jev_decidiria, nai_jev_pedido, nai_liberar_saida, nai_ligar_regra_publico, nai_lista_governa, nai_mente_registrar, nai_na_lista_curta, nai_parar_chat, nai_passe_do_citado, nai_pode_comandar, nai_quem_atende, nai_resposta_aprovacao_valida, nai_saida_validar, nai_secretaria_ligada, nai_sincronizar_grupos, nai_tel_assumiu, nai_texto_corretor_confirmou, nai_tracar, nai_visita_corretor_confirmou, nai_visita_para_a_rayssa, nai_visitas_do_bloco_avisar, nay_fora_da_regra_do_dia
