@@ -211,6 +211,7 @@ document.addEventListener("keydown", e => {
 });
 document.addEventListener("click", e => {
   if (!e.target.closest(".hloc")) fecharLocais();
+  if (e.target.id === "hbar") { abrirFiltros(false); return; }      // tocou no escuro, fora do popup
   const t = e.target.closest("button"); if (!t) return;
   if (t.dataset.hloc) { FM.loc = t.dataset.hloc; fecharLocais(); $("#hloc").blur(); renderAll(); fit(); }
   if (t.dataset.go && t.closest("#hlist")) { fecharLocais(); $("#hloc").blur(); }
