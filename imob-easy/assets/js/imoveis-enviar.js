@@ -119,8 +119,8 @@ function painelHTML() {
   return `<div class="hneg"><div class="seg" role="group" aria-label="Venda ou locação"><button type="button" data-neg="venda" aria-pressed="${G.neg === "venda"}">Venda</button><button type="button" data-neg="aluguel" aria-pressed="${G.neg === "aluguel"}">Locação</button></div><button type="button" class="hclr" data-clear="m" hidden>Limpar filtros</button></div>
   <div class="hp" id="hp">
     <div class="hp-r hp-r1">
-      <div class="hp-c"><small>Bairro/Condomínio</small><div class="hloc"><input class="hp-in" id="hloc" type="text" autocomplete="off" placeholder="Selecione o Bairro/Condomínio" aria-label="Bairro, condomínio ou código"><button type="button" class="hfil" data-hfil aria-label="Mais filtros" aria-expanded="false">${i("sliders-horizontal")}<span class="bd" id="hfilBd"></span></button><div class="hlist" id="hlist" role="listbox"></div></div></div>
-      <div class="hp-c hp-x"><small>Tipo de Imóvel</small><div class="hchips" id="htipos"></div></div>
+      <div class="hp-c"><small>Bairro/Condomínio</small><div class="hloc"><input class="hp-in" id="hloc" type="text" autocomplete="off" placeholder="Selecione o Bairro/Condomínio" aria-label="Bairro, condomínio ou código"><div class="hlist" id="hlist" role="listbox"></div></div></div>
+      <div class="hp-c hp-x"><small>Tipo<span class="hp-l"> de Imóvel</span></small><div class="hchips" id="htipos"></div></div>
     </div>
     <div class="hp-r hp-r2 hp-x">
       <div class="hp-c"><small>Quartos</small><div class="hchips">${ch}</div></div>
@@ -146,9 +146,6 @@ function syncH() {
   hp.querySelectorAll("input[data-k]").forEach(c => { if (c !== document.activeElement) c.value = FM[c.dataset.k]; });
   const loc = $("#hloc"); if (loc !== document.activeElement) loc.value = FM.loc ? FM.loc.split("|")[1] : "";
   const limpar = document.querySelector(".hclr"); if (limpar) limpar.hidden = !fCount(FM);
-  // no celular os outros filtros ficam recolhidos: a bolinha diz quantos estão valendo lá dentro
-  const dentro = fCount(FM) - (FM.loc ? 1 : 0), bd = $("#hfilBd");
-  if (bd) { bd.textContent = dentro; bd.classList.toggle("on", dentro > 0); }
 }
 function pintarLocais() {
   const box = $("#hlist"), q = norm($("#hloc").value.trim());
@@ -186,7 +183,6 @@ document.addEventListener("click", e => {
   if (t.dataset.htipo) { FM.tipo = FM.tipo === t.dataset.htipo ? "" : t.dataset.htipo; renderAll(); fit(); }
   if (t.hasAttribute("data-hmais")) { hMais = !hMais; syncH(); measure(); }
   if (t.dataset.mob) { FM.mob.has(t.dataset.mob) ? FM.mob.delete(t.dataset.mob) : FM.mob.add(t.dataset.mob); renderAll(); fit(); }
-  if (t.hasAttribute("data-hfil")) { const o = $("#hp").classList.toggle("open"); t.setAttribute("aria-expanded", o); measure(); }
 });
 
 /* ===== o mapa: o MESMO do nosso painel =====

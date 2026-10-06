@@ -561,21 +561,30 @@ body{overflow:auto}
 .hchip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
 .hval{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 @media (min-width:1024px){ .hbar{margin-right:480px;padding:10px 14px 12px} }
-/* celular: Venda/Locação, a busca e o botão dos outros filtros; o resto abre no botão */
+/* Venda/Locação menor, em cima da barra (06/10) */
+.hneg .seg{padding:3px}
+.hneg .seg button{padding:5px 16px;font-size:13px}
+/* CELULAR: o filtro INTEIRO aberto (Pedro, 06/10: "quero esse menu inteiro aberto no mobile, reorganize
+   melhor"): uma linha por filtro, com o rótulo ao lado, para caber tudo sem rolar */
 @media (max-width:760px){
-  .hbar{padding:6px 8px 8px}
-  .hneg{margin-bottom:6px}
-  .hneg .seg{width:100%;max-width:340px}
-  .hneg .seg button{flex:1;padding:6px 10px}
-  .hclr{position:static;transform:none;flex:none}
-  .hfil{display:grid}
+  .hbar{padding:5px 8px 7px}
+  .hneg{margin-bottom:5px}
+  .hneg .seg button{padding:4px 14px;font-size:12.5px}
+  .hclr{font-size:12px;right:0}
+  .hp{border-radius:14px}
   .hp-r1,.hp-r2{grid-template-columns:minmax(0,1fr)}
-  .hp-c{padding:8px 10px 9px}
-  .hp-c+.hp-c{border-left:0;border-top:1px solid var(--line)}
-  .hp .hp-x{display:none}
-  .hp.open .hp-x{display:block}
-  .hp.open .hp-r2{display:grid}
-  .hp-in{font-size:16px}
+  .hp-r2{border-top:0}
+  .hp-c{display:flex;align-items:center;gap:8px;padding:6px 10px;border-top:1px solid var(--line)}
+  .hp-r1 .hp-c:first-child{border-top:0}
+  .hp-c+.hp-c{border-left:0}
+  .hp-c>small{flex:none;width:54px;margin:0;font-size:11.5px;line-height:1.15}
+  .hp-r1 .hp-c:first-child>small{display:none}    /* a busca fala por si */
+  .hp-c>.hloc,.hp-c>.hchips,.hp-c>.hval{flex:1;min-width:0}
+  .hp-in{padding:8px 10px;font-size:16px}          /* 16px: o iPhone não dá zoom no campo */
+  .hchip,.mchip.hchip{padding:5px 9px;font-size:12px;min-width:32px}
+  .hchips{gap:5px}
+  .hp-l{display:none}                             /* "Tipo", sem quebrar em duas linhas */
+  .hval{gap:6px}
 }
 /* a lupa de zoom volta NO COMPUTADOR (06/10): +, −, ver tudo e claro/escuro, no canto do mapa */
 @media (pointer:fine){ .map .zoom{display:grid!important} }
@@ -651,6 +660,6 @@ body{overflow:auto}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/assets/js/config.js"></script>
-<script src="/assets/js/imoveis-enviar.js?v=20261006-filtro"></script>
+<script src="/assets/js/imoveis-enviar.js?v=20261006-aberto"></script>
 </body>
 </html>
