@@ -168,7 +168,8 @@ svg.lucide{width:18px;height:18px;flex:none;stroke-width:2}
 .dock-btn .badge{background:#fff;color:var(--brand-dark);border-radius:999px;min-width:22px;height:22px;display:grid;place-items:center;font-size:12.5px;padding:0 6px}
 .dock-btn.pulse{animation:pulse .6s ease}
 @keyframes pulse{50%{transform:scale(1.08)}}
-.panel{width:min(360px,calc(100vw - 32px));max-height:min(520px,70vh);background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 20px 50px rgba(74,29,150,.25);display:none;flex-direction:column;overflow:hidden}
+/* 06/10 (Pedro): sem a borda em volta do popup da lista de envio */
+.panel{width:min(360px,calc(100vw - 32px));max-height:min(520px,70vh);background:#fff;border:0;border-radius:18px;box-shadow:0 20px 50px rgba(74,29,150,.25);display:none;flex-direction:column;overflow:hidden}
 .dock.open .panel{display:flex}
 .panel-h{display:flex;align-items:center;gap:10px;padding:14px 14px 12px 16px;background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff}
 .panel-h b{font-size:15.5px;font-weight:600}

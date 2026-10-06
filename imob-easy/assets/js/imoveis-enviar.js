@@ -398,7 +398,10 @@ function renderList() {
   const list = listItems();
   const botaoDaLista = $("#listbtnTxt");      // o botão "Ver lista" saiu do painel fixo em 05/10
   if (botaoDaLista) botaoDaLista.textContent = carregou ? `Ver lista: ${list.length} ${list.length === 1 ? "imóvel" : "imóveis"}` : "Ver lista de imóveis";
-  $("#resCount").textContent = carregou ? `${list.length} ${list.length === 1 ? "encontrado" : "encontrados"} · toque no imóvel para selecionar` : "";
+  // a mesma linha embaixo dos dois títulos (mapa e lista), Pedro 06/10
+  const encontrados = carregou ? `${list.length} ${list.length === 1 ? "encontrado" : "encontrados"} · toque no imóvel para selecionar` : "";
+  $("#resCount").textContent = encontrados;
+  const noMapa = $("#mapResCount"); if (noMapa) noMapa.textContent = encontrados;
   if (!carregou) {
     $("#list").innerHTML = `<div class="empty">${falhou ? 'Não consegui carregar os imóveis agora. <button class="vbtn" data-de-novo>Tentar de novo</button>' : "Carregando os imóveis…"}</div>`;
     return;

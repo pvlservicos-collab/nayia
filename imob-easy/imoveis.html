@@ -733,7 +733,8 @@ body{overflow:auto}
    contagem embaixo do título */
 .mcount{display:none!important}
 .titulo-secao{margin:0;font-size:17px;font-weight:600;color:var(--brand-dark)}
-.titulo-mapa{padding:12px 14px 8px;max-width:1180px;margin:0 auto}
+.titulo-mapa{display:grid;gap:3px;padding:12px 14px 8px;max-width:1180px;margin:0 auto}
+.titulo-mapa .cnt{font-size:13.5px;color:var(--muted)}
 .res-h{display:grid;grid-template-columns:minmax(0,1fr);gap:3px;margin:2px 2px 12px}
 .res-h .cnt{margin:0}
 @media (min-width:1024px){ .titulo-mapa{margin-right:480px;max-width:none;padding:12px 14px 8px} }
@@ -752,7 +753,7 @@ body{overflow:auto}
 
 <div class="hbar" id="hbar"><div id="hpanel"></div></div>
 
-<h2 class="titulo-secao titulo-mapa">Visualizar imóveis por mapa</h2>
+<div class="titulo-mapa"><h2 class="titulo-secao">Visualizar imóveis por mapa</h2><span class="cnt" id="mapResCount"></span></div>
 <main class="map" id="map" aria-label="Mapa de imóveis">
   <div class="world" id="world"></div>
   <div class="mtop" id="mtop">
@@ -807,6 +808,6 @@ body{overflow:auto}
 
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="/assets/js/config.js"></script>
-<script defer src="/assets/js/imoveis-enviar.js?v=20261006-rapido"></script>
+<script defer src="/assets/js/imoveis-enviar.js?v=20261006-contagem"></script>
 </body>
 </html>
