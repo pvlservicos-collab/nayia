@@ -39,6 +39,9 @@ svg.lucide{width:18px;height:18px;flex:none;stroke-width:2}
 /* O MAPA É O MESMO DO /imoveis (06/10): OpenStreetMap com o filtro escuro, divisas e nomes dos bairros, e o pino
    roxo com o preço. As regras são as de imoveis.html. */
 .map.mapa--escuro{background:#1d1b22}
+/* 06/10: o mapa ficava NA FRENTE do menu, da lista de envio e da barra de baixo no celular -- as camadas do
+   Leaflet têm z-index de 400 a 1000 e disputavam com a página. O mapa vira uma pilha só dele, no fundo. */
+.map{isolation:isolate;z-index:0}
 .mapa--escuro .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) grayscale(1) brightness(.92) contrast(.88)}
 .leaflet-tooltip.ux-rotulo-bairro{background:transparent;border:0;box-shadow:none;font-weight:700;font-size:11px;white-space:nowrap;padding:0;color:#ede9fe;text-shadow:0 0 3px #000,0 0 3px #000}
 .leaflet-tooltip.ux-rotulo-bairro::before{display:none}
@@ -347,6 +350,6 @@ svg.lucide{width:18px;height:18px;flex:none;stroke-width:2}
 <div class="toast" id="toast" role="status"></div>
 
 <script src="/assets/js/config.js"></script>
-<script src="/assets/js/imovel-publico.js?v=20261006-lista"></script>
+<script src="/assets/js/imovel-publico.js?v=20261006-z"></script>
 </body>
 </html>
