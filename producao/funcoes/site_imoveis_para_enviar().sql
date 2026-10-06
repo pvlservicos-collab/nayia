@@ -31,6 +31,9 @@ AS $function$
            'quartos', t.quartos, 'vagas', t.vagas,
            'area', round(coalesce(nullif(t.area_util, 0), nullif(t.area_total, 0))),
            'venda', nullif(t.valor_venda, 0), 'aluguel', nullif(t.valor_aluguel, 0),
+           -- 297: 'mobiliado' | 'semi' (só ar-condicionado e vazio não entram: a chave some)
+           'mobilia', CASE WHEN lower(btrim(coalesce(t.mobilia, ''))) LIKE 'semi%' THEN 'semi'
+                           WHEN lower(btrim(coalesce(t.mobilia, ''))) LIKE 'mobiliado%' THEN 'mobiliado' END,
            'foto', (SELECT f.url FROM imovel_fotos f
                      WHERE f.codigo = t.codigo AND coalesce(f.url, '') <> '' AND NOT coalesce(f.e_mosaico, false)
                      ORDER BY coalesce(f.e_capa, false) DESC, f.ordem NULLS LAST, f.id LIMIT 1),

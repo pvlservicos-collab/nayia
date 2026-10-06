@@ -1,4 +1,4 @@
-# captacao_mensagens  (tabela, ~4542 linhas)
+# captacao_mensagens  (tabela, ~4793 linhas)
 
 ## colunas
 id  bigint  NOT NULL
