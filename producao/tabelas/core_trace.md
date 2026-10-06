@@ -1,4 +1,4 @@
-# core_trace  (tabela, ~7519 linhas)
+# core_trace  (tabela, ~8105 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('core_trace_id_seq'::regclass)
@@ -13,8 +13,10 @@ modelo  text
 versao_prompt  text
 erro  text
 criado_em  timestamp with time zone  NOT NULL  padrão now()
+no_id  text
 
 ## índices
+CREATE INDEX core_trace_no ON public.core_trace USING btree (no_id, criado_em) WHERE (no_id IS NOT NULL)
 CREATE INDEX core_trace_turno ON public.core_trace USING btree (turno_id, seq)
 CREATE UNIQUE INDEX core_trace_pkey ON public.core_trace USING btree (id)
 

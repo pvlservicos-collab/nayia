@@ -17,6 +17,8 @@ ms_total  integer
 erro  text
 criado_em  timestamp with time zone  NOT NULL  padrão now()
 fechado_em  timestamp with time zone
+modo  text
+versao_codigo  text
 
 ## índices
 CREATE INDEX core_turno_chave ON public.core_turno USING btree (chave, criado_em)
