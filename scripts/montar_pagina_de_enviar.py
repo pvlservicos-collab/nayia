@@ -9,15 +9,25 @@ desenho? Rode de novo:
     python scripts/montar_pagina_de_enviar.py
 
 e publique: ./scripts/nay site imoveis.html assets/js/imoveis-enviar.js
+
+ATENÇÃO (06/10/2026): desde 05/10 a página imob-easy/imoveis.html é editada DIRETO (pinos, altura do
+mapa, filtro único fixo embaixo do menu, painel só com WhatsApp + Enviar, lupa de zoom no PC...) e o
+desenho Telaenviarmovel.html ficou para trás. Este gerador RECUSA rodar por cima enquanto a página tiver
+a marca "editado à mão"; para voltar a usá-lo, leve os ajustes para o desenho e tire a marca da página.
 """
 import io
 import re
+import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 DESENHO = RAIZ / "Telaenviarmovel.html"
 SAIDA = RAIZ / "imob-easy" / "imoveis.html"
 VERSAO = "20261003b"
+
+if SAIDA.exists() and "editado à mão" in io.open(SAIDA, encoding="utf-8").read():
+    sys.exit("imoveis.html foi editado à mão depois do desenho (ver o cabeçalho dele e o topo deste script): "
+             "este gerador apagaria esses ajustes. Edite a página direto, ou leve os ajustes para o desenho antes.")
 
 html = io.open(DESENHO, encoding="utf-8").read()
 

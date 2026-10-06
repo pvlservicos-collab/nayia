@@ -56,8 +56,8 @@ const G = { neg: "venda", q: "" };
 const preco = m => G.neg === "aluguel" ? m.aluguel : m.venda;
 const priceTxt = m => G.neg === "aluguel" ? `${brl(m.aluguel)}<span>/mês</span>` : brl(m.venda);
 const local = m => [m.condominio, m.bairro].filter(Boolean).join(" · ");
-const newF = () => ({ loc: "", tipo: "", quartos: new Set(), vagas: new Set(), min: "", max: "" });
-const FM = newF(), FS = newF();
+const newF = () => ({ loc: "", tipo: "", quartos: new Set(), vagas: new Set(), mob: new Set(), min: "", max: "" });
+const FM = newF(), FS = FM;      // 06/10: um filtro só -- o de cima vale para o mapa e para a lista
 let focusCode = null, popCode = null;
 const SKEY = "imobeasy_lista_envio", PKEY = "imobeasy_whatsapp";
 let sel = []; try { sel = JSON.parse(localStorage.getItem(SKEY) || "[]"); if (!Array.isArray(sel)) sel = []; } catch (e) { sel = []; }
@@ -73,12 +73,13 @@ function matchF(m, F) {
   if (F.loc) { const [k, v] = F.loc.split("|"); if (k === "b" && m.bairro !== v) return false; if (k === "c" && m.condominio !== v) return false; }
   if (F.tipo && m.tipo !== F.tipo) return false;
   if (!numSel(F.quartos, m.quartos || 0) || !numSel(F.vagas, m.vagas || 0)) return false;
+  if (F.mob.size && !F.mob.has(m.mobilia)) return false;      // 297: 'mobiliado' | 'semi'
   if (F.min && preco(m) < parseV(F.min)) return false;
   if (F.max && preco(m) > parseV(F.max)) return false;
   return true;
 }
 const base = () => IMOVEIS.filter(m => preco(m) > 0 && matchQ(m));
-const fCount = F => (F.loc ? 1 : 0) + (F.tipo ? 1 : 0) + (F.quartos.size ? 1 : 0) + (F.vagas.size ? 1 : 0) + (F.min || F.max ? 1 : 0);
+const fCount = F => (F.loc ? 1 : 0) + (F.tipo ? 1 : 0) + (F.quartos.size ? 1 : 0) + (F.vagas.size ? 1 : 0) + (F.mob.size ? 1 : 0) + (F.min || F.max ? 1 : 0);
 function fbarHTML(id) {
   const bairros = [...new Set(IMOVEIS.map(m => m.bairro).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
   const condos = [...new Set(IMOVEIS.map(m => m.condominio).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
@@ -94,7 +95,8 @@ function fbarHTML(id) {
   </div>`;
 }
 function syncF(id, F) {
-  (id === "m" ? ["#mapF"] : ["#sheetF", "#listF"]).forEach(s => {
+  syncH();
+  ["#mapF", "#sheetF", "#listF"].forEach(s => {
     const root = $(s); if (!root || !root.firstElementChild) return;
     root.querySelector('[data-k="loc"]').value = F.loc; root.querySelector('[data-k="tipo"]').value = F.tipo;
     root.querySelector('[data-k="min"]').value = F.min; root.querySelector('[data-k="max"]').value = F.max;
@@ -102,7 +104,90 @@ function syncF(id, F) {
     root.querySelector(".fclr").classList.toggle("on", fCount(F) > 0);
   });
 }
-const resetF = F => { F.loc = ""; F.tipo = ""; F.quartos.clear(); F.vagas.clear(); F.min = ""; F.max = ""; };
+const resetF = F => { F.loc = ""; F.tipo = ""; F.quartos.clear(); F.vagas.clear(); F.mob.clear(); F.min = ""; F.max = ""; };
+
+/* ===== O FILTRO ÚNICO, FIXO EMBAIXO DO MENU (Pedro, 06/10) =====
+   "quero esse filtro que tem na home ... põe o venda e locação clicável em cima da barra de pesquisa, e troca o
+   garagem por Mobiliado ou semimobiliado"; "deixa só um filtro"; "põe fixo embaixo do menu". É o desenho da
+   busca da home: Bairro/Condomínio (a lista desce e filtra pelas iniciais; número acha pelo código), tipo em
+   botões (os principais e o resto no "+"), quartos, mobília e valor. Vale para o mapa E para a lista. */
+const TIPOS_PRINCIPAIS = ["Apartamento", "Casa", "Casa de condomínio"];
+let hMais = false;
+const ptBR = (a, b) => a.localeCompare(b, "pt-BR");
+function painelHTML() {
+  const ch = [1, 2, 3, 4].map(n => `<button type="button" class="mchip hchip" data-f="m" data-k="quartos" data-n="${n}" aria-pressed="false">${n === 4 ? "4+" : n}</button>`).join("");
+  return `<div class="hneg"><div class="seg" role="group" aria-label="Venda ou locação"><button type="button" data-neg="venda" aria-pressed="${G.neg === "venda"}">Venda</button><button type="button" data-neg="aluguel" aria-pressed="${G.neg === "aluguel"}">Locação</button></div><button type="button" class="hclr" data-clear="m" hidden>Limpar filtros</button></div>
+  <div class="hp" id="hp">
+    <div class="hp-r hp-r1">
+      <div class="hp-c"><small>Bairro/Condomínio</small><div class="hloc"><input class="hp-in" id="hloc" type="text" autocomplete="off" placeholder="Selecione o Bairro/Condomínio" aria-label="Bairro, condomínio ou código"><button type="button" class="hfil" data-hfil aria-label="Mais filtros" aria-expanded="false">${i("sliders-horizontal")}<span class="bd" id="hfilBd"></span></button><div class="hlist" id="hlist" role="listbox"></div></div></div>
+      <div class="hp-c hp-x"><small>Tipo de Imóvel</small><div class="hchips" id="htipos"></div></div>
+    </div>
+    <div class="hp-r hp-r2 hp-x">
+      <div class="hp-c"><small>Quartos</small><div class="hchips">${ch}</div></div>
+      <div class="hp-c"><small>Mobília</small><div class="hchips"><button type="button" class="hchip" data-mob="mobiliado" aria-pressed="false">Mobiliado</button><button type="button" class="hchip" data-mob="semi" aria-pressed="false">Semimobiliado</button></div></div>
+      <div class="hp-c"><small>Valor</small><div class="hval"><input class="hp-in" data-f="m" data-k="min" inputmode="numeric" placeholder="De" aria-label="Valor mínimo"><input class="hp-in" data-f="m" data-k="max" inputmode="numeric" placeholder="Até" aria-label="Valor máximo"></div></div>
+    </div>
+  </div>`;
+}
+function pintarTiposH() {
+  const el = $("#htipos"); if (!el) return;
+  const nomes = [...new Set(IMOVEIS.filter(m => preco(m) > 0).map(m => m.tipo).filter(Boolean))];
+  if (FM.tipo && !nomes.includes(FM.tipo)) nomes.push(FM.tipo);
+  const frente = TIPOS_PRINCIPAIS.filter(x => nomes.includes(x)), resto = nomes.filter(x => !frente.includes(x)).sort(ptBR);
+  if (FM.tipo && resto.includes(FM.tipo)) hMais = true;      // o escolhido está no resto: já vem aberto
+  const b = x => `<button type="button" class="hchip" data-htipo="${esc(x)}" aria-pressed="${FM.tipo === x}">${esc(x)}</button>`;
+  el.innerHTML = frente.map(b).join("") + (resto.length ? `<button type="button" class="hchip" data-hmais aria-expanded="${hMais}" title="Mais tipos">${hMais ? "−" : "+"}</button>` : "") + (hMais ? resto.map(b).join("") : "");
+}
+function syncH() {
+  const hp = $("#hp"); if (!hp) return;
+  pintarTiposH();
+  hp.querySelectorAll(".mchip").forEach(c => c.setAttribute("aria-pressed", FM.quartos.has(+c.dataset.n)));
+  hp.querySelectorAll("[data-mob]").forEach(c => c.setAttribute("aria-pressed", FM.mob.has(c.dataset.mob)));
+  hp.querySelectorAll("input[data-k]").forEach(c => { if (c !== document.activeElement) c.value = FM[c.dataset.k]; });
+  const loc = $("#hloc"); if (loc !== document.activeElement) loc.value = FM.loc ? FM.loc.split("|")[1] : "";
+  const limpar = document.querySelector(".hclr"); if (limpar) limpar.hidden = !fCount(FM);
+  // no celular os outros filtros ficam recolhidos: a bolinha diz quantos estão valendo lá dentro
+  const dentro = fCount(FM) - (FM.loc ? 1 : 0), bd = $("#hfilBd");
+  if (bd) { bd.textContent = dentro; bd.classList.toggle("on", dentro > 0); }
+}
+function pintarLocais() {
+  const box = $("#hlist"), q = norm($("#hloc").value.trim());
+  const doNeg = IMOVEIS.filter(m => preco(m) > 0);
+  const conta = campo => { const c = new Map(); doNeg.forEach(m => { if (m[campo]) c.set(m[campo], (c.get(m[campo]) || 0) + 1); }); return c; };
+  // primeiro quem COMEÇA com o que foi digitado, depois quem tem uma palavra começando assim
+  const acha = c => { const todos = [...c.keys()].sort(ptBR); return todos.filter(n => !q || norm(n).startsWith(q)).concat(todos.filter(n => q && !norm(n).startsWith(q) && (" " + norm(n)).includes(" " + q))); };
+  const bs = conta("bairro"), cs = conta("condominio");
+  const item = (k, n, c) => `<button type="button" data-hloc="${k}|${esc(n)}" role="option"><span>${esc(n)}</span><small>${c} ${c === 1 ? "imóvel" : "imóveis"}</small></button>`;
+  let html = "";
+  if (/^\d+$/.test(q)) html += IMOVEIS.filter(m => String(m.codigo).startsWith(q)).slice(0, 6).map(m => `<button type="button" data-go="${m.codigo}" role="option"><span>Cód. ${m.codigo} · ${esc(m.titulo)}</span></button>`).join("");
+  const lb = acha(bs), lc = acha(cs);
+  if (lb.length) html += `<div class="g">Bairros</div>` + lb.map(n => item("b", n, bs.get(n))).join("");
+  if (lc.length) html += `<div class="g">Condomínios</div>` + lc.map(n => item("c", n, cs.get(n))).join("");
+  box.innerHTML = html || `<div class="g">Nada com esse nome em ${G.neg === "venda" ? "Venda" : "Locação"}</div>`;
+  box.classList.add("open");
+}
+const fecharLocais = () => { const b = $("#hlist"); if (b) b.classList.remove("open"); };
+document.addEventListener("focusin", e => { if (e.target.id === "hloc") pintarLocais(); });
+document.addEventListener("input", e => {
+  if (e.target.id !== "hloc") return;
+  if (!e.target.value.trim() && FM.loc) { FM.loc = ""; renderAll(); fit(); }
+  pintarLocais();
+});
+document.addEventListener("keydown", e => {
+  if (e.target.id !== "hloc") return;
+  if (e.key === "Escape") fecharLocais();
+  if (e.key === "Enter") { e.preventDefault(); const primeiro = document.querySelector("#hlist.open button"); if (primeiro) primeiro.click(); }
+});
+document.addEventListener("click", e => {
+  if (!e.target.closest(".hloc")) fecharLocais();
+  const t = e.target.closest("button"); if (!t) return;
+  if (t.dataset.hloc) { FM.loc = t.dataset.hloc; fecharLocais(); $("#hloc").blur(); renderAll(); fit(); }
+  if (t.dataset.go && t.closest("#hlist")) { fecharLocais(); $("#hloc").blur(); }
+  if (t.dataset.htipo) { FM.tipo = FM.tipo === t.dataset.htipo ? "" : t.dataset.htipo; renderAll(); fit(); }
+  if (t.hasAttribute("data-hmais")) { hMais = !hMais; syncH(); measure(); }
+  if (t.dataset.mob) { FM.mob.has(t.dataset.mob) ? FM.mob.delete(t.dataset.mob) : FM.mob.add(t.dataset.mob); renderAll(); fit(); }
+  if (t.hasAttribute("data-hfil")) { const o = $("#hp").classList.toggle("open"); t.setAttribute("aria-expanded", o); measure(); }
+});
 
 /* ===== o mapa: o MESMO do nosso painel =====
    Pedro, 02/10/2026: "esse mapa tá estranho, não é o mesmo mapa nosso, que deve ser aberto como tema escuro
@@ -221,6 +306,16 @@ function centerOn(m) {
   mapa.panBy([0, -Math.round(mapEl.clientHeight * 0.3)], { animate: false });
 }
 
+/* NO COMPUTADOR, CLICAR NUM IMÓVEL CENTRALIZA NO CARD DELE (Pedro, 06/10). O card abre para cima do pino: o
+   pino vai para o meio na horizontal e um pouco abaixo do meio na vertical, e o card fica inteiro à vista. */
+function centralizarNoCard(code) {
+  const g = mapa && !toque && lugarDe(code); if (!g) return;
+  const ponto = mapa.latLngToContainerPoint([g.lat, g.lon]);
+  const alto = mapEl.clientHeight, card = g.ims.length > 1 ? 330 : 250;
+  const alvoY = Math.min(alto - 30, Math.max(alto / 2 + card / 2, card + 50));
+  mapa.panBy([Math.round(ponto.x - mapEl.clientWidth / 2), Math.round(ponto.y - alvoY)], { animate: true, duration: .35 });
+}
+
 /* ===== pinos e balão ===== */
 const pickBtn = (m, full) => `<button class="pick" data-pick="${m.codigo}" aria-pressed="${isSel(m.codigo)}"${full ? ' style="width:100%"' : ""}>${isSel(m.codigo) ? i("circle-check") + "Selecionado" : i("circle-plus") + "Selecionar"}</button>`;
 function pinHTML(g) {
@@ -290,9 +385,9 @@ function renderSel() {
     : `<p class="sel-empty">Nenhum ainda. Toque num imóvel do mapa ou da lista para selecionar.</p>`;
   $("#ftogBd").textContent = fCount(FS); $("#ftogBd").classList.toggle("on", fCount(FS) > 0);
   $("#sendTxt").innerHTML = enviando ? "Enviando…" : n ? `Me envia <span class="lbl-long">${n === 1 ? "o imóvel" : `os ${n}`}</span>` : "Me envia";
-  $("#send").disabled = !n || enviando;
-  // o botão só aparece com o WhatsApp preenchido (Pedro, 05/10): DDD + número
-  $("#send").hidden = digits(phone).length < 10;
+  // 06/10 (Pedro): o Enviar fica ao lado do WhatsApp, apagado, e libera quando o número está preenchido
+  $("#send").hidden = false;
+  $("#send").disabled = enviando || digits(phone).length < 10;
 }
 
 /* ===== busca (sincronizada) ===== */
@@ -343,7 +438,8 @@ function togglePick(code) {
 
 /* ===== o envio de verdade: a Nay manda o card e as fotos para o número digitado ===== */
 function meEnvia() {
-  if (!sel.length || enviando) return;
+  if (enviando) return;
+  if (!sel.length) { toast("Selecione um imóvel no mapa ou na lista para enviar."); return; }
   if (digits(phone).length < 10) { $("#sheet").classList.remove("min"); $("#phone").classList.add("bad"); $("#err").textContent = "Digite seu WhatsApp com DDD para receber"; $("#phone").focus(); return; }
   enviando = true; renderSel();
   const n = sel.length;
@@ -383,10 +479,12 @@ function renderAll() { renderMap(); renderList(); renderSel(); syncF("m", FM); s
 const side = () => matchMedia("(min-width:1024px)").matches;
 function measure() {
   document.documentElement.style.setProperty("--head-h", $("#site").offsetHeight + "px");
+  const hbar = $("#hbar"); if (hbar) document.documentElement.style.setProperty("--hbar-h", hbar.offsetHeight + "px");
   document.documentElement.style.setProperty("--sheet-h", side() ? "0px" : $("#sheet").offsetHeight + "px");
   if (mapa) mapa.invalidateSize();
 }
 function montarFiltros() {
+  const hpanel = $("#hpanel"); if (hpanel) hpanel.innerHTML = painelHTML();
   $("#mapF").innerHTML = fbarHTML("m");
   $("#sheetF").innerHTML = fbarHTML("s");
   $("#listF").innerHTML = fbarHTML("s");
@@ -450,7 +548,7 @@ document.addEventListener("click", e => {
   if (!t) return;
   if (t.hasAttribute("data-de-novo")) { carregar(); return; }
   if (t.dataset.neg) { G.neg = t.dataset.neg; document.querySelectorAll("[data-neg]").forEach(b => b.setAttribute("aria-pressed", b.dataset.neg === G.neg)); focusCode = null; popCode = null; renderAll(); renderSugs(); fit(); }
-  if (t.dataset.pin) { popCode = t.dataset.pin; focusCode = t.dataset.pin; renderAll(); }
+  if (t.dataset.pin) { popCode = t.dataset.pin; focusCode = t.dataset.pin; renderAll(); centralizarNoCard(t.dataset.pin); }
   if (t.hasAttribute("data-closepop")) closePopup();
   if (t.dataset.pick) togglePick(t.dataset.pick);
   if (t.dataset.go) goTo(t.dataset.go);
@@ -488,7 +586,7 @@ document.addEventListener("input", e => {
   const t = e.target;
   if (t.dataset.f && (t.dataset.k === "min" || t.dataset.k === "max")) { const d = t.value.replace(/\D/g, ""); t.value = d ? Number(d).toLocaleString("pt-BR") : ""; FF(t.dataset.f)[t.dataset.k] = t.value; renderMap(); renderList(); renderSel(); syncF(t.dataset.f, FF(t.dataset.f)); drawIcons(); }
   if (t.hasAttribute("data-q")) setQ(t.value, t);
-  if (t.id === "phone") { phone = digits(t.value); t.value = fmt(phone); t.classList.remove("bad"); $("#err").textContent = ""; try { localStorage.setItem(PKEY, phone); } catch (err) { /* idem */ } $("#send").hidden = digits(phone).length < 10; }
+  if (t.id === "phone") { phone = digits(t.value); t.value = fmt(phone); t.classList.remove("bad"); $("#err").textContent = ""; try { localStorage.setItem(PKEY, phone); } catch (err) { /* idem */ } $("#send").disabled = enviando || digits(phone).length < 10; }
 });
 $("#q").addEventListener("keydown", e => {
   const items = [...document.querySelectorAll(".sug")];
