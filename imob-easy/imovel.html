@@ -252,6 +252,12 @@ svg.lucide{width:18px;height:18px;flex:none;stroke-width:2}
   .mbar svg.lucide{width:15px;height:15px}
   .dock-btn{font-size:12px;padding:9px 12px 9px 10px}
 }
+/* ÍCONE NO CENTRO DO BOTÃO (06/10, Pedro: "os ícones estão todos descentralizados" no celular): o navegador do
+   celular põe um recuo próprio dentro de todo <button>; num botão redondo pequeno isso empurra o ícone para o
+   lado. Todo botão que é só ícone fica sem recuo, com o ícone como bloco no meio. */
+.voltar,.arrow,.panel-h button,.item button{padding:0;line-height:0;-webkit-appearance:none;appearance:none;display:grid;place-items:center;place-content:center}
+.voltar svg,.arrow svg,.panel-h button svg,.item button svg{display:block;margin:0;flex:none}
+.btn svg,.btn-o svg,.dock-btn svg,.nav button svg,.spec svg,.loc svg,.pill svg,.code svg{flex:none}
 </style>
 </head>
 <body>
@@ -338,6 +344,6 @@ svg.lucide{width:18px;height:18px;flex:none;stroke-width:2}
 <div class="toast" id="toast" role="status"></div>
 
 <script src="/assets/js/config.js"></script>
-<script src="/assets/js/imovel-publico.js?v=20261006-mapa"></script>
+<script src="/assets/js/imovel-publico.js?v=20261006-icones"></script>
 </body>
 </html>

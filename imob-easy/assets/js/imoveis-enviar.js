@@ -147,6 +147,8 @@ function resumoH() {
   const onde = FM.loc ? FM.loc.split("|")[1] : "Manaus";
   T.textContent = `${FM.tipo || "Imóveis"} ${G.neg === "aluguel" ? "para alugar" : "à venda"} em ${onde}`;
   const partes = [];
+  if (FM.tipo) partes.push(FM.tipo);
+  if (FM.loc) partes.push(onde);
   if (FM.quartos.size) { const q = [...FM.quartos].sort().map(x => x === 4 ? "4+" : x); partes.push(q.join(", ") + (q.length === 1 && q[0] === 1 ? " quarto" : " quartos")); }
   if (FM.mob.size) partes.push([...FM.mob].map(x => x === "semi" ? "Semimobiliado" : "Mobiliado").join(" ou "));
   if (FM.min || FM.max) partes.push(FM.min && FM.max ? `R$ ${FM.min} a ${FM.max}` : FM.min ? `a partir de R$ ${FM.min}` : `até R$ ${FM.max}`);

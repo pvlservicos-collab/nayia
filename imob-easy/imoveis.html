@@ -633,6 +633,19 @@ body{overflow:auto}
 .sh-send{grid-template-columns:minmax(0,1fr) auto}
 .send:disabled{opacity:.38}
 .sel-h{border-top:0}
+/* ÍCONE NO CENTRO DO BOTÃO (06/10, Pedro: "os ícones estão todos descentralizados" no celular): o navegador do
+   celular põe um recuo próprio dentro de todo <button>; num botão redondo pequeno isso empurra o ícone para o
+   lado. Todo botão que é só ícone fica sem recuo, com o ícone como bloco no meio. */
+.hpfil,.hfull-h button,.zoom button,.popup .x,.sbox .clr,.ftog,.sel-list .it .rm{padding:0;line-height:0;-webkit-appearance:none;appearance:none;display:grid;place-items:center;place-content:center}
+.hpfil svg,.hfull-h button svg,.zoom button svg,.popup .x svg,.sbox .clr svg,.ftog svg,.sel-list .it .rm svg{display:block;margin:0;flex:none}
+.row .ph .ck{line-height:0}
+.row .ph .ck svg,.hpill svg,.vbtn svg,.pick svg,.send svg{display:block;flex:none}
+/* A PÍLULA SÓ COM A LINHA CINZA (06/10): sai o título escuro; a linha fica no meio da altura, à esquerda */
+@media (max-width:760px){
+  .hpill{min-height:44px}
+  .hpill b{display:none}
+  .hpill span{display:flex;align-items:center;min-height:100%}
+}
 </style>
 </head>
 <body>
@@ -701,6 +714,6 @@ body{overflow:auto}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/assets/js/config.js"></script>
-<script src="/assets/js/imoveis-enviar.js?v=20261006-popup"></script>
+<script src="/assets/js/imoveis-enviar.js?v=20261006-icones"></script>
 </body>
 </html>
