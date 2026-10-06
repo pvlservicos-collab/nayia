@@ -137,9 +137,12 @@
 
   function escolher(i) {
     if (!mostrados[i]) return;
-    input.value = mostrados[i].bairro;
+    var escolhido = mostrados[i].bairro;
+    input.value = escolhido;
     fechar();
     input.dispatchEvent(new Event("change", { bubbles: true }));
+    // comprar/alugar: o bairro escolhido vira marcador (busca-filtros.js)
+    input.dispatchEvent(new CustomEvent("bairro-escolhido", { bubbles: true, detail: escolhido }));
   }
 
   // Clicou ou entrou no campo: desce a lista inteira.

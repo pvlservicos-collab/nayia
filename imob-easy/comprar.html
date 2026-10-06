@@ -87,47 +87,26 @@
       </div>
 
       <div class="filtros__grupo">
-        <label class="opcao-caixa"><input type="checkbox"> Aceita Financiamento</label>
-        <label class="opcao-caixa"><input type="checkbox"> Aceita Permuta</label>
+        <label class="filtros__rotulo" for="bairro">Bairros</label>
+        <input class="filtros__entrada" id="bairro" type="text" placeholder="Clique e escolha o bairro">
+        <div class="filtros__caixa" id="f-bairros" style="margin-top:6px;display:none"></div>
       </div>
 
       <div class="filtros__grupo">
-        <label class="filtros__rotulo" for="f-condominios">Condomínios</label>
-        <input class="filtros__entrada" id="f-condominios" type="text">
+        <label class="filtros__rotulo" for="f-tipo">Tipo de imóvel</label>
+        <select class="filtros__entrada" id="f-tipo"><option value="">Todos</option></select>
       </div>
 
       <div class="filtros__grupo">
-        <span class="filtros__rotulo">Bairros</span>
-        <div class="filtros__caixa">
-          <span class="marcador">Adrianópolis
-            <button type="button" aria-label="Remover filtro Adrianópolis">&times;</button>
-          </span>
-        </div>
-      </div>
-
-      <div class="filtros__grupo">
-        <label class="filtros__rotulo" for="f-tipos">Tipo de imóveis</label>
-        <input class="filtros__entrada" id="f-tipos" type="text">
-      </div>
-
-      <div class="filtros__grupo">
-        <label class="opcao-caixa"><input type="checkbox"> Mobiliado</label>
-        <label class="opcao-caixa"><input type="checkbox"> Semi-Mobiliado</label>
+        <label class="filtros__rotulo" for="f-condominio">Condomínio</label>
+        <input class="filtros__entrada" id="f-condominio" type="text" placeholder="Nome do condomínio">
       </div>
 
       <div class="filtros__grupo">
         <span class="filtros__rotulo">Valores</span>
         <div class="filtros__par">
-          <input class="filtros__entrada" type="text" placeholder="De" aria-label="Valor mínimo">
-          <input class="filtros__entrada" type="text" placeholder="Até" aria-label="Valor máximo">
-        </div>
-      </div>
-
-      <div class="filtros__grupo">
-        <span class="filtros__rotulo">IPTU + taxa de condomínio</span>
-        <div class="filtros__par">
-          <input class="filtros__entrada" type="text" placeholder="De" aria-label="IPTU mínimo">
-          <input class="filtros__entrada" type="text" placeholder="Até" aria-label="IPTU máximo">
+          <input class="filtros__entrada" id="f-vmin" type="text" inputmode="numeric" placeholder="De" aria-label="Valor mínimo">
+          <input class="filtros__entrada" id="f-vmax" type="text" inputmode="numeric" placeholder="Até" aria-label="Valor máximo">
         </div>
       </div>
 
@@ -151,15 +130,9 @@
         </div>
       </div>
 
-      <div class="filtros__grupo filtros__par">
-        <div>
-          <label class="filtros__rotulo" for="f-banheiros">Banheiros</label>
-          <input class="filtros__entrada" id="f-banheiros" type="text" placeholder="Até">
-        </div>
-        <div>
-          <label class="filtros__rotulo" for="f-area">Área em m2</label>
-          <input class="filtros__entrada" id="f-area" type="text" placeholder="Até">
-        </div>
+      <div class="filtros__grupo">
+        <label class="filtros__rotulo" for="f-banheiros">Banheiros</label>
+        <input class="filtros__entrada" id="f-banheiros" type="text" inputmode="numeric" placeholder="A partir de">
       </div>
 
       <button class="btn-roxo btn-bloco" type="submit">PESQUISAR</button>
@@ -167,15 +140,10 @@
 
     <!-- ================= Resultados ================= -->
     <div>
+      <p id="res-contagem" aria-live="polite" style="margin:0 0 12px;color:var(--texto-fraco,#6b7280);font-size:var(--fs-sm,14px)"></p>
       <div class="grade-imoveis" data-lista="comprar"></div>
 
-      <nav class="paginacao" aria-label="Paginação dos resultados">
-        <a href="#" aria-label="Página anterior">&laquo;</a>
-        <span class="ativo" aria-current="page">1</span>
-        <a href="#">2</a>
-        <a href="#">3</a>
-        <a href="#" aria-label="Próxima página">&raquo;</a>
-      </nav>
+      <nav class="paginacao" aria-label="Paginação dos resultados"></nav>
     </div>
 
   </div>
@@ -299,7 +267,9 @@
 </footer>
 
 <script src="assets/js/config.js"></script>
-<script src="assets/js/dados-site.js"></script>
+<script src="assets/js/dados-site.js?v=20261005-filtros"></script>
 <script src="assets/js/site.js"></script>
+<script src="assets/js/busca-bairro.js?v=20261005-filtros"></script>
+<script src="assets/js/busca-filtros.js?v=20261005-filtros"></script>
 </body>
 </html>

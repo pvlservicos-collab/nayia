@@ -411,21 +411,59 @@ def api_imoveis():
         condicoes.append("valor_venda IS NOT NULL")
     elif finalidade == "aluguel":
         condicoes.append("valor_aluguel IS NOT NULL")
+    # 05/10 (Pedro): os filtros de comprar/alugar eram só desenho. Cada um é opcional; sem nenhum,
+    # a rota responde como sempre respondeu (a home e os destaques dependem disso).
+    a, params = request.args, []
+    bairros = [b.strip()[:60] for b in a.getlist("bairros") + a.getlist("bairro") if b and b.strip()][:20]
+    if bairros:
+        condicoes.append("nay_sem_acento(lower(coalesce(bairro, ''))) LIKE ANY "
+                         "(SELECT '%%' || nay_sem_acento(lower(x)) || '%%' FROM unnest(%s::text[]) x)")
+        params.append(bairros)
+    tipo = str(a.get("tipo") or "").strip()[:60]
+    if tipo and tipo != "Todos":
+        condicoes.append("tipo = %s")
+        params.append(tipo)
+    condominio = str(a.get("condominio") or "").strip()[:80]
+    if condominio:
+        condicoes.append("nay_sem_acento(lower(coalesce(condominio_nome, ''))) LIKE '%%' || nay_sem_acento(lower(%s)) || '%%'")
+        params.append(condominio)
+    for nome, coluna in (("quartos", "quartos"), ("garagem", "vagas"), ("banheiros", "banheiros")):
+        pedido = str(a.get(nome) or "").strip()
+        n = re.sub(r"\D", "", pedido)[:2]
+        if n:   # "4+" e o campo de banheiros são "a partir de"; 1, 2 e 3 são exatos
+            condicoes.append(coluna + (" >= %s" if pedido.endswith("+") or nome == "banheiros" else " = %s"))
+            params.append(int(n))
+    valor = {"venda": "valor_venda", "aluguel": "valor_aluguel"}.get(finalidade, "coalesce(valor_venda, valor_aluguel)")
+    for nome, sinal in (("valor_min", ">="), ("valor_max", "<=")):
+        n = re.sub(r"\D", "", str(a.get(nome) or ""))[:12]
+        if n:
+            condicoes.append(valor + " " + sinal + " %s")
+            params.append(int(n))
     where = ("WHERE " + " AND ".join(condicoes)) if condicoes else ""
+    paginado = bool(a.get("pagina"))
+    if paginado:
+        limit = max(1, min(int(a.get("por") or 24), 60))
+    salto = (max(1, int(a.get("pagina") or 1)) - 1) * limit if paginado else 0
 
     conn = conectar()
     try:
         linhas = todas_linhas(conn, f"""
             SELECT codigo, tipo, condominio_nome, bairro, logradouro, numero,
                    complemento, area_util, quartos, suites, banheiros, vagas,
-                   valor_venda, valor_aluguel, e_parceiro
+                   valor_venda, valor_aluguel, e_parceiro, count(*) OVER () AS total
             FROM imoveis
             {where}
-            ORDER BY criado_em DESC
-            LIMIT %s
-        """, (limit,))
+            ORDER BY criado_em DESC, codigo DESC
+            LIMIT %s OFFSET %s
+        """, tuple(params + [limit, salto]))
         fotos = buscar_fotos(conn, [l["codigo"] for l in linhas])
-        return jsonify([imovel_para_cartao(l, fotos) for l in linhas])
+        itens = [imovel_para_cartao(l, fotos) for l in linhas]
+        if paginado:
+            total = linhas[0]["total"] if linhas else 0
+            if not linhas and salto:   # página além do fim: o total ainda precisa vir certo
+                total = todas_linhas(conn, f"SELECT count(*) AS n FROM imoveis {where}", tuple(params))[0]["n"]
+            return jsonify({"total": total, "itens": itens})
+        return jsonify(itens)
     finally:
         conn.close()
 
@@ -459,6 +497,23 @@ def api_bairros():
              ORDER BY btrim(bairro)
         """)
         return jsonify([dict(l) for l in linhas])
+    finally:
+        conn.close()
+
+
+@app.route("/api/tipos")
+def api_tipos():
+    """Os tipos de imóvel que têm imóvel no ar, para o filtro de comprar/alugar e
+    da home (05/10): a lista vem do banco, então só aparece tipo que existe."""
+    conn = conectar()
+    try:
+        return jsonify([dict(l) for l in todas_linhas(conn, """
+            SELECT btrim(tipo) AS tipo, count(*) AS imoveis,
+                   count(*) FILTER (WHERE valor_venda IS NOT NULL) AS venda,
+                   count(*) FILTER (WHERE valor_aluguel IS NOT NULL) AS aluguel
+              FROM imoveis
+             WHERE publicado_no_site = true AND disponivel = true AND coalesce(btrim(tipo), '') <> ''
+             GROUP BY btrim(tipo) ORDER BY count(*) DESC, btrim(tipo)""")])
     finally:
         conn.close()
 

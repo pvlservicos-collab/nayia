@@ -161,6 +161,9 @@ window.DADOS_SITE = {
       .catch(function () { return null; }); // API fora do ar: fica no estático
   }
 
+  // comprar/alugar têm a busca própria, com filtro e página (busca-filtros.js)
+  if (document.querySelector("form.filtros")) return;
+
   Promise.all([
     buscar("/api/imoveis?finalidade=venda&limit=30"),
     buscar("/api/imoveis?finalidade=aluguel&limit=30"),
