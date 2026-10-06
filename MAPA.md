@@ -122,6 +122,11 @@ prompt: comece pelo `nay onde`.
   `site_grade_salvar`/`site_grade_excluir`, a semana e a métrica de 6 h por `site_grade_agenda` (rotas `/admin/api/grade*`). 279.
   Cor por grupo, tachinhas e a mensagem em balões de WhatsApp (texto do card, depois a metadinha ou todas as fotos):
   regras por grupo em `site_grade_opcoes` (280: todas_fotos, pisos, lotado); o card e a `colagem` por `/api/imovel-card/<código>`.
+- admin › Nova Nay (`admin/nova-nay.html`, `assets/js/nova-nay.js`, `assets/css/nova-nay.css`): o painel da Nay em Python
+  (abas Nós, Treinamento, Logs). A página só mostra o que a API `/painel/*` do nay-core devolve, pela ponte
+  `/admin/api/nova-nay/<rota>` em `nay-site-api/app.py` (senha do /admin no navegador; `NAY_CORE_URL` +
+  `NAY_CORE_PAINEL_TOKEN` no compose do site, `PAINEL_TOKEN` no .env do nay-core). O código do painel mora no
+  nay-core: `nay/painel/`, `painel/fluxo.yaml`, `painel/nos.yaml`, `scripts/gerar_mapa.py` (gera `painel/mapa.json` no deploy).
   LISTA de imóveis pela tela (285/286): a vaga de lista (categoria, negócio, destino) se cria e se edita ali; o texto é
   automático (montado na hora) ou ESCRITO À MÃO em `vagas.texto_fixo` — o publicador manda esse texto e só tira a linha
   "cod 1234" do imóvel que saiu do ar (`_lista_escrita_a_mao` e `_codigos_no_ar` em `publicador.py`; `disparar_grade.py`

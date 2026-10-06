@@ -10,6 +10,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/nova-nay.css?v=20261006a">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 <meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
 </head>
 <body class="admin" data-pagina="nova-nay">
@@ -19,17 +21,74 @@
 <div data-layout-topo></div>
 
 <main class="conteudo" id="conteudo">
-  <!-- 06/10/2026 (Pedro): a página da Nova Nay. Vazia de propósito: "o conteúdo eu já coloco". -->
-  <div class="pagina-cabecalho">
-    <h1 class="pagina-titulo">Nova Nay</h1>
+  <!-- O PAINEL NOVA NAY (06/10/2026, migracao/07-PAINEL-NOVA-NAY.md do nay-core): a página só mostra o que a API do
+       nay-core devolve, pela ponte /admin/api/nova-nay/<rota> (senha do /admin + segredo no servidor). -->
+  <div class="pagina-cabecalho nn-cab">
+    <div>
+      <h1 class="pagina-titulo">Nova Nay</h1>
+      <p class="pagina-subtitulo">A Nay em Python: cada nó é uma parte do código.</p>
+    </div>
+    <div class="nn-versao" id="nn-versao" title="versão do código no ar e modo">…</div>
   </div>
+
+  <div class="abas" role="tablist" aria-label="Nova Nay" data-abas-funcionais>
+    <button class="abas__item" role="tab" type="button" data-painel-abre="nos" aria-selected="true">Nós</button>
+    <button class="abas__item" role="tab" type="button" data-painel-abre="treino" aria-selected="false">Treinamento</button>
+    <button class="abas__item" role="tab" type="button" data-painel-abre="logs" aria-selected="false">Logs</button>
+  </div>
+
+  <section data-painel="nos" class="nn-nos">
+    <aside class="nn-lateral">
+      <input class="entrada" id="nn-busca" type="search" placeholder="Buscar nó por nome, id ou descrição">
+      <div id="nn-etapas" class="nn-etapas"></div>
+    </aside>
+    <div class="nn-grafo-caixa">
+      <div class="nn-grafo-botoes">
+        <button type="button" class="btn-neutro" data-zoom="-">−</button>
+        <button type="button" class="btn-neutro" data-zoom="+">+</button>
+        <button type="button" class="btn-neutro" data-zoom="0">Ajustar</button>
+        <span class="nn-dica">Arraste para mover · clique no nó para ver o código</span>
+      </div>
+      <div class="nn-grafo-rolagem" id="nn-rolagem"><div class="nn-grafo" id="nn-grafo"></div></div>
+    </div>
+    <aside class="nn-detalhe" id="nn-detalhe"><p class="painel__vazio">Clique num nó para ver o que ele faz, a função, a última alteração, os testes e o código.</p></aside>
+  </section>
+
+  <section data-painel="treino" hidden>
+    <div class="cartao nn-em-breve">
+      <h2>Treinamento</h2>
+      <p>Roda conversas reais escolhidas por você, sem enviar nada, e mostra o que a Nay nova responderia ao lado do que foi respondido de verdade. Entra na parte 2 da fase 2 (tabelas de treino, processo nay-treino e cache de classificação).</p>
+    </div>
+  </section>
+
+  <section data-painel="logs" hidden class="nn-logs">
+    <div class="nn-logs-topo">
+      <input class="entrada" type="date" id="nn-dia" aria-label="Dia">
+      <select class="selecao" id="nn-papel" aria-label="Papel"><option value="">Todos os papéis</option><option value="corretor">corretor</option><option value="tel">tel</option><option value="equipe">equipe</option><option value="proprietario">proprietário</option></select>
+      <select class="selecao" id="nn-acao" aria-label="Ação"><option value="">Todas as ações</option></select>
+      <label class="opcao-caixa"><input type="checkbox" id="nn-so-erros"> só erros</label>
+      <label class="opcao-caixa"><input type="checkbox" id="nn-so-escalados"> só escalados</label>
+      <input class="entrada" type="search" id="nn-q" placeholder="Buscar no texto ou no nome">
+      <span class="contagem-lista" id="nn-logs-resumo" style="margin:0 0 0 auto">…</span>
+    </div>
+    <div class="tabela-envolucro">
+      <div class="tabela-rolagem">
+        <table class="tabela nn-tabela-logs">
+          <thead><tr><th>Hora</th><th>Quem</th><th>Papel</th><th>Chegou</th><th>Saiu</th><th>Ação</th><th>Imóvel</th><th>Envio</th><th>Modelo</th><th>Tempo</th></tr></thead>
+          <tbody id="nn-logs"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="nn-turno" id="nn-turno" hidden></div>
+  </section>
 </main>
 
 <div data-layout-rodape></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script src="../assets/js/config.js"></script>
-<script src="../assets/js/dados-admin.js"></script>
 <script src="../assets/js/layout.js"></script>
 <script src="../assets/js/admin.js"></script>
+<script src="../assets/js/nova-nay.js?v=20261006a"></script>
 </body>
 </html>

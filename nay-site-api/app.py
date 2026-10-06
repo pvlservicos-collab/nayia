@@ -19,7 +19,7 @@ from zoneinfo import ZoneInfo
 import psycopg2
 import psycopg2.extras
 import psycopg2.sql
-from flask import Flask, jsonify, request
+from flask import Flask, Response, jsonify, request
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 FUSO = ZoneInfo("America/Manaus")
@@ -2966,6 +2966,35 @@ def api_proprietarios_lista():
                         "especialistas": [e["especialista"] for e in especialistas]})
     finally:
         conn.close()
+
+
+# A PONTE DO PAINEL NOVA NAY (06/10/2026, migracao/07-PAINEL-NOVA-NAY.md): a página admin/nova-nay.html só mostra
+# o que a API do nay-core devolve. O navegador fala com o site (senha do /admin, pelo Traefik); o site fala com o
+# nay-core pela rede do docker, com um segredo que nunca vai ao navegador (NAY_CORE_PAINEL_TOKEN).
+@app.route("/admin/api/nova-nay/<path:rota>", methods=["GET", "POST"])
+def admin_nova_nay(rota):
+    import urllib.error
+    import urllib.request
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    base = os.environ.get("NAY_CORE_URL", "")
+    segredo = os.environ.get("NAY_CORE_PAINEL_TOKEN", "")
+    if not base or not segredo:
+        return jsonify({"erro": "a ponte do painel não está configurada"}), 503
+    url = base.rstrip("/") + "/painel/" + rota
+    if request.query_string:
+        url += "?" + request.query_string.decode("utf-8", "ignore")
+    req = urllib.request.Request(url, data=request.get_data() if request.method == "POST" else None,
+                                 method=request.method,
+                                 headers={"X-Painel-Token": segredo, "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=90) as r:
+            return Response(r.read(), status=r.status, mimetype="application/json",
+                            headers={"Cache-Control": "no-store"})
+    except urllib.error.HTTPError as e:
+        return Response(e.read(), status=e.code, mimetype="application/json")
+    except urllib.error.URLError:
+        return jsonify({"erro": "o nay-core não respondeu"}), 502
 
 
 @app.route("/api/proximos-passos", methods=["GET", "POST"])
