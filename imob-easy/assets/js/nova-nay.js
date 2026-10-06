@@ -13,8 +13,8 @@
       return r.json();
     });
   }
-  function hora(iso) { return iso ? new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—"; }
-  function dataHora(iso) { return iso ? new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"; }
+  function hora(iso) { return iso ? new Date(iso).toLocaleTimeString("pt-BR", { timeZone: "America/Manaus", hour: "2-digit", minute: "2-digit" }) : "—"; }
+  function dataHora(iso) { return iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Manaus", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"; }
   function hojeManaus() { return new Date(Date.now() - 4 * 3600 * 1000).toISOString().slice(0, 10); }
 
   /* ---- versão e modo ---- */
@@ -101,7 +101,7 @@
   function ajustar() {
     var r = $("#nn-rolagem"), g = $("#nn-grafo");
     var w = parseFloat(g.style.width) || 1, h = parseFloat(g.style.height) || 1;
-    ESCALA = Math.max(0.3, Math.min(1, (r.clientWidth - 20) / w, (r.clientHeight - 20) / h));
+    ESCALA = Math.max(0.55, Math.min(1, (r.clientWidth - 20) / w));   /* cabe na largura; nó sempre legível */
     g.style.transform = "scale(" + ESCALA + ")";
   }
   document.addEventListener("click", function (e) {

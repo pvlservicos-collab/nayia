@@ -15,16 +15,16 @@
       return r.json();
     });
   }
-  function hora(iso) { return iso ? new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—"; }
-  function dia(iso) { return iso ? new Date(iso + (iso.length === 10 ? "T12:00:00" : "")).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "—"; }
-  function dataHora(iso) { return iso ? new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"; }
+  function hora(iso) { return iso ? new Date(iso).toLocaleTimeString("pt-BR", { timeZone: "America/Manaus", hour: "2-digit", minute: "2-digit" }) : "—"; }
+  function dia(iso) { return iso ? new Date(iso + (iso.length === 10 ? "T12:00:00" : "")).toLocaleDateString("pt-BR", { timeZone: "America/Manaus", day: "2-digit", month: "2-digit" }) : "—"; }
+  function dataHora(iso) { return iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Manaus", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"; }
   function fim4(chave) { var d = String(chave || "").replace(/\D/g, ""); return "…" + d.slice(-4); }
   function usd(v) { return "US$ " + Number(v || 0).toFixed(2); }
   function hojeManaus(desloca) { var d = new Date(Date.now() - 4 * 3600 * 1000 - (desloca || 0) * 86400000); return d.toISOString().slice(0, 10); }
 
   /* ---- escolher ---- */
   var CONVERSAS = [], ESCOLHIDAS = {};
-  $("#tr-de").value = hojeManaus(6); $("#tr-ate").value = hojeManaus(0);
+  $("#tr-de").value = hojeManaus(0); $("#tr-ate").value = hojeManaus(0);   /* começa no dia de hoje */
   function buscar() {
     var q = new URLSearchParams({ de: $("#tr-de").value, ate: $("#tr-ate").value });
     if ($("#tr-corretor").value.trim()) q.set("corretor", $("#tr-corretor").value.trim());
@@ -90,7 +90,7 @@
   $("#tr-execucoes").addEventListener("click", function (e) { var x = e.target.closest("[data-exec]"); if (x) abrirExecucao(Number(x.dataset.exec)); });
 
   /* ---- resultado ---- */
-  function abrirExecucao(id) {
+  function abrirExecucao(id, semRolar) {
     ATUAL = id; carregarExecucoes();
     var box = $("#tr-resultado"); box.hidden = false; delete box.dataset.pronta; box.innerHTML = '<p class="painel__vazio">Carregando…</p>';
     pega("execucoes/" + id).then(function (e) {
@@ -99,30 +99,39 @@
       var acoes = Object.keys(r.acoes || {}).sort(function (a, b) { return r.acoes[b] - r.acoes[a]; }).map(function (a) { return esc(a) + " " + r.acoes[a]; }).join(" · ");
       var outras = EXECS.filter(function (x) { return x.id !== id && x.estado === "pronta"; });
       box.innerHTML = '<h2 class="nn-h2">Execução #' + id + ' <span class="estado ' + esc(e.estado) + '">' + esc(e.estado) + "</span></h2>" +
-        '<div class="nn-resumo"><span>versão <b>' + esc(e.versao_codigo || "—") + "</b></span><span><b>" + (e.feitos || 0) + "</b>/" + e.total_turnos + " turnos</span><span>mesmo imóvel que o velho <b>" + (r.iguais || 0) + "/" + (r.comparaveis || 0) + "</b></span><span>erros de código <b>" + (r.erros || 0) + "</b></span><span>custo <b>" + usd(e.custo_real) + "</b> (estimado " + usd(e.custo_estimado) + ")</span>" + (acoes ? "<span>ações: " + acoes + "</span>" : "") + (e.erro ? '<span style="color:#b53232">' + esc(e.erro) + "</span>" : "") + "</div>" +
+        '<div class="nn-resumo"><span>versão <b>' + esc(e.versao_codigo || "—") + "</b></span><span><b>" + (e.feitos || 0) + "</b>/" + e.total_turnos + " turnos</span><span>mesmo imóvel que o velho <b>" + (r.iguais || 0) + "/" + (r.comparaveis || 0) + "</b></span><span>erros de código <b>" + (r.erros || 0) + "</b></span><span>custo <b>" + usd(e.custo_real) + "</b></span>" + (r.segundos ? "<span>rodou em <b>" + Math.round(r.segundos) + " s</b></span>" : "") + (acoes ? "<span>ações: " + acoes + "</span>" : "") + (e.erro ? '<span style="color:#b53232">' + esc(e.erro) + "</span>" : "") + "</div>" +
         (outras.length ? '<div class="nn-comparar">Comparar com a execução <select class="selecao" id="tr-outra"><option value="">—</option>' + outras.map(function (x) { return '<option value="' + x.id + '">#' + x.id + " · " + esc(dataHora(x.criada_em)) + "</option>"; }).join("") + '</select><span id="tr-comp"></span></div>' : "") +
         '<div class="nn-convs">' + (e.conversas || []).map(function (c) {
           return '<details class="nn-conv" data-chave="' + esc(c.chave) + '"><summary><b>' + esc(c.nome || "") + " <small>" + esc(fim4(c.chave)) + "</small></b><span>" + esc(dia(c.inicio)) + " " + esc(hora(c.inicio)) + "</span><span>" + c.turnos + " turnos</span><span>igual " + c.iguais + " · diferente " + c.diferentes + (c.erros ? ' · <span style="color:#b53232">' + c.erros + " erro(s)</span>" : "") + (c.marcados_errado ? " · ✗ " + c.marcados_errado : "") + (c.marcados_certo ? " · ✓ " + c.marcados_certo : "") + '</span></summary><div class="nn-turnos"><p class="painel__vazio">Carregando…</p></div></details>';
         }).join("") + "</div>";
       var sel = $("#tr-outra"); if (sel) sel.addEventListener("change", function () { if (sel.value) comparar(id, Number(sel.value)); });
-      box.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (!semRolar) box.scrollIntoView({ behavior: "smooth", block: "start" });
     }).catch(function (x) { box.innerHTML = '<p class="painel__vazio">' + esc(x.message) + "</p>"; });
   }
-  function pecaHTML(p, cls) {
-    if (p.tipo === "imagem") return '<span class="peca foto">[foto do ' + p.codigo + "]</span>";
-    var para = p.para && p.para !== "turno" && p.para !== "corretor" ? '<span class="peca ' + (p.para === "tel" ? "tel" : "aviso") + '">→ ' + esc(p.para) + ": " + esc(p.texto) + "</span>" : '<span class="peca">' + esc(p.texto) + "</span>";
-    return para;
+  /* as peças de um lado: textos na ordem; fotos seguidas do mesmo imóvel viram uma linha só ("12 fotos do 4207") */
+  function pecasHTML(lista) {
+    var saida = [], fotos = null;
+    function fecha() { if (fotos) { saida.push('<span class="peca foto">' + fotos.n + (fotos.n === 1 ? " foto" : " fotos") + " do " + esc(fotos.codigo) + "</span>"); fotos = null; } }
+    (lista || []).forEach(function (p) {
+      if (p.tipo === "imagem") { if (fotos && fotos.codigo === p.codigo) fotos.n++; else { fecha(); fotos = { codigo: p.codigo, n: 1 }; } return; }
+      fecha();
+      var fora = p.para && p.para !== "turno" && p.para !== "corretor";
+      saida.push('<span class="peca' + (fora ? " aviso" : "") + '">' + (fora ? "<b>→ " + esc(p.para) + ":</b> " : "") + esc(p.texto) + "</span>");
+    });
+    fecha();
+    return saida.length ? saida.join("") : '<i class="calou">não respondeu</i>';
   }
   function turnoHTML(t, divergiuAntes) {
     var antes = t.enviado_antes || [], nova = t.resposta_nova || [];
     var classe = t.igual_imovel === true ? "igual" : t.igual_imovel === false ? "diferente" : "";
+    var selo = t.igual_imovel === true ? '<span class="selo ok">mesmo imóvel</span>' : t.igual_imovel === false ? '<span class="selo dif">imóvel diferente</span>' : "";
     return '<div class="nn-t" data-turno="' + t.turno_origem + '">' +
       (divergiuAntes ? '<div class="nn-aviso-divergiu">A partir daqui a conversa pode não fazer sentido: a mensagem seguinte do corretor respondeu ao "ANTES", não à Nay nova.</div>' : "") +
-      '<span class="h">' + esc(hora(t.horario_original)) + '</span><span class="quem">corretor</span><div class="fala">' + esc(t.texto) + "</div>" +
-      '<span></span><span class="quem">antes</span><div class="fala antes">' + (antes.length ? antes.map(pecaHTML).join("") : "<i>calou</i>") + "</div>" +
-      '<span></span><span class="quem">nova</span><div class="fala nova ' + classe + '">' + (t.erro ? '<span class="selo erro">erro de código</span> ' + esc(t.erro) : (nova.length ? nova.map(pecaHTML).join("") : "<i>calou</i>")) +
-      '<div><span class="selo">' + esc(t.acao || "—") + (t.template ? " · " + esc(t.template) : "") + "</span>" + ((t.imovel || []).length ? '<span class="selo">' + esc(t.imovel.join(", ")) + "</span>" : "") + (t.estado_depois ? '<span class="selo">' + esc(t.estado_depois) + "</span>" : "") + (t.modelo_chamadas ? '<span class="selo">modelo</span>' : "") + "</div></div>" +
-      '<span></span><div class="acoes"><button type="button" class="certo" aria-pressed="' + (t.veredito === "certo") + '">✓ certo</button><button type="button" class="errado" aria-pressed="' + (t.veredito === "errado") + '">✗ errado</button><input type="text" placeholder="O que deveria ter feito" value="' + esc(t.nota || "") + '"><button type="button" class="caminho" data-caminho="' + esc((t.caminho_nos || []).join(",")) + '">caminho</button></div></div>';
+      '<div class="msg"><span class="h">' + esc(hora(t.horario_original)) + '</span><div class="fala">' + esc(t.texto) + "</div></div>" +
+      '<div class="lado"><div class="col antes"><h4>Antes · o que foi respondido</h4>' + pecasHTML(antes) + "</div>" +
+      '<div class="col nova ' + classe + '"><h4>Nova Nay</h4>' + (t.erro ? '<span class="selo erro">erro de código</span> ' + esc(t.erro) : pecasHTML(nova)) +
+      '<div class="selos">' + selo + '<span class="selo">' + esc(t.acao || "—") + (t.template ? " · " + esc(t.template) : "") + "</span>" + ((t.imovel || []).length ? '<span class="selo">imóvel ' + esc(t.imovel.join(", ")) + "</span>" : "") + (t.estado_depois ? '<span class="selo cinza">' + esc(t.estado_depois) + "</span>" : "") + (t.modelo_chamadas ? '<span class="selo cinza">usou o modelo</span>' : "") + "</div></div></div>" +
+      '<div class="acoes"><button type="button" class="certo" aria-pressed="' + (t.veredito === "certo") + '">✓ certo</button><button type="button" class="errado" aria-pressed="' + (t.veredito === "errado") + '">✗ errado</button><input type="text" placeholder="Anotar o erro: o que ela deveria ter feito (Enter grava)" value="' + esc(t.nota || "") + '"><span class="gravou" hidden>gravado</span><button type="button" class="caminho" data-caminho="' + esc((t.caminho_nos || []).join(",")) + '">ver caminho nos nós</button></div></div>';
   }
   document.addEventListener("toggle", function (e) {
     var d = e.target; if (!d.classList || !d.classList.contains("nn-conv") || !d.open || d.dataset.carregada) return;
@@ -136,13 +145,26 @@
     var cam = e.target.closest("[data-caminho]");
     if (cam) { if (window.NN) window.NN.acender(cam.dataset.caminho ? cam.dataset.caminho.split(",") : []); return; }
     var b = e.target.closest(".acoes button.certo, .acoes button.errado"); if (!b) return;
-    var t = b.closest("[data-turno]"), nota = t.querySelector("input").value.trim();
-    var veredito = b.classList.contains("certo") ? "certo" : "errado";
+    marcar(b.closest("[data-turno]"), b.classList.contains("certo") ? "certo" : "errado");
+  });
+  function marcar(t, veredito) {
+    var nota = t.querySelector(".acoes input").value.trim();
     pega("marcacoes", { turno_origem: Number(t.dataset.turno), veredito: veredito, nota: nota || null, marcado_por: "painel" }).then(function () {
       t.querySelector(".certo").setAttribute("aria-pressed", veredito === "certo");
       t.querySelector(".errado").setAttribute("aria-pressed", veredito === "errado");
+      var g = t.querySelector(".gravou"); g.hidden = false; setTimeout(function () { g.hidden = true; }, 1800);
     }).catch(function (x) { alert("Não gravou a marcação: " + x.message); });
-  });
+  }
+  /* a nota grava com Enter (ou ao sair do campo): sem veredito ainda, anotar um erro É marcar como errado */
+  function gravarNota(e) {
+    var i = e.target.closest && e.target.closest(".acoes input"); if (!i) return;
+    if (e.type === "keydown" && e.key !== "Enter") return;
+    var t = i.closest("[data-turno]"), certo = t.querySelector(".certo").getAttribute("aria-pressed") === "true";
+    if (!i.value.trim() && !certo && t.querySelector(".errado").getAttribute("aria-pressed") !== "true") return;
+    marcar(t, certo ? "certo" : "errado");
+  }
+  $("#tr-resultado").addEventListener("keydown", gravarNota);
+  $("#tr-resultado").addEventListener("change", gravarNota);
   function comparar(id, outra) {
     $("#tr-comp").textContent = "comparando…";
     pega("execucoes/" + id + "/comparar/" + outra).then(function (d) {
@@ -166,6 +188,6 @@
   var carregou = false;
   document.querySelector("[data-abas-funcionais]").addEventListener("click", function (e) {
     var b = e.target.closest("[data-painel-abre]");
-    if (b && b.dataset.painelAbre === "treino" && !carregou) { carregou = true; buscar(); carregarExecucoes().then(function () { if (EXECS.some(function (x) { return x.estado === "rodando" || x.estado === "fila"; })) ligarRelogio(); }); }
+    if (b && b.dataset.painelAbre === "treino" && !carregou) { carregou = true; buscar(); carregarExecucoes().then(function () { if (EXECS.some(function (x) { return x.estado === "rodando" || x.estado === "fila"; })) ligarRelogio(); if (EXECS.length) abrirExecucao(EXECS[0].id, true); else $("#tr-escolha").open = true; }); }
   });
 })();

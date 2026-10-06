@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css">
-<link rel="stylesheet" href="../assets/css/nova-nay.css?v=20261006b">
+<link rel="stylesheet" href="../assets/css/nova-nay.css?v=20261006e">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 <meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
 </head>
@@ -58,7 +58,16 @@
   <section data-painel="treino" hidden class="nn-treino">
     <!-- Roda conversas reais escolhidas aqui, sem enviar nada, e mostra o que a Nay nova responderia ao lado do que
          foi respondido de verdade. Quem roda é o processo nay-treino no nay-core; a página só escolhe e lê. -->
-    <div class="nn-treino-escolha cartao">
+    <div class="nn-treino-execucoes cartao">
+      <h2 class="nn-h2">Execuções <button type="button" class="btn-neutro" id="tr-casos" title="Os turnos marcados ✗ viram rascunhos de caso de teste">Gerar casos de teste</button></h2>
+      <div id="tr-execucoes" class="nn-execucoes"><p class="painel__vazio">Nenhuma execução ainda.</p></div>
+    </div>
+
+    <div class="nn-treino-resultado cartao" id="tr-resultado" hidden></div>
+    <div class="nn-treino-casos cartao" id="tr-casos-caixa" hidden></div>
+
+    <details class="nn-treino-escolha cartao" id="tr-escolha">
+      <summary class="nn-h2">Rodar um treinamento novo: escolher as conversas</summary>
       <div class="nn-logs-topo">
         <label>De <input class="entrada" type="date" id="tr-de"></label>
         <label>até <input class="entrada" type="date" id="tr-ate"></label>
@@ -77,17 +86,9 @@
         <span id="tr-totais" class="contagem-lista">—</span>
         <label class="opcao-caixa"><input type="radio" name="tr-class" value="reusar" checked> reusar classificação quando der</label>
         <label class="opcao-caixa"><input type="radio" name="tr-class" value="nova"> classificar tudo de novo</label>
-        <button type="button" class="btn-primario" id="tr-rodar" disabled>Rodar treinamento</button>
+        <button type="button" class="btn-azul" id="tr-rodar" disabled>Rodar treinamento</button>
       </div>
-    </div>
-
-    <div class="nn-treino-execucoes cartao">
-      <h2 class="nn-h2">Execuções <button type="button" class="btn-neutro" id="tr-casos" title="Os turnos marcados ✗ viram rascunhos de caso de teste">Gerar casos de teste</button></h2>
-      <div id="tr-execucoes" class="nn-execucoes"><p class="painel__vazio">Nenhuma execução ainda.</p></div>
-    </div>
-
-    <div class="nn-treino-resultado cartao" id="tr-resultado" hidden></div>
-    <div class="nn-treino-casos cartao" id="tr-casos-caixa" hidden></div>
+    </details>
   </section>
 
   <section data-painel="logs" hidden class="nn-logs">
@@ -118,7 +119,7 @@
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/layout.js"></script>
 <script src="../assets/js/admin.js"></script>
-<script src="../assets/js/nova-nay.js?v=20261006b"></script>
-<script src="../assets/js/nova-nay-treino.js?v=20261006b"></script>
+<script src="../assets/js/nova-nay.js?v=20261006e"></script>
+<script src="../assets/js/nova-nay-treino.js?v=20261006e"></script>
 </body>
 </html>

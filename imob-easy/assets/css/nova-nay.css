@@ -139,3 +139,34 @@
 .nn-aviso-divergiu { grid-column: 1 / -1; font-size: 11.5px; color: #9a6a10; background: var(--laranja-suave); padding: 4px 8px; border-radius: 6px; }
 .nn-treino-casos pre { font-size: 11.5px; max-height: 60vh; overflow: auto; background: var(--superficie-2); padding: 10px; border-radius: var(--raio-sm); white-space: pre-wrap; }
 @media (max-width: 1100px) { .nn-exec { grid-template-columns: 48px 1fr; } }
+
+/* As abas: `hidden` tem de vencer o display:grid dos painéis (sem isto as três ficavam empilhadas) */
+[data-painel][hidden], .nn-grafo-botoes [hidden], .nn-turno[hidden], .nn-treino .cartao[hidden] { display: none !important; }
+.nn-grafo-rolagem { height: 62vh; max-height: 640px; }
+.nn-treino-rodape .btn-azul { margin-left: auto; }
+.nn-treino-rodape .btn-azul[disabled] { opacity: .5; cursor: not-allowed; }
+
+/* o turno do treino: a mensagem do corretor em cima e, embaixo, DUAS COLUNAS lado a lado (Antes | Nova Nay) */
+.nn-t { display: block; padding: 12px 0; }
+.nn-t .msg { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
+.nn-t .msg .h { flex: none; padding-top: 7px; width: 40px; }
+.nn-t .msg .fala { background: #fff; border: 1px solid var(--borda); border-radius: 4px 12px 12px 12px; padding: 7px 11px; max-width: 70%; font-size: 13px; }
+.nn-t .lado { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-left: 50px; }
+.nn-t .col { border-radius: 10px; padding: 8px 11px 9px; font-size: 13px; white-space: pre-wrap; word-break: break-word; min-width: 0; }
+.nn-t .col h4 { margin: 0 0 5px; font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--texto-fraco); font-weight: 700; white-space: normal; }
+.nn-t .col.antes { background: var(--superficie-2); }
+.nn-t .col.nova { background: var(--roxo-suave); }
+.nn-t .col.nova.diferente { outline: 2px solid #e0a800; }
+.nn-t .col.nova.igual { outline: 2px solid #8fd3a9; }
+.nn-t .col .peca { display: block; margin-bottom: 5px; }
+.nn-t .col .calou { color: var(--texto-fraco); }
+.nn-t .selos { margin-top: 6px; white-space: normal; }
+.nn-t .selo.ok { background: var(--verde-suave); color: #37795a; } .nn-t .selo.dif { background: #fff3cd; color: #8a6100; }
+.nn-t .selo.cinza { background: #fff; color: var(--texto-fraco); font-weight: 500; }
+.nn-t .acoes { margin: 8px 0 0 50px; }
+.nn-t .acoes .gravou { color: #37795a; font-size: 12px; }
+.nn-conv[open] > summary { background: var(--roxo-suave); border-radius: var(--raio-sm) var(--raio-sm) 0 0; }
+@media (max-width: 800px) { .nn-t .lado { grid-template-columns: 1fr; margin-left: 0; } .nn-t .acoes { margin-left: 0; } }
+
+.nn-treino-escolha > summary { cursor: pointer; margin: 0; }
+.nn-treino-escolha[open] > summary { margin-bottom: 12px; }
