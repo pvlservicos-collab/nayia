@@ -11,5 +11,7 @@ AS $function$
     FROM nai_instrucao i
    WHERE i.contato_id = ANY (coalesce(nai_contato_irmaos(p_contato), ARRAY[p_contato]))
      AND i.valido_ate > now()
+     -- 304: a que o núcleo novo já executou não volta para o agente velho
+     AND NOT EXISTS (SELECT 1 FROM core_instrucao_feita f WHERE f.instrucao_id = i.id)
    ORDER BY i.criado_em DESC LIMIT 1;
 $function$;

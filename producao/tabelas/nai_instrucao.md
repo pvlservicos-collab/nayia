@@ -17,10 +17,11 @@ nai_instrucao_pkey: PRIMARY KEY (id)
 
 ## permissões
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
+nay_core: SELECT
 nay_leitura: SELECT
 
 ## funções que escrevem aqui
 crm_nay_instruir
 
 ## funções que citam
-crm_nay_instruir, nai_core_atende, nai_instrucao_texto
+crm_nay_instruir, nai_instrucao_texto

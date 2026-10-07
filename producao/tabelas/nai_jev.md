@@ -1,4 +1,4 @@
-# nai_jev  (tabela, ~959 linhas)
+# nai_jev  (tabela, ~1105 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('nai_jev_id_seq'::regclass)

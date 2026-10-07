@@ -53,7 +53,8 @@ prompt: comece pelo `nay onde`.
 | visita (dono, Rayssa, lembretes) | `nai_visita_*`, `nai_agenda_*` | 179, 197 |
 | corretor confirma a visita com a NAY NOVA (nay-core): cria a visita e segue o caminho de produção (proprietário, Rayssa, Tel, etapa Visitas do CRM, Nay calada) | `nai_core_visita_confirmada` -> `nai_visita_corretor_confirmou`; quem chama é `nay/saida/visita_velha.py` no nay-core, só no modo real; quem cala é `nai_com_a_rayssa` e quem põe na etapa é `crm_parceria_com_a_rayssa` | 302 |
 | gente respondeu à mão: os 30 min valem mesmo quando o corretor cita outro imóvel (a 240 não solta nesse tempo) | `nai_gente_escreveu_ha_pouco` (lê `mensagens` + `crm_quem_mandou`), usada na 240 dentro de `nai_abrir_turno` | 303 |
-| instrução do CRM ("instruir a Nay") com a NAY NOVA: enquanto a instrução vale (48 h) o corretor fica com a Nay velha, que a lê no cabeçalho | `nai_core_atende` (WHEN da `nai_instrucao`), `nai_instrucao_texto`, `crm_nay_instruir` | 303 |
+| instrução do CRM ("instruir a Nay"): quem lê e executa é a NAY NOVA, uma vez só (nay-core `nay/instrucao/`, marca em `core_instrucao_feita`); a velha deixa de ver a que a nova já executou | `nai_core_atende` (sem o WHEN da 303), `nai_instrucao_texto`, `crm_nay_instruir`; prova: `scripts/prova_instrucoes.py` no nay-core | 304 |
+| resposta curta ("Sim", "Isso, por favor") a uma pergunta da NAY NOVA: a porta reconhece a conversa que o núcleo já está atendendo (`core_saida`), como já fazia com a caixa da velha | `nai_deve_atender` (bloco 305, antes de "MARCOU UMA MENSAGEM") | 305 |
 | escalar ao Tel, mídia | `nai_escalar`, `nai_avisar_tel`, `nai_parar_chat` | 195 |
 | prompt do corretor | tabela `nai_prompt` (versão), `nai_salvar_prompt`; texto em `producao/prompts/corretor.md` | 224 |
 | textos fixos (config) | `nai_config` (`producao/nai_config.tsv`), `nai_cfg()` | — |

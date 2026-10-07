@@ -1,4 +1,4 @@
-# mensagem_saida  (tabela, ~7882 linhas)
+# mensagem_saida  (tabela, ~8135 linhas)
 
 ## colunas
 message_id  text  NOT NULL

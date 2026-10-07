@@ -1,4 +1,4 @@
-# nai_turno  (tabela, ~4503 linhas)
+# nai_turno  (tabela, ~4743 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('nai_turno_id_seq'::regclass)

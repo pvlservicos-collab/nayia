@@ -113,6 +113,20 @@ BEGIN
     RETURN QUERY SELECT true, 'conversa que ela ja estava atendendo'::text; RETURN;
   END IF;
 
+  -- 305: A CONVERSA QUE A NAY NOVA (nay-core) JA ESTA ATENDENDO tambem e dela. A regra de cima so
+  -- olha a caixa da velha; quem responde o corretor desde 02/10 e o nucleo, em core_saida. Em 07/10
+  -- o "Isso, por favor" de quem tinha acabado de ouvir "Quer que eu te mande as fotos?" caiu em
+  -- "assunto que nao e de corretor" (24 turnos de 16 corretores em 5 dias).
+  IF v_id IS NOT NULL AND EXISTS (
+       SELECT 1 FROM core_saida s
+        WHERE s.chave_destino IN (SELECT k.chave FROM nai_contato k
+                                   WHERE k.id = ANY (coalesce(nai_contato_irmaos(v_id), ARRAY[v_id])))
+          AND s.papel_destino = 'turno'
+          AND s.estado IN ('enviado', 'enviando', 'pendente')
+          AND s.criado_em > v_desde) THEN
+    RETURN QUERY SELECT true, 'conversa que ela ja estava atendendo'::text; RETURN;
+  END IF;
+
   -- MARCOU UMA MENSAGEM (o card do grupo, o imovel que ela mandou): e imovel,
   -- seja o que for que ele tenha escrito junto. E o filtro que o Tel deu.
   IF p_codigo_citado IS NOT NULL THEN
