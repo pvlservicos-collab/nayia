@@ -59,6 +59,7 @@ captacao_leads_telefone_key: UNIQUE (telefone)
 
 ## gatilhos
 CREATE TRIGGER captacao_ja_chamado_nao_volta BEFORE UPDATE OF status ON public.captacao_leads FOR EACH ROW EXECUTE FUNCTION captacao_ja_chamado_nao_volta()
+CREATE TRIGGER captacao_so_proprietario BEFORE UPDATE OF status ON public.captacao_leads FOR EACH ROW WHEN (((new.status = 'reservado'::text) AND (old.status IS DISTINCT FROM 'reservado'::text))) EXECUTE FUNCTION captacao_so_proprietario()
 
 ## permissões
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
@@ -68,7 +69,7 @@ nay_site_escrita: DELETE, INSERT, SELECT, UPDATE
 nay_site_leitura: SELECT
 
 ## funções que escrevem aqui
-captacao_encerrar, captacao_guardar_lid_do_eco, captacao_rede_da_situacao, crm_captacao_etapa_manual
+captacao_encerrar, captacao_guardar_lid_do_eco, captacao_rede_da_situacao, captacao_so_proprietario, crm_captacao_etapa_manual
 
 ## funções que citam
-captacao_ainda_e_da_ia, captacao_disparo_liberado, captacao_encerrar, captacao_ficha, captacao_ficha_aviso, captacao_frase_outros, captacao_guardar_lid_do_eco, captacao_lead_por_contato, captacao_rede_da_situacao, crm_captacao_dono_cadastro, crm_captacao_donos, crm_captacao_etapa_manual, crm_captacao_funil, crm_captacao_imoveis_do_dono, crm_captacao_mensagens, crm_captacao_placar, crm_captacao_relatorio, crm_contato_da_mensagem, crm_parceria_marcas, crm_telefone_do_lid, nai_cadastro_pendente, nai_e_proprietario_contato
+captacao_ainda_e_da_ia, captacao_disparo_liberado, captacao_encerrar, captacao_ficha, captacao_ficha_aviso, captacao_fora_da_campanha, captacao_frase_outros, captacao_guardar_lid_do_eco, captacao_lead_por_contato, captacao_rede_da_situacao, captacao_so_proprietario, crm_captacao_dono_cadastro, crm_captacao_donos, crm_captacao_etapa_manual, crm_captacao_funil, crm_captacao_imoveis_do_dono, crm_captacao_mensagens, crm_captacao_placar, crm_captacao_relatorio, crm_contato_da_mensagem, crm_parceria_marcas, crm_telefone_do_lid, nai_cadastro_pendente, nai_e_proprietario_contato

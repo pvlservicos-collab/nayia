@@ -8,6 +8,7 @@ captacao_disparo_liberado
 captacao_encerrar	
 captacao_ficha	
 captacao_ficha_aviso	
+captacao_fora_da_campanha	captacao_ainda_e_da_ia, captacao_so_proprietario
 captacao_frase_outros	captacao_encerrar
 captacao_guardar_lid_do_eco	
 captacao_ja_chamado_nao_volta	
@@ -19,6 +20,7 @@ captacao_pediu_para_sair	captacao_encerrar
 captacao_rede_da_situacao	
 captacao_relatorio_da_vez	
 captacao_situacao_dita	captacao_rede_da_situacao
+captacao_so_proprietario	
 captacao_status_da_mensagem	
 captacao_teto_hoje	captacao_disparo_liberado, captacao_relatorio_da_vez, crm_captacao_placar, crm_captacao_relatorio
 captacao_vigiar	
@@ -167,7 +169,7 @@ nai_disparo_conferir
 nai_disparo_enfileirar	site_me_envia
 nai_disparo_liberar	
 nai_disparo_opcoes	
-nai_dono_e_parceiro	
+nai_dono_e_parceiro	captacao_fora_da_campanha
 nai_e_a_cidade	nai_buscar_por_perfil, nai_pedido_do_turno
 nai_e_anuncio_dele	nai_fala_e_dele, nai_rodar_casos
 nai_e_assunto_de_locacao	nai_pedido_do_turno, nai_rodar_casos, nai_turnos_para_o_jev
