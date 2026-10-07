@@ -29,6 +29,9 @@ ultima_pergunta  text
 ultima_acao  text
 ultima_lista  integer[]  NOT NULL  padrão '{}'::integer[]
 ultima_acao_em  timestamp with time zone
+filtro_extras  text[]  NOT NULL  padrão '{}'::text[]
+filtro_piso  numeric
+pergunta_vezes  integer  NOT NULL  padrão 0
 
 ## índices
 CREATE INDEX core_conversa_estado ON public.core_conversa USING btree (estado)

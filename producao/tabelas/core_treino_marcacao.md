@@ -1,4 +1,4 @@
-# core_treino_marcacao  (tabela, ~0 linhas)
+# core_treino_marcacao  (tabela, ~32 linhas)
 
 ## colunas
 turno_origem  bigint  NOT NULL
@@ -8,12 +8,13 @@ esperado  jsonb
 marcado_em  timestamp with time zone  NOT NULL  padrão now()
 marcado_por  text
 virou_caso  boolean  NOT NULL  padrão false
+execucao_id  bigint  NOT NULL
 
 ## índices
-CREATE UNIQUE INDEX core_treino_marcacao_pkey ON public.core_treino_marcacao USING btree (turno_origem)
+CREATE UNIQUE INDEX core_treino_marcacao_pkey ON public.core_treino_marcacao USING btree (execucao_id, turno_origem)
 
 ## restrições
-core_treino_marcacao_pkey: PRIMARY KEY (turno_origem)
+core_treino_marcacao_pkey: PRIMARY KEY (execucao_id, turno_origem)
 core_treino_marcacao_veredito_check: CHECK ((veredito = ANY (ARRAY['certo'::text, 'errado'::text])))
 
 ## permissões

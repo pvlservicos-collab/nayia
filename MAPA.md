@@ -51,6 +51,7 @@ prompt: comece pelo `nay onde`.
 | "os dois", "o primeiro", "entre 2 e 3" (Nay nova) | nay-core: `acoes/varios.py`, `core_conversa.ultima_lista`, `texto.faixa_em_reais`/`teto_na_escala` | core 013 |
 | qual fluxo do n8n recebe a mensagem (grupo vai à NAI só para o espelho do CRM) | `nai_quem_atende(text,boolean,text)` | 282 |
 | visita (dono, Rayssa, lembretes) | `nai_visita_*`, `nai_agenda_*` | 179, 197 |
+| corretor confirma a visita com a NAY NOVA (nay-core): cria a visita e segue o caminho de produção (proprietário, Rayssa, Tel, etapa Visitas do CRM, Nay calada) | `nai_core_visita_confirmada` -> `nai_visita_corretor_confirmou`; quem chama é `nay/saida/visita_velha.py` no nay-core, só no modo real; quem cala é `nai_com_a_rayssa` e quem põe na etapa é `crm_parceria_com_a_rayssa` | 302 |
 | escalar ao Tel, mídia | `nai_escalar`, `nai_avisar_tel`, `nai_parar_chat` | 195 |
 | prompt do corretor | tabela `nai_prompt` (versão), `nai_salvar_prompt`; texto em `producao/prompts/corretor.md` | 224 |
 | textos fixos (config) | `nai_config` (`producao/nai_config.tsv`), `nai_cfg()` | — |

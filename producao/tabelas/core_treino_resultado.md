@@ -1,4 +1,4 @@
-# core_treino_resultado  (tabela, ~0 linhas)
+# core_treino_resultado  (tabela, ~846 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('core_treino_resultado_id_seq'::regclass)

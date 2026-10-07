@@ -1,4 +1,4 @@
-# core_cache_classificacao  (tabela, ~0 linhas)
+# core_cache_classificacao  (tabela, ~301 linhas)
 
 ## colunas
 chave  text  NOT NULL

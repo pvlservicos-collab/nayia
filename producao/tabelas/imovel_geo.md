@@ -20,6 +20,7 @@ imovel_geo_precisao_check: CHECK ((precisao = ANY (ARRAY['condominio'::text, 'ru
 
 ## permissões
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
+nay_core: SELECT
 nay_leitura: SELECT
 nay_site_leitura: SELECT
 
