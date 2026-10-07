@@ -5,6 +5,7 @@ import { Sparkle, X, Play, Pause, Microphone, ArrowBendUpLeft, Check, Checks, Wa
 import { LeadActivityWithActor, LeadWithOwner } from '@/lib/types'
 import { formatTime } from '@/lib/utils'
 import ImovelCitado from './ImovelCitado'
+import TextoComLinks from './TextoComLinks'
 import DocumentoPdf, { ehPdf } from './VisualizadorPdf'
 import { useAuth } from '@/hooks'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
@@ -509,7 +510,7 @@ const MessageBubble = memo(function MessageBubble({
             )}
             {mostraTexto && (
               <p className="whitespace-pre-wrap break-words">
-                {activity.content}
+                <TextoComLinks texto={activity.content} />
                 {/* espaço para a hora e o tique não subirem por cima do texto */}
                 <span className={`inline-block ${outgoing ? 'w-[4.1rem]' : 'w-[3.1rem]'} ${m.editada ? (outgoing ? '!w-[7.4rem]' : '!w-[6.4rem]') : ''}`} />
               </p>
@@ -726,7 +727,7 @@ export default function ActivityTimeline({
           <div key={activity.id} className="mt-3 flex justify-center">
             <div className="rounded-lg px-3 py-2 max-w-md w-full shadow-sm" style={{ background: '#fff5c4', color: '#3b3200' }}>
               <p className="text-[13px] font-semibold">📝 Nota interna</p>
-              <p className="text-[14px] mt-1 whitespace-pre-wrap">{activity.content}</p>
+              <p className="text-[14px] mt-1 whitespace-pre-wrap"><TextoComLinks texto={activity.content} /></p>
               <p className="text-[11px] mt-1.5 text-right opacity-70">
                 {activity.actor?.profiles?.full_name || 'Desconhecido'} · {formatTime(activity.created_at)}
               </p>

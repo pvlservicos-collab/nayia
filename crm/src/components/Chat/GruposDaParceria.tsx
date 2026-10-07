@@ -19,6 +19,7 @@ import {
   Megaphone, PaperPlaneRight, UserMinus, UserPlus, UsersThree, ChatCircleText, X, Copy,
 } from '@phosphor-icons/react'
 import type { DadosDoGrupo, GrupoNaLista, Participante } from '@/lib/gruposParceria'
+import TextoComLinks from './TextoComLinks'
 
 type Aba = 'mensagens' | 'participantes' | 'config'
 type Filtro = 'todos' | 'admin' | 'disparo' | 'corretores'
@@ -274,7 +275,7 @@ function AbaMensagens({ grupo, aoAvisar }: { grupo: DadosDoGrupo; aoAvisar: (a: 
                 ? <a href={m.midia_url} target="_blank" rel="noreferrer" className="underline text-[13px]">{ICONE_TIPO[m.tipo] || 'Mídia'}</a>
                 : <p className="text-[13px] opacity-80">{ICONE_TIPO[m.tipo] || 'Mídia'}</p>
             )}
-            {m.texto && <p className="whitespace-pre-wrap break-words">{m.texto}</p>}
+            {m.texto && <p className="whitespace-pre-wrap break-words"><TextoComLinks texto={m.texto} /></p>}
             <p className="text-[11px] text-right opacity-70">{hora(m.quando)}</p>
           </div>
         ))}
