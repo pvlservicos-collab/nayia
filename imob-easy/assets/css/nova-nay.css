@@ -267,3 +267,6 @@
 .nn-andamento .barra i { display: block; height: 100%; background: var(--roxo); transition: width .5s ease; }
 
 .nn-rodadas .btn-azul { font-size: 12px; padding: 6px 14px; white-space: nowrap; }
+
+/* rodada com mais de um dia: o índice separa os dias, o mais novo em cima */
+.nw-dia-sep { position: sticky; top: 0; z-index: 1; background: #ece7f6; color: #4b3a80; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 5px 12px; border-bottom: 1px solid #d9cff0; }

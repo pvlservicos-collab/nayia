@@ -107,8 +107,8 @@
      julgada errada ou com algum turno errado). Depois de anotar, o normal é "só as com erro". */
   function comErro() {
     var chaves = {};
-    CONVS.forEach(function (c) { if (c.veredito_conversa === "errado" || c.turnos_errado > 0) chaves[c.chave] = 1; });
-    return ((EXEC && EXEC.selecao && EXEC.selecao.conversas) || []).filter(function (c) { return chaves[c.chave]; });
+    CONVS.forEach(function (c) { if (c.veredito_conversa === "errado" || c.turnos_errado > 0) chaves[c.chave + "|" + (c.dia || "")] = 1; });
+    return ((EXEC && EXEC.selecao && EXEC.selecao.conversas) || []).filter(function (c) { return chaves[c.chave + "|" + (c.dia || "")] || chaves[c.chave + "|"]; });
   }
   function rodarDeNovo(conversas, rotulo, botao) {
     if (!conversas.length) { alert("Nenhuma conversa marcada com erro nesta rodada."); return; }
@@ -126,6 +126,11 @@
      conversa em balões de WhatsApp, as setas para ir de uma à outra e, embaixo, a ficha: conversou corretamente,
      o erro e a solução. O julgamento é DA CONVERSA e fica preso à primeira mensagem real dela. */
   var EXEC = null, CONVS = [], IDX = -1, TURNOS = null, JULG = {}, FILTRO = "todas", VER_ANTES = true;
+  function diaComSemana(d) {
+    if (!d) return "";
+    var s = new Date(d + "T12:00:00").toLocaleDateString("pt-BR", { timeZone: "America/Manaus", weekday: "long", day: "2-digit", month: "2-digit" });
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
   function iniciais(nome) { var p = String(nome || "?").trim().split(/\s+/); return ((p[0] || "?").charAt(0) + (p.length > 1 ? p[p.length - 1].charAt(0) : "")).toUpperCase(); }
   function julgada(c) { return c.veredito_conversa || ""; }
   function visiveis() {
@@ -158,17 +163,19 @@
       return '<button type="button" class="nw-filtro" data-filtro="' + f[0] + '" aria-pressed="' + (FILTRO === f[0]) + '">' + f[1] + " <b>" + n[f[0]] + "</b></button>";
     }).join("");
     var v = visiveis();
+    var diaDeAntes = null, variosDias = CONVS.some(function (c) { return c.dia !== CONVS[0].dia; });
     $("#nw-itens").innerHTML = v.length ? v.map(function (i, pos) {
-      var c = CONVS[i], jg = julgada(c);
+      var c = CONVS[i], jg = julgada(c), sep = "";
+      if (variosDias && c.dia !== diaDeAntes) { diaDeAntes = c.dia; sep = '<div class="nw-dia-sep">' + esc(diaComSemana(c.dia)) + "</div>"; }
       var selo = jg === "certo" ? '<span class="nw-selo ok">certo</span>' : jg === "errado" ? '<span class="nw-selo erro">erro</span>' : '<span class="nw-selo">por julgar</span>';
-      return '<button type="button" class="nw-item" data-conv="' + i + '" aria-selected="' + (i === IDX) + '"><span class="nw-item-topo"><span class="nw-n">' + (pos + 1) + "</span>" + selo + (c.diferentes > 0 ? '<span class="nw-selo dif">≠ imóvel</span>' : "") + (c.erros ? '<span class="nw-selo erro">falhou</span>' : "") + (c.turnos_errado ? '<span class="nw-selo erro">✗ ' + c.turnos_errado + "</span>" : "") + (c.turnos_certo ? '<span class="nw-selo ok">✓ ' + c.turnos_certo + "</span>" : "") + '<span class="nw-n" style="margin-left:auto">' + esc(hora(c.inicio)) + '</span></span><span class="nw-item-nome">' + esc(c.nome || "(sem nome)") + " <small>" + esc(fim4(c.chave)) + '</small></span><span class="nw-item-t">' + c.turnos + (c.turnos === 1 ? " mensagem" : " mensagens") + "</span></button>";
+      return sep + '<button type="button" class="nw-item" data-conv="' + i + '" aria-selected="' + (i === IDX) + '"><span class="nw-item-topo"><span class="nw-n">' + (pos + 1) + "</span>" + selo + (c.diferentes > 0 ? '<span class="nw-selo dif">≠ imóvel</span>' : "") + (c.erros ? '<span class="nw-selo erro">falhou</span>' : "") + (c.turnos_errado ? '<span class="nw-selo erro">✗ ' + c.turnos_errado + "</span>" : "") + (c.turnos_certo ? '<span class="nw-selo ok">✓ ' + c.turnos_certo + "</span>" : "") + '<span class="nw-n" style="margin-left:auto">' + esc(hora(c.inicio)) + '</span></span><span class="nw-item-nome">' + esc(c.nome || "(sem nome)") + " <small>" + esc(fim4(c.chave)) + '</small></span><span class="nw-item-t">' + c.turnos + (c.turnos === 1 ? " mensagem" : " mensagens") + "</span></button>";
     }).join("") : '<p class="nw-vazio">Nada com esse filtro.</p>';
   }
   function abrirConversa(i) {
     IDX = i; TURNOS = null; desenharIndice();
     var alvo = $("#nw-conversa"); alvo.innerHTML = '<p class="nw-vazio">Carregando…</p>';
     var sel = document.querySelector('.nw-item[aria-selected="true"]'); if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: "nearest" });
-    pega("execucoes/" + ATUAL + "/conversas/" + encodeURIComponent(CONVS[i].chave)).then(function (c) {
+    pega("execucoes/" + ATUAL + "/conversas/" + encodeURIComponent(CONVS[i].chave) + (CONVS[i].dia ? "?dia=" + CONVS[i].dia : "")).then(function (c) {
       if (IDX !== i) return;
       TURNOS = c.turnos; JULG = c.julgamento || {}; desenharConversa();
     }).catch(function (x) { alvo.innerHTML = '<p class="nw-vazio">' + esc(x.message) + "</p>"; });
