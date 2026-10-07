@@ -10,6 +10,11 @@ AS $function$
     -- 306: a visita é do núcleo. Ele pergunta o dia e a hora, confirma e, no "sim", a ponte
     -- nai_core_visita_confirmada (302) cria a visita com a Rayssa. Quem cala a Nay durante a visita
     -- é nai_com_a_rayssa, na porta; passou a janela, quem atende de novo é o núcleo.
+    -- 307: a visita que o sistema velho já estava confirmando com ele (ou a pergunta de horário de um
+    -- comando do Tel) termina com o velho: é ele quem espera esse "sim". Só `confirmando`, por 24 h.
+    WHEN EXISTS (SELECT 1 FROM public.nai_visita v
+                  WHERE v.corretor_id = ANY (coalesce(public.nai_contato_irmaos(p_contato), ARRAY[p_contato]))
+                    AND v.estado = 'confirmando' AND v.atualizado_em > now() - interval '24 hours') THEN false
     -- ficha de cadastro de imóvel aberta com a secretária
     WHEN EXISTS (SELECT 1 FROM public.nai_imovel_novo n
                   WHERE n.contato_id = ANY (coalesce(public.nai_contato_irmaos(p_contato), ARRAY[p_contato]))
