@@ -77,7 +77,10 @@ BEGIN
       SELECT t.codigo INTO v_esc FROM nai_turno t
        WHERE t.contato_id = ANY (v_irmaos) AND 'escalar' = ANY (coalesce(t.ferramentas, '{}'))
        ORDER BY t.id DESC LIMIT 1;
-      IF v_cit IS NOT NULL AND v_cit IS DISTINCT FROM v_esc THEN
+      -- 303: GENTE RESPONDEU HÁ POUCO: os 30 min de quem escreveu à mão valem mais que a 240.
+      -- Em 04/10 "100% mobiliado" foi lido como o imóvel 100 e a Nay falou 1,5 min depois da equipe.
+      IF v_cit IS NOT NULL AND v_cit IS DISTINCT FROM v_esc
+         AND NOT nai_gente_escreveu_ha_pouco(v_irmaos) THEN
         UPDATE nai_contato SET humano_assumiu_em = NULL, humano_motivo = NULL WHERE id = ANY (v_irmaos);
         BEGIN
           PERFORM nai_avisar_tel(NULL, NULL,

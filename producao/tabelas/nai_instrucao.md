@@ -23,4 +23,4 @@ nay_leitura: SELECT
 crm_nay_instruir
 
 ## funções que citam
-crm_nay_instruir, nai_instrucao_texto
+crm_nay_instruir, nai_core_atende, nai_instrucao_texto

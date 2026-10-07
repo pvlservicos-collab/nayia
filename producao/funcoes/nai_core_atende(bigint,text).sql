@@ -29,6 +29,10 @@ AS $function$
                   WHERE n.contato_id = ANY (coalesce(public.nai_contato_irmaos(p_contato), ARRAY[p_contato]))
                     AND n.situacao = 'colhendo' AND n.criado_em > now() - interval '24 hours') THEN false
     -- canário: com a lista preenchida, só quem está nela
+    -- 303: instrução da equipe valendo (CRM, "instruir a Nay", 235): quem a lê é a Nay velha
+    WHEN EXISTS (SELECT 1 FROM public.nai_instrucao i
+                  WHERE i.contato_id = ANY (coalesce(public.nai_contato_irmaos(p_contato), ARRAY[p_contato]))
+                    AND i.valido_ate > now()) THEN false
     WHEN btrim(coalesce(public.nai_cfg('core_atende_so', ''), '')) <> '' THEN
       (SELECT c.chave FROM public.nai_contato c WHERE c.id = p_contato)
         = ANY (string_to_array(replace(public.nai_cfg('core_atende_so', ''), ' ', ''), ','))
