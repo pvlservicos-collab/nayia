@@ -196,7 +196,7 @@
   /* o certo/errado de UM turno (o que ele gostou na primeira versão): grava na hora, a nota vai junto */
   function julgarTurno(caixa, veredito) {
     var id = Number(caixa.dataset.turno), nota = caixa.querySelector(".nw-julga input").value.trim();
-    pega("marcacoes", { turno_origem: id, veredito: veredito, nota: nota || null, marcado_por: "painel" }).then(function () {
+    pega("marcacoes", { execucao_id: ATUAL, turno_origem: id, veredito: veredito, nota: nota || null, marcado_por: "painel" }).then(function () {
       var t = (TURNOS || []).filter(function (x) { return x.turno_origem === id; })[0];
       if (t) { t.veredito = veredito; t.nota = nota; }
       caixa.querySelector(".certo").setAttribute("aria-pressed", veredito === "certo");
@@ -224,7 +224,7 @@
     if (!TURNOS || !TURNOS.length) return;
     var erro = $("#nw-erro").value.trim(), sol = $("#nw-sol").value.trim(), c = CONVS[IDX], t0 = TURNOS[0];
     $("#nw-estado").textContent = "gravando…";
-    pega("marcacoes", { turno_origem: -t0.turno_origem, veredito: veredito, nota: erro || null, esperado: { escopo: "conversa", solucao: sol || null }, marcado_por: "painel" }).then(function () {
+    pega("marcacoes", { execucao_id: ATUAL, turno_origem: -t0.turno_origem, veredito: veredito, nota: erro || null, esperado: { escopo: "conversa", solucao: sol || null }, marcado_por: "painel" }).then(function () {
       JULG = { veredito: veredito, nota: erro, esperado: { escopo: "conversa", solucao: sol } };
       c.veredito_conversa = veredito;
       var v = visiveis(), pos = v.indexOf(IDX);
