@@ -333,7 +333,7 @@ BEGIN
      AND (CASE WHEN lower(coalesce(nai_cfg('regra_publico', 'nao'), 'nao')) = 'sim' THEN v_porta.atende END) IS DISTINCT FROM false
      AND ((CASE WHEN lower(coalesce(nai_cfg('regra_publico', 'nao'), 'nao')) = 'sim' THEN v_porta.atende END) IS TRUE
           OR v_aprov IS TRUE)
-     AND jsonb_array_length(nai_midias_do_turno(v_turno)) = 0
+     -- 306: foto, documento e vídeo também vão para o núcleo (ele responde "Recebi" e avisa o Tel)
      AND nai_core_atende(v_contato, v_texto) THEN
     INSERT INTO nai_core_turno (turno_id) VALUES (v_turno) ON CONFLICT DO NOTHING;
     UPDATE nai_turno SET fechado_em = now() WHERE id = v_turno;

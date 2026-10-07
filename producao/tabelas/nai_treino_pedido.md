@@ -1,4 +1,4 @@
-# nai_treino_pedido  (tabela, ~129 linhas)
+# nai_treino_pedido  (tabela, ~192 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('nai_treino_pedido_id_seq'::regclass)

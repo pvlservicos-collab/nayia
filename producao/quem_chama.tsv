@@ -146,7 +146,7 @@ nai_contexto	nai_abrir_turno
 nai_contexto_corretor	nai_contexto
 nai_core_atende	nai_abrir_turno
 nai_core_escalou	
-nai_core_visita_confirmada	
+nai_core_visita_confirmada	nai_core_atende
 nai_corrigir_nomes	nai_abrir_turno, nai_rodar_casos
 nai_cpf_fmt	nai_frase_visitante, nai_texto_dados_visitante
 nai_cpf_valido	nai_guardar_dados_visita

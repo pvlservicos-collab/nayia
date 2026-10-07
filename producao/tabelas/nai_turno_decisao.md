@@ -1,4 +1,4 @@
-# nai_turno_decisao  (tabela, ~972 linhas)
+# nai_turno_decisao  (tabela, ~1058 linhas)
 
 ## colunas
 turno_id  bigint  NOT NULL
