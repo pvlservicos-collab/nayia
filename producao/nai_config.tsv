@@ -1,5 +1,5 @@
 chave	valor	atualizado_em
-_agenda_rodou_em	2026-10-06 23:45:15	2026-10-06T23:45
+_agenda_rodou_em	2026-10-07 01:44:15	2026-10-07T01:44
 antecedencia_minima_horas	3	2026-09-10T18:41
 apresentacao_proprietario	Oi! Esse é o número de visitas da Imob Easy.	2026-09-30T10:15
 aprovacao_lembrete_min	30	2026-09-28T10:35
@@ -45,7 +45,7 @@ limite_sem_teto	5	2026-09-23T09:16
 modo	todos	2026-09-22T13:47
 numeros_teste	[telefone …2835],[telefone …0001]	2026-09-19T18:06
 passe_citado_ate	2	2026-09-24T12:42
-pausada	sim	2026-09-19T18:06
+pausada	nao	2026-10-07T01:44
 pedido_ignora_anuncio	sim	2026-09-24T12:34
 pedido_ignora_oferta	sim	2026-09-24T12:32
 piso_correcao_nome	0.80	2026-09-23T09:53
