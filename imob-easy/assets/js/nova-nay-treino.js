@@ -84,7 +84,7 @@
       sel.innerHTML = lista.length ? lista.map(function (e, i) {
         return '<option value="' + e.id + '"' + (e.id === ATUAL ? " selected" : "") + ">" + esc(rotuloDaRodada(e)) + (i === 0 ? " (a mais nova)" : "") + "</option>";
       }).join("") : "<option value=\"\">nenhuma rodada ainda</option>";
-      sel.disabled = !lista.length; $("#tr-de-novo").disabled = !lista.length;
+      sel.disabled = !lista.length; $("#tr-de-novo").disabled = !lista.length; $("#tr-so-erros").disabled = !lista.length;
       var viva = lista.filter(function (e) { return e.estado === "rodando" || e.estado === "fila"; })[0], and = $("#tr-andamento");
       if (viva) {
         var pct = viva.total_turnos ? Math.round(100 * (viva.feitos || 0) / viva.total_turnos) : 0;
@@ -103,15 +103,23 @@
     }, 2500);
   }
   $("#tr-rodada").addEventListener("change", function () { if ($("#tr-rodada").value) abrirExecucao(Number($("#tr-rodada").value), true); });
-  /* a mesma seleção de conversas, com o código de agora: é como se confere uma correção */
-  $("#tr-de-novo").addEventListener("click", function () {
-    if (!EXEC || !EXEC.selecao) return;
-    $("#tr-de-novo").disabled = true;
-    pega("execucoes", { conversas: EXEC.selecao.conversas, opcoes: { classificacao: "reusar" }, criada_por: "painel (de novo #" + EXEC.id + ")" }).then(function (r) {
-      ATUAL = r.id; $("#tr-resultado").innerHTML = '<p class="painel__vazio">Rodando a rodada #' + r.id + "… ela abre sozinha quando terminar.</p>"; delete $("#tr-resultado").dataset.pronta;
-      carregarExecucoes(); ligarRelogio();
-    }).catch(function (x) { alert("Não deu para rodar de novo: " + x.message); $("#tr-de-novo").disabled = false; });
-  });
+  /* rodar de novo com o código de agora: TODAS as conversas da rodada, ou só as que ele marcou com erro (a conversa
+     julgada errada ou com algum turno errado). Depois de anotar, o normal é "só as com erro". */
+  function comErro() {
+    var chaves = {};
+    CONVS.forEach(function (c) { if (c.veredito_conversa === "errado" || c.turnos_errado > 0) chaves[c.chave] = 1; });
+    return ((EXEC && EXEC.selecao && EXEC.selecao.conversas) || []).filter(function (c) { return chaves[c.chave]; });
+  }
+  function rodarDeNovo(conversas, rotulo, botao) {
+    if (!conversas.length) { alert("Nenhuma conversa marcada com erro nesta rodada."); return; }
+    botao.disabled = true;
+    pega("execucoes", { conversas: conversas, opcoes: { classificacao: "reusar" }, criada_por: "painel (" + rotulo + " da #" + EXEC.id + ")" }).then(function (r) {
+      ATUAL = r.id; $("#tr-resultado").innerHTML = '<p class="painel__vazio">Rodando a rodada #' + r.id + " (" + conversas.length + " conversas)… ela abre sozinha quando terminar.</p>"; delete $("#tr-resultado").dataset.pronta;
+      carregarExecucoes(); ligarRelogio(); botao.disabled = false;
+    }).catch(function (x) { alert("Não deu para rodar de novo: " + x.message); botao.disabled = false; });
+  }
+  $("#tr-de-novo").addEventListener("click", function () { if (EXEC && EXEC.selecao) rodarDeNovo(EXEC.selecao.conversas, "todas de novo", $("#tr-de-novo")); });
+  $("#tr-so-erros").addEventListener("click", function () { if (EXEC && EXEC.selecao) rodarDeNovo(comErro(), "só as com erro", $("#tr-so-erros")); });
 
   /* ---- resultado ---- */
   /* O desenho é o da rodada de treino antiga (Cérebro › Conversa): à esquerda a lista das conversas, à direita a

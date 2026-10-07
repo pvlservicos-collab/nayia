@@ -265,3 +265,5 @@
 .nn-andamento { margin-top: 8px; font-size: var(--fs-sm); color: #9a6a10; }
 .nn-andamento .barra { height: 6px; background: var(--superficie-2); border-radius: 3px; overflow: hidden; margin-top: 4px; }
 .nn-andamento .barra i { display: block; height: 100%; background: var(--roxo); transition: width .5s ease; }
+
+.nn-rodadas .btn-azul { font-size: 12px; padding: 6px 14px; white-space: nowrap; }
