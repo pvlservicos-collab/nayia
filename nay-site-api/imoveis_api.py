@@ -159,14 +159,24 @@ def api_imoveis_valores():
 
 @imoveis_bp.route("/admin/api/imoveis/<int:codigo>/proprietario")
 def api_imovel_proprietario(codigo):
-    """Quem é o dono desse imóvel, com o que se sabe dele.
+    """Quem é o dono desse imóvel: UM só, o que está ligado ao imóvel.
 
-    O nome vem da lista geral (que junta o catálogo e as tabelas do site
-    antigo). O telefone e o e-mail são procurados PELO NOME em
-    `proprietarios_admin` e em `proprietarios` -- não existe chave ligando
-    imóvel e proprietário no banco novo, e é por isso que o retorno diz de
-    onde tirou cada coisa: o Tel precisa saber o que é certo e o que é
-    parecido.
+    Até 08/10/2026 o telefone era procurado PELO NOME em `proprietarios_admin`
+    e em `proprietarios`: o dono "Paulo" trazia até seis "Paulos" do cadastro
+    (14 telefones diferentes com esse nome), corretor no meio, e nem sempre o
+    certo estava entre os seis. Pedro: "tem imóveis com vários proprietários,
+    preciso que tenha só um". Medido: 1.022 imóveis mostravam 2 ou mais
+    telefones.
+
+    O vínculo certo existe e é o mesmo que a Nay, o CRM e a aba Proprietários
+    usam (296): `imovel_privado.proprietario_id` (quando alguém trocou o dono
+    pelo site novo) e, senão, `imoveis.proprietario_id`. Imóvel que só existe
+    nas listas do admin antigo usa o dono do snapshot de lá. Sem vínculo, sai
+    só o nome, sem telefone de ninguém parecido.
+
+    `telefone_de_corretor` avisa quando o número do cadastro está na lista de
+    corretores dos grupos: no site antigo o "proprietário" de imóvel de
+    parceiro é o próprio corretor.
     """
     if not _admin_autenticado():
         return jsonify({"erro": "não autenticado"}), 401, {"WWW-Authenticate": 'Basic realm="admin"'}
@@ -181,30 +191,48 @@ def api_imovel_proprietario(codigo):
         if not base:
             return jsonify({"erro": "imóvel não encontrado"}), 404
         i = base[0]
-        if not i["nome"]:
+
+        # o dono LIGADO ao imóvel (um só); o do admin antigo só quando o imóvel não está no catálogo
+        contatos = _linhas(conn, """
+            SELECT 'cadastro do imóvel' AS fonte, p.nome, p.telefone, p.email, p.tratamento
+              FROM imoveis im
+              LEFT JOIN imovel_privado ip ON ip.codigo = im.codigo
+              JOIN proprietarios p ON p.id = coalesce(ip.proprietario_id, im.proprietario_id)
+             WHERE im.codigo = %s
+        """, (codigo,))
+        if not contatos:
+            contatos = _linhas(conn, """
+                SELECT 'admin antigo' AS fonte, pa.nome, pa.telefone, pa.email, NULL::text AS tratamento
+                  FROM imoveis_admin_snapshot s
+                  JOIN proprietarios_admin pa ON pa.id = s.proprietario_id
+                 WHERE s.codigo = %s
+                 LIMIT 1
+            """, (str(codigo),))
+
+        nome = (contatos[0]["nome"] if contatos and contatos[0].get("nome") else i["nome"]) or ""
+        if not nome:
             return jsonify({"imovel": i, "proprietario": None,
                             "aviso": "este imóvel não tem proprietário cadastrado"})
 
-        contatos = _linhas(conn, """
-            SELECT 'proprietarios_admin' AS fonte, pa.nome, pa.telefone, pa.email, NULL::text AS tratamento
-              FROM proprietarios_admin pa
-             WHERE lower(nay_sem_acento(pa.nome)) = lower(nay_sem_acento(%s))
-            UNION ALL
-            SELECT 'proprietarios', p.nome, p.telefone, p.email, p.tratamento
-              FROM proprietarios p
-             WHERE lower(nay_sem_acento(p.nome)) = lower(nay_sem_acento(%s))
-             LIMIT 6
-        """, (i["nome"], i["nome"]))
+        for c in contatos:
+            de_corretor = _linhas(conn, """
+                SELECT EXISTS (SELECT 1 FROM corretores k
+                                WHERE nai_chave(k.telefone) = nai_chave(
+                                      (regexp_match(%s, '\\(?\\d{2}\\)?[\\s.-]*9?\\s*\\d{4}[\\s.-]?\\d{4}'))[1])) AS sim
+            """, (c.get("telefone") or "",))
+            c["telefone_de_corretor"] = bool(de_corretor and de_corretor[0]["sim"])
+            if c["telefone_de_corretor"]:
+                c["fonte"] += " · este número é de corretor da lista dos grupos"
 
         return jsonify({
             "imovel": i,
             "proprietario": {
-                "nome": i["nome"],
+                "nome": nome,
                 "e_parceiro": bool(i["e_parceiro"]),
                 "contatos": contatos,
             },
             "aviso": None if contatos else
-                     "achei o nome, mas nenhum telefone: o vínculo é por nome, não por cadastro",
+                     "só o nome veio das listas do site antigo: este imóvel não tem cadastro de proprietário ligado",
         })
     finally:
         conn.close()
