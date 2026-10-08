@@ -168,21 +168,27 @@ mercado com a mesma planta e o mesmo preço).
 
 ### A mensagem
 
-O texto mora na tabela `anuncio_abordagem_texto`, não no código:
+O texto mora na tabela `anuncio_abordagem_texto` (chave `mensagem`), não no código.
+Desde a 311 (Pedro, 08/10) é este, igual para todo tipo de imóvel:
 
-| chave | para quê |
-|---|---|
-| `mensagem` | o texto inteiro, com `{saudacao}` `{cliente}` `{onde}` `{anunciando}` |
-| `cliente_apartamento_grande` | apartamento de 3 quartos ou mais |
-| `cliente_apartamento` | apartamento de até 2 quartos |
-| `cliente_casa` · `cliente_comercial` · `cliente_terreno` · `cliente_outro` | os outros tipos |
+```
+Oii, {saudacao}! Me chamo Nay Mendes, da Imob Easy.
+
+Tenho uns clientes procurando imóveis na região do seu!
+
+Posso apresentar pra eles?
+
+Se gostarem, eu cuido de tudo: visita, documentação, contrato e assinatura. Sem exclusividade, você continua {anunciando} aqui no OLX.
+
+Me passa seu nome e seu WhatsApp que a gente conversa melhor.
+```
 
 - `{saudacao}`: bom dia (05:00–11:59), boa tarde (12:00–17:59), boa noite, pela
   hora de **Manaus**.
-- `{onde}`: "na região de <bairro>" com o nome que o catálogo usa; sem bairro que
-  dê para escrever, "na sua região".
 - `{anunciando}`: "vendendo" na venda, "anunciando" no aluguel.
-- Trocar um texto: `UPDATE anuncio_abordagem_texto SET texto = '...' WHERE chave = '...'`.
+- A função ainda aceita `{cliente}` e `{onde}` (a frase do cliente por tipo e "na
+  região de <bairro>", da 309); as chaves `cliente_*` ficam guardadas, fora de uso.
+- Trocar o texto: `UPDATE anuncio_abordagem_texto SET texto = '...' WHERE chave = 'mensagem'`.
   Marcador que não existe faz a consulta falhar (`codigo_erro: "texto"`) em vez
   de mandar texto quebrado.
 
@@ -222,6 +228,6 @@ O token puro é recusado na porta 80. Ver `COMO-LIGAR-O-GROK-A-UM-WEBHOOK.md`.
 
 `crm/src/app/api/public/imovel-consulta/` · `crm/src/lib/botDeImoveis.ts` ·
 `crm_anuncio_decidir(jsonb)`, `crm_anuncio_mesma_unidade(jsonb, jsonb)` e
-`crm_anuncio_mensagem(jsonb, text, timestamptz)` (migração 309) ·
+`crm_anuncio_mensagem(jsonb, text, timestamptz)` (migração 309; texto da 311) ·
 `crm_imovel_candidatos(jsonb)` e `crm_imovel_vincular_anuncio(...)` (258) ·
 porta 80: `scripts/servidor/traefik-imovel-consulta.yml`.

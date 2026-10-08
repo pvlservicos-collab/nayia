@@ -1,4 +1,4 @@
-# alto_padrao_busca_publicacoes  (tabela, ~0 linhas)
+# alto_padrao_busca_publicacoes  (tabela, ~5 linhas)
 
 ## colunas
 codigo  text  NOT NULL
