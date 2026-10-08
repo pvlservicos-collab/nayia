@@ -27,6 +27,7 @@ captacao_mensagens_pkey: PRIMARY KEY (id)
 captacao_msg_direcao_ok: CHECK ((direcao = ANY (ARRAY['enviada'::text, 'recebida'::text])))
 
 ## gatilhos
+CREATE TRIGGER captacao_mensagem_do_python BEFORE INSERT ON public.captacao_mensagens FOR EACH ROW EXECUTE FUNCTION captacao_mensagem_do_python()
 CREATE TRIGGER captacao_rede_da_situacao_tg AFTER INSERT ON public.captacao_mensagens FOR EACH ROW EXECUTE FUNCTION captacao_rede_da_situacao()
 
 ## permissões
@@ -40,4 +41,4 @@ nay_site_escrita, só nestas colunas: SELECT(entregue_em, lida_em)
 captacao_status_da_mensagem
 
 ## funções que citam
-captacao_disparo_liberado, captacao_encerrar, captacao_ja_chamado_nao_volta, captacao_ja_perguntou_outros, captacao_relatorio_da_vez, captacao_status_da_mensagem, captacao_vigiar, crm_captacao_mensagens, crm_captacao_placar, crm_captacao_relatorio, crm_contato_da_mensagem
+captacao_disparo_liberado, captacao_encerrar, captacao_indicacao_pendente, captacao_ja_chamado_nao_volta, captacao_ja_perguntou_outros, captacao_relatorio_da_vez, captacao_status_da_mensagem, captacao_vigiar, crm_captacao_mensagens, crm_captacao_placar, crm_captacao_relatorio, crm_contato_da_mensagem

@@ -1,0 +1,20 @@
+# A Nay de captação em Python (08/10/2026): atende, pelo número oficial, os telefones da lista
+# captacao_config.python_telefones. Ver README.md e captacao/worker.py.
+# Instalar: cp nay-captacao.service /etc/systemd/system/ && systemctl daemon-reload
+#           && systemctl enable --now nay-captacao
+[Unit]
+Description=Nay de captacao em Python (numero oficial)
+After=network-online.target docker.service
+Wants=network-online.target
+# não deixa um laço de falhas rápidas desligar o reinício automático
+StartLimitIntervalSec=0
+[Service]
+Type=simple
+WorkingDirectory=/root/nay-captacao
+EnvironmentFile=/root/nay-captacao/.env
+Environment=TZ=America/Manaus PYTHONUNBUFFERED=1
+ExecStart=/root/nay-captacao/.venv/bin/python -u -m captacao.worker
+Restart=always
+RestartSec=5
+[Install]
+WantedBy=multi-user.target

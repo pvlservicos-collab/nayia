@@ -1,0 +1,200 @@
+[
+ {
+  "nome": "dados_do_lead",
+  "descricao": "Diz o que voce JA sabe deste proprietario e do imovel dele: nome, descricao do imovel, situacao ja registrada, prazo do contrato e em que etapa a conversa esta. CHAME ANTES de perguntar qualquer coisa que possa ja estar gravada -- perguntar de novo o que ele ja respondeu faz ele achar que ninguem anotou. Devolve instrucao_para_voce: obedeca e nunca mostre esse texto ao proprietario.",
+  "sql": "SELECT COALESCE(\n  (SELECT 'proprietário: ' || COALESCE(l.tratamento,'Sr.') || ' ' || COALESCE(l.nome,'(sem nome)')\n       || '. imóvel: ' || COALESCE(l.imovel_desc, l.condominio, l.bairro, '(não cadastrado)')\n       || '. situação registrada: ' || COALESCE(l.situacao, 'ainda não sei -- é isso que você precisa descobrir')\n       || '. prazo do contrato: ' || COALESCE(l.contrato_ate, 'não registrado')\n       || '. valor da locação registrado: ' || COALESCE(l.valor_locacao_pedido, 'ainda não perguntei')\n       || '. etapa: ' || COALESCE(l.etapa, 'aguardando_situacao')\n       || '. outros imóveis que ele JÁ TEM conosco (não são captação nova): '\n       || COALESCE((SELECT string_agg(x->>'codigo' || ' - ' || COALESCE(\n                      NULLIF(x->>'condominio',''), NULLIF(x->>'endereco',''), 'sem endereço'), '; ')\n                      FROM jsonb_array_elements(l.imoveis_prop) x\n                     WHERE x->>'codigo' IS DISTINCT FROM l.codigo), 'nenhum')\n       || '. outros imóveis já registrados nesta conversa: '\n       || COALESCE((SELECT string_agg(e.descricao, '; ') FROM captacao_imoveis_extra e\n                     WHERE e.lead_id = l.id), 'nenhum')\n     FROM captacao_leads l WHERE l.telefone_chave = nay_fone_chave($1)),\n  'este número não está na lista de captação. não invente dado nenhum sobre imóvel: pergunte com quem você fala e do que ele precisa.'\n) AS instrucao_para_voce;",
+  "params": []
+ },
+ {
+  "nome": "guardar_situacao",
+  "descricao": "Grava a situacao do imovel, o prazo do contrato de locacao e o VALOR atualizado da locacao. CHAME NA MESMA RESPOSTA em que ele informar -- se nao chamar, a informacao se perde quando a conversa sair da sua memoria. situacao aceita exatamente: disponivel, alugado, vendido. prazo: escreva como ele disse ('marco de 2027', 'ano que vem'); vazio se ele nao disse. valor: o valor da LOCACAO como ele disse ('2.500', '2500 com condominio'); vazio se ele nao disse. Nunca invente e nunca preencha por deducao. Quando o imovel esta DISPONIVEL e ele deu o valor, a resposta traz a primeira pergunta da FICHA DO IMOVEL, pronta: faca essa pergunta. Devolve instrucao_para_voce: obedeca e nunca mostre esse texto a ele.",
+  "sql": "-- Situacao, prazo e -- desde 14/09 -- o VALOR atualizado da locacao.\n-- O Tel: \"ela disse que esta disponivel, so precisamos pedir para o\n-- proprietario atualizar o valor, porque geralmente muda\".\n-- A etapa avanca sozinha a partir do que foi gravado, para o prompt nao ter\n-- que carregar o estado.\nWITH e AS (\n  SELECT $1::text AS telefone,\n         lower(NULLIF(NULLIF(btrim($2::text),''),'null')) AS situacao,\n         NULLIF(NULLIF(btrim($3::text),''),'null')        AS prazo,\n         NULLIF(NULLIF(btrim($4::text),''),'null')        AS valor\n), v AS (\n  SELECT telefone,\n         CASE WHEN situacao IN ('disponivel','disponível','alugado','vendido')\n              THEN replace(situacao,'í','i') END AS situacao,\n         CASE WHEN length(prazo) BETWEEN 2 AND 60 THEN prazo END AS prazo,\n         CASE WHEN length(valor) BETWEEN 2 AND 80 THEN valor END AS valor\n    FROM e\n), g AS (\n  UPDATE captacao_leads l\n     SET situacao     = COALESCE(v.situacao, l.situacao),\n         contrato_ate = COALESCE(v.prazo, l.contrato_ate),\n         valor_locacao_pedido = COALESCE(v.valor, l.valor_locacao_pedido),\n         etapa = CASE\n           -- DISPONIVEL: primeiro o valor atualizado, depois os outros imoveis.\n           WHEN COALESCE(v.situacao, l.situacao) = 'disponivel'\n                AND COALESCE(v.valor, l.valor_locacao_pedido) IS NULL\n                THEN 'aguardando_valor'\n           WHEN COALESCE(v.situacao, l.situacao) IN ('disponivel','vendido')\n                THEN 'aguardando_outros'\n           WHEN COALESCE(v.prazo, l.contrato_ate) IS NULL\n                THEN 'aguardando_prazo'\n           WHEN COALESCE(v.prazo, l.contrato_ate) ~* '(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)'\n                THEN 'aguardando_outros'\n           ELSE 'aguardando_mes' END,\n         atualizado_em = now()\n    FROM v\n   WHERE l.telefone_chave = nay_fone_chave(v.telefone)\n     AND (v.situacao IS NOT NULL OR v.prazo IS NOT NULL OR v.valor IS NOT NULL)\n  RETURNING l.etapa, l.situacao, l.contrato_ate, l.valor_locacao_pedido, l.tratamento, l.nome\n)\nSELECT COALESCE(\n  (SELECT 'gravado. situacao: ' || COALESCE(situacao,'-')\n       || '. prazo: ' || COALESCE(contrato_ate,'-')\n       || '. valor da locacao: ' || COALESCE(valor_locacao_pedido,'-')\n       || '. proxima etapa: ' || etapa\n       || CASE etapa\n            WHEN 'aguardando_prazo'  THEN '. agora pergunte ate quando vai o contrato de locacao.'\n            WHEN 'aguardando_mes'    THEN '. ele deu so o ano: peca o mes.'\n            WHEN 'aguardando_valor'  THEN '. agora peca o valor atualizado da locacao, uma pergunta so, assim: \"'\n                                          || CASE COALESCE(tratamento, '')\n                                               WHEN 'Sra.' THEN 'Sra. ' || COALESCE(nome, '') || ', a Sra. pode me atualizar o valor do imovel para locacao?'\n                                               WHEN 'Sr.'  THEN 'Sr. ' || COALESCE(nome, '') || ', o Sr. pode me atualizar o valor do imovel para locacao?'\n                                               ELSE COALESCE(nome || ', ', '') || 'voce pode me atualizar o valor do imovel para locacao?'\n                                             END || '\". NAO comente se o valor esta bom, alto ou baixo.'\n            -- DISPONIVEL com o valor (28/09, 165): abre a FICHA do imovel, e a\n            -- primeira pergunta dela vem pronta do banco (captacao_ficha)\n            WHEN 'aguardando_outros' THEN CASE WHEN situacao = 'disponivel'\n                 THEN '. ' || captacao_ficha((SELECT telefone FROM e), 'este', jsonb_build_object('valor', valor_locacao_pedido), false)\n                 ELSE '. agora pergunte se ele tem outro imovel para vender ou alugar.' END\n            ELSE '' END\n     FROM g),\n  'nao gravei nada: ou o numero nao esta na lista, ou voce nao passou situacao, prazo nem valor validos. NAO diga a ele que atualizou o sistema.'\n) AS instrucao_para_voce;",
+  "params": [
+   {
+    "chave": "situacao",
+    "descricao": "disponivel, alugado ou vendido -- exatamente uma dessas tres palavras, conforme o que ele disse. vazio se ele nao disse.",
+    "opcional": false
+   },
+   {
+    "chave": "prazo",
+    "descricao": "ate quando vai o contrato de locacao, nas palavras dele. vazio se ele nao disse.",
+    "opcional": false
+   },
+   {
+    "chave": "valor",
+    "descricao": "o valor atualizado da LOCACAO, como ele disse (ex: 2.500, 2500 com condominio). vazio se ele nao disse.",
+    "opcional": false
+   }
+  ]
+ },
+ {
+  "nome": "guardar_outro_imovel",
+  "descricao": "Grava um OUTRO imovel que o proprietario disse ter, alem do que estava no cadastro, e ABRE A FICHA desse imovel. CHAME NA MESMA RESPOSTA em que ele contar. Passe a descricao nas palavras dele, o negocio (venda, locacao ou ambos) e, se ele disse, o tipo, o bairro e o condominio. A resposta traz a proxima pergunta da ficha, pronta: faca essa pergunta. Nao chame se ele disse que nao tem outro imovel. Devolve instrucao_para_voce: obedeca e nunca mostre esse texto a ele.",
+  "sql": "-- AJUSTE LIVRE. Guarda cru, nas palavras dele; quem separa depois e o Tel.\nWITH e AS (\n  SELECT $1::text AS telefone,\n         NULLIF(NULLIF(btrim($2::text),''),'null') AS descricao,\n         lower(NULLIF(NULLIF(btrim($3::text),''),'null')) AS negocio\n), g AS (\n  INSERT INTO captacao_imoveis_extra (lead_id, descricao, negocio)\n  SELECT l.id, e.descricao,\n         CASE WHEN e.negocio IN ('venda','locacao','locação','ambos')\n              THEN replace(e.negocio,'ç','c') ELSE 'nao_informado' END\n    FROM e JOIN captacao_leads l ON l.telefone_chave = nay_fone_chave(e.telefone)\n   WHERE e.descricao IS NOT NULL AND length(e.descricao) BETWEEN 3 AND 400\n  RETURNING id\n), m AS (\n  UPDATE captacao_leads l SET tem_outro_imovel = true, atualizado_em = now()\n    FROM e WHERE l.telefone_chave = nay_fone_chave(e.telefone) AND EXISTS (SELECT 1 FROM g)\n  RETURNING 1\n)\n-- (28/09, 165) NAO ENCERRA MAIS: abre a FICHA do imovel novo, que devolve a\n-- proxima pergunta pronta (tipo e local, alugar ou vender, comodos, area,\n-- valor, taxas, mobilia, fotos -- so o que ele ainda nao disse).\nSELECT CASE WHEN EXISTS (SELECT 1 FROM g)\n  THEN 'gravado. ' || captacao_ficha($1::text, 'outro', jsonb_build_object('detalhes', $2::text, 'negocio', $3::text,\n         'tipo', $4::text, 'bairro', $5::text, 'condominio', $6::text), false)\n  ELSE 'não gravei: descrição vazia ou número fora da lista. NÃO diga que anotou.'\nEND AS instrucao_para_voce;",
+  "params": [
+   {
+    "chave": "descricao",
+    "descricao": "o outro imovel, nas palavras dele: tipo, condominio ou bairro, quartos, o que ele tiver dito.",
+    "opcional": false
+   },
+   {
+    "chave": "negocio",
+    "descricao": "venda, locacao ou ambos",
+    "opcional": false
+   },
+   {
+    "chave": "tipo",
+    "descricao": "casa, apartamento, sala, terreno... o tipo do imovel, se ele disse. vazio se nao disse.",
+    "opcional": true
+   },
+   {
+    "chave": "bairro",
+    "descricao": "o bairro do imovel, se ele disse. vazio se nao disse.",
+    "opcional": true
+   },
+   {
+    "chave": "condominio",
+    "descricao": "o nome do condominio ou do predio, se ele disse. vazio se nao disse.",
+    "opcional": true
+   }
+  ]
+ },
+ {
+  "nome": "encerrar_conversa",
+  "descricao": "Fecha a conversa deste proprietario. CHAME quando o roteiro terminar ou quando ele pedir para nao receber mais mensagem. motivo aceita: concluido, opt_out, numero_errado. Se ainda faltar perguntar se ele tem OUTRO imovel, esta ferramenta nao encerra e devolve a frase exata para voce dizer -- diga essa frase e espere a resposta dele. Devolve instrucao_para_voce: obedeca e nunca mostre esse texto a ele.",
+  "sql": "-- A REGRA MORA NO BANCO (Tel, 15/09): `captacao_encerrar` RECUSA encerrar\n-- enquanto a pergunta dos outros imoveis nao tiver saido, e devolve a frase\n-- pronta. Excecoes: numero errado, e quem pediu para parar de receber.\n-- Mexer na regra e CREATE OR REPLACE da funcao -- sem import de fluxo.\nSELECT captacao_encerrar($1::text, $2::text) AS instrucao_para_voce;",
+  "params": [
+   {
+    "chave": "motivo",
+    "descricao": "concluido, opt_out ou numero_errado",
+    "opcional": false
+   }
+  ]
+ },
+ {
+  "nome": "escalar_ao_tel",
+  "descricao": "Use SO quando o proprietario pedir ou perguntar algo que sai completamente do roteiro e que voce nao pode responder: proposta, valor, avaliacao, comissao, reclamacao, cobranca, assunto juridico, pedido de visita ou vistoria, ou quando ele quiser falar com uma pessoa, e TAMBEM qualquer PERGUNTA dele que nao seja sobre o roteiro. SO PERGUNTA (ou pedido) ESCALA: afirmacao, saudacao, agradecimento e mensagem automatica NUNCA escalam, mesmo quando nao respondem o que voce perguntou -- nesses casos siga o roteiro (onde conseguimos o numero dele, quem passou o contato, se e golpe, qualquer outro assunto). Depois de chamar, responda SILENCIO: o proprietario nao fica sabendo e quem responde e o Tel. NAO use para resposta generica (ok, ta bom, obrigado, depois te falo, agora nao posso), nem para qualquer dado do roteiro -- situacao, mes, data, nome, outro imovel. Nada disso se escala: voce grava e segue. Na duvida: DADO do roteiro, siga o roteiro; PERGUNTA sobre outra coisa, escale. Escalar o que voce mesma resolve faz o proprietario esperar por nada.",
+  "sql": null,
+  "params": [
+   {
+    "chave": "assunto",
+    "descricao": "Resuma em 2 a 5 palavras o que ele pediu",
+    "opcional": false
+   },
+   {
+    "chave": "disse",
+    "descricao": "o que ele disse, nas palavras dele",
+    "opcional": true
+   }
+  ]
+ },
+ {
+  "nome": "guardar_venda",
+  "descricao": "Grava que o proprietario QUER VENDER o imovel e, quando ele disser, o VALOR que ele quer pedir. CHAME assim que ele disser que quer vender (mesmo sem valor) e de novo quando ele disser o valor. valor: exatamente como ele disse ('650 mil', '650 mil liquido'); vazio se ele ainda nao disse. NUNCA use para quem JA vendeu -- isso e guardar_situacao com vendido. Devolve instrucao_para_voce: obedeca e nunca mostre esse texto a ele.",
+  "sql": "-- QUER VENDER (11/09): nao e 'vendido'. Guarda a vontade e o valor pedido.\nWITH e AS (\n  SELECT $1::text AS tel,\n         CASE WHEN length(btrim(coalesce($2::text, ''))) BETWEEN 2 AND 80\n                   AND lower(btrim($2::text)) NOT IN ('null', 'undefined') THEN btrim($2::text) END AS valor\n), g AS (\n  UPDATE captacao_leads l\n     SET quer_vender = true,\n         valor_venda_pedido = coalesce(e.valor, l.valor_venda_pedido),\n         -- se ela tinha gravado 'vendido' por engano, desfaz\n         situacao = CASE WHEN l.situacao = 'vendido' THEN NULL ELSE l.situacao END,\n         etapa = CASE WHEN coalesce(e.valor, l.valor_venda_pedido) IS NOT NULL\n                      THEN 'aguardando_outros' ELSE 'aguardando_situacao' END,\n         atualizado_em = now()\n    FROM e\n   WHERE l.telefone_chave = nay_fone_chave(e.tel)\n  RETURNING l.valor_venda_pedido\n)\nSELECT coalesce(\n  (SELECT CASE WHEN valor_venda_pedido IS NULL\n       THEN 'anotei que ele quer vender. agora pergunte o valor que ele quer pedir na venda -- uma pergunta so.'\n       ELSE 'gravado: quer vender, valor pedido ' || valor_venda_pedido ||\n            '. NAO comente se o valor esta bom. agora pergunte se ele tem outro imovel alem desse que queira vender ou alugar.'\n     END FROM g),\n  'nao gravei nada: o numero nao esta na lista. NAO diga a ele que anotou.') AS instrucao_para_voce;",
+  "params": [
+   {
+    "chave": "valor",
+    "descricao": "o valor que ele quer pedir na venda, nas palavras dele. vazio se ele ainda nao disse.",
+    "opcional": false
+   }
+  ]
+ },
+ {
+  "nome": "guardar_ficha",
+  "descricao": "Grava na FICHA DO IMOVEL o que ele respondeu e devolve a proxima pergunta, pronta. CHAME NA MESMA RESPOSTA em que ele responder uma pergunta da ficha (a ficha abre sozinha: pelo guardar_situacao, quando o imovel esta disponivel, e pelo guardar_outro_imovel). Passe so o que ele disse, cada coisa no seu campo, nas palavras dele; se ele disse mais do que voce perguntou, passe tudo. O que ele nao souber ou nao quiser dizer: passe nao sabe no campo perguntado. Fotos: quando ele mandar, passe fotos = recebidas; se disser que manda depois ou que nao tem, passe o que ele disse. Se ele disser que nao pode ou nao quer responder mais agora, passe parar = sim. Devolve instrucao_para_voce: obedeca e nunca mostre esse texto a ele.",
+  "sql": "-- A FICHA DO IMOVEL (28/09, migracoes 164 e 165). Quem escolhe a proxima\n-- pergunta e o banco, uma por vez, na ordem do roteiro e no tratamento dele:\n-- nao repete o que ele ja respondeu, e \"nao sei\" conta como resposta. A\n-- ficha pronta aparece no painel (Captacao WhatsApp) para um humano aplicar.\nSELECT captacao_ficha($1::text, $2::text, jsonb_build_object(\n         'tipo', $3::text, 'bairro', $4::text, 'condominio', $5::text, 'negocio', $6::text,\n         'quartos', $7::text, 'suites', $8::text, 'banheiros', $9::text, 'vagas', $10::text,\n         'area', $11::text, 'valor', $12::text, 'condominio_valor', $13::text, 'iptu', $14::text,\n         'incluso', $15::text, 'mobilia', $16::text, 'fotos', $17::text, 'detalhes', $18::text,\n         'parar', $19::text), true) AS instrucao_para_voce;",
+  "params": [
+   {
+    "chave": "qual",
+    "descricao": "este = o imovel da campanha, que ficou disponivel; outro = o outro imovel que ele ofereceu; vazio = a ficha que esta aberta",
+    "opcional": true
+   },
+   {
+    "chave": "tipo",
+    "descricao": "casa, apartamento, sala, terreno... o tipo do imovel",
+    "opcional": true
+   },
+   {
+    "chave": "bairro",
+    "descricao": "o bairro do imovel",
+    "opcional": true
+   },
+   {
+    "chave": "condominio",
+    "descricao": "o nome do condominio ou do predio",
+    "opcional": true
+   },
+   {
+    "chave": "negocio",
+    "descricao": "alugar, vender ou os dois",
+    "opcional": true
+   },
+   {
+    "chave": "quartos",
+    "descricao": "quantos quartos",
+    "opcional": true
+   },
+   {
+    "chave": "suites",
+    "descricao": "quantas suites",
+    "opcional": true
+   },
+   {
+    "chave": "banheiros",
+    "descricao": "quantos banheiros",
+    "opcional": true
+   },
+   {
+    "chave": "vagas",
+    "descricao": "quantas vagas de garagem",
+    "opcional": true
+   },
+   {
+    "chave": "area",
+    "descricao": "a area, como ele disse (ex: 80 m2, uns 70 metros)",
+    "opcional": true
+   },
+   {
+    "chave": "valor",
+    "descricao": "o valor que ele pede, como ele disse (ex: 2.500, 650 mil)",
+    "opcional": true
+   },
+   {
+    "chave": "condominio_valor",
+    "descricao": "a taxa de condominio, como ele disse; incluso se esta dentro do aluguel",
+    "opcional": true
+   },
+   {
+    "chave": "iptu",
+    "descricao": "o IPTU, como ele disse; incluso se esta dentro do aluguel",
+    "opcional": true
+   },
+   {
+    "chave": "incluso",
+    "descricao": "o que o aluguel ja inclui (agua, internet, condominio, IPTU...); nada se nao inclui nada",
+    "opcional": true
+   },
+   {
+    "chave": "mobilia",
+    "descricao": "mobiliado, semimobiliado ou sem mobilia",
+    "opcional": true
+   },
+   {
+    "chave": "fotos",
+    "descricao": "recebidas quando ele mandou as fotos; senao o que ele disse (vou mandar depois, nao tenho)",
+    "opcional": true
+   },
+   {
+    "chave": "detalhes",
+    "descricao": "outra informacao do imovel que ele contou e nao cabe nos outros campos",
+    "opcional": true
+   },
+   {
+    "chave": "parar",
+    "descricao": "sim se ele disse que nao quer ou nao pode responder mais sobre o imovel agora; vazio no resto",
+    "opcional": true
+   }
+  ]
+ }
+]

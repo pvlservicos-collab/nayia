@@ -26,4 +26,4 @@ nay_site_nai, só nestas colunas: UPDATE(valor)
 captacao_config_religou, captacao_desarmar, captacao_relatorio_da_vez
 
 ## funções que citam
-captacao_cfg, captacao_config_religou, captacao_desarmar, captacao_desconectou, captacao_disparo_liberado, captacao_fora_da_campanha, captacao_relatorio_da_vez, captacao_teto_hoje, captacao_vigiar, crm_captacao_placar, crm_captacao_relatorio
+captacao_cfg, captacao_config_religou, captacao_desarmar, captacao_desconectou, captacao_disparo_liberado, captacao_e_do_python, captacao_fora_da_campanha, captacao_relatorio_da_vez, captacao_teto_hoje, captacao_vigiar, crm_captacao_placar, crm_captacao_relatorio
