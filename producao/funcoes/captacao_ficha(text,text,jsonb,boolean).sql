@@ -81,6 +81,16 @@ BEGIN
                   THEN 'siga o roteiro: se ainda nao perguntou, pergunte se ' || v_pron || ' tem algum outro imovel alem desse que queira vender ou alugar.'
                   ELSE 'agradeca em uma linha e chame encerrar_conversa, a menos que ' || v_pron || ' fale de mais um imovel.' END;
     END IF;
+    -- 318: o imóvel dele JÁ ESTÁ no nosso cadastro -> só o valor do aluguel, sem as perguntas da ficha
+    IF v_tipo = 'atualizar' AND l.codigo ~ '^\d+$' AND EXISTS (SELECT 1 FROM imoveis x WHERE x.codigo = l.codigo::int) THEN
+      INSERT INTO captacao_cadastro (lead_id, tipo, codigo, estado, dados)
+      VALUES (l.id, v_tipo, l.codigo::int, 'pronto', v_novos);
+      RETURN 'o imovel dele ja esta no nosso cadastro'
+          || CASE WHEN v_novos ? 'valor' THEN ', e o valor do aluguel ficou anotado' ELSE '' END
+          || '. NAO pergunte mais nada sobre este imovel (quartos, area, condominio, IPTU, mobilia, fotos). '
+          || 'siga o roteiro: se ainda nao perguntou, pergunte se ' || v_pron
+          || ' tem algum outro imovel alem desse que queira vender ou alugar.';
+    END IF;
     INSERT INTO captacao_cadastro (lead_id, tipo, codigo)
     VALUES (l.id, v_tipo, CASE WHEN v_tipo = 'atualizar' AND l.codigo ~ '^\d+$' THEN l.codigo::int END)
     RETURNING * INTO c;

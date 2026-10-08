@@ -3,6 +3,7 @@
     python -m captacao.ensaio disponivel
     python -m captacao.ensaio alugado
     python -m captacao.ensaio vendido
+    python -m captacao.ensaio ja_temos      o imóvel dele já está no nosso cadastro (318): só o valor, e segue
 
 Tudo roda numa transação só, DESFEITA no fim. Nenhuma mensagem sai (o envio é pulado) e nada fica gravado.
 É o simulador do fluxo (Arquivos/captacao_ficha/simular_captacao.js), agora no serviço em Python, e começa pelo
@@ -28,6 +29,7 @@ CENARIOS = {
     "vendido": ["Vendido", "tenho sim, uma casa no Tarumã pra vender", "3 quartos, 2 banheiros e 4 vagas",
                 "uns 300 metros de terreno", "quero 650 mil", "agora não posso mandar mais nada, depois falo", "ninguém, obrigado"],
     "pergunta": ["Disponível", "quanto vocês cobram de comissão?"],
+    "ja_temos": ["Disponível", "3.200", "não, só esse mesmo", "não conheço ninguém", "obrigado"],
     "parar": ["não quero receber mensagem, me tira dessa lista"],
 }
 
@@ -43,6 +45,18 @@ def rodar(cenario: str) -> None:
         banco.linhas(conn, "UPDATE captacao_leads SET canal = 'oficial' WHERE id = %s", (lead["id"],))
         banco.linhas(conn, "DELETE FROM captacao_cadastro WHERE lead_id = %s", (lead["id"],))
         banco.linhas(conn, "DELETE FROM captacao_imoveis_extra WHERE lead_id = %s", (lead["id"],))
+        if cenario == "ja_temos":
+            # o imóvel de um lead da fila, que existe no cadastro, emprestado ao lead de teste até o ROLLBACK
+            dele = banco.linhas(conn, """
+                UPDATE captacao_leads t SET codigo = o.codigo, imovel_desc = o.imovel_desc, condominio = o.condominio,
+                       bairro = o.bairro, tipo_imovel = o.tipo_imovel, imoveis_prop = o.imoveis_prop
+                  FROM (SELECT l.* FROM captacao_leads l
+                         WHERE l.id IN (SELECT captacao_py_fila_do_disparo())
+                           AND EXISTS (SELECT 1 FROM imoveis i WHERE i.codigo::text = l.codigo)
+                         ORDER BY l.id LIMIT 1) o
+                 WHERE t.id = %s RETURNING t.codigo, t.imovel_desc""", (lead["id"],))
+            print("imóvel emprestado ao lead de teste:", dele[0] if dele else "NENHUM (a fila está vazia?)")
+        config.AVISAR_TEL = False   # ensaio nunca avisa o Tel
         abertura = ABERTURA.format(quem=vocativo(lead["tratamento"], lead["nome"]))
         banco.linhas(conn, banco.REGISTRAR_DISPARO, {"lead": lead["id"], "tel": tel, "mid": "ensaio", "texto": abertura})
         print(f"=== cenário {cenario} | modelo {config.MODELO} | lead de teste {lead['id']}\n")

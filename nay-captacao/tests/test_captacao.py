@@ -91,6 +91,30 @@ class Resposta(unittest.TestCase):
         self.assertEqual([b.pergunta for b in bs], [None, None, "Qual o valor?"])
         self.assertTrue(3 <= bs[0].pausa <= 7 and 4 <= bs[1].pausa <= 9)
 
+    def test_o_que_anotou_e_a_pergunta_saem_em_duas_mensagens(self):
+        bs = resposta.baloes("Certo, anotei aqui. Quantos quartos (e quantas suítes), banheiros e vagas de garagem ele tem?")
+        self.assertEqual([b.texto for b in bs],
+                         ["Certo, anotei aqui.", "Quantos quartos (e quantas suítes), banheiros e vagas de garagem ele tem?"])
+        self.assertEqual(bs[-1].pergunta, "Quantos quartos (e quantas suítes), banheiros e vagas de garagem ele tem?")
+
+    def test_duas_mensagens_sem_quebrar_o_sr_nem_o_valor(self):
+        self.assertEqual(
+            [b.texto for b in resposta.baloes("Perfeito, Sr. Pedro. Anotei R$ 2.500,00. O Sr. tem algum outro imóvel?")],
+            ["Perfeito, Sr. Pedro. Anotei R$ 2.500,00.", "O Sr. tem algum outro imóvel?"])
+
+    def test_pergunta_sozinha_ou_na_frente_sai_inteira(self):
+        for s in ("Qual o valor do aluguel?", "Qual o valor do aluguel? Pode ser aproximado.", "Obrigada, Sra. Ana. Bom dia!"):
+            self.assertEqual([b.texto for b in resposta.baloes(s)], [s])
+
+    def test_duas_perguntas_ficam_juntas_depois_do_que_anotou(self):
+        self.assertEqual([b.texto for b in resposta.baloes("Anotado. Ele tem elevador? E portaria 24 horas?")],
+                         ["Anotado.", "Ele tem elevador? E portaria 24 horas?"])
+
+    def test_nunca_passa_de_tres_mensagens(self):
+        bs = resposta.baloes("Oi.\n\nTudo bem.\n\nCerto, anotei. Qual o valor?")
+        self.assertEqual([b.texto for b in bs], ["Oi.", "Tudo bem.", "Certo, anotei. Qual o valor?"])
+        self.assertEqual(len(resposta.baloes("Oi.\n\nCerto, anotei. Qual o valor?")), 3)
+
 
 class Agente(unittest.TestCase):
     def test_roda_a_ferramenta_e_devolve_a_ultima_fala(self):

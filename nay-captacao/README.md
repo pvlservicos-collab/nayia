@@ -38,19 +38,43 @@ O prompt é o MESMO, o vivo do banco (`nai_prompt_de('captacao')`), com um acré
 - **A indicação**: antes de encerrar ela pergunta se a pessoa conhece alguém vendendo um imóvel. É parede:
   `encerrar_conversa` não encerra enquanto a pergunta não saiu (`captacao_indicacao_pendente`). O indicado fica em
   `privado.captacao_indicacao` (ferramenta `guardar_indicacao`).
+- **O disparo da fila** (317): com `captacao_config.python_disparo = sim` o serviço manda o modelo a UM lead por
+  vez, com intervalo sorteado entre `python_disparo_seg_min` e `python_disparo_seg_max` (45 a 75 s: um por minuto
+  em média). O banco decide quem e quando: `captacao_py_fila_do_disparo` (nunca quem já recebeu algo, nunca a mesma
+  pessoa por outro lead, nunca corretor ou parceiro, nunca quem está em `captacao_nao_disparar`) e
+  `captacao_py_disparo_motivo` (desligado, fora do horário, três falhas seguidas, intervalo). Quem recebe o modelo
+  entra em `captacao_motor` e passa a ser atendido aqui. Envio sem confirmação do CRM não é repetido: o lead vai
+  para `captacao_nao_disparar` com o motivo.
+- **Imóvel que já é nosso** (318): quem diz "disponível" e já tem o imóvel no cadastro só informa o valor; a ficha
+  (quartos, vagas, fotos) é só para imóvel que ainda não temos.
+- **Duas mensagens**: o que ela anotou e a pergunta saem separados (`resposta.em_duas_viagens`).
+- **Até 4 conversas ao mesmo tempo**, nunca duas vezes a mesma pessoa. Na partida, o que ficou reservado e sem
+  resposta nos últimos 10 minutos volta à fila.
 
 ## O que AINDA é do fluxo do n8n
 
 - A **entrada**: o webhook do número oficial, a transcrição do áudio, a foto guardada na ficha e o "Gravar na
   fila". A mensagem entra por lá; o gatilho da migração 315 marca como `Recebido py` as dos telefones da lista, e
   só essas chegam aqui.
-- O **disparo em massa**, o lembrete, o vigia do número e o relatório das 18h.
-- Toda conversa de quem **não está na lista**.
+- O lembrete (desligado: `max_followup = 0`), o vigia do número e o relatório do dia.
+- Toda conversa de quem **não está na lista** nem recebeu o modelo por aqui.
 
 ## Quem é atendido aqui
 
 `captacao_config.python_telefones`: telefones separados por vírgula (`todos` = todos). Hoje, só o número do Pedro.
-Tirar um número da lista devolve o número ao fluxo antigo na mensagem seguinte.
+Tirar um número da lista devolve o número ao fluxo antigo na mensagem seguinte. E todo lead de `captacao_motor`
+(quem recebeu o modelo pelo disparo daqui).
+
+## Ligar e acompanhar o disparo
+
+```
+UPDATE captacao_config SET valor = 'sim' WHERE chave = 'python_disparo';   -- liga   ('nao' desliga na hora)
+SELECT * FROM captacao_py_disparo_placar();                                -- por que não sai, fila, enviados
+journalctl -u nay-captacao -f | grep disparo
+```
+
+Só sai dentro do horário de `captacao_no_horario()`: dias úteis 08:00-18:00 com pausa 12:00-13:30, fim de semana
+09:00-16:00 (Manaus). Fora dele o serviço espera sozinho e retoma.
 
 ## Rodar
 
@@ -63,8 +87,9 @@ python -m unittest discover -s tests               # as partes puras (roda em qu
 ```
 
 `.env` (fora do git): `DATABASE_URL`, `OPENAI_API_KEY`, `CAPTACAO_OFICIAL_SEGREDO`; opcionais `CAPTACAO_AVISAR_TEL`
-(`nao` enquanto é teste: escalada e foto ficam gravadas, mas o Tel não recebe aviso) e `CAPTACAO_MODELO`.
+(`nao` cala o aviso de escalada e de foto ao Tel; o telefone de teste nunca avisa) e `CAPTACAO_MODELO`.
 
 ## Parar
 
-`systemctl stop nay-captacao` e esvaziar `python_telefones`. Com a lista vazia nada chega aqui.
+Só o disparo: `python_disparo = nao`. Tudo: `systemctl stop nay-captacao` (quem já recebeu o modelo fica sem
+resposta até o serviço voltar; para devolver alguém ao fluxo antigo, apague a linha dele de `captacao_motor`).

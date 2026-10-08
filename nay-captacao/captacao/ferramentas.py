@@ -64,7 +64,16 @@ def _parede_da_indicacao(conn, telefone: str, motivo: str) -> str | None:
             "encerrar_conversa de novo. Se indicar alguem, chame guardar_indicacao.")
 
 
-def executar(conn, nome: str, args: dict, telefone: str, nome_do_dono: str = "") -> str:
+def aviso_da_escalada(linha: dict, telefone: str, nome_do_dono: str) -> str:
+    """O aviso que o Tel recebe, igual ao do sub-fluxo `Nay - escalar (captacao)`."""
+    return (f"CAPTACAO -- {linha.get('titulo')}\nProprietario: {nome_do_dono or '(sem nome)'}\nTelefone: {telefone}\n"
+            f"Assunto: {linha.get('assunto')}\nDisse: {linha.get('disse') or '-'}\n\n"
+            "(ele NAO foi avisado de que voce vai responder. A Nay PAROU de responder esse chat: e com voce. A conversa "
+            "esta no numero OFICIAL, aba WhatsApp Oficial do CRM. Para ela voltar: CRM > Captacao > Mudar manualmente > "
+            'desmarcar "O Tel esta atendendo".)')
+
+
+def executar(conn, nome: str, args: dict, telefone: str, nome_do_dono: str = "", avisar=None) -> str:
     """Roda a ferramenta e devolve o texto que o modelo lê. Erro vira texto: o turno não cai por causa dele."""
     f = TODAS.get(nome)
     if not f:
@@ -75,6 +84,8 @@ def executar(conn, nome: str, args: dict, telefone: str, nome_do_dono: str = "")
                                                    "assunto": _texto(args.get("assunto")), "disse": _texto(args.get("disse"))})
             if not r:
                 return json.dumps([{"instrucao_para_voce": "Nao escalei: faltou o assunto. Chame de novo com o assunto."}])
+            if avisar:
+                avisar(aviso_da_escalada(r[0], telefone, nome_do_dono))
             return json.dumps(r, ensure_ascii=False, default=str)
         if nome == "encerrar_conversa":
             parede = _parede_da_indicacao(conn, telefone, _texto(args.get("motivo")))

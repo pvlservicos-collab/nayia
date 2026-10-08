@@ -56,6 +56,19 @@ def limpar(saida: str) -> str:
     return "" if not limpo or EH_SILENCIO.match(limpo) else limpo
 
 
+def em_duas_viagens(parte: str) -> list[str]:
+    """O que ela anotou e a pergunta saem em DUAS mensagens (Pedro, 08/10/2026: "aqui melhor separa em 2 viagens",
+    sobre "Certo, anotei aqui. Quantos quartos (e quantas suítes), banheiros e vagas de garagem ele tem?").
+    Corta antes da PRIMEIRA pergunta: o que vem antes é uma mensagem, a pergunta (e o que a acompanha) é a outra.
+    Quem já começa perguntando sai inteiro."""
+    prot = _PROT.sub(lambda m: m.group(1) + "\u0001", parte)
+    frases = [f.strip() for f in re.split(r"(?<=[.!?])\s+", prot) if f.strip()]
+    corte = next((i for i, f in enumerate(frases) if f.endswith("?")), 0)
+    if corte == 0:
+        return [parte]
+    return [" ".join(frases[:corte]).replace("\u0001", "."), " ".join(frases[corte:]).replace("\u0001", ".")]
+
+
 def baloes(saida: str, sorteio: random.Random | None = None) -> list[Balao]:
     """Até três balões, um por linha em branco, com a pausa de gente entre eles."""
     r = sorteio or random
@@ -63,6 +76,8 @@ def baloes(saida: str, sorteio: random.Random | None = None) -> list[Balao]:
     partes = [p.strip() for p in re.split(r"\n\s*\n", limpo) if p.strip() and not EH_SILENCIO.match(p.strip())][:3]
     if not partes:
         return []
+    if len(partes) < 3:
+        partes = partes[:-1] + em_duas_viagens(partes[-1])
     com_pergunta = next((p for p in reversed(partes) if "?" in p), None)
     return [Balao(texto=p, pausa=(3 + r.randrange(5)) if i == 0 else (4 + r.randrange(6)),
                   pergunta=com_pergunta if i == len(partes) - 1 else None)

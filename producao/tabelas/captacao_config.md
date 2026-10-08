@@ -1,4 +1,4 @@
-# captacao_config  (tabela, ~29 linhas)
+# captacao_config  (tabela, ~30 linhas)
 
 ## colunas
 chave  text  NOT NULL
@@ -23,7 +23,7 @@ nay_site_nai: SELECT
 nay_site_nai, só nestas colunas: UPDATE(valor)
 
 ## funções que escrevem aqui
-captacao_config_religou, captacao_desarmar, captacao_relatorio_da_vez
+captacao_config_religou, captacao_desarmar, captacao_py_reservar_disparo, captacao_relatorio_da_vez
 
 ## funções que citam
-captacao_cfg, captacao_config_religou, captacao_desarmar, captacao_desconectou, captacao_disparo_liberado, captacao_e_do_python, captacao_fora_da_campanha, captacao_relatorio_da_vez, captacao_teto_hoje, captacao_vigiar, crm_captacao_placar, crm_captacao_relatorio
+captacao_cfg, captacao_config_religou, captacao_desarmar, captacao_desconectou, captacao_disparo_liberado, captacao_e_do_python, captacao_fora_da_campanha, captacao_py_disparo_motivo, captacao_py_reservar_disparo, captacao_relatorio_da_vez, captacao_teto_hoje, captacao_vigiar, crm_captacao_placar, crm_captacao_relatorio

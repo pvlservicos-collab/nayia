@@ -44,9 +44,14 @@ def _historico(conn, t: turno.Turno) -> list[dict]:
     return [{"role": "assistant" if m["direcao"] == "enviada" else "user", "content": m["texto"]} for m in r]
 
 
-def _avisar_tel(conn, aviso: str) -> None:
-    if not config.AVISAR_TEL:
-        log.info("aviso ao Tel NÃO enviado (CAPTACAO_AVISAR_TEL=nao): %s", aviso.replace("\n", " ")[:160])
+def _avisar_tel(conn, aviso: str, telefone: str = "") -> None:
+    """Manda o aviso ao Tel pela caixa da Nay (crm_avisar_tel). O telefone de TESTE nunca gera aviso."""
+    de_teste = bool(telefone) and banco.linhas(conn, """
+        SELECT nay_fone_chave(%s) = nay_fone_chave((SELECT valor FROM captacao_config WHERE chave = 'telefone_teste')) AS t""",
+        (telefone,))[0]["t"]
+    if not config.AVISAR_TEL or de_teste:
+        log.info("aviso ao Tel NÃO enviado (%s): %s", "telefone de teste" if de_teste else "CAPTACAO_AVISAR_TEL=nao",
+                 aviso.replace("\n", " ")[:160])
         return
     try:
         banco.linhas(conn, "SELECT * FROM crm_avisar_tel(%s, 'captacao')", (aviso,))
@@ -72,7 +77,7 @@ def atender(conn, telefone: str, enviar: bool = True, agora: datetime | None = N
         feito.motivo = "mensagem sem texto (figurinha, reação): não vira turno"
         return feito
     if t.aviso_ao_tel:
-        _avisar_tel(conn, t.aviso_ao_tel)
+        _avisar_tel(conn, t.aviso_ao_tel, t.telefone)
     if not t.texto:
         feito.motivo = "só foto, e ela já tinha seguido o atendimento depois das fotos anteriores"
         return feito
@@ -85,7 +90,9 @@ def atender(conn, telefone: str, enviar: bool = True, agora: datetime | None = N
 
     saida, feito.ferramentas = modelo.responder(
         _prompt(conn, t), _historico(conn, t), turno.cabecalho(t, agora or datetime.now(timezone.utc)),
-        ferramentas.definicoes(), lambda nome, args: ferramentas.executar(conn, nome, args, t.telefone, t.nome))
+        ferramentas.definicoes(),
+        lambda nome, args: ferramentas.executar(conn, nome, args, t.telefone, t.nome,
+                                                avisar=lambda aviso: _avisar_tel(conn, aviso, t.telefone)))
 
     for b in resposta.baloes(saida):
         dormir(b.pausa)

@@ -18,14 +18,25 @@ from captacao import config
 log = logging.getLogger("captacao.envio")
 
 
+# o pedido saiu daqui e a resposta não voltou: NÃO dá para saber se a pessoa recebeu. Quem chama não repete sozinho.
+INCERTO = "sem confirmação do CRM"
+
+
 def _chamar(corpo: dict) -> dict:
     try:
         r = requests.post(f"{config.CRM_URL}/api/webhooks/captacao-oficial", json=corpo, timeout=40,
                           headers={"x-captacao-segredo": config.SEGREDO})
+    except requests.ConnectTimeout as e:   # nem chegou ao CRM: não saiu
+        return {"ok": False, "erro": f"o CRM não atendeu: {e}"}
+    except requests.RequestException as e:
+        return {"ok": False, "erro": f"{INCERTO}: {e}"}
+    try:
         j = r.json()
         return j if isinstance(j, dict) else {}
-    except (requests.RequestException, ValueError) as e:
-        return {"ok": False, "erro": f"o CRM não respondeu: {e}"}
+    except ValueError:
+        # 502/503 é o CRM reiniciando (o pedido não entrou); o resto pode ter saído antes de a resposta se perder
+        return {"ok": False, "erro": (f"o CRM está fora do ar (HTTP {r.status_code})" if r.status_code in (502, 503)
+                                      else f"{INCERTO}: HTTP {r.status_code} sem resposta legível")}
 
 
 def so_digitos(telefone: str) -> str:

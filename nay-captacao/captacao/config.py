@@ -11,8 +11,8 @@ SEGREDO = os.environ.get("CAPTACAO_OFICIAL_SEGREDO", "")
 # o modelo que abre a conversa pelo número oficial (Pedro, 08/10)
 MODELO_DE_ABERTURA = os.environ.get("CAPTACAO_MODELO_ABERTURA", "situacao_imovel_cadastrado_1")
 IDIOMA_DO_MODELO = os.environ.get("CAPTACAO_MODELO_IDIOMA", "pt_BR")
-# "nao" enquanto roda só no número de teste: a escalada e a foto ficam gravadas, mas o Tel não recebe aviso
-AVISAR_TEL = os.environ.get("CAPTACAO_AVISAR_TEL", "nao") == "sim"
+# o Tel recebe o aviso de escalada e de foto pela caixa da Nay; "nao" desliga tudo. O telefone de teste nunca avisa.
+AVISAR_TEL = os.environ.get("CAPTACAO_AVISAR_TEL", "sim") == "sim"
 # segundos de silêncio antes de responder (o "Janela de 20s" do fluxo)
 SILENCIO_S = int(os.environ.get("CAPTACAO_SILENCIO_S", "20"))
 BATIMENTO = os.environ.get("CAPTACAO_BATIMENTO", "/tmp/nay-captacao.batimento")

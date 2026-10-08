@@ -3,9 +3,12 @@
     python -m captacao.disparo --lead 835            manda o modelo e registra o disparo
     python -m captacao.disparo --lead 835 --zerar    antes, limpa o que o lead de TESTE já respondeu
 
-TRAVA: só manda para telefone que está na lista do Python (captacao_config.python_telefones). Enquanto a lista
-tiver só o número do Pedro, este comando não alcança mais ninguém. O disparo para a fila inteira ainda não existe
-aqui de propósito (Pedro, 08/10: "por enquanto roda só no meu número").
+TRAVA do comando: só manda para telefone que já é do Python (a lista captacao_config.python_telefones, ou quem já
+recebeu o modelo por aqui).
+
+O DISPARO DA FILA (Pedro, 08/10: "prepare tudo para começarmos a disparar ... um a um por minuto em média") é o
+`proximo`, chamado pelo serviço: o banco reserva UM lead por vez (captacao_py_reservar_disparo) e só quando
+`captacao_config.python_disparo = sim`, dentro do horário e sem duplicata. Desligado, ninguém recebe nada.
 
 O modelo: "Olá, {{1}}! Este é o novo número da Imob Easy. Precisamos atualizar a situação do seu imóvel cadastrado
 conosco. Por favor, selecione a opção que corresponde à situação atual:" + botões Disponível / Alugado / Vendido.
@@ -31,6 +34,15 @@ UPDATE captacao_leads SET situacao = NULL, contrato_ate = NULL, valor_locacao_pe
        tem_outro_imovel = false, quer_vender = false, valor_venda_pedido = NULL, motivo_fim = NULL, fechado_em = NULL,
        pergunta_pendente = NULL, status = 'novo', respondeu_em = NULL, humano_assumiu_em = NULL, humano_motivo = NULL
  WHERE id = %s
+"""
+
+
+NAO_REPETIR = """
+INSERT INTO captacao_nao_disparar (telefone_chave, motivo)
+SELECT telefone_chave, 'envio sem confirmação do CRM em ' || to_char(now() AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI')
+                       || ': conferir na aba Oficial antes de mandar de novo'
+  FROM captacao_leads WHERE id = %s
+ON CONFLICT (telefone_chave) DO NOTHING
 """
 
 
@@ -65,6 +77,32 @@ def disparar(conn, lead_id: int, zerar: bool = False) -> str:
     if not mid:
         return f"NÃO SAIU: {erro}. O lead ficou como '{gravado[0]['status'] if gravado else '?'}'."
     return f"modelo enviado para …{lead['telefone'][-4:]} ({quem}). Texto: {texto}"
+
+
+def proximo(conn) -> str | None:
+    """Manda o modelo ao próximo da fila, se o banco deixar (captacao_py_reservar_disparo). None = nada a fazer agora."""
+    r = banco.linhas(conn, "SELECT * FROM captacao_py_reservar_disparo()")
+    if not r:
+        return None
+    lead = r[0]
+    quem = vocativo(lead["tratamento"], lead["nome"])
+    if not quem:
+        # sem nome o modelo sairia "Olá, !": o lead volta ao que era e sai desta fila, com o motivo
+        banco.linhas(conn, """
+            WITH v AS (UPDATE captacao_leads SET status = 'novo', atualizado_em = now() WHERE id = %s AND status = 'reservado'
+                       RETURNING telefone_chave)
+            INSERT INTO captacao_nao_disparar (telefone_chave, motivo) SELECT telefone_chave, 'sem nome para o modelo' FROM v
+            ON CONFLICT (telefone_chave) DO NOTHING""", (lead["lead_id"],))
+        return f"lead {lead['lead_id']} pulado: sem nome para o modelo"
+    mid, texto, erro = envio.modelo(lead["telefone"], config.MODELO_DE_ABERTURA, config.IDIOMA_DO_MODELO, [quem])
+    banco.linhas(conn, banco.REGISTRAR_DISPARO, {"lead": lead["lead_id"], "tel": lead["telefone"], "mid": mid or "",
+                                                 "texto": texto or f"[modelo {config.MODELO_DE_ABERTURA}]"})
+    if not mid:
+        if (erro or "").startswith(envio.INCERTO):
+            # pode ter saído: este não volta sozinho para a fila (mandar duas vezes é pior que deixar um para conferir)
+            banco.linhas(conn, NAO_REPETIR, (lead["lead_id"],))
+        return f"NÃO SAIU para o lead {lead['lead_id']} (…{lead['telefone'][-4:]}): {erro}"
+    return f"modelo para o lead {lead['lead_id']} (…{lead['telefone'][-4:]}, {quem})"
 
 
 def main() -> None:
