@@ -1,109 +1,194 @@
-# Webhook de CONSULTA de imóveis (bot que consulta)
+# Webhook de CONSULTA de imóveis (bot da OLX)
 
-Este webhook é de **um bot só**: o que pergunta se um anúncio já está no banco da
-Imob Easy. Ele **não cadastra nada**. O cadastro é outro webhook, de outro bot, com
-outro token — ver `webhook-cadastro.md`.
+Este webhook é de **um bot só**: o que acha um anúncio na OLX e pergunta o que
+fazer com ele. Desde 08/10/2026 (migração 309) **quem decide é o nosso banco**; o
+bot só obedece:
 
-## Como chamar
+- `acao: "fechar"` — não manda nada e fecha o anúncio;
+- `acao: "abordar"` — manda ao anunciante o texto que veio em `mensagem`.
+
+Ele **não cadastra nada**. O cadastro é outro webhook, de outro bot, com outro
+token — ver `webhook-cadastro.md`.
+
+## O prompt do bot
 
 ```
-POST https://crm.imobeasy.online/api/public/imovel-consulta
-Authorization: Bearer <TOKEN_DA_CONSULTA>
-Content-Type: application/json
+WEBHOOK DE CONSULTA DE IMÓVEIS — Imob Easy
+
+O QUE É
+Antes de falar com qualquer anunciante da OLX, você pergunta ao nosso sistema o
+que fazer com o anúncio. Você NÃO decide nada: manda os dados do anúncio e
+obedece o campo "acao" da resposta.
+  "acao": "fechar"   -> feche o anúncio e vá para o próximo. NÃO mande mensagem.
+  "acao": "abordar"  -> mande ao anunciante, pelo chat da OLX, o texto que veio
+                        em "mensagem". Exatamente como veio, uma vez só.
+
+REGRAS QUE NÃO TÊM EXCEÇÃO
+1. Consulte ANTES de escrever qualquer coisa para o anunciante. Um anúncio = uma
+   consulta.
+2. Só mande mensagem quando a resposta trouxer "acao": "abordar". Sem essa
+   resposta, não mande nada.
+3. O texto é o de "mensagem", inteiro e sem mudar uma palavra. Não acrescente
+   saudação, assinatura, emoji nem explicação. Não escreva um texto seu.
+4. Uma mensagem por anúncio. Se você já mandou, não mande de novo.
+5. Se a resposta não for um JSON com "consulta_ok": true, é FALHA: não mande
+   mensagem. Tente consultar de novo em 1 minuto, até 3 vezes; se continuar,
+   pare e avise o Pedro no chat.
+
+COMO CONSULTAR
+  POST https://crm.imobeasy.online/api/public/imovel-consulta
+  Headers: Authorization: Bearer <TOKEN_DA_CONSULTA>
+           Content-Type: application/json
+  Corpo: o JSON descrito abaixo.
+
+CAMPOS (JSON) — leia do anúncio aberto
+Obrigatório:
+  "link"               o link do anúncio
+Preencha tudo o que o anúncio mostrar. O que não aparecer, mande null.
+NUNCA invente valor.
+  "portal"             "olx"
+  "id_anuncio"         o código do anúncio na OLX
+  "titulo"             o título do anúncio
+  "descricao"          o texto inteiro da descrição
+  "tipo"               apartamento | casa | casa de condomínio | terreno | sala |
+                       loja | galpão ...
+  "finalidade"         "venda" ou "aluguel"
+  "preco"              o preço (número, ou texto como "R$ 3.500")
+  "cidade", "uf"
+  "bairro"             o bairro como a OLX mostra (ex.: "Nossa Senhora das Graças")
+  "endereco", "cep"
+  "condominio_nome"    o nome do condomínio ou do prédio, se aparecer
+  "area_m2", "quartos", "suites", "banheiros", "vagas", "valor_condominio"
+  "anunciante_nome"    o nome da conta que anunciou
+  "anunciante_perfil"  o link do perfil do anunciante, se houver
+  "profissional"       true se a OLX marca a conta como profissional; senão false
+  "telefone"           o telefone do anunciante, se o anúncio mostrar
+O sistema só decide se vierem "preco", "tipo" (ou "titulo") e "bairro" (ou
+"condominio_nome"). Faltando um deles, volta o erro "faltam_campos": leia o que
+faltou no anúncio e consulte de novo.
+
+Exemplo:
+  {
+    "link": "https://am.olx.com.br/regiao-de-manaus/imoveis/apartamento-3-quartos-1540696600",
+    "portal": "olx",
+    "id_anuncio": "1540696600",
+    "titulo": "Apartamento 3 quartos no Vieiralves",
+    "descricao": "Apartamento com 3 quartos, sendo 1 suíte...",
+    "tipo": "apartamento",
+    "finalidade": "venda",
+    "preco": 650000,
+    "cidade": "Manaus",
+    "uf": "AM",
+    "bairro": "Nossa Senhora das Graças",
+    "endereco": null,
+    "cep": null,
+    "condominio_nome": null,
+    "area_m2": 110,
+    "quartos": 3,
+    "suites": 1,
+    "banheiros": 2,
+    "vagas": 2,
+    "valor_condominio": 800,
+    "anunciante_nome": "Mariana",
+    "anunciante_perfil": null,
+    "profissional": false,
+    "telefone": null
+  }
+
+RESPOSTA
+  Para abordar (200):
+    { "consulta_ok": true, "acao": "abordar", "temos": false, "motivo": "nao_temos",
+      "mensagem": "Oii, bom dia! Me chamo Nay Mendes, da Imob Easy. ...",
+      "explicacao": "...", "id_consulta": "17" }
+    -> mande o texto de "mensagem" ao anunciante, uma vez, sem mudar nada.
+    -> se vier "repetido": true, é a mesma mensagem que você já recebeu para este
+       anúncio: só mande se ainda NÃO tiver mandado.
+  Para fechar (200):
+    { "consulta_ok": true, "acao": "fechar", "temos": true, "motivo": "ja_temos",
+      "id_imovel": "3050", "explicacao": "...", "id_consulta": "18" }
+    -> não mande nada; feche o anúncio. "motivo" diz por quê:
+       ja_temos                 o imóvel já está no nosso cadastro
+       proprietario_ja_e_nosso  o telefone do anúncio é de um proprietário nosso
+       corretor                 o anunciante é corretor ou imobiliária
+       dispensa_imobiliaria     o anúncio diz que não quer corretor nem imobiliária
+       ja_abordado              a mensagem deste anúncio já foi entregue antes
+  Falha (não é sucesso; não mande mensagem):
+    { "consulta_ok": false, "codigo_erro": "...", "erro": "..." }
+    faltam_campos (400)  complete o que está em "faltam" e consulte de novo
+    401                  token errado: pare e avise o Pedro no chat
+    429                  espere 1 minuto
+    502                  tente de novo em 1 minuto
+
+TESTE DE CONEXÃO (não grava nada e não é ordem)
+  Mande o JSON abaixo. A resposta certa tem "consulta_ok": true, "teste": true e
+  "acao": "nenhuma". Se veio isso, diga ao Pedro "conexão OK".
+  {
+    "teste": true,
+    "link": "https://am.olx.com.br/regiao-de-manaus/imoveis/teste-de-conexao-1000000001",
+    "titulo": "Apartamento de teste",
+    "tipo": "apartamento",
+    "finalidade": "aluguel",
+    "preco": 2500,
+    "bairro": "Flores"
+  }
+  Nunca use "teste": true num anúncio de verdade.
+
+LIMITE: 120 consultas por minuto.
 ```
 
-O token está no servidor, em `BOT_IMOVEIS_CHAVE` (`/docker/crm/app/.env`). Ele só
-abre a consulta e o registro de link.
+## Do nosso lado
 
-## Entrada
+- Token: `BOT_IMOVEIS_CHAVE` em `/docker/crm/app/.env`. Só abre este webhook (e o
+  `/vincular`, abaixo).
+- Quem decide: `crm_anuncio_decidir(jsonb)` (migração 309). Ela chama a
+  `crm_imovel_candidatos` (258) para achar os parecidos e a
+  `crm_anuncio_mesma_unidade` para dizer se é a **mesma unidade**.
+- Cada consulta fica em `privado.anuncio_consulta`: o anúncio, a decisão, o
+  motivo, o imóvel parecido e a mensagem entregue.
 
-JSON. Só `link` é obrigatório; campo `null` ou ausente não desclassifica ninguém,
-só não conta ponto.
+### Quando é "já temos"
 
-```json
-{
-  "link": "https://am.olx.com.br/regiao-de-manaus/imoveis/venda-apartamento-smart-residence-downtown-1540696600",
-  "portal": "olx",
-  "id_anuncio": "1540696600",
-  "titulo": "Venda apartamento SMART RESIDENCE DOWNTOWN",
-  "tipo": "apartamento",
-  "finalidade": "venda",
-  "preco": 990000,
-  "cidade": "Manaus",
-  "uf": "AM",
-  "bairro": "Centro",
-  "endereco": null,
-  "cep": null,
-  "condominio_nome": "Smart Residence Downtown",
-  "area_m2": null,
-  "quartos": null,
-  "suites": null,
-  "banheiros": null,
-  "vagas": null,
-  "valor_condominio": null,
-  "anunciante_nome": "Acris Imob",
-  "telefone": null
-}
-```
+"Condomínio igual + área igual" é a mesma **planta**, não a mesma unidade: 3.549
+dos nossos 5.698 imóveis estão em pares (condomínio, área) repetidos. Por isso:
 
-## Saída
-
-```json
-{
-  "consulta_ok": true,
-  "total_candidatos": 2,
-  "melhor_score": 92,
-  "entendido": { "...": "como o anúncio foi lido (link, id, bairro, condomínio, preço...)" },
-  "candidatos": [
-    {
-      "id_imovel": "123",
-      "score": 92,
-      "confianca": "alta",
-      "campos_que_bateram": ["condominio_nome", "bairro", "preco"],
-      "campos_divergentes": [{ "campo": "preco", "banco": 950000, "anuncio": 990000 }],
-      "dados": {
-        "titulo": "...", "tipo": "...", "preco": 950000, "preco_venda": 950000, "preco_aluguel": null,
-        "bairro": "...", "cidade": "...", "endereco": "Avenida Joaquim Nabuco, 1908",
-        "rua": "Avenida Joaquim Nabuco", "numero": "1908",
-        "complemento": null, "cep": "...", "condominio_nome": "...",
-        "area_m2": 120, "quartos": 3, "suites": 1, "banheiros": 2, "vagas": 2, "valor_condominio": 650,
-        "links_portais": ["..."], "proprietario_telefone_final": "**99",
-        "status": "Disponível", "no_mercado": true, "publicado_no_site": true, "de_parceiro": false,
-        "atualizado_em": "2026-09-20"
-      }
-    }
-  ]
-}
-```
-
-- Sem candidatos: `"total_candidatos": 0` e `"candidatos": []`.
-- Erro: `"consulta_ok": false` com `"erro"` (HTTP 400, 401, 422, 429 ou 502). **Nunca
-  vem resposta vazia.** Qualquer coisa que não seja JSON com `consulta_ok: true` é
-  falha, não é "não é nosso": tente de novo.
-- No máximo 10 candidatos, por `score` (0 a 100).
-- `endereco` traz rua e número **juntos**; os mesmos dados vêm também separados em
-  `rua`, `numero` e `complemento` (migrações 262/263). Quem consome usa `endereco`
-  OU `rua` + `numero` -- nunca `endereco` + `numero`, que repetiria o número.
-
-## Como a nota é dada
-
-| sinal | pontos |
+| nível | o que precisa bater |
 |---|---|
-| mesmo link ou mesmo id do portal | 100 |
-| mesmo telefone do proprietário | 45 |
-| condomínio igual (parecido: 20) | 35 |
-| área em até 3% (até 10%: 12) | 20 |
-| preço em até 2% (até 15%: 15) | 20 |
-| bairro ou CEP | 10 |
-| rua | 10 |
-| tipo 5 · quartos 5 · vagas 2 · suítes 2 · banheiros 1 | |
+| link | mesmo link ou mesmo id do portal |
+| dono | mesmo lugar (condomínio igual, rua ou CEP) + nome do anunciante igual ao do proprietário + área em 3% ou preço em 2% |
+| unidade | imóvel nosso **no mercado** + mesmo lugar + preço em 2% + área em 3% (anúncio sem área: os quartos). Sem condomínio nem rua: bairro + tipo + área + preço + quartos |
 
-- `confianca: "alta"`: mesmo link/id, mesmo telefone, ou condomínio igual + área em até 3%.
-- `"media"`: nota de 45 para cima. `"baixa"`: de 30 a 44. Abaixo de 30 não entra.
-- Outra cidade não é candidato (a não ser por link ou telefone).
-- Um condomínio tem várias unidades: vários candidatos com a mesma nota são unidades
-  diferentes. Desempate por `campos_divergentes`.
-- `status` pode ser Vendido, Alugado ou Removido: o imóvel já foi nosso.
+Área mais de 10% diferente ou número de quartos diferente: não é a mesma.
+Vendido, alugado ou removido só fecha por link ou pelo nome do dono.
+
+Medido em 08/10 com 200 imóveis nossos apresentados como anúncio de outro dono:
+a regra antiga fecharia 133 por engano; esta fecha 19 (os que têm um gêmeo no
+mercado com a mesma planta e o mesmo preço).
+
+### A mensagem
+
+O texto mora na tabela `anuncio_abordagem_texto`, não no código:
+
+| chave | para quê |
+|---|---|
+| `mensagem` | o texto inteiro, com `{saudacao}` `{cliente}` `{onde}` `{anunciando}` |
+| `cliente_apartamento_grande` | apartamento de 3 quartos ou mais |
+| `cliente_apartamento` | apartamento de até 2 quartos |
+| `cliente_casa` · `cliente_comercial` · `cliente_terreno` · `cliente_outro` | os outros tipos |
+
+- `{saudacao}`: bom dia (05:00–11:59), boa tarde (12:00–17:59), boa noite, pela
+  hora de **Manaus**.
+- `{onde}`: "na região de <bairro>" com o nome que o catálogo usa; sem bairro que
+  dê para escrever, "na sua região".
+- `{anunciando}`: "vendendo" na venda, "anunciando" no aluguel.
+- Trocar um texto: `UPDATE anuncio_abordagem_texto SET texto = '...' WHERE chave = '...'`.
+  Marcador que não existe faz a consulta falhar (`codigo_erro: "texto"`) em vez
+  de mandar texto quebrado.
+
+### O mesmo anúncio não recebe duas mensagens
+
+A entrega da mensagem fica gravada. Consulta repetida em até 10 minutos devolve
+a **mesma** mensagem com `repetido: true` (o bot pode não ter recebido a
+resposta); depois disso volta `fechar`, motivo `ja_abordado`.
 
 ## Registrar o link (depois de confirmado que é o mesmo imóvel)
 
@@ -114,8 +199,7 @@ Authorization: Bearer <TOKEN_DA_CONSULTA>
 ```
 
 Resposta: `{ "ok": true, "id_imovel", "link", "id_anuncio", "ja_estava", "mensagem" }` ou
-`{ "ok": false, "erro" }`. A próxima consulta desse anúncio bate por link (nota 100).
-O mesmo anúncio não entra em dois imóveis: a resposta diz em qual ele já está.
+`{ "ok": false, "erro" }`. A próxima consulta desse anúncio bate por link.
 
 ## Se o HTTPS não chegar
 
@@ -130,14 +214,12 @@ A=$(printf '%s' "$H.$C" | openssl dgst -sha256 -hmac "$TOKEN" | sed 's/^.* //')
 # corpo: {"hora":H,"cifrado":"C","assinatura":"A"}
 ```
 
-O token puro é recusado na porta 80.
-
-## Limite
-
-120 pedidos por minuto.
+O token puro é recusado na porta 80. Ver `COMO-LIGAR-O-GROK-A-UM-WEBHOOK.md`.
 
 ## Onde está no código
 
 `crm/src/app/api/public/imovel-consulta/` · `crm/src/lib/botDeImoveis.ts` ·
-`crm_imovel_candidatos(jsonb)` e `crm_imovel_vincular_anuncio(...)` (migração 258) ·
+`crm_anuncio_decidir(jsonb)`, `crm_anuncio_mesma_unidade(jsonb, jsonb)` e
+`crm_anuncio_mensagem(jsonb, text, timestamptz)` (migração 309) ·
+`crm_imovel_candidatos(jsonb)` e `crm_imovel_vincular_anuncio(...)` (258) ·
 porta 80: `scripts/servidor/traefik-imovel-consulta.yml`.

@@ -23,4 +23,4 @@ nay_site_leitura: SELECT
 nai_bairro_normal_refazer
 
 ## funções que citam
-crm_imovel_candidatos, nai_bairro_normal_gatilho, nai_bairro_normal_refazer, nai_condominio_da_pergunta, nai_imovel_pela_descricao, nai_pedido_de_perfil
+crm_anuncio_mensagem, crm_imovel_candidatos, nai_bairro_normal_gatilho, nai_bairro_normal_refazer, nai_condominio_da_pergunta, nai_imovel_pela_descricao, nai_pedido_de_perfil
