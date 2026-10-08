@@ -45,8 +45,9 @@ export default function LoginForm() {
        * já é no navegador, e a tela volta a vir pronta do servidor.
        */
       const busca = typeof window !== 'undefined' ? window.location.search : ''
-      const pedido = new URLSearchParams(busca).get('callbackUrl') || '/chat'
-      const destino = pedido.startsWith('/') && !pedido.startsWith('//') ? pedido : '/chat'
+      // sem destino pedido, abre na Parceria (Pedro, 08/10: "quando a pessoa logar já abre no whatsapp parceria")
+      const pedido = new URLSearchParams(busca).get('callbackUrl') || '/chat/parceria'
+      const destino = pedido.startsWith('/') && !pedido.startsWith('//') ? pedido : '/chat/parceria'
       router.push(destino)
       router.refresh()
     } catch (err) {

@@ -32,7 +32,7 @@ crm_anuncio_link_normal	crm_anuncio_decidir, crm_anuncio_id_do_link, crm_imovel_
 crm_anuncio_mensagem	crm_anuncio_decidir
 crm_anuncio_mesma_unidade	crm_anuncio_decidir
 crm_anuncio_nome_palavras	crm_anuncio_mesma_unidade
-crm_anuncio_numero	crm_anuncio_decidir, crm_anuncio_mensagem, crm_anuncio_mesma_unidade, crm_imovel_candidatos
+crm_anuncio_numero	crm_anuncio_decidir, crm_anuncio_mensagem, crm_anuncio_mesma_unidade, crm_imovel_candidatos, crm_olx_abordagens
 crm_anuncio_palavras	crm_anuncio_mesma_unidade, crm_imovel_candidatos
 crm_anuncio_resposta_de_teste	crm_anuncio_decidir
 crm_avisar_tel	
@@ -68,6 +68,7 @@ crm_nay_instruir
 crm_nay_ligada	
 crm_nay_parar	
 crm_nay_voltar	crm_nay_instruir
+crm_olx_abordagens	
 crm_olx_bot_receber	
 crm_painel_nay	
 crm_parceria_com_a_rayssa	

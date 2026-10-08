@@ -21,10 +21,10 @@ import {
   Moon,
   List,
   X,
-  House,
   ShieldCheck,
   PaperPlaneTilt,
   UsersThree,
+  ChatsCircle,
 } from '@phosphor-icons/react'
 import { useAuth, usePipeline } from '@/hooks'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -34,8 +34,11 @@ import GlobalSearch from '@/components/Shared/GlobalSearch'
 import NotificationDropdown from '@/components/Shared/NotificationDropdown'
 import { usePipelineFilters } from '@/contexts/FilterContext'
 
+/* O MENU (Pedro, 08/10/2026): "retire a aba início, deixe quando a pessoa logar já abre no whatsapp parceria,
+   e coloca grupos, corretores e configuração em um só menu + Mais e coloca uma nova aba chamada Chat OLX".
+   A aba Início saiu (o endereço "/" leva à Parceria; o painel de números ficou em /inicio). Os itens com
+   `mais: true` moram atrás do botão "+ Mais" na barra do computador; na gaveta do celular aparecem todos. */
 const NAV_ITEMS = [
-  { label: 'Início', href: '/', icon: House },
   { label: 'Pipeline', href: '/pipeline', icon: Kanban },
   // TRES LINHAS DE WHATSAPP, uma aba cada (Tel, 28/09/2026): "São 3 WhatsApp,
   // cada um em uma tab lá no CRM... não misturando contatos". Mesma tela,
@@ -43,18 +46,23 @@ const NAV_ITEMS = [
   { label: 'WhatsApp Oficial', curto: 'Oficial', href: '/chat', icon: WhatsappLogo },
   { label: 'WhatsApp Parceria', curto: 'Parceria', href: '/chat/parceria', icon: WhatsappLogo },
   { label: 'WhatsApp Captação', curto: 'Captação', href: '/chat/captacao', icon: WhatsappLogo },
+  // CHAT OLX (08/10): os anúncios que o bot da OLX consultou e a mensagem que saiu para cada anunciante.
+  { label: 'Chat OLX', curto: 'OLX', href: '/chat/olx', icon: ChatsCircle },
   // OS GRUPOS DO NÚMERO DA PARCERIA (Pedro, 03/10/2026: "pode ficar do lado de captação, aba Grupos"):
   // mensagens guardadas, participantes, planilha, e editar onde o número é admin.
-  { label: 'Grupos', curto: 'Grupos', href: '/chat/grupos', icon: UsersThree },
+  { label: 'Grupos', curto: 'Grupos', href: '/chat/grupos', icon: UsersThree, mais: true },
   // A ABA IMOVEIS (Tel, 27/09/2026): o mesmo acervo da tela do site, aqui dentro,
   // para achar imovel e mandar direto numa conversa.
   { label: 'Imóveis', href: '/imoveis', icon: Buildings },
   // CORRETORES (Pedro, 30/09/2026): "cria mais uma aba ali no CRM ... Corretores,
   // com vários quadradinhos, cada um um corretor, com as métricas". O Funil de
   // Mensagens foi para dentro de Configurações.
-  { label: 'Corretores', href: '/corretores', icon: IdentificationBadge },
-  { label: 'Configurações', href: '/settings/organization', icon: Gear },
+  { label: 'Corretores', href: '/corretores', icon: IdentificationBadge, mais: true },
+  { label: 'Configurações', href: '/settings/organization', icon: Gear, mais: true },
 ]
+
+/** Onde o CRM abre: depois do login, no logo e no endereço "/". */
+const PAGINA_INICIAL = '/chat/parceria'
 
 // Destinos mais usados — ficam sempre à mão na barra inferior do celular.
 // Os demais (Configurações, Funil de Mensagens, Métricas) ficam atrás do "Mais",
@@ -83,10 +91,12 @@ export default function Navbar() {
   const [showPipelineDropdown, setShowPipelineDropdown] = useState(false)
   const [showUserDropdown, setShowUserDropdown] = useState(false) // Added
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [showMais, setShowMais] = useState(false)
 
-  useEffect(() => { setShowMobileMenu(false) }, [pathname])
+  useEffect(() => { setShowMobileMenu(false); setShowMais(false) }, [pathname])
 
   const userDropdownRef = useRef<HTMLDivElement>(null) // Added
+  const maisRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -94,6 +104,9 @@ export default function Navbar() {
       // For user dropdown:
       if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
         setShowUserDropdown(false)
+      }
+      if (maisRef.current && !maisRef.current.contains(event.target as Node)) {
+        setShowMais(false)
       }
     }
 
@@ -121,9 +134,6 @@ export default function Navbar() {
   const avatarUrl = user?.image
 
   const isItemVisible = (label: string): boolean => {
-    // Início é a aba de boas-vindas/conexão — sempre visível, sem depender de permissão
-    if (label === 'Início') return true
-
     // Painel /admin (plataforma inteira) — só profiles.isSuperadmin de verdade, nunca
     // via permissions?.['*'] (papel de organização). Um tenant pode criar um papel
     // "Admin" com wildcard; isso não pode abrir a porta pro painel de todas as orgs.
@@ -151,6 +161,7 @@ export default function Navbar() {
       case 'WhatsApp Oficial': return !!permissions.settings?.view_chat
       case 'WhatsApp Parceria': return !!permissions.settings?.view_chat
       case 'WhatsApp Captação': return !!permissions.settings?.view_chat
+      case 'Chat OLX': return !!permissions.settings?.view_chat
       case 'Grupos': return !!permissions.settings?.view_chat
       case 'DM Instagram': return !!permissions.settings?.view_chat
       case 'Funil de Mensagens': return !!permissions.settings?.view_funnels
@@ -169,7 +180,7 @@ export default function Navbar() {
           e em notebook eles espremiam a busca e o nome do usuario. */}
       <div className="flex items-center gap-4 xl:gap-8">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
+        <Link href={PAGINA_INICIAL} className="flex items-center gap-2">
           <img src="/logos/imobeasy-simbolo.svg" alt="Imob Easy" className="h-7 w-7 object-contain" />
           {/* o nome escrito só em tela bem larga: o menu ganhou a aba Grupos (03/10) */}
           <span className="font-display font-bold text-ink hidden 2xl:inline">ImobEasy CRM</span>
@@ -177,7 +188,7 @@ export default function Navbar() {
 
         {/* Nav Tabs (desktop) */}
         <div className="hidden md:flex items-center gap-1">
-          {NAV_ITEMS.filter(item => isItemVisible(item.label)).map((item) => {
+          {NAV_ITEMS.filter(item => !item.mais && isItemVisible(item.label)).map((item) => {
             const isActive = item.href === hrefAtivo
             const Icon = item.icon
 
@@ -246,6 +257,54 @@ export default function Navbar() {
               </Link>
             )
           })}
+
+          {/* "+ Mais" (08/10): Grupos, Corretores e Configurações num menu só */}
+          {(() => {
+            const itensMais = NAV_ITEMS.filter(item => item.mais && isItemVisible(item.label))
+            if (!itensMais.length) return null
+            const aceso = showMais || itensMais.some(item => item.href === hrefAtivo)
+            return (
+              <div className="relative" ref={maisRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowMais(v => !v)}
+                  aria-haspopup="menu"
+                  aria-expanded={showMais}
+                  className={`flex items-center gap-1.5 px-2 xl:px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors border ${aceso
+                    ? 'bg-graphite-6 border-white/15 text-accent-2'
+                    : 'border-transparent text-muted hover:bg-white/[0.06] hover:text-ink'
+                    }`}
+                >
+                  <Plus size={16} weight="bold" />
+                  Mais
+                  <CaretDown size={12} className={`transition-transform ${showMais ? 'rotate-180' : ''}`} />
+                </button>
+                {showMais && (
+                  <div role="menu" className="absolute top-full left-0 mt-2 w-52 glass-raised rounded-xl py-1 z-50">
+                    {itensMais.map((item) => {
+                      const Icon = item.icon
+                      const isActive = item.href === hrefAtivo
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          role="menuitem"
+                          onClick={() => setShowMais(false)}
+                          className={`flex items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-white/[0.06] ${isActive
+                            ? 'text-accent-2 font-semibold'
+                            : 'text-muted hover:text-ink'
+                            }`}
+                        >
+                          <Icon size={16} weight={isActive ? 'fill' : 'regular'} />
+                          {item.label}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Conditional Filter Button for Pipeline */}
           {pathname.startsWith('/pipeline') && organizationId && (
@@ -351,7 +410,7 @@ export default function Navbar() {
         />
         <div className="absolute left-0 top-0 bottom-0 w-72 max-w-[85vw] glass-raised rounded-none border-y-0 border-l-0 flex flex-col">
           <div className="flex items-center justify-between h-14 px-4 relative">
-            <Link href="/" className="flex items-center gap-2" onClick={() => setShowMobileMenu(false)}>
+            <Link href={PAGINA_INICIAL} className="flex items-center gap-2" onClick={() => setShowMobileMenu(false)}>
               <img src="/logos/imobeasy-simbolo.svg" alt="Imob Easy" className="h-7 w-7 object-contain" />
               <span className="font-display font-bold text-ink">ImobEasy CRM</span>
             </Link>
