@@ -7,6 +7,14 @@
    nome ("acquarelle" acha "Condomínio Acquarelle") e tolera erro de
    digitação. Escolher vira uma ETIQUETA com o id guardado; o × tira.
 
+   LETRA A LETRA (Pedro, 08/10/2026: "quando se digita um nome desça a lista
+   filtrando letra a letra em todos os filtros dos condomínios"). A lista inteira
+   (/api/condominios/nomes, uns 600 nomes) é lida UMA vez por página e o filtro
+   acontece na tela, sem esperar: abre ao clicar no campo, estreita a cada letra,
+   e quem começa com o que foi digitado vem na frente. Só quando nada bate na
+   tela é que pergunta ao servidor, que tolera erro de digitação.
+   window.recarregarCondominios() relê a lista (depois de cadastrar um novo).
+
    Uso: var s = criarSeletorCondominio(input, { multiplo: true, aoMudar: fn });
         s.valores()  -> [{id, nome}]
         s.definir([{id, nome}])
@@ -18,6 +26,47 @@
   function esc(t) {
     return String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;")
       .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function semAcento(t) {
+    return String(t == null ? "" : t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  }
+  // "Condomínio Residencial Acquarelle" também começa com "acq"
+  function semPrefixo(t) {
+    return t.replace(/^((condominio|residencial|edificio|cond\.?|ed\.?|res\.?)\s+)+/, "");
+  }
+
+  var TODOS = null, lendo = null;
+  function lerTodos() {
+    if (TODOS) return Promise.resolve(TODOS);
+    if (!lendo) {
+      lendo = fetch(window.API_BASE + "/api/condominios/nomes")
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(function (l) {
+          TODOS = (l || []).map(function (c) {
+            var n = semAcento(c.nome);
+            return { id: c.id, nome: c.nome, bairro: c.bairro, _n: n, _c: semPrefixo(n), _b: semAcento(c.bairro) };
+          });
+          return TODOS;
+        })
+        .catch(function () { lendo = null; return null; });
+    }
+    return lendo;
+  }
+  window.recarregarCondominios = function () { TODOS = null; lendo = null; return lerTodos(); };
+
+  /* quem começa com o que foi digitado, depois quem tem uma palavra que começa, depois quem tem no meio */
+  function filtrarNaTela(q, limite) {
+    if (!TODOS) return null;
+    if (!q) return TODOS.slice(0, limite);
+    var comeca = [], palavra = [], meio = [];
+    for (var i = 0; i < TODOS.length; i++) {
+      var c = TODOS[i];
+      if (c._c.indexOf(q) === 0 || c._n.indexOf(q) === 0) comeca.push(c);
+      else if ((" " + c._n).indexOf(" " + q) >= 0) palavra.push(c);
+      else if (c._n.indexOf(q) >= 0 || (q.length >= 3 && c._b.indexOf(q) >= 0)) meio.push(c);
+    }
+    return comeca.concat(palavra, meio).slice(0, limite);
   }
 
   if (!document.getElementById("estilo-seletor-condominio")) {
@@ -82,7 +131,7 @@
       } else {
         lista.innerHTML = sugestoes.map(function (c, i) {
           return '<button type="button" class="sel-condo__item" role="option" data-i="' + i + '" aria-selected="' + (i === ativo) + '">' +
-            esc(c.nome) + "<small>" + esc([c.bairro, c.imoveis ? c.imoveis + " imóvel(is)" : ""].filter(Boolean).join(" · ")) + "</small></button>";
+            esc(c.nome) + (c.bairro || c.imoveis ? "<small>" + esc([c.bairro, c.imoveis ? c.imoveis + " imóvel(is)" : ""].filter(Boolean).join(" · ")) + "</small>" : "") + "</button>";
         }).join("");
       }
       lista.hidden = false;
@@ -100,10 +149,7 @@
       avisar();
     }
 
-    function buscar() {
-      var q = input.value.trim();
-      if (q.length < 2) { lista.hidden = true; return; }
-      var meu = ++pedido;
+    function doServidor(q, meu) {
       fetch(window.API_BASE + "/api/condominios/sugerir?q=" + encodeURIComponent(q))
         .then(function (r) { return r.ok ? r.json() : []; })
         .then(function (itens) {
@@ -115,8 +161,30 @@
         .catch(function () { lista.hidden = true; });
     }
 
-    input.addEventListener("input", function () { clearTimeout(espera); espera = setTimeout(buscar, 250); });
+    /* a cada letra, na hora: a lista inteira já está na tela */
+    function buscar() {
+      var q = semAcento(input.value.trim());
+      var meu = ++pedido;
+      var naTela = filtrarNaTela(q, 60);
+      if (naTela === null) {            // a lista ainda não chegou (ou não veio): espera por ela, ou pergunta ao servidor
+        lerTodos().then(function (l) {
+          if (meu !== pedido) return;
+          if (l) buscar(); else if (q) doServidor(q, meu); else lista.hidden = true;
+        });
+        return;
+      }
+      if (!naTela.length && q.length >= 3) { clearTimeout(espera); espera = setTimeout(function () { doServidor(q, meu); }, 200); return; }
+      sugestoes = naTela;
+      ativo = sugestoes.length && q ? 0 : -1;
+      pintarLista();
+    }
+
+    lerTodos();
+    input.addEventListener("input", buscar);
+    input.addEventListener("focus", buscar);
+    input.addEventListener("click", function () { if (lista.hidden) buscar(); });
     input.addEventListener("keydown", function (e) {
+      if (lista.hidden && e.key === "ArrowDown") { e.preventDefault(); buscar(); return; }
       if (lista.hidden && e.key !== "Enter") return;
       if (e.key === "ArrowDown") { e.preventDefault(); ativo = Math.min(ativo + 1, sugestoes.length - 1); pintarLista(); }
       else if (e.key === "ArrowUp") { e.preventDefault(); ativo = Math.max(ativo - 1, 0); pintarLista(); }

@@ -35,6 +35,8 @@
     <button class="abas__item" role="tab" type="button" data-painel-abre="imoveis" data-grupo="outros" aria-selected="false">Outros <span class="abas__n" data-conta-tipo="outros">—</span></button>
     <button class="abas__item" role="tab" type="button" data-painel-abre="anuncios" aria-selected="false">Anúncios</button>
     <button class="abas__item" role="tab" type="button" data-painel-abre="condominios" aria-selected="false">Condomínios</button>
+    <!-- 322 (Pedro, 08/10): o condomínio é cadastrado uma vez, com o endereço dele -->
+    <button class="abas__item" role="tab" type="button" data-painel-abre="condominio-novo" aria-selected="false">Adicionar condomínio</button>
     <button class="abas__item" role="tab" type="button" data-painel-abre="imoveis" data-vista="mapa" aria-selected="false">Mapa</button>
     <!-- 248 (Pedro, 01/10): o que precisa de gente para terminar o cadastro -->
     <button class="abas__item" role="tab" type="button" data-painel-abre="pendentes" aria-selected="false">CADASTRO PENDENTE</button>
@@ -316,6 +318,9 @@
     </div>
   </div>
 
+  <!-- o formulário é montado por assets/js/condominio-cadastro.js -->
+  <div data-painel="condominio-novo" hidden></div>
+
 </main>
 
 <!-- ===================== FICHA (gaveta) ===================== -->
@@ -327,10 +332,11 @@
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/layout.js"></script>
 <script src="../assets/js/admin.js"></script>
-<script src="../assets/js/seletor-condominio.js"></script>
+<script src="../assets/js/seletor-condominio.js?v=20261008"></script>
 <script src="../assets/js/multiselecao.js"></script>
 <script src="../assets/js/imoveis-ux.js?v=20261006-roda"></script>
-<script src="../assets/js/condominios-aba.js?v=20260930"></script>
+<script src="../assets/js/condominios-aba.js?v=20261008"></script>
+<script src="../assets/js/condominio-cadastro.js?v=20261008"></script>
 <script src="../assets/js/cadastro-pendente.js?v=20261001"></script>
 </body>
 </html>

@@ -147,7 +147,7 @@
     // vezes... as informações do condomínio já são fixas"). Escolheu o condomínio, vem tudo dele;
     // o que for corrigido aqui o servidor guarda NO condomínio (273). "Andar não precisa": saiu.
     { titulo: "Condomínio e endereço", icone: "⌖", cor: "#2f6fb8", fundo: "#eaf2fb",
-      nota: "Escolha o condomínio e o endereço dele vem sozinho, com número e CEP. O que você completar ou corrigir aqui fica guardado no condomínio: o próximo imóvel dele já nasce preenchido.",
+      nota: "Escolha o condomínio: o endereço é o dele, cadastrado uma vez em Imóveis › Adicionar condomínio. Aqui ficam só o complemento e o andar. Sem condomínio (casa de rua), preencha o endereço.",
       campos: ["condominio", "logradouro", "numero", "complemento", "bairro", "cidade", "estado", "cep", "andar"] },
     { titulo: "Unidade", icone: "⌗", cor: "#4338ca", fundo: "#eef0ff", privado: true,
       nota: "O site e a Nay nunca mostram isso ao cliente.",
@@ -364,6 +364,7 @@
       return '<div class="' + classes + '" data-envolve="condominio"><label for="ed-condominio">Condomínio</label>' +
         '<input class="entrada" type="text" id="ed-condominio" placeholder="Digite o nome e escolha na lista">' +
         '<span class="ed__dica" id="ed-condo-dica"></span>' +
+        '<div class="ed__dica" id="ed-condo-endereco" style="margin-top:6px;font-size:13px" hidden></div>' +
         '<div class="ed__no-condo" id="ed-no-condo" hidden></div></div>';
     }
     if (tipo === "booleano") {
@@ -731,9 +732,60 @@
     if (e.target && e.target.id === "ed-excluir") excluirEsteImovel();
   });
 
+  /* ---- o endereço é do condomínio, e não se digita aqui (Pedro, 08/10/2026) --
+     "essa parte ... do condomínio não precisa aparecer na parte do cadastro do
+     imóvel, porque todo condomínio vai ter endereço fixo. Só ... andar ...
+     deixaria na parte do cadastro do imóvel."
+     Com o condomínio escolhido E com endereço cadastrado nele, rua, número,
+     bairro, cidade, estado e CEP somem do cadastro do imóvel: fica uma linha com
+     o endereço e o link para o cadastro do condomínio. Os valores continuam indo
+     para o imóvel (o site e a Nay leem do imóvel) -- só não são digitados aqui.
+     Ficam o complemento e o andar, que são do imóvel.
+     Os campos CONTINUAM aparecendo em dois casos: o condomínio ainda não tem
+     endereço (preenche uma vez, o servidor guarda nele), e o imóvel tem um
+     endereço DIFERENTE do condomínio (esconder apagaria a divergência da vista). */
+  var DO_CONDOMINIO = ["logradouro", "numero", "bairro", "cidade", "estado", "cep"];
+  function divergeDoCondominio(e) {
+    return DO_CONDOMINIO.some(function (nome) {
+      var campo = $("ed-" + nome);
+      if (!campo) return false;
+      var meu = String(campo.value || "").trim().toLowerCase(), dele = String((e && e[nome]) || "").trim().toLowerCase();
+      return !!meu && !!dele && meu !== dele;
+    });
+  }
+  function enderecoDoCondominio(e, diverge) {
+    var linha = $("ed-condo-endereco");
+    var tem = !!(e && e.logradouro);
+    var esconder = tem && !diverge;
+    DO_CONDOMINIO.forEach(function (nome) {
+      var envolve = form.querySelector('[data-envolve="' + nome + '"]');
+      if (envolve) envolve.style.display = esconder ? "none" : "";
+    });
+    if (!linha) return;
+    if (!e || !e.id) { linha.hidden = true; linha.innerHTML = ""; return; }
+    var texto = [e.logradouro ? e.logradouro + (e.numero ? ", nº " + e.numero : "") : "", e.bairro,
+                 [e.cidade, e.estado].filter(Boolean).join(" - "), e.cep ? "CEP " + e.cep : ""].filter(Boolean).join(" · ");
+    var link = '<a href="imoveis.html?condominio=' + encodeURIComponent(e.id) + '" target="_blank" rel="noopener">';
+    linha.hidden = false;
+    linha.innerHTML = tem
+      ? "<b>Endereço do condomínio:</b> " + esc(texto) + ". " +
+        (diverge ? "O deste imóvel está diferente — confira abaixo. " : "") + link + "Editar o condomínio</a>"
+      : "Este condomínio ainda não tem endereço cadastrado: preencha abaixo uma vez (fica guardado nele) ou " +
+        link + "cadastre no condomínio</a>.";
+  }
+  /* ao abrir um imóvel que já tem condomínio: só confere e esconde, sem mexer em campo nenhum */
+  function conferirEnderecoDoCondominio() {
+    var escolhido = seletorCondo && seletorCondo.valores()[0];
+    if (!escolhido || !escolhido.id) { enderecoDoCondominio(null); return; }
+    fetch(window.API_BASE + "/api/condominios/" + encodeURIComponent(escolhido.id) + "/endereco")
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (e) { if (e) enderecoDoCondominio(e, divergeDoCondominio(e)); })
+      .catch(function () {});
+  }
+
   function preencherDoCondominio() {
     var escolhido = seletorCondo && seletorCondo.valores()[0];
-    if (!escolhido || !escolhido.id) return;
+    if (!escolhido || !escolhido.id) { enderecoDoCondominio(null); return; }
     fetch(window.API_BASE + "/api/condominios/" + encodeURIComponent(escolhido.id) + "/endereco")
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (e) {
@@ -803,6 +855,7 @@
         if (divergentes.length) {
           recado.push("Não mexi no que já estava escrito — mas " + divergentes.join("; ") + ".");
         }
+        enderecoDoCondominio(e, divergentes.length > 0);
         var faltam = [["logradouro", "a rua"], ["numero", "o número"], ["cep", "o CEP"]]
           .filter(function (par) { return !e[par[0]]; }).map(function (par) { return par[1]; });
         if (faltam.length) {
@@ -866,7 +919,7 @@
         multiplo: false,
         aoMudar: function () { atualizarBotao(); preencherDoCondominio(); mostrarDoCondominio(); }
       });
-      if (condoInicial) seletorCondo.definir([condoInicial]);
+      if (condoInicial) { seletorCondo.definir([condoInicial]); conferirEnderecoDoCondominio(); }
       if (!novo && item.condominio_nome && !item.condo_id) {
         $("ed-condo-dica").textContent = "Hoje está escrito \"" + item.condominio_nome + "\", sem ligação com o cadastro de condomínios — escolha na lista para ligar.";
       }

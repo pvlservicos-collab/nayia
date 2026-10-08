@@ -43,7 +43,7 @@ nay_leitura: SELECT
 nay_site_leitura: SELECT
 
 ## funções que escrevem aqui
-site_condominio_guardar
+site_condominio_guardar, site_condominio_salvar
 
 ## funções que citam
-crm_captacao_cadastro_opcoes, nai_cadastro_importar, site_condominio_guardar
+crm_captacao_cadastro_opcoes, nai_cadastro_importar, site_condominio_guardar, site_condominio_salvar

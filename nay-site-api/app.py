@@ -963,6 +963,94 @@ def api_condominios_aba():
         conn.close()
 
 
+# =====================================================================
+# O CADASTRO DE CONDOMÍNIO (Pedro, 08/10/2026, migração 322)
+#
+# "quero uma aba nova adicionar condomínio ... e lá na lista quando se digita um
+# nome desça a lista filtrando letra a letra em todos os filtros dos
+# condomínios, quero o cadastro de condomínio no site normal aba imóveis e no
+# crm também" e "todo condomínio vai ter endereço fixo".
+#
+#   GET  /api/condominios/nomes               todos, só id/nome/bairro: é o que os
+#        campos de condomínio leem UMA vez para filtrar na tela, letra a letra
+#   GET  /admin/api/imoveis/condominios       todos, com a ficha (para a aba)
+#   POST /admin/api/imoveis/condominios       cria   } site_condominio_salvar:
+#   PUT  /admin/api/imoveis/condominios/<id>  edita  } o que veio VALE, vazio apaga
+#
+# As rotas de escrita ficam debaixo de /admin/api/imoveis de propósito: é o único
+# pedaço do admin que a aba Imóveis do CRM deixa passar (crm/src/lib/painelDoSite.ts).
+# =====================================================================
+CAMPOS_DO_CONDOMINIO = ("nome", "tipo", "bairro", "logradouro", "numero", "cidade", "estado", "cep", "torres",
+                        "andares", "aptos_por_andar", "elevador", "unidades", "construtora", "revestimento",
+                        "ano_lancamento")
+
+
+@app.route("/api/condominios/nomes")
+def api_condominios_nomes():
+    conn = conectar()
+    try:
+        linhas = todas_linhas(conn, "SELECT id, nome, bairro FROM condominios ORDER BY lower(nay_sem_acento(nome)), id")
+        return jsonify([{"id": l["id"], "nome": l["nome"], "bairro": l["bairro"]} for l in linhas]), 200, {
+            # sem guardar: o condomínio que acabou de ser cadastrado tem de aparecer no campo seguinte
+            "Cache-Control": "no-cache"}
+    finally:
+        conn.close()
+
+
+@app.route("/admin/api/imoveis/condominios")
+def api_condominios_cadastro():
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    conn = conectar()
+    try:
+        linhas = todas_linhas(conn, """
+            SELECT c.id, c.nome, c.bairro, f.tipo, f.logradouro, f.numero, f.cidade, f.estado, f.cep, f.endereco,
+                   f.torres, f.andares, f.aptos_por_andar, f.elevador, f.unidades, f.construtora, f.revestimento,
+                   f.ano_lancamento, f.lazer, f.fonte, f.atualizado_em,
+                   (SELECT count(*) FROM imoveis i WHERE i.condo_id = c.id) AS imoveis
+              FROM condominios c LEFT JOIN condominio_ficha f ON f.condominio_id = c.id
+             ORDER BY lower(nay_sem_acento(c.nome)), c.id""")
+        return jsonify({"itens": [{
+            "id": l["id"], "nome": l["nome"], "bairro": l["bairro"], "tipo": l["tipo"] or "apartamentos",
+            "logradouro": l["logradouro"], "numero": l["numero"], "cidade": l["cidade"], "estado": l["estado"],
+            "cep": l["cep"], "endereco": l["endereco"], "torres": l["torres"], "andares": l["andares"],
+            "aptos_por_andar": l["aptos_por_andar"], "elevador": l["elevador"], "unidades": l["unidades"],
+            "construtora": l["construtora"], "revestimento": l["revestimento"], "ano_lancamento": l["ano_lancamento"],
+            "lazer": list(l["lazer"] or []), "fonte": l["fonte"], "imoveis": l["imoveis"],
+            "atualizado": l["atualizado_em"].isoformat() if l["atualizado_em"] else None,
+        } for l in linhas], "total": len(linhas)})
+    finally:
+        conn.close()
+
+
+@app.route("/admin/api/imoveis/condominios", methods=["POST"])
+@app.route("/admin/api/imoveis/condominios/<int:cid>", methods=["PUT"])
+def api_condominio_salvar(cid=None):
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    corpo = request.get_json(silent=True)
+    if not isinstance(corpo, dict):
+        return jsonify({"ok": False, "motivo": "faltaram os dados do condomínio"}), 400
+    dados = {k: ("" if corpo[k] is None else str(corpo[k]))[:300] for k in CAMPOS_DO_CONDOMINIO if k in corpo}
+    if isinstance(corpo.get("lazer"), list):
+        dados["lazer"] = [str(x)[:80] for x in corpo["lazer"] if str(x or "").strip()][:80]
+    conn = conectar_escrita()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT site_condominio_salvar(%s, %s) AS r", (cid, psycopg2.extras.Json(dados)))
+            r = cur.fetchone()["r"] or {}
+        conn.commit()
+    except Exception as exc:  # noqa: BLE001
+        conn.rollback()
+        return jsonify({"ok": False, "motivo": str(exc).strip().splitlines()[0][:200]}), 400
+    finally:
+        conn.close()
+    if not r.get("ok"):
+        # nome repetido devolve o id do que já existe: a tela oferece abrir aquele
+        return jsonify(r), (409 if r.get("id") else 400)
+    return jsonify(r)
+
+
 @app.route("/api/anuncios")
 def api_anuncios():
     conn = conectar()
@@ -2579,7 +2667,8 @@ def api_condominios_sugerir():
     ("acquarelle" acha "Condominio Acquarelle") e tolera erro de digitacao
     (trigrama). O nome que comeca com o que ele digitou vem primeiro."""
     q = str(request.args.get("q") or "").strip()[:60]
-    if len(q) < 2:
+    # desde a PRIMEIRA letra (Pedro, 08/10/2026: "desça a lista filtrando letra a letra")
+    if len(q) < 1:
         return jsonify([])
     conn = conectar()
     try:
@@ -2594,7 +2683,7 @@ def api_condominios_sugerir():
                         '^(condominio|residencial|edificio|cond\.?)\s+', '') LIKE b.q || '%%') DESC,
                       (lower(nay_sem_acento(c.nome)) LIKE '%%' || b.q || '%%') DESC,
                       similarity(lower(nay_sem_acento(c.nome)), b.q) DESC, c.nome
-             LIMIT 15
+             LIMIT 30
         """, (q,))
         return jsonify([{"id": l["id"], "nome": l["nome"], "bairro": l["bairro"], "imoveis": l["imoveis"]}
                         for l in linhas])

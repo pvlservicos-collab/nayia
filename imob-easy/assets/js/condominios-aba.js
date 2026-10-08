@@ -49,6 +49,8 @@
     ".cd-chip--antigo{background:#f1f2f5;color:#4b5563}" +
     ".cd-chip small{opacity:.7;margin-left:3px}" +
     ".cd-linha{cursor:pointer}" +
+    ".cd-editar{margin-left:8px;font:inherit;font-size:12px;border:0;background:none;padding:0;cursor:pointer;" +
+      "color:var(--azul,#6d28d9);text-decoration:underline}" +
     ".cd-detalhe td{background:#fafbfd;font-size:13px}" +
     ".cd-detalhe dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;margin:0 0 10px}" +
     ".cd-detalhe dt{color:var(--texto-fraco,#6b7280)}.cd-detalhe dd{margin:0}" +
@@ -130,7 +132,9 @@
           c.disponiveis + " / " + c.imoveis + "</a>"
         : c.disponiveis + " / " + c.imoveis;
       return '<tr class="cd-linha" data-chave="' + esc(c.chave) + '">' +
-        '<td><span class="cd-nome">' + esc(c.nome) + '</span><span class="cd-sub">' + esc(c.bairro || "—") + "</span></td>" +
+        '<td><span class="cd-nome">' + esc(c.nome) + "</span>" +
+          (c.id != null && window.abrirCadastroDeCondominio ? '<button type="button" class="cd-editar" data-editar="' + c.id + '">editar</button>' : "") +
+          '<span class="cd-sub">' + esc(c.bairro || "—") + "</span></td>" +
         "<td>" + link + "</td>" +
         "<td>" + linhaDaFicha(c.ficha) + "</td>" +
         "<td>" + chips(c, 6) + "</td></tr>" +
@@ -139,6 +143,8 @@
   }
 
   corpo.addEventListener("click", function (e) {
+    var editar = e.target.closest("[data-editar]");
+    if (editar) { window.abrirCadastroDeCondominio(Number(editar.dataset.editar)); return; }
     if (e.target.closest("a")) return;
     var tr = e.target.closest(".cd-linha");
     if (!tr) return;

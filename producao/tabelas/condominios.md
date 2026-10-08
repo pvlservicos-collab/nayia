@@ -1,4 +1,4 @@
-# condominios  (tabela, ~464 linhas)
+# condominios  (tabela, ~621 linhas)
 
 ## colunas
 id  integer  NOT NULL
@@ -20,7 +20,7 @@ nay_site_leitura: SELECT
 nay_site_leitura, só nestas colunas: SELECT(id, nome, bairro)
 
 ## funções que escrevem aqui
-site_condominio_guardar
+site_condominio_guardar, site_condominio_salvar
 
 ## funções que citam
-crm_captacao_cadastro_opcoes, crm_condominio_pelo_texto, nai_cadastro_importar, nai_imovel_da_conversa, nay_disponibilidade_no_condominio, site_condominio_guardar
+crm_captacao_cadastro_opcoes, crm_condominio_pelo_texto, nai_cadastro_importar, nai_imovel_da_conversa, nay_disponibilidade_no_condominio, site_condominio_guardar, site_condominio_salvar
