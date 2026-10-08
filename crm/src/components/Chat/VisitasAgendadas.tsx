@@ -800,7 +800,7 @@ export default function VisitasAgendadas({ aoAbrirConversa, destaque }: { aoAbri
       <div className={`${!ladoALado && modo === 'lista' ? 'hidden' : 'flex'} flex-1 min-w-0 flex-col p-2 sm:p-3`}>
         <LegendaDaAgenda />
         <div className="flex-1 min-h-0">
-          <AgendaDeVisitas visitas={buscadas} selecionada={selecionada} aoEscolher={escolherNaAgenda} aoAbrirConversa={aoAbrirConversa}
+          <AgendaDeVisitas visitas={buscadas} selecionada={selecionada} aoEscolher={escolherNaAgenda}
                            aoArrastar={setArrasto} visivel={ladoALado || modo === 'agenda'} />
         </div>
         {aviso && (

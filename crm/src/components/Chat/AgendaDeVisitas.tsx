@@ -4,7 +4,7 @@
  * A AGENDA DAS VISITAS (Pedro, 29/09/2026): "na direita uma agenda real de
  * dias ... com a visita agendada lá no horário já correto".
  *
- * FullCalendar 6 (semana, dia, mês e lista). O horário é SEMPRE o de Manaus
+ * FullCalendar 6 (5 dias, dia, mês e lista). O horário é SEMPRE o de Manaus
  * (`timeZone: 'America/Manaus'`, pelo plugin do luxon): o computador de quem
  * olha pode estar em Brasília -- o celular do Tel está -- e a visita das 10h
  * não pode aparecer às 11h. Cada visita ocupa 1 hora (a Nay não guarda a
@@ -18,6 +18,11 @@
  * a foto e o número de quem está naquela visita, ou seja o corretor e o proprietário, posso ir para as conversas
  * deles por ali ao clicar". O bloco é azul (a situação vira a bolinha e o texto da última linha) e leva os dois
  * cartõezinhos; clicar num deles abre a conversa da pessoa, clicar no resto abre o painel da visita.
+ *
+ * 08/10 (Pedro): "quando clico no número não quero mais que abra conversa, só deixa lá os cards, e os cards
+ * estão muito pequenos; ao invés de pôr a semana toda, o dia de hoje sempre na esquerda e do lado só mais 4
+ * dias próximos". Os cartõezinhos ficam, só para ler (o clique em qualquer ponto do bloco abre o painel da
+ * visita); a visão de semana virou a de 5 DIAS que começa em HOJE; os blocos ficaram mais altos e mais largos.
  *
  * Carregado só no navegador (ver VisitasAgendadas: next/dynamic, ssr false).
  */
@@ -47,11 +52,11 @@ const UMA_HORA = 60 * 60 * 1000
 
 export interface PessoaDaVisita { papel: 'Corretor' | 'Proprietário'; nome: string | null; telefone: string | null; avatar: string | null; leadId: string | null }
 
-/** "5592991234567" -> "(92) 99123-4567"; curto = "…4567" (a coluna da semana é estreita). */
+/** "5592991234567" -> "(92) 99123-4567"; curto = "99123-4567", sem o DDD (cabe na coluna dos 5 dias). */
 export function numeroDaPessoa(telefone: string | null, curto = false): string {
   const d = (telefone || '').replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '')
   if (!d) return 'sem número'
-  if (curto) return `…${d.slice(-4)}`
+  if (curto) return d.length >= 10 ? `${d.slice(2, -4)}-${d.slice(-4)}` : d
   return d.length >= 10 ? `(${d.slice(0, 2)}) ${d.slice(2, -4)}-${d.slice(-4)}` : d
 }
 
@@ -118,12 +123,12 @@ function eventosDasVisitas(visitas: VisitaNaTela[], selecionada: number | null):
   return eventos
 }
 
-/** O cartãozinho da pessoa dentro do bloco: foto (ou a inicial) e o número. Com conversa, o clique abre o chat
-    dela (quem ouve é o eventClick da agenda, pelo data-lead). */
+/** O cartãozinho da pessoa dentro do bloco: foto (ou a inicial) e o número. Só para ler: não abre conversa
+    (08/10); o clique cai no bloco e abre o painel da visita. */
 function Pessoa({ p, curto }: { p: PessoaDaVisita; curto: boolean }) {
-  const dica = `${p.papel}: ${p.nome || 'sem nome'} · ${numeroDaPessoa(p.telefone)}${p.leadId ? ' (abrir a conversa)' : ' (sem conversa no CRM)'}`
+  const dica = `${p.papel}: ${p.nome || 'sem nome'} · ${numeroDaPessoa(p.telefone)}`
   return (
-    <span className={`agenda-pessoa ${p.leadId ? '' : 'agenda-pessoa--sem'}`} title={dica} data-lead={p.leadId || undefined}>
+    <span className="agenda-pessoa" title={dica}>
       {p.avatar
         ? <img src={p.avatar} alt="" className="agenda-pessoa-foto" />
         : <span className="agenda-pessoa-foto agenda-pessoa-inicial">{p.papel === 'Corretor' ? 'C' : 'P'}</span>}
@@ -181,15 +186,12 @@ export default function AgendaDeVisitas({
   visitas,
   selecionada,
   aoEscolher,
-  aoAbrirConversa,
   aoArrastar,
   visivel,
 }: {
   visitas: VisitaNaTela[]
   selecionada: number | null
   aoEscolher: (id: number) => void
-  /** clicou no cartãozinho do corretor ou do proprietário dentro da visita */
-  aoAbrirConversa: (leadId: string) => void
   aoArrastar: (a: Arrasto) => void
   /** muda quando a agenda aparece ou muda de largura: ela recalcula o tamanho */
   visivel: boolean
@@ -228,18 +230,18 @@ export default function AgendaDeVisitas({
         plugins={[timeGridPlugin, dayGridPlugin, listPlugin, interactionPlugin, luxonPlugin]}
         timeZone={FUSO_DE_MANAUS}
         locale={ptBrLocale}
-        initialView={estreita ? 'listWeek' : 'timeGridWeek'}
+        /* 5 dias a partir do dia em que a agenda está: abre em HOJE (à esquerda) + os 4 seguintes */
+        views={{ timeGridCinco: { type: 'timeGrid', duration: { days: 5 }, buttonText: '5 dias' } }}
+        initialView={estreita ? 'listWeek' : 'timeGridCinco'}
         headerToolbar={estreita
           ? { left: 'prev,next today', center: '', right: 'timeGridDay,listWeek' }
-          : { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek' }}
-        buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia', list: 'Lista' }}
+          : { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridCinco,timeGridDay,listWeek' }}
+        buttonText={{ today: 'Hoje', month: 'Mês', day: 'Dia', list: 'Lista' }}
         height="100%"
         events={eventos}
         eventContent={ConteudoDoEvento}
         eventClick={(info) => {
           info.jsEvent.preventDefault()
-          const lead = (info.jsEvent.target as HTMLElement | null)?.closest?.('[data-lead]')?.getAttribute('data-lead')
-          if (lead) { aoAbrirConversa(lead); return }
           const id = Number(info.event.extendedProps.visitaId)
           if (id) aoEscolher(id)
         }}
