@@ -46,8 +46,11 @@ const NAV_ITEMS = [
   { label: 'WhatsApp Oficial', curto: 'Oficial', href: '/chat', icon: WhatsappLogo },
   { label: 'WhatsApp Parceria', curto: 'Parceria', href: '/chat/parceria', icon: WhatsappLogo },
   { label: 'WhatsApp Captação', curto: 'Captação', href: '/chat/captacao', icon: WhatsappLogo },
-  // CHAT OLX (08/10): os anúncios que o bot da OLX consultou e a mensagem que saiu para cada anunciante.
-  { label: 'Chat OLX', curto: 'OLX', href: '/chat/olx', icon: ChatsCircle },
+  // CHAT OLX (08/10, Pedro): "troca a página conversa por um redirect em outra aba para https://chat.olx.com.br/".
+  // O item abre o chat da própria OLX numa aba nova do navegador (`externo`). A página de conversas do CRM
+  // (/chat/olx: as duas contas e as consultas do bot) continua existindo, sem link no menu -- é para lá que a
+  // OLX devolve quem conecta uma conta.
+  { label: 'Chat OLX', curto: 'OLX', href: 'https://chat.olx.com.br/', icon: ChatsCircle, externo: true },
   // OS GRUPOS DO NÚMERO DA PARCERIA (Pedro, 03/10/2026: "pode ficar do lado de captação, aba Grupos"):
   // mensagens guardadas, participantes, planilha, e editar onde o número é admin.
   { label: 'Grupos', curto: 'Grupos', href: '/chat/grupos', icon: UsersThree, mais: true },
@@ -244,6 +247,8 @@ export default function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
+                target={item.externo ? '_blank' : undefined}
+                rel={item.externo ? 'noopener noreferrer' : undefined}
                 className={`flex items-center gap-1.5 px-2 xl:px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors border ${isActive
                   ? 'bg-graphite-6 border-white/15 text-accent-2'
                   : 'border-transparent text-muted hover:bg-white/[0.06] hover:text-ink'
@@ -431,6 +436,8 @@ export default function Navbar() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  target={item.externo ? '_blank' : undefined}
+                  rel={item.externo ? 'noopener noreferrer' : undefined}
                   onClick={() => setShowMobileMenu(false)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border ${isActive
                     ? 'bg-graphite-6 border-white/15 text-accent-2'
