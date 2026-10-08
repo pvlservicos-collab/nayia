@@ -15,6 +15,7 @@ AS $function$
   c AS (
     SELECT (x ->> 'id_imovel')::int AS codigo, coalesce((x ->> 'score')::int, 0) AS score,
            coalesce(x -> 'campos_que_bateram', '[]'::jsonb) AS bateu,
+           (coalesce(x -> 'campos_divergentes', '[]'::jsonb) @> '[{"campo": "condominio_nome"}]'::jsonb) AS x_condo,
            (x -> 'dados' ->> 'preco')::numeric AS preco,
            (x -> 'dados' ->> 'area_m2')::numeric AS area,
            (x -> 'dados' ->> 'quartos')::numeric AS quartos,
@@ -29,7 +30,8 @@ AS $function$
            c.bateu ? 'link' AS m_link,
            ((a.condo IS NOT NULL AND n.nucleo IS NOT NULL
              AND (n.nucleo = a.condo OR crm_anuncio_palavras(n.nucleo) = crm_anuncio_palavras(a.condo)))
-            OR c.bateu ? 'endereco' OR c.bateu ? 'cep') AS m_lugar,
+            OR ((c.bateu ? 'endereco' OR c.bateu ? 'cep') AND NOT c.x_condo)) AS m_lugar,
+           c.x_condo,
            c.bateu ? 'bairro' AS m_bairro,
            c.bateu ? 'tipo' AS m_tipo,
            (a.area IS NOT NULL AND c.area IS NOT NULL AND abs(c.area - a.area) <= a.area * 0.03) AS m_area,
@@ -54,7 +56,7 @@ AS $function$
                 WHEN s.x_area OR s.x_quartos THEN NULL
                 WHEN s.m_lugar AND s.m_nome AND (s.m_area OR s.m_preco) THEN 'dono'
                 WHEN s.no_mercado AND s.m_lugar AND s.m_preco AND (s.m_area OR (s.sem_area AND s.m_quartos)) THEN 'unidade'
-                WHEN s.no_mercado AND s.m_bairro AND s.m_tipo AND s.m_area AND s.m_preco AND s.m_quartos THEN 'unidade'
+                WHEN s.no_mercado AND s.m_bairro AND NOT s.x_condo AND s.m_tipo AND s.m_area AND s.m_preco AND s.m_quartos THEN 'unidade'
            END AS nivel
       FROM s
   )

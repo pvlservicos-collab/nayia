@@ -158,10 +158,12 @@ dos nossos 5.698 imóveis estão em pares (condomínio, área) repetidos. Por is
 | unidade | imóvel nosso **no mercado** + mesmo lugar + preço em 2% + área em 3% (anúncio sem área: os quartos). Sem condomínio nem rua: bairro + tipo + área + preço + quartos |
 
 Área mais de 10% diferente ou número de quartos diferente: não é a mesma.
+Anúncio que diz o condomínio e imóvel nosso de OUTRO condomínio: rua, CEP e
+bairro não fecham (310) — na mesma rua há vários prédios de planta parecida.
 Vendido, alugado ou removido só fecha por link ou pelo nome do dono.
 
 Medido em 08/10 com 200 imóveis nossos apresentados como anúncio de outro dono:
-a regra antiga fecharia 133 por engano; esta fecha 19 (os que têm um gêmeo no
+a regra antiga fecharia 133 por engano; esta fecha 14 (os que têm um gêmeo no
 mercado com a mesma planta e o mesmo preço).
 
 ### A mensagem
