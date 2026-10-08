@@ -67,6 +67,7 @@ prompt: comece pelo `nay onde`.
 | o popup de cadastro no card da captação (condomínios com endereço, pré-cadastro, características) | `crm_captacao_cadastro_opcoes`, `crm_condominio_pelo_texto`, `crm_imovel_para_cadastro`, `crm_captacao_dono_cadastro` | 246, 247 |
 | o que falta cadastrar e quem termina (aba CADASTRO PENDENTE) | `nai_cadastro_pendente`, `nai_cadastro_importar`, `nai_foto_trocar_url` | 248, 249 |
 | visita agendada à mão no CRM (nasce da equipe, a Nay não manda nada) | `crm_visita_agendar`, `crm_visitas_extra`; colunas `nai_visita.duracao_min` / `criada_no_crm_por` | 250 |
+| a Agenda do CRM só mostra visita posta por GENTE: a que vem da Nay fica fora (continua valendo para a etapa Visitas e para calar a Nay) e vira a visita da equipe quando alguém agenda à mão o mesmo corretor e imóvel | `crm_visitas`, `crm_visita_agendar`; corte em `nai_config.agenda_sem_visita_da_nay_desde` (apagar a chave volta a mostrar) | 312 |
 | robô de fora (Grok) avisa o Tel, com limite por hora/dia | `crm_avisar_tel`, tabela `aviso_externo`; chaves `aviso_externo_por_hora` / `_por_dia` | 251 |
 | o texto do PEDIDO de visita e o "anotei a sua visita" | `nai_texto_confirmar_visita`, `nai_texto_corretor_confirmou` | 255 |
 | ela não cita colega (Tel, Rayssa) para quem é de fora | conferência 12 em `nai_conferir_resposta`; chave `aprovador_visita_nome`; prompt do corretor | 255, 256 |

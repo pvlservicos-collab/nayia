@@ -14,6 +14,8 @@ DECLARE
   c       nai_contato;
   v_id    bigint;
   v_outra bigint;
+  v_da_nay bigint;
+  v_corte  timestamptz := nai_cfg('agenda_sem_visita_da_nay_desde', 'infinity')::timestamptz;
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM imoveis WHERE codigo = p_codigo) THEN
     RETURN QUERY SELECT false, 'Não achei o imóvel ' || coalesce(p_codigo::text, '') || '.', NULL::bigint, NULL::text, NULL::text, NULL::text, NULL::text, NULL::text, NULL::text; RETURN;
@@ -30,10 +32,19 @@ BEGIN
   END IF;
   SELECT * INTO c FROM nai_contato WHERE id = v_cor;
 
+  -- 312: o pedido que veio da Nay (fora da agenda) para este corretor e este imóvel
+  -- vira ESTA visita, em vez de nascer outra
+  SELECT v.id INTO v_da_nay FROM nai_visita v
+   WHERE v.codigo = p_codigo AND v.corretor_id = v_cor AND v.estado = 'com_rayssa'
+     AND v.criada_no_crm_por IS NULL AND v.excluida_em IS NULL AND v.criado_em >= v_corte
+   ORDER BY v.id DESC LIMIT 1
+     FOR UPDATE;
+
   -- a mesma visita duas vezes (clique duplo, ou duas pessoas agendando igual)
   SELECT v.id INTO v_outra FROM nai_visita v
    WHERE v.codigo = p_codigo AND v.corretor_id = v_cor AND v.quando = p_quando
      AND v.estado NOT IN ('encerrada', 'cancelada', 'expirada') AND v.excluida_em IS NULL
+     AND (v.criada_no_crm_por IS NOT NULL OR v.criado_em < v_corte)   -- a que a agenda não mostra não trava
    LIMIT 1;
   IF v_outra IS NOT NULL THEN
     RETURN QUERY SELECT false, 'Essa visita já está na agenda (#' || v_outra || ').', v_outra, NULL::text, NULL::text, NULL::text, NULL::text, NULL::text, NULL::text; RETURN;
@@ -46,6 +57,18 @@ BEGIN
     IF v_prop = v_cor THEN v_prop := NULL; END IF;
   END IF;
 
+  IF v_da_nay IS NOT NULL THEN
+    -- (com o apelido `v`: proprietario_nome também é coluna de SAÍDA desta função)
+    UPDATE nai_visita v
+       SET quando = p_quando, duracao_min = v_dur, criada_no_crm_por = v_quem,
+           proprietario_id = coalesce(v.proprietario_id, v_prop),
+           proprietario_cadastro = coalesce(v.proprietario_cadastro, dono.cadastro_id),
+           proprietario_nome = coalesce(v.proprietario_nome, dono.nome),
+           aprovada_em = now(), aprovada_por = left('CRM: ' || v_quem, 120), atualizado_em = now()
+     WHERE v.id = v_da_nay;
+    v_id := v_da_nay;
+    PERFORM nai_evento(v_id, 'agendada_no_crm', left(v_quem || ' pôs na agenda o pedido que veio pela Nay, ' || v_dur || ' min', 200));
+  ELSE
   INSERT INTO nai_visita (codigo, corretor_id, proprietario_id, proprietario_cadastro, proprietario_nome,
                           quando, estado, aguardando, duracao_min, criada_no_crm_por,
                           confirmada_corretor_em, aprovada_em, aprovada_por)
@@ -54,6 +77,7 @@ BEGIN
           now(), now(), left('CRM: ' || v_quem, 120))
   RETURNING id INTO v_id;
   PERFORM nai_evento(v_id, 'agendada_no_crm', left(v_quem || ' agendou à mão, ' || v_dur || ' min', 200));
+  END IF;
 
   RETURN QUERY SELECT true,
     'Visita #' || v_id || ' agendada para ' || nai_hora_exata(p_quando) || '.',

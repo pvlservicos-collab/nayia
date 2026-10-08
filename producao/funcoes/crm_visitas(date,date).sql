@@ -30,6 +30,9 @@ AS $function$
     LEFT JOIN nai_contato c ON c.id = v.corretor_id
     LEFT JOIN LATERAL (SELECT cr.nome FROM corr cr WHERE cr.chave = c.chave LIMIT 1) co ON true
    WHERE v.estado <> 'coletando'
+     -- 312: o pedido de visita que vem da Nay não entra mais na agenda; quem põe é a equipe, à mão
+     AND (v.criada_no_crm_por IS NOT NULL
+          OR v.criado_em < (SELECT nai_cfg('agenda_sem_visita_da_nay_desde', 'infinity')::timestamptz))
      AND v.excluida_em IS NULL
      AND (nai_visita_aberta(v.estado)
           OR ((p_desde IS NULL OR coalesce(v.quando, v.criado_em) >= p_desde::timestamptz)
