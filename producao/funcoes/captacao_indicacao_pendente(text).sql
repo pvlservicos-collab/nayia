@@ -13,5 +13,5 @@ AS $function$
                                     WHERE nay_fone_chave(d.telefone) = nay_fone_chave(p_telefone)
                                       AND d.direcao = 'enviada' AND d.origem = 'disparo'), 0))
          THEN NULL
-         ELSE 'Para finalizar: conhece alguém que esteja vendendo um imóvel e que possa nos indicar?' END;
+         ELSE captacao_indicacao_frase(p_telefone) END;   -- 320: a frase do Pedro, com o nome e o tipo do imóvel
 $function$;

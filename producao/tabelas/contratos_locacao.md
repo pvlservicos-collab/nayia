@@ -24,7 +24,7 @@ nay_site_leitura: SELECT
 nay_site_escrita, só nestas colunas: INSERT(codigo, vencimento); SELECT(codigo, vencimento); UPDATE(vencimento)
 
 ## funções que escrevem aqui
-(nenhuma função; quem escreve é o n8n, o site ou o CRM)
+captacao_aplicar_ao_cadastro
 
 ## funções que citam
-(nenhuma)
+captacao_aplicar_ao_cadastro

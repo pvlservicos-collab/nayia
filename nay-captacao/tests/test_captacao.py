@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from captacao import modelo, resposta, turno  # noqa: E402
+from captacao import cadastro, config, modelo, resposta, turno  # noqa: E402
 
 LEAD = {"telefone": "5596991712835", "lead_id": 835, "nome": "PEDRO Silva", "tratamento": "Sr.", "imovel_desc": "Apartamento (TESTE)",
         "etapa": "aguardando_situacao", "prompt": "PROMPT"}
@@ -146,10 +146,66 @@ class Agente(unittest.TestCase):
             modelo.responder("P", [], "t", [], lambda n, a: "x", chamar)
 
     def test_o_acrescimo_leva_o_modelo_e_a_indicacao(self):
-        a = modelo.ACRESCIMO.replace("{modelo}", "Olá, Sr. Pedro!")
+        frase = ("Sra. Maria, estamos com uma demanda alta de clientes querendo imóveis para locação nesse final de ano, "
+                 "a Sra. teria alguém para indicar que queira alugar ou vender?")
+        a = modelo.ACRESCIMO.replace("{modelo}", "Olá, Sr. Pedro!").replace("{indicacao}", frase)
         self.assertIn('"Olá, Sr. Pedro!"', a)
         self.assertIn("TOCOU NO BOTAO", a)
         self.assertIn("guardar_indicacao", a)
+        self.assertIn('"' + frase + '"', a)
+        self.assertNotIn("{", a)
+
+    def test_a_frase_da_indicacao_sai_inteira_numa_mensagem(self):
+        frase = ("Sra. Maria, estamos com uma demanda alta de clientes querendo imóveis para locação nesse final de ano, "
+                 "a Sra. teria alguém para indicar que queira alugar ou vender?")
+        self.assertEqual([b.texto for b in resposta.baloes(frase)], [frase])
+        self.assertEqual([b.texto for b in resposta.baloes("Certo, obrigada. " + frase)], ["Certo, obrigada.", frase])
+
+
+class _Resposta:
+    def __init__(self, status=200, content=b"", corpo=None):
+        self.status_code, self.content, self._corpo = status, content, corpo
+        self.headers = {"content-type": "application/json"}
+
+    def json(self):
+        return self._corpo
+
+
+class Cadastro(unittest.TestCase):
+    def test_a_foto_da_conversa_vai_para_a_api_do_site_com_o_codigo_e_o_id(self):
+        idas = []
+
+        class Pedir:
+            @staticmethod
+            def get(url, timeout):
+                return _Resposta(200, b"\xff\xd8\xff" + b"0" * 2000)
+
+            @staticmethod
+            def post(url, data, timeout, headers):
+                idas.append((url, len(data), headers["x-foto-id"]))
+                return _Resposta(200, corpo={"ok": True})
+
+        config.FOTO_SEGREDO = "s"
+        self.assertIsNone(cadastro._trazer(3755, "capt60_ABC", "https://imobeasy.online/fotos-captacao/whatsapp/60/ABC.jpg", Pedir))
+        self.assertEqual(idas, [(config.SITE_API_URL + "/api/captacao/crm/imovel/3755/foto", 2003, "capt60_ABC")])
+
+    def test_foto_que_nao_baixa_ou_que_o_site_recusa_vira_erro_escrito(self):
+        class NaoBaixa:
+            @staticmethod
+            def get(url, timeout):
+                return _Resposta(404, b"")
+
+        class Recusa:
+            @staticmethod
+            def get(url, timeout):
+                return _Resposta(200, b"0" * 5000)
+
+            @staticmethod
+            def post(url, data, timeout, headers):
+                return _Resposta(400, corpo={"ok": False, "erro": "o arquivo não é jpg, png nem webp"})
+
+        self.assertIn("não baixei (HTTP 404", cadastro._trazer(1, "x", "u", NaoBaixa))
+        self.assertIn("o arquivo não é jpg", cadastro._trazer(1, "x", "u", Recusa))
 
 
 if __name__ == "__main__":

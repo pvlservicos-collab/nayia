@@ -32,4 +32,4 @@ nay_site_escrita: INSERT, SELECT, UPDATE
 captacao_ficha, nai_cadastro_importar
 
 ## funções que citam
-captacao_ficha, captacao_ficha_aviso, crm_captacao_ficha_do_dono, crm_captacao_funil, crm_captacao_placar, crm_captacao_relatorio, nai_cadastro_importar, nai_cadastro_pendente
+captacao_ficha, captacao_ficha_aviso, captacao_fotos_a_puxar, crm_captacao_ficha_do_dono, crm_captacao_funil, crm_captacao_placar, crm_captacao_relatorio, nai_cadastro_importar, nai_cadastro_pendente

@@ -57,6 +57,31 @@ async function repassarParaCaptacao(corpo: Record<string, unknown>) {
   }
 }
 
+/**
+ * O CARTÃO DE CONTATO que a pessoa compartilhou (`type: "contacts"`), em texto:
+ * "👤 Contato: Beto — +55 92 98888-0000", um por linha.
+ *
+ * Pedro, 08/10/2026: "esse [Mensagem recebida] será que não é um contato na api
+ * oficial? precisamos entender o contato ... não podemos perder o contato assim".
+ * Era: a Nay de captação pediu o nome e o telefone de quem a proprietária
+ * indicou, ela compartilhou o cartão do irmão, e a conversa mostrou
+ * "[Mensagem recebida]" -- nem a equipe nem a Nay viram o nome e o telefone
+ * (a Nay perguntou o telefone de novo). O telefone vem em `phones[].phone`
+ * (como está na agenda dela) ou em `wa_id`.
+ */
+function textoDosContatos(contatos: any): string {
+  const linhas = (Array.isArray(contatos) ? contatos : []).map((c: any) => {
+    const nome = String(
+      c?.name?.formatted_name || [c?.name?.first_name, c?.name?.last_name].filter(Boolean).join(' ') || '',
+    ).trim()
+    const fones = (Array.isArray(c?.phones) ? c.phones : [])
+      .map((p: any) => String(p?.phone || (p?.wa_id ? `+${p.wa_id}` : '')).trim())
+      .filter(Boolean)
+    return `👤 Contato: ${nome || 'sem nome'}${fones.length ? ` — ${fones.join(' / ')}` : ' (o cartão veio sem telefone)'}`
+  })
+  return linhas.length ? linhas.join('\n') : '👤 Contato (o cartão veio vazio)'
+}
+
 /** A Meta avisou que não sabe entregar este tipo (`unsupported`, erro 131051). */
 function ehMensagemSemConteudoDaMeta(message: any): boolean {
   return message?.type === 'unsupported'
@@ -371,6 +396,9 @@ export async function POST(req: NextRequest) {
     } else if (message.type === 'location') {
       const loc = message.location
       content = `📍 Localização: ${loc?.name || `${loc?.latitude}, ${loc?.longitude}`}`
+    } else if (message.type === 'contacts') {
+      // cartão de contato: o nome e o telefone viram texto, na conversa e no repasse para a captação
+      content = textoDosContatos(message.contacts)
     } else if (ehMensagemSemConteudoDaMeta(message)) {
       // A META MANDA VAZIO (28/09/2026). `type: "unsupported"`, erro 131051
       // "Message type unknown": a pessoa mandou algo que a API oficial não

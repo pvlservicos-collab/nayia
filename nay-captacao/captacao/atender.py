@@ -36,7 +36,9 @@ def _prompt(conn, t: turno.Turno) -> str:
          WHERE nay_fone_chave(m.telefone) = nay_fone_chave(%s) AND m.direcao = 'enviada' AND m.origem = 'disparo'
            AND m.status <> 'Falhou' ORDER BY m.id DESC LIMIT 1""", (t.telefone,))
     abertura = (r[0]["texto"] if r else "") or "(o primeiro contato desta conversa nao foi por modelo)"
-    return t.prompt + modelo.ACRESCIMO.replace("{modelo}", abertura)
+    # a pergunta da indicação é montada pelo banco, com o nome dele e o tipo do imóvel (320)
+    frase = banco.linhas(conn, "SELECT captacao_indicacao_frase(%s) AS f", (t.telefone,))[0]["f"]
+    return t.prompt + modelo.ACRESCIMO.replace("{modelo}", abertura).replace("{indicacao}", frase)
 
 
 def _historico(conn, t: turno.Turno) -> list[dict]:
@@ -57,6 +59,24 @@ def _avisar_tel(conn, aviso: str, telefone: str = "") -> None:
         banco.linhas(conn, "SELECT * FROM crm_avisar_tel(%s, 'captacao')", (aviso,))
     except Exception as e:  # noqa: BLE001 -- perder o aviso é ruim; derrubar o turno do proprietário é pior
         log.warning("não consegui avisar o Tel: %s", e)
+
+
+def _encaminhar_indicacao(conn, texto: str, telefone: str) -> None:
+    """A indicação vai na hora para quem recebe o relatório da captação (Pedro, 08/10/2026: "que o número ao menos
+    encaminhe para mim, não podemos perder o contato assim"). Sai pelo número oficial; se não sair (fora da janela de
+    24 h de quem recebe), vai como aviso ao Tel. Ela já está gravada em privado.captacao_indicacao de qualquer jeito."""
+    r = banco.linhas(conn, """
+        SELECT regexp_replace(coalesce(valor, ''), '[^0-9]', '', 'g') AS t FROM captacao_config WHERE chave = 'telefone_relatorio'""")
+    destino = r[0]["t"] if r else ""
+    if len(destino) in (10, 11):
+        destino = "55" + destino
+    try:
+        if len(destino) >= 12 and envio.texto(destino, texto):
+            log.info("indicação de …%s encaminhada para …%s", telefone[-4:], destino[-4:])
+            return
+    except Exception as e:  # noqa: BLE001 -- o encaminhamento não derruba o turno do proprietário
+        log.warning("não consegui encaminhar a indicação pelo número oficial: %s", e)
+    _avisar_tel(conn, texto, telefone)
 
 
 def atender(conn, telefone: str, enviar: bool = True, agora: datetime | None = None,
@@ -91,8 +111,10 @@ def atender(conn, telefone: str, enviar: bool = True, agora: datetime | None = N
     saida, feito.ferramentas = modelo.responder(
         _prompt(conn, t), _historico(conn, t), turno.cabecalho(t, agora or datetime.now(timezone.utc)),
         ferramentas.definicoes(),
-        lambda nome, args: ferramentas.executar(conn, nome, args, t.telefone, t.nome,
-                                                avisar=lambda aviso: _avisar_tel(conn, aviso, t.telefone)))
+        lambda nome, args: ferramentas.executar(
+            conn, nome, args, t.telefone, t.nome,
+            avisar=lambda aviso: _avisar_tel(conn, aviso, t.telefone),
+            encaminhar=(lambda texto: _encaminhar_indicacao(conn, texto, t.telefone)) if enviar else None))
 
     for b in resposta.baloes(saida):
         dormir(b.pausa)

@@ -59,9 +59,9 @@ def _parede_da_indicacao(conn, telefone: str, motivo: str) -> str | None:
     # sem a pergunta dos outros imóveis, quem recusa (e dá a frase) é o próprio captacao_encerrar
     if not r or not r[0]["outros"] or not r[0]["frase"]:
         return None
-    return ("NAO encerrei: falta a pergunta da indicacao. Faca agora, em UMA mensagem so e com o tratamento dele, esta "
-            f'pergunta: "{r[0]["frase"]}" -- e espere a resposta. Se ele disser que nao conhece ninguem, agradeca e chame '
-            "encerrar_conversa de novo. Se indicar alguem, chame guardar_indicacao.")
+    return ("NAO encerrei: falta a pergunta da indicacao. Faca agora, em UMA mensagem so e com EXATAMENTE estas palavras, "
+            f'esta pergunta: "{r[0]["frase"]}" -- e espere a resposta. Se ele disser que nao conhece ninguem, agradeca e '
+            "chame encerrar_conversa de novo. Se indicar alguem, chame guardar_indicacao.")
 
 
 def aviso_da_escalada(linha: dict, telefone: str, nome_do_dono: str) -> str:
@@ -73,7 +73,22 @@ def aviso_da_escalada(linha: dict, telefone: str, nome_do_dono: str) -> str:
             'desmarcar "O Tel esta atendendo".)')
 
 
-def executar(conn, nome: str, args: dict, telefone: str, nome_do_dono: str = "", avisar=None) -> str:
+def texto_da_indicacao(linha: dict, telefone: str, nome_do_dono: str) -> str:
+    """A indicação pronta para encaminhar: quem indicou, quem é o indicado e o telefone dele."""
+    return (f"INDICACAO pela captacao\nQuem indicou: {nome_do_dono or '(sem nome)'} (final {telefone[-4:]})\n"
+            f"Indicado: {linha.get('nome') or '(sem nome)'}\nTelefone: {linha.get('contato') or '(sem telefone)'}"
+            + (f"\n{linha['detalhe']}" if linha.get("detalhe") else ""))
+
+
+INDICACAO_COMPLETA = """
+SELECT i.nome, i.contato, i.detalhe FROM privado.captacao_indicacao i
+ WHERE nay_fone_chave(i.telefone) = nay_fone_chave(%s) AND i.criado_em > now() - interval '6 hours'
+   AND length(regexp_replace(coalesce(i.contato, ''), '\\D', '', 'g')) >= 8
+ ORDER BY i.id DESC LIMIT 1
+"""
+
+
+def executar(conn, nome: str, args: dict, telefone: str, nome_do_dono: str = "", avisar=None, encaminhar=None) -> str:
     """Roda a ferramenta e devolve o texto que o modelo lê. Erro vira texto: o turno não cai por causa dele."""
     f = TODAS.get(nome)
     if not f:
@@ -92,6 +107,12 @@ def executar(conn, nome: str, args: dict, telefone: str, nome_do_dono: str = "",
             if parede:
                 return json.dumps([{"instrucao_para_voce": parede}], ensure_ascii=False)
         valores = [telefone, *[_texto(args.get(q["chave"])) for q in f["params"]]]
-        return json.dumps(banco.rodar_do_fluxo(conn, f["sql"], valores), ensure_ascii=False, default=str)
+        saida = json.dumps(banco.rodar_do_fluxo(conn, f["sql"], valores), ensure_ascii=False, default=str)
+        if nome == "guardar_indicacao" and encaminhar and _texto(args.get("contato")).strip():
+            # com o telefone do indicado em mãos, a indicação segue na hora para quem cuida (sem esperar relatório)
+            completa = banco.linhas(conn, INDICACAO_COMPLETA, (telefone,))
+            if completa:
+                encaminhar(texto_da_indicacao(completa[0], telefone, nome_do_dono))
+        return saida
     except Exception as e:  # noqa: BLE001 -- o modelo precisa saber que não gravou
         return "ERRO: " + str(e).strip().splitlines()[0][:300]

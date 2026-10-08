@@ -50,6 +50,18 @@ O prompt é o MESMO, o vivo do banco (`nai_prompt_de('captacao')`), com um acré
 - **Duas mensagens**: o que ela anotou e a pergunta saem separados (`resposta.em_duas_viagens`).
 - **Até 4 conversas ao mesmo tempo**, nunca duas vezes a mesma pessoa. Na partida, o que ficou reservado e sem
   resposta nos últimos 10 minutos volta à fila.
+- **A pergunta da indicação** (320) é montada pelo banco (`captacao_indicacao_frase`): "Sra. Maria, estamos com uma
+  demanda alta de clientes querendo imóveis para locação nesse final de ano, a Sra. teria alguém para indicar que
+  queira alugar ou vender?" -- e "comprar imóveis ... vender ou alugar" quando o imóvel dele é de venda.
+- **Cartão de contato**: o CRM entrega o cartão que a pessoa compartilha como texto ("👤 Contato: NOME — TELEFONE");
+  ela usa o nome e o telefone e não pede de novo. A indicação com telefone é **encaminhada na hora** para
+  `captacao_config.telefone_relatorio` pelo número oficial (fora da janela de 24 h de quem recebe, vira aviso ao Tel).
+- **A resposta vai para o cadastro do imóvel** (321, `captacao/cadastro.py`): de 5 em 5 minutos o serviço chama
+  `captacao_aplicar_pendentes()` -- situação (vendido/alugado/disponível), valor do aluguel e fim do contrato
+  (`contratos_locacao.vencimento`), só depois de 15 minutos de silêncio na conversa -- e traz para o imóvel a foto que
+  o dono mandou na conversa (`captacao_fotos_a_puxar()` + a rota de foto da API do site). O que entrou e o que ficou
+  para gente decidir está em `captacao_aplicado` (colunas `mudou` e `conferir`). Vale para toda a captação, não só
+  para quem é atendido aqui.
 
 ## O que AINDA é do fluxo do n8n
 
@@ -86,8 +98,15 @@ cd /root/nay-captacao && set -a && . ./.env && set +a
 python -m unittest discover -s tests               # as partes puras (roda em qualquer máquina)
 ```
 
-`.env` (fora do git): `DATABASE_URL`, `OPENAI_API_KEY`, `CAPTACAO_OFICIAL_SEGREDO`; opcionais `CAPTACAO_AVISAR_TEL`
-(`nao` cala o aviso de escalada e de foto ao Tel; o telefone de teste nunca avisa) e `CAPTACAO_MODELO`.
+`.env` (fora do git): `DATABASE_URL`, `OPENAI_API_KEY`, `CAPTACAO_OFICIAL_SEGREDO`, `CAPTACAO_FOTO_SEGREDO` (a senha
+de máquina da rota de foto do site; sem ela as fotos da conversa não são trazidas); opcionais `CAPTACAO_AVISAR_TEL`
+(`nao` cala o aviso de escalada e de foto ao Tel; o telefone de teste nunca avisa), `SITE_API_URL` e `CAPTACAO_MODELO`.
+
+O que a captação mudou no cadastro, e o que espera gente:
+
+```
+SELECT aplicado_em, codigo, mudou, conferir FROM captacao_aplicado WHERE mudou <> '{}' OR conferir <> '{}' ORDER BY id DESC;
+```
 
 ## Parar
 

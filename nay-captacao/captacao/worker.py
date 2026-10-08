@@ -21,7 +21,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from captacao import banco, config, disparo
+from captacao import banco, cadastro, config, disparo
 from captacao.atender import atender
 
 log = logging.getLogger("captacao.worker")
@@ -130,6 +130,26 @@ def disparador(parar: threading.Event) -> None:
         parar.wait(espera)
 
 
+def atualizador(parar: threading.Event) -> None:
+    """O laço que leva a resposta dos donos ao cadastro do imóvel e puxa as fotos da conversa (migração 321)."""
+    parar.wait(30)
+    while not parar.is_set():
+        conn = None
+        try:
+            conn = banco.conectar()
+            for linha in cadastro.rodada(conn):
+                log.info("cadastro: %s", linha)
+        except Exception:  # noqa: BLE001
+            log.exception("a atualização do cadastro falhou; tento de novo na próxima rodada")
+        finally:
+            try:
+                if conn is not None:
+                    conn.close()
+            except Exception:  # noqa: BLE001
+                pass
+        parar.wait(config.CADASTRO_A_CADA_S)
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     faltam = [n for n, v in (("DATABASE_URL", config.DATABASE_URL), ("OPENAI_API_KEY", config.OPENAI_API_KEY),
@@ -150,6 +170,7 @@ def main() -> None:
         log.exception("não consegui conferir a fila na partida")
     parar = threading.Event()
     threading.Thread(target=disparador, args=(parar,), name="disparo", daemon=True).start()
+    threading.Thread(target=atualizador, args=(parar,), name="cadastro", daemon=True).start()
     conn = None
     with ThreadPoolExecutor(max_workers=AO_MESMO_TEMPO, thread_name_prefix="conversa") as turma:
         while True:
