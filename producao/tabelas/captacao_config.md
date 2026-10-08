@@ -1,4 +1,4 @@
-# captacao_config  (tabela, ~30 linhas)
+# captacao_config  (tabela, ~34 linhas)
 
 ## colunas
 chave  text  NOT NULL
