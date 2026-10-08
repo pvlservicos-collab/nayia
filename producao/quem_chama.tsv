@@ -70,6 +70,17 @@ crm_nay_parar
 crm_nay_voltar	crm_nay_instruir
 crm_olx_abordagens	
 crm_olx_bot_receber	
+crm_olx_chat_enviada	
+crm_olx_chat_id_da_olx	
+crm_olx_chat_lido	
+crm_olx_chat_mensagens	
+crm_olx_chat_receber	
+crm_olx_chats	
+crm_olx_conta_conectar	
+crm_olx_conta_estado	
+crm_olx_conta_preparar	
+crm_olx_conta_token	
+crm_olx_conta_webhook	
 crm_painel_nay	
 crm_parceria_com_a_rayssa	
 crm_parceria_funil	

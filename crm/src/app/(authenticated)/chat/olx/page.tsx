@@ -1,15 +1,16 @@
 'use client'
 
 /*
- * Aba "Chat OLX" do menu (Pedro, 08/10/2026): os anúncios que o bot da OLX consultou e a mensagem que
- * saiu para cada anunciante. Ver src/components/Chat/ChatOlx.tsx e /api/olx/abordagens.
+ * Aba "Chat OLX" do menu (Pedro, 08/10/2026): o chat da OLX dentro do CRM, uma aba por conta (proprietários e
+ * corretores), para receber e responder. Ver src/components/Chat/ChatOlxContas.tsx, src/lib/olxChat.ts e
+ * crm/docs/olx/chat-da-olx.md. O que o bot da OLX consultou continua aqui, no botão "Consultas do bot".
  */
-import ChatOlx from '@/components/Chat/ChatOlx'
+import ChatOlxContas from '@/components/Chat/ChatOlxContas'
 
 export default function ChatOlxPage() {
   return (
     <div className="chat-theme h-full flex flex-col min-h-0">
-      <ChatOlx />
+      <ChatOlxContas />
     </div>
   )
 }

@@ -1,7 +1,8 @@
 'use client'
 
 /**
- * CHAT OLX (Pedro, 08/10/2026: "coloca uma nova aba chamada Chat OLX").
+ * AS CONSULTAS DO BOT DA OLX (Pedro, 08/10/2026). Nasceu como a aba Chat OLX inteira; no mesmo dia a aba virou o
+ * chat das duas contas (ChatOlxContas.tsx) e isto ficou atrás do botão "Consultas do bot".
  *
  * O bot da OLX acha um anúncio, pergunta ao nosso sistema o que fazer e recebe "fechar" ou "abordar" com a
  * mensagem para mandar ao anunciante (webhook de consulta, migração 309). Aqui fica o que ele já consultou, no
@@ -97,7 +98,7 @@ export default function ChatOlx() {
     <div className="h-full min-h-0 flex flex-col" style={{ background: 'var(--wa-panel)' }}>
       <div className="wa-topo justify-between gap-2">
         <span className="text-[16px] font-semibold flex items-center gap-2" style={{ color: 'var(--wa-text)' }}>
-          <ChatsCircle size={22} /> Chat OLX
+          <ChatsCircle size={22} /> Consultas do bot
           {lista && <span className="text-[13px] font-normal" style={{ color: 'var(--wa-text-2)' }}>{conta.hoje} abordados hoje</span>}
         </span>
         <button type="button" className="wa-icone-btn" onClick={carregar} title="Atualizar agora"><ArrowClockwise size={20} /></button>
