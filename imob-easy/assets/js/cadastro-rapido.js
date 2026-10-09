@@ -107,9 +107,12 @@
     /* o popup */
     ".cr-veu{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);display:flex;align-items:stretch;justify-content:center;padding:14px}" +
     ".cr-caixa{flex:1;max-width:1500px;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;background:var(--fundo,#f4f4f2);box-shadow:0 20px 60px rgba(0,0,0,.4)}" +
-    ".cr-faixa{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:10px 14px;background:var(--superficie,#fff);border-bottom:1px solid var(--borda,#e2e2de)}" +
-    ".cr-nav{display:flex;gap:6px;align-items:center;font-weight:700;white-space:nowrap}" +
+    ".cr-faixa{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:8px 14px;background:#111827;color:#f9fafb}" +
+    ".cr-titulo{font-weight:700;font-size:14px;letter-spacing:.02em;color:#e5e7eb;margin-right:auto}" +
+    ".cr-nav{display:flex;gap:6px;align-items:center;font-weight:700;white-space:nowrap;color:#f9fafb}" +
     ".cr-nav button,.cr-acao{height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--borda-forte,#cfcfca);background:var(--superficie,#fff);color:var(--texto,#16161a);font:inherit;font-size:13px;cursor:pointer}" +
+    ".cr-faixa .cr-nav button,.cr-faixa .cr-acao{background:#1f2937;border-color:#374151;color:#f9fafb}" +
+    ".cr-faixa .cr-fechar{color:#f9fafb}" +
     ".cr-nav button[disabled],.cr-acao[disabled]{opacity:.45;cursor:default}" +
     ".cr-quem{flex:1 1 320px;min-width:0}" +
     ".cr-quem b{font-size:15px}" +
@@ -120,8 +123,9 @@
     ".cr-aprovar{height:36px;padding:0 16px;border:0;border-radius:999px;background:#16a34a;color:#fff;font:inherit;font-weight:700;cursor:pointer}" +
     ".cr-aprovar[disabled]{opacity:.5;cursor:default}" +
     ".cr-fechar{width:36px;height:36px;border-radius:999px;border:0;background:transparent;color:var(--texto,#16161a);font-size:20px;cursor:pointer}" +
-    ".cr-recado{width:100%;font-size:12.5px}" +
-    ".cr-recado--ok{color:#15803d}.cr-recado--erro{color:#b42323}" +
+    ".cr-recado{width:100%;font-size:12.5px;color:#d1d5db}" +
+    ".cr-recado:empty{display:none}" +
+    ".cr-recado--ok{color:#86efac}.cr-recado--erro{color:#fca5a5}" +
     /* o card da origem */
     ".cr-origem{width:100%;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;padding:8px 12px;border-radius:10px;border:1px solid var(--borda,#e2e2de);border-left:4px solid #2563eb;background:var(--superficie-2,#f7f7f5);font-size:13px}" +
     ".cr-origem b{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#2563eb}" +
@@ -249,7 +253,7 @@
           '<div class="cr-faixa">' +
             '<div class="cr-nav"><button type="button" data-ir="-1" aria-label="Anterior">◀</button>' +
               '<span id="cr-pos"></span><button type="button" data-ir="1" aria-label="Próximo">▶</button></div>' +
-            '<div class="cr-quem" id="cr-quem"></div>' +
+            '<span class="cr-titulo">Cadastro rápido</span>' +
             '<div class="cr-acoes">' +
               '<button class="cr-acao" type="button" id="cr-outro">É atualização de outro imóvel?</button>' +
               '<button class="cr-acao" type="button" id="cr-importar">Importar tudo</button>' +
@@ -257,7 +261,6 @@
               '<button class="cr-aprovar" type="button" id="cr-aprovar">Aprovar: fica disponível para a Nay</button>' +
               '<button class="cr-fechar" type="button" id="cr-fechar" aria-label="Fechar">✕</button>' +
             "</div>" +
-            '<div class="cr-origem" id="cr-origem"></div>' +
             '<div class="cr-recado" id="cr-recado" role="status"></div>' +
           "</div>" +
           '<div class="cr-corpo" id="cr-corpo-popup"></div>' +
@@ -315,14 +318,6 @@
     $("cr-pos").textContent = (pos + 1) + " de " + fila.length;
     veu.querySelector('[data-ir="-1"]').disabled = pos === 0;
     veu.querySelector('[data-ir="1"]').disabled = pos >= fila.length - 1;
-    var pct = it.pct == null ? null : Number(it.pct);
-    $("cr-quem").innerHTML =
-      '<span class="cr-fonte">' + esc(rotuloDaFonte(fonteDe(it))) + "</span>" +
-      "<b>" + esc(it.titulo) + "</b>" + (it.codigo ? " · #" + it.codigo : " · ainda sem cadastro") +
-      (pct == null ? "" : ' · <b style="color:' + cor(pct) + '">' + pct + "%</b>") + " " + seloDeFoto(it) +
-      '<span class="cr-sub">' + esc([it.status, it.tipo, it.bairro, it.dono && "dono: " + it.dono].filter(Boolean).join(" · ")) +
-        " — " + esc(it.motivos.join(" · ")) + "</span>" +
-      (it.falta && it.falta.length ? '<span class="cr-sub cr-falta">Falta: ' + esc(it.falta.join(", ")) + "</span>" : "");
     $("cr-importar").hidden = !it.codigo;
     var feito = !!feitos[chave(it)];
     var a = $("cr-aprovar");
@@ -344,27 +339,89 @@
     f.addEventListener("load", function () { aoCarregarOEditor(f, it); });
   }
 
-  /* ---- o card da origem ------------------------------------------------------ */
+  /* ---- O CARD do cadastro: origem, motivo, fotos, falta e situação, num lugar só ----
+     Fica DENTRO da página do imóvel, antes do cabeçalho dele (Pedro, 09/10: "põe tudo em um card antes das
+     informações do imóvel, senão confunde com os menus de cima"). */
   function pintarOrigem(it) {
-    var caixa = $("cr-origem");
-    caixa.innerHTML = "<b>Origem</b><span>buscando…</span>";
+    if (it._origem !== undefined) { atualizarCard(); return; }
+    it._origem = null;
     var q = it.codigo ? "codigo=" + encodeURIComponent(it.codigo) : "ficha=" + encodeURIComponent(it.fichaId);
-    var meu = it;
     fetch("/admin/api/imoveis/origem?" + q, { credentials: "same-origin" })
       .then(function (r) { return r.ok ? r.json() : {}; })
-      .then(function (o) {
-        if (fila[pos] !== meu) return;
-        var partes = [];
-        partes.push("<span><strong>" + esc(o.rotulo || rotuloDaFonte(fonteDe(it))) + "</strong></span>");
-        if (o.linha) partes.push("<span>" + esc(o.linha) + "</span>");
-        if (o.nome || o.telefone) partes.push("<span>" + esc([o.nome, fone(o.telefone)].filter(Boolean).join(" · ")) + "</span>");
-        if (o.quando) partes.push("<span>em " + esc(quando(o.quando)) + "</span>");
-        if (o.link) partes.push('<span><a href="' + esc(o.link) + '" target="_blank" rel="noopener">ver o anúncio' + (o.titulo ? ": " + esc(String(o.titulo).slice(0, 60)) : "") + "</a></span>");
-        if (o.detalhe) partes.push('<span class="cr-nota">' + esc(o.detalhe) + "</span>");
-        if (o.fotos != null && it.fonte === "ficha") partes.push("<span>" + o.fotos + " foto(s) que ele mandou</span>");
-        caixa.innerHTML = "<b>Origem</b>" + partes.join("");
-      })
-      .catch(function () { if (fila[pos] === meu) caixa.innerHTML = "<b>Origem</b><span>não consegui ler a origem</span>"; });
+      .then(function (o) { it._origem = o || {}; if (fila[pos] === it) atualizarCard(); })
+      .catch(function () { it._origem = { erro: true }; if (fila[pos] === it) atualizarCard(); });
+  }
+
+  var CSS_DO_CARD =
+    "#cr-card{max-width:1180px;margin:16px auto 0;padding:14px 18px;border-radius:14px;background:var(--superficie,#fff);" +
+      "border:1px solid var(--borda,#e2e2de);border-left:5px solid #2563eb;box-shadow:var(--sombra-1,none);font-size:13.5px;color:var(--texto,#16161a)}" +
+    "#cr-card h2{margin:0 0 10px;font-size:15px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}" +
+    "#cr-card h2 small{font-size:12px;font-weight:600;color:var(--texto-fraco,#6f6f74)}" +
+    "#cr-card dl{display:grid;grid-template-columns:150px 1fr;gap:7px 14px;margin:0}" +
+    "#cr-card dt{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--texto-fraco,#6f6f74);padding-top:2px}" +
+    "#cr-card dd{margin:0;line-height:1.45}" +
+    "#cr-card a{color:#2563eb;font-weight:600}" +
+    "#cr-card .crc-fonte{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#dbeafe;color:#1d4ed8}" +
+    "#cr-card .crc-sem{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:700;background:#fde8e8;color:#b42323}" +
+    "#cr-card .crc-com{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:700;background:#e8f7f0;color:#2f7d58}" +
+    "#cr-card .crc-falta{color:#b45309}" +
+    "@media (max-width:700px){#cr-card dl{grid-template-columns:1fr}}";
+
+  function cardHtml(it) {
+    var o = it._origem;
+    var origem;
+    if (o === null || o === undefined) origem = "buscando…";
+    else if (o.erro) origem = "não consegui ler a origem";
+    else {
+      origem = [
+        "<strong>" + esc(o.rotulo || rotuloDaFonte(fonteDe(it))) + "</strong>",
+        o.linha && esc(o.linha),
+        (o.nome || o.telefone) && esc([o.nome, fone(o.telefone)].filter(Boolean).join(" · ")),
+        o.quando && "em " + esc(quando(o.quando)),
+        o.link && '<a href="' + esc(o.link) + '" target="_blank" rel="noopener">ver o anúncio' + (o.titulo ? ": " + esc(String(o.titulo).slice(0, 70)) : "") + "</a>",
+        o.detalhe && esc(o.detalhe)
+      ].filter(Boolean).join(" · ");
+    }
+    var fotos = it.fonte === "ficha"
+      ? (o && o.fotos != null ? o.fotos + " foto(s) que o dono mandou — entram quando você cadastrar" : "as que o dono mandou entram quando você cadastrar")
+      : (semFoto(it) ? '<span class="crc-sem">SEM FOTO</span> este imóvel não tem nenhuma foto'
+                     : '<span class="crc-com">' + it.fotos + " foto" + (Number(it.fotos) === 1 ? "" : "s") + "</span>");
+    var pct = it.pct == null ? null : Number(it.pct);
+    var situacao = [it.status || (it.codigo ? "" : "ainda sem cadastro"), it.dono && "dono: " + it.dono,
+                    pct != null && '<b style="color:' + cor(pct) + '">' + pct + "% preenchido</b>"].filter(Boolean);
+    return "<h2>Sobre este cadastro " + '<span class="crc-fonte">' + esc(rotuloDaFonte(fonteDe(it))) + "</span>" +
+        "<small>" + (pos + 1) + " de " + fila.length + " na fila</small></h2>" +
+      "<dl>" +
+        "<dt>De onde veio</dt><dd>" + origem + "</dd>" +
+        "<dt>Por que está aqui</dt><dd>" + esc(it.motivos.join(" · ") || "—") + "</dd>" +
+        "<dt>Fotos</dt><dd>" + fotos + "</dd>" +
+        (it.falta && it.falta.length ? '<dt>Falta preencher</dt><dd class="crc-falta">' + esc(it.falta.join(", ")) + "</dd>" : "") +
+        "<dt>Situação</dt><dd>" + (situacao.length ? situacao.map(function (x) { return x.charAt(0) === "<" ? x : esc(x); }).join(" · ") : "—") + "</dd>" +
+      "</dl>";
+  }
+
+  function atualizarCard() {
+    var d = docDoEditor();
+    var c = d && d.getElementById("cr-card");
+    if (c) c.innerHTML = cardHtml(fila[pos]);
+  }
+
+  function injetarCard(d, it) {
+    if (!d.getElementById("cr-card-css")) {
+      var s = d.createElement("style");
+      s.id = "cr-card-css";
+      s.textContent = CSS_DO_CARD;
+      d.head.appendChild(s);
+    }
+    var c = d.getElementById("cr-card");
+    if (!c) {
+      c = d.createElement("section");
+      c.id = "cr-card";
+      c.setAttribute("aria-label", "Sobre este cadastro");
+      var topo = d.querySelector(".nv__topo") || d.querySelector("main") || d.body.firstChild;
+      topo.parentNode.insertBefore(c, topo);
+    }
+    c.innerHTML = cardHtml(it);
   }
 
   /* ---- o editor dentro do popup ---------------------------------------------- */
@@ -384,6 +441,7 @@
         "body::before{display:none!important}";
       d.head.appendChild(s);
     }
+    injetarCard(d, it);
     var aqui = new URLSearchParams(f.contentWindow.location.search);
     var novoCodigo = aqui.get("codigo");
     // a ficha acabou de virar imóvel: as fotos que ele mandou e o dono vão junto
@@ -691,7 +749,7 @@
         feitos[chave(it)] = true;
         var era = it.codigo ? "#" + it.codigo + " virou Excluído (atualização do #" + alvo + ")" : "a ficha ficou ligada ao #" + alvo;
         fecharAtualizacao();
-        it.codigo = alvo; it.status = null; it.fonte = "imovel";
+        it.codigo = alvo; it.status = null; it.fonte = "imovel"; it._origem = undefined; pintarOrigem(it);
         $("cr-corpo-popup").innerHTML = '<iframe title="Cadastro do imóvel" src="imovel-editar.html?codigo=' + alvo + '&rapido=1"></iframe>';
         var f = $("cr-corpo-popup").querySelector("iframe");
         f.addEventListener("load", function () { aoCarregarOEditor(f, it); });
