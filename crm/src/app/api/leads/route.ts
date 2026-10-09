@@ -146,7 +146,7 @@ export async function GET(req: NextRequest) {
     // Atendimento (etiqueta de quem está atendendo + aba "Humano"). Calculado das
     // mensagens a cada leitura, nunca gravado — ver src/lib/atendentes.ts. Só na
     // lista do Chat, que é a única tela que mostra.
-    const atendimento: Record<string, { autores: string[]; humano: boolean }> = {}
+    const atendimento: Record<string, { autores: string[]; humano: boolean; ultimaDoLead: string | null }> = {}
     if (scope === 'conversas' && leadIds.length > 0) {
       // Mensagem de robô (funil, automação, agente de IA) não é atendimento.
       const manual = sql`(
@@ -183,6 +183,7 @@ export async function GET(req: NextRequest) {
         atendimento[l.lead_id] = {
           autores: [...new Set(l.autores ?? [])],
           humano: !!l.teve_manual || respondeuAutomacao,
+          ultimaDoLead: l.ultima_do_lead ? new Date(l.ultima_do_lead).toISOString() : null,
         }
       }
     }
@@ -219,6 +220,8 @@ export async function GET(req: NextRequest) {
       ...(scope === 'conversas' && {
         autores_manuais: r.lead.isGroup ? [] : atendimento[r.lead.id]?.autores ?? [],
         em_atendimento_humano: r.lead.isGroup ? false : atendimento[r.lead.id]?.humano ?? false,
+        // quando a PESSOA escreveu por último: a aba Oficial ordena por isto (o disparo não conta)
+        ultima_recebida: atendimento[r.lead.id]?.ultimaDoLead ?? null,
       }),
       lead_tags: tagsMap[r.lead.id] || [],
       integration: r.integrationType ? ({ type: r.integrationType } as Integration) : undefined,

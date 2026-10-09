@@ -50,7 +50,7 @@ const RECEBIDO = ['lead']
 
 /** O primeiro nome cadastrado na captação ("Evandro Prop Kopenhagen"); o que veio
  *  TODO EM MAIÚSCULA vira "Tadeu". O nome inteiro fica no title da linha. */
-function nomeDoDono(nome: string | null): string {
+export function nomeDoDono(nome: string | null): string {
   const palavras = (nome || '').trim().split(/\s+/).filter((p) => p.replace(/\P{L}/gu, '').length >= 2)
   const primeiro = palavras.find((p) => !/^(sr|sra|dr|dra)\.?$/i.test(p)) || palavras[0] || ''
   if (!primeiro || primeiro !== primeiro.toUpperCase()) return primeiro

@@ -479,7 +479,13 @@ export async function POST(req: NextRequest) {
       return Response.json({ ok: true, skipped: 'duplicate' })
     }
 
+    /* O NOME DO PERFIL NO LUGAR DO NÚMERO (Pedro, 09/10/2026: "o chat do api oficial está muito cru"). A conversa
+       do oficial quase sempre nasce do NOSSO modelo, com o telefone no título; quando a pessoa responde, a Meta
+       manda o nome do perfil dela e ele era jogado fora. Só troca título que ainda é número -- nome que alguém
+       escreveu à mão no card fica. */
+    const nomeDoPerfil = !isOutboundEcho && /\p{L}{2}/u.test(String(senderName || '')) ? String(senderName).trim().slice(0, 120) : ''
     await db.update(leads).set({
+      ...(nomeDoPerfil ? { title: sql`CASE WHEN ${leads.title} ~ '^[0-9+ ()-]+$' THEN ${nomeDoPerfil} ELSE ${leads.title} END` } : {}),
       lastMessageContent: content,
       lastMessageSenderType: isOutboundEcho ? 'agent' : 'lead',
       lastActivityAt: new Date(),

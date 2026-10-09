@@ -317,6 +317,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
       onMessageSent={handleChatMessageSent}
       linha={linha}
       marca={ehParceria ? marcas[displayedLead.id] : undefined}
+      dono={linha === 'oficial' ? donosDaCaptacao[displayedLead.id] : undefined}
       painelAberto={painelAberto}
       aoAlternarPainel={alternarPainel}
       aoVoltar={voltar}

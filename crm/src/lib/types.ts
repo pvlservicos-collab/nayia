@@ -78,6 +78,8 @@ export interface Lead {
    */
   autores_manuais?: string[]
   em_atendimento_humano?: boolean
+  /** quando a PESSOA escreveu por último nesta conversa (null = nunca escreveu) -- GET /api/leads, lista do Chat */
+  ultima_recebida?: string | null
   custom_attributes?: Record<string, any>
   // Endereço salvo do cliente — preenchido a partir do último pedido com
   // endereço informado, pra já vir pronto em compras futuras.

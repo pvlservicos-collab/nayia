@@ -18,6 +18,8 @@ import PinnedMessagesBar from './PinnedMessagesBar'
 import { ChatButtonKey } from '@/hooks/useChatButtonSettings'
 import { quandoCurtoEmManaus } from '@/lib/fusoDeManaus'
 import { nayEmPausa } from '@/lib/etapaDaParceria'
+import type { DonoNaLista } from '@/lib/tiposNay'
+import { nomeDoDono } from './LeadListItem'
 
 interface ChatWindowProps {
   lead: LeadWithOwner
@@ -26,6 +28,8 @@ interface ChatWindowProps {
   /** A linha de WhatsApp da conversa: a Parceria tem transcrição de áudio e as marcas da Nay. */
   linha?: LinhaWhatsapp
   marca?: MarcaDaNay
+  /** Oficial: o dono na captação. O título do lead ali é só o número, então o cabeçalho mostra o nome dele. */
+  dono?: DonoNaLista
   painelAberto?: boolean
   aoAlternarPainel?: () => void
   /** Só no celular: volta para a lista. */
@@ -71,9 +75,10 @@ function RoboDaNay({ nay, marca }: { nay: EstadoDaNay | null; marca?: MarcaDaNay
   )
 }
 
-function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlternarPainel, aoVoltar }: {
+function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlternarPainel, aoVoltar, dono }: {
   lead: LeadWithOwner
   marca?: MarcaDaNay
+  dono?: DonoNaLista
   nay?: EstadoDaNay | null
   mostrarRobo?: boolean
   painelAberto?: boolean
@@ -86,6 +91,14 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
   if (marca?.visitaAberta) partes.push(`visita ${quandoCurto(marca.visitaQuando)}`)
   if (marca?.corretor) partes.push(marca.creci ? `corretor · CRECI ${marca.creci}` : 'corretor')
   if (marca?.proprietario) partes.push('proprietário')
+  /* O NOME DE QUEM É (Pedro, 09/10/2026: "o chat do api oficial está muito cru"). Na Oficial a conversa nasce do
+     nosso modelo, e o título do lead é o número: o cabeçalho mostrava só "+55 92 9...". Com o dono da captação,
+     aparece o nome e o imóvel dele, como na lista; o número desce para a linha de baixo. */
+  const nomeDono = dono ? nomeDoDono(dono.nome) : ''
+  if (nomeDono) {
+    if (dono?.condominio) partes.push(dono.condominio + (dono.imoveis > 1 ? ` +${dono.imoveis - 1}` : ''))
+    partes.push(formatPhone(lead.phone || ''))
+  }
   const subtitulo = partes.length ? partes.join(' · ') : formatPhone(lead.phone || '')
 
   return (
@@ -101,7 +114,7 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
             : <User size={24} weight="fill" style={{ color: 'var(--wa-text-2)', opacity: 0.55 }} />}
         </span>
         <span className="min-w-0">
-          <span className="block text-[16px] leading-[21px] truncate" style={{ color: 'var(--wa-text)' }}>{formatPhone(lead.title)}</span>
+          <span className="block text-[16px] leading-[21px] truncate" style={{ color: 'var(--wa-text)' }}>{nomeDono || formatPhone(lead.title)}</span>
           <span className="block text-[13px] leading-[18px] truncate" style={{ color: marca?.telAtendendo ? 'var(--wa-tag-tel)' : 'var(--wa-text-2)' }}>
             {subtitulo}
           </span>
@@ -117,7 +130,7 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
   )
 }
 
-export default function ChatWindow({ lead, organizationId, onMessageSent, linha, marca, painelAberto, aoAlternarPainel, aoVoltar }: ChatWindowProps) {
+export default function ChatWindow({ lead, organizationId, onMessageSent, linha, marca, dono, painelAberto, aoAlternarPainel, aoVoltar }: ChatWindowProps) {
   const {
     activities, loading, error: erroDasMensagens, refresh: recarregarMensagens, sendHumanMessage, sendMediaMessage, deleteMessage,
     temMais, carregandoAnteriores, carregarAnteriores,
@@ -359,7 +372,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent, linha,
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <CabecalhoConversa lead={lead} marca={marca} nay={nay} mostrarRobo={false} painelAberto={painelAberto} aoAlternarPainel={aoAlternarPainel} aoVoltar={aoVoltar} />
+      <CabecalhoConversa lead={lead} marca={marca} nay={nay} mostrarRobo={false} painelAberto={painelAberto} aoAlternarPainel={aoAlternarPainel} aoVoltar={aoVoltar} dono={dono} />
 
       {/* Arrastar-e-soltar — cobre a conversa inteira, não só o clipe */}
       {isDraggingFile && (

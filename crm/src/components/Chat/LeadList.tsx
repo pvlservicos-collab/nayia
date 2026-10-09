@@ -389,12 +389,25 @@ export default function LeadList({
    */
   const daLinha: SearchHit[] = linha ? searchResults.filter((hit) => conversaEstaNaLinha(hit.lead, linha)) : searchResults
 
+  /* NA OFICIAL, QUEM ESCREVEU FICA EM CIMA (Pedro, 09/10/2026: "quando o [contato] manda msg nem sobe a mensagem dele
+     para cima, precisa corrigir isso agora"). A conversa subia, sim -- e era enterrada logo depois: cada modelo que
+     o disparo manda conta como "última atividade", e com um modelo saindo por minuto quem só RECEBEU ia para o
+     topo. Medido em 09/10: 167 conversas, 124 só de disparo; das 13 esperando resposta, a melhor estava na 22ª
+     posição. Aqui a ordem é a de quem ESCREVEU por último; quem nunca escreveu vem depois, pela última atividade. */
+  const ordemDeQuemEscreveu = linha === 'oficial'
+  const escreveuEm = (l: LeadWithOwner) => { const t = Date.parse(l.ultima_recebida || ''); return Number.isFinite(t) ? t : 0 }
+
   const ordenados: SearchHit[] = [...daLinha].sort((a, b) => {
     const ap = !!a.lead.is_pinned
     const bp = !!b.lead.is_pinned
     if (ap !== bp) return ap ? -1 : 1
     const rank = (h: SearchHit) => (h.matchType === 'message' ? 1 : 0)
     if (rank(a) !== rank(b)) return rank(a) - rank(b)
+    if (ordemDeQuemEscreveu) {
+      const ea = escreveuEm(a.lead)
+      const eb = escreveuEm(b.lead)
+      if (ea !== eb) return eb - ea
+    }
     const ta = new Date(a.lead.last_activity_at || a.lead.created_at).getTime()
     const tb = new Date(b.lead.last_activity_at || b.lead.created_at).getTime()
     return tb - ta
@@ -509,6 +522,10 @@ export default function LeadList({
     { chave: 'seg_6h', rotulo: 'Últimas 6h', contagem: contagem.seg_6h, titulo: 'A pessoa escreveu por último nas últimas 6 horas e ainda não respondemos' },
     { chave: 'seg_24h', rotulo: 'Últimas 24h', contagem: contagem.seg_24h, titulo: 'A pessoa escreveu por último nas últimas 24 horas e ainda não respondemos' },
     { chave: 'seg_semana', rotulo: 'Essa semana', contagem: contagem.seg_semana, titulo: 'A pessoa escreveu por último nos últimos 7 dias e ainda não respondemos' },
+  ] : linha === 'oficial' ? [
+    /* NA OFICIAL, SÓ "NÃO LIDO" (Pedro, 09/10/2026: "coloca aquilo de filtrar por não lido que nem tem nas outras
+       conversas ... coloca só Não lido nele"). */
+    { chave: 'nao_lidas', rotulo: 'Não lido', contagem: contagem.nao_lidas, titulo: 'Só as conversas com mensagem que ninguém abriu ainda' },
   ] : []
 
   const passaNoFiltro = (hit: SearchHit): boolean => {
@@ -683,9 +700,9 @@ export default function LeadList({
         {!verArquivadas && (
           <>
             {filtrosDeFollowup.length > 0 && (
-              <div className="flex items-center gap-1 pl-4 -mb-1">
-                <span className="text-[12px] flex-shrink-0" style={{ color: 'var(--wa-text-2)' }}>Sem resposta:</span>
-                <div className="flex-1 min-w-0 -ml-3">
+              <div className={`flex items-center gap-1 -mb-1 ${ehParceria ? 'pl-4' : ''}`}>
+                {ehParceria && <span className="text-[12px] flex-shrink-0" style={{ color: 'var(--wa-text-2)' }}>Sem resposta:</span>}
+                <div className={`flex-1 min-w-0 ${ehParceria ? '-ml-3' : ''}`}>
                   <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtrosDeFollowup} />
                 </div>
               </div>
