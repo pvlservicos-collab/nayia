@@ -6,6 +6,7 @@ CREATE OR REPLACE FUNCTION public.site_condominio_salvar(p_id integer, p_dados j
  SET lock_timeout TO '3s'
 AS $function$
 DECLARE
+  v_ligados int := 0;
   c        record;
   f        condominio_ficha%ROWTYPE;
   v_nome   text := left(nullif(btrim(regexp_replace(coalesce(p_dados->>'nome', ''), '\s+', ' ', 'g')), ''), 160);
@@ -59,6 +60,11 @@ BEGIN
       -- o imóvel ligado pelo id mostra o nome do condomínio: acompanha
       UPDATE imoveis SET condominio_nome = v_nome WHERE condo_id = c.id AND condominio_nome IS DISTINCT FROM v_nome;
       GET DIAGNOSTICS v_n = ROW_COUNT;
+      -- 328: o imóvel ligado só pelo nome VELHO (sem condo_id) vai junto, e passa a ficar ligado pelo id
+      UPDATE imoveis SET condo_id = c.id, condominio_nome = v_nome
+       WHERE condo_id IS NULL AND lower(unaccent(btrim(condominio_nome))) = lower(unaccent(btrim(c.nome)));
+      GET DIAGNOSTICS v_ligados = ROW_COUNT;
+      v_n := v_n + v_ligados;
       v_mudou := array_append(v_mudou, 'nome');
       c.nome := v_nome;
     END IF;

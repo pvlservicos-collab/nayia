@@ -148,7 +148,7 @@
   function preencher(c) {
     atual = c || null;
     form.querySelectorAll("[data-cc]").forEach(function (el) {
-      var v = c ? c[el.dataset.cc] : "";
+      var v = c ? c[el.dataset.cc] : null;   // condomínio novo: o Tipo começa em "Prédio de apartamentos", não vazio
       el.value = v == null ? (el.tagName === "SELECT" ? "apartamentos" : "") : String(v);
     });
     lazer = c && Array.isArray(c.lazer) ? c.lazer.slice() : [];
@@ -276,6 +276,8 @@
         }
         var id = x.d.id;
         if (window.recarregarCondominios) window.recarregarCondominios();   // os campos de condomínio da página passam a ver este
+        // quem abriu este formulário de outro lugar (o Cadastro rápido) fica sabendo qual foi gravado
+        try { window.dispatchEvent(new CustomEvent("condominio-salvo", { detail: { id: id, nome: dados.nome, criado: !!x.d.criado } })); } catch (e2) { /* navegador antigo */ }
         carregar(true).then(function (l) {
           var c = (l || []).filter(function (i) { return i.id === id; })[0];
           if (c) preencher(c);
@@ -294,6 +296,18 @@
       if (c) preencher(c);
     });
   }
+  /* O Cadastro rápido (09/10) mostra este mesmo formulário dentro do popup: o painel é emprestado (o DOM muda de
+     lugar e volta), e um condomínio novo já chega com o que a ficha do dono disse (nome, bairro, rua). */
+  window.condominioNovoCom = function (inicio) {
+    preencher(null);
+    var d = inicio || {};
+    ["nome", "bairro", "logradouro", "numero", "tipo"].forEach(function (k) {
+      var el = form.querySelector('[data-cc="' + k + '"]');
+      if (el && d[k]) el.value = d[k];
+    });
+    carregar();
+    return painel;
+  };
   window.abrirCadastroDeCondominio = function (id) {
     if (aba.getAttribute("aria-selected") !== "true") aba.click();
     if (id != null) abrir(id);

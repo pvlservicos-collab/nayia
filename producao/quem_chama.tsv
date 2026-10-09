@@ -41,6 +41,7 @@ captacao_so_proprietario
 captacao_status_da_mensagem	
 captacao_teto_hoje	captacao_disparo_liberado, captacao_relatorio_da_vez, crm_captacao_placar, crm_captacao_relatorio
 captacao_vigiar	
+condominio_nome_nucleo	site_ficha_preparada
 core_saida_validar	
 crm_anuncio_decidir	
 crm_anuncio_familia	crm_anuncio_decidir, crm_anuncio_mensagem, crm_imovel_candidatos
@@ -571,7 +572,7 @@ nay_responder_conversando
 nay_responder_pendencia	nay_comando
 nay_respostas_a_entregar	
 nay_saidas_a_avisar	
-nay_sem_acento	crm_anuncio_decidir, crm_anuncio_familia, crm_anuncio_mesma_unidade, crm_anuncio_nome_palavras, crm_condominio_pelo_texto, crm_imovel_candidatos, nai_cadastro_importar, nai_condominio_da_pergunta, nai_imovel_da_conversa, nay_tratamento_por_nome, site_ficha_preparada, site_imoveis_para_enviar, site_imovel_publico
+nay_sem_acento	condominio_nome_nucleo, crm_anuncio_decidir, crm_anuncio_familia, crm_anuncio_mesma_unidade, crm_anuncio_nome_palavras, crm_condominio_pelo_texto, crm_imovel_candidatos, nai_cadastro_importar, nai_condominio_da_pergunta, nai_imovel_da_conversa, nay_tratamento_por_nome, site_ficha_preparada, site_imoveis_para_enviar, site_imovel_publico
 nay_sincronizar_nome	
 nay_tem_numero_de_unidade	nay_escalar, nay_responder_pendencia
 nay_tirar_valores	nay_codigos_citados

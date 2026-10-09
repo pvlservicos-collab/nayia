@@ -264,6 +264,7 @@
               '<span id="cr-pos"></span><button type="button" data-ir="1" aria-label="Próximo">▶</button></div>' +
             '<span class="cr-titulo">Cadastro rápido</span>' +
             '<div class="cr-acoes">' +
+              '<button class="cr-acao" type="button" id="cr-condo">+ Condomínio</button>' +
               '<button class="cr-acao" type="button" id="cr-outro">É atualização de outro imóvel?</button>' +
               '<button class="cr-acao" type="button" id="cr-importar">Importar tudo</button>' +
               '<button class="cr-acao" type="button" id="cr-pular">Pular</button>' +
@@ -284,6 +285,7 @@
         if (id === "cr-aprovar") return aprovar();
         if (id === "cr-importar") return importar();
         if (id === "cr-outro") return abrirAtualizacao();
+        if (id === "cr-condo") return abrirCondominio();
         if (id === "cr-atu-voltar") return fecharAtualizacao();
         if (id === "cr-atu-aplicar") return aplicarAtualizacao();
         var esc_ = e.target.closest("[data-alvo]");
@@ -301,6 +303,7 @@
 
   function fechar() {
     if (!veu) return;
+    devolverCondominio();
     veu.hidden = true;
     document.body.style.overflow = "";
     $("cr-corpo-popup").innerHTML = "";
@@ -434,6 +437,11 @@
       "<dl>" +
         "<dt>De onde veio</dt><dd>" + origem + "</dd>" +
         "<dt>Por que está aqui</dt><dd>" + esc(it.motivos.join(" · ") || "—") + "</dd>" +
+        (prep && prep.campos && prep.campos.condominio && !prep.condominio
+          ? '<dt>Condomínio</dt><dd><span class="crc-aviso">“' + esc(prep.campos.condominio) + "” não bate com nenhum condomínio cadastrado.</span> " +
+            "Se for um nome parecido, procure no campo Condomínio do imóvel; se não existe, use <b>+ Condomínio</b> na faixa de cima " +
+            "(abre com o nome e o bairro, e entra escolhido no imóvel).</dd>"
+          : "") +
         (prep && (prep.campos || prep.observacao) ? "<dt>Análise da IA</dt><dd>" +
           (prep.pronto === false ? '<span class="crc-aviso">Não parece pronto para anunciar.</span> ' : prep.pronto ? '<span class="crc-ok">Pronto para anunciar.</span> ' : "") +
           esc(prep.observacao || "") +
@@ -599,20 +607,7 @@
       });
       // o condomínio: digita e escolhe na lista sozinho quando o nome bate
       var c = d.getElementById("ed-condominio");
-      if (c && v._condominio && !c.value) {
-        c.value = v._condominio;
-        c.dispatchEvent(new Event("input", { bubbles: true }));
-        var alvo = semAcento(v._condominio).trim(), n = 0;
-        (function escolher() {
-          var itens = d.querySelectorAll(".sel-condo__item");
-          var certo = Array.prototype.filter.call(itens, function (x) {
-            var nome = semAcento((x.firstChild && x.firstChild.textContent) || x.textContent).trim();
-            return nome === alvo || nome.indexOf(alvo) === 0;
-          })[0];
-          if (certo) { certo.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true })); return; }
-          if (++n < 16) setTimeout(escolher, 250);
-        })();
-      }
+      if (c && v._condominio && !c.value) escolherCondominioNoEditor(d, v._condominio);
       recado(it._prep && it._prep.campos
         ? "A IA já pôs o que o dono contou nos campos" + (it._prep.fotos && it._prep.fotos.length ? " e as " + it._prep.fotos.length + " fotos entram ao cadastrar" : "") + ". Confira e clique em Cadastrar e aprovar."
         : "Campos preenchidos com o que o dono contou. Confira e clique em Cadastrar e aprovar.", "ok");
@@ -708,6 +703,74 @@
       });
   }
 
+  /* ---- + CONDOMÍNIO: o formulário da aba "Adicionar condomínio", emprestado ----------------
+     (Pedro, 09/10: "coloca para eu poder cadastrar condomínio por aí também"). O DOM do painel muda de lugar e volta:
+     é o mesmo formulário, com a mesma regra (nome sem repetir, endereço fixo). Ao gravar, o condomínio entra
+     escolhido no cadastro do imóvel aberto, e o endereço vem dele. */
+  var condoEmprestado = null;
+  function devolverCondominio() {
+    if (!condoEmprestado) return;
+    var e = condoEmprestado; condoEmprestado = null;
+    e.painel.hidden = e.estavaEscondido;
+    if (e.proximo && e.proximo.parentNode === e.pai) e.pai.insertBefore(e.painel, e.proximo); else e.pai.appendChild(e.painel);
+  }
+  function inicioDoCondominio(it) {
+    var c = it._prep && it._prep.campos;
+    if (c) {
+      return { nome: c.condominio, bairro: c.bairro, logradouro: c.logradouro, numero: c.numero,
+               tipo: /casa|lote|sobrado|terreno|ch[aá]cara/i.test(c.tipo || "") ? "casas_lotes" : "apartamentos" };
+    }
+    return { nome: it.condominio && !/^im[oó]vel novo$/i.test(it.condominio) ? it.condominio : "", bairro: it.bairro };
+  }
+  function abrirCondominio() {
+    var cc = document.querySelector('[data-painel="condominio-novo"]');
+    if (!cc || !window.condominioNovoCom) { recado("O cadastro de condomínio não carregou nesta página: recarregue.", "erro"); return; }
+    painelAtu("<h3>Cadastrar condomínio</h3>" +
+      '<p class="cr-nota">O condomínio é cadastrado uma vez, com o endereço fixo. Ao gravar, ele já entra escolhido no imóvel que está aberto. ' +
+      "Se ele já existe, a busca de cima abre o que existe.</p>" +
+      '<div id="cr-cc-lugar"></div>' +
+      '<p style="margin-top:12px"><button class="cr-acao" type="button" id="cr-atu-voltar">Voltar ao cadastro do imóvel</button></p>');
+    window.condominioNovoCom(inicioDoCondominio(fila[pos]));
+    condoEmprestado = { painel: cc, pai: cc.parentNode, proximo: cc.nextSibling, estavaEscondido: cc.hidden };
+    $("cr-cc-lugar").appendChild(cc);
+    cc.hidden = false;
+  }
+  /* escolhe o condomínio no campo do cadastro aberto, pelo nome (a lista do campo é a do servidor) */
+  function escolherCondominioNoEditor(d, nome, depois) {
+    var c = d && d.getElementById("ed-condominio");
+    if (!c || !nome) return;
+    c.value = nome;
+    c.dispatchEvent(new Event("input", { bubbles: true }));
+    var alvo = semAcento(nome).trim(), n = 0;
+    (function escolher() {
+      var itens = d.querySelectorAll(".sel-condo__item");
+      var certo = Array.prototype.filter.call(itens, function (x) {
+        var t = semAcento((x.firstChild && x.firstChild.textContent) || x.textContent).trim();
+        return t === alvo || t.indexOf(alvo) === 0;
+      })[0];
+      if (certo) { certo.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true })); if (depois) depois(true); return; }
+      if (++n < 16) setTimeout(escolher, 250); else if (depois) depois(false);
+    })();
+  }
+  window.addEventListener("condominio-salvo", function (e) {
+    if (!veu || veu.hidden || !condoEmprestado) return;
+    var nome = e.detail && e.detail.nome;
+    var f = $("cr-corpo-popup").querySelector("iframe");
+    var w = null, d = null;
+    try { w = f && f.contentWindow; d = f && f.contentDocument; } catch (x) { w = null; }
+    if (w && w.recarregarCondominios) w.recarregarCondominios();
+    var it = fila[pos];
+    if (it._prep && it._prep.campos && !it._prep.condominio) it._prep.condominio = { id: e.detail.id, nome: nome };
+    setTimeout(function () {
+      fecharAtualizacao();
+      escolherCondominioNoEditor(d, nome, function (ok) {
+        recado(ok ? "Condomínio “" + nome + "” " + (e.detail.criado ? "cadastrado" : "salvo") + " e escolhido no imóvel; o endereço vem dele."
+                  : "Condomínio “" + nome + "” gravado. Escolha ele no campo Condomínio do imóvel.", "ok");
+      });
+      atualizarCard();
+    }, 600);
+  });
+
   /* ---- É ATUALIZAÇÃO DE OUTRO IMÓVEL ------------------------------------------ */
   var CAMPOS = [
     ["tipo", "Tipo"], ["bairro", "Bairro"], ["logradouro", "Rua / avenida"], ["numero", "Número"], ["complemento", "Complemento"],
@@ -720,6 +783,7 @@
   var atu = { origem: null, alvo: null, espera: null };
 
   function painelAtu(html) {
+    devolverCondominio();
     var corpo = $("cr-corpo-popup");
     var p = corpo.querySelector(".cr-atu");
     if (!p) { p = document.createElement("div"); p.className = "cr-atu"; corpo.appendChild(p); }
@@ -727,6 +791,7 @@
     return p;
   }
   function fecharAtualizacao() {
+    devolverCondominio();
     var p = $("cr-corpo-popup").querySelector(".cr-atu");
     if (p) p.remove();
   }

@@ -1004,11 +1004,19 @@ def api_condominios_cadastro():
     conn = conectar()
     try:
         linhas = todas_linhas(conn, """
+            -- pelo id OU pelo nome (09/10): 3.765 imóveis estão ligados só pelo nome, e a tela dizia "nenhum
+            -- imóvel ligado" para quase todo condomínio. Contado UMA vez, não por condomínio (por linha passava de 5 s).
+            WITH n AS (SELECT condo_id, CASE WHEN condo_id IS NULL THEN lower(nay_sem_acento(btrim(condominio_nome))) END AS nn
+                         FROM imoveis),
+                 por_id AS (SELECT condo_id, count(*) AS q FROM n WHERE condo_id IS NOT NULL GROUP BY 1),
+                 por_nome AS (SELECT nn, count(*) AS q FROM n WHERE nn IS NOT NULL GROUP BY 1)
             SELECT c.id, c.nome, c.bairro, f.tipo, f.logradouro, f.numero, f.cidade, f.estado, f.cep, f.endereco,
                    f.torres, f.andares, f.aptos_por_andar, f.elevador, f.unidades, f.construtora, f.revestimento,
                    f.ano_lancamento, f.lazer, f.fonte, f.atualizado_em,
-                   (SELECT count(*) FROM imoveis i WHERE i.condo_id = c.id) AS imoveis
+                   coalesce(pi.q, 0) + coalesce(pn.q, 0) AS imoveis
               FROM condominios c LEFT JOIN condominio_ficha f ON f.condominio_id = c.id
+              LEFT JOIN por_id pi ON pi.condo_id = c.id
+              LEFT JOIN por_nome pn ON pn.nn = lower(nay_sem_acento(btrim(c.nome)))
              ORDER BY lower(nay_sem_acento(c.nome)), c.id""")
         return jsonify({"itens": [{
             "id": l["id"], "nome": l["nome"], "bairro": l["bairro"], "tipo": l["tipo"] or "apartamentos",
