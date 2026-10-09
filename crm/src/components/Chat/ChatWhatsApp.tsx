@@ -19,6 +19,7 @@ import BarraDaCaptacao from './BarraDaCaptacao'
 import PainelContatoCaptacao from './PainelContatoCaptacao'
 import PainelContatoParceria from './PainelContatoParceria'
 import { usePuxador } from '@/hooks/usePuxador'
+import { useCaptacaoDonos } from '@/hooks/useCaptacaoDonos'
 
 /** Última conversa aberta nesta tela, pra reabrir no próximo acesso. */
 const CHAVE_ULTIMA_CONVERSA = 'crm:ultima-conversa:whatsapp'
@@ -85,6 +86,9 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
   /* O card do contato: ao lado em tela larga (lembrando se a pessoa fechou),
      por cima da conversa em tela menor -- aí começa fechado. */
   const [painelAberto, setPainelAberto] = useState(true)
+  /* na Oficial, quem é dono em captação ganha o card da captação (Pedro, 09/10: "quero que apareça o imóvel do cara
+     igual tem nos outros cards de proprietários") */
+  const donosDaCaptacao = useCaptacaoDonos(linha === 'oficial')
   /* a lista da esquerda alarga puxando a borda (Pedro, 09/10); 30% da tela era o padrão do WhatsApp Web */
   const lista_ = usePuxador('crm:largura-lista', { min: 260, max: 640, padrao: 380, lado: 'direita' })
   useEffect(() => {
@@ -346,7 +350,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
        totalmente o card de proprietário lá do WhatsApp de captação, quero
        informações úteis lá no card". O card genérico do CRM (pedido, venda,
        agenda) não é desta linha: aqui só se fala com quem tem imóvel. */
-    if (linha === 'captacao') {
+    if (linha === 'captacao' || (linha === 'oficial' && donosDaCaptacao[displayedLead.id])) {
       return (
         <PainelContatoCaptacao
           key={displayedLead.id}

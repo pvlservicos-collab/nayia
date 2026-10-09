@@ -41,7 +41,21 @@ Depois da pergunta dos outros imoveis, e antes de encerrar, faca UMA vez esta pe
   o telefone da pessoa. Chame guardar_indicacao com esse nome e esse telefone e NAO peca o telefone de novo.
 - A ferramenta encerrar_conversa NAO encerra enquanto essa pergunta nao tiver saido: ela devolve a frase para voce dizer.
 - Quem pediu para parar de receber, e numero errado, encerram na hora, sem essa pergunta.
+
+=== A ULTIMA PERGUNTA: OS HONORARIOS ===
+{honorarios}
 """
+
+HONORARIOS_COM_VALOR = """Depois da indicacao (respondida ou nao), e antes de encerrar, faca UMA vez esta pergunta, com
+EXATAMENTE estas palavras (o valor e o do imovel dele; os 6% sao fixos, nunca mude):
+"{frase}"
+- Quando ele responder (incluso, por fora, liquido, ou o que for), chame guardar_honorarios com o que ele disse, agradeca em
+  uma linha e encerre. NAO discuta o percentual nem negocie: so anote.
+- A ferramenta encerrar_conversa NAO encerra enquanto essa pergunta nao tiver saido.
+- Quem pediu para parar de receber, e numero errado, encerram na hora, sem essa pergunta."""
+
+HONORARIOS_SEM_VALOR = ("Nesta conversa NAO existe a pergunta dos honorarios: o imovel dele nao tem valor de venda. "
+                        "Depois da indicacao, encerre normalmente.")
 
 
 class FalhaDoModelo(Exception):

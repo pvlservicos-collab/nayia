@@ -1,4 +1,4 @@
-# captacao_retomada_oficial  (tabela, ~0 linhas)
+# captacao_retomada_oficial  (tabela, ~91 linhas)
 323: leads que já receberam a abertura pela Z-API e nunca responderam; o disparo do Python (modelo oficial) pode chamá-los UMA vez. Apagar a linha tira da fila.
 
 ## colunas

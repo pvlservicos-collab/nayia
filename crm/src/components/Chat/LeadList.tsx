@@ -157,7 +157,8 @@ export default function LeadList({
 
   const { marcas, nay } = useParceriaMarcas(ehParceria)
   // o dono e o imóvel de cada conversa da captação (29/09)
-  const donos = useCaptacaoDonos(linha === 'captacao')
+  // 09/10: na Oficial também, porque a captação passou a falar por lá (Pedro: "quero que apareça o imóvel do cara")
+  const donos = useCaptacaoDonos(linha === 'captacao' || linha === 'oficial')
 
   // Filtro por etiqueta — multi-seleção, combina com o filtro de cima.
   const { allTags } = useTags(organizationId)

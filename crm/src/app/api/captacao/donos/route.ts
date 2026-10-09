@@ -27,7 +27,7 @@ async function calcular(organizacao: string): Promise<Record<string, DonoNaLista
              coalesce(l.custom_attributes->>'chat_lid', '') AS lid
         FROM leads l JOIN integrations i ON i.id = l.integration_id
        WHERE l.organization_id = ${organizacao} AND l.deleted_at IS NULL
-         AND i.type = 'whatsapp_zapi_captacao' AND coalesce(l.is_group, false) = false`),
+         AND i.type IN ('whatsapp_zapi_captacao', 'whatsapp_cloud_official') AND coalesce(l.is_group, false) = false`),
   ])
   const porFim = new Map<string, DonoNaLista>()
   const porLid = new Map<string, DonoNaLista>()

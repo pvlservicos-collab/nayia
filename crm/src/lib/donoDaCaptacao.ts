@@ -12,7 +12,8 @@ export async function donoDaConversa(organizacao: string, leadId: string): Promi
            coalesce(l.custom_attributes->>'chat_lid', '') AS lid
       FROM leads l JOIN integrations i ON i.id = l.integration_id
      WHERE l.id = ${leadId}::uuid AND l.organization_id = ${organizacao} AND l.deleted_at IS NULL
-       AND i.type = 'whatsapp_zapi_captacao'`)
+       -- 09/10: a Nay de captação fala pelo número oficial; o dono aparece lá também
+       AND i.type IN ('whatsapp_zapi_captacao', 'whatsapp_cloud_official')`)
   const c = r.rows[0] as { fim8: string; lid: string } | undefined
   if (!c) return null
   const donos = await donosDaCaptacao()

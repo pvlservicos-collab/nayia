@@ -148,11 +148,13 @@ class Agente(unittest.TestCase):
     def test_o_acrescimo_leva_o_modelo_e_a_indicacao(self):
         frase = ("Sra. Maria, estamos com uma demanda alta de clientes querendo imóveis para locação nesse final de ano, "
                  "a Sra. teria alguém para indicar que queira alugar ou vender?")
-        a = modelo.ACRESCIMO.replace("{modelo}", "Olá, Sr. Pedro!").replace("{indicacao}", frase)
+        a = (modelo.ACRESCIMO.replace("{modelo}", "Olá, Sr. Pedro!").replace("{indicacao}", frase)
+             .replace("{honorarios}", modelo.HONORARIOS_COM_VALOR.replace("{frase}", "no valor de R$ 350.000 ... 6%?")))
         self.assertIn('"Olá, Sr. Pedro!"', a)
         self.assertIn("TOCOU NO BOTAO", a)
         self.assertIn("guardar_indicacao", a)
         self.assertIn('"' + frase + '"', a)
+        self.assertIn("guardar_honorarios", a)
         self.assertNotIn("{", a)
 
     def test_a_frase_da_indicacao_sai_inteira_numa_mensagem(self):

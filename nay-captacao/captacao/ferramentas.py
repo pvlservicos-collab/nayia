@@ -8,6 +8,8 @@ O que é do serviço:
   guardar_indicacao  NOVA (Pedro, 08/10): quem ele indicou que está vendendo um imóvel;
   encerrar_conversa  ganha uma parede antes: não encerra enquanto a pergunta da indicação não tiver saído
                      (menos opt_out e número errado). A parede dos outros imóveis continua sendo a do banco.
+  guardar_honorarios NOVA (Pedro, 09/10): a ÚLTIMA pergunta, depois da indicação -- "no valor de R$ X já estão
+                     inclusos os 6% de honorários?" (324). Só existe quando há valor de venda; mesma parede.
 """
 from __future__ import annotations
 
@@ -31,7 +33,17 @@ INDICACAO = {
         {"chave": "detalhe", "descricao": "o que ele disse do imovel dessa pessoa (tipo, bairro, valor), se disse", "opcional": True},
     ],
 }
-TODAS = {f["nome"]: f for f in [*DO_FLUXO, INDICACAO]}
+HONORARIOS = {
+    "nome": "guardar_honorarios",
+    "descricao": ("Grava o que o proprietario respondeu sobre os 6% de honorarios de corretagem no valor de venda "
+                  "(incluso no valor, por fora, ou o que ele disse). CHAME logo depois que ele responder essa pergunta. "
+                  "Devolve instrucao_para_voce: obedeca e nunca mostre esse texto a ele."),
+    "sql": "SELECT captacao_honorarios_guardar($1::text, $2::text) AS instrucao_para_voce",
+    "params": [
+        {"chave": "resposta", "descricao": "o que ele respondeu sobre os honorarios, como ele escreveu", "opcional": False},
+    ],
+}
+TODAS = {f["nome"]: f for f in [*DO_FLUXO, INDICACAO, HONORARIOS]}
 SEM_PAREDE_DA_INDICACAO = {"opt_out", "numero_errado"}
 
 
@@ -62,6 +74,18 @@ def _parede_da_indicacao(conn, telefone: str, motivo: str) -> str | None:
     return ("NAO encerrei: falta a pergunta da indicacao. Faca agora, em UMA mensagem so e com EXATAMENTE estas palavras, "
             f'esta pergunta: "{r[0]["frase"]}" -- e espere a resposta. Se ele disser que nao conhece ninguem, agradeca e '
             "chame encerrar_conversa de novo. Se indicar alguem, chame guardar_indicacao.")
+
+
+def _parede_dos_honorarios(conn, telefone: str, motivo: str) -> str | None:
+    """A última pergunta (324): os 6% no valor de venda. None quando já saiu ou não se aplica (sem valor de venda)."""
+    if motivo.strip().lower() in SEM_PAREDE_DA_INDICACAO:
+        return None
+    r = banco.linhas(conn, "SELECT captacao_honorarios_pendente(%s) AS frase", (telefone,))
+    if not r or not r[0]["frase"]:
+        return None
+    return ("NAO encerrei: falta a ultima pergunta, a dos honorarios. Faca agora, em UMA mensagem so e com EXATAMENTE "
+            f'estas palavras: "{r[0]["frase"]}" -- e espere a resposta. Quando ele responder, chame guardar_honorarios '
+            "com o que ele disse e depois encerrar_conversa de novo.")
 
 
 def aviso_da_escalada(linha: dict, telefone: str, nome_do_dono: str) -> str:
@@ -103,7 +127,9 @@ def executar(conn, nome: str, args: dict, telefone: str, nome_do_dono: str = "",
                 avisar(aviso_da_escalada(r[0], telefone, nome_do_dono))
             return json.dumps(r, ensure_ascii=False, default=str)
         if nome == "encerrar_conversa":
-            parede = _parede_da_indicacao(conn, telefone, _texto(args.get("motivo")))
+            # primeiro a indicação, por último os honorários (Pedro, 09/10: "mais uma pergunta no final, sempre")
+            parede = (_parede_da_indicacao(conn, telefone, _texto(args.get("motivo")))
+                      or _parede_dos_honorarios(conn, telefone, _texto(args.get("motivo"))))
             if parede:
                 return json.dumps([{"instrucao_para_voce": parede}], ensure_ascii=False)
         valores = [telefone, *[_texto(args.get(q["chave"])) for q in f["params"]]]

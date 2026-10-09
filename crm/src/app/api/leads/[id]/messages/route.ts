@@ -14,6 +14,7 @@ import { isUniqueViolation } from '@/lib/db-helpers'
 import { acharLeadDaLinha } from '@/lib/leadDaLinha'
 import { etapaEmAtendimentoDoMesmoPipeline } from '@/lib/etapaDaLinha'
 import { recusaEscreverNaCaptacao } from '@/lib/captacaoSoRespondeServidor'
+import { pararNayDaCaptacaoPorGente } from '@/lib/pararNayDaCaptacao'
 
 const CHANNEL_LABELS: Record<string, string> = {
   whatsapp_zapi: 'Z-API',
@@ -349,6 +350,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         metadata,
       })
       .returning({ id: leadActivities.id, content: leadActivities.content, createdAt: leadActivities.createdAt })
+
+    /* GENTE ESCREVEU NA CAPTAÇÃO, A NAY PARA (Pedro, 09/10: "se eu mando msg no chat da API
+       oficial a Nay desliga? ... põe para desligar"). Mensagem de gente, pelo CRM, no número
+       oficial ou no da captação, para quem está na campanha: a Nay de captação para de responder
+       essa pessoa (etapa Com o Tel), até "Nay voltar a atender". Depois de responder, sem atrasar. */
+    if (direction === 'outbound' && body.type === 'whatsapp' && body.source === 'human' && metadata.send_status === 'sent'
+        && (metadata.channel === 'whatsapp_cloud_official' || metadata.channel === 'whatsapp_zapi_captacao')) {
+      const telefoneDaCaptacao = lead?.phone || decodedPhone
+      const membro = auth.memberId
+      if (telefoneDaCaptacao) after(() => pararNayDaCaptacaoPorGente(telefoneDaCaptacao, membro || null))
+    }
 
     // A TRANSCRIÇÃO DO ÁUDIO que saiu pela Parceria (29/09): depois de responder
     if (body.media_type === 'audio' && metadata.send_status === 'sent' && linhaTemTranscricao(metadata.channel)) {

@@ -37,8 +37,12 @@ def _prompt(conn, t: turno.Turno) -> str:
            AND m.status <> 'Falhou' ORDER BY m.id DESC LIMIT 1""", (t.telefone,))
     abertura = (r[0]["texto"] if r else "") or "(o primeiro contato desta conversa nao foi por modelo)"
     # a pergunta da indicação é montada pelo banco, com o nome dele e o tipo do imóvel (320)
-    frase = banco.linhas(conn, "SELECT captacao_indicacao_frase(%s) AS f", (t.telefone,))[0]["f"]
-    return t.prompt + modelo.ACRESCIMO.replace("{modelo}", abertura).replace("{indicacao}", frase)
+    r = banco.linhas(conn, "SELECT captacao_indicacao_frase(%s) AS f, captacao_honorarios_frase(%s) AS h",
+                     (t.telefone, t.telefone))[0]
+    # a última pergunta (324): só quando há valor de venda para pôr na frase
+    honorarios = modelo.HONORARIOS_COM_VALOR.replace("{frase}", r["h"]) if r["h"] else modelo.HONORARIOS_SEM_VALOR
+    return (t.prompt + modelo.ACRESCIMO.replace("{modelo}", abertura).replace("{indicacao}", r["f"])
+            .replace("{honorarios}", honorarios))
 
 
 def _historico(conn, t: turno.Turno) -> list[dict]:

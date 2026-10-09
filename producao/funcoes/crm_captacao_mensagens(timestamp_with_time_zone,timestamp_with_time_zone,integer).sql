@@ -12,6 +12,8 @@ AS $function$
    WHERE m.criada_em >= p_desde AND m.criada_em < coalesce(p_ate, now())
      AND coalesce(m.telefone, '') !~ '-'                                   -- grupo não
      AND length(regexp_replace(coalesce(m.telefone, ''), '\D', '', 'g')) BETWEEN 10 AND 16
+     -- 319: o número oficial já está na aba Oficial do CRM; aqui ele viraria conversa repetida na aba da Z-API
+     AND NOT (coalesce(l.canal, 'zapi') = 'oficial' OR coalesce(m.message_id, '') LIKE 'wamid.%')
    ORDER BY m.criada_em, m.id
    LIMIT greatest(1, least(coalesce(p_limite, 2000), 5000))
 $function$;
