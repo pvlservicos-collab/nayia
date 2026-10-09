@@ -42,6 +42,7 @@ prompt: comece pelo `nay onde`.
 | status do imóvel (disponível/alugado) | `nai_status_do_imovel` | 214 |
 | ele MARCOU o card/lista do grupo (Nay nova) | nay-core: `contexto/resolver_imovel.resolver`, `classificador/atalhos.decidir`, `cerebro/repo.codigos_da_citacao`; listas dos grupos em `envios_lista_grupo` (publicador `_registrar_lista`) | 281, core 013 |
 | imóvel sai do mercado (Vendido, Alugado...) por qualquer caminho, e o aviso no grupo Easy | gatilho `imoveis_aviso_de_saida` → `nay_enfileirar_aviso_de_saida` (SECURITY DEFINER; motivo pela situação) → cron `avisar_saidas.sh`; pelo comando: `nai_marcar_imovel` | 289 |
+| o aviso de saída SÓ vai ao grupo Easy depois do SIM do Tel: a Nay pergunta no PV dele e espera (24 h; das 22h às 7h não pergunta) | `nay_saidas_perguntar` (dentro do `nai_agenda_tick`) → tabela `aviso_de_saida_pergunta`; a resposta é comando: `nay_saida_resposta_ler` / `_valida` (em `nai_abrir_turno`) e `nay_saida_responder` (em `nai_comando_tel`); `nay_saidas_a_avisar` só devolve o que tem SIM. Chaves `aviso_saida_pergunta` (nao = avisa sozinha, como antes), `aviso_saida_validade_h`, `aviso_saida_hora_ini` / `_fim`. No publicador, `_liberar_vaga` não posta mais: `_deixar_o_aviso_na_fila` | 334 |
 | de quem é cada mensagem que saiu pelo número (a Nay, envio automático ou gente digitando), pelo id | `crm_quem_mandou(text[])` (só leitura; o CRM usa no histórico de atendimento do card) | 290 |
 | captação: quem já recebeu mensagem nossa nunca volta para a fila do disparo (a abertura não sai duas vezes) | gatilho `captacao_ja_chamado_nao_volta` em `captacao_leads`; a fila é `status IN ('novo','erro')`, lida pelo nó "Pegar lead novo" do n8n da VPS2 | 291, 291a |
 | imóvel já enviado à pessoa não vai de novo sem ela confirmar (sem prazo, card e fotos); e a lista para a tela | nay-core `nay/acoes/ja_enviei.py` + `templates/ja_mandei.md` + `cerebro/repo.py::ja_enviado` (lê `core_saida` e `imovel_enviado_no_dia`); CRM: `crm_imoveis_enviados(text)` → `ImoveisJaEnviados.tsx` no card | 292 (core 014) |
@@ -79,6 +80,7 @@ prompt: comece pelo `nay onde`.
 | visita agendada à mão no CRM (nasce da equipe, a Nay não manda nada) | `crm_visita_agendar`, `crm_visitas_extra`; colunas `nai_visita.duracao_min` / `criada_no_crm_por` | 250 |
 | a Agenda do CRM só mostra visita posta por GENTE: a que vem da Nay fica fora (continua valendo para a etapa Visitas e para calar a Nay) e vira a visita da equipe quando alguém agenda à mão o mesmo corretor e imóvel | `crm_visitas`, `crm_visita_agendar`; corte em `nai_config.agenda_sem_visita_da_nay_desde` (apagar a chave volta a mostrar) | 312 |
 | agendar no CRM com visita velha ainda aberta do mesmo corretor no mesmo imóvel (índice `nai_visita_uma_aberta`): a que já passou é encerrada, a futura muda de horário | `crm_visita_agendar` | 330 |
+| visita com a equipe (`com_rayssa`) cujo dia já passou fecha sozinha e para de contar na aba Visitas agendadas | `nai_visitas_fechar_dia_passado` (dentro do `nai_agenda_tick`); evento `fechada_pelo_dia` | 333 |
 | a barrinha do disparo pela API oficial: lista da vez, quantos saíram, quanto falta, quando volta | `crm_captacao_disparo_oficial` (lê `captacao_py_fila_do_disparo`, `captacao_retomada_oficial`, `captacao_motor`) | 331 |
 | Cadastro rápido: "O que a IA supõe que é" (o palpite de cada item da fila) | tabela `cadastro_rapido_palpite`; quem escreve é `nay-captacao/captacao/palpite.py`, no cron do preparar | 332 |
 | robô de fora (Grok) avisa o Tel, com limite por hora/dia | `crm_avisar_tel`, tabela `aviso_externo`; chaves `aviso_externo_por_hora` / `_por_dia` | 251 |
@@ -199,6 +201,8 @@ prompt: comece pelo `nay onde`.
 - Abrir conversa pela lupa de cima: `src/components/Chat/BuscaDaLista.tsx` pergunta Parceria ou Captação (`/api/leads/abrir`). Quem só responde na captação (a Rayssa): `src/lib/captacaoSoResponde.ts` (lista e aviso) e
   `captacaoSoRespondeServidor.ts` (a parede, chamada em `abrir`, `messages` e `enviar-imovel`).
 
+- Aba Oficial: quem ESCREVEU fica em cima (`ultima_recebida`, de `/api/leads`, antes de `last_activity_at`: o modelo disparado
+  não sobe a conversa), filtro só "Não lido" e o nome do dono no cabeçalho (`nomeDoDono` em `LeadListItem.tsx`).
 - Aba Oficial: os filtros são os da Captação (`comAbasDaCaptacao` em `LeadList.tsx`) e, em cima, a barrinha do disparo
   (`BarraDoDisparoOficial.tsx` → `/api/captacao/disparo-oficial` → `crm_captacao_disparo_oficial`, 331).
 - A conversa de um telefone para quem está FORA do CRM (o Cadastro rápido do site): `/api/conversas/por-telefone`,

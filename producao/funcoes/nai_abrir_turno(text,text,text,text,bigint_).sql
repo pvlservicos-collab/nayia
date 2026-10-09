@@ -184,6 +184,8 @@ BEGIN
        OR (nai_e_comando_envio(v_texto) AND nai_e_da_equipe_contato(v_contato))
        -- 184: o checklist da equipe
        OR (nai_e_comando_checklist(v_texto) AND nai_e_da_equipe_contato(v_contato))
+       -- 334: o SIM/NAO do Tel à pergunta "aviso no grupo que o imóvel saiu?"
+       OR nay_saida_resposta_valida(v_contato, v_texto, p_citado_id)
        -- 141: a aprovacao da visita
        OR nai_resposta_aprovacao_valida(v_contato, v_texto)
        -- 142: o lembrete da equipe
@@ -396,6 +398,8 @@ BEGIN
                         AND NOT nai_e_voz_do_tel(v_chave))
                     -- 184: o checklist, do Tel e da equipe
                     OR nai_e_comando_checklist(v_texto)
+                    -- 334: SIM/NAO do Tel à pergunta do aviso de saída
+                    OR nay_saida_resposta_valida(v_contato, v_texto, p_citado_id)
                     -- 141: SIM/NAO da aprovacao da visita
                     OR nai_resposta_aprovacao_valida(v_contato, v_texto)
                     -- 142: o lembrete da equipe

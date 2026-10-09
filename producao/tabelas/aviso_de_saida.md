@@ -21,4 +21,4 @@ nay_leitura: SELECT
 nay_devolver_aviso_de_saida, nay_enfileirar_aviso_de_saida, nay_reservar_aviso_de_saida
 
 ## funções que citam
-nay_devolver_aviso_de_saida, nay_enfileirar_aviso_de_saida, nay_reservar_aviso_de_saida, nay_saidas_a_avisar
+nay_devolver_aviso_de_saida, nay_enfileirar_aviso_de_saida, nay_reservar_aviso_de_saida, nay_saida_responder, nay_saida_resposta_ler, nay_saidas_a_avisar, nay_saidas_perguntar

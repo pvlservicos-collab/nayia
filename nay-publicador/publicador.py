@@ -1971,14 +1971,46 @@ def _liberar_vaga(codigo, conn, motivo=None):
     if extra:
         linhas.append("Também " + ", ".join(extra) + ".")
 
-    # O aviso só sai quando o imóvel ACABOU de sair da oferta -- é o que
-    # "marquei como indisponível" significa, e o UPDATE que o gera só casa uma
-    # vez (`AND coalesce(disponivel, true)`). Sem essa amarra, repetir o
-    # comando postaria o mesmo aviso de novo no grupo, e WhatsApp não tem
-    # desfazer.
+    # O AVISO NÃO SAI MAIS DAQUI (Pedro, 09/10/2026: "tira essas notificações
+    # que a Nay fica mandando no grupo sobre imóveis indisponíveis ... no PV
+    # dele a Nay pergunta e só dispara no grupo após o sim dele"). Até aqui
+    # este comando postava no Easy na hora, por fora da fila.
+    #
+    # A amarra continua a mesma: só quando o imóvel ACABOU de sair da oferta
+    # ("marquei como indisponível" -- o UPDATE que o gera só casa uma vez).
     if motivo and "marquei como indisponível" in extra:
-        linhas.append(_avisar_easy_que_saiu(codigo, conn, motivo))
+        linhas.append(_deixar_o_aviso_na_fila(codigo, conn, motivo))
     return "\n".join(linhas)
+
+
+def _deixar_o_aviso_na_fila(codigo, conn, motivo):
+    """O aviso no Easy passa a esperar o SIM do Tel (migração 334).
+
+    O gatilho do banco já pôs a saída em `aviso_de_saida` no UPDATE de
+    `disponivel`. Aqui só se grava a PALAVRA certa: este comando não muda a
+    situação do imóvel, então o gatilho deixa o motivo vazio e o aviso diria
+    "alugado" para quem escreveu "vendeu".
+
+    Quem pergunta ao Tel é a agenda da NAI (`nay_saidas_perguntar`); quem
+    posta no grupo, depois do sim, é o `avisar_saidas.py`.
+
+    NUNCA DERRUBA O COMANDO, pelo mesmo motivo do `_avisar_easy_que_saiu`: a
+    mudança no banco já aconteceu quando isto roda.
+    """
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE aviso_de_saida SET motivo = %s "
+                " WHERE codigo = %s AND avisado_em IS NULL",
+                (motivo, str(codigo)))
+        conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+    return ("O aviso no grupo Easy fica esperando o seu SIM: "
+            "te pergunto em instantes.")
 
 
 def _remover_da_grade(codigo, conn):

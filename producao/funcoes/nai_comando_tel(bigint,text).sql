@@ -26,6 +26,17 @@ BEGIN
     RETURN QUERY SELECT v_msg; RETURN;
   END IF;
 
+  -- 334: SIM / NAO do Tel à pergunta "aviso no grupo Easy que o imóvel saiu?". Só devolve
+  -- texto quando a mensagem é mesmo resposta de uma pergunta de aviso em aberto (e de quem foi perguntado).
+  v_msg := nay_saida_responder(p_turno, t.contato_id, s,
+             (SELECT x.citado_id FROM mensagens x
+               WHERE x.id = ANY (coalesce(t.msg_ids, '{}')) AND nullif(btrim(x.citado_id), '') IS NOT NULL
+               ORDER BY x.id DESC LIMIT 1));
+  IF v_msg IS NOT NULL THEN
+    PERFORM nai_enfileirar_texto(p_turno, NULL, t.contato_id, 'turno', v_msg, 'comando_aviso_saida', 1);
+    RETURN QUERY SELECT v_msg; RETURN;
+  END IF;
+
   -- 141: SIM <n> / NAO <n> / TELEFONE <n> <numero> -- a aprovacao da visita.
   IF nai_resposta_aprovacao_valida(t.contato_id, s) THEN
     v_msg := nai_aprovar_visita(p_turno, s);

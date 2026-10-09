@@ -944,6 +944,7 @@ class CursorPorSQL:
 
     def execute(self, sql, params=None):
         self.c.sql.append(sql)
+        self.c.chamadas.append((sql, params))
         self.r, self.linhas, self.rowcount = None, [], 0
         if "UPDATE imoveis SET disponivel" in sql:
             self.r = {"codigo": "5712"} if self.c.saiu_agora else None
@@ -964,7 +965,15 @@ class ConexaoPorSQL:
         self.saiu_agora = saiu_agora
         self.imovel = imovel
         self.sql = []
+        self.chamadas = []
         self.commits = 0
+
+    def motivo_na_fila(self):
+        """A palavra que o comando gravou em `aviso_de_saida` (None = não gravou)."""
+        for sql, params in self.chamadas:
+            if "UPDATE aviso_de_saida SET motivo" in sql:
+                return params
+        return None
 
     def cursor(self):
         return CursorPorSQL(self)
@@ -996,9 +1005,10 @@ SITE_FORA = patch("publicador.buscar_imovel", return_value={})
 
 
 def teste_alugado_avisa_no_easy_e_so_uma_vez():
-    print("--- `5712 Alugado`: tira da grade e avisa no grupo Easy ---")
-    # O Tel pediu em 09/09: "vai automaticamente postar lá no grupo e avisar
-    # os corretores que anunciam que não está mais disponível".
+    print("--- `5712 Alugado`: tira da grade e NÃO posta no Easy -- espera o SIM do Tel ---")
+    # O Tel pediu em 09/09 o aviso automático no grupo. Em 09/10 o Pedro mudou:
+    # "tira essas notificações ... no PV dele a Nay pergunta e só dispara no
+    # grupo após o sim dele" (migração 334). O comando só deixa a saída na fila.
     enviados = []
 
     def _falso(destino, texto):
@@ -1011,23 +1021,35 @@ def teste_alugado_avisa_no_easy_e_so_uma_vez():
         resposta = publicador.processar_comando("5712 Alugado", conexao=conn)
     print(resposta)
 
+    assert enviados == [], f"o comando não posta mais em grupo nenhum: {enviados}"
+    assert "esperando o seu SIM" in resposta and "avisei no Easy" not in resposta
+    assert conn.motivo_na_fila() == ("alugado", "5712"), conn.motivo_na_fila()
+
+    # O AVISO EM SI NÃO MUDOU: é o que o `avisar_saidas.py` chama depois do SIM.
+    # Só o grupo Easy recebe, com o card resumido que o Tel pediu em 15/09,
+    # palavra por palavra.
+    conn = ConexaoPorSQL(saiu_agora=True, imovel=SMART_TOWER)
+    with SITE_FORA, patch("publicador.enviar_texto", side_effect=_falso), \
+         patch("publicador.carregar_grupos_db",
+               return_value=[GRUPO_FAKE, GRUPO_TODAS_FOTOS_FAKE]):
+        resposta = publicador._avisar_easy_que_saiu("5712", conn, "alugado")
     assert len(enviados) == 1, f"só o grupo Easy recebe: {enviados}"
     destino, texto = enviados[0]
     assert destino == GRUPO_TODAS_FOTOS_FAKE["id_grupo"]
-    # O card resumido que o Tel pediu em 15/09, palavra por palavra.
     assert texto == AVISO_SMART_TOWER, texto
     assert "avisei no Easy" in resposta
 
-    # REPETIR O COMANDO NÃO POSTA DE NOVO. O UPDATE de `disponivel` só casa
-    # uma vez (`AND coalesce(disponivel, true)`), e é ele que libera o aviso --
-    # WhatsApp não tem desfazer.
+    # REPETIR O COMANDO NÃO MEXE NA FILA DE NOVO. O UPDATE de `disponivel` só
+    # casa uma vez (`AND coalesce(disponivel, true)`), e é ele que abre a
+    # pergunta -- senão o Tel seria perguntado duas vezes do mesmo imóvel.
     enviados.clear()
     conn = ConexaoPorSQL(saiu_agora=False, imovel=SMART_TOWER)
     with SITE_FORA, patch("publicador.enviar_texto", side_effect=_falso), \
          patch("publicador.carregar_grupos_db",
                return_value=[GRUPO_FAKE, GRUPO_TODAS_FOTOS_FAKE]):
-        publicador.processar_comando("5712 Alugado", conexao=conn)
-    assert enviados == [], f"repetir o comando não pode postar de novo: {enviados}"
+        resposta = publicador.processar_comando("5712 Alugado", conexao=conn)
+    assert enviados == [], f"repetir o comando não posta: {enviados}"
+    assert conn.motivo_na_fila() is None and "SIM" not in resposta, resposta
     print("OK\n")
 
 
@@ -1047,6 +1069,9 @@ def teste_vendido_diz_vendido_e_tira_nao_avisa():
     with SITE_FORA, patch("publicador.enviar_texto", side_effect=_falso), \
          patch("publicador.carregar_grupos_db", return_value=[GRUPO_TODAS_FOTOS_FAKE]):
         publicador.processar_comando("5712 Vendido", conexao=conn)
+        assert enviados == [], "o comando não posta: a palavra vai para a fila"
+        assert conn.motivo_na_fila() == ("vendido", "5712"), conn.motivo_na_fila()
+        publicador._avisar_easy_que_saiu("5712", conn, "vendido")
     assert enviados[0][1] == ("🛑 casa bairro flores vendido\n"
                               "venda: 650.000\n"
                               "Código: 5712"), enviados
@@ -1060,13 +1085,13 @@ def teste_vendido_diz_vendido_e_tira_nao_avisa():
         publicador.processar_comando("tira o 5712", conexao=conn)
     assert enviados == [], "tira/remove não avisa grupo nenhum"
 
-    # E o VERBO NA FRENTE continua funcionando, com o aviso junto.
+    # E o VERBO NA FRENTE continua funcionando, com a saída na fila.
     enviados.clear()
     conn = ConexaoPorSQL(saiu_agora=True, imovel=SMART_TOWER)
     with SITE_FORA, patch("publicador.enviar_texto", side_effect=_falso), \
          patch("publicador.carregar_grupos_db", return_value=[GRUPO_TODAS_FOTOS_FAKE]):
         publicador.processar_comando("Nay ALUGOU 5712", conexao=conn)
-    assert enviados[0][1] == AVISO_SMART_TOWER, enviados
+    assert enviados == [] and conn.motivo_na_fila() == ("alugado", "5712"), (enviados, conn.motivo_na_fila())
     print("OK\n")
 
 
@@ -1092,7 +1117,7 @@ def teste_aviso_de_saida_le_o_site_por_cima_do_banco():
     with patch("publicador.buscar_imovel", return_value=do_site), \
          patch("publicador.enviar_texto", side_effect=_falso), \
          patch("publicador.carregar_grupos_db", return_value=[GRUPO_TODAS_FOTOS_FAKE]):
-        publicador.processar_comando("alugado 5611", conexao=conn)
+        publicador._avisar_easy_que_saiu("5611", conn, "alugado")
     # O exemplo literal do Tel em 15/09.
     esperado = ("🛑 condomínio acquarelle alugado\n"
                 "• Bairro: Ponta Negra\n"
@@ -1110,7 +1135,7 @@ def teste_aviso_de_saida_le_o_site_por_cima_do_banco():
     conn = ConexaoPorSQL(saiu_agora=True, imovel=so_banco)
     with SITE_FORA, patch("publicador.enviar_texto", side_effect=_falso), \
          patch("publicador.carregar_grupos_db", return_value=[GRUPO_TODAS_FOTOS_FAKE]):
-        publicador.processar_comando("alugado 5611", conexao=conn)
+        publicador._avisar_easy_que_saiu("5611", conn, "alugado")
     texto = enviados[0][1]
     assert "• 88m2" in texto and "88.0" not in texto, texto
     assert "locação: 4.600\n" in texto, "sem a taxa sabida, sem o (incluso a TX)"
@@ -1122,7 +1147,7 @@ def teste_aviso_de_saida_le_o_site_por_cima_do_banco():
     with patch("publicador.buscar_imovel", side_effect=RuntimeError("timeout")), \
          patch("publicador.enviar_texto", side_effect=_falso), \
          patch("publicador.carregar_grupos_db", return_value=[GRUPO_TODAS_FOTOS_FAKE]):
-        publicador.processar_comando("alugado 5611", conexao=conn)
+        publicador._avisar_easy_que_saiu("5611", conn, "alugado")
     assert enviados and enviados[0][1].startswith("🛑 condomínio acquarelle alugado")
     print("OK\n")
 

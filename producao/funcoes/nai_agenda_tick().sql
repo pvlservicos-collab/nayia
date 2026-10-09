@@ -31,6 +31,9 @@ BEGIN
   -- 333: a visita com a equipe cujo DIA já passou fecha sozinha (não fica contando como aberta)
   n := n + nai_visitas_fechar_dia_passado();
 
+  -- 334: imóvel que saiu do ar -> a Nay pergunta ao Tel se avisa no grupo Easy (o grupo só recebe depois do SIM)
+  n := n + nay_saidas_perguntar();
+
   FOR v IN
     SELECT * FROM nai_visita
      WHERE estado NOT IN ('encerrada', 'cancelada', 'expirada')
