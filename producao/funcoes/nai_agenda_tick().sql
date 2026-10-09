@@ -28,6 +28,9 @@ BEGIN
   END IF;
   IF nai_cfg('modo', 'desligado') NOT IN ('teste', 'todos') THEN RETURN 0; END IF;
 
+  -- 333: a visita com a equipe cujo DIA já passou fecha sozinha (não fica contando como aberta)
+  n := n + nai_visitas_fechar_dia_passado();
+
   FOR v IN
     SELECT * FROM nai_visita
      WHERE estado NOT IN ('encerrada', 'cancelada', 'expirada')

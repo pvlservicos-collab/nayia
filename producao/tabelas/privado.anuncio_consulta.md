@@ -1,4 +1,4 @@
-# privado.anuncio_consulta  (tabela, ~0 linhas)
+# privado.anuncio_consulta  (tabela, ~45 linhas)
 309: cada anúncio que o bot da OLX consultou, a decisão (fechar/abordar), o motivo e a mensagem entregue
 
 ## colunas
