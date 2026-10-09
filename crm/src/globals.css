@@ -1611,6 +1611,12 @@ html {
 .barra-calma .painel-barra__lista { top: 100%; }
 /* na Captação a barra é uma LINHA no topo da coluna: não estica para baixo (30/09) */
 .barra-calma--linha { flex: 0 0 auto; align-content: center; }
+/* a barrinha do disparo pela API oficial (09/10): o progresso da lista da vez */
+.barra-calma__luz--pausa { background: #d97706; }
+.barra-calma__luz--desligado { background: #9ca3af; }
+.disparo-progresso { display: inline-block; width: 140px; height: 7px; border-radius: 999px; background: var(--wa-divider);
+  overflow: hidden; align-self: center; }
+.disparo-progresso > i { display: block; height: 100%; border-radius: 999px; background: #16a34a; }
 
 /* ==========================================================================
    O CADASTRO DE IMÓVEL NO CRM, no desenho do site (Pedro, 01/10/2026:

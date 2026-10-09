@@ -159,6 +159,10 @@ export default function LeadList({
   // o dono e o imóvel de cada conversa da captação (29/09)
   // 09/10: na Oficial também, porque a captação passou a falar por lá (Pedro: "quero que apareça o imóvel do cara")
   const donos = useCaptacaoDonos(linha === 'captacao' || linha === 'oficial')
+  /* OS FILTROS DA CAPTAÇÃO NA OFICIAL TAMBÉM (Pedro, 09/10: "quero lá em cima das conversas da API oficial filtros
+     igual os que tem na de captação"). A aba de cada conversa vem do dono (crm_captacao_donos), e o dono é o mesmo
+     pelos dois números: na Oficial aparecem Todos, Em andamento, Sem resposta, Com o Tel, Disponíveis... */
+  const comAbasDaCaptacao = linha === 'captacao' || linha === 'oficial'
 
   // Filtro por etiqueta — multi-seleção, combina com o filtro de cima.
   const { allTags } = useTags(organizationId)
@@ -443,7 +447,7 @@ export default function LeadList({
       for (const lt of (l.lead_tags || []) as any[]) soma(`tag:${lt.tag_id}`)
       if (atendente) soma(`atendente:${atendente.id}`)
       // as abas da captação (migração 236)
-      if (linha === 'captacao') for (const a of donos[l.id]?.abas || []) {
+      if (comAbasDaCaptacao) for (const a of donos[l.id]?.abas || []) {
         soma(`cap:${a}`)
         const semLer = Number(l.nao_lidas || 0)
         if (semLer) contagem[`semler:cap:${a}`] = (contagem[`semler:cap:${a}`] ?? 0) + semLer
@@ -482,7 +486,7 @@ export default function LeadList({
                titulo: `${rayssa.nome} está atendendo (mandou a última mensagem da equipe, pelo login dela)` }]
           : []),
       ]
-    : linha === 'captacao'
+    : comAbasDaCaptacao
     ? [
         { chave: 'all', rotulo: 'Todos', grupo: 'etapa' as const },
         ...ABAS_DA_CAPTACAO.map((a) => ({ chave: `cap:${a.chave}`, rotulo: a.rotulo, cor: a.cor, titulo: a.titulo,
@@ -686,7 +690,7 @@ export default function LeadList({
                 </div>
               </div>
             )}
-            {linha === 'captacao' ? (
+            {comAbasDaCaptacao ? (
               <>
                 <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtros.filter((f) => !NA_LINHA_2_DA_CAPTACAO.has(f.chave))} />
                 <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtros.filter((f) => NA_LINHA_2_DA_CAPTACAO.has(f.chave))} />

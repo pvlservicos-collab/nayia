@@ -106,6 +106,8 @@
     ".cr-comfoto{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:700;background:#e8f7f0;color:#2f7d58;white-space:nowrap}" +
     /* o popup */
     ".cr-veu{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);display:flex;align-items:stretch;justify-content:center;padding:14px}" +
+    /* 09/10: o display:flex de cima vencia o [hidden]: o ✕ esvaziava o popup e ele ficava na frente, sem fechar */
+    ".cr-veu[hidden],.cr-veu [hidden]{display:none!important}" +
     ".cr-caixa{flex:1;max-width:1500px;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;background:var(--fundo,#f4f4f2);box-shadow:0 20px 60px rgba(0,0,0,.4)}" +
     ".cr-faixa{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:8px 14px;background:#111827;color:#f9fafb}" +
     ".cr-titulo{font-weight:700;font-size:14px;letter-spacing:.02em;color:#e5e7eb;margin-right:auto}" +
@@ -304,6 +306,7 @@
   function fechar() {
     if (!veu) return;
     devolverCondominio();
+    ocupado = false;          // o ✕ sempre solta o popup, mesmo com um salvamento no meio
     veu.hidden = true;
     document.body.style.overflow = "";
     $("cr-corpo-popup").innerHTML = "";

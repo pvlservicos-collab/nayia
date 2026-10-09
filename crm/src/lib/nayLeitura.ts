@@ -568,3 +568,32 @@ export async function marcarEtapaNaNay(telefone: string, etapa: string, quem: st
     return null
   }
 }
+
+/**
+ * O DISPARO PELA API OFICIAL (migração 331; Pedro, 09/10: "uma barrinha para eu saber qual lista está sendo
+ * disparada e quanto falta para acabar"). As listas da fila do Python, na ordem em que saem, com quantos já
+ * receberam o modelo e quantos faltam; e se está saindo agora. null quando a função ainda não existe no banco.
+ */
+export interface ListaDoDisparo { chave: string; rotulo: string; titulo: string; enviados: number; faltam: number }
+export interface DisparoOficial {
+  ligado: boolean; motivo: string | null; voltaEm: string | null
+  hoje: number; falharamHoje: number; ultimoEm: string | null; segMedio: number
+  listas: ListaDoDisparo[]
+}
+export async function disparoOficial(): Promise<DisparoOficial | null> {
+  try {
+    const r = await naydb().query('SELECT crm_captacao_disparo_oficial() AS d')
+    const d = r.rows[0]?.d
+    if (!d) return null
+    const n = (x: unknown) => Number(x || 0)
+    return {
+      ligado: !!d.ligado, motivo: d.motivo ?? null, voltaEm: d.volta_em ?? null,
+      hoje: n(d.hoje), falharamHoje: n(d.falharam_hoje), ultimoEm: d.ultimo_em ?? null, segMedio: n(d.seg_medio) || 60,
+      listas: (d.listas || []).map((l: any) => ({ chave: String(l.chave), rotulo: String(l.rotulo), titulo: String(l.titulo || ''),
+                                                  enviados: n(l.enviados), faltam: n(l.faltam) })),
+    }
+  } catch (e: any) {
+    if (e?.code === '42883') return null   // a 331 ainda não foi aplicada: a barra não aparece
+    throw e
+  }
+}

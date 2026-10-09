@@ -16,6 +16,7 @@ import VisitasAgendadas from './VisitasAgendadas'
 import FechamentoChecklists from './FechamentoChecklists'
 import BarraDeMetricas from './BarraDeMetricas'
 import BarraDaCaptacao from './BarraDaCaptacao'
+import BarraDoDisparoOficial from './BarraDoDisparoOficial'
 import PainelContatoCaptacao from './PainelContatoCaptacao'
 import PainelContatoParceria from './PainelContatoParceria'
 import { usePuxador } from '@/hooks/usePuxador'
@@ -403,6 +404,9 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
       )}
       <BarraDaCaptacao leads={allLeads} />
     </>
+  ) : linha === 'oficial' ? (
+    // a barrinha do disparo pela API oficial (Pedro, 09/10): qual lista está saindo e quanto falta
+    <BarraDoDisparoOficial />
   ) : null
 
   /* ── Celular: uma tela por vez; na Parceria as abas ficam em cima ── */
