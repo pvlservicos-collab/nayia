@@ -27,12 +27,12 @@ captacao_ja_chamado_nao_volta
 captacao_ja_perguntou_outros	captacao_encerrar
 captacao_lead_por_contato	captacao_ainda_e_da_ia
 captacao_mensagem_do_python	
-captacao_no_horario	captacao_disparo_liberado, captacao_py_disparo_motivo
+captacao_no_horario	captacao_disparo_liberado, captacao_py_disparo_motivo, crm_captacao_disparo_oficial
 captacao_numero	captacao_aplicar_ao_cadastro, nai_cadastro_importar
 captacao_pediu_para_sair	captacao_encerrar
-captacao_py_disparo_motivo	captacao_py_disparo_placar, captacao_py_reservar_disparo
+captacao_py_disparo_motivo	captacao_py_disparo_placar, captacao_py_reservar_disparo, crm_captacao_disparo_oficial
 captacao_py_disparo_placar	
-captacao_py_fila_do_disparo	captacao_py_disparo_placar, captacao_py_reservar_disparo
+captacao_py_fila_do_disparo	captacao_py_disparo_placar, captacao_py_reservar_disparo, crm_captacao_disparo_oficial
 captacao_py_reservar_disparo	
 captacao_rede_da_situacao	
 captacao_relatorio_da_vez	
@@ -55,6 +55,7 @@ crm_anuncio_palavras	crm_anuncio_mesma_unidade, crm_imovel_candidatos
 crm_anuncio_resposta_de_teste	crm_anuncio_decidir
 crm_avisar_tel	
 crm_captacao_cadastro_opcoes	
+crm_captacao_disparo_oficial	
 crm_captacao_dono_cadastro	
 crm_captacao_donos	
 crm_captacao_etapa_manual	
@@ -111,7 +112,7 @@ crm_visita_agendar
 crm_visita_editar	
 crm_visita_eventos	
 crm_visita_excluir	
-crm_visita_mudar_horario	
+crm_visita_mudar_horario	crm_visita_agendar
 crm_visita_realizada	
 crm_visitas	
 crm_visitas_extra	

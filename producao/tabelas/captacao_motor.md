@@ -20,4 +20,4 @@ nay_leitura: SELECT
 captacao_py_reservar_disparo
 
 ## funções que citam
-captacao_e_do_python, captacao_py_disparo_placar, captacao_py_fila_do_disparo, captacao_py_reservar_disparo
+captacao_e_do_python, captacao_py_disparo_placar, captacao_py_fila_do_disparo, captacao_py_reservar_disparo, crm_captacao_disparo_oficial

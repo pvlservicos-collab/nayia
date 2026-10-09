@@ -6,6 +6,11 @@ CREATE OR REPLACE FUNCTION public.crm_visita_agendar(p_codigo integer, p_correto
  SET lock_timeout TO '3s'
 AS $function$
 DECLARE
+  v_aberta nai_visita;
+  v_mudada bigint;
+  v_mudou  boolean;
+  v_msg    text;
+  v_aviso  text := '';
   v_quem  text := left(coalesce(nullif(btrim(p_quem), ''), 'CRM'), 80);
   v_dur   int  := coalesce(p_duracao_min, 60);
   v_cor   bigint;
@@ -57,7 +62,48 @@ BEGIN
     IF v_prop = v_cor THEN v_prop := NULL; END IF;
   END IF;
 
-  IF v_da_nay IS NOT NULL THEN
+  -- 330: o índice nai_visita_uma_aberta deixa UMA visita aberta por corretor e imóvel. A que ficou aberta de um
+  -- dia que já passou (ninguém marcou realizada) é encerrada; a que ainda vai acontecer muda para o horário novo.
+  IF v_da_nay IS NULL THEN
+    SELECT * INTO v_aberta FROM nai_visita v
+     WHERE v.codigo = p_codigo AND v.corretor_id = v_cor
+       AND v.estado NOT IN ('realizada', 'encerrada', 'cancelada', 'expirada')
+     ORDER BY v.id DESC LIMIT 1
+       FOR UPDATE;
+    IF v_aberta.id IS NOT NULL AND (v_aberta.quando IS NULL OR v_aberta.quando < now()) THEN
+      UPDATE nai_visita x
+         SET estado = 'encerrada', aguardando = NULL, senha = NULL,
+             encerrada_em = coalesce(x.encerrada_em, now()),
+             motivo = coalesce(x.motivo, left('Ficou aberta; ' || v_quem || ' agendou outra no CRM', 200)),
+             atualizado_em = now()
+       WHERE x.id = v_aberta.id;
+      UPDATE nai_saida s SET estado = 'bloqueado', bloqueio = 'visita encerrada: outra agendada no CRM'
+       WHERE s.visita_id = v_aberta.id AND s.estado = 'pendente';
+      PERFORM nai_evento(v_aberta.id, 'encerrada_por_outra',
+        left(v_quem || ' agendou outra visita do mesmo corretor ao mesmo imóvel', 200));
+      v_aviso := ' A de ' || coalesce(to_char(v_aberta.quando AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI'), 'antes')
+                 || ' (#' || v_aberta.id || '), que tinha ficado aberta, foi encerrada.';
+    ELSIF v_aberta.id IS NOT NULL THEN
+      SELECT m.ok, m.mensagem INTO v_mudou, v_msg FROM crm_visita_mudar_horario(v_aberta.id, p_quando, v_quem) m;
+      IF NOT coalesce(v_mudou, false) THEN
+        RETURN QUERY SELECT false,
+          coalesce(v_msg, 'Não consegui mudar a visita #' || v_aberta.id || '.') || ' (já existe a visita #' || v_aberta.id
+            || ' deste corretor a este imóvel)',
+          v_aberta.id, NULL::text, NULL::text, NULL::text, NULL::text, NULL::text, NULL::text;
+        RETURN;
+      END IF;
+      UPDATE nai_visita x
+         SET duracao_min = v_dur, criada_no_crm_por = coalesce(x.criada_no_crm_por, v_quem), atualizado_em = now()
+       WHERE x.id = v_aberta.id;
+      v_mudada := v_aberta.id;
+      v_aviso := ' Já havia a visita #' || v_aberta.id || ' deste corretor a este imóvel ('
+                 || to_char(v_aberta.quando AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI') || '): ela passou para o horário novo.';
+    END IF;
+  END IF;
+
+  IF v_mudada IS NOT NULL THEN
+    v_id := v_mudada;
+  ELSIF v_da_nay IS NOT NULL THEN
     -- (com o apelido `v`: proprietario_nome também é coluna de SAÍDA desta função)
     UPDATE nai_visita v
        SET quando = p_quando, duracao_min = v_dur, criada_no_crm_por = v_quem,
@@ -80,7 +126,7 @@ BEGIN
   END IF;
 
   RETURN QUERY SELECT true,
-    'Visita #' || v_id || ' agendada para ' || nai_hora_exata(p_quando) || '.',
+    'Visita #' || v_id || ' agendada para ' || nai_hora_exata(p_quando) || '.' || v_aviso,
     v_id, c.telefone, coalesce(c.nome_completo, c.nome_whatsapp),
     CASE WHEN dono.motivo IS NULL THEN dono.telefone END, dono.nome,
     nai_ref_imovel(p_codigo), nai_ref_imovel_prop(p_codigo);
