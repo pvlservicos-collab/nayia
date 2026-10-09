@@ -39,4 +39,4 @@ nay_site_nai: SELECT
 nai_cadastro_absorver, nai_imovel_novo_subir, nai_sec_abrir_cadastro, nai_sec_guardar_do_imovel
 
 ## funções que citam
-nai_cadastro_absorver, nai_cadastro_modelo, nai_core_atende, nai_imovel_novo_falta, nai_imovel_novo_subir, nai_mente_registrar, nai_sec_abrir_cadastro, nai_sec_guardar_do_imovel, nai_sec_guardar_foto, nai_sec_guardar_fotos_do_turno
+nai_cadastro_absorver, nai_cadastro_modelo, nai_core_atende, nai_imovel_novo_falta, nai_imovel_novo_subir, nai_mente_registrar, nai_sec_abrir_cadastro, nai_sec_guardar_do_imovel, nai_sec_guardar_foto, nai_sec_guardar_fotos_do_turno, site_origem_do_cadastro

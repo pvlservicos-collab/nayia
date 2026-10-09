@@ -1736,6 +1736,52 @@ def api_cadastro_pendente():
     return jsonify({"itens": itens, "total": len(itens)})
 
 
+@app.route("/admin/api/imoveis/origem")
+def api_cadastro_origem():
+    """O CARD DA ORIGEM do Cadastro rápido (326; Pedro, 09/10: "quero saber a origem, de onde veio, se por WhatsApp
+    de qual número e quando"). ?codigo=<imóvel> ou ?ficha=<ficha da conversa>. Traz o telefone do dono: só com senha."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    codigo = request.args.get("codigo", type=int)
+    ficha = request.args.get("ficha", type=int)
+    if not codigo and not ficha:
+        return jsonify({"erro": "diga o codigo ou a ficha"}), 400
+    conn = conectar_escrita()
+    try:
+        linhas = todas_linhas(conn, "SELECT site_origem_do_cadastro(%s, %s) AS o", (codigo, ficha))
+        return jsonify(linhas[0]["o"] or {})
+    finally:
+        conn.close()
+
+
+@app.route("/admin/api/imoveis/juntar", methods=["POST"])
+def api_cadastro_juntar():
+    """"NA VERDADE É ATUALIZAÇÃO DESTE IMÓVEL" (326; Pedro, 09/10). {de_codigo | de_ficha, em, fotos}: as fotos e o
+    dono vão para o `em`, o duplicado vira Excluído e a ficha fica aplicada. Os campos que mudaram vão antes, pelo PUT."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    corpo = request.get_json(silent=True) or {}
+    def inteiro(k):
+        try:
+            return int(corpo.get(k)) if corpo.get(k) not in (None, "") else None
+        except (TypeError, ValueError):
+            return None
+    conn = conectar_escrita()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT site_juntar_cadastro(%s, %s, %s, %s, %s) AS r",
+                        (inteiro("de_codigo"), inteiro("de_ficha"), inteiro("em"), bool(corpo.get("fotos")), "cadastro rápido"))
+            r = cur.fetchone()["r"]
+        conn.commit()
+        return jsonify(r)
+    except psycopg2.Error as exc:
+        conn.rollback()
+        msg = (getattr(exc, "diag", None) and exc.diag.message_primary) or exc.__class__.__name__
+        return jsonify({"erro": msg}), 400
+    finally:
+        conn.close()
+
+
 def _baixar_foto(url):
     """Baixa uma foto de fora. Devolve (bytes, extensao) ou (None, motivo)."""
     import urllib.request
