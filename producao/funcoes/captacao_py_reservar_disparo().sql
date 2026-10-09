@@ -16,12 +16,15 @@ BEGIN
    WHERE l.status = 'reservado' AND l.atualizado_em < now() - interval '30 minutes';
   IF captacao_py_disparo_motivo() IS NOT NULL THEN RETURN; END IF;
 
-  SELECT l.id INTO v_id FROM captacao_leads l
-   WHERE l.id IN (SELECT captacao_py_fila_do_disparo())
-   ORDER BY l.id LIMIT 1 FOR UPDATE SKIP LOCKED;
+  SELECT f.id INTO v_id FROM captacao_py_fila_do_disparo() AS f(id) LIMIT 1;
   IF v_id IS NULL THEN RETURN; END IF;
-  -- a parede da 308 mora neste UPDATE: corretor ou parceiro é marcado e a reserva não acontece
-  UPDATE captacao_leads l SET status = 'reservado', atualizado_em = now() WHERE l.id = v_id AND l.status IN ('novo', 'erro');
+  PERFORM 1 FROM captacao_leads l WHERE l.id = v_id FOR UPDATE SKIP LOCKED;
+  -- a parede da 308 mora neste UPDATE: corretor ou parceiro é marcado e a reserva não acontece.
+  -- 323: o 'enviado' da retomada pelo oficial também pode ser reservado.
+  UPDATE captacao_leads l SET status = 'reservado', atualizado_em = now()
+   WHERE l.id = v_id
+     AND (l.status IN ('novo', 'erro')
+          OR (l.status = 'enviado' AND EXISTS (SELECT 1 FROM captacao_retomada_oficial r WHERE r.lead_id = l.id)));
   IF NOT EXISTS (SELECT 1 FROM captacao_leads l WHERE l.id = v_id AND l.status = 'reservado') THEN RETURN; END IF;
   -- daqui para a frente este lead é atendido pela Nay em Python
   INSERT INTO captacao_motor (lead_id) VALUES (v_id) ON CONFLICT (lead_id) DO NOTHING;

@@ -1,4 +1,4 @@
-# core_saida  (tabela, ~1826 linhas)
+# core_saida  (tabela, ~1992 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('core_saida_id_seq'::regclass)
