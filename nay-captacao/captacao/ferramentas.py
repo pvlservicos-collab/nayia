@@ -10,13 +10,18 @@ O que é do serviço:
                      (menos opt_out e número errado). A parede dos outros imóveis continua sendo a do banco.
   guardar_honorarios NOVA (Pedro, 09/10): a ÚLTIMA pergunta, depois da indicação -- "no valor de R$ X já estão
                      inclusos os 6% de honorários?" (324). Só existe quando há valor de venda; mesma parede.
+  guardar_situacao   é do fluxo, mas ganha aqui dois campos (325): `inicio` e `duracao` do contrato. Quando ele diz
+                     QUANDO alugou, a pergunta deixa de ser "até quando vai" e vira "de quanto tempo é o contrato";
+                     com os dois, o serviço faz a conta e entrega o fim ao fluxo como `prazo` (captacao/contrato.py).
 """
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
 
-from captacao import banco
+from captacao import banco, contrato
+from captacao.turno import MANAUS
 
 DO_FLUXO = json.loads((Path(__file__).parent / "ferramentas.json").read_text(encoding="utf-8"))
 
@@ -43,7 +48,23 @@ HONORARIOS = {
         {"chave": "resposta", "descricao": "o que ele respondeu sobre os honorarios, como ele escreveu", "opcional": False},
     ],
 }
+# os dois campos que o serviço acrescenta ao guardar_situacao do fluxo (o SQL do fluxo continua com os três dele)
+CONTRATO_EXTRAS = [
+    {"chave": "inicio", "opcional": True,
+     "descricao": ("QUANDO o contrato de locacao COMECOU (quando ele alugou), nas palavras dele: 'fevereiro', 'marco do ano "
+                   "passado', '02/2026'. Vazio se ele nao disse. NAO e ate quando vai: isso e o campo prazo.")},
+    {"chave": "duracao", "opcional": True,
+     "descricao": ("a DURACAO do contrato de locacao, nas palavras dele: '12 meses', '2 anos', '30 meses'. Vazio se ele nao "
+                   "disse.")},
+]
+CONTRATO_NA_DESCRICAO = (" Se ele disser QUANDO alugou em vez de ate quando vai, passe isso em inicio (e deixe prazo "
+                         "vazio); quando disser de quanto tempo e o contrato, passe em duracao. O sistema faz a conta do "
+                         "fim do contrato: voce nao calcula.")
 TODAS = {f["nome"]: f for f in [*DO_FLUXO, INDICACAO, HONORARIOS]}
+TODAS["guardar_situacao"] = {**TODAS["guardar_situacao"], "extras": CONTRATO_EXTRAS,
+                             "descricao": TODAS["guardar_situacao"]["descricao"] + CONTRATO_NA_DESCRICAO}
+# as duas frases do fluxo que mandam perguntar pelo FIM do contrato; saem quando a pergunta certa é outra
+PERGUNTAS_DO_FIM = (". agora pergunte ate quando vai o contrato de locacao.", ". ele deu so o ano: peca o mes.")
 SEM_PAREDE_DA_INDICACAO = {"opt_out", "numero_errado"}
 
 
@@ -52,7 +73,8 @@ def definicoes() -> list[dict]:
     return [{
         "type": "function", "name": f["nome"], "description": f["descricao"],
         "parameters": {"type": "object",
-                       "properties": {q["chave"]: {"type": "string", "description": q["descricao"]} for q in f["params"]},
+                       "properties": {q["chave"]: {"type": "string", "description": q["descricao"]}
+                                      for q in [*f["params"], *f.get("extras", [])]},
                        "required": [q["chave"] for q in f["params"] if not q["opcional"]]},
     } for f in TODAS.values()]
 
@@ -86,6 +108,34 @@ def _parede_dos_honorarios(conn, telefone: str, motivo: str) -> str | None:
     return ("NAO encerrei: falta a ultima pergunta, a dos honorarios. Faca agora, em UMA mensagem so e com EXATAMENTE "
             f'estas palavras: "{r[0]["frase"]}" -- e espere a resposta. Quando ele responder, chame guardar_honorarios '
             "com o que ele disse e depois encerrar_conversa de novo.")
+
+
+def _guardar_situacao(conn, f: dict, args: dict, telefone: str, hoje=None) -> list[dict]:
+    """guardar_situacao com o começo e a duração do contrato (325; Pedro, 09/10: "quando o proprietário disser que foi
+    contratado em uma data ela não pergunta até quando vai e sim quanto tempo é a duração do contrato").
+
+    Sem `inicio` nem `duracao`, é a ferramenta do fluxo, igual. Com um deles e sem `prazo`: guarda o que ele disse,
+    junta com o que já tinha dito e, com os dois, entrega ao fluxo o fim do contrato já calculado. Faltando um, troca a
+    pergunta que o fluxo mandaria fazer ("até quando vai") pela que falta."""
+    situacao, prazo, valor = (_texto(args.get(k)).strip() for k in ("situacao", "prazo", "valor"))
+    inicio, duracao = _texto(args.get("inicio")).strip(), _texto(args.get("duracao")).strip()
+    pedir = None
+    if not prazo and (inicio or duracao):
+        dito = contrato.lembrar(conn, telefone, inicio, duracao)
+        feito, pedir = contrato.prazo_ou_pergunta(dito["inicio"], dito["duracao"], hoje or datetime.now(MANAUS).date())
+        prazo = feito or ""
+    if not (situacao or prazo or valor):
+        # só o começo, ou só a duração: o fluxo ainda não tem o que gravar; a pergunta que falta sai daqui
+        return [{"instrucao_para_voce": "anotado. " + (pedir or "")}]
+    linhas = banco.rodar_do_fluxo(conn, f["sql"], [telefone, situacao, prazo, valor])
+    if pedir:
+        for linha in linhas:
+            texto = linha.get("instrucao_para_voce")
+            if isinstance(texto, str):
+                for frase in PERGUNTAS_DO_FIM:
+                    texto = texto.replace(frase, ".")
+                linha["instrucao_para_voce"] = texto + " " + pedir
+    return linhas
 
 
 def aviso_da_escalada(linha: dict, telefone: str, nome_do_dono: str) -> str:
@@ -132,6 +182,8 @@ def executar(conn, nome: str, args: dict, telefone: str, nome_do_dono: str = "",
                       or _parede_dos_honorarios(conn, telefone, _texto(args.get("motivo"))))
             if parede:
                 return json.dumps([{"instrucao_para_voce": parede}], ensure_ascii=False)
+        if nome == "guardar_situacao":
+            return json.dumps(_guardar_situacao(conn, f, args, telefone), ensure_ascii=False, default=str)
         valores = [telefone, *[_texto(args.get(q["chave"])) for q in f["params"]]]
         saida = json.dumps(banco.rodar_do_fluxo(conn, f["sql"], valores), ensure_ascii=False, default=str)
         if nome == "guardar_indicacao" and encaminhar and _texto(args.get("contato")).strip():

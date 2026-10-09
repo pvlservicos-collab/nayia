@@ -2,6 +2,7 @@
 
     python -m captacao.ensaio disponivel
     python -m captacao.ensaio alugado
+    python -m captacao.ensaio alugado_desde  diz quando alugou: ela pergunta a duração, não "até quando vai" (325)
     python -m captacao.ensaio vendido
     python -m captacao.ensaio ja_temos      o imóvel dele já está no nosso cadastro (318): só o valor, e segue
 
@@ -26,6 +27,10 @@ CENARIOS = {
                    "depois eu mando as fotos", "não, só esse mesmo", "conheço sim, meu cunhado Carlos está vendendo uma casa no Tarumã",
                    "o número dele é 92 99999-0000", "obrigado"],
     "alugado": ["Alugado", "até março de 2027", "não tenho outro", "não conheço ninguém", "ok"],
+    # 325: ele diz QUANDO alugou; a pergunta é a duração, e o fim do contrato é conta do sistema
+    # 09/10: "onde conseguiu meu contato?" tem resposta pronta (prompt v7), sem escalar
+    "contato": ["Disponível", "Onde vc conseguiu o meu contato?", "2.500", "não, só esse", "não conheço ninguém", "ok"],
+    "alugado_desde": ["foi alugado em fevereiro", "contrato de dois anos", "não tenho outro", "não conheço ninguém", "ok"],
     "vendido": ["Vendido", "tenho sim, uma casa no Tarumã pra vender", "3 quartos, 2 banheiros e 4 vagas",
                 "uns 300 metros de terreno", "quero 650 mil", "agora não posso mandar mais nada, depois falo", "ninguém, obrigado"],
     "pergunta": ["Disponível", "quanto vocês cobram de comissão?"],

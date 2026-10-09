@@ -7,12 +7,12 @@ Os casos vêm do que o fluxo do n8n já fazia (os comentários dos nós contam c
 import random
 import sys
 import unittest
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from captacao import cadastro, config, modelo, resposta, turno  # noqa: E402
+from captacao import cadastro, config, contrato, modelo, resposta, turno  # noqa: E402
 
 LEAD = {"telefone": "5596991712835", "lead_id": 835, "nome": "PEDRO Silva", "tratamento": "Sr.", "imovel_desc": "Apartamento (TESTE)",
         "etapa": "aguardando_situacao", "prompt": "PROMPT"}
@@ -208,6 +208,42 @@ class Cadastro(unittest.TestCase):
 
         self.assertIn("não baixei (HTTP 404", cadastro._trazer(1, "x", "u", NaoBaixa))
         self.assertIn("o arquivo não é jpg", cadastro._trazer(1, "x", "u", Recusa))
+
+
+class Contrato(unittest.TestCase):
+    """325: o contrato dito como começo + duração (Pedro, 09/10)."""
+    HOJE = date(2026, 10, 9)
+
+    def test_a_duracao_em_meses(self):
+        for dito, meses in [("24 meses", 24), ("2 anos", 24), ("dois anos", 24), ("um ano e meio", 18), ("36", 36),
+                            ("é contrato de dois anos", 24), ("trinta e seis meses", 36), ("1 ano", 12)]:
+            self.assertEqual(contrato.meses_da_duracao(dito), meses, dito)
+        self.assertIsNone(contrato.meses_da_duracao("não sei"))
+
+    def test_o_comeco_sem_o_ano_e_a_ultima_vez_que_o_mes_passou(self):
+        self.assertEqual(contrato.inicio_do_contrato("foi alugado em fevereiro ou março", self.HOJE), (2026, 2))
+        self.assertEqual(contrato.inicio_do_contrato("novembro", self.HOJE), (2025, 11))
+        self.assertEqual(contrato.inicio_do_contrato("em março do ano passado", self.HOJE), (2025, 3))
+        self.assertEqual(contrato.inicio_do_contrato("julho de 24", self.HOJE), (2024, 7))
+
+    def test_dez_meses_nao_e_dezembro_e_comeco_no_futuro_nao_vale(self):
+        self.assertIsNone(contrato.inicio_do_contrato("há dez meses", self.HOJE))
+        self.assertIsNone(contrato.inicio_do_contrato("dezembro de 2027", self.HOJE))
+        self.assertIsNone(contrato.inicio_do_contrato("início do ano", self.HOJE))
+
+    def test_com_os_dois_sai_o_prazo_do_jeito_que_o_banco_le(self):
+        prazo, pergunta = contrato.prazo_ou_pergunta("foi alugado em fevereiro ou março", "contrato de dois anos", self.HOJE)
+        self.assertEqual(prazo, "fevereiro de 2028 (começou em fev/2026, 24 meses)")
+        self.assertIsNone(pergunta)
+        self.assertLessEqual(len(prazo), 60)          # o fluxo recusa prazo com mais de 60 letras
+
+    def test_so_o_comeco_pede_a_duracao_e_so_a_duracao_pede_o_comeco(self):
+        prazo, pergunta = contrato.prazo_ou_pergunta("fevereiro", "", self.HOJE)
+        self.assertIsNone(prazo)
+        self.assertIn(contrato.PERGUNTA_DA_DURACAO, pergunta)
+        prazo, pergunta = contrato.prazo_ou_pergunta("início do ano", "24 meses", self.HOJE)
+        self.assertIsNone(prazo)
+        self.assertIn(contrato.PERGUNTA_DO_COMECO, pergunta)
 
 
 if __name__ == "__main__":
