@@ -28,4 +28,4 @@ nay_leitura: SELECT
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-crm_quem_mandou, nay_imovel_da_citacao
+crm_mensagem_citada, crm_quem_mandou, nay_imovel_da_citacao

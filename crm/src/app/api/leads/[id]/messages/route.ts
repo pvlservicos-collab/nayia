@@ -15,6 +15,7 @@ import { acharLeadDaLinha } from '@/lib/leadDaLinha'
 import { etapaEmAtendimentoDoMesmoPipeline } from '@/lib/etapaDaLinha'
 import { recusaEscreverNaCaptacao } from '@/lib/captacaoSoRespondeServidor'
 import { pararNayDaCaptacaoPorGente } from '@/lib/pararNayDaCaptacao'
+import { acharCitadas, camposDaCitada, citadaSemConteudo } from '@/lib/mensagemCitada'
 
 const CHANNEL_LABELS: Record<string, string> = {
   whatsapp_zapi: 'Z-API',
@@ -90,6 +91,38 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       .limit(POR_PAGINA + 1)
     const mais = rowsDesc.length > POR_PAGINA
     const rows = rowsDesc.slice(0, POR_PAGINA).reverse()
+
+    // A MENSAGEM MARCADA QUE FICOU SEM CONTEÚDO (09/10/2026): as antigas, e as que chegaram
+    // antes da citada. Procura de novo (no CRM e no banco da Nay -- mensagemCitada.ts), já
+    // devolve com o conteúdo e grava depois da resposta, para a próxima abertura não procurar.
+    const semCitada = rows.filter(r => citadaSemConteudo(r.metadata) && !(r.metadata as any)?.deleted)
+    if (semCitada.length) {
+      const achadas = await acharCitadas(
+        auth.organizationId, semCitada.map(r => String((r.metadata as any).quoted_message_id)))
+      const aGravar: { id: string; campos: Record<string, string> }[] = []
+      for (const r of semCitada) {
+        const citada = achadas.get(String((r.metadata as any).quoted_message_id))
+        if (!citada) continue
+        const campos = camposDaCitada(citada)
+        r.metadata = { ...(r.metadata as Record<string, any>), ...campos }
+        aGravar.push({ id: r.id, campos })
+      }
+      if (aGravar.length) {
+        after(async () => {
+          for (const g of aGravar) {
+            try {
+              await db.execute(sql`
+                UPDATE lead_activities
+                   SET metadata = metadata || ${JSON.stringify(g.campos)}::jsonb
+                 WHERE id = ${g.id}::uuid AND organization_id = ${auth.organizationId}::uuid
+                   AND metadata->>'quoted_text' IS NULL`)
+            } catch {
+              // não gravou: a próxima abertura procura de novo
+            }
+          }
+        })
+      }
+    }
 
     // Mensagem apagada: não devolve mais o conteúdo/mídia originais na API (só o carimbo
     // "apagada") — a UI já esconde isso, mas sem redigir aqui o texto/mídia original

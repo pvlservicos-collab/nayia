@@ -22,4 +22,4 @@ nay_leitura: SELECT
 nai_confirmar_envio, nai_whatsapp_reenviado
 
 ## funções que citam
-crm_quem_mandou, nai_confirmar_envio, nai_tel_assumiu, nai_whatsapp_reenviado, nay_codigos_da_conversa, nay_codigos_da_saida
+crm_mensagem_citada, crm_quem_mandou, nai_confirmar_envio, nai_tel_assumiu, nai_whatsapp_reenviado, nay_codigos_da_conversa, nay_codigos_da_saida

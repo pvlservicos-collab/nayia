@@ -341,19 +341,29 @@ function QuotedMessageBar({ metadata }: { metadata: any }) {
   const quotedSender = metadata?.quoted_sender
   const quotedId = metadata?.quoted_message_id
   /* A Z-API manda só o ID do que foi citado, nunca o texto; o texto vem da
-     busca por esse ID entre as mensagens guardadas (zapiInbound.ts). Quando
-     não achamos, a barra ainda avisa que ele respondeu citando algo. */
+     busca por esse ID nas mensagens do CRM e no banco da Nay -- o card e a
+     lista do grupo, a foto do post (mensagemCitada.ts). Quando não achamos,
+     a barra ainda avisa que ele respondeu citando algo. */
+  /* O card inteiro não cabe em três linhas: um toque abre e fecha (09/10/2026,
+     "preciso que apareça a mensagem à qual o cara está se referindo"). */
+  const [aberta, setAberta] = useState(false)
   if (!quotedText && !quotedMediaType && !quotedId) return null
+  const comprida = !!quotedText && (quotedText.length > 140 || quotedText.split('\n').length > 3)
   return (
     <div className="rounded-[6px] mb-1 overflow-hidden flex min-h-[42px]" style={{ background: 'var(--wa-quote)' }}>
       <div className="w-1 flex-shrink-0" style={{ background: 'var(--wa-quote-bar)' }} />
-      <div className="flex-1 px-2.5 py-1.5 min-w-0">
-        <p className="text-[12.5px] font-semibold truncate" style={{ color: 'var(--wa-quote-bar)' }}>
+      <div className={`flex-1 px-2.5 py-1.5 min-w-0 ${comprida ? 'cursor-pointer' : ''}`}
+           onClick={comprida ? () => setAberta(a => !a) : undefined}
+           title={comprida ? (aberta ? 'Recolher' : 'Ver a mensagem inteira') : undefined}>
+        <p className={`text-[12.5px] font-semibold ${aberta ? 'break-words' : 'truncate'}`} style={{ color: 'var(--wa-quote-bar)' }}>
           {quotedSender || 'Lead se refere a mensagem:'}
         </p>
-        <p className="text-[13px] line-clamp-3 leading-[17px] whitespace-pre-wrap break-words opacity-80">
-          {quotedText || (quotedMediaType ? `[${quotedMediaType}]` : '(não encontrei essa mensagem aqui)')}
+        <p className={`text-[13px] leading-[17px] whitespace-pre-wrap break-words opacity-80 ${aberta ? '' : 'line-clamp-3'}`}>
+          {quotedText || (quotedMediaType ? `[${quotedMediaType}]` : '(mensagem de fora do CRM e da Nay: não tenho o conteúdo)')}
         </p>
+        {comprida && (
+          <p className="text-[11.5px] mt-0.5 opacity-60">{aberta ? 'recolher' : 'ver tudo'}</p>
+        )}
       </div>
       {quotedMediaUrl && (quotedMediaType === 'image' || quotedMediaType === 'video' || quotedMediaType === 'sticker') && (
         <img src={quotedMediaUrl} alt="" className="w-[52px] h-[52px] object-cover flex-shrink-0" />

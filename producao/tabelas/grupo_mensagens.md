@@ -26,4 +26,4 @@ nay_leitura: SELECT
 nay_registrar_mensagem_grupo
 
 ## funções que citam
-nay_imovel_da_citacao, nay_registrar_mensagem_grupo
+crm_mensagem_citada, nay_imovel_da_citacao, nay_registrar_mensagem_grupo

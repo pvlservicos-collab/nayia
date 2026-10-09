@@ -44,6 +44,7 @@ prompt: comece pelo `nay onde`.
 | imóvel sai do mercado (Vendido, Alugado...) por qualquer caminho, e o aviso no grupo Easy | gatilho `imoveis_aviso_de_saida` → `nay_enfileirar_aviso_de_saida` (SECURITY DEFINER; motivo pela situação) → cron `avisar_saidas.sh`; pelo comando: `nai_marcar_imovel` | 289 |
 | o aviso de saída SÓ vai ao grupo Easy depois do SIM do Tel: a Nay pergunta no PV dele e espera (24 h; das 22h às 7h não pergunta) | `nay_saidas_perguntar` (dentro do `nai_agenda_tick`) → tabela `aviso_de_saida_pergunta`; a resposta é comando: `nay_saida_resposta_ler` / `_valida` (em `nai_abrir_turno`) e `nay_saida_responder` (em `nai_comando_tel`); `nay_saidas_a_avisar` só devolve o que tem SIM. Chaves `aviso_saida_pergunta` (nao = avisa sozinha, como antes), `aviso_saida_validade_h`, `aviso_saida_hora_ini` / `_fim`. No publicador, `_liberar_vaga` não posta mais: `_deixar_o_aviso_na_fila` | 334 |
 | de quem é cada mensagem que saiu pelo número (a Nay, envio automático ou gente digitando), pelo id | `crm_quem_mandou(text[])` (só leitura; o CRM usa no histórico de atendimento do card) | 290 |
+| a mensagem que o contato MARCOU ao responder (card e lista do grupo, foto do post, o que a Nay mandou), para o CRM mostrar | `crm_mensagem_citada(text[])` (só leitura, SECURITY DEFINER, só o papel `nay_disparo`); `nay_saida_rotulo_do_imovel` | 335 |
 | captação: quem já recebeu mensagem nossa nunca volta para a fila do disparo (a abertura não sai duas vezes) | gatilho `captacao_ja_chamado_nao_volta` em `captacao_leads`; a fila é `status IN ('novo','erro')`, lida pelo nó "Pegar lead novo" do n8n da VPS2 | 291, 291a |
 | imóvel já enviado à pessoa não vai de novo sem ela confirmar (sem prazo, card e fotos); e a lista para a tela | nay-core `nay/acoes/ja_enviei.py` + `templates/ja_mandei.md` + `cerebro/repo.py::ja_enviado` (lê `core_saida` e `imovel_enviado_no_dia`); CRM: `crm_imoveis_enviados(text)` → `ImoveisJaEnviados.tsx` no card | 292 (core 014) |
 | a Nay nova enxerga na hora o imóvel que saiu ou mudou de valor | nay-core `worker.talvez_refresh` (assinatura de `imoveis` a cada ciclo, antes dos turnos); `acoes/enviar_imovel.fora_do_mercado` (só condomínio de verdade, mesmo negócio) | core 8eb01ed, 07a2f9f |
@@ -201,6 +202,9 @@ prompt: comece pelo `nay onde`.
 - Abrir conversa pela lupa de cima: `src/components/Chat/BuscaDaLista.tsx` pergunta Parceria ou Captação (`/api/leads/abrir`). Quem só responde na captação (a Rayssa): `src/lib/captacaoSoResponde.ts` (lista e aviso) e
   `captacaoSoRespondeServidor.ts` (a parede, chamada em `abrir`, `messages` e `enviar-imovel`).
 
+- Mensagem marcada (a barra "Lead se refere a mensagem"): `src/lib/mensagemCitada.ts` procura o ID no CRM e depois no banco da Nay
+  (`crm_mensagem_citada`, 335). Chamado na chegada (`zapiInbound.ts`) e ao abrir a conversa (GET `/api/leads/[id]/messages`, que
+  conserta as antigas e grava). A barra abre com um toque (`QuotedMessageBar` em `ActivityTimeline.tsx`).
 - Aba Oficial: quem ESCREVEU fica em cima (`ultima_recebida`, de `/api/leads`, antes de `last_activity_at`: o modelo disparado
   não sobe a conversa), filtro só "Não lido" e o nome do dono no cabeçalho (`nomeDoDono` em `LeadListItem.tsx`).
 - Aba Oficial: os filtros são os da Captação (`comAbasDaCaptacao` em `LeadList.tsx`) e, em cima, a barrinha do disparo

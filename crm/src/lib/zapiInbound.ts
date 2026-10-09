@@ -14,6 +14,7 @@ import { acharLeadDaLinha, type LeadDaLinha } from '@/lib/leadDaLinha'
 import { etapaEmAtendimentoDoMesmoPipeline } from '@/lib/etapaDaLinha'
 import { contatoDaMensagemNaNay, telefoneDoLidNaNay } from '@/lib/nayLeitura'
 import { juntarConversaNaOutra } from '@/lib/juntarConversas'
+import { acharCitadas, camposDaCitada } from '@/lib/mensagemCitada'
 
 /**
  * Entrada de mensagens da Z-API.
@@ -556,31 +557,21 @@ export async function processZapiMessage(orgId: string, body: any, opcoes: Opcoe
    * Mas nós guardamos o `zapi_message_id` de cada mensagem, então o texto se
    * acha procurando por ele.
    *
-   * Não achou (citou algo de antes do CRM, ou de outra conversa)? Guarda só o
-   * ID: a tela avisa que ele respondeu citando algo, sem inventar conteúdo.
+   * 09/10/2026: o que não está no CRM se procura no banco da Nay (o card e a
+   * lista do grupo, a foto do post, o que ela mandou) -- ver mensagemCitada.ts.
+   *
+   * Não achou em lugar nenhum (citou algo de antes do CRM, ou de um grupo que
+   * não é nosso)? Guarda só o ID: a tela avisa que ele respondeu citando
+   * algo, sem inventar conteúdo, e tenta de novo quando a conversa for aberta.
    */
   const idCitado = body?.referenceMessageId
     || body?.referencedMessage?.messageId
     || null
   if (idCitado) {
     metadata.quoted_message_id = String(idCitado)
-    try {
-      const [citada] = await db
-        .select({ content: leadActivities.content, metadata: leadActivities.metadata })
-        .from(leadActivities)
-        .where(and(
-          eq(leadActivities.organizationId, orgId),
-          sql`${leadActivities.metadata}->>'zapi_message_id' = ${String(idCitado)}`))
-        .limit(1)
-      if (citada) {
-        const m: any = citada.metadata || {}
-        metadata.quoted_text = citada.content
-          || (m.media_type ? `[${m.media_type}]` : null)
-        if (m.sender_name) metadata.quoted_sender = m.sender_name
-      }
-    } catch {
-      // procurar a citada nunca pode derrubar a gravação da mensagem nova
-    }
+    // procurar a citada nunca derruba a gravação da mensagem nova (acharCitadas não levanta erro)
+    const citada = (await acharCitadas(orgId, [String(idCitado)])).get(String(idCitado))
+    if (citada) Object.assign(metadata, camposDaCitada(citada))
   }
 
   if (!isFromMe) metadata.sender_name = senderName
