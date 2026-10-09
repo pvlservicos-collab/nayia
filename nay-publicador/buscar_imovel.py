@@ -384,6 +384,8 @@ def _complementar_do_banco(imovel):
         with conexao.cursor() as cur:
             cur.execute(
                 "SELECT mobilia, sol, taxa_condominio, "
+                "       nay_linha_da_taxa(taxa_condominio, "
+                "                         taxa_condominio_em) AS linha_da_taxa, "
                 "       extras->>'incluso no aluguel' AS incluso, "
                 "       extras->>'lances de escada'   AS lances "
                 "  FROM imoveis WHERE codigo = %s", (int(imovel["codigo"]),))
@@ -404,11 +406,18 @@ def _complementar_do_banco(imovel):
                 imovel["incluso_no_aluguel"] = linha["incluso"] or None
             if not imovel.get("lances_de_escada"):
                 imovel["lances_de_escada"] = linha["lances"] or None
-            # A taxa entra para o AVISO ao Tel, não para o card: medido em
-            # 14/09, 50 dos 85 imóveis de locação no mercado não têm nenhuma
-            # informação de taxa, e é por isso que o card sai sem "(incluso a
-            # tx)" -- o dado falta, a regra funciona.
+            # A taxa entra para o AVISO ao Tel. Medido em 14/09: 50 dos 85
+            # imóveis de locação no mercado não têm nenhuma informação de taxa,
+            # e é por isso que o card sai sem "(incluso a tx)" -- o dado falta,
+            # a regra funciona.
             imovel["taxa_condominio"] = linha["taxa_condominio"]
+            # E DESDE 03/10 ENTRA NO CARD TAMBÉM, como linha própria -- mas só
+            # quando é recente. Quem decide e quem formata é
+            # `nay_linha_da_taxa`, no banco: o card do publicador e o
+            # `nai_card_do_banco` são DOIS montadores do mesmo card, e a regra
+            # de validade não pode ter duas cópias. Aqui só se imprime o texto
+            # que vem de lá. `taxa_do_card.sql`.
+            imovel["linha_da_taxa"] = linha["linha_da_taxa"]
             # O SITE MANDA MAIS QUE O BANCO no `sol`: o 5719 tem "Nascente" na
             # página e vazio na tabela. Então o banco só entra quando a página
             # não trouxe -- é o caso das casas, que não têm o rótulo "Sol".
@@ -440,6 +449,73 @@ def anuncio_encontrado(imovel):
     """
     return bool(imovel) and any(
         imovel.get(c) for c in ("tipo", "valor_venda", "valor_aluguel", "fotos"))
+
+
+# O PISO DE PLAUSIBILIDADE DO VALOR (03/10/2026).
+#
+# O CASO: ele mandou o card do 9013 pedindo o formato novo, e escreveu
+# "Venda: R$ 690.000". A tabela diz `valor_venda = 690`. Não era erro de
+# digitação dele -- é o CADASTRO que está em MILHARES: medido no mesmo dia, três
+# imóveis do catálogo novo estão assim, todos postáveis agora:
+#
+#     9008  venda 900    (900.000)
+#     9010  venda 590    (590.000)
+#     9013  venda 690    (690.000)   <- o do exemplo dele, origem 'crm'
+#
+# Os três entraram pelo cadastro novo -- dois pela captação (`olx`) e o 9013
+# pelo CRM, que é de 03/10 e tem UM imóvel. Um `posta no grupo anunciar easy o
+# 9013` hoje mandaria "Venda: R$ 690" para 19 grupos de corretor, e postagem
+# não desfaz.
+#
+# POR QUE É PISO E NÃO CONSERTO: multiplicar por mil seria ADIVINHAR. "690" pode
+# ser 690.000 (e certamente é, num apartamento de 70m2 no Dom Pedro), mas quem
+# diz o preço é ele, não eu. Então o portão recusa e a recusa DIZ o número que
+# está lá, para ele corrigir na fonte -- o mesmo desenho do
+# `aviso_fora_do_ar`: não afirma o que não dá para ver, e diz o que fazer.
+#
+# OS PISOS SÃO MEDIDOS, não escolhidos: no catálogo no mercado a menor venda
+# legítima é 80.000 (754 imóveis acima de 10.000, 3 abaixo) e o menor aluguel
+# legítimo é acima de 300 (95 imóveis, nenhum abaixo). Há uma ordem de grandeza
+# de folga entre o piso e o dado real.
+VENDA_MINIMA_PLAUSIVEL = 10000
+ALUGUEL_MINIMO_PLAUSIVEL = 300
+
+
+def _reais(v):
+    """"690" e "2,50" -- sem arredondar para zero um valor que tem centavos,
+    senão a recusa mostraria um número que não está no cadastro."""
+    return (f"{v:,.0f}".replace(",", ".") if float(v) == int(float(v))
+            else f"{v:.2f}".replace(".", ","))
+
+
+def valor_implausivel(imovel):
+    """O motivo, em texto, quando um valor do card não pode ser verdade.
+
+    Devolve None quando está tudo bem -- é o formato que o chamador usa para
+    decidir entre postar e recusar.
+
+    Valor AUSENTE não é implausível: imóvel só de venda não tem aluguel, e
+    `anuncio_encontrado` já cuida do caso em que não há valor nenhum.
+    """
+    if not imovel:
+        return None
+    venda = imovel.get("valor_venda") or 0
+    aluguel = imovel.get("valor_aluguel") or 0
+    if 0 < venda < VENDA_MINIMA_PLAUSIVEL:
+        # O "se é X.000" é um PALPITE declarado como palpite, e vale porque é o
+        # conserto em 3 de 3 casos medidos. Quem confirma é ele.
+        #
+        # SÓ COM VALOR INTEIRO: "R$ 2,50.000" não é número nenhum, e uma recusa
+        # que escreve bobagem faz ele desconfiar do resto dela.
+        if float(venda) == int(float(venda)):
+            return (f"a venda está cadastrada como R$ {_reais(venda)} -- se o "
+                    f"certo é R$ {_reais(venda)}.000, o cadastro está em milhares")
+        return (f"a venda está cadastrada como R$ {_reais(venda)} -- esse valor "
+                f"não pode ser o preço de um imóvel")
+    if 0 < aluguel < ALUGUEL_MINIMO_PLAUSIVEL:
+        return (f"o aluguel está cadastrado como R$ {_reais(aluguel)} -- esse "
+                f"valor não pode ser um aluguel de verdade")
+    return None
 
 
 # ----------------------------------------------------------------------
@@ -493,6 +569,9 @@ def _do_banco(codigo):
                 "       extras->>'incluso no aluguel' AS incluso, "
                 "       extras->>'lances de escada'   AS lances, "
                 "       extras->>'aceita financiamento' AS financia, "
+                "       taxa_condominio, "
+                "       nay_linha_da_taxa(taxa_condominio, "
+                "                         taxa_condominio_em) AS linha_da_taxa, "
                 "       nay_esta_no_mercado(disponivel, bloqueado, "
                 "                           publicado_no_site) AS no_mercado "
                 "  FROM imoveis WHERE codigo::text = %s", (str(codigo),))
@@ -547,6 +626,16 @@ def _do_banco(codigo):
         aceita_financiamento=linha["financia"],
         lances_de_escada=linha["lances"],
         incluso_no_aluguel=linha["incluso"],
+        # A TAXA, nas duas formas: o número cru para o aviso ao Tel (o
+        # `(incluso a tx)` do publicador) e a linha pronta para o card, que só
+        # vem preenchida quando a taxa é recente. `taxa_do_card.sql`.
+        #
+        # ESTE É O CAMINHO DO CATÁLOGO NOVO, e a taxa não chegava por aqui: a
+        # consulta não a trazia. Todo 9xxx passa por esta função -- inclusive o
+        # 9013, que é o imóvel do exemplo dele.
+        taxa_condominio=(float(linha["taxa_condominio"])
+                         if linha["taxa_condominio"] is not None else None),
+        linha_da_taxa=linha["linha_da_taxa"],
         sol=linha["sol"],
         caracteristicas=None,
         mobilia=linha["mobilia"],

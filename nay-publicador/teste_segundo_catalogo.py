@@ -64,6 +64,12 @@ LINHA_9003 = {
     "mobilia": "mobiliado (moveis + cama + tudo)", "descricao": "...",
     "incluso": "Taxa de Condomínio", "lances": None, "financia": None,
     "no_mercado": True,
+    # A TAXA (03/10). `taxa_condominio` é o número cru, para o aviso ao Tel;
+    # `linha_da_taxa` é a linha já pronta, e vem do banco justamente porque a
+    # validade de 45 dias é regra de UMA cópia (`nay_linha_da_taxa`). Quando a
+    # taxa está velha ou sem carimbo, o banco devolve NULL aqui.
+    "taxa_condominio": 1200.0,
+    "linha_da_taxa": "• taxa de condomínio 1200,00",
 }
 
 FOTOS_9003 = [{"url": f"https://imobeasy.online/fotos-captacao/olx/9003/{n:02d}.jpg"}
@@ -92,6 +98,10 @@ class CursorFake:
             self.linhas = [self.conn.linha] if self.conn.linha else []
             # A TRAVA TEM QUE ESTAR NA CONSULTA, não só no if.
             assert "nay_esta_no_mercado" in s, "a consulta perdeu a trava de mercado"
+            # A VALIDADE DA TAXA TAMBÉM VEM DA CONSULTA. Se alguém trocar isto
+            # por `taxa_condominio` cru, o card volta a publicar taxa de dois
+            # anos atrás -- e nada falharia, só o número estaria velho.
+            assert "nay_linha_da_taxa" in s, "a consulta perdeu a regra da taxa"
 
     def fetchone(self):
         return self.linhas[0] if self.linhas else None

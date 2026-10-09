@@ -15,7 +15,8 @@ teste.
 não é passada, processar_comando abre uma conexão real e fecha sozinha
 ao terminar. Comando não reconhecido nunca abre conexão nenhuma.
 """
-from buscar_imovel import anuncio_encontrado, buscar_imovel, buscar_no_site
+from buscar_imovel import (anuncio_encontrado, buscar_imovel,
+                           buscar_no_site, valor_implausivel)
 from pedido_de_imoveis import (LIMITE_POR_ENVIO, casar_condominios,
                                condominios_do_catalogo, condominios_parecidos,
                                e_titulo_ou_recado, imoveis_do_pedido,
@@ -53,6 +54,15 @@ def aviso_fora_do_ar(onde, codigo=None):
     prefixo = f"{codigo}: " if codigo else ""
     return (f"⚠️ {prefixo}o anúncio não está no ar no site -- deve estar arquivado. "
             f"não postei nada {onde}. publica no site e me pede de novo.")
+
+
+# A MESMA FORMA DO `aviso_fora_do_ar`, e pelo mesmo motivo: diz o que está
+# errado, diz o número que está no cadastro, e diz o que fazer. Sem isso ele
+# recebe "não postei" e vai procurar defeito na Nay.
+def aviso_valor_implausivel(onde, motivo, codigo=None):
+    prefixo = f"{codigo}: " if codigo else ""
+    return (f"⚠️ {prefixo}{motivo}. não postei nada {onde} -- "
+            f"corrige o valor no cadastro e me pede de novo.")
 
 
 def processar_comando(texto, conexao=None):
@@ -518,6 +528,12 @@ def _mandar_os_codigos(conn, telefone, nome, codigos):
         # "📍 Imóvel 4 / Código: 4" sem foto (14/09). Ver `anuncio_encontrado`.
         if not anuncio_encontrado(imovel):
             linhas.append(f"{codigo}: nao achei esse codigo no site")
+            continue
+        # Aqui a trava de valor só AVISA -- esta lista responde a ele, não vai
+        # para grupo. Calar seria deixá-lo descobrir o 690 pelo card.
+        _motivo = valor_implausivel(imovel)
+        if _motivo:
+            linhas.append(f"{codigo}: ⚠️ {_motivo}")
             continue
 
         # JA MANDEI HOJE? AVISA, MAS MANDA (Tel, 27/09/2026).
@@ -1379,6 +1395,16 @@ def _postar_codigo(codigo, grupos, conn=None, negocio=None):
         return {
             "codigo": codigo, "sucesso": False, "grupos_atingidos": 0,
             "erro": aviso_fora_do_ar("nos grupos"), "avisos": [],
+        }
+
+    # VALOR IMPOSSÍVEL NÃO VAI PARA GRUPO (03/10). O 9013 está cadastrado com
+    # venda 690 -- o card sairia "Venda: R$ 690" em 19 grupos de corretor, e
+    # postagem não desfaz. Ver `valor_implausivel`.
+    _motivo = valor_implausivel(imovel)
+    if _motivo:
+        return {
+            "codigo": codigo, "sucesso": False, "grupos_atingidos": 0,
+            "erro": aviso_valor_implausivel("nos grupos", _motivo), "avisos": [],
         }
 
     imovel = _com_condominio_do_banco(imovel, conn)
@@ -3072,6 +3098,14 @@ def _postar_easy(codigo, conn, de_novo=False, apelido="easy"):
     if not anuncio_encontrado(imovel):
         _desfazer_reserva_easy(conn, codigo, antes, tabela)
         return aviso_fora_do_ar(f"no {rotulo}", codigo)
+
+    # A MESMA TRAVA DE VALOR dos grupos de grade, e aqui ela PRECISA desfazer a
+    # reserva: sem isso o código ficaria marcado como já postado e o segundo
+    # pedido -- o dele, depois de corrigir o valor -- ouviria "já foi postado".
+    _motivo = valor_implausivel(imovel)
+    if _motivo:
+        _desfazer_reserva_easy(conn, codigo, antes, tabela)
+        return aviso_valor_implausivel(f"no {rotulo}", _motivo, codigo)
 
     imovel = _com_condominio_do_banco(imovel, conn)
     # POR APELIDO, não por `todas_fotos`: desde 25/09 são DOIS grupos com essa

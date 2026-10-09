@@ -325,6 +325,22 @@ def montar_mensagem(imovel, grupo):
         if linha and linha not in linhas:
             linhas.append(linha)
 
+    # A TAXA DE CONDOMÍNIO, LOGO ANTES DOS VALORES -- a posição do card que ele
+    # escreveu em 03/10 ("• poente / • taxa de condomínio 1092,10 / Venda: ...").
+    #
+    # A LINHA VEM PRONTA DO BANCO e aqui não se decide nada. Quem decide se a
+    # taxa pode sair (ela tem validade: 45 dias desde que foi escrita, pedido
+    # dele) e como se escreve o número é `nay_linha_da_taxa`. O motivo de estar
+    # lá e não aqui: `nai_card_do_banco` monta ESTE MESMO card em SQL, e uma
+    # regra de validade em duas cópias divergiria na primeira edição --
+    # é o padrão 4.3 do HISTORICO, que este projeto já pagou cinco vezes.
+    #
+    # Taxa sem data NÃO SAI, e é o estado de 124 dos 149 imóveis no mercado que
+    # têm taxa (o import da planilha de 26/09). Elas voltam quando alguém
+    # reescrever o valor -- o trigger carimba. `taxa_do_card.sql`.
+    if imovel.get("linha_da_taxa"):
+        linhas.append(imovel["linha_da_taxa"])
+
     # Os valores que ESTE grupo aceita (piso e condomínio incluídos) -- a mesma
     # regra que decidiu que o imóvel entra aqui. Sem isso, o Alto Padrão
     # receberia o card de um imóvel de venda 1,2 milhão com o aluguel de 5 mil
