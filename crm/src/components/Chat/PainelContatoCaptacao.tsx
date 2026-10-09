@@ -36,6 +36,7 @@ import EtapaDaCaptacao from './EtapaDaCaptacao'
 import AgendarFollowup from './AgendarFollowup'
 import CadastroDeImovel, { type AlvoDoCadastro, type FotoDaConversa } from './CadastroDeImovel'
 import { usePuxador } from '@/hooks/usePuxador'
+import { AVISO_DAS_24_HORAS } from './AgendarNoCardOficial'
 
 interface ImovelDoCard {
   codigo: number; condominio: string | null; tipo: string | null; bairro: string | null; status: string | null
@@ -111,10 +112,12 @@ function Barra({ pct, falta }: { pct: number; falta: string[] }) {
   )
 }
 
-export default function PainelContatoCaptacao({ lead, modo, aoFechar }: {
+export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial }: {
   lead: LeadWithOwner
   modo: 'lateral' | 'gaveta'
   aoFechar: () => void
+  /** aberto na aba Oficial (09/10): a conversa é pelo número da Meta, com a regra das 24 h */
+  oficial?: boolean
 }) {
   const [d, setD] = useState<Dados | null>(null)
   const [carregando, setCarregando] = useState(true)
@@ -326,6 +329,7 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar }: {
         {/* 4. agendar follow-up */}
         <div style={{ background: 'var(--wa-panel)' }}>
           <AgendarFollowup leadId={lead.id} />
+          {oficial && <p className="px-4 pb-2 text-[11px] leading-4" style={{ color: 'var(--wa-text-2)' }}>{AVISO_DAS_24_HORAS}</p>}
         </div>
 
         {/* 5. a ficha da conversa e as fotos */}

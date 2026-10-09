@@ -357,6 +357,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
           lead={displayedLead}
           modo={modo}
           aoFechar={alternarPainel}
+          oficial={linha === 'oficial'}
         />
       )
     }

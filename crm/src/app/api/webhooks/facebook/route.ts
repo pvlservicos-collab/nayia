@@ -495,12 +495,9 @@ export async function POST(req: NextRequest) {
     if (!isOutboundEcho) {
       after(() => notifyInboundMessage(orgId, leadId, { text: content, mediaType }))
     }
-    // a transcrição embaixo do áudio, também na linha oficial (29/09)
-    if (mediaType === 'audio' && mediaUrl) {
-      const idDoAudio = activity.id
-      after(() => transcreverAtividade(idDoAudio).then(() => undefined)
-        .catch((e) => console.error('[transcricao]', idDoAudio, e?.message || e)))
-    }
+    // a transcrição embaixo do áudio, também na linha oficial (29/09). O áudio vai à
+    // captação DEPOIS, já como texto -- ver o repasse logo abaixo.
+    const ehAudio = mediaType === 'audio' && !!mediaUrl
 
     /* A NAY DE CAPTAÇÃO CONVERSA PELO NÚMERO OFICIAL (Pedro, 28/09/2026). O que
        uma pessoa manda para cá vai também para o fluxo da captação, no formato
@@ -530,7 +527,19 @@ export async function POST(req: NextRequest) {
         // botão de template / resposta interativa chegam como texto
         ...(!mediaType && !temTexto && message.type !== 'reaction' && content ? { text: { message: content } } : {}),
       }
-      after(() => repassarParaCaptacao(corpoCaptacao))
+      /* O ÁUDIO VAI COMO TEXTO (Pedro, 09/10: "ele já tinha respondido ... não é para errar isso").
+         O fluxo da captação não consegue baixar o áudio da Meta (o endereço pede o token), então
+         a Nay recebia um áudio vazio, agradecia e perguntava de novo o que ele acabara de responder.
+         Agora espera a transcrição do CRM e manda a frase; sem transcrição, vai o áudio como antes. */
+      if (ehAudio) {
+        const idDoAudio = activity.id
+        const { audio: _audio, ...semAudio } = corpoCaptacao as Record<string, any>
+        after(() => transcreverAtividade(idDoAudio)
+          .catch((e) => { console.error('[transcricao]', idDoAudio, e?.message || e); return null })
+          .then((texto) => repassarParaCaptacao(texto ? { ...semAudio, text: { message: texto } } : corpoCaptacao)))
+      } else {
+        after(() => repassarParaCaptacao(corpoCaptacao))
+      }
     }
 
     await db.insert(integrationMessageLogs).values({

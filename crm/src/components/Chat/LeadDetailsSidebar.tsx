@@ -43,6 +43,7 @@ import OrderModal from './OrderModal'
 import LeadOrderCard from './LeadOrderCard'
 import LeadAgendaCard from './LeadAgendaCard'
 import { usePuxador } from '@/hooks/usePuxador'
+import AgendarNoCardOficial from './AgendarNoCardOficial'
 
 interface LeadDetailsSidebarProps {
   lead: LeadWithOwner
@@ -427,6 +428,10 @@ export default function LeadDetailsSidebar({
               </h2>
             )}
           </div>
+
+          {/* agendar mensagem, também na linha oficial (Pedro, 09/10). Os botões da Nay ficam no card
+              da captação, que é o de quem a Nay atende por este número -- ver AgendarNoCardOficial.tsx */}
+          {lead.phone && <AgendarNoCardOficial leadId={lead.id} />}
 
           {/* @usuário do Instagram, pequeno, embaixo do nome */}
           {lead.custom_attributes?.instagram_username && (
