@@ -35,6 +35,7 @@ import { numeroParaCopiar } from './PainelContatoParceria'
 import EtapaDaCaptacao from './EtapaDaCaptacao'
 import AgendarFollowup from './AgendarFollowup'
 import CadastroDeImovel, { type AlvoDoCadastro, type FotoDaConversa } from './CadastroDeImovel'
+import { usePuxador } from '@/hooks/usePuxador'
 
 interface ImovelDoCard {
   codigo: number; condominio: string | null; tipo: string | null; bairro: string | null; status: string | null
@@ -120,6 +121,8 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar }: {
   const [erro, setErro] = useState<string | null>(null)
   const [alvo, setAlvo] = useState<AlvoDoCadastro | null>(null)
   const [copiado, setCopiado] = useState(false)
+  /* a borda esquerda puxa para alargar (Pedro, 09/10), como no card da Parceria */
+  const borda = usePuxador('crm:largura-card-captacao', { min: 300, max: 640, padrao: 380, lado: 'esquerda' })
 
   const ler = useCallback(async () => {
     setCarregando(true)
@@ -388,6 +391,9 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar }: {
     )
   }
   return (
-    <aside className="relative h-full flex-shrink-0 w-[380px]" style={{ borderLeft: '1px solid var(--wa-divider)' }}>{corpo}</aside>
+    <aside className="relative h-full flex-shrink-0" style={{ width: borda.largura, borderLeft: '1px solid var(--wa-divider)' }}>
+      <div {...borda.puxador} />
+      {corpo}
+    </aside>
   )
 }

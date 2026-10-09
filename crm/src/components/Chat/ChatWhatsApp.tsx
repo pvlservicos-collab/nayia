@@ -18,6 +18,7 @@ import BarraDeMetricas from './BarraDeMetricas'
 import BarraDaCaptacao from './BarraDaCaptacao'
 import PainelContatoCaptacao from './PainelContatoCaptacao'
 import PainelContatoParceria from './PainelContatoParceria'
+import { usePuxador } from '@/hooks/usePuxador'
 
 /** Última conversa aberta nesta tela, pra reabrir no próximo acesso. */
 const CHAVE_ULTIMA_CONVERSA = 'crm:ultima-conversa:whatsapp'
@@ -84,6 +85,8 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
   /* O card do contato: ao lado em tela larga (lembrando se a pessoa fechou),
      por cima da conversa em tela menor -- aí começa fechado. */
   const [painelAberto, setPainelAberto] = useState(true)
+  /* a lista da esquerda alarga puxando a borda (Pedro, 09/10); 30% da tela era o padrão do WhatsApp Web */
+  const lista_ = usePuxador('crm:largura-lista', { min: 260, max: 640, padrao: 380, lado: 'direita' })
   useEffect(() => {
     if (!telaLarga) { setPainelAberto(false); return }
     try { setPainelAberto(localStorage.getItem(CHAVE_PAINEL) !== 'nao') } catch { setPainelAberto(true) }
@@ -428,9 +431,10 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
           <div className="flex-1 min-h-0 overflow-y-auto"><FechamentoChecklists /></div>
         ) : (
           <>
-            {/* A lista: 30% da tela, entre 300 e 440 px, como no WhatsApp Web */}
-            <div className="flex-shrink-0 h-full min-h-0" style={{ width: 'clamp(300px, 30%, 440px)', borderRight: '1px solid var(--wa-divider)' }}>
+            {/* A lista: largura de quem usa, puxando a borda direita dela */}
+            <div className="relative flex-shrink-0 h-full min-h-0" style={{ width: lista_.largura, borderRight: '1px solid var(--wa-divider)' }}>
               {lista}
+              <div {...lista_.puxador} />
             </div>
             <div className="flex-1 min-w-0 h-full min-h-0">{conversa()}</div>
             {painel(telaLarga ? 'lateral' : 'gaveta')}

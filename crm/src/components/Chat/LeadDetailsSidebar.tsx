@@ -42,6 +42,7 @@ import CustomFieldMultiSelect from '@/components/Shared/CustomFieldMultiSelect'
 import OrderModal from './OrderModal'
 import LeadOrderCard from './LeadOrderCard'
 import LeadAgendaCard from './LeadAgendaCard'
+import { usePuxador } from '@/hooks/usePuxador'
 
 interface LeadDetailsSidebarProps {
   lead: LeadWithOwner
@@ -99,6 +100,8 @@ export default function LeadDetailsSidebar({
   extra,
   topo,
 }: LeadDetailsSidebarProps) {
+  /* no computador a borda esquerda puxa para alargar (Pedro, 09/10); no celular ocupa a tela */
+  const borda = usePuxador('crm:largura-card-oficial', { min: 240, max: 640, padrao: 300, lado: 'esquerda' })
   const ownerName = lead.owner?.profiles?.full_name || ''
   const ownerInitials = ownerName
     ? ownerName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
@@ -360,7 +363,9 @@ export default function LeadDetailsSidebar({
 
   return (
     <>
-    <div className="w-full md:w-60 xl:w-72 border-l border-[var(--chat-border)] flex flex-col flex-shrink-0 overflow-y-auto bg-[var(--chat-bg-base)] surface-rail chat-dark-scroll">
+    <div className="relative w-full md:w-[var(--largura-card)] border-l border-[var(--chat-border)] flex flex-col flex-shrink-0 overflow-y-auto bg-[var(--chat-bg-base)] surface-rail chat-dark-scroll"
+         style={{ ['--largura-card' as string]: `${borda.largura}px` }}>
+      <div {...borda.puxador} className={`${borda.puxador.className} hidden md:block`} />
       {onClose && (
         <div className="flex items-center justify-between px-4 h-14 border-b border-[var(--chat-border)] flex-shrink-0 md:hidden">
           <span className="text-sm font-semibold text-[var(--chat-text-primary)]">Detalhes do contato</span>

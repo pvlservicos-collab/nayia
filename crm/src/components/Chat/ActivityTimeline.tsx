@@ -864,7 +864,7 @@ export default function ActivityTimeline({
           <CaretDown size={22} weight="bold" />
         </button>
       )}
-      <div ref={rolagemRef} onScroll={aoRolar} className="flex-1 overflow-y-auto overflow-x-hidden relative wa-rolagem" style={{ padding: '8px clamp(12px, 6%, 64px) 12px' }}>
+      <div ref={rolagemRef} onScroll={aoRolar} className="flex-1 overflow-y-auto overflow-x-hidden relative wa-rolagem wa-zoom" style={{ padding: '8px clamp(12px, 6%, 64px) 12px' }}>
         <div className="flex flex-col min-h-full justify-end">
           {temMais && (
             <div className="flex justify-center py-2">

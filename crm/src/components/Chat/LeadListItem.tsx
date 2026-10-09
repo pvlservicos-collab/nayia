@@ -128,7 +128,7 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
             {/* a etiqueta da etapa saiu (Pedro, 29/09: "retira as tags de recebeu
                 imóvel, não tá bacana"); a etapa virou a trilha do card do contato */}
           </span>
-          <span className="wa-hora flex-shrink-0"
+          <span className="wa-lista-hora flex-shrink-0"
                 style={{ color: naoLida ? 'var(--wa-unread)' : 'var(--wa-text-2)', fontWeight: naoLida ? 600 : 400 }}>
             {timeStr}
           </span>

@@ -883,6 +883,12 @@ html {
   mask-size: 420px 420px;
 }
 
+/* O + e o - do alto (TamanhoDasConversas.tsx) também valem para a conversa
+   aberta: as mensagens, com tudo o que vai dentro do balão (texto, hora, foto,
+   áudio, citação), e os botões das etapas. É um zoom de verdade, para o que é
+   escrito em pixel dentro das mensagens acompanhar sem reescrever cada um. */
+.wa-zoom { zoom: var(--wa-escala); }
+
 /* O balão, com o "rabinho" só na primeira mensagem de cada sequência */
 .wa-balao {
   position: relative;
@@ -947,6 +953,7 @@ html {
    O grupo aparece na cor do texto quando está afundado: verde para etapa
    (onde a conversa está), âmbar para quem atende. */
 .wa-fase {
+  zoom: var(--wa-escala);
   display: inline-flex; align-items: center; gap: 5px;
   height: 26px; padding: 0 10px; border-radius: 7px;
   font-size: 12px; line-height: 1; font-weight: 600; letter-spacing: .01em;
@@ -1084,7 +1091,7 @@ html {
 .wa-nome { font-size: calc(16px * var(--wa-escala)); line-height: calc(21px * var(--wa-escala)); color: var(--wa-text); }
 .wa-previa { font-size: calc(14px * var(--wa-escala)); line-height: calc(20px * var(--wa-escala)); color: var(--wa-text-2); }
 .wa-avatar { width: calc(49px * var(--wa-escala)); height: calc(49px * var(--wa-escala)); }
-.wa-hora { font-size: calc(12px * var(--wa-escala)); line-height: calc(16px * var(--wa-escala)); }
+.wa-lista-hora { font-size: calc(12px * var(--wa-escala)); line-height: calc(16px * var(--wa-escala)); }
 .wa-badge {
   min-width: 20px;
   height: 20px;
@@ -1146,8 +1153,10 @@ html {
 }
 .wa-entrada textarea { font-size: 15px; line-height: 20px; }
 
-/* O puxador para alargar o card do lado */
+/* O puxador para alargar o card do lado (na borda esquerda do painel) ou a
+   lista (na borda direita dela) -- ver src/hooks/usePuxador.ts */
 .wa-puxador { position: absolute; top: 0; left: -3px; width: 6px; height: 100%; cursor: col-resize; z-index: 30; }
+.wa-puxador--direita { left: auto; right: -3px; }
 .wa-puxador::after { content: ''; position: absolute; top: 0; bottom: 0; left: 2px; width: 2px; background: transparent; transition: background-color 0.15s; }
 .wa-puxador:hover::after, .wa-puxador--arrastando::after { background: var(--wa-green); }
 
