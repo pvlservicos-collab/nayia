@@ -1728,6 +1728,15 @@ def api_cadastro_pendente():
     conn = conectar()
     try:
         linhas = todas_linhas(conn, "SELECT * FROM nai_cadastro_pendente()")
+        # 332: "O que a IA supõe que é" -- o palpite de cada item (nay-captacao/captacao/palpite.py). Sem a tabela
+        # (migração ainda não aplicada) a fila abre igual, só sem a categoria.
+        palpites = {}
+        try:
+            conn.rollback()
+            for p in todas_linhas(conn, "SELECT fonte, item, categoria, porque FROM cadastro_rapido_palpite"):
+                palpites[(p["fonte"], int(p["item"]))] = {"categoria": p["categoria"], "porque": p["porque"]}
+        except Exception:  # noqa: BLE001
+            conn.rollback()
     finally:
         conn.close()
     itens = [{
@@ -1738,10 +1747,62 @@ def api_cadastro_pendente():
         "fotos": l["fotos"], "fotosDeFora": l["fotos_de_fora"], "dono": l["dono"],
         "quando": l["atualizado"].isoformat() if l["atualizado"] else None,
         "dados": l["dados"] or None,
+        "palpite": palpites.get(("ficha", int(l["ficha_id"])) if l["fonte"] == "ficha" else ("imovel", int(l["codigo"] or 0))),
     } for l in linhas if l["status"] != STATUS_EXCLUIDO]   # imóvel excluído não pede mais cadastro
     # o mais incompleto primeiro: é o que mais precisa de gente
     itens.sort(key=lambda x: (x["fonte"] != "ficha", x["pct"] if x["pct"] is not None else -1, -(x["codigo"] or 0)))
     return jsonify({"itens": itens, "total": len(itens)})
+
+
+@app.route("/admin/api/imoveis/conversa")
+def api_cadastro_conversa():
+    """A CONVERSA de onde o cadastro veio (Pedro, 09/10/2026: "esses imóveis que vêm de conversa eu quero ver a
+    conversa ... em um popup"). ?codigo=<imóvel> ou ?ficha=<ficha da conversa>.
+
+    Quem é a pessoa vem do card da origem (site_origem_do_cadastro, 326). A conversa vem do CRM, que tem tudo: as
+    duas linhas (oficial e captação), o que a equipe escreveu, fotos e áudios (em endereço assinado, de validade
+    curta). Se o CRM não responder, vai o texto que a captação guardou (sem as fotos). Só leitura; só com senha."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    codigo = request.args.get("codigo", type=int)
+    ficha = request.args.get("ficha", type=int)
+    if not codigo and not ficha:
+        return jsonify({"erro": "diga o codigo ou a ficha"}), 400
+    conn = conectar_escrita()
+    try:
+        o = (todas_linhas(conn, "SELECT site_origem_do_cadastro(%s, %s) AS o", (codigo, ficha))[0]["o"]) or {}
+        digitos = re.sub(r"\D", "", str(o.get("telefone") or ""))
+        if len(digitos) < 8:
+            return jsonify({"erro": "Este cadastro não veio de uma conversa."}), 404
+        cabeca = {"nome": o.get("nome"), "telefone": o.get("telefone"), "linha": o.get("linha"), "rotulo": o.get("rotulo")}
+        try:
+            from disparo_api import _crm
+            status, j = _crm("GET", "/api/conversas/por-telefone?telefone=" + digitos, timeout=20)
+        except Exception as e:  # noqa: BLE001
+            status, j = 502, {"erro": str(e)}
+        if status == 200 and j.get("conversas"):
+            return jsonify({**cabeca, "conversas": j["conversas"], "de": "crm"})
+        # o CRM não respondeu (ou não tem a conversa): o texto que a captação guardou
+        linhas = todas_linhas(conn, """
+            SELECT x.* FROM (
+              SELECT m.id, m.direcao, m.origem, m.texto, m.criada_em FROM captacao_mensagens m
+               WHERE right(regexp_replace(coalesce(m.telefone, ''), '[^0-9]', '', 'g'), 8) = %s
+               ORDER BY m.id DESC LIMIT 500) x ORDER BY x.id""", (digitos[-8:],))
+    finally:
+        conn.close()
+    if not linhas:
+        return jsonify({**cabeca, "conversas": [], "de": "captacao", "aviso": j.get("erro")})
+    quem = {"disparo": "Nay (disparo)", "resposta": "Nay", "humano": "Equipe"}
+    mensagens = [{
+        "id": str(m["id"]), "quando": m["criada_em"].isoformat(), "saida": m["direcao"] != "recebida",
+        "autor": (quem.get(m["origem"], "Nosso número") if m["direcao"] != "recebida" else (o.get("nome") or "Contato")),
+        "deGente": m["direcao"] != "recebida" and m["origem"] == "humano",
+        "texto": m["texto"] or ("" if m["direcao"] != "recebida" else "[" + (m["origem"] or "mídia") + "]"),
+        "midia": None, "transcricao": None, "citado": None, "falhou": False,
+    } for m in linhas]
+    return jsonify({**cabeca, "de": "captacao", "aviso": "O CRM não respondeu: aqui vai só o texto, sem fotos nem áudios.",
+                    "conversas": [{"linha": "captacao", "rotulo": o.get("linha") or "Conversa da captação", "nome": o.get("nome"),
+                                   "telefone": o.get("telefone"), "mensagens": mensagens}]})
 
 
 @app.route("/admin/api/imoveis/origem")

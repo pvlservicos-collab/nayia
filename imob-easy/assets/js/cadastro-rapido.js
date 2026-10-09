@@ -84,6 +84,29 @@
     return it.fonte === "ficha" ? false : Number(it.fotos || 0) === 0;
   }
 
+  /* ---- O QUE A IA SUPÕE QUE É (332; Pedro, 09/10: "prejulgue em categorias ... com cores ... em ordem") --------
+     O palpite vem pronto do servidor (nay-captacao/captacao/palpite.py, de 5 em 5 minutos). A ordem daqui é a da
+     fila: o que mais vale abrir primeiro. */
+  var CATS = [
+    { k: "novo", rotulo: "Imóvel novo para anunciar", cor: "#16a34a" },
+    { k: "atualizacao", rotulo: "Atualização de imóvel que já temos", cor: "#2563eb" },
+    { k: "completar", rotulo: "Cadastro para completar", cor: "#7c3aed" },
+    { k: "indisponivel", rotulo: "Alugado ou indisponível agora", cor: "#d97706" },
+    { k: "repetido", rotulo: "Repetido de outro da fila", cor: "#6b7280" },
+    { k: "nao_e", rotulo: "Não é para cadastrar", cor: "#dc2626" },
+    { k: "", rotulo: "Ainda sem palpite", cor: "#9ca3af" }
+  ];
+  function catDe(it) {
+    var k = (it.palpite && it.palpite.categoria) || "";
+    return CATS.some(function (c) { return c.k === k; }) ? k : "";
+  }
+  function dadosDaCat(k) { return CATS.filter(function (c) { return c.k === k; })[0] || CATS[CATS.length - 1]; }
+  function ordemDaCat(it) { var k = catDe(it); for (var i = 0; i < CATS.length; i++) if (CATS[i].k === k) return i; return CATS.length; }
+  function seloDaCat(it) {
+    var c = dadosDaCat(catDe(it));
+    return '<span class="cr-cat" style="background:' + c.cor + '">' + esc(c.rotulo) + "</span>";
+  }
+
   /* ---- o estilo (variáveis do site: segue o tema dentro do CRM) -------------- */
   var css = document.createElement("style");
   css.textContent =
@@ -108,6 +131,52 @@
     ".cr-veu{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);display:flex;align-items:stretch;justify-content:center;padding:14px}" +
     /* 09/10: o display:flex de cima vencia o [hidden]: o ✕ esvaziava o popup e ele ficava na frente, sem fechar */
     ".cr-veu[hidden],.cr-veu [hidden]{display:none!important}" +
+    /* o que a IA supõe que é: o selo colorido, os chips da lista e a lista suspensa entre as setas */
+    ".cr-cat{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700;color:#fff;white-space:nowrap}" +
+    ".cr-cats{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 12px}" +
+    ".cr-cats .cr-chip i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}" +
+    ".cr-nav select{height:34px;max-width:300px;padding:0 10px;border-radius:999px;border:1px solid #374151;border-left:7px solid #9ca3af;background:#1f2937;color:#f9fafb;font:inherit;font-size:13px;font-weight:600;cursor:pointer}" +
+    /* a conversa: o desenho do chat do CRM (papel, balões, hora), só leitura */
+    ".cr-conv-veu{position:fixed;inset:0;z-index:2100;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:14px}" +
+    ".cr-conv-veu[hidden],.cr-conv-veu [hidden]{display:none!important}" +
+    ".cr-conv{--cv-papel:#efeae2;--cv-in:#fff;--cv-out:#d9fdd3;--cv-tinta:#111b21;--cv-fraco:#667781;--cv-painel:#f0f2f5;--cv-linha:#e9edef;" +
+      "width:min(580px,100%);height:min(88vh,920px);display:flex;flex-direction:column;border-radius:14px;overflow:hidden;background:var(--cv-papel);color:var(--cv-tinta);box-shadow:0 20px 60px rgba(0,0,0,.45);font-size:14.2px}" +
+    ".crm-escuro .cr-conv{--cv-papel:#161717;--cv-in:#242626;--cv-out:#144d37;--cv-tinta:#fafafa;--cv-fraco:#a5a5a5;--cv-painel:#1d1f1f;--cv-linha:rgba(255,255,255,.09)}" +
+    ".cr-conv-topo{display:flex;gap:10px;align-items:center;padding:10px 14px;background:var(--cv-painel);border-bottom:1px solid var(--cv-linha)}" +
+    ".cr-conv-foto{width:40px;height:40px;border-radius:50%;background:#dfe5e7;color:#54656f;display:flex;align-items:center;justify-content:center;font-weight:700;flex:0 0 auto}" +
+    ".cr-conv-quem{flex:1;min-width:0}" +
+    ".cr-conv-quem b{display:block;font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
+    ".cr-conv-quem span{display:block;font-size:12.5px;color:var(--cv-fraco);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
+    ".cr-conv-x{width:34px;height:34px;border:0;border-radius:50%;background:transparent;color:var(--cv-fraco);font-size:18px;cursor:pointer}" +
+    ".cr-conv-abas{display:flex;flex-wrap:wrap;gap:6px;padding:6px 14px;background:var(--cv-painel);border-bottom:1px solid var(--cv-linha)}" +
+    ".cr-conv-abas button{height:28px;padding:0 12px;border-radius:999px;border:1px solid var(--cv-linha);background:transparent;color:var(--cv-fraco);font:inherit;font-size:12.5px;cursor:pointer}" +
+    ".cr-conv-abas button[aria-pressed=true]{background:#1daa61;border-color:#1daa61;color:#fff;font-weight:700}" +
+    ".cr-conv-corpo{flex:1;min-height:0;overflow-y:auto;padding:12px 5%;display:flex;flex-direction:column}" +
+    ".cr-dia{align-self:center;margin:8px 0;padding:4px 10px;border-radius:8px;background:var(--cv-in);color:var(--cv-fraco);font-size:12px;box-shadow:0 1px .5px rgba(11,20,26,.13)}" +
+    ".cr-msg{display:flex;margin-top:2px}" +
+    ".cr-msg--out{justify-content:flex-end}" +
+    ".cr-msg--novo{margin-top:9px}" +
+    ".cr-balao{position:relative;max-width:78%;padding:6px 9px 7px;border-radius:8px;background:var(--cv-in);box-shadow:0 1px .5px rgba(11,20,26,.13);white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.36}" +
+    ".cr-msg--out .cr-balao{background:var(--cv-out)}" +
+    ".cr-msg--novo .cr-balao::before{content:\"\";position:absolute;top:0;width:8px;height:13px;background:var(--cv-in)}" +
+    ".cr-msg--novo.cr-msg--in .cr-balao{border-top-left-radius:0}" +
+    ".cr-msg--novo.cr-msg--in .cr-balao::before{left:-8px;clip-path:polygon(0 0,100% 0,100% 100%)}" +
+    ".cr-msg--novo.cr-msg--out .cr-balao{border-top-right-radius:0}" +
+    ".cr-msg--novo.cr-msg--out .cr-balao::before{right:-8px;background:var(--cv-out);clip-path:polygon(0 0,100% 0,0 100%)}" +
+    ".cr-autor{display:block;font-size:12px;font-weight:700;margin-bottom:2px;color:#7c3aed}" +
+    ".cr-autor--gente{color:#0b6bcb}" +
+    ".cr-autor--num{color:var(--cv-fraco)}" +
+    ".crm-escuro .cr-autor{color:#c4b5fd}" +
+    ".crm-escuro .cr-autor--gente{color:#7cc4ff}" +
+    ".cr-hora{float:right;margin:7px 0 -3px 10px;font-size:11px;color:var(--cv-fraco)}" +
+    ".cr-balao img,.cr-balao video{display:block;max-width:260px;max-height:300px;width:auto;height:auto;border-radius:6px;margin-bottom:4px;background:rgba(0,0,0,.06)}" +
+    ".cr-balao audio{display:block;width:250px;max-width:100%;margin-bottom:4px}" +
+    ".cr-transc{font-size:13px;font-style:italic;color:var(--cv-fraco)}" +
+    ".cr-citado{padding:4px 8px;margin-bottom:4px;border-left:4px solid #1daa61;border-radius:6px;background:rgba(0,0,0,.06);font-size:12.5px;color:var(--cv-fraco)}" +
+    ".cr-doc{display:inline-block;padding:6px 10px;margin-bottom:4px;border-radius:6px;background:rgba(0,0,0,.06);color:inherit;font-weight:600;text-decoration:none}" +
+    ".cr-falhou{font-size:11.5px;font-weight:700;color:#dc2626}" +
+    ".cr-conv-pe{padding:7px 14px;background:var(--cv-painel);border-top:1px solid var(--cv-linha);font-size:12px;color:var(--cv-fraco)}" +
+    ".cr-conv-aviso{align-self:center;margin:20px 0;padding:8px 12px;border-radius:8px;background:var(--cv-in);color:var(--cv-fraco);font-size:13px;text-align:center}" +
     ".cr-caixa{flex:1;max-width:1500px;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;background:var(--fundo,#f4f4f2);box-shadow:0 20px 60px rgba(0,0,0,.4)}" +
     ".cr-faixa{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:8px 14px;background:#111827;color:#f9fafb}" +
     ".cr-titulo{font-weight:700;font-size:14px;letter-spacing:.02em;color:#e5e7eb;margin-right:auto}" +
@@ -172,13 +241,15 @@
       '<button class="cr-comecar" type="button" id="cr-comecar" disabled>Começar a curadoria</button>' +
       '<span class="cr-nota">Tudo o que espera alguém, numa fila só: passou até o fim, está tudo resolvido.</span>' +
     "</div>" +
+    '<div class="cr-cats" id="cr-cats" aria-label="O que a IA supõe que é"></div>' +
     '<div class="tabela-envolucro"><div class="tabela-rolagem"><table class="tabela cr-lista">' +
-      '<thead><tr><th scope="col">Imóvel</th><th scope="col">De onde veio</th><th scope="col">Fotos</th><th scope="col">Cadastro</th><th scope="col">Por que está aqui</th><th scope="col"></th></tr></thead>' +
-      '<tbody id="cr-corpo"><tr><td colspan="6">Carregando…</td></tr></tbody>' +
+      '<thead><tr><th scope="col">Imóvel</th><th scope="col">O que a IA supõe que é</th><th scope="col">De onde veio</th><th scope="col">Fotos</th><th scope="col">Cadastro</th><th scope="col">Por que está aqui</th><th scope="col"></th></tr></thead>' +
+      '<tbody id="cr-corpo"><tr><td colspan="7">Carregando…</td></tr></tbody>' +
     "</table></div></div>";
 
   var itens = null;
   var fonte = "";
+  var cat = null;      // a categoria escolhida na lista (null = todas)
 
   /* a ordem (Pedro, 09/10: "posso filtrar do mais antigo para o mais novo"): pela data em que chegou --
      a ficha pela última vez que o dono falou dela, o imóvel pelo cadastro */
@@ -186,8 +257,11 @@
   function visiveis() {
     if (!itens) return [];
     var novos = ($("cr-ordem") || {}).value === "novos";
-    return itens.filter(function (it) { return !fonte || fonteDe(it) === fonte; })
-      .sort(function (a, b) { return novos ? dataDe(b) - dataDe(a) : dataDe(a) - dataDe(b); });
+    // em ordem por categoria (o que a IA supõe que é); dentro dela, pela data
+    return itens.filter(function (it) { return (!fonte || fonteDe(it) === fonte) && (cat === null || catDe(it) === cat); })
+      .sort(function (a, b) {
+        return (ordemDaCat(a) - ordemDaCat(b)) || (novos ? dataDe(b) - dataDe(a) : dataDe(a) - dataDe(b));
+      });
   }
 
   function seloDeFoto(it) {
@@ -204,6 +278,15 @@
       return '<button class="cr-chip" type="button" data-fonte="' + f.k + '" aria-pressed="' + (fonte === f.k) + '">' +
         esc(f.rotulo) + "<b>" + n + "</b></button>";
     }).join("");
+    var daFonte = base.filter(function (it) { return !fonte || fonteDe(it) === fonte; });
+    $("cr-cats").innerHTML = '<span class="cr-nota">O que a IA supõe que é:</span>' +
+      '<button class="cr-chip" type="button" data-cat="*" aria-pressed="' + (cat === null) + '">Todas<b>' + daFonte.length + "</b></button>" +
+      CATS.map(function (c) {
+        var n = daFonte.filter(function (it) { return catDe(it) === c.k; }).length;
+        if (!n) return "";
+        return '<button class="cr-chip" type="button" data-cat="' + c.k + '" aria-pressed="' + (cat === c.k) + '">' +
+          '<i style="background:' + c.cor + '"></i>' + esc(c.rotulo) + "<b>" + n + "</b></button>";
+      }).join("");
     var lista = visiveis();
     $("cr-comecar").disabled = !lista.length;
     $("cr-comecar").textContent = lista.length ? "Começar a curadoria (" + lista.length + ")" : "Nada esperando: tudo resolvido";
@@ -212,6 +295,7 @@
       return "<tr><td><b>" + esc(it.titulo) + "</b><br><span class=\"sub\">" +
           (it.codigo ? "#" + it.codigo + " · " : "sem cadastro · ") + esc([it.tipo, it.bairro, it.status].filter(Boolean).join(" · ")) +
           (it.dono ? " · dono: " + esc(it.dono) : "") + "</span></td>" +
+        "<td>" + seloDaCat(it) + (it.palpite && it.palpite.porque ? '<div class="sub">' + esc(it.palpite.porque) + "</div>" : "") + "</td>" +
         '<td><span class="cr-fonte">' + esc(rotuloDaFonte(fonteDe(it))) + "</span>" +
           (it.quando ? '<div class="sub">' + esc(quando(it.quando)) + "</div>" : "") + "</td>" +
         "<td>" + seloDeFoto(it) + "</td>" +
@@ -220,7 +304,7 @@
           (it.falta && it.falta.length ? '<div class="sub">falta ' + esc(it.falta.slice(0, 3).join(", ")) + (it.falta.length > 3 ? " +" + (it.falta.length - 3) : "") + "</div>" : "") + "</td>" +
         '<td class="sub">' + esc(it.motivos.join(" · ")) + "</td>" +
         '<td><button class="cr-acao" type="button" data-abrir="' + i + '">Abrir</button></td></tr>';
-    }).join("") : '<tr><td colspan="6">Nada esperando aqui — o cadastro está em dia.</td></tr>';
+    }).join("") : '<tr><td colspan="7">Nada esperando aqui — o cadastro está em dia.</td></tr>';
   }
 
   function carregar(depois) {
@@ -228,7 +312,7 @@
       .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
       .then(function (d) { itens = d.itens || []; pintar(); if (depois) depois(); })
       .catch(function () {
-        $("cr-corpo").innerHTML = '<tr><td colspan="6">Não foi possível carregar a fila (a senha do /admin é necessária).</td></tr>';
+        $("cr-corpo").innerHTML = '<tr><td colspan="7">Não foi possível carregar a fila (a senha do /admin é necessária).</td></tr>';
       });
   }
 
@@ -238,6 +322,10 @@
     var b = e.target.closest("[data-fonte]");
     if (b) { fonte = b.getAttribute("data-fonte"); pintar(); }
   });
+  $("cr-cats").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-cat]");
+    if (b) { var v = b.getAttribute("data-cat"); cat = v === "*" ? null : v; pintar(); }
+  });
   $("cr-comecar").addEventListener("click", function () { abrir(visiveis(), 0); });
   $("cr-corpo").addEventListener("click", function (e) {
     var b = e.target.closest("[data-abrir]");
@@ -246,6 +334,7 @@
 
   /* ---- o popup -------------------------------------------------------------- */
   var fila = [], pos = 0, veu = null, ocupado = false;
+  var filaToda = [], catDoPopup = "*";    // a fila inteira e a categoria escolhida entre as setas ("*" = todas)
   var feitos = {};
 
   function chave(it) { return it.codigo ? "i" + it.codigo : "f" + it.fichaId; }
@@ -253,6 +342,7 @@
   function abrir(lista, inicio) {
     fila = lista.slice();
     if (!fila.length) return;
+    filaToda = fila; catDoPopup = "*";
     pos = Math.max(0, Math.min(inicio || 0, fila.length - 1));
     if (!veu) {
       veu = document.createElement("div");
@@ -263,9 +353,11 @@
         '<div class="cr-caixa">' +
           '<div class="cr-faixa">' +
             '<div class="cr-nav"><button type="button" data-ir="-1" aria-label="Anterior">◀</button>' +
+              '<select id="cr-cat" aria-label="O que a IA supõe que é" title="O que a IA supõe que é: escolha a categoria para passar só por ela"></select>' +
               '<span id="cr-pos"></span><button type="button" data-ir="1" aria-label="Próximo">▶</button></div>' +
             '<span class="cr-titulo">Cadastro rápido</span>' +
             '<div class="cr-acoes">' +
+              '<button class="cr-acao" type="button" id="cr-conversa" hidden>Ver conversa</button>' +
               '<button class="cr-acao" type="button" id="cr-condo">+ Condomínio</button>' +
               '<button class="cr-acao" type="button" id="cr-outro">É atualização de outro imóvel?</button>' +
               '<button class="cr-acao" type="button" id="cr-importar">Importar tudo</button>' +
@@ -288,6 +380,7 @@
         if (id === "cr-importar") return importar();
         if (id === "cr-outro") return abrirAtualizacao();
         if (id === "cr-condo") return abrirCondominio();
+        if (id === "cr-conversa") return abrirConversa(fila[pos]);
         if (id === "cr-atu-voltar") return fecharAtualizacao();
         if (id === "cr-atu-aplicar") return aplicarAtualizacao();
         var esc_ = e.target.closest("[data-alvo]");
@@ -296,15 +389,47 @@
       veu.addEventListener("input", function (e) {
         if (e.target.id === "cr-atu-busca") buscarAlvo(e.target.value);
       });
-      document.addEventListener("keydown", function (e) { if (veu && !veu.hidden && e.key === "Escape") fechar(); });
+      veu.addEventListener("change", function (e) { if (e.target.id === "cr-cat") escolherCat(e.target.value); });
+      document.addEventListener("keydown", function (e) {
+        if (e.key !== "Escape" || !veu || veu.hidden) return;
+        if (conv && !conv.hidden) { fecharConversa(); return; }     // o Esc fecha primeiro a conversa
+        fechar();
+      });
     }
     veu.hidden = false;
     document.body.style.overflow = "hidden";
     mostrar();
   }
 
+  /* a categoria escolhida entre as setas: as setas passam só por ela (Pedro, 09/10) */
+  function escolherCat(v) {
+    var s = $("cr-cat");
+    if (ocupado) { s.value = catDoPopup; return; }
+    var atual = fila[pos];
+    catDoPopup = v;
+    fila = v === "*" ? filaToda : filaToda.filter(function (it) { return catDe(it) === (v === "-" ? "" : v); });
+    if (!fila.length) { fila = filaToda; catDoPopup = "*"; }
+    var i = fila.indexOf(atual);
+    if (i >= 0) { pos = i; pintarFaixa(); atualizarCard(); return; }   // o mesmo imóvel continua aberto
+    pos = 0;
+    mostrar();
+  }
+  function pintarCats() {
+    var s = $("cr-cat");
+    if (!s) return;
+    s.innerHTML = '<option value="*">Todas as categorias (' + filaToda.length + ")</option>" +
+      CATS.map(function (c) {
+        var n = filaToda.filter(function (it) { return catDe(it) === c.k; }).length;
+        return n ? '<option value="' + (c.k || "-") + '">' + esc(c.rotulo) + " (" + n + ")</option>" : "";
+      }).join("");
+    s.value = catDoPopup;
+    // a cor é a do imóvel aberto: dá para ver a categoria mesmo passando por "Todas"
+    s.style.borderLeftColor = dadosDaCat(catDe(fila[pos])).cor;
+  }
+
   function fechar() {
     if (!veu) return;
+    fecharConversa();
     devolverCondominio();
     ocupado = false;          // o ✕ sempre solta o popup, mesmo com um salvamento no meio
     veu.hidden = true;
@@ -331,6 +456,8 @@
   function pintarFaixa() {
     var it = fila[pos];
     $("cr-pos").textContent = (pos + 1) + " de " + fila.length;
+    pintarCats();
+    pintarBotaoDaConversa();
     veu.querySelector('[data-ir="-1"]').disabled = pos === 0;
     veu.querySelector('[data-ir="1"]').disabled = pos >= fila.length - 1;
     $("cr-importar").hidden = !it.codigo;
@@ -369,7 +496,7 @@
     var q = it.codigo ? "codigo=" + encodeURIComponent(it.codigo) : "ficha=" + encodeURIComponent(it.fichaId);
     fetch("/admin/api/imoveis/origem?" + q, { credentials: "same-origin" })
       .then(function (r) { return r.ok ? r.json() : {}; })
-      .then(function (o) { it._origem = o || {}; if (fila[pos] === it) atualizarCard(); })
+      .then(function (o) { it._origem = o || {}; if (fila[pos] === it) { atualizarCard(); pintarBotaoDaConversa(); } })
       .catch(function () { it._origem = { erro: true }; if (fila[pos] === it) atualizarCard(); });
   }
 
@@ -404,6 +531,8 @@
     "#cr-card .crc-fotos a{display:block;aspect-ratio:4/3;border-radius:8px;overflow:hidden;background:var(--borda,#e2e2de)}" +
     "#cr-card .crc-fotos img{width:100%;height:100%;object-fit:cover;display:block}" +
     "#cr-card .crc-ok{color:#15803d;font-weight:700}#cr-card .crc-aviso{color:#b45309;font-weight:700}" +
+    "#cr-card .crc-cat{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:700;color:#fff;margin-right:6px}" +
+    "#cr-card .crc-botao{height:28px;padding:0 12px;margin-left:6px;border-radius:999px;border:1px solid #1daa61;background:#1daa61;color:#fff;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}" +
     "@media (max-width:700px){#cr-card dl{grid-template-columns:1fr}}";
 
   function cardHtml(it) {
@@ -438,7 +567,11 @@
     return "<h2>Sobre este cadastro " + '<span class="crc-fonte">' + esc(rotuloDaFonte(fonteDe(it))) + "</span>" +
         "<small>" + (pos + 1) + " de " + fila.length + " na fila</small></h2>" +
       "<dl>" +
-        "<dt>De onde veio</dt><dd>" + origem + "</dd>" +
+        "<dt>O que a IA supõe que é</dt><dd>" +
+          '<span class="crc-cat" style="background:' + dadosDaCat(catDe(it)).cor + '">' + esc(dadosDaCat(catDe(it)).rotulo) + "</span>" +
+          (it.palpite ? esc(it.palpite.porque || "") : "a análise roda de 5 em 5 minutos; este ainda não passou por ela") + "</dd>" +
+        "<dt>De onde veio</dt><dd>" + origem +
+          (temConversa(it) ? '<button class="crc-botao" type="button" data-cr-conversa="1">Ver conversa</button>' : "") + "</dd>" +
         "<dt>Por que está aqui</dt><dd>" + esc(it.motivos.join(" · ") || "—") + "</dd>" +
         (prep && prep.campos && prep.campos.condominio && !prep.condominio
           ? '<dt>Condomínio</dt><dd><span class="crc-aviso">“' + esc(prep.campos.condominio) + "” não bate com nenhum condomínio cadastrado.</span> " +
@@ -479,6 +612,135 @@
       topo.parentNode.insertBefore(c, topo);
     }
     c.innerHTML = cardHtml(it);
+    c.style.borderLeftColor = dadosDaCat(catDe(it)).cor;
+    // o card mora dentro da página do imóvel (iframe): o clique sobe para cá
+    c.onclick = function (e) { if (e.target.closest("[data-cr-conversa]")) abrirConversa(fila[pos]); };
+  }
+
+  /* ---- VER CONVERSA (Pedro, 09/10: "esses imóveis que vêm de conversa eu quero ver a conversa, pega o mockup de
+     conversa lá do CRM, em um popup") -------------------------------------------------------------------------
+     A conversa vem do CRM pela API do site (/admin/api/imoveis/conversa): as linhas em que a pessoa falou (oficial,
+     captação), o que a Nay e a equipe escreveram, fotos e áudios. Só leitura: para responder é no CRM. */
+  var conv = null;
+  function temConversa(it) {
+    if (!it) return false;
+    if (it.fonte === "ficha") return true;
+    return !!(it._origem && it._origem.telefone);
+  }
+  function pintarBotaoDaConversa() {
+    var b = $("cr-conversa");
+    if (b) b.hidden = !temConversa(fila[pos]);
+  }
+  function fecharConversa() {
+    if (!conv || conv.hidden) return;
+    conv.hidden = true;
+    conv.querySelector(".cr-conv-corpo").innerHTML = "";      // para o áudio que estiver tocando
+  }
+  function horaDe(iso) {
+    var d = new Date(iso);
+    return isNaN(d) ? "" : d.toLocaleTimeString("pt-BR", { timeZone: "America/Manaus", hour: "2-digit", minute: "2-digit" });
+  }
+  function diaDe(iso) {
+    var d = new Date(iso);
+    return isNaN(d) ? "" : d.toLocaleDateString("pt-BR", { timeZone: "America/Manaus", weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" });
+  }
+  function midiaHtml(m) {
+    var x = m.midia;
+    if (!x || !x.url) return "";
+    var u = esc(x.url);
+    if (x.tipo === "image") {
+      // a miniatura do armazém do CRM (?w=) -- a foto cheia abre no clique
+      var mini = /\/api\/midia\//.test(x.url) ? u + (x.url.indexOf("?") >= 0 ? "&amp;" : "?") + "w=480" : u;
+      return '<a href="' + u + '" target="_blank" rel="noopener"><img src="' + mini + '" alt="foto" loading="lazy"></a>';
+    }
+    if (x.tipo === "audio") return '<audio controls preload="none" src="' + u + '"></audio>';
+    if (x.tipo === "video") return '<video controls preload="metadata" src="' + u + '"></video>';
+    return '<a class="cr-doc" href="' + u + '" target="_blank" rel="noopener">📄 ' + esc(x.nome || "documento") + "</a>";
+  }
+  function pintarConversa(i) {
+    var d = conv._dados || {};
+    var lista = d.conversas || [];
+    var c = lista[i];
+    var nome = d.nome || (c && c.nome) || "Contato";
+    conv.querySelector(".cr-conv-foto").textContent = String(nome).trim().charAt(0).toUpperCase() || "?";
+    conv.querySelector(".cr-conv-quem b").textContent = nome;
+    conv.querySelector(".cr-conv-quem span").textContent = [fone(d.telefone || (c && c.telefone)), c && c.rotulo].filter(Boolean).join(" · ");
+    var abas = conv.querySelector(".cr-conv-abas");
+    abas.hidden = lista.length < 2;
+    abas.innerHTML = lista.map(function (x, n) {
+      return '<button type="button" data-conv-aba="' + n + '" aria-pressed="' + (n === i) + '">' + esc(x.rotulo || x.linha) + " (" + x.mensagens.length + ")</button>";
+    }).join("");
+    var corpo = conv.querySelector(".cr-conv-corpo");
+    if (!c || !c.mensagens.length) {
+      corpo.innerHTML = '<div class="cr-conv-aviso">' + esc(d.aviso || "Não achei mensagens desta pessoa.") + "</div>";
+      conv.querySelector(".cr-conv-pe").textContent = "";
+      return;
+    }
+    var dia = "", antes = null;
+    corpo.innerHTML = (d.aviso ? '<div class="cr-conv-aviso">' + esc(d.aviso) + "</div>" : "") + c.mensagens.map(function (m) {
+      var h = "";
+      var hoje = diaDe(m.quando);
+      if (hoje !== dia) { dia = hoje; antes = null; h += '<div class="cr-dia">' + esc(hoje) + "</div>"; }
+      var lado = m.saida ? "out" : "in";
+      var quem = m.saida ? m.autor : "";
+      var novo = antes !== lado + "|" + quem;        // muda quem fala: o balão ganha o rabinho e o nome
+      antes = lado + "|" + quem;
+      var texto = m.texto || "";
+      if (m.midia && /^\[[^\]]{2,20}\]$/.test(texto.trim())) texto = "";      // "[imagem]": a foto já diz
+      h += '<div class="cr-msg cr-msg--' + lado + (novo ? " cr-msg--novo" : "") + '"><div class="cr-balao">' +
+        (m.saida && novo ? '<span class="cr-autor' + (m.deGente ? " cr-autor--gente" : /^Nay/.test(quem) ? "" : " cr-autor--num") + '">' + esc(quem) + "</span>" : "") +
+        (m.citado ? '<div class="cr-citado">' + esc(m.citado) + "</div>" : "") +
+        midiaHtml(m) + esc(texto) +
+        (m.transcricao ? '<div class="cr-transc">“' + esc(m.transcricao) + "”</div>" : "") +
+        (m.falhou ? ' <span class="cr-falhou">não foi entregue</span>' : "") +
+        '<span class="cr-hora">' + esc(horaDe(m.quando)) + "</span></div></div>";
+      return h;
+    }).join("");
+    conv._noFim = true;
+    conv.querySelector(".cr-conv-pe").textContent = c.mensagens.length + " mensagens · só leitura (para responder, abra a conversa no CRM)";
+    corpo.scrollTop = corpo.scrollHeight;
+  }
+  function abrirConversa(it) {
+    if (!it) return;
+    if (!conv) {
+      conv = document.createElement("div");
+      conv.className = "cr-conv-veu";
+      conv.setAttribute("role", "dialog");
+      conv.setAttribute("aria-label", "Conversa");
+      conv.innerHTML =
+        '<div class="cr-conv">' +
+          '<div class="cr-conv-topo"><div class="cr-conv-foto"></div><div class="cr-conv-quem"><b></b><span></span></div>' +
+            '<button class="cr-conv-x" type="button" data-conv-fechar="1" aria-label="Fechar a conversa">✕</button></div>' +
+          '<div class="cr-conv-abas" hidden></div>' +
+          '<div class="cr-conv-corpo"></div>' +
+          '<div class="cr-conv-pe"></div>' +
+        "</div>";
+      document.body.appendChild(conv);
+      // a foto chega depois do texto e empurra a conversa: enquanto a pessoa não rolou, ela fica na última mensagem
+      var rolo = conv.querySelector(".cr-conv-corpo");
+      rolo.addEventListener("load", function () { if (conv._noFim) rolo.scrollTop = rolo.scrollHeight; }, true);
+      rolo.addEventListener("wheel", function () { conv._noFim = false; }, { passive: true });
+      rolo.addEventListener("touchmove", function () { conv._noFim = false; }, { passive: true });
+      conv.addEventListener("click", function (e) {
+        if (e.target === conv || e.target.closest("[data-conv-fechar]")) return fecharConversa();
+        var a = e.target.closest("[data-conv-aba]");
+        if (a) pintarConversa(Number(a.getAttribute("data-conv-aba")));
+      });
+    }
+    conv._dados = { nome: it.dono || (it._origem && it._origem.nome), telefone: it._origem && it._origem.telefone, conversas: [] };
+    conv.hidden = false;
+    pintarConversa(0);
+    conv.querySelector(".cr-conv-corpo").innerHTML = '<div class="cr-conv-aviso">Buscando a conversa…</div>';
+    var q = it.codigo ? "codigo=" + encodeURIComponent(it.codigo) : "ficha=" + encodeURIComponent(it.fichaId);
+    fetch("/admin/api/imoveis/conversa?" + q, { credentials: "same-origin" })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (x) {
+        if (!conv || conv.hidden) return;
+        if (!x.ok) { conv._dados.aviso = (x.j && (x.j.erro || x.j.error)) || "Não consegui buscar a conversa."; pintarConversa(0); return; }
+        conv._dados = x.j || {};
+        pintarConversa(0);
+      })
+      .catch(function () { if (conv && !conv.hidden) { conv._dados.aviso = "Não consegui buscar a conversa."; pintarConversa(0); } });
   }
 
   /* ---- o editor dentro do popup ---------------------------------------------- */

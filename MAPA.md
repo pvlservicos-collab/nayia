@@ -78,6 +78,9 @@ prompt: comece pelo `nay onde`.
 | o que falta cadastrar e quem termina (aba CADASTRO PENDENTE) | `nai_cadastro_pendente`, `nai_cadastro_importar`, `nai_foto_trocar_url` | 248, 249 |
 | visita agendada à mão no CRM (nasce da equipe, a Nay não manda nada) | `crm_visita_agendar`, `crm_visitas_extra`; colunas `nai_visita.duracao_min` / `criada_no_crm_por` | 250 |
 | a Agenda do CRM só mostra visita posta por GENTE: a que vem da Nay fica fora (continua valendo para a etapa Visitas e para calar a Nay) e vira a visita da equipe quando alguém agenda à mão o mesmo corretor e imóvel | `crm_visitas`, `crm_visita_agendar`; corte em `nai_config.agenda_sem_visita_da_nay_desde` (apagar a chave volta a mostrar) | 312 |
+| agendar no CRM com visita velha ainda aberta do mesmo corretor no mesmo imóvel (índice `nai_visita_uma_aberta`): a que já passou é encerrada, a futura muda de horário | `crm_visita_agendar` | 330 |
+| a barrinha do disparo pela API oficial: lista da vez, quantos saíram, quanto falta, quando volta | `crm_captacao_disparo_oficial` (lê `captacao_py_fila_do_disparo`, `captacao_retomada_oficial`, `captacao_motor`) | 331 |
+| Cadastro rápido: "O que a IA supõe que é" (o palpite de cada item da fila) | tabela `cadastro_rapido_palpite`; quem escreve é `nay-captacao/captacao/palpite.py`, no cron do preparar | 332 |
 | robô de fora (Grok) avisa o Tel, com limite por hora/dia | `crm_avisar_tel`, tabela `aviso_externo`; chaves `aviso_externo_por_hora` / `_por_dia` | 251 |
 | o texto do PEDIDO de visita e o "anotei a sua visita" | `nai_texto_confirmar_visita`, `nai_texto_corretor_confirmou` | 255 |
 | ela não cita colega (Tel, Rayssa) para quem é de fora | conferência 12 em `nai_conferir_resposta`; chave `aprovador_visita_nome`; prompt do corretor | 255, 256 |
@@ -119,6 +122,9 @@ prompt: comece pelo `nay onde`.
   (`/api/imoveis-lista` filtros; `/api/imoveis/opcoes` listas; `/api/condominios*`).
   Papel de leitura `nay_site_leitura` (GRANT em migração). Deploy: `./scripts/nay site [arquivos do imob-easy]`.
 - Admin estático: `imob-easy/admin/*.html` + `imob-easy/assets/js/*.js` (Imóveis: `imoveis-ux.js`; condomínios: `condominios-aba.js`; cadastro pendente: `cadastro-pendente.js`).
+- Cadastro rápido (`cadastro-rapido.js`): a fila vem em ordem de categoria (`palpite` em `/admin/api/imoveis/cadastro-pendente`),
+  a lista suspensa entre as setas passa só por uma categoria, e "Ver conversa" abre o chat em popup
+  (`/admin/api/imoveis/conversa` → CRM `/api/conversas/por-telefone`; sem o CRM, vai o texto de `captacao_mensagens`).
   As rotas de `/admin/api/imoveis/...` pedem a senha do /admin -- e também abrem com o segredo do painel dentro do CRM.
   Troque o `?v=` do script no HTML quando mudar o JS.
 - A página pública do imóvel (02/10, 271): `imobeasy.online/imovel/<código>-<nome>`. O desenho é do Pedro
@@ -193,6 +199,10 @@ prompt: comece pelo `nay onde`.
 - Abrir conversa pela lupa de cima: `src/components/Chat/BuscaDaLista.tsx` pergunta Parceria ou Captação (`/api/leads/abrir`). Quem só responde na captação (a Rayssa): `src/lib/captacaoSoResponde.ts` (lista e aviso) e
   `captacaoSoRespondeServidor.ts` (a parede, chamada em `abrir`, `messages` e `enviar-imovel`).
 
+- Aba Oficial: os filtros são os da Captação (`comAbasDaCaptacao` em `LeadList.tsx`) e, em cima, a barrinha do disparo
+  (`BarraDoDisparoOficial.tsx` → `/api/captacao/disparo-oficial` → `crm_captacao_disparo_oficial`, 331).
+- A conversa de um telefone para quem está FORA do CRM (o Cadastro rápido do site): `/api/conversas/por-telefone`,
+  todas as linhas, com a mídia em endereço assinado (`enderecoParaFora`). No CRM o nome do contato é `leads.title`.
 - Os GRUPOS do número da Parceria (CRM › Grupos, `/chat/grupos`): `src/lib/gruposParceria.ts`, rotas `/api/parceria/grupos/**`,
   `GruposDaParceria.tsx`. Editar só onde o número é admin; a Z-API não dá histórico: as mensagens são guardadas pelo
   webhook do CRM (`/api/webhooks/zapi` → `nai_grupo_guardar`, em `privado.grupo_conversa`). Migrações 277 e 278.

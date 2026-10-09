@@ -167,6 +167,11 @@ def main() -> None:
                 print(json.dumps(r, ensure_ascii=False, default=str)[:600])
             except (FalhaDoModelo, ValueError, json.JSONDecodeError) as erro:
                 print(f"ficha {f}: não analisei ({erro})", file=sys.stderr)
+        # 332: depois das fichas, o palpite de cada item da fila do Cadastro rápido ("O que a IA supõe que é")
+        if not args.ficha:
+            from captacao import palpite
+            for r in palpite.rodar(conn):
+                print("palpite " + json.dumps(r, ensure_ascii=False)[:300])
     finally:
         conn.close()
 
