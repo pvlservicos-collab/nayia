@@ -169,6 +169,9 @@ def _simples(v):
 
 
 @olx_bp.route("/admin/api/olx/importar", methods=["POST"])
+# o mesmo, pelo Cadastro rápido da aba Imóveis (09/10): debaixo de /admin/api/imoveis, que é o
+# único caminho do admin que o CRM deixa passar pela aba Imóveis dele
+@olx_bp.route("/admin/api/imoveis/olx/importar", methods=["POST"])
 def olx_importar():
     if not _admin_autenticado():
         return _sem_senha()
@@ -298,6 +301,7 @@ def _baixar(url, host_ok=None, exigir_tipo=True):
 
 
 @olx_bp.route("/admin/api/olx/<int:codigo>/foto", methods=["POST"])
+@olx_bp.route("/admin/api/imoveis/olx/<int:codigo>/foto", methods=["POST"])   # Cadastro rápido (09/10)
 def olx_foto(codigo):
     if not _admin_autenticado():
         return _sem_senha()
@@ -578,6 +582,8 @@ def captacao_cadastro_descartar(fid):
 
 
 @olx_bp.route("/admin/api/captacao/cadastros/<int:fid>/aplicar", methods=["POST"])
+# Cadastro rápido (09/10): "Criar o imóvel com esta ficha", pela aba Imóveis do site e do CRM
+@olx_bp.route("/admin/api/imoveis/da-ficha/<int:fid>", methods=["POST"])
 def captacao_cadastro_aplicar(fid):
     """Imóvel da campanha DISPONÍVEL: grava no catálogo o que o dono disse e
     põe no site e na Nay (a regra de 27/09: Disponível = no ar), travado contra
