@@ -571,7 +571,7 @@ nay_responder_conversando
 nay_responder_pendencia	nay_comando
 nay_respostas_a_entregar	
 nay_saidas_a_avisar	
-nay_sem_acento	crm_anuncio_decidir, crm_anuncio_familia, crm_anuncio_mesma_unidade, crm_anuncio_nome_palavras, crm_condominio_pelo_texto, crm_imovel_candidatos, nai_cadastro_importar, nai_condominio_da_pergunta, nai_imovel_da_conversa, nay_tratamento_por_nome, site_imoveis_para_enviar, site_imovel_publico
+nay_sem_acento	crm_anuncio_decidir, crm_anuncio_familia, crm_anuncio_mesma_unidade, crm_anuncio_nome_palavras, crm_condominio_pelo_texto, crm_imovel_candidatos, nai_cadastro_importar, nai_condominio_da_pergunta, nai_imovel_da_conversa, nay_tratamento_por_nome, site_ficha_preparada, site_imoveis_para_enviar, site_imovel_publico
 nay_sincronizar_nome	
 nay_tem_numero_de_unidade	nay_escalar, nay_responder_pendencia
 nay_tirar_valores	nay_codigos_citados
@@ -582,6 +582,7 @@ nay_valor_em_reais	nai_buscar_por_perfil, nai_negocio_do_pedido, nai_negocio_pel
 nay_valor_escrito	nay_partes_da_linha
 site_condominio_guardar	
 site_condominio_salvar	
+site_ficha_preparada	
 site_foto_adicionar	
 site_foto_apagar	
 site_fotos_lista	

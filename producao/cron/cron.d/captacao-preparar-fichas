@@ -1,0 +1,3 @@
+# 327 (09/10/2026): a ficha que o dono ditou na captação, analisada pelo modelo e posta nos campos do cadastro
+# (captacao_ficha_campos), para o Cadastro rápido abrir já preenchido. Só prepara: nada é criado em imoveis.
+*/5 * * * * root cd /root/nay-captacao && set -a && . ./.env && set +a && flock -n /run/captacao_preparar.lock .venv/bin/python -m captacao.preparar >> /var/log/captacao_preparar.log 2>&1

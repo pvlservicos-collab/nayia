@@ -164,6 +164,9 @@
     "</div>" +
     '<div class="cr-topo">' +
       '<div class="cr-chips" id="cr-chips"></div>' +
+      '<label class="cr-nota">Ordem <select id="cr-ordem" class="cr-chip" style="padding:0 8px">' +
+        '<option value="antigos">Mais antigos primeiro</option><option value="novos">Mais novos primeiro</option>' +
+      "</select></label>" +
       '<button class="cr-comecar" type="button" id="cr-comecar" disabled>Começar a curadoria</button>' +
       '<span class="cr-nota">Tudo o que espera alguém, numa fila só: passou até o fim, está tudo resolvido.</span>' +
     "</div>" +
@@ -175,10 +178,14 @@
   var itens = null;
   var fonte = "";
 
+  /* a ordem (Pedro, 09/10: "posso filtrar do mais antigo para o mais novo"): pela data em que chegou --
+     a ficha pela última vez que o dono falou dela, o imóvel pelo cadastro */
+  function dataDe(it) { var t = Date.parse(it.quando || ""); return isNaN(t) ? 0 : t; }
   function visiveis() {
     if (!itens) return [];
+    var novos = ($("cr-ordem") || {}).value === "novos";
     return itens.filter(function (it) { return !fonte || fonteDe(it) === fonte; })
-      .sort(function (a, b) { return (foraDoAr(b) ? 1 : 0) - (foraDoAr(a) ? 1 : 0); });
+      .sort(function (a, b) { return novos ? dataDe(b) - dataDe(a) : dataDe(a) - dataDe(b); });
   }
 
   function seloDeFoto(it) {
@@ -203,7 +210,8 @@
       return "<tr><td><b>" + esc(it.titulo) + "</b><br><span class=\"sub\">" +
           (it.codigo ? "#" + it.codigo + " · " : "sem cadastro · ") + esc([it.tipo, it.bairro, it.status].filter(Boolean).join(" · ")) +
           (it.dono ? " · dono: " + esc(it.dono) : "") + "</span></td>" +
-        '<td><span class="cr-fonte">' + esc(rotuloDaFonte(fonteDe(it))) + "</span></td>" +
+        '<td><span class="cr-fonte">' + esc(rotuloDaFonte(fonteDe(it))) + "</span>" +
+          (it.quando ? '<div class="sub">' + esc(quando(it.quando)) + "</div>" : "") + "</td>" +
         "<td>" + seloDeFoto(it) + "</td>" +
         "<td>" + (pct == null ? '<span class="sub">—</span>' :
           '<span class="cr-barrinha"><i style="width:' + pct + "%;background:" + cor(pct) + '"></i></span><b style="color:' + cor(pct) + '">' + pct + "%</b>") +
@@ -223,6 +231,7 @@
   }
 
   aba.addEventListener("click", function () { if (!itens) carregar(); });
+  $("cr-ordem").addEventListener("change", pintar);
   $("cr-chips").addEventListener("click", function (e) {
     var b = e.target.closest("[data-fonte]");
     if (b) { fonte = b.getAttribute("data-fonte"); pintar(); }
@@ -323,7 +332,7 @@
     var a = $("cr-aprovar");
     a.disabled = feito;
     a.textContent = feito ? "Resolvido ✓"
-      : !it.codigo ? "Cadastrar com esta ficha"
+      : !it.codigo ? "Cadastrar e aprovar"
       : it.status === "Disponível" ? "Salvar e próximo" : "Aprovar: fica disponível para a Nay";
   }
 
@@ -332,6 +341,12 @@
     recado("");
     pintarFaixa();
     pintarOrigem(it);
+    if (!it.codigo && it.fichaId && it._prep === undefined) prepararFicha(it);
+    // o que já sabemos e ainda não entrou (a ficha do dono num imóvel que existe, foto em link de fora): entra sozinho
+    if (it.codigo && !it._importou && it.motivos.some(function (m) { return /ditou dados|link de fora/.test(m); })) {
+      it._importou = true;
+      setTimeout(importar, 50);
+    }
     var corpo = $("cr-corpo-popup");
     var src = it.codigo ? "imovel-editar.html?codigo=" + encodeURIComponent(it.codigo) + "&rapido=1" : "imovel-novo.html?novo=1&rapido=1";
     corpo.innerHTML = '<iframe title="Cadastro do imóvel" src="' + src + '"></iframe>';
@@ -352,6 +367,20 @@
       .catch(function () { it._origem = { erro: true }; if (fila[pos] === it) atualizarCard(); });
   }
 
+  function prepararFicha(it) {
+    it._prep = null;
+    fetch("/admin/api/imoveis/da-ficha/" + encodeURIComponent(it.fichaId), { credentials: "same-origin" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (p) {
+        it._prep = p || {};
+        if (fila[pos] !== it) return;
+        atualizarCard();
+        var d = docDoEditor();
+        if (d && d.getElementById("ed-form")) preencherComAFicha(d, it);
+      })
+      .catch(function () { it._prep = {}; });
+  }
+
   var CSS_DO_CARD =
     "#cr-card{max-width:1180px;margin:16px auto 0;padding:14px 18px;border-radius:14px;background:var(--superficie,#fff);" +
       "border:1px solid var(--borda,#e2e2de);border-left:5px solid #2563eb;box-shadow:var(--sombra-1,none);font-size:13.5px;color:var(--texto,#16161a)}" +
@@ -365,6 +394,10 @@
     "#cr-card .crc-sem{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:700;background:#fde8e8;color:#b42323}" +
     "#cr-card .crc-com{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:700;background:#e8f7f0;color:#2f7d58}" +
     "#cr-card .crc-falta{color:#b45309}" +
+    "#cr-card .crc-fotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px;margin-top:6px}" +
+    "#cr-card .crc-fotos a{display:block;aspect-ratio:4/3;border-radius:8px;overflow:hidden;background:var(--borda,#e2e2de)}" +
+    "#cr-card .crc-fotos img{width:100%;height:100%;object-fit:cover;display:block}" +
+    "#cr-card .crc-ok{color:#15803d;font-weight:700}#cr-card .crc-aviso{color:#b45309;font-weight:700}" +
     "@media (max-width:700px){#cr-card dl{grid-template-columns:1fr}}";
 
   function cardHtml(it) {
@@ -382,8 +415,15 @@
         o.detalhe && esc(o.detalhe)
       ].filter(Boolean).join(" · ");
     }
+    var prep = it._prep;
+    var fotosDele = prep && prep.fotos ? prep.fotos : [];
     var fotos = it.fonte === "ficha"
-      ? (o && o.fotos != null ? o.fotos + " foto(s) que o dono mandou — entram quando você cadastrar" : "as que o dono mandou entram quando você cadastrar")
+      ? (fotosDele.length
+          ? '<span class="crc-com">' + fotosDele.length + " foto" + (fotosDele.length === 1 ? "" : "s") + "</span> que o dono mandou — entram no cadastro sozinhas" +
+            '<div class="crc-fotos">' + fotosDele.map(function (u) {
+              return '<a href="' + esc(u) + '" target="_blank" rel="noopener"><img src="' + esc(u) + '" alt="" loading="lazy"></a>';
+            }).join("") + "</div>"
+          : (prep === null || prep === undefined ? "buscando…" : '<span class="crc-sem">SEM FOTO</span> o dono não mandou foto'))
       : (semFoto(it) ? '<span class="crc-sem">SEM FOTO</span> este imóvel não tem nenhuma foto'
                      : '<span class="crc-com">' + it.fotos + " foto" + (Number(it.fotos) === 1 ? "" : "s") + "</span>");
     var pct = it.pct == null ? null : Number(it.pct);
@@ -394,6 +434,12 @@
       "<dl>" +
         "<dt>De onde veio</dt><dd>" + origem + "</dd>" +
         "<dt>Por que está aqui</dt><dd>" + esc(it.motivos.join(" · ") || "—") + "</dd>" +
+        (prep && (prep.campos || prep.observacao) ? "<dt>Análise da IA</dt><dd>" +
+          (prep.pronto === false ? '<span class="crc-aviso">Não parece pronto para anunciar.</span> ' : prep.pronto ? '<span class="crc-ok">Pronto para anunciar.</span> ' : "") +
+          esc(prep.observacao || "") +
+          (prep.duplicado_de ? " · parece o mesmo imóvel de outra ficha deste dono (ficha " + esc(prep.duplicado_de) + "): veja com “É atualização de outro imóvel?”" : "") +
+          (prep.campos ? '<div class="cr-nota">Os campos abaixo já vêm preenchidos com o que ele contou. Confira e aprove.</div>' : "") +
+          "</dd>" : "") +
         "<dt>Fotos</dt><dd>" + fotos + "</dd>" +
         (it.falta && it.falta.length ? '<dt>Falta preencher</dt><dd class="crc-falta">' + esc(it.falta.join(", ")) + "</dd>" : "") +
         "<dt>Situação</dt><dd>" + (situacao.length ? situacao.map(function (x) { return x.charAt(0) === "<" ? x : esc(x); }).join(" · ") : "—") + "</dd>" +
@@ -448,15 +494,26 @@
     if (!it.codigo && novoCodigo && it.fichaId) {
       it.codigo = Number(novoCodigo);
       juntar({ de_ficha: it.fichaId, em: it.codigo, fotos: true }).then(function (r) {
-        it.fonte = "imovel"; it.status = "Rascunho";
-        pintarFaixa();
-        recado("Cadastrado como #" + it.codigo + (r.fotos ? ", com " + r.fotos + " foto(s) que o dono mandou" : "") +
-          (r.dono ? " e o dono ligado" : "") + ". Confira e aprove.", "ok");
-        f.contentWindow.location.reload();
-      }).catch(function (e) { recado("O imóvel foi cadastrado (#" + it.codigo + "), mas não liguei a ficha: " + e.message, "erro"); });
+        it.fonte = "imovel"; it.status = "Rascunho"; it.fotos = r.fotos || 0;
+        var feitoAqui = "Cadastrado como #" + it.codigo + (r.fotos ? ", com " + r.fotos + " foto(s) que o dono mandou" : "") + (r.dono ? " e o dono ligado" : "");
+        if (!it._aprovarAoCriar) {
+          pintarFaixa();
+          recado(feitoAqui + ". Confira e aprove.", "ok");
+          f.contentWindow.location.reload();
+          return;
+        }
+        return put(it.codigo, { status: "Disponível" }).then(function () {
+          it.status = "Disponível";
+          feitos[chave(it)] = true;
+          var texto = feitoAqui + " e aprovado: Disponível, no site e na Nay.";
+          if (pos < fila.length - 1) { mover(1); recado(texto + " Próximo:", "ok"); }
+          else { pintarFaixa(); f.contentWindow.location.reload(); recado(texto + " Fim da fila.", "ok"); }
+        });
+      }).catch(function (e) { recado("O imóvel foi cadastrado (#" + it.codigo + "), mas faltou um passo: " + e.message, "erro"); });
       return;
     }
-    if (!it.codigo && it.fonte === "ficha") preencherComAFicha(d, it.dados || {});
+    // a análise da IA ainda vindo: quem preenche é ela, quando chegar (prepararFicha)
+    if (!it.codigo && it.fonte === "ficha" && it._prep !== null) preencherComAFicha(d, it);
   }
 
   /* a ficha da conversa vira os campos da tela de cadastro */
@@ -496,8 +553,22 @@
     };
   }
   var DINHEIRO = { valor_venda: 1, valor_aluguel: 1, taxa_condominio: 1, iptu: 1 };
-  function preencherComAFicha(d, dados) {
-    var v = camposDaFicha(dados);
+  var DA_IA = ["tipo", "bairro", "logradouro", "numero", "complemento", "andar", "quartos", "suites", "banheiros", "vagas",
+               "area_util", "area_total", "valor_aluguel", "valor_venda", "taxa_condominio", "iptu", "mobilia", "descricao"];
+  function camposPreparados(it) {
+    var c = it._prep && it._prep.campos;
+    if (!c) return camposDaFicha(it.dados);
+    var v = {};
+    DA_IA.forEach(function (k) { v[k] = c[k]; });
+    v._condominio = (it._prep.condominio && it._prep.condominio.nome) || c.condominio || null;
+    v._caracteristicas = c.caracteristicas || [];
+    return v;
+  }
+  function preencherComAFicha(d, it) {
+    if (d._crPreenchido === (it._prep ? "ia" : "simples")) return;
+    d._crPreenchido = it._prep ? "ia" : "simples";
+    var v = camposPreparados(it);
+    var dono = it._prep && it._prep.dono;
     var tentativas = 0;
     (function esperar() {
       if (!d.querySelector('[data-campo="quartos"]')) { if (++tentativas < 40) setTimeout(esperar, 250); return; }
@@ -509,12 +580,42 @@
         el.dispatchEvent(new Event("input", { bubbles: true }));
         el.dispatchEvent(new Event("change", { bubbles: true }));
       });
+      // o dono da conversa (sem ele a tela pergunta "falta o proprietário" ao cadastrar)
+      if (dono) {
+        [["o:nome", dono.nome], ["o:telefone", dono.telefone], ["o:tratamento", dono.tratamento]].forEach(function (par) {
+          var el = d.querySelector('[data-campo="' + par[0] + '"]');
+          if (!el || !par[1] || String(el.value || "").trim()) return;
+          el.value = par[1];
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+          el.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+      }
+      // o que o imóvel tem, como etiquetas
+      var mais = d.querySelector('[data-acrescentar-grupo="imovel"]');
+      (v._caracteristicas || []).forEach(function (x) {
+        if (!mais || !x) return;
+        mais.value = x;
+        mais.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      // o condomínio: digita e escolhe na lista sozinho quando o nome bate
       var c = d.getElementById("ed-condominio");
       if (c && v._condominio && !c.value) {
         c.value = v._condominio;
-        c.dispatchEvent(new Event("input", { bubbles: true }));     // abre a lista: escolha o condomínio certo
+        c.dispatchEvent(new Event("input", { bubbles: true }));
+        var alvo = semAcento(v._condominio).trim(), n = 0;
+        (function escolher() {
+          var itens = d.querySelectorAll(".sel-condo__item");
+          var certo = Array.prototype.filter.call(itens, function (x) {
+            var nome = semAcento((x.firstChild && x.firstChild.textContent) || x.textContent).trim();
+            return nome === alvo || nome.indexOf(alvo) === 0;
+          })[0];
+          if (certo) { certo.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true })); return; }
+          if (++n < 16) setTimeout(escolher, 250);
+        })();
       }
-      recado("Campos preenchidos com o que o dono contou. Confira, escolha o condomínio na lista e clique em Cadastrar com esta ficha.", "ok");
+      recado(it._prep && it._prep.campos
+        ? "A IA já pôs o que o dono contou nos campos" + (it._prep.fotos && it._prep.fotos.length ? " e as " + it._prep.fotos.length + " fotos entram ao cadastrar" : "") + ". Confira e clique em Cadastrar e aprovar."
+        : "Campos preenchidos com o que o dono contou. Confira e clique em Cadastrar e aprovar.", "ok");
     })();
   }
 
@@ -577,10 +678,11 @@
   function aprovar() {
     var it = fila[pos];
     if (ocupado || !it) return;
-    if (!it.codigo) {      // ficha: cadastrar pela tela de cadastro; o resto acontece quando ela abrir o imóvel novo
+    if (!it.codigo) {      // ficha: cadastra pela tela de cadastro; ao abrir o imóvel novo, junta as fotos e aprova
       var d = docDoEditor();
       var b = d && d.getElementById("ed-salvar");
       if (!b) { recado("A tela de cadastro ainda está carregando.", "erro"); return; }
+      it._aprovarAoCriar = true;
       recado("Cadastrando…");
       b.click();
       return;

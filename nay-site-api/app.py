@@ -1754,6 +1754,20 @@ def api_cadastro_origem():
         conn.close()
 
 
+@app.route("/admin/api/imoveis/da-ficha/<int:fid>")
+def api_ficha_preparada(fid):
+    """A ficha do dono já analisada (327): os campos do cadastro, as fotos que ele mandou, o condomínio e o dono."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    conn = conectar_escrita()
+    try:
+        linhas = todas_linhas(conn, "SELECT site_ficha_preparada(%s) AS f", (fid,))
+        f = linhas[0]["f"] if linhas else None
+        return (jsonify(f), 200) if f else (jsonify({"erro": "ficha não encontrada"}), 404)
+    finally:
+        conn.close()
+
+
 @app.route("/admin/api/imoveis/juntar", methods=["POST"])
 def api_cadastro_juntar():
     """"NA VERDADE É ATUALIZAÇÃO DESTE IMÓVEL" (326; Pedro, 09/10). {de_codigo | de_ficha, em, fotos}: as fotos e o
