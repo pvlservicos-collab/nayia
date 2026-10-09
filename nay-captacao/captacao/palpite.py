@@ -105,7 +105,8 @@ As categorias:
                 "mesmo Forest Hill da ficha 51"). Veja a regra da principal, abaixo
   atualizacao   os dados são de um imóvel que JÁ está cadastrado: a ficha descreve um imóvel da lista 'imoveis_do_dono'
                 (mesmo condomínio ou endereço), ou é um imóvel cadastrado em que o dono ditou situação, valor ou fotos na
-                conversa e ninguém aplicou
+                conversa e ninguém aplicou. Imóvel cadastrado SEM nada ditado na conversa não é "atualizacao": se só
+                falta dado (dono, foto, bairro), é "completar"
   indisponivel  o imóvel existe mas não é para anunciar agora: está alugado, ocupado, em obra, já foi vendido, ou o dono
                 disse que avisa depois
   nao_e         não há imóvel para cadastrar: a pessoa só citou, recusou, é corretor ou parceiro, foi engano ou teste, ou a
@@ -203,6 +204,11 @@ def julgar(conn, linha: dict, fila: list[dict], guardar: bool = True) -> dict:
     if linha["fonte"] == "ficha" and categoria == "completar":
         categoria = "novo"
     if linha["fonte"] != "ficha" and categoria == "novo":
+        categoria = "completar"
+    # "atualizacao" num imóvel cadastrado só vale quando HÁ o que aplicar: o dono ditou algo na conversa.
+    # Sem isso (falta o dono, falta foto) é cadastro para completar.
+    if (linha["fonte"] != "ficha" and categoria == "atualizacao" and not entrada.get("o_que_o_dono_ditou_na_conversa")
+            and not any("conversa" in (m or "") for m in linha.get("motivos") or [])):
         categoria = "completar"
     fonte, item = chave_de(linha)
     porque = " ".join(str(bruto.get("porque") or "").split())[:200] or None
