@@ -1063,12 +1063,15 @@ html {
 .wa-busca input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; font-size: 15px; color: var(--wa-text); }
 .wa-busca input::placeholder { color: var(--wa-search-ink); }
 
-/* A linha da lista de conversas */
+/* A linha da lista de conversas. Tudo o que tem tamanho aqui é escrito em
+   função de --wa-escala: os botões + e - do alto (TamanhoDasConversas.tsx)
+   mudam só ela, e a linha inteira acompanha (Pedro, 09/10). */
+:root { --wa-escala: 1; }
 .wa-linha {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 72px;
+  gap: calc(12px * var(--wa-escala));
+  min-height: calc(72px * var(--wa-escala));
   margin: 0 8px;
   padding: 0 12px;
   border-radius: 10px;
@@ -1078,8 +1081,10 @@ html {
 }
 .wa-linha:hover { background: var(--wa-row-hover); }
 .wa-linha--sel, .wa-linha--sel:hover { background: var(--wa-row-selected); }
-.wa-nome { font-size: 16px; line-height: 21px; color: var(--wa-text); }
-.wa-previa { font-size: 14px; line-height: 20px; color: var(--wa-text-2); }
+.wa-nome { font-size: calc(16px * var(--wa-escala)); line-height: calc(21px * var(--wa-escala)); color: var(--wa-text); }
+.wa-previa { font-size: calc(14px * var(--wa-escala)); line-height: calc(20px * var(--wa-escala)); color: var(--wa-text-2); }
+.wa-avatar { width: calc(49px * var(--wa-escala)); height: calc(49px * var(--wa-escala)); }
+.wa-hora { font-size: calc(12px * var(--wa-escala)); line-height: calc(16px * var(--wa-escala)); }
 .wa-badge {
   min-width: 20px;
   height: 20px;
@@ -1097,8 +1102,8 @@ html {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 11px;
-  line-height: 16px;
+  font-size: calc(11px * var(--wa-escala));
+  line-height: calc(16px * var(--wa-escala));
   font-weight: 600;
   padding: 0 6px;
   border-radius: 9999px;
@@ -1507,7 +1512,7 @@ html {
 }
 
 /* captação: o imóvel ao lado do dono na lista (29/09/2026) */
-.wa-dono-imovel { font-size: 13px; color: var(--wa-text-2); min-width: 0; }
+.wa-dono-imovel { font-size: calc(13px * var(--wa-escala)); color: var(--wa-text-2); min-width: 0; }
 
 /* A trilha da Nay no card do contato (29/09/2026): as etapas como nós; o
    atual pulsa com a Nay ativa; parada, tudo cinza e o motivo em vermelho */

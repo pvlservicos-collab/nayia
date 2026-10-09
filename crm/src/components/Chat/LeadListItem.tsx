@@ -71,7 +71,7 @@ function quandoCurto(iso: string | null): string {
 function Avatar({ lead, robo }: { lead: LeadWithOwner; robo?: { parada: boolean; texto: string } | null }) {
   return (
     <div className="relative flex-shrink-0">
-      <div className="w-[49px] h-[49px] rounded-full overflow-hidden flex items-center justify-center"
+      <div className="wa-avatar rounded-full overflow-hidden flex items-center justify-center"
            style={{ backgroundColor: 'var(--wa-row-selected)' }}>
         {lead.avatar_url ? (
           <img src={lead.avatar_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
@@ -128,7 +128,7 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
             {/* a etiqueta da etapa saiu (Pedro, 29/09: "retira as tags de recebeu
                 imóvel, não tá bacana"); a etapa virou a trilha do card do contato */}
           </span>
-          <span className="text-[12px] leading-4 flex-shrink-0"
+          <span className="wa-hora flex-shrink-0"
                 style={{ color: naoLida ? 'var(--wa-unread)' : 'var(--wa-text-2)', fontWeight: naoLida ? 600 : 400 }}>
             {timeStr}
           </span>

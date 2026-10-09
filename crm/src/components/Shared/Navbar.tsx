@@ -31,7 +31,7 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { signOut } from 'next-auth/react'
 import FilterButton from '@/components/Shared/FilterButton'
 import GlobalSearch from '@/components/Shared/GlobalSearch'
-import NotificationDropdown from '@/components/Shared/NotificationDropdown'
+import TamanhoDasConversas from '@/components/Shared/TamanhoDasConversas'
 import { usePipelineFilters } from '@/contexts/FilterContext'
 
 /* O MENU (Pedro, 08/10/2026): "retire a aba início, deixe quando a pessoa logar já abre no whatsapp parceria,
@@ -342,8 +342,10 @@ export default function Navbar() {
         {/* Busca — input+dropdown no desktop, ícone que abre overlay de tela cheia no celular */}
         <GlobalSearch />
 
-        {/* Notifications */}
-        <NotificationDropdown />
+        {/* O sino saiu (Pedro, 09/10): no lugar, + e - do tamanho das conversas,
+            para a Rayssa organizar a lista do jeito dela. As notificações
+            continuam em /notifications. */}
+        <TamanhoDasConversas />
 
         {/* Dark mode toggle */}
         <button
