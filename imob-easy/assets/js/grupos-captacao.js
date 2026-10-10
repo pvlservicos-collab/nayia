@@ -13,9 +13,12 @@
    errada", rejeitar, os testes colados e os apelidos. Tudo por
    /admin/api/grupos/captacao (senha do painel).
 
-   MODO TREINO: nada é enviado. O botão "Aprovar e enviar" fica desligado, e
-   mesmo que alguém o ligasse o banco recusa (site_captacao_grupos_estado, 336)
-   e o serviço não tem por onde enviar.
+   NADA É ENVIADO SOZINHO: o serviço não tem por onde enviar. O envio é MANUAL
+   (Pedro, 09/10 à noite: "põe um botão de enviar manualmente; eu já tinha
+   deixado a msg padrão"): o botão "Enviar ao corretor" abre a conferência com
+   a mensagem padrão dele, e só o clique em "Enviar agora" chama o banco
+   (site_captacao_grupos_enviar, 339), que tem as travas e põe a abertura, o
+   card e as fotos na caixa de saída da Nay, pelo número da Parceria.
    ========================================================================== */
 (function () {
   "use strict";
@@ -60,10 +63,24 @@
     return "(" + d.slice(0, 2) + ") " + d.slice(2, d.length - 4) + "-" + d.slice(-4);
   }
 
+  function manual() { return !!(estado.dados && estado.dados.config && estado.dados.config.envio_manual === true); }
+  /* por que este imóvel não pode ser enviado a este pedido (null = pode) */
+  function naoPodeEnviar(p, codigo) {
+    if (!manual()) return "O envio manual está desligado na configuração.";
+    if (p.fonte === "teste") return "Teste colado na tela: não tem corretor para receber.";
+    if (!codigo) return "Sem imóvel compatível para enviar.";
+    if (!p.telefone) return "A mensagem veio sem o telefone de quem escreveu: fale com a pessoa pelo grupo.";
+    if (p.estado === "rejeitado") return "Solicitação rejeitada: desfaça a rejeição para enviar.";
+    if ((p.ofertas || []).some(function (o) { return o.codigo === codigo; })) return "Este imóvel já foi enviado para este pedido.";
+    return null;
+  }
+
   /* ── o topo: modo, serviço, de onde vêm as mensagens, taxa de acerto ── */
   function desenharTopo(d) {
     var h = [];
-    h.push('<span class="gc-selo gc-selo--treino" title="O serviço lê, extrai, pontua e mostra. Não existe envio nesta versão.">MODO TREINO · nada é enviado</span>');
+    h.push(manual()
+      ? '<span class="gc-selo gc-selo--treino" title="O leitor só lê, extrai, pontua e mostra. Mensagem só sai quando você clica em Enviar ao corretor.">ENVIO SÓ MANUAL · nada sai sozinho</span>'
+      : '<span class="gc-selo gc-selo--treino" title="O envio manual está desligado em config.json (envio_manual).">MODO TREINO · nada é enviado</span>');
     h.push(d.servico_vivo
       ? '<span class="gc-selo gc-selo--ok" title="Última passada: ' + esc(quando(d.batimento)) + '">leitor ligado</span>'
       : '<span class="gc-selo gc-selo--ruim">leitor parado' + (d.batimento ? " desde " + esc(quando(d.batimento)) : "") + "</span>");
@@ -244,7 +261,9 @@
         var ia = a.imovel || {};
         h.push("<li><span><b>" + esc(ia.condominio || ia.tipo_cadastro || "") + "</b> <small>cód. " + esc(ia.codigo) + "</small><br>" + esc(ia.bairro || "") +
                (ia.quartos != null ? " · " + ia.quartos + (ia.quartos === 1 ? " quarto" : " quartos") : "") + " · " + esc(reais(valorDoImovel(ia, operacao))) +
-               (a.acima_do_teto ? " (acima do teto)" : "") + '</span><b class="gc-alt-nota">' + Math.round(a.nota) + "</b></li>");
+               (a.acima_do_teto ? " (acima do teto)" : "") + "</span>" +
+               (naoPodeEnviar(p, ia.codigo) ? "" : '<button type="button" class="btn-mini gc-alt-enviar" data-acao="enviar" data-codigo="' + esc(ia.codigo) + '">enviar esta</button>') +
+               '<b class="gc-alt-nota">' + Math.round(a.nota) + "</b></li>");
       });
       h.push("</ul></details>");
     }
@@ -271,8 +290,17 @@
                ? '<p class="gc-parte">Pedido ' + p.parte + " desta mensagem: “" + esc(p.ficha.trecho || "") + "”</p>" : ""),
              desenharFicha(p),
              '<div class="gc-acoes">',
-             '<button type="button" class="btn-mini" disabled title="Só no modo ATIVO. No treino nada é enviado.">Aprovar e enviar</button>',
-             '<button type="button" class="btn-mini" data-acao="' + (rejeitado ? "voltar" : "rejeitar") + '">' + (rejeitado ? "Desfazer rejeição" : "Rejeitar") + "</button>",
+             (function () {
+               var melhor = (p.pares || [])[0], codigo = melhor && melhor.codigo, motivo = naoPodeEnviar(p, codigo);
+               return motivo
+                 ? '<button type="button" class="btn-mini" disabled title="' + esc(motivo) + '">Enviar ao corretor</button>'
+                 : '<button type="button" class="btn-azul gc-btn-enviar" data-acao="enviar" data-codigo="' + esc(codigo) + '">Enviar ao corretor</button>';
+             })(),
+             (p.ofertas || []).map(function (o) {
+               return '<span class="gc-enviado" title="' + esc(o.resumo || "") + '">✓ enviado o ' + esc(o.codigo) + " · " + esc(quando(o.quando)) + "</span>";
+             }).join(""),
+             (p.estado === "enviado" ? "" :
+               '<button type="button" class="btn-mini" data-acao="' + (rejeitado ? "voltar" : "rejeitar") + '">' + (rejeitado ? "Desfazer rejeição" : "Rejeitar") + "</button>"),
              '<button type="button" class="btn-mini gc-btn-ok" data-acao="correta">Leitura correta</button>',
              '<button type="button" class="btn-mini gc-btn-erro" data-acao="errada">Leitura errada</button>',
              (j ? '<span class="gc-julgado gc-julgado--' + esc(j.leitura) + '" title="' + esc(quando(j.quando)) + '">' +
@@ -328,9 +356,53 @@
       .catch(function (e) { if (n === estado.pedido) $("gc-lista").innerHTML = '<p class="gc-vazio">Não consegui carregar: ' + esc(e.message) + "</p>"; });
   }
 
+  /* ── enviar ao corretor: a conferência (a mensagem padrão dele, para quem vai, o que vai) ── */
+  var envio = null;
+  function abrirEnvio(id, codigo) {
+    var p = ((estado.dados || {}).pedidos || []).filter(function (x) { return String(x.id) === String(id); })[0];
+    if (!p) return;
+    var par = (p.pares || []).filter(function (x) { return String(x.codigo) === String(codigo); })[0];
+    if (!par || naoPodeEnviar(p, par.codigo)) return;
+    var cfg = estado.dados.config || {}, im = par.imovel || {}, operacao = (p.local && p.local.operacao) || (p.ficha && p.ficha.operacao);
+    envio = { id: p.id, codigo: par.codigo };
+    $("gc-env-resumo").innerHTML =
+      "<div><span>Para</span><b>" + esc(p.nome || "(sem nome)") + " · " + esc(fone(p.telefone)) + "</b></div>" +
+      "<div><span>Do grupo</span><b>" + esc(p.grupo || "") + "</b></div>" +
+      "<div><span>Imóvel</span><b>" + esc(im.condominio || im.tipo_cadastro || "Imóvel") + " · cód. " + esc(im.codigo) + " · " + esc(reais(valorDoImovel(im, operacao))) +
+        " · nota " + Math.round(par.nota) + "</b></div>" +
+      "<div><span>Sai por</span><b>número da Parceria (o que está nos grupos)</b></div>";
+    $("gc-env-texto").value = cfg.mensagem_de_abertura || "";
+    $("gc-env-depois").innerHTML = (cfg.enviar_dados_e_fotos === false
+      ? "<b>Só esta mensagem sai.</b> O card e as fotos você manda na mão (enviar_dados_e_fotos está desligado)."
+      : "Logo depois dela vão <b>o card e as fotos</b> do imóvel, como na aba Enviar imóvel.") +
+      " O mesmo corretor só recebe outra mensagem daqui depois de " + (cfg.intervalo_min_entre_envios == null ? 30 : cfg.intervalo_min_entre_envios) + " min.";
+    $("gc-env-erro").textContent = "";
+    $("gc-env-ok").disabled = false;
+    if (!$("gc-enviar").open) $("gc-enviar").showModal();
+  }
+  function enviar(ev) {
+    ev.preventDefault();
+    if (!envio) return;
+    var texto = $("gc-env-texto").value.trim();
+    if (!texto) { $("gc-env-erro").textContent = "Escreva a mensagem que abre a conversa."; return; }
+    $("gc-env-ok").disabled = true;
+    $("gc-env-erro").textContent = "";
+    pedir("/admin/api/grupos/captacao/" + envio.id + "/enviar", { method: "POST", body: JSON.stringify({ codigo: envio.codigo, abertura: texto }) })
+      .then(function (r) {
+        $("gc-enviar").close();
+        var aviso = $("gc-envio-feito");
+        aviso.textContent = "Enviado o " + envio.codigo + ". " + (r.resumo || "");
+        aviso.hidden = false;
+        envio = null;
+        return carregar();
+      })
+      .catch(function (e) { $("gc-env-ok").disabled = false; $("gc-env-erro").textContent = e.message; });
+  }
+
   /* ── ações de cada solicitação ── */
   function agir(item, acao, botao) {
     var id = item.getAttribute("data-id");
+    if (acao === "enviar") { abrirEnvio(id, botao.getAttribute("data-codigo")); return; }
     if (acao === "errada") {
       if (item.querySelector(".gc-errou")) return;
       var caixa = document.createElement("form");
@@ -512,7 +584,7 @@
       try { history.replaceState(null, "", "#captacao"); } catch (_) { /* sem histórico */ }
       return;
     }
-    var fechar = alvo.closest("#gc-demanda [data-fechar], #gc-apelidos [data-fechar]");
+    var fechar = alvo.closest("#gc-demanda [data-fechar], #gc-apelidos [data-fechar], #gc-enviar [data-fechar]");
     if (fechar) { var dlg = fechar.closest("dialog"); if (dlg.open) dlg.close(); return; }
     /* nomes próprios (data-gc-...): o ouvinte geral do grupos-agenda.js pega todo botão com data-dias (período das
        métricas) e data-excluir (apaga mensagem agendada) */
@@ -542,6 +614,7 @@
     if (acao) agir(acao.closest(".gc-item"), acao.getAttribute("data-acao"), acao);
   });
   $("gc-teste").addEventListener("submit", testar);
+  $("gc-env-form").addEventListener("submit", enviar);
   $("gc-arquivos").addEventListener("change", function () {
     if (this.files && this.files.length) importar(this.files);
     this.value = "";                           // escolher o mesmo arquivo de novo volta a disparar
@@ -557,6 +630,6 @@
   /* com a aba aberta, a lista se renova sozinha (o leitor passa a cada 10 s) */
   setInterval(function () {
     if (!painel.hidden && estado.carregou && document.visibilityState === "visible" && !painel.querySelector(".gc-errou") &&
-        !$("gc-demanda").open && !$("gc-apelidos").open) carregar();
+        !$("gc-demanda").open && !$("gc-apelidos").open && !$("gc-enviar").open) carregar();
   }, 45000);
 })();

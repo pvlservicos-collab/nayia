@@ -66,6 +66,9 @@ BEGIN
                                            'detalhe', p.detalhe, 'acima_do_teto', p.acima_do_teto, 'imovel', p.imovel)
                                          ORDER BY p.posicao)
                                     FROM privado.grupo_pedido_par p WHERE p.pedido_id = q.id), '[]'::jsonb),
+               'ofertas', coalesce((SELECT jsonb_agg(jsonb_build_object('codigo', o.codigo, 'quando', o.enviado_em,
+                                                                        'com_card', o.com_card, 'resumo', o.resumo) ORDER BY o.enviado_em)
+                                      FROM privado.grupo_pedido_oferta o WHERE o.pedido_id = q.id), '[]'::jsonb),   -- 339
                'julgamento', (SELECT jsonb_build_object('leitura', j.leitura, 'o_que_errou', j.o_que_errou, 'quando', j.criado_em)
                                 FROM privado.grupo_pedido_julgamento j WHERE j.pedido_id = q.id ORDER BY j.id DESC LIMIT 1)) AS j
         FROM privado.grupo_pedido q

@@ -4,8 +4,13 @@ Lê os pedidos que os corretores fazem nos grupos de WhatsApp ("procuro apartame
 até 4 mil"), compara com o nosso catálogo e dá uma nota de 0 a 100. Aparece no admin do site, em
 **Grupos › Captação ativa** (ao lado de Métricas).
 
-Pedido do Pedro em 09/10/2026. **Esta versão é o MODO TREINO: lê, extrai, pontua e mostra. Não envia nada**,
-e não tem por onde enviar (`grupos/envio.py` só levanta erro). O modo ativo vem depois do sim dele.
+Pedido do Pedro em 09/10/2026. **O serviço lê, extrai, pontua e mostra. Não envia nada sozinho**, e não tem por
+onde enviar (`grupos/envio.py` só levanta erro). O envio automático (modo ativo) vem depois do sim dele.
+
+O que existe é o **envio manual** (pedido dele na noite de 09/10): o botão "Enviar ao corretor" de cada pedido abre a
+conferência com a mensagem padrão e, no clique dele, o banco (`site_captacao_grupos_enviar`, migração 339) põe a
+abertura, o card e as fotos na caixa de saída da Nay, pelo número da Parceria. `envio_manual: false` no `config.json`
+desliga o botão e a função.
 
 ## Como roda
 
@@ -28,8 +33,10 @@ ligado na instância, só chegam aqui as mensagens coladas na tela ("Testar uma 
 
 ## O que ele ajusta sem mexer no código
 
-`config.json`: modo, janela (48 h), pesos, cortes (90 e 70), faixas de preço, quanto vale vizinho, um quarto a
-mais e semi-mobiliado, dias de confirmação, alternativas. O serviço relê sozinho. Valor torto ou arquivo
+`config.json`: modo, envio manual (liga/desliga, a mensagem de abertura, o intervalo por corretor, se vão card e
+fotos), janela (48 h), pesos, cortes (90 e 70), faixas de preço, quanto vale o bairro próximo (cai com a distância:
+quem faz divisa vale mais; sem divisa só até 5 km), um quarto a mais e semi-mobiliado, dias de confirmação,
+alternativas, teto de leituras da IA por dia. O serviço relê sozinho. Valor torto ou arquivo
 estragado: vale o padrão (`grupos/regras.py`) e o aviso aparece na tela.
 
 Apelidos de bairro e condomínio: na própria aba (tabela `privado.grupo_apelido`).

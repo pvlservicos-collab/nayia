@@ -100,6 +100,17 @@
 
 .gc-acoes { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: auto; padding-top: 4px; }
 .gc-acoes .btn-mini[disabled] { opacity: .45; cursor: not-allowed; }
+/* enviar ao corretor (envio manual) */
+.gc-btn-enviar { padding: 7px 14px; font-size: 12.5px; }
+.gc-enviado { font-size: 12.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #111; color: #fff; }
+.gc-alt-enviar { flex-shrink: 0; }
+.gc-envio-feito { margin: 10px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--verde-suave); border: 1px solid #a9dcc3; color: #1f7a52; font-size: 13.5px; font-weight: 600; }
+.gc-env-resumo { display: grid; gap: 6px; font-size: 14px; }
+.gc-env-resumo div { display: flex; gap: 10px; }
+.gc-env-resumo span { flex: 0 0 74px; color: var(--texto-medio); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; padding-top: 2px; }
+.gc-env-resumo b { font-weight: 700; }
+.gc-env-nota { font-weight: 400; color: var(--texto-medio); font-size: 12.5px; }
+#gc-env-texto { width: 100%; font: inherit; font-size: 14.5px; line-height: 1.45; resize: vertical; }
 .gc-btn-ok { border-color: #a9dcc3; color: #1f7a52; }
 .gc-btn-erro { border-color: #e0a3a3; color: #b53232; }
 .gc-julgado { font-size: 12.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px; }

@@ -13,11 +13,13 @@ import os
 
 PADRAO = {
     "modo": "treino",
+    "envio_manual": True,
     "janela_h": 48,
     "pesos": {"preco": 40, "local": 20, "quartos": 15, "mobiliado": 10, "andar": 10, "extras": 5},
     "cortes": {"verde": 90, "amarelo": 70},
     "preco": {"cheio_ate_abaixo": 0.20, "zera_em": 0.40, "tolerancia_acima": 0.10},
-    "local": {"exato": 100, "vizinho": 50, "mesmo_bairro_outro_condominio": 50},
+    "local": {"exato": 100, "divisa_colado": 85, "divisa_piso": 45, "perto_sem_divisa": 65, "perto_ate_km": 5,
+              "km_que_zera": 10, "vizinho_a_mao": 65, "mesmo_bairro_outro_condominio": 50},
     "quartos": {"igual": 100, "um_a_mais": 60},
     "mobiliado": {"atende": 100, "semi": 50, "nao_atende": 0},
     "confirmado_dias": 30,
@@ -71,9 +73,10 @@ def conferir(regras: dict) -> tuple[dict, list[str]]:
         avisos.append(f"modo '{r['modo']}' não existe; fica treino")
         r["modo"] = "treino"
     if r["modo"] == "ativo":
-        # O MODO ATIVO NÃO EXISTE NESTA VERSÃO. Escrever "ativo" no arquivo não liga envio nenhum:
-        # grupos/envio.py recusa sempre. Fica treino, com o aviso na tela.
-        avisos.append("o arquivo pede modo ativo, mas esta versão só tem o treino: nada é enviado")
+        # O MODO ATIVO (envio automático) NÃO EXISTE NESTA VERSÃO. Escrever "ativo" no arquivo não liga envio
+        # nenhum: grupos/envio.py recusa sempre. Fica treino, com o aviso na tela. O que existe é o envio MANUAL
+        # (`envio_manual`): o botão da tela, um clique dele por pedido, pela caixa da Nay.
+        avisos.append("o arquivo pede modo ativo, mas esta versão só tem o treino: nada é enviado sozinho")
         r["modo"] = "treino"
     if sum(r["pesos"].values()) <= 0:
         avisos.append("os pesos somam zero; ficou o padrão")
@@ -85,6 +88,9 @@ def conferir(regras: dict) -> tuple[dict, list[str]]:
     if not (0 < p["cheio_ate_abaixo"] < 1 and 0 <= p["zera_em"] < 1 - p["cheio_ate_abaixo"] and 0 < p["tolerancia_acima"] <= 1):
         avisos.append("as faixas de preço não fecham; ficou o padrão")
         r["preco"] = copy.deepcopy(PADRAO["preco"])
+    if r["local"]["km_que_zera"] <= 0:
+        avisos.append("local.km_que_zera tem de ser maior que zero; ficou o padrão")
+        r["local"] = copy.deepcopy(PADRAO["local"])
     r["janela_h"] = max(1, int(r["janela_h"]))
     r["alternativas"] = max(0, min(int(r["alternativas"]), 10))
     r["confirmado_dias"] = max(1, int(r["confirmado_dias"]))

@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css?v=20261003-grupos">
 <link rel="stylesheet" href="../assets/css/grupos-agenda.css?v=20261003f">
-<link rel="stylesheet" href="../assets/css/grupos-captacao.css?v=20261009e">
+<link rel="stylesheet" href="../assets/css/grupos-captacao.css?v=20261010a">
 </head>
 <body class="admin" data-pagina="grupos">
 
@@ -102,8 +102,8 @@
     CAPTAÇÃO ATIVA POR GRUPOS (Pedro, 09/10/2026): "ler solicitações de corretores nos grupos de WhatsApp,
     comparar com o meu catálogo e dar uma nota de 0 a 100; lista vertical, uma solicitação embaixo da outra;
     à esquerda o texto original e a ficha extraída, à direita o melhor imóvel meu, a nota e o detalhamento".
-    Quem lê, extrai e pontua é o serviço nay-grupos (Python, na VPS). MODO TREINO: nada é enviado; o botão de
-    aprovar fica desligado E o banco recusa (migração 336). Script: assets/js/grupos-captacao.js.
+    Quem lê, extrai e pontua é o serviço nay-grupos (Python, na VPS). NADA É ENVIADO SOZINHO: o envio é manual, um
+    clique dele por pedido no botão "Enviar ao corretor" (339). Script: assets/js/grupos-captacao.js.
   -->
   <div data-painel="captacao" hidden>
     <div class="gc-topo" id="gc-topo" aria-live="polite"><p class="ga-carregando">Abra a aba para carregar as solicitações…</p></div>
@@ -154,9 +154,26 @@
       </div>
     </div>
 
+    <p class="gc-envio-feito" id="gc-envio-feito" role="status" hidden></p>
     <div class="gc-lista" id="gc-lista"></div>
   </div>
 </main>
+
+<!-- 339: enviar ao corretor (envio manual: ele confere a mensagem e clica) -->
+<dialog class="ga-dialogo" id="gc-enviar" aria-labelledby="gc-env-tit">
+  <form class="ga-dialogo__caixa" id="gc-env-form" novalidate>
+    <div class="ga-dialogo__topo"><h2 id="gc-env-tit">Enviar ao corretor</h2><button type="button" class="btn-neutro" data-fechar aria-label="Fechar">✕</button></div>
+    <div class="gc-env-resumo" id="gc-env-resumo"></div>
+    <label for="gc-env-texto"><b>Mensagem que abre a conversa</b> <span class="gc-env-nota">(é a padrão; dá para ajustar só neste envio)</span></label>
+    <textarea class="entrada" id="gc-env-texto" rows="4" maxlength="700"></textarea>
+    <p class="ga-dica" id="gc-env-depois"></p>
+    <p class="ga-erro" id="gc-env-erro" role="alert"></p>
+    <div class="ga-dialogo__acoes">
+      <button type="button" class="btn-neutro" data-fechar>Cancelar</button>
+      <button type="submit" class="btn-azul" id="gc-env-ok">Enviar agora</button>
+    </div>
+  </form>
+</dialog>
 
 <!-- Demanda do mercado: o que mais pedem e a gente não tem -->
 <dialog class="ga-dialogo ga-dialogo--largo" id="gc-demanda" aria-labelledby="gc-dem-tit">
@@ -288,6 +305,6 @@
 <script src="../assets/js/admin.js"></script>
 <script src="../assets/js/grupos-agenda.js?v=20261003g"></script>
 <script src="../assets/js/whatsapp-exportado.js?v=20261009d"></script>
-<script src="../assets/js/grupos-captacao.js?v=20261009e"></script>
+<script src="../assets/js/grupos-captacao.js?v=20261010a"></script>
 </body>
 </html>

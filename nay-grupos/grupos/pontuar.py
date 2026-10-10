@@ -11,6 +11,10 @@ Decisões que a especificação não fecha (ditas a ele em 09/10):
   - 2 quartos ou mais ACIMA do pedido elimina (ele disse "igual ou 1 a mais").
   - pediu um CONDOMÍNIO: o condomínio vale "exato"; outro imóvel do mesmo bairro vale como vizinho
     (`local.mesmo_bairro_outro_condominio`); bairro vizinho não entra.
+  - BAIRRO PRÓXIMO VALE MAIS QUE BAIRRO LONGE (Pedro, 09/10 à noite: "pontuação por bairros próximos serem maiores
+    do que bairros longes ... você sabe os bairros que são próximos"). O que faz divisa vale mais que o que só
+    fica perto, e os dois caem com a distância entre os centros dos bairros (`_vizinho`). Bairro que o mapa não
+    lista como próximo continua eliminado.
   - o cadastro não informa o que ele pediu (andar, mobília, pet): vale 0 e a tela diz "não informado no cadastro".
   - "semi-mobiliado" vale a metade para quem pediu mobiliado e para quem pediu sem mobília.
 """
@@ -32,6 +36,21 @@ FALTOU = {
 def _preco_do(imovel: dict, operacao: str | None) -> float | None:
     v = imovel.get("valor_aluguel") if operacao == "aluguel" else imovel.get("valor_venda") if operacao == "venda" else None
     return float(v) if v else None
+
+
+def _vizinho(v: dict, regras: dict) -> float:
+    """Quanto rende um bairro vizinho (0-100): quem faz divisa vale mais; quanto mais longe, menos."""
+    r = regras["local"]
+    km = v.get("km")
+    if km is None:                                  # par posto à mão na tabela dele, sem distância no mapa
+        return float(r["vizinho_a_mao"])
+    cai = max(0.0, 1 - km / r["km_que_zera"])
+    if v.get("divisa"):
+        # bairro grande faz divisa com o centro longe (Ponta Negra e Tarumã-Açu: 8,6 km): por isso o piso
+        return max(float(r["divisa_piso"]), r["divisa_colado"] * cai)
+    if km > r["perto_ate_km"]:                      # sem divisa e já longe: não é bairro próximo
+        return 0.0
+    return r["perto_sem_divisa"] * cai
 
 
 def _local(pedido: dict, imovel: dict, vizinhos: dict, regras: dict):
@@ -56,10 +75,19 @@ def _local(pedido: dict, imovel: dict, vizinhos: dict, regras: dict):
         return None
     if bairro and bairro in bairros:
         return r["exato"], f"no bairro pedido ({imovel.get('bairro')})"
+    # o vizinho: vale o bairro pedido de que ele está mais perto
+    melhor = None
     for b in bairros:
-        if bairro and bairro in vizinhos.get(b, ()):
-            return r["vizinho"], f"bairro vizinho ({imovel.get('bairro')})"
-    return None
+        v = vizinhos.get(b, {}).get(bairro) if bairro else None
+        if v and (melhor is None or _vizinho(v, regras) > melhor[0]):
+            melhor = (_vizinho(v, regras), v)
+    if not melhor or melhor[0] <= 0:
+        return None
+    v = melhor[1]
+    km = (f"{v['km']:.1f}".replace(".", ",") + " km") if v.get("km") is not None else None
+    if v.get("divisa"):
+        return melhor[0], f"{imovel.get('bairro')} faz divisa com o bairro pedido" + (f" (centros a {km})" if km else "")
+    return melhor[0], f"{imovel.get('bairro')} fica perto do bairro pedido, sem divisa ({km})"
 
 
 def _rendimento_do_preco(preco: float, teto: float, regras: dict) -> tuple[float, bool]:

@@ -29,14 +29,19 @@ SELECT i.codigo, i.tipo, i.bairro, i.condominio_nome, i.quartos, i.suites, i.vag
    AND NOT coalesce(i.e_parceiro, false) AND NOT coalesce(i.bloqueado, false)
 """
 
+# OS BAIRROS PRÓXIMOS, com o que se sabe de cada par: se fazem divisa e a distância entre os centros (km).
+#   geo_bairro_vizinho  o mapa: 576 pares (quem faz divisa, e quem fica a até ~7 km sem fazer)
+#   bairro_vizinho      a tabela editável dele: par posto à mão vale como "faz divisa" (km do mapa, se houver)
 SQL_VIZINHOS = """
-SELECT bairro, vizinho FROM bairro_vizinho
-UNION SELECT vizinho, bairro FROM bairro_vizinho
-UNION SELECT coalesce(n1.nome_cadastro, g.bairro), coalesce(n2.nome_cadastro, g.vizinho)
-        FROM geo_bairro_vizinho g
-        LEFT JOIN geo_bairro_nome n1 ON n1.bairro = g.bairro
-        LEFT JOIN geo_bairro_nome n2 ON n2.bairro = g.vizinho
-       WHERE g.divisa
+SELECT a, b, bool_or(divisa) AS divisa, min(km) AS km FROM (
+  SELECT coalesce(n1.nome_cadastro, g.bairro) AS a, coalesce(n2.nome_cadastro, g.vizinho) AS b, g.divisa, g.km
+    FROM geo_bairro_vizinho g
+    LEFT JOIN geo_bairro_nome n1 ON n1.bairro = g.bairro
+    LEFT JOIN geo_bairro_nome n2 ON n2.bairro = g.vizinho
+  UNION ALL SELECT bairro, vizinho, true, NULL FROM bairro_vizinho
+  UNION ALL SELECT vizinho, bairro, true, NULL FROM bairro_vizinho
+) x
+ GROUP BY a, b
 """
 
 
@@ -77,7 +82,7 @@ def andar_do(a: str | None) -> int | None:
 
 
 def carregar(conn) -> tuple[list[dict], dict]:
-    """(os imóveis, {bairro: os vizinhos dele}); os nomes de bairro como chave (texto.normal)."""
+    """(os imóveis, {bairro: {vizinho: {"divisa": bool, "km": float | None}}}); nomes como chave (texto.normal)."""
     with conn.cursor() as cur:
         cur.execute(SQL)
         colunas = [d[0] for d in cur.description]
@@ -105,10 +110,10 @@ def carregar(conn) -> tuple[list[dict], dict]:
             "logradouro": (l["logradouro"] or "").strip() or None,
             "confirmado_em": datas[como] if como else None, "confirmado_como": como,
         })
-    vizinhos: dict[str, set] = {}
-    for a, b in pares:
-        if a and b:
-            vizinhos.setdefault(normal(a), set()).add(normal(b))
+    vizinhos: dict[str, dict[str, dict]] = {}
+    for a, b, divisa, km in pares:
+        if a and b and normal(a) != normal(b):
+            vizinhos.setdefault(normal(a), {})[normal(b)] = {"divisa": bool(divisa), "km": float(km) if km is not None else None}
     return imoveis, vizinhos
 
 

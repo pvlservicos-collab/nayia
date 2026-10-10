@@ -5062,6 +5062,15 @@ def admin_grupos_captacao_estado(pedido_id):
     return _captacao_grupos("SELECT site_captacao_grupos_estado(%s, %s) AS j", (pedido_id, str(corpo.get("estado") or "")))
 
 
+# 339: o ENVIO MANUAL (o botão "Enviar ao corretor"). Um clique dele por pedido; quem confere e enfileira é o banco
+# (as travas estão em site_captacao_grupos_enviar) e quem entrega é o enviador manual, pelo número da Parceria.
+@app.route("/admin/api/grupos/captacao/<int:pedido_id>/enviar", methods=["POST"])
+def admin_grupos_captacao_enviar(pedido_id):
+    corpo = request.get_json(silent=True) or {}
+    return _captacao_grupos("SELECT site_captacao_grupos_enviar(%s, %s, %s, %s) AS j",
+                            (pedido_id, _inteiro(corpo.get("codigo"), 0), str(corpo.get("abertura") or ""), "painel do site"))
+
+
 @app.route("/admin/api/grupos/captacao/testar", methods=["POST"])
 def admin_grupos_captacao_testar():
     corpo = request.get_json(silent=True) or {}

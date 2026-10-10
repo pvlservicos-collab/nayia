@@ -20,8 +20,16 @@ from grupos.texto import normal  # noqa: E402
 R = regras.conferir(json.loads(json.dumps(regras.PADRAO)))[0]
 AGORA = datetime.datetime.now(datetime.timezone.utc)
 LIMITE = AGORA - datetime.timedelta(days=R["confirmado_dias"])
-VIZINHOS = {normal("Adrianópolis"): {normal("Nossa Senhora das Graças"), normal("Aleixo")},
-            normal("Nossa Senhora das Graças"): {normal("Adrianópolis")}}
+VIZINHOS = {normal("Adrianópolis"): {normal("Nossa Senhora das Graças"): {"divisa": True, "km": 1.1},
+                                    normal("Aleixo"): {"divisa": True, "km": 3.0},
+                                    normal("Chapada"): {"divisa": False, "km": 2.5},
+                                    normal("Coroado"): {"divisa": False, "km": 4.8},
+                                    normal("Tarumã-Açu"): {"divisa": True, "km": 8.6},
+                                    normal("Parque das Laranjeiras"): {"divisa": True, "km": None},
+                                    normal("Flores"): {"divisa": False, "km": 5.2},
+                                    normal("Longe Demais"): {"divisa": False, "km": 12.0}},
+            normal("Nossa Senhora das Graças"): {normal("Adrianópolis"): {"divisa": True, "km": 1.1}},
+            normal("Coroado"): {normal("Chapada"): {"divisa": False, "km": 6.0}}}
 
 
 def imovel(codigo=1, **k):
@@ -107,10 +115,40 @@ class Nota(unittest.TestCase):
         self.assertEqual(r["detalhe"][0]["rendimento"], 50.0)
         self.assertIn("negociável", r["detalhe"][0]["texto"])
 
-    def test_vizinho_vale_a_metade_do_local(self):
-        _, n, r = nota(pedido(), imovel(bairro="Aleixo"))
-        self.assertEqual([d["rendimento"] for d in r["detalhe"] if d["criterio"] == "local"], [50.0])
-        self.assertEqual(n, round((40 * 100 + 20 * 50 + 15 * 100) / 75, 1))
+    def _local(self, bairro, **p):
+        etapa, _, r = nota(pedido(**p), imovel(bairro=bairro))
+        return None if etapa else next(d for d in r["detalhe"] if d["criterio"] == "local")
+
+    def test_bairro_proximo_vale_mais_que_bairro_longe(self):
+        # divisa: 85 colado, caindo com a distância entre os centros (zera em 10 km), nunca menos que 45
+        self.assertEqual(self._local("Nossa Senhora das Graças")["rendimento"], 75.7)   # 85 x (1 - 1,1/10)
+        self.assertEqual(self._local("Aleixo")["rendimento"], 59.5)                     # 85 x (1 - 3/10)
+        self.assertEqual(self._local("Tarumã-Açu")["rendimento"], 45.0)                 # o piso de quem faz divisa
+        # perto sem divisa: 65 caindo com a distância
+        self.assertEqual(self._local("Chapada")["rendimento"], 48.8)                    # 65 x (1 - 2,5/10)
+        self.assertEqual(self._local("Coroado")["rendimento"], 33.8)                    # 65 x (1 - 4,8/10)
+        ordem = [self._local(b)["rendimento"] for b in ("Adrianópolis", "Nossa Senhora das Graças", "Aleixo", "Chapada", "Coroado")]
+        self.assertEqual(ordem, sorted(ordem, reverse=True))
+        _, n, _ = nota(pedido(), imovel(bairro="Aleixo"))
+        self.assertEqual(n, round((40 * 100 + 20 * 59.5 + 15 * 100) / 75, 1))
+
+    def test_o_card_diz_se_faz_divisa_e_a_distancia(self):
+        self.assertEqual(self._local("Aleixo")["texto"], "Aleixo faz divisa com o bairro pedido (centros a 3,0 km)")
+        self.assertEqual(self._local("Chapada")["texto"], "Chapada fica perto do bairro pedido, sem divisa (2,5 km)")
+
+    def test_par_posto_a_mao_sem_distancia_vale_o_fixo(self):
+        d = self._local("Parque das Laranjeiras")
+        self.assertEqual((d["rendimento"], d["texto"]), (65.0, "Parque das Laranjeiras faz divisa com o bairro pedido"))
+
+    def test_longe_demais_e_fora_da_lista_de_proximos_nao_entram(self):
+        self.assertIsNone(self._local("Longe Demais"))          # sem divisa e além do km que zera
+        self.assertIsNone(self._local("Flores"))                # sem divisa a 5,2 km: passou dos 5 km de "perto"
+        self.assertIsNone(self._local("Ponta Negra"))           # o mapa não lista como próximo
+
+    def test_com_dois_bairros_pedidos_vale_o_de_que_ele_esta_mais_perto(self):
+        # Chapada: 2,5 km de Adrianópolis e 6 km do Coroado -> vale a de Adrianópolis
+        d = self._local("Chapada", bairro_chaves=[normal("Coroado"), normal("Adrianópolis")])
+        self.assertEqual(d["rendimento"], 48.8)
 
     def test_um_quarto_a_mais_vale_sessenta(self):
         _, n, r = nota(pedido(), imovel(quartos=3))
@@ -275,12 +313,17 @@ class Regras(unittest.TestCase):
     def test_escrever_ativo_nao_liga_envio(self):
         r, avisos = regras.carregar(self._arquivo('{"modo": "ativo"}'))
         self.assertEqual(r["modo"], "treino")
-        self.assertTrue(any("nada é enviado" in a for a in avisos))
+        self.assertTrue(any("nada é enviado sozinho" in a for a in avisos))
 
     def test_arquivo_estragado_vale_o_padrao_com_aviso(self):
         r, avisos = regras.carregar(self._arquivo('{"pesos": '))
         self.assertEqual(r, R)
         self.assertTrue(avisos)
+
+    def test_distancia_que_zera_torta_fica_o_padrao_e_o_envio_manual_se_desliga_no_arquivo(self):
+        r, avisos = regras.carregar(self._arquivo('{"local": {"km_que_zera": 0}, "envio_manual": false}'))
+        self.assertEqual((r["local"], r["envio_manual"], len(avisos)), (R["local"], False, 1))
+        self.assertTrue(R["envio_manual"])
 
     def test_valor_torto_fica_o_padrao(self):
         r, avisos = regras.carregar(self._arquivo('{"pesos": {"preco": "muito"}, "cortes": {"verde": 50, "amarelo": 70}, "xis": 1}'))

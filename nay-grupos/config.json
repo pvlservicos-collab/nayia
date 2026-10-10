@@ -2,7 +2,10 @@
   "_leia": "Captação ativa por grupos: tudo o que se ajusta sem mexer no código. O serviço relê este arquivo sozinho (não precisa reiniciar). Chave que faltar vale o padrão de grupos/regras.py.",
 
   "modo": "treino",
-  "_modo": "treino = só lê, extrai, pontua e mostra; NUNCA envia. 'ativo' ainda não existe nesta versão: se estiver escrito, o serviço continua em treino e avisa na tela.",
+  "_modo": "treino = lê, extrai, pontua e mostra; NUNCA envia sozinho. 'ativo' (envio automático) ainda não existe nesta versão: se estiver escrito, o serviço continua em treino e avisa na tela.",
+
+  "envio_manual": true,
+  "_envio_manual": "true = a tela mostra o botão 'Enviar ao corretor' (um clique seu por pedido: a mensagem de abertura e, se enviar_dados_e_fotos, o card e as fotos, pelo número da Parceria). false = o botão some e o banco recusa o envio.",
 
   "janela_h": 48,
   "_janela_h": "pedidos mais velhos que isto são ignorados (horas)",
@@ -15,7 +18,8 @@
   "preco": { "cheio_ate_abaixo": 0.20, "zera_em": 0.40, "tolerancia_acima": 0.10 },
   "_preco": "de 20% abaixo do teto até o teto vale 100%; mais barato que isso cai em linha reta até 0% quando o imóvel custa 40% do teto; acima do teto cai de 100% a 0% em 10%, e mais que 10% acima elimina",
 
-  "local": { "exato": 100, "vizinho": 50, "mesmo_bairro_outro_condominio": 50 },
+  "local": { "exato": 100, "divisa_colado": 85, "divisa_piso": 45, "perto_sem_divisa": 65, "perto_ate_km": 5, "km_que_zera": 10, "vizinho_a_mao": 65, "mesmo_bairro_outro_condominio": 50 },
+  "_local": "bairro pedido vale 100. Bairro PRÓXIMO vale menos, e cai com a distância entre os centros dos bairros: o que faz divisa vai de 85 (colado) para baixo, nunca menos que 45; o que fica perto sem fazer divisa vai de 65 para baixo, e só conta até 5 km (perto_ate_km); os dois chegariam a zero em 10 km. Par posto à mão na tabela de bairros vizinhos, sem distância no mapa, vale 65. Bairro que o mapa não lista como próximo não entra",
   "quartos": { "igual": 100, "um_a_mais": 60 },
   "mobiliado": { "atende": 100, "semi": 50, "nao_atende": 0 },
 
@@ -31,5 +35,5 @@
   "intervalo_min_entre_envios": 30,
   "mensagem_de_abertura": "Oi, vi sua solicitação no grupo, tenho um imóvel que pode se encaixar no que o seu cliente quer, vou te enviar aqui ok? Qualquer dúvida me avisa",
   "enviar_dados_e_fotos": true,
-  "_envio": "as três chaves acima são do modo ativo (ainda não existe): ficam aqui para ele já escolher"
+  "_envio": "valem para o envio manual: o intervalo mínimo entre duas mensagens ao mesmo corretor (minutos), a mensagem que abre a conversa e se depois dela vão o card e as fotos (false = só a abertura sai, e o resto você manda na mão)"
 }
