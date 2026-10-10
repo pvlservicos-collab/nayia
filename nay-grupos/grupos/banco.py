@@ -9,7 +9,8 @@ import psycopg2.extras
 from grupos import config
 
 # O QUE HÁ PARA LER: mensagem de grupo com texto (ou legenda), de outra pessoa, dentro da janela, ainda não lida;
-# e o que ele colou na tela para treinar. A mais antiga primeiro.
+# a que veio de conversa EXPORTADA do WhatsApp (337: a Z-API não devolve histórico de grupo); e o que ele colou
+# na tela para treinar. O teste primeiro (ele está olhando a tela), depois a mais antiga.
 PENDENTES = """
 SELECT * FROM (
   SELECT 'grupo' AS fonte, c.message_id AS ref, c.grupo_id, c.grupo_nome, c.remetente, c.remetente_nome,
@@ -18,6 +19,12 @@ SELECT * FROM (
    WHERE NOT c.de_mim AND nullif(btrim(c.texto), '') IS NOT NULL
      AND c.enviada_em > now() - make_interval(hours => %(janela)s)
      AND NOT EXISTS (SELECT 1 FROM privado.grupo_mensagem_lida l WHERE l.fonte = 'grupo' AND l.ref = c.message_id
+                        AND NOT (l.erro IS NOT NULL AND l.tentativas < 5 AND l.lida_em < now() - interval '10 minutes'))
+  UNION ALL
+  SELECT 'grupo', g.ref, NULL, g.grupo_nome, g.remetente, g.remetente_nome, g.enviada_em, g.texto
+    FROM privado.grupo_importada g
+   WHERE g.enviada_em > now() - make_interval(hours => %(janela)s)
+     AND NOT EXISTS (SELECT 1 FROM privado.grupo_mensagem_lida l WHERE l.fonte = 'grupo' AND l.ref = g.ref
                         AND NOT (l.erro IS NOT NULL AND l.tentativas < 5 AND l.lida_em < now() - interval '10 minutes'))
   UNION ALL
   SELECT 'teste', t.id::text, NULL, 'Teste colado na tela', NULL, t.nome, t.criado_em, t.texto

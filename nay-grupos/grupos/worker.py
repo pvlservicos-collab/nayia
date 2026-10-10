@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+from concurrent.futures import ThreadPoolExecutor
 import os
 import pathlib
 import sys
@@ -26,30 +27,42 @@ from grupos import banco, catalogo, config, extrair, lugares, pontuar, regras
 log = logging.getLogger("grupos")
 
 
-def ler_mensagens(conn, r: dict) -> int:
-    """Passo 1 em cada mensagem pendente. Devolve quantos pedidos novos entraram."""
+def _ler_uma(texto: str):
+    """A chamada à IA de uma mensagem, para rodar em paralelo: devolve as fichas ou o erro (nunca levanta)."""
+    try:
+        return extrair.extrair(texto)
+    except Exception as e:                     # noqa: BLE001 - o erro volta como valor, para a linha ser anotada
+        return e
+
+
+def ler_mensagens(conn, r: dict, turma: ThreadPoolExecutor) -> int:
+    """Passo 1 em cada mensagem pendente. Devolve quantos pedidos novos entraram.
+
+    A IA lê várias ao mesmo tempo (a conversa exportada de 2 dias traz centenas de mensagens); a gravação é
+    uma de cada vez. Mensagem que a IA não conseguiu ler fica anotada com o erro e volta à fila em 10 minutos
+    (até 5 vezes).
+    """
+    pendentes = banco.linhas(conn, banco.PENDENTES, {"janela": r["janela_h"], "limite": config.POR_CICLO})
+    conn.rollback()                            # a leitura acabou: nada fica aberto enquanto a IA trabalha
+    motivos = {m["ref"]: extrair.nao_precisa_ler(m["texto"]) for m in pendentes}
+    leituras = {m["ref"]: turma.submit(_ler_uma, m["texto"]) for m in pendentes if not motivos[m["ref"]]}
     novos = 0
-    for m in banco.linhas(conn, banco.PENDENTES, {"janela": r["janela_h"], "limite": config.POR_CICLO}):
-        motivo = extrair.nao_precisa_ler(m["texto"])
+    for m in pendentes:
         try:
-            if motivo:
-                banco.marcar_lida(conn, m, 0, motivo=motivo)
+            if motivos[m["ref"]]:
+                banco.marcar_lida(conn, m, 0, motivo=motivos[m["ref"]])
             else:
-                fichas = extrair.extrair(m["texto"])
-                n = banco.gravar_pedidos(conn, m, fichas)
-                banco.marcar_lida(conn, m, len(fichas), motivo=None if fichas else "a IA leu e não é pedido de imóvel")
-                novos += n
+                fichas = leituras[m["ref"]].result()
+                if isinstance(fichas, Exception):
+                    log.warning("a IA não leu %s %s: %s", m["fonte"], m["ref"], fichas)
+                    banco.marcar_lida(conn, m, 0, erro=str(fichas)[:300])
+                else:
+                    novos += banco.gravar_pedidos(conn, m, fichas)
+                    banco.marcar_lida(conn, m, len(fichas), motivo=None if fichas else "a IA leu e não é pedido de imóvel")
             conn.commit()
-        except extrair.FalhaDoModelo as e:
-            conn.rollback()
-            log.warning("a IA não respondeu para %s %s: %s", m["fonte"], m["ref"], e)
-            # fica anotada com o erro e volta à fila em 10 minutos (até 5 vezes); o resto espera a próxima passada
-            banco.marcar_lida(conn, m, 0, erro=str(e)[:300])
-            conn.commit()
-            break
         except Exception:                      # noqa: BLE001 - uma mensagem torta não para as outras
             conn.rollback()
-            log.exception("erro ao ler %s %s", m["fonte"], m["ref"])
+            log.exception("erro ao gravar a leitura de %s %s", m["fonte"], m["ref"])
             banco.marcar_lida(conn, m, 0, erro="erro ao gravar a leitura")
             conn.commit()
     return novos
@@ -80,10 +93,12 @@ def main() -> None:
     if not config.DATABASE_URL or not config.OPENAI_API_KEY:
         raise SystemExit("faltam DATABASE_URL e OPENAI_API_KEY no ambiente (.env)")
     conn = banco.conectar()
+    turma = ThreadPoolExecutor(max_workers=config.AO_MESMO_TEMPO, thread_name_prefix="ia")
     ultima_conta_geral = 0.0
     regras_de_antes = None
     log.info("nay-grupos no ar: modelo %s, regras em %s", config.MODELO, config.ARQUIVO_DE_REGRAS)
     while True:
+        tem_fila = False
         try:
             r, avisos = regras.carregar(config.ARQUIVO_DE_REGRAS)
             refazer = banco.publicar_estado(conn, r, " | ".join(avisos) or None)
@@ -92,7 +107,10 @@ def main() -> None:
             regras_de_antes = r
             if time.time() - ultima_conta_geral > config.REPONTUAR_A_CADA_S:
                 refazer = True
-            novos = ler_mensagens(conn, r)
+            novos = ler_mensagens(conn, r, turma)
+            # com fila, a passada seguinte começa logo (não espera os 10 s)
+            tem_fila = bool(banco.linhas(conn, "SELECT 1 FROM (" + banco.PENDENTES + ") f LIMIT 1",
+                                         {"janela": r["janela_h"], "limite": 1}))
             feitos = pontuar_pedidos(conn, r, todos=refazer)
             if refazer:
                 ultima_conta_geral = time.time()
@@ -110,7 +128,7 @@ def main() -> None:
             conn = banco.conectar()
         if uma_vez:
             break
-        time.sleep(config.CICLO_S)
+        time.sleep(1 if tem_fila else config.CICLO_S)
 
 
 if __name__ == "__main__":

@@ -75,11 +75,18 @@
              " julgadas (" + Math.round(a.corretas * 100 / a.julgados) + "%)</span>");
     }
     var f = d.fonte || {};
-    if (!f.com_texto) {
+    if (f.na_fila) h.push('<span class="gc-selo gc-selo--lendo">lendo… faltam ' + f.na_fila + (f.na_fila === 1 ? " mensagem" : " mensagens") + "</span>");
+    if (f.importadas) {
+      h.push('<span class="gc-selo" title="Mensagens de conversa exportada do WhatsApp">' + f.importadas + " mensagens importadas de " + f.grupos_importados +
+             (f.grupos_importados === 1 ? " grupo" : " grupos") + " · " + (f.nao_eram_pedido || 0) + " não eram pedido" +
+             (f.com_erro ? " · " + f.com_erro + " a IA não leu" : "") + "</span>");
+    }
+    if ($("gc-imp-horas")) $("gc-imp-horas").textContent = d.horas;
+    if (!f.com_texto && !f.importadas) {
       h.push('<div class="gc-aviso"><b>Os grupos não estão entregando o texto das mensagens.</b> Nas últimas ' + d.horas + " h chegaram " +
              (f.mensagens || 0) + " avisos de " + (f.grupos || 0) + " grupos (entrou, saiu, apagou) e nenhuma mensagem com texto: a Z-API da Parceria não está " +
-             "repassando o conteúdo dos grupos. Enquanto isso não for ligado, só aparecem aqui as mensagens coladas em <b>Testar uma mensagem</b>.</div>");
-    } else {
+             "repassando o conteúdo dos grupos. Enquanto isso não for ligado, só aparecem aqui a conversa exportada (logo abaixo) e as mensagens coladas em <b>Testar uma mensagem</b>.</div>");
+    } else if (f.com_texto) {
       h.push('<span class="gc-selo">' + f.com_texto + " mensagens com texto de " + f.grupos + " grupos · " + (f.lidas || 0) + " lidas</span>");
     }
     if (d.aviso) h.push('<div class="gc-aviso"><b>Configuração:</b> ' + esc(d.aviso) + "</div>");
@@ -96,105 +103,148 @@
     });
   }
 
-  /* ── a ficha extraída ── */
+  /* ── o desenho de cada solicitação ──
+     Pedro, 09/10/2026 (depois de ver a primeira versão): "você colocou vários números um por cima do outro;
+     agrupa em categorias para eu ler de forma melhor, pode ser até com bordas de cores diferentes, e as
+     informações principais destacadas".
+     Cada lado tem uma MANCHETE (o que ele quer / o imóvel e a nota) e, embaixo, caixas por assunto, cada uma
+     com a sua cor: Negócio, Onde, Imóvel, Contato; e do outro lado Imóvel, Por que essa nota, Alternativas. */
   function valorDoCampo(campo, v) {
     if (v == null || (Array.isArray(v) && !v.length)) return null;
     if (campo === "preco_max") return "até " + reais(v);
+    if (campo === "operacao") return v === "aluguel" ? "Aluguel" : "Venda";
+    if (campo === "tipo") return { apartamento: "Apartamento", casa: "Casa", sala: "Sala / loja", outro: "Outro" }[v] || v;
     if (campo === "bairros") return v.join(" ou ");
     if (campo === "andar") return v.map(function (a) { return { terreo: "térreo", "1_andar": "1º andar", qualquer: "qualquer" }[a] || a; }).join(" ou ");
-    if (campo === "mobiliado") return v ? "sim" : "não (cru)";
+    if (campo === "mobiliado") return v ? "sim" : "não (sem mobília)";
     if (campo === "suite" || campo === "pet") return v ? "sim" : "não";
     return String(v);
   }
-  function desenharFicha(p) {
-    var ficha = p.ficha || {}, duvidosos = p.duvidosos || [], h = ['<ul class="gc-ficha">'], algum = false;
-    ORDEM.forEach(function (campo) {
+  function linha(rotulo, valor, duvidoso) {
+    return '<div class="gc-linha' + (duvidoso ? " gc-linha--duvidoso" : "") + '"><dt>' + esc(rotulo) + "</dt><dd>" + valor +
+           (duvidoso ? ' <em class="gc-duvida">duvidoso</em>' : "") + "</dd></div>";
+  }
+  function caixa(cor, titulo, corpo) {
+    return corpo ? '<section class="gc-caixa gc-caixa--' + cor + '"><h3>' + esc(titulo) + "</h3>" + corpo + "</section>" : "";
+  }
+  function campos(p, lista) {
+    var ficha = p.ficha || {}, duvidosos = p.duvidosos || [], h = [];
+    lista.forEach(function (campo) {
       var v = valorDoCampo(campo, ficha[campo]);
-      if (v == null) return;
-      algum = true;
-      h.push('<li class="gc-campo' + (duvidosos.indexOf(campo) >= 0 ? " gc-campo--duvidoso" : "") + '"><span>' + ROTULO[campo] + "</span><b>" + esc(v) + "</b></li>");
+      if (v != null) h.push(linha(ROTULO[campo], "<b>" + esc(v) + "</b>", duvidosos.indexOf(campo) >= 0));
     });
-    h.push("</ul>");
-    if (!algum) h.push('<p class="gc-lugar">A IA não achou nenhum campo nesta mensagem.</p>');
-    var local = p.local || {};
-    if (local.operacao && local.operacao_origem === "nome do grupo") {
-      h.push('<p class="gc-lugar">Operação <b>' + esc(local.operacao) + "</b> tirada do nome do grupo (a mensagem não disse).</p>");
-    }
-    (local.itens || []).forEach(function (it) {
-      var tipo = it.tipo === "condominio" ? "condomínio" : "bairro";
+    return h.length ? '<dl class="gc-dl">' + h.join("") + "</dl>" : "";
+  }
+  /* o que o serviço entendeu de cada nome de lugar (apelido, conjunto, parecido, não reconheci) */
+  function lugares(p) {
+    var h = [];
+    ((p.local || {}).itens || []).forEach(function (it) {
+      var tipo = it.tipo === "condominio" ? "condomínio" : "bairro", oficiais = it.oficiais || [];
       if (!it.como) {
         h.push('<p class="gc-lugar gc-lugar--duvida">Não reconheci o ' + tipo + " <b>" + esc(it.escrito) + "</b>" +
-               (it.sugestao ? " (o mais parecido: " + esc(it.sugestao) + ")" : "") +
+               (it.sugestao ? "; o mais parecido é " + esc(it.sugestao) : "") +
                ' <button type="button" class="btn-mini" data-apelido="' + esc(it.escrito) + '" data-tipo="' + esc(it.tipo) + '" data-oficial="' + esc(it.sugestao || "") + '">criar apelido</button></p>');
-      } else if (it.como !== "exato" || (it.oficiais || []).join("|").toLowerCase() !== String(it.escrito).toLowerCase()) {
-        h.push('<p class="gc-lugar' + (it.como === "parecido" || it.como === "pedaco" ? " gc-lugar--duvida" : "") + '">' + esc(it.escrito) + " → <b>" +
-               esc((it.oficiais || []).slice(0, 4).join(", ")) + ((it.oficiais || []).length > 4 ? " e mais " + (it.oficiais.length - 4) : "") + "</b>" +
-               (COMO[it.como] ? " (" + COMO[it.como] + ")" : "") +
-               (it.como === "parecido" || it.como === "pedaco"
-                 ? ' <button type="button" class="btn-mini" data-apelido="' + esc(it.escrito) + '" data-tipo="' + esc(it.tipo) + '" data-oficial="' + esc((it.oficiais || [])[0] || "") + '">confirmar como apelido</button>'
-                 : "") + "</p>");
+      } else if (it.como !== "exato" || oficiais.join("|").toLowerCase() !== String(it.escrito).toLowerCase()) {
+        var duvida = it.como === "parecido" || it.como === "pedaco";
+        h.push('<p class="gc-lugar' + (duvida ? " gc-lugar--duvida" : "") + '">“' + esc(it.escrito) + "” = <b>" +
+               esc(oficiais.slice(0, 3).join(", ")) + (oficiais.length > 3 ? " e mais " + (oficiais.length - 3) : "") + "</b>" +
+               (COMO[it.como] ? " <small>(" + COMO[it.como] + ")</small>" : "") +
+               (duvida ? ' <button type="button" class="btn-mini" data-apelido="' + esc(it.escrito) + '" data-tipo="' + esc(it.tipo) + '" data-oficial="' + esc(oficiais[0] || "") + '">confirmar como apelido</button>' : "") + "</p>");
       }
     });
-    if (ficha.observacao) h.push('<p class="gc-obs">Também pediu: ' + esc(ficha.observacao) + "</p>");
     return h.join("");
+  }
+  /* a manchete do pedido: o que ele quer, numa linha que se lê de longe */
+  function manchetePedido(p) {
+    var f = p.ficha || {}, local = p.local || {}, partes = [];
+    var operacao = f.operacao || local.operacao;
+    if (operacao) partes.push('<span class="gc-op gc-op--' + esc(operacao) + '">' + (operacao === "aluguel" ? "ALUGUEL" : "VENDA") + "</span>");
+    if (f.tipo) partes.push(esc(valorDoCampo("tipo", f.tipo)));
+    if (f.quartos != null) partes.push(f.quartos + (f.quartos === 1 ? " quarto" : " quartos"));
+    if (f.preco_max) partes.push("<strong>até " + esc(reais(f.preco_max)) + "</strong>");
+    var onde = [].concat(f.bairros || [], f.condominio ? [f.condominio] : []);
+    return '<p class="gc-manchete">' + (partes.join(' <i>·</i> ') || "Pedido sem detalhe") + "</p>" +
+           (onde.length ? '<p class="gc-onde">em ' + esc(onde.join(" ou ")) + "</p>" : "");
+  }
+  function desenharFicha(p) {
+    var f = p.ficha || {}, local = p.local || {};
+    var negocio = campos(p, ["operacao", "tipo", "preco_max"]) +
+      (local.operacao && local.operacao_origem === "nome do grupo"
+        ? '<p class="gc-lugar">Operação tirada do nome do grupo: a mensagem não disse.</p>' : "");
+    var onde = campos(p, ["bairros", "condominio"]) + lugares(p);
+    var imovel = campos(p, ["quartos", "suite", "vagas", "andar", "mobiliado", "pet"]);
+    var contato = campos(p, ["contato"]) + (f.observacao ? '<p class="gc-lugar">Também pediu: ' + esc(f.observacao) + "</p>" : "");
+    var caixas = caixa("roxo", "Negócio", negocio) + caixa("azul", "Onde", onde) + caixa("verde", "Imóvel que ele quer", imovel) +
+                 caixa("cinza", "Contato e observação", contato);
+    return '<div class="gc-caixas">' + (caixas || '<p class="gc-lugar">A IA não achou nenhum campo nesta mensagem.</p>') + "</div>";
   }
 
   /* ── o lado do imóvel ── */
   function valorDoImovel(im, operacao) { return operacao === "venda" ? im.valor_venda : im.valor_aluguel; }
-  function linhaDoImovel(im) {
-    var partes = [];
-    if (im.quartos != null) partes.push(im.quartos + (im.quartos === 1 ? " quarto" : " quartos") + (im.suites ? " (" + im.suites + (im.suites === 1 ? " suíte)" : " suítes)") : ""));
-    if (im.vagas != null) partes.push(im.vagas + (im.vagas === 1 ? " vaga" : " vagas"));
-    if (im.area) partes.push(Math.round(im.area) + " m²");
-    if (im.andar_cadastro) partes.push("andar: " + im.andar_cadastro);
-    if (im.mobilia_cadastro) partes.push(im.mobilia_cadastro);
-    return partes.join(" · ");
+  function fichaDoImovel(im) {
+    var h = [];
+    if (im.quartos != null) h.push(linha("Quartos", "<b>" + im.quartos + "</b>" + (im.suites ? " (" + im.suites + (im.suites === 1 ? " suíte)" : " suítes)") : "")));
+    if (im.vagas != null) h.push(linha("Vagas", "<b>" + im.vagas + "</b>"));
+    if (im.area) h.push(linha("Área", "<b>" + Math.round(im.area) + " m²</b>"));
+    if (im.andar_cadastro) h.push(linha("Andar", "<b>" + esc(im.andar_cadastro) + "</b>"));
+    if (im.mobilia_cadastro) h.push(linha("Mobília", "<b>" + esc(im.mobilia_cadastro) + "</b>"));
+    if (im.taxa_condominio) h.push(linha("Condomínio", "<b>" + esc(reais(im.taxa_condominio)) + "</b>"));
+    return h.length ? '<dl class="gc-dl">' + h.join("") + "</dl>" : "";
   }
-  function desenharDetalhe(par) {
-    var h = ['<table class="gc-detalhe"><thead><tr><th>Critério</th><th class="num">Peso</th><th>Rendeu</th><th class="num">Pontos</th><th>Por quê</th></tr></thead><tbody>'];
+  /* por que essa nota: uma linha por critério -- o nome, a barra, "ganhou X de Y" e o motivo */
+  function desenharNota(par) {
+    var h = ['<ul class="gc-criterios">'];
     (par.detalhe || []).forEach(function (d) {
-      h.push("<tr><td><b>" + esc(CRITERIO[d.criterio] || d.criterio) + '</b></td><td class="num">' + esc(d.peso) + '</td><td><span class="gc-barra"><i style="width:' +
-             Math.max(0, Math.min(100, d.rendimento)) + '%"></i></span>' + Math.round(d.rendimento) + '%</td><td class="num">' + esc(d.pontos) + "</td><td>" + esc(d.texto) + "</td></tr>");
+      var cheio = d.rendimento >= 99.5, zero = d.rendimento <= 0.5;
+      h.push('<li class="gc-criterio' + (cheio ? " gc-criterio--cheio" : zero ? " gc-criterio--zero" : " gc-criterio--parte") + '">' +
+             '<span class="gc-criterio__nome">' + esc(CRITERIO[d.criterio] || d.criterio) + "</span>" +
+             '<span class="gc-barra"><i style="width:' + Math.max(0, Math.min(100, d.rendimento)) + '%"></i></span>' +
+             '<span class="gc-criterio__pontos"><b>' + Math.round(d.pontos) + "</b> de " + Math.round(d.peso) + "</span>" +
+             '<span class="gc-criterio__texto">' + esc(d.texto) + "</span></li>");
     });
-    h.push("</tbody></table>");
+    h.push("</ul>");
     return h.join("");
   }
   function desenharImovel(p) {
     var pares = p.pares || [], operacao = (p.local && p.local.operacao) || (p.ficha && p.ficha.operacao);
     if (!p.pontuado) return '<div class="gc-sem"><strong>Calculando…</strong><p>O leitor ainda não fez a conta desta solicitação.</p></div>';
     if (!pares.length) {
-      var funil = p.funil || {}, passos = [];
+      /* o funil para no primeiro filtro que zerou: o resto seria uma fila de zeros */
+      var funil = p.funil || {}, passos = [], acabou = false;
       ["operacao", "tipo", "local", "quartos", "preco", "confirmado"].forEach(function (e) {
-        if (funil[e] != null) passos.push(funil[e] + " " + ETAPA[e]);
+        if (acabou || funil[e] == null) return;
+        passos.push('<span class="gc-passo' + (funil[e] === 0 ? " gc-passo--zero" : "") + '"><b>' + funil[e] + "</b> " + ETAPA[e] + "</span>");
+        if (funil[e] === 0) acabou = true;
       });
-      return '<div class="gc-sem"><strong>Sem imóvel compatível</strong><p>' + esc(p.sem_match_motivo || "nada passou nos filtros") + "</p>" +
-             (passos.length ? '<p class="gc-funil">Imóveis nossos que sobraram a cada filtro: ' + esc(passos.join(" → ")) + "</p>" : "") + "</div>";
+      return '<div class="gc-sem"><strong>Sem imóvel compatível</strong><p class="gc-sem__motivo">' + esc(p.sem_match_motivo || "nada passou nos filtros") + "</p>" +
+             (passos.length ? '<p class="gc-sem__rotulo">Imóveis nossos que sobraram a cada filtro</p><div class="gc-passos">' + passos.join('<i>→</i>') + "</div>" : "") + "</div>";
     }
     var m = pares[0], im = m.imovel || {}, faixa = p.faixa || "registro";
     var h = ['<div class="gc-imovel">',
              '<img class="gc-foto" alt="" data-foto="' + esc(im.codigo) + '" loading="lazy">',
              '<div class="gc-imovel__dados">',
-             '<p class="gc-imovel__nome"><a href="' + esc(API.replace("api.", "") + "/imovel/" + im.codigo) + '" target="_blank" rel="noopener">' + esc(im.codigo) + " · " +
-               esc(im.condominio || im.tipo_cadastro || "Imóvel") + "</a></p>",
+             '<p class="gc-imovel__nome"><a href="' + esc(API.replace("api.", "") + "/imovel/" + im.codigo) + '" target="_blank" rel="noopener">' +
+               esc(im.condominio || im.tipo_cadastro || "Imóvel") + "</a> <small>cód. " + esc(im.codigo) + "</small></p>",
              '<p class="gc-imovel__linha" data-endereco="' + esc(im.codigo) + '">' + esc([im.logradouro, im.bairro].filter(Boolean).join(" · ")) + "</p>",
-             '<p class="gc-imovel__linha">' + esc(linhaDoImovel(im)) + "</p>",
-             '<p class="gc-imovel__preco">' + esc(reais(valorDoImovel(im, operacao))) + (operacao === "aluguel" ? " /mês" : "") +
-               (im.taxa_condominio ? ' <span class="gc-imovel__linha">+ cond. ' + esc(reais(im.taxa_condominio)) + "</span>" : "") + "</p>",
+             '<p class="gc-imovel__preco">' + esc(reais(valorDoImovel(im, operacao))) + (operacao === "aluguel" ? "<small> /mês</small>" : "") + "</p>",
              (m.acima_do_teto ? '<span class="gc-etiqueta">acima do teto, negociável</span>' : ""),
              "</div>",
-             '<div class="gc-nota gc-nota--' + esc(faixa) + '"><b>' + Math.round(m.nota) + "%</b><span>" +
-               ({ verde: "na fila", amarelo: "parecido", registro: "fraco" }[faixa] || "") + "</span></div>",
+             '<div class="gc-nota gc-nota--' + esc(faixa) + '"><b>' + Math.round(m.nota) + "</b><span>de 100</span><em>" +
+               ({ verde: "na fila", amarelo: "parecido", registro: "fraco" }[faixa] || "") + "</em></div>",
              "</div>",
-             desenharDetalhe(m)];
-    if (im.confirmado_em) h.push('<p class="gc-confirmado">Disponível e confirmado em ' + esc(quando(im.confirmado_em)) + " (" + esc(im.confirmado_como || "") + ").</p>");
+             '<div class="gc-caixas">',
+             caixa("verde", "O imóvel", fichaDoImovel(im)),
+             caixa("roxo", "Por que essa nota", desenharNota(m)),
+             "</div>"];
+    if (im.confirmado_em) h.push('<p class="gc-confirmado">Disponível, confirmado em ' + esc(quando(im.confirmado_em)) + " (" + esc(im.confirmado_como || "") + ").</p>");
     if (pares.length > 1) {
       h.push('<details class="gc-alternativas"><summary>' + (pares.length - 1) + (pares.length === 2 ? " alternativa" : " alternativas") +
              (p.local && p.local.passaram > pares.length ? " (de " + (p.local.passaram - 1) + " que passaram)" : "") + "</summary><ul>");
       pares.slice(1).forEach(function (a) {
         var ia = a.imovel || {};
-        h.push("<li><span>" + esc(ia.codigo) + " · " + esc(ia.condominio || ia.tipo_cadastro || "") + " · " + esc(ia.bairro || "") + " · " +
-               esc(ia.quartos != null ? ia.quartos + "q" : "") + " · " + esc(reais(valorDoImovel(ia, operacao))) +
-               (a.acima_do_teto ? " (acima do teto)" : "") + "</span><b>" + Math.round(a.nota) + "%</b></li>");
+        h.push("<li><span><b>" + esc(ia.condominio || ia.tipo_cadastro || "") + "</b> <small>cód. " + esc(ia.codigo) + "</small><br>" + esc(ia.bairro || "") +
+               (ia.quartos != null ? " · " + ia.quartos + (ia.quartos === 1 ? " quarto" : " quartos") : "") + " · " + esc(reais(valorDoImovel(ia, operacao))) +
+               (a.acima_do_teto ? " (acima do teto)" : "") + '</span><b class="gc-alt-nota">' + Math.round(a.nota) + "</b></li>");
       });
       h.push("</ul></details>");
     }
@@ -204,13 +254,14 @@
   function desenharItem(p) {
     var faixa = p.pontuado ? (p.faixa || "sem_match") : "registro";
     var j = p.julgamento, rejeitado = p.estado === "rejeitado";
-    var quem = ['<span class="gc-grupo">' + esc(p.grupo || "Grupo") + "</span>"];
+    var quem = [];
     if (p.nome) quem.push("<b>" + esc(p.nome) + "</b>");
     if (p.telefone) quem.push(esc(fone(p.telefone)));
     quem.push(esc(quando(p.enviada_em)));
     var h = ['<article class="gc-item gc-item--' + esc(faixa) + (rejeitado ? " gc-item--rejeitado" : "") + '" data-id="' + p.id + '">',
              '<div class="gc-lado">',
-             '<div class="gc-quem">' + quem.join(" · ") + "</div>",
+             '<div class="gc-quem"><span class="gc-grupo">' + esc(p.grupo || "Grupo") + "</span><span>" + quem.join(" · ") + "</span></div>",
+             manchetePedido(p),
              '<p class="gc-texto">' + esc(p.texto) + "</p>",
              (p.parte > 1 || (p.ficha && p.ficha.trecho && p.ficha.trecho.length + 12 < String(p.texto).length)
                ? '<p class="gc-parte">Pedido ' + p.parte + " desta mensagem: “" + esc(p.ficha.trecho || "") + "”</p>" : ""),
@@ -218,13 +269,13 @@
              '<div class="gc-acoes">',
              '<button type="button" class="btn-mini" disabled title="Só no modo ATIVO. No treino nada é enviado.">Aprovar e enviar</button>',
              '<button type="button" class="btn-mini" data-acao="' + (rejeitado ? "voltar" : "rejeitar") + '">' + (rejeitado ? "Desfazer rejeição" : "Rejeitar") + "</button>",
-             '<button type="button" class="btn-mini" data-acao="correta">Leitura correta</button>',
-             '<button type="button" class="btn-mini" data-acao="errada">Leitura errada</button>',
+             '<button type="button" class="btn-mini gc-btn-ok" data-acao="correta">Leitura correta</button>',
+             '<button type="button" class="btn-mini gc-btn-erro" data-acao="errada">Leitura errada</button>',
              (j ? '<span class="gc-julgado gc-julgado--' + esc(j.leitura) + '" title="' + esc(quando(j.quando)) + '">' +
                   (j.leitura === "correta" ? "✓ leitura correta" : "✗ leitura errada" + (j.o_que_errou ? ": " + esc(j.o_que_errou) : "")) + "</span>" : ""),
              "</div>",
              "</div>",
-             '<div class="gc-lado">' + desenharImovel(p) + "</div>",
+             '<div class="gc-lado gc-lado--imovel">' + desenharImovel(p) + "</div>",
              "</article>"];
     return h.join("");
   }
@@ -264,7 +315,12 @@
     var n = ++estado.pedido;
     if (!estado.dados) $("gc-lista").innerHTML = '<p class="ga-carregando">Carregando as solicitações…</p>';
     return pedir("/admin/api/grupos/captacao?filtro=" + encodeURIComponent(estado.filtro))
-      .then(function (d) { if (n === estado.pedido) { estado.dados = d; estado.carregou = true; desenhar(); } })
+      .then(function (d) {
+        if (n !== estado.pedido) return;
+        estado.dados = d; estado.carregou = true; desenhar();
+        clearTimeout(estado.espera);
+        if ((d.fonte || {}).na_fila && !painel.hidden && !painel.querySelector(".gc-errou")) estado.espera = setTimeout(carregar, 7000);
+      })
       .catch(function (e) { if (n === estado.pedido) $("gc-lista").innerHTML = '<p class="gc-vazio">Não consegui carregar: ' + esc(e.message) + "</p>"; });
   }
 
@@ -325,6 +381,52 @@
         })();
       })
       .catch(function (e) { botao.disabled = false; dizer(e.message, true); });
+  }
+
+  /* ── importar a conversa exportada do WhatsApp (337) ──
+     Pedro, 09/10/2026: "quero que teste com os últimos 2 dias de solicitações que tiveram em todos os grupos do
+     número de parceria". Esses 2 dias não estão em sistema nenhum (a Z-API só entrega avisos de grupo e não
+     devolve histórico); estão no celular, e o WhatsApp exporta a conversa em texto. O navegador lê o arquivo
+     (whatsapp-exportado.js), fica só com as mensagens da janela e manda em lotes; o leitor faz o resto. */
+  function importar(arquivos) {
+    var W = window.WhatsAppExportado, lista = $("gc-importados");
+    var horas = (estado.dados && estado.dados.horas) || 48, desde = Date.now() - horas * 3600 * 1000;
+    function msgs(n) { return n + (n === 1 ? " mensagem" : " mensagens"); }
+    function linhaDe(nome) {
+      var li = document.createElement("li");
+      li.setAttribute("data-lendo", "1");
+      li.textContent = nome + ": lendo o arquivo…";
+      lista.insertBefore(li, lista.firstChild);
+      return li;
+    }
+    function umArquivo(arq) {
+      var li = linhaDe(arq.name);
+      function falhou(e) { li.removeAttribute("data-lendo"); li.setAttribute("data-erro", "1"); li.textContent = arq.name + ": " + (e.message || e); }
+      var texto = /\.zip$/i.test(arq.name) ? arq.arrayBuffer().then(W.textoDoZip) : arq.text();
+      return texto.then(function (t) {
+        var grupo = W.grupoDoArquivo(arq.name) || (window.prompt("De qual grupo é o arquivo " + arq.name + "?") || "").trim();
+        if (!grupo) throw new Error("sem o nome do grupo, não importei");
+        var lido = W.lerConversaExportada(t, desde), todas = W.lerConversaExportada(t).mensagens.length, lotes = [], i;
+        if (!todas) throw new Error("não achei mensagens: este arquivo é uma conversa exportada do WhatsApp?");
+        if (!lido.mensagens.length) throw new Error(msgs(todas) + " no arquivo, nenhuma das últimas " + horas + " h");
+        for (i = 0; i < lido.mensagens.length; i += 400) lotes.push(lido.mensagens.slice(i, i + 400));
+        var soma = { novas: 0, repetidas: 0 };
+        li.textContent = grupo + ": enviando " + msgs(lido.mensagens.length) + "…";
+        return lotes.reduce(function (antes, lote) {
+          return antes.then(function () {
+            return pedir("/admin/api/grupos/captacao/importar", { method: "POST", body: JSON.stringify({ grupo: grupo, mensagens: lote }) })
+              .then(function (r) { soma.novas += r.novas || 0; soma.repetidas += r.repetidas || 0; });
+          });
+        }, Promise.resolve()).then(function () {
+          li.removeAttribute("data-lendo");
+          li.textContent = grupo + ": " + msgs(todas) + " no arquivo, " + lido.mensagens.length + " das últimas " + horas + " h; " +
+                           soma.novas + (soma.novas === 1 ? " nova" : " novas") + " na fila do leitor" +
+                           (soma.repetidas ? " (" + soma.repetidas + " já tinham entrado)" : "") + ".";
+        });
+      }).catch(falhou);
+    }
+    return Array.prototype.reduce.call(arquivos, function (antes, arq) { return antes.then(function () { return umArquivo(arq); }); }, Promise.resolve())
+      .then(function () { estado.filtro = "todos"; return carregar(); });
   }
 
   /* ── demanda do mercado ── */
@@ -400,7 +502,7 @@
     if (!alvo) return;
     /* "+ Nova mensagem" é da agenda: nesta aba não há o que criar */
     var aba = alvo.closest("[data-painel-abre]");
-    if (aba && $("ga-nova")) $("ga-nova").hidden = aba.getAttribute("data-painel-abre") === "captacao";
+    if (aba && $("ga-nova")) $("ga-nova").style.display = aba.getAttribute("data-painel-abre") === "captacao" ? "none" : "";
     if (alvo.closest('[data-painel-abre="captacao"]')) {
       if (!estado.carregou) carregar();
       try { history.replaceState(null, "", "#captacao"); } catch (_) { /* sem histórico */ }
@@ -436,6 +538,10 @@
     if (acao) agir(acao.closest(".gc-item"), acao.getAttribute("data-acao"), acao);
   });
   $("gc-teste").addEventListener("submit", testar);
+  $("gc-arquivos").addEventListener("change", function () {
+    if (this.files && this.files.length) importar(this.files);
+    this.value = "";                           // escolher o mesmo arquivo de novo volta a disparar
+  });
   $("gc-ap-form").addEventListener("submit", salvarApelido);
   $("gc-ap-tipo").addEventListener("change", encherNomes);
 

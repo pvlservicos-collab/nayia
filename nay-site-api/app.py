@@ -5074,6 +5074,18 @@ def admin_grupos_captacao_teste_lido(teste_id):
     return _captacao_grupos("SELECT site_captacao_grupos_teste_lido(%s) AS j", (teste_id,))
 
 
+# 337: a conversa EXPORTADA do WhatsApp (a Z-API não devolve o histórico dos grupos). O navegador lê o arquivo
+# e manda só as mensagens de texto da janela; o leitor trata cada uma como mensagem de grupo.
+@app.route("/admin/api/grupos/captacao/importar", methods=["POST"])
+def admin_grupos_captacao_importar():
+    corpo = request.get_json(silent=True) or {}
+    mensagens = corpo.get("mensagens")
+    if not isinstance(mensagens, list):
+        mensagens = []
+    return _captacao_grupos("SELECT site_captacao_grupos_importar(%s, %s) AS j",
+                            (str(corpo.get("grupo") or ""), psycopg2.extras.Json(mensagens[:2000])))
+
+
 @app.route("/admin/api/grupos/captacao/demanda")
 def admin_grupos_captacao_demanda():
     return _captacao_grupos("SELECT site_captacao_grupos_demanda(%s) AS j", (_inteiro(request.args.get("dias"), 30),))

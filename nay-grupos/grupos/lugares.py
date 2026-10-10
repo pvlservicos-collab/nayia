@@ -5,9 +5,11 @@ Vile', 'Vile'). Se o nome não estiver na tabela, marcar duvidoso e sugerir o ma
 
 A ordem, para cada nome:
   1. a tabela de apelidos dele (`privado.grupo_apelido`), que vence tudo;
-  2. o que o banco da Nay já sabe: o bairro com o nome igual, o conjunto/avenida que vira bairro
-     (`nai_lugar_citado`: "Vieiralves" é Nossa Senhora das Graças) e o condomínio do cadastro
+  2. o que o banco da Nay já sabe: o bairro com o nome igual; o jeito curto de dizer o bairro
+     (`bairro_normal`: "Parque 10", "pq 10" e "Parque Dez" são o Parque 10 de Novembro); o conjunto/avenida que
+     vira bairro (`nai_lugar_citado`: "Vieiralves" é Nossa Senhora das Graças) e o condomínio do cadastro
      (`nay_condominios_candidatos`, as mesmas faixas que a Nay usa para atender);
+  2b. um PEDAÇO do nome que só cabe em até 3 bairros ("Laranjeiras", "Distrito"): vale, mas sai duvidoso;
   3. o mais parecido: vale para a conta, mas sai marcado DUVIDOSO, com a sugestão na tela;
   4. nada parecido: "não reconheci", e o pedido não é comparado por lugar (não se chuta lugar).
 """
@@ -28,6 +30,9 @@ class Lugares:
             cur.execute("""SELECT DISTINCT btrim(b) FROM (SELECT bairro AS b FROM imoveis UNION SELECT bairro FROM bairro_zona) x
                             WHERE nullif(btrim(b), '') IS NOT NULL""")
             self.bairros = {normal(b): b for (b,) in cur.fetchall()}
+            # como a Nay conhece cada bairro: o nome normalizado dela e o jeito curto ("parque 10")
+            cur.execute("SELECT bairro, normal, dois FROM bairro_normal")
+            self.da_nay = [(b, n or "", d or "") for b, n, d in cur.fetchall()]
 
     # ── bairro ──
     def bairro(self, escrito: str) -> dict:
@@ -44,10 +49,19 @@ class Lugares:
             r.update(como="exato", oficiais=[self.bairros[chave]])
         else:
             with self.conn.cursor() as cur:
+                cur.execute("SELECT nay_normalizar_lugar(%s, true)", (escrito,))
+                da_nay = (cur.fetchone()[0] or "").strip()
+                iguais = sorted({b for b, n, d in self.da_nay if da_nay and da_nay in (n, d)})
+                pedacos = sorted({b for b, n, d in self.da_nay
+                                  if len(da_nay) >= 5 and set(da_nay.split()) <= set(n.split())}) if not iguais else []
                 cur.execute("SELECT nome, bairros FROM nai_lugar_citado(%s)", (escrito,))
                 achados = [b for _, bairros in cur.fetchall() for b in (bairros or [])]
-                if achados:
+                if iguais:
+                    r.update(como="exato", oficiais=iguais)
+                elif achados:
                     r.update(como="lugar", oficiais=sorted(set(achados)))
+                elif 1 <= len(pedacos) <= 3:
+                    r.update(como="pedaco", oficiais=pedacos, sugestao=pedacos[0])
                 else:
                     cur.execute("""SELECT p.b, similarity(nay_normalizar_lugar(p.b, true), nay_normalizar_lugar(%s, true))
                                      FROM (SELECT nay_bairro_parecido(%s) AS b) p WHERE p.b IS NOT NULL""", (escrito, escrito))

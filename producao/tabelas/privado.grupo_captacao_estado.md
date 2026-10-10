@@ -1,4 +1,4 @@
-# privado.grupo_captacao_estado  (tabela, ~0 linhas)
+# privado.grupo_captacao_estado  (tabela, ~1 linhas)
 
 ## colunas
 id  integer  NOT NULL  padrão 1
@@ -21,4 +21,4 @@ grupo_captacao_estado_pkey: PRIMARY KEY (id)
 site_captacao_grupos_apelido_excluir, site_captacao_grupos_apelido_salvar
 
 ## funções que citam
-site_captacao_grupos, site_captacao_grupos_apelido_excluir, site_captacao_grupos_apelido_salvar
+site_captacao_grupos, site_captacao_grupos_apelido_excluir, site_captacao_grupos_apelido_salvar, site_captacao_grupos_importar

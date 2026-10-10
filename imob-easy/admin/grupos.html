@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css?v=20261003-grupos">
 <link rel="stylesheet" href="../assets/css/grupos-agenda.css?v=20261003f">
-<link rel="stylesheet" href="../assets/css/grupos-captacao.css?v=20261009b">
+<link rel="stylesheet" href="../assets/css/grupos-captacao.css?v=20261009d">
 </head>
 <body class="admin" data-pagina="grupos">
 
@@ -117,6 +117,27 @@
       </div>
       <p class="gc-teste__estado" id="gc-teste-estado" role="status"></p>
     </form>
+
+    <!-- 337: o histórico dos grupos só existe no celular (a Z-API não devolve); vem pela conversa exportada -->
+    <div class="gc-importar" id="gc-importar">
+      <div class="gc-importar__texto">
+        <b>Trazer os pedidos dos últimos 2 dias dos grupos</b>
+        <p>A Z-API não devolve o histórico dos grupos: ele vem da <b>conversa exportada</b> do WhatsApp. Escolha os arquivos (um por grupo, quantos quiser de uma vez) e só as mensagens das últimas <span id="gc-imp-horas">48</span> h entram na fila do leitor.</p>
+        <details>
+          <summary>Como exportar a conversa de um grupo</summary>
+          <ol>
+            <li>No celular (o da Parceria, ou qualquer um que esteja nos grupos), abra o grupo.</li>
+            <li>Android: ⋮ › Mais › <b>Exportar conversa</b>. iPhone: toque no nome do grupo › <b>Exportar conversa</b>.</li>
+            <li>Escolha <b>Sem mídia</b> e mande o arquivo para o computador (e-mail, Drive ou para você mesmo no WhatsApp).</li>
+            <li>Aqui, clique em "Escolher arquivos" e selecione os .txt (ou os .zip do iPhone).</li>
+          </ol>
+        </details>
+      </div>
+      <label class="btn-azul-vazado gc-importar__botao">Escolher arquivos
+        <input type="file" id="gc-arquivos" multiple accept=".txt,.zip,text/plain,application/zip" hidden>
+      </label>
+      <ul class="gc-importar__lista" id="gc-importados" aria-live="polite"></ul>
+    </div>
 
     <div class="ga-barra" role="toolbar" aria-label="Filtro das solicitações">
       <div class="ga-nav" id="gc-filtros" data-estado-proprio>
@@ -266,6 +287,7 @@
 <script src="../assets/js/layout.js?v=20261003-grupos"></script>
 <script src="../assets/js/admin.js"></script>
 <script src="../assets/js/grupos-agenda.js?v=20261003g"></script>
-<script src="../assets/js/grupos-captacao.js?v=20261009b"></script>
+<script src="../assets/js/whatsapp-exportado.js?v=20261009d"></script>
+<script src="../assets/js/grupos-captacao.js?v=20261009d"></script>
 </body>
 </html>

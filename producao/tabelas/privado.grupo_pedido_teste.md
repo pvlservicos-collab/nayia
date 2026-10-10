@@ -19,4 +19,4 @@ grupo_pedido_teste_pkey: PRIMARY KEY (id)
 site_captacao_grupos_testar
 
 ## funções que citam
-site_captacao_grupos_testar
+site_captacao_grupos, site_captacao_grupos_testar
