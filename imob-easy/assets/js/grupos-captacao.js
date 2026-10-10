@@ -260,7 +260,11 @@
     quem.push(esc(quando(p.enviada_em)));
     var h = ['<article class="gc-item gc-item--' + esc(faixa) + (rejeitado ? " gc-item--rejeitado" : "") + '" data-id="' + p.id + '">',
              '<div class="gc-lado">',
-             '<div class="gc-quem"><span class="gc-grupo">' + esc(p.grupo || "Grupo") + "</span><span>" + quem.join(" · ") + "</span></div>",
+             /* o grupo de onde veio, com o nome EXATO, num quadrado preto (Pedro, 09/10: "seria bom aparecer lá no card
+                um quadrado preto com o nome exato do grupo ao qual a msg veio") */
+             '<div class="gc-origem"><span class="gc-grupo"><small>' + (p.fonte === "teste" ? "Origem" : "Grupo") + "</small>" +
+               esc(p.grupo || "(grupo sem nome)") + "</span></div>",
+             '<div class="gc-quem"><span>' + quem.join(" · ") + "</span></div>",
              manchetePedido(p),
              '<p class="gc-texto">' + esc(p.texto) + "</p>",
              (p.parte > 1 || (p.ficha && p.ficha.trecho && p.ficha.trecho.length + 12 < String(p.texto).length)

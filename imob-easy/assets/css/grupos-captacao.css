@@ -58,7 +58,11 @@
 /* quem pediu */
 .gc-quem { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 12.5px; color: var(--texto-medio); }
 .gc-quem b { color: var(--texto); font-weight: 600; }
-.gc-grupo { background: var(--azul-claro); color: var(--azul-forte); font-weight: 700; padding: 3px 9px; border-radius: 999px; font-size: 12px; }
+/* o grupo de onde a mensagem veio: quadrado preto, nome exato (sem cortar, sem juntar espaços) */
+.gc-origem { display: flex; }
+.gc-grupo { display: inline-flex; flex-direction: column; gap: 1px; background: #111; color: #fff; padding: 7px 12px 8px; border-radius: 6px;
+  font-size: 14.5px; font-weight: 700; line-height: 1.25; max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; }
+.gc-grupo small { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: #b9b2c7; }
 
 /* a manchete do pedido */
 .gc-manchete { margin: 0; font-size: 19px; line-height: 1.25; font-weight: 700; font-family: Barlow, sans-serif; color: var(--texto); }
