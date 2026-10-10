@@ -43,14 +43,24 @@ def ler_mensagens(conn, r: dict, turma: ThreadPoolExecutor) -> int:
     (até 5 vezes).
     """
     pendentes = banco.linhas(conn, banco.PENDENTES, {"janela": r["janela_h"], "limite": config.POR_CICLO})
+    # o teto do dia: cada leitura custa. Passou, a mensagem de grupo espera na fila; o teste colado na tela não conta.
+    sobra = r["limite_de_leituras_por_dia"] - banco.linhas(conn, banco.LEITURAS_DE_HOJE)[0]["n"]
     conn.rollback()                            # a leitura acabou: nada fica aberto enquanto a IA trabalha
     motivos = {m["ref"]: extrair.nao_precisa_ler(m["texto"]) for m in pendentes}
+    dentro = []
+    for m in pendentes:
+        if m["fonte"] == "grupo" and not motivos[m["ref"]]:
+            if sobra <= 0:
+                continue                       # fica na fila para amanhã
+            sobra -= 1
+        dentro.append(m)
+    pendentes = dentro
     leituras = {m["ref"]: turma.submit(_ler_uma, m["texto"]) for m in pendentes if not motivos[m["ref"]]}
     novos = 0
     for m in pendentes:
         try:
             if motivos[m["ref"]]:
-                banco.marcar_lida(conn, m, 0, motivo=motivos[m["ref"]])
+                banco.marcar_lida(conn, m, 0, motivo=motivos[m["ref"]], pela_ia=False)
             else:
                 fichas = leituras[m["ref"]].result()
                 if isinstance(fichas, Exception):
@@ -98,17 +108,23 @@ def main() -> None:
     regras_de_antes = None
     log.info("nay-grupos no ar: modelo %s, regras em %s", config.MODELO, config.ARQUIVO_DE_REGRAS)
     while True:
-        tem_fila = False
+        tem_fila = novos_ou_lidos = False
         try:
             r, avisos = regras.carregar(config.ARQUIVO_DE_REGRAS)
+            lidas_hoje = banco.linhas(conn, banco.LEITURAS_DE_HOJE)[0]["n"]
+            if lidas_hoje >= r["limite_de_leituras_por_dia"]:
+                avisos.append(f"a IA já leu {lidas_hoje} mensagens de grupo hoje, que é o teto do dia: as novas esperam na fila "
+                              "até amanhã (ou até o teto subir em config.json)")
             refazer = banco.publicar_estado(conn, r, " | ".join(avisos) or None)
             if regras_de_antes is not None and r != regras_de_antes:
                 refazer = True                                     # mudou peso, corte ou janela: a conta é outra
             regras_de_antes = r
             if time.time() - ultima_conta_geral > config.REPONTUAR_A_CADA_S:
                 refazer = True
+            antes = banco.linhas(conn, "SELECT count(*) AS n FROM privado.grupo_mensagem_lida")[0]["n"]
             novos = ler_mensagens(conn, r, turma)
-            # com fila, a passada seguinte começa logo (não espera os 10 s)
+            novos_ou_lidos = banco.linhas(conn, "SELECT count(*) AS n FROM privado.grupo_mensagem_lida")[0]["n"] > antes
+            # com fila (e andando), a passada seguinte começa logo (não espera os 10 s)
             tem_fila = bool(banco.linhas(conn, "SELECT 1 FROM (" + banco.PENDENTES + ") f LIMIT 1",
                                          {"janela": r["janela_h"], "limite": 1}))
             feitos = pontuar_pedidos(conn, r, todos=refazer)
@@ -128,7 +144,7 @@ def main() -> None:
             conn = banco.conectar()
         if uma_vez:
             break
-        time.sleep(1 if tem_fila else config.CICLO_S)
+        time.sleep(1 if (tem_fila and novos_ou_lidos) else config.CICLO_S)
 
 
 if __name__ == "__main__":

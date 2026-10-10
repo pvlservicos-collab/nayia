@@ -10,6 +10,7 @@ AS $function$
            ORDER BY m.enviada_em DESC), '[]'::jsonb)
     FROM (SELECT * FROM privado.grupo_conversa
            WHERE grupo_id = p_grupo AND (p_antes IS NULL OR enviada_em < p_antes)
+             AND NOT (tipo = 'outro' AND texto IS NULL AND midia_url IS NULL)   -- 338: evento sem conteúdo não é mensagem
            ORDER BY enviada_em DESC
            LIMIT greatest(1, least(coalesce(p_limite, 60), 200))) m;
 $function$;

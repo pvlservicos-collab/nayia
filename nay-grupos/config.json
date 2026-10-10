@@ -22,6 +22,9 @@
   "confirmado_dias": 30,
   "_confirmado_dias": "o imóvel só entra se foi confirmado nos últimos N dias: anúncio visto no ar, dono confirmou na captação, situação decidida à mão ou cadastro novo",
 
+  "limite_de_leituras_por_dia": 6000,
+  "_limite_de_leituras_por_dia": "teto de mensagens de grupo que a IA lê por dia (cada leitura custa); passou, as novas esperam na fila até amanhã. Teste colado na tela não conta",
+
   "alternativas": 4,
   "_alternativas": "quantos imóveis além do melhor ficam guardados como alternativas",
 

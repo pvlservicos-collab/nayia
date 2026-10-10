@@ -22,6 +22,7 @@ PADRAO = {
     "mobiliado": {"atende": 100, "semi": 50, "nao_atende": 0},
     "confirmado_dias": 30,
     "alternativas": 4,
+    "limite_de_leituras_por_dia": 6000,
     "intervalo_min_entre_envios": 30,
     "mensagem_de_abertura": ("Oi, vi sua solicitação no grupo, tenho um imóvel que pode se encaixar no que o seu "
                              "cliente quer, vou te enviar aqui ok? Qualquer dúvida me avisa"),
@@ -87,6 +88,7 @@ def conferir(regras: dict) -> tuple[dict, list[str]]:
     r["janela_h"] = max(1, int(r["janela_h"]))
     r["alternativas"] = max(0, min(int(r["alternativas"]), 10))
     r["confirmado_dias"] = max(1, int(r["confirmado_dias"]))
+    r["limite_de_leituras_por_dia"] = max(0, int(r["limite_de_leituras_por_dia"]))
     return r, avisos
 
 

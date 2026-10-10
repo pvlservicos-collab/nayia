@@ -7,7 +7,8 @@ DECLARE v_chave text := nai_chave(p_phone);
 BEGIN
   -- 0. MENSAGEM DE GRUPO (282): vai ao fluxo da NAI só para passar pelo "Espelhar no CRM". O "Filtrar e
   --    normalizar" de lá descarta grupo, como o daqui. Ninguém responde grupo.
-  IF coalesce(p_grupo, false) AND coalesce(p_phone, '') ~ '-group$' THEN
+  -- 338: os DOIS formatos de id de grupo: "1203...-group" e o antigo "5592...-1600000000" (13 dos 28 grupos)
+  IF coalesce(p_grupo, false) AND coalesce(p_phone, '') ~ '(-group$|^[0-9]{10,15}-[0-9]{8,12}$)' THEN
     RETURN 'nai';
   END IF;
 

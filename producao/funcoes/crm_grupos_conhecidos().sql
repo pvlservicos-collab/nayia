@@ -13,8 +13,10 @@ AS $function$
            'disparo', g.ativo, 'apelido', g.apelido, 'limite_dia', g.limite_dia,
            'aceita_venda', g.aceita_venda, 'aceita_locacao', g.aceita_locacao,
            'corretores', gc.incluir, 'membros_vistos', gc.membros,
-           'mensagens', (SELECT count(*) FROM privado.grupo_conversa m WHERE m.grupo_id = ids.id),
-           'ultima_mensagem', (SELECT max(m.enviada_em) FROM privado.grupo_conversa m WHERE m.grupo_id = ids.id)))), '{}'::jsonb)
+           'mensagens', (SELECT count(*) FROM privado.grupo_conversa m WHERE m.grupo_id = ids.id
+                                   AND NOT (m.tipo = 'outro' AND m.texto IS NULL AND m.midia_url IS NULL)),
+           'ultima_mensagem', (SELECT max(m.enviada_em) FROM privado.grupo_conversa m WHERE m.grupo_id = ids.id
+                                   AND NOT (m.tipo = 'outro' AND m.texto IS NULL AND m.midia_url IS NULL))))), '{}'::jsonb)
     FROM ids
     LEFT JOIN grupos g ON g.id_grupo = ids.id
     LEFT JOIN nai_grupo_corretor gc ON gc.grupo_id = ids.id;

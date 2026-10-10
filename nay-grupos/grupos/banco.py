@@ -59,14 +59,21 @@ def linhas(conn, sql: str, params=None) -> list[dict]:
         return [dict(r) for r in cur.fetchall()] if cur.description else []
 
 
-def marcar_lida(conn, m: dict, pedidos: int, motivo: str | None = None, erro: str | None = None) -> None:
+# quantas mensagens de grupo a IA já leu hoje (as que nem foram à IA ficam com `modelo` nulo e não contam)
+LEITURAS_DE_HOJE = """
+SELECT count(*) AS n FROM privado.grupo_mensagem_lida
+ WHERE fonte = 'grupo' AND modelo IS NOT NULL AND lida_em >= date_trunc('day', now())
+"""
+
+
+def marcar_lida(conn, m: dict, pedidos: int, motivo: str | None = None, erro: str | None = None, pela_ia: bool = True) -> None:
     with conn.cursor() as cur:
         cur.execute("""INSERT INTO privado.grupo_mensagem_lida (fonte, ref, pedidos, motivo, erro, modelo)
                        VALUES (%s, %s, %s, %s, %s, %s)
                        ON CONFLICT (fonte, ref) DO UPDATE SET pedidos = excluded.pedidos, motivo = excluded.motivo,
                                                              erro = excluded.erro, lida_em = now(),
                                                              tentativas = privado.grupo_mensagem_lida.tentativas + 1""",
-                    (m["fonte"], m["ref"], pedidos, motivo, erro, config.MODELO))
+                    (m["fonte"], m["ref"], pedidos, motivo, erro, config.MODELO if pela_ia else None))
 
 
 def gravar_pedidos(conn, m: dict, fichas: list[dict]) -> int:
