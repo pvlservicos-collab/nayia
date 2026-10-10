@@ -1,4 +1,4 @@
-# pergunta_ao_tel  (tabela, ~0 linhas)
+# pergunta_ao_tel  (tabela, ~26 linhas)
 
 ## colunas
 id  integer  NOT NULL  padrão nextval('pergunta_ao_tel_id_seq'::regclass)

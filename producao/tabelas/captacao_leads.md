@@ -67,6 +67,7 @@ nay_core: SELECT
 nay_leitura: SELECT
 nay_site_escrita: DELETE, INSERT, SELECT, UPDATE
 nay_site_leitura: SELECT
+nay_disparo, só nestas colunas: SELECT(id, telefone_chave, humano_assumiu_em, chat_lid)
 
 ## funções que escrevem aqui
 captacao_encerrar, captacao_guardar_lid_do_eco, captacao_py_reservar_disparo, captacao_rede_da_situacao, captacao_so_proprietario, crm_captacao_etapa_manual
