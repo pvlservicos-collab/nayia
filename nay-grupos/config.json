@@ -1,0 +1,32 @@
+{
+  "_leia": "Captação ativa por grupos: tudo o que se ajusta sem mexer no código. O serviço relê este arquivo sozinho (não precisa reiniciar). Chave que faltar vale o padrão de grupos/regras.py.",
+
+  "modo": "treino",
+  "_modo": "treino = só lê, extrai, pontua e mostra; NUNCA envia. 'ativo' ainda não existe nesta versão: se estiver escrito, o serviço continua em treino e avisa na tela.",
+
+  "janela_h": 48,
+  "_janela_h": "pedidos mais velhos que isto são ignorados (horas)",
+
+  "pesos": { "preco": 40, "local": 20, "quartos": 15, "mobiliado": 10, "andar": 10, "extras": 5 },
+  "_pesos": "só entram na conta os critérios que o corretor pediu; os que sobram são reescalados para somar 100",
+
+  "cortes": { "verde": 90, "amarelo": 70 },
+
+  "preco": { "cheio_ate_abaixo": 0.20, "zera_em": 0.40, "tolerancia_acima": 0.10 },
+  "_preco": "de 20% abaixo do teto até o teto vale 100%; mais barato que isso cai em linha reta até 0% quando o imóvel custa 40% do teto; acima do teto cai de 100% a 0% em 10%, e mais que 10% acima elimina",
+
+  "local": { "exato": 100, "vizinho": 50, "mesmo_bairro_outro_condominio": 50 },
+  "quartos": { "igual": 100, "um_a_mais": 60 },
+  "mobiliado": { "atende": 100, "semi": 50, "nao_atende": 0 },
+
+  "confirmado_dias": 30,
+  "_confirmado_dias": "o imóvel só entra se foi confirmado nos últimos N dias: anúncio visto no ar, dono confirmou na captação, situação decidida à mão ou cadastro novo",
+
+  "alternativas": 4,
+  "_alternativas": "quantos imóveis além do melhor ficam guardados como alternativas",
+
+  "intervalo_min_entre_envios": 30,
+  "mensagem_de_abertura": "Oi, vi sua solicitação no grupo, tenho um imóvel que pode se encaixar no que o seu cliente quer, vou te enviar aqui ok? Qualquer dúvida me avisa",
+  "enviar_dados_e_fotos": true,
+  "_envio": "as três chaves acima são do modo ativo (ainda não existe): ficam aqui para ele já escolher"
+}

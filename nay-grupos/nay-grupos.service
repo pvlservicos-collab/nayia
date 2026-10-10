@@ -1,0 +1,20 @@
+# Captação ativa por grupos (09/10/2026): lê os pedidos dos corretores nos grupos, compara com o nosso catálogo
+# e mostra na aba Grupos › Captação ativa do admin. MODO TREINO: não envia nada. Ver README.md e grupos/worker.py.
+# Instalar: cp nay-grupos.service /etc/systemd/system/ && systemctl daemon-reload
+#           && systemctl enable --now nay-grupos
+[Unit]
+Description=Captacao ativa por grupos (leitura e pontuacao, modo treino)
+After=network-online.target docker.service
+Wants=network-online.target
+# não deixa um laço de falhas rápidas desligar o reinício automático
+StartLimitIntervalSec=0
+[Service]
+Type=simple
+WorkingDirectory=/root/nay-grupos
+EnvironmentFile=/root/nay-grupos/.env
+Environment=TZ=America/Manaus PYTHONUNBUFFERED=1
+ExecStart=/root/nay-grupos/.venv/bin/python -u -m grupos.worker
+Restart=always
+RestartSec=5
+[Install]
+WantedBy=multi-user.target

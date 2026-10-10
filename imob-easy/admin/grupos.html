@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css?v=20261003-grupos">
 <link rel="stylesheet" href="../assets/css/grupos-agenda.css?v=20261003f">
+<link rel="stylesheet" href="../assets/css/grupos-captacao.css?v=20261009b">
 </head>
 <body class="admin" data-pagina="grupos">
 
@@ -45,6 +46,7 @@
   <div class="abas" role="tablist" aria-label="Grupos" data-abas-funcionais>
     <button class="abas__item" role="tab" type="button" data-painel-abre="agenda" aria-selected="true">Grupos</button>
     <button class="abas__item" role="tab" type="button" data-painel-abre="metricas" aria-selected="false">Métricas</button>
+    <button class="abas__item" role="tab" type="button" data-painel-abre="captacao" aria-selected="false">Captação ativa</button>
   </div>
 
   <div data-painel="agenda">
@@ -95,7 +97,75 @@
     </div>
     <div id="gm-corpo"><p class="ga-carregando">Abra a aba para calcular as métricas…</p></div>
   </div>
+
+  <!--
+    CAPTAÇÃO ATIVA POR GRUPOS (Pedro, 09/10/2026): "ler solicitações de corretores nos grupos de WhatsApp,
+    comparar com o meu catálogo e dar uma nota de 0 a 100; lista vertical, uma solicitação embaixo da outra;
+    à esquerda o texto original e a ficha extraída, à direita o melhor imóvel meu, a nota e o detalhamento".
+    Quem lê, extrai e pontua é o serviço nay-grupos (Python, na VPS). MODO TREINO: nada é enviado; o botão de
+    aprovar fica desligado E o banco recusa (migração 336). Script: assets/js/grupos-captacao.js.
+  -->
+  <div data-painel="captacao" hidden>
+    <div class="gc-topo" id="gc-topo" aria-live="polite"><p class="ga-carregando">Abra a aba para carregar as solicitações…</p></div>
+
+    <form class="gc-teste" id="gc-teste" novalidate>
+      <label for="gc-teste-texto"><b>Testar uma mensagem</b>: cole aqui o que um corretor escreveu no grupo e veja como a IA lê e o que ela casaria.</label>
+      <div class="gc-teste__linha">
+        <textarea class="entrada" id="gc-teste-texto" rows="2" maxlength="4000"
+                  placeholder="Ex.: Procuro apartamento para alugar no Parque Vile, 2 quartos até 1.800, térreo ou 1º andar"></textarea>
+        <button class="btn-azul" type="submit" id="gc-teste-ler">Ler esta mensagem</button>
+      </div>
+      <p class="gc-teste__estado" id="gc-teste-estado" role="status"></p>
+    </form>
+
+    <div class="ga-barra" role="toolbar" aria-label="Filtro das solicitações">
+      <div class="ga-nav" id="gc-filtros" data-estado-proprio>
+        <button type="button" class="btn-mini" data-filtro="todos" aria-pressed="true">Todas</button>
+        <button type="button" class="btn-mini" data-filtro="verde" aria-pressed="false">Nota ≥ 90</button>
+        <button type="button" class="btn-mini" data-filtro="amarelo" aria-pressed="false">70 a 89</button>
+        <button type="button" class="btn-mini" data-filtro="sem_match" aria-pressed="false">Sem match</button>
+        <button type="button" class="btn-mini" data-filtro="teste" aria-pressed="false">Testes</button>
+      </div>
+      <div class="ga-nav">
+        <button type="button" class="btn-mini" id="gc-ver-demanda">Demanda do mercado</button>
+        <button type="button" class="btn-mini" id="gc-ver-apelidos">Apelidos</button>
+        <button type="button" class="btn-mini" id="gc-atualizar">Atualizar</button>
+      </div>
+    </div>
+
+    <div class="gc-lista" id="gc-lista"></div>
+  </div>
 </main>
+
+<!-- Demanda do mercado: o que mais pedem e a gente não tem -->
+<dialog class="ga-dialogo ga-dialogo--largo" id="gc-demanda" aria-labelledby="gc-dem-tit">
+  <div class="ga-dialogo__caixa">
+    <div class="ga-dialogo__topo"><h2 id="gc-dem-tit">Demanda do mercado</h2><button type="button" class="btn-neutro" data-fechar aria-label="Fechar">✕</button></div>
+    <div class="ga-nav" id="gc-dem-dias" data-estado-proprio>
+      <button type="button" class="btn-mini" data-gc-dias="7" aria-pressed="false">7 dias</button>
+      <button type="button" class="btn-mini" data-gc-dias="30" aria-pressed="true">30 dias</button>
+      <button type="button" class="btn-mini" data-gc-dias="90" aria-pressed="false">90 dias</button>
+    </div>
+    <div id="gc-dem-corpo"></div>
+  </div>
+</dialog>
+
+<!-- Apelidos de bairro e condomínio -->
+<dialog class="ga-dialogo ga-dialogo--largo" id="gc-apelidos" aria-labelledby="gc-ap-tit">
+  <div class="ga-dialogo__caixa">
+    <div class="ga-dialogo__topo"><h2 id="gc-ap-tit">Apelidos de bairro e condomínio</h2><button type="button" class="btn-neutro" data-fechar aria-label="Fechar">✕</button></div>
+    <p class="ga-dica">Como os corretores escrevem ("Parque Vile", "Vile") e o nome que está no cadastro. O apelido vale quando ele escreve exatamente isso (sem contar acento e maiúscula). Salvou, as solicitações da tela são recalculadas em alguns segundos.</p>
+    <form class="gc-ap-form" id="gc-ap-form" novalidate>
+      <input class="entrada" id="gc-ap-apelido" placeholder="como o corretor escreve" maxlength="80" aria-label="Apelido">
+      <select class="entrada" id="gc-ap-tipo" aria-label="Tipo"><option value="condominio">condomínio</option><option value="bairro">bairro</option></select>
+      <input class="entrada" id="gc-ap-oficial" list="gc-ap-nomes" placeholder="nome no cadastro" maxlength="120" aria-label="Nome no cadastro">
+      <datalist id="gc-ap-nomes"></datalist>
+      <button class="btn-azul" type="submit">Salvar apelido</button>
+    </form>
+    <p class="ga-erro" id="gc-ap-erro" role="alert"></p>
+    <div id="gc-ap-corpo"></div>
+  </div>
+</dialog>
 
 <!-- detalhe de um envio -->
 <dialog class="ga-dialogo ga-dialogo--largo" id="ga-detalhe" aria-labelledby="ga-det-tit">
@@ -196,5 +266,6 @@
 <script src="../assets/js/layout.js?v=20261003-grupos"></script>
 <script src="../assets/js/admin.js"></script>
 <script src="../assets/js/grupos-agenda.js?v=20261003g"></script>
+<script src="../assets/js/grupos-captacao.js?v=20261009b"></script>
 </body>
 </html>

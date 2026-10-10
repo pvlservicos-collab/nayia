@@ -5017,6 +5017,79 @@ def admin_grade_mudar(vaga_id=None):
         conn.close()
 
 
+# CAPTACAO ATIVA POR GRUPOS (336, Pedro 09/10/2026): "quero adicionar uma aba na aba Grupos ... poe a
+# nova aba ao lado de Metricas". Os pedidos que os corretores fazem nos grupos, lidos pela IA e comparados
+# com o nosso catalogo pelo servico nay-grupos (Python, /root/nay-grupos). Aqui so se le o que ele gravou e
+# se guardam os julgamentos ("leitura correta / errada"), a rejeicao, os testes colados e os apelidos.
+# MODO TREINO: nenhuma rota daqui envia mensagem, e a funcao do banco recusa "aprovado".
+# Tem nome e telefone de corretor: so com a senha do /admin.
+def _captacao_grupos(sql, params=()):
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    conn = conectar_escrita()
+    try:
+        linhas = todas_linhas(conn, sql, params)
+        conn.commit()
+        r = (linhas[0]["j"] if linhas else None) or {}
+        return jsonify(r), (422 if isinstance(r, dict) and r.get("erro") else 200)
+    except Exception as exc:  # noqa: BLE001
+        conn.rollback()
+        app.logger.warning("grupos/captacao: %s", exc.__class__.__name__)
+        return jsonify({"erro": "Não consegui agora. Tente de novo."}), 500
+    finally:
+        conn.close()
+
+
+@app.route("/admin/api/grupos/captacao")
+def admin_grupos_captacao():
+    filtro = (request.args.get("filtro") or "todos").strip().lower()
+    if filtro not in ("todos", "verde", "amarelo", "sem_match", "teste"):
+        filtro = "todos"
+    horas = _inteiro(request.args.get("horas"), 0) or None
+    return _captacao_grupos("SELECT site_captacao_grupos(%s, %s, %s) AS j", (filtro, horas, 120))
+
+
+@app.route("/admin/api/grupos/captacao/<int:pedido_id>/julgar", methods=["POST"])
+def admin_grupos_captacao_julgar(pedido_id):
+    corpo = request.get_json(silent=True) or {}
+    return _captacao_grupos("SELECT site_captacao_grupos_julgar(%s, %s, %s) AS j",
+                            (pedido_id, str(corpo.get("leitura") or ""), str(corpo.get("erro") or "")))
+
+
+@app.route("/admin/api/grupos/captacao/<int:pedido_id>/estado", methods=["POST"])
+def admin_grupos_captacao_estado(pedido_id):
+    corpo = request.get_json(silent=True) or {}
+    return _captacao_grupos("SELECT site_captacao_grupos_estado(%s, %s) AS j", (pedido_id, str(corpo.get("estado") or "")))
+
+
+@app.route("/admin/api/grupos/captacao/testar", methods=["POST"])
+def admin_grupos_captacao_testar():
+    corpo = request.get_json(silent=True) or {}
+    return _captacao_grupos("SELECT site_captacao_grupos_testar(%s, %s) AS j",
+                            (str(corpo.get("texto") or ""), str(corpo.get("nome") or "")))
+
+
+@app.route("/admin/api/grupos/captacao/testar/<int:teste_id>")
+def admin_grupos_captacao_teste_lido(teste_id):
+    return _captacao_grupos("SELECT site_captacao_grupos_teste_lido(%s) AS j", (teste_id,))
+
+
+@app.route("/admin/api/grupos/captacao/demanda")
+def admin_grupos_captacao_demanda():
+    return _captacao_grupos("SELECT site_captacao_grupos_demanda(%s) AS j", (_inteiro(request.args.get("dias"), 30),))
+
+
+@app.route("/admin/api/grupos/captacao/apelidos", methods=["GET", "POST", "DELETE"])
+def admin_grupos_captacao_apelidos():
+    if request.method == "GET":
+        return _captacao_grupos("SELECT site_captacao_grupos_apelidos() AS j")
+    corpo = request.get_json(silent=True) or {}
+    if request.method == "DELETE":
+        return _captacao_grupos("SELECT site_captacao_grupos_apelido_excluir(%s) AS j", (str(corpo.get("apelido") or ""),))
+    return _captacao_grupos("SELECT site_captacao_grupos_apelido_salvar(%s, %s, %s) AS j",
+                            (str(corpo.get("apelido") or ""), str(corpo.get("tipo") or ""), str(corpo.get("oficial") or "")))
+
+
 # Quem mais se envia imoveis. Tem telefone: so com a senha do /admin.
 @app.route("/admin/api/me-envia/ranking")
 def admin_me_envia_ranking():

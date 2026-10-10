@@ -1,0 +1,123 @@
+/* ==========================================================================
+   Imob Easy — admin › Grupos › CAPTAÇÃO ATIVA (09/10/2026)
+   Lista vertical, uma solicitação embaixo da outra; cada linha tem dois lados:
+   à esquerda o que o corretor escreveu e a ficha lida; à direita o melhor
+   imóvel nosso, a nota e quanto cada critério rendeu.
+   ========================================================================== */
+/* com três abas a faixa ganhava setinhas de rolagem: a aba escolhida é 1 px mais alta que a faixa */
+.ga .abas { overflow-y: hidden; }
+
+.gc-topo { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; margin: 4px 0 12px; }
+.gc-selo { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; font-size: 12.5px;
+  font-weight: 600; border: 1px solid var(--borda); background: var(--superficie); color: var(--texto-medio); }
+.gc-selo--treino { background: var(--laranja-suave); border-color: #e6c78d; color: #8a5a0b; }
+.gc-selo--ok { background: var(--verde-suave); border-color: #a9dcc3; color: #1f7a52; }
+.gc-selo--ruim { background: var(--vermelho-suave); border-color: #e0a3a3; color: #b53232; }
+.gc-aviso { flex-basis: 100%; padding: 10px 12px; border-radius: var(--raio-md, 10px); background: var(--laranja-suave);
+  border: 1px solid #e6c78d; color: #6f4708; font-size: 13.5px; line-height: 1.45; }
+.gc-aviso b { color: #5a3906; }
+
+.gc-teste { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio-lg, 14px); padding: 12px 14px;
+  margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; }
+.gc-teste label { font-size: 13.5px; color: var(--texto-medio); }
+.gc-teste__linha { display: flex; gap: 8px; align-items: stretch; }
+.gc-teste__linha textarea { flex: 1; min-height: 52px; resize: vertical; font: inherit; font-size: 14px; }
+.gc-teste__estado { font-size: 13px; color: var(--texto-medio); min-height: 1em; margin: 0; }
+.gc-teste__estado[data-erro] { color: #b53232; }
+
+.gc-lista { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.gc-vazio { padding: 26px 16px; text-align: center; color: var(--texto-medio); background: var(--superficie);
+  border: 1px dashed var(--borda-forte); border-radius: var(--raio-lg, 14px); }
+
+/* uma solicitação */
+.gc-item { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); background: var(--superficie);
+  border: 1px solid var(--borda); border-left: 5px solid var(--borda-forte); border-radius: var(--raio-lg, 14px); overflow: hidden; }
+.gc-item--verde { border-left-color: #2f9e6b; }
+.gc-item--amarelo { border-left-color: #e0a800; }
+.gc-item--registro { border-left-color: #b9b2c7; }
+.gc-item--sem_match { border-left-color: #d9d3e6; }
+.gc-item--rejeitado { opacity: .62; }
+.gc-lado { padding: 14px 16px; min-width: 0; }
+.gc-lado + .gc-lado { border-left: 1px solid var(--borda); background: var(--superficie-2); }
+
+.gc-quem { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12.5px; color: var(--texto-medio); margin-bottom: 8px; }
+.gc-quem b { color: var(--texto); font-weight: 600; }
+.gc-quem .gc-grupo { color: var(--azul-forte); font-weight: 600; }
+.gc-texto { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14.5px; line-height: 1.45; padding: 9px 11px;
+  background: #f4f1fa; border-radius: 10px; margin: 0 0 10px; max-height: 190px; overflow: auto; }
+.gc-parte { font-size: 12px; color: var(--texto-medio); margin: -4px 0 8px; }
+
+.gc-ficha { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; padding: 0; list-style: none; }
+.gc-campo { display: inline-flex; gap: 5px; align-items: baseline; padding: 4px 9px; border-radius: 8px; font-size: 13px;
+  border: 1px solid var(--borda); background: var(--superficie); }
+.gc-campo span { color: var(--texto-medio); font-size: 11.5px; text-transform: uppercase; letter-spacing: .03em; }
+.gc-campo b { font-weight: 600; }
+.gc-campo--duvidoso { border-color: #e0a800; background: #fff8dc; }
+.gc-campo--duvidoso::after { content: "duvidoso"; font-size: 10.5px; font-weight: 700; color: #8a6400; text-transform: uppercase; margin-left: 2px; }
+.gc-lugar { font-size: 12.5px; color: var(--texto-medio); margin: 0 0 4px; }
+.gc-lugar--duvida { color: #8a6400; }
+.gc-lugar button { margin-left: 6px; }
+.gc-obs { font-size: 12.5px; color: var(--texto-medio); margin: 4px 0 0; }
+
+.gc-acoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; align-items: center; }
+.gc-acoes .btn-mini[disabled] { opacity: .5; cursor: not-allowed; }
+.gc-julgado { font-size: 12.5px; font-weight: 600; padding: 3px 8px; border-radius: 999px; }
+.gc-julgado--correta { background: var(--verde-suave); color: #1f7a52; }
+.gc-julgado--errada { background: var(--vermelho-suave); color: #b53232; }
+.gc-errou { display: flex; gap: 6px; margin-top: 8px; width: 100%; }
+.gc-errou input { flex: 1; }
+
+/* o lado do imóvel */
+.gc-imovel { display: flex; gap: 12px; align-items: flex-start; }
+.gc-foto { width: 132px; height: 100px; border-radius: 10px; object-fit: cover; background: #e9e4f2; flex-shrink: 0; }
+.gc-imovel__dados { min-width: 0; flex: 1; }
+.gc-imovel__nome { font-weight: 700; font-size: 15px; margin: 0 0 2px; }
+.gc-imovel__nome a { color: inherit; }
+.gc-imovel__linha { font-size: 13px; color: var(--texto-medio); margin: 0 0 2px; }
+.gc-imovel__preco { font-size: 15px; font-weight: 700; margin: 3px 0 0; }
+.gc-nota { flex-shrink: 0; text-align: center; min-width: 74px; padding: 8px 6px; border-radius: 12px; color: #fff; background: #8f879e; }
+.gc-nota b { display: block; font-size: 26px; line-height: 1; font-family: Barlow, sans-serif; }
+.gc-nota span { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.gc-nota--verde { background: #2f9e6b; }
+.gc-nota--amarelo { background: #d39e00; }
+.gc-etiqueta { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-top: 4px;
+  background: var(--laranja-suave); color: #8a5a0b; border: 1px solid #e6c78d; }
+
+.gc-detalhe { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12.5px; }
+.gc-detalhe th { text-align: left; font-weight: 600; color: var(--texto-medio); font-size: 11px; text-transform: uppercase;
+  letter-spacing: .03em; padding: 3px 6px 3px 0; border-bottom: 1px solid var(--borda); }
+.gc-detalhe td { padding: 4px 6px 4px 0; border-bottom: 1px solid var(--borda); vertical-align: top; }
+.gc-detalhe td.num, .gc-detalhe th.num { text-align: right; white-space: nowrap; }
+.gc-detalhe tr:last-child td { border-bottom: 0; }
+.gc-barra { display: inline-block; width: 46px; height: 6px; border-radius: 3px; background: #e3daf2; vertical-align: middle; margin-right: 5px; overflow: hidden; }
+.gc-barra i { display: block; height: 100%; background: var(--azul); }
+.gc-confirmado { font-size: 12px; color: var(--texto-medio); margin: 8px 0 0; }
+
+.gc-alternativas { margin-top: 10px; font-size: 13px; }
+.gc-alternativas summary { cursor: pointer; color: var(--azul-forte); font-weight: 600; }
+.gc-alternativas ul { list-style: none; padding: 0; margin: 6px 0 0; display: flex; flex-direction: column; gap: 4px; }
+.gc-alternativas li { display: flex; gap: 8px; justify-content: space-between; padding: 5px 8px; border: 1px solid var(--borda);
+  border-radius: 8px; background: var(--superficie); }
+.gc-alternativas li b { white-space: nowrap; }
+
+.gc-sem { padding: 14px 4px; }
+.gc-sem strong { display: block; font-size: 15px; margin-bottom: 4px; }
+.gc-sem p { margin: 0 0 4px; font-size: 13px; color: var(--texto-medio); }
+.gc-funil { font-size: 12px; color: var(--texto-medio); }
+
+/* diálogos */
+.gc-ap-form { display: grid; grid-template-columns: 1.1fr .7fr 1.4fr auto; gap: 8px; }
+.gc-tabela { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.gc-tabela th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .03em; color: var(--texto-medio);
+  padding: 6px 8px; border-bottom: 1px solid var(--borda-forte); }
+.gc-tabela td { padding: 6px 8px; border-bottom: 1px solid var(--borda); }
+.gc-tabela td.num, .gc-tabela th.num { text-align: right; }
+.gc-tabela tr[data-falta] td:last-child { font-weight: 700; color: #b53232; }
+
+@media (max-width: 900px) {
+  .gc-item { grid-template-columns: 1fr; }
+  .gc-lado + .gc-lado { border-left: 0; border-top: 1px solid var(--borda); }
+  .gc-teste__linha { flex-direction: column; }
+  .gc-ap-form { grid-template-columns: 1fr; }
+  .gc-foto { width: 96px; height: 76px; }
+}

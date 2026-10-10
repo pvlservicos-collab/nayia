@@ -1,4 +1,4 @@
-# privado.me_envia  (tabela, ~0 linhas)
+# privado.me_envia  (tabela, ~51 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('privado.me_envia_id_seq'::regclass)
