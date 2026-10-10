@@ -28,8 +28,10 @@ janela inteira (o catálogo muda).
 ## De onde vêm as mensagens
 
 `privado.grupo_conversa`, que o webhook do CRM alimenta com o que a Z-API entrega dos grupos da Parceria.
-**Em 09/10 a Z-API não entregava o texto dos grupos** (só avisos de entrou/saiu/apagou): enquanto isso não for
-ligado na instância, só chegam aqui as mensagens coladas na tela ("Testar uma mensagem").
+Chega sozinho desde 09/10 às 22:15, quando ele desligou "ignorar mensagens em grupos" no painel da instância da
+Z-API (até ali só vinham avisos de entrou/saiu/apagou). Se o texto dos grupos sumir de novo, é esse botão.
+O que foi escrito antes disso entra pela conversa exportada do WhatsApp (caixa "Trazer os pedidos..." da aba,
+tabela `privado.grupo_importada`), e para treinar a leitura há o "Testar uma mensagem".
 
 ## O que ele ajusta sem mexer no código
 
