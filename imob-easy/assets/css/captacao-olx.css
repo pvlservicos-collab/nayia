@@ -3,7 +3,7 @@
    ========================================================================== */
 
 /* o [hidden] vence o display dos blocos desta tela */
-#painel-olx [hidden], #painel-olx[hidden], #painel-whatsapp[hidden] { display: none !important; }
+#painel-olx [hidden], #painel-olx[hidden], #painel-whatsapp[hidden], #painel-oportunidades[hidden] { display: none !important; }
 
 /* ---- as abas do topo ---- */
 .cap-topo {

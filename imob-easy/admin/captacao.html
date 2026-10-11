@@ -113,6 +113,9 @@
     <!-- 02/10/2026 (Pedro): "criando uma aba ao lado de Captação OLX, Imóveis da
          OLX Bot": o que o grokbot manda cadastrar, esperando aprovação de gente. -->
     <button class="cap-topo__aba" type="button" role="tab" id="aba-olxbot" aria-controls="painel-olxbot" aria-selected="false" tabindex="-1">Imóveis da OLX Bot <span class="bot-conta" id="bot-conta" hidden></span></button>
+    <!-- 11/10/2026 (Pedro): "pega a aba Oportunidades e põe como uma tab dentro da aba Captação". Era a
+         página oportunidades.html; o conteúdo é o mesmo (captacao-oportunidades.js). -->
+    <button class="cap-topo__aba" type="button" role="tab" id="aba-oportunidades" aria-controls="painel-oportunidades" aria-selected="false" tabindex="-1">Oportunidades</button>
   </div>
 
   <div id="painel-whatsapp" role="tabpanel" aria-labelledby="aba-whatsapp">
@@ -298,6 +301,29 @@
     </div>
     <div class="olx-lista" id="bot-lista"><p class="olx-nota">Carregando…</p></div>
   </div><!-- /painel-olxbot -->
+  <div id="painel-oportunidades" role="tabpanel" aria-labelledby="aba-oportunidades" hidden>
+    <section class="secao-inicio">
+      <h2 class="secao-inicio__titulo">1. Contratos vencidos</h2>
+      <div class="avisos__coluna"><ul class="painel__lista" id="op-vencidos"></ul></div>
+    </section>
+    <section class="secao-inicio">
+      <h2 class="secao-inicio__titulo">2. Contratos vencendo</h2>
+      <div class="avisos__coluna"><ul class="painel__lista" id="op-vencendo"></ul></div>
+    </section>
+    <section class="secao-inicio">
+      <h2 class="secao-inicio__titulo">3. Corretores mais ativos</h2>
+      <p style="font-size:var(--fs-sm);color:var(--texto-fraco);margin-bottom:12px">
+        "Mais ativos" pelo número de mensagens trocadas com a Nay nos últimos 30 dias -- o banco não
+        guarda uma nota de qualidade de atendimento, então isto não é o mesmo que "melhor".
+      </p>
+      <div class="tabela-envolucro"><div class="tabela-rolagem">
+        <table class="tabela">
+          <thead><tr><th scope="col">#</th><th scope="col">Corretor</th><th scope="col">Mensagens (30 dias)</th></tr></thead>
+          <tbody id="op-corretores"></tbody>
+        </table>
+      </div></div>
+    </section>
+  </div><!-- /painel-oportunidades -->
 </main>
 
 <!-- Popup 1: escolher a lista e desmarcar quem não deve receber. -->
@@ -375,5 +401,6 @@
 <script src="../assets/js/captacao-olx.js"></script>
 <script src="../assets/js/captacao-olx-bot.js"></script>
 <script src="../assets/js/captacao-cadastros.js"></script>
+<script src="../assets/js/captacao-oportunidades.js?v=20261011a"></script>
 </body>
 </html>

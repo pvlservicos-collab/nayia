@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agentes — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/agentes.css?v=20261011a">
+<meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
+</head>
+<body class="admin" data-pagina="agentes">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <div>
+      <h1 class="pagina-titulo">Agentes</h1>
+      <p class="pagina-subtitulo">Cada quadrado é um agente que roda na VPS: o que ele faz, o que fez hoje e quanto da máquina usa por dia.</p>
+    </div>
+  </div>
+
+  <!-- A VPS inteira: CPUs, carga, memória, disco. Preenchido pelo JS. -->
+  <div class="ag-vps" id="ag-vps"></div>
+
+  <!-- 11/10/2026 (Pedro): "vários quadrados, cada quadrado um agente que nós temos e seus usos, e seus usos
+       da VPS por dia, cria uma cor para cada, deixa bonitinho 3d glass". A medida vem de admin/dados/agentes.json
+       (cron nay-agentes, a cada 5 min). -->
+  <div class="ag-grade" id="ag-grade"><p class="ag-vazio">Lendo a medição…</p></div>
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/agentes.js?v=20261011b"></script>
+</body>
+</html>

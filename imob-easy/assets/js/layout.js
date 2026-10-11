@@ -32,9 +32,10 @@
     locacao:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
       '<circle cx="7.5" cy="15.5" r="3.2"/><path d="M9.8 13.2 17.5 5.5l1.5 1.5-1.5 1.5 1.5 1.5-1.5 1.5-5.3 5.3"/></svg>',
-    oportunidades:
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">' +
-      '<circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>',
+    agentes:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">' +
+      '<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/>' +
+      '<rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg>',
     captacao:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
       '<path d="M4 4h16v4H4z"/><path d="M6 8v6a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>',
@@ -63,12 +64,15 @@
     { chave: "imoveis",       rotulo: "Todos os Imóveis", href: "imoveis.html" },
     { chave: "proprietarios", rotulo: "Proprietários",    href: "proprietarios.html" },
     { chave: "corretores",    rotulo: "Corretores",       href: "corretores.html" },
-    { chave: "oportunidades", rotulo: "Oportunidades",    href: "oportunidades.html" },
+    /* 11/10/2026 (Pedro: "pega a aba Oportunidades e põe como uma tab dentro da aba Captação e troca lá por uma
+       aba Agentes"): Agentes = um quadrado por agente da VPS, com o uso por dia (agentes.html). */
+    { chave: "agentes",       rotulo: "Agentes",          href: "agentes.html" },
     /* 06/10/2026 (Pedro: "vou reformular o site: pega o Locação e põe dentro de Captação"): Captação abre um
-       menu com as duas páginas; nenhuma das duas mudou. */
+       menu com as páginas; nenhuma delas mudou. Oportunidades é a 4ª aba de captacao.html (11/10). */
     { chave: "captacao",      rotulo: "Captação",         href: "captacao.html",
-      filhos: [{ rotulo: "Captação", href: "captacao.html", chave: "captacao" },
-               { rotulo: "Locação",  href: "locacao.html",  chave: "locacao" }] },
+      filhos: [{ rotulo: "Captação",      href: "captacao.html",               chave: "captacao" },
+               { rotulo: "Locação",       href: "locacao.html",                chave: "locacao" },
+               { rotulo: "Oportunidades", href: "captacao.html#oportunidades", chave: "oportunidades" }] },
     // A AGENDA DOS GRUPOS (Pedro, 03/10/2026): "uma aba Grupos... ao lado da captação"
     { chave: "grupos",        rotulo: "Grupos",           href: "grupos.html" },
     /* 06/10/2026 (Pedro: "põe a Nay antiga dentro do menu Mais e deixa no lugar um menu Nova Nay ... esse menu
