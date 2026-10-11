@@ -16,13 +16,15 @@ AS $function$
                    WHEN nullif(btrim(i.bairro), '') IS NOT NULL THEN ' em ' || btrim(i.bairro) ELSE '' END AS titulo
       FROM i
   ), condo AS (
-    -- quais características são do CONDOMÍNIO: a lista do cadastro; na falta dela, a da ficha do anúncio
+    -- 346: as características do CONDOMÍNIO vêm da ficha dele (lazer, segurança, comodidades); sem ficha, as do anúncio
     SELECT coalesce(
-             (SELECT array_agg(v) FROM t, jsonb_array_elements_text(
-                 CASE WHEN jsonb_typeof(t.x -> 'caracteristicas do condominio') = 'array'
-                      THEN t.x -> 'caracteristicas do condominio' ELSE '[]'::jsonb END) v),
+             (SELECT nullif(cf.lazer || cf.seguranca || cf.comodidades, '{}') FROM t JOIN condominio_ficha cf ON cf.condominio_id = t.condo_id),
              (SELECT f.caracteristicas_condominio FROM imovel_ficha f WHERE f.codigo = p_codigo),
-             '{}'::text[]) AS tags
+             '{}'::text[]) AS tags,
+           (SELECT jsonb_strip_nulls(jsonb_build_object('nome', cf.nome, 'tipo', cf.tipo, 'torres', cf.torres, 'andares', cf.andares,
+                      'aptos_por_andar', cf.aptos_por_andar, 'elevador', cf.elevador, 'construtora', cf.construtora,
+                      'ano', coalesce(cf.ano_construcao, cf.ano_lancamento::text), 'taxas', nullif(cf.taxas, '[]'::jsonb)))
+              FROM t JOIN condominio_ficha cf ON cf.condominio_id = t.condo_id) AS ficha
   )
   SELECT jsonb_build_object(
     'codigo', t.codigo,
@@ -40,7 +42,11 @@ AS $function$
       'areautil', t.area_util, 'areatotal', t.area_total, 'areacons', t.x ->> 'area construida',
       'terreno', t.x ->> 'tamanho do terreno', 'frente', t.x ->> 'frente', 'fundo', t.x ->> 'fundo',
       'pedireito', t.x ->> 'pe direito', 'andares', t.x ->> 'andares', 'elevadores', t.x ->> 'elevadores',
-      'escadas', t.x ->> 'lances de escada', 'cobertura', t.x ->> 'tipo de cobertura'),
+      'escadas', t.x ->> 'lances de escada',
+      'cobertura', CASE WHEN t.cobertura THEN coalesce(t.x ->> 'tipo de cobertura', 'Sim') WHEN t.cobertura = false THEN NULL ELSE t.x ->> 'tipo de cobertura' END,
+      'mobilia_nivel', nay_mobilia_nivel(t.mobilia)),
+    'obs', t.observacao,
+    'condo', (SELECT ficha FROM condo),
     'tagscondo', to_jsonb((SELECT tags FROM condo)),
     'tagsimovel', to_jsonb(coalesce(
         (SELECT array_agg(c) FROM unnest(coalesce(nullif(t.caracteristicas, '{}'),

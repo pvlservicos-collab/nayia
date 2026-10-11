@@ -1,4 +1,4 @@
-# core_pendencia  (tabela, ~0 linhas)
+# core_pendencia  (tabela, ~51 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('core_pendencia_id_seq'::regclass)

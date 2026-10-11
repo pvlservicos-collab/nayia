@@ -94,9 +94,10 @@ import unicodedata
 # Os três textos de `imoveis.mobilia`, copiados como estão no banco (com os
 # parênteses, sem acento e em minúsculas). Não inventar variação: a busca da
 # Nay compara texto.
-MOBILIA_MOBILIADO = "mobiliado (moveis + cama + tudo)"
-MOBILIA_SEMI = "semi-mobiliado (moveis planejados + ar)"
-MOBILIA_SO_AR = "so ar-condicionado"
+# os 4 níveis de mobília (344, 11/10/2026): sem nada, só climatizado, com modulados e ar (o antigo semi), mobiliado
+MOBILIA_MOBILIADO = "mobiliado"
+MOBILIA_SEMI = "com modulados e ar"
+MOBILIA_SO_AR = "só climatizado"
 
 # Os 16 campos que a plataforma preenche. A ordem aqui é a de exibição do
 # formulário; a ordem das PERGUNTAS é a de ORDEM_DA_PERGUNTA, que é outra.

@@ -333,8 +333,10 @@ def extrair_imovel(html, codigo):
     # A MOBÍLIA DA PÁGINA MANDA MAIS QUE A DO BANCO. O card sempre leu mobília
     # da tabela (veio da importação de agosto); a página tem o dado vivo, que é
     # o que o Tel acabou de marcar no admin.
-    mobilia = ("semi-mobiliado" if "Semi-Mobiliado" in caracteristicas else
-               "mobiliado" if "Mobiliado" in caracteristicas else None)
+    # 344 (11/10): os rótulos dos 4 níveis -- "com modulados e ar" é o antigo semi-mobiliado
+    mobilia = ("com modulados e ar" if "Semi-Mobiliado" in caracteristicas else
+               "mobiliado" if "Mobiliado" in caracteristicas else
+               "só climatizado" if "Climatizado" in caracteristicas else None)
 
     return dict(
         codigo=str(codigo),

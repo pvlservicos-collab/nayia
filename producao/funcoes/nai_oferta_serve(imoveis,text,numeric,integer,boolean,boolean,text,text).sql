@@ -32,8 +32,8 @@ AS $function$
      -- planejados" não é mobiliado, e prometer isso ao corretor é pior do que
      -- não oferecer. Quem quer o benefício da dúvida é gente, na tela de
      -- Enviar imóvel (nai_disparo_buscar).
-     AND (NOT p_sem OR (coalesce(i.mobilia, '') !~* 'mobiliad' AND coalesce(i.descricao, '') !~* '\mmobiliad'))
-     AND (NOT p_com OR coalesce(i.mobilia, '') ~* 'mobiliad')
+     AND (NOT p_sem OR (coalesce(nay_mobilia_nivel(i.mobilia), '') NOT IN ('semi', 'mobiliado') AND coalesce(i.descricao, '') !~* '\mmobiliad'))
+     AND (NOT p_com OR nay_mobilia_nivel(i.mobilia) IN ('semi', 'mobiliado'))
      AND NOT EXISTS (SELECT 1 FROM envios e
                       WHERE e.codigo = i.codigo::text AND e.enviado_em > now() - interval '30 days'
                         AND right(regexp_replace(coalesce(e.telefone, ''), '\D', '', 'g'), 8)

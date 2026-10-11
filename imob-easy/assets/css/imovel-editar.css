@@ -16,7 +16,21 @@ body.admin .conteudo { max-width: 1680px; padding-left: 20px; padding-right: 20p
 .ed__codigo {
   display: inline-block; background: var(--roxo); color: #fff; border-radius: 9px; padding: 1px 10px;
   font-size: .8em; vertical-align: 2px;
+  /* 11/10 (Pedro): "a cor do número do imóvel está roxa com fundo roxo": o título pinta o texto com
+     text-fill-color e o span herdava; aqui o preenchimento volta a branco */
+  -webkit-text-fill-color: #fff; background-clip: padding-box;
 }
+/* o condomínio, só para ler, dentro do cadastro do imóvel (11/10) */
+.ed__condo-ficha { margin-top: 10px; }
+.ed__cf { border: 1px solid var(--borda, #e3daf2); border-radius: 12px; padding: 10px 12px; background: var(--superficie-2, #faf8fe); font-size: 13px; }
+.ed__cf-topo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.ed__cf-fonte { color: var(--texto-fraco, #6b6478); font-size: 12px; }
+.ed__cf-editar { margin-left: auto; font-weight: 700; color: var(--roxo); text-decoration: none; border: 1px solid var(--roxo-borda, #cbb5ee); border-radius: 8px; padding: 4px 10px; background: #fff; }
+.ed__cf-editar:hover { background: var(--roxo-suave, #f3edff); }
+.ed__cf-linha { margin: 4px 0; color: var(--texto-medio, #4a4360); }
+.ed__cf-rot { margin: 8px 0 3px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--texto-fraco, #6b6478); }
+.ed__cf-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.ed__cf-chip { font-size: 12px; padding: 2px 9px; border-radius: 999px; background: #fff; border: 1px solid var(--borda, #e3daf2); color: var(--texto, #241d33); }
 .ed__sub { color: var(--texto-fraco, #6b6478); font-size: var(--fs-sm, 14px); margin-top: 4px; }
 .ed__aviso {
   border: 1px solid var(--borda); background: var(--superficie); border-radius: 12px; padding: 12px 14px;

@@ -13,12 +13,14 @@ AS $function$
                               (8, 'sofá', '\msofa'), (9, 'mesa', '\mmesa'), (10, 'TV', '\mtv\M|televis'),
                               (11, 'ar-condicionado', 'ar.?condicionado|\mar\M|climatizad')) AS x(o, nome, rx)
              WHERE i.tudo ~ x.rx)
+  -- 345: pelo nível (nay_mobilia_nivel lê a redação antiga e a nova)
   SELECT CASE
-    WHEN lower(coalesce(i.mobilia, '')) ~ '^semi' OR (coalesce(i.mobilia, '') = '' AND i.tudo ~ 'semi.?mobiliad')
-      THEN 'Semimobiliado: está 80% mobiliado' || coalesce(' (' || itens.lista || ')', '')
-    WHEN lower(coalesce(i.mobilia, '')) ~ '^mobiliad' OR (coalesce(i.mobilia, '') = '' AND i.tudo ~ '\mmobiliad')
+    WHEN nay_mobilia_nivel(i.mobilia) = 'semi' OR (coalesce(i.mobilia, '') = '' AND i.tudo ~ 'semi.?mobiliad')
+      THEN 'Com modulados e ar (o antigo semimobiliado): está 80% mobiliado' || coalesce(' (' || itens.lista || ')', '')
+    WHEN nay_mobilia_nivel(i.mobilia) = 'mobiliado' OR (coalesce(i.mobilia, '') = '' AND i.tudo ~ '\mmobiliad')
       THEN 'Mobiliado: sim' || coalesce(' (' || itens.lista || ')', '')
-    WHEN lower(coalesce(i.mobilia, '')) ~ 'ar.condicionado' THEN 'Mobiliado: não, só com ar-condicionado'
+    WHEN nay_mobilia_nivel(i.mobilia) = 'climatizado' THEN 'Mobiliado: não, só climatizado (ar-condicionado)'
+    WHEN nay_mobilia_nivel(i.mobilia) = 'nada' THEN 'Mobiliado: não, está sem nada'
     ELSE NULL END
     FROM i, itens;
 $function$;

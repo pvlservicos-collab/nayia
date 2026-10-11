@@ -447,8 +447,9 @@ def olx_importados():
 import hmac
 
 CAPTACAO_FOTO_SEGREDO = os.environ.get("CAPTACAO_FOTO_SEGREDO", "")
-_MOBILIA = (("semi", "semi-mobiliado (moveis planejados + ar)"),
-            ("so ar", "so ar-condicionado"), ("só ar", "so ar-condicionado"))
+# os 4 níveis de mobília (344, 11/10): sem nada, só climatizado, com modulados e ar (o antigo semi), mobiliado
+_MOBILIA = (("semi", "com modulados e ar"), ("modulad", "com modulados e ar"), ("planejad", "com modulados e ar"),
+            ("so ar", "só climatizado"), ("só ar", "só climatizado"), ("climatiz", "só climatizado"))
 _INCLUSO_CHIPS = (("Água", r"[aá]gua"), ("Energia", r"energia|\bluz\b"), ("Internet", r"internet|wi-?fi"),
                   ("Taxa de Gás", r"\bg[aá]s\b"), ("Taxa de Condomínio", r"condom[ií]nio"), ("IPTU", r"iptu"))
 
@@ -465,7 +466,7 @@ def _mobilia_do_dono(texto):
     for chave, valor in _MOBILIA:
         if chave in t:
             return valor
-    return "mobiliado (moveis + cama + tudo)" if "mobiliad" in t else None
+    return "mobiliado" if "mobiliad" in t else None
 
 
 def _incluso_do_dono(texto):
@@ -1113,10 +1114,12 @@ def _colunas_do_bot(cur, d):
     if aluguel and aluguel > 0:
         col["valor_aluguel"] = aluguel
     mobilia = str(d.get("mobilia") or "").lower()
-    if "semi" in mobilia:
-        col["mobilia"] = "semi-mobiliado"
+    if "semi" in mobilia or "modulad" in mobilia:
+        col["mobilia"] = "com modulados e ar"
     elif mobilia.startswith("mobiliad"):
         col["mobilia"] = "mobiliado"
+    elif "climatiz" in mobilia or "ar-cond" in mobilia or "ar cond" in mobilia:
+        col["mobilia"] = "só climatizado"
     # "sem mobília" é o campo vazio, como no resto do catálogo
     do_condominio = _lista_do_bot(d.get("caracteristicas_condominio"))
     todas = _lista_do_bot(d.get("caracteristicas"))

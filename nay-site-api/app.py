@@ -82,6 +82,9 @@ CAMPOS_EDITAVEIS = {
     "iptu": {"tipo": "numero", "sincronizado": True},
     "mobilia": {"tipo": "texto", "sincronizado": True},
     "descricao": {"tipo": "texto", "sincronizado": True},
+    # 344 (11/10): a observação que vai no card e "é cobertura" (só apartamento e sala)
+    "observacao": {"tipo": "texto", "sincronizado": False},
+    "cobertura": {"tipo": "booleano", "sincronizado": False},
     "caracteristicas": {"tipo": "lista", "sincronizado": True},
     "publicado_no_site": {"tipo": "booleano", "sincronizado": True},
     # internos -- o site nunca toca, nunca sobrescrito pela varredura
@@ -982,7 +985,42 @@ def api_condominios_aba():
 # =====================================================================
 CAMPOS_DO_CONDOMINIO = ("nome", "tipo", "bairro", "logradouro", "numero", "cidade", "estado", "cep", "torres",
                         "andares", "aptos_por_andar", "elevador", "unidades", "construtora", "revestimento",
-                        "ano_lancamento")
+                        "ano_lancamento",
+                        # 344 (11/10): o que o site antigo tinha a mais
+                        "ano_construcao", "complemento", "observacao")
+LISTAS_DO_CONDOMINIO = ("lazer", "seguranca", "comodidades")
+
+
+@app.route("/api/condominios/<int:cid>/ficha")
+def api_condominio_ficha(cid):
+    """A ficha do condomínio, só para ler, para o cadastro do imóvel mostrar (Pedro, 11/10: "quando eu abrir um
+    imóvel ele já vai abrir as informações do condomínio, não para editar, só para mostrar"). Sem dado pessoal."""
+    conn = conectar()
+    try:
+        linhas = todas_linhas(conn, """
+            SELECT c.id, c.nome, c.bairro, f.id AS ficha_id, f.tipo, f.logradouro, f.numero, f.complemento, f.cep, f.cidade,
+                   f.estado, f.torres, f.andares, f.aptos_por_andar, f.elevador, f.unidades, f.construtora, f.revestimento,
+                   coalesce(f.ano_construcao, f.ano_lancamento::text) AS ano, f.lazer, f.seguranca, f.comodidades, f.taxas,
+                   f.observacao, f.fonte, f.atualizado_em
+              FROM condominios c LEFT JOIN condominio_ficha f ON f.condominio_id = c.id
+             WHERE c.id = %s""", (cid,))
+        if not linhas:
+            return jsonify({"erro": "não encontrado"}), 404
+        l = linhas[0]
+        if not l["ficha_id"]:
+            return jsonify({"id": None, "condominio_id": l["id"], "nome": l["nome"], "bairro": l["bairro"]})
+        return jsonify({
+            "id": l["ficha_id"], "condominio_id": l["id"], "nome": l["nome"], "bairro": l["bairro"], "tipo": l["tipo"],
+            "logradouro": l["logradouro"], "numero": l["numero"], "complemento": l["complemento"], "cep": l["cep"],
+            "cidade": l["cidade"], "estado": l["estado"], "torres": l["torres"], "andares": l["andares"],
+            "aptos_por_andar": l["aptos_por_andar"], "elevador": l["elevador"], "unidades": l["unidades"],
+            "construtora": l["construtora"], "revestimento": l["revestimento"], "ano": l["ano"],
+            "lazer": list(l["lazer"] or []), "seguranca": list(l["seguranca"] or []), "comodidades": list(l["comodidades"] or []),
+            "taxas": l["taxas"] or [], "observacao": l["observacao"], "fonte": l["fonte"],
+            "atualizado": l["atualizado_em"].isoformat() if l["atualizado_em"] else None,
+        }), 200, {"Cache-Control": "no-cache"}
+    finally:
+        conn.close()
 
 
 @app.route("/api/condominios/nomes")
@@ -1013,6 +1051,7 @@ def api_condominios_cadastro():
             SELECT c.id, c.nome, c.bairro, f.tipo, f.logradouro, f.numero, f.cidade, f.estado, f.cep, f.endereco,
                    f.torres, f.andares, f.aptos_por_andar, f.elevador, f.unidades, f.construtora, f.revestimento,
                    f.ano_lancamento, f.lazer, f.fonte, f.atualizado_em,
+                   f.seguranca, f.comodidades, f.taxas, f.ano_construcao, f.complemento, f.observacao,
                    coalesce(pi.q, 0) + coalesce(pn.q, 0) AS imoveis
               FROM condominios c LEFT JOIN condominio_ficha f ON f.condominio_id = c.id
               LEFT JOIN por_id pi ON pi.condo_id = c.id
@@ -1025,6 +1064,8 @@ def api_condominios_cadastro():
             "aptos_por_andar": l["aptos_por_andar"], "elevador": l["elevador"], "unidades": l["unidades"],
             "construtora": l["construtora"], "revestimento": l["revestimento"], "ano_lancamento": l["ano_lancamento"],
             "lazer": list(l["lazer"] or []), "fonte": l["fonte"], "imoveis": l["imoveis"],
+            "seguranca": list(l["seguranca"] or []), "comodidades": list(l["comodidades"] or []), "taxas": l["taxas"] or [],
+            "ano_construcao": l["ano_construcao"], "complemento": l["complemento"], "observacao": l["observacao"],
             "atualizado": l["atualizado_em"].isoformat() if l["atualizado_em"] else None,
         } for l in linhas], "total": len(linhas)})
     finally:
@@ -1039,9 +1080,14 @@ def api_condominio_salvar(cid=None):
     corpo = request.get_json(silent=True)
     if not isinstance(corpo, dict):
         return jsonify({"ok": False, "motivo": "faltaram os dados do condomínio"}), 400
-    dados = {k: ("" if corpo[k] is None else str(corpo[k]))[:300] for k in CAMPOS_DO_CONDOMINIO if k in corpo}
-    if isinstance(corpo.get("lazer"), list):
-        dados["lazer"] = [str(x)[:80] for x in corpo["lazer"] if str(x or "").strip()][:80]
+    dados = {k: ("" if corpo[k] is None else str(corpo[k]))[:1000 if k == "observacao" else 300]
+             for k in CAMPOS_DO_CONDOMINIO if k in corpo}
+    for lista in LISTAS_DO_CONDOMINIO:
+        if isinstance(corpo.get(lista), list):
+            dados[lista] = [str(x)[:80] for x in corpo[lista] if str(x or "").strip()][:80]
+    if isinstance(corpo.get("taxas"), list):     # [{quartos|metragem, condominio, iptu}]
+        dados["taxas"] = [{k: t.get(k) for k in ("quartos", "metragem", "condominio", "iptu") if t.get(k) not in (None, "")}
+                          for t in corpo["taxas"] if isinstance(t, dict)][:30]
     conn = conectar_escrita()
     try:
         with conn.cursor() as cur:
@@ -1181,7 +1227,7 @@ def api_imovel_detalhe(codigo):
                    taxa_condominio, iptu, mobilia, descricao, caracteristicas,
                    publicado_no_site, disponivel, bloqueado, motivo_bloqueio,
                    e_parceiro, criado_em, sincronizado_em, captado_por, captado_em,
-                   extras
+                   extras, observacao, cobertura
             FROM imoveis WHERE codigo = %s
         """, (codigo,))
         if not linhas:
@@ -2936,8 +2982,6 @@ def _guardar_no_condominio(cur, codigo, corpo, extras):
     mesma informacao 2 vezes"). Num savepoint: se isto falhar, o imovel e salvo do mesmo jeito."""
     dados = {k: str(corpo[k]).strip() for k in ("logradouro", "numero", "bairro", "cidade", "estado", "cep")
              if str(corpo.get(k) or "").strip()}
-    if (extras or {}).get("caracteristicas do condominio"):
-        dados["lazer"] = [x.strip() for x in re.split(r"[,\n]", extras["caracteristicas do condominio"]) if x.strip()]
     for k in ("andares", "elevadores"):
         if (extras or {}).get(k):
             dados[k] = str(extras[k])

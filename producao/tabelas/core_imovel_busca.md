@@ -1,5 +1,5 @@
-# core_imovel_busca  (view materializada, ~5702 linhas)
-nay-core: um imóvel por linha com tipo, finalidade, zona, mobília e "ofertável" calculados uma vez. REFRESH CONCURRENTLY pelo worker (005).
+# core_imovel_busca  (view materializada, ~5705 linhas)
+nay-core: um imóvel por linha com tipo, finalidade, zona, mobília (4 níveis, 028) e "ofertável" calculados uma vez. REFRESH CONCURRENTLY pelo worker (005).
 
 ## colunas
 codigo  integer
@@ -20,6 +20,7 @@ suites  integer
 vagas  integer
 area_util  numeric
 mobilia  text
+observacao  text
 qtd_fotos  bigint
 tem_ficha  boolean
 e_parceiro  boolean
@@ -72,12 +73,14 @@ nay_leitura: SELECT
     i.suites,
     i.vagas,
     i.area_util,
-        CASE
-            WHEN i.mobilia ~* '^\s*semi'::text THEN 'semi'::text
-            WHEN i.mobilia ~* '^\s*mobiliad'::text THEN 'mobiliado'::text
-            WHEN i.mobilia ~* 'ar.condicionado'::text THEN 'nao'::text
+        CASE nay_mobilia_nivel(i.mobilia)
+            WHEN 'semi'::text THEN 'semi'::text
+            WHEN 'mobiliado'::text THEN 'mobiliado'::text
+            WHEN 'climatizado'::text THEN 'nao'::text
+            WHEN 'nada'::text THEN 'nada'::text
             ELSE NULL::text
         END AS mobilia,
+    NULLIF(btrim(i.observacao), ''::text) AS observacao,
     ( SELECT count(*) AS count
            FROM imovel_fotos f
           WHERE f.codigo = i.codigo AND NOT COALESCE(f.e_mosaico, false)) AS qtd_fotos,

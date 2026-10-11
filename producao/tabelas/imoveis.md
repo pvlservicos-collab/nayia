@@ -1,4 +1,4 @@
-# imoveis  (tabela, ~5686 linhas)
+# imoveis  (tabela, ~5705 linhas)
 
 ## colunas
 codigo  integer  NOT NULL
@@ -48,6 +48,8 @@ administrado  boolean  NOT NULL  padrão false
 proprietario_id  integer
 fotos_conferidas_em  timestamp with time zone
 taxa_condominio_em  timestamp with time zone   -- Quando o VALOR de taxa_condominio foi escrito pela última vez. Carimbado pelo trigger imoveis_carimbar_taxa, nunca à mão. NULL = não se sabe, e o card não mostra a taxa (regra do Tel, 03/10).
+observacao  text   -- 344: informação valiosa do imóvel (vista, negociação, o que falta); vai junto no card ao corretor.
+cobertura  boolean   -- 344: só apartamento e sala; diz se é cobertura. O tipo (Linear/Duplex/Triplex) fica em extras.tipo de cobertura.
 
 ## índices
 CREATE INDEX idx_imoveis_aluguel ON public.imoveis USING btree (valor_aluguel) WHERE (valor_aluguel > (0)::numeric)
@@ -75,8 +77,8 @@ nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 nay_core: SELECT
 nay_leitura: SELECT
 nay_site_escrita: SELECT
-nay_site_escrita, só nestas colunas: INSERT(codigo, tipo, status, condo_id, condominio_nome, bairro, cidade, estado, logradouro, numero, complemento, cep, area_util, area_total, quartos, suites, banheiros, vagas, vagas_cobertas, sol, andar, valor_venda, valor_aluguel, taxa_condominio, iptu, mobilia, descricao, caracteristicas, origem, publicado_no_site, disponivel, criado_em, extras, captado_por, captado_em, proprietario_id); SELECT(codigo, tipo, status, condo_id, condominio_nome, bairro, cidade, estado, logradouro, numero, complemento, cep, area_util, area_total, quartos, suites, banheiros, vagas, vagas_cobertas, sol, andar, valor_venda, valor_aluguel, taxa_condominio, iptu, mobilia, descricao, caracteristicas, publicado_no_site, disponivel, bloqueado, motivo_bloqueio, sincronizado_em, criado_em, e_parceiro); UPDATE(tipo, status, condo_id, condominio_nome, bairro, cidade, estado, logradouro, numero, complemento, cep, area_util, area_total, quartos, suites, banheiros, vagas, vagas_cobertas, sol, andar, valor_venda, valor_aluguel, taxa_condominio, iptu, mobilia, descricao, caracteristicas, publicado_no_site, disponivel, bloqueado, motivo_bloqueio, travado, travado_motivo, travado_em, extras, captado_por, captado_em, proprietario_id)
-nay_site_leitura, só nestas colunas: SELECT(codigo, tipo, status, condo_id, condominio_nome, bairro, cidade, estado, logradouro, numero, complemento, area_util, area_total, quartos, suites, banheiros, vagas, vagas_cobertas, sol, andar, valor_venda, valor_aluguel, taxa_condominio, caracteristicas, publicado_no_site, disponivel, criado_em, e_parceiro)
+nay_site_escrita, só nestas colunas: INSERT(codigo, tipo, status, condo_id, condominio_nome, bairro, cidade, estado, logradouro, numero, complemento, cep, area_util, area_total, quartos, suites, banheiros, vagas, vagas_cobertas, sol, andar, valor_venda, valor_aluguel, taxa_condominio, iptu, mobilia, descricao, caracteristicas, origem, publicado_no_site, disponivel, criado_em, extras, captado_por, captado_em, proprietario_id, observacao, cobertura); SELECT(codigo, tipo, status, condo_id, condominio_nome, bairro, cidade, estado, logradouro, numero, complemento, cep, area_util, area_total, quartos, suites, banheiros, vagas, vagas_cobertas, sol, andar, valor_venda, valor_aluguel, taxa_condominio, iptu, mobilia, descricao, caracteristicas, publicado_no_site, disponivel, bloqueado, motivo_bloqueio, sincronizado_em, criado_em, e_parceiro, observacao, cobertura); UPDATE(tipo, status, condo_id, condominio_nome, bairro, cidade, estado, logradouro, numero, complemento, cep, area_util, area_total, quartos, suites, banheiros, vagas, vagas_cobertas, sol, andar, valor_venda, valor_aluguel, taxa_condominio, iptu, mobilia, descricao, caracteristicas, publicado_no_site, disponivel, bloqueado, motivo_bloqueio, travado, travado_motivo, travado_em, extras, captado_por, captado_em, proprietario_id, observacao, cobertura)
+nay_site_leitura, só nestas colunas: SELECT(codigo, tipo, status, condo_id, condominio_nome, bairro, cidade, estado, logradouro, numero, complemento, area_util, area_total, quartos, suites, banheiros, vagas, vagas_cobertas, sol, andar, valor_venda, valor_aluguel, taxa_condominio, caracteristicas, publicado_no_site, disponivel, criado_em, e_parceiro, observacao, cobertura)
 nay_site_listas, só nestas colunas: SELECT(codigo, tipo, status, condominio_nome, bairro, cidade, logradouro, numero, valor_venda, valor_aluguel)
 
 ## funções que escrevem aqui

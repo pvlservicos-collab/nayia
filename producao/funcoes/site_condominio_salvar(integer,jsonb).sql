@@ -106,9 +106,10 @@ BEGIN
 
   -- os campos de texto: a chave que veio VALE (vazia apaga); a que não veio não é tocada
   FOREACH k IN ARRAY ARRAY['bairro', 'logradouro', 'numero', 'cidade', 'estado', 'cep', 'torres', 'andares',
-                           'aptos_por_andar', 'elevador', 'unidades', 'construtora', 'revestimento'] LOOP
+                           'aptos_por_andar', 'elevador', 'unidades', 'construtora', 'revestimento',
+                           'ano_construcao', 'complemento', 'observacao'] LOOP   -- 346
     CONTINUE WHEN NOT (p_dados ? k);
-    v := left(nullif(btrim(coalesce(p_dados->>k, '')), ''), 200);
+    v := left(nullif(btrim(coalesce(p_dados->>k, '')), ''), CASE WHEN k = 'observacao' THEN 1000 ELSE 200 END);
     IF v IS DISTINCT FROM (to_jsonb(f)->>k) THEN
       EXECUTE format('UPDATE condominio_ficha SET %I = $1 WHERE id = $2', k) USING v, f.id;
       v_mudou := array_append(v_mudou, k);
@@ -127,16 +128,37 @@ BEGIN
     END IF;
   END IF;
 
-  -- as características do condomínio: a lista da tela substitui a que estava
-  IF jsonb_typeof(p_dados->'lazer') = 'array' THEN
+  -- as características do condomínio, nas três listas (346): a lista da tela substitui a que estava
+  FOREACH k IN ARRAY ARRAY['lazer', 'seguranca', 'comodidades'] LOOP
+    CONTINUE WHEN coalesce(jsonb_typeof(p_dados->k), '') <> 'array';   -- chave ausente = não mexe
     SELECT coalesce(array_agg(s.x ORDER BY s.ord), '{}') INTO v_lazer
       FROM (SELECT DISTINCT ON (lower(btrim(a.t))) left(btrim(a.t), 80) AS x, a.ord
-              FROM jsonb_array_elements_text(p_dados->'lazer') WITH ORDINALITY a(t, ord)
+              FROM jsonb_array_elements_text(p_dados->k) WITH ORDINALITY a(t, ord)
              WHERE btrim(a.t) <> ''
              ORDER BY lower(btrim(a.t)), a.ord) s;
-    IF v_lazer IS DISTINCT FROM f.lazer THEN
-      UPDATE condominio_ficha SET lazer = v_lazer WHERE id = f.id;
-      v_mudou := array_append(v_mudou, 'lazer');
+    IF v_lazer IS DISTINCT FROM (CASE k WHEN 'lazer' THEN f.lazer WHEN 'seguranca' THEN f.seguranca ELSE f.comodidades END) THEN
+      EXECUTE format('UPDATE condominio_ficha SET %I = $1 WHERE id = $2', k) USING v_lazer, f.id;
+      v_mudou := array_append(v_mudou, k);
+    END IF;
+  END LOOP;
+  -- as taxas por quartos (ou metragem): condomínio fixo para todos daquele tamanho; IPTU quando for fixo
+  IF jsonb_typeof(p_dados->'taxas') = 'array' THEN
+    IF (SELECT coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+                 'quartos', nullif(regexp_replace(coalesce(t->>'quartos', ''), '\D', '', 'g'), '')::int,
+                 'metragem', nullif(regexp_replace(coalesce(t->>'metragem', ''), '[^0-9.,]', '', 'g'), ''),
+                 'condominio', nullif(replace(regexp_replace(coalesce(t->>'condominio', ''), '[^0-9,.]', '', 'g'), ',', '.'), '')::numeric::float8,
+                 'iptu', nullif(replace(regexp_replace(coalesce(t->>'iptu', ''), '[^0-9,.]', '', 'g'), ',', '.'), '')::numeric::float8)))
+                 FILTER (WHERE coalesce(t->>'condominio', t->>'iptu', '') <> ''), '[]'::jsonb)
+          FROM jsonb_array_elements(p_dados->'taxas') t) IS DISTINCT FROM f.taxas THEN
+      UPDATE condominio_ficha SET taxas = (
+        SELECT coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+                 'quartos', nullif(regexp_replace(coalesce(t->>'quartos', ''), '\D', '', 'g'), '')::int,
+                 'metragem', nullif(regexp_replace(coalesce(t->>'metragem', ''), '[^0-9.,]', '', 'g'), ''),
+                 'condominio', nullif(replace(regexp_replace(coalesce(t->>'condominio', ''), '[^0-9,.]', '', 'g'), ',', '.'), '')::numeric::float8,
+                 'iptu', nullif(replace(regexp_replace(coalesce(t->>'iptu', ''), '[^0-9,.]', '', 'g'), ',', '.'), '')::numeric::float8)))
+                 FILTER (WHERE coalesce(t->>'condominio', t->>'iptu', '') <> ''), '[]'::jsonb)
+          FROM jsonb_array_elements(p_dados->'taxas') t) WHERE id = f.id;
+      v_mudou := array_append(v_mudou, 'taxas');
     END IF;
   END IF;
 

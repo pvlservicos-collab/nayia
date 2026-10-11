@@ -71,20 +71,45 @@
     ".cc__chip button{border:0;background:none;cursor:pointer;font-size:14px;line-height:1;padding:0 4px;color:inherit}" +
     ".cc__acoes{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:18px}" +
     ".cc__status{font-size:13px}.cc__status--ok{color:#15803d}.cc__status--erro{color:#b91c1c}" +
-    ".cc__status button{font:inherit;border:0;background:none;color:inherit;text-decoration:underline;cursor:pointer;padding:0}";
+    ".cc__status button{font:inherit;border:0;background:none;color:inherit;text-decoration:underline;cursor:pointer;padding:0}" +
+    ".cc__marcar{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:4px 14px}" +
+    ".cc__marca{display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;padding:3px 0}.cc__marca input{width:auto;margin:0}" +
+    ".cc__mais{margin-top:6px;max-width:360px}" +
+    ".cc__taxas{width:100%;border-collapse:collapse;font-size:13px}.cc__taxas th{text-align:left;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--texto-fraco,#6b7280);padding:4px 6px}" +
+    ".cc__taxas td{padding:3px 6px}.cc__taxas input{padding:6px 8px}.cc__taxas button{font:inherit;border:0;background:none;color:#b91c1c;cursor:pointer}" +
+    ".cc textarea{width:100%;box-sizing:border-box;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--borda,#d9dce3);border-radius:8px;min-height:72px}";
   document.head.appendChild(css);
 
   /* campo, rótulo, largura na grade (de 12), dica */
   var ENDERECO = [
     ["bairro", "Bairro", 4], ["logradouro", "Rua / avenida", 6], ["numero", "Número", 2],
-    ["cep", "CEP", 3], ["cidade", "Cidade", 4], ["estado", "Estado", 2]
+    ["complemento", "Complemento / referência", 6, "ex.: próx. ao Condomínio Flex Parque Dez"],
+    ["cep", "CEP", 2], ["cidade", "Cidade", 2], ["estado", "Estado", 2]
   ];
+  /* 11/10 (Pedro): as duas telas do site antigo (Acqua): torres, andares, apartamentos por andar, ano de
+     construção ("2011 e 2013"), construtora, revestimento; lazer / segurança / comodidades em caixinhas; taxas de
+     condomínio e IPTU por quartos. O cadastro é UMA vez: vale para todos os imóveis do condomínio. */
   var ESTRUTURA = [
-    ["torres", "Torres", 3, "ex.: 2 torres"], ["andares", "Andares", 3, "ex.: 18 andares"],
-    ["aptos_por_andar", "Apartamentos por andar", 3, "ex.: 4 por andar"], ["elevador", "Elevador", 3, "ex.: Sim, possui 2 elevadores"],
-    ["unidades", "Unidades", 3, "ex.: 120 casas"], ["construtora", "Construtora", 4], ["ano_lancamento", "Ano de lançamento", 2],
-    ["revestimento", "Revestimento", 3]
+    ["torres", "Número de torres", 3, "ex.: 6"], ["andares", "Número de andares", 3, "ex.: 8"],
+    ["aptos_por_andar", "Apartamentos por andar", 3, "ex.: 8"], ["elevador", "Elevador", 3, "Sim, possui 2 por torre / Não possui"],
+    ["unidades", "Unidades", 3, "ex.: 120 casas"], ["construtora", "Construtora", 4, "ex.: Construtora Tecnisa"],
+    ["ano_construcao", "Ano de construção", 2, "ex.: 2011 e 2013"], ["revestimento", "Revestimento", 3, "ex.: Pintura, Cerâmica"]
   ];
+  var LAZER = ["Academia", "Bicicletário", "Brinquedoteca", "Car Wash Box", "Churrasqueira", "Ciclovia", "Cinema", "Espaço Zen",
+    "Espaço gourmet", "Fitness", "Forno de Pizza", "Hidromassagem", "Jardim", "Lan House", "Lounge", "Pergolado", "Pet Place",
+    "Piscina", "Pista de Caminhada", "Pista de Cooper", "Pista de Skate", "Playground", "Prainha", "Quadra de Areia",
+    "Quadra de Vôlei", "Quadra de squash", "Quadra de tênis", "Quadra poliesportiva", "Redário", "Salão de festas",
+    "Salão de jogos", "Sauna", "Solarium", "Spa"];
+  var SEGURANCA = ["Condomínio fechado", "Guarita 24 Horas", "Portaria", "Segurança 24 horas", "Cerca elétrica",
+    "Câmera de segurança", "Portão eletrônico", "Interfone"];
+  var COMODIDADES = ["Elevador", "Lavanderia", "Gerador de Energia", "Gerador de Energia - 100%", "Gás Encanado", "Água de Poço", "Recepção"];
+  var GRUPOS = [["lazer", "Lazer", LAZER], ["seguranca", "Segurança", SEGURANCA], ["comodidades", "Comodidades e serviços", COMODIDADES]];
+  function caixinhas(g) {
+    return '<p class="cc__secao">' + esc(g[1]) + '</p><div class="cc__marcar" data-grupo="' + g[0] + '">' +
+      g[2].map(function (x) { return '<label class="cc__marca"><input type="checkbox" value="' + esc(x) + '"><span>' + esc(x) + "</span></label>"; }).join("") +
+      '</div><div class="cc__chips" data-chips="' + g[0] + '"></div>' +
+      '<input class="cc__mais" type="text" data-mais="' + g[0] + '" placeholder="Outro (Enter para acrescentar)">';
+  }
   function campo(c) {
     return '<div class="cc__campo cc__campo--' + c[2] + '"><label for="cc-' + c[0] + '">' + esc(c[1]) + "</label>" +
       '<input id="cc-' + c[0] + '" data-cc="' + c[0] + '" type="text"' + (c[0] === "bairro" ? ' list="cc-bairros"' : "") +
@@ -112,37 +137,72 @@
         '<div class="cc__grade">' + ENDERECO.map(campo).join("") + "</div>" +
         '<p class="cc__secao">O condomínio</p>' +
         '<div class="cc__grade">' + ESTRUTURA.map(campo).join("") + "</div>" +
-        '<p class="cc__secao">Características do condomínio</p>' +
-        '<div class="cc__chips" id="cc-chips"></div>' +
-        '<div class="cc__grade"><div class="cc__campo cc__campo--6">' +
-          '<input id="cc-carac" type="text" list="cc-caracs" placeholder="Piscina, academia, portaria 24h… (Enter para acrescentar)">' +
-          '<p class="cc__dica">O andar e o número do apartamento são do imóvel, não do condomínio: ficam no cadastro do imóvel.</p></div></div>' +
+        GRUPOS.map(caixinhas).join("") +
+        '<p class="cc__dica" style="margin-top:8px">O andar, a torre e o número do apartamento são do imóvel: ficam no cadastro do imóvel.</p>' +
+        '<p class="cc__secao">Taxas de condomínio e IPTU</p>' +
+        '<table class="cc__taxas"><thead><tr><th>Número de quartos ou metragem</th><th>Valor do condomínio (R$)</th><th>Valor do IPTU (R$)</th><th></th></tr></thead>' +
+          '<tbody id="cc-taxas"></tbody></table>' +
+        '<button type="button" class="cc__botao" id="cc-taxa-mais" style="margin-top:6px">+ linha</button>' +
+        '<p class="cc__dica">O condomínio varia por tamanho mas é fixo para todos daquele tamanho. O IPTU, só quando for fixo; o de cada casa fica no imóvel.</p>' +
+        '<p class="cc__secao">Observação do condomínio</p>' +
+        '<textarea id="cc-observacao" data-cc="observacao" maxlength="1000" placeholder="o que vale saber: portaria recebe encomenda, taxa inclui gás…"></textarea>' +
         '<div class="cc__acoes"><button type="submit" class="cc__botao cc__botao--principal" id="cc-salvar">Cadastrar condomínio</button>' +
           '<span class="cc__status" id="cc-status" role="status"></span></div>' +
       "</form>" +
-      '<datalist id="cc-bairros"></datalist><datalist id="cc-caracs"></datalist>' +
+      '<datalist id="cc-bairros"></datalist>' +
     "</div>";
 
   var $ = function (id) { return document.getElementById(id); };
   var form = $("cc-form"), buscar = $("cc-buscar"), lista = $("cc-lista"), status = $("cc-status");
-  var itens = null, lendo = null, atual = null, lazer = [], achados = [], ativo = -1;
+  var itens = null, lendo = null, atual = null, achados = [], ativo = -1;
+  var extras = { lazer: [], seguranca: [], comodidades: [] };   // o que foi marcado fora das caixinhas
 
   function dizer(texto, tipo, html) {
     status.className = "cc__status" + (tipo ? " cc__status--" + tipo : "");
     if (html) status.innerHTML = html; else status.textContent = texto || "";
   }
 
-  function pintarChips() {
-    $("cc-chips").innerHTML = lazer.map(function (x, i) {
-      return '<span class="cc__chip">' + esc(x) + '<button type="button" data-tirar="' + i + '" aria-label="Tirar ' + esc(x) + '">×</button></span>';
+  function pintarChips(g) {
+    var caixa = painel.querySelector('[data-chips="' + g + '"]');
+    if (caixa) caixa.innerHTML = extras[g].map(function (x, i) {
+      return '<span class="cc__chip">' + esc(x) + '<button type="button" data-tirar="' + i + '" data-de="' + g + '" aria-label="Tirar ' + esc(x) + '">×</button></span>';
     }).join("");
   }
-  function acrescentar(texto) {
+  function marcados(g) {
+    return Array.prototype.map.call(painel.querySelectorAll('[data-grupo="' + g + '"] input:checked'), function (i) { return i.value; }).concat(extras[g]);
+  }
+  function marcar(g, lista) {
+    extras[g] = [];
+    var caixas = Array.prototype.slice.call(painel.querySelectorAll('[data-grupo="' + g + '"] input'));
+    caixas.forEach(function (i) { i.checked = false; });
+    (lista || []).forEach(function (x) {
+      var c = caixas.filter(function (i) { return semAcento(i.value) === semAcento(x); })[0];
+      if (c) c.checked = true; else if (x && String(x).trim()) extras[g].push(String(x).trim());
+    });
+    pintarChips(g);
+  }
+  function acrescentar(g, texto) {
     String(texto || "").split(/[,;\n]/).forEach(function (p) {
       p = p.trim();
-      if (p && !lazer.some(function (x) { return semAcento(x) === semAcento(p); })) lazer.push(p);
+      if (p && !marcados(g).some(function (x) { return semAcento(x) === semAcento(p); })) extras[g].push(p);
     });
-    pintarChips();
+    pintarChips(g);
+  }
+  function linhaTaxa(t) {
+    t = t || {};
+    var quem = t.quartos != null ? String(t.quartos) : (t.metragem || "");
+    return "<tr><td><input type=\"text\" data-taxa=\"quem\" value=\"" + esc(quem) + "\" placeholder=\"3 (quartos) ou 90 m²\"></td>" +
+      "<td><input type=\"text\" inputmode=\"decimal\" data-taxa=\"condominio\" value=\"" + esc(t.condominio == null ? "" : t.condominio) + "\"></td>" +
+      "<td><input type=\"text\" inputmode=\"decimal\" data-taxa=\"iptu\" value=\"" + esc(t.iptu == null ? "" : t.iptu) + "\"></td>" +
+      "<td><button type=\"button\" data-taxa-tirar>Remover</button></td></tr>";
+  }
+  function taxasDaTela() {
+    return Array.prototype.map.call($("cc-taxas").querySelectorAll("tr"), function (tr) {
+      var quem = tr.querySelector('[data-taxa="quem"]').value.trim();
+      var eQuartos = /^\d{1,2}$/.test(quem);
+      return { quartos: eQuartos ? quem : "", metragem: eQuartos ? "" : quem,
+               condominio: tr.querySelector('[data-taxa="condominio"]').value.trim(), iptu: tr.querySelector('[data-taxa="iptu"]').value.trim() };
+    }).filter(function (t) { return t.condominio || t.iptu; });
   }
 
   function preencher(c) {
@@ -151,9 +211,9 @@
       var v = c ? c[el.dataset.cc] : null;   // condomínio novo: o Tipo começa em "Prédio de apartamentos", não vazio
       el.value = v == null ? (el.tagName === "SELECT" ? "apartamentos" : "") : String(v);
     });
-    lazer = c && Array.isArray(c.lazer) ? c.lazer.slice() : [];
-    pintarChips();
-    $("cc-carac").value = "";
+    GRUPOS.forEach(function (g) { marcar(g[0], c ? c[g[0]] : []); });
+    $("cc-taxas").innerHTML = (c && Array.isArray(c.taxas) ? c.taxas : []).map(linhaTaxa).join("");
+    painel.querySelectorAll("[data-mais]").forEach(function (i) { i.value = ""; });
     $("cc-titulo").textContent = c ? c.nome : "Novo condomínio";
     $("cc-sub").textContent = c
       ? (c.imoveis ? c.imoveis + " imóvel(is) ligado(s) a este condomínio." : "Nenhum imóvel ligado a este condomínio ainda.") +
@@ -164,14 +224,9 @@
   }
 
   function listas() {
-    var bairros = {}, caracs = {};
-    (itens || []).forEach(function (c) {
-      if (c.bairro) bairros[c.bairro] = 1;
-      (c.lazer || []).forEach(function (x) { caracs[x] = (caracs[x] || 0) + 1; });
-    });
+    var bairros = {};
+    (itens || []).forEach(function (c) { if (c.bairro) bairros[c.bairro] = 1; });
     $("cc-bairros").innerHTML = Object.keys(bairros).sort().map(function (b) { return '<option value="' + esc(b) + '">'; }).join("");
-    $("cc-caracs").innerHTML = Object.keys(caracs).sort(function (a, b) { return caracs[b] - caracs[a]; }).slice(0, 80)
-      .map(function (x) { return '<option value="' + esc(x) + '">'; }).join("");
   }
 
   function carregar(forcar) {
@@ -235,15 +290,17 @@
   });
 
   $("cc-limpar").addEventListener("click", function () { preencher(null); $("cc-nome").focus(); });
-  $("cc-chips").addEventListener("click", function (e) {
+  painel.addEventListener("click", function (e) {
     var b = e.target.closest("[data-tirar]");
-    if (!b) return;
-    lazer.splice(Number(b.dataset.tirar), 1); pintarChips();
+    if (b) { extras[b.dataset.de].splice(Number(b.dataset.tirar), 1); pintarChips(b.dataset.de); return; }
+    var t = e.target.closest("[data-taxa-tirar]");
+    if (t) { t.closest("tr").remove(); return; }
+    if (e.target.id === "cc-taxa-mais") $("cc-taxas").insertAdjacentHTML("beforeend", linhaTaxa());
   });
-  $("cc-carac").addEventListener("keydown", function (e) {
-    if (e.key === "Enter" || e.key === ",") { e.preventDefault(); acrescentar(this.value); this.value = ""; }
+  painel.addEventListener("keydown", function (e) {
+    var m = e.target.closest ? e.target.closest("[data-mais]") : null;
+    if (m && (e.key === "Enter" || e.key === ",")) { e.preventDefault(); acrescentar(m.dataset.mais, m.value); m.value = ""; }
   });
-  $("cc-carac").addEventListener("change", function () { if (this.value.trim()) { acrescentar(this.value); this.value = ""; } });
 
   status.addEventListener("click", function (e) {
     var b = e.target.closest("[data-abrir]");
@@ -252,8 +309,8 @@
 
   form.addEventListener("submit", function (e) {
     e.preventDefault();
-    acrescentar($("cc-carac").value); $("cc-carac").value = "";
-    var dados = { lazer: lazer.slice() };
+    painel.querySelectorAll("[data-mais]").forEach(function (m) { if (m.value.trim()) { acrescentar(m.dataset.mais, m.value); m.value = ""; } });
+    var dados = { lazer: marcados("lazer"), seguranca: marcados("seguranca"), comodidades: marcados("comodidades"), taxas: taxasDaTela() };
     form.querySelectorAll("[data-cc]").forEach(function (el) { dados[el.dataset.cc] = el.value.trim(); });
     if (dados.nome.length < 3) { dizer("Escreva o nome do condomínio.", "erro"); $("cc-nome").focus(); return; }
     var editando = atual && atual.id;

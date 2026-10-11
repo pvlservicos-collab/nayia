@@ -69,3 +69,4 @@ crm/.env
 
 # foto da produção: o bruto que vem do servidor (apagado no fim)
 producao/.bruto/
+Arquivos/backups-locais/

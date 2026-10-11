@@ -45,12 +45,17 @@ AS $function$
 • nascente'
               WHEN lower(coalesce(b.sol, '')) ~ '^poente' THEN E'
 • poente' ELSE '' END
-      || CASE WHEN lower(coalesce(b.mobilia, '')) ~ '^semi' THEN E'
-• semi-mobiliado'
-              WHEN lower(coalesce(b.mobilia, '')) ~ '^mobiliad' THEN E'
+      || CASE nay_mobilia_nivel(b.mobilia) WHEN 'semi' THEN E'
+• com modulados e ar'
+              WHEN 'mobiliado' THEN E'
 • mobiliado'
-              WHEN lower(coalesce(b.mobilia, '')) ~ 'ar.condicionado' THEN E'
-• climatizado' ELSE '' END
+              WHEN 'climatizado' THEN E'
+• só climatizado'
+              WHEN 'nada' THEN E'
+• sem mobília' ELSE '' END
+      -- 345: a observação do imóvel ("falta só TV", "vista para o rio", "o dono aceita outro imóvel")
+      || CASE WHEN coalesce(btrim(b.observacao), '') <> '' THEN E'
+• ' || left(regexp_replace(btrim(b.observacao), '\s*\n+\s*', ' / ', 'g'), 300) ELSE '' END
       -- A TAXA DE CONDOMINIO, e so quando e recente (Tel, 03/10). A decisao
       -- ("mostra?") e o formato moram em `nay_linha_da_taxa` -- UMA copia, lida
       -- tambem pelo card do publicador (`montar_mensagem.py`). Taxa sem

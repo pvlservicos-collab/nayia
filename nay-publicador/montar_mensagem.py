@@ -130,12 +130,15 @@ def _linha_de_mobilia(imovel):
     m = (imovel.get("mobilia") or "").strip().lower()
     if not m:
         return None
-    if m.startswith("semi"):
-        return "• semi-mobiliado"
+    # 344 (11/10): o cadastro tem 4 níveis -- "com modulados e ar" é o antigo semi-mobiliado; lê as duas redações
+    if m.startswith("semi") or "modulad" in m:
+        return "• com modulados e ar"
     if m.startswith("mobiliad"):
         return "• mobiliado"
-    if "ar-condicionado" in m or "ar condicionado" in m:
-        return "• climatizado"
+    if "ar-condicionado" in m or "ar condicionado" in m or "climatiz" in m:
+        return "• só climatizado"
+    if m.startswith("sem"):
+        return "• sem mobília"
     return None
 
 

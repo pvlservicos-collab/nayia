@@ -99,12 +99,14 @@ BEGIN
   -- MOBILIA ("e mobiliado?", "vem com moveis?", "tem armario planejado?", "e vazio?").
   -- Duas partes: a afirmacao e o detalhe, que vira a primeira linha da lista.
   IF q ~ '(mobil|\mmovel|moveis|semi.?mob|\mvazio|equipad|planejad|armario|guarda.?roupa|geladeira|fogao|\mcama\M)' THEN
-    IF lower(coalesce(i.mobilia, '')) ~ '^semi' THEN
-      r := r || 'é semi-mobiliado'::text || 'tem móveis planejados e ar-condicionado'::text;
-    ELSIF lower(coalesce(i.mobilia, '')) ~ '^mobiliad' THEN
+    IF nay_mobilia_nivel(i.mobilia) = 'semi' THEN
+      r := r || 'é com modulados e ar'::text || 'tem móveis planejados e ar-condicionado'::text;
+    ELSIF nay_mobilia_nivel(i.mobilia) = 'mobiliado' THEN
       r := r || 'é mobiliado'::text || 'tem móveis, cama e tudo'::text;
-    ELSIF lower(coalesce(i.mobilia, '')) ~ 'ar.condicionado' THEN
+    ELSIF nay_mobilia_nivel(i.mobilia) = 'climatizado' THEN
       r := r || 'não é mobiliado'::text || 'tem só o ar-condicionado'::text;
+    ELSIF nay_mobilia_nivel(i.mobilia) = 'nada' THEN
+      r := r || 'não é mobiliado'::text || 'está sem nada'::text;
     ELSIF car ~ 'semi.?mobiliad' THEN
       r := r || 'é semi-mobiliado'::text;
     ELSIF car ~ '(sem mobilia|nao mobiliad)' THEN

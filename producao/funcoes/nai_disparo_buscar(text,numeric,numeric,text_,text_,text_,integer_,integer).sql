@@ -46,8 +46,8 @@ AS $function$
      -- (a coluna mobília aparece vazia na lista).
      AND (f.mobs IS NULL
           OR coalesce(btrim(i.mobilia), '') = ''
-          OR ('mobiliado' = ANY (f.mobs) AND lower(unaccent(coalesce(i.mobilia, ''))) LIKE 'mobiliad%')
-          OR ('semi' = ANY (f.mobs) AND lower(unaccent(coalesce(i.mobilia, ''))) LIKE 'semi%'))
+          OR ('mobiliado' = ANY (f.mobs) AND nay_mobilia_nivel(i.mobilia) = 'mobiliado')
+          OR ('semi' = ANY (f.mobs) AND nay_mobilia_nivel(i.mobilia) = 'semi'))
      -- TIPO e QUARTOS: idem, sem o dado não descarta
      AND (f.tipos IS NULL OR coalesce(btrim(i.tipo), '') = ''
           OR EXISTS (SELECT 1 FROM unnest(f.tipos) t WHERE i.tipo ILIKE t || '%'))

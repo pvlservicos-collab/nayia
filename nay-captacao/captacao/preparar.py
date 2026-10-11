@@ -73,8 +73,8 @@ Responda SÓ um objeto JSON com estas chaves:
   valor_aluguel, valor_venda                números em reais ("R$ 1.290.000,00" -> 1290000; "650 mil" -> 650000; "2.500" -> 2500).
                                             Venda vai em valor_venda; aluguel em valor_aluguel
   taxa_condominio, iptu                     números em reais por mês, ou null
-  mobilia         um destes textos ou null: "mobiliado (moveis + cama + tudo)", "semi-mobiliado (moveis planejados + ar)",
-                  "so ar-condicionado", "sem mobilia"
+  mobilia         um destes textos ou null: "mobiliado" (móveis, cama, tudo), "com modulados e ar" (armários planejados e
+                  ar-condicionado, o antigo semimobiliado), "só climatizado" (só o ar), "sem nada"
   caracteristicas lista curta do que o imóvel tem (ex.: ["Piscina", "Varanda", "Lavabo", "Área de serviço"])
   descricao       2 a 4 frases de anúncio, em português simples, sem nome, telefone, preço ou "excelente oportunidade"
   negocio         "venda", "locacao" ou "ambos"

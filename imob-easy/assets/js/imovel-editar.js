@@ -78,12 +78,12 @@
     cep: { rotulo: "CEP" },
     // O andar voltou à tela em 02/10 (tinha saído no mesmo dia por "andar não precisa"): não é obrigatório nem
     // conta como "falta preencher", mas a Nay responde por ele ("andar baixo ou médio?" no Milano).
-    andar: { rotulo: "Andar", lista: true, dica: "do apartamento; não é obrigatório, mas a Nay responde por ele" },
+    andar: { rotulo: "Andar", lista: true, dica: "com elevador: o andar da unidade (a Nay responde por ele)" },
     // a unidade (privado)
     "p:torre": { rotulo: "Torre" },
     "p:bloco": { rotulo: "Bloco" },
-    "p:unidade": { rotulo: "Apartamento / sala" },
-    "p:casa": { rotulo: "Casa", dica: "o número da casa (de rua ou no condomínio)" },
+    "p:unidade": { rotulo: "Apartamento" },
+    "p:casa": { rotulo: "Número da casa", dica: "de rua ou no condomínio" },
     "p:lote": { rotulo: "Lote" },
     // o proprietário (fonte "o", migração 162): a OLX não traz -- é o último passo da captação
     "o:nome": { rotulo: "Nome" },
@@ -100,17 +100,24 @@
        a metragem total, mas os imóveis estão sendo colocados na metragem de área útil; só trocar o nome onde
        está por área construída e apagar esse outro que foi criado". O dado continua em `area_util` (é o que a
        Nay e o card leem); o campo `x:area construida` saiu do formulário. */
-    area_util: { rotulo: "Área construída", sufixo: "m²" }, area_total: { rotulo: "Área total", sufixo: "m²" },
+    /* 11/10 (Pedro): "no apartamento é área útil e não área construída; área construída é coisa de casa; quando for
+       casa fica tamanho do terreno e área construída, e área total é coisa de apartamento". O dado continua em
+       `area_util`; o RÓTULO muda com o tipo (rotuloDe), e área total só aparece em apartamento/sala. */
+    area_util: { rotulo: "Área útil", sufixo: "m²" }, area_total: { rotulo: "Área total", sufixo: "m²" },
     "x:tamanho do terreno": { rotulo: "Terreno", tipo: "m2", sufixo: "m²" },
     "x:frente": { rotulo: "Frente", tipo: "m", sufixo: "m" },
     "x:fundo": { rotulo: "Fundo", tipo: "m", sufixo: "m" },
     "x:pe direito": { rotulo: "Pé-direito", tipo: "m", sufixo: "m" },
     "x:andares": { rotulo: "Andares", tipo: "inteiro", dica: "da casa ou do prédio" },
     "x:elevadores": { rotulo: "Elevadores", tipo: "inteiro" },
-    "x:lances de escada": { rotulo: "Lances de escada", tipo: "inteiro" },
-    "x:tipo de cobertura": { rotulo: "Cobertura", tipo: "escolha", opcoes: ["Linear", "Duplex", "Triplex"] },
+    "x:lances de escada": { rotulo: "Lances de escada", tipo: "inteiro", dica: "sem elevador: quantos lances até a unidade" },
+    cobertura: { rotulo: "É cobertura", tipo: "booleano", dica: "só apartamento e sala" },
+    "x:tipo de cobertura": { rotulo: "Tipo da cobertura", tipo: "escolha", opcoes: ["Linear", "Duplex", "Triplex"] },
     sol: { rotulo: "Face solar", lista: true },
-    mobilia: { rotulo: "Mobília", lista: true },
+    // os 4 níveis (Pedro, 11/10): "pelado (sem nada), climatizado (só), com modulados e ar (o antigo semimobiliado), mobiliado"
+    mobilia: { rotulo: "Mobília", tipo: "escolha", opcoes: ["sem nada", "só climatizado", "com modulados e ar", "mobiliado"] },
+    observacao: { rotulo: "Observação do imóvel (vai no card)", largo: true, longo: true,
+      dica: "O que vale a pena o corretor saber: \"falta só TV\", \"vista para o rio\", \"o dono negocia a mobília no aluguel\", \"aceita outro imóvel\". Vai junto com o card." },
     // valores e negócio
     valor_aluguel: { rotulo: "Aluguel", prefixo: "R$", tipo: "dinheiro" }, valor_venda: { rotulo: "Venda", prefixo: "R$", tipo: "dinheiro" },
     taxa_condominio: { rotulo: "Condomínio", prefixo: "R$", tipo: "dinheiro" }, iptu: { rotulo: "IPTU", prefixo: "R$", tipo: "dinheiro" },
@@ -147,18 +154,21 @@
     // vezes... as informações do condomínio já são fixas"). Escolheu o condomínio, vem tudo dele;
     // o que for corrigido aqui o servidor guarda NO condomínio (273). "Andar não precisa": saiu.
     { titulo: "Condomínio e endereço", icone: "⌖", cor: "#2f6fb8", fundo: "#eaf2fb",
-      nota: "Escolha o condomínio: o endereço é o dele, cadastrado uma vez em Imóveis › Adicionar condomínio. Aqui ficam só o complemento e o andar. Sem condomínio (casa de rua), preencha o endereço.",
-      campos: ["condominio", "logradouro", "numero", "complemento", "bairro", "cidade", "estado", "cep", "andar"] },
+      nota: "Escolha o condomínio: o endereço e as características dele vêm do cadastro do condomínio (para mudar, Editar condomínio). Aqui fica só o complemento. Sem condomínio (casa de rua), preencha o endereço.",
+      campos: ["condominio", "logradouro", "numero", "complemento", "bairro", "cidade", "estado", "cep"] },
+    /* 11/10 (Pedro): "o andar sai de condomínio e passa a ficar dentro da unidade no imóvel": apartamento = torre,
+       bloco, apartamento e andar (com elevador) ou lances de escada (sem); sala = setor e número da sala; casa = o
+       número da casa. O que aparece depende do tipo e do elevador do condomínio (aplicarRegrasDoTipo). */
     { titulo: "Unidade", icone: "⌗", cor: "#4338ca", fundo: "#eef0ff", privado: true,
-      nota: "O site e a Nay nunca mostram isso ao cliente.",
-      campos: ["p:torre", "p:bloco", "p:unidade", "p:casa", "p:lote"] },
+      nota: "Torre, bloco, número e lote nunca saem para o cliente. O andar e os lances de escada a Nay responde.",
+      campos: ["p:torre", "p:bloco", "p:unidade", "p:casa", "p:lote", "andar", "x:lances de escada"] },
     { titulo: "Proprietário", icone: "✆", cor: "#0369a1", fundo: "#e0f2fe", privado: true, id: "ed-cartao-dono",
       nota: "A OLX não traz o dono do imóvel: estes dados são o último passo da captação.",
       campos: ["o:nome", "o:telefone", "o:email", "o:documento", "o:tratamento"] },
     { titulo: "Características", icone: "⌂", cor: "#6d28d9", fundo: "#f1eaff",
       campos: ["tipo", "quartos", "suites", "banheiros", "x:salas", "vagas", "vagas_cobertas", "area_util", "area_total",
         "x:tamanho do terreno", "x:frente", "x:fundo", "x:pe direito", "x:andares",
-        "x:elevadores", "x:lances de escada", "x:tipo de cobertura", "sol", "mobilia"] },
+        "cobertura", "x:tipo de cobertura", "sol", "mobilia", "observacao"] },
     { titulo: "O que tem", icone: "✓", cor: "#0e7490", fundo: "#e6f6fa", largo: true,
       campos: ["caracteristicas"] },
     { titulo: "Valores e negócio", icone: "$", cor: "#c4762f", fundo: "#fdf2ea",
@@ -258,6 +268,119 @@
     return String(v);
   }
 
+  /* ---- o que aparece depende do TIPO (Pedro, 11/10/2026) -----------------------
+     "As características hoje estão muito misturadas. Elas precisam estar por tipo de imóvel": apartamento tem área
+     útil e total, cobertura, torre/bloco/apartamento e andar (ou lances de escada, sem elevador); casa tem área
+     construída, tamanho do terreno, pé-direito, andares da casa e o número da casa; sala tem setor e número da sala;
+     lote tem terreno. O que não é do tipo fica escondido (continua guardado, não é apagado). */
+  var FAMILIA = [["vertical", /apartamento|flat|cobertura|studio|kitnet|loft/i], ["sala", /sala|loja|ponto|conjunto|escrit[oó]rio/i],
+                 ["casa", /casa|ch[aá]cara|s[ií]tio|fazenda|sobrado/i], ["terreno", /lote|terreno/i]];
+  var POR_TIPO = {
+    area_total: ["vertical", "sala", "outro"], cobertura: ["vertical", "sala"], "x:tipo de cobertura": ["vertical", "sala"],
+    "x:tamanho do terreno": ["casa", "terreno", "outro"], "x:frente": ["casa", "terreno"], "x:fundo": ["casa", "terreno"],
+    "x:pe direito": ["casa", "outro"], "x:andares": ["casa", "outro"],
+    andar: ["vertical", "sala", "outro"], "x:lances de escada": ["vertical", "sala", "outro"],
+    "p:torre": ["vertical"], "p:bloco": ["vertical", "sala"], "p:unidade": ["vertical", "sala"],
+    "p:casa": ["casa"], "p:lote": ["casa", "terreno"],
+    quartos: ["vertical", "casa", "outro"], suites: ["vertical", "casa", "outro"], "x:salas": ["sala", "outro"],
+    mobilia: ["vertical", "casa", "sala", "outro"]
+  };
+  var ROTULO_POR_TIPO = {
+    area_util: { casa: "Área construída", terreno: "Área construída" },
+    "p:bloco": { sala: "Bloco / setor" }, "p:unidade": { sala: "Número da sala" }
+  };
+  var condoFicha = null;      // a ficha do condomínio escolhido (elevador decide andar x lances)
+
+  function tipoAtual() {
+    var el = form ? form.querySelector('[data-campo="tipo"]') : null;
+    return el ? String(el.value || "") : String(item.tipo || "");
+  }
+  function familiaDoTipo(t) {
+    for (var k = 0; k < FAMILIA.length; k++) if (FAMILIA[k][1].test(t || "")) return FAMILIA[k][0];
+    return "outro";
+  }
+  function rotuloDe(nome) {
+    var f = familiaDoTipo(tipoAtual());
+    var por = ROTULO_POR_TIPO[nome];
+    return (por && por[f]) || (CAMPOS[nome] || { rotulo: nome }).rotulo;
+  }
+  function elevadorDoCondominio() {
+    var e = condoFicha && condoFicha.elevador ? String(condoFicha.elevador) : "";
+    if (/^\s*(sim|possui|tem|\d)/i.test(e)) return true;
+    if (/^\s*n[aã]o/i.test(e)) return false;
+    return null;
+  }
+  function aplicarRegrasDoTipo() {
+    if (!form) return;
+    var f = familiaDoTipo(tipoAtual());
+    var elev = elevadorDoCondominio();
+    var cob = form.querySelector('[data-campo="cobertura"]');
+    Object.keys(POR_TIPO).forEach(function (nome) {
+      var bloco = form.querySelector('[data-envolve="' + nome + '"]');
+      if (!bloco) return;
+      var mostra = POR_TIPO[nome].indexOf(f) >= 0;
+      if (nome === "andar" && mostra && elev === false) mostra = false;               // sem elevador: lances
+      if (nome === "x:lances de escada" && mostra && elev === true) mostra = false;   // com elevador: andar
+      if (nome === "x:tipo de cobertura" && mostra) mostra = !!(cob && cob.checked);
+      bloco.hidden = !mostra;
+    });
+    Object.keys(ROTULO_POR_TIPO).forEach(function (nome) {
+      var bloco = form.querySelector('[data-envolve="' + nome + '"]');
+      var rot = bloco ? bloco.querySelector("label") : null;
+      if (rot) rot.textContent = rotuloDe(nome);
+    });
+    var dicaAndar = form.querySelector('[data-envolve="andar"] .ed__dica');
+    if (dicaAndar) dicaAndar.textContent = elev === true ? "O condomínio tem elevador: o andar da unidade."
+      : elev === false ? "O condomínio não tem elevador: use os lances de escada." : "Com elevador: o andar (a Nay responde por ele).";
+  }
+
+  /* ---- o condomínio, só para ler (Pedro, 11/10: "quando eu abrir um imóvel ele já vai abrir as informações do
+     condomínio, não para editar, só para mostrar; para editar tem um botão Editar Condomínio") ---- */
+  var pedidoDaFicha = 0;
+  function mostrarFichaDoCondominio() {
+    var caixa = $("ed-condo-ficha");
+    if (!caixa) return;
+    var escolhido = seletorCondo && seletorCondo.valores()[0];
+    if (!escolhido || !escolhido.id) { condoFicha = null; caixa.hidden = true; caixa.innerHTML = ""; aplicarRegrasDoTipo(); return; }
+    var meu = ++pedidoDaFicha;
+    fetch(window.API_BASE + "/api/condominios/" + encodeURIComponent(escolhido.id) + "/ficha")
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (f) {
+        if (meu !== pedidoDaFicha) return;
+        condoFicha = f || {};
+        caixa.hidden = false;
+        caixa.innerHTML = fichaHtml(escolhido, f);
+        aplicarRegrasDoTipo();
+      })
+      .catch(function () { if (meu === pedidoDaFicha) { condoFicha = null; aplicarRegrasDoTipo(); } });
+  }
+  function chips(lista) {
+    return (lista || []).length ? '<div class="ed__cf-chips">' + lista.map(function (x) { return '<span class="ed__cf-chip">' + esc(x) + "</span>"; }).join("") + "</div>" : "";
+  }
+  function fichaHtml(escolhido, f) {
+    var editar = '<a class="ed__cf-editar" href="imoveis.html?condominio=' + encodeURIComponent(escolhido.id) + '" target="_blank" rel="noopener">Editar condomínio</a>';
+    if (!f || !f.id) {
+      return '<div class="ed__cf"><div class="ed__cf-topo"><b>Do condomínio</b>' + editar + "</div>" +
+        '<p class="ed__dica">Este condomínio ainda não tem ficha (torres, elevador, lazer…). Cadastre uma vez em Editar condomínio: vale para todos os imóveis dele.</p></div>';
+    }
+    var estrutura = [f.tipo === "casas_lotes" ? "casas / lotes" : "prédio", f.torres, f.andares, f.aptos_por_andar ? f.aptos_por_andar + " por andar" : "",
+      f.elevador, f.unidades].filter(Boolean).join(" · ");
+    var quem = [f.construtora ? "construtora " + f.construtora : "", f.ano ? "ano " + f.ano : "", f.revestimento ? "revestimento " + f.revestimento : ""].filter(Boolean).join(" · ");
+    var taxas = (f.taxas || []).map(function (t) {
+      return (t.quartos ? t.quartos + " quartos" : t.metragem ? t.metragem + " m²" : "—") + ": condomínio R$ " + (t.condominio || "—") + (t.iptu ? " · IPTU R$ " + t.iptu : "");
+    }).join("; ");
+    return '<div class="ed__cf"><div class="ed__cf-topo"><b>Do condomínio</b><span class="ed__cf-fonte">' + esc(f.nome) + (f.fonte ? " · " + esc(f.fonte) : "") + "</span>" + editar + "</div>" +
+      (estrutura ? '<p class="ed__cf-linha">' + esc(estrutura) + "</p>" : "") +
+      (quem ? '<p class="ed__cf-linha">' + esc(quem) + "</p>" : "") +
+      ((f.lazer || []).length ? '<p class="ed__cf-rot">Lazer</p>' + chips(f.lazer) : "") +
+      ((f.seguranca || []).length ? '<p class="ed__cf-rot">Segurança</p>' + chips(f.seguranca) : "") +
+      ((f.comodidades || []).length ? '<p class="ed__cf-rot">Comodidades e serviços</p>' + chips(f.comodidades) : "") +
+      (taxas ? '<p class="ed__cf-linha"><b>Taxas:</b> ' + esc(taxas) + "</p>" : "") +
+      (f.observacao ? '<p class="ed__cf-linha"><b>Obs.:</b> ' + esc(f.observacao) + "</p>" : "") +
+      (!estrutura && !quem && !(f.lazer || []).length ? '<p class="ed__dica">A ficha deste condomínio está vazia: complete em Editar condomínio.</p>' : "") +
+      "</div>";
+  }
+
   /* ---- montar -------------------------------------------------------------- */
   function datalist(nome) {
     var vs = VALORES[nome] || [];
@@ -293,14 +416,14 @@
 
   function chipHtml(x) {
     return '<span class="ed__chip" data-item="' + esc(x) + '"><span>' + esc(x) + "</span>" +
-      '<button type="button" class="ed__chip-botao" data-mover title="Passar para o outro grupo" aria-label="Passar ' + esc(x) + ' para o outro grupo">⇄</button>' +
       '<button type="button" class="ed__chip-botao" data-tirar title="Tirar" aria-label="Tirar ' + esc(x) + '">×</button></span>';
   }
 
   function gruposHtml(v) {
+    // 11/10 (Pedro): "as características de condomínio ficam na aba condomínio e não misturadas com a do imóvel".
+    // Aqui só as do imóvel; as do condomínio aparecem, só para ler, no bloco "Do condomínio" (mostrarFichaDoCondominio).
     var todos = Array.isArray(v) ? v.slice() : [];
-    var condominio = doCondominio(todos);
-    var imovel = todos.filter(function (x) { return condominio.indexOf(x) < 0; });
+    var imovel = todos;
     function secao(qual, titulo, itens) {
       return '<section class="ed__grupo" data-grupo="' + qual + '">' +
         '<h3 class="ed__grupo-titulo">' + titulo + "</h3>" +
@@ -312,12 +435,10 @@
     return '<div class="ed__campo ed__campo--largo" data-envolve="caracteristicas">' +
       '<div class="ed__grupos" data-campo="caracteristicas" data-grupos="true">' +
         secao("imovel", "Características do imóvel", imovel) +
-        secao("condominio", "Características do condomínio", condominio) +
       "</div>" +
-      '<input type="hidden" data-campo="x:caracteristicas do condominio" value="' + esc(condominio.join(", ")) + '">' +
       datalist("caracteristicas") +
-      '<span class="ed__dica">A Nay procura nas duas listas ("tem piscina?"). ⇄ passa o item para o outro grupo. ' +
-        "As do condomínio vêm sozinhas quando ele é escolhido, e o que você acrescentar nelas fica guardado no condomínio.</span>" +
+      '<span class="ed__dica">Só o que é do imóvel (varanda, closet, armários, piscina da casa…). Piscina do prédio, portaria, ' +
+        'salão de festas e elevador são do condomínio: ficam no cadastro do condomínio e valem para todos os imóveis dele.</span>' +
       "</div>";
   }
 
@@ -326,11 +447,7 @@
       function (c) { return c.getAttribute("data-item"); });
   }
 
-  // o campo escondido do condomínio acompanha os chips
-  function sincronizarGrupos(caixa) {
-    var escondido = form.querySelector('[data-campo="x:caracteristicas do condominio"]');
-    if (escondido) escondido.value = itensDoGrupo(caixa, "condominio").join(", ");
-  }
+  function sincronizarGrupos(caixa) { /* 11/10: um grupo só; ficou pelo nome, para quem chama */ }
 
   function acrescentarNoGrupo(entrada) {
     var qual = entrada.getAttribute("data-acrescentar-grupo");
@@ -357,7 +474,7 @@
     var classes = "ed__campo" + (c.largo ? " ed__campo--largo" : "");
     var dica = c.dica ? '<span class="ed__dica">' + esc(c.dica) + "</span>" : "";
     var envolve = ' data-envolve="' + esc(nome) + '"';
-    var rotulo = '<label for="' + id + '">' + esc(c.rotulo) + "</label>";
+    var rotulo = '<label for="' + id + '">' + esc(rotuloDe(nome)) + "</label>";
 
     if (tipo === "grupos") return gruposHtml(v);
     if (nome === "condominio") {
@@ -365,6 +482,7 @@
         '<input class="entrada" type="text" id="ed-condominio" placeholder="Digite o nome e escolha na lista">' +
         '<span class="ed__dica" id="ed-condo-dica"></span>' +
         '<div class="ed__dica" id="ed-condo-endereco" style="margin-top:6px;font-size:13px" hidden></div>' +
+        '<div class="ed__condo-ficha" id="ed-condo-ficha" hidden></div>' +
         '<div class="ed__no-condo" id="ed-no-condo" hidden></div></div>';
     }
     if (tipo === "booleano") {
@@ -819,31 +937,8 @@
            pela OLX ele já preencha os outros campos"): o lazer da ficha vira chips
            em "Características do condomínio" (sem repetir o que já está), e andares
            e elevadores entram só se estiverem vazios. */
+        // 11/10: as características do condomínio não viram chips do imóvel; ficam no bloco "Do condomínio"
         var daFicha = [];
-        if (e.ficha) {
-          var caixa = form.querySelector("[data-grupos]");
-          var lazer = Array.isArray(e.ficha.lazer) ? e.ficha.lazer : [];
-          if (caixa && lazer.length) {
-            var destino = caixa.querySelector('[data-grupo="condominio"] .ed__chips');
-            var ja = Array.prototype.map.call(caixa.querySelectorAll(".ed__chip"), function (c) {
-              return c.getAttribute("data-item").toLowerCase();
-            });
-            var n = 0;
-            lazer.forEach(function (x) {
-              x = String(x || "").trim();
-              if (!x || ja.indexOf(x.toLowerCase()) >= 0) return;
-              destino.insertAdjacentHTML("beforeend", chipHtml(x)); ja.push(x.toLowerCase()); n++;
-            });
-            if (n) { sincronizarGrupos(caixa); daFicha.push(n + " característica" + (n > 1 ? "s" : "") + " do condomínio"); }
-          }
-          [["andares", e.ficha.andares, "os andares"], ["elevadores", e.ficha.elevadores, "os elevadores"]].forEach(function (par) {
-            var campo = form.querySelector('[data-campo="x:' + par[0] + '"]');
-            if (!campo || par[1] == null || String(campo.value || "").trim()) return;
-            campo.value = par[1];
-            campo.dispatchEvent(new Event("input", { bubbles: true }));
-            daFicha.push(par[2]);
-          });
-        }
         atualizarBotao();
         var dica = $("ed-condo-dica");
         if (!dica) return;
@@ -910,6 +1005,7 @@
 
     desenharEstado();
     desenharCartoes();
+    aplicarRegrasDoTipo();
     carregando.hidden = true;
     form.hidden = false;
 
@@ -917,9 +1013,9 @@
     if (campoCondo && window.criarSeletorCondominio) {
       seletorCondo = window.criarSeletorCondominio(campoCondo, {
         multiplo: false,
-        aoMudar: function () { atualizarBotao(); preencherDoCondominio(); mostrarDoCondominio(); }
+        aoMudar: function () { atualizarBotao(); preencherDoCondominio(); mostrarDoCondominio(); mostrarFichaDoCondominio(); }
       });
-      if (condoInicial) { seletorCondo.definir([condoInicial]); conferirEnderecoDoCondominio(); }
+      if (condoInicial) { seletorCondo.definir([condoInicial]); conferirEnderecoDoCondominio(); mostrarFichaDoCondominio(); }
       if (!novo && item.condominio_nome && !item.condo_id) {
         $("ed-condo-dica").textContent = "Hoje está escrito \"" + item.condominio_nome + "\", sem ligação com o cadastro de condomínios — escolha na lista para ligar.";
       }
@@ -964,6 +1060,7 @@
     try { el.setSelectionRange(i, i); } catch (_) { /* campo sem seleção */ }
   }, true);
   form.addEventListener("input", atualizarBotao);
+  form.addEventListener("input", function (e) { if (e.target && e.target.dataset && e.target.dataset.campo === "tipo") aplicarRegrasDoTipo(); });
 
   // o que tem: tirar, passar para o outro grupo, acrescentar (Enter não envia o formulário)
   form.addEventListener("click", function (e) {
@@ -974,12 +1071,7 @@
     var chip = botao.closest(".ed__chip");
     var caixa = botao.closest("[data-grupos]");
     if (!chip || !caixa) return;
-    if (botao.hasAttribute("data-tirar")) {
-      chip.remove();
-    } else {
-      var outro = chip.closest("[data-grupo]").getAttribute("data-grupo") === "imovel" ? "condominio" : "imovel";
-      caixa.querySelector('[data-grupo="' + outro + '"] .ed__chips').appendChild(chip);
-    }
+    if (botao.hasAttribute("data-tirar")) chip.remove();
     sincronizarGrupos(caixa);
     atualizarBotao();
   });
@@ -992,6 +1084,7 @@
 
   form.addEventListener("change", function (e) {
     var alvo = e.target;
+    if (alvo.dataset && (alvo.dataset.campo === "tipo" || alvo.dataset.campo === "cobertura")) aplicarRegrasDoTipo();
     if (alvo.hasAttribute && alvo.hasAttribute("data-acrescentar-grupo")) {  // escolheu da lista
       acrescentarNoGrupo(alvo);
       return;

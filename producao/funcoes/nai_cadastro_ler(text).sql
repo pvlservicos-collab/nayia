@@ -37,9 +37,10 @@ BEGIN
   END IF;
 
   -- MOBILIA: a ordem importa, "semi" antes de "mobiliado"
-  IF    s ~ '\msemi\s*-?\s*mobili'                      THEN r := r || '{"mobilia":"semi-mobiliado"}';
-  ELSIF s ~ '\m(sem mobili|vazio|desmobili|nao mobili)' THEN r := r || '{"mobilia":"sem mobília"}';
+  IF    s ~ '\m(semi\s*-?\s*mobili|modulad)'            THEN r := r || '{"mobilia":"com modulados e ar"}';
+  ELSIF s ~ '\m(sem mobili|vazio|desmobili|nao mobili)' THEN r := r || '{"mobilia":"sem nada"}';
   ELSIF s ~ '\mmobiliad'                                THEN r := r || '{"mobilia":"mobiliado"}';
+  ELSIF s ~ '\m(so|somente) (climatizad|ar)'            THEN r := r || '{"mobilia":"só climatizado"}';
   END IF;
 
   -- PRECO e FINALIDADE, das funcoes que ja existem e ja foram medidas

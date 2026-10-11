@@ -74,10 +74,10 @@ BEGIN
             (CASE WHEN v_locacao THEN i.valor_aluguel ELSE i.valor_venda END) <= v_teto)
        AND (v_quartos IS NULL OR v_quartos = 0 OR i.quartos = v_quartos)
        AND (NOT v_quer_sem OR (
-             coalesce(i.mobilia,'') !~* 'mobiliad'
+             coalesce(nay_mobilia_nivel(i.mobilia), '') NOT IN ('semi', 'mobiliado')
              AND coalesce(i.descricao,'') !~* '\mmobiliad'))
        AND (NOT v_quer_com OR (
-             coalesce(i.mobilia,'') ~* '(mobiliad|modulad|planejad|ar-condicionado)'
+             nay_mobilia_nivel(i.mobilia) IN ('semi', 'mobiliado', 'climatizado')
              OR coalesce(i.descricao,'') ~* '(mobiliad|modulad|planejad)'))
   )
   -- CONTA TUDO e LISTA 8. Antes o count vinha de dentro do LIMIT, então

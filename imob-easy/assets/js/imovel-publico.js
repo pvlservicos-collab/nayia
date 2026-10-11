@@ -36,7 +36,9 @@
   };
   var ICONE = [[/ar.?condicionado|split|climatiz/, "snowflake"], [/piscina/, "waves"], [/academia|fitness/, "dumbbell"], [/churrasq|gourmet/, "flame"], [/varanda|sacada/, "sunset"], [/elevador/, "arrow-up-down"], [/portaria|porteiro/, "concierge-bell"], [/seguran|vigil/, "shield-check"], [/c[aâ]mera|cftv/, "cctv"], [/playground|brinquedo/, "baby"], [/\bpet\b/, "paw-print"], [/festa/, "party-popper"], [/quadra/, "trophy"], [/sauna/, "thermometer"], [/garagem/, "car"], [/mobiliad/, "sofa"], [/arm[aá]rio|closet/, "door-closed"], [/cozinha/, "cooking-pot"], [/lavanderia|[aá]rea de servi/, "washing-machine"], [/banheira|hidro/, "bath"], [/solar/, "sun"], [/gerador/, "zap"], [/internet|wi.?fi/, "wifi"], [/jardim|quintal|verde/, "trees"], [/fechado/, "lock"], [/vista/, "mountain"]];
   var ico = function (v) { var s = v.toLowerCase(); var m = ICONE.find(function (p) { return p[0].test(s); }); return m ? m[1] : "check"; };
-  var MOBILIA = { mobiliado: "Mobiliado", semi: "Semimobiliado", "semi-mobiliado": "Semimobiliado", nao: "Sem mobília" };
+  // os 4 níveis (344): o que o cadastro grava e as redações antigas
+  var MOBILIA = { mobiliado: "Mobiliado", semi: "Com modulados e ar", "semi-mobiliado": "Com modulados e ar", nao: "Sem mobília",
+                  "com modulados e ar": "Com modulados e ar", "só climatizado": "Só climatizado", "sem nada": "Sem mobília" };
 
   var I = null, L = null, C = null, V = null, FOTOS = [], cur = 0;
 

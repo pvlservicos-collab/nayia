@@ -1,4 +1,4 @@
-# captacao_nao_disparar  (tabela, ~0 linhas)
+# captacao_nao_disparar  (tabela, ~343 linhas)
 317: telefones (chave) que o disparo do modelo pula, com o motivo. Ex.: já conversa com a gente em outra linha.
 
 ## colunas
