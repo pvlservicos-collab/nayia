@@ -32,6 +32,8 @@ ano_construcao  text
 observacao  text
 complemento  text
 site_antigo_id  integer
+ia_sugestao  jsonb   -- 348: o que a IA sugeriu (construtora, ano, torres, andares, lazer...), para conferir e aplicar no cadastro; não é lido pela Nay.
+ia_em  timestamp with time zone
 
 ## índices
 CREATE UNIQUE INDEX condominio_ficha_condominio_id_key ON public.condominio_ficha USING btree (condominio_id)

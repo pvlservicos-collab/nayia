@@ -77,7 +77,9 @@
     ".cc__mais{margin-top:6px;max-width:360px}" +
     ".cc__taxas{width:100%;border-collapse:collapse;font-size:13px}.cc__taxas th{text-align:left;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--texto-fraco,#6b7280);padding:4px 6px}" +
     ".cc__taxas td{padding:3px 6px}.cc__taxas input{padding:6px 8px}.cc__taxas button{font:inherit;border:0;background:none;color:#b91c1c;cursor:pointer}" +
-    ".cc textarea{width:100%;box-sizing:border-box;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--borda,#d9dce3);border-radius:8px;min-height:72px}";
+    ".cc textarea{width:100%;box-sizing:border-box;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--borda,#d9dce3);border-radius:8px;min-height:72px}" +
+    ".cc__ia{margin:12px 0;padding:10px 12px;border:1px solid #f0c36d;background:#fff8e6;border-radius:10px;font-size:13px}" +
+    ".cc__ia b{display:block;margin-bottom:4px}.cc__ia ul{margin:4px 0 8px 18px;padding:0}.cc__ia .cc__botao{padding:6px 12px;font-size:13px}";
   document.head.appendChild(css);
 
   /* campo, rótulo, largura na grade (de 12), dica */
@@ -133,6 +135,7 @@
           '<div class="cc__campo cc__campo--4"><label for="cc-tipo">Tipo</label><select id="cc-tipo" data-cc="tipo">' +
             '<option value="apartamentos">Prédio de apartamentos</option><option value="casas_lotes">Casas ou lotes</option></select></div>' +
         "</div>" +
+        '<div class="cc__ia" id="cc-ia" hidden></div>' +
         '<p class="cc__secao">Endereço (fixo: os imóveis deste condomínio usam este)</p>' +
         '<div class="cc__grade">' + ENDERECO.map(campo).join("") + "</div>" +
         '<p class="cc__secao">O condomínio</p>' +
@@ -188,6 +191,41 @@
     });
     pintarChips(g);
   }
+  /* 348: o que a IA sugeriu fica numa caixa amarela; "Usar o que está vazio" preenche só os campos vazios e as
+     caixinhas não marcadas -- e nada é gravado até o Salvar. */
+  var sugestao = null;
+  function mostrarSugestao(s) {
+    sugestao = s || null;
+    var caixa = $("cc-ia");
+    if (!caixa) return;
+    if (!s) { caixa.hidden = true; caixa.innerHTML = ""; return; }
+    var itens = [["Construtora", s.construtora], ["Ano de construção", s.ano_construcao], ["Torres", s.torres], ["Andares", s.andares],
+      ["Apartamentos por andar", s.aptos_por_andar], ["Elevador", s.elevador === true ? "sim" : s.elevador === false ? "não" : null],
+      ["Rua / avenida", s.logradouro], ["Lazer", (s.lazer || []).join(", ")], ["Segurança", (s.seguranca || []).join(", ")],
+      ["Comodidades", (s.comodidades || []).join(", ")], ["Observação", s.observacao]].filter(function (p) { return p[1] != null && p[1] !== ""; });
+    caixa.hidden = false;
+    caixa.innerHTML = "<b>Sugestão da IA (confiança " + esc(s.confianca || "?") + ") — confira antes de usar</b>" +
+      "<ul>" + itens.map(function (p) { return "<li>" + esc(p[0]) + ": " + esc(String(p[1])) + "</li>"; }).join("") + "</ul>" +
+      '<button type="button" class="cc__botao" id="cc-ia-usar">Usar o que está vazio</button>';
+  }
+  function usarSugestao() {
+    var s = sugestao;
+    if (!s) return;
+    [["construtora", s.construtora], ["ano_construcao", s.ano_construcao], ["torres", s.torres], ["andares", s.andares],
+     ["aptos_por_andar", s.aptos_por_andar], ["logradouro", s.logradouro],
+     ["elevador", s.elevador === true ? "Sim, possui elevador" : s.elevador === false ? "Não possui elevador" : null],
+     ["observacao", s.observacao]].forEach(function (p) {
+      var el = $("cc-" + p[0]);
+      if (el && p[1] != null && p[1] !== "" && !String(el.value || "").trim()) el.value = String(p[1]);
+    });
+    GRUPOS.forEach(function (g) { (s[g[0]] || []).forEach(function (x) {
+      if (!marcados(g[0]).some(function (y) { return semAcento(y) === semAcento(x); })) {
+        var c = Array.prototype.filter.call(painel.querySelectorAll('[data-grupo="' + g[0] + '"] input'), function (i) { return semAcento(i.value) === semAcento(x); })[0];
+        if (c) c.checked = true; else acrescentar(g[0], x);
+      }
+    }); });
+    dizer("Sugestão aplicada nos campos vazios. Confira e clique em Salvar.", "ok");
+  }
   function linhaTaxa(t) {
     t = t || {};
     var quem = t.quartos != null ? String(t.quartos) : (t.metragem || "");
@@ -212,6 +250,7 @@
       el.value = v == null ? (el.tagName === "SELECT" ? "apartamentos" : "") : String(v);
     });
     GRUPOS.forEach(function (g) { marcar(g[0], c ? c[g[0]] : []); });
+    mostrarSugestao(c && c.ia_sugestao);
     $("cc-taxas").innerHTML = (c && Array.isArray(c.taxas) ? c.taxas : []).map(linhaTaxa).join("");
     painel.querySelectorAll("[data-mais]").forEach(function (i) { i.value = ""; });
     $("cc-titulo").textContent = c ? c.nome : "Novo condomínio";
@@ -296,6 +335,7 @@
     var t = e.target.closest("[data-taxa-tirar]");
     if (t) { t.closest("tr").remove(); return; }
     if (e.target.id === "cc-taxa-mais") $("cc-taxas").insertAdjacentHTML("beforeend", linhaTaxa());
+    if (e.target.id === "cc-ia-usar") usarSugestao();
   });
   painel.addEventListener("keydown", function (e) {
     var m = e.target.closest ? e.target.closest("[data-mais]") : null;

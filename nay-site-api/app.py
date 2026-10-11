@@ -1051,7 +1051,7 @@ def api_condominios_cadastro():
             SELECT c.id, c.nome, c.bairro, f.tipo, f.logradouro, f.numero, f.cidade, f.estado, f.cep, f.endereco,
                    f.torres, f.andares, f.aptos_por_andar, f.elevador, f.unidades, f.construtora, f.revestimento,
                    f.ano_lancamento, f.lazer, f.fonte, f.atualizado_em,
-                   f.seguranca, f.comodidades, f.taxas, f.ano_construcao, f.complemento, f.observacao,
+                   f.seguranca, f.comodidades, f.taxas, f.ano_construcao, f.complemento, f.observacao, f.ia_sugestao,
                    coalesce(pi.q, 0) + coalesce(pn.q, 0) AS imoveis
               FROM condominios c LEFT JOIN condominio_ficha f ON f.condominio_id = c.id
               LEFT JOIN por_id pi ON pi.condo_id = c.id
@@ -1066,6 +1066,7 @@ def api_condominios_cadastro():
             "lazer": list(l["lazer"] or []), "fonte": l["fonte"], "imoveis": l["imoveis"],
             "seguranca": list(l["seguranca"] or []), "comodidades": list(l["comodidades"] or []), "taxas": l["taxas"] or [],
             "ano_construcao": l["ano_construcao"], "complemento": l["complemento"], "observacao": l["observacao"],
+            "ia_sugestao": l["ia_sugestao"],      # 348: só sugestão, para conferir no cadastro
             "atualizado": l["atualizado_em"].isoformat() if l["atualizado_em"] else None,
         } for l in linhas], "total": len(linhas)})
     finally:
