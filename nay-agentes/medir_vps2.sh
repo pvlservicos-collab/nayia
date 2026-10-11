@@ -52,7 +52,7 @@ printf ']}\n'
 } > "$TMP"
 if python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$TMP"; then
   # a chave da VPS2 na VPS1 só pode fazer UMA coisa: escrever este arquivo (command= no authorized_keys)
-  mv "$TMP" "$LOCAL" && ssh -o BatchMode=yes -o ConnectTimeout=15 nay-srv1894338 < "$LOCAL"
+  mv "$TMP" "$LOCAL" && chmod 644 "$LOCAL" && ssh -o BatchMode=yes -o ConnectTimeout=15 nay-srv1894338 < "$LOCAL"
 else
   echo "JSON inválido"; rm -f "$TMP"
 fi

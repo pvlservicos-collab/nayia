@@ -94,7 +94,7 @@ rotina vigia /var/log/vigia_whatsapp.log
 printf ']}\n'
 } > "$TMP"
 if python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$TMP"; then
-  mv "$TMP" "$SAIDA"
+  mv "$TMP" "$SAIDA" && chmod 644 "$SAIDA"      # o mktemp cria 0600 e o nginx não lia (403)
 else
   echo "JSON inválido, mantido o anterior"; rm -f "$TMP"
 fi
