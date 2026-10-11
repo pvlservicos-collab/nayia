@@ -182,7 +182,7 @@
     var vazio = { medido_em: Math.floor(Date.now() / 1000), vps: {}, hoje: {}, itens: [] };
     document.getElementById("ag-vps").innerHTML = linhaVps(d1 || { medido_em: 0, vps: { nome: "VPS1 (srv1894338)" } });
     grade.innerHTML = AGENTES.filter(function (a) { return !a.vps; }).map(function (a) { return cartao(a, d1 || vazio); }).join("") + cartaoRotinas(d1 || vazio);
-    document.getElementById("ag-vps2").innerHTML = linhaVps(d2 || { medido_em: 0, vps: { nome: "VPS2 (srv1877774) · sem medição ainda" } });
+    document.getElementById("ag-vps2").innerHTML = linhaVps(d2 || { medido_em: 0, vps: { nome: "VPS2 (srv1877774)" } });
     document.getElementById("ag-grade2").innerHTML =
       AGENTES.filter(function (a) { return a.vps === 2; }).map(function (a) { return cartao(a, d2 || vazio); }).join("") + cartaoRotinas(d2 || vazio, ROTINAS2);
   }
