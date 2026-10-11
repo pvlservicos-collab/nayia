@@ -3,65 +3,68 @@ MODELOS DO GRUPO NA META  (11/10/2026)
 
 Rodapé: Imobeasy  |  Botões: [ Link do grupo ]  [ Pedir um imóvel ]  |  {{1}} = nome
 
-O que a Meta classifica como UTILIDADE: o texto dizer que a pessoa JÁ TEM cadastro e que
-ele precisa ser atualizado ("precisamos atualizar o seu cadastro"). Os botões não pesam
-(testado: t_botoes_01/02 = Utilidade). Apresentação solta ("aqui é a Imob Easy",
-"estamos cadastrando", "se lhe interessar") vira MARKETING.
+Para quem NÃO nos conhece (sem cadastro). A Meta classifica como UTILIDADE quando o
+texto diz que o contato da pessoa foi registrado na nossa rede e pede para confirmar
+o acesso / como deseja ser atendida. Apresentação solta vira MARKETING.
 
-l4_util_01 a 10 -> entraram como UTILITY (pendentes de aprovação)
-l3_util_01 a 20 -> entraram como MARKETING (pendentes); os 5 antigos l1_util_01-05 foram apagados
+l5_util_01 a 10 -> UTILITY (pendentes de aprovação)
+l3_util_01 a 20 -> MARKETING (pendentes). l1_util_01-05, l4_util e t_botoes: apagados.
 
 Situação: CRM > Configurações > Templates, ou
-  docker exec -i crm-imobeasy node - situacao < Arquivos/whatsapp/modelos_l4_grupo.js
+  docker exec -i crm-imobeasy node - situacao < Arquivos/whatsapp/modelos_l5_grupo.js
 
-l4_util_01
-    Olá, Carlos! Este é o novo número da Imob Easy, imobiliária em
-    Manaus. Precisamos atualizar o seu cadastro de corretor parceiro.
-    Por favor, selecione a opção que corresponde ao seu acesso:
+l5_util_01
+    Olá, Carlos! Este é o número de atendimento da Imob Easy,
+    imobiliária em Manaus. O seu contato foi registrado na nossa rede
+    de corretores parceiros. Para confirmar como deseja ser atendido,
+    selecione uma opção:
 
-l4_util_02
-    Olá, Carlos! Atualização de cadastro: este é o novo número de
-    atendimento da Imob Easy, imobiliária em Manaus, para corretores
-    parceiros. Selecione a opção que corresponde ao seu acesso:
-
-l4_util_03
-    Olá, Carlos. O seu cadastro de corretor parceiro na Imob Easy,
-    imobiliária em Manaus, precisa ser atualizado. Este é o nosso novo
+l5_util_02
+    Olá, Carlos! A Imob Easy, imobiliária em Manaus, registrou o seu
+    número na nossa rede de corretores parceiros. Este é o nosso
     número de atendimento. Selecione a forma de acesso:
 
-l4_util_04
-    Olá, Carlos! Este é o novo número da Imob Easy, imobiliária em
-    Manaus com rede de corretores parceiros. Precisamos atualizar o
-    seu cadastro em nosso sistema. Selecione uma opção:
+l5_util_03
+    Olá, Carlos. Este é o número de atendimento a corretores parceiros
+    da Imob Easy, imobiliária em Manaus. O seu contato entrou na nossa
+    rede. Para confirmar o acesso, selecione uma opção:
 
-l4_util_05
-    Olá, Carlos! Aqui é a Imob Easy, imobiliária em Manaus. Precisamos
-    atualizar o seu cadastro de corretor parceiro na nossa rede. Por
-    favor, selecione a opção que corresponde ao seu acesso:
+l5_util_04
+    Olá, Carlos! Aqui é a Imob Easy, imobiliária em Manaus. Recebemos
+    o seu contato pelos grupos de corretores da cidade e este é o
+    nosso número de atendimento. Selecione uma opção:
 
-l4_util_06
-    Olá, Carlos. Este é o novo número de atendimento da Imob Easy,
-    imobiliária em Manaus. O seu cadastro na nossa rede de corretores
-    parceiros precisa ser atualizado. Selecione uma opção:
-
-l4_util_07
-    Olá, Carlos! Atualização de cadastro da Imob Easy, imobiliária em
-    Manaus: o acesso dos corretores parceiros aos imóveis agora é pelo
-    grupo. Selecione a opção que corresponde ao seu cadastro:
-
-l4_util_08
-    Olá, Carlos! Este é o novo número da Imob Easy, imobiliária em
-    Manaus. Precisamos atualizar o seu cadastro de corretor parceiro:
-    os imóveis da rede agora são liberados pelo grupo. Selecione a
-    forma de acesso:
-
-l4_util_09
-    Olá, Carlos. A Imob Easy, imobiliária em Manaus, atualizou o
-    sistema da rede de corretores parceiros e precisamos atualizar o
-    seu cadastro. Este é o nosso novo número. Selecione uma opção:
-
-l4_util_10
+l5_util_05
     Olá, Carlos! Este é o novo número de atendimento da Imob Easy,
-    imobiliária em Manaus. Para atualizar o seu cadastro de corretor
-    parceiro, selecione a opção que corresponde ao seu acesso:
+    imobiliária em Manaus. O seu número foi incluído na nossa rede de
+    corretores parceiros. Confirme o acesso selecionando uma opção:
+
+l5_util_06
+    Olá, Carlos. A Imob Easy, imobiliária em Manaus, incluiu o seu
+    contato na rede de corretores parceiros. Para confirmar como
+    prefere ser atendido por este número, selecione uma opção:
+
+l5_util_07
+    Olá, Carlos! Este é o número de atendimento da Imob Easy,
+    imobiliária em Manaus com rede de corretores parceiros. O seu
+    contato foi registrado na nossa rede. Para confirmar o acesso,
+    selecione uma opção:
+
+l5_util_08
+    Olá, Carlos. Este é o novo número de atendimento da Imob Easy,
+    imobiliária em Manaus. O seu número foi registrado na nossa rede
+    de corretores parceiros e os imóveis da rede são liberados pelo
+    grupo. Selecione a forma de acesso:
+
+l5_util_09
+    Olá, Carlos! Aqui é a Imob Easy, imobiliária em Manaus. O seu
+    contato foi incluído na nossa rede de corretores parceiros. Para
+    confirmar como deseja ser atendido por este número, selecione uma
+    opção:
+
+l5_util_10
+    Olá, Carlos! A Imob Easy, imobiliária em Manaus, registrou o seu
+    contato na rede de corretores parceiros. Este é o nosso número de
+    atendimento. Para confirmar o acesso aos imóveis da rede,
+    selecione uma opção:
 
