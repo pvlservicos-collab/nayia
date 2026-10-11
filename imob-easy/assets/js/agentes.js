@@ -94,16 +94,17 @@
 
   var ROTINAS = [
     ["catalogo", "Catálogo do site antigo", "todo dia 05:17", 26],
-    ["ficha", "Ficha dos anúncios", "a cada 3 h", 4],
+    ["ficha", "Ficha dos anúncios", "a cada 3 h (o log só registra erro)", 24 * 7],
     ["backup", "Backup do banco", "todo dia 03:05", 26],
     ["backup_fora", "Backup para fora", "todo dia 03:35", 26],
     ["geocodificar", "Imóvel novo no mapa", "de hora em hora", 2],
-    ["etapas_crm", "Conferência do CRM", "a cada minuto", 0.2],
-    ["visitas", "Detectar visitas", "a cada minuto", 0.2],
-    ["pendencias", "Ciclo de pendências", "a cada minuto", 0.2],
-    ["grade", "Grade do publicador", "a cada minuto", 0.2],
-    ["avisar_saidas", "Avisos de saída", "a cada minuto", 0.2],
-    ["vigia", "Vigia do WhatsApp", "a cada minuto", 0.2]
+    // as de cada minuto só escrevem no log quando fazem alguma coisa: "há quanto" é a última ação, não a última rodada
+    ["etapas_crm", "Conferência do CRM", "a cada minuto", 24],
+    ["visitas", "Detectar visitas", "a cada minuto", 48],
+    ["pendencias", "Ciclo de pendências", "a cada minuto", 24],
+    ["grade", "Grade do publicador", "a cada minuto", 3],
+    ["avisar_saidas", "Avisos de saída", "a cada minuto", 96],
+    ["vigia", "Vigia do WhatsApp", "a cada minuto", 24 * 7]
   ];
 
   function esc(t) { return String(t == null ? "" : t).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
@@ -120,7 +121,14 @@
 
   function cartao(a, d) {
     var itens = a.itens.map(function (id) { return d.itens.find(function (i) { return i.id === id; }); }).filter(Boolean);
-    var ativo = itens.length > 0 && itens.every(function (i) { return i.ativo; });
+    if (!itens.length) {        // a medição desta VPS ainda não chegou: o quadrado fica, sem números
+      return '<article class="ag-card" style="--ag:' + a.cor[0] + ";--ag2:" + a.cor[1] + '">' +
+        '<div class="ag-topo"><div class="ag-icone">' + SVG[a.icone] + "</div>" +
+        '<div><div class="ag-nome">' + esc(a.nome) + '</div><span class="ag-onde">' + esc(a.onde) + "</span></div>" +
+        '<span class="ag-estado" style="background:#efedf3;color:#5d566a">sem medição</span></div>' +
+        '<p class="ag-faz">' + esc(a.faz) + "</p></article>";
+    }
+    var ativo = itens.every(function (i) { return i.ativo; });
     var cpu = 0, mem = 0, desde = Infinity, reinicios = 0;
     itens.forEach(function (i) { cpu += i.cpu_s || 0; mem += i.mem || 0; desde = Math.min(desde, i.desde || Infinity); reinicios += i.reinicios || 0; });
     var noAr = desde === Infinity ? 0 : Math.max(60, d.medido_em - desde);
@@ -163,8 +171,8 @@
 
   function linhaVps(d) {
     var v = d.vps || {};
-    return
-      "<span><strong>" + esc(v.nome || "VPS") + "</strong></span>" +
+    if (!d.medido_em) return "<span><strong>" + esc(v.nome || "VPS") + "</strong></span><span>sem medição ainda</span>";
+    return "<span><strong>" + esc(v.nome || "VPS") + "</strong></span>" +
       "<span>" + (v.cpus || "?") + " CPUs · carga " + esc(v.carga || "—") + "</span>" +
       "<span>memória: <strong>" + mb((v.mem_total || 0) - (v.mem_livre || 0)) + "</strong> de " + mb(v.mem_total || 0) + " em uso</span>" +
       (v.disco ? "<span>disco: <strong>" + mb(v.disco.usado) + "</strong> de " + mb(v.disco.total) + "</span>" : "") +
