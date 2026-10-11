@@ -1,70 +1,15 @@
-MODELOS DO GRUPO NA META  (11/10/2026)
+MODELOS DO GRUPO NA META  (11/10/2026, fim do dia)
 ========================================================================
 
-Rodapé: Imobeasy  |  Botões: [ Link do grupo ]  [ Pedir um imóvel ]  |  {{1}} = nome
+Botões "Link do grupo" / "Pedir um imóvel", rodapé Imobeasy, para quem NÃO nos conhece.
 
-Para quem NÃO nos conhece (sem cadastro). A Meta classifica como UTILIDADE quando o
-texto diz que o contato da pessoa foi registrado na nossa rede e pede para confirmar
-o acesso / como deseja ser atendida. Apresentação solta vira MARKETING.
+O que aconteceu:
+- A categoria que a Meta devolve na hora de criar é provisória. Os l5_util_01-10
+  entraram como Utilidade e a revisão, minutos depois, pôs todos em Marketing.
+- Só ficou Utilidade texto de "precisamos atualizar o seu cadastro", que é mentira
+  para esse público e foi apagado.
+- A pedido do Pedro, foram apagados os 51 modelos Marketing criados desde 09/10
+  (l1_util_06-10/14/15/20, l2_util_01-10/15/17/19, l3_util_01-20, l5_util_01-10).
 
-l5_util_01 a 10 -> UTILITY (pendentes de aprovação)
-l3_util_01 a 20 -> MARKETING (pendentes). l1_util_01-05, l4_util e t_botoes: apagados.
-
-Situação: CRM > Configurações > Templates, ou
-  docker exec -i crm-imobeasy node - situacao < Arquivos/whatsapp/modelos_l5_grupo.js
-
-l5_util_01
-    Olá, Carlos! Este é o número de atendimento da Imob Easy,
-    imobiliária em Manaus. O seu contato foi registrado na nossa rede
-    de corretores parceiros. Para confirmar como deseja ser atendido,
-    selecione uma opção:
-
-l5_util_02
-    Olá, Carlos! A Imob Easy, imobiliária em Manaus, registrou o seu
-    número na nossa rede de corretores parceiros. Este é o nosso
-    número de atendimento. Selecione a forma de acesso:
-
-l5_util_03
-    Olá, Carlos. Este é o número de atendimento a corretores parceiros
-    da Imob Easy, imobiliária em Manaus. O seu contato entrou na nossa
-    rede. Para confirmar o acesso, selecione uma opção:
-
-l5_util_04
-    Olá, Carlos! Aqui é a Imob Easy, imobiliária em Manaus. Recebemos
-    o seu contato pelos grupos de corretores da cidade e este é o
-    nosso número de atendimento. Selecione uma opção:
-
-l5_util_05
-    Olá, Carlos! Este é o novo número de atendimento da Imob Easy,
-    imobiliária em Manaus. O seu número foi incluído na nossa rede de
-    corretores parceiros. Confirme o acesso selecionando uma opção:
-
-l5_util_06
-    Olá, Carlos. A Imob Easy, imobiliária em Manaus, incluiu o seu
-    contato na rede de corretores parceiros. Para confirmar como
-    prefere ser atendido por este número, selecione uma opção:
-
-l5_util_07
-    Olá, Carlos! Este é o número de atendimento da Imob Easy,
-    imobiliária em Manaus com rede de corretores parceiros. O seu
-    contato foi registrado na nossa rede. Para confirmar o acesso,
-    selecione uma opção:
-
-l5_util_08
-    Olá, Carlos. Este é o novo número de atendimento da Imob Easy,
-    imobiliária em Manaus. O seu número foi registrado na nossa rede
-    de corretores parceiros e os imóveis da rede são liberados pelo
-    grupo. Selecione a forma de acesso:
-
-l5_util_09
-    Olá, Carlos! Aqui é a Imob Easy, imobiliária em Manaus. O seu
-    contato foi incluído na nossa rede de corretores parceiros. Para
-    confirmar como deseja ser atendido por este número, selecione uma
-    opção:
-
-l5_util_10
-    Olá, Carlos! A Imob Easy, imobiliária em Manaus, registrou o seu
-    contato na rede de corretores parceiros. Este é o nosso número de
-    atendimento. Para confirmar o acesso aos imóveis da rede,
-    selecione uma opção:
-
+Hoje não há modelo com esses dois botões aprovado como Utilidade na conta.
+Script: Arquivos/whatsapp/modelos_l5_grupo.js (conferir / enviar / situacao / apagar).
