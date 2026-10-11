@@ -95,7 +95,7 @@
 .ag-rotinas li span:last-child { color: var(--texto-fraco); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ag-rotinas li.atrasada span:last-child { color: #b42323; font-weight: 700; }
 
-.ag-secao { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .08em; color: var(--texto-fraco); margin: 26px 0 12px; font-weight: 700; }
+.ag-secao { font-size: 15px; font-family: "Barlow", sans-serif; text-transform: uppercase; letter-spacing: .1em; color: var(--texto-medio); margin: 34px 0 10px; font-weight: 800; padding-left: 12px; border-left: 4px solid var(--roxo); }
 .ag-vazio { padding: 40px; text-align: center; color: var(--texto-fraco); }
 
 @media (prefers-reduced-motion: reduce) { .ag-card, .ag-card:hover { transition: none; transform: none; } }

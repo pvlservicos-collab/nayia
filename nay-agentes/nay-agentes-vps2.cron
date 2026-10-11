@@ -1,0 +1,3 @@
+# /etc/cron.d/nay-agentes -- VPS2: mede os agentes daqui a cada 5 min e manda para a VPS1 (página Agentes do admin)
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+*/5 * * * * root flock -n /run/nay-agentes.lock /root/nay-agentes/medir_vps2.sh >> /var/log/nay-agentes.log 2>&1

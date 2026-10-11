@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css">
-<link rel="stylesheet" href="../assets/css/agentes.css?v=20261011a">
+<link rel="stylesheet" href="../assets/css/agentes.css?v=20261011c">
 <meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
 </head>
 <body class="admin" data-pagina="agentes">
@@ -34,12 +34,17 @@
        da VPS por dia, cria uma cor para cada, deixa bonitinho 3d glass". A medida vem de admin/dados/agentes.json
        (cron nay-agentes, a cada 5 min). -->
   <div class="ag-grade" id="ag-grade"><p class="ag-vazio">Lendo a medição…</p></div>
+
+  <!-- a VPS2 (srv1877774): medida lá pelo medir_vps2.sh e trazida para cá (agentes2.json) -->
+  <h2 class="ag-secao">VPS2</h2>
+  <div class="ag-vps" id="ag-vps2"></div>
+  <div class="ag-grade" id="ag-grade2"></div>
 </main>
 
 <div data-layout-rodape></div>
 
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/layout.js"></script>
-<script src="../assets/js/agentes.js?v=20261011b"></script>
+<script src="../assets/js/agentes.js?v=20261011c"></script>
 </body>
 </html>

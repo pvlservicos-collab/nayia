@@ -22,7 +22,8 @@
     olho: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'
   };
 
-  /* Cada quadrado: a cor, o que faz, de onde vem a medida (itens do JSON) e os números de hoje (chaves de "hoje"). */
+  /* Cada quadrado: a cor, o que faz, de onde vem a medida (itens do JSON) e os números de hoje (chaves de "hoje").
+     `vps: 2` = mora na VPS2 (srv1877774), medida pelo medir_vps2.sh e trazida em agentes2.json. */
   var AGENTES = [
     { id: "nay-nova", nome: "Nay nova", onde: "núcleo: nay-core + worker", cor: ["#6d28d9", "#c084fc"], icone: "chat",
       faz: "Atende os corretores pelo número da Parceria: entende o pedido, busca no catálogo, manda card e fotos, marca visita.",
@@ -59,7 +60,36 @@
       itens: ["nay-painel"], hoje: [] },
     { id: "banco", nome: "Banco de dados", onde: "nay-postgres (naydb)", cor: ["#475569", "#94a3b8"], icone: "banco",
       faz: "Tudo mora aqui: imóveis, conversas, filas, captação, grupos. Backup todo dia às 03:05 e cópia para fora às 03:35.",
-      itens: ["nay-postgres"], hoje: [["banco_mb", "MB no banco"]] }
+      itens: ["nay-postgres"], hoje: [["banco_mb", "MB no banco"]] },
+    // ---- VPS2 (11/10: "quero todos das minhas 2 VPS lá")
+    { vps: 2, id: "n8n-captacao", nome: "n8n da captação", onde: "n8n-captacao.imobeasy.online", cor: ["#059669", "#a7f3d0"], icone: "fluxo",
+      faz: "A entrada da captação: webhook do número oficial e da Z-API, áudio, foto, gravar na fila; o simulador da captação.",
+      itens: ["n8n-captacao", "caddy-captacao"], hoje: [] },
+    { vps: 2, id: "evolution", nome: "Evolution API", onde: "evolution-api + postgres", cor: ["#16a34a", "#bbf7d0"], icone: "chat",
+      faz: "A ponte de WhatsApp da VPS2 (número da captação e dos lembretes), com o banco dela.",
+      itens: ["evolution-api", "evolution-postgres"], hoje: [] },
+    { vps: 2, id: "portal", nome: "Portal do corretor", onde: "portal-corretor + postgres", cor: ["#2563eb", "#bfdbfe"], icone: "site",
+      faz: "O portal dos corretores parceiros, com o banco próprio e o cron de cada minuto.",
+      itens: ["portal-corretor", "portal-postgres"], hoje: [] },
+    { vps: 2, id: "financas", nome: "Finanças", onde: "financas", cor: ["#ca8a04", "#fde68a"], icone: "banco",
+      faz: "O sistema de finanças da imobiliária. Backup todo dia às 23:00.",
+      itens: ["financas"], hoje: [] },
+    { vps: 2, id: "hermes-corretores", nome: "Hermes · corretores", onde: "serviço hermes-gateway-corretores", cor: ["#dc2626", "#fecaca"], icone: "chat",
+      faz: "Agente Hermes no perfil corretores (gateway de mensagens).",
+      itens: ["hermes-gateway-corretores"], hoje: [] },
+    { vps: 2, id: "hermes-telegram", nome: "Hermes · Telegram", onde: "serviço hermes-gateway-telegram", cor: ["#0284c7", "#bae6fd"], icone: "chat",
+      faz: "Agente Hermes no perfil Telegram (gateway de mensagens).",
+      itens: ["hermes-gateway-telegram"], hoje: [] },
+    { vps: 2, id: "lembretes", nome: "Lembretes", onde: "serviço lembretes + cron de 10 min", cor: ["#ea580c", "#fed7aa"], icone: "relogio",
+      faz: "Agente de lembretes pelo WhatsApp: escuta as mensagens e envia os lembretes de 10 em 10 minutos.",
+      itens: ["lembretes"], hoje: [] }
+  ];
+
+  var ROTINAS2 = [
+    ["lembretes_envio", "Envio dos lembretes", "a cada 10 min", 1],
+    ["lembrete_groq", "Lembrete (Groq)", "todo dia 09:00", 26],
+    ["backup_financas", "Backup das finanças", "todo dia 23:00", 26],
+    ["backups_vps1", "Cópia dos backups da VPS1", "todo dia (vindo da VPS1)", 26]
   ];
 
   var ROTINAS = [
@@ -116,8 +146,8 @@
       "</dl></article>";
   }
 
-  function cartaoRotinas(d) {
-    var linhas = ROTINAS.map(function (r) {
+  function cartaoRotinas(d, lista) {
+    var linhas = (lista || ROTINAS).map(function (r) {
       var it = d.itens.find(function (i) { return i.id === r[0]; });
       var ha = it && it.ultima ? d.medido_em - it.ultima : null;
       var atrasada = ha != null && ha > r[3] * 3600;
@@ -131,22 +161,29 @@
       '<ul class="ag-rotinas">' + linhas + "</ul></article>";
   }
 
-  function desenhar(d) {
+  function linhaVps(d) {
     var v = d.vps || {};
-    document.getElementById("ag-vps").innerHTML =
+    return
       "<span><strong>" + esc(v.nome || "VPS") + "</strong></span>" +
       "<span>" + (v.cpus || "?") + " CPUs · carga " + esc(v.carga || "—") + "</span>" +
       "<span>memória: <strong>" + mb((v.mem_total || 0) - (v.mem_livre || 0)) + "</strong> de " + mb(v.mem_total || 0) + " em uso</span>" +
       (v.disco ? "<span>disco: <strong>" + mb(v.disco.usado) + "</strong> de " + mb(v.disco.total) + "</span>" : "") +
       '<span class="ag-vps__medido">medido ' + new Date(d.medido_em * 1000).toLocaleString("pt-BR", { timeZone: "America/Manaus" }) + " · a cada 5 min</span>";
-    grade.innerHTML = AGENTES.map(function (a) { return cartao(a, d); }).join("") + cartaoRotinas(d);
+  }
+  function desenhar(d1, d2) {
+    var vazio = { medido_em: Math.floor(Date.now() / 1000), vps: {}, hoje: {}, itens: [] };
+    document.getElementById("ag-vps").innerHTML = linhaVps(d1 || { medido_em: 0, vps: { nome: "VPS1 (srv1894338)" } });
+    grade.innerHTML = AGENTES.filter(function (a) { return !a.vps; }).map(function (a) { return cartao(a, d1 || vazio); }).join("") + cartaoRotinas(d1 || vazio);
+    document.getElementById("ag-vps2").innerHTML = linhaVps(d2 || { medido_em: 0, vps: { nome: "VPS2 (srv1877774) · sem medição ainda" } });
+    document.getElementById("ag-grade2").innerHTML =
+      AGENTES.filter(function (a) { return a.vps === 2; }).map(function (a) { return cartao(a, d2 || vazio); }).join("") + cartaoRotinas(d2 || vazio, ROTINAS2);
   }
 
-  fetch("dados/agentes.json?t=" + Math.floor(Date.now() / 60000))
-    .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (d) {
-      if (!d) { grade.innerHTML = '<p class="ag-vazio">A medição ainda não chegou (o cron escreve admin/dados/agentes.json a cada 5 min).</p>'; return; }
-      desenhar(d);
-    })
-    .catch(function () { grade.innerHTML = '<p class="ag-vazio">Não consegui ler a medição.</p>'; });
+  function ler(arq) {
+    return fetch("dados/" + arq + "?t=" + Math.floor(Date.now() / 60000)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+  }
+  Promise.all([ler("agentes.json"), ler("agentes2.json")]).then(function (r) {
+    if (!r[0] && !r[1]) { grade.innerHTML = '<p class="ag-vazio">A medição ainda não chegou (o cron escreve admin/dados/agentes.json a cada 5 min).</p>'; return; }
+    desenhar(r[0], r[1]);
+  });
 })();
