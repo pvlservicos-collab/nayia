@@ -13,6 +13,8 @@
     return esc(t).replace(/\{\{1\}\}/g, "<i class=\"mw-var\">Carlos</i>").replace(/\{\{(\d+|\w+)\}\}/g, "<i class=\"mw-var\">{{$1}}</i>")
       .replace(/\*([^*\n]+)\*/g, "<b>$1</b>").replace(/_([^_\n]+)_/g, "<em>$1</em>").replace(/\n/g, "<br>");
   }
+  // os modelos da campanha de hoje (Pedro, 12/10): a aba "Em uso"; todo o resto fica em "Outros"
+  var EM_USO = ["situacao_imovel_cadastrado_1", "captacao_status_novo_numero_2", "captacao_status_novo_numero_3", "l1_util_16", "l1_util_12"];
   var CAT = { UTILITY: ["Utilidade", "mw-cat--util"], MARKETING: ["Marketing", "mw-cat--mkt"], AUTHENTICATION: ["Autenticação", "mw-cat--aut"] };
   var ST = { APPROVED: ["aprovado", "mw-st--ok"], PENDING: ["pendente", "mw-st--pend"], REJECTED: ["reprovado", "mw-st--rej"], PAUSED: ["pausado", "mw-st--rej"] };
   function balao(m) {
@@ -69,7 +71,20 @@
       document.getElementById("mw-resumo").textContent = aprov.length + " aprovados (" + util.length + " utilidade, " + mkt.length + " marketing)" +
         (resto.length ? " · " + resto.length + " pendentes ou reprovados" : "") + " · lido " + new Date(d.lido_em * 1000).toLocaleString("pt-BR", { timeZone: "America/Manaus" });
       function secao(titulo, lista) { return lista.length ? '<h2 class="mw-secao">' + titulo + " <small>" + lista.length + "</small></h2>" + '<div class="mw-grade">' + lista.map(balao).join("") + "</div>" : ""; }
-      alvo.innerHTML = secao("Utilidade", util) + secao("Marketing", mkt) + secao("Pendentes e reprovados", resto);
+      // 12/10 (Pedro): duas abas, EM USO (os modelos da campanha) e OUTROS (o resto), a de outros fechada por padrão
+      var emUso = d.modelos.filter(function (m) { return EM_USO.indexOf(m.nome) >= 0; }).sort(function (a, b) { return EM_USO.indexOf(a.nome) - EM_USO.indexOf(b.nome); });
+      function fora(l) { return l.filter(function (m) { return EM_USO.indexOf(m.nome) < 0; }); }
+      var outros = secao("Utilidade", fora(util)) + secao("Marketing", fora(mkt)) + secao("Pendentes e reprovados", fora(resto));
+      alvo.innerHTML = '<div class="mw-abas"><button type="button" class="mw-aba mw-aba--ativa" data-aba="uso">Em uso <small>' + emUso.length + "</small></button>" +
+        '<button type="button" class="mw-aba" data-aba="outros">Outros <small>' + (d.modelos.length - emUso.length) + "</small></button></div>" +
+        '<section class="mw-painel" data-painel="uso">' + (emUso.length ? '<div class="mw-grade">' + emUso.map(balao).join("") + "</div>" : '<p class="mw-vazio">Nenhum dos modelos em uso foi lido ainda.</p>') + "</section>" +
+        '<section class="mw-painel" data-painel="outros" hidden>' + outros + "</section>";
+      alvo.querySelectorAll(".mw-aba").forEach(function (b) {
+        b.addEventListener("click", function () {
+          alvo.querySelectorAll(".mw-aba").forEach(function (x) { x.classList.toggle("mw-aba--ativa", x === b); });
+          alvo.querySelectorAll(".mw-painel").forEach(function (p) { p.hidden = p.getAttribute("data-painel") !== b.getAttribute("data-aba"); });
+        });
+      });
     }).catch(function () { document.getElementById("mw-lista").innerHTML = '<p class="mw-vazio">Não consegui ler os modelos.</p>'; });
   }
   document.addEventListener("modelos:mostrar", carregar);
