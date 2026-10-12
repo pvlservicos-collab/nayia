@@ -4,7 +4,11 @@
     python -m captacao.ensaio alugado
     python -m captacao.ensaio alugado_desde  diz quando alugou: ela pergunta a duração, não "até quando vai" (325)
     python -m captacao.ensaio vendido
-    python -m captacao.ensaio ja_temos      o imóvel dele já está no nosso cadastro (318): só o valor, e segue
+    python -m captacao.ensaio ja_temos      o imóvel dele já está no nosso cadastro (318), para LOCAÇÃO: só o valor, e segue
+    python -m captacao.ensaio venda         o imóvel dele está no cadastro para VENDA: confirma o valor, nada de "locação"
+    python -m captacao.ensaio venda_outro   idem, e ele diz outro valor
+    python -m captacao.ensaio sem_imovel    lead sem imóvel ligado (planilha antiga): "é para venda ou para locação?"
+    python -m captacao.ensaio sem_imovel_loc  idem, e ele diz que é para alugar
 
 Tudo roda numa transação só, DESFEITA no fim. Nenhuma mensagem sai (o envio é pulado) e nada fica gravado.
 É o simulador do fluxo (Arquivos/captacao_ficha/simular_captacao.js), agora no serviço em Python, e começa pelo
@@ -36,7 +40,17 @@ CENARIOS = {
     "pergunta": ["Disponível", "quanto vocês cobram de comissão?"],
     "ja_temos": ["Disponível", "3.200", "não, só esse mesmo", "não conheço ninguém", "obrigado"],
     "parar": ["não quero receber mensagem, me tira dessa lista"],
+    # 12/10: imóvel que anunciamos para VENDA (venda.py) -- a pergunta é a confirmação do valor do cadastro
+    "venda": ["Disponível", "sim, continua", "não, só esse mesmo", "não conheço ninguém", "sim, já está incluso", "obrigado"],
+    "venda_outro": ["Disponível", "baixei, agora é 550 mil", "não tenho outro", "ninguém", "já está incluso sim"],
+    # 12/10: lead sem imóvel ligado -- não presume locação, pergunta o negócio
+    "sem_imovel": ["Disponível", "é para vender", "450 mil", "não, só esse", "não conheço ninguém", "já está incluso"],
+    "sem_imovel_loc": ["Disponível", "pra alugar", "2.500", "agora não posso responder mais nada, depois falo"],
 }
+# de qual imóvel o lead de teste fica dono até o ROLLBACK: de locação (ja_temos) ou só de venda (venda, venda_outro)
+EMPRESTADO = {"ja_temos": "coalesce(i.valor_aluguel, 0) > 0",
+              "venda": "coalesce(i.valor_venda, 0) > 0 AND coalesce(i.valor_aluguel, 0) = 0",
+              "venda_outro": "coalesce(i.valor_venda, 0) > 0 AND coalesce(i.valor_aluguel, 0) = 0"}
 
 
 def rodar(cenario: str) -> None:
@@ -50,17 +64,22 @@ def rodar(cenario: str) -> None:
         banco.linhas(conn, "UPDATE captacao_leads SET canal = 'oficial' WHERE id = %s", (lead["id"],))
         banco.linhas(conn, "DELETE FROM captacao_cadastro WHERE lead_id = %s", (lead["id"],))
         banco.linhas(conn, "DELETE FROM captacao_imoveis_extra WHERE lead_id = %s", (lead["id"],))
-        if cenario == "ja_temos":
-            # o imóvel de um lead da fila, que existe no cadastro, emprestado ao lead de teste até o ROLLBACK
+        if cenario.startswith("sem_imovel"):
+            banco.linhas(conn, """UPDATE captacao_leads SET codigo = NULL, imovel_desc = NULL, condominio = NULL, bairro = NULL,
+                                         tipo_imovel = NULL, imoveis_prop = '[]'::jsonb WHERE id = %s""", (lead["id"],))
+        if cenario in EMPRESTADO:
+            # o imóvel de um lead da campanha (de preferência da fila), que existe no cadastro, emprestado ao lead de
+            # teste até o ROLLBACK
             dele = banco.linhas(conn, """
                 UPDATE captacao_leads t SET codigo = o.codigo, imovel_desc = o.imovel_desc, condominio = o.condominio,
                        bairro = o.bairro, tipo_imovel = o.tipo_imovel, imoveis_prop = o.imoveis_prop
                   FROM (SELECT l.* FROM captacao_leads l
-                         WHERE l.id IN (SELECT captacao_py_fila_do_disparo())
-                           AND EXISTS (SELECT 1 FROM imoveis i WHERE i.codigo::text = l.codigo)
-                         ORDER BY l.id LIMIT 1) o
-                 WHERE t.id = %s RETURNING t.codigo, t.imovel_desc""", (lead["id"],))
-            print("imóvel emprestado ao lead de teste:", dele[0] if dele else "NENHUM (a fila está vazia?)")
+                         WHERE l.id <> %s AND EXISTS (SELECT 1 FROM imoveis i WHERE i.codigo::text = l.codigo AND """ + EMPRESTADO[cenario] + """)
+                         ORDER BY (l.id IN (SELECT captacao_py_fila_do_disparo())) DESC, l.id LIMIT 1) o
+                 WHERE t.id = %s RETURNING t.codigo, t.imovel_desc,
+                       (SELECT i.valor_venda FROM imoveis i WHERE i.codigo::text = t.codigo) AS venda,
+                       (SELECT i.valor_aluguel FROM imoveis i WHERE i.codigo::text = t.codigo) AS aluguel""", (lead["id"], lead["id"]))
+            print("imóvel emprestado ao lead de teste:", dele[0] if dele else "NENHUM (não há lead com imóvel assim)")
         config.AVISAR_TEL = False   # ensaio nunca avisa o Tel
         abertura = ABERTURA.format(quem=vocativo(lead["tratamento"], lead["nome"]))
         banco.linhas(conn, banco.REGISTRAR_DISPARO, {"lead": lead["id"], "tel": tel, "mid": "ensaio", "texto": abertura})
@@ -82,7 +101,7 @@ def rodar(cenario: str) -> None:
                 print("      <- " + " ".join(x["saida"].split())[:300])
             print("NAY: ", " / ".join(f.baloes) if f.baloes else f"({f.motivo})", "\n")
         fim = banco.linhas(conn, """
-            SELECT situacao, contrato_ate, valor_locacao_pedido, etapa, tem_outro_imovel, quer_vender, motivo_fim, status,
+            SELECT situacao, contrato_ate, valor_locacao_pedido, valor_venda_pedido, etapa, tem_outro_imovel, quer_vender, motivo_fim, status,
                    humano_assumiu_em IS NOT NULL AS com_gente, opt_out,
                    (SELECT count(*) FROM privado.captacao_indicacao i WHERE i.lead_id = l.id) AS indicacoes,
                    (SELECT count(*) FROM captacao_escalacoes e WHERE e.lead_id = l.id AND e.criada_em > now() - interval '5 minutes') AS escaladas

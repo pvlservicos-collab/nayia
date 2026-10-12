@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from captacao import cadastro, config, contrato, modelo, resposta, turno  # noqa: E402
+from captacao import cadastro, config, contrato, modelo, resposta, turno, venda  # noqa: E402
 
 LEAD = {"telefone": "5596991712835", "lead_id": 835, "nome": "PEDRO Silva", "tratamento": "Sr.", "imovel_desc": "Apartamento (TESTE)",
         "etapa": "aguardando_situacao", "prompt": "PROMPT"}
@@ -244,6 +244,80 @@ class Contrato(unittest.TestCase):
         prazo, pergunta = contrato.prazo_ou_pergunta("início do ano", "24 meses", self.HOJE)
         self.assertIsNone(prazo)
         self.assertIn(contrato.PERGUNTA_DO_COMECO, pergunta)
+
+
+class ImovelDeVenda(unittest.TestCase):
+    """12/10: o disparo foi para donos de imóvel à VENDA e a Nay pedia "o valor para locação" (venda.py)."""
+
+    DO_FLUXO = ('gravado. situacao: disponivel. prazo: -. valor da locacao: -. proxima etapa: aguardando_valor. agora peca o '
+                'valor atualizado da locacao, uma pergunta so, assim: "Sr. Júlio Oliveira, o Sr. pode me atualizar o valor do '
+                'imovel para locacao?". NAO comente se o valor esta bom, alto ou baixo.')
+
+    class Banco:
+        def __init__(self, linhas):
+            self.resposta = linhas
+
+        def linhas(self, conn, sql, params=None):
+            return self.resposta
+
+    def test_o_valor_sai_como_gente_escreve(self):
+        self.assertEqual(venda.reais(580000), "R$ 580.000")
+        self.assertEqual(venda.reais(1250000.5), "R$ 1.250.000,50")
+        self.assertEqual(venda.reais("310000.00"), "R$ 310.000")
+
+    def test_a_pergunta_confirma_o_valor_do_cadastro_no_tratamento_dele(self):
+        self.assertEqual(venda.pergunta("Sr.", "Júlio Oliveira", 580000),
+                         "Sr. Júlio, aqui no nosso cadastro o imóvel está à venda por R$ 580.000. Esse valor continua?")
+        self.assertEqual(venda.pergunta(None, "VIVIAN souza", 310000),
+                         "Vivian, aqui no nosso cadastro o imóvel está à venda por R$ 310.000. Esse valor continua?")
+        self.assertTrue(venda.pergunta(None, None, 310000).startswith("Aqui no nosso cadastro"))
+
+    def test_imovel_de_venda_troca_o_pedido_da_locacao(self):
+        v = venda.do_cadastro(None, self.Banco([{"valor_venda": 580000, "tratamento": "Sr.", "nome": "Júlio Oliveira"}]), "5592")
+        saida = venda.no_lugar_da_locacao([{"instrucao_para_voce": self.DO_FLUXO}], v)[0]["instrucao_para_voce"]
+        self.assertNotIn("para locacao?", saida)
+        self.assertNotIn("valor atualizado da locacao", saida)
+        self.assertIn("gravado. situacao: disponivel", saida)
+        self.assertIn('"Sr. Júlio, aqui no nosso cadastro o imóvel está à venda por R$ 580.000. Esse valor continua?"', saida)
+        self.assertIn('guardar_venda com valor = "R$ 580.000"', saida)
+
+    def test_locacao_e_imovel_fora_do_cadastro_ficam_como_estao(self):
+        self.assertIsNone(venda.do_cadastro(None, self.Banco([]), "5592"))
+        linhas = [{"instrucao_para_voce": self.DO_FLUXO}]
+        self.assertEqual(venda.no_lugar_da_locacao(linhas, None)[0]["instrucao_para_voce"], self.DO_FLUXO)
+        self.assertEqual(venda.secao(None), "")
+
+    def test_outra_instrucao_do_fluxo_nao_e_tocada(self):
+        v = {"valor": "R$ 580.000", "frase": "x"}
+        alugado = "gravado. situacao: alugado. proxima etapa: aguardando_prazo. agora pergunte ate quando vai o contrato de locacao."
+        self.assertEqual(venda.no_lugar_da_locacao([{"instrucao_para_voce": alugado}], v)[0]["instrucao_para_voce"], alugado)
+
+    def test_sem_imovel_ligado_pergunta_venda_ou_locacao_em_vez_de_presumir(self):
+        s = venda.sem_imovel(None, self.Banco([{"tratamento": "Sra.", "nome": "MARIA das Graças"}]), "5592")
+        self.assertEqual(s["frase"], "Sra. Maria, o imóvel é para venda ou para locação?")
+        saida = venda.no_lugar_da_locacao([{"instrucao_para_voce": self.DO_FLUXO}], None, s)[0]["instrucao_para_voce"]
+        self.assertIn('"Sra. Maria, o imóvel é para venda ou para locação?"', saida)
+        self.assertIn("guardar_venda (sem valor)", saida)
+        # a pergunta da locação continua lá, mas só para depois de ele dizer LOCACAO
+        self.assertLess(saida.index("venda ou para locação"), saida.index("pode me atualizar o valor do imovel para locacao"))
+        self.assertIn("NAO SABEMOS", venda.secao(None, s))
+        self.assertNotIn("{", venda.secao(None, s))
+        self.assertIsNone(venda.sem_imovel(None, self.Banco([]), "5592"))
+
+    def test_imovel_de_venda_vence_o_sem_imovel(self):
+        v = {"valor": "R$ 580.000", "frase": "x?"}
+        self.assertIn("PARA VENDA", venda.secao(v, {"frase": "y?"}))
+        saida = venda.no_lugar_da_locacao([{"instrucao_para_voce": self.DO_FLUXO}], v, {"frase": "y?"})[0]["instrucao_para_voce"]
+        self.assertIn('"x?"', saida)
+        self.assertNotIn("y?", saida)
+
+    def test_a_secao_do_prompt_leva_o_valor_e_a_frase(self):
+        v = {"valor": "R$ 580.000", "frase": "Sr. Júlio, aqui no nosso cadastro o imóvel está à venda por R$ 580.000. Esse valor continua?"}
+        sec = venda.secao(v)
+        self.assertIn("PARA VENDA", sec)
+        self.assertIn('"' + v["frase"] + '"', sec)
+        self.assertIn('guardar_venda com valor = "R$ 580.000"', sec)
+        self.assertNotIn("{", sec)
 
 
 if __name__ == "__main__":

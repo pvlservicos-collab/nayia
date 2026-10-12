@@ -20,7 +20,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from captacao import banco, contrato
+from captacao import banco, contrato, venda
 from captacao.turno import MANAUS
 
 DO_FLUXO = json.loads((Path(__file__).parent / "ferramentas.json").read_text(encoding="utf-8"))
@@ -128,6 +128,8 @@ def _guardar_situacao(conn, f: dict, args: dict, telefone: str, hoje=None) -> li
         # só o começo, ou só a duração: o fluxo ainda não tem o que gravar; a pergunta que falta sai daqui
         return [{"instrucao_para_voce": "anotado. " + (pedir or "")}]
     linhas = banco.rodar_do_fluxo(conn, f["sql"], [telefone, situacao, prazo, valor])
+    # imóvel que anunciamos para VENDA: nada de "valor para locação"; confirma o valor do cadastro (12/10, venda.py)
+    linhas = venda.no_lugar_da_locacao(linhas, venda.do_cadastro(conn, banco, telefone), venda.sem_imovel(conn, banco, telefone))
     if pedir:
         for linha in linhas:
             texto = linha.get("instrucao_para_voce")

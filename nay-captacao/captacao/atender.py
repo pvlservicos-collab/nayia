@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Callable
 
-from captacao import banco, config, envio, ferramentas, modelo, resposta, turno
+from captacao import banco, config, envio, ferramentas, modelo, resposta, turno, venda
 
 log = logging.getLogger("captacao.atender")
 HISTORICO = 20   # o mesmo tamanho da memória do agente no fluxo
@@ -42,7 +42,9 @@ def _prompt(conn, t: turno.Turno) -> str:
     # a última pergunta (324): só quando há valor de venda para pôr na frase
     honorarios = modelo.HONORARIOS_COM_VALOR.replace("{frase}", r["h"]) if r["h"] else modelo.HONORARIOS_SEM_VALOR
     return (t.prompt + modelo.ACRESCIMO.replace("{modelo}", abertura).replace("{indicacao}", r["f"])
-            .replace("{honorarios}", honorarios))
+            .replace("{honorarios}", honorarios)
+            # o imóvel dele está no cadastro para VENDA: a pergunta do valor da locação não cabe (12/10, venda.py)
+            + venda.secao(venda.do_cadastro(conn, banco, t.telefone), venda.sem_imovel(conn, banco, t.telefone)))
 
 
 def _historico(conn, t: turno.Turno) -> list[dict]:
