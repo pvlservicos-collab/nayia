@@ -40,6 +40,19 @@ o que foi corrigido no banco.
    em transação que termina em ROLLBACK e aplique só com a aprovação do Tel.
 3. Depois de aplicar, rode `./scripts/foto_producao.sh` e commite a foto junto.
 
+## Antes de gravar por cima de qualquer coisa: AVISO E PERGUNTA
+Ordem do Pedro (12/10/2026), depois que uma publicação desta pasta desligou o popup "Ver imóvel", feito por outra
+sessão direto no servidor: **"coloque uma regra de aviso e pergunta"**.
+- Há outras sessões mexendo no servidor. Esta pasta NÃO é a única fonte. O que está lá e não está aqui é trabalho de alguém.
+- Publicar página, script ou estilo do site: só por `./scripts/nay estatico <arquivos>` (ou `nay site`, que também
+  reconstrói a API); CRM por `./scripts/nay crm`. **Nunca** por `cat >`, `scp` ou edição direta no servidor.
+- O comando compara o arquivo do servidor com o último commit daqui. Se for diferente, ele PARA, mostra o que só existe
+  no servidor e não sobe nada. Aí: **avise o Pedro, diga o que seria apagado e PERGUNTE**. Enquanto ele não responder,
+  não publique aquele arquivo. O caminho certo é baixar a versão do servidor, juntar com a daqui e subir a soma.
+- `NAY_SOBRESCREVER=sim` só depois do "pode" dele, para aquele arquivo.
+- Vale igual para apagar, mover ou trocar arquivo, tabela, chave, cron ou configuração que você não criou nesta
+  sessão: aviso com o que vai sumir, pergunta, e espera.
+
 ## O que mora onde
 - O núcleo novo da Nay: repositório próprio `pvlservicos-collab/nay-core`
   (`C:\Users\pedro\nay-core`), com a entrevista de produção em `docs/ENTREVISTA-2026-09-29.md`.
@@ -51,7 +64,7 @@ o que foi corrigido no banco.
 - Nunca apagar linha de `imoveis`.
 - Nada de segredo no git: token, senha, chave, URL da Z-API com instância.
 - Import de fluxo no n8n só de madrugada, pelo procedimento do espelho-madrugada.
-- Atalhos: `./scripts/nay` (onde, fn, tabela, q, crmq, ensaio, backup, aplicar, bateria, conversa, site, crm)
+- Atalhos: `./scripts/nay` (onde, fn, tabela, q, crmq, ensaio, backup, aplicar, bateria, conversa, estatico, site, crm)
   e o mapa pedido → função em `MAPA.md`. Mudou algo que o mapa não cobre? Acrescente a linha no mesmo commit.
 - Script com aspas ou barras invertidas vai em ARQUIVO (Write) e depois roda; em heredoc do Git Bash
   as aspas quebram e `\\` vira `\`.

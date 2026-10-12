@@ -11,6 +11,7 @@
 #   ./scripts/nay aplicar arquivo.sql            aplica (o arquivo tem BEGIN/COMMIT), tira a foto e mostra o git status
 #   ./scripts/nay bateria                        nai_rodar_casos(): passou/total e as que falharam
 #   ./scripts/nay conversa <4 últimos dígitos> [horas]   o que ela e a pessoa disseram (padrão 12 h)
+#   ./scripts/nay estatico arq1 arq2 ...         sobe SÓ páginas/scripts/estilos do imob-easy/ (PARA e avisa se o servidor mudou)
 #   ./scripts/nay site                           sobe nay-site-api + arquivos do imob-easy/ e confere /api/imoveis/opcoes
 #   ./scripts/nay crm arquivo1 arquivo2 ...      copia para /docker/crm/app e rebuild (~4 min)
 # Regras (CLAUDE.md): backup -> ensaio -> aplicar -> foto -> commit. Nunca reaplique .sql antigo.
@@ -20,6 +21,48 @@ SRV=nay-srv1894338
 PSQL="nay-postgres psql -U nay -d naydb -X -v ON_ERROR_STOP=1 -P pager=off"
 cmd="${1:-}"; shift || true
 lf() { tr -d '\r'; }   # o Windows grava CRLF; o psql quer LF
+# AVISO E PERGUNTA (Pedro, 12/10/2026: "coloque uma regra de aviso e pergunta"). Em 12/10 publiquei imoveis.html e
+# imovel-editar.html desta pasta por cima do servidor e desliguei o popup "Ver imóvel", feito por outra sessão direto
+# lá. Antes de gravar por cima: o arquivo do servidor tem de ser igual ao último commit daqui (ou ao que vai subir).
+# Se não for, alguém mexeu no servidor: o comando PARA, mostra a diferença e nada sobe. Só segue com
+# NAY_SOBRESCREVER=sim, que é para usar DEPOIS de avisar o Pedro e ele responder que pode.
+#   conferir_servidor <pasta no repositório> <pasta no servidor> arquivo...
+conferir_servidor() {
+  local rep="$1" dest="$2"; shift 2
+  local f loc srv head parar=0
+  for f in "$@"; do
+    [ -f "$RAIZ/$rep/$f" ] || { echo "não achei $rep/$f"; exit 1; }
+    srv=$(printf '%s' "$dest/$f" | ssh -o ConnectTimeout=20 $SRV 'f=$(cat); [ -f "$f" ] && tr -d "\r" < "$f" | md5sum | cut -c1-32 || echo novo')
+    [ -n "$srv" ] || { echo "FALHOU ler $f no servidor"; exit 1; }
+    [ "$srv" = novo ] && continue
+    loc=$(lf < "$RAIZ/$rep/$f" | md5sum | cut -c1-32)
+    [ "$srv" = "$loc" ] && continue
+    head=$(git -C "$RAIZ" show "HEAD:$rep/$f" 2>/dev/null | lf | md5sum | cut -c1-32)
+    git -C "$RAIZ" cat-file -e "HEAD:$rep/$f" 2>/dev/null || head=sem-commit
+    if [ "$srv" != "$head" ]; then
+      parar=1
+      echo "AVISO: $f no servidor NÃO é o do último commit daqui (alguém mexeu lá, ou eu subi sem commitar)."
+      printf '%s' "$dest/$f" | ssh -o ConnectTimeout=20 $SRV 'f=$(cat); stat -c "       no servidor: %s bytes, alterado em %y" "$f" | cut -c1-64; cat "$f"' \
+        | { read -r linha; echo "$linha"; lf > "$RAIZ/.servidor.tmp"; }
+      if [ "$head" = sem-commit ]; then echo "       (este arquivo nunca foi commitado aqui: existe no servidor por outro caminho)"
+      else git -C "$RAIZ" show "HEAD:$rep/$f" | lf | diff - "$RAIZ/.servidor.tmp" | grep -c '^>' | sed 's/^/       linhas que só existem no servidor: /'
+           git -C "$RAIZ" show "HEAD:$rep/$f" | lf | diff - "$RAIZ/.servidor.tmp" | grep '^>' | head -8 | cut -c1-170 | sed 's/^/       /'; fi
+      rm -f "$RAIZ/.servidor.tmp"
+    fi
+  done
+  if [ "$parar" = 1 ] && [ "${NAY_SOBRESCREVER:-}" != sim ]; then
+    echo
+    echo "NADA FOI PUBLICADO. Pergunte ao Pedro antes: o que está no servidor nesses arquivos vai ser apagado."
+    echo "O certo é baixar a versão do servidor, juntar com a daqui e subir a soma. Só com o 'pode' dele: NAY_SOBRESCREVER=sim"
+    exit 3
+  fi
+}
+# grava por cima deixando no servidor a cópia do que estava lá (.bk-AAAAMMDD-HHMM)
+subir() {
+  local rep="$1" dest="$2" f="$3"
+  printf '%s' "$dest/$f" | ssh -o ConnectTimeout=20 $SRV 'f=$(cat); mkdir -p "$(dirname "$f")"; [ -f "$f" ] && cp -p "$f" "$f.bk-$(date +%Y%m%d-%H%M)"; true' || { echo "FALHOU a cópia de segurança de $f"; exit 1; }
+  ssh -o ConnectTimeout=20 $SRV "cat > '$dest/$f'" < "$RAIZ/$rep/$f" || { echo "FALHOU copiar $f"; exit 1; }
+}
 case "$cmd" in
   q)
     { if [ -f "${1:-}" ]; then cat "$1"; else printf '%s\n' "$*"; fi; } | lf | ssh -o ConnectTimeout=20 $SRV "docker exec -i -e PGOPTIONS='-c default_transaction_read_only=on -c statement_timeout=60000' nay-postgres psql -U nay -d naydb -X -v ON_ERROR_STOP=1 -P pager=off -A -F' | '" ;;
@@ -75,23 +118,23 @@ case "$cmd" in
     "$0" q "SELECT to_char(x.h,'DD HH24:MI') hora, x.quem, x.txt FROM (
       SELECT t.criado_em h, 'ELE' quem, left(regexp_replace(t.texto,'\s+',' ','g'),200) txt FROM nai_turno t JOIN nai_contato k ON k.id=t.contato_id WHERE right(regexp_replace(k.telefone,'\D','','g'),4)='$d' AND t.criado_em>now()-interval '$h hours'
       UNION ALL SELECT s.criado_em, 'NAY '||s.estado||coalesce(':'||s.bloqueio,''), CASE WHEN s.tipo='imagem' THEN '[foto '||s.codigo||']' ELSE left(regexp_replace(s.texto,'\s+',' ','g'),200) END FROM nai_saida s JOIN nai_contato k ON k.id=s.contato_id WHERE right(regexp_replace(k.telefone,'\D','','g'),4)='$d' AND s.criado_em>now()-interval '$h hours' AND s.papel_destino<>'tel') x ORDER BY 1;" ;;
+  estatico)
+    # só as páginas, scripts e estilos do site (sem reconstruir a API). Mesma regra de aviso e pergunta.
+    [ $# -gt 0 ] || { echo "diga os arquivos (caminho dentro de imob-easy/)"; exit 1; }
+    conferir_servidor imob-easy /docker/nay-site-web/public "$@"
+    for f in "$@"; do subir imob-easy /docker/nay-site-web/public "$f"; echo "subiu $f"; done ;;
   site)
     # a API são DOIS arquivos: o olx_api.py tinha que ir à mão e era esquecido
-    for a in app.py olx_api.py; do
-      scp -q "$RAIZ/nay-site-api/$a" $SRV:/docker/nay-site-api/$a || { echo "FALHOU copiar $a"; exit 1; }
-    done
-    for f in "$@"; do
-      ssh -o ConnectTimeout=20 $SRV "cat > '/docker/nay-site-web/public/$f'" < "$RAIZ/imob-easy/$f" || { echo "FALHOU copiar $f"; exit 1; }
-    done
+    conferir_servidor nay-site-api /docker/nay-site-api app.py olx_api.py
+    [ $# -eq 0 ] || conferir_servidor imob-easy /docker/nay-site-web/public "$@"
+    for a in app.py olx_api.py; do subir nay-site-api /docker/nay-site-api "$a"; done
+    for f in "$@"; do subir imob-easy /docker/nay-site-web/public "$f"; done
     ssh -o ConnectTimeout=20 $SRV 'cd /docker/nay-site-api && docker compose up -d --build 2>&1 | grep -i started | tail -1; sleep 7; curl -s -m 60 -o /dev/null -w "/api/imoveis/opcoes -> %{http_code} em %{time_total}s\n" http://127.0.0.1:8092/api/imoveis/opcoes' ;;
   crm)
     # cria a pasta antes (rota nova mora em pasta nova) e PARA se a cópia falhar:
     # em 30/09 duas rotas novas não subiram e o scp -q engoliu o erro
-    for f in "$@"; do
-      d="/docker/crm/app/$(dirname "$f")"
-      printf '%s' "$d" | ssh -o ConnectTimeout=20 $SRV 'd=$(cat); mkdir -p "$d"' || { echo "FALHOU criar a pasta de $f"; exit 1; }
-      ssh -o ConnectTimeout=20 $SRV "cat > '/docker/crm/app/$f'" < "$RAIZ/crm/$f" || { echo "FALHOU copiar $f"; exit 1; }
-    done
+    [ $# -eq 0 ] || conferir_servidor crm /docker/crm/app "$@"
+    for f in "$@"; do subir crm /docker/crm/app "$f"; done
     ssh -o ConnectTimeout=20 $SRV 'cd /docker/crm && docker compose up -d --build 2>&1 | tail -2; docker ps --filter name=crm-imobeasy --format "{{.Names}} {{.Status}}"' ;;
   *) sed -n 2,17p "$0" ;;
 esac
