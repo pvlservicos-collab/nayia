@@ -1,0 +1,26 @@
+/* Captação › Modelos WhatsApp (12/10/2026): cada modelo num balão como no celular, com os botões */
+#painel-modelos[hidden] { display: none !important; }
+.mw-resumo { font-size: 13px; color: var(--texto-fraco, #6b6478); margin: -6px 0 14px; }
+.mw-secao { font-family: "Barlow", sans-serif; font-size: 16px; text-transform: uppercase; letter-spacing: .08em; margin: 22px 0 10px; padding-left: 10px; border-left: 4px solid var(--roxo); }
+.mw-secao small { color: var(--texto-fraco, #6b6478); font-weight: 500; letter-spacing: 0; text-transform: none; margin-left: 6px; }
+.mw-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 16px; }
+.mw-item { background: var(--superficie, #fff); border: 1px solid var(--borda, #e3daf2); border-radius: 16px; padding: 12px; }
+.mw-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; font-size: 12px; }
+.mw-nome { font-weight: 700; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; margin-right: auto; }
+.mw-cat, .mw-st, .mw-q, .mw-idioma { padding: 2px 8px; border-radius: 999px; font-weight: 700; font-size: 11px; letter-spacing: .03em; }
+.mw-cat--util { background: #e8f7f0; color: #2f7d58; } .mw-cat--mkt { background: #fdf2ea; color: #a8662f; } .mw-cat--aut { background: #e8eefc; color: #2c58c7; }
+.mw-st--ok { background: #e8f7f0; color: #2f7d58; } .mw-st--pend { background: #fffbeb; color: #92400e; } .mw-st--rej { background: #fdeef1; color: #b42323; }
+.mw-q, .mw-idioma { background: var(--superficie-2, #faf8fe); color: var(--texto-fraco, #6b6478); font-weight: 600; }
+.mw-fone { background: #e5ddd5 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Ccircle cx='8' cy='8' r='1.2' fill='%23d7cfc6'/%3E%3Ccircle cx='28' cy='24' r='1.2' fill='%23d7cfc6'/%3E%3C/svg%3E");
+           border-radius: 12px; padding: 12px 10px; }
+.mw-balao { background: #fff; border-radius: 10px 10px 10px 10px; padding: 8px 10px 6px; max-width: 320px; font-size: 14.5px; line-height: 1.38; color: #111b21;
+            box-shadow: 0 1px 1px rgba(0,0,0,.12); position: relative; }
+.mw-balao::before { content: ""; position: absolute; left: -7px; top: 0; border: 7px solid transparent; border-top-color: #fff; border-right-color: #fff; }
+.mw-cab { font-weight: 700; margin-bottom: 4px; }
+.mw-rodape { color: #8696a0; font-size: 12.5px; margin-top: 6px; }
+.mw-hora { text-align: right; color: #8696a0; font-size: 11px; margin-top: 2px; }
+.mw-var { font-style: normal; color: #1f7a8c; border-bottom: 1px dotted #1f7a8c; }
+.mw-botoes { max-width: 320px; margin-top: 4px; display: grid; gap: 3px; }
+.mw-botao { background: #fff; border-radius: 10px; text-align: center; color: #0a7cff; font-weight: 600; font-size: 14px; padding: 9px 10px; box-shadow: 0 1px 1px rgba(0,0,0,.12); }
+.mw-motivo { font-size: 12px; color: #b42323; margin: 8px 0 0; }
+.mw-vazio { padding: 30px; text-align: center; color: var(--texto-fraco, #6b6478); }

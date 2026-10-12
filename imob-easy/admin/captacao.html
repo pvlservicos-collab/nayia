@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css">
 <link rel="stylesheet" href="../assets/css/captacao-olx.css">
+<link rel="stylesheet" href="../assets/css/captacao-modelos.css?v=20261012a">
 <style>
   /* Linha "cinza": levou todas as tentativas e nunca respondeu. A IA não
      chama mais essa pessoa -- a tabela mostra isso apagando a linha, para
@@ -116,6 +117,8 @@
     <!-- 11/10/2026 (Pedro): "pega a aba Oportunidades e põe como uma tab dentro da aba Captação". Era a
          página oportunidades.html; o conteúdo é o mesmo (captacao-oportunidades.js). -->
     <button class="cap-topo__aba" type="button" role="tab" id="aba-oportunidades" aria-controls="painel-oportunidades" aria-selected="false" tabindex="-1">Oportunidades</button>
+    <!-- 12/10/2026 (Pedro): "todos os modelos da minha API oficial aprovados, em qual categoria, já num balãozinho com os botões" -->
+    <button class="cap-topo__aba" type="button" role="tab" id="aba-modelos" aria-controls="painel-modelos" aria-selected="false" tabindex="-1">Modelos WhatsApp</button>
   </div>
 
   <div id="painel-whatsapp" role="tabpanel" aria-labelledby="aba-whatsapp">
@@ -324,6 +327,12 @@
       </div></div>
     </section>
   </div><!-- /painel-oportunidades -->
+
+  <div id="painel-modelos" role="tabpanel" aria-labelledby="aba-modelos" hidden>
+    <p class="pagina-subtitulo" style="margin-bottom:10px">Os modelos da API oficial (Meta), como chegam no celular: os aprovados primeiro, por categoria.</p>
+    <p class="mw-resumo" id="mw-resumo"></p>
+    <div id="mw-lista"><p class="mw-vazio">Lendo os modelos…</p></div>
+  </div><!-- /painel-modelos -->
 </main>
 
 <!-- Popup 1: escolher a lista e desmarcar quem não deve receber. -->
@@ -402,5 +411,6 @@
 <script src="../assets/js/captacao-olx-bot.js"></script>
 <script src="../assets/js/captacao-cadastros.js"></script>
 <script src="../assets/js/captacao-oportunidades.js?v=20261011a"></script>
+<script src="../assets/js/captacao-modelos.js?v=20261012a"></script>
 </body>
 </html>

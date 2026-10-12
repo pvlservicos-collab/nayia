@@ -1,3 +1,5 @@
 # /etc/cron.d/nay-agentes -- mede os agentes da VPS a cada 5 min para a página Agentes do admin (11/10/2026)
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 */5 * * * * root flock -n /run/nay-agentes.lock /root/nay-agentes/medir_agentes.sh >> /var/log/nay-agentes.log 2>&1
+# os modelos da API oficial, lidos de dentro do CRM (quem tem o token), para Captação > Modelos WhatsApp (12/10)
+*/10 * * * * root docker exec -i crm-imobeasy node - < /root/nay-agentes/modelos_meta.js > /docker/nay-site-web/public/admin/dados/modelos.json.tmp 2>/dev/null && mv /docker/nay-site-web/public/admin/dados/modelos.json.tmp /docker/nay-site-web/public/admin/dados/modelos.json && chmod 644 /docker/nay-site-web/public/admin/dados/modelos.json

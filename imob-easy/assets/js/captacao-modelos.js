@@ -1,0 +1,54 @@
+/* ==========================================================================
+   Captação › Modelos WhatsApp (12/10/2026, Pedro: "quero todos os modelos da minha API oficial que foram aprovados,
+   e em qual categoria, já em um mockup de mensagem, num balãozinho com os botões que ele tem, sem precisar clicar").
+   Lê admin/dados/modelos.json, que o cron nay-agentes escreve a cada 10 min lendo a Graph API de dentro do CRM.
+   ========================================================================== */
+(function () {
+  "use strict";
+  var painel = document.getElementById("painel-modelos");
+  if (!painel) return;
+  function esc(t) { return String(t == null ? "" : t).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  // o texto do WhatsApp: *negrito*, _itálico_, {{1}} vira um exemplo
+  function wa(t) {
+    return esc(t).replace(/\{\{1\}\}/g, "<i class=\"mw-var\">Carlos</i>").replace(/\{\{(\d+|\w+)\}\}/g, "<i class=\"mw-var\">{{$1}}</i>")
+      .replace(/\*([^*\n]+)\*/g, "<b>$1</b>").replace(/_([^_\n]+)_/g, "<em>$1</em>").replace(/\n/g, "<br>");
+  }
+  var CAT = { UTILITY: ["Utilidade", "mw-cat--util"], MARKETING: ["Marketing", "mw-cat--mkt"], AUTHENTICATION: ["Autenticação", "mw-cat--aut"] };
+  var ST = { APPROVED: ["aprovado", "mw-st--ok"], PENDING: ["pendente", "mw-st--pend"], REJECTED: ["reprovado", "mw-st--rej"], PAUSED: ["pausado", "mw-st--rej"] };
+  function balao(m) {
+    var cat = CAT[m.categoria] || [m.categoria, ""], st = ST[m.status] || [m.status, ""];
+    return '<article class="mw-item">' +
+      '<div class="mw-meta"><span class="mw-nome">' + esc(m.nome) + '</span><span class="mw-cat ' + cat[1] + '">' + esc(cat[0]) + "</span>" +
+        '<span class="mw-st ' + st[1] + '">' + esc(st[0]) + "</span>" + (m.qualidade ? '<span class="mw-q">qualidade ' + esc(m.qualidade) + "</span>" : "") +
+        '<span class="mw-idioma">' + esc(m.idioma) + "</span></div>" +
+      '<div class="mw-fone"><div class="mw-balao">' +
+        (m.cabecalho ? '<div class="mw-cab">' + wa(m.cabecalho) + "</div>" : "") +
+        '<div class="mw-corpo">' + wa(m.corpo) + "</div>" +
+        (m.rodape ? '<div class="mw-rodape">' + esc(m.rodape) + "</div>" : "") +
+        '<div class="mw-hora">' + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) + "</div>" +
+      "</div>" +
+      (m.botoes && m.botoes.length ? '<div class="mw-botoes">' + m.botoes.map(function (b) {
+        return '<div class="mw-botao">' + (b.tipo === "URL" ? "🔗 " : b.tipo === "PHONE_NUMBER" ? "📞 " : "↩ ") + esc(b.texto) + "</div>";
+      }).join("") + "</div>" : "") +
+      "</div>" + (m.motivo ? '<p class="mw-motivo">Motivo da Meta: ' + esc(m.motivo) + "</p>" : "") +
+    "</article>";
+  }
+  var carregou = false;
+  function carregar() {
+    if (carregou) return;
+    carregou = true;
+    fetch("dados/modelos.json?t=" + Math.floor(Date.now() / 60000)).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      var alvo = document.getElementById("mw-lista");
+      if (!d || !d.modelos) { alvo.innerHTML = '<p class="mw-vazio">A leitura dos modelos ainda não chegou (o cron escreve admin/dados/modelos.json a cada 10 min).</p>'; return; }
+      if (d.erro) { alvo.innerHTML = '<p class="mw-vazio">Não deu para ler os modelos: ' + esc(d.erro) + "</p>"; return; }
+      var aprov = d.modelos.filter(function (m) { return m.status === "APPROVED"; }), resto = d.modelos.filter(function (m) { return m.status !== "APPROVED"; });
+      var util = aprov.filter(function (m) { return m.categoria === "UTILITY"; }), mkt = aprov.filter(function (m) { return m.categoria !== "UTILITY"; });
+      document.getElementById("mw-resumo").textContent = aprov.length + " aprovados (" + util.length + " utilidade, " + mkt.length + " marketing)" +
+        (resto.length ? " · " + resto.length + " pendentes ou reprovados" : "") + " · lido " + new Date(d.lido_em * 1000).toLocaleString("pt-BR", { timeZone: "America/Manaus" });
+      function secao(titulo, lista) { return lista.length ? '<h2 class="mw-secao">' + titulo + " <small>" + lista.length + "</small></h2>" + '<div class="mw-grade">' + lista.map(balao).join("") + "</div>" : ""; }
+      alvo.innerHTML = secao("Utilidade", util) + secao("Marketing", mkt) + secao("Pendentes e reprovados", resto);
+    }).catch(function () { document.getElementById("mw-lista").innerHTML = '<p class="mw-vazio">Não consegui ler os modelos.</p>'; });
+  }
+  document.addEventListener("modelos:mostrar", carregar);
+  if (!painel.hidden) carregar();
+})();

@@ -45,6 +45,7 @@
   // 02/10: a terceira aba, "Imóveis da OLX Bot" (captacao-olx-bot.js cuida do conteúdo)
   if ($("aba-olxbot")) abas.push($("aba-olxbot"));
   if ($("aba-oportunidades")) abas.push($("aba-oportunidades"));   // 11/10: era a página Oportunidades
+  if ($("aba-modelos")) abas.push($("aba-modelos"));               // 12/10: os modelos da API oficial
   var listaCarregada = false;
   function mostrar(qual) {
     abas.forEach(function (b) {
@@ -56,6 +57,7 @@
     if (qual === "olx" && !listaCarregada) { listaCarregada = true; carregarLista(); }
     if (qual === "olxbot") document.dispatchEvent(new CustomEvent("olxbot:mostrar"));
     if (qual === "oportunidades") document.dispatchEvent(new CustomEvent("oportunidades:mostrar"));
+    if (qual === "modelos") document.dispatchEvent(new CustomEvent("modelos:mostrar"));
   }
   // um envio do bot aprovado vira pré-cadastro: a lista da OLX recarrega na próxima visita
   document.addEventListener("olx:recarregar", function () { listaCarregada = false; });
@@ -468,6 +470,7 @@
       if (h === "#olx") mostrar("olx");
       if (h === "#olxbot" && $("aba-olxbot")) mostrar("olxbot");
       if (h === "#oportunidades" && $("aba-oportunidades")) mostrar("oportunidades");
+      if (h === "#modelos" && $("aba-modelos")) mostrar("modelos");
       return;
     }
     var pacote = null;
