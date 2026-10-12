@@ -1,0 +1,203 @@
+/* ==========================================================================
+   Ver imóvel: de gaveta lateral para POPUP no meio da tela
+
+   Tel (11/10): "transforma a opção ver imovel de uma barra lateral, em um
+   popup no meio da tela com todas as informaççoes do imovel bem dividinho
+   compactado, todos os campos com um papelzinho dando para copiar"
+   Tel (12/10): "as sugestões fiquem sempre la no ultimo quadrado e as fotos
+   no topo" · ícone preto junto do número nas do condomínio · barrinha de
+   mobília em estágios.
+
+   Carrega DEPOIS de imoveis-ux.css e só sobrescreve o que precisa. Nenhuma
+   regra daqui depende da ORDEM em que `abrirFicha()` escreve os blocos, só
+   dos `data-uxp` que o JS marca pelo título -- bloco novo entra na grade
+   sozinho, no meio, sem quebrar o desenho.
+   ========================================================================== */
+
+/* ---- a janela ---------------------------------------------------------- */
+.ux-veu { background: rgba(42, 33, 64, .52); backdrop-filter: blur(2px); }
+
+.ux-ficha {
+  /* era: top 0 / right 0 / height 100% / largura 520 */
+  top: 50%; left: 50%; right: auto; bottom: auto;
+  transform: translate(-50%, -50%);
+  width: min(1020px, 95vw);
+  height: auto; max-height: min(90vh, 900px);
+  padding: 0;                       /* o topo e o corpo cuidam do próprio ar */
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-lg, 22px);
+  box-shadow: 0 26px 74px rgba(42, 33, 64, .34);
+  overflow: hidden;                 /* quem rola é .uxp-corpo, não a janela */
+}
+
+/* O `display` SÓ quando a janela está aberta.
+   `fecharFicha()` fecha pondo o atributo `hidden`, e quem esconde `hidden` é a
+   regra `[hidden] { display: none }` do próprio navegador -- que tem
+   especificidade quase zero. Um `display: flex` solto em `.ux-ficha` ganha
+   dela, e o resultado é o X e o Esc "não funcionarem": o véu some e a janela
+   fica. A gaveta antiga não tinha `display` nenhum, por isso nunca deu. */
+.ux-ficha:not([hidden]) { display: flex; flex-direction: column; }
+
+/* o topo fica parado enquanto o resto rola — numa gaveta alta isso não
+   importava, num popup de 90vh o código do imóvel tem de estar sempre à vista */
+.ux-ficha__topo {
+  flex: 0 0 auto;
+  padding: 16px 20px 13px;
+  border-bottom: 1px solid var(--borda);
+  background: var(--superficie-2, #faf8fe);
+}
+.ux-ficha h2 { margin: 7px 0 2px; font-size: 1.15rem; line-height: 1.25; }
+.ux-ficha__topo .ux-dica { margin-top: 3px; }
+.ux-ficha__topo #ux-fechar {
+  flex: 0 0 auto; width: 32px; height: 32px; padding: 0;
+  display: grid; place-items: center; border-radius: 50%; font-size: 15px;
+}
+
+/* ---- o corpo: uma grade de blocos, não uma coluna ---------------------- */
+.uxp-corpo {
+  flex: 1 1 auto; overflow-y: auto;
+  padding: 14px 20px 20px;
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(282px, 1fr));
+  align-content: start;
+}
+.uxp-corpo > .ux-bloco { margin-top: 0; padding: 11px 13px; }
+
+/* ---- a ORDEM dos quadrados -------------------------------------------- */
+/* Tel: fotos no topo, sugestões sempre no último quadrado. `order` em vez de
+   mexer na ordem do DOM: `abrirFicha` reescreve tudo a cada imóvel, e
+   reordenar nó a nó brigaria com ele a cada abertura. */
+.uxp-corpo > .ux-bloco { order: 50; }           /* o que eu não conheço, no meio */
+.uxp-corpo > [data-uxp="fotos"]         { order: -1; grid-column: 1 / -1; }
+.uxp-corpo > [data-uxp="oferta"]        { order: 1; grid-column: span 2; }
+.uxp-corpo > [data-uxp="g:endereco"]    { order: 2; }
+.uxp-corpo > [data-uxp="g:condominio"]  { order: 3; grid-column: span 2; }
+.uxp-corpo > [data-uxp="g:unidade"]     { order: 4; }
+.uxp-corpo > [data-uxp="g:carac"]       { order: 5; grid-column: span 2; }
+.uxp-corpo > [data-uxp="g:tem"]         { order: 6; grid-column: span 2; }
+.uxp-corpo > [data-uxp="g:valores"]     { order: 7; grid-column: span 2; }
+.uxp-corpo > [data-uxp="g:descricao"]   { order: 8; grid-column: span 2; }
+.uxp-corpo > [data-uxp="datas"]         { order: 9; }
+.uxp-corpo > [data-uxp="proprietario"]  { order: 10; }
+.uxp-corpo > [data-uxp="g:dono"]        { order: 11; }
+.uxp-corpo > [data-uxp="g:locacao"]     { order: 12; }
+.uxp-corpo > [data-uxp="g:captacao"]    { order: 13; }
+.uxp-corpo > [data-uxp="g:interno"]     { order: 14; grid-column: span 2; }
+.uxp-corpo > [data-uxp="g:outros"]      { order: 15; grid-column: span 2; }
+.uxp-corpo > [data-uxp="ao-redor"]      { order: 90; grid-column: span 2; }
+.uxp-corpo > [data-uxp="sugestoes"]     { order: 95; grid-column: 1 / -1; }
+.uxp-corpo > .uxp-rodape {
+  order: 99; grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 9px;
+}
+.uxp-corpo > .uxp-rodape > * { margin: 0 !important; flex: 1 1 240px; }
+
+/* ---- o cabeçalho de cada seção ---------------------------------------- */
+/* a cor vem do --uxp-cor que o JS escreve, igual à da mesma seção em
+   "editar imóvel": quem usa as duas telas reconhece o bloco pela cor */
+.uxp-corpo > .ux-bloco h3 {
+  display: flex; align-items: center; gap: 7px;
+  margin-bottom: 8px; color: var(--uxp-cor, var(--roxo));
+}
+.uxp-gi {
+  display: inline-grid; place-items: center; width: 18px; height: 18px;
+  border-radius: 5px; background: var(--uxp-cor, var(--roxo)); color: #fff;
+  font-size: 11px; line-height: 1; letter-spacing: 0;
+}
+.uxp-priv {
+  margin-left: auto; padding: 1px 6px; border-radius: 999px;
+  background: var(--superficie-2, #faf8fe); border: 1px solid var(--borda);
+  color: var(--texto-fraco); font-size: 9.5px; letter-spacing: .04em;
+}
+
+/* ---- o campo e o papelzinho ------------------------------------------- */
+.ux-dois { gap: 7px 12px; }
+[data-uxp="oferta"] .ux-dois,
+[data-uxp="g:carac"] .ux-dois,
+[data-uxp="g:condominio"] .ux-dois { grid-template-columns: repeat(3, 1fr); }
+.ux-dois--largo { grid-template-columns: 1fr !important; }
+.uxp-largo { grid-column: 1 / -1; }
+
+/* cada par rótulo+valor virou uma caixinha: dá alvo para o hover do botão e
+   separa os campos sem precisar de linha divisória */
+.ux-dois > div {
+  position: relative; min-width: 0;
+  padding: 5px 26px 5px 8px;
+  border-radius: var(--raio-sm, 8px);
+  background: var(--superficie-2, #faf8fe);
+  word-break: break-word;
+}
+.ux-dois > div:hover { background: var(--roxo-suave, #f3edff); }
+.ux-dois b { margin-bottom: 1px; }
+
+.uxp-copiar {
+  position: absolute; top: 4px; right: 4px;
+  width: 21px; height: 21px; padding: 0;
+  display: grid; place-items: center;
+  border: 1px solid transparent; border-radius: 6px;
+  background: transparent; color: var(--texto-fraco);
+  cursor: pointer; opacity: 0;
+  transition: opacity .12s, background .12s, color .12s;
+}
+.uxp-copiar svg { width: 12px; height: 12px; display: block; }
+.ux-dois > div:hover .uxp-copiar,
+.uxp-campo:hover .uxp-copiar,
+.uxp-copiar:focus-visible { opacity: 1; }
+.uxp-copiar:hover {
+  background: var(--superficie); border-color: var(--borda-forte, #cabbe4); color: var(--roxo);
+}
+.uxp-copiar--ok { opacity: 1 !important; color: var(--verde, #5cb98c); border-color: transparent; background: transparent; }
+
+/* campos que não ficam dentro de .ux-dois (código, datas, proprietário) */
+.uxp-campo { position: relative; padding-right: 26px; }
+.uxp-campo .uxp-copiar { top: 50%; transform: translateY(-50%); right: 0; }
+.ux-ficha__topo .uxp-campo .uxp-copiar { top: 1px; transform: none; }
+
+/* ---- o ícone preto do condomínio -------------------------------------- */
+/* Tel: "um icone preto mesmo demonstrando a categoria para ficar junto com o
+   numero só para diferenciar visualmente". Preto de verdade, não a cor do
+   texto nem a da seção: o ponto é destacar da linha, não combinar com ela. */
+.uxp-ic {
+  width: 13px; height: 13px; flex: 0 0 auto;
+  color: #111; vertical-align: -2px; margin-right: 5px;
+}
+.uxp-vl { vertical-align: baseline; }
+
+/* ---- a barrinha de mobília -------------------------------------------- */
+/* Tel: "faz uma barrinha colorida que se completa com estágios, quanto mais
+   mobilia tem mais ela se preenche; mobiliado tem [4] quadradinhos os 4
+   pintados, e se for pelada é só 1 quadradinho". Então "sem nada" é UM aceso,
+   não zero -- o campo preenchido sempre mostra alguma coisa. */
+.uxp-mb { display: inline-flex; gap: 3px; vertical-align: -1px; margin-right: 7px; }
+.uxp-mb__q {
+  width: 13px; height: 7px; border-radius: 2px;
+  background: var(--borda, #e3daf2); transition: background .15s;
+}
+.uxp-mb__q--on { background: var(--uxp-mbcor, #5cb98c); }
+/* a cor sobe junto com o estágio: vermelho pelado -> verde mobiliado */
+.uxp-mb[data-nivel="1"] { --uxp-mbcor: #d1604a; }
+.uxp-mb[data-nivel="2"] { --uxp-mbcor: #d99a3c; }
+.uxp-mb[data-nivel="3"] { --uxp-mbcor: #8fb43f; }
+.uxp-mb[data-nivel="4"] { --uxp-mbcor: #3f9e6b; }
+.uxp-mb__txt { font-size: var(--fs-xs); color: var(--texto-fraco); }
+
+/* contato pessoal coberto (ver a nota no JS) */
+.uxp-sig { color: var(--texto-fraco); letter-spacing: .08em; }
+.uxp-sig small { letter-spacing: 0; font-size: 10.5px; }
+
+/* ---- telas estreitas: a janela ocupa quase tudo ----------------------- */
+@media (max-width: 680px) {
+  .ux-ficha {
+    width: 100vw; max-width: 100vw; max-height: 100vh; height: 100%;
+    top: 0; left: 0; transform: none; border-radius: 0; border: 0;
+  }
+  .uxp-corpo { grid-template-columns: 1fr; padding: 12px 14px 18px; }
+  .uxp-corpo > .ux-bloco,
+  .uxp-corpo > [data-uxp="ao-redor"],
+  .uxp-corpo > [data-uxp="sugestoes"] { grid-column: auto; }
+  [data-uxp="oferta"] .ux-dois,
+  [data-uxp="g:carac"] .ux-dois,
+  [data-uxp="g:condominio"] .ux-dois { grid-template-columns: 1fr 1fr; }
+  /* sem hover em toque: o papelzinho fica sempre visível */
+  .uxp-copiar { opacity: 1; }
+}
+@media (hover: none) { .uxp-copiar { opacity: 1; } }

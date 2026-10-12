@@ -193,6 +193,9 @@
     ".cr-acoes{display:flex;gap:6px;flex-wrap:wrap;align-items:center}" +
     ".cr-aprovar{height:36px;padding:0 16px;border:0;border-radius:999px;background:#16a34a;color:#fff;font:inherit;font-weight:700;cursor:pointer}" +
     ".cr-aprovar[disabled]{opacity:.5;cursor:default}" +
+    ".cr-faixa .cr-descartar{border-color:#7f1d1d;background:#2a1215;color:#fca5a5}" +
+    ".cr-faixa .cr-descartar:hover:not([disabled]){background:#7f1d1d;color:#fff}" +
+    ".cr-faixa .cr-descartar[disabled]{opacity:.45;cursor:default}" +
     ".cr-fechar{width:36px;height:36px;border-radius:999px;border:0;background:transparent;color:var(--texto,#16161a);font-size:20px;cursor:pointer}" +
     ".cr-recado{width:100%;font-size:12.5px;color:#d1d5db}" +
     ".cr-recado:empty{display:none}" +
@@ -362,6 +365,7 @@
               '<button class="cr-acao" type="button" id="cr-outro">É atualização de outro imóvel?</button>' +
               '<button class="cr-acao" type="button" id="cr-importar">Importar tudo</button>' +
               '<button class="cr-acao" type="button" id="cr-pular">Pular</button>' +
+              '<button class="cr-acao cr-descartar" type="button" id="cr-descartar">Descartar</button>' +
               '<button class="cr-aprovar" type="button" id="cr-aprovar">Aprovar: fica disponível para a Nay</button>' +
               '<button class="cr-fechar" type="button" id="cr-fechar" aria-label="Fechar">✕</button>' +
             "</div>" +
@@ -375,6 +379,7 @@
         if (ir) return mover(Number(ir.getAttribute("data-ir")));
         var id = e.target.id;
         if (id === "cr-pular") return mover(1);
+        if (id === "cr-descartar") return descartar();
         if (id === "cr-fechar") return fechar();
         if (id === "cr-aprovar") return aprovar();
         if (id === "cr-importar") return importar();
@@ -464,6 +469,13 @@
     var feito = !!feitos[chave(it)];
     var a = $("cr-aprovar");
     a.disabled = feito;
+    var dsc = $("cr-descartar");
+    if (dsc) {
+      dsc.disabled = feito;
+      // o aviso muda com a fonte: ficha sai da fila, imóvel vai para Excluído
+      dsc.title = it.codigo ? "Tira do site, da Nay e da fila (fica em Situação > Excluído)"
+                            : "Tira esta ficha da fila; a conversa continua guardada";
+    }
     a.textContent = feito ? "Resolvido ✓"
       : !it.codigo ? "Cadastrar e aprovar"
       : it.status === "Disponível" ? "Salvar e próximo" : "Aprovar: fica disponível para a Nay";
@@ -933,6 +945,63 @@
         else if (n > 80) { clearInterval(t); falha(new Error("o editor não respondeu ao salvar")); }
       }, 250);
     });
+  }
+
+  /* ---- DESCARTAR (Tel, 11/10: "no cadastro rapido poe uma opção descartar que apaga") ----
+     A fila tem DUAS fontes, e "apagar" é coisa diferente em cada uma -- por isso o aviso
+     muda, e o caminho também:
+
+     - FICHA (o dono ditou na conversa e o imóvel nem existe): vira
+       `estado = 'descartado'` em captacao_cadastro. Esse estado JÁ existia no CHECK da
+       tabela, e `nai_cadastro_pendente()` só lista 'coletando' e 'pronto' -- some da
+       fila sozinho, sem coluna nova e sem mexer na função.
+     - IMÓVEL (já está no catálogo): vira `status = 'Excluído'`, o mesmo caminho do
+       Excluir da lista de imóveis (imoveis-ux.js). Sai do site, da Nay e da fila.
+
+     APAGAR A LINHA DE VERDADE EU NÃO FAÇO em nenhum dos dois. O que o dono contou na
+     conversa, e o imóvel que já foi anunciado, são rastro que alguém vai querer achar
+     depois -- e os dois caminhos acima já somem da tela, que é o que foi pedido. */
+  function descartar() {
+    var it = fila[pos];
+    if (ocupado || !it) return;
+    var nome = [it.condominio || it.titulo || it.tipo, it.bairro].filter(Boolean).join(", ");
+    var aviso = it.codigo
+      ? "Descartar o imóvel " + it.codigo + (nome ? " (" + nome + ")" : "") + "?\n\n" +
+        "Ele sai do site, da Nay e desta fila.\n" +
+        "Fica guardado em Situação > Excluído, de onde dá para trazer de volta."
+      : "Descartar esta ficha" + (nome ? " (" + nome + ")" : "") + "?\n\n" +
+        "É o que o dono ditou na conversa e nunca virou imóvel.\n" +
+        "Sai desta fila; a conversa continua guardada.";
+    if (!window.confirm(aviso)) return;
+
+    ocupado = true;
+    var b = $("cr-descartar");
+    if (b) b.disabled = true;
+    recado("Descartando…");
+
+    (it.codigo
+      ? put(it.codigo, { status: "Excluído" })
+      : enviarJson("/admin/api/imoveis/da-ficha/" + encodeURIComponent(it.fichaId) + "/descartar", "POST", {})
+          .then(function (d) {
+            // a rota devolve ok:false quando a ficha já tinha saído de 'coletando'/'pronto'
+            if (!d || d.ok === false) throw new Error("esta ficha já tinha saído da fila");
+            return d;
+          }))
+      .then(function () {
+        ocupado = false;
+        if (b) b.disabled = false;
+        feitos[chave(it)] = true;
+        var texto = it.codigo
+          ? "#" + it.codigo + " descartado (Situação > Excluído)."
+          : "Ficha descartada.";
+        if (pos < fila.length - 1) { mover(1); recado(texto + " Próximo:", "ok"); }
+        else { pintarFaixa(); recado(texto + " Fim da fila.", "ok"); }
+      })
+      .catch(function (e) {
+        ocupado = false;
+        if (b) b.disabled = false;
+        recado("Não descartei: " + e.message, "erro");
+      });
   }
 
   function aprovar() {

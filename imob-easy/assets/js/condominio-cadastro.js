@@ -251,6 +251,8 @@
     });
     GRUPOS.forEach(function (g) { marcar(g[0], c ? c[g[0]] : []); });
     mostrarSugestao(c && c.ia_sugestao);
+    // o selo "(Google)" nas labels (condominio-google.js). Só a tela: para a Nay o dado é um dado.
+    if (window.condominioGoogleMarcar) window.condominioGoogleMarcar(c && c.campos_google);
     $("cc-taxas").innerHTML = (c && Array.isArray(c.taxas) ? c.taxas : []).map(linhaTaxa).join("");
     painel.querySelectorAll("[data-mais]").forEach(function (i) { i.value = ""; });
     $("cc-titulo").textContent = c ? c.nome : "Novo condomínio";

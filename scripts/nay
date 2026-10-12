@@ -29,7 +29,7 @@ lf() { tr -d '\r'; }   # o Windows grava CRLF; o psql quer LF
 #   conferir_servidor <pasta no repositório> <pasta no servidor> arquivo...
 conferir_servidor() {
   local rep="$1" dest="$2"; shift 2
-  local f loc srv head parar=0
+  local f c loc srv head parar=0
   for f in "$@"; do
     [ -f "$RAIZ/$rep/$f" ] || { echo "não achei $rep/$f"; exit 1; }
     srv=$(printf '%s' "$dest/$f" | ssh -o ConnectTimeout=20 $SRV 'f=$(cat); [ -f "$f" ] && tr -d "\r" < "$f" | md5sum | cut -c1-32 || echo novo')
@@ -39,6 +39,12 @@ conferir_servidor() {
     [ "$srv" = "$loc" ] && continue
     head=$(git -C "$RAIZ" show "HEAD:$rep/$f" 2>/dev/null | lf | md5sum | cut -c1-32)
     git -C "$RAIZ" cat-file -e "HEAD:$rep/$f" 2>/dev/null || head=sem-commit
+    # o servidor pode estar num commit ANTERIOR deste arquivo (commitei e ainda não subi): isso é meu, não é de outro
+    if [ "$srv" != "$head" ] && [ "$head" != sem-commit ]; then
+      for c in $(git -C "$RAIZ" log -40 --format=%h -- "$rep/$f"); do
+        [ "$(git -C "$RAIZ" show "$c:$rep/$f" 2>/dev/null | lf | md5sum | cut -c1-32)" = "$srv" ] && { head="$srv"; break; }
+      done
+    fi
     if [ "$srv" != "$head" ]; then
       parar=1
       echo "AVISO: $f no servidor NÃO é o do último commit daqui (alguém mexeu lá, ou eu subi sem commitar)."
