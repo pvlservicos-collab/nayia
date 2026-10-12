@@ -393,8 +393,11 @@ export default function LeadList({
      para cima, precisa corrigir isso agora"). A conversa subia, sim -- e era enterrada logo depois: cada modelo que
      o disparo manda conta como "última atividade", e com um modelo saindo por minuto quem só RECEBEU ia para o
      topo. Medido em 09/10: 167 conversas, 124 só de disparo; das 13 esperando resposta, a melhor estava na 22ª
-     posição. Aqui a ordem é a de quem ESCREVEU por último; quem nunca escreveu vem depois, pela última atividade. */
-  const ordemDeQuemEscreveu = linha === 'oficial'
+     posição. Aqui a ordem era a de quem ESCREVEU por último; quem nunca escreveu vinha depois.
+     12/10 (Pedro): "preciso que as conversas da aba api oficial fiquem sempre as mais recentes em cima igual as
+     outras, tá toda bugada". Voltou para a ordem das outras abas (última atividade, de quem quer que seja); quem
+     espera resposta se acha pelo chip "Não lido". A ordem de quem escreveu fica desligada, não apagada. */
+  const ordemDeQuemEscreveu = false as boolean
   const escreveuEm = (l: LeadWithOwner) => { const t = Date.parse(l.ultima_recebida || ''); return Number.isFinite(t) ? t : 0 }
 
   const ordenados: SearchHit[] = [...daLinha].sort((a, b) => {
