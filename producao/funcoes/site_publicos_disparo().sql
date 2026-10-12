@@ -9,18 +9,12 @@ AS $function$
      WHERE m.direcao = 'enviada' AND m.status <> 'Falhou' AND (m.message_id LIKE 'wamid%' OR m.origem = 'disparo')
     UNION
     SELECT l.telefone_chave FROM captacao_leads l WHERE l.ultimo_envio_em IS NOT NULL AND coalesce(l.telefone_chave, '') <> ''
-  ), falou AS (                          -- quem escreveu para a gente nos últimos 60 dias (qualquer número)
-    SELECT DISTINCT nay_fone_chave(nay_fone_com_ddi(m.telefone)) AS chave FROM mensagens m
-     WHERE m.direcao = 'recebida' AND m.criada_em > now() - interval '60 days'
+  ), falou AS (                          -- 352: quem escreveu para a gente nos últimos 60 dias, por QUALQUER número
+    SELECT f.chave FROM privado.falou_conosco f WHERE f.ultima_em > now() - interval '60 days'
+  ), corretor AS (                        -- 352: corretor (grupos ou parceria) não é dono
+    SELECT nay_fone_chave(nay_fone_com_ddi(c.telefone)) AS chave FROM corretores c WHERE coalesce(c.telefone, '') <> ''
     UNION
-    SELECT DISTINCT nay_fone_chave(nay_fone_com_ddi(m.telefone)) FROM captacao_mensagens m
-     WHERE m.direcao = 'recebida' AND m.criada_em > now() - interval '60 days'
-    UNION
-    SELECT DISTINCT nay_fone_chave(nay_fone_com_ddi(c.chave)) FROM nai_turno t JOIN nai_contato c ON c.id = t.contato_id
-     WHERE t.criado_em > now() - interval '60 days' AND c.chave !~ '@'
-    UNION
-    SELECT DISTINCT nay_fone_chave(nay_fone_com_ddi(c.telefone)) FROM corretores c
-     WHERE c.ultima_interacao > now() - interval '60 days' AND coalesce(c.telefone, '') <> ''
+    SELECT nay_fone_chave(nay_fone_com_ddi(p.telefone)) FROM proprietarios_export p WHERE coalesce(p.corretor, '') ~* 'parceir'
   ), corr AS (
     SELECT DISTINCT ON (nay_fone_chave(nay_fone_com_ddi(c.telefone))) nay_fone_chave(nay_fone_com_ddi(c.telefone)) AS chave, c.ultima_interacao
       FROM corretores c WHERE coalesce(btrim(c.telefone), '') <> ''
@@ -35,6 +29,7 @@ AS $function$
            bool_and(v.status = 'Vendido') AS so_vendido, bool_and(v.status IN ('Removido', 'Arquivado')) AS so_fora
       FROM vw_proprietarios_site ps JOIN vw_imoveis_todos v ON v.proprietario_id = ps.id
      WHERE length(regexp_replace(coalesce(ps.telefone, ''), '\D', '', 'g')) BETWEEN 10 AND 13 AND NOT site_nao_e_dono(ps.nome)
+       AND NOT EXISTS (SELECT 1 FROM corretor k WHERE k.chave = nay_fone_chave(nay_fone_com_ddi(ps.telefone)))
      GROUP BY 1
   ), planilha AS (
     SELECT DISTINCT nay_fone_chave(nay_fone_com_ddi(p.telefone)) AS chave
@@ -53,7 +48,9 @@ AS $function$
     UNION ALL SELECT 6, chave FROM dono WHERE tem_disponivel
     UNION ALL SELECT 8, chave FROM planilha
     UNION ALL SELECT 9, l.telefone_chave FROM captacao_leads l WHERE coalesce(l.telefone_chave, '') <> ''
+                AND NOT EXISTS (SELECT 1 FROM corretor k WHERE k.chave = l.telefone_chave)
     UNION ALL SELECT 10, l.telefone_chave FROM captacao_leads l JOIN captacao_retomada_oficial r ON r.lead_id = l.id
+                WHERE NOT EXISTS (SELECT 1 FROM corretor k WHERE k.chave = l.telefone_chave)
   ), nomes AS (SELECT * FROM (VALUES
       (1, 'corretores', 'Corretores dos grupos', 'os corretores dos grupos da Parceria'),
       (2, 'corretores', 'Parceiros do site antigo', 'cadastro antigo marcado como parceiro'),

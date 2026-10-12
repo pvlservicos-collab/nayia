@@ -25,5 +25,8 @@ AS $function$
                       WHERE o.id <> l.id AND o.proprietario_id IS NOT NULL AND o.proprietario_id = l.proprietario_id
                         AND (o.ultimo_envio_em IS NOT NULL OR o.respondeu_em IS NOT NULL))
      AND NOT EXISTS (SELECT 1 FROM captacao_nao_disparar n WHERE n.telefone_chave = l.telefone_chave)
+     -- 352: quem falou conosco por qualquer número nos últimos 60 dias não recebe disparo; corretor não é proprietário
+     AND NOT nay_falou_conosco(l.telefone_chave, 60)
+     AND NOT nay_e_corretor_chave(l.telefone_chave)
    ORDER BY (l.status = 'enviado'), l.id;
 $function$;
