@@ -24,3 +24,18 @@
 .mw-botao { background: #fff; border-radius: 10px; text-align: center; color: #0a7cff; font-weight: 600; font-size: 14px; padding: 9px 10px; box-shadow: 0 1px 1px rgba(0,0,0,.12); }
 .mw-motivo { font-size: 12px; color: #b42323; margin: 8px 0 0; }
 .mw-vazio { padding: 30px; text-align: center; color: var(--texto-fraco, #6b6478); }
+
+/* a barra lateral com as listas do disparo (12/10) */
+.mw-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .mw-layout { grid-template-columns: 1fr; } }
+.mw-lado { position: sticky; top: 12px; background: var(--superficie, #fff); border: 1px solid var(--borda, #e3daf2); border-radius: 16px; padding: 12px; }
+.mw-lado__titulo { font-family: "Barlow", sans-serif; font-size: 15px; text-transform: uppercase; letter-spacing: .08em; margin: 2px 0 10px; }
+.mw-lado__nota { font-size: 11.5px; color: var(--texto-fraco, #6b6478); margin: 10px 0 0; }
+.mw-publico { display: flex; gap: 10px; padding: 9px 4px; border-top: 1px solid var(--borda, #e3daf2); }
+.mw-publico__n { flex: none; width: 24px; height: 24px; border-radius: 8px; background: var(--roxo); color: #fff; font-weight: 800; font-size: 12px; display: grid; place-items: center; }
+.mw-publico__corpo { min-width: 0; flex: 1; }
+.mw-publico__nome { font-weight: 700; font-size: 13px; line-height: 1.25; }
+.mw-publico__desc { font-size: 12px; color: var(--texto-fraco, #6b6478); }
+.mw-publico__num { font-size: 12px; margin-top: 3px; }
+.mw-publico__barra { height: 6px; border-radius: 999px; background: var(--superficie-2, #f1eaff); overflow: hidden; margin-top: 4px; }
+.mw-publico__barra i { display: block; height: 100%; background: linear-gradient(90deg, var(--roxo), #c084fc); min-width: 2px; }

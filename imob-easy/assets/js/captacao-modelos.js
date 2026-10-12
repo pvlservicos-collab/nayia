@@ -33,10 +33,26 @@
       "</div>" + (m.motivo ? '<p class="mw-motivo">Motivo da Meta: ' + esc(m.motivo) + "</p>" : "") +
     "</article>";
   }
+  function num(n) { return Number(n || 0).toLocaleString("pt-BR"); }
+  function listas() {
+    fetch("api/captacao/publicos", { credentials: "same-origin" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      var lado = document.getElementById("mw-lado");
+      if (!d || !d.listas) { lado.innerHTML = '<p class="mw-vazio">Não consegui ler as listas.</p>'; return; }
+      lado.innerHTML = '<h2 class="mw-lado__titulo">Listas do disparo</h2>' + d.listas.map(function (l) {
+        var pct = l.total ? Math.round(l.disparados * 100 / l.total) : 0;
+        return '<div class="mw-publico"><div class="mw-publico__n">' + l.n + '</div><div class="mw-publico__corpo">' +
+          '<div class="mw-publico__nome">' + esc(l.nome) + "</div>" +
+          '<div class="mw-publico__desc">' + esc(l.descricao) + "</div>" +
+          '<div class="mw-publico__num"><b>' + num(l.total) + "</b> pessoas · <b>" + num(l.disparados) + "</b> já receberam (" + pct + "%)</div>" +
+          '<div class="mw-publico__barra"><i style="width:' + pct + '%"></i></div></div></div>';
+      }).join("") + '<p class="mw-lado__nota">"Já receberam" = o telefone recebeu alguma mensagem pela API oficial.</p>';
+    }).catch(function () {});
+  }
   var carregou = false;
   function carregar() {
     if (carregou) return;
     carregou = true;
+    listas();
     fetch("dados/modelos.json?t=" + Math.floor(Date.now() / 60000)).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
       var alvo = document.getElementById("mw-lista");
       if (!d || !d.modelos) { alvo.innerHTML = '<p class="mw-vazio">A leitura dos modelos ainda não chegou (o cron escreve admin/dados/modelos.json a cada 10 min).</p>'; return; }

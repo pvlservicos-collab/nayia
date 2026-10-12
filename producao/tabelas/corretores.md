@@ -1,4 +1,4 @@
-# corretores  (tabela, ~1548 linhas)
+# corretores  (tabela, ~1564 linhas)
 
 ## colunas
 telefone  text  NOT NULL
@@ -36,4 +36,4 @@ nay_site_leitura, só nestas colunas: SELECT(telefone, nome, ativo, no_shows, ul
 nai_decidir_corretor, nai_guardar_dados_visita, nai_resultado_visita, nai_sincronizar_grupos, nay_sincronizar_nome
 
 ## funções que citam
-captacao_fora_da_campanha, crm_anuncio_decidir, crm_grupo_pessoas, crm_grupos_conhecidos, crm_nay_voltar, crm_olx_conta_preparar, crm_parceria_marcas, crm_visitas, nai_abrir_turno, nai_dados_corretor, nai_decidir_corretor, nai_deve_atender, nai_e_proprietario_contato, nai_enfileirar_cortesia, nai_guardar_dados_visita, nai_liberar_saida, nai_perguntar_se_e_corretor, nai_pode_falar, nai_resultado_visita, nai_sincronizar_grupos, nai_tel_com_a_conversa, nay_comando, nay_entregas_devidas, nay_escalar, nay_nome_de_pessoa, nay_pendencias_esquecidas, nay_responder_conversando, nay_sincronizar_nome, site_me_envia_ranking
+captacao_fora_da_campanha, crm_anuncio_decidir, crm_grupo_pessoas, crm_grupos_conhecidos, crm_nay_voltar, crm_olx_conta_preparar, crm_parceria_marcas, crm_visitas, nai_abrir_turno, nai_dados_corretor, nai_decidir_corretor, nai_deve_atender, nai_e_proprietario_contato, nai_enfileirar_cortesia, nai_guardar_dados_visita, nai_liberar_saida, nai_perguntar_se_e_corretor, nai_pode_falar, nai_resultado_visita, nai_sincronizar_grupos, nai_tel_com_a_conversa, nay_comando, nay_entregas_devidas, nay_escalar, nay_nome_de_pessoa, nay_pendencias_esquecidas, nay_responder_conversando, nay_sincronizar_nome, site_me_envia_ranking, site_publicos_disparo

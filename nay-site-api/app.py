@@ -4121,6 +4121,19 @@ def candidatos_da_lista(conn, lista_id):
     return lista, saida
 
 
+@app.route("/admin/api/captacao/publicos")
+def api_captacao_publicos():
+    """As 8 listas do disparo pela API oficial, com o total e quantos já receberam (349). Só contagens."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    conn = conectar_escrita()
+    try:
+        linhas = todas_linhas(conn, "SELECT n, nome, descricao, total, disparados FROM site_publicos_disparo()")
+        return jsonify({"listas": [dict(l) for l in linhas]}), 200, {"Cache-Control": "no-cache"}
+    finally:
+        conn.close()
+
+
 @app.route("/api/captacao/resumo")
 def api_captacao_resumo():
     """Métricas da aba + estado dos interruptores."""

@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css">
 <link rel="stylesheet" href="../assets/css/captacao-olx.css">
-<link rel="stylesheet" href="../assets/css/captacao-modelos.css?v=20261012a">
+<link rel="stylesheet" href="../assets/css/captacao-modelos.css?v=20261012b">
 <style>
   /* Linha "cinza": levou todas as tentativas e nunca respondeu. A IA não
      chama mais essa pessoa -- a tabela mostra isso apagando a linha, para
@@ -330,8 +330,14 @@
 
   <div id="painel-modelos" role="tabpanel" aria-labelledby="aba-modelos" hidden>
     <p class="pagina-subtitulo" style="margin-bottom:10px">Os modelos da API oficial (Meta), como chegam no celular: os aprovados primeiro, por categoria.</p>
-    <p class="mw-resumo" id="mw-resumo"></p>
-    <div id="mw-lista"><p class="mw-vazio">Lendo os modelos…</p></div>
+    <div class="mw-layout">
+      <!-- 12/10 (Pedro): as listas do disparo, com quantos são e quantos já receberam -->
+      <aside class="mw-lado" id="mw-lado"><p class="mw-vazio">Lendo as listas…</p></aside>
+      <div class="mw-principal">
+        <p class="mw-resumo" id="mw-resumo"></p>
+        <div id="mw-lista"><p class="mw-vazio">Lendo os modelos…</p></div>
+      </div>
+    </div>
   </div><!-- /painel-modelos -->
 </main>
 
@@ -411,6 +417,6 @@
 <script src="../assets/js/captacao-olx-bot.js"></script>
 <script src="../assets/js/captacao-cadastros.js"></script>
 <script src="../assets/js/captacao-oportunidades.js?v=20261011a"></script>
-<script src="../assets/js/captacao-modelos.js?v=20261012a"></script>
+<script src="../assets/js/captacao-modelos.js?v=20261012b"></script>
 </body>
 </html>

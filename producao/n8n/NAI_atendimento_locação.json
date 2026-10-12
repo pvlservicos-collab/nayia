@@ -2,7 +2,7 @@
  "id": "NaiAtendLocacao1",
  "nome": "NAI atendimento locação",
  "ativo": true,
- "atualizado_em": "2026-10-06 17:50:39.338",
+ "atualizado_em": "2026-10-12 14:09:37",
  "nodes": [
   {
    "parameters": {
@@ -259,7 +259,7 @@
       },
       {
        "name": "model",
-       "value": "gpt-4o-transcribe"
+       "value": "gpt-4o-mini-transcribe"
       },
       {
        "name": "language",
@@ -267,7 +267,7 @@
       },
       {
        "name": "prompt",
-       "value": "Conversa entre corretores de imóveis em Manaus, Amazonas. Bairros: Adrianópolis, Aleixo, Alvorada, Cachoeirinha, Centro, Chapada, Cidade de Deus, Cidade Nova, Colônia Santo Antônio, Colônia Terra Nova, Compensa, Coroado, Da Paz, Dom Pedro, Flores, Japiim, Lago Azul, Lírio do Vale, Nossa Senhora das Graças, Nova Cidade, Nova Esperança, Novo Aleixo, Parque 10 de Novembro, Parque das Laranjeiras, Petrópolis, Planalto, Ponta Negra, Praça 14 de Janeiro, Raiz, Santa Etelvina, Santo Agostinho, Santo Antônio, São Francisco, São Geraldo, São Jorge, São José Operário, Tarumã, Tarumã-Açu, Zumbi dos Palmares. Condomínios: Acquarelle, Alphaville, Ilhas Gregas, Gran Vista, Morada dos Pássaros, Ponta Negra I e II, Itapuranga, Reserva do Parque, Smart Downtown, Vitta Club House, Passaredo, Forest Hill, Quinta das Marinas, Mundi Resort, Evidence Ponta Negra, Living Comfort, Park Golf. Fala-se de aluguel, locação, venda, quartos, suíte, vaga, mobiliado, semimobiliado, condomínio, visita e código do imóvel."
+       "value": "Conversa entre corretores de imóveis em Manaus, Amazonas. Bairros: Adrianópolis, Aleixo, Alvorada, Cachoeirinha, Centro, Chapada, Cidade de Deus, Cidade Nova, Colônia Santo Antônio, Colônia Terra Nova, Compensa, Coroado, Da Paz, Dom Pedro, Flores, Japiim, Lago Azul, Lírio do Vale, Nossa Senhora das Graças, Nova Cidade, Nova Esperança, Novo Aleixo, Parque 10 de Novembro, Parque das Laranjeiras, Petrópolis, Planalto, Ponta Negra, Praça 14 de Janeiro, Raiz, Santa Etelvina, Santo Agostinho, Santo Antônio, São Francisco, São Geraldo, São Jorge, São José Operário, Tarumã, Tarumã-Açu, Zumbi dos Palmares. Condomínios: Acquarelle, Alphaville, Ilhas Gregas, Gran Vista, Morada dos Pássaros, Ponta Negra I e II, Itapuranga, Reserva do Parque, Smart Downtown, Vitta Club House, Passaredo, Forest Hill, Quinta das Marinas, Mundi Resort, Evidence Ponta Negra, Living Comfort, Park Golf. Fala-se de aluguel, locação, venda, quartos, suíte, vaga, mobiliado, com modulados e ar, só climatizado, sem móveis, condomínio, visita e código do imóvel."
       }
      ]
     },

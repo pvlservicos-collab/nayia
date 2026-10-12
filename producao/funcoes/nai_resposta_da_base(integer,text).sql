@@ -106,9 +106,9 @@ BEGIN
     ELSIF nay_mobilia_nivel(i.mobilia) = 'climatizado' THEN
       r := r || 'não é mobiliado'::text || 'tem só o ar-condicionado'::text;
     ELSIF nay_mobilia_nivel(i.mobilia) = 'nada' THEN
-      r := r || 'não é mobiliado'::text || 'está sem nada'::text;
+      r := r || 'não é mobiliado'::text || nay_mobilia_detalhe('nada')::text;
     ELSIF car ~ 'semi.?mobiliad' THEN
-      r := r || 'é semi-mobiliado'::text;
+      r := r || 'é ' || nay_mobilia_rotulo('semi')::text;
     ELSIF car ~ '(sem mobilia|nao mobiliad)' THEN
       r := r || 'não é mobiliado'::text;
     ELSIF car ~ 'mobiliad' THEN
@@ -120,7 +120,36 @@ BEGIN
   IF q ~ '(banheiro|\mwc\M|lavabo|sanitario)' AND f_b IS NOT NULL THEN r := r || f_b; END IF;
   IF q ~ '(\mvaga|garagem|estacionamento|\mcarro)' AND f_v IS NOT NULL THEN r := r || f_v; END IF;
   IF q ~ '(\marea\M|metragem|tamanho|\mm2\M|\mmetros|metro quadrado)' AND f_a IS NOT NULL THEN r := r || f_a; END IF;
-  IF q ~ '(\mandar|pavimento)' AND f_an IS NOT NULL THEN r := r || f_an; END IF;
+  -- ANDAR DA UNIDADE x ANDARES DO PREDIO x TORRES (12/10, Tel): "se alguem
+  -- perguntar andar, a nay vai em condominios e vai estar la pq se tem andar
+  -- e porque e condominio de apartamentos". Sao perguntas diferentes, de
+  -- lugares diferentes -- e `\mandar` sem `\M` casava "andares", entao quem
+  -- perguntava os andares do predio recebia o andar do apartamento.
+  DECLARE v_cond text;
+  BEGIN
+    IF q ~ '\mandares\M' THEN
+      v_cond := nai_resposta_do_condominio(p_codigo, 'andares_predio');
+      IF v_cond IS NOT NULL THEN r := r || v_cond; END IF;
+    -- "quantos apartamentos POR ANDAR?" tem "andar" e nao e pergunta de andar:
+    -- sem este `!~`, ela respondia o andar da unidade E os aptos por andar na
+    -- mesma mensagem, uma contradizendo a outra (visto no ensaio).
+    ELSIF q ~ '(\mandar\M|pavimento)' AND q !~ 'por andar' THEN
+      IF f_an IS NOT NULL THEN
+        r := r || f_an;
+      ELSE
+        v_cond := nai_resposta_do_condominio(p_codigo, 'andar');
+        IF v_cond IS NOT NULL THEN r := r || v_cond; END IF;
+      END IF;
+    END IF;
+    IF q ~ '\mtorres?\M' THEN
+      v_cond := nai_resposta_do_condominio(p_codigo, 'torres');
+      IF v_cond IS NOT NULL THEN r := r || v_cond; END IF;
+    END IF;
+    IF q ~ '(por andar|apartamentos? por|aptos? por|unidades? por)' THEN
+      v_cond := nai_resposta_do_condominio(p_codigo, 'aptos_por_andar');
+      IF v_cond IS NOT NULL THEN r := r || v_cond; END IF;
+    END IF;
+  END;
 
   -- SOL
   IF q ~ '(\msol\M|nascente|poente|posicao do sol|lado do sol)' AND coalesce(i.sol, '') <> '' THEN
@@ -243,9 +272,15 @@ BEGIN
   -- o "Sim", ela mesma ja nega.
   v_out := nai_frase_maiuscula(r[1]);
   -- "Sim!" so quando a resposta e um sim inteiro. Em "e mobiliado?" com imovel
-  -- SEMI-mobiliado, "Sim! E semi-mobiliado" engana o corretor: fica so a frase.
+  -- "com modulados e ar", "Sim! E com modulados e ar" engana o corretor: fica
+  -- so a frase. (12/10: a guarda testava '^é semi', a redacao de antes dos 4
+  -- niveis; desde 11/10 nao casava mais e o "Sim!" tinha voltado a sair.)
   IF q !~ '(qual|quais|quanto|quantos|quantas|onde|como)'
-     AND r[1] !~ '^n[ãa]o' AND r[1] !~ '^é semi' THEN
+     AND r[1] !~ '^n[ãa]o' AND r[1] !~ '^é (semi|com modulados|s[óo] climatizado)'
+     -- 12/10: as frases de tipo ("é uma casa em via publica, nao tem andar";
+     -- "é um apartamento em condominio, mas nao tenho o andar dele aqui")
+     -- negam no MEIO, nao no comeco. "Sim!" na frente delas engana.
+     AND r[1] !~ 'n[ãa]o (tem|é|e|tenho)\M' THEN
     v_out := 'Sim! ' || v_out;
   END IF;
 

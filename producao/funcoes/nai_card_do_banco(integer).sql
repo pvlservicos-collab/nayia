@@ -52,7 +52,7 @@ AS $function$
               WHEN 'climatizado' THEN E'
 • só climatizado'
               WHEN 'nada' THEN E'
-• sem mobília' ELSE '' END
+• sem móveis' ELSE '' END
       -- 345: a observação do imóvel ("falta só TV", "vista para o rio", "o dono aceita outro imóvel")
       || CASE WHEN coalesce(btrim(b.observacao), '') <> '' THEN E'
 • ' || left(regexp_replace(btrim(b.observacao), '\s*\n+\s*', ' / ', 'g'), 300) ELSE '' END

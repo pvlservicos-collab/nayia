@@ -1,4 +1,4 @@
-# imovel_fotos_manual  (tabela, ~32 linhas)
+# imovel_fotos_manual  (tabela, ~36 linhas)
 Imóvel cujas fotos foram mexidas à mão na biblioteca do cadastro (283, 03/10/2026). A varredura de fotos do site antigo não mexe nele.
 
 ## colunas

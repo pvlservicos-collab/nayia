@@ -166,7 +166,7 @@ BEGIN
                               WHEN v_aluga THEN 'E o IPTU, sabe me dizer o valor? O aluguel já inclui alguma coisa, como água ou IPTU?'
                               WHEN v_cond THEN 'E o condomínio e o IPTU, estão em quanto?'
                               ELSE 'E o IPTU, sabe me dizer o valor?' END
-    WHEN 'mobilia' THEN 'Ele está mobiliado, semimobiliado ou sem mobília?'
+    WHEN 'mobilia' THEN 'Ele está mobiliado, com modulados e ar, só climatizado ou sem móveis?'
     WHEN 'fotos'   THEN v_pron_m || ' pode me enviar as fotos do imóvel?'
     END;
 

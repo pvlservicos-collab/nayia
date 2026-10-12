@@ -47,7 +47,7 @@ BEGIN
              'sol: ' || coalesce(nullif(i.sol, ''), nai_ficha_valor(p_codigo, 'sol')),
              CASE WHEN coalesce(i.andar, '') <> '' THEN 'andar ' || i.andar END,
              'lances de escada: ' || nai_ficha_valor(p_codigo, 'lances de escada'),
-             'mobília: ' || nullif(i.mobilia, '')));
+             'mobília: ' || nay_mobilia_rotulo(nay_mobilia_nivel(i.mobilia))));
   IF coalesce(array_length(f.caracteristicas_imovel, 1), 0) > 0 OR coalesce(array_length(i.caracteristicas, 1), 0) > 0 THEN
     v := v || ('CARACTERÍSTICAS DO IMÓVEL: ' || array_to_string(
                ARRAY(SELECT DISTINCT c FROM unnest(coalesce(f.caracteristicas_imovel, '{}') || coalesce(i.caracteristicas, '{}')) c), ', '));

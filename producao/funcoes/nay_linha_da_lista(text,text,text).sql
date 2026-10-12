@@ -44,11 +44,11 @@ BEGIN
   END IF;
 
   -- 3. mobília, quando se sabe.
-  mob := lower(coalesce(i.mobilia,''));
-  IF mob LIKE 'semi%' THEN partes := array_append(partes, 'semi-mobiliado');
-  ELSIF mob LIKE 'mobiliad%' THEN partes := array_append(partes, 'mobiliado');
-  ELSIF mob ~ 'ar[- ]condicionado' THEN partes := array_append(partes, 'climatizado');
-  END IF;
+  -- 12/10: a redação vem de nay_mobilia_rotulo, o mesmo lugar do card.
+  -- Os padrões antigos ('semi%', 'ar[- ]condicionado') não casavam com NENHUM
+  -- dos quatro valores novos, e 738 imóveis mandavam a linha sem a mobília.
+  mob := nay_mobilia_rotulo(nay_mobilia_nivel(i.mobilia));
+  IF mob IS NOT NULL THEN partes := array_append(partes, mob); END IF;
 
   -- 4. o valor, e o que acontece com a taxa.
   valor := CASE WHEN p_negocio = 'venda' THEN i.valor_venda ELSE i.valor_aluguel END;

@@ -10,7 +10,7 @@ AS $function$
     WHEN 'comodos'   THEN 'Quantos quartos? Algum deles é suíte?'
     WHEN 'banheiros' THEN 'Quantos banheiros?'
     WHEN 'vagas'     THEN 'Quantas vagas de garagem?'
-    WHEN 'mobilia'   THEN 'É mobiliado, semi-mobiliado ou sem mobília?'
+    WHEN 'mobilia'   THEN 'É mobiliado, com modulados e ar, só climatizado ou sem móveis?'
     WHEN 'preco'     THEN 'E o valor? É para venda ou para locação?'
     WHEN 'fotos'     THEN 'Agora me manda as fotos, por favor.'
   END;

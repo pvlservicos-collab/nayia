@@ -1,4 +1,4 @@
-# condominio_ficha  (tabela, ~173 linhas)
+# condominio_ficha  (tabela, ~463 linhas)
 
 ## colunas
 id  integer  NOT NULL  padrão nextval('condominio_ficha_id_seq'::regclass)
@@ -34,6 +34,7 @@ complemento  text
 site_antigo_id  integer
 ia_sugestao  jsonb   -- 348: o que a IA sugeriu (construtora, ano, torres, andares, lazer...), para conferir e aplicar no cadastro; não é lido pela Nay.
 ia_em  timestamp with time zone
+campos_google  text[]  NOT NULL  padrão '{}'::text[]   -- Quais campos desta ficha vieram da pesquisa na web (ia_sugestao). SÓ PARA A TELA DO ADMIN mostrar "(Google)". NUNCA expor à IA: para a Nay o dado vem do mesmo lugar que os outros. Mantida pelo gatilho condominio_google_tg.
 
 ## índices
 CREATE UNIQUE INDEX condominio_ficha_condominio_id_key ON public.condominio_ficha USING btree (condominio_id)
@@ -46,6 +47,9 @@ condominio_ficha_nome_key: UNIQUE (nome)
 condominio_ficha_pkey: PRIMARY KEY (id)
 condominio_ficha_tipo_check: CHECK ((tipo = ANY (ARRAY['apartamentos'::text, 'casas_lotes'::text])))
 
+## gatilhos
+CREATE TRIGGER condominio_google_tg BEFORE INSERT OR UPDATE ON public.condominio_ficha FOR EACH ROW EXECUTE FUNCTION condominio_google_marcar()
+
 ## permissões
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 nay_core: SELECT
@@ -54,7 +58,7 @@ nay_site_escrita: SELECT
 nay_site_leitura: SELECT
 
 ## funções que escrevem aqui
-site_condominio_guardar, site_condominio_salvar
+condominio_aplicar_google, site_condominio_guardar, site_condominio_salvar
 
 ## funções que citam
-crm_captacao_cadastro_opcoes, nai_cadastro_importar, site_condominio_guardar, site_condominio_salvar, site_imovel_publico
+condominio_aplicar_google, crm_captacao_cadastro_opcoes, nai_cadastro_importar, nai_condominio_do_imovel, site_condominio_guardar, site_condominio_salvar, site_imovel_publico
