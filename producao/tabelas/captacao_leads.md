@@ -1,4 +1,4 @@
-# captacao_leads  (tabela, ~365 linhas)
+# captacao_leads  (tabela, ~516 linhas)
 
 ## colunas
 id  bigint  NOT NULL
