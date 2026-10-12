@@ -28,7 +28,8 @@
 /* a barra lateral com as listas do disparo (12/10) */
 .mw-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start; }
 @media (max-width: 900px) { .mw-layout { grid-template-columns: 1fr; } }
-.mw-lado { position: sticky; top: 12px; background: var(--superficie, #fff); border: 1px solid var(--borda, #e3daf2); border-radius: 16px; padding: 12px; }
+/* a barra é presa no alto; quando é mais alta que a tela, rola por dentro (12/10: 'algo bloqueando a rolagem') */
+.mw-lado { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; overscroll-behavior: contain; background: var(--superficie, #fff); border: 1px solid var(--borda, #e3daf2); border-radius: 16px; padding: 12px; }
 .mw-lado__titulo { font-family: "Barlow", sans-serif; font-size: 15px; text-transform: uppercase; letter-spacing: .08em; margin: 2px 0 10px; }
 .mw-lado__nota { font-size: 11.5px; color: var(--texto-fraco, #6b6478); margin: 10px 0 0; }
 .mw-publico { display: flex; gap: 10px; padding: 9px 4px; border-top: 1px solid var(--borda, #e3daf2); }
