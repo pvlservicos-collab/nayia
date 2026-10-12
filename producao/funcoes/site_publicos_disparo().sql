@@ -7,6 +7,8 @@ AS $function$
   WITH oficial AS (                      -- quem já recebeu pela API oficial
     SELECT DISTINCT nay_fone_chave(m.telefone) AS chave FROM captacao_mensagens m
      WHERE m.direcao = 'enviada' AND m.status <> 'Falhou' AND (m.message_id LIKE 'wamid%' OR m.origem = 'disparo')
+    UNION
+    SELECT l.telefone_chave FROM captacao_leads l WHERE l.ultimo_envio_em IS NOT NULL AND coalesce(l.telefone_chave, '') <> ''
   ), corr AS (                           -- os corretores dos grupos, um por telefone
     SELECT DISTINCT ON (nay_fone_chave(c.telefone)) nay_fone_chave(c.telefone) AS chave, c.ultima_interacao
       FROM corretores c WHERE coalesce(btrim(c.telefone), '') <> ''
@@ -50,6 +52,13 @@ AS $function$
       FROM parc p WHERE NOT EXISTS (SELECT 1 FROM corr c WHERE c.chave = p.chave)
     UNION ALL
     SELECT 8, 'Donos da planilha antiga que nunca viraram imóvel', 'mais imóveis', chave FROM planilha
+    UNION ALL
+    -- as que já foram disparadas (350): a campanha da captação e a retomada pelo oficial
+    SELECT 9, 'Captação: proprietários pelo número oficial', 'a campanha da situação do imóvel (modelo com os botões)', l.telefone_chave
+      FROM captacao_leads l WHERE coalesce(l.telefone_chave, '') <> ''
+    UNION ALL
+    SELECT 10, 'Captação: retomada pelo oficial', 'quem recebeu a abertura pela Z-API e nunca respondeu (323)', l.telefone_chave
+      FROM captacao_leads l JOIN captacao_retomada_oficial r ON r.lead_id = l.id
   )
   , nomes AS (SELECT * FROM (VALUES
       (1, 'Corretores dos grupos', 'tirando quem escreveu nos últimos 30 dias'),
@@ -59,7 +68,9 @@ AS $function$
       (5, 'Donos com imóvel alugado', 'atualizar e pegar a data do contrato'),
       (6, 'Donos com imóvel disponível', 'atualizar'),
       (7, 'Parceiros que não estão nos grupos', 'corretores novos'),
-      (8, 'Donos da planilha antiga que nunca viraram imóvel', 'mais imóveis')) AS v(n, nome, descricao))
+      (8, 'Donos da planilha antiga que nunca viraram imóvel', 'mais imóveis'),
+      (9, 'Captação: proprietários pelo número oficial', 'a campanha da situação do imóvel (modelo com os botões)'),
+      (10, 'Captação: retomada pelo oficial', 'quem recebeu a abertura pela Z-API e nunca respondeu (323)')) AS v(n, nome, descricao))
   SELECT x.n, x.nome, x.descricao, coalesce(count(DISTINCT l.chave), 0)::int AS total,
          coalesce(count(DISTINCT l.chave) FILTER (WHERE EXISTS (SELECT 1 FROM oficial o WHERE o.chave = l.chave)), 0)::int AS disparados
     FROM nomes x LEFT JOIN listas l ON l.n = x.n GROUP BY x.n, x.nome, x.descricao ORDER BY x.n;

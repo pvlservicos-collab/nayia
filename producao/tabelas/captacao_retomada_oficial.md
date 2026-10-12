@@ -21,4 +21,4 @@ nay_leitura: SELECT
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-captacao_py_fila_do_disparo, captacao_py_reservar_disparo, crm_captacao_disparo_oficial
+captacao_py_fila_do_disparo, captacao_py_reservar_disparo, crm_captacao_disparo_oficial, site_publicos_disparo

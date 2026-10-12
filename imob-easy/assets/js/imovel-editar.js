@@ -116,8 +116,10 @@
     sol: { rotulo: "Face solar", lista: true },
     // os 4 níveis (Pedro, 11/10): "pelado (sem nada), climatizado (só), com modulados e ar (o antigo semimobiliado), mobiliado"
     mobilia: { rotulo: "Mobília", tipo: "escolha", opcoes: ["sem nada", "só climatizado", "com modulados e ar", "mobiliado"] },
-    observacao: { rotulo: "Observação do imóvel (vai no card)", largo: true, longo: true,
-      dica: "O que vale a pena o corretor saber: \"falta só TV\", \"vista para o rio\", \"o dono negocia a mobília no aluguel\", \"aceita outro imóvel\". Vai junto com o card." },
+    /* 12/10 (Pedro): "a descrição é o texto de anúncio; a observação quem preenche somos nós, e quando preenchermos
+       aí sim vai com o card". Nasce vazia: só o que a equipe escrever aqui sai com o card. */
+    observacao: { rotulo: "Observação da equipe (sai com o card quando preenchida)", largo: true, longo: true,
+      dica: "Só o que a equipe souber e valer a pena o corretor ler: \"falta só TV\", \"vista para o rio\", \"o dono negocia a mobília no aluguel\", \"aceita outro imóvel\". Vazio = o card vai como sempre." },
     // valores e negócio
     valor_aluguel: { rotulo: "Aluguel", prefixo: "R$", tipo: "dinheiro" }, valor_venda: { rotulo: "Venda", prefixo: "R$", tipo: "dinheiro" },
     taxa_condominio: { rotulo: "Condomínio", prefixo: "R$", tipo: "dinheiro" }, iptu: { rotulo: "IPTU", prefixo: "R$", tipo: "dinheiro" },
