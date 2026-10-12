@@ -117,6 +117,10 @@
         "</a>" +
         '<div class="barra-topo__direita">' +
           '<a class="btn-azul-vazado btn-marca" href="https://n8n.imobeasy.online" target="_blank" rel="noopener">n8n</a>' +
+          /* 12/10/2026 (Pedro): "põe um botão no topo do lado do n8n, ver versão mais recente, que recarrega o site
+             sem cache" -- o Mac do Tel mostrava a tela de imóveis antiga. Baixa de novo cada script e CSS da página
+             e recarrega. */
+          '<button class="btn-azul-vazado btn-marca" type="button" data-sem-cache title="Baixa de novo os arquivos desta tela e recarrega">Ver versão mais recente</button>' +
           /* Enviar imóvel ao lado do n8n (Tel, 28/09): o disparo direto para um número. */
           '<a class="btn-azul-vazado btn-marca" href="disparo.html"' + (atual === "disparo" ? ' aria-current="page"' : "") + '>Enviar imóvel</a>' +
           '<a class="btn-azul-vazado" href="../index.html">Pesquisar Imóveis</a>' +
@@ -127,6 +131,24 @@
         "</div>" +
       "</div>" +
     "</header>";
+
+  /* ---- o botão "Ver versão mais recente": refaz o download do que esta página usa e recarrega ---- */
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest("[data-sem-cache]") : null;
+    if (!b) return;
+    b.disabled = true; b.textContent = "Atualizando…";
+    var urls = [];
+    document.querySelectorAll('script[src], link[rel="stylesheet"][href]').forEach(function (el) {
+      var u = el.src || el.href;
+      if (u && u.indexOf(location.origin) === 0) urls.push(u);
+    });
+    urls.push(location.href.split("#")[0]);
+    Promise.all(urls.map(function (u) { return fetch(u, { cache: "reload", credentials: "same-origin" }).catch(function () {}); }))
+      .then(function () {
+        if (window.caches && caches.keys) return caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); });
+      })
+      .then(function () { location.reload(); }, function () { location.reload(); });
+  });
 
   /* ---- Navegação principal ---- */
   var SETA = '<svg viewBox="0 0 12 12" width="10" height="10" fill="currentColor" aria-hidden="true"><path d="M1 3.5 6 9l5-5.5Z"/></svg>';
