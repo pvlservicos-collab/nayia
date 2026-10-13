@@ -11,7 +11,7 @@ BEGIN
   FOR r IN
     SELECT l.id
       FROM captacao_leads l
-      LEFT JOIN LATERAL (SELECT a.situacao, a.valor_dito, a.contrato_dito FROM captacao_aplicado a
+      LEFT JOIN LATERAL (SELECT a.situacao, a.valor_dito, a.contrato_dito, a.aplicado_em FROM captacao_aplicado a
                           WHERE a.lead_id = l.id ORDER BY a.id DESC LIMIT 1) u ON true
      WHERE l.situacao IS NOT NULL
        AND l.telefone_chave IS DISTINCT FROM nay_fone_chave((SELECT valor FROM captacao_config WHERE chave = 'telefone_teste'))
@@ -19,7 +19,10 @@ BEGIN
                           AND m.criada_em > now() - p_silencio)
        AND (u.situacao IS NULL
             OR (u.situacao, coalesce(u.valor_dito, ''), coalesce(u.contrato_dito, ''))
-               IS DISTINCT FROM (l.situacao, coalesce(l.valor_locacao_pedido, ''), coalesce(l.contrato_ate, '')))
+               IS DISTINCT FROM (l.situacao, coalesce(l.valor_locacao_pedido, ''), coalesce(l.contrato_ate, ''))
+            -- 361: o valor de venda ou a resposta dos 6% chegou depois da última passada
+            OR (nullif(btrim(l.valor_venda_pedido), '') IS NOT NULL
+                AND (l.atualizado_em > u.aplicado_em OR captacao_honorarios_depois_de(l.id, u.aplicado_em))))
      ORDER BY l.id
      LIMIT greatest(1, coalesce(p_limite, 40))
   LOOP
@@ -47,6 +50,9 @@ BEGIN
     INSERT INTO captacao_aplicado (lead_id, codigo, situacao, mudou)
     SELECT coalesce((SELECT l.id FROM captacao_leads l WHERE l.codigo = r.codigo::text ORDER BY l.id LIMIT 1), 0), r.codigo, 'disponivel',
            jsonb_build_object('publicado_no_site', jsonb_build_object('de', false, 'para', true, 'por', 'a foto chegou'));
+    PERFORM imovel_mudanca_registrar(r.codigo, NULL, NULL, NULL,
+              jsonb_build_object('publicado_no_site', jsonb_build_object('de', false, 'para', true)),
+              jsonb_build_object('publicado_no_site', false), ARRAY['a foto chegou: o imóvel entrou no site']);
     lead_id := NULL; codigo := r.codigo; conferir := '{}';
     mudou := jsonb_build_object('publicado_no_site', jsonb_build_object('de', false, 'para', true, 'por', 'a foto chegou'));
     RETURN NEXT;

@@ -16,9 +16,11 @@ captacao_fora_da_campanha	captacao_ainda_e_da_ia, captacao_py_fila_do_disparo, c
 captacao_fotos_a_puxar	
 captacao_frase_outros	captacao_encerrar
 captacao_guardar_lid_do_eco	
+captacao_honorarios_depois_de	captacao_aplicar_pendentes
 captacao_honorarios_frase	captacao_honorarios_pendente
 captacao_honorarios_guardar	
 captacao_honorarios_pendente	
+captacao_honorarios_tipo	captacao_aplicar_ao_cadastro
 captacao_honorarios_valor	captacao_honorarios_frase, captacao_honorarios_guardar
 captacao_indicacao_frase	captacao_indicacao_pendente
 captacao_indicacao_guardar	
@@ -27,6 +29,7 @@ captacao_ja_chamado_nao_volta
 captacao_ja_perguntou_outros	captacao_encerrar
 captacao_lead_por_contato	captacao_ainda_e_da_ia
 captacao_mensagem_do_python	
+captacao_mensagens_da_mudanca	imovel_mudanca_registrar
 captacao_no_horario	captacao_disparo_liberado, captacao_py_disparo_motivo, crm_captacao_disparo_oficial
 captacao_numero	captacao_aplicar_ao_cadastro, nai_cadastro_importar
 captacao_pediu_para_sair	captacao_encerrar
@@ -40,6 +43,7 @@ captacao_situacao_dita	captacao_rede_da_situacao
 captacao_so_proprietario	
 captacao_status_da_mensagem	
 captacao_teto_hoje	captacao_disparo_liberado, captacao_relatorio_da_vez, crm_captacao_placar, crm_captacao_relatorio
+captacao_valor_venda_num	captacao_aplicar_ao_cadastro
 captacao_vigiar	
 condominio_aplicar_google	
 condominio_google_bate	condominio_google_marcar
@@ -125,6 +129,8 @@ crm_visitas_pessoas
 imoveis_a_situacao_manda	
 imoveis_carimbar_taxa	
 imoveis_parceiro_pelo_captador	
+imovel_mudanca_registrar	captacao_aplicar_ao_cadastro, captacao_aplicar_pendentes
+imovel_mudanca_trocar	
 mensagens_espera_a_rajada	
 mensagens_uma_vez_so	
 nai_abrir_turno	
@@ -639,6 +645,8 @@ site_imovel_publico
 site_juntar_cadastro	
 site_me_envia	
 site_me_envia_ranking	
+site_mudanca_revisar	
+site_mudancas	
 site_nao_e_dono	site_publicos_disparo
 site_origem_do_cadastro	
 site_publicos_disparo	

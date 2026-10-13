@@ -1,4 +1,4 @@
-# captacao_mensagens  (tabela, ~6961 linhas)
+# captacao_mensagens  (tabela, ~7448 linhas)
 
 ## colunas
 id  bigint  NOT NULL
@@ -41,4 +41,4 @@ nay_site_escrita, só nestas colunas: SELECT(entregue_em, lida_em)
 captacao_status_da_mensagem
 
 ## funções que citam
-captacao_aplicar_ao_cadastro, captacao_aplicar_pendentes, captacao_disparo_liberado, captacao_encerrar, captacao_honorarios_pendente, captacao_indicacao_pendente, captacao_ja_chamado_nao_volta, captacao_ja_perguntou_outros, captacao_py_disparo_motivo, captacao_py_disparo_placar, captacao_py_fila_do_disparo, captacao_relatorio_da_vez, captacao_status_da_mensagem, captacao_vigiar, crm_captacao_disparo_oficial, crm_captacao_mensagens, crm_captacao_placar, crm_captacao_relatorio, crm_contato_da_mensagem, crm_mensagem_citada, nay_falou_conosco_atualizar, site_publicos_disparo
+captacao_aplicar_ao_cadastro, captacao_aplicar_pendentes, captacao_disparo_liberado, captacao_encerrar, captacao_honorarios_pendente, captacao_indicacao_pendente, captacao_ja_chamado_nao_volta, captacao_ja_perguntou_outros, captacao_mensagens_da_mudanca, captacao_py_disparo_motivo, captacao_py_disparo_placar, captacao_py_fila_do_disparo, captacao_relatorio_da_vez, captacao_status_da_mensagem, captacao_vigiar, crm_captacao_disparo_oficial, crm_captacao_mensagens, crm_captacao_placar, crm_captacao_relatorio, crm_contato_da_mensagem, crm_mensagem_citada, nay_falou_conosco_atualizar, site_publicos_disparo

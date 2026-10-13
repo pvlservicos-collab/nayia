@@ -23,4 +23,4 @@ captacao_honorarios_pkey: PRIMARY KEY (id)
 captacao_honorarios_guardar
 
 ## funções que citam
-captacao_honorarios_guardar
+captacao_honorarios_depois_de, captacao_honorarios_guardar, captacao_honorarios_tipo

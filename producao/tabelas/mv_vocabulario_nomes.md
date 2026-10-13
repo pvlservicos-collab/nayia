@@ -1,4 +1,4 @@
-# mv_vocabulario_nomes  (view materializada, ~203 linhas)
+# mv_vocabulario_nomes  (view materializada, ~198 linhas)
 
 ## colunas
 nome  text

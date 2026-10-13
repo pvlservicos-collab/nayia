@@ -42,6 +42,8 @@
     <button class="abas__item" role="tab" type="button" data-painel-abre="imoveis" data-vista="mapa" aria-selected="false">Mapa</button>
     <!-- 248 (Pedro, 01/10): o que precisa de gente para terminar o cadastro -->
     <button class="abas__item" role="tab" type="button" data-painel-abre="rapido" aria-selected="false">CADASTRO RÁPIDO</button>
+    <!-- 361 (Pedro, 13/10): o que a resposta do proprietário mudou no cadastro, com a conversa e o voltar atrás -->
+    <button class="abas__item" role="tab" type="button" data-painel-abre="mudancas" aria-selected="false">Mudanças recentes <span class="abas__n" data-mu-conta>—</span></button>
   </div>
 
   <div data-painel="imoveis">
@@ -264,6 +266,9 @@
   <!-- ===================== CADASTRO RÁPIDO (Pedro, 09/10): a curadoria de todas as fontes, uma por vez ===================== -->
   <div data-painel="rapido" hidden></div>
 
+  <!-- ===================== MUDANÇAS RECENTES (Pedro, 13/10): montada por assets/js/imovel-mudancas.js ===================== -->
+  <div data-painel="mudancas" hidden></div>
+
   <!-- A aba CADASTRO PENDENTE saiu em 09/10 (Pedro: "você dividiu em 2, não quero isso"): a mesma fila
        está no CADASTRO RÁPIDO, com o Importar tudo dentro do popup. -->
 
@@ -316,6 +321,7 @@
 <script src="../assets/js/condominio-google.js?v=20261012r"></script>
 <script src="../assets/js/condominio-cadastro.js?v=20261012r"></script>
 <script src="../assets/js/cadastro-rapido.js?v=20261012r"></script>
+<script src="../assets/js/imovel-mudancas.js?v=20261013a"></script>
 <!-- a barrinha de mobília ANTES do popup, que a usa -->
 <script src="../assets/js/mobilia-barra.js?v=20261012r"></script>
 <script src="../assets/js/imovel-ficha-popup.js?v=20261012r"></script>

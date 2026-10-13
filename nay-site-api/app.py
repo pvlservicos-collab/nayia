@@ -1912,6 +1912,92 @@ def api_cadastro_juntar():
         conn.close()
 
 
+def _quem_esta_no_painel():
+    """O nome que vai no histórico: o usuário da senha do /admin, ou "CRM" quando a tela está dentro do CRM."""
+    import base64
+    if request.headers.get("X-Painel-Crm"):
+        return "CRM"
+    cab = request.headers.get("Authorization", "")
+    if cab.startswith("Basic "):
+        try:
+            return base64.b64decode(cab[6:]).decode("utf-8").split(":", 1)[0][:60] or "painel"
+        except Exception:  # noqa: BLE001
+            return "painel"
+    return "painel"
+
+
+@app.route("/admin/api/imoveis/mudancas")
+def api_imoveis_mudancas():
+    """MUDANÇAS RECENTES (361; Pedro, 13/10/2026): o que a resposta do proprietário mudou no cadastro, com a conversa
+    e o de/para. ?estado=revisar|revisadas para a aba; ?codigo=<imóvel> para o histórico de um imóvel (o "Última
+    atualização" do editar). Traz a conversa do dono: só com senha."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    estado = request.args.get("estado") if request.args.get("estado") in ("revisar", "revisadas") else None
+    codigo = request.args.get("codigo", type=int)
+    conn = conectar_escrita()
+    try:
+        linhas = todas_linhas(conn, "SELECT site_mudancas(%s, %s, %s) AS m", (estado, codigo, 400))
+        return jsonify(linhas[0]["m"] or {"contagem": {}, "itens": []})
+    finally:
+        conn.close()
+
+
+@app.route("/admin/api/imoveis/mudancas/<int:mid>/<acao>", methods=["POST"])
+def api_imoveis_mudanca_acao(mid, acao):
+    """voltar | refazer | revisada | a-revisar. Voltar atrás só mexe no campo que ainda está como a mudança deixou;
+    nada é apagado, e o refazer devolve."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    if acao not in ("voltar", "refazer", "revisada", "a-revisar"):
+        return jsonify({"erro": "ação desconhecida"}), 404
+    quem = _quem_esta_no_painel()
+    conn = conectar_escrita()
+    try:
+        with conn.cursor() as cur:
+            if acao in ("voltar", "refazer"):
+                cur.execute("SELECT imovel_mudanca_trocar(%s, %s, %s) AS r", (mid, acao == "voltar", quem))
+                r = cur.fetchone()["r"]
+            else:
+                cur.execute("SELECT site_mudanca_revisar(%s, %s, %s) AS n", ([mid], acao == "revisada", quem))
+                r = {"ok": True, "n": cur.fetchone()["n"]}
+        conn.commit()
+        return jsonify(r), (200 if r.get("ok") else 409)
+    except psycopg2.Error as exc:
+        conn.rollback()
+        msg = (getattr(exc, "diag", None) and exc.diag.message_primary) or exc.__class__.__name__
+        return jsonify({"erro": msg}), 400
+    finally:
+        conn.close()
+
+
+@app.route("/admin/api/imoveis/mudancas/revisar-todas", methods=["POST"])
+def api_imoveis_mudancas_revisar_todas():
+    """{ids: [...]}: as que estão na tela vão para "Já revisadas" de uma vez."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    corpo = request.get_json(silent=True) or {}
+    try:
+        ids = [int(x) for x in (corpo.get("ids") or [])][:1000]
+    except (TypeError, ValueError):
+        return jsonify({"erro": "ids inválidos"}), 400
+    if not ids:
+        return jsonify({"ok": True, "n": 0})
+    conn = conectar_escrita()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT site_mudanca_revisar(%s, true, %s) AS n", (ids, _quem_esta_no_painel()))
+            n = cur.fetchone()["n"]
+        conn.commit()
+        return jsonify({"ok": True, "n": n})
+    except psycopg2.Error as exc:
+        conn.rollback()
+        msg = (getattr(exc, "diag", None) and exc.diag.message_primary) or exc.__class__.__name__
+        return jsonify({"erro": msg}), 400
+    finally:
+        conn.close()
+
+
 def _baixar_foto(url):
     """Baixa uma foto de fora. Devolve (bytes, extensao) ou (None, motivo)."""
     import urllib.request

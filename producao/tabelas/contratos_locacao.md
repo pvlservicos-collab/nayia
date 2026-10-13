@@ -24,7 +24,7 @@ nay_site_leitura: SELECT
 nay_site_escrita, só nestas colunas: INSERT(codigo, vencimento); SELECT(codigo, vencimento); UPDATE(vencimento)
 
 ## funções que escrevem aqui
-captacao_aplicar_ao_cadastro
+captacao_aplicar_ao_cadastro, imovel_mudanca_trocar
 
 ## funções que citam
-captacao_aplicar_ao_cadastro
+captacao_aplicar_ao_cadastro, imovel_mudanca_trocar, site_mudancas
