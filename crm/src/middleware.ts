@@ -38,6 +38,9 @@ export function middleware(req: NextRequest) {
     // A conferência com a Nay (29/09): o cron do servidor chama com o segredo
     // CRON_SEGREDO no cabeçalho, e é a rota que confere.
     '/api/cron/espelho-nay', '/api/cron/funis', '/api/cron/followups',
+    // A volta da OLX (13/10): é a redirect_uri que vai no cadastro do aplicativo, e a OLX confere se o endereço
+    // abre. A própria rota exige a sessão para trocar o código; sem código ela só mostra uma página de aviso.
+    '/api/olx/oauth',
   ]
   const isPublic = publicPaths.some((p) => pathname.startsWith(p))
 

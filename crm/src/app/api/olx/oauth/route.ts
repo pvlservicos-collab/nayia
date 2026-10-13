@@ -34,7 +34,25 @@ function voltar(conta: string | null, aviso: string) {
   return r
 }
 
+/* ABERTA SEM NADA NA MÃO (Pedro, 13/10/2026: "essas url quando eles forem checar lá sejam públicas"). Este endereço
+   vai no cadastro do aplicativo na OLX; quem só abre o link (o time de integração conferindo) caía no login do CRM.
+   Sem `code`, `state` nem `error` não há conexão nenhuma em curso: responde uma página simples dizendo o que é. */
+function paginaDeAviso() {
+  const html = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<meta name="robots" content="noindex"><title>Imob Easy · autenticação OLX</title>' +
+    '<style>body{font-family:system-ui,Arial,sans-serif;background:#f4f1f8;color:#241d33;margin:0;display:grid;place-items:center;min-height:100vh}' +
+    'main{max-width:520px;margin:24px;padding:28px;background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(36,29,51,.08)}' +
+    'h1{font-size:20px;margin:0 0 10px}p{line-height:1.5;margin:0 0 10px}a{color:#6d28d9}</style></head><body><main>' +
+    '<h1>Imob Easy · CRM</h1>' +
+    '<p>Este é o endereço de retorno da autenticação da OLX (OAuth 2.0) do CRM da Imob Easy.</p>' +
+    '<p>Ele recebe o código de autorização depois que o titular da conta OLX aprova o acesso ao chat, dentro do CRM. Aberto diretamente, não faz nada.</p>' +
+    '<p>Imob Easy · Manaus, AM · <a href="https://imobeasy.online/">imobeasy.online</a></p></main></body></html>'
+  return new NextResponse(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } })
+}
+
 export async function GET(req: NextRequest) {
+  const p = req.nextUrl.searchParams
+  if (!p.get('code') && !p.get('state') && !p.get('error')) return paginaDeAviso()
   const estado = req.nextUrl.searchParams.get('state') || ''
   const conta = estado.split('.')[0] || null
   const contaValida = ehContaOlx(conta) ? conta : null
