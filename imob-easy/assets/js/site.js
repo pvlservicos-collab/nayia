@@ -75,7 +75,7 @@
           '<div class="imovel__cabecalho">' +
             "<div>" +
               '<h3 class="imovel__nome">' + escapar(item.nome) + "</h3>" +
-              '<p class="imovel__endereco">' + escapar(item.endereco) +
+              '<p class="imovel__endereco">' + escapar(String(item.endereco || "").replace(/,\s*,/g, ",")) +
                 (item.complemento ? "<br>" + escapar(item.complemento) : "") +
               "</p>" +
             "</div>" +
