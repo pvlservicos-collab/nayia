@@ -121,12 +121,14 @@ async function tokenDaContaOlx(conta: ContaOlx): Promise<string | null> {
 
 /* ── a OLX ───────────────────────────────────────────────────────────────── */
 
-async function chamar(url: string, init: RequestInit): Promise<{ status: number; texto: string }> {
+/* `limite`: quanto da resposta guardar. O padrão (2.000) serve às respostas curtas; a lista de anúncios é longa, e
+   cortada no meio deixava de ser JSON (a aba Anúncios dizia "a OLX não entregou a lista" com HTTP 200, 13/10). */
+async function chamar(url: string, init: RequestInit, limite = 2000): Promise<{ status: number; texto: string }> {
   const controle = new AbortController()
   const prazo = setTimeout(() => controle.abort(), ESPERA_MS)
   try {
     const r = await fetch(url, { ...init, signal: controle.signal, cache: 'no-store' })
-    return { status: r.status, texto: (await r.text().catch(() => '')).slice(0, 2000) }
+    return { status: r.status, texto: (await r.text().catch(() => '')).slice(0, limite) }
   } catch (e: any) {
     throw { status: 502, message: e?.name === 'AbortError' ? 'A OLX não respondeu a tempo.' : `Não consegui falar com a OLX (${e?.message || 'erro de rede'}).` }
   } finally {
@@ -235,7 +237,7 @@ export async function anunciosDaContaOlx(conta: ContaOlx): Promise<{ anuncios: A
   const token = await tokenDaContaOlx(conta)
   if (token) {
     try {
-      const r = await chamar(`${OLX_APPS}/autoupload/v1/published`, { method: 'GET', headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'Mozilla/5.0' } })
+      const r = await chamar(`${OLX_APPS}/autoupload/v1/published`, { method: 'GET', headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'Mozilla/5.0' } }, 5_000_000)
       let j: any = null
       try { j = JSON.parse(r.texto) } catch { /* não é JSON */ }
       const lista: any[] = Array.isArray(j) ? j : Array.isArray(j?.data) ? j.data : Array.isArray(j?.ads) ? j.ads : []
