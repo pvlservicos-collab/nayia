@@ -160,10 +160,15 @@ BEGIN
                               THEN coalesce(v_voc || ', ', '') || v_pron || ' pode me atualizar o valor do imóvel para locação?'
                               WHEN v_aluga AND coalesce(d->>'negocio', '') ~* 'amb'
                               THEN 'E quais valores ' || v_pron || ' quer pedir, no aluguel e na venda?'
+                              -- 357: ele não disse se aluga ou vende ("ainda não decidimos"): não presume aluguel
+                              WHEN coalesce(d->>'negocio', '') !~* 'vend|alug|loca|amb'
+                              THEN 'E qual valor ' || v_pron || ' pensa em pedir, no aluguel ou na venda?'
                               WHEN v_aluga THEN 'E qual valor ' || v_pron || ' quer pedir no aluguel?'
                               ELSE 'E qual valor ' || v_pron || ' quer pedir na venda?' END
-    WHEN 'taxas'   THEN CASE WHEN v_cond AND v_aluga THEN 'E o condomínio e o IPTU, estão em quanto? O aluguel já inclui algum deles?'
-                              WHEN v_aluga THEN 'E o IPTU, sabe me dizer o valor? O aluguel já inclui alguma coisa, como água ou IPTU?'
+    WHEN 'taxas'   THEN CASE WHEN v_cond AND v_aluga AND (v_tipo = 'atualizar' OR coalesce(d->>'negocio', '') ~* 'alug|loca|amb')
+                                   THEN 'E o condomínio e o IPTU, estão em quanto? O aluguel já inclui algum deles?'
+                              WHEN v_aluga AND (v_tipo = 'atualizar' OR coalesce(d->>'negocio', '') ~* 'alug|loca|amb')
+                                   THEN 'E o IPTU, sabe me dizer o valor? O aluguel já inclui alguma coisa, como água ou IPTU?'
                               WHEN v_cond THEN 'E o condomínio e o IPTU, estão em quanto?'
                               ELSE 'E o IPTU, sabe me dizer o valor?' END
     WHEN 'mobilia' THEN 'Ele está mobiliado, com modulados e ar, só climatizado ou sem móveis?'
