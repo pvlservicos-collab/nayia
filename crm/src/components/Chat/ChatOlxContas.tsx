@@ -16,13 +16,20 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowClockwise, ArrowLeft, ArrowSquareOut, ChatsCircle, CheckCircle, CircleNotch, MagnifyingGlass, PaperPlaneRight,
+  ArrowClockwise, ArrowLeft, ArrowSquareOut, ChatsCircle, CheckCircle, CircleNotch, Info, MagnifyingGlass, Megaphone, PaperPlaneRight,
   PlugsConnected, Robot, User, WarningCircle, X,
 } from '@phosphor-icons/react'
-import { CONTAS_OLX, NOME_DA_CONTA_OLX, type ChatOlxNaLista, type ContaOlx, type EstadoDaContaOlx, type MensagemOlx } from '@/lib/olxChatTipos'
+import { CONTAS_OLX, NOME_DA_CONTA_OLX, type AnuncioOlx, type ChatOlxNaLista, type ContaOlx, type EstadoDaContaOlx, type MensagemOlx } from '@/lib/olxChatTipos'
 import ChatOlx from './ChatOlx'
 
 type Visao = ContaOlx | 'bot'
+/** o menu de dentro de cada conta (Pedro, 13/10/2026: "o chat, e os anúncios e todas as informações, em uma tab lá
+ *  em cima como se fosse um menu próprio dentro daquela aba") */
+type Secao = 'chat' | 'anuncios' | 'info'
+interface DadosDaConta {
+  estado: EstadoDaContaOlx; anuncios: AnuncioOlx[]; daOlx: 'ok' | 'sem_conta' | 'falhou'; aviso: string | null
+  aplicativo: { redirectUri: string; escopos: string; cadastrado: boolean }
+}
 
 const FUSO = 'America/Manaus'
 const sem = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
@@ -95,6 +102,145 @@ function EstadoDaConta({ conta, estado, aoLigar, ligando }: {
   )
 }
 
+/* ── os anúncios da conta ── */
+function AnunciosDaConta({ conta, aoVerConversas }: { conta: ContaOlx; aoVerConversas: (listId: string) => void }) {
+  const [d, setD] = useState<DadosDaConta | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+  const [busca, setBusca] = useState('')
+  const carregar = useCallback(() => {
+    pedir<DadosDaConta>(`/api/olx/anuncios?conta=${conta}`).then((x) => { setD(x); setErro(null) }).catch((e) => setErro(e.message))
+  }, [conta])
+  useEffect(() => { carregar() }, [carregar])
+  const lista = useMemo(() => {
+    const q = sem(busca.trim())
+    return (d?.anuncios || []).filter((a) => !q || sem([a.listId, a.titulo, a.situacao].filter(Boolean).join(' ')).includes(q))
+  }, [d, busca])
+
+  return (
+    <div className="flex-1 min-h-0 flex flex-col" style={{ background: 'var(--wa-conv-bg)' }}>
+      <div className="px-3 py-2 flex items-center gap-2" style={{ background: 'var(--wa-panel)', borderBottom: '1px solid var(--wa-divider)' }}>
+        <label className="wa-busca flex-1 max-w-[420px]"><MagnifyingGlass size={18} />
+          <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Procurar anúncio (código ou título)" aria-label="Procurar anúncio" />
+          {busca && <button type="button" onClick={() => setBusca('')} aria-label="Limpar"><X size={16} /></button>}
+        </label>
+        <span className="text-[13px]" style={{ color: 'var(--wa-text-2)' }}>{d ? `${d.anuncios.length} anúncio${d.anuncios.length === 1 ? '' : 's'}` : ''}</span>
+        <button type="button" className="wa-icone-btn ml-auto" onClick={carregar} title="Atualizar agora"><ArrowClockwise size={20} /></button>
+      </div>
+      {d?.aviso && <div className="px-4 py-2 text-[13px]" style={{ background: '#FEF3C7', color: '#78350F' }}>{d.aviso} Abaixo, os anúncios que conhecemos pelas conversas.</div>}
+      {d && d.daOlx === 'sem_conta' && (
+        <div className="px-4 py-2 text-[13px]" style={{ background: '#FEF3C7', color: '#78350F' }}>
+          A conta ainda não está conectada à OLX: a lista dos anúncios publicados aparece depois de conectar (menu Informações).
+        </div>
+      )}
+      <div className="flex-1 min-h-0 overflow-y-auto wa-rolagem px-4 py-3">
+        {!d && !erro && <p className="text-center text-[14px] mt-10 flex items-center justify-center gap-2" style={{ color: 'var(--wa-text-2)' }}><CircleNotch size={18} className="animate-spin" /> Lendo os anúncios…</p>}
+        {erro && <p className="text-center text-[14px] mt-10 text-red-500">{erro}</p>}
+        {d && !lista.length && (
+          <p className="text-center text-[14px] mt-10" style={{ color: 'var(--wa-text-2)' }}>
+            {d.anuncios.length ? 'Nenhum anúncio assim.' : 'Nenhum anúncio para mostrar ainda.'}
+          </p>
+        )}
+        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+          {lista.map((a) => {
+            const link = linkDoAnuncio(a.listId)
+            return (
+              <div key={a.listId} className="rounded-xl p-3 flex flex-col gap-1.5" style={{ background: 'var(--wa-panel)', border: '1px solid var(--wa-divider)' }}>
+                <div className="flex items-start gap-2">
+                  <Megaphone size={18} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--wa-icon)' }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14.5px] font-semibold break-words" style={{ color: 'var(--wa-text)' }}>{a.titulo || `Anúncio ${a.listId}`}</p>
+                    <p className="text-[12.5px]" style={{ color: 'var(--wa-text-2)' }}>
+                      código {a.listId}{a.situacao ? ` · ${a.situacao}` : ''}{a.daOlx ? '' : ' · só pelas conversas'}
+                    </p>
+                  </div>
+                  {a.naoLidas > 0 && <span className="wa-badge">{a.naoLidas > 99 ? '99+' : a.naoLidas}</span>}
+                </div>
+                <p className="text-[13px]" style={{ color: 'var(--wa-text-2)' }}>
+                  {a.conversas ? `${a.conversas} conversa${a.conversas === 1 ? '' : 's'}${a.ultimaEm ? ` · última mensagem ${quandoInteiro(a.ultimaEm)}` : ''}` : 'Nenhuma conversa neste anúncio ainda'}
+                </p>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {a.conversas > 0 && (
+                    <button type="button" onClick={() => aoVerConversas(a.listId)} className="wa-chip wa-chip--on inline-flex items-center gap-1.5"><ChatsCircle size={15} /> Ver as conversas</button>
+                  )}
+                  {link && <a href={link} target="_blank" rel="noopener noreferrer" className="wa-chip inline-flex items-center gap-1.5"><ArrowSquareOut size={15} /> Abrir na OLX</a>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── as informações da conta e da ligação com a OLX ── */
+function InformacoesDaConta({ conta, aoLigar, ligando }: { conta: ContaOlx; aoLigar: () => void; ligando: boolean }) {
+  const [d, setD] = useState<DadosDaConta | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+  const carregar = useCallback(() => {
+    pedir<DadosDaConta>(`/api/olx/anuncios?conta=${conta}`).then((x) => { setD(x); setErro(null) }).catch((e) => setErro(e.message))
+  }, [conta])
+  useEffect(() => { carregar() }, [carregar, ligando])
+  const e = d?.estado
+  const linha = (rotulo: string, valor: React.ReactNode) => (
+    <div className="flex flex-wrap gap-x-3 gap-y-0.5 py-2" style={{ borderBottom: '1px solid var(--wa-divider)' }}>
+      <span className="w-[210px] flex-shrink-0 text-[13px]" style={{ color: 'var(--wa-text-2)' }}>{rotulo}</span>
+      <span className="flex-1 min-w-[200px] text-[14px] break-words" style={{ color: 'var(--wa-text)' }}>{valor}</span>
+    </div>
+  )
+  const sim = (v: boolean, s: string, n: string) => (
+    <span className="inline-flex items-center gap-1.5">
+      {v ? <CheckCircle size={16} weight="fill" style={{ color: 'var(--wa-green)' }} /> : <WarningCircle size={16} weight="fill" style={{ color: '#B45309' }} />}{v ? s : n}
+    </span>
+  )
+  return (
+    <div className="flex-1 min-h-0 overflow-y-auto wa-rolagem px-4 py-4" style={{ background: 'var(--wa-conv-bg)' }}>
+      {!d && !erro && <p className="text-center text-[14px] mt-10 flex items-center justify-center gap-2" style={{ color: 'var(--wa-text-2)' }}><CircleNotch size={18} className="animate-spin" /> Lendo…</p>}
+      {erro && <p className="text-center text-[14px] mt-10 text-red-500">{erro}</p>}
+      {d && e && (
+        <div className="max-w-[820px] mx-auto flex flex-col gap-4">
+          <section className="rounded-xl px-4 py-2" style={{ background: 'var(--wa-panel)', border: '1px solid var(--wa-divider)' }}>
+            <h3 className="text-[15px] font-semibold py-2" style={{ color: 'var(--wa-text)' }}>{NOME_DA_CONTA_OLX[conta]}</h3>
+            {linha('Conectada à OLX', sim(e.conectada, 'Sim', 'Ainda não'))}
+            {linha('Conta na OLX', e.olxNome || e.olxEmail ? [e.olxNome, e.olxEmail].filter(Boolean).join(' · ') : '—')}
+            {linha('Conectada em', e.conectadaEm ? `${quandoInteiro(e.conectadaEm)}${e.conectadaPor ? ` por ${e.conectadaPor}` : ''}` : '—')}
+            {linha('Recebimento das mensagens', sim(e.webhookAtivo, `Ligado${e.webhookAtivadoEm ? ` desde ${quandoInteiro(e.webhookAtivadoEm)}` : ''}`, 'Desligado'))}
+            {linha('Última resposta da OLX', e.webhookResposta || '—')}
+            {linha('Conversas guardadas', String(e.conversas))}
+            {linha('Última mensagem', e.ultimaMensagemEm ? quandoInteiro(e.ultimaMensagemEm) : '—')}
+            {linha('Anúncios', `${d.anuncios.length}${d.daOlx === 'ok' ? ' (lista da OLX + conversas)' : ' (só os das conversas)'}`)}
+            <div className="flex flex-wrap gap-2 py-3">
+              {d.aplicativo.cadastrado && (
+                <a href={`/api/olx/conectar?conta=${conta}`} className="wa-chip wa-chip--on inline-flex items-center gap-1.5">
+                  <PlugsConnected size={15} /> {e.conectada ? 'Conectar de novo' : 'Conectar a conta'}
+                </a>
+              )}
+              {e.conectada && (
+                <button type="button" disabled={ligando} onClick={aoLigar} className="wa-chip inline-flex items-center gap-1.5">
+                  {ligando ? <CircleNotch size={15} className="animate-spin" /> : <PlugsConnected size={15} />} {e.webhookAtivo ? 'Religar o recebimento' : 'Ligar o recebimento'}
+                </button>
+              )}
+              <button type="button" onClick={carregar} className="wa-chip inline-flex items-center gap-1.5"><ArrowClockwise size={15} /> Atualizar</button>
+            </div>
+            <p className="text-[12.5px] pb-3" style={{ color: 'var(--wa-text-2)' }}>
+              Antes de conectar, entre na OLX <b>com esta conta</b> neste navegador: vale a conta que estiver aberta lá.
+            </p>
+          </section>
+          <section className="rounded-xl px-4 py-2" style={{ background: 'var(--wa-panel)', border: '1px solid var(--wa-divider)' }}>
+            <h3 className="text-[15px] font-semibold py-2" style={{ color: 'var(--wa-text)' }}>Aplicativo na OLX</h3>
+            {linha('Credenciais no servidor', sim(d.aplicativo.cadastrado, 'Cadastradas', 'Faltam o client_id e o client_secret'))}
+            {linha('Endereço de retorno', d.aplicativo.redirectUri)}
+            {linha('Permissões pedidas', d.aplicativo.escopos.split(/\s+/).map((x) => x === 'chat' ? 'chat' : x === 'autoupload' ? 'anúncios' : x === 'basic_user_info' ? 'identificação da conta' : x).join(', '))}
+            <p className="text-[12.5px] py-3" style={{ color: 'var(--wa-text-2)' }}>
+              A OLX avisou em 13/10 que a ativação da integração de chat está instável: se o recebimento não ligar na primeira vez, tente de novo mais tarde pelo botão acima.
+            </p>
+          </section>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ── uma conta: lista, conversa e resposta ── */
 function ContaOlxAba({ conta }: { conta: ContaOlx }) {
   const [estado, setEstado] = useState<EstadoDaContaOlx | null>(null)
@@ -107,6 +253,7 @@ function ContaOlxAba({ conta }: { conta: ContaOlx }) {
   const [enviando, setEnviando] = useState(false)
   const [aviso, setAviso] = useState<{ texto: string; erro?: boolean } | null>(null)
   const [ligando, setLigando] = useState(false)
+  const [secao, setSecao] = useState<Secao>('chat')
   const fim = useRef<HTMLDivElement>(null)
 
   const carregar = useCallback(() => {
@@ -279,8 +426,38 @@ function ContaOlxAba({ conta }: { conta: ContaOlx }) {
     </div>
   )
 
+  const menu = (
+    <div className="flex items-end gap-1 px-3" role="tablist" aria-label="Menu da conta" style={{ background: 'var(--wa-panel)', borderBottom: '1px solid var(--wa-divider)' }}>
+      {([['chat', 'Chat', ChatsCircle], ['anuncios', 'Anúncios', Megaphone], ['info', 'Informações', Info]] as const).map(([k, rotulo, Icone]) => (
+        <button key={k} type="button" role="tab" aria-selected={secao === k} onClick={() => setSecao(k)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-[14px] font-semibold"
+                style={{ color: secao === k ? 'var(--wa-green)' : 'var(--wa-text-2)', borderBottom: `3px solid ${secao === k ? 'var(--wa-green)' : 'transparent'}`, marginBottom: -1 }}>
+          <Icone size={17} /> {rotulo}
+          {k === 'chat' && (chats || []).some((c) => c.naoLidas > 0) && <span className="wa-badge">{(chats || []).reduce((n, c) => n + c.naoLidas, 0)}</span>}
+        </button>
+      ))}
+    </div>
+  )
+
+  if (secao !== 'chat') {
+    return (
+      <div className="flex-1 min-h-0 flex flex-col">
+        {menu}
+        {aviso && (
+          <div className="px-4 py-2 text-[13px] flex items-start gap-2" style={{ background: aviso.erro ? '#FEE2E2' : '#DCFCE7', color: aviso.erro ? '#7F1D1D' : '#14532D' }}>
+            <span className="flex-1">{aviso.texto}</span><button type="button" onClick={() => setAviso(null)} aria-label="Fechar"><X size={14} /></button>
+          </div>
+        )}
+        {secao === 'anuncios'
+          ? <AnunciosDaConta conta={conta} aoVerConversas={(listId) => { setBusca(listId); setSelId(null); setSecao('chat') }} />
+          : <InformacoesDaConta conta={conta} aoLigar={() => void ligarRecebimento()} ligando={ligando} />}
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 min-h-0 flex flex-col">
+      {menu}
       <EstadoDaConta conta={conta} estado={estado} aoLigar={() => void ligarRecebimento()} ligando={ligando} />
       {aviso && !sel && (
         <div className="px-4 py-2 text-[13px] flex items-start gap-2" style={{ background: aviso.erro ? '#FEE2E2' : '#DCFCE7', color: aviso.erro ? '#7F1D1D' : '#14532D' }}>

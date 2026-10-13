@@ -10,7 +10,7 @@
  */
 import { randomBytes } from 'node:crypto'
 import { naydb } from '@/lib/nayDisparo'
-import { CONTAS_OLX, type ChatOlxNaLista, type ContaOlx, type EstadoDaContaOlx, type MensagemOlx } from '@/lib/olxChatTipos'
+import { CONTAS_OLX, type AnuncioOlx, type ChatOlxNaLista, type ContaOlx, type EstadoDaContaOlx, type MensagemOlx } from '@/lib/olxChatTipos'
 
 const BASE = (process.env.OLX_WEBHOOK_BASE || 'https://crm.imobeasy.online').replace(/\/+$/, '')
 /** Tem de ser IGUAL à URI cadastrada na OLX no registro do aplicativo. */
@@ -18,6 +18,10 @@ export const OLX_REDIRECT_URI = process.env.OLX_REDIRECT_URI || `${BASE}/api/olx
 const OLX_AUTH = 'https://auth.olx.com.br/oauth'
 const OLX_APPS = 'https://apps.olx.com.br'
 const ESPERA_MS = 20_000
+/* Os escopos pedidos na autorização. `autoupload` entrou em 13/10 para a aba Anúncios (a lista dos anúncios publicados
+   da conta); o chat só precisa de `chat`. Se a OLX recusar o escopo para o nosso aplicativo, OLX_ESCOPOS no .env
+   volta para "basic_user_info chat" sem mexer no código. */
+const OLX_ESCOPOS = (process.env.OLX_ESCOPOS || 'basic_user_info autoupload chat').trim()
 
 /** Um endereço do próprio CRM, pelo domínio público (atrás do proxy, `req.url` pode trazer o endereço interno). */
 export function enderecoNoCrm(caminho: string): URL {
@@ -133,7 +137,7 @@ export function urlDeAutorizacaoOlx(estado: string): string {
   const app = aplicativoOlx()
   if (!app) throw { status: 400, message: 'Falta cadastrar o aplicativo da OLX no servidor (OLX_CLIENT_ID e OLX_CLIENT_SECRET).' }
   const q = new URLSearchParams({
-    client_id: app.clientId, redirect_uri: OLX_REDIRECT_URI, response_type: 'code', scope: 'basic_user_info chat', state: estado,
+    client_id: app.clientId, redirect_uri: OLX_REDIRECT_URI, response_type: 'code', scope: OLX_ESCOPOS, state: estado,
   })
   return `${OLX_AUTH}?${q.toString()}`
 }
@@ -204,4 +208,62 @@ export async function responderNoChatOlx(conta: ContaOlx, chat: number, texto: s
   }
   await naydb().query('SELECT crm_olx_chat_enviada($1, $2::bigint, $3, $4, $5)', [conta, chat, messageId, texto, quem])
   return { messageId }
+}
+
+/* ── os anúncios da conta (aba Anúncios, 13/10) ─────────────────────────────── */
+
+/**
+ * Os anúncios da conta: o que a OLX lista como publicado (escopo `autoupload`) somado ao que conhecemos pelas
+ * conversas (cada conversa traz o `listId` do anúncio). A lista da OLX NUNCA foi exercitada antes de a conta ser
+ * conectada: se ela falhar ou vier em formato inesperado, a tela mostra o que a OLX respondeu e continua com os
+ * anúncios das conversas.
+ */
+export async function anunciosDaContaOlx(conta: ContaOlx): Promise<{ anuncios: AnuncioOlx[]; daOlx: 'ok' | 'sem_conta' | 'falhou'; aviso: string | null }> {
+  const porId = new Map<string, AnuncioOlx>()
+  for (const c of await chatsDaContaOlx(conta)) {
+    if (!c.listId) continue
+    const a = porId.get(c.listId) || { listId: c.listId, titulo: null, situacao: null, conversas: 0, naoLidas: 0, ultimaEm: null, daOlx: false }
+    a.conversas += 1
+    a.naoLidas += c.naoLidas
+    if (c.ultimaEm && (!a.ultimaEm || c.ultimaEm > a.ultimaEm)) a.ultimaEm = c.ultimaEm
+    porId.set(c.listId, a)
+  }
+  let daOlx: 'ok' | 'sem_conta' | 'falhou' = 'sem_conta'
+  let aviso: string | null = null
+  const token = await tokenDaContaOlx(conta)
+  if (token) {
+    try {
+      const r = await chamar(`${OLX_APPS}/autoupload/v1/published`, { method: 'GET', headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'Mozilla/5.0' } })
+      let j: any = null
+      try { j = JSON.parse(r.texto) } catch { /* não é JSON */ }
+      const lista: any[] = Array.isArray(j) ? j : Array.isArray(j?.data) ? j.data : Array.isArray(j?.ads) ? j.ads : []
+      if (r.status === 200 && (Array.isArray(j) || lista.length || j?.data || j?.ads)) {
+        daOlx = 'ok'
+        for (const x of lista) {
+          const id = String(x?.list_id ?? x?.listId ?? x?.id ?? '').trim()
+          if (!id) continue
+          const a = porId.get(id) || { listId: id, titulo: null, situacao: null, conversas: 0, naoLidas: 0, ultimaEm: null, daOlx: true }
+          a.daOlx = true
+          a.titulo = String(x?.subject ?? x?.title ?? '').trim() || a.titulo
+          a.situacao = String(x?.status ?? x?.state ?? '').trim() || a.situacao
+          porId.set(id, a)
+        }
+      } else {
+        daOlx = 'falhou'
+        aviso = r.status === 401 ? 'A OLX não aceitou o token para listar os anúncios: conecte a conta de novo (a autorização precisa incluir os anúncios).'
+          : r.status === 403 ? 'A OLX não liberou a lista de anúncios para esta conta (HTTP 403).'
+          : `A OLX não entregou a lista de anúncios (HTTP ${r.status}).`
+      }
+    } catch (e: any) {
+      daOlx = 'falhou'
+      aviso = e?.message || 'Não consegui ler os anúncios na OLX.'
+    }
+  }
+  const anuncios = [...porId.values()].sort((x, y) => (y.ultimaEm || '').localeCompare(x.ultimaEm || '') || Number(y.daOlx) - Number(x.daOlx) || x.listId.localeCompare(y.listId))
+  return { anuncios, daOlx, aviso }
+}
+
+/** O que a aba Informações mostra do nosso lado (nada de segredo: só os endereços e os escopos). */
+export function informacoesDoAplicativoOlx() {
+  return { redirectUri: OLX_REDIRECT_URI, escopos: OLX_ESCOPOS, cadastrado: !!aplicativoOlx() }
 }

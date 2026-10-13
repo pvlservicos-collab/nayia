@@ -50,3 +50,16 @@ export interface MensagemOlx {
   quando: string
   enviadaPor: string | null
 }
+
+/** Um anúncio da conta na OLX (aba Anúncios, 13/10): o que a OLX lista somado às conversas que temos dele. */
+export interface AnuncioOlx {
+  listId: string
+  titulo: string | null
+  situacao: string | null
+  /** quantas conversas nossas são deste anúncio, e quando foi a última mensagem */
+  conversas: number
+  naoLidas: number
+  ultimaEm: string | null
+  /** veio da lista da OLX (true) ou só o conhecemos pelas conversas (false) */
+  daOlx: boolean
+}
