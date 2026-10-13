@@ -4,6 +4,10 @@
    Cada quadrado abre a mesa do agente: conversa à esquerda; à direita o navegador dele ao vivo (dá para clicar e
    digitar), as tarefas agendadas, skills e ferramentas, memória e logs. Em cima, reiniciar/parar o serviço.
    Tudo passa por /admin/api/hermes (senha do admin) → ponte na VPS2 (nay-agentes/hermes-painel/ponte.py).
+   13/10, à noite (Pedro: "TIRA ESSES hermes de la ... crie um para acessar esse site aqui https://conta.olx.com.br/acesso
+   ... não vi o terminal onde digito ... eu vou guiando ele até ele estar bom"): os três Hermes saíram; ficou o Agente
+   OLX, cujo navegador é um Chrome no computador de quem usa (a OLX bloqueia o da VPS). A caixa de escrever ganhou
+   rótulo e a conversa vazia explica como funciona, com exemplos.
    ========================================================================== */
 (function () {
   "use strict";
@@ -80,7 +84,8 @@
       var s = a.plataformas[n];
       f += '<span' + (s === "connected" ? "" : ' class="hm-ficha--alerta"') + ">" + esc(NOME_PLAT[n] || n) + " " + esc(EST_PLAT[s] || s || "?") + "</span>";
     });
-    if (a.navegador.tem) f += "<span>navegador " + (a.navegador.ligado ? "ligado · " + mb(a.navegador.mem) : "desligado") + "</span>";
+    if (a.navegador.tem) f += "<span" + (a.navegador.no_pc && !a.navegador.ligado ? ' class="hm-ficha--alerta"' : "") + ">navegador " + (a.navegador.no_pc ? "do seu computador " : "") +
+      (a.navegador.ligado ? "ligado" + (a.navegador.mem ? " · " + mb(a.navegador.mem) : "") : "desligado") + "</span>";
     return f + "<span><b>" + a.tarefas + "</b> " + (a.tarefas === 1 ? "tarefa agendada" : "tarefas agendadas") + "</span>";
   }
   function quadrado(a, i, agora) {
@@ -92,7 +97,7 @@
       '<div class="ag-hoje">' + fichas(a) + "</div>" +
       '<dl class="ag-uso"><div><dt>Memória agora</dt><dd>' + (a.servico.ativo ? mb(a.servico.mem) : "—") + "</dd></div>" +
         "<div><dt>No ar há</dt><dd>" + (a.servico.ativo ? haQuanto(agora - a.servico.desde) : "—") + "</dd></div></dl>" +
-      '<button type="button" class="hm-abrir" data-hm-abrir="' + esc(a.id) + '">Abrir <span aria-hidden="true">→</span></button></article>';
+      '<button type="button" class="hm-abrir" data-hm-abrir="' + esc(a.id) + '">Abrir e conversar <span aria-hidden="true">→</span></button></article>';
   }
   function lerAgentes() {
     return api("agentes").then(function (d) {
@@ -134,9 +139,10 @@
             '<button type="button" class="hm-bt" data-hm-nova>+ Nova</button></div>' +
           '<div class="hm-msgs" aria-live="polite"></div>' +
           '<p class="hm-conversa__aviso" hidden></p>' +
-          '<form class="hm-escrever"><textarea rows="2" placeholder="Escreva para o agente… (Enter envia, Shift+Enter quebra a linha)" aria-label="Mensagem"></textarea>' +
+          '<form class="hm-escrever"><label class="hm-escrever__rotulo" for="hm-campo">Escreva aqui o que o agente deve fazer</label>' +
+            '<div class="hm-escrever__linha"><textarea id="hm-campo" rows="3" placeholder="Ex.: abra a OLX e me diga quantos anúncios ativos eu tenho. Enter envia; Shift+Enter quebra a linha." aria-label="Mensagem"></textarea>' +
             '<button type="submit" class="hm-bt hm-bt--forte">Enviar</button>' +
-            '<button type="button" class="hm-bt hm-bt--perigo" data-hm-parar hidden>Parar</button></form>' +
+            '<button type="button" class="hm-bt hm-bt--perigo" data-hm-parar hidden>Parar</button></div></form>' +
         "</section>" +
         '<section class="hm-lado" aria-label="Navegador e funções">' +
           '<nav class="hm-abas">' +
@@ -249,7 +255,9 @@
   function boasVindas() {
     if (est.sessao || est.vivo) return;
     var a = agente();
-    $(".hm-msgs").innerHTML = '<div class="hm-vazio"><b>' + esc(a.nome) + "</b><p>Escreva o que você quer que ele faça. Se a tarefa for num site, ele abre o navegador ao lado e você acompanha — e pode assumir o mouse e o teclado quando quiser.</p></div>";
+    var exemplos = (a.exemplos || []).map(function (t) { return '<button type="button" class="hm-exemplo" data-hm-exemplo="' + esc(t) + '">' + esc(t) + "</button>"; }).join("");
+    $(".hm-msgs").innerHTML = '<div class="hm-vazio"><b>' + esc(a.nome) + "</b><p>É uma conversa: escreva na caixa aqui embaixo o que você quer, ele faz no navegador ao lado e te responde. Errou? Corrija na conversa. Acertou? Diga “guarda isso” e ele aprende o caminho.</p>" +
+      (exemplos ? '<div class="hm-exemplos">' + exemplos + "</div>" : "") + "</div>";
   }
   function trocarSessao(id) {
     est.sessao = id || null;
@@ -365,13 +373,16 @@
     if (!n) return;
     var img = $(".hm-nav__tela img"), energia = $("[data-hm-energia]"), mudou = est.navLigado !== !!n.ligado;
     est.navLigado = !!n.ligado;
+    est.noPc = !!n.no_pc;
+    energia.hidden = est.noPc && !n.ligado;      // ligar é no computador de quem usa; desligar dá para fazer daqui
+    if (n.larg && n.alt) { est.navLarg = n.larg; est.navAlt = n.alt; }
     energia.textContent = n.ligado ? "Desligar" : "Ligar";
     energia.title = n.ligado && n.mem ? "Navegador ligado · " + mb(n.mem) : "";
     mesa.querySelectorAll("[data-hm-nav], .hm-nav__digitar input, .hm-nav__digitar button").forEach(function (b) { b.disabled = !n.ligado; });
     if (!n.ligado) {
       img.hidden = true; est.hash = "";
       $(".hm-nav__abas").innerHTML = "";
-      avisoNav('<b>Navegador desligado</b><span>Ele liga sozinho quando o agente precisa de um site (uns 2 segundos) e desliga depois de 20 minutos parado, para não ocupar a memória da VPS.</span><button type="button" class="hm-bt hm-bt--forte" data-hm-energia>Ligar agora</button>');
+      avisoNav(n.no_pc ? '<b>O navegador deste agente fica no seu computador</b><span>A OLX bloqueia navegador de servidor, então o agente usa um Chrome separado aí na sua máquina, escondido: nenhuma janela abre, tudo aparece aqui. Ele está desligado. Para ligar, dê dois cliques em navegador-olx.bat (pasta nay-agentes\\hermes-painel); em uns 20 segundos a tela aparece.</span>' : '<b>Navegador desligado</b><span>Ele liga sozinho quando o agente precisa de um site (uns 2 segundos) e desliga depois de 20 minutos parado, para não ocupar a memória da VPS.</span><button type="button" class="hm-bt hm-bt--forte" data-hm-energia>Ligar agora</button>');
       return;
     }
     if (n.erro) { avisoNav(esc(n.erro), true); return; }
@@ -386,7 +397,8 @@
   }
   function energia() {
     var ligar = !est.navLigado, bt = $("[data-hm-energia]");
-    if (!ligar && !confirm("Desligar o navegador deste agente? As abas abertas fecham; os logins ficam guardados.")) return;
+    if (!ligar && !confirm(est.noPc ? "Desligar o navegador do agente? Ele fecha aí no seu computador (o login fica guardado). Para ligar de novo é pelo navegador-olx.bat, no seu computador."
+      : "Desligar o navegador deste agente? As abas abertas fecham; os logins ficam guardados.")) return;
     bt.disabled = true;
     avisoNav(ligar ? "<b>Ligando o navegador…</b>" : "<b>Desligando…</b>");
     doAgente("navegador/" + (ligar ? "ligar" : "desligar"), {}).then(function () { est.hash = ""; est.aba = null; acelerar(4000); })
@@ -394,7 +406,9 @@
   }
   function ponto(e, img) {      // do clique na imagem para o pixel da página
     var r = img.getBoundingClientRect();
-    return { x: Math.round((e.clientX - r.left) * img.naturalWidth / r.width), y: Math.round((e.clientY - r.top) * img.naturalHeight / r.height) };
+    // a medida da página vem da ponte: num monitor com escala a foto é maior que a página
+    var larg = est.navLarg || img.naturalWidth, alt = est.navAlt || img.naturalHeight;
+    return { x: Math.round((e.clientX - r.left) * larg / r.width), y: Math.round((e.clientY - r.top) * alt / r.height) };
   }
 
   /* ---------------------------------------------------------------- tarefas, skills, memória, logs */
@@ -511,6 +525,7 @@
       var b;
       if (e.target === mesa || e.target.closest("[data-hm-fechar]")) return fechar();
       if ((b = e.target.closest("[data-hm-troca]"))) return ver(b.getAttribute("data-hm-troca"));
+      if ((b = e.target.closest("[data-hm-exemplo]"))) { var campo = $(".hm-escrever textarea"); campo.value = b.getAttribute("data-hm-exemplo"); campo.focus(); return; }
       if ((b = e.target.closest("[data-hm-aba]"))) return mostrarLado(b.getAttribute("data-hm-aba"));
       if (e.target.closest("[data-hm-nova]")) { if (!est.vivo) trocarSessao(null).then(function () { $(".hm-escrever textarea").focus(); }); return; }
       if (e.target.closest("[data-hm-parar]")) { if (est.run) doAgente("execucao/" + est.run + "/parar", {}).then(function () { acelerar(3000); }).catch(function () {}); return; }

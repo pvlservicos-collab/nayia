@@ -1,21 +1,15 @@
 {
-  "telegram": {
-    "nome": "Hermes · Telegram",
-    "faz": "Agente de uso geral: conversa pelo Telegram e por esta tela, navega em sites, roda tarefas agendadas.",
-    "servico": "hermes-gateway-telegram",
-    "api_porta": 8642,
-    "cdp_porta": 9301
-  },
-  "corretores": {
-    "nome": "Hermes · Corretores",
-    "faz": "A Nay antiga do WhatsApp (perfil corretores). O WhatsApp dele está deslogado; por esta tela ele conversa e navega.",
-    "servico": "hermes-gateway-corretores",
-    "api_porta": 8643,
-    "cdp_porta": 9302
-  },
-  "pessoal": {
-    "nome": "Hermes · Pessoal",
-    "faz": "Perfil pessoal, parado desde agosto. O serviço está bloqueado no servidor; aqui dá para ver memória, tarefas e logs.",
-    "servico": "hermes-gateway-pessoal"
+  "olx": {
+    "nome": "Agente OLX",
+    "faz": "Trabalha na conta da OLX da imobiliária pelo navegador: você pede na conversa, vê a tela ao vivo e assume o mouse quando quiser.",
+    "servico": "hermes-gateway-olx",
+    "api_porta": 8644,
+    "cdp_porta": 9303,
+    "navegador": "seu-pc",
+    "exemplos": [
+      "Abra a página de acesso da OLX e me diga o que aparece",
+      "Quantos anúncios ativos eu tenho?",
+      "Abra o chat e me diga quantas conversas não lidas tem"
+    ]
   }
 }

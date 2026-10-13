@@ -61,7 +61,7 @@ body.hm-aberta { overflow: hidden; }
 .hm-troca__bt { flex: 1; padding: 9px; border-radius: 10px; font: 600 13px "Rubik", sans-serif; color: rgba(255,255,255,.7); background: transparent; border: 1px solid rgba(255,255,255,.16); cursor: pointer; }
 .hm-troca__bt--ativo { color: #15161a; background: #f2f2f4; }
 
-.hm-corpo { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320px, .78fr) minmax(0, 1.6fr); }
+.hm-corpo { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(340px, 1fr) minmax(0, 1.5fr); }
 
 /* ---------------------------------------------------------------- conversa */
 .hm-conversa { display: flex; flex-direction: column; min-height: 0; min-width: 0; border-right: 1px solid rgba(255,255,255,.1); }
@@ -100,8 +100,14 @@ body.hm-aberta { overflow: hidden; }
 .hm-vazio p { margin: 0; line-height: 1.5; }
 .hm-indisponivel { margin: 8px 0; padding: 12px; border-radius: 12px; text-align: center; font-size: 13px; line-height: 1.5; color: rgba(255,255,255,.66); background: rgba(255,255,255,.05); }
 .hm-conversa__aviso { margin: 0 12px 10px; padding: 10px 12px; border-radius: 12px; font-size: 13px; line-height: 1.5; color: #fff3cf; background: rgba(255,209,102,.1); border: 1px solid rgba(255,209,102,.35); }
-.hm-escrever { display: flex; gap: 8px; align-items: flex-end; padding: 10px 12px 12px; border-top: 1px solid rgba(255,255,255,.08); }
-.hm-escrever textarea { flex: 1; min-height: 44px; max-height: 180px; }
+/* a caixa de escrever: é por ela que se fala com o agente, então tem rótulo e borda clara */
+.hm-escrever { padding: 10px 12px 12px; border-top: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.04); }
+.hm-escrever__rotulo { display: block; margin-bottom: 6px; font: 700 12px "Rubik", sans-serif; letter-spacing: .04em; text-transform: uppercase; color: #fff; }
+.hm-escrever__linha { display: flex; gap: 8px; align-items: flex-end; }
+.hm-mesa .hm-escrever textarea { flex: 1; min-height: 64px; max-height: 200px; border-color: rgba(255,255,255,.45); background: rgba(0,0,0,.45); }
+.hm-exemplos { display: grid; gap: 8px; margin-top: 14px; }
+.hm-exemplo { padding: 9px 12px; border-radius: 12px; cursor: pointer; text-align: left; font: 13px/1.4 "Rubik", sans-serif; color: #f2f2f4; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.18); }
+.hm-exemplo:hover { background: rgba(255,255,255,.14); }
 
 /* ---------------------------------------------------------------- o lado: abas e painéis */
 .hm-lado { display: flex; flex-direction: column; min-height: 0; min-width: 0; }

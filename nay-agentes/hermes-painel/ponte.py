@@ -42,6 +42,7 @@ VIVOS = ("started", "queued", "running", "waiting_for_approval", "stopping")
 EXEC = {}    # run_id -> a execução (linha do tempo, estado)
 ATUAL = {}   # perfil -> run_id da última execução pedida pelo painel
 NAV = {}     # perfil -> {"cdp": {aba: Cdp}, "aba": aba escolhida à mão}
+HTTP = {}    # "s" -> a sessão http da ponte (nasce quando o serviço sobe)
 _cache = {}
 
 
@@ -132,12 +133,27 @@ async def estado_servico(svc):
     }
 
 
+def navegador_no_pc(p):
+    """O Chrome do agente fica no computador de quem usa (chega por túnel ssh na porta do perfil), não na VPS.
+    É o caso da OLX, que bloqueia navegador de servidor."""
+    return PERFIS[p].get("navegador") == "seu-pc"
+
+
 async def chrome_ligado(p):
-    """(ligado, memória). Pergunta ao systemd: bater na porta acordaria o Chrome."""
+    """(ligado, memória). Chrome da VPS: pergunta ao systemd (bater na porta o acordaria). Chrome no PC: vê se a
+    porta do túnel responde."""
     if not PERFIS[p].get("cdp_porta"):
         return False, 0
     v = guardado(("chrome", p), 2)
     if v is None:
+        if navegador_no_pc(p):
+            try:
+                async with HTTP["s"].get("http://127.0.0.1:%s/json/version" % PERFIS[p]["cdp_porta"],
+                                         timeout=aiohttp.ClientTimeout(total=3)) as r:
+                    v = (r.status == 200, 0)
+            except Exception:  # noqa: BLE001
+                v = (False, 0)
+            return guardar(("chrome", p), v)
         u = await unidade("hermes-chrome-%s.service" % p, "ActiveState", "MemoryCurrent")
         v = guardar(("chrome", p), (u.get("ActiveState") == "active", inteiro(u.get("MemoryCurrent"))))
     return v
@@ -264,7 +280,8 @@ async def r_agentes(request):
         run = EXEC.get(ATUAL.get(p)) or {}
         item = {"id": p, "nome": conf.get("nome") or p, "faz": conf.get("faz") or "", "servico": svc,
                 "conversa": bool(conf.get("api_porta")), "api_no_ar": no_ar,
-                "navegador": {"tem": bool(conf.get("cdp_porta")), "ligado": ligado[0], "mem": ligado[1]},
+                "navegador": {"tem": bool(conf.get("cdp_porta")), "ligado": ligado[0], "mem": ligado[1], "no_pc": navegador_no_pc(p)},
+                "exemplos": conf.get("exemplos") or [],
                 "tarefas": len(tarefas_do_arquivo(p)), "trabalhando": run.get("status") in VIVOS}
         item.update(resumo_perfil(p))
         if not svc["ativo"]:
@@ -653,7 +670,7 @@ async def ligar_cdp(app, p, pedida=None):
 async def retrato(app, p, pedida, hash_cliente):
     ligado, mem = await chrome_ligado(p)
     if not ligado:
-        return {"ligado": False}
+        return {"ligado": False, "no_pc": navegador_no_pc(p)}
     c, alvo, lista = await ligar_cdp(app, p, pedida)
     foto = {"format": "jpeg", "quality": 62, "optimizeForSpeed": True}
     try:
@@ -664,7 +681,18 @@ async def retrato(app, p, pedida, hash_cliente):
     dados = r.get("data") or ""
     marca = hashlib.md5(dados.encode()).hexdigest()[:12]
     atual = next(a for a in lista if a["id"] == alvo)
+    # o tamanho da página em pixels de CSS: num monitor com escala (125%, 150%) a foto sai maior que a página, e o
+    # clique tem de ir na medida da página
+    medida = guardado(("medida", p, alvo), 4)
+    if medida is None:
+        try:
+            v = (await c.cmd("Page.getLayoutMetrics", timeout=4)).get("cssVisualViewport") or {}
+            medida = (int(v.get("clientWidth") or 0), int(v.get("clientHeight") or 0))
+        except Exception:  # noqa: BLE001
+            medida = (0, 0)
+        guardar(("medida", p, alvo), medida)
     saida = {"ligado": True, "mem": mem, "aba": alvo, "url": atual.get("url"), "titulo": atual.get("title"), "hash": marca,
+             "larg": medida[0], "alt": medida[1], "no_pc": navegador_no_pc(p),
              "seguindo": NAV[p]["aba"] is None and not pedida,
              "abas": [{"id": a["id"], "titulo": (a.get("title") or a.get("url") or "")[:80], "url": a.get("url")} for a in lista]}
     if marca != hash_cliente:
@@ -705,6 +733,8 @@ async def r_nav_ligar(request):
     app, p = request.app, perfil(request)
     if not PERFIS[p].get("cdp_porta"):
         raise Erro(409, "este agente não tem navegador pelo painel")
+    if navegador_no_pc(p):
+        raise Erro(409, "o navegador deste agente roda no seu computador: dê dois cliques em navegador-olx.bat")
     for _ in range(40):
         try:
             v = await chrome_http(app, p, "/json/version", timeout=3)
@@ -721,6 +751,19 @@ async def r_nav_desligar(request):
     p = perfil(request)
     if not PERFIS[p].get("cdp_porta"):
         raise Erro(409, "este agente não tem navegador pelo painel")
+    if navegador_no_pc(p):
+        try:
+            v = await chrome_http(request.app, p, "/json/version", timeout=5)
+            async with websockets.connect(v["webSocketDebuggerUrl"], max_size=None, open_timeout=8, ping_interval=None) as ws:
+                await ws.send(json.dumps({"id": 1, "method": "Browser.close"}))
+                await asyncio.sleep(0.6)
+        except Exception:  # noqa: BLE001
+            raise Erro(502, "não consegui falar com o navegador do seu computador (ele já está desligado?)")
+        for c in list(NAV.get(p, {}).get("cdp", {}).values()):
+            await c.fechar()
+        NAV.pop(p, None)
+        _cache.pop(("chrome", p), None)
+        return web.json_response({"ok": True})
     for c in list(NAV.get(p, {}).get("cdp", {}).values()):
         await c.fechar()
     NAV.pop(p, None)
@@ -816,7 +859,7 @@ async def r_pulso(request):
             saida["nav"] = {"ligado": True, "erro": "não consegui ler a tela agora"}
     else:
         ligado, mem = await chrome_ligado(p)
-        saida["nav"] = {"ligado": ligado, "mem": mem}
+        saida["nav"] = {"ligado": ligado, "mem": mem, "no_pc": navegador_no_pc(p)}
     return web.json_response(saida)
 
 
@@ -833,7 +876,7 @@ async def faxina(app):
 
 
 async def ao_subir(app):
-    app["http"] = aiohttp.ClientSession()
+    app["http"] = HTTP["s"] = aiohttp.ClientSession()
     app["faxina"] = asyncio.create_task(faxina(app))
 
 

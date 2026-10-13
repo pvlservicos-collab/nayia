@@ -1,14 +1,20 @@
 #!/bin/bash
-# Instala o painel dos Hermes na VPS2 (srv1877774). Roda LÁ, como root, pelo publicar.sh. Pode rodar de novo: o que já
-# existe (segredos, cópia do Chrome) fica como está. Pedro, 13/10/2026.
+# Instala o painel dos agentes de site na VPS2 (srv1877774). Roda LÁ, como root, pelo publicar.sh. Pode rodar de novo.
 #
-# O que cria (tudo novo, nada do Hermes é editado):
-#   /opt/hermes-painel/                 a ponte (ponte.py) e uma cópia do Chrome que o Hermes já tinha baixado
-#   /etc/hermes-painel/                 perfis.json e os segredos (ponte.env, gateway-<perfil>.env), só root lê
-#   hermes-painel.service               a ponte, só no endereço do Tailscale
-#   hermes-chrome-<perfil>.service      o Chrome do perfil (usuário sem privilégio, teto de memória)
-#   hermes-chrome-<perfil>-porta.socket a porta que acorda o Chrome na primeira ligação e o desliga após 20 min parado
-#   hermes-gateway-<perfil>.service.d/painel.conf   liga a API local do Hermes e aponta o navegador dele para o Chrome
+# 13/10/2026, à noite (Pedro: "TIRA ESSES hermes de la não vou usar, se tiver alguma função neles rodando hoje para
+# tudo, quero que crie um para acessar esse site aqui https://conta.olx.com.br/acesso"):
+#   - os gateways hermes-gateway-telegram e hermes-gateway-corretores são PARADOS e desligados do boot (os perfis e os
+#     arquivos deles ficam no disco, intactos; para voltar: systemctl enable --now hermes-gateway-<perfil>);
+#   - nasce o perfil `olx` do Hermes, só com ferramentas de navegador, e o serviço hermes-gateway-olx;
+#   - o navegador do agente OLX NÃO fica aqui: a OLX bloqueia navegador de servidor (Cloudflare, "you have been
+#     blocked"). Ele usa um Chrome no computador do Pedro, que chega por um túnel ssh na porta 127.0.0.1:9303
+#     (navegador-olx.bat). Aqui só existe a porta.
+#
+# O que fica na VPS2:
+#   /opt/hermes-painel/ponte.py         a ponte (serviço hermes-painel), só no endereço do Tailscale
+#   /etc/hermes-painel/                 perfis.json e os segredos (ponte.env, gateway-*.env), só root lê
+#   /root/.hermes/profiles/olx/         o perfil do agente (SOUL.md e config.yaml vêm deste repositório)
+#   hermes-gateway-olx.service          o agente
 # Desfazer: ./instalar.sh desfazer
 set -euo pipefail
 AQUI="$(cd "$(dirname "$0")" && pwd)"
@@ -16,23 +22,17 @@ OPT=/opt/hermes-painel
 ETC=/etc/hermes-painel
 SD=/etc/systemd/system
 PY=/usr/local/lib/hermes-agent/venv/bin/python
-CHROME_ORIGEM=/root/.cache/ms-playwright/chromium-1208/chrome-linux64
-# perfil  porta-da-API  porta-do-navegador  porta-interna-do-Chrome
-PERFIS="telegram:8642:9301:9311 corretores:8643:9302:9312"
+PERFIS_DIR=/root/.hermes/profiles
+P=olx
+API=8644
+CDP=9303
+APOSENTADOS="telegram corretores"
 
 if [ "${1:-}" = desfazer ]; then
-  for linha in $PERFIS; do
-    p=${linha%%:*}
-    systemctl disable --now "hermes-chrome-$p-porta.socket" 2>/dev/null || true
-    systemctl stop "hermes-chrome-$p-porta.service" "hermes-chrome-$p.service" 2>/dev/null || true
-    rm -f "$SD/hermes-chrome-$p.service" "$SD/hermes-chrome-$p-porta.service" "$SD/hermes-chrome-$p-porta.socket"
-    rm -f "$SD/hermes-gateway-$p.service.d/painel.conf"; rmdir "$SD/hermes-gateway-$p.service.d" 2>/dev/null || true
-  done
-  systemctl disable --now hermes-painel.service 2>/dev/null || true
-  rm -f "$SD/hermes-painel.service"
+  systemctl disable --now "hermes-gateway-$P.service" hermes-painel.service 2>/dev/null || true
+  rm -f "$SD/hermes-gateway-$P.service" "$SD/hermes-painel.service"
   systemctl daemon-reload
-  echo "Desfeito. Ficaram /opt/hermes-painel, /etc/hermes-painel e /var/lib/hermes-chrome (apague à mão se quiser)."
-  echo "Os gateways continuam com a API ligada até serem reiniciados."
+  echo "Desfeito. Ficaram /opt/hermes-painel, /etc/hermes-painel e o perfil $PERFIS_DIR/$P (apague à mão se quiser)."
   exit 0
 fi
 
@@ -45,15 +45,6 @@ chmod 755 "$OPT"; chmod 700 "$ETC"
 install -m 644 "$AQUI/ponte.py" "$OPT/ponte.py"
 install -m 600 "$AQUI/perfis.json" "$ETC/perfis.json"
 
-# O Chrome: cópia do que o Playwright do Hermes instalou. O serviço roda com usuário sem privilégio, que não entra em /root.
-if [ ! -x "$OPT/chrome/chrome" ]; then
-  [ -x "$CHROME_ORIGEM/chrome" ] || { echo "não achei o Chrome em $CHROME_ORIGEM"; exit 1; }
-  cp -dR --preserve=mode,timestamps "$CHROME_ORIGEM" "$OPT/chrome"
-  chmod -R u=rwX,go=rX "$OPT/chrome"
-  echo "Chrome copiado para $OPT/chrome ($(du -sh "$OPT/chrome" | cut -f1))"
-fi
-
-# Segredos: nascem aqui e não são impressos.
 if [ ! -s "$ETC/ponte.env" ]; then
   ( umask 077; printf 'PAINEL_TOKEN=%s\nPAINEL_HOST=%s\nPAINEL_PORTA=8650\n' "$(openssl rand -hex 32)" "$TS_IP" > "$ETC/ponte.env" )
   echo "segredo da ponte criado"
@@ -62,7 +53,7 @@ sed -i "s/^PAINEL_HOST=.*/PAINEL_HOST=$TS_IP/" "$ETC/ponte.env"
 
 cat > "$SD/hermes-painel.service" <<EOF
 [Unit]
-Description=Ponte do painel dos Hermes (admin › Agentes do site imobeasy.online)
+Description=Ponte do painel dos agentes de site (admin › Agentes do site imobeasy.online)
 After=network-online.target tailscaled.service
 Wants=network-online.target
 
@@ -78,85 +69,74 @@ MemoryMax=250M
 [Install]
 WantedBy=multi-user.target
 EOF
+chmod 644 "$SD/hermes-painel.service"
 
-UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
-for linha in $PERFIS; do
-  IFS=: read -r p api cdp interna <<< "$linha"
+# --- 1) os Hermes antigos: param e saem do boot. Nada deles é apagado.
+for velho in $APOSENTADOS; do
+  if [ "$(systemctl is-active "hermes-gateway-$velho" 2>/dev/null)" = active ] || [ "$(systemctl is-enabled "hermes-gateway-$velho" 2>/dev/null)" = enabled ]; then
+    systemctl disable --now "hermes-gateway-$velho" >/dev/null 2>&1 || true
+    echo "hermes-gateway-$velho: parado e fora do boot"
+  fi
+  systemctl disable --now "hermes-chrome-$velho-porta.socket" >/dev/null 2>&1 || true
+  systemctl stop "hermes-chrome-$velho-porta.service" "hermes-chrome-$velho.service" >/dev/null 2>&1 || true
+  # o que o painel tinha posto para eles (o Chrome na VPS e a API local) sai junto
+  rm -f "$SD/hermes-chrome-$velho.service" "$SD/hermes-chrome-$velho-porta.service" "$SD/hermes-chrome-$velho-porta.socket"
+  rm -f "$SD/hermes-gateway-$velho.service.d/painel.conf"; rmdir "$SD/hermes-gateway-$velho.service.d" 2>/dev/null || true
+done
 
-  # --- o Chrome do perfil: usuário dinâmico (sem privilégio), pasta própria que guarda os logins, teto de memória
-  cat > "$SD/hermes-chrome-$p.service" <<EOF
+# --- 2) o perfil do agente OLX
+if [ ! -d "$PERFIS_DIR/$P" ]; then
+  timeout 120 hermes profile create "$P" --no-alias --no-skills \
+    --description "Agente da conta da OLX da Imob Easy: trabalha pelo navegador, guiado pelo Pedro na tela Agentes do admin." </dev/null 2>&1 | tail -3 | cut -c1-160
+  [ -d "$PERFIS_DIR/$P" ] || { echo "o Hermes não criou o perfil $P"; exit 1; }
+  echo "perfil $P criado"
+fi
+install -m 600 "$AQUI/alma-olx.md" "$PERFIS_DIR/$P/SOUL.md"
+"$PY" "$AQUI/configurar_perfil.py" "$PERFIS_DIR/$P"
+
+# --- 3) o serviço do agente. A API local tem senha própria (nasce aqui, não é impressa). A chave da OpenAI é a que o
+#        Pedro pôs em 13/10 em gateway-telegram.env: o serviço LÊ aquele arquivo, nada é copiado. As variáveis de
+#        gateway-olx.env vêm depois e valem por cima (porta da API, navegador).
+if [ ! -s "$ETC/gateway-$P.env" ]; then
+  ( umask 077; printf 'API_SERVER_KEY=%s\nAPI_SERVER_HOST=127.0.0.1\nAPI_SERVER_PORT=%s\nBROWSER_CDP_URL=http://127.0.0.1:%s\n' "$(openssl rand -hex 32)" "$API" "$CDP" > "$ETC/gateway-$P.env" )
+fi
+grep -q '^OPENAI_API_KEY=' "$ETC/gateway-telegram.env" 2>/dev/null || echo "ATENÇÃO: não achei a chave da OpenAI em $ETC/gateway-telegram.env; sem ela o agente não pensa"
+cat > "$SD/hermes-gateway-$P.service" <<EOF
 [Unit]
-Description=Chrome do Hermes $p (painel admin › Agentes)
-StopWhenUnneeded=yes
+Description=Agente OLX (Hermes, perfil $P) do painel admin › Agentes
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-DynamicUser=yes
-StateDirectory=hermes-chrome/$p
-Environment=HOME=/var/lib/hermes-chrome/$p TZ=America/Manaus LANG=pt_BR.UTF-8
-ExecStart=$OPT/chrome/chrome --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --no-first-run --no-default-browser-check --disable-background-networking --disable-sync --disable-extensions --disable-breakpad --disable-features=Translate,MediaRouter --password-store=basic --lang=pt-BR --window-size=1366,911 "--user-agent=$UA" --remote-debugging-address=127.0.0.1 --remote-debugging-port=$interna --remote-allow-origins=* --user-data-dir=/var/lib/hermes-chrome/$p/perfil about:blank
-ExecStartPost=/usr/bin/timeout 20 /bin/sh -c 'until curl -s -m 1 -o /dev/null http://127.0.0.1:$interna/json/version; do sleep 0.25; done'
-MemoryHigh=900M
-MemoryMax=1100M
-CPUWeight=50
-OOMPolicy=stop
-Restart=no
-TimeoutStopSec=10
-EOF
-
-  # --- a porta: a primeira ligação (do Hermes ou da ponte) sobe o Chrome; 20 min sem ligação, desliga os dois
-  cat > "$SD/hermes-chrome-$p-porta.socket" <<EOF
-[Unit]
-Description=Porta do Chrome do Hermes $p (acorda o navegador na primeira ligação)
-
-[Socket]
-ListenStream=127.0.0.1:$cdp
+User=root
+Group=root
+EnvironmentFile=-$ETC/gateway-telegram.env
+EnvironmentFile=$ETC/gateway-$P.env
+ExecStart=$PY -m hermes_cli.main --profile $P gateway run
+WorkingDirectory=$PERFIS_DIR/$P
+Restart=always
+RestartSec=5
+RestartForceExitStatus=75
+RestartPreventExitStatus=78
+KillMode=mixed
+KillSignal=SIGTERM
+ExecStopPost=-$PY -m gateway.cgroup_cleanup
+TimeoutStopSec=60
+MemoryMax=700M
+StandardOutput=journal
+StandardError=journal
 
 [Install]
-WantedBy=sockets.target
+WantedBy=multi-user.target
 EOF
-  cat > "$SD/hermes-chrome-$p-porta.service" <<EOF
-[Unit]
-Description=Repasse da porta $cdp para o Chrome do Hermes $p
-Requires=hermes-chrome-$p.service
-After=hermes-chrome-$p.service
-
-[Service]
-ExecStart=/usr/lib/systemd/systemd-socket-proxyd --exit-idle-time=20min 127.0.0.1:$interna
-PrivateTmp=yes
-EOF
-
-  # --- o gateway do Hermes: API local com senha e o navegador apontado para o Chrome acima (drop-in, o .env dele não muda)
-  if [ ! -s "$ETC/gateway-$p.env" ]; then
-    ( umask 077; printf 'API_SERVER_KEY=%s\nAPI_SERVER_HOST=127.0.0.1\nAPI_SERVER_PORT=%s\nBROWSER_CDP_URL=http://127.0.0.1:%s\n' "$(openssl rand -hex 32)" "$api" "$cdp" > "$ETC/gateway-$p.env" )
-  fi
-  mkdir -p "$SD/hermes-gateway-$p.service.d"
-  cat > "$SD/hermes-gateway-$p.service.d/painel.conf" <<EOF
-# Painel dos Hermes (admin › Agentes, 13/10/2026): liga a API local (127.0.0.1:$api) e manda o navegador do agente
-# para o Chrome do painel (porta $cdp). Desfazer: apagar este arquivo, systemctl daemon-reload, reiniciar o serviço.
-[Service]
-EnvironmentFile=$ETC/gateway-$p.env
-EOF
-  chmod 644 "$SD/hermes-chrome-$p.service" "$SD/hermes-chrome-$p-porta.socket" "$SD/hermes-chrome-$p-porta.service" "$SD/hermes-gateway-$p.service.d/painel.conf"
-done
-chmod 644 "$SD/hermes-painel.service"
+chmod 644 "$SD/hermes-gateway-$P.service"
 
 systemctl daemon-reload
-for linha in $PERFIS; do
-  IFS=: read -r p api cdp interna <<< "$linha"
-  systemctl enable --now "hermes-chrome-$p-porta.socket" >/dev/null 2>&1 || { echo "não consegui ligar a porta do Chrome de $p"; exit 1; }
-  # só reinicia o gateway se ele estiver no ar e ainda sem a API (o processo de hoje nasceu antes do drop-in)
-  pid=$(systemctl show "hermes-gateway-$p" -p MainPID --value)
-  if [ "${pid:-0}" != 0 ] && ! tr '\0' '\n' < "/proc/$pid/environ" | grep -q '^API_SERVER_KEY='; then
-    echo "reiniciando hermes-gateway-$p para ligar a API local..."
-    systemctl restart "hermes-gateway-$p"
-  fi
-done
-systemctl enable hermes-painel.service >/dev/null 2>&1
+systemctl enable "hermes-gateway-$P.service" hermes-painel.service >/dev/null 2>&1
+systemctl restart "hermes-gateway-$P.service"
 systemctl restart hermes-painel.service
-sleep 2
-systemctl is-active hermes-painel.service | sed 's/^/ponte: /'
-for linha in $PERFIS; do
-  IFS=: read -r p api cdp interna <<< "$linha"
-  printf 'gateway %s: %s · porta do navegador: %s\n' "$p" "$(systemctl is-active "hermes-gateway-$p")" "$(systemctl is-active "hermes-chrome-$p-porta.socket")"
-done
+for i in $(seq 1 40); do curl -s -m 2 -o /dev/null "http://127.0.0.1:$API/health" && break; sleep 1; done
+echo "ponte: $(systemctl is-active hermes-painel.service) · agente $P: $(systemctl is-active "hermes-gateway-$P") (API respondeu em ~${i}s)"
+for velho in $APOSENTADOS; do echo "hermes-gateway-$velho: $(systemctl is-active "hermes-gateway-$velho" 2>/dev/null || true) / $(systemctl is-enabled "hermes-gateway-$velho" 2>/dev/null || true)"; done
