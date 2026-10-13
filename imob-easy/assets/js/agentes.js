@@ -38,13 +38,8 @@
     { id: "treino", nome: "Treino da Nay", onde: "nay-core-treino", tom: ["#35373f", "#62656e"], icone: "treino",
       faz: "Refaz conversas reais em sombra para medir a Nay nova sem mandar nada a ninguém; gera o resumo do dia.",
       itens: ["nay-core-treino"], hoje: [] },
-    // ---- VPS2
-    { vps: 2, id: "hermes-corretores", nome: "Hermes · corretores", onde: "serviço hermes-gateway-corretores", tom: ["#15161a", "#3a3c44"], icone: "chat",
-      faz: "Agente Hermes no perfil corretores (gateway de mensagens).",
-      itens: ["hermes-gateway-corretores"], hoje: [] },
-    { vps: 2, id: "hermes-telegram", nome: "Hermes · Telegram", onde: "serviço hermes-gateway-telegram", tom: ["#25272d", "#4e5159"], icone: "telegram",
-      faz: "Agente Hermes no perfil Telegram (gateway de mensagens).",
-      itens: ["hermes-gateway-telegram"], hoje: [] },
+    // ---- VPS2. Os Hermes saíram daqui em 13/10: têm os próprios quadrados, ao vivo, com a mesa de cada um
+    // (hermes-painel.js, a seção "Hermes" no alto da página).
     { vps: 2, id: "lembretes", nome: "Lembretes", onde: "serviço lembretes + cron de 10 min", tom: ["#35373f", "#62656e"], icone: "relogio",
       faz: "Agente de lembretes pelo WhatsApp: escuta as mensagens, entende com o modelo e envia os lembretes de 10 em 10 minutos.",
       itens: ["lembretes"], hoje: [] }

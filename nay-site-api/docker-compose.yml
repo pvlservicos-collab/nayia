@@ -20,6 +20,10 @@ services:
       # A aba Enviar imovel (28/09) repassa ao CRM pela rede interna, com um
       # token `atl_` do CRM. O token mora so no .env do servidor.
       - CRM_API_BASE=http://crm-imobeasy:3000
+      # Painel dos Hermes (13/10): a ponte que roda na VPS2, alcançada pelo Tailscale, com segredo de máquina
+      # (nay-agentes/hermes-painel). O segredo mora só no .env do servidor.
+      - HERMES_PAINEL_URL=http://100.113.222.11:8650
+      - HERMES_PAINEL_TOKEN=${HERMES_PAINEL_TOKEN:-}
       - CRM_API_TOKEN=${CRM_API_TOKEN}
       # A captacao pela OLX (28/09) grava as fotos onde o nginx do site serve:
       # https://imobeasy.online/fotos-captacao/olx/<codigo>/01.jpg

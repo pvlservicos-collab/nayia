@@ -1,0 +1,205 @@
+/* ==========================================================================
+   Agentes › Hermes (13/10/2026): os quadrados dos Hermes e a mesa de cada um (conversa + navegador ao vivo +
+   tarefas, skills, memória, logs). Mesmo vidro escuro em escalas de cinza dos outros quadrados (agentes.css).
+   ========================================================================== */
+.hm-nota { margin: -4px 0 16px; font-size: var(--fs-sm); color: var(--texto-medio); max-width: 78ch; }
+.hm-card .ag-uso { margin-top: 4px; }
+.hm-card .ag-nome { white-space: nowrap; }
+#hm-grade { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.hm-abrir {
+  margin-top: 10px; width: 100%; padding: 11px 14px; border-radius: 14px; cursor: pointer;
+  font: 700 14px/1 "Barlow", sans-serif; letter-spacing: .03em; color: #15161a;
+  background: linear-gradient(180deg, #ffffff, #d9dae0); border: 1px solid rgba(255,255,255,.6);
+  box-shadow: inset 0 1px 0 #fff, 0 8px 18px -8px rgba(0,0,0,.7);
+}
+.hm-abrir:hover { background: #fff; }
+.hm-abrir:focus-visible, .hm-mesa button:focus-visible, .hm-mesa input:focus-visible, .hm-mesa textarea:focus-visible, .hm-mesa select:focus-visible { outline: 2px solid #9ec5ff; outline-offset: 2px; }
+.hm-ficha--alerta { background: rgba(255,123,140,.2) !important; border-color: rgba(255,123,140,.45) !important; color: #ffe1e5 !important; }
+.hm-estado--trab { color: #fff3cf; }
+.hm-estado--trab::before { background: #ffd166; box-shadow: 0 0 8px #ffd166; animation: hm-pulsa 1.1s ease-in-out infinite; }
+@keyframes hm-pulsa { 50% { opacity: .25; } }
+
+/* ---------------------------------------------------------------- a mesa */
+body.hm-aberta { overflow: hidden; }
+.hm-mesa { position: fixed; inset: 0; z-index: 1200; display: flex; padding: 16px; background: rgba(12,12,18,.74); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.hm-mesa[hidden] { display: none; }
+.hm-mesa__caixa {
+  flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 20px; color: #f2f2f4;
+  background: linear-gradient(160deg, #262830, #141519 62%); border: 1px solid rgba(255,255,255,.14);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 30px 80px -20px rgba(0,0,0,.8);
+  font-size: 14px;
+}
+.hm-mesa [hidden] { display: none !important; }
+.hm-topo { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.1); }
+.hm-topo .ag-icone { width: 40px; height: 40px; border-radius: 12px; }
+.hm-topo__quem { flex: 1; min-width: 0; }
+.hm-topo__nome { font: 800 19px/1.1 "Barlow", sans-serif; color: #fff; }
+.hm-topo__sub { margin-top: 3px; font-size: 12px; color: rgba(255,255,255,.58); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hm-topo .ag-estado { margin-left: 0; }
+.hm-topo__acoes { display: flex; gap: 8px; flex: none; }
+
+.hm-mesa .hm-bt {
+  flex: none; padding: 8px 13px; border-radius: 10px; cursor: pointer; font: 600 13px/1.1 "Rubik", sans-serif; color: #f2f2f4;
+  background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.18); box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
+}
+.hm-mesa .hm-bt:hover { background: rgba(255,255,255,.16); }
+.hm-mesa .hm-bt:disabled { opacity: .45; cursor: default; }
+.hm-mesa .hm-bt--forte { color: #15161a; background: linear-gradient(180deg, #fff, #d9dae0); border-color: rgba(255,255,255,.6); }
+.hm-mesa .hm-bt--forte:hover { background: #fff; }
+.hm-mesa .hm-bt--perigo { color: #ffd9de; border-color: rgba(255,123,140,.5); background: rgba(255,90,110,.14); }
+.hm-mesa .hm-bt--icone { width: 34px; padding: 8px 0; font-size: 15px; text-align: center; }
+.hm-mesa .hm-bt--fechar { width: 36px; padding: 8px 0; font-size: 15px; }
+.hm-mesa input[type="text"], .hm-mesa input[type="search"], .hm-mesa input:not([type]), .hm-mesa textarea, .hm-mesa select {
+  width: 100%; padding: 9px 11px; border-radius: 10px; font: 400 14px/1.4 "Rubik", sans-serif; color: #fff;
+  background: rgba(0,0,0,.32); border: 1px solid rgba(255,255,255,.18);
+}
+.hm-mesa textarea { resize: vertical; }
+.hm-mesa ::placeholder { color: rgba(255,255,255,.42); }
+.hm-mesa select option { color: #15161a; }
+
+.hm-troca { display: none; gap: 6px; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,.1); }
+.hm-troca__bt { flex: 1; padding: 9px; border-radius: 10px; font: 600 13px "Rubik", sans-serif; color: rgba(255,255,255,.7); background: transparent; border: 1px solid rgba(255,255,255,.16); cursor: pointer; }
+.hm-troca__bt--ativo { color: #15161a; background: #f2f2f4; }
+
+.hm-corpo { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320px, .78fr) minmax(0, 1.6fr); }
+
+/* ---------------------------------------------------------------- conversa */
+.hm-conversa { display: flex; flex-direction: column; min-height: 0; min-width: 0; border-right: 1px solid rgba(255,255,255,.1); }
+.hm-conversa__barra { display: flex; gap: 8px; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.hm-conversa__barra select { min-width: 0; }
+.hm-msgs { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 12px; display: flex; flex-direction: column; gap: 8px; }
+.hm-vivo { display: contents; }
+/* numa coluna que rola, item com overflow escondido encolhe até sumir o texto: nenhum item da conversa encolhe */
+.hm-msgs > *, .hm-vivo > * { flex-shrink: 0; }
+.hm-msg { max-width: 90%; padding: 9px 12px; border-radius: 14px; line-height: 1.48; overflow-wrap: anywhere; }
+.hm-msg--voce { align-self: flex-end; background: #454957; color: #fff; border-bottom-right-radius: 4px; }
+.hm-msg--agente { align-self: flex-start; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.08); border-bottom-left-radius: 4px; }
+.hm-msg--erro { align-self: flex-start; background: rgba(255,90,110,.16); border: 1px solid rgba(255,123,140,.4); color: #ffe1e5; }
+.hm-msg a { color: #b9d5ff; }
+.hm-msg code, .hm-msg pre { font: 12.5px/1.45 ui-monospace, Consolas, monospace; background: rgba(0,0,0,.35); border-radius: 6px; }
+.hm-msg code { padding: 1px 5px; }
+.hm-msg pre { margin: 6px 0; padding: 8px 10px; overflow-x: auto; white-space: pre-wrap; }
+.hm-passo {
+  align-self: flex-start; max-width: 94%; padding: 4px 10px; border-radius: 999px; font-size: 12px; color: rgba(255,255,255,.74);
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hm-passo b { font-weight: 600; color: #fff; }
+.hm-passo small { color: rgba(255,255,255,.5); }
+.hm-passo::before { content: "✓"; margin-right: 6px; color: #7ee2a8; }
+.hm-passo--rodando::before { content: "●"; color: #ffd166; animation: hm-pulsa 1s ease-in-out infinite; }
+.hm-passo--erro::before { content: "✕"; color: #ff7b8c; }
+.hm-pensa { align-self: flex-start; max-width: 90%; font-size: 12.5px; font-style: italic; color: rgba(255,255,255,.5); padding-left: 10px; border-left: 2px solid rgba(255,255,255,.16); }
+.hm-trabalhando { align-self: flex-start; font-size: 12.5px; color: #fff3cf; }
+.hm-trabalhando::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: #ffd166; animation: hm-pulsa 1s ease-in-out infinite; }
+.hm-aprova { align-self: stretch; padding: 12px; border-radius: 12px; background: rgba(255,209,102,.1); border: 1px solid rgba(255,209,102,.4); }
+.hm-aprova pre { margin: 8px 0; padding: 8px 10px; border-radius: 8px; background: rgba(0,0,0,.4); font: 12.5px/1.45 ui-monospace, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.hm-aprova p { margin: 0 0 8px; font-size: 12.5px; color: rgba(255,255,255,.7); }
+.hm-aprova__bts { display: flex; flex-wrap: wrap; gap: 8px; }
+.hm-vazio { margin: auto; max-width: 34ch; text-align: center; color: rgba(255,255,255,.6); }
+.hm-vazio b { display: block; font: 800 18px "Barlow", sans-serif; color: #fff; margin-bottom: 6px; }
+.hm-vazio p { margin: 0; line-height: 1.5; }
+.hm-indisponivel { margin: 8px 0; padding: 12px; border-radius: 12px; text-align: center; font-size: 13px; line-height: 1.5; color: rgba(255,255,255,.66); background: rgba(255,255,255,.05); }
+.hm-conversa__aviso { margin: 0 12px 10px; padding: 10px 12px; border-radius: 12px; font-size: 13px; line-height: 1.5; color: #fff3cf; background: rgba(255,209,102,.1); border: 1px solid rgba(255,209,102,.35); }
+.hm-escrever { display: flex; gap: 8px; align-items: flex-end; padding: 10px 12px 12px; border-top: 1px solid rgba(255,255,255,.08); }
+.hm-escrever textarea { flex: 1; min-height: 44px; max-height: 180px; }
+
+/* ---------------------------------------------------------------- o lado: abas e painéis */
+.hm-lado { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.hm-abas { display: flex; gap: 2px; padding: 6px 10px 0; overflow-x: auto; border-bottom: 1px solid rgba(255,255,255,.1); flex: none; }
+.hm-aba { flex: none; padding: 9px 12px; font: 600 13px "Rubik", sans-serif; color: rgba(255,255,255,.6); background: none; border: 0; border-bottom: 2px solid transparent; cursor: pointer; }
+.hm-aba:hover { color: #fff; }
+.hm-aba--ativa { color: #fff; border-bottom-color: #fff; }
+.hm-painel { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 14px 16px; }
+.hm-painel[data-hm-painel="navegador"] { display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+.hm-dica { margin: 0; font-size: 12px; line-height: 1.5; color: rgba(255,255,255,.5); }
+.hm-titulo { margin: 14px 0 8px; font: 800 14px "Barlow", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #fff; }
+.hm-titulo:first-child { margin-top: 0; }
+.hm-titulo small { font: 400 12px "Rubik", sans-serif; letter-spacing: 0; text-transform: none; color: rgba(255,255,255,.5); margin-left: 6px; }
+.hm-selo { flex: none; font: 700 10.5px "Rubik", sans-serif; font-style: normal; letter-spacing: .05em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; color: #dffbea; background: rgba(126,226,168,.16); border: 1px solid rgba(126,226,168,.35); }
+.hm-selo--mudo { color: rgba(255,255,255,.6); background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.16); }
+
+/* navegador */
+.hm-nav__barra { display: flex; gap: 6px; align-items: center; flex: none; }
+.hm-nav__url { flex: 1; min-width: 0; }
+.hm-nav__abas { display: flex; gap: 6px; overflow-x: auto; flex: none; }
+.hm-nav__abas:empty { display: none; }
+.hm-guia { flex: none; display: inline-flex; max-width: 200px; border-radius: 8px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); }
+.hm-guia button { padding: 5px 9px; font: 12px "Rubik", sans-serif; color: rgba(255,255,255,.7); background: none; border: 0; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hm-guia--ativa { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.3); }
+.hm-guia--ativa button { color: #fff; }
+.hm-guia .hm-guia__x { flex: none; padding: 5px 8px 5px 2px; }
+.hm-guia__seguir { flex: none; padding: 5px 10px; border-radius: 8px; font: 12px "Rubik", sans-serif; color: rgba(255,255,255,.7); background: none; border: 1px dashed rgba(255,255,255,.3); cursor: pointer; }
+.hm-guia__seguir--on { color: #dffbea; border: 1px solid rgba(126,226,168,.45); background: rgba(126,226,168,.12); }
+.hm-nav__tela {
+  position: relative; flex: 1; min-height: 180px; display: flex; align-items: flex-start; justify-content: center; overflow: auto;
+  border-radius: 12px; background: #0b0b0e; border: 1px solid rgba(255,255,255,.14);
+}
+.hm-nav__tela:focus { outline: 2px solid #9ec5ff; outline-offset: 1px; }
+.hm-nav__tela img { display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; cursor: pointer; user-select: none; -webkit-user-select: none; }
+.hm-nav__aviso { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px; text-align: center; background: rgba(11,11,14,.9); }
+.hm-nav__aviso b { font: 800 17px "Barlow", sans-serif; color: #fff; }
+.hm-nav__aviso span { max-width: 46ch; font-size: 13px; line-height: 1.5; color: rgba(255,255,255,.62); }
+.hm-nav__aviso--faixa { inset: auto 10px 10px 10px; padding: 9px 12px; border-radius: 10px; font-size: 13px; color: #ffe1e5; background: rgba(120,24,38,.94); border: 1px solid rgba(255,123,140,.5); }
+.hm-nav__clique { position: absolute; width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 2px rgba(0,0,0,.45); pointer-events: none; animation: hm-clique .6s ease-out forwards; }
+@keyframes hm-clique { from { transform: scale(.3); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
+.hm-nav__digitar { display: flex; gap: 6px; flex: none; }
+.hm-nav__digitar input { flex: 1; min-width: 0; }
+
+/* tarefas */
+.hm-tarefa { margin: 10px 0; padding: 12px; border-radius: 12px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); }
+.hm-tarefa--pausada { opacity: .7; }
+.hm-tarefa__topo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.hm-tarefa__topo b { font-size: 14.5px; color: #fff; }
+.hm-tarefa__topo code { font: 12px ui-monospace, Consolas, monospace; padding: 2px 7px; border-radius: 6px; background: rgba(0,0,0,.35); }
+.hm-tarefa__topo .hm-selo { margin-left: auto; }
+.hm-tarefa__pedido { margin: 8px 0; font-size: 13px; line-height: 1.5; color: rgba(255,255,255,.72); overflow-wrap: anywhere; }
+.hm-tarefa__info { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: rgba(255,255,255,.55); }
+.hm-tarefa__info b { color: #fff; font-weight: 600; }
+.hm-res { font-style: normal; font-weight: 700; }
+.hm-res--ok { color: #7ee2a8; }
+.hm-res--erro { color: #ff9aa8; }
+.hm-tarefa__erro { margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; color: #ffe1e5; background: rgba(255,90,110,.14); overflow-wrap: anywhere; }
+.hm-tarefa__bts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+/* formulários (nova tarefa, memória) */
+.hm-form { margin: 16px 0 0; padding: 14px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); display: grid; gap: 10px; }
+.hm-form:first-child { margin-top: 0; }
+.hm-form h3 { margin: 0; font: 800 15px "Barlow", sans-serif; color: #fff; }
+.hm-form h3 small { font: 400 12px ui-monospace, Consolas, monospace; color: rgba(255,255,255,.45); margin-left: 6px; }
+.hm-form label { display: grid; gap: 5px; font-size: 12.5px; color: rgba(255,255,255,.66); }
+.hm-form > button { justify-self: start; }
+.hm-form__msg { margin-left: 10px; font-size: 12.5px; color: rgba(255,255,255,.66); }
+.hm-memoria textarea { font: 12.5px/1.5 ui-monospace, Consolas, monospace; }
+.hm-memoria textarea[readonly] { color: rgba(255,255,255,.66); }
+
+/* skills e ferramentas */
+.hm-ferramentas { display: grid; gap: 6px; }
+.hm-ferramenta { border-radius: 10px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); }
+.hm-ferramenta--off { opacity: .6; }
+.hm-ferramenta summary { display: flex; align-items: center; gap: 8px; padding: 8px 11px; cursor: pointer; font-size: 13px; }
+.hm-ferramenta summary span { flex: 1; min-width: 0; color: rgba(255,255,255,.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hm-ferramenta p { margin: 0; padding: 0 11px 10px; font: 12px/1.6 ui-monospace, Consolas, monospace; color: rgba(255,255,255,.6); overflow-wrap: anywhere; }
+.hm-busca { margin-bottom: 4px; }
+.hm-grupo h4 { margin: 14px 0 6px; font: 700 11.5px "Rubik", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.5); }
+.hm-skill { display: grid; grid-template-columns: minmax(120px, 190px) 1fr; gap: 10px; padding: 6px 0; border-top: 1px solid rgba(255,255,255,.06); font-size: 13px; }
+.hm-skill b { color: #fff; font-weight: 600; overflow-wrap: anywhere; }
+.hm-skill span { color: rgba(255,255,255,.6); line-height: 1.45; }
+
+/* logs */
+.hm-logs__barra { display: flex; gap: 8px; margin-bottom: 8px; }
+.hm-logs { margin: 0; padding: 12px; height: calc(100% - 50px); min-height: 240px; overflow: auto; border-radius: 12px; font: 11.5px/1.55 ui-monospace, Consolas, monospace; color: rgba(255,255,255,.78); background: #0b0b0e; border: 1px solid rgba(255,255,255,.12); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+@media (max-width: 980px) {
+  .hm-mesa { padding: 0; }
+  .hm-mesa__caixa { border-radius: 0; border: 0; }
+  .hm-troca { display: flex; }
+  .hm-corpo { grid-template-columns: 1fr; }
+  .hm-corpo[data-hm-vendo="conversa"] .hm-lado, .hm-corpo[data-hm-vendo="lado"] .hm-conversa { display: none; }
+  .hm-conversa { border-right: 0; }
+  .hm-topo { padding: 10px 12px; gap: 10px; }
+  .hm-topo .ag-estado { display: none; }
+  .hm-skill { grid-template-columns: 1fr; gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hm-estado--trab::before, .hm-passo--rodando::before, .hm-trabalhando::before, .hm-nav__clique { animation: none; }
+}

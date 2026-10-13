@@ -86,11 +86,20 @@
       var blocoNovas = novas.length ? '<h2 class="mw-secao">Novas <small>' + nAprov + " de " + novas.length + " aprovadas" +
         (nPend ? " · " + nPend + " em análise na Meta" : "") + (nRej ? " · " + nRej + " reprovada" + (nRej > 1 ? "s" : "") : "") + "</small></h2>" +
         '<div class="mw-grade">' + novas.map(balao).join("") + "</div>" : "";
+      // 13/10 (Pedro: "vê se tem alguma que se apresenta como novo número, pergunta se o imóvel da pessoa está
+      // disponível mas sem os botões, se tiver coloca lá para eu ver"): com as três coisas não existe nenhuma. As que
+      // PERGUNTAM se está disponível e NÃO têm botão ganham um título próprio; o subtítulo diz se alguma fala de
+      // número novo. A regra é pelo texto: modelo novo que couber nela aparece sozinho.
+      var semBotao = d.modelos.filter(function (m) { return !(m.botoes && m.botoes.length) && /dispon[ií]vel\s*\?/i.test(m.corpo || ""); });
+      var comNumero = semBotao.filter(function (m) { return /novo n[uú]mero|n[uú]mero novo/i.test(m.corpo || ""); }).length;
+      var blocoSemBotao = semBotao.length ? '<h2 class="mw-secao">Sem botões, perguntando se está disponível <small>' + semBotao.length + " · " +
+        (comNumero ? comNumero + (comNumero > 1 ? " se apresentam" : " se apresenta") + " como novo número" : "nenhuma se apresenta como novo número") + "</small></h2>" +
+        '<div class="mw-grade">' + semBotao.map(balao).join("") + "</div>" : "";
       function fora(l) { return l.filter(function (m) { return EM_USO.indexOf(m.nome) < 0; }); }
       var outros = secao("Utilidade", fora(util)) + secao("Marketing", fora(mkt)) + secao("Pendentes e reprovados", fora(resto));
       alvo.innerHTML = '<div class="mw-abas"><button type="button" class="mw-aba mw-aba--ativa" data-aba="uso">Em uso <small>' + emUso.length + "</small></button>" +
         '<button type="button" class="mw-aba" data-aba="outros">Outros <small>' + (d.modelos.length - emUso.length) + "</small></button></div>" +
-        '<section class="mw-painel" data-painel="uso">' + blocoNovas + (jaEmUso.length ? (novas.length ? '<h2 class="mw-secao">Em uso <small>' + jaEmUso.length + "</small></h2>" : "") + '<div class="mw-grade">' + jaEmUso.map(balao).join("") + "</div>" : (novas.length ? "" : '<p class="mw-vazio">Nenhum dos modelos em uso foi lido ainda.</p>')) + "</section>" +
+        '<section class="mw-painel" data-painel="uso">' + blocoNovas + (jaEmUso.length ? (novas.length ? '<h2 class="mw-secao">Em uso <small>' + jaEmUso.length + "</small></h2>" : "") + '<div class="mw-grade">' + jaEmUso.map(balao).join("") + "</div>" : (novas.length ? "" : '<p class="mw-vazio">Nenhum dos modelos em uso foi lido ainda.</p>')) + blocoSemBotao + "</section>" +
         '<section class="mw-painel" data-painel="outros" hidden>' + outros + "</section>";
       alvo.querySelectorAll(".mw-aba").forEach(function (b) {
         b.addEventListener("click", function () {

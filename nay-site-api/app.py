@@ -3346,6 +3346,43 @@ def admin_nova_nay(rota):
         return jsonify({"erro": "o nay-core não respondeu"}), 502
 
 
+# A PONTE DO PAINEL DOS HERMES (13/10/2026, Pedro: "um quadrado para cada agente do hermes ... controlar o navegador
+# deles, mandar msg, tudo por essa mesma tela para cada um"). Os Hermes moram na VPS2; lá roda uma ponte
+# (nay-agentes/hermes-painel/ponte.py) que só escuta no Tailscale e só responde a quem manda o segredo de máquina.
+# O navegador fala com o site (senha do /admin, conferida aqui de novo); o site fala com a ponte. O segredo nunca vai
+# à página. Por esta rota um agente roda comando e clica em site: pedido que escreve só vale com o cabeçalho que a
+# própria tela manda, e que um formulário de outro site não consegue mandar (o CORS daqui só libera Content-Type).
+@app.route("/admin/api/hermes/<path:rota>", methods=["GET", "POST"])
+def admin_hermes(rota):
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    if request.method == "POST" and request.headers.get("X-Painel-Hermes") != "1":
+        return jsonify({"erro": "pedido recusado"}), 403
+    base = os.environ.get("HERMES_PAINEL_URL", "")
+    segredo = os.environ.get("HERMES_PAINEL_TOKEN", "")
+    if not base or not segredo:
+        return jsonify({"erro": "a ponte dos Hermes não está configurada"}), 503
+    if rota != "agentes" and not rota.startswith("agentes/"):
+        return jsonify({"erro": "rota desconhecida"}), 404
+    url = base.rstrip("/") + "/" + urllib.parse.quote(rota, safe="/")
+    if request.query_string:
+        url += "?" + request.query_string.decode("utf-8", "ignore")
+    req = urllib.request.Request(url, data=request.get_data() if request.method == "POST" else None,
+                                 method=request.method,
+                                 headers={"X-Painel-Token": segredo, "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=45) as r:
+            return Response(r.read(), status=r.status, mimetype="application/json",
+                            headers={"Cache-Control": "no-store"})
+    except urllib.error.HTTPError as e:
+        return Response(e.read(), status=e.code, mimetype="application/json")
+    except (urllib.error.URLError, TimeoutError):
+        return jsonify({"erro": "a ponte dos Hermes (VPS2) não respondeu"}), 502
+
+
 @app.route("/api/proximos-passos", methods=["GET", "POST"])
 def api_proximos_passos():
     conn = conectar_conteudo()
