@@ -78,7 +78,9 @@
       // 12/10 (Pedro): duas abas, EM USO (os modelos da campanha) e OUTROS (o resto), a de outros fechada por padrão
       var emUso = d.modelos.filter(function (m) { return EM_USO.indexOf(m.nome) >= 0; }).sort(function (a, b) { return EM_USO.indexOf(a.nome) - EM_USO.indexOf(b.nome); });
       var novas = d.modelos.filter(function (m) { return NOVAS.indexOf(m.nome) >= 0; }).sort(function (x, y) { return NOVAS.indexOf(x.nome) - NOVAS.indexOf(y.nome); });
-      var jaEmUso = emUso.filter(function (m) { return NOVAS.indexOf(m.nome) < 0; });
+      // 13/10, logo depois (Pedro: "você tirou das de em uso, deixa as antigas e deixa as novas lá também"): o título
+      // Em uso continua com os cinco, como era; as novas aparecem nos dois lugares
+      var jaEmUso = emUso;
       var nAprov = novas.filter(function (m) { return m.status === "APPROVED"; }).length, nRej = novas.filter(function (m) { return m.status === "REJECTED"; }).length;
       var nPend = novas.length - nAprov - nRej;
       var blocoNovas = novas.length ? '<h2 class="mw-secao">Novas <small>' + nAprov + " de " + novas.length + " aprovadas" +

@@ -19,7 +19,7 @@ import { ChatButtonKey } from '@/hooks/useChatButtonSettings'
 import { quandoCurtoEmManaus } from '@/lib/fusoDeManaus'
 import { nayEmPausa } from '@/lib/etapaDaParceria'
 import type { DonoNaLista } from '@/lib/tiposNay'
-import { nomeDoDono } from './LeadListItem'
+import { nomeDoDono, imovelDoDono } from './LeadListItem'
 
 interface ChatWindowProps {
   lead: LeadWithOwner
@@ -96,7 +96,7 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
      aparece o nome e o imóvel dele, como na lista; o número desce para a linha de baixo. */
   const nomeDono = dono ? nomeDoDono(dono.nome) : ''
   if (nomeDono) {
-    if (dono?.condominio) partes.push(dono.condominio + (dono.imoveis > 1 ? ` +${dono.imoveis - 1}` : ''))
+    if (imovelDoDono(dono)) partes.push(imovelDoDono(dono))
     partes.push(formatPhone(lead.phone || ''))
   }
   const subtitulo = partes.length ? partes.join(' · ') : formatPhone(lead.phone || '')

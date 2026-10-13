@@ -57,6 +57,21 @@ export function nomeDoDono(nome: string | null): string {
   return primeiro.charAt(0) + primeiro.slice(1).toLowerCase()
 }
 
+/** O imóvel do dono, do jeito que a lista e o cabeçalho mostram: "Kopenhagen #3050 +1".
+ *  Pedro, 13/10/2026: "tem uns imóveis que no disparo não aparece o código ... os imóveis comerciais". A tela só
+ *  mostrava o nome do CONDOMÍNIO: imóvel sem condomínio (prédio, sala, casa em via pública; 21 conversas da Oficial
+ *  nesse dia) ficava sem nada ou com um "—", e o código só existia no balãozinho do mouse. Agora, sem condomínio,
+ *  entra o tipo e o bairro, e o código aparece sempre que o dono tem imóvel. */
+export function imovelDoDono(dono: { condominio: string | null; codigo: string | null; tipo: string | null; bairro: string | null; imoveis: number } | null | undefined): string {
+  if (!dono) return ''
+  const condo = (dono.condominio || '').trim()
+  const temCondo = !!condo && !/^[—–-]+$/.test(condo) && !/n[aã]o identificad/i.test(condo)
+  const onde = temCondo ? condo : [dono.tipo, dono.bairro].map((x) => (x || '').trim()).filter(Boolean).join(' ')
+  const codigo = (dono.codigo || '').trim()
+  if (!onde && !codigo) return ''
+  return [onde, codigo ? `#${codigo}` : ''].filter(Boolean).join(' ') + (dono.imoveis > 1 ? ` +${dono.imoveis - 1}` : '')
+}
+
 /* a hora da visita é a de Manaus, não a do computador (src/lib/fusoDeManaus.ts) */
 function quandoCurto(iso: string | null): string {
   return quandoCurtoEmManaus(iso)
@@ -120,7 +135,7 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
                     title={[dono.nome, dono.condominio, dono.codigo ? `#${dono.codigo}` : null, dono.bairro].filter(Boolean).join(' · ')}>
                 <span className={`wa-nome truncate flex-shrink ${naoLida ? 'font-semibold' : ''}`}>{nomeDoDono(dono.nome) || formatPhone(lead.title)}</span>
                 <span className="wa-marca flex-shrink-0" style={{ color: 'var(--wa-text-2)' }}>Prop</span>
-                {dono.condominio && <span className="wa-dono-imovel truncate">{dono.condominio}{dono.imoveis > 1 ? ` +${dono.imoveis - 1}` : ''}</span>}
+                {imovelDoDono(dono) && <span className="wa-dono-imovel truncate">{imovelDoDono(dono)}</span>}
               </span>
             ) : (
               <span className={`wa-nome truncate ${naoLida ? 'font-semibold' : ''}`}>{formatPhone(lead.title)}</span>
@@ -217,5 +232,7 @@ export default memo(LeadListItem, (a, b) => (
   a.marca?.etapa === b.marca?.etapa &&
   a.dono?.nome === b.dono?.nome &&
   a.dono?.condominio === b.dono?.condominio &&
+  a.dono?.codigo === b.dono?.codigo &&
+  a.dono?.tipo === b.dono?.tipo &&
   a.nay?.ligada === b.nay?.ligada && a.nay === undefined === (b.nay === undefined)
 ))
