@@ -1,4 +1,4 @@
-# imovel_colagem  (tabela, ~1101 linhas)
+# imovel_colagem  (tabela, ~1154 linhas)
 
 ## colunas
 codigo  integer  NOT NULL
