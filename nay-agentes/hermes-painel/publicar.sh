@@ -6,10 +6,16 @@
 #   ./scripts/nay site admin/agentes.html assets/js/agentes.js assets/js/hermes-painel.js assets/css/hermes-painel.css
 #                                                  a rota /admin/api/hermes (reconstrói a API) e a tela
 # Depois, para mudar só a ponte: o primeiro comando. Para mudar só a tela: ./scripts/nay estatico <arquivos>.
+#   ./nay-agentes/hermes-painel/publicar.sh telegram-luna   VPS2: troca o modelo do Hermes Telegram para o luna
+#                                                  (copia a chave da OpenAI do perfil corretores; ver telegram_luna.sh)
 set -euo pipefail
 cd "$(dirname "$0")"
 VPS2=nay-srv1877774
 VPS1=nay-srv1894338
+if [ "${1:-}" = telegram-luna ]; then
+  tr -d '' < telegram_luna.sh | ssh -o ConnectTimeout=20 $VPS2 'bash -s'
+  exit 0
+fi
 if [ "${1:-}" = vps1 ]; then
   tr -d '\r' < vps1_compose.sh | ssh -o ConnectTimeout=20 $VPS1 'bash -s'
   # o segredo passa de uma VPS para a outra por dentro do cano; nada dele aparece na tela

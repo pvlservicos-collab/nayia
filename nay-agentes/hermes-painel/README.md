@@ -31,6 +31,9 @@ ferramentas, memória, logs e reiniciar/parar o serviço. Pedro, 13/10/2026.
 Com o `BROWSER_CDP_URL`, o Hermes passa a usar ESTE Chrome para qualquer tarefa de site (também as pedidas pelo
 Telegram), no lugar do navegador em nuvem que estava na configuração. É o que permite ver e assumir a tela.
 
+O perfil `telegram` nasceu com o modelo `tencent/hy3:free` pela Nous, que em 13/10 estava sem login (não respondia
+a nada). `./nay-agentes/hermes-painel/publicar.sh telegram-luna` troca para o `gpt-5.6-luna`, o mesmo do `corretores`.
+
 O perfil `pessoal` está com o serviço bloqueado (masked) no servidor: a ponte mostra tarefas, skills, memória e logs
 dele, mas não o liga nem conversa.
 
