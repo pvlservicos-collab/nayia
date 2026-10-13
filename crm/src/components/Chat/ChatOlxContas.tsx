@@ -500,8 +500,10 @@ export default function ChatOlxContas() {
         {CONTAS_OLX.map((c) => (
           <button key={c} type="button" onClick={() => setVisao(c)} className={`wa-chip ${visao === c ? 'wa-chip--on' : ''}`}>{NOME_DA_CONTA_OLX[c]}</button>
         ))}
+        <a href="https://chat.olx.com.br/" target="_blank" rel="noopener noreferrer" className="wa-chip inline-flex items-center gap-1.5 ml-auto"
+           title="Abre o chat da própria OLX em outra aba do navegador"><ArrowSquareOut size={15} /> Chat no site da OLX</a>
         <button type="button" onClick={() => setVisao('bot')} title="Os anúncios que o bot da OLX consultou e a mensagem que saiu para cada um"
-                className={`wa-chip inline-flex items-center gap-1.5 ml-auto ${visao === 'bot' ? 'wa-chip--on' : ''}`}>
+                className={`wa-chip inline-flex items-center gap-1.5 ${visao === 'bot' ? 'wa-chip--on' : ''}`}>
           <Robot size={15} /> Consultas do bot
         </button>
       </div>

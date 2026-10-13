@@ -50,7 +50,10 @@ const NAV_ITEMS = [
   // O item abre o chat da própria OLX numa aba nova do navegador (`externo`). A página de conversas do CRM
   // (/chat/olx: as duas contas e as consultas do bot) continua existindo, sem link no menu -- é para lá que a
   // OLX devolve quem conecta uma conta.
-  { label: 'Chat OLX', curto: 'OLX', href: 'https://chat.olx.com.br/', icon: ChatsCircle, externo: true },
+  // 13/10 (Pedro: "quando clico em chat olx ainda me redireciona para a olx ao invés de abrir a tela com as funções que
+  // pedi"): com o aplicativo homologado, o item volta a abrir a tela do CRM (chat, anúncios e informações de cada conta).
+  // O chat da própria OLX ficou num botão dentro dela.
+  { label: 'Chat OLX', curto: 'OLX', href: '/chat/olx', icon: ChatsCircle, externo: false },
   // OS GRUPOS DO NÚMERO DA PARCERIA (Pedro, 03/10/2026: "pode ficar do lado de captação, aba Grupos"):
   // mensagens guardadas, participantes, planilha, e editar onde o número é admin.
   { label: 'Grupos', curto: 'Grupos', href: '/chat/grupos', icon: UsersThree, mais: true },
