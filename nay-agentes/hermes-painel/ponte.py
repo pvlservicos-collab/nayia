@@ -420,6 +420,8 @@ async def r_enviar(request):
                 historico.append({"role": m["role"], "content": txt})
     else:
         st, d = await hermes(app, p, "POST", "/api/sessions", {"title": texto[:70]})
+        if st == 400:      # o Hermes não aceita duas conversas com o mesmo título (mesma frase mandada de novo)
+            st, d = await hermes(app, p, "POST", "/api/sessions", {"title": texto[:58] + time.strftime(" · %H:%M:%S")})
         if st not in (200, 201):
             raise erro_do_hermes(st, d)
         sessao = (d.get("session") or d).get("id")
