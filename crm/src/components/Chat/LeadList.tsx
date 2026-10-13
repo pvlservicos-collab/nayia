@@ -396,9 +396,13 @@ export default function LeadList({
      posição. Aqui a ordem era a de quem ESCREVEU por último; quem nunca escreveu vinha depois.
      12/10 (Pedro): "preciso que as conversas da aba api oficial fiquem sempre as mais recentes em cima igual as
      outras, tá toda bugada". Voltou para a ordem das outras abas (última atividade, de quem quer que seja); quem
-     espera resposta se acha pelo chip "Não lido". A ordem de quem escreveu fica desligada, não apagada. */
-  const ordemDeQuemEscreveu = false as boolean
-  const escreveuEm = (l: LeadWithOwner) => { const t = Date.parse(l.ultima_recebida || ''); return Number.isFinite(t) ? t : 0 }
+     espera resposta se acha pelo chip "Não lido".
+     13/10 (Pedro): "sempre que um proprietário mandar msg a conversa dele suba para o topo da lista, hoje só as
+     minhas mensagens fazem isso". Com o disparo de volta, o mesmo enterro: quem escreveu às 10:17 estava na 108ª
+     posição às 12:40. Agora vale a última mensagem de GENTE -- a do proprietário ou a que alguém do time escreveu
+     à mão; o modelo do disparo e a resposta da Nay não mexem na ordem. Quem só recebeu disparo vem depois. */
+  const ordemDeQuemEscreveu = linha === 'oficial'
+  const escreveuEm = (l: LeadWithOwner) => { const t = Date.parse(l.ultima_de_gente || ''); return Number.isFinite(t) ? t : 0 }
 
   const ordenados: SearchHit[] = [...daLinha].sort((a, b) => {
     const ap = !!a.lead.is_pinned

@@ -146,7 +146,7 @@ export async function GET(req: NextRequest) {
     // Atendimento (etiqueta de quem está atendendo + aba "Humano"). Calculado das
     // mensagens a cada leitura, nunca gravado — ver src/lib/atendentes.ts. Só na
     // lista do Chat, que é a única tela que mostra.
-    const atendimento: Record<string, { autores: string[]; humano: boolean; ultimaDoLead: string | null }> = {}
+    const atendimento: Record<string, { autores: string[]; humano: boolean; ultimaDoLead: string | null; ultimaDeGente: string | null }> = {}
     if (scope === 'conversas' && leadIds.length > 0) {
       // Mensagem de robô (funil, automação, agente de IA) não é atendimento.
       const manual = sql`(
@@ -166,7 +166,8 @@ export async function GET(req: NextRequest) {
                                                   '-infinity'::timestamptz)) AS autores,
           bool_or(${manual}) AS teve_manual,
           min(a.created_at) FILTER (WHERE a.metadata->>'automated' = 'true' OR a.metadata->>'source' = 'funnel') AS primeira_automatica,
-          max(a.created_at) FILTER (WHERE a.metadata->>'direction' = 'inbound') AS ultima_do_lead
+          max(a.created_at) FILTER (WHERE a.metadata->>'direction' = 'inbound') AS ultima_do_lead,
+          max(a.created_at) FILTER (WHERE ${manual}) AS ultima_manual
         FROM lead_activities a
         LEFT JOIN leads ld ON ld.id = a.lead_id
         WHERE a.organization_id = ${auth.organizationId}
@@ -176,14 +177,18 @@ export async function GET(req: NextRequest) {
       `)
       for (const l of linhas.rows as {
         lead_id: string; autores: string[] | null; teve_manual: boolean | null
-        primeira_automatica: string | null; ultima_do_lead: string | null
+        primeira_automatica: string | null; ultima_do_lead: string | null; ultima_manual: string | null
       }[]) {
+        // a última vez que GENTE falou na conversa: a pessoa ou alguém do time (disparo e Nay não contam)
+        const deGente = Math.max(l.ultima_do_lead ? new Date(l.ultima_do_lead).getTime() : 0,
+                                 l.ultima_manual ? new Date(l.ultima_manual).getTime() : 0)
         const respondeuAutomacao = !!l.primeira_automatica && !!l.ultima_do_lead &&
           new Date(l.ultima_do_lead) > new Date(l.primeira_automatica)
         atendimento[l.lead_id] = {
           autores: [...new Set(l.autores ?? [])],
           humano: !!l.teve_manual || respondeuAutomacao,
           ultimaDoLead: l.ultima_do_lead ? new Date(l.ultima_do_lead).toISOString() : null,
+          ultimaDeGente: deGente ? new Date(deGente).toISOString() : null,
         }
       }
     }
@@ -222,6 +227,8 @@ export async function GET(req: NextRequest) {
         em_atendimento_humano: r.lead.isGroup ? false : atendimento[r.lead.id]?.humano ?? false,
         // quando a PESSOA escreveu por último: a aba Oficial ordena por isto (o disparo não conta)
         ultima_recebida: atendimento[r.lead.id]?.ultimaDoLead ?? null,
+        // a última mensagem da pessoa OU de alguém do time: a ordem da aba Oficial (13/10)
+        ultima_de_gente: atendimento[r.lead.id]?.ultimaDeGente ?? null,
       }),
       lead_tags: tagsMap[r.lead.id] || [],
       integration: r.integrationType ? ({ type: r.integrationType } as Integration) : undefined,
