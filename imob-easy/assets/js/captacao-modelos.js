@@ -15,6 +15,10 @@
   }
   // os modelos da campanha de hoje (Pedro, 12/10): a aba "Em uso"; todo o resto fica em "Outros"
   var EM_USO = ["situacao_imovel_cadastrado_1", "captacao_status_novo_numero_2", "captacao_status_novo_numero_3", "l1_util_16", "l1_util_12"];
+  // 13/10 (Pedro: "coloca lá na aba modelos já se foram aprovadas as mensagens novas, cria um título novas"): os modelos
+  // recadastrados em 12/10 (rodapé Imobeasy e botões), que voltaram para a revisão da Meta. Ficam num título próprio,
+  // em cima, com a contagem de quantos já foram aprovados. Modelo novo que entrar em revisão: acrescente o nome aqui.
+  var NOVAS = ["captacao_status_novo_numero_2", "captacao_status_novo_numero_3", "l1_util_16", "l1_util_12"];
   var CAT = { UTILITY: ["Utilidade", "mw-cat--util"], MARKETING: ["Marketing", "mw-cat--mkt"], AUTHENTICATION: ["Autenticação", "mw-cat--aut"] };
   var ST = { APPROVED: ["aprovado", "mw-st--ok"], PENDING: ["pendente", "mw-st--pend"], REJECTED: ["reprovado", "mw-st--rej"], PAUSED: ["pausado", "mw-st--rej"] };
   function balao(m) {
@@ -73,11 +77,18 @@
       function secao(titulo, lista) { return lista.length ? '<h2 class="mw-secao">' + titulo + " <small>" + lista.length + "</small></h2>" + '<div class="mw-grade">' + lista.map(balao).join("") + "</div>" : ""; }
       // 12/10 (Pedro): duas abas, EM USO (os modelos da campanha) e OUTROS (o resto), a de outros fechada por padrão
       var emUso = d.modelos.filter(function (m) { return EM_USO.indexOf(m.nome) >= 0; }).sort(function (a, b) { return EM_USO.indexOf(a.nome) - EM_USO.indexOf(b.nome); });
+      var novas = d.modelos.filter(function (m) { return NOVAS.indexOf(m.nome) >= 0; }).sort(function (x, y) { return NOVAS.indexOf(x.nome) - NOVAS.indexOf(y.nome); });
+      var jaEmUso = emUso.filter(function (m) { return NOVAS.indexOf(m.nome) < 0; });
+      var nAprov = novas.filter(function (m) { return m.status === "APPROVED"; }).length, nRej = novas.filter(function (m) { return m.status === "REJECTED"; }).length;
+      var nPend = novas.length - nAprov - nRej;
+      var blocoNovas = novas.length ? '<h2 class="mw-secao">Novas <small>' + nAprov + " de " + novas.length + " aprovadas" +
+        (nPend ? " · " + nPend + " em análise na Meta" : "") + (nRej ? " · " + nRej + " reprovada" + (nRej > 1 ? "s" : "") : "") + "</small></h2>" +
+        '<div class="mw-grade">' + novas.map(balao).join("") + "</div>" : "";
       function fora(l) { return l.filter(function (m) { return EM_USO.indexOf(m.nome) < 0; }); }
       var outros = secao("Utilidade", fora(util)) + secao("Marketing", fora(mkt)) + secao("Pendentes e reprovados", fora(resto));
       alvo.innerHTML = '<div class="mw-abas"><button type="button" class="mw-aba mw-aba--ativa" data-aba="uso">Em uso <small>' + emUso.length + "</small></button>" +
         '<button type="button" class="mw-aba" data-aba="outros">Outros <small>' + (d.modelos.length - emUso.length) + "</small></button></div>" +
-        '<section class="mw-painel" data-painel="uso">' + (emUso.length ? '<div class="mw-grade">' + emUso.map(balao).join("") + "</div>" : '<p class="mw-vazio">Nenhum dos modelos em uso foi lido ainda.</p>') + "</section>" +
+        '<section class="mw-painel" data-painel="uso">' + blocoNovas + (jaEmUso.length ? (novas.length ? '<h2 class="mw-secao">Em uso <small>' + jaEmUso.length + "</small></h2>" : "") + '<div class="mw-grade">' + jaEmUso.map(balao).join("") + "</div>" : (novas.length ? "" : '<p class="mw-vazio">Nenhum dos modelos em uso foi lido ainda.</p>')) + "</section>" +
         '<section class="mw-painel" data-painel="outros" hidden>' + outros + "</section>";
       alvo.querySelectorAll(".mw-aba").forEach(function (b) {
         b.addEventListener("click", function () {
