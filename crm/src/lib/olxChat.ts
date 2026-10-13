@@ -63,7 +63,9 @@ export async function estadoDaContaOlx(conta: ContaOlx): Promise<EstadoDaContaOl
 
 /** Garante a linha da conta e devolve o segredo do webhook dela (gerado aqui na primeira vez). */
 export async function segredoDaContaOlx(conta: ContaOlx): Promise<string> {
-  const novo = randomBytes(32).toString('hex')
+  // 16 bytes = 32 caracteres. Com 32 bytes o endereço do webhook passava de 100 caracteres e a OLX devolvia HTTP 500
+  // ("value too long for type character varying(100)", 13/10/2026, migração 362).
+  const novo = randomBytes(16).toString('hex')
   const r = await naydb().query('SELECT crm_olx_conta_preparar($1, $2) AS s', [conta, novo])
   const s = r.rows[0]?.s
   if (!s) throw { status: 500, message: 'Não consegui preparar a conta da OLX no banco.' }

@@ -14,7 +14,7 @@ DECLARE
   v_n       integer;
 BEGIN
   SELECT c.segredo INTO v_segredo FROM privado.olx_conta c WHERE c.conta = p_conta;
-  IF v_segredo IS NULL OR p_segredo IS NULL OR length(p_segredo) < 40 OR v_segredo <> p_segredo THEN
+  IF v_segredo IS NULL OR p_segredo IS NULL OR length(p_segredo) < 24 OR v_segredo <> p_segredo THEN
     RETURN jsonb_build_object('ok', false, 'codigo_erro', 'nao_autorizado');
   END IF;
   IF p IS NULL OR jsonb_typeof(p) <> 'object' OR v_chat_id IS NULL THEN

@@ -1,4 +1,4 @@
-# privado.imovel_mudanca  (tabela, ~0 linhas)
+# privado.imovel_mudanca  (tabela, ~196 linhas)
 361: o que a resposta do proprietário mudou (ou confirmou) no cadastro do imóvel, com a conversa e o de/para. Voltar atrás é marca na linha (desfeito_em), nada se apaga. Tela: Imóveis › Mudanças recentes e "Última atualização" no editar.
 
 ## colunas

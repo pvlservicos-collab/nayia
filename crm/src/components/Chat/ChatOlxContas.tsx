@@ -102,19 +102,33 @@ function EstadoDaConta({ conta, estado, aoLigar, ligando }: {
   )
 }
 
+/* a situação do anúncio, como a OLX devolve na lista (conferido com a conta conectada em 13/10) */
+const SITUACAO_OLX: Record<string, string> = {
+  published: 'publicado', deleted: 'excluído', expired: 'expirado', pending_pay: 'aguardando pagamento', pending: 'em análise',
+  queue: 'na fila', refused: 'recusado', hidden: 'oculto', paused: 'pausado', accepted: 'aceito', error: 'com erro',
+}
+const situacaoOlx = (s: string | null) => (s ? SITUACAO_OLX[s] || s : null)
+
 /* ── os anúncios da conta ── */
 function AnunciosDaConta({ conta, aoVerConversas }: { conta: ContaOlx; aoVerConversas: (listId: string) => void }) {
   const [d, setD] = useState<DadosDaConta | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [busca, setBusca] = useState('')
+  // a OLX devolve também os anúncios excluídos (a maior parte da lista): ficam escondidos até pedir
+  const [comExcluidos, setComExcluidos] = useState(false)
   const carregar = useCallback(() => {
     pedir<DadosDaConta>(`/api/olx/anuncios?conta=${conta}`).then((x) => { setD(x); setErro(null) }).catch((e) => setErro(e.message))
   }, [conta])
   useEffect(() => { carregar() }, [carregar])
+  const excluidos = useMemo(() => (d?.anuncios || []).filter((a) => a.situacao === 'deleted' && !a.conversas).length, [d])
   const lista = useMemo(() => {
     const q = sem(busca.trim())
-    return (d?.anuncios || []).filter((a) => !q || sem([a.listId, a.titulo, a.situacao].filter(Boolean).join(' ')).includes(q))
-  }, [d, busca])
+    const ordem = (a: AnuncioOlx) => (a.situacao === 'published' ? 0 : a.situacao === 'deleted' ? 2 : 1)
+    return (d?.anuncios || [])
+      .filter((a) => comExcluidos || a.situacao !== 'deleted' || a.conversas > 0)
+      .filter((a) => !q || sem([a.listId, a.titulo, a.situacao, situacaoOlx(a.situacao)].filter(Boolean).join(' ')).includes(q))
+      .sort((a, b) => ordem(a) - ordem(b))
+  }, [d, busca, comExcluidos])
 
   return (
     <div className="flex-1 min-h-0 flex flex-col" style={{ background: 'var(--wa-conv-bg)' }}>
@@ -123,7 +137,12 @@ function AnunciosDaConta({ conta, aoVerConversas }: { conta: ContaOlx; aoVerConv
           <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Procurar anúncio (código ou título)" aria-label="Procurar anúncio" />
           {busca && <button type="button" onClick={() => setBusca('')} aria-label="Limpar"><X size={16} /></button>}
         </label>
-        <span className="text-[13px]" style={{ color: 'var(--wa-text-2)' }}>{d ? `${d.anuncios.length} anúncio${d.anuncios.length === 1 ? '' : 's'}` : ''}</span>
+        <span className="text-[13px]" style={{ color: 'var(--wa-text-2)' }}>{d ? `${lista.length} anúncio${lista.length === 1 ? '' : 's'}` : ''}</span>
+        {excluidos > 0 && (
+          <button type="button" onClick={() => setComExcluidos((v) => !v)} className={`wa-chip ${comExcluidos ? 'wa-chip--on' : ''}`}>
+            {comExcluidos ? 'Esconder os excluídos' : `Mostrar os ${excluidos} excluídos`}
+          </button>
+        )}
         <button type="button" className="wa-icone-btn ml-auto" onClick={carregar} title="Atualizar agora"><ArrowClockwise size={20} /></button>
       </div>
       {d?.aviso && <div className="px-4 py-2 text-[13px]" style={{ background: '#FEF3C7', color: '#78350F' }}>{d.aviso} Abaixo, os anúncios que conhecemos pelas conversas.</div>}
@@ -150,7 +169,7 @@ function AnunciosDaConta({ conta, aoVerConversas }: { conta: ContaOlx; aoVerConv
                   <div className="flex-1 min-w-0">
                     <p className="text-[14.5px] font-semibold break-words" style={{ color: 'var(--wa-text)' }}>{a.titulo || `Anúncio ${a.listId}`}</p>
                     <p className="text-[12.5px]" style={{ color: 'var(--wa-text-2)' }}>
-                      código {a.listId}{a.situacao ? ` · ${a.situacao}` : ''}{a.daOlx ? '' : ' · só pelas conversas'}
+                      código {a.listId}{a.situacao ? ` · ${situacaoOlx(a.situacao)}` : ''}{a.daOlx ? '' : ' · só pelas conversas'}
                     </p>
                   </div>
                   {a.naoLidas > 0 && <span className="wa-badge">{a.naoLidas > 99 ? '99+' : a.naoLidas}</span>}
