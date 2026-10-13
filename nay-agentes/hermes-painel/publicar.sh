@@ -13,7 +13,7 @@ cd "$(dirname "$0")"
 VPS2=nay-srv1877774
 VPS1=nay-srv1894338
 if [ "${1:-}" = telegram-luna ]; then
-  tr -d '' < telegram_luna.sh | ssh -o ConnectTimeout=20 $VPS2 'bash -s'
+  tr -d '\r' < telegram_luna.sh | ssh -o ConnectTimeout=20 $VPS2 'bash -s'
   exit 0
 fi
 if [ "${1:-}" = vps1 ]; then
