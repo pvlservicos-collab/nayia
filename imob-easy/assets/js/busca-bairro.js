@@ -10,6 +10,12 @@
    "Parque 10 de Novembro"? não -- acha quem contém o que foi digitado, então
    "parque" acha. Com a API fora do ar o campo continua sendo um campo de texto
    normal.
+
+   12/10/2026 (Pedro: "não estou conseguindo procurar por condomínio ou bairro"):
+   o campo diz "Bairro/Condomínio" e a lista só tinha bairro; e Enter não fazia
+   nada (o formulário não tem botão de enviar, então o navegador não o envia
+   sozinho). Agora a lista traz os CONDOMÍNIOS que têm imóvel disponível, embaixo
+   dos bairros, e Enter escolhe o primeiro da lista e faz a busca.
    ========================================================================== */
 (function () {
   "use strict";
@@ -42,7 +48,9 @@
     "background:#fff;padding:9px 12px;cursor:pointer;font:inherit;font-size:var(--fs-sm,14px);color:var(--texto,#1c2533)}" +
     ".campo-bairro__item span{color:var(--texto-fraco,#6b7280);font-size:var(--fs-xs,12px)}" +
     ".campo-bairro__item[aria-selected=true],.campo-bairro__item:hover{background:var(--selecao,#e8eefc)}" +
-    ".campo-bairro__vazio{padding:9px 12px;color:var(--texto-fraco,#6b7280);font-size:var(--fs-sm,14px)}";
+    ".campo-bairro__vazio{padding:9px 12px;color:var(--texto-fraco,#6b7280);font-size:var(--fs-sm,14px)}" +
+    ".campo-bairro__grupo{padding:7px 12px 3px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;" +
+    "color:var(--texto-fraco,#6b7280);background:#fff;position:sticky;top:0}";
   document.head.appendChild(css);
 
   var caixa = document.createElement("div");
@@ -74,17 +82,25 @@
   input.setAttribute("aria-autocomplete", "list");
 
   var bairros = [];      // [{bairro, imoveis}]
-  var mostrados = [];
+  var condominios = [];  // [{nome, bairro, disponiveis}] -- só os que têm imóvel disponível
+  var mostrados = [];    // [{tipo: "b" | "c", nome, quantos, onde}]
   var ativo = -1;
   var carregando = false;
 
   function carregar() {
     if (bairros.length || carregando || !window.API_BASE) return Promise.resolve();
     carregando = true;
+    var osCondominios = fetch(window.API_BASE + "/api/condominios")
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (dados) {
+        condominios = (Array.isArray(dados) ? dados : []).filter(function (c) { return c.nome && c.disponiveis > 0; });
+      })
+      .catch(function () { condominios = []; });      // sem os condomínios o campo segue só com os bairros
     return fetch(window.API_BASE + "/api/bairros")
       .then(function (r) { return r.ok ? r.json() : []; })
       .then(function (dados) { bairros = Array.isArray(dados) ? dados : []; })
       .catch(function () { bairros = []; })   // API fora: campo de texto normal
+      .then(function () { return osCondominios; })
       .then(function () { carregando = false; });
   }
 
@@ -92,24 +108,40 @@
     var busca = normalizar(input.value);
     // "ao digitar as letras iniciais já filtre": primeiro quem COMEÇA com o que foi digitado,
     // depois quem tem uma palavra começando assim ("dez" acha "Parque Dez").
-    var comeca = [], palavra = [];
-    bairros.forEach(function (b) {
-      var nome = normalizar(b.bairro);
-      if (!busca || nome.indexOf(busca) === 0) comeca.push(b);
-      else if ((" " + nome).indexOf(" " + busca) >= 0) palavra.push(b);
+    function acha(itens, nomeDe) {
+      var comeca = [], palavra = [];
+      itens.forEach(function (x) {
+        var nome = normalizar(nomeDe(x));
+        if (!busca || nome.indexOf(busca) === 0) comeca.push(x);
+        else if ((" " + nome).indexOf(" " + busca) >= 0) palavra.push(x);
+      });
+      return comeca.concat(palavra);
+    }
+    var osBairros = acha(bairros, function (b) { return b.bairro; }).map(function (b) {
+      return { tipo: "b", nome: b.bairro, quantos: b.imoveis };
     });
-    mostrados = comeca.concat(palavra);
+    // os condomínios só entram quando ele digita (são centenas): com o campo vazio desce a lista dos bairros
+    var osCondos = !busca ? [] : acha(condominios, function (c) { return c.nome; }).slice(0, 40).map(function (c) {
+      return { tipo: "c", nome: c.nome, quantos: c.disponiveis, onde: c.bairro };
+    });
+    mostrados = osBairros.concat(osCondos);
     ativo = -1;
 
-    if (!bairros.length) { fechar(); return; }
+    if (!bairros.length && !condominios.length) { fechar(); return; }
 
     if (!mostrados.length) {
-      lista.innerHTML = '<div class="campo-bairro__vazio">Nenhum bairro com esse nome</div>';
+      lista.innerHTML = '<div class="campo-bairro__vazio">Nenhum bairro ou condomínio com esse nome</div>';
     } else {
-      lista.innerHTML = mostrados.map(function (b, i) {
-        var quantos = b.imoveis === 1 ? "1 imóvel" : b.imoveis + " imóveis";
-        return '<button class="campo-bairro__item" type="button" role="option" aria-selected="false" data-i="' + i + '">' +
-               escapar(b.bairro) + "<span>" + quantos + "</span></button>";
+      var grupo = "";
+      lista.innerHTML = mostrados.map(function (x, i) {
+        var quantos = x.quantos === 1 ? "1 imóvel" : x.quantos + " imóveis";
+        var titulo = "";
+        if (x.tipo !== grupo && osCondos.length) {
+          grupo = x.tipo;
+          titulo = '<div class="campo-bairro__grupo">' + (x.tipo === "b" ? "Bairros" : "Condomínios") + "</div>";
+        }
+        return titulo + '<button class="campo-bairro__item" type="button" role="option" aria-selected="false" data-i="' + i + '">' +
+               escapar(x.nome) + "<span>" + (x.onde ? escapar(x.onde) + " · " : "") + quantos + "</span></button>";
       }).join("");
     }
     abrir();
@@ -137,26 +169,55 @@
 
   function escolher(i) {
     if (!mostrados[i]) return;
-    var escolhido = mostrados[i].bairro;
-    input.value = escolhido;
+    var escolhido = mostrados[i].nome;
     fechar();
+    if (mostrados[i].tipo === "c") {
+      var doCondominio = document.getElementById("f-condominio");
+      if (doCondominio) {             // comprar/alugar: o campo do condomínio já existe e refaz a busca sozinho
+        input.value = "";
+        doCondominio.value = escolhido;
+        doCondominio.dispatchEvent(new Event("input", { bubbles: true }));
+      } else {                        // home: vai junto no Buscar (busca-filtros.js lê data-condominio)
+        input.value = escolhido;
+        input.dataset.condominio = escolhido;
+      }
+      return;
+    }
+    delete input.dataset.condominio;
+    input.value = escolhido;
     input.dispatchEvent(new Event("change", { bubbles: true }));
     // comprar/alugar: o bairro escolhido vira marcador (busca-filtros.js)
     input.dispatchEvent(new CustomEvent("bairro-escolhido", { bubbles: true, detail: escolhido }));
+  }
+
+  function buscar() {
+    // o formulário não tem botão de enviar: Enter não o envia sozinho. requestSubmit dispara o "submit" de sempre.
+    var form = input.form;
+    if (!form) return;
+    if (form.requestSubmit) form.requestSubmit();
+    else form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   }
 
   // Clicou ou entrou no campo: desce a lista inteira.
   input.addEventListener("focus", function () { carregar().then(desenhar); });
   input.addEventListener("click", function () { carregar().then(desenhar); });
   // Digitando: fica só quem corresponde.
-  input.addEventListener("input", function () { carregar().then(desenhar); });
+  input.addEventListener("input", function () { delete input.dataset.condominio; carregar().then(desenhar); });
 
   input.addEventListener("keydown", function (e) {
     if (lista.hidden && (e.key === "ArrowDown" || e.key === "Down")) { carregar().then(desenhar); return; }
+    if (lista.hidden && e.key === "Enter") { e.preventDefault(); buscar(); return; }
     if (lista.hidden) return;
     if (e.key === "ArrowDown" || e.key === "Down") { e.preventDefault(); marcar(ativo + 1); }
     else if (e.key === "ArrowUp" || e.key === "Up") { e.preventDefault(); marcar(ativo - 1); }
-    else if (e.key === "Enter") { if (ativo >= 0) { e.preventDefault(); escolher(ativo); } }
+    else if (e.key === "Enter") {
+      // Enter vale o que está marcado; sem nada marcado, o primeiro da lista. Na home, depois de escolher já busca.
+      e.preventDefault();
+      var naHome = !document.getElementById("f-condominio");
+      if (mostrados.length) escolher(ativo >= 0 ? ativo : 0);
+      else fechar();
+      if (naHome || !mostrados.length) buscar();
+    }
     else if (e.key === "Escape" || e.key === "Esc") { fechar(); }
   });
 

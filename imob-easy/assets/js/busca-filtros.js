@@ -87,7 +87,11 @@
       var cod = codigo ? codigo.value.replace(/\D/g, "") : "";
       if (cod) { window.location.href = "/imovel/" + cod; return; }
       var q = new URLSearchParams(), v;
-      if ((v = home.querySelector("#bairro").value.trim())) q.append("bairros", v);
+      // o que ele escolheu na lista pode ser um condomínio (busca-bairro.js marca data-condominio)
+      var lugar = home.querySelector("#bairro");
+      if ((v = lugar.value.trim())) {
+        if (lugar.dataset.condominio === v) q.set("condominio", v); else q.append("bairros", v);
+      }
       if ((v = pressionado(home.querySelector("#tipo")))) q.set("tipo", v);
       if ((v = pressionado(home.querySelector('[aria-labelledby="rot-quartos"]')))) q.set("quartos", v);
       if ((v = pressionado(home.querySelector('[aria-labelledby="rot-garagem"]')))) q.set("garagem", v);
