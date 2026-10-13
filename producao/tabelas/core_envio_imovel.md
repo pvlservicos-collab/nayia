@@ -1,4 +1,4 @@
-# core_envio_imovel  (tabela, ~61 linhas)
+# core_envio_imovel  (tabela, ~114 linhas)
 
 ## colunas
 chave  text  NOT NULL

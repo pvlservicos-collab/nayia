@@ -19,7 +19,7 @@ import {
   ArrowClockwise, ArrowLeft, ArrowSquareOut, ChatsCircle, CheckCircle, CircleNotch, Info, MagnifyingGlass, Megaphone, PaperPlaneRight,
   PlugsConnected, Robot, User, WarningCircle, X,
 } from '@phosphor-icons/react'
-import { CONTAS_OLX, NOME_DA_CONTA_OLX, type AnuncioOlx, type ChatOlxNaLista, type ContaOlx, type EstadoDaContaOlx, type MensagemOlx } from '@/lib/olxChatTipos'
+import { CONTAS_OLX, NOME_DA_CONTA_OLX, type AnuncioOlx, type ChatOlxNaLista, type ContaOlx, type EstadoDaContaOlx, type MensagemOlx, type PainelDosAnunciosOlx } from '@/lib/olxChatTipos'
 import ChatOlx from './ChatOlx'
 
 type Visao = ContaOlx | 'bot'
@@ -28,6 +28,7 @@ type Visao = ContaOlx | 'bot'
 type Secao = 'chat' | 'anuncios' | 'info'
 interface DadosDaConta {
   estado: EstadoDaContaOlx; anuncios: AnuncioOlx[]; daOlx: 'ok' | 'sem_conta' | 'falhou'; aviso: string | null
+  painel: PainelDosAnunciosOlx | null
   aplicativo: { redirectUri: string; escopos: string; cadastrado: boolean }
 }
 
@@ -109,6 +110,150 @@ const SITUACAO_OLX: Record<string, string> = {
 }
 const situacaoOlx = (s: string | null) => (s ? SITUACAO_OLX[s] || s : null)
 
+/* ── a publicação automática (Pedro, 13/10/2026: "quero fazer tudo no automático, tanto subir anúncio, quanto responder") ──
+   Quem sobe os anúncios é o serviço nay-olx, do cadastro: imóvel nosso, Disponível, no site, com CEP e foto. Aqui se
+   liga e desliga, se escolhe a conta e o teto, e se vê o que está pronto, o que falta em cada imóvel e o que já subiu. */
+const ESTADO_NOSSO: Record<string, [string, string]> = {
+  enviado: ['aguardando a OLX', '#92400E'], publicado: ['no ar', '#166534'], recusado: ['recusado pela OLX', '#991B1B'],
+  erro: ['falhou', '#991B1B'], removendo: ['saindo', '#92400E'], removido: ['removido', '#475569'],
+}
+const dinheiro = (v: number | null) => (v == null ? '' : `R$ ${Number(v).toLocaleString('pt-BR')}`)
+
+function PublicacaoAutomatica({ painel, aoMudar }: { painel: PainelDosAnunciosOlx; aoMudar: (p: PainelDosAnunciosOlx) => void }) {
+  const cfg = painel.config || {}
+  const n = painel.contagem
+  const [gravando, setGravando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+  const [teto, setTeto] = useState(cfg.teto || '')
+  const [aberto, setAberto] = useState<'falta' | 'proximos' | 'nossos' | null>(null)
+  useEffect(() => { setTeto(cfg.teto || '') }, [cfg.teto])
+  const ligada = cfg.publicar === 'sim'
+  const semPermissao = cfg.permissao === 'sem_permissao'
+
+  async function gravar(chave: string, valor: string) {
+    setGravando(true); setErro(null)
+    try {
+      const r = await pedir<{ painel: PainelDosAnunciosOlx }>('/api/olx/anuncios', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chave, valor }),
+      })
+      aoMudar(r.painel)
+    } catch (e: any) { setErro(e.message) } finally { setGravando(false) }
+  }
+  function ligarOuDesligar() {
+    if (ligada) return void gravar('publicar', 'nao')
+    const quantos = Math.min(Number(cfg.teto || 0), n.prontos)
+    if (!window.confirm(`Ligar a publicação automática? Os anúncios sobem sozinhos na OLX pela ${NOME_DA_CONTA_OLX[cfg.conta_que_publica as ContaOlx] || 'conta escolhida'}, ` +
+      `até ${cfg.teto} ao mesmo tempo (${quantos} agora), e saem quando o imóvel deixa de estar Disponível.`)) return
+    void gravar('publicar', 'sim')
+  }
+  const numero = (rotulo: string, v: number, cor?: string) => (
+    <div className="rounded-lg px-3 py-2 min-w-[104px]" style={{ background: 'var(--wa-app)', border: '1px solid var(--wa-divider)' }}>
+      <p className="text-[20px] font-bold leading-tight" style={{ color: cor || 'var(--wa-text)' }}>{v}</p>
+      <p className="text-[12px]" style={{ color: 'var(--wa-text-2)' }}>{rotulo}</p>
+    </div>
+  )
+  const dobra = (k: 'falta' | 'proximos' | 'nossos', rotulo: string, quantos: number) => quantos > 0 && (
+    <button type="button" onClick={() => setAberto(aberto === k ? null : k)} className={`wa-chip ${aberto === k ? 'wa-chip--on' : ''}`}>{rotulo} ({quantos})</button>
+  )
+
+  return (
+    <section className="rounded-xl p-3 mb-3 flex flex-col gap-2.5" style={{ background: 'var(--wa-panel)', border: '1px solid var(--wa-divider)' }}>
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-[15px] font-semibold mr-1" style={{ color: 'var(--wa-text)' }}>Publicação automática</h3>
+        <span className="text-[12.5px] font-bold rounded-full px-2.5 py-0.5" style={{ background: ligada ? '#DCFCE7' : '#E2E8F0', color: ligada ? '#166534' : '#334155' }}>
+          {ligada ? 'LIGADA' : 'DESLIGADA'}
+        </span>
+        <button type="button" disabled={gravando || (!ligada && !cfg.conta_que_publica)} onClick={ligarOuDesligar}
+                className={`wa-chip ml-auto inline-flex items-center gap-1.5 ${ligada ? '' : 'wa-chip--on'} disabled:opacity-50`}
+                title={!ligada && !cfg.conta_que_publica ? 'Escolha antes a conta que publica' : undefined}>
+          {gravando ? <CircleNotch size={15} className="animate-spin" /> : <Megaphone size={15} />} {ligada ? 'Desligar' : 'Ligar a publicação'}
+        </button>
+      </div>
+      {semPermissao && (
+        <div className="rounded-lg px-3 py-2 text-[13px]" style={{ background: '#FEF3C7', color: '#78350F' }}>
+          <b>A OLX ainda não deixa esta conta publicar pela integração.</b> Ela respondeu &quot;sem permissão&quot;{cfg.permissao_em ? ` em ${cfg.permissao_em}` : ''}:
+          a conta precisa de um plano profissional habilitado para integração de anúncios. Enquanto isso, mesmo ligada, nada sobe;
+          o serviço pergunta de novo a cada 6 horas e começa sozinho quando a OLX liberar.
+        </div>
+      )}
+      {cfg.permissao && !['ok', 'sem_permissao', ''].includes(cfg.permissao) && (
+        <div className="rounded-lg px-3 py-2 text-[13px]" style={{ background: '#FEF3C7', color: '#78350F' }}>{cfg.permissao_detalhe || cfg.permissao}</div>
+      )}
+      {erro && <div className="rounded-lg px-3 py-2 text-[13px]" style={{ background: '#FEE2E2', color: '#7F1D1D' }}>{erro}</div>}
+      <div className="flex flex-wrap gap-2">
+        {numero('prontos para subir', n.prontos, 'var(--wa-green)')}
+        {numero('faltando dado', n.faltando_dados, n.faltando_dados ? '#B45309' : undefined)}
+        {numero('aguardando a OLX', n.enviados)}
+        {numero('no ar', n.publicados, n.publicados ? '#166534' : undefined)}
+        {numero('recusados', n.recusados, n.recusados ? '#991B1B' : undefined)}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]" style={{ color: 'var(--wa-text-2)' }}>
+        <label className="inline-flex items-center gap-1.5">Conta que publica
+          <select value={cfg.conta_que_publica || ''} disabled={gravando} onChange={(e) => void gravar('conta_que_publica', e.target.value)}
+                  className="rounded-md px-2 py-1 text-[13px]" style={{ background: 'var(--wa-app)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }}>
+            <option value="">(escolha)</option>
+            {CONTAS_OLX.map((c) => <option key={c} value={c}>{NOME_DA_CONTA_OLX[c]}</option>)}
+          </select>
+        </label>
+        <label className="inline-flex items-center gap-1.5">No máximo
+          <input value={teto} onChange={(e) => setTeto(e.target.value.replace(/\D/g, '').slice(0, 4))} onBlur={() => { if (teto && teto !== cfg.teto) void gravar('teto', teto) }}
+                 onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} inputMode="numeric" aria-label="Máximo de anúncios ao mesmo tempo"
+                 className="w-[64px] rounded-md px-2 py-1 text-[13px]" style={{ background: 'var(--wa-app)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }} />
+          anúncios ao mesmo tempo
+        </label>
+        <label className="inline-flex items-center gap-1.5 cursor-pointer">
+          <input type="checkbox" checked={cfg.mostrar_telefone === 'sim'} disabled={gravando} onChange={(e) => void gravar('mostrar_telefone', e.target.checked ? 'sim' : 'nao')} />
+          Mostrar o telefone no anúncio{cfg.telefone ? ` (${cfg.telefone})` : ''}
+        </label>
+      </div>
+      <p className="text-[12.5px]" style={{ color: 'var(--wa-text-2)' }}>
+        Sobe sozinho o imóvel nosso que está Disponível e no site, com CEP e foto; atualiza quando o cadastro muda e sai quando o imóvel deixa de estar Disponível.
+        Imóvel de parceiro nunca sobe. Com o telefone oculto, o contato vem pelo chat, que cai aqui.
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {dobra('proximos', 'Próximos a subir', painel.proximos.length)}
+        {dobra('falta', 'O que falta', painel.falta.length)}
+        {dobra('nossos', 'Os que já subiram', painel.nossos.length)}
+      </div>
+      {aberto === 'proximos' && (
+        <ul className="text-[13px] flex flex-col gap-1 max-h-[260px] overflow-y-auto wa-rolagem" style={{ color: 'var(--wa-text)' }}>
+          {painel.proximos.map((x) => (
+            <li key={`${x.codigo}${x.negocio}`}>
+              <a href={`/${x.codigo}`} target="_blank" rel="noopener noreferrer" className="underline">#{x.codigo}</a> {x.titulo}
+              <span style={{ color: 'var(--wa-text-2)' }}> · {dinheiro(x.preco)} · {x.fotos} foto{x.fotos === 1 ? '' : 's'}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {aberto === 'falta' && (
+        <ul className="text-[13px] flex flex-col gap-1.5 max-h-[260px] overflow-y-auto wa-rolagem" style={{ color: 'var(--wa-text)' }}>
+          {painel.falta.map((f) => (
+            <li key={f.motivo}><b>{f.n}</b> {f.motivo}:{' '}
+              {f.codigos.map((c) => <a key={c} href={`/${c}`} target="_blank" rel="noopener noreferrer" className="underline mr-1.5">#{c}</a>)}
+              {f.n > f.codigos.length ? '…' : ''}
+            </li>
+          ))}
+        </ul>
+      )}
+      {aberto === 'nossos' && (
+        <ul className="text-[13px] flex flex-col gap-1.5 max-h-[300px] overflow-y-auto wa-rolagem" style={{ color: 'var(--wa-text)' }}>
+          {painel.nossos.map((x) => {
+            const [rotulo, cor] = ESTADO_NOSSO[x.estado] || [x.estado, '#475569']
+            return (
+              <li key={x.ad_id}>
+                <span className="font-bold" style={{ color: cor }}>{rotulo}</span>{' '}
+                <a href={`/${x.codigo}`} target="_blank" rel="noopener noreferrer" className="underline">#{x.codigo}</a> {x.titulo || x.ad_id}
+                <span style={{ color: 'var(--wa-text-2)' }}>{x.preco ? ` · ${dinheiro(x.preco)}` : ''}{x.olx_status ? ` · na OLX: ${situacaoOlx(x.olx_status)}` : ''}{x.mensagem ? ` · ${x.mensagem}` : ''}</span>
+                {x.url && <a href={x.url} target="_blank" rel="noopener noreferrer" className="underline ml-1.5">abrir</a>}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
+  )
+}
+
 /* ── os anúncios da conta ── */
 function AnunciosDaConta({ conta, aoVerConversas }: { conta: ContaOlx; aoVerConversas: (listId: string) => void }) {
   const [d, setD] = useState<DadosDaConta | null>(null)
@@ -152,6 +297,8 @@ function AnunciosDaConta({ conta, aoVerConversas }: { conta: ContaOlx; aoVerConv
         </div>
       )}
       <div className="flex-1 min-h-0 overflow-y-auto wa-rolagem px-4 py-3">
+        {d?.painel && <PublicacaoAutomatica painel={d.painel} aoMudar={(p) => setD((v) => (v ? { ...v, painel: p } : v))} />}
+        {d && <h3 className="text-[13px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--wa-text-2)' }}>Na conta da OLX</h3>}
         {!d && !erro && <p className="text-center text-[14px] mt-10 flex items-center justify-center gap-2" style={{ color: 'var(--wa-text-2)' }}><CircleNotch size={18} className="animate-spin" /> Lendo os anúncios…</p>}
         {erro && <p className="text-center text-[14px] mt-10 text-red-500">{erro}</p>}
         {d && !lista.length && (

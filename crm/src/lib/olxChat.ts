@@ -10,7 +10,7 @@
  */
 import { randomBytes } from 'node:crypto'
 import { naydb } from '@/lib/nayDisparo'
-import { CONTAS_OLX, type AnuncioOlx, type ChatOlxNaLista, type ContaOlx, type EstadoDaContaOlx, type MensagemOlx } from '@/lib/olxChatTipos'
+import { CONTAS_OLX, type AnuncioOlx, type ChatOlxNaLista, type ContaOlx, type EstadoDaContaOlx, type MensagemOlx, type PainelDosAnunciosOlx } from '@/lib/olxChatTipos'
 
 const BASE = (process.env.OLX_WEBHOOK_BASE || 'https://crm.imobeasy.online').replace(/\/+$/, '')
 /** Tem de ser IGUAL à URI cadastrada na OLX no registro do aplicativo. */
@@ -270,4 +270,18 @@ export async function anunciosDaContaOlx(conta: ContaOlx): Promise<{ anuncios: A
 /** O que a aba Informações mostra do nosso lado (nada de segredo: só os endereços e os escopos). */
 export function informacoesDoAplicativoOlx() {
   return { redirectUri: OLX_REDIRECT_URI, escopos: OLX_ESCOPOS, cadastrado: !!aplicativoOlx() }
+}
+
+/* ── a publicação automática (13/10, migração 364) ──────────────────────────────
+   Quem publica é o serviço nay-olx, no servidor; o banco decide o que sobe. A tela só LÊ o painel e muda as chaves
+   (ligar/desligar, a conta, o teto, mostrar o telefone). */
+
+export async function painelDosAnunciosOlx(): Promise<PainelDosAnunciosOlx> {
+  const r = await naydb().query('SELECT crm_olx_anuncios_painel() AS p')
+  return r.rows[0]?.p as PainelDosAnunciosOlx
+}
+
+export async function gravarChaveOlx(chave: string, valor: string, quem: string): Promise<{ ok: boolean; erro?: string }> {
+  const r = await naydb().query('SELECT crm_olx_config_gravar($1, $2, $3) AS r', [chave, valor, quem])
+  return (r.rows[0]?.r || { ok: false, erro: 'O banco não respondeu.' }) as { ok: boolean; erro?: string }
 }

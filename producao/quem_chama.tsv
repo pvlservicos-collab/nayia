@@ -97,6 +97,7 @@ crm_nay_ligada
 crm_nay_parar	
 crm_nay_voltar	crm_nay_instruir
 crm_olx_abordagens	
+crm_olx_anuncios_painel	
 crm_olx_bot_receber	
 crm_olx_chat_enviada	
 crm_olx_chat_id_da_olx	
@@ -104,6 +105,7 @@ crm_olx_chat_lido
 crm_olx_chat_mensagens	
 crm_olx_chat_receber	
 crm_olx_chats	
+crm_olx_config_gravar	
 crm_olx_conta_conectar	
 crm_olx_conta_estado	
 crm_olx_conta_preparar	
@@ -604,7 +606,7 @@ nay_saida_rotulo	nay_saida_responder, nay_saidas_perguntar
 nay_saida_rotulo_do_imovel	crm_mensagem_citada
 nay_saidas_a_avisar	
 nay_saidas_perguntar	nai_agenda_tick
-nay_sem_acento	condominio_nome_nucleo, crm_anuncio_decidir, crm_anuncio_familia, crm_anuncio_mesma_unidade, crm_anuncio_nome_palavras, crm_condominio_pelo_texto, crm_imovel_candidatos, nai_cadastro_importar, nai_condominio_da_pergunta, nai_imovel_da_conversa, nay_tratamento_por_nome, site_ficha_preparada, site_imoveis_para_enviar, site_imovel_publico
+nay_sem_acento	condominio_nome_nucleo, crm_anuncio_decidir, crm_anuncio_familia, crm_anuncio_mesma_unidade, crm_anuncio_nome_palavras, crm_condominio_pelo_texto, crm_imovel_candidatos, nai_cadastro_importar, nai_condominio_da_pergunta, nai_imovel_da_conversa, nay_tratamento_por_nome, olx_anuncio_montar, olx_tem, site_ficha_preparada, site_imoveis_para_enviar, site_imovel_publico
 nay_sincronizar_nome	
 nay_tem_numero_de_unidade	nay_escalar, nay_responder_pendencia
 nay_tirar_valores	nay_codigos_citados
@@ -613,6 +615,26 @@ nay_tratamento_por_nome
 nay_valor_curto	nay_linha_da_lista, nay_lista_de_imoveis
 nay_valor_em_reais	nai_buscar_por_perfil, nai_negocio_do_pedido, nai_negocio_pelo_valor, nai_pedido_de_perfil, nai_sec_guardar_do_imovel, nay_buscar_por_perfil
 nay_valor_escrito	nay_partes_da_linha
+olx_anuncio_enviado	
+olx_anuncio_falhou	
+olx_anuncio_montar	olx_anuncios_candidatos, olx_anuncios_plano
+olx_anuncio_na_olx	
+olx_anuncio_registrar	olx_anuncio_enviado, olx_anuncio_falhou, olx_anuncio_resultado
+olx_anuncio_resultado	
+olx_anuncios_a_conferir	
+olx_anuncios_candidatos	crm_olx_anuncios_painel, olx_anuncios_plano
+olx_anuncios_plano	
+olx_cfg	crm_olx_config_gravar, olx_anuncio_montar, olx_anuncios_plano, olx_nay_fila
+olx_cfg_gravar	crm_olx_config_gravar, olx_permissao_gravar
+olx_nay_contexto	
+olx_nay_devolver	
+olx_nay_fila	
+olx_nay_passar_para_gente	
+olx_nay_reservar	
+olx_nay_soltar	
+olx_permissao_gravar	
+olx_tem	olx_anuncio_montar
+olx_texto_limpo	olx_anuncio_montar
 site_captacao_chave	site_captacao_grupos_apelido_excluir, site_captacao_grupos_apelido_salvar
 site_captacao_grupos	
 site_captacao_grupos_apelido_excluir	
@@ -641,7 +663,7 @@ site_grade_metricas
 site_grade_opcoes	
 site_grade_salvar	
 site_imoveis_para_enviar	
-site_imovel_publico	
+site_imovel_publico	olx_nay_contexto
 site_juntar_cadastro	
 site_me_envia	
 site_me_envia_ranking	

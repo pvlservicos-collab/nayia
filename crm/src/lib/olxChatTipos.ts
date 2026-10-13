@@ -63,3 +63,16 @@ export interface AnuncioOlx {
   /** veio da lista da OLX (true) ou só o conhecemos pelas conversas (false) */
   daOlx: boolean
 }
+
+/** O painel da publicação automática (migração 364, `crm_olx_anuncios_painel`): as chaves, as contas e as listas. */
+export interface PainelDosAnunciosOlx {
+  config: Record<string, string>
+  contagem: { imoveis: number; prontos: number; faltando_dados: number; enviados: number; publicados: number; recusados: number; removidos: number }
+  falta: { motivo: string; n: number; codigos: number[] }[]
+  nossos: {
+    ad_id: string; codigo: number; negocio: 'venda' | 'locacao'; conta: string; estado: string; titulo: string | null
+    preco: number | null; list_id: string | null; url: string | null; olx_status: string | null; mensagem: string | null
+    enviado_em: string | null; publicado_em: string | null
+  }[]
+  proximos: { codigo: number; negocio: 'venda' | 'locacao'; titulo: string; preco: number; fotos: number }[]
+}

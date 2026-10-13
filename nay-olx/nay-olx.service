@@ -1,0 +1,19 @@
+# nay-olx (13/10/2026): os anúncios da OLX que sobem sozinhos do cadastro e o chat da OLX pronto para a Nay.
+# Tudo nasce desligado no banco (privado.olx_config: publicar = nao, nay_responde = nao). Ver README.md.
+# Instalar: cp nay-olx.service /etc/systemd/system/ && systemctl daemon-reload && systemctl enable --now nay-olx
+[Unit]
+Description=Nay OLX (anuncios automaticos e chat da OLX)
+After=network-online.target docker.service
+Wants=network-online.target
+# não deixa um laço de falhas rápidas desligar o reinício automático
+StartLimitIntervalSec=0
+[Service]
+Type=simple
+WorkingDirectory=/root/nay-olx
+EnvironmentFile=/root/nay-olx/.env
+Environment=TZ=America/Manaus PYTHONUNBUFFERED=1
+ExecStart=/root/nay-olx/.venv/bin/python -u -m olx.worker
+Restart=always
+RestartSec=10
+[Install]
+WantedBy=multi-user.target
