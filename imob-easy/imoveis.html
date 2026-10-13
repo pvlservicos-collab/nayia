@@ -953,6 +953,9 @@ body{overflow:auto}
 <div class="toast" id="toast" role="status"></div>
 
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- EMBUTIDA NA HOME (13/10/2026): dentro de um iframe o cabeçalho do site não aparece (a home já tem o dela) -->
+<script>if (window.self !== window.top) document.documentElement.classList.add("embutida");</script>
+<style>.embutida #site{display:none}.embutida .hbar{top:0}</style>
 <script defer src="/assets/js/config.js"></script>
 <script defer src="/assets/js/imoveis-enviar.js?v=20261006-varios"></script>
 </body>

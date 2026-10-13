@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Imob Easy — Imóveis em Manaus e parceria 50% para corretores</title>
-<meta name="description" content="Compre, alugue ou anuncie seu imóvel em Manaus com a Imob Easy. Corretor parceiro recebe 50% da comissão. Atendimento pela Nay, nossa assistente, todos os dias.">
+<meta name="description" content="Alugue, compre ou anuncie seu imóvel em Manaus com a Imob Easy. Corretor parceiro recebe 50% da comissão e atendimento na hora pela Nay, nossa assistente no WhatsApp.">
 <link rel="icon" href="assets/img/logo-simbolo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="assets/css/tokens.css">
 <link rel="stylesheet" href="assets/css/site.css">
-<link rel="stylesheet" href="assets/css/home.css?v=20261013a">
+<link rel="stylesheet" href="assets/css/home.css?v=20261013b">
 <meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
 <script type="application/ld+json">
 {
@@ -48,177 +48,154 @@
     <a class="site-topo__logo" href="index.html" aria-label="Imob Easy — página inicial">
       <img src="assets/img/logo.svg" alt="Imob Easy">
     </a>
-    <button class="topo__menu" type="button" aria-expanded="false" aria-controls="nav-principal" aria-label="Abrir o menu">
-      <span></span><span></span><span></span>
-    </button>
     <nav class="topo__nav" id="nav-principal" aria-label="Seções do site">
-      <a href="#destaques">Imóveis</a>
-      <a href="#mapa">Mapa</a>
-      <a href="#corretores">Corretores</a>
-      <a href="#nay">Nay</a>
+      <a href="#o-que-e">O que é</a>
+      <a href="#corretores">Para corretores</a>
+      <a href="#por-que">Por que usar</a>
+      <a href="#como-usar">Como usar</a>
+      <a href="#imoveis">Imóveis</a>
       <a href="#expansao">Expansão</a>
       <a href="#anunciar">Anunciar</a>
-      <a class="topo__admin" href="admin/inicio.html">Admin</a>
     </nav>
     <div class="site-topo__acoes topo__acoes">
       <a class="btn-roxo topo__whats" href="https://wa.me/559294717316?text=Ol%C3%A1%2C%20vim%20pelo%20site%20da%20Imob%20Easy" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 12 12 0 0 0 4.6 4c1.7.7 2.3.8 3.2.7a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3Z"/></svg>
         WhatsApp
       </a>
+      <a class="topo__admin" href="admin/inicio.html" aria-label="Área da equipe">Equipe</a>
     </div>
+    <button class="topo__menu" type="button" aria-expanded="false" aria-controls="nav-principal" aria-label="Abrir o menu">
+      <span></span><span></span><span></span>
+    </button>
   </div>
 </header>
 
 <main id="conteudo">
 
-  <!-- ================= Hero + busca ================= -->
+  <!-- ================= 1. Primeira dobra: a busca à esquerda, gente à direita ================= -->
   <section class="hero" aria-labelledby="hero-titulo">
-    <div class="hero__fundo" aria-hidden="true"></div>
+    <div class="hero__foto" aria-hidden="true">
+      <img src="assets/img/hero-casal.jpg" alt="" fetchpriority="high">
+    </div>
     <div class="hero__interno">
-      <p class="hero__sobre">Imobiliária em Manaus desde 2019</p>
-      <h1 class="hero__titulo" id="hero-titulo">O seu próximo imóvel começa aqui</h1>
-      <p class="hero__sub">Apartamentos, casas e salas em Manaus, com atendimento rápido pelo WhatsApp e uma rede de corretores parceiros que ganha metade da comissão.</p>
-
-      <div class="busca busca--hero">
-        <div class="alternador" role="tablist" aria-label="Tipo de negócio" data-abas>
-          <button class="alternador__item" role="tab" aria-selected="true" data-destino="comprar.html">Comprar</button>
-          <button class="alternador__item" role="tab" aria-selected="false" data-destino="alugar.html">Alugar</button>
+      <div class="hero__cartao">
+        <div class="hero__abas" role="tablist" aria-label="O que você quer fazer">
+          <button class="hero__aba" role="tab" type="button" aria-selected="true" data-painel="buscar">Buscar imóveis</button>
+          <button class="hero__aba" role="tab" type="button" aria-selected="false" data-painel="anunciar">Anunciar imóvel</button>
         </div>
 
-        <form class="painel-busca" action="comprar.html" method="get">
-          <div class="painel-busca__linha painel-busca__linha--2">
-            <div class="campo">
-              <label class="campo__rotulo" for="bairro">Bairro ou condomínio</label>
-              <input class="campo__controle" id="bairro" name="bairro" type="text"
-                     placeholder="Digite o bairro ou o condomínio">
-            </div>
-            <div class="campo">
-              <span class="campo__rotulo" id="rot-tipo">Tipo de imóvel</span>
-              <div class="opcoes" role="group" aria-labelledby="rot-tipo" data-grupo-exclusivo id="tipo"></div>
-            </div>
+        <div class="hero__painel" data-painel="buscar">
+          <h1 class="hero__titulo" id="hero-titulo">Seu novo lar em Manaus começa aqui</h1>
+
+          <div class="hero__neg" role="tablist" aria-label="Alugar ou comprar">
+            <button class="hero__neg-aba" role="tab" type="button" aria-selected="false" data-neg="alugar.html">Alugar</button>
+            <button class="hero__neg-aba" role="tab" type="button" aria-selected="true" data-neg="comprar.html">Comprar</button>
           </div>
 
-          <div class="painel-busca__linha painel-busca__linha--3">
-            <div class="campo">
-              <span class="campo__rotulo" id="rot-quartos">Quartos</span>
-              <div class="opcoes" role="group" aria-labelledby="rot-quartos" data-grupo-exclusivo>
-                <button class="opcoes__botao" type="button" aria-pressed="false">1</button>
-                <button class="opcoes__botao" type="button" aria-pressed="false">2</button>
-                <button class="opcoes__botao" type="button" aria-pressed="false">3</button>
-                <button class="opcoes__botao" type="button" aria-pressed="false">4+</button>
+          <form class="painel-busca hero__form" action="comprar.html" method="get">
+            <div class="hero__campo">
+              <label class="hero__rotulo" for="bairro">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 21s7-6.2 7-11a7 7 0 0 0-14 0c0 4.8 7 11 7 11Z"/><circle cx="12" cy="10" r="2.6"/></svg>
+                Bairro ou condomínio
+              </label>
+              <input class="hero__entrada" id="bairro" name="bairro" type="text" placeholder="Busque por bairro ou condomínio">
+            </div>
+
+            <div class="hero__campo">
+              <span class="hero__rotulo" id="rot-tipo">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>
+                Tipo de imóvel
+              </span>
+              <div class="opcoes hero__chips" role="group" aria-labelledby="rot-tipo" data-grupo-exclusivo id="tipo"></div>
+            </div>
+
+            <div class="hero__dupla">
+              <div class="hero__campo">
+                <label class="hero__rotulo" for="valor-ate">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M7 12h.01M17 12h.01"/></svg>
+                  Valor até
+                </label>
+                <input class="hero__entrada" id="valor-ate" type="text" inputmode="numeric" placeholder="Escolha o valor" aria-label="Valor máximo">
+              </div>
+              <div class="hero__campo">
+                <span class="hero__rotulo" id="rot-quartos">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 18v-7h18v7"/><path d="M5 11V7h14v4"/><path d="M3 18h18"/></svg>
+                  Quartos
+                </span>
+                <div class="opcoes hero__chips" role="group" aria-labelledby="rot-quartos" data-grupo-exclusivo>
+                  <button class="opcoes__botao" type="button" aria-pressed="false">1</button>
+                  <button class="opcoes__botao" type="button" aria-pressed="false">2</button>
+                  <button class="opcoes__botao" type="button" aria-pressed="false">3</button>
+                  <button class="opcoes__botao" type="button" aria-pressed="false">4+</button>
+                </div>
               </div>
             </div>
-            <div class="campo">
-              <span class="campo__rotulo" id="rot-garagem">Garagem</span>
-              <div class="opcoes" role="group" aria-labelledby="rot-garagem" data-grupo-exclusivo>
-                <button class="opcoes__botao" type="button" aria-pressed="false">1</button>
-                <button class="opcoes__botao" type="button" aria-pressed="false">2</button>
-                <button class="opcoes__botao" type="button" aria-pressed="false">3</button>
-                <button class="opcoes__botao" type="button" aria-pressed="false">4+</button>
-              </div>
-            </div>
-            <div class="campo">
-              <span class="campo__rotulo">Valor</span>
-              <div class="campo__duplo">
-                <input class="campo__controle" type="text" inputmode="numeric" placeholder="De" aria-label="Valor mínimo">
-                <input class="campo__controle" type="text" inputmode="numeric" placeholder="Até" aria-label="Valor máximo">
-              </div>
-            </div>
-          </div>
 
-          <div class="busca__rodape">
-            <div class="busca__codigo-caixa">
-              <label class="sr-only" for="codigo">Código do imóvel</label>
-              <input class="busca__codigo" id="codigo" type="text" inputmode="numeric" placeholder="Ou digite o código do imóvel">
+            <!-- a busca das páginas Comprar/Alugar também lê garagem e código; aqui ficam fora da vista -->
+            <div class="opcoes" role="group" aria-labelledby="rot-garagem" data-grupo-exclusivo hidden><span id="rot-garagem" class="sr-only">Garagem</span></div>
+            <input class="sr-only" id="codigo" type="text" tabindex="-1" aria-hidden="true">
+
+            <div class="busca__enviar hero__enviar">
+              <a class="btn-roxo hero__botao" href="comprar.html">Buscar imóveis</a>
             </div>
-            <div class="busca__enviar">
-              <a class="btn-roxo btn-grande" href="comprar.html">Encontrar imóvel</a>
-            </div>
-          </div>
-        </form>
-      </div>
+          </form>
+        </div>
 
-      <ul class="hero__numeros" aria-label="Números da Imob Easy">
-        <li><b data-numero="imoveis">—</b><span>imóveis disponíveis</span></li>
-        <li><b data-numero="bairros">—</b><span>bairros de Manaus</span></li>
-        <li><b data-numero="condominios">—</b><span>condomínios</span></li>
-        <li><b>50%</b><span>da comissão para o corretor parceiro</span></li>
-      </ul>
-    </div>
-  </section>
-
-  <!-- ================= Destaques ================= -->
-  <section class="secao destaques" id="destaques" aria-labelledby="titulo-destaques">
-    <div class="secao__cabeca">
-      <p class="secao__sobre">Catálogo</p>
-      <h2 class="secao__titulo" id="titulo-destaques">Imóveis em destaque</h2>
-      <p class="secao__texto">Os imóveis do nosso cadastro em Manaus, com fotos, ficha completa e a localização no mapa.</p>
-      <div class="secao__acoes">
-        <a class="btn-roxo" href="comprar.html">Ver todos para comprar</a>
-        <a class="btn-roxo-vazado" href="alugar.html">Ver todos para alugar</a>
-      </div>
-    </div>
-    <div class="destaques__grade destaques__grade--home" data-lista="destaques"></div>
-  </section>
-
-  <!-- ================= Mapa dos imóveis ================= -->
-  <section class="secao secao--cheia mapa-imoveis" id="mapa" aria-labelledby="titulo-mapa">
-    <div class="secao__cabeca">
-      <p class="secao__sobre">Mapa</p>
-      <h2 class="secao__titulo" id="titulo-mapa">Veja onde cada imóvel está</h2>
-      <p class="secao__texto">Cada pino é um imóvel disponível, com o preço. Toque no pino para abrir a página dele.</p>
-    </div>
-    <div class="mapa-imoveis__caixa">
-      <div class="mapa-imoveis__mapa" id="mapa-imoveis" role="region" aria-label="Mapa dos imóveis em Manaus"></div>
-      <div class="mapa-imoveis__legenda">
-        <span class="mapa-imoveis__chip mapa-imoveis__chip--venda">Venda</span>
-        <span class="mapa-imoveis__chip mapa-imoveis__chip--aluguel">Aluguel</span>
-        <a class="btn-roxo" href="imoveis.html">Abrir o mapa completo</a>
+        <div class="hero__painel" data-painel="anunciar" hidden>
+          <h2 class="hero__titulo">Anuncie seu imóvel sem pagar nada</h2>
+          <ul class="hero__lista">
+            <li>Cadastro completo, com fotos e ficha, feito pela nossa equipe</li>
+            <li>Divulgação para a rede de corretores parceiros e nos grupos</li>
+            <li>Visitas organizadas com você, no seu horário</li>
+            <li>Você só paga a comissão quando fechar</li>
+          </ul>
+          <a class="btn-roxo hero__botao" href="https://wa.me/559294717316?text=Ol%C3%A1%2C%20quero%20anunciar%20meu%20im%C3%B3vel%20na%20Imob%20Easy" target="_blank" rel="noopener">Anunciar pelo WhatsApp</a>
+          <p class="hero__nota">É corretor? <a href="#corretores">Veja como funciona a parceria de 50%</a>.</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- ================= Como funciona ================= -->
-  <section class="secao como" aria-labelledby="titulo-como">
+  <!-- ================= 2. O que é ================= -->
+  <section class="secao o-que-e" id="o-que-e" aria-labelledby="titulo-o-que-e">
     <div class="secao__cabeca">
-      <p class="secao__sobre">Simples assim</p>
-      <h2 class="secao__titulo" id="titulo-como">Como funciona</h2>
+      <p class="secao__sobre">O que é a Imob Easy</p>
+      <h2 class="secao__titulo" id="titulo-o-que-e">Uma imobiliária de Manaus feita para o corretor fechar mais, e para quem procura encontrar mais rápido</h2>
+      <p class="secao__texto">Desde 2019 trabalhamos com venda, locação e administração de imóveis. O que nos diferencia é o jeito: o catálogo inteiro aberto para a rede de corretores, resposta na hora pelo WhatsApp e metade da comissão para quem traz o cliente.</p>
     </div>
-    <ol class="como__passos">
-      <li class="como__passo">
-        <span class="como__num">1</span>
-        <h3>Escolha o imóvel</h3>
-        <p>Busque por bairro, condomínio ou código. Cada imóvel tem fotos, planta de cômodos, valores e taxas.</p>
-      </li>
-      <li class="como__passo">
-        <span class="como__num">2</span>
-        <h3>Fale com a gente</h3>
-        <p>Pelo WhatsApp, a Nay, nossa assistente, responde na hora com as informações e as fotos. Dúvida que ela não sabe, a equipe responde.</p>
-      </li>
-      <li class="como__passo">
-        <span class="como__num">3</span>
-        <h3>Visite e feche</h3>
-        <p>A Imob Easy organiza a visita com o proprietário e cuida dos documentos até a assinatura.</p>
-      </li>
-    </ol>
+    <div class="o-que-e__duas">
+      <article class="o-que-e__cartao o-que-e__cartao--corretor">
+        <p class="o-que-e__quem">Se você é corretor</p>
+        <h3>Um catálogo pronto para você vender, com 50% para você</h3>
+        <p>Você não precisa captar: os imóveis já estão cadastrados, com fotos, ficha e proprietário. Pergunta pelo WhatsApp, recebe o card na hora, leva o cliente e fica com metade da comissão.</p>
+        <a class="o-que-e__link" href="#corretores">Ver as vantagens</a>
+      </article>
+      <article class="o-que-e__cartao">
+        <p class="o-que-e__quem">Se você procura um imóvel</p>
+        <h3>Imóveis de verdade, com ficha completa e resposta em segundos</h3>
+        <p>Cada imóvel tem fotos, cômodos, taxas e localização no mapa. Pergunte o que quiser pelo WhatsApp: a Nay, nossa assistente, responde na hora, e a visita é combinada direto com o proprietário.</p>
+        <a class="o-que-e__link" href="#imoveis">Ver os imóveis</a>
+      </article>
+    </div>
   </section>
 
-  <!-- ================= Para corretores ================= -->
+  <!-- ================= 3. Vantagens para o corretor ================= -->
   <section class="secao secao--cheia corretores" id="corretores" aria-labelledby="titulo-corretores">
     <div class="corretores__interno">
       <div class="corretores__texto">
-        <p class="secao__sobre secao__sobre--claro">Parceria</p>
-        <h2 class="secao__titulo" id="titulo-corretores">Corretor parceiro recebe <em>50%</em> da comissão</h2>
-        <p class="secao__texto">Você traz o cliente, a gente cuida do resto: ficha, fotos, visita e papelada. E metade da comissão é sua. Sem mensalidade, sem exclusividade.</p>
+        <p class="secao__sobre secao__sobre--claro">As vantagens</p>
+        <h2 class="secao__titulo" id="titulo-corretores">O corretor parceiro recebe <em>50%</em> da comissão. E não é só isso.</h2>
+        <p class="secao__texto">Sem mensalidade, sem exclusividade e sem burocracia. Você traz o cliente e a gente cuida de tudo o que toma o seu tempo.</p>
         <ul class="corretores__beneficios">
           <li><b>Metade da comissão</b> em toda venda ou locação fechada com o seu cliente.</li>
-          <li><b>Atendimento imediato</b> pelo WhatsApp: a Nay manda o card e as fotos de qualquer imóvel do catálogo.</li>
-          <li><b>Grupos de parceria</b> com os lançamentos do dia e os imóveis que acabaram de entrar.</li>
-          <li><b>Visita organizada</b> pela nossa equipe direto com o proprietário.</li>
+          <li><b>Resposta na hora, todos os dias.</b> A Nay manda o card e as fotos de qualquer imóvel pelo WhatsApp.</li>
+          <li><b>Grupos de parceria</b> com os imóveis que entraram hoje e os lançamentos da semana.</li>
+          <li><b>Visita e papelada com a gente.</b> Nossa equipe combina a visita com o proprietário e cuida dos documentos.</li>
+          <li><b>Cadastro completo.</b> Fotos, cômodos, taxas, andar, mobília e o condomínio, prontos para mandar ao cliente.</li>
         </ul>
         <div class="secao__acoes">
           <a class="btn-roxo btn-grande" href="https://wa.me/559294717316?text=Ol%C3%A1%2C%20sou%20corretor%28a%29%20e%20quero%20ser%20parceiro%20da%20Imob%20Easy" target="_blank" rel="noopener">Quero ser parceiro</a>
-          <a class="corretores__link" href="#destaques">Ver os imóveis</a>
+          <a class="corretores__link" href="#como-usar">Como funciona na prática</a>
         </div>
       </div>
 
@@ -231,70 +208,150 @@
     </div>
   </section>
 
-  <!-- ================= Nay ================= -->
-  <section class="secao nay" id="nay" aria-labelledby="titulo-nay">
-    <div class="nay__caixa">
-      <div class="nay__texto">
-        <p class="secao__sobre">Tecnologia própria</p>
-        <h2 class="secao__titulo" id="titulo-nay">Conheça a Nay, nossa assistente no WhatsApp</h2>
-        <p class="secao__texto">A Nay conhece cada imóvel do catálogo. Pergunte se está disponível, peça as fotos, o valor do condomínio ou o andar: ela responde em segundos, todos os dias. O que ela não sabe, a equipe assume na hora.</p>
-        <ul class="nay__pontos">
-          <li>Responde corretores e clientes pelo WhatsApp</li>
-          <li>Manda card e fotos do imóvel na hora</li>
-          <li>Organiza a visita com o proprietário</li>
-          <li>Atualiza o cadastro com o que o dono informa</li>
-        </ul>
-        <a class="btn-roxo" href="https://wa.me/559294717316?text=Oi%2C%20quero%20ver%20im%C3%B3veis%20com%20a%20Nay" target="_blank" rel="noopener">Falar com a Nay</a>
-      </div>
-      <div class="nay__chat" aria-hidden="true">
+  <!-- ================= 4. Por que usar ================= -->
+  <section class="secao por-que" id="por-que" aria-labelledby="titulo-por-que">
+    <div class="secao__cabeca">
+      <p class="secao__sobre">Por que usar</p>
+      <h2 class="secao__titulo" id="titulo-por-que">Porque aqui ninguém fica esperando resposta</h2>
+      <p class="secao__texto">O que mais trava um negócio é a informação que não chega. Na Imob Easy o catálogo está sempre atualizado e a Nay responde na hora, com o dado do cadastro, não com achismo.</p>
+    </div>
+    <div class="por-que__grade">
+      <div class="nay__chat" aria-label="Exemplo de conversa com a Nay">
         <div class="nay__balao nay__balao--ele">Nay, o Acquarelle de 3 quartos ainda está disponível?</div>
         <div class="nay__balao nay__balao--nay">Sim, está disponível. Quer que eu te mande as informações e as fotos?</div>
         <div class="nay__balao nay__balao--ele">Manda, e me diz o andar</div>
         <div class="nay__balao nay__balao--nay">🏠 Condomínio Acquarelle · Ponta Negra · 3 quartos, 1 suíte, 2 vagas · R$ 5.500/mês · Mobiliado</div>
         <div class="nay__balao nay__balao--nay">Fica no 7º andar. Se quiser, me diz o dia e o horário que fica bom pro seu cliente e eu vejo a visita.</div>
       </div>
-    </div>
-  </section>
-
-  <!-- ================= Expansão ================= -->
-  <section class="secao secao--cheia expansao" id="expansao" aria-labelledby="titulo-expansao">
-    <div class="secao__cabeca">
-      <p class="secao__sobre">Para onde vamos</p>
-      <h2 class="secao__titulo" id="titulo-expansao">Começamos em Manaus. O plano é o Brasil inteiro.</h2>
-      <p class="secao__texto">A Imob Easy está no ar em Manaus. As próximas capitais já estão em construção, com a mesma proposta: catálogo completo, atendimento pela Nay e metade da comissão para o corretor parceiro.</p>
-    </div>
-    <div class="expansao__caixa">
-      <div class="expansao__mapa" id="mapa-expansao" role="region" aria-label="Mapa da expansão da Imob Easy pelo Brasil"></div>
-      <ul class="expansao__lista" id="expansao-lista" aria-label="Cidades"></ul>
-    </div>
-  </section>
-
-  <!-- ================= Anunciar ================= -->
-  <section class="secao anunciar" id="anunciar" aria-labelledby="titulo-anunciar">
-    <div class="anunciar__caixa">
-      <div>
-        <p class="secao__sobre secao__sobre--claro">Proprietários</p>
-        <h2 class="secao__titulo" id="titulo-anunciar">Tem um imóvel para vender ou alugar?</h2>
-        <p class="secao__texto">Mande o endereço e as fotos pelo WhatsApp. A gente cadastra, divulga para a rede de corretores parceiros e cuida das visitas.</p>
-      </div>
-      <a class="btn-branco btn-grande" href="https://wa.me/559294717316?text=Ol%C3%A1%2C%20quero%20anunciar%20meu%20im%C3%B3vel%20na%20Imob%20Easy" target="_blank" rel="noopener">Anunciar meu imóvel</a>
-    </div>
-  </section>
-
-  <!-- ================= Sobre ================= -->
-  <section class="secao sobre" aria-labelledby="titulo-sobre">
-    <div class="sobre__grade">
-      <div>
-        <p class="secao__sobre">Sobre a Imob Easy</p>
-        <h2 class="secao__titulo" id="titulo-sobre">Uma imobiliária feita para facilitar</h2>
-        <p class="secao__texto">Desde 2019 em Manaus, trabalhamos com venda, locação e administração de imóveis de um jeito direto: cadastro completo, resposta rápida e uma rede de corretores que ganha de verdade com cada negócio.</p>
-      </div>
-      <ul class="sobre__fatos">
-        <li><b>2019</b><span>ano de fundação</span></li>
-        <li><b>Manaus</b><span>sede, no Adrianópolis</span></li>
-        <li><b>CRECI/PJ 482</b><span>registro da imobiliária</span></li>
-        <li><b>7 dias</b><span>atendimento pela Nay, todos os dias</span></li>
+      <ul class="por-que__motivos">
+        <li>
+          <b data-numero="imoveis">—</b>
+          <strong>imóveis disponíveis agora</strong>
+          <span>Cada um com fotos, ficha e a localização no mapa. O que foi vendido ou alugado sai do catálogo no mesmo dia.</span>
+        </li>
+        <li>
+          <b>Na hora</b>
+          <strong>resposta pelo WhatsApp, todos os dias</strong>
+          <span>A Nay conhece o cadastro inteiro. Disponibilidade, valor, condomínio, andar, mobília: ela responde em segundos. O que ela não sabe, a equipe responde.</span>
+        </li>
+        <li>
+          <b data-numero="bairros">—</b>
+          <strong>bairros e <i data-numero="condominios">—</i> condomínios</strong>
+          <span>De Ponta Negra ao Centro. A busca por condomínio acha o imóvel pelo nome que o cliente conhece.</span>
+        </li>
+        <li>
+          <b>2019</b>
+          <strong>imobiliária registrada, com equipe em Manaus</strong>
+          <span>CRECI/PJ 482. Visita acompanhada, contrato e documentação feitos por gente que conhece a cidade.</span>
+        </li>
       </ul>
+    </div>
+  </section>
+
+  <!-- ================= 5. Como usar ================= -->
+  <section class="secao como" id="como-usar" aria-labelledby="titulo-como">
+    <div class="secao__cabeca">
+      <p class="secao__sobre">Como usar</p>
+      <h2 class="secao__titulo" id="titulo-como">Três passos, do primeiro contato ao fechamento</h2>
+    </div>
+    <div class="como__trilhas">
+      <div class="como__trilha como__trilha--corretor">
+        <h3 class="como__quem">Para o corretor</h3>
+        <ol class="como__passos">
+          <li class="como__passo">
+            <span class="como__num">1</span>
+            <h4>Entre na parceria</h4>
+            <p>Mande um "quero ser parceiro" no WhatsApp. Você entra nos grupos e passa a receber os imóveis novos.</p>
+          </li>
+          <li class="como__passo">
+            <span class="como__num">2</span>
+            <h4>Peça o imóvel para a Nay</h4>
+            <p>Diga o bairro, o valor e o tipo que o seu cliente quer. Ela manda as opções, o card e as fotos na hora, prontos para encaminhar.</p>
+          </li>
+          <li class="como__passo">
+            <span class="como__num">3</span>
+            <h4>Leve o cliente e receba</h4>
+            <p>A visita é combinada com o proprietário pela nossa equipe. Fechou, metade da comissão é sua.</p>
+          </li>
+        </ol>
+      </div>
+      <div class="como__trilha">
+        <h3 class="como__quem">Para quem procura</h3>
+        <ol class="como__passos">
+          <li class="como__passo">
+            <span class="como__num">1</span>
+            <h4>Busque</h4>
+            <p>Por bairro, condomínio ou código, aqui no site ou direto no WhatsApp.</p>
+          </li>
+          <li class="como__passo">
+            <span class="como__num">2</span>
+            <h4>Tire as dúvidas na hora</h4>
+            <p>Valor, taxas, andar, mobília, aceita pet: a Nay responde pelo cadastro. O que faltar, a equipe confirma.</p>
+          </li>
+          <li class="como__passo">
+            <span class="como__num">3</span>
+            <h4>Visite e assine</h4>
+            <p>Diga o dia e o horário. A Imob Easy combina com o proprietário e cuida do contrato.</p>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 6. Imóveis ================= -->
+  <section class="secao destaques" id="imoveis" aria-labelledby="titulo-destaques">
+    <div class="secao__cabeca">
+      <p class="secao__sobre">Agora, os imóveis</p>
+      <h2 class="secao__titulo" id="titulo-destaques">Em destaque hoje</h2>
+      <p class="secao__texto">Seis do catálogo, três para comprar e três para alugar. Todos os outros estão no mapa logo abaixo e nas páginas de busca.</p>
+      <div class="secao__acoes">
+        <a class="btn-roxo" href="comprar.html">Todos para comprar</a>
+        <a class="btn-roxo-vazado" href="alugar.html">Todos para alugar</a>
+      </div>
+    </div>
+    <div class="destaques__grade destaques__grade--home" data-lista="destaques"></div>
+  </section>
+
+  <section class="secao secao--cheia mapa-imoveis" id="mapa" aria-labelledby="titulo-mapa">
+    <div class="secao__cabeca">
+      <p class="secao__sobre">O mapa</p>
+      <h2 class="secao__titulo" id="titulo-mapa">Todos os imóveis no mapa de Manaus</h2>
+      <p class="secao__texto">O mesmo mapa da nossa página de imóveis: filtre por bairro, valor e tipo, toque no pino e peça o imóvel pelo WhatsApp sem sair daqui.</p>
+    </div>
+    <div class="mapa-imoveis__caixa">
+      <iframe class="mapa-imoveis__quadro" id="mapa-imoveis" src="imoveis.html" title="Mapa dos imóveis da Imob Easy em Manaus" loading="lazy"></iframe>
+      <p class="mapa-imoveis__abrir"><a class="btn-roxo-vazado" href="imoveis.html">Abrir o mapa em tela cheia</a></p>
+    </div>
+  </section>
+
+  <!-- ================= 7. Expansão ================= -->
+  <section class="secao secao--cheia expansao" id="expansao" aria-labelledby="titulo-expansao">
+    <div class="expansao__interno">
+      <div class="expansao__texto">
+        <p class="secao__sobre secao__sobre--claro">Para onde vamos</p>
+        <h2 class="secao__titulo" id="titulo-expansao">Começamos em Manaus. O plano é o Brasil inteiro.</h2>
+        <p class="secao__texto">A Imob Easy está no ar em Manaus. As próximas capitais já estão em construção, com a mesma proposta: catálogo aberto, atendimento pela Nay e metade da comissão para o corretor parceiro.</p>
+        <ul class="expansao__lista" id="expansao-lista" aria-label="Cidades"></ul>
+      </div>
+      <div class="expansao__mapa" id="mapa-expansao" role="img" aria-label="Mapa do Brasil com Manaus no ar e as capitais em construção"></div>
+    </div>
+  </section>
+
+  <!-- ================= 8. Fechamento ================= -->
+  <section class="secao fecho" id="anunciar" aria-labelledby="titulo-fecho">
+    <div class="fecho__grade">
+      <div class="fecho__cartao fecho__cartao--corretor">
+        <p class="secao__sobre secao__sobre--claro">Corretores</p>
+        <h2 class="secao__titulo" id="titulo-fecho">Entre para a parceria hoje</h2>
+        <p>Um WhatsApp e você já recebe os imóveis novos nos grupos.</p>
+        <a class="btn-branco" href="https://wa.me/559294717316?text=Ol%C3%A1%2C%20sou%20corretor%28a%29%20e%20quero%20ser%20parceiro%20da%20Imob%20Easy" target="_blank" rel="noopener">Quero ser parceiro</a>
+      </div>
+      <div class="fecho__cartao">
+        <p class="secao__sobre">Proprietários</p>
+        <h2 class="secao__titulo">Tem um imóvel para vender ou alugar?</h2>
+        <p>Mande o endereço e as fotos. A gente cadastra, divulga para a rede e cuida das visitas.</p>
+        <a class="btn-roxo" href="https://wa.me/559294717316?text=Ol%C3%A1%2C%20quero%20anunciar%20meu%20im%C3%B3vel%20na%20Imob%20Easy" target="_blank" rel="noopener">Anunciar meu imóvel</a>
+      </div>
     </div>
   </section>
 
@@ -433,6 +490,6 @@
 <script src="assets/js/site.js"></script>
 <script src="assets/js/busca-bairro.js?v=20261012-condominio"></script>
 <script src="assets/js/busca-filtros.js?v=20261012-condominio"></script>
-<script src="assets/js/home.js?v=20261013a"></script>
+<script src="assets/js/home.js?v=20261013b"></script>
 </body>
 </html>
