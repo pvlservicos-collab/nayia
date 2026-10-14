@@ -24,3 +24,4 @@
 # 23:35 Manaus: leva os dumps do dia (naydb + crmdb) para a srv1877774 pelo Tailscale (30/09)
 35 3 * * * flock -n /tmp/backup_para_fora.lock /root/nay-publicador/backup_para_fora.sh >> /root/nay-publicador/logs/backup_para_fora.log 2>&1
 33 * * * * flock -n /tmp/geocodificar_novos.lock /root/nay-publicador/geocodificar_novos.sh >> /root/nay-publicador/logs/geocodificar_novos.log 2>&1
+0 12 * * 1 flock -n /tmp/bom_dia_segunda.lock /root/nay-publicador/bom_dia_segunda.sh >> /root/nay-publicador/logs/bom_dia_segunda.log 2>&1  # 14/10: bom dia de segunda 08:00 Manaus (12:00 UTC) no grupo Anunciar Easy
