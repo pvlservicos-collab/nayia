@@ -18,7 +18,10 @@
   // 13/10 (Pedro: "coloca lá na aba modelos já se foram aprovadas as mensagens novas, cria um título novas"): os modelos
   // recadastrados em 12/10 (rodapé Imobeasy e botões), que voltaram para a revisão da Meta. Ficam num título próprio,
   // em cima, com a contagem de quantos já foram aprovados. Modelo novo que entrar em revisão: acrescente o nome aqui.
-  var NOVAS = ["captacao_status_novo_numero_2", "captacao_status_novo_numero_3", "l1_util_16", "l1_util_12"];
+  // 14/10: os 10 "confirmar_disponivel" (Pedro: "olá Sr.(a), poderia me confirmar se está disponível ... todas como utilidade")
+  var NOVAS = ["confirmar_disponivel_01", "confirmar_disponivel_02", "confirmar_disponivel_03", "confirmar_disponivel_04", "confirmar_disponivel_05",
+               "confirmar_disponivel_06", "confirmar_disponivel_07", "confirmar_disponivel_08", "confirmar_disponivel_09", "confirmar_disponivel_10",
+               "captacao_status_novo_numero_2", "captacao_status_novo_numero_3", "l1_util_16", "l1_util_12"];
   var CAT = { UTILITY: ["Utilidade", "mw-cat--util"], MARKETING: ["Marketing", "mw-cat--mkt"], AUTHENTICATION: ["Autenticação", "mw-cat--aut"] };
   var ST = { APPROVED: ["aprovado", "mw-st--ok"], PENDING: ["pendente", "mw-st--pend"], REJECTED: ["reprovado", "mw-st--rej"], PAUSED: ["pausado", "mw-st--rej"] };
   function balao(m) {
