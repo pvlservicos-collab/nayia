@@ -395,7 +395,8 @@ function Tiques({ metadata }: { metadata: any }) {
  *   2ª ENTREGUE: enche quando o CELULAR DA PESSOA confirma (verde), azul quando ela leu. Sem confirmação em 10 minutos
  *      fica laranja: saiu do nosso lado e não chegou. A confirmação vem do aviso da própria linha
  *      (src/lib/entregaDaMensagem.ts), não do "id" que a Z-API devolve no envio -- esse só diz que ela aceitou o pedido.
- * Mensagem de antes do acompanhamento (14/10) não tem como saber: a 2ª fica tracejada.
+ * Mensagem de antes do acompanhamento (14/10) não tem como saber: a 2ª fica vazia (o "título" explica).
+ * 14/10, logo depois: "só 2 grandes" -- duas barras iguais, sem tracejado.
  */
 const INICIO_DO_ACOMPANHAMENTO = Date.parse('2026-10-14T14:30:00Z')
 const DEZ_MINUTOS = 10 * 60 * 1000
@@ -422,16 +423,14 @@ function BarrasDeEntrega({ metadata, criadaEm }: { metadata: any; criadaEm: stri
     : 'Enviada; esperando o celular da pessoa confirmar'
 
   const barra = (cheia: number, cor: string, extra = '') => (
-    <span className={`relative block h-[3px] flex-1 rounded-full overflow-hidden ${extra}`} style={{ background: 'rgba(127,127,127,.25)' }}>
+    <span className={`relative block h-[4px] flex-1 rounded-full overflow-hidden ${extra}`} style={{ background: 'rgba(127,127,127,.28)' }}>
       <span className="absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out" style={{ width: `${cheia}%`, background: cor }} />
     </span>
   )
   return (
-    <span className="flex items-center gap-[3px] w-[64px] mb-1" title={titulo} aria-label={titulo}>
+    <span className="flex items-center gap-1 w-[84px] mb-1" title={titulo} aria-label={titulo}>
       {barra(falhou || saiu ? 100 : 55, falhou ? '#ef4444' : saiu ? 'var(--wa-green, #22c55e)' : 'var(--wa-text-2, #8696a0)', otimista ? 'animate-pulse' : '')}
-      {antes && !entregue && !falhou
-        ? <span className="block h-[3px] flex-1 rounded-full" style={{ backgroundImage: 'repeating-linear-gradient(90deg, rgba(127,127,127,.45) 0 3px, transparent 3px 6px)' }} />
-        : barra(entregue || atrasada ? 100 : 0, lida ? 'var(--wa-tick-read, #53bdeb)' : entregue ? 'var(--wa-green, #22c55e)' : '#f59e0b')}
+      {barra(entregue || atrasada ? 100 : 0, lida ? 'var(--wa-tick-read, #53bdeb)' : entregue ? 'var(--wa-green, #22c55e)' : '#f59e0b')}
     </span>
   )
 }
