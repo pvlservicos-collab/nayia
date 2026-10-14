@@ -19,7 +19,10 @@
   // recadastrados em 12/10 (rodapé Imobeasy e botões), que voltaram para a revisão da Meta. Ficam num título próprio,
   // em cima, com a contagem de quantos já foram aprovados. Modelo novo que entrar em revisão: acrescente o nome aqui.
   // 14/10: os 10 "confirmar_disponivel" (Pedro: "olá Sr.(a), poderia me confirmar se está disponível ... todas como utilidade")
-  var NOVAS = ["confirmar_disponivel_01", "confirmar_disponivel_02", "confirmar_disponivel_03", "confirmar_disponivel_04", "confirmar_disponivel_05",
+  // 14/10: e os 8 "retomar_janela" (Oi / Bom dia / Boa tarde / Boa noite, está por aí?), para reabrir a janela de 24 h
+  var NOVAS = ["retomar_janela_01", "retomar_janela_02", "retomar_janela_03", "retomar_janela_04",
+               "retomar_janela_05", "retomar_janela_06", "retomar_janela_07", "retomar_janela_08",
+               "confirmar_disponivel_01", "confirmar_disponivel_02", "confirmar_disponivel_03", "confirmar_disponivel_04", "confirmar_disponivel_05",
                "confirmar_disponivel_06", "confirmar_disponivel_07", "confirmar_disponivel_08", "confirmar_disponivel_09", "confirmar_disponivel_10",
                "captacao_status_novo_numero_2", "captacao_status_novo_numero_3", "l1_util_16", "l1_util_12"];
   var CAT = { UTILITY: ["Utilidade", "mw-cat--util"], MARKETING: ["Marketing", "mw-cat--mkt"], AUTHENTICATION: ["Autenticação", "mw-cat--aut"] };
