@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from dataclasses import dataclass, field
 
 import requests
@@ -67,6 +68,11 @@ def publicados(token: str, paginas: int = 50) -> list[dict]:
     for _ in range(paginas):
         r = _pedir("GET", "/autoupload/v1/published", params={"page_token": pagina} if pagina else None,
                    headers={"Authorization": f"Bearer {token}"})
+        if r.status_code != 200:
+            # 14/10: a OLX devolveu 400 uma vez no meio da lista e respondeu certo logo depois: tenta a página de novo
+            time.sleep(3)
+            r = _pedir("GET", "/autoupload/v1/published", params={"page_token": pagina} if pagina else None,
+                       headers={"Authorization": f"Bearer {token}"})
         if r.status_code != 200:
             raise ErroDaOlx(f"a lista de anúncios respondeu HTTP {r.status_code}")
         j = _json(r)
