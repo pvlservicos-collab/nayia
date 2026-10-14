@@ -374,7 +374,7 @@ function QuotedMessageBar({ metadata }: { metadata: any }) {
 
 /** Os tiques: um (saiu), dois (entregue), dois azuis (lido); aviso vermelho se falhou. */
 function Tiques({ metadata }: { metadata: any }) {
-  if (metadata?.send_status === 'failed') {
+  if (metadata?.send_status === 'failed' || metadata?.whatsapp_status === 'failed') {
     return (
       <span title={metadata?.send_error || 'Falha ao enviar'} className="inline-flex">
         <WarningCircle size={15} weight="fill" style={{ color: '#ef4444' }} />
@@ -386,6 +386,54 @@ function Tiques({ metadata }: { metadata: any }) {
   if (st === 'delivered' || st === 'received' || st === 'entregue') return <Checks size={16} weight="bold" />
   if (metadata?.is_optimistic) return <span className="inline-block w-3 h-3 rounded-full border border-current border-t-transparent animate-spin" />
   return <Check size={15} weight="bold" />
+}
+
+/*
+ * AS DUAS BARRINHAS DE CADA MENSAGEM QUE SAIU (Pedro, 14/10/2026: "em cima de cada mensagem tenha 2 barrinhas que vão
+ * enchendo, a primeira é enviando, e a segunda é entregue, e que o sistema saiba exatamente se ela foi mesmo entregue").
+ *   1ª ENVIANDO: enche enquanto o CRM manda e fica verde quando a linha (Z-API ou Meta) aceita; vermelha se falhou.
+ *   2ª ENTREGUE: enche quando o CELULAR DA PESSOA confirma (verde), azul quando ela leu. Sem confirmação em 10 minutos
+ *      fica laranja: saiu do nosso lado e não chegou. A confirmação vem do aviso da própria linha
+ *      (src/lib/entregaDaMensagem.ts), não do "id" que a Z-API devolve no envio -- esse só diz que ela aceitou o pedido.
+ * Mensagem de antes do acompanhamento (14/10) não tem como saber: a 2ª fica tracejada.
+ */
+const INICIO_DO_ACOMPANHAMENTO = Date.parse('2026-10-14T14:30:00Z')
+const DEZ_MINUTOS = 10 * 60 * 1000
+
+function BarrasDeEntrega({ metadata, criadaEm }: { metadata: any; criadaEm: string }) {
+  const st = String(metadata?.whatsapp_status || '').toLowerCase()
+  const otimista = !!metadata?.is_optimistic
+  const falhou = metadata?.send_status === 'failed' || st === 'failed'
+  const lida = st === 'read'
+  const entregue = lida || st === 'delivered'
+  const saiu = !otimista && !falhou && (entregue || st === 'sent' || metadata?.send_status === 'sent'
+    || !!metadata?.zapi_message_id || !!metadata?.whatsapp_message_id)
+  const criada = Date.parse(criadaEm)
+  const antes = Number.isFinite(criada) && criada < INICIO_DO_ACOMPANHAMENTO
+  const atrasada = saiu && !entregue && !antes && Date.now() - criada > DEZ_MINUTOS
+  const hora = (iso?: string) => (iso ? formatTime(iso) : '')
+
+  const titulo = falhou ? `Não foi enviada: ${metadata?.send_error || 'a linha recusou'}`
+    : otimista ? 'Enviando…'
+    : lida ? `Entregue${metadata?.whatsapp_entregue_em ? ` às ${hora(metadata.whatsapp_entregue_em)}` : ''} e lida${metadata?.whatsapp_lida_em ? ` às ${hora(metadata.whatsapp_lida_em)}` : ''}`
+    : entregue ? `Entregue no celular da pessoa${metadata?.whatsapp_entregue_em ? ` às ${hora(metadata.whatsapp_entregue_em)}` : ''}`
+    : antes ? 'Enviada. Mensagem de antes de 14/10: o CRM não acompanhava a entrega'
+    : atrasada ? 'Enviada, mas o celular da pessoa ainda NÃO confirmou o recebimento'
+    : 'Enviada; esperando o celular da pessoa confirmar'
+
+  const barra = (cheia: number, cor: string, extra = '') => (
+    <span className={`relative block h-[3px] flex-1 rounded-full overflow-hidden ${extra}`} style={{ background: 'rgba(127,127,127,.25)' }}>
+      <span className="absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out" style={{ width: `${cheia}%`, background: cor }} />
+    </span>
+  )
+  return (
+    <span className="flex items-center gap-[3px] w-[64px] mb-1" title={titulo} aria-label={titulo}>
+      {barra(falhou || saiu ? 100 : 55, falhou ? '#ef4444' : saiu ? 'var(--wa-green, #22c55e)' : 'var(--wa-text-2, #8696a0)', otimista ? 'animate-pulse' : '')}
+      {antes && !entregue && !falhou
+        ? <span className="block h-[3px] flex-1 rounded-full" style={{ backgroundImage: 'repeating-linear-gradient(90deg, rgba(127,127,127,.45) 0 3px, transparent 3px 6px)' }} />
+        : barra(entregue || atrasada ? 100 : 0, lida ? 'var(--wa-tick-read, #53bdeb)' : entregue ? 'var(--wa-green, #22c55e)' : '#f59e0b')}
+    </span>
+  )
 }
 
 // ── O balão ──
@@ -492,6 +540,7 @@ const MessageBubble = memo(function MessageBubble({
           </div>
         ) : (
           <div className={`wa-balao ${outgoing ? 'wa-balao--out' : 'wa-balao--in'} ${showHeader ? 'wa-balao--rabo' : ''}`}>
+            {outgoing && activity.type === 'whatsapp' && <BarrasDeEntrega metadata={m} criadaEm={activity.created_at} />}
             {rotulo && (
               <p className="text-[12.8px] font-semibold leading-[18px] mb-0.5 flex items-center gap-1" style={{ color: corDoRotulo }}>
                 {isAI && <Sparkle size={12} weight="fill" />}
@@ -565,6 +614,7 @@ const AlbumDeFotos = memo(function AlbumDeFotos({ fotos, outgoing, showHeader, r
   return (
     <div className={`flex ${outgoing ? 'justify-end' : 'justify-start'} ${outgoing ? 'pl-[10%]' : 'pr-[10%]'}`}>
       <div className={`wa-balao ${outgoing ? 'wa-balao--out' : 'wa-balao--in'} ${showHeader ? 'wa-balao--rabo' : ''} !p-[3px]`}>
+        {outgoing && <span className="block px-1.5 pt-1"><BarrasDeEntrega metadata={ultima.metadata || {}} criadaEm={ultima.created_at} /></span>}
         {rotulo && <p className="text-[12.8px] font-semibold leading-[18px] px-1.5 pt-0.5 pb-1" style={{ color: 'var(--wa-quote-bar)' }}>{rotulo}</p>}
         <div className="grid grid-cols-2 gap-[3px] w-[min(300px,62vw)]">
           {fotos.slice(0, 4).map((f, i) => (

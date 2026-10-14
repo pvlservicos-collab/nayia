@@ -10,6 +10,7 @@
  *   Verify Token: valor de FACEBOOK_WEBHOOK_VERIFY_TOKEN
  */
 import { guardarDoEndereco } from '@/lib/armazem'
+import { marcarEntregaComRepeticao, situacaoDaMeta } from '@/lib/entregaDaMensagem'
 import { getWhatsAppCredentials } from '@/lib/whatsapp'
 import { NextRequest, after } from 'next/server'
 import { db } from '@/lib/db'
@@ -86,6 +87,18 @@ function textoDosContatos(contatos: any): string {
 function ehMensagemSemConteudoDaMeta(message: any): boolean {
   return message?.type === 'unsupported'
     || (Array.isArray(message?.errors) && message.errors.some((e: any) => Number(e?.code) === 131051))
+}
+
+/** A organização da linha oficial pelo WABA do payload (o mesmo critério do recebimento, logo abaixo). */
+async function orgPeloWaba(wabaId: unknown): Promise<string | null> {
+  if (!wabaId) return null
+  const { integrations } = await import('@/lib/schema')
+  const { sql } = await import('drizzle-orm')
+  const [found] = await db.select({ organizationId: integrations.organizationId })
+    .from(integrations)
+    .where(sql`${integrations.config}->>'waba_id' = ${String(wabaId)}`)
+    .limit(1)
+  return found?.organizationId ?? null
 }
 
 export async function GET(req: NextRequest) {
@@ -327,6 +340,25 @@ export async function POST(req: NextRequest) {
     const changes = entry?.changes?.[0]
     const value = changes?.value
     const message = value?.messages?.[0]
+
+    /* A SITUAÇÃO DAS MENSAGENS QUE SAÍRAM pela API oficial (14/10/2026): sent, delivered, read ou failed (com o
+       motivo da Meta). Antes este aviso voltava "ignored: no message" e o CRM não sabia se a mensagem chegou.
+       Ver src/lib/entregaDaMensagem.ts. */
+    if (!message && Array.isArray(value?.statuses) && value.statuses.length) {
+      const orgDaLinha = new URL(req.url).searchParams.get('org_id') || await orgPeloWaba(entry?.id)
+      if (!orgDaLinha) return Response.json({ status: 'ignored: statuses sem organização' })
+      let n = 0
+      for (const st of value.statuses) {
+        const situacao = situacaoDaMeta(st?.status)
+        if (!situacao || !st?.id) continue
+        const erro = situacao === 'failed'
+          ? (st.errors || []).map((e: any) => [e?.code, e?.title, e?.error_data?.details].filter(Boolean).join(' · ')).join('; ') || 'A Meta não entregou a mensagem.'
+          : null
+        const quando = st.timestamp ? new Date(Number(st.timestamp) * 1000) : new Date()
+        n += await marcarEntregaComRepeticao(orgDaLinha, 'whatsapp_message_id', [String(st.id)], situacao, quando, erro)
+      }
+      return Response.json({ status: 'statuses', atualizadas: n })
+    }
 
     if (!message) return Response.json({ status: 'ignored: no message' })
 

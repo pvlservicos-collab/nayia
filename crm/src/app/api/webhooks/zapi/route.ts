@@ -6,6 +6,7 @@ import { processZapiMessage, logZapiDiagnostico } from '@/lib/zapiInbound'
 import { ZAPI_INTEGRATION_TYPE, TIPOS_ZAPI } from '@/lib/zapi'
 import { publishEvent, channels, events } from '@/lib/realtime'
 import { guardarMensagemDeGrupo } from '@/lib/gruposParceria'
+import { marcarEntregaComRepeticao, situacaoDaZapi } from '@/lib/entregaDaMensagem'
 
 /**
  * Webhook único da Z-API.
@@ -22,7 +23,6 @@ import { guardarMensagemDeGrupo } from '@/lib/gruposParceria'
 
 /** Callbacks que existem e não são conteúdo — reconhecidos pra não virar diagnóstico. */
 const CALLBACKS_SEM_CONTEUDO = new Set([
-  'MessageStatusCallback',
   'DeliveryCallback',
   'ReadCallback',
   'PresenceChatCallback',
@@ -50,6 +50,19 @@ export async function POST(req: NextRequest) {
       await marcarStatus(orgId, 'disabled', instancia)
       await ligarAvisoDeDesconexao(orgId, instancia)
       return NextResponse.json({ ok: true, evento: 'desconectado' })
+    }
+
+    /* A SITUAÇÃO DE CADA MENSAGEM NOSSA (Pedro, 14/10/2026: "que o sistema saiba exatamente se ela foi mesmo
+       entregue"). SENT = saiu do nosso aparelho, RECEIVED = chegou no celular da pessoa, READ/PLAYED = ela leu/ouviu.
+       Até 14/10 este aviso era descartado aqui (e nem estava configurado na instância): o CRM só sabia que a Z-API
+       tinha aceitado o pedido. Ver src/lib/entregaDaMensagem.ts. */
+    if (body.type === 'MessageStatusCallback') {
+      const situacao = situacaoDaZapi(body.status)
+      const ids = Array.isArray(body.ids) ? body.ids.map(String) : body.messageId ? [String(body.messageId)] : []
+      if (!situacao || !ids.length || body.isGroup === true) return NextResponse.json({ ok: true, skipped: `status ${body.status}` })
+      const quando = typeof body.momment === 'number' ? new Date(body.momment) : new Date()
+      const n = await marcarEntregaComRepeticao(orgId, 'zapi_message_id', ids, situacao, quando, body.error ? String(body.error) : null)
+      return NextResponse.json({ ok: true, status: situacao, atualizadas: n })
     }
 
     if (typeof body.type === 'string' && CALLBACKS_SEM_CONTEUDO.has(body.type)) {
