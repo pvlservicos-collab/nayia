@@ -1,4 +1,4 @@
-# nai_etapa_contato  (tabela, ~176 linhas)
+# nai_etapa_contato  (tabela, ~187 linhas)
 
 ## colunas
 contato_id  bigint  NOT NULL

@@ -2,6 +2,7 @@
 
 TRÊS RELÓGIOS, no mesmo laço:
   a cada 5 s      o chat: quem espera resposta (só com `nay_responde = sim`; nasce em `nao`)
+                  e o aviso no grupo da equipe de quem escreveu na OLX (só com `avisar_grupo = sim`; olx/grupo.py)
   a cada 5 min    os anúncios: a rodada (só com `publicar = sim`; nasce em `nao`) e a conferência do que foi mandado
   a cada 1 h      a situação de cada anúncio nosso na lista da OLX (expirou, apagaram pelo site)
 
@@ -16,7 +17,7 @@ import logging
 import pathlib
 import time
 
-from olx import anuncios, api, banco, chat, config
+from olx import anuncios, api, banco, chat, config, grupo
 
 log = logging.getLogger("olx.worker")
 
@@ -45,6 +46,11 @@ def main() -> None:
                 ultimo_estado = estado
 
             chat.atender_fila(conn, cfg)
+            # 15/10: quem escreve na OLX aparece no grupo da equipe (avisar_grupo = sim)
+            try:
+                grupo.avisar(conn, cfg)
+            except Exception:  # noqa: BLE001 -- o aviso não pode parar o chat nem os anúncios
+                log.exception("o aviso ao grupo falhou")
 
             agora = time.time()
             if agora >= proxima_rodada:
