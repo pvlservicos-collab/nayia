@@ -5225,6 +5225,30 @@ def _captacao_grupos(sql, params=()):
         conn.close()
 
 
+# 375: OS LEMBRETES DA EQUIPE no sininho do admin (Pedro, 15/10/2026: "um lembrete de aviso pra nós ... em um dia
+# específico e um texto que eu escrevo ... até eu ir lá e clicar em feito"). Quem guarda e decide é o banco.
+@app.route("/admin/api/lembretes", methods=["GET", "POST"])
+def admin_lembretes():
+    if request.method == "GET":
+        return _captacao_grupos("SELECT site_lembretes() AS j")
+    corpo = request.get_json(silent=True) or {}
+    dia = str(corpo.get("dia") or "").strip()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", dia):
+        return jsonify({"erro": "Escolha o dia."}), 422
+    return _captacao_grupos("SELECT site_lembrete_criar(%s, %s::date) AS j", (str(corpo.get("texto") or ""), dia))
+
+
+@app.route("/admin/api/lembretes/<int:lembrete_id>/feito", methods=["POST"])
+def admin_lembrete_feito(lembrete_id):
+    corpo = request.get_json(silent=True) or {}
+    return _captacao_grupos("SELECT site_lembrete_feito(%s, %s) AS j", (lembrete_id, corpo.get("feito") is not False))
+
+
+@app.route("/admin/api/lembretes/<int:lembrete_id>", methods=["DELETE"])
+def admin_lembrete_apagar(lembrete_id):
+    return _captacao_grupos("SELECT site_lembrete_apagar(%s) AS j", (lembrete_id,))
+
+
 @app.route("/admin/api/grupos/captacao")
 def admin_grupos_captacao():
     filtro = (request.args.get("filtro") or "todos").strip().lower()

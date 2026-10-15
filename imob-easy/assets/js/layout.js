@@ -137,6 +137,14 @@
       "</div>" +
     "</header>";
 
+  /* ---- os lembretes da equipe no sininho (375, Pedro 15/10/2026): o arquivo próprio dá vida ao sino ---- */
+  (function () {
+    var s = document.createElement("script");
+    s.src = "../assets/js/lembretes.js?v=20261015a";
+    s.defer = true;
+    document.body.appendChild(s);
+  })();
+
   /* ---- o botão "Ver versão mais recente": refaz o download do que esta página usa e recarrega ---- */
   document.addEventListener("click", function (e) {
     var b = e.target.closest ? e.target.closest("[data-sem-cache]") : null;
