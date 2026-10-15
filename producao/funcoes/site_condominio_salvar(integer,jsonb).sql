@@ -128,15 +128,17 @@ BEGIN
     END IF;
   END IF;
 
-  -- as características do condomínio, nas três listas (346): a lista da tela substitui a que estava
-  FOREACH k IN ARRAY ARRAY['lazer', 'seguranca', 'comodidades'] LOOP
+  -- as características do condomínio, nas três listas (346), e o que a taxa inclui (367):
+  -- a lista da tela substitui a que estava
+  FOREACH k IN ARRAY ARRAY['lazer', 'seguranca', 'comodidades', 'taxa_inclui'] LOOP
     CONTINUE WHEN coalesce(jsonb_typeof(p_dados->k), '') <> 'array';   -- chave ausente = não mexe
     SELECT coalesce(array_agg(s.x ORDER BY s.ord), '{}') INTO v_lazer
       FROM (SELECT DISTINCT ON (lower(btrim(a.t))) left(btrim(a.t), 80) AS x, a.ord
               FROM jsonb_array_elements_text(p_dados->k) WITH ORDINALITY a(t, ord)
              WHERE btrim(a.t) <> ''
              ORDER BY lower(btrim(a.t)), a.ord) s;
-    IF v_lazer IS DISTINCT FROM (CASE k WHEN 'lazer' THEN f.lazer WHEN 'seguranca' THEN f.seguranca ELSE f.comodidades END) THEN
+    IF v_lazer IS DISTINCT FROM (CASE k WHEN 'lazer' THEN f.lazer WHEN 'seguranca' THEN f.seguranca
+                                        WHEN 'taxa_inclui' THEN f.taxa_inclui ELSE f.comodidades END) THEN
       EXECUTE format('UPDATE condominio_ficha SET %I = $1 WHERE id = $2', k) USING v_lazer, f.id;
       v_mudou := array_append(v_mudou, k);
     END IF;

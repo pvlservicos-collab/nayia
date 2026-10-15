@@ -106,6 +106,9 @@
     "Câmera de segurança", "Portão eletrônico", "Interfone"];
   var COMODIDADES = ["Elevador", "Lavanderia", "Gerador de Energia", "Gerador de Energia - 100%", "Gás Encanado", "Água de Poço", "Recepção"];
   var GRUPOS = [["lazer", "Lazer", LAZER], ["seguranca", "Segurança", SEGURANCA], ["comodidades", "Comodidades e serviços", COMODIDADES]];
+  /* 367 (Pedro, 14/10): "O que está incluso na taxa de condomínio. geralmente é: segurança 24 horas, água, gás,
+     energia (só alguns flats)". Fica junto das taxas, não com as características; a Nay lê junto da taxa. */
+  var INCLUSO = ["taxa_inclui", "O que está incluso na taxa de condomínio", ["Segurança 24 horas", "Água", "Gás", "Energia"]];
   function caixinhas(g) {
     return '<p class="cc__secao">' + esc(g[1]) + '</p><div class="cc__marcar" data-grupo="' + g[0] + '">' +
       g[2].map(function (x) { return '<label class="cc__marca"><input type="checkbox" value="' + esc(x) + '"><span>' + esc(x) + "</span></label>"; }).join("") +
@@ -147,8 +150,9 @@
           '<tbody id="cc-taxas"></tbody></table>' +
         '<button type="button" class="cc__botao" id="cc-taxa-mais" style="margin-top:6px">+ linha</button>' +
         '<p class="cc__dica">O condomínio varia por tamanho mas é fixo para todos daquele tamanho. O IPTU, só quando for fixo; o de cada casa fica no imóvel.</p>' +
+        caixinhas(INCLUSO) +
         '<p class="cc__secao">Observação do condomínio</p>' +
-        '<textarea id="cc-observacao" data-cc="observacao" maxlength="1000" placeholder="o que vale saber: portaria recebe encomenda, taxa inclui gás…"></textarea>' +
+        '<textarea id="cc-observacao" data-cc="observacao" maxlength="1000" placeholder="o que vale saber: portaria recebe encomenda, regras de mudança…"></textarea>' +
         '<div class="cc__acoes"><button type="submit" class="cc__botao cc__botao--principal" id="cc-salvar">Cadastrar condomínio</button>' +
           '<span class="cc__status" id="cc-status" role="status"></span></div>' +
       "</form>" +
@@ -158,7 +162,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var form = $("cc-form"), buscar = $("cc-buscar"), lista = $("cc-lista"), status = $("cc-status");
   var itens = null, lendo = null, atual = null, achados = [], ativo = -1;
-  var extras = { lazer: [], seguranca: [], comodidades: [] };   // o que foi marcado fora das caixinhas
+  var extras = { lazer: [], seguranca: [], comodidades: [], taxa_inclui: [] };   // o que foi marcado fora das caixinhas
 
   function dizer(texto, tipo, html) {
     status.className = "cc__status" + (tipo ? " cc__status--" + tipo : "");
@@ -249,7 +253,7 @@
       var v = c ? c[el.dataset.cc] : null;   // condomínio novo: o Tipo começa em "Prédio de apartamentos", não vazio
       el.value = v == null ? (el.tagName === "SELECT" ? "apartamentos" : "") : String(v);
     });
-    GRUPOS.forEach(function (g) { marcar(g[0], c ? c[g[0]] : []); });
+    GRUPOS.concat([INCLUSO]).forEach(function (g) { marcar(g[0], c ? c[g[0]] : []); });
     mostrarSugestao(c && c.ia_sugestao);
     // o selo "(Google)" nas labels (condominio-google.js). Só a tela: para a Nay o dado é um dado.
     if (window.condominioGoogleMarcar) window.condominioGoogleMarcar(c && c.campos_google);
@@ -352,7 +356,8 @@
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     painel.querySelectorAll("[data-mais]").forEach(function (m) { if (m.value.trim()) { acrescentar(m.dataset.mais, m.value); m.value = ""; } });
-    var dados = { lazer: marcados("lazer"), seguranca: marcados("seguranca"), comodidades: marcados("comodidades"), taxas: taxasDaTela() };
+    var dados = { lazer: marcados("lazer"), seguranca: marcados("seguranca"), comodidades: marcados("comodidades"), taxas: taxasDaTela(),
+                 taxa_inclui: marcados("taxa_inclui") };
     form.querySelectorAll("[data-cc]").forEach(function (el) { dados[el.dataset.cc] = el.value.trim(); });
     if (dados.nome.length < 3) { dizer("Escreva o nome do condomínio.", "erro"); $("cc-nome").focus(); return; }
     var editando = atual && atual.id;

@@ -326,6 +326,10 @@
             .filter(Boolean).join(" · ");
         }).join(" | ")) + "</span>", ' class="uxp-largo"'));
     }
+    if (!vazio(c.taxa_inclui)) {   // 367: o que está incluso na taxa de condomínio
+      numeros.push(celula("Incluso na taxa de condomínio", (ICONE.taxas || "") + '<span class="uxp-vl">' +
+        esc(c.taxa_inclui.join(", ")) + "</span>", ' class="uxp-largo"'));
+    }
     if (c.observacao) {
       numeros.push(celula("Observação do condomínio", esc(c.observacao), ' class="uxp-largo"'));
     }

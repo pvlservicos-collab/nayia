@@ -378,6 +378,7 @@
       ((f.seguranca || []).length ? '<p class="ed__cf-rot">Segurança</p>' + chips(f.seguranca) : "") +
       ((f.comodidades || []).length ? '<p class="ed__cf-rot">Comodidades e serviços</p>' + chips(f.comodidades) : "") +
       (taxas ? '<p class="ed__cf-linha"><b>Taxas:</b> ' + esc(taxas) + "</p>" : "") +
+      ((f.taxa_inclui || []).length ? '<p class="ed__cf-linha"><b>A taxa inclui:</b> ' + esc(f.taxa_inclui.join(", ")) + "</p>" : "") +   // 367
       (f.observacao ? '<p class="ed__cf-linha"><b>Obs.:</b> ' + esc(f.observacao) + "</p>" : "") +
       (!estrutura && !quem && !(f.lazer || []).length ? '<p class="ed__dica">A ficha deste condomínio está vazia: complete em Editar condomínio.</p>' : "") +
       "</div>";

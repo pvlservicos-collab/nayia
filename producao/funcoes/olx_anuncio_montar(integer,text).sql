@@ -187,29 +187,7 @@ BEGIN
   IF length(v_titulo) > 90 THEN v_titulo := btrim(regexp_replace(left(v_titulo, 90), '\s+\S*$', '')); END IF;
 
   -- a descrição: a do cadastro (limpa) e, embaixo, a ficha em linhas
-  v_corpo := olx_texto_limpo(i.descricao);
-  IF length(v_corpo) < 40 THEN v_corpo := v_titulo || '.'; END IF;
-  IF v_cat IN (1020, 1040) AND coalesce(i.quartos, 0) > 0 THEN
-    v_linhas := array_append(v_linhas, i.quartos || CASE WHEN i.quartos = 1 THEN ' quarto' ELSE ' quartos' END
-      || CASE WHEN coalesce(i.suites, 0) > 0 THEN ' (' || i.suites || CASE WHEN i.suites = 1 THEN ' suíte)' ELSE ' suítes)' END ELSE '' END);
-  END IF;
-  IF coalesce(i.banheiros, 0) > 0 THEN v_linhas := array_append(v_linhas, i.banheiros || CASE WHEN i.banheiros = 1 THEN ' banheiro' ELSE ' banheiros' END); END IF;
-  IF coalesce(i.vagas, 0) > 0 THEN v_linhas := array_append(v_linhas, i.vagas || CASE WHEN i.vagas = 1 THEN ' vaga de garagem' ELSE ' vagas de garagem' END); END IF;
-  IF v_area >= 1 THEN v_linhas := array_append(v_linhas, round(v_area)::bigint || ' m²'); END IF;
-  IF nullif(btrim(coalesce(i.mobilia, '')), '') IS NOT NULL AND v_cat IN (1020, 1040) THEN
-    v_linhas := array_append(v_linhas, 'Mobília: ' || btrim(i.mobilia));
-  END IF;
-  IF v_params ? 'condominio' THEN
-    v_linhas := array_append(v_linhas, 'Condomínio: R$ ' || replace(to_char(round(i.taxa_condominio), 'FM999,999,999'), ',', '.') || ' por mês');
-  END IF;
-  IF v_linhas <> '{}' THEN v_corpo := v_corpo || E'\n\n• ' || array_to_string(v_linhas, E'\n• '); END IF;
-  IF v_im <> '{}' THEN
-    v_corpo := v_corpo || E'\n\nNo imóvel: ' || (SELECT string_agg(olx_texto_limpo(t), ', ') FROM (SELECT t FROM unnest(v_im) WITH ORDINALITY u(t, n) WHERE btrim(t) <> '' ORDER BY n LIMIT 18) s) || '.';
-  END IF;
-  IF v_co <> '{}' THEN
-    v_corpo := v_corpo || E'\n\nNo condomínio: ' || (SELECT string_agg(olx_texto_limpo(t), ', ') FROM (SELECT t FROM unnest(v_co) WITH ORDINALITY u(t, n) WHERE btrim(t) <> '' ORDER BY n LIMIT 18) s) || '.';
-  END IF;
-  v_corpo := left(v_corpo, 5800) || E'\n\nCódigo do imóvel: ' || p_codigo || E'\nImob Easy';
+  v_corpo := olx_corpo_do_anuncio(p_codigo, p_negocio);
 
   IF v_falta <> '{}' THEN
     RETURN jsonb_build_object('ok', false, 'barrado', NULL, 'falta', to_jsonb(v_falta), 'ad_id', v_ad, 'titulo', v_titulo,

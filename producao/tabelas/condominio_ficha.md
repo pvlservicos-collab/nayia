@@ -35,6 +35,7 @@ site_antigo_id  integer
 ia_sugestao  jsonb   -- 348: o que a IA sugeriu (construtora, ano, torres, andares, lazer...), para conferir e aplicar no cadastro; não é lido pela Nay.
 ia_em  timestamp with time zone
 campos_google  text[]  NOT NULL  padrão '{}'::text[]   -- Quais campos desta ficha vieram da pesquisa na web (ia_sugestao). SÓ PARA A TELA DO ADMIN mostrar "(Google)". NUNCA expor à IA: para a Nay o dado vem do mesmo lugar que os outros. Mantida pelo gatilho condominio_google_tg.
+taxa_inclui  text[]  NOT NULL  padrão '{}'::text[]   -- 367: o que está incluso na taxa de condomínio (Segurança 24 horas, Água, Gás, Energia...). Vale para todo imóvel do condomínio; a Nay nova lê junto da taxa.
 
 ## índices
 CREATE UNIQUE INDEX condominio_ficha_condominio_id_key ON public.condominio_ficha USING btree (condominio_id)

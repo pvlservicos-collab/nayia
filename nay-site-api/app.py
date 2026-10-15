@@ -988,7 +988,8 @@ CAMPOS_DO_CONDOMINIO = ("nome", "tipo", "bairro", "logradouro", "numero", "cidad
                         "ano_lancamento",
                         # 344 (11/10): o que o site antigo tinha a mais
                         "ano_construcao", "complemento", "observacao")
-LISTAS_DO_CONDOMINIO = ("lazer", "seguranca", "comodidades")
+LISTAS_DO_CONDOMINIO = ("lazer", "seguranca", "comodidades",
+                        "taxa_inclui")   # 367 (14/10): o que está incluso na taxa de condomínio
 
 
 @app.route("/api/condominios/<int:cid>/ficha")
@@ -1001,6 +1002,7 @@ def api_condominio_ficha(cid):
             SELECT c.id, c.nome, c.bairro, f.id AS ficha_id, f.tipo, f.logradouro, f.numero, f.complemento, f.cep, f.cidade,
                    f.estado, f.torres, f.andares, f.aptos_por_andar, f.elevador, f.unidades, f.construtora, f.revestimento,
                    coalesce(f.ano_construcao, f.ano_lancamento::text) AS ano, f.lazer, f.seguranca, f.comodidades, f.taxas,
+                   f.taxa_inclui,
                    f.observacao, f.fonte, f.atualizado_em
               FROM condominios c LEFT JOIN condominio_ficha f ON f.condominio_id = c.id
              WHERE c.id = %s""", (cid,))
@@ -1016,7 +1018,8 @@ def api_condominio_ficha(cid):
             "aptos_por_andar": l["aptos_por_andar"], "elevador": l["elevador"], "unidades": l["unidades"],
             "construtora": l["construtora"], "revestimento": l["revestimento"], "ano": l["ano"],
             "lazer": list(l["lazer"] or []), "seguranca": list(l["seguranca"] or []), "comodidades": list(l["comodidades"] or []),
-            "taxas": l["taxas"] or [], "observacao": l["observacao"], "fonte": l["fonte"],
+            "taxas": l["taxas"] or [], "taxa_inclui": list(l["taxa_inclui"] or []),
+            "observacao": l["observacao"], "fonte": l["fonte"],
             "atualizado": l["atualizado_em"].isoformat() if l["atualizado_em"] else None,
         }), 200, {"Cache-Control": "no-cache"}
     finally:
@@ -1051,7 +1054,7 @@ def api_condominios_cadastro():
             SELECT c.id, c.nome, c.bairro, f.tipo, f.logradouro, f.numero, f.cidade, f.estado, f.cep, f.endereco,
                    f.torres, f.andares, f.aptos_por_andar, f.elevador, f.unidades, f.construtora, f.revestimento,
                    f.ano_lancamento, f.lazer, f.fonte, f.atualizado_em,
-                   f.seguranca, f.comodidades, f.taxas, f.ano_construcao, f.complemento, f.observacao, f.ia_sugestao,
+                   f.seguranca, f.comodidades, f.taxas, f.taxa_inclui, f.ano_construcao, f.complemento, f.observacao, f.ia_sugestao,
                    coalesce(pi.q, 0) + coalesce(pn.q, 0) AS imoveis
               FROM condominios c LEFT JOIN condominio_ficha f ON f.condominio_id = c.id
               LEFT JOIN por_id pi ON pi.condo_id = c.id
@@ -1065,6 +1068,7 @@ def api_condominios_cadastro():
             "construtora": l["construtora"], "revestimento": l["revestimento"], "ano_lancamento": l["ano_lancamento"],
             "lazer": list(l["lazer"] or []), "fonte": l["fonte"], "imoveis": l["imoveis"],
             "seguranca": list(l["seguranca"] or []), "comodidades": list(l["comodidades"] or []), "taxas": l["taxas"] or [],
+            "taxa_inclui": list(l["taxa_inclui"] or []),
             "ano_construcao": l["ano_construcao"], "complemento": l["complemento"], "observacao": l["observacao"],
             "ia_sugestao": l["ia_sugestao"],      # 348: só sugestão, para conferir no cadastro
             "atualizado": l["atualizado_em"].isoformat() if l["atualizado_em"] else None,

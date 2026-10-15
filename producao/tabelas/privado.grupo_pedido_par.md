@@ -1,4 +1,4 @@
-# privado.grupo_pedido_par  (tabela, ~1534 linhas)
+# privado.grupo_pedido_par  (tabela, ~1955 linhas)
 
 ## colunas
 pedido_id  bigint  NOT NULL
