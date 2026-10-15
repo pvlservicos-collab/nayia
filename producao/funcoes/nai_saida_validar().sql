@@ -24,7 +24,7 @@ BEGIN
   -- ultima parede: o tratamento vinha do nome (`nai_vocativo`), do prompt, de
   -- frase pronta de funcao e ate da dica dentro do no do n8n -- qualquer um
   -- que escape sai limpo daqui.
-  IF NEW.tipo = 'texto' AND NEW.texto ~ '\mSra?\M' THEN
+  IF NEW.tipo = 'texto' AND NEW.texto ~ '\mSra?\M' AND coalesce(NEW.motivo, '') <> 'olx_proprietario' THEN
     NEW.texto := nai_sem_senhor(NEW.texto);
   END IF;
 

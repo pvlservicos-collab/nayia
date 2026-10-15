@@ -124,7 +124,7 @@ BEGIN
     -- BLOQUEADA como repetida -- que e exatamente o sintoma de "ela nao
     -- respondeu" que ele relatou. Comando pedido duas vezes e respondido duas
     -- vezes.
-    ELSIF r.tipo = 'texto' AND NOT v_cmd AND coalesce(r.motivo, '') <> 'depois_das_fotos' AND EXISTS (
+    ELSIF r.tipo = 'texto' AND NOT v_cmd AND coalesce(r.motivo, '') NOT IN ('depois_das_fotos', 'olx_proprietario') AND EXISTS (
             SELECT 1 FROM nai_saida s2
              WHERE s2.contato_id = r.contato_id AND s2.estado IN ('enviado', 'simulado', 'enviando')
                AND s2.tipo = 'texto' AND s2.texto = r.texto

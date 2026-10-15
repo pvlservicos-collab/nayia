@@ -58,3 +58,35 @@ def modelo(telefone: str, nome: str, idioma: str, valores: list[str]) -> tuple[s
     if not j.get("ok") or not j.get("messageId"):
         return None, str(j.get("texto") or ""), str(j.get("erro") or "sem id da mensagem")
     return str(j["messageId"]), str(j.get("texto") or ""), None
+
+
+# ── a saída pela PARCERIA (Z-API, 92 9445-3618) ─────────────────────────────────────────────────────────────────
+# Pedro, 15/10/2026: "essa Nay vai responder no WhatsApp Parceria" (a Nay proprietários da OLX, migração 374). Não há
+# modelo nem janela: a mensagem entra na caixa da Nay (nai_saida, papel 'entrega') e o nay-enviador-manual entrega
+# pela Z-API da Parceria, como a Mensagem de negociação da captação ativa.
+PARCERIA = """
+WITH t AS (
+  INSERT INTO nai_turno (contato_id, papel, texto)
+  VALUES (nai_contato_do_cadastro(nai_cfg('tel_telefone'), 'Tel'), 'tel',
+          left('Nay proprietários da OLX para ' || %(tel)s || ': ' || %(texto)s, 500))
+  RETURNING id
+), s AS (
+  SELECT t.id AS turno,
+         nai_enfileirar_texto(t.id, NULL, nai_contato_do_cadastro(%(tel)s, nullif(%(nome)s, '')), 'entrega', %(texto)s,
+                              'olx_proprietario', %(ordem)s) AS saida
+    FROM t
+)
+SELECT turno, saida FROM s
+"""
+
+
+def parceria(conn, telefone: str, nome: str, mensagem: str, ordem: int = 1) -> str | None:
+    """Põe o balão na fila da Parceria. Devolve 'fila:<id>' (o id da Z-API chega depois, em nai_saida), ou None."""
+    from captacao import banco   # aqui: banco não depende deste módulo, mas o envio oficial não precisa do banco
+    r = banco.linhas(conn, PARCERIA, {"tel": so_digitos(telefone), "nome": nome or "", "texto": mensagem, "ordem": ordem})
+    if not r or not r[0]["saida"]:
+        log.warning("a mensagem não entrou na fila da Parceria para …%s", so_digitos(telefone)[-4:])
+        return None
+    banco.linhas(conn, "UPDATE nai_saida SET enviar_apos = now() WHERE id = %s AND estado = 'pendente'", (r[0]["saida"],))
+    banco.linhas(conn, "UPDATE nai_turno SET fechado_em = now() WHERE id = %s", (r[0]["turno"],))
+    return f"fila:{r[0]['saida']}"

@@ -136,6 +136,9 @@ def atender(conn, telefone: str, enviar: bool = True, agora: datetime | None = N
             break
         if not enviar:
             mid = "ensaio"
+        elif r[0]["canal"] == "parceria":
+            # 374: a Nay proprietários da OLX conversa pela Parceria (Z-API), pela caixa da Nay
+            mid = envio.parceria(conn, t.telefone, t.nome, b.texto)
         elif r[0]["canal"] != "oficial":
             log.warning("…%s está no canal %s: este serviço só envia pelo número oficial", t.telefone[-4:], r[0]["canal"])
             mid = None

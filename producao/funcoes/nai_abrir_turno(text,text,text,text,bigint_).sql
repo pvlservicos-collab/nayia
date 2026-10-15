@@ -100,6 +100,22 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'motivo', 'tel_assumiu', 'contato_id', v_contato);
   END IF;
 
+  -- 374 (Pedro, 15/10/2026): O DONO DA OLX NA PARCERIA. Quem conversa com a Nay proprietários da OLX pela Parceria
+  -- não é corretor: a mensagem vai para a fila dela (captacao_mensagens, 'Recebido py', o serviço nay-captacao
+  -- responde) e a NAI não atende. Depois do "o Tel assumiu", de propósito: gente no chat cala as duas.
+  DECLARE v_olx bigint := captacao_olx_da_parceria(p_tel, v_contato);
+  BEGIN
+    IF v_olx IS NOT NULL THEN
+      INSERT INTO captacao_mensagens (lead_id, telefone, direcao, origem, texto, status, criada_em)
+      SELECT v_olx, l.telefone, 'recebida', 'texto', coalesce(p_texto, ''), 'Recebido py', now() - interval '20 seconds'
+        FROM captacao_leads l WHERE l.id = v_olx AND btrim(coalesce(p_texto, '')) <> '';
+      UPDATE captacao_leads SET status = CASE WHEN status IN ('enviado', 'reservado', 'erro') THEN 'respondendo' ELSE status END,
+             respondeu_em = coalesce(respondeu_em, now()), atualizado_em = now()
+       WHERE id = v_olx;
+      RETURN jsonb_build_object('ok', false, 'motivo', 'olx_proprietario', 'contato_id', v_contato, 'lead_captacao', v_olx);
+    END IF;
+  END;
+
   IF v_teste THEN
     -- No teste, o mesmo numero faz todos os papeis. O papel vem da MARCACAO
     -- (ele respondeu marcando a mensagem que iria para o proprietario) ou

@@ -1,4 +1,4 @@
-"""A NAY PROPRIETÁRIOS DA OLX: o dono que anunciou na OLX, pelo número oficial, com o roteiro do Pedro.
+"""A NAY PROPRIETÁRIOS DA OLX: o dono que anunciou na OLX, pelo WhatsApp da PARCERIA (374), com o roteiro do Pedro.
 
 Pedro, 14/10/2026, com o "SCRIPT APÓS OLX": "monta uma nay cópia da nay captação que atende na api oficial, mas essa
 vai funcionar captando os proprietários da OLX, a gente já vai ter o nome e número deles, e algumas informações do
@@ -9,7 +9,9 @@ ELA MORA DENTRO DESTE SERVIÇO. O lead é um lead comum da captação; ser "da O
 (migração 370), com o anúncio e as respostas. O atender.py pergunta `dados()`: se o lead é da OLX, o prompt, o
 cabeçalho do turno e as ferramentas são os daqui. Todo o resto é o da captação, sem cópia: a fila e o silêncio de
 20 s, a reserva, "gente escreveu pelo CRM = ela cala" (captacao_ainda_e_da_ia), o SILENCIO depois da despedida, o
-portão de saída (sem emoji, sem prometer retorno do Tel), a escalada ao Tel e o envio pelo número oficial.
+portão de saída (sem emoji, sem prometer retorno do Tel) e a escalada ao Tel. Desde a 374 (Pedro, 15/10: "essa Nay vai
+responder no WhatsApp Parceria") lead com canal 'parceria' conversa pela Z-API da Parceria: a abertura é texto, sem
+modelo, e a entrada vem de nai_abrir_turno (captacao_olx_da_parceria).
 
 QUEM ESCOLHE A PERGUNTA É O BANCO (`captacao_olx_proxima`), por perfil (venda/locação x apartamento de escada ou de
 elevador, casa de condomínio, casa de via pública), pulando o que o anúncio já diz. Ela só pergunta, anota com
@@ -47,7 +49,7 @@ SELECT o.lead_id, o.codigo, o.anuncio, o.respostas, o.aberto_em, l.status = 'con
 
 PROMPT = """Você é a Nay, da Imob Easy, imobiliária de Manaus. Internamente o seu nome é "Nay proprietários da OLX".
 Neste número você fala com PROPRIETÁRIOS que anunciaram o próprio imóvel na OLX. A Imob Easy já conversou com ele pela
-OLX sobre esse anúncio, e a primeira mensagem desta conversa (o modelo oficial) já disse quem você é.
+OLX sobre esse anúncio, e a primeira mensagem desta conversa (a abertura) já disse quem você é.
 O seu trabalho é UM só: completar as informações do imóvel dele, uma pergunta por vez, seguindo o roteiro que o sistema
 te entrega pronto. O dono da imobiliária é o Tel. Ele decide o que você não decide.
 
@@ -232,7 +234,7 @@ def cabecalho(t: Turno, d: dict, agora: datetime) -> str:
         "o anúncio dele na OLX, que já temos: " + resumo_do_anuncio(d) + ".",
     ]
     if not d.get("aberto_em") and not d.get("ja_falou"):
-        partes.append("ATENÇÃO: a primeira mensagem (o modelo oficial) NÃO saiu: foi ele quem escreveu primeiro. Nesta resposta, "
+        partes.append("ATENÇÃO: a primeira mensagem (a abertura) NÃO saiu: foi ele quem escreveu primeiro. Nesta resposta, "
                       "apresente-se com a abertura do roteiro -- \"Olá, " + (t.tratamento + " " if t.tratamento else "")
                       + (t.nome or "") + ", aqui é a Nay, da Imob Easy. Conversamos na OLX sobre o seu imóvel e gostaria de "
                       "tirar uma dúvida.\" -- e, depois de uma linha em branco, faça a próxima pergunta do roteiro.")
@@ -325,13 +327,14 @@ def executar(conn, nome: str, args: dict, telefone: str, nome_do_dono: str = "",
 # ── a primeira mensagem (o modelo da Meta) ───────────────────────────────────────────────────────────────────────
 
 LEAD = """
-SELECT l.id, l.telefone, l.nome, l.tratamento, l.opt_out, l.humano_assumiu_em IS NOT NULL AS com_gente, o.aberto_em
+SELECT l.id, l.telefone, l.nome, l.tratamento, l.opt_out, l.humano_assumiu_em IS NOT NULL AS com_gente, o.aberto_em,
+       coalesce(l.canal, 'oficial') AS canal
   FROM captacao_leads l JOIN captacao_olx o ON o.lead_id = l.id WHERE l.id = %s
 """
 MODELOS = "SELECT coalesce((SELECT valor FROM captacao_config WHERE chave = 'olx_abertura_modelos'), '') AS v"
 ABERTOS = """
 UPDATE captacao_olx SET aberto_em = now(), atualizado_em = now() WHERE lead_id = %(lead)s;
-UPDATE captacao_leads SET status = 'enviado', canal = 'oficial', tentativas = tentativas + 1, ultimo_envio_em = now(),
+UPDATE captacao_leads SET status = 'enviado', canal = %(canal)s, tentativas = tentativas + 1, ultimo_envio_em = now(),
        pergunta_pendente = NULL, atualizado_em = now()
  WHERE id = %(lead)s;
 INSERT INTO captacao_motor (lead_id) VALUES (%(lead)s) ON CONFLICT (lead_id) DO NOTHING;
@@ -352,6 +355,18 @@ SELECT o.lead_id FROM captacao_olx o JOIN captacao_leads l ON l.id = o.lead_id
 """
 
 
+def abertura_da_parceria(tratamento: str | None, nome: str | None) -> str:
+    """A abertura do "SCRIPT APÓS OLX", com o tratamento certo (sem tratamento conhecido: só o primeiro nome)."""
+    from captacao.turno import primeiro_nome
+    p = primeiro_nome(nome)
+    if tratamento in ("Sr.", "Sra."):
+        quem, com = f"{tratamento} {p}" if p else tratamento, ("com o Sr." if tratamento == "Sr." else "com a Sra.")
+    else:
+        quem, com = p, "com você"
+    return (f"Olá, {quem}! Aqui é a Nay, da Imob Easy. Conversamos na OLX sobre o seu imóvel e gostaria de tirar uma "
+            f"dúvida {com}").rstrip(".").replace("Olá, !", "Olá!") + "."
+
+
 def abrir(conn, lead_id: int) -> str:
     """Manda o primeiro modelo aprovado de captacao_config.olx_abertura_modelos. Não aprovado ainda = tenta de novo depois."""
     from captacao.disparo import vocativo   # aqui para não criar laço de importação
@@ -366,11 +381,21 @@ def abrir(conn, lead_id: int) -> str:
     quem = vocativo(lead["tratamento"], lead["nome"])
     if not quem:
         return "RECUSADO: sem nome para o modelo"
+    if lead["canal"] == "parceria":
+        # 374: pela Parceria (Z-API) a abertura é o texto do roteiro, sem modelo da Meta
+        texto = abertura_da_parceria(lead["tratamento"], lead["nome"])
+        mid = envio.parceria(conn, lead["telefone"], lead["nome"], texto)
+        if mid:
+            banco.linhas(conn, ABERTOS, {"lead": lead_id, "tel": lead["telefone"], "texto": texto, "mid": mid, "canal": "parceria"})
+            return f"abertura pela Parceria para …{lead['telefone'][-4:]}: {texto}"
+        banco.linhas(conn, "UPDATE captacao_olx SET abertura_tentada_em = now() WHERE lead_id = %s", (lead_id,))
+        return "NÃO SAIU: a abertura não entrou na fila da Parceria"
     erros = []
     for modelo in [m.strip() for m in banco.linhas(conn, MODELOS)[0]["v"].split(",") if m.strip()]:
         mid, texto, erro = envio.modelo(lead["telefone"], modelo, "pt_BR", [quem])
         if mid:
-            banco.linhas(conn, ABERTOS, {"lead": lead_id, "tel": lead["telefone"], "texto": texto or f"[modelo {modelo}]", "mid": mid})
+            banco.linhas(conn, ABERTOS, {"lead": lead_id, "tel": lead["telefone"], "texto": texto or f"[modelo {modelo}]", "mid": mid,
+                                         "canal": "oficial"})
             return f"abertura ({modelo}) enviada para …{lead['telefone'][-4:]}: {texto}"
         erros.append(f"{modelo}: {erro}")
         if (erro or "").startswith(envio.INCERTO):
