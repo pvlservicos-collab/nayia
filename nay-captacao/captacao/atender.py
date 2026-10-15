@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Callable
 
-from captacao import banco, config, envio, ferramentas, modelo, resposta, turno, venda
+from captacao import banco, config, envio, ferramentas, modelo, olx, resposta, turno, venda
 
 log = logging.getLogger("captacao.atender")
 HISTORICO = 20   # o mesmo tamanho da memória do agente no fluxo
@@ -114,10 +114,16 @@ def atender(conn, telefone: str, enviar: bool = True, agora: datetime | None = N
         return feito
     feito.recebido = t.texto
 
+    agora = agora or datetime.now(timezone.utc)
+    # o proprietário que veio da OLX (370): o prompt, o turno e as ferramentas são os da Nay proprietários da OLX
+    d = olx.dados(conn, t.telefone)
+    if d:
+        prompt, texto, defs, executor = olx.PROMPT, olx.cabecalho(t, d, agora), olx.definicoes(), olx.executar
+    else:
+        prompt, texto, defs, executor = _prompt(conn, t), turno.cabecalho(t, agora), ferramentas.definicoes(), ferramentas.executar
     saida, feito.ferramentas = modelo.responder(
-        _prompt(conn, t), _historico(conn, t), turno.cabecalho(t, agora or datetime.now(timezone.utc)),
-        ferramentas.definicoes(),
-        lambda nome, args: ferramentas.executar(
+        prompt, _historico(conn, t), texto, defs,
+        lambda nome, args: executor(
             conn, nome, args, t.telefone, t.nome,
             avisar=lambda aviso: _avisar_tel(conn, aviso, t.telefone),
             encaminhar=(lambda texto: _encaminhar_indicacao(conn, texto, t.telefone)) if enviar else None))

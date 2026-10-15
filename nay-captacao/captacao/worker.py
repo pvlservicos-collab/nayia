@@ -21,7 +21,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from captacao import banco, cadastro, config, disparo
+from captacao import banco, cadastro, config, disparo, olx
 from captacao.atender import atender
 
 log = logging.getLogger("captacao.worker")
@@ -114,6 +114,12 @@ def disparador(parar: threading.Event) -> None:
         try:
             if conn is None or conn.closed:
                 conn = banco.conectar()
+            # a primeira mensagem da Nay proprietários da OLX (370), para quem está liberado em olx_telefones
+            try:
+                for linha in olx.abridor(conn):
+                    log.info("olx: %s", linha)
+            except Exception:  # noqa: BLE001 -- a abertura da OLX não para o disparo da captação
+                log.exception("a abertura da OLX falhou; tento de novo na próxima volta")
             saida = disparo.proximo(conn)
             if saida:
                 ritmo = banco.linhas(conn, RITMO)[0]

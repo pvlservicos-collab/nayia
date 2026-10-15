@@ -77,6 +77,25 @@ O prompt é o MESMO, o vivo do banco (`nai_prompt_de('captacao')`), com um acré
 Tirar um número da lista devolve o número ao fluxo antigo na mensagem seguinte. E todo lead de `captacao_motor`
 (quem recebeu o modelo pelo disparo daqui).
 
+## A Nay proprietários da OLX (migração 370, 15/10/2026)
+
+O dono que anunciou na OLX, pelo número oficial, com o "SCRIPT APÓS OLX" do Pedro. Mora aqui dentro para herdar as
+regras gerais (silêncio de 20 s, gente escreveu pelo CRM = ela cala, escalada calada ao Tel, SILENCIO, sem emoji).
+Ser "da OLX" é ter linha em `captacao_olx` (o anúncio que já temos e as respostas): aí `atender.py` usa o prompt, o
+cabeçalho e as ferramentas de `captacao/olx.py`.
+
+- O roteiro está no banco: `captacao_olx_proxima(telefone)` escolhe a pergunta por perfil (venda/locação x apartamento
+  de escada ou elevador, casa de condomínio, casa de via pública) e pula o que o anúncio já diz;
+  `captacao_olx_guardar` grava e devolve a próxima com as palavras exatas (6% não inclusos = "margem de 10% a mais";
+  honorários abaixo de 5% = escala); `captacao_olx_encerrar` não encerra antes da hora.
+- A primeira mensagem é um modelo da Meta (`captacao_config.olx_abertura_modelos`, o primeiro aprovado), mandado pelo
+  `disparador` (a cada volta, `olx.abridor`) só para quem está em `captacao_config.olx_telefones` (hoje só o Pedro).
+  Não aprovado ainda = tenta de novo a cada 15 min. Se ele escrever antes, ela se apresenta e o modelo não vai mais.
+- Pôr um dono: `python -m captacao.olx novo <código> [telefone nome]` (ou `SELECT captacao_olx_novo(...)`), e o
+  telefone em `olx_telefones`. Ver: `python -m captacao.olx ver <lead>`. Mandar a abertura já: `python -m captacao.olx abrir <lead>`.
+- Ensaio: `python -m captacao.ensaio_olx todos` (pedro, elevador_locacao, casa_cond_venda, casa_rua_locacao,
+  honorarios_4, metade_locacao, pergunta, escreveu_primeiro, parar).
+
 ## Ligar e acompanhar o disparo
 
 ```
