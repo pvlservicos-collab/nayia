@@ -22,7 +22,7 @@ const API = process.env.SITE_API_INTERNA || 'http://nay-site-api:8092'
 
 // 01/10/2026: imovel-novo.html (o cadastro redesenhado) entra aqui também --
 // sem isto o botão "Novo imóvel" da aba Imóveis do CRM cairia em 404.
-export const PAGINAS_DO_PAINEL = new Set(['imoveis.html', 'imovel-editar.html', 'imovel-novo.html'])
+export const PAGINAS_DO_PAINEL = new Set(['imoveis.html', 'imovel-editar.html', 'imovel-novo.html', 'visao-geral.html'])
 
 /** Caminho seguro: sem "..", sem barra invertida, sem nada que saia da pasta. */
 export function caminhoLimpo(partes: string[]): string | null {

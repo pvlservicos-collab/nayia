@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visão geral — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/visao-geral.css?v=20261015a">
+</head>
+<body class="admin" data-pagina="visao-geral">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<!-- 15/10/2026 (Pedro): "uma página nova, tanto no site como no CRM, chama Visão geral, e organize todo o meu projeto
+     e recursos na VPS em um fluxograma conectado, todas as Nays e onde elas estão". O CRM mostra esta mesma página
+     (aba Visão geral, pelo proxy do site). O mapa e as frases do (i) estão em assets/js/visao-geral.js. -->
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <div>
+      <h1 class="pagina-titulo">Visão geral</h1>
+      <p class="pagina-subtitulo">O projeto inteiro nas duas VPS: quem fala com a gente, por onde, qual Nay atende e onde tudo fica.</p>
+    </div>
+  </div>
+
+  <section class="vg" data-estado-proprio>
+    <div class="vg-topo">
+      <div class="vg-numeros vg-vidro" id="vg-numeros"></div>
+      <div class="vg-legenda vg-vidro" id="vg-legenda" aria-label="Etapas"></div>
+    </div>
+    <p class="vg-dica">Toque numa bolinha para acender as ligações dela, no <b>i</b> para saber o que é, ou numa etapa para ver só ela.</p>
+    <div class="vg-palco" id="vg-palco">
+      <svg class="vg-mapa" id="vg-mapa" viewBox="0 0 1640 1015" role="img" aria-label="Mapa do projeto nas duas VPS"></svg>
+      <div class="vg-balao" id="vg-balao" role="status" hidden></div>
+    </div>
+  </section>
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/visao-geral.js?v=20261015a"></script>
+</body>
+</html>

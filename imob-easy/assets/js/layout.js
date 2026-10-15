@@ -32,6 +32,9 @@
     locacao:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
       '<circle cx="7.5" cy="15.5" r="3.2"/><path d="M9.8 13.2 17.5 5.5l1.5 1.5-1.5 1.5 1.5 1.5-1.5 1.5-5.3 5.3"/></svg>',
+    "visao-geral":
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M7.4 11 16.6 7M7.4 13l9.2 4"/></svg>',
     agentes:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">' +
       '<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/>' +
@@ -61,6 +64,8 @@
      Anúncios, Clientes e o que já estava em "Mais") vai pro dropdown "+". */
   var MENU = [
     { chave: "inicio",        rotulo: "Início",           href: "inicio.html" },
+    /* 15/10/2026 (Pedro): "uma página nova, tanto no site como no CRM, chama Visão geral": o mapa do projeto nas VPS */
+    { chave: "visao-geral",   rotulo: "Visão geral",      href: "visao-geral.html" },
     { chave: "imoveis",       rotulo: "Todos os Imóveis", href: "imoveis.html" },
     { chave: "proprietarios", rotulo: "Proprietários",    href: "proprietarios.html" },
     { chave: "corretores",    rotulo: "Corretores",       href: "corretores.html" },

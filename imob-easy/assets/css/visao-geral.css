@@ -1,0 +1,145 @@
+/* VISÃO GERAL (15/10/2026): o mapa do projeto nas duas VPS, em vidro, com as cores por etapa. */
+.vg {
+  --vg-fundo: #f3f5fb;
+  --vg-vidro: rgba(255, 255, 255, 0.58);
+  --vg-vidro-borda: rgba(255, 255, 255, 0.85);
+  --vg-linha: rgba(31, 41, 74, 0.10);
+  --vg-texto: #1c2340;
+  --vg-texto-2: #6b7390;
+  --vg-sombra: 0 18px 50px rgba(30, 40, 90, 0.10);
+  position: relative;
+  isolation: isolate;
+  /* usa a largura da tela, não só a coluna do admin (dentro do CRM o quadro já é a tela toda) */
+  width: min(1640px, calc(100vw - 32px));
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 28px;
+  padding: 22px;
+  background: var(--vg-fundo);
+  overflow: hidden;
+}
+/* as manchas de cor por trás do vidro */
+.vg::before, .vg::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.45;
+  pointer-events: none;
+}
+.vg::before { width: 520px; height: 520px; left: -120px; top: -160px; background: radial-gradient(circle, #1d9bd7 0%, transparent 70%); }
+.vg::after { width: 560px; height: 560px; right: -160px; bottom: -200px; background: radial-gradient(circle, #e8475f 0%, transparent 70%); }
+
+html.crm-escuro .vg {
+  --vg-fundo: #0f1220;
+  --vg-vidro: rgba(30, 36, 60, 0.55);
+  --vg-vidro-borda: rgba(255, 255, 255, 0.10);
+  --vg-linha: rgba(255, 255, 255, 0.08);
+  --vg-texto: #eef1fb;
+  --vg-texto-2: #9aa3c0;
+  --vg-sombra: 0 18px 50px rgba(0, 0, 0, 0.35);
+}
+
+.vg-topo { display: flex; flex-wrap: wrap; gap: 14px; align-items: stretch; margin-bottom: 16px; }
+.vg-vidro {
+  background: var(--vg-vidro);
+  border: 1px solid var(--vg-vidro-borda);
+  border-radius: 22px;
+  box-shadow: var(--vg-sombra);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+}
+
+/* os números em anel (o estilo dos componentes do infográfico) */
+.vg-numeros { display: flex; flex-wrap: wrap; gap: 14px; padding: 14px 18px; flex: 1 1 520px; }
+.vg-anel {
+  --p: 50;
+  width: 92px; height: 92px; border-radius: 50%; flex: 0 0 auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  background:
+    radial-gradient(closest-side, var(--vg-fundo) 76%, transparent 78% 100%),
+    conic-gradient(var(--c) calc(var(--p) * 1%), var(--vg-linha) 0);
+}
+.vg-anel span { font: 700 26px/1 Barlow, system-ui, sans-serif; color: var(--c); }
+.vg-anel small { font: 500 10.5px/1.15 Rubik, system-ui, sans-serif; color: var(--vg-texto-2); max-width: 64px; margin-top: 3px; }
+
+.vg-legenda { display: flex; flex-wrap: wrap; gap: 8px; align-content: center; padding: 14px 16px; flex: 1 1 360px; }
+.vg-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 12px 7px 9px; border-radius: 999px; cursor: pointer;
+  font: 600 13px/1 Rubik, system-ui, sans-serif; color: var(--vg-texto);
+  background: rgba(255, 255, 255, 0.35); border: 1px solid var(--vg-vidro-borda);
+  transition: transform .15s ease, background .15s ease, box-shadow .15s ease;
+}
+html.crm-escuro .vg-chip { background: rgba(255, 255, 255, 0.04); }
+.vg-chip i { width: 11px; height: 11px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 22%, transparent); }
+.vg-chip b { font-weight: 700; color: var(--vg-texto-2); font-size: 12px; }
+.vg-chip:hover { transform: translateY(-1px); }
+.vg-chip[aria-pressed="true"] { background: var(--c); color: #fff; border-color: transparent; box-shadow: 0 8px 22px color-mix(in srgb, var(--c) 40%, transparent); }
+.vg-chip[aria-pressed="true"] b { color: rgba(255, 255, 255, .85); }
+.vg-chip[aria-pressed="true"] i { background: #fff; box-shadow: none; }
+
+.vg-dica { font: 400 12.5px/1.4 Rubik, system-ui, sans-serif; color: var(--vg-texto-2); margin: 0 4px 10px; }
+
+/* o mapa */
+.vg-palco { position: relative; overflow-x: auto; overflow-y: hidden; border-radius: 24px; -webkit-overflow-scrolling: touch; }
+.vg-mapa { display: block; width: 100%; min-width: 1080px; height: auto; user-select: none; }
+
+.vg-painel { fill: var(--vg-vidro); stroke: var(--vg-vidro-borda); stroke-width: 1.2; }
+.vg-painel--fora { fill: transparent; stroke: var(--vg-linha); stroke-dasharray: 6 8; }
+.vg-painel__titulo { font: 700 22px Barlow, system-ui, sans-serif; fill: var(--vg-texto); letter-spacing: .02em; }
+.vg-painel__sub { font: 500 12px Rubik, system-ui, sans-serif; fill: var(--vg-texto-2); }
+
+/* em repouso, linhas finas e lisas; o fluxo anda só nas ligações da bolinha escolhida */
+.vg-lig {
+  fill: none; stroke-width: 1.6; stroke-opacity: .30; stroke-linecap: round;
+  transition: stroke-opacity .2s ease, stroke-width .2s ease;
+}
+.vg-lig--tracejada { stroke-dasharray: 6 6; }
+.vg-lig--ia { stroke-opacity: .12; stroke-dasharray: 1 6; }
+.vg-lig__rotulo { font: 600 11px Rubik, system-ui, sans-serif; fill: var(--vg-texto-2); text-anchor: middle; }
+@keyframes vg-fluxo { to { stroke-dashoffset: -44; } }
+@media (prefers-reduced-motion: reduce) { .vg-lig, .vg-com-foco .vg-lig.vg-aceso, .vg-balao { animation: none; } }
+
+.vg-no { cursor: pointer; outline: none; transition: opacity .2s ease; }
+.vg-no__halo { opacity: 0; transition: opacity .2s ease; }
+.vg-no:hover .vg-no__halo, .vg-no:focus-visible .vg-no__halo { opacity: .18; }
+.vg-no__vidro { fill: none; stroke: rgba(255, 255, 255, .55); stroke-width: 1.5; }
+.vg-no__icone { fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.vg-no__nome { font: 600 13.5px Rubik, system-ui, sans-serif; fill: var(--vg-texto); text-anchor: middle; }
+.vg-no__sub { font: 400 11px Rubik, system-ui, sans-serif; fill: var(--vg-texto-2); text-anchor: middle; }
+.vg-no__info circle { fill: #fff; stroke: rgba(28, 35, 64, .18); stroke-width: 1; transition: transform .15s ease; }
+.vg-no__info text { font: 700 11px Georgia, serif; font-style: italic; fill: #1c2340; text-anchor: middle; pointer-events: none; }
+.vg-no__info:hover circle { transform: scale(1.18); }
+
+/* foco: o que não tem a ver some um pouco */
+.vg-com-foco .vg-no { opacity: .22; }
+.vg-com-foco .vg-no.vg-aceso { opacity: 1; }
+.vg-com-foco .vg-no.vg-aceso .vg-no__halo { opacity: .2; }
+.vg-com-foco .vg-lig { stroke-opacity: .06; }
+.vg-com-foco .vg-lig.vg-aceso { stroke-opacity: .9; stroke-width: 2.6; stroke-dasharray: 8 7; animation: vg-fluxo 1.6s linear infinite; }
+.vg-com-foco .vg-lig--ia.vg-aceso { stroke-opacity: .7; }
+
+/* o balão do (i): uma frase */
+.vg-balao {
+  position: absolute; z-index: 5; width: 250px; padding: 12px 14px 11px;
+  font: 400 13px/1.4 Rubik, system-ui, sans-serif; color: var(--vg-texto);
+  background: var(--vg-vidro); border: 1px solid var(--vg-vidro-borda); border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(20, 28, 70, .18);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5); backdrop-filter: blur(20px) saturate(1.5);
+  animation: vg-surge .16s ease-out;
+}
+.vg-balao[hidden] { display: none; }
+.vg-balao strong { display: block; font: 700 15px Barlow, system-ui, sans-serif; margin: 6px 0 2px; }
+.vg-balao p { margin: 0 0 8px; color: var(--vg-texto); }
+.vg-balao__etapa { display: inline-block; font: 600 10.5px Rubik, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #fff; background: var(--c); border-radius: 999px; padding: 3px 8px; }
+.vg-balao__onde { font: 500 11.5px Rubik, sans-serif; color: var(--vg-texto-2); }
+@keyframes vg-surge { from { opacity: 0; transform: translateY(4px); } }
+
+@media (max-width: 700px) {
+  .vg { padding: 14px; border-radius: 22px; }
+  .vg-anel { width: 76px; height: 76px; }
+  .vg-anel span { font-size: 22px; }
+  .vg-numeros { justify-content: center; }
+}

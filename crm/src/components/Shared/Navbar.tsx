@@ -25,6 +25,7 @@ import {
   PaperPlaneTilt,
   UsersThree,
   ChatsCircle,
+  Graph,
 } from '@phosphor-icons/react'
 import { useAuth, usePipeline } from '@/hooks'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -64,6 +65,9 @@ const NAV_ITEMS = [
   // com vários quadradinhos, cada um um corretor, com as métricas". O Funil de
   // Mensagens foi para dentro de Configurações.
   { label: 'Corretores', href: '/corretores', icon: IdentificationBadge, mais: true },
+  // VISÃO GERAL (Pedro, 15/10/2026: "uma página nova, tanto no site como no CRM, chama Visão geral"): o mapa do projeto
+  // nas duas VPS. É a página do site (/admin/visao-geral.html) servida aqui dentro, como a aba Imóveis.
+  { label: 'Visão geral', href: '/visao-geral', icon: Graph, mais: true },
   { label: 'Configurações', href: '/settings/organization', icon: Gear, mais: true },
 ]
 
@@ -174,6 +178,7 @@ export default function Navbar() {
       case 'Logs': return !!permissions.settings?.view_logs
       case 'Métricas': return !!permissions.settings?.view_metrics
       case 'Configurações': return !!permissions.settings?.view_settings
+      case 'Visão geral': return true
       default: return false
     }
   }
