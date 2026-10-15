@@ -63,12 +63,21 @@ SONDA (a remoção de um id que não existe: não cria nem apaga nada) e começa
 **Nenhum anúncio de verdade foi mandado até hoje.** O formato segue a documentação e os testes, mas a primeira
 publicação real é a prova: comece com o teto baixo e confira o anúncio na OLX.
 
-## A Nay da OLX (o que falta)
+## A Nay da OLX (no ar desde 15/10/2026)
 
-`olx/nay.py`, função `decidir(contexto)`. Hoje devolve `None` (não responde). Quando ela existir, devolve os
-balões a mandar e/ou o motivo para passar a conversa para gente. O resto já funciona: a fila, a reserva (uma
-conversa é respondida por um de cada vez), o envio pelo chat da OLX, a gravação que aparece no CRM, e a regra de
-que **gente respondeu, a Nay cala** naquela conversa.
+`olx/nay.py` (`decidir`), com o modelo de `olx/modelo.py` (gpt-6-luna; a chave é a do nay-captacao, lida do .env dele).
+Por etapas: responde a dúvida sobre o imóvel do anúncio (ficha `site_imovel_publico`, sem a observação interna; o
+catálogo `nai_resposta_da_base` vai como sugestão) -> convida para a visita -> pede nome e WhatsApp -> agradece e
+ENTREGA: a conversa vai para gente e o grupo da equipe recebe "Lead X solicitou visita pela OLX, número ...".
+Proposta, documentação, contrato, outro imóvel e corretor também são entregues ("quer falar com a equipe").
+Venda e locação têm regras separadas no prompt. Paredes em código: sem anúncio ela não fala, sem telefone válido não
+há entrega, balão sem link/telefone/emoji (no máximo 3), 20 mensagens nossas e a conversa vai para gente.
+Se a OLX recusar o envio ou o modelo falhar: vai para gente e o grupo é avisado (`olx/grupo.py`, pela Parceria).
+O resto já existia: a fila, a reserva, o silêncio de 20 s e **gente respondeu, a Nay cala** por 24 h.
+
+A OLX devolve 403 (embrulhado num 500) SÓ na conversa 5 ("Imobeasy Manaus", teste do Pedro); na conversa 6 o mesmo
+envio deu 200 (15/10). `avisar_grupo = sim` manda ao grupo TODA mensagem que chega (era o plano enquanto ela não
+respondia); hoje está `nao`.
 
 ## Rodar
 
@@ -80,6 +89,8 @@ cd /root/nay-olx && set -a && . ./.env && set +a
 .venv/bin/python -m olx.anuncios sonda            # a OLX deixa esta conta publicar? (não publica nada)
 .venv/bin/python -m olx.chat fila                 # as conversas que esperam resposta
 .venv/bin/python -m olx.chat contexto 12          # o que a Nay recebe para responder a conversa 12
+.venv/bin/python -m olx.chat ensaio 12            # o que ela diria agora (modelo de verdade), SEM mandar
+.venv/bin/python -m olx.grupo ver                 # o que o aviso por mensagem mandaria ao grupo
 .venv/bin/python -m olx.chat responder 12 "..."   # manda DE VERDADE no chat da OLX
 python -m unittest discover -s tests              # as partes puras (roda em qualquer máquina)
 ```
