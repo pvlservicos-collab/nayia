@@ -1,4 +1,4 @@
-# condominio_ficha  (tabela, ~463 linhas)
+# condominio_ficha  (tabela, ~465 linhas)
 
 ## colunas
 id  integer  NOT NULL  padrão nextval('condominio_ficha_id_seq'::regclass)

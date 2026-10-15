@@ -16,6 +16,7 @@ Pela linha de comando (no servidor, com o .env carregado):
   python -m olx.anuncios ver 3050 venda    o anúncio de um imóvel, como iria (ou por que não vai)
   python -m olx.anuncios sonda [conta]     pergunta à OLX se a conta pode publicar pela API. Não publica nada.
   python -m olx.anuncios rodada            uma rodada agora (só anda com publicar = sim)
+  python -m olx.anuncios publicar 5758 ... publica JÁ estes códigos (ordem de gente: ignora publicar e teto)
   python -m olx.anuncios conferir | situacao
 """
 from __future__ import annotations
@@ -96,6 +97,58 @@ def rodada(conn, cfg: dict[str, str]) -> dict:
     return {"feito": r.mensagem, "nao": True}
 
 
+def publicar_lista(conn, cfg: dict[str, str], codigos: list[int], conta: str = "", lote: int = 5) -> dict:
+    """Publica JÁ os imóveis pedidos à mão (Pedro, 14/10: "Dispara esses na olx", com a lista do Tel), venda e/ou
+    locação conforme o cadastro. É uma ordem de gente: não olha `publicar` nem o teto. Cada imóvel fica registrado
+    como os da rodada, então o serviço confere a moderação e depois atualiza ou remove sozinho.
+    Vai em lotes pequenos porque um anúncio que falha cancela a importação inteira (-4)."""
+    conta = conta or cfg.get("conta_que_publica") or "proprietarios"
+    token = banco.token_da_conta(conn, conta)
+    if not token:
+        raise api.ErroDaOlx(f"a conta {conta} não está conectada à OLX")
+    prontos, fora = [], []
+    for c in codigos:
+        for negocio in ("venda", "locacao"):
+            m = banco.um(conn, "SELECT olx_anuncio_montar(%s, %s)", (c, negocio)) or {}
+            if m.get("ok"):
+                prontos.append({"codigo": c, "negocio": negocio, "ad_id": m["ad_id"], "anuncio": m["anuncio"], "hash": m["hash"]})
+            else:
+                motivo = m.get("barrado") or "; ".join(m.get("falta") or []) or "não monta"
+                if not (negocio == "locacao" and "sem valor de aluguel" in motivo):   # só de venda: normal
+                    fora.append(f"{c} {negocio}: {motivo}")
+    enviados, falhas = [], []
+    fila = list(prontos)
+    while fila:
+        grupo, fila = fila[:lote], fila[lote:]
+        for tentativa in range(2):
+            r = api.ler_importacao(api.importar(token, [p["anuncio"] for p in grupo]))
+            if r.aceita:
+                for p in grupo:
+                    if p["ad_id"] in r.ignorados:
+                        falhas.append(f"{p['ad_id']}: a OLX deixou de fora (limite)")
+                        continue
+                    banco.um(conn, "SELECT olx_anuncio_enviado(%s, %s, %s, %s, 'insert', %s::jsonb, %s, %s)",
+                             (p["ad_id"], p["codigo"], p["negocio"], conta, banco.js(p["anuncio"]), p["hash"], r.token))
+                    enviados.append(p["ad_id"])
+                log.info("lote: %s | %s", r.mensagem, ", ".join(p["ad_id"] for p in grupo))
+                break
+            if r.codigo == -4 and r.erros and tentativa == 0:
+                ruins = [p for p in grupo if p["ad_id"] in r.erros]
+                for p in ruins:
+                    banco.um(conn, "SELECT olx_anuncio_falhou(%s, %s, %s, %s, %s::jsonb, %s, %s)",
+                             (p["ad_id"], p["codigo"], p["negocio"], conta, banco.js(p["anuncio"]), p["hash"],
+                              f"a OLX recusou na validação: {r.erros[p['ad_id']]}"))
+                    falhas.append(f"{p['ad_id']}: {r.erros[p['ad_id']]}")
+                grupo = [p for p in grupo if p["ad_id"] not in r.erros]
+                if grupo:
+                    continue        # o resto do lote vai de novo, sem quem falhou
+                break
+            falhas.extend(f"{p['ad_id']}: {r.mensagem}" for p in grupo)
+            log.warning("lote recusado: %s", r.mensagem)
+            break
+    return {"conta": conta, "enviados": enviados, "falhas": falhas, "fora": fora}
+
+
 def conferir(conn) -> int:
     """O que a moderação da OLX fez com o que mandamos. Devolve quantos anúncios mudaram de estado."""
     pendentes = banco.linhas(conn, "SELECT * FROM olx_anuncios_a_conferir()")
@@ -161,6 +214,16 @@ def main(argv: list[str]) -> int:
             print(f"conta {conta}: {r.mensagem} -> permissão: {r.permissao or 'indefinida'}")
         elif comando == "rodada":
             print(rodada(conn, cfg))
+        elif comando == "publicar":
+            # python -m olx.anuncios publicar 5758 5754 ... [--conta proprietarios]
+            conta = argv[argv.index("--conta") + 1] if "--conta" in argv else ""
+            codigos = [int(x) for x in argv[1:] if x.isdigit()]
+            r = publicar_lista(conn, cfg, codigos, conta)
+            print(f"conta {r['conta']}: {len(r['enviados'])} enviados à OLX: {' '.join(r['enviados']) or '-'}")
+            for l in r["falhas"]:
+                print("  FALHOU", l)
+            for l in r["fora"]:
+                print("  não vai", l)
         elif comando == "conferir":
             print(f"{conferir(conn)} anúncio(s) mudaram de estado")
         elif comando == "situacao":
