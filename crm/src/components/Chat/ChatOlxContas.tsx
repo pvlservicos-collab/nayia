@@ -254,6 +254,146 @@ function PublicacaoAutomatica({ painel, aoMudar }: { painel: PainelDosAnunciosOl
   )
 }
 
+/* ── AS MÉTRICAS DOS ANÚNCIOS (Pedro, 14/10/2026: "uma lista com os anúncios e várias colunas, com os dados que a OLX
+   compartilha, número de mensagens, número de visualizações ... a lista vai se atualizando por número maior de mensagens
+   no topo, mas eu clicando em cada coluna consigo ver ordenado por esse dado") ──
+   Os números vêm de `crm_olx_metricas` (migração 369): o chat que cai no CRM e os contatos que a OLX avisa (WhatsApp,
+   telefone, chat). VISUALIZAÇÕES a OLX não fornece pela integração: nenhuma rota da documentação traz esse número. */
+type LinhaMetrica = {
+  list_id: string; codigo: number | null; negocio: string | null; situacao: string | null; url: string | null; titulo: string | null
+  preco: number | null; dias_no_ar: number | null; conversas: number; recebidas: number; enviadas: number; da_nay: number
+  sem_resposta: number; recebidas_7d: number; ultima_do_cliente: string | null; leads: number; leads_whatsapp: number
+  leads_telefone: number; leads_chat: number; ultimo_lead: string | null; bairro: string | null
+}
+type Plano = { conta: string; plano: { nome: string; total: number; usados: number; livres: number; renova_em: string | null } }
+const COLUNAS: { k: keyof LinhaMetrica; rotulo: string; dica: string; numero?: boolean }[] = [
+  { k: 'codigo', rotulo: 'Imóvel', dica: 'Código e título do anúncio' },
+  { k: 'preco', rotulo: 'Valor', dica: 'Preço no anúncio', numero: true },
+  { k: 'dias_no_ar', rotulo: 'Dias no ar', dica: 'Dias desde que a OLX publicou', numero: true },
+  { k: 'recebidas', rotulo: 'Mensagens', dica: 'Mensagens de clientes no chat do anúncio', numero: true },
+  { k: 'recebidas_7d', rotulo: '7 dias', dica: 'Mensagens de clientes nos últimos 7 dias', numero: true },
+  { k: 'conversas', rotulo: 'Conversas', dica: 'Pessoas diferentes que escreveram', numero: true },
+  { k: 'sem_resposta', rotulo: 'Sem resposta', dica: 'Conversas em que a última mensagem é do cliente', numero: true },
+  { k: 'enviadas', rotulo: 'Respostas', dica: 'Mensagens nossas (equipe e Nay)', numero: true },
+  { k: 'leads', rotulo: 'Contatos', dica: 'Todos os contatos que a OLX avisou (chat, WhatsApp, telefone, financiamento)', numero: true },
+  { k: 'leads_whatsapp', rotulo: 'WhatsApp', dica: 'Cliques no WhatsApp do anúncio', numero: true },
+  { k: 'leads_telefone', rotulo: 'Telefone', dica: 'Pedidos para ver o telefone', numero: true },
+  { k: 'leads_chat', rotulo: 'Chat', dica: 'Contatos pelo chat que a OLX contou', numero: true },
+  { k: 'ultima_do_cliente', rotulo: 'Última msg', dica: 'Quando o cliente escreveu por último' },
+  { k: 'situacao', rotulo: 'Na OLX', dica: 'Situação do anúncio na OLX' },
+]
+
+function MetricasOlx() {
+  const [linhas, setLinhas] = useState<LinhaMetrica[] | null>(null)
+  const [planos, setPlanos] = useState<Plano[]>([])
+  const [leadsLigados, setLeadsLigados] = useState(true)
+  const [erro, setErro] = useState<string | null>(null)
+  const [ordem, setOrdem] = useState<{ k: keyof LinhaMetrica; desc: boolean }>({ k: 'recebidas', desc: true })
+  const [aberta, setAberta] = useState(true)
+  const carregar = useCallback(() => {
+    pedir<{ linhas: LinhaMetrica[]; planos: Plano[]; leads_ligados: boolean }>('/api/olx/metricas')
+      .then((d) => { setLinhas(d.linhas); setPlanos(d.planos || []); setLeadsLigados(!!d.leads_ligados); setErro(null) })
+      .catch((e) => setErro(e.message))
+  }, [])
+  // a lista se atualiza sozinha (a cada minuto)
+  useEffect(() => { carregar(); const t = setInterval(carregar, 60_000); return () => clearInterval(t) }, [carregar])
+
+  const ordenadas = useMemo(() => {
+    const v = (l: LinhaMetrica) => {
+      const x = l[ordem.k]
+      if (ordem.k === 'ultima_do_cliente') return x ? Date.parse(String(x)) : -Infinity
+      if (typeof x === 'number') return x
+      if (x == null) return ordem.desc ? -Infinity : Infinity
+      return String(x).toLowerCase()
+    }
+    return [...(linhas || [])].sort((a, b) => {
+      const va = v(a), vb = v(b)
+      const c = va < vb ? -1 : va > vb ? 1 : 0
+      // empate: quem tem mais mensagens fica em cima
+      return (ordem.desc ? -c : c) || (b.recebidas - a.recebidas)
+    })
+  }, [linhas, ordem])
+  const total = (k: keyof LinhaMetrica) => (linhas || []).reduce((n, l) => n + (Number(l[k]) || 0), 0)
+  const celula = (l: LinhaMetrica, k: keyof LinhaMetrica) => {
+    const x = l[k]
+    if (k === 'codigo') {
+      return (
+        <span className="flex flex-col min-w-[220px] max-w-[340px]">
+          <span className="truncate" style={{ color: 'var(--wa-text)' }} title={l.titulo || ''}>
+            {l.codigo ? <a href={`/${l.codigo}`} target="_blank" rel="noopener noreferrer" className="underline mr-1">#{l.codigo}</a> : null}
+            {l.titulo || `Anúncio ${l.list_id}`}
+          </span>
+          {l.url && <a href={l.url} target="_blank" rel="noopener noreferrer" className="text-[11.5px] underline" style={{ color: 'var(--wa-text-2)' }}>abrir na OLX</a>}
+        </span>
+      )
+    }
+    if (k === 'preco') return x == null ? '—' : dinheiro(Number(x))
+    if (k === 'ultima_do_cliente') return x ? quandoCurto(String(x)) : '—'
+    if (k === 'situacao') return situacaoOlx(x as string | null) || '—'
+    if (k === 'sem_resposta' && Number(x) > 0) return <b style={{ color: '#B45309' }}>{String(x)}</b>
+    return x == null ? '—' : String(x)
+  }
+
+  return (
+    <section className="rounded-xl p-3 mb-3 flex flex-col gap-2" style={{ background: 'var(--wa-panel)', border: '1px solid var(--wa-divider)' }}>
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => setAberta((v) => !v)} className="text-[15px] font-semibold" style={{ color: 'var(--wa-text)' }}>
+          {aberta ? '▾' : '▸'} Métricas dos anúncios
+        </button>
+        {linhas && <span className="text-[12.5px]" style={{ color: 'var(--wa-text-2)' }}>
+          {linhas.length} anúncios · {total('recebidas')} mensagens · {total('leads')} contatos · {total('sem_resposta')} sem resposta
+        </span>}
+        <button type="button" className="wa-icone-btn ml-auto" onClick={carregar} title="Atualizar agora"><ArrowClockwise size={18} /></button>
+      </div>
+      {planos.map((p) => (
+        <p key={p.conta} className="text-[12.5px]" style={{ color: 'var(--wa-text-2)' }}>
+          <b style={{ color: 'var(--wa-text)' }}>{p.plano.nome}</b> ({NOME_DA_CONTA_OLX[p.conta as ContaOlx] || p.conta}): {p.plano.usados} de {p.plano.total} anúncios usados,
+          {' '}<b style={{ color: 'var(--wa-green)' }}>{p.plano.livres} livres</b>{p.plano.renova_em ? `, renova em ${new Date(p.plano.renova_em).toLocaleDateString('pt-BR', { timeZone: FUSO })}` : ''}
+        </p>
+      ))}
+      {aberta && (
+        <>
+          <p className="text-[12px]" style={{ color: 'var(--wa-text-2)' }}>
+            Clique no nome de uma coluna para ordenar por ela (clique de novo para inverter). Visualizações a OLX não fornece pela integração.
+            {!leadsLigados && ' Os contatos por WhatsApp e telefone ainda não estão chegando.'}
+          </p>
+          {erro && <p className="text-[13px] text-red-500">{erro}</p>}
+          {!linhas && !erro && <p className="text-[13px] flex items-center gap-2" style={{ color: 'var(--wa-text-2)' }}><CircleNotch size={16} className="animate-spin" /> Lendo…</p>}
+          {linhas && (
+            <div className="overflow-auto wa-rolagem max-h-[60vh] rounded-lg" style={{ border: '1px solid var(--wa-divider)' }}>
+              <table className="w-full text-[13px] border-collapse">
+                <thead className="sticky top-0 z-10" style={{ background: 'var(--wa-app)' }}>
+                  <tr>
+                    {COLUNAS.map((c) => (
+                      <th key={c.k} title={c.dica} onClick={() => setOrdem((o) => ({ k: c.k, desc: o.k === c.k ? !o.desc : true }))}
+                          className={`px-2 py-2 font-semibold cursor-pointer select-none whitespace-nowrap ${c.numero ? 'text-right' : 'text-left'}`}
+                          style={{ color: ordem.k === c.k ? 'var(--wa-green)' : 'var(--wa-text-2)', borderBottom: '1px solid var(--wa-divider)' }}>
+                        {c.rotulo}{ordem.k === c.k ? (ordem.desc ? ' ↓' : ' ↑') : ''}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ordenadas.map((l) => (
+                    <tr key={l.list_id} style={{ borderBottom: '1px solid var(--wa-divider)' }}>
+                      {COLUNAS.map((c) => (
+                        <td key={c.k} className={`px-2 py-1.5 align-top ${c.numero ? 'text-right tabular-nums' : ''}`} style={{ color: 'var(--wa-text)' }}>
+                          {celula(l, c.k)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                  {!ordenadas.length && <tr><td colSpan={COLUNAS.length} className="px-2 py-4 text-center" style={{ color: 'var(--wa-text-2)' }}>Nenhum anúncio ainda.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  )
+}
+
 /* ── os anúncios da conta ── */
 function AnunciosDaConta({ conta, aoVerConversas }: { conta: ContaOlx; aoVerConversas: (listId: string) => void }) {
   const [d, setD] = useState<DadosDaConta | null>(null)
@@ -297,6 +437,7 @@ function AnunciosDaConta({ conta, aoVerConversas }: { conta: ContaOlx; aoVerConv
         </div>
       )}
       <div className="flex-1 min-h-0 overflow-y-auto wa-rolagem px-4 py-3">
+        <MetricasOlx />
         {d?.painel && <PublicacaoAutomatica painel={d.painel} aoMudar={(p) => setD((v) => (v ? { ...v, painel: p } : v))} />}
         {d && <h3 className="text-[13px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--wa-text-2)' }}>Na conta da OLX</h3>}
         {!d && !erro && <p className="text-center text-[14px] mt-10 flex items-center justify-center gap-2" style={{ color: 'var(--wa-text-2)' }}><CircleNotch size={18} className="animate-spin" /> Lendo os anúncios…</p>}

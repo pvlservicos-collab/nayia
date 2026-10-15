@@ -27,4 +27,4 @@ olx_conta_pkey: PRIMARY KEY (conta)
 crm_olx_conta_conectar, crm_olx_conta_preparar, crm_olx_conta_webhook
 
 ## funções que citam
-crm_olx_chat_receber, crm_olx_conta_conectar, crm_olx_conta_estado, crm_olx_conta_preparar, crm_olx_conta_token, crm_olx_conta_webhook
+crm_olx_chat_receber, crm_olx_conta_conectar, crm_olx_conta_estado, crm_olx_conta_preparar, crm_olx_conta_token, crm_olx_conta_webhook, crm_olx_lead_receber

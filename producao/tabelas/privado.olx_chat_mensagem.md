@@ -31,4 +31,4 @@ olx_chat_mensagem_pkey: PRIMARY KEY (id)
 crm_olx_chat_enviada, crm_olx_chat_receber
 
 ## funções que citam
-crm_olx_chat_enviada, crm_olx_chat_mensagens, crm_olx_chat_receber, crm_olx_chats, olx_nay_contexto, olx_nay_fila
+crm_olx_chat_enviada, crm_olx_chat_mensagens, crm_olx_chat_receber, crm_olx_chats, crm_olx_metricas, olx_nay_contexto, olx_nay_fila

@@ -285,3 +285,31 @@ export async function gravarChaveOlx(chave: string, valor: string, quem: string)
   const r = await naydb().query('SELECT crm_olx_config_gravar($1, $2, $3) AS r', [chave, valor, quem])
   return (r.rows[0]?.r || { ok: false, erro: 'O banco não respondeu.' }) as { ok: boolean; erro?: string }
 }
+
+/* ── as métricas (14/10, migração 369) ──────────────────────────────────────────── */
+
+export interface LinhaDeMetricaOlx {
+  list_id: string; ad_id: string | null; codigo: number | null; negocio: string | null; conta: string; situacao: string | null
+  url: string | null; titulo: string | null; preco: number | null; publicado_em: string | null; dias_no_ar: number | null
+  conversas: number; recebidas: number; enviadas: number; da_nay: number; sem_resposta: number; recebidas_7d: number
+  ultima_do_cliente: string | null; leads: number; leads_whatsapp: number; leads_telefone: number; leads_chat: number
+  leads_outros: number; ultimo_lead: string | null; imovel_status: string | null; bairro: string | null; tipo: string | null
+}
+
+export async function metricasOlx(): Promise<{ linhas: LinhaDeMetricaOlx[]; leads_ligados: boolean; atualizado_em: string }> {
+  const r = await naydb().query('SELECT crm_olx_metricas() AS m')
+  return r.rows[0]?.m || { linhas: [], leads_ligados: false, atualizado_em: new Date().toISOString() }
+}
+
+/** O saldo do plano profissional da conta (quantos anúncios o plano dá, usados e livres). Null sem conta ou sem plano. */
+export async function saldoDoPlanoOlx(conta: ContaOlx): Promise<{ nome: string; total: number; usados: number; livres: number; renova_em: string | null } | null> {
+  const token = await tokenDaContaOlx(conta)
+  if (!token) return null
+  const r = await chamar(`${OLX_APPS}/autoupload/balance`, { method: 'GET', headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'Mozilla/5.0' } })
+  if (r.status !== 200) return null
+  try {
+    const j = JSON.parse(r.texto)
+    return { nome: String(j?.name || 'Plano da OLX'), total: Number(j?.ads?.total || 0), usados: Number(j?.ads?.performed || 0),
+             livres: Number(j?.ads?.available || 0), renova_em: j?.next_renew_date || null }
+  } catch { return null }
+}
