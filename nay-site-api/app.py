@@ -5231,7 +5231,10 @@ def admin_grupos_captacao():
     if filtro not in ("todos", "verde", "amarelo", "sem_match", "teste"):
         filtro = "todos"
     horas = _inteiro(request.args.get("horas"), 0) or None
-    return _captacao_grupos("SELECT site_captacao_grupos(%s, %s, %s) AS j", (filtro, horas, 120))
+    # 371: nota mínima e ordem (as duplicatas já vêm juntadas pelo banco)
+    nota = _inteiro(request.args.get("nota"), 0) or None
+    ordem = "nota" if (request.args.get("ordem") or "").strip().lower() == "nota" else "recentes"
+    return _captacao_grupos("SELECT site_captacao_grupos(%s, %s, %s, %s, %s) AS j", (filtro, horas, 120, nota, ordem))
 
 
 @app.route("/admin/api/grupos/captacao/<int:pedido_id>/julgar", methods=["POST"])

@@ -29,7 +29,12 @@
   if (!painel) return;
 
   var $ = function (id) { return document.getElementById(id); };
-  var estado = { filtro: "todos", dados: null, pedido: 0, carregou: false, fotos: {}, demandaDias: 30 };
+  var estado = { filtro: "todos", dados: null, pedido: 0, carregou: false, fotos: {}, demandaDias: 30, nota: 0, ordem: "recentes" };
+  /* 371: a nota mínima e a ordem ficam lembradas neste navegador */
+  try {
+    estado.nota = parseInt(localStorage.getItem("gc-nota"), 10) || 0;
+    estado.ordem = localStorage.getItem("gc-ordem") === "nota" ? "nota" : "recentes";
+  } catch (e) { /* sem armazenamento: fica o padrão */ }
 
   var ROTULO = { operacao: "Operação", tipo: "Tipo", bairros: "Bairros", condominio: "Condomínio", quartos: "Quartos",
                  preco_max: "Teto", mobiliado: "Mobiliado", andar: "Andar", suite: "Suíte", vagas: "Vagas", pet: "Pet", contato: "Contato" };
@@ -85,7 +90,10 @@
       ? '<span class="gc-selo gc-selo--ok" title="Última passada: ' + esc(quando(d.batimento)) + '">leitor ligado</span>'
       : '<span class="gc-selo gc-selo--ruim">leitor parado' + (d.batimento ? " desde " + esc(quando(d.batimento)) : "") + "</span>");
     var c = d.contagem || {};
-    h.push('<span class="gc-selo">' + (c.todos || 0) + " solicitações nas últimas " + d.horas + " h</span>");
+    h.push('<span class="gc-selo" title="A mesma mensagem colada em vários grupos (mesmo corretor, mesmo texto) conta uma vez só">' + (c.todos || 0) +
+           " solicitações nas últimas " + d.horas + " h" +
+           (c.mensagens > c.todos ? " · " + c.mensagens + " mensagens, " + c.juntadas + " repetidas em vários grupos" : "") + "</span>");
+    if (c.nota_min) h.push('<span class="gc-selo gc-selo--ok">' + (c.com_a_nota || 0) + " com nota ≥ " + c.nota_min + "</span>");
     var a = d.acerto || {};
     if (a.julgados) {
       h.push('<span class="gc-selo" title="Só o último julgamento de cada solicitação conta">leitura certa em ' + a.corretas + " de " + a.julgados +
@@ -270,6 +278,16 @@
     return h.join("");
   }
 
+  /* 371 (Pedro, 15/10: "quando o cara joga em vários grupos ele cria várias, junta todas as duplicatas em uma"):
+     as cópias vêm juntadas pelo banco; aqui só a etiqueta, que abre a lista dos grupos */
+  function copias(p) {
+    if (!(p.vezes > 1)) return "";
+    var grupos = p.grupos || [];
+    return '<details class="gc-copias"><summary>postado ' + p.vezes + " vezes" +
+           (grupos.length > 1 ? " em " + grupos.length + " grupos" : "") + "</summary><ul>" +
+           grupos.map(function (g) { return "<li>" + esc(g) + "</li>"; }).join("") + "</ul></details>";
+  }
+
   function desenharItem(p) {
     var faixa = p.pontuado ? (p.faixa || "sem_match") : "registro";
     var j = p.julgamento, rejeitado = p.estado === "rejeitado";
@@ -277,12 +295,13 @@
     if (p.nome) quem.push("<b>" + esc(p.nome) + "</b>");
     if (p.telefone) quem.push(esc(fone(p.telefone)));
     quem.push(esc(quando(p.enviada_em)));
+    if (p.vezes > 1 && p.primeira_em) quem.push("1ª vez " + esc(quando(p.primeira_em)));
     var h = ['<article class="gc-item gc-item--' + esc(faixa) + (rejeitado ? " gc-item--rejeitado" : "") + '" data-id="' + p.id + '">',
              '<div class="gc-lado">',
              /* o grupo de onde veio, com o nome EXATO, num quadrado preto (Pedro, 09/10: "seria bom aparecer lá no card
                 um quadrado preto com o nome exato do grupo ao qual a msg veio") */
              '<div class="gc-origem"><span class="gc-grupo"><small>' + (p.fonte === "teste" ? "Origem" : "Grupo") + "</small>" +
-               esc(p.grupo || "(grupo sem nome)") + "</span></div>",
+               esc(p.grupo || "(grupo sem nome)") + "</span>" + copias(p) + "</div>",
              '<div class="gc-quem"><span>' + quem.join(" · ") + "</span></div>",
              manchetePedido(p),
              '<p class="gc-texto">' + esc(p.texto) + "</p>",
@@ -336,7 +355,7 @@
     if (!pedidos.length) {
       lista.innerHTML = '<p class="gc-vazio">' + (estado.filtro === "todos"
         ? "Nenhuma solicitação nas últimas " + d.horas + " h. Cole uma mensagem em “Testar uma mensagem” para ver a leitura."
-        : "Nenhuma solicitação neste filtro.") + "</p>";
+        : "Nenhuma solicitação neste filtro" + (estado.nota ? " com nota " + estado.nota + " ou mais" : "") + ".") + "</p>";
       return;
     }
     lista.innerHTML = pedidos.map(desenharItem).join("");
@@ -346,7 +365,8 @@
   function carregar() {
     var n = ++estado.pedido;
     if (!estado.dados) $("gc-lista").innerHTML = '<p class="ga-carregando">Carregando as solicitações…</p>';
-    return pedir("/admin/api/grupos/captacao?filtro=" + encodeURIComponent(estado.filtro))
+    return pedir("/admin/api/grupos/captacao?filtro=" + encodeURIComponent(estado.filtro) +
+                 "&nota=" + encodeURIComponent(estado.nota || 0) + "&ordem=" + encodeURIComponent(estado.ordem))
       .then(function (d) {
         if (n !== estado.pedido) return;
         estado.dados = d; estado.carregou = true; desenhar();
@@ -614,6 +634,20 @@
     if (acao) agir(acao.closest(".gc-item"), acao.getAttribute("data-acao"), acao);
   });
   $("gc-teste").addEventListener("submit", testar);
+  if ($("gc-nota")) {
+    $("gc-nota").value = String(estado.nota);
+    $("gc-ordem").value = estado.ordem;
+    $("gc-nota").addEventListener("change", function () {
+      estado.nota = parseInt(this.value, 10) || 0;
+      try { localStorage.setItem("gc-nota", String(estado.nota)); } catch (e) { /* ok */ }
+      carregar();
+    });
+    $("gc-ordem").addEventListener("change", function () {
+      estado.ordem = this.value === "nota" ? "nota" : "recentes";
+      try { localStorage.setItem("gc-ordem", estado.ordem); } catch (e) { /* ok */ }
+      carregar();
+    });
+  }
   $("gc-env-form").addEventListener("submit", enviar);
   $("gc-arquivos").addEventListener("change", function () {
     if (this.files && this.files.length) importar(this.files);

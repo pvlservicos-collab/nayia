@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css?v=20261003-grupos">
 <link rel="stylesheet" href="../assets/css/grupos-agenda.css?v=20261003f">
-<link rel="stylesheet" href="../assets/css/grupos-captacao.css?v=20261010a">
+<link rel="stylesheet" href="../assets/css/grupos-captacao.css?v=20261015a">
 </head>
 <body class="admin" data-pagina="grupos">
 
@@ -146,6 +146,19 @@
         <button type="button" class="btn-mini" data-filtro="amarelo" aria-pressed="false">70 a 89</button>
         <button type="button" class="btn-mini" data-filtro="sem_match" aria-pressed="false">Sem match</button>
         <button type="button" class="btn-mini" data-filtro="teste" aria-pressed="false">Testes</button>
+      </div>
+      <!-- 371 (Pedro, 15/10): "deixa lá em cima um filtro para a gente filtrar por nota" -->
+      <div class="ga-nav gc-nota" data-estado-proprio>
+        <label>Nota mínima
+          <select id="gc-nota">
+            <option value="0">qualquer</option><option value="50">50 ou mais</option><option value="60">60 ou mais</option>
+            <option value="70">70 ou mais</option><option value="80">80 ou mais</option><option value="90">90 ou mais</option>
+            <option value="95">95 ou mais</option><option value="100">só 100</option>
+          </select>
+        </label>
+        <label>Ordem
+          <select id="gc-ordem"><option value="recentes">mais recentes</option><option value="nota">maior nota primeiro</option></select>
+        </label>
       </div>
       <div class="ga-nav">
         <button type="button" class="btn-mini" id="gc-ver-demanda">Demanda do mercado</button>
@@ -305,6 +318,6 @@
 <script src="../assets/js/admin.js"></script>
 <script src="../assets/js/grupos-agenda.js?v=20261003g"></script>
 <script src="../assets/js/whatsapp-exportado.js?v=20261009d"></script>
-<script src="../assets/js/grupos-captacao.js?v=20261010a"></script>
+<script src="../assets/js/grupos-captacao.js?v=20261015a"></script>
 </body>
 </html>

@@ -191,3 +191,15 @@
   .gc-ap-form { grid-template-columns: 1fr; }
   .gc-foto { width: 96px; height: 76px; }
 }
+
+/* 371: o filtro de nota e as cópias juntadas */
+.gc-nota label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--texto-medio); }
+.gc-nota select { font: inherit; font-size: 13px; padding: 4px 8px; border: 1px solid var(--borda, #d6d1df); border-radius: 6px;
+  background: var(--fundo, #fff); color: var(--texto); }
+.gc-origem { flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+.gc-copias { font-size: 12.5px; color: var(--texto-medio); align-self: center; }
+.gc-copias summary { cursor: pointer; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: #f1edf7; color: #4b3b6b;
+  list-style: none; }
+.gc-copias summary::-webkit-details-marker { display: none; }
+.gc-copias[open] summary { background: #e4dcf1; }
+.gc-copias ul { margin: 6px 0 0; padding-left: 18px; max-height: 180px; overflow: auto; }

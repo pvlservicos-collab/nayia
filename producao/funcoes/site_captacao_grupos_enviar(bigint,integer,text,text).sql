@@ -17,6 +17,7 @@ DECLARE
   v_msg   text;
   v_fila  record;
   v_resumo text;
+  v_k     text;
 BEGIN
   SELECT * INTO e FROM privado.grupo_captacao_estado WHERE id = 1;
   IF coalesce(e.config->>'envio_manual', 'false') <> 'true' THEN
@@ -40,7 +41,10 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM privado.grupo_pedido_par p WHERE p.pedido_id = q.id AND p.codigo = p_codigo) THEN
     RETURN jsonb_build_object('erro', 'Esse imóvel não está entre os que casaram com este pedido.');
   END IF;
-  IF EXISTS (SELECT 1 FROM privado.grupo_pedido_oferta o WHERE o.pedido_id = q.id AND o.codigo = p_codigo) THEN
+  -- 371: a mesma solicitação colada em vários grupos é uma só: o imóvel enviado numa cópia vale para todas
+  v_k := privado.grupo_pedido_chave(q.fonte, q.id, q.remetente, q.texto, q.parte);
+  IF EXISTS (SELECT 1 FROM privado.grupo_pedido_oferta o JOIN privado.grupo_pedido c ON c.id = o.pedido_id
+              WHERE o.codigo = p_codigo AND privado.grupo_pedido_chave(c.fonte, c.id, c.remetente, c.texto, c.parte) = v_k) THEN
     RETURN jsonb_build_object('erro', 'Esse imóvel já foi enviado para este pedido.');
   END IF;
   -- duas mensagens ao mesmo corretor, só com o intervalo (para não parecer spam nem arriscar o número)
@@ -88,7 +92,8 @@ BEGIN
 
   INSERT INTO privado.grupo_pedido_oferta (pedido_id, codigo, telefone, abertura, com_card, turno_id, resumo, quem)
   VALUES (q.id, p_codigo, v_fone, v_abert, v_card, v_turno, v_resumo, nullif(btrim(coalesce(p_quem, '')), ''));
-  UPDATE privado.grupo_pedido SET estado = 'enviado' WHERE id = q.id;
+  UPDATE privado.grupo_pedido SET estado = 'enviado'
+   WHERE id = q.id OR privado.grupo_pedido_chave(fonte, id, remetente, texto, parte) = v_k;
   RETURN jsonb_build_object('ok', true, 'resumo', v_resumo, 'turno', v_turno);
 END
 $function$;
