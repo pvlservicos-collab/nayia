@@ -20,7 +20,10 @@
   // em cima, com a contagem de quantos já foram aprovados. Modelo novo que entrar em revisão: acrescente o nome aqui.
   // 14/10: os 10 "confirmar_disponivel" (Pedro: "olá Sr.(a), poderia me confirmar se está disponível ... todas como utilidade")
   // 14/10: e os 8 "retomar_janela" (Oi / Bom dia / Boa tarde / Boa noite, está por aí?), para reabrir a janela de 24 h
-  var NOVAS = ["retomar_janela_01", "retomar_janela_02", "retomar_janela_03", "retomar_janela_04",
+  // 14/10, à tarde: os 10 "sistema_aviso" (aviso de cadastro e de atendimento em aberto, "que pareçam mensagem de sistema")
+  var NOVAS = ["sistema_aviso_01", "sistema_aviso_02", "sistema_aviso_03", "sistema_aviso_04", "sistema_aviso_05",
+               "sistema_aviso_06", "sistema_aviso_07", "sistema_aviso_08", "sistema_aviso_09", "sistema_aviso_10",
+               "retomar_janela_01", "retomar_janela_02", "retomar_janela_03", "retomar_janela_04",
                "retomar_janela_05", "retomar_janela_06", "retomar_janela_07", "retomar_janela_08",
                "confirmar_disponivel_01", "confirmar_disponivel_02", "confirmar_disponivel_03", "confirmar_disponivel_04", "confirmar_disponivel_05",
                "confirmar_disponivel_06", "confirmar_disponivel_07", "confirmar_disponivel_08", "confirmar_disponivel_09", "confirmar_disponivel_10",
