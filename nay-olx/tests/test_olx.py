@@ -80,8 +80,18 @@ class Status(unittest.TestCase):
 
 
 class Nay(unittest.TestCase):
-    def test_a_nay_da_olx_ainda_nao_responde(self):
-        self.assertIsNone(nay.decidir({"mensagens": [{"de": "comprador", "texto": "Ainda está disponível?"}]}))
+    """O cérebro dela tem teste próprio em test_nay_olx.py. Aqui fica só o caso
+    de borda que existia desde 13/10, atualizado: ela respondia None sempre
+    porque não existia; hoje existe, e sem saber de qual imóvel é a conversa
+    ela não fala -- entrega para a equipe."""
+
+    def test_sem_anuncio_ela_entrega_para_gente(self):
+        d = nay.decidir({"mensagens": [{"de": "comprador", "texto": "Ainda está disponível?"}]})
+        self.assertEqual(d.baloes, [])
+        self.assertIn("não sei de qual imóvel", d.passar_para_gente)
+
+    def test_sem_mensagem_do_cliente_nao_responde(self):
+        self.assertIsNone(nay.decidir({"mensagens": []}))
 
 
 if __name__ == "__main__":

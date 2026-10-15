@@ -32,7 +32,7 @@ import secrets
 import sys
 import time
 
-from olx import api, banco, config, nay
+from olx import api, banco, config, grupo, modelo, nay
 
 log = logging.getLogger("olx.chat")
 
@@ -73,6 +73,28 @@ def devolver(conn, chat: int) -> None:
     banco.um(conn, "SELECT olx_nay_devolver(%s)", (chat,))
 
 
+# a última mensagem do cliente que a Nay já leu sem ter o que dizer ("ok", "obrigado"): sem isto a conversa continua
+# na fila (a última é do cliente) e o modelo seria chamado de novo a cada 5 s
+_lida_sem_resposta: dict[int, str] = {}
+
+
+def _nome(ctx: dict | None) -> str:
+    return (((ctx or {}).get("cliente") or {}).get("nome") or "sem nome").strip()
+
+
+def _imovel(ctx: dict | None) -> str:
+    cod = ((ctx or {}).get("anuncio") or {}).get("codigo")
+    return f" (imóvel {cod})" if cod else ""
+
+
+def _avisar(texto: str) -> None:
+    try:
+        if not grupo.mandar_ao_grupo(texto):
+            log.warning("o aviso não chegou ao grupo: nenhum número conectado")
+    except Exception:  # noqa: BLE001 -- o aviso não pode derrubar o atendimento
+        log.exception("o aviso ao grupo falhou")
+
+
 def atender_fila(conn, cfg: dict[str, str]) -> int:
     """Uma passada pela fila. Devolve quantas conversas foram respondidas ou passadas para gente."""
     if cfg.get("nay_responde") != "sim":
@@ -80,25 +102,51 @@ def atender_fila(conn, cfg: dict[str, str]) -> int:
     feitas = 0
     for c in fila(conn):
         chat = int(c["chat"])
+        marca = f"{c.get('ultima_em')}"
+        if _lida_sem_resposta.get(chat) == marca:
+            continue
         if not banco.um(conn, "SELECT olx_nay_reservar(%s, %s)", (chat, "nay-olx")):
             continue                                    # outro já pegou
+        ctx = None
+        decisao = None
         try:
             ctx = contexto(conn, chat)
-            decisao = nay.decidir(ctx) if ctx else None
+
+            # o catálogo ajuda o modelo: a MESMA `nai_resposta_da_base` que responde o corretor no WhatsApp
+            def responder_duvida(codigo: int, pergunta: str) -> str | None:
+                return banco.um(conn, "SELECT nai_resposta_da_base(%s, %s)", (codigo, pergunta))
+
+            decisao = nay.decidir(ctx, responder_duvida, modelo.chamar) if ctx else None
             if decisao is None:
-                continue                                # a Nay não tem o que dizer: a conversa segue esperando gente
-            if decisao.passar_para_gente:
-                passar_para_gente(conn, chat, decisao.passar_para_gente)
-                log.info("conversa %s passada para gente: %s", chat, decisao.passar_para_gente)
+                _lida_sem_resposta[chat] = marca        # nada a dizer: espera a próxima mensagem do cliente
+                continue
             for n, balao in enumerate(decisao.baloes):
                 if n:
                     time.sleep(1.5)
                 responder(conn, chat, balao)
             if decisao.baloes:
                 log.info("conversa %s respondida (%d balão/ões)", chat, len(decisao.baloes))
+            if decisao.passar_para_gente:
+                passar_para_gente(conn, chat, decisao.passar_para_gente)
+                log.info("conversa %s passada para gente: %s", chat, decisao.passar_para_gente)
+                _avisar(decisao.aviso_grupo or
+                        f"Conversa da OLX com {_nome(ctx)}{_imovel(ctx)} ficou para a equipe: {decisao.passar_para_gente}.\n"
+                        "Responder pelo CRM › Chat OLX.")
             feitas += 1
-        except api.ErroDaOlx as e:
-            log.warning("conversa %s: %s", chat, e)
+        except (api.ErroDaOlx, modelo.FalhaDoModelo) as e:
+            # A NAY NÃO CONSEGUIU FALAR -> A CONVERSA VAI PARA A EQUIPE, NA HORA, E O GRUPO FICA SABENDO.
+            # Sem isto ela volta para a fila e é tentada de novo a cada 5 s, para sempre: em 14/10 a OLX devolveu
+            # 403 (embrulhado num 500) e foram 8 tentativas em 20 segundos antes de alguém ver.
+            quem = "a OLX recusou o envio" if isinstance(e, api.ErroDaOlx) else "o modelo não respondeu"
+            log.warning("conversa %s: %s: %s", chat, quem, e)
+            try:
+                passar_para_gente(conn, chat, f"{quem}: {e}")
+            except Exception:                      # noqa: BLE001
+                log.exception("conversa %s: não consegui nem passar para gente", chat)
+            # o lead já tinha dado o contato: o aviso da visita vai assim mesmo
+            _avisar((decisao.aviso_grupo + "\n" if decisao and decisao.aviso_grupo else "") +
+                    f"A Nay não conseguiu responder {_nome(ctx)} na OLX{_imovel(ctx)} ({quem}). "
+                    "Responder pelo CRM › Chat OLX.")
         finally:
             banco.um(conn, "SELECT olx_nay_soltar(%s)", (chat,))
     return feitas
@@ -117,6 +165,12 @@ def main(argv: list[str]) -> int:
                 print(f"  {c['chat']:>5} {c['conta']:14} anúncio {c['list_id'] or '?':12} {c['nome'] or 'sem nome'}: {(c['ultima_texto'] or '')[:80]}")
         elif comando == "contexto":
             print(json.dumps(contexto(conn, int(argv[1])), ensure_ascii=False, indent=2, default=str))
+        elif comando == "ensaio":
+            # o que a Nay diria agora nessa conversa, com o modelo de verdade, SEM mandar nada nem mudar a conversa
+            ctx = contexto(conn, int(argv[1]))
+            d = nay.decidir(ctx, lambda cod, p: banco.um(conn, "SELECT nai_resposta_da_base(%s, %s)", (cod, p)),
+                            modelo.chamar) if ctx else None
+            print(json.dumps(d.__dict__ if d else None, ensure_ascii=False, indent=2))
         elif comando == "responder":
             print("enviada:", responder(conn, int(argv[1]), argv[2], argv[3] if len(argv) > 3 else None))
         elif comando == "gente":
