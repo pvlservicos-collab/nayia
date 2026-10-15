@@ -14,7 +14,8 @@ AS $function$
      AND (n.reservada_em IS NULL OR n.reservada_em < now() - interval '5 minutes')
      AND NOT EXISTS (SELECT 1 FROM privado.olx_chat_mensagem m
                       WHERE m.chat = h.id AND m.de = 'nos' AND coalesce(m.enviada_por, '') !~* '^nay'
-                        AND m.quando > now() - make_interval(hours => greatest(0, coalesce(nullif(olx_cfg('humano_cala_horas'), '')::int, 24))))
+                        AND m.quando > now() - make_interval(hours => greatest(0, coalesce(nullif(olx_cfg('humano_cala_horas'), '')::int, 24)))
+                        AND m.quando > coalesce(n.devolvida_em, '-infinity'::timestamptz))
    ORDER BY h.ultima_em
    LIMIT greatest(1, coalesce(p_limite, 10));
 $function$;

@@ -15,7 +15,7 @@ AS ETAPAS (o modelo segue, e pula a que o cliente já adiantou):
   4. deu -> agradece, diz que a equipe chama no WhatsApp, e a conversa vai para a equipe com o aviso no grupo:
      "Lead X solicitou visita pela OLX, número ...". Daí em diante ela cala naquela conversa.
   Proposta, desconto, documentação, contrato, outro imóvel, corretor oferecendo parceria: ela não resolve; pede o
-  WhatsApp para a equipe falar e entrega do mesmo jeito (o aviso diz o motivo).
+  WhatsApp para a equipe falar e entrega do mesmo jeito. No grupo vai SÓ nome e número (15/10); o motivo fica no CRM.
 
 ATÉ ONDE A ANTIGA IA (14/10) E ESTA SE PARECEM: a fila, a reserva, os 20 s de silêncio e "gente respondeu, a Nay cala"
 continuam no banco (364) e no chat.py. Mudou o cérebro: as regras fixas (regex de "sim", a frase exata "Quer agendar uma
@@ -168,18 +168,11 @@ def _ultima_do_cliente(mensagens: list[dict]) -> str:
 
 
 def _aviso(ctx: dict, tipo: str, nome: str, fone: str, motivo: str) -> str:
-    anuncio = ctx.get("anuncio") or {}
-    imovel = ctx.get("imovel") or {}
-    negocio = "locação" if (anuncio.get("negocio") or "").startswith("loca") else "venda"
-    tipo_imovel = ((imovel.get("carac") or {}).get("tipo") or "").lower()
-    onde = (imovel.get("local") or {}).get("condominio") or (imovel.get("local") or {}).get("bairro") or ""
-    sobre = f"Imóvel {anuncio.get('codigo')}" + (f" ({', '.join(x for x in (tipo_imovel, onde, negocio) if x)})")
+    """O aviso no grupo: SÓ nome e número (Pedro, 15/10: "não precisa avisar nada no grupo fora nome e número")."""
     quem = nome or ((ctx.get("cliente") or {}).get("nome") or "sem nome")
     if tipo == "visita":
-        cabeca = f"Lead {quem} solicitou visita pela OLX, número {telefone_bonito(fone)}."
-    else:
-        cabeca = f"Lead {quem} pela OLX quer falar com a equipe, número {telefone_bonito(fone)}."
-    return "\n".join(x for x in (cabeca, sobre + ".", (f"Obs.: {motivo}" if motivo else "")) if x)
+        return f"Lead {quem} solicitou visita pela OLX, número {telefone_bonito(fone)}."
+    return f"Lead {quem} pela OLX, número {telefone_bonito(fone)}."
 
 
 def decidir(contexto: dict, responder_duvida: Callable[[int, str], str | None] | None = None,

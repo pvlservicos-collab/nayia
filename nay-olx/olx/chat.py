@@ -78,15 +78,6 @@ def devolver(conn, chat: int) -> None:
 _lida_sem_resposta: dict[int, str] = {}
 
 
-def _nome(ctx: dict | None) -> str:
-    return (((ctx or {}).get("cliente") or {}).get("nome") or "sem nome").strip()
-
-
-def _imovel(ctx: dict | None) -> str:
-    cod = ((ctx or {}).get("anuncio") or {}).get("codigo")
-    return f" (imóvel {cod})" if cod else ""
-
-
 def _avisar(texto: str) -> None:
     try:
         if not grupo.mandar_ao_grupo(texto):
@@ -129,12 +120,12 @@ def atender_fila(conn, cfg: dict[str, str]) -> int:
             if decisao.passar_para_gente:
                 passar_para_gente(conn, chat, decisao.passar_para_gente)
                 log.info("conversa %s passada para gente: %s", chat, decisao.passar_para_gente)
-                _avisar(decisao.aviso_grupo or
-                        f"Conversa da OLX com {_nome(ctx)}{_imovel(ctx)} ficou para a equipe: {decisao.passar_para_gente}.\n"
-                        "Responder pelo CRM › Chat OLX.")
+            # no grupo vai SÓ o nome e o número de quem mandou o contato (Pedro, 15/10); o resto fica no CRM
+            if decisao.aviso_grupo:
+                _avisar(decisao.aviso_grupo)
             feitas += 1
         except (api.ErroDaOlx, modelo.FalhaDoModelo) as e:
-            # A NAY NÃO CONSEGUIU FALAR -> A CONVERSA VAI PARA A EQUIPE, NA HORA, E O GRUPO FICA SABENDO.
+            # A NAY NÃO CONSEGUIU FALAR -> A CONVERSA VAI PARA A EQUIPE, NA HORA (aparece no CRM).
             # Sem isto ela volta para a fila e é tentada de novo a cada 5 s, para sempre: em 14/10 a OLX devolveu
             # 403 (embrulhado num 500) e foram 8 tentativas em 20 segundos antes de alguém ver.
             quem = "a OLX recusou o envio" if isinstance(e, api.ErroDaOlx) else "o modelo não respondeu"
@@ -143,10 +134,9 @@ def atender_fila(conn, cfg: dict[str, str]) -> int:
                 passar_para_gente(conn, chat, f"{quem}: {e}")
             except Exception:                      # noqa: BLE001
                 log.exception("conversa %s: não consegui nem passar para gente", chat)
-            # o lead já tinha dado o contato: o aviso da visita vai assim mesmo
-            _avisar((decisao.aviso_grupo + "\n" if decisao and decisao.aviso_grupo else "") +
-                    f"A Nay não conseguiu responder {_nome(ctx)} na OLX{_imovel(ctx)} ({quem}). "
-                    "Responder pelo CRM › Chat OLX.")
+            # o lead já tinha dado o contato: o nome e o número vão ao grupo assim mesmo
+            if decisao and decisao.aviso_grupo:
+                _avisar(decisao.aviso_grupo)
         finally:
             banco.um(conn, "SELECT olx_nay_soltar(%s)", (chat,))
     return feitas

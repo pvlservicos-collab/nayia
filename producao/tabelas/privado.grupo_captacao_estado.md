@@ -21,4 +21,4 @@ grupo_captacao_estado_pkey: PRIMARY KEY (id)
 site_captacao_grupos_apelido_excluir, site_captacao_grupos_apelido_salvar
 
 ## funções que citam
-site_captacao_grupos, site_captacao_grupos_apelido_excluir, site_captacao_grupos_apelido_salvar, site_captacao_grupos_enviar, site_captacao_grupos_importar
+site_captacao_grupos, site_captacao_grupos_apelido_excluir, site_captacao_grupos_apelido_salvar, site_captacao_grupos_enviar, site_captacao_grupos_importar, site_captacao_grupos_mensagem

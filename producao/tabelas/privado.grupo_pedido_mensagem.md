@@ -25,4 +25,4 @@ grupo_pedido_mensagem_pkey: PRIMARY KEY (id)
 site_captacao_grupos_mensagem
 
 ## funções que citam
-site_captacao_grupos, site_captacao_grupos_mensagem
+site_captacao_grupos, site_captacao_grupos_citacao, site_captacao_grupos_mensagem

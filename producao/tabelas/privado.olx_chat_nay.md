@@ -8,6 +8,7 @@ reservada_por  text
 humano_em  timestamp with time zone
 humano_motivo  text
 atualizado_em  timestamp with time zone  NOT NULL  padrão now()
+devolvida_em  timestamp with time zone   -- 374: quando a equipe devolveu a conversa para a Nay; mensagem de gente antes disso não cala mais a Nay
 
 ## índices
 CREATE UNIQUE INDEX olx_chat_nay_pkey ON privado.olx_chat_nay USING btree (chat)

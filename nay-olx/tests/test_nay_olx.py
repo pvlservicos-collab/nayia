@@ -54,16 +54,16 @@ class Etapas(unittest.TestCase):
         m = Modelo({"baloes": ["Perfeito, Felipe! A equipe te chama no WhatsApp para combinar o horário."],
                     "encaminhar": "visita", "nome": "Felipe", "whatsapp": "92991540843", "motivo": "sábado de manhã"})
         d = nay.decidir(ctx([dele("Quero visitar"), nosso("Me passa seu nome e WhatsApp?"), dele("Felipe 92 99154-0843")]), None, m)
-        self.assertEqual(d.aviso_grupo.splitlines()[0], "Lead Felipe solicitou visita pela OLX, número (92) 99154-0843.")
-        self.assertIn("Imóvel 3883 (casa de condomínio, Jardim de Versalhes, venda)", d.aviso_grupo)
-        self.assertIn("sábado de manhã", d.aviso_grupo)
+        # no grupo, só nome e número (Pedro, 15/10); o detalhe fica no CRM
+        self.assertEqual(d.aviso_grupo, "Lead Felipe solicitou visita pela OLX, número (92) 99154-0843.")
+        self.assertIn("sábado de manhã", d.passar_para_gente)
         self.assertIn("quer visita", d.passar_para_gente)
 
     def test_proposta_vai_como_equipe(self):
         m = Modelo({"baloes": ["Valor quem trata é a equipe. Ela te chama no WhatsApp."], "encaminhar": "equipe",
                     "nome": "", "whatsapp": "5592991540843", "motivo": "proposta de 650 mil"})
         d = nay.decidir(ctx([dele("Faço 650 mil, meu zap 92991540843")]), None, m)
-        self.assertTrue(d.aviso_grupo.startswith("Lead FELIPE LADISLAU CARVALHO pela OLX quer falar com a equipe, número (92) 99154-0843."))
+        self.assertEqual(d.aviso_grupo, "Lead FELIPE LADISLAU CARVALHO pela OLX, número (92) 99154-0843.")
 
     def test_encaminhar_sem_numero_valido_nao_entrega(self):
         m = Modelo({"baloes": ["Me passa seu WhatsApp com DDD?"], "encaminhar": "visita", "whatsapp": "1234"})
