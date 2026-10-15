@@ -31,8 +31,8 @@ BEGIN
     RETURN jsonb_build_object('erro', 'Não tenho o telefone de quem escreveu (a mensagem veio sem número). Fale com a pessoa pelo grupo.');
   END IF;
   IF EXISTS (SELECT 1 FROM privado.grupo_pedido_mensagem m
-              WHERE nai_chave(m.telefone) = nai_chave(v_fone) AND m.texto = v_texto AND m.enviado_em > now() - interval '10 minutes') THEN
-    RETURN jsonb_build_object('erro', 'Essa mesma mensagem já foi para ele há menos de 10 minutos.');
+              WHERE nai_chave(m.telefone) = nai_chave(v_fone) AND m.texto = v_texto AND m.enviado_em > now() - interval '1 minute') THEN
+    RETURN jsonb_build_object('erro', 'Essa mesma mensagem acabou de ir para ele (clique duplo?).');
   END IF;
 
   INSERT INTO nai_turno (contato_id, papel, texto)

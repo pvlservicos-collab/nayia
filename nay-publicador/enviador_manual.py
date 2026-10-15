@@ -149,6 +149,23 @@ def gravar(conn, sql, args):
     return r[0] if r else None
 
 
+def citacao_do_grupo(conn, j):
+    """A mensagem do grupo que a negociação da captação ativa responde em particular (373), ou None."""
+    if j.get("rota") != "send-text":
+        return None
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT site_captacao_grupos_citacao(%s)", (j["id"],))
+            r = cur.fetchone()
+        conn.commit()
+    except psycopg2.Error as e:
+        conn.rollback()
+        log("citação de %s não lida: %s" % (j["id"], str(e).strip()[:160]))
+        return None
+    c = r[0] if r else None
+    return c if c and c.get("grupo") and c.get("message_id") else None
+
+
 def uma_rodada(conn):
     linhas = liberar(conn)
     for n, j in enumerate(linhas):
@@ -159,7 +176,20 @@ def uma_rodada(conn):
             continue
         if n:
             time.sleep(ENTRE_ENVIOS_S)
-        resp = enviar_zapi(j["rota"], j["corpo"])
+        resp = None
+        citacao = citacao_do_grupo(conn, j)
+        if citacao:
+            # 373 (Pedro, 15/10/2026: "como se eu tivesse marcado a mensagem do cara no grupo e chamado no pv"): a
+            # mensagem de negociação vai como "Responder em particular" à mensagem dele no grupo
+            resp = enviar_zapi(j["rota"], {**j["corpo"], "phone": citacao["grupo"], "messageId": citacao["message_id"],
+                                           "privateAnswer": True})
+            if resp.get("error"):
+                log("resposta em particular %s recusada (%s): vai normal no PV" % (j["id"], str(resp["error"])[:120]))
+                resp = None
+            else:
+                log("resposta em particular %s -> %s, citando a mensagem do grupo" % (j["id"], fim4(j.get("telefone"))))
+        if resp is None:
+            resp = enviar_zapi(j["rota"], j["corpo"])
         r = gravar(conn, "SELECT nai_confirmar_envio(%s, %s::jsonb)", (j["id"], json.dumps(resp)))
         log("%s %s -> %s cod %s: %s" % (j["rota"], j["id"], fim4(j.get("telefone")), j.get("codigo") or "-", r))
     return len(linhas)

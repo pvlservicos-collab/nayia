@@ -321,7 +321,7 @@
                  : p.fonte === "teste" ? "Teste colado na tela: não tem corretor para receber."
                  : !p.telefone ? "A mensagem veio sem o telefone de quem escreveu." : "";
                return '<button type="button" class="btn-mini gc-btn-negocia" data-acao="negociar"' +
-                      (motivo ? ' disabled title="' + esc(motivo) + '"' : ' title="Escreva uma mensagem e ela vai para o PV dele, pelo número da Parceria"') +
+                      (motivo ? ' disabled title="' + esc(motivo) + '"' : ' title="Escreva uma mensagem: ela vai para o PV dele pelo número da Parceria, respondendo a mensagem dele no grupo"') +
                       ">Mensagem de negociação</button>";
              })(),
              (p.ofertas || []).map(function (o) {
@@ -409,7 +409,7 @@
     $("gc-env-depois").innerHTML = (cfg.enviar_dados_e_fotos === false
       ? "<b>Só esta mensagem sai.</b> O card e as fotos você manda na mão (enviar_dados_e_fotos está desligado)."
       : "Logo depois dela vão <b>o card e as fotos</b> do imóvel, como na aba Enviar imóvel.") +
-      " O mesmo corretor só recebe outra mensagem daqui depois de " + (cfg.intervalo_min_entre_envios == null ? 30 : cfg.intervalo_min_entre_envios) + " min.";
+      (cfg.intervalo_min_entre_envios > 0 ? " O mesmo corretor só recebe outra mensagem daqui depois de " + cfg.intervalo_min_entre_envios + " min." : "");
     $("gc-env-erro").textContent = "";
     $("gc-env-ok").disabled = false;
     if (!$("gc-enviar").open) $("gc-enviar").showModal();
@@ -442,7 +442,7 @@
       if (aberta) { aberta.remove(); return; }
       var form = document.createElement("form");
       form.className = "gc-negocia";
-      form.innerHTML = '<textarea class="entrada" rows="3" maxlength="1500" placeholder="Escreva a mensagem para ele. Ela vai do jeito que estiver aqui, no PV, pelo número da Parceria." aria-label="Mensagem de negociação"></textarea>' +
+      form.innerHTML = '<textarea class="entrada" rows="3" maxlength="1500" placeholder="Escreva a mensagem para ele. Vai do jeito que estiver aqui, no PV dele, como resposta à mensagem que ele mandou no grupo." aria-label="Mensagem de negociação"></textarea>' +
                        '<div class="gc-negocia__botoes"><button class="btn-azul" type="submit">Enviar no PV</button>' +
                        '<button class="btn-mini" type="button" data-negocia-fechar>Cancelar</button><span class="ga-erro" role="alert"></span></div>';
       item.querySelector(".gc-acoes").appendChild(form);
