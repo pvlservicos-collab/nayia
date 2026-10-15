@@ -45,7 +45,7 @@ def imovel(codigo=1, **k):
 
 def pedido(**k):
     base = {"operacao": "aluguel", "tipo": "apartamento", "quartos": 2, "preco_max": 4000, "mobiliado": None,
-            "andar": None, "suite": None, "vagas": None, "pet": None,
+            "andar": None, "suite": None, "vagas": None, "pet": None, "financiamento": None,
             "bairro_chaves": [normal("Adrianópolis")], "condominio_chaves": [], "condominio_sem_reconhecer": False,
             "local_nao_reconhecido": []}
     base.update(k)
@@ -338,6 +338,33 @@ class Cadastro(unittest.TestCase):
         self.assertEqual([mobilia_do(m) for m in ("", "semi-mobiliado (moveis planejados + ar)", "mobiliado (moveis + cama + tudo)", "so ar-condicionado")],
                          [None, "semi", "mobiliado", "vazio"])
         self.assertEqual([andar_do(a) for a in ("Térreo", "1º", "3ª", "18", "Andar alto", "", None)], [0, 1, 3, 18, 99, None, None])
+
+
+class Financiamento(unittest.TestCase):
+    """Pedro, 15/10/2026: "tem uma casa ali que tá 100% mas não é, porque ela não aceita financiamento"."""
+
+    def test_nao_aceita_elimina(self):
+        self.assertEqual(nota(pedido(financiamento=True), imovel(financiamento=False))[0], "financiamento")
+
+    def test_aceita_vale_e_nao_informado_perde_e_a_tela_diz(self):
+        _, n_sim, _ = nota(pedido(financiamento=True), imovel(financiamento=True))
+        _, n_nao_sei, r = nota(pedido(financiamento=True), imovel(financiamento=None))
+        self.assertEqual(n_sim, 100.0)
+        self.assertLess(n_nao_sei, 100.0)
+        self.assertIn("financiamento não informado no cadastro", " ".join(d["texto"] for d in r["detalhe"]))
+
+    def test_quem_nao_pediu_nao_muda_nada(self):
+        self.assertEqual(nota(pedido(), imovel(financiamento=False))[1], nota(pedido(), imovel(financiamento=True))[1])
+
+    def test_a_frase_de_reserva_e_a_leitura(self):
+        from grupos.texto import pede_financiamento
+        self.assertTrue(pede_financiamento("Busco Casa em condomínio somente ate R$ 1.400.000 que aceite financiamento em flores"))
+        self.assertTrue(pede_financiamento("cliente vai usar FGTS"))
+        self.assertTrue(pede_financiamento("Minha Casa Minha Vida no Tarumã"))
+        self.assertFalse(pede_financiamento("Busco apartamento 2 quartos no Aleixo até 3 mil"))
+        self.assertTrue(extrair.limpar({"operacao": "venda", "bairros": ["Flores"], "financiamento": True, "confianca": {}})["financiamento"])
+        from grupos.catalogo import financiamento_do
+        self.assertEqual([financiamento_do(x) for x in ("Sim", "Não", "", None)], [True, False, None, None])
 
 
 class Envio(unittest.TestCase):

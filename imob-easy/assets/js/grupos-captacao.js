@@ -41,7 +41,7 @@
   var ORDEM = ["operacao", "tipo", "bairros", "condominio", "quartos", "preco_max", "mobiliado", "andar", "suite", "vagas", "pet", "contato"];
   var CRITERIO = { preco: "Preço", local: "Local", quartos: "Quartos", mobiliado: "Mobília", andar: "Andar", extras: "Extras" };
   var COMO = { apelido: "pelo apelido", exato: "", lugar: "conjunto/região", parecido: "parecido", pedaco: "pedaço do nome" };
-  var ETAPA = { operacao: "para a operação", tipo: "do tipo", local: "no local", quartos: "com os quartos", preco: "no preço", confirmado: "confirmados" };
+  var ETAPA = { operacao: "para a operação", tipo: "do tipo", local: "no local", quartos: "com os quartos", preco: "no preço", financiamento: "que aceitam financiamento", confirmado: "confirmados" };
 
   function esc(v) {
     return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -236,7 +236,7 @@
     if (!pares.length) {
       /* o funil para no primeiro filtro que zerou: o resto seria uma fila de zeros */
       var funil = p.funil || {}, passos = [], acabou = false;
-      ["operacao", "tipo", "local", "quartos", "preco", "confirmado"].forEach(function (e) {
+      ["operacao", "tipo", "local", "quartos", "preco", "financiamento", "confirmado"].forEach(function (e) {
         if (acabou || funil[e] == null) return;
         passos.push('<span class="gc-passo' + (funil[e] === 0 ? " gc-passo--zero" : "") + '"><b>' + funil[e] + "</b> " + ETAPA[e] + "</span>");
         if (funil[e] === 0) acabou = true;
@@ -315,9 +315,23 @@
                  ? '<button type="button" class="btn-mini" disabled title="' + esc(motivo) + '">Enviar ao corretor</button>'
                  : '<button type="button" class="btn-azul gc-btn-enviar" data-acao="enviar" data-codigo="' + esc(codigo) + '">Enviar ao corretor</button>';
              })(),
+             /* 372 (Pedro, 15/10): "mais um campo ali ao lado de enviar imóvel, Mensagem de negociação" */
+             (function () {
+               var motivo = !manual() ? "O envio manual está desligado (envio_manual)."
+                 : p.fonte === "teste" ? "Teste colado na tela: não tem corretor para receber."
+                 : !p.telefone ? "A mensagem veio sem o telefone de quem escreveu." : "";
+               return '<button type="button" class="btn-mini gc-btn-negocia" data-acao="negociar"' +
+                      (motivo ? ' disabled title="' + esc(motivo) + '"' : ' title="Escreva uma mensagem e ela vai para o PV dele, pelo número da Parceria"') +
+                      ">Mensagem de negociação</button>";
+             })(),
              (p.ofertas || []).map(function (o) {
                return '<span class="gc-enviado" title="' + esc(o.resumo || "") + '">✓ enviado o ' + esc(o.codigo) + " · " + esc(quando(o.quando)) + "</span>";
              }).join(""),
+             (p.negociacao || []).length
+               ? '<div class="gc-negociacao">' + p.negociacao.map(function (m) {
+                   return '<p title="' + esc(m.resumo || "") + '"><small>✉ no PV · ' + esc(quando(m.quando)) + "</small>" + esc(m.texto) + "</p>";
+                 }).join("") + "</div>"
+               : "",
              (p.estado === "enviado" ? "" :
                '<button type="button" class="btn-mini" data-acao="' + (rejeitado ? "voltar" : "rejeitar") + '">' + (rejeitado ? "Desfazer rejeição" : "Rejeitar") + "</button>"),
              '<button type="button" class="btn-mini gc-btn-ok" data-acao="correta">Leitura correta</button>',
@@ -371,7 +385,7 @@
         if (n !== estado.pedido) return;
         estado.dados = d; estado.carregou = true; desenhar();
         clearTimeout(estado.espera);
-        if ((d.fonte || {}).na_fila && !painel.hidden && !painel.querySelector(".gc-errou")) estado.espera = setTimeout(carregar, 7000);
+        if ((d.fonte || {}).na_fila && !painel.hidden && !painel.querySelector(".gc-errou, .gc-negocia")) estado.espera = setTimeout(carregar, 7000);
       })
       .catch(function (e) { if (n === estado.pedido) $("gc-lista").innerHTML = '<p class="gc-vazio">Não consegui carregar: ' + esc(e.message) + "</p>"; });
   }
@@ -423,6 +437,34 @@
   function agir(item, acao, botao) {
     var id = item.getAttribute("data-id");
     if (acao === "enviar") { abrirEnvio(id, botao.getAttribute("data-codigo")); return; }
+    if (acao === "negociar") {
+      var aberta = item.querySelector(".gc-negocia");
+      if (aberta) { aberta.remove(); return; }
+      var form = document.createElement("form");
+      form.className = "gc-negocia";
+      form.innerHTML = '<textarea class="entrada" rows="3" maxlength="1500" placeholder="Escreva a mensagem para ele. Ela vai do jeito que estiver aqui, no PV, pelo número da Parceria." aria-label="Mensagem de negociação"></textarea>' +
+                       '<div class="gc-negocia__botoes"><button class="btn-azul" type="submit">Enviar no PV</button>' +
+                       '<button class="btn-mini" type="button" data-negocia-fechar>Cancelar</button><span class="ga-erro" role="alert"></span></div>';
+      item.querySelector(".gc-acoes").appendChild(form);
+      form.querySelector("textarea").focus();
+      form.querySelector("[data-negocia-fechar]").addEventListener("click", function () { form.remove(); });
+      form.addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        var texto = form.querySelector("textarea").value.trim(), erro = form.querySelector(".ga-erro"), ok = form.querySelector("[type=submit]");
+        if (!texto) { form.querySelector("textarea").focus(); return; }
+        ok.disabled = true; erro.textContent = "";
+        pedir("/admin/api/grupos/captacao/" + id + "/mensagem", { method: "POST", body: JSON.stringify({ texto: texto }) })
+          .then(function (r) {
+            var aviso = $("gc-envio-feito");
+            aviso.textContent = "Mensagem enviada no PV. " + (r.resumo || "");
+            aviso.hidden = false;
+            form.remove();
+            return carregar();
+          })
+          .catch(function (e) { ok.disabled = false; erro.textContent = e.message; });
+      });
+      return;
+    }
     if (acao === "errada") {
       if (item.querySelector(".gc-errou")) return;
       var caixa = document.createElement("form");
@@ -663,7 +705,7 @@
   }
   /* com a aba aberta, a lista se renova sozinha (o leitor passa a cada 10 s) */
   setInterval(function () {
-    if (!painel.hidden && estado.carregou && document.visibilityState === "visible" && !painel.querySelector(".gc-errou") &&
+    if (!painel.hidden && estado.carregou && document.visibilityState === "visible" && !painel.querySelector(".gc-errou, .gc-negocia") &&
         !$("gc-demanda").open && !$("gc-apelidos").open && !$("gc-enviar").open) carregar();
   }, 45000);
 })();

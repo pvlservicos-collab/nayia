@@ -1,4 +1,4 @@
-# privado.grupo_pedido  (tabela, ~1114 linhas)
+# privado.grupo_pedido  (tabela, ~1130 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('privado.grupo_pedido_id_seq'::regclass)
@@ -42,4 +42,4 @@ grupo_pedido_pkey: PRIMARY KEY (id)
 site_captacao_grupos_enviar, site_captacao_grupos_estado
 
 ## funções que citam
-site_captacao_grupos, site_captacao_grupos_demanda, site_captacao_grupos_enviar, site_captacao_grupos_estado, site_captacao_grupos_julgar, site_captacao_grupos_teste_lido
+site_captacao_grupos, site_captacao_grupos_demanda, site_captacao_grupos_enviar, site_captacao_grupos_estado, site_captacao_grupos_julgar, site_captacao_grupos_mensagem, site_captacao_grupos_teste_lido

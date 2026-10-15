@@ -23,7 +23,7 @@ from grupos import config
 
 URL = "https://api.openai.com/v1/responses"
 CAMPOS = ("operacao", "tipo", "bairros", "condominio", "quartos", "preco_max", "mobiliado", "andar", "suite",
-          "vagas", "pet", "contato")
+          "vagas", "pet", "financiamento", "contato")
 
 PROMPT = """Você lê mensagens de grupos de WhatsApp de corretores de imóveis de Manaus e extrai os PEDIDOS de imóvel:
 um corretor procurando imóvel para um cliente dele.
@@ -54,6 +54,8 @@ CAMPOS de cada pedido:
 - suite: true se pediu suíte; false se disse que não precisa.
 - vagas: número de vagas de garagem pedido.
 - pet: true se o cliente tem animal ou pediu que aceite pet.
+- financiamento: true se pediu imóvel que ACEITE FINANCIAMENTO (financiamento bancário, pela Caixa, FGTS, Minha Casa
+  Minha Vida, "cliente vai financiar"); false se disse que é à vista e não precisa; null se não falou.
 - contato: nome ou telefone que a pessoa deixou NA MENSAGEM (assinatura "Att Fulana", "falar com", um número).
 - observacao: o que ele pediu e não cabe nos campos ("enviar no PV", "andar alto", "com elevador", "perto do
   trabalho"). Uma frase curta.
@@ -90,6 +92,7 @@ ESQUEMA = {
             "suite": _ou_nulo({"type": "boolean"}),
             "vagas": _ou_nulo({"type": "integer"}),
             "pet": _ou_nulo({"type": "boolean"}),
+            "financiamento": _ou_nulo({"type": "boolean"}),
             "contato": _ou_nulo({"type": "string"}),
             "observacao": _ou_nulo({"type": "string"}),
             "trecho": {"type": "string"},
@@ -179,6 +182,7 @@ def limpar(p: dict) -> dict | None:
         "suite": sim_nao("suite"),
         "vagas": _inteiro(p.get("vagas"), 0, 12),
         "pet": sim_nao("pet"),
+        "financiamento": sim_nao("financiamento"),
         "contato": texto("contato", 80),
         "observacao": texto("observacao", 200),
         "trecho": texto("trecho", 600),

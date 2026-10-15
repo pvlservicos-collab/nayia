@@ -19,6 +19,7 @@ SELECT i.codigo, i.tipo, i.bairro, i.condominio_nome, i.quartos, i.suites, i.vag
        nay_chave_condominio(coalesce(i.condominio_nome, '')) AS condominio_chave,
        (array_to_string(coalesce(i.caracteristicas, '{}'), ' ') ~* '(aceita|permite)\\s+(pet|anima)|pet\\s*friendly'
         OR coalesce(i.extras::text, '') ~* '(aceita|permite)[^"]{0,12}(pet|anima)') AS pet,
+       nullif(btrim(i.extras->>'aceita financiamento'), '') AS financiamento,
        f.visto, a.dono, CASE WHEN i.travado THEN i.travado_em END AS a_mao, i.criado_em
   FROM imoveis i
   LEFT JOIN LATERAL (SELECT max(x.lido_em) AS visto FROM imovel_ficha x
@@ -69,6 +70,15 @@ def mobilia_do(m: str | None) -> str | None:
     return None
 
 
+def financiamento_do(f: str | None) -> bool | None:
+    n = normal(f)
+    if n.startswith(("sim", "aceita")):
+        return True
+    if n.startswith(("nao", "não")):
+        return False
+    return None
+
+
 def andar_do(a: str | None) -> int | None:
     n = normal(a)
     if not n:
@@ -103,6 +113,8 @@ def carregar(conn) -> tuple[list[dict], dict]:
             "andar": andar_do(l["andar"]), "andar_cadastro": (l["andar"] or "").strip() or None,
             "mobilia": mobilia_do(l["mobilia"]), "mobilia_cadastro": (l["mobilia"] or "").strip() or None,
             "pet": True if l["pet"] else None,
+            # o "aceita financiamento" do cadastro (Sim / Não / vazio = não informado)
+            "financiamento": financiamento_do(l["financiamento"]),
             "valor_aluguel": float(l["valor_aluguel"]) if l["valor_aluguel"] else None,
             "valor_venda": float(l["valor_venda"]) if l["valor_venda"] else None,
             "taxa_condominio": float(l["taxa_condominio"]) if l["taxa_condominio"] else None,
@@ -121,6 +133,6 @@ def para_a_tela(imovel: dict) -> dict:
     """O retrato do imóvel que fica guardado com o par (só o que a tela mostra, em JSON)."""
     r = {k: imovel.get(k) for k in ("codigo", "tipo_cadastro", "bairro", "condominio", "quartos", "suites", "vagas",
                                     "andar_cadastro", "mobilia_cadastro", "valor_aluguel", "valor_venda",
-                                    "taxa_condominio", "area", "logradouro", "confirmado_como")}
+                                    "taxa_condominio", "area", "logradouro", "confirmado_como", "financiamento")}
     r["confirmado_em"] = imovel["confirmado_em"].isoformat() if imovel.get("confirmado_em") else None
     return r

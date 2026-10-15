@@ -22,13 +22,14 @@ from __future__ import annotations
 
 from grupos.texto import reais
 
-ETAPAS = ("operacao", "tipo", "local", "quartos", "preco", "confirmado")
+ETAPAS = ("operacao", "tipo", "local", "quartos", "preco", "financiamento", "confirmado")
 FALTOU = {
     "operacao": "nenhum imóvel nosso para {operacao}",
     "tipo": "nenhum imóvel nosso desse tipo para {operacao}",
     "local": "nenhum imóvel nosso nesse local",
     "quartos": "nenhum imóvel nosso com esse número de quartos nesse local",
     "preco": "os imóveis nossos nesse local passam mais de {tol}% do teto",
+    "financiamento": "os imóveis nossos que serviriam não aceitam financiamento",
     "confirmado": "o que serviria não foi confirmado nos últimos {dias} dias",
 }
 
@@ -135,6 +136,10 @@ def _extras(pedido: dict, imovel: dict) -> tuple[float, str] | None:
         tem = imovel.get("vagas")
         partes.append((tem is not None and tem >= pedido["vagas"],
                        f"{tem} vaga(s)" if tem is not None else "vagas não informadas no cadastro"))
+    if pedido.get("financiamento") is True:
+        # o "Não" já foi eliminado no filtro: aqui só sobra "aceita" ou "não informado"
+        aceita = imovel.get("financiamento")
+        partes.append((aceita is True, "aceita financiamento" if aceita else "financiamento não informado no cadastro"))
     if pedido.get("pet") is True:
         aceita = imovel.get("pet")
         partes.append((aceita is True, "aceita pet" if aceita else "pet não informado no cadastro"))
@@ -163,6 +168,9 @@ def avaliar(pedido: dict, imovel: dict, regras: dict, vizinhos: dict, hoje_menos
     teto = pedido.get("preco_max")
     if teto and preco > teto * (1 + regras["preco"]["tolerancia_acima"]):
         return "preco", None
+    # Pedro, 15/10/2026: "tem uma casa ali que tá 100% mas não é, porque ela não aceita financiamento"
+    if pedido.get("financiamento") is True and imovel.get("financiamento") is False:
+        return "financiamento", None
     if hoje_menos_dias is not None and (imovel.get("confirmado_em") is None or imovel["confirmado_em"] < hoje_menos_dias):
         return "confirmado", None
 

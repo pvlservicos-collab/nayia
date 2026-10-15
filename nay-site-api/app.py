@@ -5259,6 +5259,14 @@ def admin_grupos_captacao_enviar(pedido_id):
                             (pedido_id, _inteiro(corpo.get("codigo"), 0), str(corpo.get("abertura") or ""), "painel do site"))
 
 
+# 372: a MENSAGEM DE NEGOCIAÇÃO -- o texto digitado na tela vai para o PV de quem fez o pedido, pelo número da Parceria
+@app.route("/admin/api/grupos/captacao/<int:pedido_id>/mensagem", methods=["POST"])
+def admin_grupos_captacao_mensagem(pedido_id):
+    corpo = request.get_json(silent=True) or {}
+    return _captacao_grupos("SELECT site_captacao_grupos_mensagem(%s, %s, %s) AS j",
+                            (pedido_id, str(corpo.get("texto") or ""), "painel do site"))
+
+
 @app.route("/admin/api/grupos/captacao/testar", methods=["POST"])
 def admin_grupos_captacao_testar():
     corpo = request.get_json(silent=True) or {}

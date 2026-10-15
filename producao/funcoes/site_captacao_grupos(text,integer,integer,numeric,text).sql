@@ -101,6 +101,10 @@ BEGIN
                'ofertas', coalesce((SELECT jsonb_agg(jsonb_build_object('codigo', o.codigo, 'quando', o.enviado_em,
                                                                         'com_card', o.com_card, 'resumo', o.resumo) ORDER BY o.enviado_em)
                                       FROM privado.grupo_pedido_oferta o WHERE o.pedido_id = ANY (s.ids)), '[]'::jsonb),   -- 339
+               -- 372: as mensagens de negociação digitadas na tela e mandadas no PV dele
+               'negociacao', coalesce((SELECT jsonb_agg(jsonb_build_object('texto', m.texto, 'quando', m.enviado_em,
+                                                                           'quem', m.quem, 'resumo', m.resumo) ORDER BY m.enviado_em)
+                                         FROM privado.grupo_pedido_mensagem m WHERE m.pedido_id = ANY (s.ids)), '[]'::jsonb),
                'julgamento', (SELECT jsonb_build_object('leitura', j.leitura, 'o_que_errou', j.o_que_errou, 'quando', j.criado_em)
                                 FROM privado.grupo_pedido_julgamento j WHERE j.pedido_id = ANY (s.ids) ORDER BY j.id DESC LIMIT 1)) AS j
         FROM _gc_sol s JOIN privado.grupo_pedido q ON q.id = s.id
