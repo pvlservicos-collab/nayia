@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css">
-<link rel="stylesheet" href="../assets/css/visao-geral.css?v=20261015a">
+<link rel="stylesheet" href="../assets/css/visao-geral.css?v=20261015b">
 </head>
 <body class="admin" data-pagina="visao-geral">
 
@@ -18,27 +18,23 @@
 
 <div data-layout-topo></div>
 
-<!-- 15/10/2026 (Pedro): "uma página nova, tanto no site como no CRM, chama Visão geral, e organize todo o meu projeto
-     e recursos na VPS em um fluxograma conectado, todas as Nays e onde elas estão". O CRM mostra esta mesma página
-     (aba Visão geral, pelo proxy do site). O mapa e as frases do (i) estão em assets/js/visao-geral.js. -->
+<!-- 15/10/2026 (Pedro): "uma página nova, tanto no site como no CRM, chama Visão geral". Na 2ª versão, do mesmo dia:
+     só os lugares que pessoas e IA usam, na ordem da jornada do lead, sem banco, rotina ou função. O CRM mostra esta
+     mesma página (+ Mais > Visão geral, pelo proxy do site). Os lugares e as frases do (i): assets/js/visao-geral.js. -->
 <main class="conteudo" id="conteudo">
   <div class="pagina-cabecalho">
     <div>
       <h1 class="pagina-titulo">Visão geral</h1>
-      <p class="pagina-subtitulo">O projeto inteiro nas duas VPS: quem fala com a gente, por onde, qual Nay atende e onde tudo fica.</p>
+      <p class="pagina-subtitulo">A jornada do lead, da captação ao fechamento: onde cada coisa acontece, quem usa e qual Nay trabalha ali.</p>
     </div>
   </div>
 
-  <section class="vg" data-estado-proprio>
-    <div class="vg-topo">
-      <div class="vg-numeros vg-vidro" id="vg-numeros"></div>
-      <div class="vg-legenda vg-vidro" id="vg-legenda" aria-label="Etapas"></div>
-    </div>
-    <p class="vg-dica">Toque numa bolinha para acender as ligações dela, no <b>i</b> para saber o que é, ou numa etapa para ver só ela.</p>
-    <div class="vg-palco" id="vg-palco">
-      <svg class="vg-mapa" id="vg-mapa" viewBox="0 0 1640 1015" role="img" aria-label="Mapa do projeto nas duas VPS"></svg>
-      <div class="vg-balao" id="vg-balao" role="status" hidden></div>
-    </div>
+  <section class="vg" id="vg" data-estado-proprio>
+    <ol class="vg-jornada" id="vg-jornada" aria-label="A jornada do lead"></ol>
+    <div class="vg-fluxo" id="vg-fluxo"></div>
+    <h3 class="vg-tambem-titulo">Também nas VPS</h3>
+    <div class="vg-tambem" id="vg-tambem"></div>
+    <div class="vg-balao" id="vg-balao" role="status" hidden></div>
   </section>
 </main>
 
@@ -47,6 +43,6 @@
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/layout.js"></script>
 <script src="../assets/js/admin.js"></script>
-<script src="../assets/js/visao-geral.js?v=20261015a"></script>
+<script src="../assets/js/visao-geral.js?v=20261015b"></script>
 </body>
 </html>
