@@ -283,13 +283,18 @@ export async function conferirACaptacao(
        WHERE metadata->>'zapi_message_id' IN (SELECT jsonb_array_elements_text(${JSON.stringify(ids)}::jsonb))`)
     const tem = new Set((existentes.rows as Array<{ id: string }>).map((x) => x.id))
 
-    // o que a pessoa mandou na linha da captação, com folga nas pontas da janela
+    // o que a pessoa mandou na linha da captação, com folga nas pontas da janela -- E NO NÚMERO OFICIAL (15/10/2026):
+    // o registro da Nay (captacao_mensagens) guarda as duas linhas juntas, e a função do banco separa pelo canal ATUAL
+    // do dono. Quem respondeu o modelo no oficial e depois escreveu na Z-API teve as do oficial copiadas para a
+    // conversa da Z-API (a Lana Elisa, 13/10: 8 mensagens em dobro, desfeitas). Já estando no oficial, não é falta.
     const recebidasNoCrm = await db.execute(sql`
       SELECT right(regexp_replace(l.phone, '[^0-9]', '', 'g'), 8) AS fim8,
              coalesce(l.custom_attributes->>'chat_lid', '') AS lid,
              a.content, a.metadata->>'media_type' AS tipo, a.created_at
         FROM lead_activities a JOIN leads l ON l.id = a.lead_id
-       WHERE l.integration_id = ${linha.id}::uuid
+       WHERE (l.integration_id = ${linha.id}::uuid
+              OR l.integration_id IN (SELECT o.id FROM integrations o WHERE o.organization_id = ${organizacao}
+                                         AND o.type = 'whatsapp_cloud_official' AND o.deleted_at IS NULL))
          AND a.metadata->>'direction' = 'inbound'
          AND a.created_at >= ${new Date(desde.getTime() - TOLERANCIA_MS).toISOString()}::timestamptz
          AND a.created_at < ${new Date(ate.getTime() + TOLERANCIA_MS).toISOString()}::timestamptz`)
