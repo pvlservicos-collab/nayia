@@ -18,6 +18,7 @@ DECLARE
   v_fila  record;
   v_resumo text;
   v_k     text;
+  v_ids   bigint[];
 BEGIN
   SELECT * INTO e FROM privado.grupo_captacao_estado WHERE id = 1;
   IF coalesce(e.config->>'envio_manual', 'false') <> 'true' THEN
@@ -38,13 +39,22 @@ BEGIN
   IF length(v_fone) NOT BETWEEN 10 AND 13 OR nai_chave(v_fone) IS NULL THEN
     RETURN jsonb_build_object('erro', 'Não tenho o telefone de quem escreveu (a mensagem veio sem número). Fale com a pessoa pelo grupo.');
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM privado.grupo_pedido_par p WHERE p.pedido_id = q.id AND p.codigo = p_codigo) THEN
+  -- 380: o card inteiro (partes da mensagem, cópias em outros grupos e versões reescritas); sem card, as cópias da 371
+  PERFORM privado.grupo_pedido_juntar_novos();
+  v_k := privado.grupo_pedido_chave(q.fonte, q.id, q.remetente, q.texto, q.parte);
+  SELECT array_agg(j.pedido_id) INTO v_ids
+    FROM privado.grupo_pedido_junto j WHERE j.card = (SELECT card FROM privado.grupo_pedido_junto WHERE pedido_id = q.id);
+  IF v_ids IS NULL THEN
+    SELECT array_agg(c.id) INTO v_ids FROM privado.grupo_pedido c
+     WHERE privado.grupo_pedido_chave(c.fonte, c.id, c.remetente, c.texto, c.parte) = v_k;
+  END IF;
+  v_ids := array_append(coalesce(v_ids, '{}'), q.id);
+  -- o imóvel pode ter casado com OUTRA parte da mesma mensagem ("casa ou apartamento"): o card mostra os de todas
+  IF NOT EXISTS (SELECT 1 FROM privado.grupo_pedido_par p JOIN privado.grupo_pedido c ON c.id = p.pedido_id
+                  WHERE p.codigo = p_codigo AND (c.id = q.id OR (c.id = ANY (v_ids) AND c.fonte = q.fonte AND c.ref = q.ref))) THEN
     RETURN jsonb_build_object('erro', 'Esse imóvel não está entre os que casaram com este pedido.');
   END IF;
-  -- 371: a mesma solicitação colada em vários grupos é uma só: o imóvel enviado numa cópia vale para todas
-  v_k := privado.grupo_pedido_chave(q.fonte, q.id, q.remetente, q.texto, q.parte);
-  IF EXISTS (SELECT 1 FROM privado.grupo_pedido_oferta o JOIN privado.grupo_pedido c ON c.id = o.pedido_id
-              WHERE o.codigo = p_codigo AND privado.grupo_pedido_chave(c.fonte, c.id, c.remetente, c.texto, c.parte) = v_k) THEN
+  IF EXISTS (SELECT 1 FROM privado.grupo_pedido_oferta o WHERE o.codigo = p_codigo AND o.pedido_id = ANY (v_ids)) THEN
     RETURN jsonb_build_object('erro', 'Esse imóvel já foi enviado para este pedido.');
   END IF;
   -- duas mensagens ao mesmo corretor, só com o intervalo (para não parecer spam nem arriscar o número)
@@ -92,8 +102,7 @@ BEGIN
 
   INSERT INTO privado.grupo_pedido_oferta (pedido_id, codigo, telefone, abertura, com_card, turno_id, resumo, quem)
   VALUES (q.id, p_codigo, v_fone, v_abert, v_card, v_turno, v_resumo, nullif(btrim(coalesce(p_quem, '')), ''));
-  UPDATE privado.grupo_pedido SET estado = 'enviado'
-   WHERE id = q.id OR privado.grupo_pedido_chave(fonte, id, remetente, texto, parte) = v_k;
+  UPDATE privado.grupo_pedido SET estado = 'enviado' WHERE id = ANY (v_ids);
   RETURN jsonb_build_object('ok', true, 'resumo', v_resumo, 'turno', v_turno);
 END
 $function$;

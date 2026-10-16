@@ -203,6 +203,15 @@
 .gc-copias summary::-webkit-details-marker { display: none; }
 .gc-copias[open] summary { background: #e4dcf1; }
 .gc-copias ul { margin: 6px 0 0; padding-left: 18px; max-height: 180px; overflow: auto; }
+/* 380: o mesmo pedido reescrito (as outras versões do texto) e as outras partes da mesma mensagem */
+.gc-copias[open] { flex-basis: 100%; }
+.gc-versoes__rotulo { margin: 10px 0 0; font-weight: 700; color: #4b3b6b; }
+.gc-copias ul.gc-versoes { list-style: none; padding: 0; max-height: 260px; display: flex; flex-direction: column; gap: 6px; }
+.gc-versoes li { white-space: pre-wrap; overflow-wrap: anywhere; padding: 6px 10px; border-radius: 8px; background: #f4f1fa; color: var(--texto-medio); }
+.gc-versoes small { display: block; font-weight: 600; color: #4b3b6b; margin-bottom: 2px; }
+.gc-outras-partes { font-size: 13px; color: var(--texto-medio); margin: -4px 0 0; padding: 6px 10px; border-radius: 8px; background: #eef5fd; }
+.gc-outras-partes b { color: var(--texto); }
+.gc-alt-parte { display: inline-block; margin-left: 4px; padding: 1px 7px; border-radius: 999px; background: #eef5fd; color: #1e5f9e; font-weight: 600; }
 
 /* 372: a mensagem de negociação (o campo abre dentro do card) */
 .gc-negocia { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; width: 100%; }

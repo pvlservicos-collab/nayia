@@ -245,6 +245,7 @@
              (passos.length ? '<p class="gc-sem__rotulo">Imóveis nossos que sobraram a cada filtro</p><div class="gc-passos">' + passos.join('<i>→</i>') + "</div>" : "") + "</div>";
     }
     var m = pares[0], im = m.imovel || {}, faixa = p.faixa || "registro";
+    operacao = operacaoDaParte(p, m.parte);
     var h = ['<div class="gc-imovel">',
              '<img class="gc-foto" alt="" data-foto="' + esc(im.codigo) + '" loading="lazy">',
              '<div class="gc-imovel__dados">',
@@ -266,9 +267,10 @@
       h.push('<details class="gc-alternativas"><summary>' + (pares.length - 1) + (pares.length === 2 ? " alternativa" : " alternativas") +
              (p.local && p.local.passaram > pares.length ? " (de " + (p.local.passaram - 1) + " que passaram)" : "") + "</summary><ul>");
       pares.slice(1).forEach(function (a) {
-        var ia = a.imovel || {};
-        h.push("<li><span><b>" + esc(ia.condominio || ia.tipo_cadastro || "") + "</b> <small>cód. " + esc(ia.codigo) + "</small><br>" + esc(ia.bairro || "") +
-               (ia.quartos != null ? " · " + ia.quartos + (ia.quartos === 1 ? " quarto" : " quartos") : "") + " · " + esc(reais(valorDoImovel(ia, operacao))) +
+        var ia = a.imovel || {}, outra = parteDe(p, a.parte);
+        h.push("<li><span><b>" + esc(ia.condominio || ia.tipo_cadastro || "") + "</b> <small>cód. " + esc(ia.codigo) + "</small>" +
+               (outra ? ' <small class="gc-alt-parte">para: ' + esc(resumoDaFicha(outra.ficha)) + "</small>" : "") + "<br>" + esc(ia.bairro || "") +
+               (ia.quartos != null ? " · " + ia.quartos + (ia.quartos === 1 ? " quarto" : " quartos") : "") + " · " + esc(reais(valorDoImovel(ia, operacaoDaParte(p, a.parte)))) +
                (a.acima_do_teto ? " (acima do teto)" : "") + "</span>" +
                (naoPodeEnviar(p, ia.codigo) ? "" : '<button type="button" class="btn-mini gc-alt-enviar" data-acao="enviar" data-codigo="' + esc(ia.codigo) + '">enviar esta</button>') +
                '<b class="gc-alt-nota">' + Math.round(a.nota) + "</b></li>");
@@ -279,13 +281,51 @@
   }
 
   /* 371 (Pedro, 15/10: "quando o cara joga em vários grupos ele cria várias, junta todas as duplicatas em uma"):
-     as cópias vêm juntadas pelo banco; aqui só a etiqueta, que abre a lista dos grupos */
+     as cópias vêm juntadas pelo banco; aqui só a etiqueta, que abre a lista dos grupos.
+     380 (Pedro, 16/10: "o mesmo corretor faz o pedido em vários grupos ... devem ser todos juntados em um só card"):
+     o texto reescrito e colado de novo também vem junto; a etiqueta conta as versões e mostra as outras */
   function copias(p) {
-    if (!(p.vezes > 1)) return "";
+    var versoes = p.outras_versoes || [];
+    if (!(p.vezes > 1) && !versoes.length) return "";
     var grupos = p.grupos || [];
-    return '<details class="gc-copias"><summary>postado ' + p.vezes + " vezes" +
-           (grupos.length > 1 ? " em " + grupos.length + " grupos" : "") + "</summary><ul>" +
-           grupos.map(function (g) { return "<li>" + esc(g) + "</li>"; }).join("") + "</ul></details>";
+    return '<details class="gc-copias"><summary>postado ' + p.vezes + (p.vezes === 1 ? " vez" : " vezes") +
+           (grupos.length > 1 ? " em " + grupos.length + " grupos" : "") +
+           (versoes.length ? " · " + (versoes.length + 1) + " versões do texto" : "") + "</summary><ul>" +
+           grupos.map(function (g) { return "<li>" + esc(g) + "</li>"; }).join("") + "</ul>" +
+           (versoes.length
+             ? '<p class="gc-versoes__rotulo">Outras versões do texto (o card mostra a mais recente)</p><ul class="gc-versoes">' +
+               versoes.map(function (v) {
+                 return "<li><small>" + esc(quando(v.quando)) + (v.grupo ? " · " + esc(v.grupo) : "") + "</small>" + esc(v.texto) + "</li>";
+               }).join("") + "</ul>"
+             : "") +
+           "</details>";
+  }
+  /* 380: a mesma mensagem com mais de um pedido ("casa ou apartamento", "aluguel ou venda") é um card só: aparece a parte
+     de melhor nota, as outras numa linha, e os imóveis delas entram nas alternativas com a etiqueta da parte */
+  function resumoDaFicha(f) {
+    f = f || {};
+    var r = [];
+    if (f.operacao) r.push(f.operacao === "aluguel" ? "ALUGUEL" : "VENDA");
+    if (f.tipo) r.push(valorDoCampo("tipo", f.tipo));
+    if (f.quartos != null) r.push(f.quartos + (f.quartos === 1 ? " quarto" : " quartos"));
+    if (f.preco_max) r.push("até " + reais(f.preco_max));
+    return r.join(" · ") || "pedido sem detalhe";
+  }
+  function outrasPartes(p) {
+    var o = p.outras_partes || [];
+    if (!o.length) return "";
+    return '<p class="gc-outras-partes">Na mesma mensagem também pede: ' + o.map(function (x) {
+      return "<b>" + esc(resumoDaFicha(x.ficha)) + "</b>" + (x.nota != null ? " (nota " + Math.round(x.nota) + ")" : " (sem imóvel)");
+    }).join("; ") + "</p>";
+  }
+  function parteDe(p, parte) {
+    if (parte == null || parte === p.parte) return null;
+    return (p.outras_partes || []).filter(function (x) { return x.parte === parte; })[0] || null;
+  }
+  /* o preço do imóvel depende do negócio da parte que o achou (aluguel ou venda) */
+  function operacaoDaParte(p, parte) {
+    var o = parteDe(p, parte);
+    return (o && o.ficha && o.ficha.operacao) || (p.local && p.local.operacao) || (p.ficha && p.ficha.operacao);
   }
 
   function desenharItem(p) {
@@ -307,6 +347,7 @@
              '<p class="gc-texto">' + esc(p.texto) + "</p>",
              (p.parte > 1 || (p.ficha && p.ficha.trecho && p.ficha.trecho.length + 12 < String(p.texto).length)
                ? '<p class="gc-parte">Pedido ' + p.parte + " desta mensagem: “" + esc(p.ficha.trecho || "") + "”</p>" : ""),
+             outrasPartes(p),
              desenharFicha(p),
              '<div class="gc-acoes">',
              (function () {

@@ -16,6 +16,8 @@ DECLARE
   v_fonte jsonb;
 BEGIN
   SELECT * INTO e FROM privado.grupo_captacao_estado WHERE id = 1;
+  -- 380: o que chegou desde a última vez entra no card certo antes de listar
+  PERFORM privado.grupo_pedido_juntar_novos();
   v_horas := least(greatest(coalesce(p_horas, nullif(e.config->>'janela_h', '')::int, 48), 1), 24 * 60);
   v_desde := now() - make_interval(hours => v_horas);
 
@@ -23,24 +25,32 @@ BEGIN
   IF to_regclass('pg_temp._gc_sol') IS NULL THEN
     CREATE TEMP TABLE _gc_sol (k text, id bigint, n int, ids bigint[], grupos text[], primeira timestamptz,
                                ultima timestamptz, estado text, faixa text, nota numeric, pontuado_em timestamptz,
-                               fonte text) ON COMMIT DROP;
+                               fonte text, versoes int) ON COMMIT DROP;
   END IF;
   TRUNCATE _gc_sol;
   INSERT INTO _gc_sol
   WITH g AS (
-    SELECT q.*, privado.grupo_pedido_chave(q.fonte, q.id, q.remetente, q.texto, q.parte) AS k
-      FROM privado.grupo_pedido q WHERE q.enviada_em >= v_desde
+    -- 380: o card (o mesmo pedido do mesmo corretor: partes da mensagem, cópias e versões reescritas); sem card, a chave da 371
+    SELECT q.*, coalesce('c' || jt.card, privado.grupo_pedido_chave(q.fonte, q.id, q.remetente, q.texto, q.parte)) AS k,
+           coalesce(jt.nt, q.texto) AS nt
+      FROM privado.grupo_pedido q LEFT JOIN privado.grupo_pedido_junto jt ON jt.pedido_id = q.id
+     WHERE q.enviada_em >= v_desde
   ), junta AS (
-    SELECT k, count(*)::int AS n, array_agg(id ORDER BY enviada_em, id) AS ids,
+    -- 'vezes' conta MENSAGENS (a mesma mensagem em 3 partes é 1 vez), 'versoes' os textos diferentes
+    SELECT k, count(DISTINCT fonte || ':' || ref)::int AS n, array_agg(id ORDER BY enviada_em, id) AS ids,
+           count(DISTINCT nt)::int AS versoes,
            array_agg(DISTINCT grupo_nome) FILTER (WHERE nullif(btrim(grupo_nome), '') IS NOT NULL) AS grupos,
            min(enviada_em) AS primeira, max(enviada_em) AS ultima,
            CASE WHEN bool_or(estado = 'enviado') THEN 'enviado' WHEN bool_or(estado = 'rejeitado') THEN 'rejeitado'
                 WHEN bool_or(estado = 'aprovado') THEN 'aprovado' ELSE 'novo' END AS estado
       FROM g GROUP BY k
   ), rep AS (
-    SELECT DISTINCT ON (k) k, id, faixa, nota, pontuado_em, fonte FROM g ORDER BY k, (pontuado_em IS NULL), enviada_em DESC, id DESC
+    -- 380: a versão mais recente, e dela a parte de melhor nota
+    SELECT DISTINCT ON (k) k, id, faixa, nota, pontuado_em, fonte FROM g
+     ORDER BY k, (pontuado_em IS NULL), enviada_em DESC, nota DESC NULLS LAST, parte, id DESC
   )
-  SELECT j.k, r.id, j.n, j.ids, coalesce(j.grupos, '{}'), j.primeira, j.ultima, j.estado, r.faixa, r.nota, r.pontuado_em, r.fonte
+  SELECT j.k, r.id, j.n, j.ids, coalesce(j.grupos, '{}'), j.primeira, j.ultima, j.estado, r.faixa, r.nota, r.pontuado_em, r.fonte,
+         j.versoes
     FROM junta j JOIN rep r USING (k);
 
   SELECT jsonb_build_object(
@@ -90,14 +100,32 @@ BEGIN
                'enviada_em', s.ultima, 'texto', q.texto,
                -- 371: as cópias juntadas
                'vezes', s.n, 'grupos', to_jsonb(s.grupos), 'primeira_em', s.primeira, 'ids', to_jsonb(s.ids),
+               -- 380: as outras partes da mesma mensagem ("casa OU apartamento", "aluguel OU venda") e os outros textos
+               'outras_partes', coalesce((SELECT jsonb_agg(jsonb_build_object('id', pp.id, 'parte', pp.parte, 'ficha', pp.ficha,
+                                                                              'nota', pp.nota, 'faixa', pp.faixa) ORDER BY pp.parte)
+                                            FROM privado.grupo_pedido pp
+                                           WHERE pp.id = ANY (s.ids) AND pp.id <> q.id AND pp.fonte = q.fonte AND pp.ref = q.ref), '[]'::jsonb),
+               'versoes', s.versoes,
+               'outras_versoes', coalesce((SELECT jsonb_agg(jsonb_build_object('texto', v.texto, 'quando', v.enviada_em, 'grupo', v.grupo_nome)
+                                                            ORDER BY v.enviada_em DESC)
+                                             FROM (SELECT DISTINCT ON (jv.nt) pv.texto, pv.enviada_em, pv.grupo_nome
+                                                     FROM privado.grupo_pedido pv JOIN privado.grupo_pedido_junto jv ON jv.pedido_id = pv.id
+                                                    WHERE pv.id = ANY (s.ids)
+                                                      AND jv.nt IS DISTINCT FROM (SELECT jr.nt FROM privado.grupo_pedido_junto jr WHERE jr.pedido_id = q.id)
+                                                    ORDER BY jv.nt, pv.enviada_em DESC) v), '[]'::jsonb),
                'ficha', q.ficha, 'duvidosos', to_jsonb(q.duvidosos), 'local', q.local,
                'estado', s.estado, 'nota', q.nota, 'faixa', q.faixa, 'sem_match_motivo', q.sem_match_motivo,
                'funil', q.funil, 'pontuado', q.pontuado_em IS NOT NULL,
-               'pares', coalesce((SELECT jsonb_agg(jsonb_build_object(
-                                           'codigo', p.codigo, 'posicao', p.posicao, 'nota', p.nota,
-                                           'detalhe', p.detalhe, 'acima_do_teto', p.acima_do_teto, 'imovel', p.imovel)
-                                         ORDER BY p.posicao)
-                                    FROM privado.grupo_pedido_par p WHERE p.pedido_id = q.id), '[]'::jsonb),
+               -- 380: os imóveis desta parte na ordem dela; depois os que só as outras partes da mensagem acharam
+               'pares', coalesce((SELECT jsonb_agg(x.o ORDER BY x.minha DESC, x.posicao, x.nota DESC)
+                                    FROM (SELECT DISTINCT ON (p.codigo) p.codigo, (p.pedido_id = q.id) AS minha, p.posicao, p.nota,
+                                                 jsonb_build_object('codigo', p.codigo, 'posicao', p.posicao, 'nota', p.nota,
+                                                                    'detalhe', p.detalhe, 'acima_do_teto', p.acima_do_teto, 'imovel', p.imovel,
+                                                                    'parte', pp.parte) AS o
+                                            FROM privado.grupo_pedido pp JOIN privado.grupo_pedido_par p ON p.pedido_id = pp.id
+                                           WHERE pp.id = q.id
+                                              OR (pp.id = ANY (s.ids) AND pp.fonte = q.fonte AND pp.ref = q.ref)
+                                           ORDER BY p.codigo, (p.pedido_id = q.id) DESC, p.nota DESC) x), '[]'::jsonb),
                'ofertas', coalesce((SELECT jsonb_agg(jsonb_build_object('codigo', o.codigo, 'quando', o.enviado_em,
                                                                         'com_card', o.com_card, 'resumo', o.resumo) ORDER BY o.enviado_em)
                                       FROM privado.grupo_pedido_oferta o WHERE o.pedido_id = ANY (s.ids)), '[]'::jsonb),   -- 339
