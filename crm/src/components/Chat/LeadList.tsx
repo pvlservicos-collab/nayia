@@ -481,8 +481,8 @@ export default function LeadList({
         const semLer = Number(l.nao_lidas || 0)
         if (semLer) contagem[`semler:cap:${a}`] = (contagem[`semler:cap:${a}`] ?? 0) + semLer
       }
-      // as etapas dos clientes da OLX (16/10)
-      const etapaOlx = linha === 'captacao' ? etapaOlxDe(l) : null
+      // as etapas da aba Captação (16/10): a do cliente da OLX; o dono da campanha conta em Proprietários
+      const etapaOlx = linha === 'captacao' ? (etapaOlxDe(l) || (donos[l.id] ? 'proprietarios' : null)) : null
       if (etapaOlx) {
         soma(`olx:${etapaOlx}`)
         const semLer = Number(l.nao_lidas || 0)
@@ -551,11 +551,19 @@ export default function LeadList({
     { chave: 'nao_lidas', rotulo: 'Não lido', contagem: contagem.nao_lidas, titulo: 'Só as conversas com mensagem que ninguém abriu ainda' },
   ] : []
 
-  /* a fileira dos clientes da OLX (16/10): Filtrar · Feito busca · Imóveis enviado · Visita · Proprietários · Fechamento · Finalizados */
-  const filtrosOlx: FiltroDaLista[] = linha === 'captacao'
-    ? ETAPAS_OLX.map((e) => ({ chave: `olx:${e.chave}`, rotulo: e.rotulo, cor: e.cor, titulo: e.titulo, grupo: 'etapa' as const,
-                               contagem: contagem[`olx:${e.chave}`], naoLidas: contagem[`semler:olx:${e.chave}`] }))
+  /* AS ETAPAS DA ABA CAPTAÇÃO (Pedro, 16/10/2026: "novas etapas na aba captação ... serão essas etapas: FILTRAR, FEITO
+     BUSCA, IMÓVEIS ENVIADO, VISITA, PROPRIETÁRIOS, FECHAMENTO, FINALIZADOS"). São A fileira principal da aba (antes eram
+     uma terceira fileira pequena, embaixo das abas da campanha, e ele não as achou). Proprietários junta os donos da
+     campanha (as abas antigas viram o subfiltro dela) e o cliente da OLX que a equipe pôs ali. Só na Captação: a
+     Oficial continua com as abas da campanha. */
+  const filtrosCaptacao: FiltroDaLista[] = linha === 'captacao'
+    ? [
+        { chave: 'all', rotulo: 'Todos', grupo: 'etapa' as const },
+        ...ETAPAS_OLX.map((e) => ({ chave: `olx:${e.chave}`, rotulo: e.rotulo, cor: e.cor, titulo: e.titulo, grupo: 'etapa' as const,
+                                    contagem: contagem[`olx:${e.chave}`], naoLidas: contagem[`semler:olx:${e.chave}`] })),
+      ]
     : []
+  const noSubfiltroDosDonos = activeTab === 'olx:proprietarios' || activeTab.startsWith('cap:')
 
   const passaNoFiltro = (hit: SearchHit): boolean => {
     const l = hit.lead
@@ -570,6 +578,7 @@ export default function LeadList({
     }
     if (activeTab === 'all') return true
     if (activeTab.startsWith('cap:')) return (donos[l.id]?.abas || []).includes(activeTab.slice(4))
+    if (activeTab === 'olx:proprietarios') return etapaOlxDe(l) === 'proprietarios' || (!etapaOlxDe(l) && !!donos[l.id])
     if (activeTab.startsWith('olx:')) return etapaOlxDe(l) === activeTab.slice(4)
     if (activeTab === 'nao_lidas') return !!l.is_unread || l.id === selectedLeadId
     if (activeTab === 'rayssa') return daRayssa(l, marcas[l.id], atendenteDoLead[l.id])
@@ -737,19 +746,24 @@ export default function LeadList({
                 </div>
               </div>
             )}
-            {comAbasDaCaptacao ? (
+            {linha === 'captacao' ? (
               <>
-                <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtros.filter((f) => !NA_LINHA_2_DA_CAPTACAO.has(f.chave))} />
-                <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtros.filter((f) => NA_LINHA_2_DA_CAPTACAO.has(f.chave))} />
-                {filtrosOlx.length > 0 && (
+                {/* 16/10: as etapas da Captação são a fileira principal; o subfiltro dos donos só com Proprietários aberto */}
+                <ChatFilterTabs ativo={activeTab.startsWith('cap:') ? 'olx:proprietarios' : activeTab} aoMudar={setActiveTab} filtros={filtrosCaptacao} />
+                {noSubfiltroDosDonos && (
                   <div className="flex items-center gap-1 pl-4">
                     <span className="text-[12px] flex-shrink-0" style={{ color: 'var(--wa-text-2)' }}
-                          title="Quem chegou pela OLX e a Nay do WhatsApp está atendendo">Clientes OLX:</span>
+                          title="Os donos da campanha de captação, pelo que cada um respondeu">Donos:</span>
                     <div className="flex-1 min-w-0 -ml-3">
-                      <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtrosOlx} />
+                      <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtros.filter((f) => f.chave.startsWith('cap:'))} />
                     </div>
                   </div>
                 )}
+              </>
+            ) : comAbasDaCaptacao ? (
+              <>
+                <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtros.filter((f) => !NA_LINHA_2_DA_CAPTACAO.has(f.chave))} />
+                <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtros.filter((f) => NA_LINHA_2_DA_CAPTACAO.has(f.chave))} />
               </>
             ) : (
               <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtros} />
