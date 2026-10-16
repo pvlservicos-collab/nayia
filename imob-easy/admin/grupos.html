@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css?v=20261003-grupos">
 <link rel="stylesheet" href="../assets/css/grupos-agenda.css?v=20261003f">
-<link rel="stylesheet" href="../assets/css/grupos-captacao.css?v=20261016a">
+<link rel="stylesheet" href="../assets/css/grupos-captacao.css?v=20261016b">
 </head>
 <body class="admin" data-pagina="grupos">
 
@@ -188,6 +188,36 @@
   </form>
 </dialog>
 
+<!-- 382: enviar vários imóveis ao corretor do pedido (lista editável, mensagem inicial, card e/ou fotos) -->
+<dialog class="ga-dialogo ga-dialogo--largo" id="gc-varios" aria-labelledby="gc-var-tit">
+  <form class="ga-dialogo__caixa" id="gc-var-form" novalidate>
+    <div class="ga-dialogo__topo"><h2 id="gc-var-tit">Enviar vários imóveis</h2><button type="button" class="btn-neutro" data-fechar aria-label="Fechar">✕</button></div>
+    <div class="gc-env-resumo" id="gc-var-resumo"></div>
+    <label for="gc-var-texto"><b>Mensagem inicial</b> <span class="gc-env-nota">(vai antes dos imóveis; apague para não mandar)</span></label>
+    <textarea class="entrada" id="gc-var-texto" rows="3" maxlength="700"></textarea>
+    <div class="gc-var-opcoes" role="group" aria-label="O que vai de cada imóvel">
+      <label><input type="checkbox" id="gc-var-card" checked> Enviar o card</label>
+      <label><input type="checkbox" id="gc-var-fotos"> Enviar as fotos</label>
+    </div>
+    <p class="gc-var-rotulo"><b>Imóveis</b> <span class="gc-env-nota" id="gc-var-conta"></span></p>
+    <ol class="gc-var-lista" id="gc-var-lista"></ol>
+    <p class="gc-var-rotulo"><b>Sugestões</b> <span class="gc-env-nota">(os outros que casaram com o pedido; clique para pôr na lista)</span></p>
+    <div class="gc-var-sugestoes" id="gc-var-sugestoes"></div>
+    <div class="gc-var-busca">
+      <input class="entrada" id="gc-var-busca" type="search" autocomplete="off"
+             placeholder="Adicionar outro: pesquise por código ou nome (3841, Mont Clair, Ponta Negra...)" aria-label="Pesquisar imóvel por código ou nome">
+      <ul class="gc-var-achados" id="gc-var-achados" hidden></ul>
+    </div>
+    <p class="ga-dica">Vai a mensagem inicial e depois cada imóvel na ordem da lista (o card e/ou as fotos), no privado dele, pelo número da Parceria.
+      Imóvel que já foi para esse número nas últimas 24 h, de parceiro ou indisponível não vai, e o aviso diz qual.</p>
+    <p class="ga-erro" id="gc-var-erro" role="alert"></p>
+    <div class="ga-dialogo__acoes">
+      <button type="button" class="btn-neutro" data-fechar>Cancelar</button>
+      <button type="submit" class="btn-azul" id="gc-var-ok">Enviar</button>
+    </div>
+  </form>
+</dialog>
+
 <!-- Demanda do mercado: o que mais pedem e a gente não tem -->
 <dialog class="ga-dialogo ga-dialogo--largo" id="gc-demanda" aria-labelledby="gc-dem-tit">
   <div class="ga-dialogo__caixa">
@@ -318,6 +348,6 @@
 <script src="../assets/js/admin.js"></script>
 <script src="../assets/js/grupos-agenda.js?v=20261003g"></script>
 <script src="../assets/js/whatsapp-exportado.js?v=20261009d"></script>
-<script src="../assets/js/grupos-captacao.js?v=20261016a"></script>
+<script src="../assets/js/grupos-captacao.js?v=20261016b"></script>
 </body>
 </html>

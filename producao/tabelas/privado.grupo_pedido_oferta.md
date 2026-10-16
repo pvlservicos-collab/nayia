@@ -25,7 +25,7 @@ grupo_pedido_oferta_pkey: PRIMARY KEY (id)
 (só o dono)
 
 ## funções que escrevem aqui
-site_captacao_grupos_enviar
+site_captacao_grupos_enviar, site_captacao_grupos_enviar_varios
 
 ## funções que citam
-site_captacao_grupos, site_captacao_grupos_enviar
+site_captacao_grupos, site_captacao_grupos_enviar, site_captacao_grupos_enviar_varios

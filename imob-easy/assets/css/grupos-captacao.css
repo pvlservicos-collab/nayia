@@ -211,6 +211,43 @@
 .gc-versoes small { display: block; font-weight: 600; color: #4b3b6b; margin-bottom: 2px; }
 .gc-outras-partes { font-size: 13px; color: var(--texto-medio); margin: -4px 0 0; padding: 6px 10px; border-radius: 8px; background: #eef5fd; }
 .gc-outras-partes b { color: var(--texto); }
+/* 382: enviar vários imóveis (o popup) */
+.gc-var-opcoes { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; }
+.gc-var-opcoes label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 600; }
+.gc-var-opcoes input { width: 17px; height: 17px; accent-color: #6d3fd6; }
+.gc-var-rotulo { margin: 4px 0 0; font-size: 14px; }
+.gc-var-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow: auto; }
+.gc-var-item { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border: 1px solid var(--borda, #e3dfeb); border-radius: 10px; background: #fff; }
+.gc-var-num { flex: 0 0 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700;
+  background: #f1edf7; color: #4b3b6b; }
+.gc-var-foto { flex: 0 0 56px; width: 56px; height: 42px; object-fit: cover; border-radius: 6px; background: #eceaf1; }
+.gc-var-dados { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.35; }
+.gc-var-dados small { color: var(--texto-medio); }
+.gc-var-dados span { color: var(--texto-medio); font-size: 12.5px; }
+.gc-var-nota { display: inline-block; margin-left: 4px; font-style: normal; font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px;
+  background: #e7f6ee; color: #1f7a52; }
+.gc-var-botoes { display: flex; gap: 4px; flex-shrink: 0; }
+.gc-var-botoes .btn-mini { min-width: 32px; padding-left: 8px; padding-right: 8px; }
+.gc-var-tirar { color: #b42318; }
+.gc-var-vazia { padding: 12px; text-align: center; font-size: 13.5px; color: var(--texto-medio); border: 1px dashed var(--borda, #d6d1df); border-radius: 10px; }
+.gc-var-sugestoes { display: flex; flex-wrap: wrap; gap: 6px; }
+.gc-var-sug { font: inherit; font-size: 13px; font-weight: 600; padding: 5px 11px; border-radius: 999px; border: 1px solid #c9bde3; background: #f7f4fc;
+  color: #4b3b6b; cursor: pointer; }
+.gc-var-sug:hover { background: #ece5f8; }
+.gc-var-sug small { font-weight: 400; color: var(--texto-medio); }
+.gc-var-sug:disabled { opacity: .5; cursor: default; }
+.gc-var-busca { position: relative; }
+.gc-var-busca input { width: 100%; }
+.gc-var-achados { list-style: none; margin: 4px 0 0; padding: 4px; border: 1px solid var(--borda, #d6d1df); border-radius: 10px; background: #fff;
+  box-shadow: 0 10px 28px rgba(20, 20, 50, .14); max-height: 280px; overflow: auto; }
+.gc-var-achados button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border: 0; border-radius: 8px; background: none;
+  font: inherit; text-align: left; cursor: pointer; }
+.gc-var-achados button:hover:not(:disabled) { background: #f4f1fa; }
+.gc-var-achados button:disabled { opacity: .55; cursor: default; }
+.gc-var-achados img, .gc-var-achados i { flex: 0 0 48px; width: 48px; height: 36px; object-fit: cover; border-radius: 6px; background: #eceaf1; }
+.gc-var-achados span { font-size: 13px; line-height: 1.35; }
+.gc-var-achados em { font-style: normal; font-size: 11.5px; font-weight: 700; color: #8a6d00; }
+.gc-var-nada { padding: 8px; font-size: 13px; color: var(--texto-medio); }
 .gc-alt-parte { display: inline-block; margin-left: 4px; padding: 1px 7px; border-radius: 999px; background: #eef5fd; color: #1e5f9e; font-weight: 600; }
 
 /* 372: a mensagem de negociação (o campo abre dentro do card) */

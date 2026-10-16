@@ -5283,6 +5283,17 @@ def admin_grupos_captacao_enviar(pedido_id):
                             (pedido_id, _inteiro(corpo.get("codigo"), 0), str(corpo.get("abertura") or ""), "painel do site"))
 
 
+# 382: ENVIAR VÁRIOS IMÓVEIS (Pedro, 16/10/2026: "seleciono os imóveis, adiciono, excluo, adiciono uma mensagem inicial,
+# posso marcar enviar card ou marcar enviar foto"). A lista na ordem da tela; as travas e a fila são do banco.
+@app.route("/admin/api/grupos/captacao/<int:pedido_id>/enviar-varios", methods=["POST"])
+def admin_grupos_captacao_enviar_varios(pedido_id):
+    corpo = request.get_json(silent=True) or {}
+    codigos = [c for c in (_inteiro(x, 0) for x in (corpo.get("codigos") or [])[:20]) if c > 0]
+    return _captacao_grupos("SELECT site_captacao_grupos_enviar_varios(%s, %s::int[], %s, %s, %s, %s) AS j",
+                            (pedido_id, codigos, str(corpo.get("abertura") or ""), corpo.get("card") is True,
+                             corpo.get("fotos") is True, "painel do site"))
+
+
 # 372: a MENSAGEM DE NEGOCIAÇÃO -- o texto digitado na tela vai para o PV de quem fez o pedido, pelo número da Parceria
 @app.route("/admin/api/grupos/captacao/<int:pedido_id>/mensagem", methods=["POST"])
 def admin_grupos_captacao_mensagem(pedido_id):

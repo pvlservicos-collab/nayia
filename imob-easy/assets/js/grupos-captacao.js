@@ -356,13 +356,23 @@
                  ? '<button type="button" class="btn-mini" disabled title="' + esc(motivo) + '">Enviar ao corretor</button>'
                  : '<button type="button" class="btn-azul gc-btn-enviar" data-acao="enviar" data-codigo="' + esc(codigo) + '">Enviar ao corretor</button>';
              })(),
+             /* 382 (Pedro, 16/10): "nas opções põe uma enviar vários imóveis ... em uma nova opção lá no card" */
+             (function () {
+               var motivo = !manual() ? "O envio manual está desligado (envio_manual)."
+                 : p.fonte === "teste" ? "Teste colado na tela: não tem corretor para receber."
+                 : !p.telefone ? "A mensagem veio sem o telefone de quem escreveu."
+                 : rejeitado ? "Solicitação rejeitada: desfaça a rejeição para enviar." : "";
+               return '<button type="button" class="btn-mini gc-btn-varios" data-acao="varios"' +
+                      (motivo ? ' disabled title="' + esc(motivo) + '"' : ' title="Escolha os imóveis (os que casaram ou qualquer outro), a mensagem inicial, card e/ou fotos"') +
+                      ">Enviar vários imóveis</button>";
+             })(),
              /* 372 (Pedro, 15/10): "mais um campo ali ao lado de enviar imóvel, Mensagem de negociação" */
              (function () {
                var motivo = !manual() ? "O envio manual está desligado (envio_manual)."
                  : p.fonte === "teste" ? "Teste colado na tela: não tem corretor para receber."
                  : !p.telefone ? "A mensagem veio sem o telefone de quem escreveu." : "";
                return '<button type="button" class="btn-mini gc-btn-negocia" data-acao="negociar"' +
-                      (motivo ? ' disabled title="' + esc(motivo) + '"' : ' title="Escreva uma mensagem: ela vai para o PV dele pelo número da Parceria, respondendo a mensagem dele no grupo"') +
+                      (motivo ? ' disabled title="' + esc(motivo) + '"' : ' title="Escreva uma mensagem: ela vai para o PV dele pelo número da Parceria"') +
                       ">Mensagem de negociação</button>";
              })(),
              (p.ofertas || []).map(function (o) {
@@ -474,16 +484,195 @@
       .catch(function (e) { $("gc-env-ok").disabled = false; $("gc-env-erro").textContent = e.message; });
   }
 
+  /* ── 382: ENVIAR VÁRIOS IMÓVEIS (Pedro, 16/10: "nas opções põe uma enviar vários imóveis, aí aparece um popup, eu
+     seleciono os imóveis, adiciono, excluo, adiciono uma mensagem inicial, posso marcar enviar card ou marcar enviar foto
+     também, uma seleção em lista editável e posso adicionar mais imóveis, pesquiso por código ou nome") ──
+     A lista começa com o melhor que casou e ainda não foi; os outros que casaram ficam em Sugestões, a um clique; a busca
+     acha qualquer imóvel que a Nay oferece (/api/imoveis-para-enviar, o catálogo do seletor da agenda). As travas (24 h
+     por número, parceiro, indisponível, já enviado a este pedido) são do banco (site_captacao_grupos_enviar_varios): o
+     que não puder ir volta dito no aviso, e o resto vai. */
+  var MAX_VARIOS = 10;
+  var varios = null;            // { p, operacao, lista: [imóvel], achados: [imóvel] }
+  var catalogoVarios = null;    // Promise do catálogo
+  var esperaBusca = null;
+  function catalogoDosImoveis() {
+    if (!catalogoVarios) {
+      catalogoVarios = fetch(API + "/api/imoveis-para-enviar").then(function (r) { return r.json(); })
+        .then(function (d) { return d.imoveis || []; })
+        .catch(function () { catalogoVarios = null; return []; });
+    }
+    return catalogoVarios;
+  }
+  function semAcento(s) { return String(s == null ? "" : s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase(); }
+  /* o imóvel que casou (par) e o do catálogo no mesmo formato */
+  function doPar(par) {
+    var im = par.imovel || {};
+    return { codigo: Number(par.codigo), nome: im.condominio || im.tipo_cadastro || "Imóvel", bairro: im.bairro || "", quartos: im.quartos,
+             venda: im.valor_venda, aluguel: im.valor_aluguel, nota: par.nota, foto: null };
+  }
+  function doCatalogo(m) {
+    return { codigo: Number(m.codigo), nome: m.condominio || m.titulo || m.tipo || "Imóvel", bairro: m.bairro || "", quartos: m.quartos,
+             venda: m.venda, aluguel: m.aluguel, nota: null, foto: m.foto || null };
+  }
+  function precoDe(im, operacao) {
+    if (operacao === "venda" && im.venda) return reais(im.venda);
+    if (operacao === "aluguel" && im.aluguel) return reais(im.aluguel) + "/mês";
+    return [im.venda ? reais(im.venda) : "", im.aluguel ? reais(im.aluguel) + "/mês" : ""].filter(Boolean).join(" · ");
+  }
+  function jaEnviado(p, codigo) { return (p.ofertas || []).some(function (o) { return Number(o.codigo) === Number(codigo); }); }
+  function linhaDoImovel(im, operacao) {
+    return "<b>" + esc(im.nome) + "</b> <small>cód. " + esc(im.codigo) + "</small><br><span>" +
+           esc([im.bairro, im.quartos != null ? im.quartos + (im.quartos === 1 ? " quarto" : " quartos") : "", precoDe(im, operacao)].filter(Boolean).join(" · ")) +
+           "</span>";
+  }
+  function desenharVarios() {
+    var v = varios, l = v.lista;
+    $("gc-var-lista").innerHTML = l.length
+      ? l.map(function (im, n) {
+          return '<li class="gc-var-item"><span class="gc-var-num">' + (n + 1) + "</span>" +
+                 '<img class="gc-var-foto" alt="" data-var-foto="' + esc(im.codigo) + '"' + (im.foto ? ' src="' + esc(im.foto) + '"' : "") + ">" +
+                 '<span class="gc-var-dados">' + linhaDoImovel(im, v.operacao) +
+                   (im.nota != null ? ' <i class="gc-var-nota">casou · nota ' + Math.round(im.nota) + "</i>" : "") + "</span>" +
+                 '<span class="gc-var-botoes">' +
+                   '<button type="button" class="btn-mini" data-var="subir" data-n="' + n + '"' + (n === 0 ? " disabled" : "") + ' aria-label="Subir" title="Subir">↑</button>' +
+                   '<button type="button" class="btn-mini" data-var="descer" data-n="' + n + '"' + (n === l.length - 1 ? " disabled" : "") + ' aria-label="Descer" title="Descer">↓</button>' +
+                   '<button type="button" class="btn-mini gc-var-tirar" data-var="tirar" data-n="' + n + '" aria-label="Tirar da lista" title="Tirar da lista">✕</button>' +
+                 "</span></li>";
+        }).join("")
+      : '<li class="gc-var-vazia">Nenhum imóvel na lista. Escolha nas sugestões ou pesquise abaixo.</li>';
+    $("gc-var-conta").textContent = l.length ? "(" + l.length + " de no máximo " + MAX_VARIOS + ", vão nesta ordem)" : "";
+    var naLista = {};
+    l.forEach(function (im) { naLista[im.codigo] = true; });
+    var sug = (v.p.pares || []).filter(function (par) { return !naLista[Number(par.codigo)]; });
+    $("gc-var-sugestoes").innerHTML = sug.length
+      ? sug.map(function (par) {
+          var im = doPar(par), ja = jaEnviado(v.p, im.codigo);
+          return '<button type="button" class="gc-var-sug" data-var="sugerido" data-codigo="' + esc(im.codigo) + '"' +
+                 (ja ? ' disabled title="Já foi enviado para este pedido"' : "") + ">+ " + esc(im.nome) +
+                 " <small>cód. " + esc(im.codigo) + " · nota " + Math.round(par.nota) + (ja ? " · já enviado" : "") + "</small></button>";
+        }).join("")
+      : '<span class="gc-env-nota">Nenhuma outra: pesquise abaixo.</span>';
+    $("gc-var-ok").textContent = l.length ? "Enviar " + l.length + (l.length === 1 ? " imóvel" : " imóveis") : "Enviar";
+    /* os que casaram não trazem foto: vem do catálogo */
+    catalogoDosImoveis().then(function (cat) {
+      var porCodigo = {};
+      cat.forEach(function (m) { porCodigo[Number(m.codigo)] = m; });
+      Array.prototype.forEach.call($("gc-var-lista").querySelectorAll("img[data-var-foto]:not([src])"), function (img) {
+        var m = porCodigo[Number(img.getAttribute("data-var-foto"))];
+        if (m && m.foto) img.src = m.foto;
+      });
+    });
+  }
+  function adicionar(im) {
+    var v = varios;
+    if (!v) return;
+    $("gc-var-erro").textContent = "";
+    if (v.lista.some(function (x) { return x.codigo === im.codigo; })) { $("gc-var-erro").textContent = "O " + im.codigo + " já está na lista."; return; }
+    if (jaEnviado(v.p, im.codigo)) { $("gc-var-erro").textContent = "O " + im.codigo + " já foi enviado para este pedido."; return; }
+    if (v.lista.length >= MAX_VARIOS) { $("gc-var-erro").textContent = "No máximo " + MAX_VARIOS + " imóveis por envio."; return; }
+    v.lista.push(im);
+    desenharVarios();
+  }
+  function buscarNoCatalogo() {
+    var q = $("gc-var-busca").value.trim(), caixa = $("gc-var-achados");
+    if (!q || !varios) { caixa.hidden = true; caixa.innerHTML = ""; return; }
+    catalogoDosImoveis().then(function (cat) {
+      if (!varios || $("gc-var-busca").value.trim() !== q) return;      // já digitou outra coisa
+      var digitos = /^\d+$/.test(q), palavras = semAcento(q).split(/\s+/);
+      var achados = cat.filter(function (m) {
+        if (digitos) return String(m.codigo).indexOf(q) === 0;
+        var onde = semAcento([m.titulo, m.condominio, m.bairro, m.tipo, m.codigo].join(" "));
+        return palavras.every(function (pal) { return onde.indexOf(pal) >= 0; });
+      }).slice(0, 8).map(doCatalogo);
+      varios.achados = achados;
+      caixa.innerHTML = achados.length
+        ? achados.map(function (im, n) {
+            var ja = jaEnviado(varios.p, im.codigo), na = varios.lista.some(function (x) { return x.codigo === im.codigo; });
+            return '<li><button type="button" data-var="achado" data-n="' + n + '"' + (ja || na ? " disabled" : "") + ">" +
+                   (im.foto ? '<img alt="" src="' + esc(im.foto) + '" loading="lazy">' : "<i></i>") +
+                   "<span>" + linhaDoImovel(im, varios.operacao) + (ja ? " <em>já enviado</em>" : na ? " <em>na lista</em>" : "") + "</span></button></li>";
+          }).join("")
+        : '<li class="gc-var-nada">Nenhum imóvel com "' + esc(q) + '". Aqui só aparece o que a Nay oferece: no mercado e nunca de parceiro.</li>';
+      caixa.hidden = false;
+    });
+  }
+  function abrirVarios(id) {
+    var p = ((estado.dados || {}).pedidos || []).filter(function (x) { return String(x.id) === String(id); })[0];
+    if (!p) return;
+    var cfg = estado.dados.config || {};
+    var primeiro = (p.pares || []).filter(function (par) { return !jaEnviado(p, par.codigo); })[0];
+    varios = { p: p, operacao: (p.local && p.local.operacao) || (p.ficha && p.ficha.operacao), lista: primeiro ? [doPar(primeiro)] : [], achados: [] };
+    $("gc-var-resumo").innerHTML =
+      "<div><span>Para</span><b>" + esc(p.nome || "(sem nome)") + " · " + esc(fone(p.telefone)) + "</b></div>" +
+      "<div><span>Do grupo</span><b>" + esc(p.grupo || "") + "</b></div>" +
+      "<div><span>Sai por</span><b>número da Parceria, no privado dele</b></div>";
+    $("gc-var-texto").value = cfg.mensagem_de_abertura || "";
+    $("gc-var-card").checked = true;
+    $("gc-var-fotos").checked = false;
+    $("gc-var-busca").value = "";
+    $("gc-var-achados").hidden = true;
+    $("gc-var-erro").textContent = "";
+    $("gc-var-ok").disabled = false;
+    desenharVarios();
+    if (!$("gc-varios").open) $("gc-varios").showModal();
+  }
+  function enviarVarios(ev) {
+    ev.preventDefault();
+    var v = varios;
+    if (!v) return;
+    var card = $("gc-var-card").checked, fotos = $("gc-var-fotos").checked;
+    if (!v.lista.length) { $("gc-var-erro").textContent = "Coloque pelo menos um imóvel na lista."; return; }
+    if (!card && !fotos) { $("gc-var-erro").textContent = "Marque o card, as fotos ou os dois."; return; }
+    $("gc-var-ok").disabled = true;
+    $("gc-var-erro").textContent = "";
+    pedir("/admin/api/grupos/captacao/" + v.p.id + "/enviar-varios", { method: "POST", body: JSON.stringify({
+      codigos: v.lista.map(function (im) { return im.codigo; }), abertura: $("gc-var-texto").value.trim(), card: card, fotos: fotos }) })
+      .then(function (r) {
+        $("gc-varios").close();
+        var aviso = $("gc-envio-feito");
+        aviso.textContent = r.resumo || "Enviado.";
+        aviso.hidden = false;
+        varios = null;
+        return carregar();
+      })
+      .catch(function (e) { $("gc-var-ok").disabled = false; $("gc-var-erro").textContent = e.message; });
+  }
+  /* a lista editável: subir, descer, tirar; e o que entra pelas sugestões e pela busca */
+  function mexerNaLista(ev) {
+    var b = ev.target.closest ? ev.target.closest("[data-var]") : null;
+    if (!b || !varios || b.disabled) return;
+    var o = b.getAttribute("data-var"), n = parseInt(b.getAttribute("data-n"), 10), l = varios.lista;
+    if (o === "sugerido") {
+      var par = (varios.p.pares || []).filter(function (x) { return String(x.codigo) === b.getAttribute("data-codigo"); })[0];
+      if (par) adicionar(doPar(par));
+      return;
+    }
+    if (o === "achado") {
+      if (varios.achados[n]) adicionar(varios.achados[n]);
+      $("gc-var-busca").value = "";
+      $("gc-var-achados").hidden = true;
+      $("gc-var-busca").focus();
+      return;
+    }
+    if (o === "tirar") l.splice(n, 1);
+    else if (o === "subir" && n > 0) l.splice(n - 1, 0, l.splice(n, 1)[0]);
+    else if (o === "descer" && n < l.length - 1) l.splice(n + 1, 0, l.splice(n, 1)[0]);
+    else return;
+    $("gc-var-erro").textContent = "";
+    desenharVarios();
+  }
+
   /* ── ações de cada solicitação ── */
   function agir(item, acao, botao) {
     var id = item.getAttribute("data-id");
     if (acao === "enviar") { abrirEnvio(id, botao.getAttribute("data-codigo")); return; }
+    if (acao === "varios") { abrirVarios(id); return; }
     if (acao === "negociar") {
       var aberta = item.querySelector(".gc-negocia");
       if (aberta) { aberta.remove(); return; }
       var form = document.createElement("form");
       form.className = "gc-negocia";
-      form.innerHTML = '<textarea class="entrada" rows="3" maxlength="1500" placeholder="Escreva a mensagem para ele. Vai do jeito que estiver aqui, no PV dele, como resposta à mensagem que ele mandou no grupo." aria-label="Mensagem de negociação"></textarea>' +
+      form.innerHTML = '<textarea class="entrada" rows="3" maxlength="1500" placeholder="Escreva a mensagem para ele. Vai do jeito que estiver aqui, no PV dele, pelo número da Parceria." aria-label="Mensagem de negociação"></textarea>' +
                        '<div class="gc-negocia__botoes"><button class="btn-azul" type="submit">Enviar no PV</button>' +
                        '<button class="btn-mini" type="button" data-negocia-fechar>Cancelar</button><span class="ga-erro" role="alert"></span></div>';
       item.querySelector(".gc-acoes").appendChild(form);
@@ -687,7 +876,7 @@
       try { history.replaceState(null, "", "#captacao"); } catch (_) { /* sem histórico */ }
       return;
     }
-    var fechar = alvo.closest("#gc-demanda [data-fechar], #gc-apelidos [data-fechar], #gc-enviar [data-fechar]");
+    var fechar = alvo.closest("#gc-demanda [data-fechar], #gc-apelidos [data-fechar], #gc-enviar [data-fechar], #gc-varios [data-fechar]");
     if (fechar) { var dlg = fechar.closest("dialog"); if (dlg.open) dlg.close(); return; }
     /* nomes próprios (data-gc-...): o ouvinte geral do grupos-agenda.js pega todo botão com data-dias (período das
        métricas) e data-excluir (apaga mensagem agendada) */
@@ -732,6 +921,16 @@
     });
   }
   $("gc-env-form").addEventListener("submit", enviar);
+  /* 382: o popup de vários imóveis */
+  $("gc-var-form").addEventListener("submit", enviarVarios);
+  $("gc-varios").addEventListener("click", mexerNaLista);
+  $("gc-var-busca").addEventListener("input", function () { clearTimeout(esperaBusca); esperaBusca = setTimeout(buscarNoCatalogo, 150); });
+  $("gc-var-busca").addEventListener("keydown", function (ev) {
+    if (ev.key !== "Enter") return;
+    ev.preventDefault();                       // Enter na busca adiciona o primeiro achado; não envia o formulário
+    var b = $("gc-var-achados").querySelector('button[data-var="achado"]:not([disabled])');
+    if (b) b.click();
+  });
   $("gc-arquivos").addEventListener("change", function () {
     if (this.files && this.files.length) importar(this.files);
     this.value = "";                           // escolher o mesmo arquivo de novo volta a disparar
@@ -747,6 +946,6 @@
   /* com a aba aberta, a lista se renova sozinha (o leitor passa a cada 10 s) */
   setInterval(function () {
     if (!painel.hidden && estado.carregou && document.visibilityState === "visible" && !painel.querySelector(".gc-errou, .gc-negocia") &&
-        !$("gc-demanda").open && !$("gc-apelidos").open && !$("gc-enviar").open) carregar();
+        !$("gc-demanda").open && !$("gc-apelidos").open && !$("gc-enviar").open && !$("gc-varios").open) carregar();
   }, 45000);
 })();
