@@ -23,6 +23,7 @@ import { integrations } from '@/lib/schema'
 import { conferirACaptacao, conferirComANay } from '@/lib/espelhoDaNay'
 import { refazerTranscricoesQueFalharam } from '@/lib/transcricao'
 import { realinharUltimaMensagem } from '@/lib/realinharUltimaMensagem'
+import { marcarOrganicos } from '@/lib/tagOrganico'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -90,6 +91,13 @@ export async function POST(req: NextRequest) {
     }
     // e a captação (29/09): o mesmo intervalo, na linha dela
     const captacao = await conferirACaptacao(parceria.org, desde, ate, { aoVivo: !historico })
+    // 390 (16/10): quem a Nay do WhatsApp atende como orgânico ganha a tag "Orgânico" (depois da conferência,
+    // que é quem cria a conversa)
+    if (!historico && !rapida) {
+      after(() => marcarOrganicos(parceria.org)
+        .then((n) => { if (n) console.log('[orgânico] marcadas', n) })
+        .catch((e) => console.error('[orgânico] falhou', e?.message || e)))
+    }
     if (captacao && (captacao.trazidas || captacao.erros)) console.log('[conferência da captação]', JSON.stringify(captacao))
     if (!resultado) return Response.json({ ocupado: true, captacao }, { status: 202 })
     if (resultado.trazidas || resultado.erros) console.log('[espelho da Nay]', JSON.stringify(resultado))
