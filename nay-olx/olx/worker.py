@@ -17,7 +17,7 @@ import logging
 import pathlib
 import time
 
-from olx import anuncios, api, banco, chat, config, grupo
+from olx import anuncios, api, banco, chat, config, grupo, whatsapp
 
 log = logging.getLogger("olx.worker")
 
@@ -26,6 +26,9 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     if not config.DATABASE_URL:
         raise SystemExit("falta no .env: DATABASE_URL")
+    # 16/10 (385): a Nay do WhatsApp dos clientes da OLX (8595-6408) numa linha própria: o envio de card e fotos leva
+    # minutos e não pode segurar o chat da OLX. Ela só fala com `whatsapp_responde` = teste | sim.
+    whatsapp.iniciar()
     conn = None
     proxima_rodada = 0.0        # a conferência do que foi mandado e a rodada, juntas, a cada 5 min
     espera_ate = 0.0            # a OLX disse não: até aqui a rodada não manda nada (a conferência continua)
