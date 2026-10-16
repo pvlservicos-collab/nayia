@@ -28,4 +28,4 @@ nay_site_nai: SELECT
 nai_escalar_link_de_catalogo, nai_sec_perguntar_ao_tel, nay_comando, nay_escalar, nay_responder_pendencia
 
 ## funções que citam
-nai_escalar_link_de_catalogo, nai_sec_perguntar_ao_tel, nay_comando, nay_escalar, nay_lembretes_devidos, nay_pendencias_esquecidas, nay_responder_conversando, nay_responder_pendencia
+nai_escalar_link_de_catalogo, nai_sec_perguntar_ao_tel, nay_comando, nay_escalar, nay_lembretes_devidos, nay_pendencias_esquecidas, nay_responder_conversando, nay_responder_pendencia, pergunta_fila_resposta_valida

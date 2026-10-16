@@ -34,6 +34,9 @@ BEGIN
   -- 334: imóvel que saiu do ar -> a Nay pergunta ao Tel se avisa no grupo Easy (o grupo só recebe depois do SIM)
   n := n + nay_saidas_perguntar();
 
+  -- 391: a fila de perguntas no PV do Tel (manda a próxima ou cobra a aberta a cada 10 min)
+  n := n + pergunta_fila_tick();
+
   FOR v IN
     SELECT * FROM nai_visita
      WHERE estado NOT IN ('encerrada', 'cancelada', 'expirada')

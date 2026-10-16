@@ -416,6 +416,8 @@ BEGIN
                     OR nai_e_comando_checklist(v_texto)
                     -- 334: SIM/NAO do Tel à pergunta do aviso de saída
                     OR nay_saida_resposta_valida(v_contato, v_texto, p_citado_id)
+                    -- 391: a resposta do Tel à pergunta da fila (PV dele, uma por vez)
+                    OR pergunta_fila_resposta_valida(v_contato, v_texto, p_citado_id)
                     -- 141: SIM/NAO da aprovacao da visita
                     OR nai_resposta_aprovacao_valida(v_contato, v_texto)
                     -- 142: o lembrete da equipe

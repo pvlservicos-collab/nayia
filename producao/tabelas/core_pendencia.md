@@ -17,6 +17,9 @@ CREATE UNIQUE INDEX core_pendencia_pkey ON public.core_pendencia USING btree (id
 core_pendencia_pkey: PRIMARY KEY (id)
 core_pendencia_turno_id_fkey: FOREIGN KEY (turno_id) REFERENCES core_turno(id)
 
+## gatilhos
+CREATE TRIGGER pergunta_fila_da_pendencia AFTER INSERT ON public.core_pendencia FOR EACH ROW EXECUTE FUNCTION pergunta_fila_da_pendencia()
+
 ## permissões
 nay_core: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 nay_leitura: SELECT
@@ -25,4 +28,4 @@ nay_leitura: SELECT
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-(nenhuma)
+pergunta_fila_da_pendencia

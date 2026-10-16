@@ -598,9 +598,13 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
         visita.cliente_confirmou(conn, lead, cfg or {})
     elif acao == "perguntar":
         # Pedro, 16/10 (a Michelle pediu os quartos com roupeiros): "ela deve nos perguntar porque a Nay não sabe que foto
-        # é de qual lugar". A pergunta vai ao grupo e a conversa continua com ela; quem mandar por aqui tira a Nay.
-        _grupo(f"Cliente {quem(lead)} no WhatsApp de captação "
-               f"pediu: {str(r.get('motivo') or 'algo que a Nay não sabe')[:240]}. A Nay disse que já retorna: mandem por lá.")
+        # é de qual lugar". 391: a pergunta vai à FILA do PV do Tel (uma por vez, cobrada); a resposta dele volta por
+        # entregar_respostas e a conversa continua com ela. Sem a fila, ao grupo como antes.
+        motivo = str(r.get("motivo") or "algo que a Nay não sabe")[:600]
+        codigo = lead.get("codigo") or next((int(c) for c in re.findall(r"(?<!\d)(\d{4})(?!\d)", motivo)), None)
+        if not _para_a_fila(conn, lead, codigo, motivo):
+            _grupo(f"Cliente {quem(lead)} no WhatsApp de captação "
+                   f"pediu: {motivo[:240]}. A Nay disse que já retorna: mandem por lá.")
     elif acao == "equipe":
         _marcar(conn, lead["id"], humano_em=banco.um(conn, "SELECT now()"), parada_motivo=str(r.get("motivo") or "")[:200])
         _grupo(f"Cliente {quem(lead)} no WhatsApp de "
@@ -677,6 +681,57 @@ def _ha_trabalho(conn, cfg: dict) -> bool:
                         WHERE l.assumido_em IS NOT NULL AND l.etapa <> 'finalizado')""", (silencio,)))
 
 
+def _para_a_fila(conn, lead: dict, codigo: int | None, pergunta: str) -> bool:
+    """391: a pergunta entra na fila do PV do Tel. False = a fila está desligada (ou falhou): vai ao grupo."""
+    try:
+        if banco.um(conn, "SELECT pergunta_fila_ligada()") is not True:
+            return False
+        return bool(banco.um(conn, "SELECT pergunta_fila_entrar('captacao', %s, %s, %s, NULL, %s, 'olx_whatsapp', NULL)",
+                             (lead["telefone"], lead.get("nome"), codigo, pergunta)))
+    except Exception:  # noqa: BLE001
+        log.exception("lead %s: a pergunta não entrou na fila", lead.get("id"))
+        return False
+
+
+def texto_da_resposta(p: dict) -> str:
+    """A resposta do Tel como ela chega ao cliente: "Sobre o #9026 (Turim Residencial): Fica tudo, sim."."""
+    r = re.sub(r"\s+", " ", str(p.get("resposta") or "")).strip()
+    r = r[:1].upper() + r[1:]
+    if p.get("codigo"):
+        sobre = f"o #{p['codigo']}" + (f" ({p['imovel']})" if (p.get("imovel") or "").strip() else "")
+    else:
+        sobre = "a sua pergunta"
+    return f"Sobre {sobre}: {r}"
+
+
+def entregar_respostas(conn) -> int:
+    """391: o que o Tel respondeu na fila, para quem está no WhatsApp de captação, sai por aqui (é a Nay falando)."""
+    feitas = 0
+    for p in banco.linhas(conn, """SELECT id, chave, codigo, imovel, resposta FROM pergunta_fila
+                                    WHERE linha = 'captacao' AND estado = 'respondida' AND entregue_em IS NULL
+                                      AND entrega_erro IS NULL ORDER BY respondida_em LIMIT 5"""):
+        achado = banco.linhas(conn, """SELECT id FROM privado.olx_lead_whatsapp WHERE right(telefone, 8) = right(%s, 8)
+                                        ORDER BY criado_em DESC LIMIT 1""", (p["chave"],))
+        if not achado:
+            banco.um(conn, "UPDATE pergunta_fila SET entrega_erro = 'não é cliente da Nay do WhatsApp' WHERE id = %s",
+                     (p["id"],))
+            continue
+        lead = _lead(conn, achado[0]["id"])
+        mandar_texto(conn, lead, texto_da_resposta(p))
+        banco.um(conn, "UPDATE pergunta_fila SET entregue_em = now() WHERE id = %s", (p["id"],))
+        log.info("lead %s: a resposta do Tel (pergunta %s) entregue", lead["id"], p["id"])
+        feitas += 1
+    return feitas
+
+
+def _ha_resposta(conn) -> bool:
+    try:
+        return bool(banco.um(conn, """SELECT EXISTS (SELECT 1 FROM pergunta_fila WHERE linha = 'captacao'
+                                        AND estado = 'respondida' AND entregue_em IS NULL AND entrega_erro IS NULL)"""))
+    except Exception:  # noqa: BLE001 -- sem a 391 no banco
+        return False
+
+
 def atender(conn, cfg: dict) -> int:
     if (cfg.get("whatsapp_responde") or "nao").strip().lower() not in ("teste", "sim"):
         return 0
@@ -687,6 +742,12 @@ def atender(conn, cfg: dict) -> int:
         log.warning("a visita não andou: %s", e)
     # 390: quem escreveu pela primeira vez neste número (orgânico) entra na fila
     descobrir_organicos(conn, cfg)
+    # 391: a resposta do Tel na fila de perguntas volta ao cliente
+    if _ha_resposta(conn) and conectada():
+        try:
+            entregar_respostas(conn)
+        except ErroDeEnvio as e:
+            log.warning("a resposta do Tel não saiu: %s", e)
     # a Z-API só é consultada quando há o que fazer (a volta é de 5 em 5 s)
     if not _ha_trabalho(conn, cfg) or not conectada():
         return 0

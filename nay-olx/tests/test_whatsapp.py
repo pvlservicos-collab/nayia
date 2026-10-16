@@ -117,5 +117,17 @@ class Organico(unittest.TestCase):
         self.assertIn("(OLX, ", w.quem({**self.LEAD, "origem": "olx", "nome": "Josy"}))
 
 
+class RespostaDaFila(unittest.TestCase):
+    """391: a resposta do Tel na fila de perguntas, como chega ao cliente."""
+
+    def test_com_codigo_e_imovel(self):
+        self.assertEqual(w.texto_da_resposta({"codigo": 9026, "imovel": "Turim Residencial", "resposta": "fica tudo,  sim"}),
+                         "Sobre o #9026 (Turim Residencial): Fica tudo, sim")
+
+    def test_sem_codigo(self):
+        self.assertEqual(w.texto_da_resposta({"codigo": None, "imovel": None, "resposta": "pode sim"}),
+                         "Sobre a sua pergunta: Pode sim")
+
+
 if __name__ == "__main__":
     unittest.main()

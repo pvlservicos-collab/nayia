@@ -37,6 +37,7 @@ core_saida_turno_id_fkey: FOREIGN KEY (turno_id) REFERENCES core_turno(id)
 
 ## gatilhos
 CREATE TRIGGER core_saida_validar BEFORE INSERT OR UPDATE ON public.core_saida FOR EACH ROW EXECUTE FUNCTION core_saida_validar()
+CREATE TRIGGER core_saida_zz_pergunta_na_fila BEFORE INSERT ON public.core_saida FOR EACH ROW EXECUTE FUNCTION core_saida_pergunta_na_fila()
 
 ## permissões
 nay_core: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
