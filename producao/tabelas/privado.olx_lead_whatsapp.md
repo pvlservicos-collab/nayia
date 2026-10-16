@@ -40,4 +40,4 @@ olx_lead_whatsapp_pkey: PRIMARY KEY (id)
 crm_olx_cliente_etapa, olx_nay_lead_whatsapp
 
 ## funções que citam
-crm_olx_cliente_etapa, crm_olx_clientes_etapas, olx_nay_lead_whatsapp
+captacao_mensagem_do_python, crm_olx_cliente_etapa, crm_olx_clientes_etapas, olx_nay_lead_whatsapp
