@@ -50,7 +50,7 @@ from zoneinfo import ZoneInfo
 
 import db
 from enviar_zapi import enviar_texto
-from tel_whatsapp import enviar_ao_tel, finais_do_tel
+from tel_whatsapp import enviar_ao_tel, finais_do_tel, numeros_do_tel
 from quando_da_visita import quando, sem_acento
 
 FUSO_MANAUS = ZoneInfo("America/Manaus")
@@ -110,7 +110,8 @@ _COMANDO_DO_TEL_RE = re.compile(
 
 
 def detectar_visitas(conexao=None, agora=None, escrever=False,
-                     tel_whatsapp=None, enviar=None, limite=None):
+                     tel_whatsapp=None, enviar=None, limite=None,
+                     visitas_whatsapp=None):
     destino = tel_whatsapp or os.environ.get("TEL_WHATSAPP")
     enviar = enviar or enviar_texto
     # O LEQUE DOS DOIS NÚMEROS (28/09) é embrulhado AQUI, uma vez, e não em
@@ -119,6 +120,23 @@ def detectar_visitas(conexao=None, agora=None, escrever=False,
     # tipo que só aparece quando alguém repara que não recebeu.
     _enviar_um = enviar
     enviar = lambda d, t: enviar_ao_tel(d, t, _enviar_um)
+    # A CÓPIA DOS AVISOS DE AGENDA (Tel, 16/10: "esse tipo de mensagem
+    # consegue passar para o número pessoal da Rayssa?"). VISITAS_WHATSAPP é
+    # uma lista À PARTE do TEL_WHATSAPP: pôr a Rayssa lá mandaria para ela
+    # tudo o que vai ao Tel (grade, alarmes, cobrança). Vão só o "pus na
+    # agenda", o "mudou" e o "tirei"; a pergunta do dia NÃO, porque pede um
+    # comando ("Nay visita ...") que só vale dos números do Tel. Falhar aqui
+    # não derruba o aviso do Tel, que já saiu.
+    extras = (visitas_whatsapp if visitas_whatsapp is not None
+              else os.environ.get("VISITAS_WHATSAPP", ""))
+
+    def copia(texto):
+        if not numeros_do_tel(extras):
+            return
+        try:
+            enviar_ao_tel(extras, texto, _enviar_um)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[detectar_visitas] cópia para VISITAS_WHATSAPP falhou: {exc}")
     fechar = conexao is None
     conn = conexao or db.conectar()
     try:
@@ -143,7 +161,7 @@ def detectar_visitas(conexao=None, agora=None, escrever=False,
             if acao:
                 relato.append(acao)
                 if escrever:
-                    _aplicar(conn, acao, destino, enviar, momento)
+                    _aplicar(conn, acao, destino, enviar, momento, copia)
         if escrever and mensagens:
             _marcar_ate(conn, max(m["id"] for m in mensagens))
         return relato
@@ -294,7 +312,13 @@ def _visita_aberta_do_corretor(conn, telefone):
         return cur.fetchone()
 
 
-def _aplicar(conn, acao, destino, enviar, agora):
+def _aplicar(conn, acao, destino, enviar, agora, copia=None):
+    def avisar(texto):
+        """O aviso de agenda: o Tel e, em cópia, os números de VISITAS_WHATSAPP."""
+        enviar(destino, texto)
+        if copia:
+            copia(texto)
+
     m = acao["msg"]
     t = sem_acento(m["texto"] or "")
     nome = (m["nome"] or "").strip() or m["telefone"]
@@ -308,8 +332,8 @@ def _aplicar(conn, acao, destino, enviar, agora):
         with conn.cursor() as cur:
             cur.execute("DELETE FROM visita WHERE id = %s", (aberta["id"],))
         conn.commit()
-        enviar(destino, f'❌ tirei da agenda: {aberta["descricao"]} '
-                        f'({nome})\nele escreveu: "{trecho}"')
+        avisar(f'❌ tirei da agenda: {aberta["descricao"]} '
+               f'({nome})\nele escreveu: "{trecho}"')
         return
 
     if acao["tipo"] == "perguntar_dia":
@@ -344,8 +368,8 @@ def _aplicar(conn, acao, destino, enviar, agora):
                 " WHERE id = %s",
                 (acao["data_hora"], trecho, aberta["id"]))
             conn.commit()
-            enviar(destino, f'🔁 {nome} mudou a visita para '
-                            f'{acao["data_hora"].strftime("%d/%m %Hh%M")}:\n"{trecho}"')
+            avisar(f'🔁 {nome} mudou a visita para '
+                   f'{acao["data_hora"].strftime("%d/%m %Hh%M")}:\n"{trecho}"')
             return
         cur.execute(
             "INSERT INTO visita (codigo, descricao, corretor, "
@@ -353,8 +377,8 @@ def _aplicar(conn, acao, destino, enviar, agora):
             "VALUES (NULL, %s, %s, %s, %s, false, %s)",
             (trecho, nome, m["telefone"], acao["data_hora"], m["criada_em"]))
     conn.commit()
-    enviar(destino, f'📌 pus na agenda: {acao["data_hora"].strftime("%d/%m %Hh%M")} '
-                    f'— {nome}\n"{trecho}"\n\nnão confirmada ainda.')
+    avisar(f'📌 pus na agenda: {acao["data_hora"].strftime("%d/%m %Hh%M")} '
+           f'— {nome}\n"{trecho}"\n\nnão confirmada ainda.')
 
 
 def _marcar_ate(conn, ate_id):

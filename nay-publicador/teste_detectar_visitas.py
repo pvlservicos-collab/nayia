@@ -361,6 +361,40 @@ checar("'de 400 a 500 mil' também não",
        _barra("consigo entre 400 a 500 mil, visita sabado as 10h"), False)
 
 print()
+print("--- CÓPIA NO NÚMERO PESSOAL DA RAYSSA (Tel, 16/10): só os avisos de agenda ---")
+# "esse tipo de mensagem consegue passar para o número pessoal da Rayssa?" --
+# VISITAS_WHATSAPP recebe o "pus na agenda", o "mudou" e o "tirei". A pergunta
+# do dia pede um comando que só vale dos números do Tel: essa fica com ele.
+
+
+def rodar_com_copia(mensagens, visitas=None, falha_na_copia=False):
+    conn = ConnFake(mensagens=mensagens, visitas=visitas)
+    enviados = []
+
+    def enviar(d, t):
+        if falha_na_copia and d == "rayssa":
+            raise RuntimeError("a Z-API recusou")
+        enviados.append((d, t))
+    detectar_visitas.detectar_visitas(
+        conexao=conn, agora=AGORA, escrever=True, tel_whatsapp="tel",
+        visitas_whatsapp="rayssa", enviar=enviar)
+    return conn, enviados
+
+
+conn, enviados = rodar_com_copia([msg(RENATA)])
+checar("'pus na agenda' vai ao Tel e à Rayssa", [d for d, _ in enviados], ["tel", "rayssa"])
+checar("  com o mesmo texto", len({t for _, t in enviados}), 1)
+conn, enviados = rodar_com_copia([msg("Cancela visita ele não gostou do local do condominio")], visitas=ABERTA)
+checar("'tirei da agenda' também vai aos dois", [d for d, _ in enviados], ["tel", "rayssa"])
+conn, enviados = rodar_com_copia([msg("Posso marcar às 11:00?")])
+checar("a pergunta do dia vai SÓ ao Tel", [d for d, _ in enviados], ["tel"])
+conn, enviados = rodar_com_copia([msg(RENATA)], falha_na_copia=True)
+checar("cópia recusada não derruba: a visita entra", len(conn.inseridas), 1)
+checar("  e o Tel recebe", [d for d, _ in enviados], ["tel"])
+conn, _, enviados = rodar([msg(RENATA)])
+checar("sem VISITAS_WHATSAPP, só o Tel (como antes)", len(enviados), 1)
+
+print()
 if falhas:
     print(f"{falhas} CASOS FALHARAM")
     raise SystemExit(1)
