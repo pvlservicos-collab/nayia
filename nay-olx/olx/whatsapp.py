@@ -29,7 +29,7 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 
-from olx import banco, grupo, modelo, nay
+from olx import banco, grupo, modelo, nay, visita
 
 log = logging.getLogger("olx.whatsapp")
 try:
@@ -77,9 +77,14 @@ ela já disse lá.
    mais perguntas depois do fechamento.
 3. DEPOIS DAS OPÇÕES: se ela gostou de algum, ofereça a visita; se quer mais, refaça o roteiro só no que mudou e peça
    "buscar" de novo.
-4. VISITA: descubra QUAL imóvel (o código está nos cards e no anúncio) e o MELHOR DIA E HORÁRIO dela. Com os dois, diga
-   que vai confirmar o horário com o proprietário e o corretor e já retorna, e marque acao "visita". Não confirme
-   horário sozinha.
+4. VISITA: descubra QUAL imóvel (o código está nos cards e no anúncio) e o DIA e o HORÁRIO exatos (ex.: 17/10 às 11h;
+   "amanhã", "sábado" você converte pela data de AGORA; "de manhã", "à tarde" não é horário: pergunte a hora). Com os
+   três, marque acao "visita" com "visita": {"codigo", "data": "DD/MM", "hora": "HH:MM"} e NÃO escreva a confirmação: o
+   sistema manda a mensagem de confirmação ("🏠 Só para confirmar a solicitação de visita..."); seus balões podem ficar
+   vazios. Quando ela responder que os dados estão certos ("sim", "isso", "pode", "confirmo"), marque acao
+   "confirmou_visita" e diga que vai confirmar com o corretor e com o proprietário e já retorna. Se ela mudar o dia ou o
+   horário, marque "visita" de novo com os dados novos. Enquanto a visita está sendo confirmada (o sistema diz em que
+   pé está), não prometa nada: diga que está confirmando e avisa assim que tiver a resposta.
 5. FOTOS: ela pediu MAIS FOTOS de um imóvel, sem dizer de qual parte (o do anúncio ou um dos que você mandou): acao
    "fotos" com o código. O sistema manda as fotos depois dos seus balões; o que você quer dizer DEPOIS das fotos vai em
    "depois_das_fotos".
@@ -119,14 +124,14 @@ Valor em reais assim: R$ 700.000 / R$ 2.500.
 {"baloes": ["..."], "acoes": [],
  "filtros": {"finalidade": "", "tipo": "", "teto": 0, "bairros": [], "qualquer_bairro": false, "quartos": 0,
              "aceita_menos_quartos": null, "aceita_escada": null, "financiamento": "", "mobilia": ""},
- "fotos": {"codigo": 0}, "depois_das_fotos": [], "visita": {"codigo": 0, "quando": ""}, "motivo": ""}
-- acoes: [] ou, na ordem, até duas de: "fotos" | "buscar" | "visita" | "perguntar" (você precisa que a equipe responda
-  ou mande algo, e a conversa continua com você) | "equipe" (a conversa passa para a equipe) | "encerrar" (ela agradeceu
-  e não quer mais nada).
+ "fotos": {"codigo": 0}, "depois_das_fotos": [], "visita": {"codigo": 0, "data": "", "hora": ""}, "motivo": ""}
+- acoes: [] ou, na ordem, até duas de: "fotos" | "buscar" | "visita" | "confirmou_visita" | "perguntar" (você precisa
+  que a equipe responda ou mande algo, e a conversa continua com você) | "equipe" (a conversa passa para a equipe) |
+  "encerrar" (ela agradeceu e não quer mais nada).
 - filtros: TUDO o que ela já disse até agora (aqui e na OLX); vazio/0/null o que não disse. finalidade: "locacao" ou
   "venda" (sem ela dizer, é a do anúncio). tipo: "apartamento", "casa", "casa_condominio" ou "tanto_faz". teto: só o
   número em reais. quartos: o número que ela quer. financiamento: "aprovado", "simular", "a vista" ou "".
-- visita: o código do imóvel e o dia/horário que ela disse.
+- visita: o código do imóvel, a data (DD/MM) e a hora (HH:MM) que ela disse.
 - motivo: em poucas palavras, para a equipe (com "perguntar" ou "equipe"): o que ela pediu, com os códigos.
 """
 
@@ -275,7 +280,8 @@ def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
     agora = datetime.now(MANAUS)
     periodo = "manhã: Bom dia" if agora.hour < 12 else "tarde: Boa tarde" if agora.hour < 18 else "noite: Boa noite"
     linhas = [
-        f"=== AGORA === {agora:%d/%m %H:%M} em Manaus ({periodo}). Cumprimente pela hora de AGORA, não pela da OLX.",
+        f"=== AGORA === {visita.DIAS[agora.weekday()]}, {agora:%d/%m/%Y %H:%M} em Manaus ({periodo}). Cumprimente pela hora "
+        f"de AGORA, não pela da OLX.",
         "",
         "=== QUEM É ===",
         f"Nome: {lead.get('nome') or 'não informado'} | trate como: {trat or 'pelo primeiro nome'} ({pronome})",
@@ -295,6 +301,7 @@ def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
         f"Etapa: {lead.get('etapa')}",
         "Filtros já ditos: " + json.dumps(lead.get("filtros") or {}, ensure_ascii=False),
         "Imóveis já enviados (códigos): " + (", ".join(str(c) for c in lead.get("enviados") or []) or "nenhum"),
+        _linha_da_visita(lead.get("visita_aberta")),
         "",
         "=== A CONVERSA NO WHATSAPP (a mais antiga primeiro) ===",
     ]
@@ -311,6 +318,22 @@ def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
             linhas.append(f"EQUIPE: {texto}")
     linhas += ["", "Responda agora, só com o JSON."]
     return "\n".join(linhas)
+
+
+PE_DA_VISITA = {
+    "confirmar_cliente": "a confirmação foi para ela; espere o sim (acao confirmou_visita) ou a correção (acao visita)",
+    "buscando_corretor": "ela confirmou; você está confirmando com o corretor",
+    "pedindo_proprietario": "o corretor confirmou; você está confirmando com o proprietário",
+    "confirmada": "CONFIRMADA: ela já recebeu a confirmação com o corretor",
+}
+
+
+def _linha_da_visita(v: dict | None) -> str:
+    if not v:
+        return "Visita em andamento: nenhuma"
+    q = v["quando"].astimezone(MANAUS)
+    return (f"Visita em andamento: imóvel #{v['codigo']}, {visita.dia(q)} às {visita.hora(q)} — "
+            f"{PE_DA_VISITA.get(v['estado'], v['estado'])}")
 
 
 def _filtros(antes: dict, novos) -> dict:
@@ -351,6 +374,7 @@ def abrir(conn, cfg: dict) -> int:
             log.info("lead %s: a equipe já chamou; a Nay não abre", lead["id"])
             continue
         ctx_olx = banco.um(conn, "SELECT olx_nay_contexto(%s)", (lead["chat"],))
+        lead["visita_aberta"] = visita.aberta(conn, lead["id"])
         r = modelo.chamar(PROMPT, montar_turno(lead, ctx_olx, []))
         baloes = [b for b in (nay.limpar_balao(str(x)) for x in (r.get("baloes") or [])[:MAX_BALOES]) if b]
         if not baloes:
@@ -366,7 +390,7 @@ def abrir(conn, cfg: dict) -> int:
         # 16/10: o que ela promete já na abertura (passar o desconto à equipe, confirmar a visita pedida na OLX...) tem de
         # chegar à equipe: as ações da abertura valem como as de qualquer resposta
         for acao in acoes_da(r):
-            _fazer(conn, _lead(conn, lead["id"]), r, acao, filtros)
+            _fazer(conn, _lead(conn, lead["id"]), r, acao, filtros, cfg)
         log.info("lead %s aberto (%d balão/ões)", lead["id"], len(baloes))
         feitos += 1
     return feitos
@@ -409,6 +433,7 @@ def responder(conn, cfg: dict) -> int:
                    f"WhatsApp de captação foi longe; precisa de alguém.")
             continue
         ctx_olx = banco.um(conn, "SELECT olx_nay_contexto(%s)", (lead["chat"],))
+        lead["visita_aberta"] = visita.aberta(conn, lead["id"])
         r = modelo.chamar(PROMPT, montar_turno(lead, ctx_olx, conversa))
         baloes = [b for b in (nay.limpar_balao(str(x)) for x in (r.get("baloes") or [])[:MAX_BALOES]) if b]
         for n, b in enumerate(baloes):
@@ -418,7 +443,7 @@ def responder(conn, cfg: dict) -> int:
         filtros = _filtros(lead.get("filtros"), r.get("filtros"))
         _marcar(conn, lead["id"], ultima_lida=ate, filtros=filtros)
         for acao in acoes_da(r):
-            _fazer(conn, lead, r, acao, filtros)
+            _fazer(conn, lead, r, acao, filtros, cfg)
         feitos += 1
     return feitos
 
@@ -429,12 +454,12 @@ def acoes_da(r: dict) -> list[str]:
     saida: list[str] = []
     for a in brutas:
         a = str(a or "").strip().lower()
-        if a in ("fotos", "buscar", "visita", "perguntar", "equipe", "encerrar") and a not in saida:
+        if a in ("fotos", "buscar", "visita", "confirmou_visita", "perguntar", "equipe", "encerrar") and a not in saida:
             saida.append(a)
     return saida[:2]
 
 
-def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict) -> None:
+def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None = None) -> None:
     if acao == "fotos":
         f = r.get("fotos") if isinstance(r.get("fotos"), dict) else {}
         codigo = int(f.get("codigo") or lead.get("codigo") or 0) or None
@@ -449,11 +474,13 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict) -> None:
     elif acao == "buscar":
         _buscar_e_mandar(conn, lead, filtros)
     elif acao == "visita":
+        # 389 (Pedro, 16/10): a confirmação no modelo da Parceria; os contatos só depois do sim dela
         v = r.get("visita") if isinstance(r.get("visita"), dict) else {}
         codigo = int(v.get("codigo") or lead.get("codigo") or 0) or None
-        _marcar(conn, lead["id"], etapa="visita", visita={"codigo": codigo, "quando": str(v.get("quando") or "")[:120]})
-        _grupo(f"Cliente {lead.get('nome') or ''} (OLX, {nay.telefone_bonito(lead['telefone'])}) quer visitar o imóvel "
-               f"{codigo or '?'}: {str(v.get('quando') or 'sem horário')[:120]}. Combinar com o proprietário e o corretor.")
+        if not visita.pedir_confirmacao(conn, lead, codigo, str(v.get("data") or ""), str(v.get("hora") or "")):
+            _marcar(conn, lead["id"], etapa="visita")      # faltou dia ou hora: o balão dela já perguntou
+    elif acao == "confirmou_visita":
+        visita.cliente_confirmou(conn, lead, cfg or {})
     elif acao == "perguntar":
         # Pedro, 16/10 (a Michelle pediu os quartos com roupeiros): "ela deve nos perguntar porque a Nay não sabe que foto
         # é de qual lugar". A pergunta vai ao grupo e a conversa continua com ela; quem mandar por aqui tira a Nay.
@@ -527,6 +554,11 @@ def _ha_trabalho(conn, cfg: dict) -> bool:
 def atender(conn, cfg: dict) -> int:
     if (cfg.get("whatsapp_responde") or "nao").strip().lower() not in ("teste", "sim"):
         return 0
+    # 389: as respostas (e o silêncio) do corretor e do proprietário consultados sobre uma visita
+    try:
+        visita.atender(conn, cfg)
+    except (ErroDeEnvio, modelo.FalhaDoModelo) as e:
+        log.warning("a visita não andou: %s", e)
     # a Z-API só é consultada quando há o que fazer (a volta é de 5 em 5 s)
     if not _ha_trabalho(conn, cfg) or not conectada():
         return 0
