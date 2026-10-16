@@ -1,4 +1,4 @@
-# mensagens  (tabela, ~50809 linhas)
+# mensagens  (tabela, ~54480 linhas)
 
 ## colunas
 id  integer  NOT NULL  padrão nextval('mensagens_id_seq'::regclass)

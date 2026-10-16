@@ -1,4 +1,4 @@
-# core_imovel_dono  (view materializada, ~5709 linhas)
+# core_imovel_dono  (view materializada, ~5715 linhas)
 nay-core: o dono de cada imóvel e de onde veio (imovel > privado > admin), com telefone repetido entre donos. REFRESH CONCURRENTLY pelo worker (005).
 
 ## colunas

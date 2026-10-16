@@ -1,4 +1,4 @@
-# privado.olx_anuncio  (tabela, ~37 linhas)
+# privado.olx_anuncio  (tabela, ~95 linhas)
 364: os NOSSOS anúncios na OLX, um por imóvel e negócio. O que foi mandado (conteudo), o token da importação e o que a OLX respondeu (list_id, url, olx_status, mensagem).
 
 ## colunas

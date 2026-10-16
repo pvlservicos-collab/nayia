@@ -25,4 +25,4 @@ nay_leitura: SELECT
 captacao_olx_guardar, captacao_olx_novo
 
 ## funções que citam
-captacao_olx_encerrar, captacao_olx_guardar, captacao_olx_novo, captacao_olx_perfil, captacao_olx_proxima
+captacao_olx_da_parceria, captacao_olx_encerrar, captacao_olx_guardar, captacao_olx_novo, captacao_olx_perfil, captacao_olx_proxima

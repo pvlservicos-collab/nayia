@@ -31,4 +31,4 @@ nay_leitura: SELECT
 nay_congelar_lembretes, nay_guardar_retorno, nay_proximo_toque, nay_reservar_lembretes
 
 ## funções que citam
-captacao_so_proprietario, crm_olx_bot_receber, crm_visita_mudar_horario, nai_abrir_turno, nai_agenda_tick, nai_comando_lembrete, nai_comando_tel, nai_e_pedido_lembrete, nai_lembretes_disparar, nai_ler_lembrete, nai_liberar_saida, nai_saida_validar, nay_congelar_lembretes, nay_guardar_retorno, nay_lembretes_devidos, nay_proximo_toque, nay_reservar_lembretes
+captacao_so_proprietario, crm_olx_bot_receber, crm_visita_mudar_horario, nai_abrir_turno, nai_agenda_tick, nai_comando_lembrete, nai_comando_tel, nai_e_pedido_lembrete, nai_lembretes_disparar, nai_ler_lembrete, nai_liberar_saida, nai_saida_validar, nay_congelar_lembretes, nay_guardar_retorno, nay_lembretes_devidos, nay_proximo_toque, nay_reservar_lembretes, site_lembrete_criar
