@@ -27,10 +27,16 @@ import logging
 import re
 import threading
 import time
+from datetime import datetime, timedelta, timezone
 
 from olx import banco, grupo, modelo, nay
 
 log = logging.getLogger("olx.whatsapp")
+try:
+    from zoneinfo import ZoneInfo
+    MANAUS = ZoneInfo("America/Manaus")
+except Exception:  # noqa: BLE001 -- sem a base de fusos (Windows): Manaus é -4 o ano todo
+    MANAUS = timezone(timedelta(hours=-4))
 
 MAX_BALOES = 3
 MAX_IMOVEIS = 5
@@ -53,7 +59,9 @@ ela já disse lá.
 === O CAMINHO ===
 1. ABERTURA (a primeira mensagem, quando ainda não há conversa no WhatsApp): lembre que vocês falaram pela OLX sobre o
    imóvel (o condomínio ou o bairro), responda o que tiver ficado pendente lá se a ficha tiver a resposta (se não tiver,
-   diga que confirma e já retorna), e pergunte se ela quer agendar uma visita ou receber outras opções parecidas.
+   diga que confirma e já retorna, e marque "perguntar" com o que ficou pendente), e pergunte se ela quer agendar uma
+   visita ou receber outras opções parecidas. Se na OLX ela já pediu visita com dia/horário, marque "visita"; se pediu
+   desconto ou proposta, marque "perguntar" (a equipe responde e a conversa segue com você).
    Ex.: "Oi, Sra. Claudia! Aqui é a Nay, da Imob Easy, falamos pela OLX sobre o apartamento no Kopenhagen. A senhora quer
    agendar uma visita ou receber outras opções parecidas?"
 2. OUTRAS OPÇÕES: o roteiro, UMA pergunta por vez, pulando o que ela já disse (aqui ou na OLX):
@@ -264,7 +272,11 @@ def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
     anuncio = ctx_olx.get("anuncio") or {}
     negocio = "LOCAÇÃO" if (lead.get("negocio") or anuncio.get("negocio") or "").startswith("loca") else "VENDA"
     trat, pronome = tratamento(lead)
+    agora = datetime.now(MANAUS)
+    periodo = "manhã: Bom dia" if agora.hour < 12 else "tarde: Boa tarde" if agora.hour < 18 else "noite: Boa noite"
     linhas = [
+        f"=== AGORA === {agora:%d/%m %H:%M} em Manaus ({periodo}). Cumprimente pela hora de AGORA, não pela da OLX.",
+        "",
         "=== QUEM É ===",
         f"Nome: {lead.get('nome') or 'não informado'} | trate como: {trat or 'pelo primeiro nome'} ({pronome})",
         "",
@@ -349,8 +361,12 @@ def abrir(conn, cfg: dict) -> int:
             if n:
                 time.sleep(ENTRE_ENVIOS_S)
             mandar_texto(conn, lead, b)
-        _marcar(conn, lead["id"], assumido_em_agora=True, etapa="filtrar", ultima_lida=ate,
-                filtros=_filtros(lead.get("filtros"), r.get("filtros")))
+        filtros = _filtros(lead.get("filtros"), r.get("filtros"))
+        _marcar(conn, lead["id"], assumido_em_agora=True, etapa="filtrar", ultima_lida=ate, filtros=filtros)
+        # 16/10: o que ela promete já na abertura (passar o desconto à equipe, confirmar a visita pedida na OLX...) tem de
+        # chegar à equipe: as ações da abertura valem como as de qualquer resposta
+        for acao in acoes_da(r):
+            _fazer(conn, _lead(conn, lead["id"]), r, acao, filtros)
         log.info("lead %s aberto (%d balão/ões)", lead["id"], len(baloes))
         feitos += 1
     return feitos
