@@ -1,0 +1,55 @@
+/* ==========================================================================
+   A LISTA DE IMÓVEIS NO ACABAMENTO DO SITE ANTIGO (Pedro, 16/10/2026: "só o layout parecido com o antigo, mantendo
+   a organização do novo"). Vale só em comprar.html e alugar.html (body.lista-antiga): a home e o resto do site
+   continuam com o vidro. A estrutura (filtros à esquerda, grade, paginação) já era a do antigo; aqui muda o
+   acabamento: fundo cinza liso, cartões brancos de canto reto, botões retangulares, título leve, preço em roxo.
+   ========================================================================== */
+body.lista-antiga { background: #EEF0F5; background-image: none; }
+/* o degradê lilás do site novo é um body::before (tokens.css): na lista ele sai */
+body.lista-antiga::before { display: none; }
+body.lista-antiga .site-topo {
+  background: #fff; box-shadow: 0 1px 0 #E3E5EC; border-bottom: 0;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+body.lista-antiga .btn-roxo-vazado {
+  border-radius: 4px; text-transform: none; letter-spacing: .02em; font-weight: 500; background: #fff;
+}
+
+/* a barra de cima (grade/lista e ordenar) sem a faixa branca */
+body.lista-antiga .resultados__barra {
+  background: transparent; box-shadow: none; border: 0; -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+
+/* os filtros: um cartão branco de canto reto */
+body.lista-antiga .filtros {
+  background: #fff; border: 0; border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(20, 20, 50, .07), 0 8px 22px rgba(20, 20, 50, .06);
+}
+body.lista-antiga .filtros__entrada { border-radius: 3px; background: #fff; }
+body.lista-antiga .opcoes__botao { border-radius: 3px; }
+
+/* o cartão do imóvel */
+body.lista-antiga .imovel {
+  background: #fff; border: 0; border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(20, 20, 50, .07), 0 8px 22px rgba(20, 20, 50, .06);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+body.lista-antiga .imovel:hover { transform: none; box-shadow: 0 2px 6px rgba(20, 20, 50, .10), 0 12px 28px rgba(20, 20, 50, .10); }
+body.lista-antiga .imovel__midia { background: #E6E8EF; }
+body.lista-antiga .imovel__nome { font-weight: 400; color: #5A6075; }
+body.lista-antiga .btn-selecionar { border-radius: 3px; }
+body.lista-antiga .imovel__preco dd { color: #7C4DCE; }
+
+/* "Ver imóvel" e "Pesquisar": retângulo roxo cheio, como no antigo */
+body.lista-antiga .btn-roxo,
+body.lista-antiga .btn-roxo:hover {
+  border-radius: 4px; border: 0; background: #6D3FD6; color: #fff;
+  text-transform: none; letter-spacing: .02em; font-weight: 500;
+  box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; transform: none;
+}
+body.lista-antiga .btn-roxo:hover { background: #5B30BF; }
+
+/* a paginação em quadradinhos */
+body.lista-antiga .paginacao a,
+body.lista-antiga .paginacao button,
+body.lista-antiga .paginacao span { border-radius: 3px; }
