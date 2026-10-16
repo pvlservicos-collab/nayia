@@ -49,6 +49,11 @@ def main() -> None:
                 ultimo_estado = estado
 
             chat.atender_fila(conn, cfg)
+            # 396: o anúncio pedido no popup do editar imóvel sai na hora
+            try:
+                anuncios.publicar_pedidos(conn)
+            except Exception:  # noqa: BLE001 -- o pedido não pode parar o chat nem os anúncios
+                log.exception("o pedido de anúncio falhou")
             # 15/10: quem escreve na OLX aparece no grupo da equipe (avisar_grupo = sim)
             try:
                 grupo.avisar(conn, cfg)

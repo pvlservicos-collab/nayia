@@ -21,4 +21,4 @@ olx_config_pkey: PRIMARY KEY (chave)
 olx_cfg_gravar
 
 ## funções que citam
-crm_olx_anuncios_painel, crm_olx_metricas, olx_cfg, olx_cfg_gravar, olx_organicos_novos
+crm_olx_anuncios_painel, crm_olx_metricas, olx_cfg, olx_cfg_gravar, olx_organicos_novos, site_olx_anuncio_pedir

@@ -1,4 +1,4 @@
-# imovel_ficha  (tabela, ~351 linhas)
+# imovel_ficha  (tabela, ~352 linhas)
 191: a ficha completa do anúncio (imobeasy.com/anuncios/<codigo>), lida por ficha_do_anuncio.py a cada 3 h. É a base que a Nay consulta para responder sobre o imóvel.
 
 ## colunas

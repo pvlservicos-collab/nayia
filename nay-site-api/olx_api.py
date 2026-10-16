@@ -1260,3 +1260,65 @@ def olx_bot_descartar(eid):
         return jsonify({"ok": False, "erro": exc.__class__.__name__, "detalhe": str(exc)[:200]}), 500
     finally:
         conn.close()
+
+
+# ── ANUNCIAR NA OLX pelo editar imóvel (Pedro, 16/10/2026: "cria um botão lá nos imóveis em editar imóveis, anunciar
+# na OLX, ele cria um popup de anúncio manualmente"; migração 396). O popup lê o anúncio que o sistema monta, a pessoa
+# mexe no título, descrição, preço, CEP e fotos, e pede; o serviço nay-olx publica pela API da OLX em segundos e o popup
+# acompanha o pedido. Atrás da senha do painel.
+def _quem_pediu():
+    a = request.authorization
+    return (a.username if a and a.username else "painel")[:80]
+
+
+@olx_bp.route("/admin/api/imoveis/<int:codigo>/olx", methods=["GET"])
+def olx_anuncio_rascunho(codigo):
+    if not _admin_autenticado():
+        return _sem_senha()
+    conn = _conectar()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT site_olx_anuncio_rascunho(%s) AS r", (codigo,))
+            return jsonify((cur.fetchone() or {}).get("r") or {})
+    except Exception as exc:  # noqa: BLE001
+        conn.rollback()
+        return jsonify({"erro": exc.__class__.__name__, "detalhe": str(exc)[:200]}), 500
+    finally:
+        conn.close()
+
+
+@olx_bp.route("/admin/api/imoveis/<int:codigo>/olx", methods=["POST"])
+def olx_anuncio_pedir(codigo):
+    if not _admin_autenticado():
+        return _sem_senha()
+    corpo = request.get_json(silent=True) or {}
+    negocio = str(corpo.get("negocio") or "")
+    campos = {k: corpo.get(k) for k in ("subject", "body", "price", "zipcode", "images") if corpo.get(k) is not None}
+    conn = _conectar()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT site_olx_anuncio_pedir(%s, %s, %s::jsonb, %s) AS id",
+                        (codigo, negocio, psycopg2.extras.Json(campos), _quem_pediu()))
+            pid = (cur.fetchone() or {}).get("id")
+        conn.commit()
+        return jsonify({"ok": True, "pedido": pid})
+    except psycopg2.Error as exc:
+        conn.rollback()
+        msg = (getattr(exc.diag, "message_primary", None) or str(exc)).strip()
+        return jsonify({"ok": False, "erro": msg[:300]}), 400
+    finally:
+        conn.close()
+
+
+@olx_bp.route("/admin/api/olx/pedido/<int:pid>", methods=["GET"])
+def olx_anuncio_pedido(pid):
+    if not _admin_autenticado():
+        return _sem_senha()
+    conn = _conectar()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT site_olx_anuncio_pedido(%s) AS r", (pid,))
+            r = (cur.fetchone() or {}).get("r")
+        return (jsonify(r), 200) if r else (jsonify({"erro": "pedido não encontrado"}), 404)
+    finally:
+        conn.close()

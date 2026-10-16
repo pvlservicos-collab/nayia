@@ -1045,6 +1045,54 @@ def _ha_resposta(conn) -> bool:
         return False
 
 
+def enviar_pedidos(conn) -> int:
+    """396 (Pedro, 16/10: "coloca esse campo [Enviar imóvel] nos cards dos leads também do de captação"): o que a equipe
+    escolheu no card do CRM sai por este número (8595-6408), card + fotos, um imóvel por vez. Parceria e fora do ar não
+    saem. Com a Nay na conversa, os imóveis entram nos "já enviados" dela (a busca não repete)."""
+    feitos = 0
+    for p in banco.linhas(conn, """UPDATE privado.captacao_envio_pedido SET estado = 'enviando'
+                                    WHERE id = (SELECT id FROM privado.captacao_envio_pedido WHERE estado = 'pendente'
+                                                 ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED)
+                                  RETURNING *"""):
+        fone = re.sub(r"\D", "", p["telefone"])
+        if fone.startswith("55") and len(fone) in (12, 13):
+            fone = fone[2:]
+        achado = banco.linhas(conn, """SELECT id FROM privado.olx_lead_whatsapp WHERE right(telefone, 8) = right(%s, 8)
+                                        ORDER BY criado_em DESC LIMIT 1""", (fone,))
+        lead = _lead(conn, achado[0]["id"]) if achado else {"id": 0, "telefone": fone, "enviados": []}
+        enviados, fora = [], []
+        try:
+            for n, codigo in enumerate(p["codigos"]):
+                if not _ofertavel(conn, codigo):
+                    fora.append(str(codigo))
+                    continue
+                if enviados:
+                    time.sleep(DEPOIS_DAS_FOTOS_S)       # as fotos do anterior carregam antes do próximo card
+                mandar_imovel(conn, lead, int(codigo))
+                enviados.append(int(codigo))
+                banco.um(conn, "UPDATE privado.captacao_envio_pedido SET enviados = %s WHERE id = %s", (enviados, p["id"]))
+            if lead.get("id") and enviados:
+                _marcar(conn, lead["id"], enviados=list(dict.fromkeys(list(lead.get("enviados") or []) + enviados)))
+            resultado = (f"{len(enviados)} imóvel(is) enviado(s)" +
+                         (f"; não saíram (parceria ou fora do ar): {', '.join(fora)}" if fora else ""))
+            banco.um(conn, """UPDATE privado.captacao_envio_pedido SET estado = %s, resultado = %s, feito_em = now()
+                               WHERE id = %s""", ("enviado" if enviados else "falhou", resultado, p["id"]))
+            log.info("envio %s pela captação: %s", p["id"], resultado)
+            feitos += 1
+        except Exception as e:  # noqa: BLE001
+            banco.um(conn, """UPDATE privado.captacao_envio_pedido SET estado = 'falhou', resultado = %s, feito_em = now()
+                               WHERE id = %s""", (f"parou no meio ({len(enviados)} saíram): {e}"[:500], p["id"]))
+            log.warning("envio %s pela captação falhou: %s", p["id"], e)
+    return feitos
+
+
+def _ha_envio(conn) -> bool:
+    try:
+        return bool(banco.um(conn, "SELECT EXISTS (SELECT 1 FROM privado.captacao_envio_pedido WHERE estado = 'pendente')"))
+    except Exception:  # noqa: BLE001 -- sem a 396 no banco
+        return False
+
+
 def texto_do_seguimento(lead: dict) -> str:
     """392 (Pedro, 16/10): ~10 min de silêncio depois da última mensagem dela. Já mandou opções: se alguma agradou; só
     falou de um imóvel: "Sr. Carlos, posso estar enviando outras opções semelhantes para o Sr.?"."""
@@ -1157,6 +1205,8 @@ def atender(conn, cfg: dict) -> int:
     parte("a descoberta dos orgânicos", descobrir_organicos, conn, cfg)
     if _ha_resposta(conn) and conectada():
         parte("a resposta do Tel", entregar_respostas, conn)
+    if _ha_envio(conn) and conectada():
+        parte("o envio pedido no CRM", enviar_pedidos, conn)          # 396
     parte("o acompanhamento", seguir, conn, cfg)
     # a Z-API só é consultada quando há o que fazer (a volta é de 5 em 5 s)
     if not _ha_trabalho(conn, cfg) or not conectada():

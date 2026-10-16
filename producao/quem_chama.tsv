@@ -75,6 +75,8 @@ crm_captacao_cadastro_opcoes
 crm_captacao_disparo_oficial	
 crm_captacao_dono_cadastro	
 crm_captacao_donos	
+crm_captacao_enviar_imoveis	
+crm_captacao_envio_estado	
 crm_captacao_etapa_manual	
 crm_captacao_ficha_do_dono	
 crm_captacao_funil	
@@ -631,7 +633,7 @@ nay_valor_em_reais	nai_buscar_por_perfil, nai_negocio_do_pedido, nai_negocio_pel
 nay_valor_escrito	nay_partes_da_linha
 olx_anuncio_enviado	
 olx_anuncio_falhou	
-olx_anuncio_montar	olx_anuncios_candidatos, olx_anuncios_plano
+olx_anuncio_montar	olx_anuncios_candidatos, olx_anuncios_plano, site_olx_anuncio_pedir, site_olx_anuncio_rascunho
 olx_anuncio_na_olx	
 olx_anuncio_registrar	olx_anuncio_enviado, olx_anuncio_falhou, olx_anuncio_resultado
 olx_anuncio_resultado	
@@ -707,5 +709,8 @@ site_me_envia_ranking
 site_mudanca_revisar	
 site_mudancas	
 site_nao_e_dono	site_publicos_disparo
+site_olx_anuncio_pedido	
+site_olx_anuncio_pedir	
+site_olx_anuncio_rascunho	
 site_origem_do_cadastro	
 site_publicos_disparo	

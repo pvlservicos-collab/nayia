@@ -149,6 +149,44 @@ def publicar_lista(conn, cfg: dict[str, str], codigos: list[int], conta: str = "
     return {"conta": conta, "enviados": enviados, "falhas": falhas, "fora": fora}
 
 
+def publicar_pedidos(conn) -> int:
+    """396 (Pedro, 16/10: "anunciar na OLX ... um popup de anúncio manualmente"): o que a pessoa pediu no popup do editar
+    imóvel (privado.olx_anuncio_pedido, com o texto que ela mexeu) vai à OLX agora, um por vez. Ordem de gente: não olha
+    `publicar` nem o teto. Fica registrado como os da rodada (o serviço confere a moderação); o hash é o do cadastro na
+    hora do pedido, então a rodada não troca o texto dela enquanto o cadastro não mudar."""
+    feitos = 0
+    for p in banco.linhas(conn, """UPDATE privado.olx_anuncio_pedido SET estado = 'enviando'
+                                    WHERE id = (SELECT id FROM privado.olx_anuncio_pedido WHERE estado = 'pendente'
+                                                 ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED)
+                                  RETURNING *"""):
+        def fim(estado: str, resultado: str) -> None:
+            banco.um(conn, """UPDATE privado.olx_anuncio_pedido SET estado = %s, resultado = %s, feito_em = now()
+                               WHERE id = %s""", (estado, resultado[:500], p["id"]))
+        token = banco.token_da_conta(conn, p["conta"])
+        if not token:
+            fim("falhou", f"a conta {p['conta']} não está conectada à OLX")
+            continue
+        try:
+            r = api.ler_importacao(api.importar(token, [p["anuncio"]]))
+        except api.ErroDaOlx as e:
+            fim("falhou", f"a OLX não respondeu: {e}")
+            continue
+        if r.aceita and p["ad_id"] not in r.ignorados:
+            banco.um(conn, "SELECT olx_anuncio_enviado(%s, %s, %s, %s, 'insert', %s::jsonb, %s, %s)",
+                     (p["ad_id"], p["codigo"], p["negocio"], p["conta"], banco.js(p["anuncio"]), p["hash"], r.token))
+            fim("enviado", f"a OLX aceitou: {r.mensagem}. Agora passa pela moderação dela.")
+            log.info("pedido %s: %s enviado à OLX", p["id"], p["ad_id"])
+            feitos += 1
+        else:
+            motivo = (r.erros or {}).get(p["ad_id"]) or ("a OLX deixou de fora (limite da conta)" if r.aceita else r.mensagem)
+            banco.um(conn, "SELECT olx_anuncio_falhou(%s, %s, %s, %s, %s::jsonb, %s, %s)",
+                     (p["ad_id"], p["codigo"], p["negocio"], p["conta"], banco.js(p["anuncio"]), p["hash"],
+                      f"pedido do popup: {motivo}"))
+            fim("falhou", str(motivo))
+            log.warning("pedido %s: a OLX recusou %s: %s", p["id"], p["ad_id"], motivo)
+    return feitos
+
+
 def conferir(conn) -> int:
     """O que a moderação da OLX fez com o que mandamos. Devolve quantos anúncios mudaram de estado."""
     pendentes = banco.linhas(conn, "SELECT * FROM olx_anuncios_a_conferir()")

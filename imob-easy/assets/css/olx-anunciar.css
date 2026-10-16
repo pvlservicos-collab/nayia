@@ -1,0 +1,66 @@
+/* ==========================================================================
+   ANUNCIAR NA OLX, o popup do editar imóvel (Pedro, 16/10/2026: "cria um botão lá nos imóveis em editar imóveis,
+   anunciar na OLX, ele cria um popup de anúncio manualmente"). No acabamento do editar (cartão branco reto, título em
+   maiúsculas, campo de borda fina, botão azul). O roxo é só a marca da OLX no botão de abrir.
+   ========================================================================== */
+.olxa__acoes { display: flex; align-items: center; gap: 10px; }
+.olxa__botao {
+  border: 1px solid #6E0AD6; background: #fff; color: #6E0AD6; font-weight: 700; font-size: 13px;
+  text-transform: uppercase; letter-spacing: .04em; padding: 11px 16px; border-radius: 4px; cursor: pointer;
+  white-space: nowrap;
+}
+.olxa__botao:hover { background: #F4ECFD; }
+
+.olxa { border: 0; padding: 0; border-radius: 4px; width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 32px);
+  box-shadow: 0 18px 60px rgba(20, 20, 50, .28); color: #2B2F42; }
+.olxa::backdrop { background: rgba(20, 22, 35, .45); }
+.olxa__in { display: flex; flex-direction: column; max-height: calc(100vh - 32px); }
+.olxa__topo { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px;
+  border-bottom: 1px solid #ECEEF3; }
+.olxa__ttl { font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #3A3F55; margin: 0; }
+.olxa__ttl small { font-weight: 600; color: #8A90A6; letter-spacing: 0; text-transform: none; margin-left: 8px; font-size: 13px; }
+.olxa__fechar { border: 0; background: none; font-size: 20px; line-height: 1; color: #8A90A6; cursor: pointer; padding: 4px 8px; }
+.olxa__corpo { padding: 16px 20px; overflow: auto; display: flex; flex-direction: column; gap: 14px; }
+.olxa__pe { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 20px; border-top: 1px solid #ECEEF3;
+  background: #FAFBFD; }
+
+.olxa__aviso { font-size: 13px; padding: 10px 12px; border-radius: 4px; background: #F3F5F9; color: #4A5068; }
+.olxa__aviso--ok { background: #EAF7EE; color: #1E6B3A; }
+.olxa__aviso--erro { background: #FDECEC; color: #9B2222; }
+.olxa__aviso--vai { background: #EAF3FD; color: #1E5FA8; }
+.olxa__aviso a { color: inherit; font-weight: 700; }
+
+.olxa__abas { display: flex; gap: 6px; }
+.olxa__aba { border: 1px solid #D5D9E3; background: #fff; color: #4A5068; padding: 8px 14px; border-radius: 4px;
+  font-weight: 700; font-size: 13px; cursor: pointer; }
+.olxa__aba[aria-pressed="true"] { background: #1E88E5; border-color: #1E88E5; color: #fff; }
+.olxa__aba[disabled] { opacity: .45; cursor: default; }
+
+.olxa__campo { display: flex; flex-direction: column; gap: 5px; }
+.olxa__rot { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #7A8098;
+  display: flex; justify-content: space-between; }
+.olxa__rot span { font-weight: 600; letter-spacing: 0; text-transform: none; }
+.olxa__campo input, .olxa__campo textarea { border: 1px solid #D5D9E3; border-radius: 3px; padding: 9px 10px;
+  font: inherit; font-size: 14px; color: #2B2F42; background: #fff; }
+.olxa__campo input:focus, .olxa__campo textarea:focus { outline: none; border-color: #1E88E5;
+  box-shadow: 0 0 0 3px rgba(30, 136, 229, .15); }
+.olxa__campo textarea { min-height: 170px; resize: vertical; line-height: 1.45; }
+.olxa__dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.olxa__info { font-size: 12.5px; color: #7A8098; }
+
+.olxa__fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; }
+.olxa__foto { position: relative; border-radius: 3px; overflow: hidden; background: #EEF0F5; aspect-ratio: 4 / 3; }
+.olxa__foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.olxa__foto-n { position: absolute; left: 4px; top: 4px; background: rgba(0, 0, 0, .55); color: #fff; font-size: 11px;
+  font-weight: 700; padding: 1px 6px; border-radius: 3px; }
+.olxa__foto-bts { position: absolute; right: 4px; bottom: 4px; display: flex; gap: 3px; }
+.olxa__foto-bts button { border: 0; background: rgba(255, 255, 255, .92); color: #2B2F42; width: 24px; height: 24px;
+  border-radius: 3px; cursor: pointer; font-size: 12px; line-height: 1; }
+.olxa__foto-bts button:hover { background: #fff; }
+
+.olxa__pedidos { font-size: 12.5px; color: #6A7088; display: flex; flex-direction: column; gap: 3px; }
+
+@media (max-width: 600px) {
+  .olxa__dupla { grid-template-columns: 1fr; }
+  .olxa__botao { padding: 9px 10px; font-size: 12px; }
+}
