@@ -66,6 +66,12 @@ class Turno(unittest.TestCase):
         self.assertEqual(w.acoes_da({"acao": "visita"}), ["visita"])
         self.assertEqual(w.acoes_da({"acoes": []}), [])
         self.assertEqual(w.acoes_da({}), [])
+        self.assertEqual(w.acoes_da({"acoes": ["perguntar"]}), ["perguntar"])
+
+    def test_foto_de_uma_parte_pergunta_a_equipe(self):
+        # 16/10: "fotos dos quartos com roupeiros" -> ela não sabe qual foto é de qual cômodo: pergunta à equipe
+        self.assertIn("você NÃO sabe qual foto é de qual cômodo", w.PROMPT)
+        self.assertIn('"perguntar"', w.PROMPT)
 
     def test_o_prompt_tem_o_roteiro(self):
         for pedaco in ("Até que valor?", "Quais bairros", "serve 2 quartos", "escada", "simulação de financiamento",

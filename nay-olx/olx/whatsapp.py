@@ -72,8 +72,13 @@ ela já disse lá.
 4. VISITA: descubra QUAL imóvel (o código está nos cards e no anúncio) e o MELHOR DIA E HORÁRIO dela. Com os dois, diga
    que vai confirmar o horário com o proprietário e o corretor e já retorna, e marque acao "visita". Não confirme
    horário sozinha.
-5. FOTOS: ela pediu fotos de um imóvel (o do anúncio ou um dos que você mandou): acao "fotos" com o código. O sistema
-   manda as fotos depois dos seus balões; o que você quer dizer DEPOIS das fotos vai em "depois_das_fotos".
+5. FOTOS: ela pediu MAIS FOTOS de um imóvel, sem dizer de qual parte (o do anúncio ou um dos que você mandou): acao
+   "fotos" com o código. O sistema manda as fotos depois dos seus balões; o que você quer dizer DEPOIS das fotos vai em
+   "depois_das_fotos".
+6. FOTO DE UMA PARTE (dos quartos, do roupeiro, do banheiro, da cozinha, da varanda, da vista, da fachada, da área de
+   lazer...): você NÃO sabe qual foto é de qual cômodo. Não mande fotos e não prometa que manda: diga que vai separar
+   essas fotos e já retorna, e marque acao "perguntar" com o pedido em "motivo" (ex.: "fotos dos quartos com roupeiros
+   dos imóveis 9026, 9037 e 5724"). A equipe recebe a pergunta e manda as fotos por aqui.
 Seja flexível: se ela pula etapas, acompanhe; se faz uma pergunta sobre um imóvel, responda pela ficha. Se numa mensagem
 só ela pede as fotos E já diz o que procura (valor, região), faça as duas coisas: "acoes": ["fotos", "buscar"].
 BAIRROS: escreva bairros de Manaus. Avenida ou região vira os bairros por onde ela passa (ex.: "da Constantino Nery até
@@ -107,13 +112,14 @@ Valor em reais assim: R$ 700.000 / R$ 2.500.
  "filtros": {"finalidade": "", "tipo": "", "teto": 0, "bairros": [], "qualquer_bairro": false, "quartos": 0,
              "aceita_menos_quartos": null, "aceita_escada": null, "financiamento": "", "mobilia": ""},
  "fotos": {"codigo": 0}, "depois_das_fotos": [], "visita": {"codigo": 0, "quando": ""}, "motivo": ""}
-- acoes: [] ou, na ordem, até duas de: "fotos" | "buscar" | "visita" | "equipe" | "encerrar" (ela agradeceu e não quer
-  mais nada).
+- acoes: [] ou, na ordem, até duas de: "fotos" | "buscar" | "visita" | "perguntar" (você precisa que a equipe responda
+  ou mande algo, e a conversa continua com você) | "equipe" (a conversa passa para a equipe) | "encerrar" (ela agradeceu
+  e não quer mais nada).
 - filtros: TUDO o que ela já disse até agora (aqui e na OLX); vazio/0/null o que não disse. finalidade: "locacao" ou
   "venda" (sem ela dizer, é a do anúncio). tipo: "apartamento", "casa", "casa_condominio" ou "tanto_faz". teto: só o
   número em reais. quartos: o número que ela quer. financiamento: "aprovado", "simular", "a vista" ou "".
 - visita: o código do imóvel e o dia/horário que ela disse.
-- motivo: em poucas palavras, para a equipe (só com acao "equipe").
+- motivo: em poucas palavras, para a equipe (com "perguntar" ou "equipe"): o que ela pediu, com os códigos.
 """
 
 
@@ -407,7 +413,7 @@ def acoes_da(r: dict) -> list[str]:
     saida: list[str] = []
     for a in brutas:
         a = str(a or "").strip().lower()
-        if a in ("fotos", "buscar", "visita", "equipe", "encerrar") and a not in saida:
+        if a in ("fotos", "buscar", "visita", "perguntar", "equipe", "encerrar") and a not in saida:
             saida.append(a)
     return saida[:2]
 
@@ -432,6 +438,11 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict) -> None:
         _marcar(conn, lead["id"], etapa="visita", visita={"codigo": codigo, "quando": str(v.get("quando") or "")[:120]})
         _grupo(f"Cliente {lead.get('nome') or ''} (OLX, {nay.telefone_bonito(lead['telefone'])}) quer visitar o imóvel "
                f"{codigo or '?'}: {str(v.get('quando') or 'sem horário')[:120]}. Combinar com o proprietário e o corretor.")
+    elif acao == "perguntar":
+        # Pedro, 16/10 (a Michelle pediu os quartos com roupeiros): "ela deve nos perguntar porque a Nay não sabe que foto
+        # é de qual lugar". A pergunta vai ao grupo e a conversa continua com ela; quem mandar por aqui tira a Nay.
+        _grupo(f"Cliente {lead.get('nome') or ''} (OLX, {nay.telefone_bonito(lead['telefone'])}) no WhatsApp de captação "
+               f"pediu: {str(r.get('motivo') or 'algo que a Nay não sabe')[:240]}. A Nay disse que já retorna: mandem por lá.")
     elif acao == "equipe":
         _marcar(conn, lead["id"], humano_em=banco.um(conn, "SELECT now()"), parada_motivo=str(r.get("motivo") or "")[:200])
         _grupo(f"Cliente {lead.get('nome') or ''} (OLX, {nay.telefone_bonito(lead['telefone'])}) no WhatsApp de "
