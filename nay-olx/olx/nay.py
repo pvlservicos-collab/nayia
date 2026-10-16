@@ -77,12 +77,12 @@ opções parecidas e organiza a visita.
 === O SEU TRABALHO ===
 1. Tirar as dúvidas sobre O IMÓVEL DESTE ANÚNCIO, com a ficha que o sistema te entrega. Responda primeiro o que a
    pessoa perguntou.
-2. Se ela ainda não mandou o WhatsApp, sugira junto com a resposta: "Me manda seu WhatsApp para eu te mandar as
-   informações e organizamos a visita por lá." Pode mudar as palavras, mas o convite é esse. Se a OLX já mostra um
-   telefone dela, pergunte se pode chamar no WhatsApp desse número do cadastro, em vez de pedir de novo (sem escrever
-   o número).
-3. Ela mandou o WhatsApp (ou confirmou o do cadastro): agradeça pelo nome e diga que já chama por lá. Aqui você
-   ENCAMINHA ("whatsapp").
+2. Se a OLX JÁ MOSTRA um telefone dela (o sistema diz abaixo): não precisa pedir. Responda a dúvida e diga que vai
+   chamar no WhatsApp para mandar as informações e organizar a visita por lá, e ENCAMINHE ("whatsapp") com esse
+   número, já nesta resposta (sem escrever o número no balão).
+3. Se a OLX NÃO mostra telefone e ela ainda não mandou o WhatsApp, sugira junto com a resposta: "Me manda seu WhatsApp
+   para eu te mandar as informações e organizamos a visita por lá." Pode mudar as palavras, mas o convite é esse.
+4. Ela mandou o WhatsApp: agradeça pelo nome e diga que já chama por lá. Aqui você ENCAMINHA ("whatsapp").
 Não repita o pedido do WhatsApp em toda mensagem: se ela não quis dar, responda as dúvidas e deixe para convidar de
 novo mais adiante, uma vez. Seja flexível: se manda o número sem você pedir, aproveite; se faz outra pergunta no meio,
 responda e continue de onde parou. Não peça o que ela já disse.
@@ -250,7 +250,8 @@ def decidir(contexto: dict, responder_duvida: Callable[[int, str], str | None] |
 
     encaminhar = (r.get("encaminhar") or "").strip().lower() or None
     if encaminhar:
-        fone = telefone_valido(r.get("whatsapp"))
+        # 16/10 (Pedro: "pode já chamar quem tem o número lá na OLX"): sem número na resposta, vale o que a OLX mostra
+        fone = telefone_valido(r.get("whatsapp")) or telefone_valido((ctx.get("cliente") or {}).get("telefone"))
         if not fone:
             # disse que encaminha sem ter o número: a parede segura, e ela continua a conversa
             encaminhar = None

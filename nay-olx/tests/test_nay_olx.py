@@ -73,6 +73,14 @@ class Etapas(unittest.TestCase):
         self.assertIn("procura: apartamento para alugar", d.passar_para_gente)
         self.assertIn("até: até R$ 3.000", d.passar_para_gente)
 
+    def test_com_o_telefone_da_olx_chama_direto(self):
+        # 16/10: "pode já chamar quem tem o número lá na OLX": encaminha com o número do cadastro, sem pedir
+        m = Modelo({"baloes": ["Tem piscina, sim. Vou te chamar no WhatsApp para mandar as informações."],
+                    "encaminhar": "whatsapp", "whatsapp": "", "perfil": {"duvidas": "perguntou da piscina"}})
+        d = nay.decidir(ctx([dele("tem piscina?")], telefone="92991540843"), None, m)
+        self.assertEqual(d.lead["telefone"], "92991540843")
+        self.assertIn("pela OLX, número (92) 99154-0843", d.aviso_grupo)
+
     def test_o_prompt_pede_o_whatsapp(self):
         self.assertIn("Me manda seu WhatsApp", nay.PROMPT)
         self.assertIn("LEITURA DE PERFIL", nay.PROMPT)
