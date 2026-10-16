@@ -22,7 +22,7 @@ html = io.open(DESENHO, encoding="utf-8").read()
 inicio = html.rindex("<script>")
 fim = html.index("</script>", inicio) + len("</script>")
 html = html[:inicio] + ('<script src="/assets/js/config.js"></script>\n'
-                        '<script src="/assets/js/imovel-publico.js?v=20261006-borda"></script>') + html[fim:]
+                        '<script src="/assets/js/imovel-publico.js?v=20261016-antigo"></script>') + html[fim:]
 
 # 2. o título de exemplo vira neutro (o script põe o nome do imóvel quando carrega)
 html = re.sub(r"<title>.*?</title>", "<title>Imóvel · Imob Easy</title>", html, count=1, flags=re.S)
@@ -38,7 +38,8 @@ assert "IMOVEL={" not in html and "fakePhoto" not in html, "sobrou dado de exemp
 for obrigatorio in ('id="fic"', 'id="stage"', 'id="thumbs"', 'id="priceCard"', 'id="priceMobile"', 'id="caracB"', 'id="oqtB"',
                     'id="valB"', 'id="locB"', 'id="nav"', 'id="sendCard"', 'id="phone1"', 'id="phone2"', 'id="err1"', 'id="err2"',
                     'id="dock"', 'id="dockBtn"', 'id="badge"', 'id="dockSub"', 'id="items"', 'id="sendListBtn"', 'id="toast"',
-                    'id="prev"', 'id="next"', 'id="mainImg"', 'id="count"', 'class="mbar"'):
+                    'id="prev"', 'id="next"', 'id="mainImg"', 'id="count"', 'class="mbar"',
+                    'id="lbx"', 'id="lbPrev"', 'id="lbNext"', 'id="lbClose"', 'id="adm"', 'id="admEditar"', 'id="admDono"', 'id="donoBox"'):
     assert obrigatorio in html, f"o desenho não tem mais {obrigatorio}: o script da página precisa dele"
 
 io.open(SAIDA, "w", encoding="utf-8", newline="\n").write(html)

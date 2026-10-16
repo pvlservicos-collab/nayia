@@ -137,6 +137,10 @@
       "</div>" +
     "</header>";
 
+  /* ---- 16/10/2026: a marca de "é da equipe" neste navegador. Só quem passou pela senha do /admin chega aqui; a
+     página pública do imóvel lê a marca para mostrar Editar e Ver proprietário (imovel-publico.js). ---- */
+  try { localStorage.setItem("imobeasy_equipe", String(Date.now())); } catch (e) { /* sem armazenamento */ }
+
   /* ---- os lembretes da equipe no sininho (375, Pedro 15/10/2026): o arquivo próprio dá vida ao sino ---- */
   (function () {
     var s = document.createElement("script");

@@ -53,8 +53,17 @@
     $("#count").textContent = (cur + 1) + " / " + FOTOS.length;
     document.querySelectorAll(".thumbs button").forEach(function (b, k) {
       b.classList.toggle("on", k === cur);
-      if (k === cur) b.scrollIntoView({ inline: "nearest", block: "nearest" });
+      // com a foto grande aberta, a faixa acompanha (fechada, não mexe na rolagem da página)
+      if (k === cur && !$("#lbx").hidden) b.scrollIntoView({ inline: "nearest", block: "nearest" });
     });
+  }
+
+  /* 16/10: a faixa de fotos do site antigo; tocar numa foto abre a foto grande */
+  function abrirFoto(n) { showPhoto(n); $("#lbx").hidden = false; document.body.style.overflow = "hidden"; $("#lbClose").focus(); }
+  function fecharFoto() { $("#lbx").hidden = true; document.body.style.overflow = ""; }
+  function rolarFaixa(dir) {
+    var f = $("#thumbs"), b = f.querySelector("button");
+    f.scrollBy({ left: dir * (b ? b.getBoundingClientRect().width + 3 : f.clientWidth / 2), behavior: "smooth" });
   }
 
   function kvList(campos, src) {
@@ -260,7 +269,7 @@
 
   document.addEventListener("click", function (e) {
     var t = e.target.closest("button,a[data-act]"); if (!t) return;
-    if (t.dataset.ph) showPhoto(+t.dataset.ph);
+    if (t.dataset.ph) abrirFoto(+t.dataset.ph);
     if (t.dataset.go) document.getElementById(t.dataset.go).scrollIntoView({ block: "start" });
     if (t.dataset.rm) { lista_envio = lista_envio.filter(function (x) { return String(x.codigo) !== t.dataset.rm; }); save(); renderList(); }
     var a = t.dataset.act;
@@ -286,15 +295,20 @@
     }
     if (a === "clear") { lista_envio = []; save(); renderList(); }
   });
-  $("#prev").onclick = function () { if (FOTOS.length) showPhoto(cur - 1); };
-  $("#next").onclick = function () { if (FOTOS.length) showPhoto(cur + 1); };
+  $("#prev").onclick = function () { rolarFaixa(-1); };
+  $("#next").onclick = function () { rolarFaixa(1); };
+  $("#lbPrev").onclick = function () { if (FOTOS.length) showPhoto(cur - 1); };
+  $("#lbNext").onclick = function () { if (FOTOS.length) showPhoto(cur + 1); };
+  $("#lbClose").onclick = fecharFoto;
+  $("#lbx").addEventListener("click", function (e) { if (e.target === this) fecharFoto(); });
   document.addEventListener("keydown", function (e) {
     if (e.target.matches("input,textarea")) return;
-    if (FOTOS.length && e.key === "ArrowLeft") showPhoto(cur - 1);
-    if (FOTOS.length && e.key === "ArrowRight") showPhoto(cur + 1);
-    if (e.key === "Escape") openDock(false);
+    var grande = !$("#lbx").hidden;
+    if (grande && FOTOS.length && e.key === "ArrowLeft") showPhoto(cur - 1);
+    if (grande && FOTOS.length && e.key === "ArrowRight") showPhoto(cur + 1);
+    if (e.key === "Escape") { if (grande) fecharFoto(); else { openDock(false); fecharDono(); } }
   });
-  var sx = null, stg = $("#stage");
+  var sx = null, stg = $("#lbx");
   stg.addEventListener("touchstart", function (e) { sx = e.touches[0].clientX; }, { passive: true });
   stg.addEventListener("touchend", function (e) {
     if (sx === null || !FOTOS.length) return;
@@ -326,12 +340,56 @@
       document.querySelector(".mbar").style.display = "none";
     }
     renderList(); syncPhones();
+    menuDaEquipe(I.codigo);
     var io = new IntersectionObserver(function (en) {
       en.forEach(function (x) {
         if (x.isIntersecting) document.querySelectorAll(".nav button").forEach(function (b) { b.classList.toggle("act", b.dataset.go === x.target.id); });
       });
     }, { rootMargin: "-35% 0px -60% 0px" });
     NAV.forEach(function (n) { io.observe(document.getElementById(n[0])); });
+  }
+
+  /* ===== 16/10 (Pedro): "quando eu estiver logado no sistema e abrir um imóvel, um botão de menu lá em cima, ver
+     proprietário, mas só se eu estiver logado". O admin (/admin/*, com a senha) deixa uma marca neste navegador
+     (layout.js); sem ela o menu nem aparece, e o visitante comum não vê nada nem é perguntado por senha. O dono vem
+     de /admin/api/imoveis/<código>/privado, que pede a senha do admin: os dados continuam só para a equipe. ===== */
+  var EQUIPE = "imobeasy_equipe";
+  function daEquipe() {
+    var em = 0; try { em = Number(localStorage.getItem(EQUIPE) || 0); } catch (e) { /* sem armazenamento */ }
+    return em > 0 && Date.now() - em < 60 * 86400000;
+  }
+  function fecharDono() { var b = $("#donoBox"); if (b) { b.hidden = true; $("#admDono").setAttribute("aria-expanded", "false"); } }
+  function menuDaEquipe(cod) {
+    if (!daEquipe() || !$("#adm")) return;
+    $("#adm").hidden = false;
+    $("#admEditar").href = "/admin/imovel-editar.html?codigo=" + encodeURIComponent(cod);
+    $("#admDono").onclick = function (e) {
+      e.stopPropagation();
+      var box = $("#donoBox");
+      if (!box.hidden) { fecharDono(); return; }
+      box.hidden = false; $("#admDono").setAttribute("aria-expanded", "true");
+      box.innerHTML = "<h4>Proprietário</h4><p>Carregando…</p>";
+      fetch("/admin/api/imoveis/" + encodeURIComponent(cod) + "/privado", { credentials: "same-origin" })
+        .then(function (r) { if (!r.ok) throw new Error(r.status === 401 ? "Entre no admin para ver o proprietário." : "Não consegui agora."); return r.json(); })
+        .then(function (d) {
+          var p = d.proprietario;
+          if (!p) { box.innerHTML = "<h4>Proprietário</h4><p>Nenhum proprietário ligado a este imóvel.</p>"; return; }
+          var fone = String(p.telefone || "").replace(/\D/g, "");
+          var zap = fone ? (fone.length <= 11 ? "55" + fone : fone) : "";
+          box.innerHTML = "<h4>Proprietário</h4>" +
+            '<p class="nome">' + esc([p.tratamento, p.nome].filter(has).join(" ") || "(sem nome)") + "</p>" +
+            (has(p.telefone) ? '<div class="lin">' + i("phone") + '<a href="tel:+' + esc(zap) + '">' + esc(p.telefone) + "</a></div>" : "") +
+            (has(p.email) ? '<div class="lin">' + i("mail") + '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + "</a></div>" : "") +
+            (has(p.documento) ? '<div class="lin">' + i("id-card") + esc(p.documento) + "</div>" : "") +
+            (zap ? '<a class="zap" href="https://wa.me/' + esc(zap) + '" target="_blank" rel="noopener">' + i("message-circle") + "Chamar no WhatsApp</a>" : "") +
+            ((p.outros_imoveis || []).length ? '<div class="outros">Outros imóveis dele: ' + p.outros_imoveis.map(function (c) {
+              return '<a href="/imovel/' + encodeURIComponent(c) + '">' + esc(c) + "</a>"; }).join("") + "</div>" : "");
+          drawIcons();
+        })
+        .catch(function (err) { box.innerHTML = "<h4>Proprietário</h4><p>" + esc(err.message) + "</p>"; });
+    };
+    document.addEventListener("click", function (e) { if (!e.target.closest("#adm")) fecharDono(); });
+    drawIcons();
   }
 
   var codigo = codigoDoEndereco();

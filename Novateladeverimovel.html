@@ -260,6 +260,100 @@ svg.lucide{width:18px;height:18px;flex:none;stroke-width:2}
 .voltar,.arrow,.panel-h button,.item button{padding:0;line-height:0;-webkit-appearance:none;appearance:none;display:grid;place-items:center;place-content:center}
 .voltar svg,.arrow svg,.panel-h button svg,.item button svg{display:block;margin:0;flex:none}
 .btn svg,.btn-o svg,.dock-btn svg,.nav button svg,.spec svg,.loc svg,.pill svg,.code svg{flex:none}
+
+/* ===== 16/10/2026 (Pedro): "só o layout parecido com o site antigo, mantendo a organização do novo" =====
+   O site antigo (imobeasy.com/imoveis/<código>): a faixa de fotos de ponta a ponta no alto; embaixo, duas colunas
+   no meio da tela -- à esquerda os cartões brancos de cantos retos, rótulos pequenos em maiúsculas e o valor
+   embaixo; à direita o preço e o botão verde. As seções, o "Me envia" e a lista de envio são os do site novo. */
+body{background:#EEF0F5}
+.site{box-shadow:0 1px 0 #E3E5EC}
+.site-in{max-width:none;padding:10px 24px}
+.logo{margin-left:0}
+.topo-dir{margin-left:auto;display:flex;align-items:center;gap:8px;position:relative}
+.topo-dir .btn-o{border-radius:4px;border:1px solid #8B6AD8;color:#6D28D9;font-size:13px;font-weight:500;letter-spacing:.02em;text-transform:none;padding:8px 14px;background:#fff}
+.topo-dir .btn-o:hover{background:#F4EEFF}
+.topo-dir .btn-o svg.lucide{width:16px;height:16px}
+.adm{display:flex;gap:8px;align-items:center}
+.adm[hidden]{display:none}
+.dono{position:absolute;top:calc(100% + 10px);right:0;z-index:40;width:min(340px,calc(100vw - 24px));background:#fff;border-radius:6px;
+  box-shadow:0 14px 40px rgba(20,20,50,.18);padding:16px 18px;font-size:14px}
+.dono[hidden]{display:none}
+.dono h4{margin:0 0 10px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink)}
+.dono .nome{font-size:16px;font-weight:600;margin:0 0 8px}
+.dono .lin{display:flex;align-items:center;gap:8px;margin:4px 0;color:var(--ink-2)}
+.dono .lin svg{width:16px;height:16px;color:var(--brand)}
+.dono .lin a{color:var(--ink-2);text-decoration:none}
+.dono .outros{margin-top:10px;padding-top:10px;border-top:1px solid #ECEDF2;font-size:13px;color:var(--muted)}
+.dono .outros a{margin-right:6px}
+.dono .zap{display:inline-flex;align-items:center;gap:6px;margin-top:10px;background:#21B532;color:#fff;border-radius:4px;padding:7px 12px;font-weight:600;font-size:13px;text-decoration:none}
+
+/* a faixa de fotos */
+.gal{margin:0;background:#fff}
+.strip{position:relative}
+#thumbs{display:flex;gap:3px;margin:0;padding:0;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
+#thumbs::-webkit-scrollbar{display:none}
+#thumbs button{flex:0 0 calc((100% - 9px)/4);height:clamp(200px,24vw,360px);aspect-ratio:auto;border:0;border-radius:0;opacity:1;padding:0;scroll-snap-align:start;cursor:zoom-in;background:#E6E8EF}
+#thumbs button.on{border:0}
+#thumbs button img{transition:transform .25s ease}
+#thumbs button:hover img{transform:scale(1.03)}
+.strip .arrow{width:34px;height:34px;background:rgba(255,255,255,.85);box-shadow:none;border:1px solid #D9DBE3}
+.strip .arrow svg{width:18px;height:18px}
+.lbx{position:fixed;inset:0;z-index:90;background:rgba(12,10,18,.94);display:grid;place-items:center}
+.lbx[hidden]{display:none}
+.lbx img{max-width:92vw;max-height:86vh;object-fit:contain;display:block}
+.lbx .arrow{z-index:1}
+.lbx-x{position:absolute;top:14px;right:16px;width:42px;height:42px;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;cursor:pointer}
+.lbx .count{right:50%;transform:translateX(50%);bottom:18px}
+
+/* as duas colunas no meio, sem o menu de seções */
+.page{max-width:1100px;padding-top:30px}
+.layout{grid-template-columns:minmax(0,1fr) 300px;gap:16px}
+.nav{display:none}
+.aside{top:76px}
+
+/* os cartões: brancos, cantos retos, sombra leve */
+.fic,.blk,.card{border:0;border-radius:4px;box-shadow:0 1px 3px rgba(20,20,50,.07),0 8px 22px rgba(20,20,50,.06)}
+.fic{padding:22px 24px;margin-bottom:14px}
+.fic h1{font-size:19px;font-weight:600}
+.tag-t{border-radius:3px}
+.specs{border-top:1px solid #ECEDF2}
+.blk{margin-top:14px}
+.blk-h{padding:20px 24px 0}
+.blk-h .n{display:none}
+.blk-h h2{flex:1;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink);padding-bottom:12px;border-bottom:1px solid #ECEDF2}
+.blk-b{padding:16px 24px 22px}
+.sub-t{font-size:11.5px;font-weight:700;color:#7C4DCE;letter-spacing:.09em;margin:6px 0 12px}
+.kv + .sub-t,.desc + .sub-t{margin-top:22px}
+.kv{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 28px}
+.kv div{background:transparent;border-radius:0;padding:0}
+.kv small{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink);margin-bottom:5px}
+.kv b{font-size:14.5px;font-weight:400;color:var(--ink-2)}
+.desc{background:transparent;padding:0;color:var(--ink-2)}
+.pill{background:transparent;border:0;padding:3px 10px 3px 0}
+.map{border-radius:4px}
+
+/* a coluna da direita: o preço em roxo e o botão verde, como o "Enviar mensagem no WhatsApp" do antigo */
+.card{padding:20px}
+.price .big{color:#7C4DCE;font-weight:700;font-size:24px}
+.card h3{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink)}
+#sendCard .btn,.mbar .btn{background:#21B532;box-shadow:none;border-radius:4px;letter-spacing:.02em;text-transform:none;font-size:14.5px}
+#sendCard .btn:hover,.mbar .btn:hover{background:#1A9A2A;filter:none}
+#sendCard .btn-o{border-radius:4px}
+
+@media (max-width:1180px){.layout{grid-template-columns:minmax(0,1fr) 280px}}
+@media (max-width:860px){
+  .page{padding:16px 12px 150px}
+  .layout{grid-template-columns:minmax(0,1fr)}
+  #thumbs button{flex-basis:calc((100% - 3px)/2);height:clamp(180px,42vw,300px)}
+  .topo-dir>.btn-o{display:none}
+  .adm .btn-o{padding:7px 10px;font-size:12.5px}
+  .fic,.blk-h,.blk-b{padding-left:16px;padding-right:16px}
+  .kv{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px}
+}
+@media (max-width:480px){
+  #thumbs button{flex-basis:100%;height:62vw}
+  .adm .btn-o span,.adm .btn-o{font-size:12px}
+}
 </style>
 </head>
 <body>
@@ -270,24 +364,40 @@ svg.lucide{width:18px;height:18px;flex:none;stroke-width:2}
     <a class="logo" href="https://imobeasy.online" aria-label="Imob Easy">
       <img src="https://imobeasy.online/assets/img/logo.svg" alt="Imob Easy">
     </a>
+    <div class="topo-dir">
+      <!-- 16/10/2026 (Pedro): "quando eu estiver logado no sistema e abrir um imóvel, tenha lá um botão de menu lá em
+           cima, ver proprietário, mas só se eu estiver logado". Só aparece se este navegador entrou no admin. -->
+      <div class="adm" id="adm" hidden>
+        <a class="btn-o" id="admEditar" href="/admin/imoveis.html"><i data-lucide="pencil"></i>Editar</a>
+        <button class="btn-o" id="admDono" type="button" aria-expanded="false"><i data-lucide="user-round"></i>Ver proprietário</button>
+        <div class="dono" id="donoBox" role="dialog" aria-label="Proprietário" hidden></div>
+      </div>
+      <a class="btn-o" href="https://imobeasy.online/imoveis">Pesquisar imóveis</a>
+    </div>
   </div>
 </header>
+
+<!-- 16/10/2026 (Pedro): a faixa de fotos de ponta a ponta, como no site antigo; tocar abre a foto grande -->
+<section class="gal" id="s-fotos" aria-label="Fotos">
+  <div class="strip" id="stage">
+    <div class="thumbs" id="thumbs"></div>
+    <button class="arrow l" id="prev" aria-label="Fotos anteriores"><i data-lucide="chevron-left"></i></button>
+    <button class="arrow r" id="next" aria-label="Próximas fotos"><i data-lucide="chevron-right"></i></button>
+  </div>
+</section>
+<div class="lbx" id="lbx" role="dialog" aria-label="Foto" hidden>
+  <img id="mainImg" alt="">
+  <button class="arrow l" id="lbPrev" aria-label="Foto anterior"><i data-lucide="chevron-left"></i></button>
+  <button class="arrow r" id="lbNext" aria-label="Próxima foto"><i data-lucide="chevron-right"></i></button>
+  <button class="lbx-x" id="lbClose" aria-label="Fechar"><i data-lucide="x"></i></button>
+  <span class="count" id="count"></span>
+</div>
 
 <div class="page">
   <div class="layout">
     <nav class="nav" id="nav" aria-label="Seções"></nav>
 
     <main>
-      <section class="gal" id="s-fotos" aria-label="Fotos">
-        <div class="stage" id="stage">
-          <img id="mainImg" alt="">
-          <button class="arrow l" id="prev" aria-label="Foto anterior"><i data-lucide="chevron-left"></i></button>
-          <button class="arrow r" id="next" aria-label="Próxima foto"><i data-lucide="chevron-right"></i></button>
-          <span class="count" id="count"></span>
-        </div>
-        <div class="thumbs" id="thumbs"></div>
-      </section>
-
       <section class="fic" id="fic"></section>
 
       <div class="card price price-m" id="priceMobile"></div>
