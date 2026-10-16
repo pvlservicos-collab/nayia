@@ -27,7 +27,9 @@ import logging
 import re
 import threading
 import time
+import unicodedata
 from datetime import datetime, timedelta, timezone
+from difflib import SequenceMatcher
 
 from olx import banco, grupo, modelo, nay, visita
 
@@ -128,6 +130,9 @@ Proposta, desconto, documentação, contrato, reclamação, pedido para falar co
 Diga com naturalidade que já passa para a equipe e que vão falar com ela por aqui.
 
 === NUNCA ===
+- Repetir uma pergunta ou uma frase que você já mandou nesta conversa. Perguntou e ela ainda não respondeu: espere a
+  resposta dela (balões vazios é melhor que repetir). Já disse que vai confirmar com a equipe: não diga de novo a cada
+  mensagem; responda o que ela disse agora.
 - Dar negativa ("não consigo", "não dá", "não é possível", "não temos"). Se a busca não achar, o sistema avisa a equipe
   e diz a ela que você está separando as opções.
 - Inventar. O que não está na ficha você não sabe: diga que confirma e retorna.
@@ -197,7 +202,59 @@ def _mandar(conn, lead: dict, caminho: str, corpo: dict, tipo: str, codigo: int 
 
 
 def mandar_texto(conn, lead: dict, texto: str) -> str:
+    """Um texto dela. O MESMO texto para a mesma pessoa nas últimas 6 h não sai de novo (Pedro, 16/10: "fez a mesma
+    pergunta duas vezes para o lead ... precisa checar para ela nunca fazer isso"). Devolve '' quando segurou."""
+    if any(_normal(texto) == _normal(x) for x in ja_mandou(conn, lead, horas=6)):
+        log.info("lead %s: texto repetido segurado: %s", lead.get("id"), texto[:80])
+        return ""
     return _mandar(conn, lead, "/send-text", {"message": texto}, "texto", texto_no_crm=texto)
+
+
+# ── nunca repetir (392b) ──
+def _normal(t: str | None) -> str:
+    t = unicodedata.normalize("NFKD", (t or "").lower())
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", t).split())
+
+
+def parecida(a: str | None, b: str | None, limite: float = 0.85) -> bool:
+    na, nb = _normal(a), _normal(b)
+    if not na or not nb:
+        return False
+    return na == nb or SequenceMatcher(None, na, nb).ratio() >= limite
+
+
+def ja_mandou(conn, lead: dict, horas: int = 24) -> list[str]:
+    """Os textos que foram para esta pessoa por este número (dela ou da equipe), os mais novos primeiro."""
+    return [l["texto"] for l in banco.linhas(conn, """
+        SELECT texto FROM captacao_mensagens
+         WHERE direcao = 'enviada' AND coalesce(btrim(texto), '') <> '' AND criada_em > now() - make_interval(hours => %s)
+           AND right(regexp_replace(coalesce(telefone, ''), '\\D', '', 'g'), 8) = %s
+         ORDER BY id DESC LIMIT 80""", (horas, _so8(lead["telefone"])))]
+
+
+def _frases(t: str) -> list[str]:
+    return [f.strip() for f in re.split(r"(?<=[.!?])\s+", t or "") if f.strip()]
+
+
+def sem_repetir(baloes: list[str], ja: list[str]) -> list[str]:
+    """Tira o balão igual (ou quase) a um que já foi, e a PERGUNTA já feita de dentro de um balão novo ("Até que valor
+    o senhor procura?" duas vezes): o resto do balão fica. Balão que ficou vazio sai."""
+    frases_ja = [f for x in ja for f in _frases(x)]
+    saida: list[str] = []
+    for b in baloes:
+        if any(parecida(b, x) for x in ja + saida):
+            continue
+        # a pergunta já feita sai (0,8); a frase de 4+ palavras já dita também ("Assim que tiver um retorno, aviso por aqui.")
+        frases = [f for f in _frases(b)
+                  if not any(parecida(f, p, 0.8 if f.endswith("?") else 0.85) for p in frases_ja
+                             if f.endswith("?") or len(f.split()) >= 4)]
+        novo = " ".join(frases).strip()
+        if len(novo.split()) <= 3 and len(frases) < len(_frases(b)):
+            continue                      # sobrou só o "Certo, Sr. Carlos!" de uma pergunta repetida: não vale um balão
+        if novo and not any(parecida(novo, x) for x in ja + saida):
+            saida.append(novo)
+    return saida
 
 
 def mandar_imovel(conn, lead: dict, codigo: int, com_card: bool = True) -> int:
@@ -471,10 +528,12 @@ def abrir(conn, cfg: dict) -> int:
             log.warning("lead %s: o modelo não escreveu a abertura", lead["id"])
             continue
         ate = _ultima_recebida(conn, lead)
+        baloes = sem_repetir(baloes, ja_mandou(conn, lead))
         for n, b in enumerate(baloes):
             if n:
                 time.sleep(ENTRE_ENVIOS_S)
             mandar_texto(conn, lead, b)
+        r["_baloes_que_sairam"] = baloes
         filtros = _filtros(lead.get("filtros"), r.get("filtros"))
         _marcar(conn, lead["id"], assumido_em_agora=True, etapa="filtrar", ultima_lida=ate, filtros=filtros)
         # 16/10: o que ela promete já na abertura (passar o desconto à equipe, confirmar a visita pedida na OLX...) tem de
@@ -555,10 +614,15 @@ def responder(conn, cfg: dict) -> int:
         lead["visita_aberta"] = visita.aberta(conn, lead["id"])
         r = modelo.chamar(PROMPT, montar_turno(lead, ctx_olx, conversa))
         baloes = [b for b in (nay.limpar_balao(str(x)) for x in (r.get("baloes") or [])[:MAX_BALOES]) if b]
+        tirados = len(baloes)
+        baloes = sem_repetir(baloes, ja_mandou(conn, lead))
+        if tirados != len(baloes):
+            log.info("lead %s: %d balão(ões) repetido(s) não saiu(íram)", lead["id"], tirados - len(baloes))
         for n, b in enumerate(baloes):
             if n:
                 time.sleep(ENTRE_ENVIOS_S)
             mandar_texto(conn, lead, b)
+        r["_baloes_que_sairam"] = baloes
         filtros = _filtros(lead.get("filtros"), r.get("filtros"))
         _marcar(conn, lead["id"], ultima_lida=ate, filtros=filtros)
         for acao in acoes_da(r):
@@ -591,7 +655,10 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
             mandar_texto(conn, lead, b)
             time.sleep(ENTRE_ENVIOS_S)
     elif acao == "buscar":
-        _buscar_e_mandar(conn, lead, filtros)
+        # ela já disse neste turno que vai pegar/separar as opções: a busca vazia não diz de novo
+        ja_avisou = any(re.search(r"op[cç][oõ]es", b, re.I) and re.search(r"separ|pegar|sistema|busc|procur", b, re.I)
+                        for b in (r.get("_baloes_que_sairam") or r.get("baloes") or []))
+        _buscar_e_mandar(conn, lead, filtros, ja_avisou=ja_avisou)
     elif acao == "visita":
         # 389 (Pedro, 16/10): a confirmação no modelo da Parceria; os contatos só depois do sim dela
         v = r.get("visita") if isinstance(r.get("visita"), dict) else {}
@@ -617,7 +684,7 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
         _marcar(conn, lead["id"], etapa="finalizado")
 
 
-def _buscar_e_mandar(conn, lead: dict, filtros: dict) -> None:
+def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -> None:
     excluir = list(lead.get("enviados") or []) + ([lead["codigo"]] if lead.get("codigo") else [])
     f = dict(filtros)
     if not f.get("finalidade"):
@@ -626,8 +693,9 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict) -> None:
                            (json.dumps(f, ensure_ascii=False), excluir, MAX_IMOVEIS))
     _marcar(conn, lead["id"], etapa="feito_busca")
     if not achados:
-        # nunca a negativa: ela diz que está separando e a equipe recebe o perfil
-        mandar_texto(conn, lead, "Estou separando as opções com a nossa equipe e já te retorno por aqui.")
+        # nunca a negativa: ela diz que está separando e a equipe recebe o perfil (se já disse neste turno, não repete)
+        if not ja_avisou:
+            mandar_texto(conn, lead, "Estou separando as opções com a nossa equipe e já te retorno por aqui.")
         _grupo(f"Cliente {quem(lead)} procura "
                f"{_resumo_dos_filtros(f)} e a busca não achou nada: separar opções para ela.")
         return
@@ -639,7 +707,10 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict) -> None:
         enviados.append(int(a["codigo"]))
         _marcar(conn, lead["id"], enviados=enviados)
     time.sleep(DEPOIS_DAS_FOTOS_S)
-    mandar_texto(conn, lead, fecho(lead, len(achados)))
+    texto = fecho(lead, len(achados))
+    if any(_normal(texto) == _normal(x) for x in ja_mandou(conn, lead)):
+        texto = fecho(lead, len(achados), de_novo=True)        # a segunda busca não fecha com a mesma frase
+    mandar_texto(conn, lead, texto)
     _marcar(conn, lead["id"], etapa="imoveis_enviados")
     log.info("lead %s: %d imóvel(is) enviado(s)", lead["id"], len(achados))
 
@@ -655,9 +726,13 @@ def finalidade_sem_dizer(lead: dict, f: dict) -> str:
     return "locacao" if 0 < teto <= 30000 else "venda"
 
 
-def fecho(lead: dict, quantos: int = 2) -> str:
+def fecho(lead: dict, quantos: int = 2, de_novo: bool = False) -> str:
     """A mensagem depois dos imóveis (fixa: o modelo não é chamado no meio do envio)."""
     _, pronome = tratamento(lead)
+    if de_novo:
+        quem = {"a senhora": "a senhora gostou", "o senhor": "o senhor gostou"}.get(pronome, "você gostou")
+        return (f"{'Essa é mais uma opção' if quantos == 1 else 'Essas são mais opções'} que encontrei. Se {quem} de "
+                f"alguma, já vejo a visita.")
     if quantos == 1:
         quem = {"a senhora": "agradou a senhora", "o senhor": "agradou o senhor"}.get(pronome, "te agradou")
         return f"Essa é a opção que separei. Ela {quem}? Posso agendar uma visita ou procurar mais opções."
@@ -690,11 +765,35 @@ def _para_a_fila(conn, lead: dict, codigo: int | None, pergunta: str) -> bool:
     try:
         if banco.um(conn, "SELECT pergunta_fila_ligada()") is not True:
             return False
+        # 392b: a mesma pessoa já tem pergunta aberta na fila: a parecida não entra; a nova vai junto daquela
+        abertas = banco.linhas(conn, """SELECT id, pergunta FROM pergunta_fila WHERE estado IN ('fila', 'perguntada')
+                                         AND right(chave, 8) = %s ORDER BY id""", (_so8(lead["telefone"]),))
+        if any(parecida(pergunta, a["pergunta"], 0.55) or _mesmo_assunto(pergunta, a["pergunta"]) for a in abertas):
+            log.info("lead %s: a pergunta já está na fila", lead.get("id"))
+            return True
+        if abertas:
+            banco.um(conn, "UPDATE pergunta_fila SET pergunta = pergunta || %s WHERE id = %s",
+                     ("\nE também: " + pergunta.strip(), abertas[-1]["id"]))
+            return True
         return bool(banco.um(conn, "SELECT pergunta_fila_entrar('captacao', %s, %s, %s, NULL, %s, 'olx_whatsapp', NULL)",
                              (lead["telefone"], lead.get("nome"), codigo, pergunta)))
     except Exception:  # noqa: BLE001
         log.exception("lead %s: a pergunta não entrou na fila", lead.get("id"))
         return False
+
+
+PALAVRAS_VAZIAS = set("a o as os e de da do das dos em no na nos nas um uma para por com que se ela ele sobre confirmar "
+                      "imovel imoveis apartamento casa equipe pediu quer saber".split())
+
+
+def _mesmo_assunto(a: str, b: str) -> bool:
+    """As palavras que importam são quase as mesmas ("menor valor ... televisão, geladeira" x "Confirmar o menor valor
+    do aluguel e se televisão, geladeira ficam")."""
+    pa = {p for p in _normal(a).split() if len(p) > 2 and p not in PALAVRAS_VAZIAS and not p.isdigit()}
+    pb = {p for p in _normal(b).split() if len(p) > 2 and p not in PALAVRAS_VAZIAS and not p.isdigit()}
+    if not pa or not pb:
+        return False
+    return len(pa & pb) / min(len(pa), len(pb)) >= 0.6
 
 
 def texto_da_resposta(p: dict) -> str:
@@ -748,13 +847,40 @@ def texto_do_seguimento(lead: dict) -> str:
     return f"{trat}, {t}" if trat else t[:1].upper() + t[1:]
 
 
+FECHO_DA_BUSCA = ("Essas são as opções", "Essa é a opção", "Essas são mais opções", "Essa é mais uma opção")
+OFERTA = "outras opções semelhantes"
+# ela prometeu um retorno (a equipe confirma, ela avisa): quem espera é ela, não o cliente
+PROMESSA = re.compile(r"\b(retorno|retornar|aviso por aqui|te aviso|assim que|vou (confirmar|verificar|checar|ver com)|"
+                      r"estou (verificando|confirmando|separando|aguardando|vendo)|ainda (estou )?aguardando|"
+                      r"j[aá] (passei|encaminhei|pedi)|passo para a equipe|reforcei|refor[cç]ar)\b", re.I)
+
+
+def que_seguimento(lead: dict, conversa: list[dict]) -> str | None:
+    """392b (Pedro, 16/10: "fez a mesma pergunta duas vezes ... precisa checar para ela nunca fazer isso"). O
+    acompanhamento só tem dois casos, e cada um sai UMA vez:
+      - depois das opções (a última mensagem dela é o fecho da busca): "conseguiu ver as opções?";
+      - ela só falou de um imóvel e nunca ofereceu outras: "posso estar enviando outras opções semelhantes?".
+    A última mensagem dela é uma PERGUNTA ou uma PROMESSA de retorno: espera (o cliente responde, ou a equipe)."""
+    nossas = [m for m in conversa if m.get("direcao") == "enviada" and (m.get("texto") or "").strip()]
+    if not nossas:
+        return None
+    ultima = nossas[-1]["texto"].strip()
+    if ultima.startswith(FECHO_DA_BUSCA):
+        return texto_do_seguimento({**lead, "enviados": lead.get("enviados") or [0]})
+    if ultima.endswith("?") or PROMESSA.search(ultima):
+        return None
+    if lead.get("enviados") or any(OFERTA in (m.get("texto") or "") for m in nossas):
+        return None
+    return texto_do_seguimento({**lead, "enviados": []})
+
+
 _ULTIMO_SEGUIMENTO = [0.0]
 
 
 def seguir(conn, cfg: dict, a_cada_s: float = 60.0) -> int:
-    """392: quem conversou e ficou `seguimento_min` sem responder depois da última mensagem dela recebe UM acompanhamento
-    (de novo só depois que falar outra vez). Das 8h às 20h, só para mensagem dela das últimas 6 h; visita andando, equipe
-    na conversa e atendimento encerrado ficam de fora."""
+    """392: o acompanhamento (que_seguimento). Os relógios: `seguimento_min` (10) depois da última mensagem DELA e da
+    última do CLIENTE ("vamos aguardar, tem 1 minuto só que ele respondeu"); 60 min entre dois acompanhamentos; das 8h às
+    20h; só para conversa das últimas 6 h. Visita andando, equipe na conversa e atendimento encerrado ficam de fora."""
     if time.monotonic() - _ULTIMO_SEGUIMENTO[0] < a_cada_s:
         return 0
     _ULTIMO_SEGUIMENTO[0] = time.monotonic()
@@ -765,18 +891,19 @@ def seguir(conn, cfg: dict, a_cada_s: float = 60.0) -> int:
         SELECT l.id FROM privado.olx_lead_whatsapp l
          CROSS JOIN LATERAL (
                SELECT max(m.criada_em) FILTER (WHERE m.direcao = 'recebida') AS ela,
-                      max(m.criada_em) FILTER (WHERE m.direcao = 'enviada' AND coalesce(btrim(m.texto), '') <> '') AS nos
+                      max(m.criada_em) FILTER (WHERE m.direcao = 'enviada') AS nos
                  FROM captacao_mensagens m
                 WHERE right(regexp_replace(coalesce(m.telefone, ''), '\\D', '', 'g'), 8) = right(l.telefone, 8)
                   AND m.criada_em > now() - interval '3 days') x
          WHERE l.assumido_em IS NOT NULL AND l.humano_em IS NULL
            AND l.etapa IN ('filtrar', 'feito_busca', 'imoveis_enviados')
            AND x.ela IS NOT NULL AND x.nos > x.ela
-           AND x.nos < now() - make_interval(mins => %s) AND x.nos > now() - interval '6 hours'
-           AND (l.seguimento_em IS NULL OR l.seguimento_em < x.ela)
+           AND x.nos < now() - make_interval(mins => %(m)s) AND x.ela < now() - make_interval(mins => %(m)s)
+           AND x.nos > now() - interval '6 hours'
+           AND (l.seguimento_em IS NULL OR l.seguimento_em < now() - interval '60 minutes')
            AND NOT EXISTS (SELECT 1 FROM privado.olx_visita v WHERE v.lead = l.id
                               AND v.estado IN ('confirmar_cliente', 'buscando_corretor', 'pedindo_proprietario'))
-         ORDER BY x.nos LIMIT 3""", (minutos,))
+         ORDER BY x.nos LIMIT 3""", {"m": minutos})
     if not candidatos or not conectada():
         return 0
     feitos = 0
@@ -786,10 +913,13 @@ def seguir(conn, cfg: dict, a_cada_s: float = 60.0) -> int:
             continue
         if _gente_escreveu(conn, lead, lead.get("humano_em") or lead.get("assumido_em")):
             continue                                  # a equipe está na conversa: a vez é dela
-        mandar_texto(conn, lead, texto_do_seguimento(lead))
-        _marcar(conn, lead["id"], seguimento_em=banco.um(conn, "SELECT now()"))
-        log.info("lead %s: acompanhamento mandado", lead["id"])
-        feitos += 1
+        texto = que_seguimento(lead, _conversa(conn, lead))
+        if not texto or any(parecida(texto, x) for x in ja_mandou(conn, lead, horas=72)):
+            continue
+        if mandar_texto(conn, lead, texto):
+            _marcar(conn, lead["id"], seguimento_em=banco.um(conn, "SELECT now()"))
+            log.info("lead %s: acompanhamento mandado", lead["id"])
+            feitos += 1
     return feitos
 
 

@@ -131,6 +131,56 @@ class Seguimento(unittest.TestCase):
                         .startswith("Sra. Michelle, conseguiu ver as opções"))
 
 
+class NuncaRepetir(unittest.TestCase):
+    """392b (16/10): o Carlos recebeu "posso estar enviando outras opções semelhantes?" três vezes."""
+    CARLOS = {"nome": "Carlos Eduardo", "trat": "Sr.", "enviados": []}
+
+    @staticmethod
+    def conv(*pares):
+        return [{"direcao": "recebida" if d == "c" else "enviada", "texto": t} for d, t in pares]
+
+    def test_o_dia_do_carlos(self):
+        c = self.conv(("c", "Vc teria fotos dele?"), ("n", "Claro, Sr. Carlos. Vou separar as fotos do apartamento e já envio."))
+        self.assertEqual(w.que_seguimento(self.CARLOS, c),
+                         "Sr. Carlos, posso estar enviando outras opções semelhantes para o senhor?")
+        c += self.conv(("n", "Sr. Carlos, posso estar enviando outras opções semelhantes para o senhor?"),
+                       ("c", "Eu só tô aguardando você me falar a questão do valor"),
+                       ("n", "Sr. Carlos, ainda estou aguardando a confirmação da equipe sobre o menor valor. Assim que me "
+                             "responderem, retorno por aqui."))
+        self.assertIsNone(w.que_seguimento(self.CARLOS, c))          # promessa: espera (16:41)
+        c += self.conv(("c", "Pode sim"),
+                       ("n", "Perfeito, Sr. Carlos. Até que valor de aluguel por mês o senhor procura?"))
+        self.assertIsNone(w.que_seguimento(self.CARLOS, c))          # pergunta: espera (16:53)
+
+    def test_oferta_so_uma_vez(self):
+        c = self.conv(("n", "Sr. Carlos, posso estar enviando outras opções semelhantes para o senhor?"), ("c", "ok"),
+                      ("n", "Combinado, Sr. Carlos."))
+        self.assertIsNone(w.que_seguimento(self.CARLOS, c))
+
+    def test_depois_das_opcoes_e_da_promessa(self):
+        mi = {"nome": "Michelle", "trat": "Sra.", "enviados": [9026]}
+        fecho = self.conv(("c", "obrigada"), ("n", "Essas são as opções que separei. Alguma chamou a atenção da senhora? "
+                                                  "Posso agendar uma visita ou procurar mais opções."))
+        self.assertTrue(w.que_seguimento(mi, fecho).startswith("Sra. Michelle, conseguiu ver as opções"))
+        self.assertIsNone(w.que_seguimento(mi, self.conv(
+            ("c", "Obrigada"), ("n", "Imagina, Sra. Michelle. Já reforcei com a equipe. Assim que tiver um retorno, aviso por aqui."))))
+
+    def test_balao_e_pergunta_repetidos(self):
+        ja = ["Perfeito, Sr. Carlos. Enquanto confirmo com a equipe, vou procurar opções. Até que valor de aluguel por mês o "
+              "senhor procura?"]
+        self.assertEqual(w.sem_repetir(["Certo, Sr. Carlos! Até que valor de aluguel por mês o senhor procura?"], ja), [])
+        self.assertEqual(w.sem_repetir(["Anotei os 2 quartos. Até que valor de aluguel o senhor procura por mês?",
+                                        "E quais bairros atendem o senhor?"], ja),
+                         ["Anotei os 2 quartos.", "E quais bairros atendem o senhor?"])
+        self.assertEqual(w.sem_repetir([ja[0]], ja), [])
+
+    def test_mesmo_assunto_na_fila(self):
+        self.assertTrue(w._mesmo_assunto(
+            "Qual o menor valor do aluguel? E fica tudo como nas fotos (televisão, geladeira, sofá, cama)?",
+            "Confirmar o menor valor do aluguel e se televisão, geladeira, sofá e cama ficam no apartamento 9026."))
+        self.assertFalse(w._mesmo_assunto("Aceita pet?", "Qual o menor valor do aluguel?"))
+
+
 class RespostaDaFila(unittest.TestCase):
     """391: a resposta do Tel na fila de perguntas, como chega ao cliente."""
 
