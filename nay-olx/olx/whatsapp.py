@@ -72,7 +72,13 @@ ela já disse lá.
 4. VISITA: descubra QUAL imóvel (o código está nos cards e no anúncio) e o MELHOR DIA E HORÁRIO dela. Com os dois, diga
    que vai confirmar o horário com o proprietário e o corretor e já retorna, e marque acao "visita". Não confirme
    horário sozinha.
-Seja flexível: se ela pula etapas, acompanhe; se faz uma pergunta sobre um imóvel, responda pela ficha.
+5. FOTOS: ela pediu fotos de um imóvel (o do anúncio ou um dos que você mandou): acao "fotos" com o código. O sistema
+   manda as fotos depois dos seus balões; o que você quer dizer DEPOIS das fotos vai em "depois_das_fotos".
+Seja flexível: se ela pula etapas, acompanhe; se faz uma pergunta sobre um imóvel, responda pela ficha. Se numa mensagem
+só ela pede as fotos E já diz o que procura (valor, região), faça as duas coisas: "acoes": ["fotos", "buscar"].
+BAIRROS: escreva bairros de Manaus. Avenida ou região vira os bairros por onde ela passa (ex.: "da Constantino Nery até
+a Ponta Negra" = Chapada, São Jorge, Dom Pedro, Planalto, Alvorada, Ponta Negra). Os bairros vizinhos o sistema já soma.
+MOBÍLIA (locação): mobiliado = com móveis; semi = modulados e/ou ar-condicionado; "" = tanto faz.
 
 === VENDA OU LOCAÇÃO ===
 O anúncio diz qual é. Na locação o campo "incluso" da ficha é o que está INCLUSO NO ALUGUEL (ex.: água, gás, condomínio).
@@ -97,11 +103,12 @@ senhor"); sem tratamento, pelo primeiro nome e "você". Nada de "Como posso te a
 Valor em reais assim: R$ 700.000 / R$ 2.500.
 
 === A SUA RESPOSTA: SÓ ESTE JSON, NADA MAIS ===
-{"baloes": ["..."], "acao": null,
+{"baloes": ["..."], "acoes": [],
  "filtros": {"finalidade": "", "tipo": "", "teto": 0, "bairros": [], "qualquer_bairro": false, "quartos": 0,
              "aceita_menos_quartos": null, "aceita_escada": null, "financiamento": "", "mobilia": ""},
- "visita": {"codigo": 0, "quando": ""}, "motivo": ""}
-- acao: null | "buscar" | "visita" | "equipe" | "encerrar" (ela agradeceu e não quer mais nada).
+ "fotos": {"codigo": 0}, "depois_das_fotos": [], "visita": {"codigo": 0, "quando": ""}, "motivo": ""}
+- acoes: [] ou, na ordem, até duas de: "fotos" | "buscar" | "visita" | "equipe" | "encerrar" (ela agradeceu e não quer
+  mais nada).
 - filtros: TUDO o que ela já disse até agora (aqui e na OLX); vazio/0/null o que não disse. finalidade: "locacao" ou
   "venda" (sem ela dizer, é a do anúncio). tipo: "apartamento", "casa", "casa_condominio" ou "tanto_faz". teto: só o
   número em reais. quartos: o número que ela quer. financiamento: "aprovado", "simular", "a vista" ou "".
@@ -151,9 +158,10 @@ def mandar_texto(conn, lead: dict, texto: str) -> str:
     return _mandar(conn, lead, "/send-text", {"message": texto}, "texto", texto_no_crm=texto)
 
 
-def mandar_imovel(conn, lead: dict, codigo: int) -> int:
-    """O card e as fotos de UM imóvel (sem a colagem, que é só dos grupos). Devolve quantas fotos saíram."""
-    card = banco.um(conn, "SELECT texto_pronto FROM nai_card_do_imovel(%s)", (codigo,))
+def mandar_imovel(conn, lead: dict, codigo: int, com_card: bool = True) -> int:
+    """O card e as fotos de UM imóvel (sem a colagem, que é só dos grupos). Devolve quantas fotos saíram.
+    `com_card=False`: só as fotos ("gostaria de ver mais fotos" do imóvel que ela já conhece)."""
+    card = banco.um(conn, "SELECT texto_pronto FROM nai_card_do_imovel(%s)", (codigo,)) if com_card else None
     if card:
         _mandar(conn, lead, "/send-text", {"message": card}, "card", codigo, texto_no_crm=card)
     fotos = [l["url"] for l in banco.linhas(conn, "SELECT url FROM nai_imagens_do_envio(%s) WHERE NOT e_colagem", (codigo,))
@@ -387,23 +395,49 @@ def responder(conn, cfg: dict) -> int:
             mandar_texto(conn, lead, b)
         filtros = _filtros(lead.get("filtros"), r.get("filtros"))
         _marcar(conn, lead["id"], ultima_lida=ate, filtros=filtros)
-        acao = (r.get("acao") or "").strip().lower() or None
-        if acao == "buscar":
-            _buscar_e_mandar(conn, lead, filtros)
-        elif acao == "visita":
-            v = r.get("visita") if isinstance(r.get("visita"), dict) else {}
-            codigo = int(v.get("codigo") or lead.get("codigo") or 0) or None
-            _marcar(conn, lead["id"], etapa="visita", visita={"codigo": codigo, "quando": str(v.get("quando") or "")[:120]})
-            _grupo(f"Cliente {lead.get('nome') or ''} (OLX, {nay.telefone_bonito(lead['telefone'])}) quer visitar o imóvel "
-                   f"{codigo or '?'}: {str(v.get('quando') or 'sem horário')[:120]}. Combinar com o proprietário e o corretor.")
-        elif acao == "equipe":
-            _marcar(conn, lead["id"], humano_em=banco.um(conn, "SELECT now()"), parada_motivo=str(r.get("motivo") or "")[:200])
-            _grupo(f"Cliente {lead.get('nome') or ''} (OLX, {nay.telefone_bonito(lead['telefone'])}) no WhatsApp de "
-                   f"captação: {str(r.get('motivo') or 'precisa da equipe')[:200]}.")
-        elif acao == "encerrar":
-            _marcar(conn, lead["id"], etapa="finalizado")
+        for acao in acoes_da(r):
+            _fazer(conn, lead, r, acao, filtros)
         feitos += 1
     return feitos
+
+
+def acoes_da(r: dict) -> list[str]:
+    """As ações da resposta, na ordem, sem repetir (até duas). Aceita o formato antigo ("acao": "buscar")."""
+    brutas = r.get("acoes") if isinstance(r.get("acoes"), list) else [r.get("acao")]
+    saida: list[str] = []
+    for a in brutas:
+        a = str(a or "").strip().lower()
+        if a in ("fotos", "buscar", "visita", "equipe", "encerrar") and a not in saida:
+            saida.append(a)
+    return saida[:2]
+
+
+def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict) -> None:
+    if acao == "fotos":
+        f = r.get("fotos") if isinstance(r.get("fotos"), dict) else {}
+        codigo = int(f.get("codigo") or lead.get("codigo") or 0) or None
+        if codigo:
+            # o imóvel do anúncio ou um que ela já recebeu: só as fotos (o card ela já viu)
+            ja_viu = codigo == lead.get("codigo") or codigo in (lead.get("enviados") or [])
+            mandar_imovel(conn, lead, codigo, com_card=not ja_viu)
+            time.sleep(DEPOIS_DAS_FOTOS_S)
+        for b in [b for b in (nay.limpar_balao(str(x)) for x in (r.get("depois_das_fotos") or [])[:MAX_BALOES]) if b]:
+            mandar_texto(conn, lead, b)
+            time.sleep(ENTRE_ENVIOS_S)
+    elif acao == "buscar":
+        _buscar_e_mandar(conn, lead, filtros)
+    elif acao == "visita":
+        v = r.get("visita") if isinstance(r.get("visita"), dict) else {}
+        codigo = int(v.get("codigo") or lead.get("codigo") or 0) or None
+        _marcar(conn, lead["id"], etapa="visita", visita={"codigo": codigo, "quando": str(v.get("quando") or "")[:120]})
+        _grupo(f"Cliente {lead.get('nome') or ''} (OLX, {nay.telefone_bonito(lead['telefone'])}) quer visitar o imóvel "
+               f"{codigo or '?'}: {str(v.get('quando') or 'sem horário')[:120]}. Combinar com o proprietário e o corretor.")
+    elif acao == "equipe":
+        _marcar(conn, lead["id"], humano_em=banco.um(conn, "SELECT now()"), parada_motivo=str(r.get("motivo") or "")[:200])
+        _grupo(f"Cliente {lead.get('nome') or ''} (OLX, {nay.telefone_bonito(lead['telefone'])}) no WhatsApp de "
+               f"captação: {str(r.get('motivo') or 'precisa da equipe')[:200]}.")
+    elif acao == "encerrar":
+        _marcar(conn, lead["id"], etapa="finalizado")
 
 
 def _buscar_e_mandar(conn, lead: dict, filtros: dict) -> None:

@@ -61,6 +61,12 @@ class Turno(unittest.TestCase):
         self.assertIn("EQUIPE: oi, aqui é o Tel", t2)
         self.assertIn("Imóveis já enviados (códigos): 5724", t2)
 
+    def test_acoes_na_ordem_e_o_formato_antigo(self):
+        self.assertEqual(w.acoes_da({"acoes": ["fotos", "buscar", "fotos", "x", "visita"]}), ["fotos", "buscar"])
+        self.assertEqual(w.acoes_da({"acao": "visita"}), ["visita"])
+        self.assertEqual(w.acoes_da({"acoes": []}), [])
+        self.assertEqual(w.acoes_da({}), [])
+
     def test_o_prompt_tem_o_roteiro(self):
         for pedaco in ("Até que valor?", "Quais bairros", "serve 2 quartos", "escada", "simulação de financiamento",
                        "Vou pegar as opções no meu sistema", "Dar negativa"):
