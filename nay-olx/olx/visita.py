@@ -25,7 +25,9 @@ from olx import banco, nay
 log = logging.getLogger("olx.visita")
 
 DIAS = ("segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo")
-NAO = re.compile(r"\b(n[aã]o|nao|imposs[ií]vel|outro\s+hor[aá]rio|outro\s+dia|infelizmente)\b", re.I)
+NAO = re.compile(r"^\s*(n[aã]o|nao|nops|negativo)\b|\b(n[aã]o\s+(posso|consigo|d[aá]|vai\s+dar|vou\s+poder|tenho\s+como|"
+                 r"rola|vai\s+ser\s+poss[ií]vel)|imposs[ií]vel|outro\s+hor[aá]rio|outro\s+dia|infelizmente)\b", re.I)
+NAO_SEI = re.compile(r"\bn[aã]o\s+sei\b", re.I)
 DUVIDA = re.compile(r"\bn[aã]o\s+sei\b|\?", re.I)
 SIM = re.compile(r"\b(sim|s|pode|posso|consigo|confirmo|confirmado|ok|okay|beleza|blz|fechado|combinado|claro|certo|"
                  r"pode\s+ser|t[aá]\s+bom|t[aá]\s+[oó]timo|perfeito|com\s+certeza|bora)\b", re.I)
@@ -58,9 +60,11 @@ def quando_de(data: str | None, hora: str | None, agora: datetime) -> datetime |
 
 
 def resposta(texto: str) -> str:
-    """'sim' | 'nao' | 'outro' para a resposta de um corretor ou do dono ("não" vence: "não posso" tem "posso")."""
+    """'sim' | 'nao' | 'outro' para a resposta de um corretor ou do dono. 394: o "não" é o claro ("não posso", "não
+    consigo", começa com "não"), e "Pode sim, não tem problema" é sim; "sim, qual o endereço?" é sim (a pergunta vai à
+    equipe); "não sei" e o que não é nem um nem outro, a equipe vê."""
     t = (texto or "").strip()
-    if DUVIDA.search(t):              # "não sei", "qual endereço?": a equipe vê
+    if NAO_SEI.search(t):
         return "outro"
     if NAO.search(t):
         return "nao"
@@ -140,6 +144,42 @@ def aberta(conn, lead_id: int) -> dict | None:
     return l[0] if l else None
 
 
+def para_o_modelo(conn, lead_id: int) -> dict | None:
+    """394: a visita que o modelo precisa ver, também quando ficou com a equipe (sem corretor, sem proprietário)."""
+    l = banco.linhas(conn, """SELECT * FROM privado.olx_visita WHERE lead = %s AND estado NOT IN ('cancelada', 'expirada')
+                                AND quando > now() - interval '1 day' ORDER BY id DESC LIMIT 1""", (lead_id,))
+    return l[0] if l else None
+
+
+def ativa(conn, lead_id: int) -> bool:
+    """394: há visita andando ou marcada (não encerra a conversa; quem volta a escrever cai em Visita)."""
+    return bool(banco.um(conn, """SELECT EXISTS (SELECT 1 FROM privado.olx_visita WHERE lead = %s
+                   AND (estado IN ('confirmar_cliente', 'buscando_corretor', 'pedindo_proprietario', 'sem_corretor',
+                                   'sem_proprietario') OR (estado = 'confirmada' AND quando > now())))""", (lead_id,)))
+
+
+def no_horario(cfg: dict) -> bool:
+    """393: Diego, corretor e proprietário só das 7h às 21h (Manaus); fora disso a visita espera e anda de manhã."""
+    h = datetime.now(_w().MANAUS).hour
+    return int(cfg.get("visita_hora_ini") or 7) <= h < int(cfg.get("visita_hora_fim") or 21)
+
+
+def _ocupado(conn, fone: str, vid: int) -> bool:
+    """394: o Diego já está respondendo sobre outra visita: um SIM dele não pode valer para duas."""
+    return bool(banco.um(conn, """SELECT EXISTS (SELECT 1 FROM privado.olx_visita_consulta WHERE estado = 'esperando'
+                                   AND visita <> %s AND right(telefone, 8) = right(%s, 8))""", (vid, fone)))
+
+
+def ha_trabalho(conn) -> bool:
+    return bool(banco.um(conn, """SELECT EXISTS (SELECT 1 FROM privado.olx_visita_consulta WHERE estado = 'esperando')
+        OR EXISTS (SELECT 1 FROM privado.olx_visita WHERE estado = 'buscando_corretor')
+        OR EXISTS (SELECT 1 FROM privado.olx_visita WHERE estado IN ('confirmar_cliente', 'pedindo_proprietario')
+                      AND quando < now())
+        OR EXISTS (SELECT 1 FROM privado.olx_visita WHERE estado = 'confirmada'
+                      AND ((lembrete_em IS NULL AND quando > now() AND quando < now() + interval '24 hours')
+                        OR (depois_em IS NULL AND quando < now() AND quando > now() - interval '2 days')))"""))
+
+
 def _onde(conn, codigo: int) -> str:
     l = banco.linhas(conn, "SELECT condominio_nome, bairro FROM core_imovel_busca WHERE codigo = %s", (codigo,))
     if not l:
@@ -188,9 +228,13 @@ def _quem(lead: dict) -> str:
 def pedir_confirmacao(conn, lead: dict, codigo: int | None, data: str | None, hora_dita: str | None) -> bool:
     """O passo 1: a confirmação no modelo da Parceria. Sem imóvel, dia ou hora entendidos, não manda (o modelo pergunta)."""
     w = _w()
-    q = quando_de(data, hora_dita, datetime.now(w.MANAUS))
-    if not codigo or not q:
-        return False
+    agora = datetime.now(w.MANAUS)
+    q = quando_de(data, hora_dita, agora)
+    if not codigo or not q or q < agora + timedelta(minutes=30):
+        return False                      # 394: sem dia/hora, ou um horário que já passou: o balão dela pergunta
+    mesma = aberta(conn, lead["id"])
+    if mesma and mesma["estado"] == "confirmar_cliente" and int(mesma["codigo"]) == int(codigo) and mesma["quando"] == q:
+        return True                       # 394: a mesma visita de novo: a confirmação já está com ela
     banco.um(conn, """UPDATE privado.olx_visita SET estado = 'cancelada', atualizado_em = now()
                        WHERE lead = %s AND estado IN ('confirmar_cliente', 'buscando_corretor', 'pedindo_proprietario')""",
              (lead["id"],))
@@ -215,14 +259,20 @@ def cliente_confirmou(conn, lead: dict, cfg: dict) -> None:
 
 
 def _proximo_corretor(conn, v: dict, cfg: dict) -> None:
+    if not no_horario(cfg):
+        return                            # 393: de noite a visita espera (_retomar chama de manhã)
     lead = _lead(conn, v["lead"])
     tentados = {r["telefone"][-8:] for r in banco.linhas(
         conn, "SELECT telefone FROM privado.olx_visita_consulta WHERE visita = %s AND papel = 'corretor'", (v["id"],))}
     locacao = _e_locacao(conn, v, lead)
     lista = quem_chamar(cfg, locacao)
     q = v["quando"].astimezone(_w().MANAUS)
+    ocupados = 0
     for nome, fone in lista:
         if fone[-8:] in tentados:
+            continue
+        if _ocupado(conn, fone, v["id"]):
+            ocupados += 1
             continue
         ate = int(banco.um(conn, """SELECT coalesce(max(id), 0) FROM captacao_mensagens
                                      WHERE right(regexp_replace(coalesce(telefone, ''), '\\D', '', 'g'), 8) = %s""", (fone[-8:],)) or 0)
@@ -237,6 +287,8 @@ def _proximo_corretor(conn, v: dict, cfg: dict) -> None:
                      f"Você consegue ir nesse horário? Me responde com SIM ou NÃO, por favor.")
         log.info("visita %s: perguntado ao corretor %s", v["id"], nome)
         return
+    if ocupados:
+        return                            # 394: quem falta está respondendo outra visita; _retomar tenta de novo
     _estado(conn, v["id"], "sem_corretor")
     if not lista:
         motivo = "nenhum corretor cadastrado para a Nay chamar"
@@ -249,6 +301,8 @@ def _proximo_corretor(conn, v: dict, cfg: dict) -> None:
 
 
 def _pedir_ao_dono(conn, v: dict, cfg: dict) -> None:
+    if not no_horario(cfg):
+        return                            # 393: de noite o proprietário espera (_retomar chama de manhã)
     lead = _lead(conn, v["lead"])
     q = v["quando"].astimezone(_w().MANAUS)
     d = banco.linhas(conn, "SELECT * FROM nai_proprietario_do_imovel(%s)", (v["codigo"],))
@@ -285,6 +339,10 @@ def _confirmar(conn, v: dict) -> None:
     w._marcar(conn, v["lead"], etapa="visita")
     trat, pronome = w.tratamento(lead)
     onde = _onde(conn, v["codigo"])
+    if lead.get("humano_em"):
+        w._grupo(f"Visita confirmada (o cliente {_quem(lead)} está com a equipe: avisem ele): imóvel #{v['codigo']}, "
+                 f"{dia(q)} às {hora(q)}, com {v.get('corretor_nome') or ''}, proprietário {v.get('proprietario_nome') or ''}.")
+        return
     w.mandar_texto(conn, lead, f"Visita confirmada{', ' + trat if trat else ''}! ✅\n\n🔑 Imóvel: #{v['codigo']}"
                                f"{' (' + onde + ')' if onde else ''}\n📅 Data: {dia(q)}\n🕐 Horário: {hora(q)}\n\n"
                                f"O corretor {v.get('corretor_nome') or ''} vai acompanhar {pronome}.")
@@ -298,9 +356,100 @@ def _confirmar(conn, v: dict) -> None:
              f"{v.get('corretor_nome') or ''}, proprietário {v.get('proprietario_nome') or ''}.")
 
 
-def atender(conn, cfg: dict) -> int:
-    """As respostas (e o silêncio) de quem está sendo consultado. Devolve quantas consultas andaram."""
+def _retomar(conn, cfg: dict) -> int:
+    """393/394: a visita que esperou (a noite, ou o Diego respondendo outra) anda; a que passou do horário sem fechar sai."""
     feitas = 0
+    for v in banco.linhas(conn, """SELECT * FROM privado.olx_visita
+                                    WHERE estado IN ('confirmar_cliente', 'buscando_corretor', 'pedindo_proprietario')
+                                      AND quando < now()"""):
+        _estado(conn, v["id"], "expirada")
+        banco.um(conn, "UPDATE privado.olx_visita_consulta SET estado = 'cancelada' WHERE visita = %s AND estado = 'esperando'",
+                 (v["id"],))
+        if v["estado"] != "confirmar_cliente":
+            q = v["quando"].astimezone(_w().MANAUS)
+            _w()._grupo(f"A visita do cliente {_quem(_lead(conn, v['lead']))} ao #{v['codigo']} ({dia(q)} às {hora(q)}) passou "
+                        f"do horário sem fechar com o corretor ou o proprietário.")
+        feitas += 1
+    if not no_horario(cfg):
+        return feitas
+    for v in banco.linhas(conn, """SELECT v.* FROM privado.olx_visita v WHERE v.estado = 'buscando_corretor' AND v.quando > now()
+                                      AND NOT EXISTS (SELECT 1 FROM privado.olx_visita_consulta c WHERE c.visita = v.id
+                                                        AND c.estado IN ('esperando', 'duvida'))"""):
+        if v.get("corretor_telefone"):
+            _pedir_ao_dono(conn, v, cfg)
+        else:
+            _proximo_corretor(conn, v, cfg)
+        feitas += 1
+    return feitas
+
+
+def _lembrar(conn, cfg: dict) -> int:
+    """393: "pode sim, só me avisar antes" (o Cristian). `visita_lembrete_h` antes: o proprietário, quem acompanha e o
+    cliente. Confirmada em cima da hora (menos de 30 min antes do lembrete) não ganha lembrete."""
+    if not no_horario(cfg):
+        return 0
+    w = _w()
+    feitas = 0
+    for v in banco.linhas(conn, """SELECT * FROM privado.olx_visita WHERE estado = 'confirmada' AND lembrete_em IS NULL
+                                     AND quando > now() AND quando - make_interval(hours => %s) <= now()""",
+                          (max(1, int(cfg.get("visita_lembrete_h") or 2)),)):
+        banco.um(conn, "UPDATE privado.olx_visita SET lembrete_em = now() WHERE id = %s", (v["id"],))
+        if v.get("confirmada_em") and v["confirmada_em"] > datetime.now(w.MANAUS) - timedelta(minutes=30):
+            continue
+        lead = _lead(conn, v["lead"])
+        q = v["quando"].astimezone(w.MANAUS)
+        onde = _onde(conn, v["codigo"])
+        quando_txt = f"hoje às {hora(q)}" if q.date() == datetime.now(w.MANAUS).date() else f"em {dia(q)} às {hora(q)}"
+        if v.get("proprietario_telefone"):
+            nome = (v.get("proprietario_nome") or "").strip()
+            trat = banco.um(conn, "SELECT nay_tratamento_por_nome(%s)", (nome,)) if nome else None
+            primeiro = (nome.split() or [""])[0].capitalize()
+            chamado = f"{trat} {primeiro}" if trat and primeiro else primeiro
+            _mandar_para(conn, v["lead"], v["proprietario_telefone"],
+                         f"Olá{', ' + chamado if chamado else ''}! Passando para lembrar da visita {quando_txt} no seu imóvel "
+                         f"#{v['codigo']}{' (' + onde + ')' if onde else ''}, com o nosso corretor {v.get('corretor_nome') or ''}.")
+        if v.get("corretor_telefone"):
+            _mandar_para(conn, v["lead"], v["corretor_telefone"],
+                         f"Lembrete da visita {quando_txt} 🔑 #{v['codigo']}\n📍 {_endereco(conn, v['codigo']) or onde}\n"
+                         f"👤 Cliente: {lead.get('nome') or ''} — {nay.telefone_bonito(lead['telefone'])}\n"
+                         f"🏠 Proprietário: {v.get('proprietario_nome') or ''} — "
+                         f"{nay.telefone_bonito(v['proprietario_telefone']) if v.get('proprietario_telefone') else ''}")
+        if not lead.get("humano_em"):
+            trat, pronome = w.tratamento(lead)
+            w.mandar_texto(conn, lead, f"{trat + ', p' if trat else 'P'}assando para lembrar da visita {quando_txt}"
+                                       f"{' (' + onde + ')' if onde else ''}. O corretor {v.get('corretor_nome') or ''} "
+                                       f"vai acompanhar {pronome}.")
+        log.info("visita %s: lembrete mandado", v["id"])
+        feitas += 1
+    return feitas
+
+
+def _depois(conn, cfg: dict) -> int:
+    """393: `visita_depois_h` depois da visita, das 8h às 20h, a Nay pergunta ao cliente como foi."""
+    w = _w()
+    if not (8 <= datetime.now(w.MANAUS).hour < 20):
+        return 0
+    feitas = 0
+    for v in banco.linhas(conn, """SELECT * FROM privado.olx_visita WHERE estado = 'confirmada' AND depois_em IS NULL
+                                     AND quando + make_interval(hours => %s) <= now() AND quando > now() - interval '2 days'""",
+                          (max(1, int(cfg.get("visita_depois_h") or 2)),)):
+        banco.um(conn, "UPDATE privado.olx_visita SET depois_em = now() WHERE id = %s", (v["id"],))
+        lead = _lead(conn, v["lead"])
+        if lead.get("humano_em"):
+            continue
+        trat, pronome = w.tratamento(lead)
+        onde = _onde(conn, v["codigo"])
+        gostou = {"a senhora": "A senhora gostou?", "o senhor": "O senhor gostou?"}.get(pronome, "Gostou?")
+        w.mandar_texto(conn, lead, f"{trat + ', c' if trat else 'C'}omo foi a visita ao imóvel #{v['codigo']}"
+                                   f"{' (' + onde + ')' if onde else ''}? {gostou}")
+        log.info("visita %s: perguntado como foi", v["id"])
+        feitas += 1
+    return feitas
+
+
+def atender(conn, cfg: dict) -> int:
+    """As respostas (e o silêncio) de quem está sendo consultado, a visita que esperou, o lembrete e o depois."""
+    feitas = _retomar(conn, cfg) + _lembrar(conn, cfg) + _depois(conn, cfg)
     espera_c = max(1, int(cfg.get("visita_corretor_espera_min") or 30))
     espera_p = max(1, int(cfg.get("visita_proprietario_espera_min") or 180))
     for c in banco.linhas(conn, """
@@ -321,7 +470,8 @@ def atender(conn, cfg: dict) -> int:
         if c.get("ate"):
             r = resposta(c.get("textos") or "")
             if r == "outro":
-                banco.um(conn, "UPDATE privado.olx_visita_consulta SET ultima_lida = %s WHERE id = %s", (c["ate"], c["id"]))
+                banco.um(conn, """UPDATE privado.olx_visita_consulta SET ultima_lida = %s, estado = 'duvida', resposta = %s,
+                                         respondido_em = now() WHERE id = %s""", (c["ate"], (c.get("textos") or "")[:500], c["id"]))
                 _w()._grupo(f"Sobre a visita do cliente {_quem(lead)} ao #{v['codigo']} ({dia(q)} às {hora(q)}), o "
                             f"{'corretor' if c['papel'] == 'corretor' else 'proprietário'} {c.get('nome') or ''} respondeu: "
                             f"\"{(c.get('textos') or '')[:200]}\". A Nay não entendeu se é sim ou não: vejam por lá.")
@@ -330,6 +480,9 @@ def atender(conn, cfg: dict) -> int:
             banco.um(conn, """UPDATE privado.olx_visita_consulta SET estado = %s, resposta = %s, respondido_em = now(),
                                      ultima_lida = %s WHERE id = %s""", (r, (c.get("textos") or "")[:500], c["ate"], c["id"]))
             if c["papel"] == "corretor":
+                if r == "sim" and "?" in (c.get("textos") or ""):
+                    _w()._grupo(f"Visita do #{v['codigo']} ({dia(q)} às {hora(q)}): {c.get('nome') or 'o corretor'} disse sim e "
+                                f"perguntou: \"{(c.get('textos') or '')[:200]}\". Respondam a ele por lá.")
                 if r == "sim":
                     _estado(conn, v["id"], "buscando_corretor", corretor_nome=c.get("nome"), corretor_telefone=c["telefone"])
                     _pedir_ao_dono(conn, _visita(conn, v["id"]), cfg)
@@ -340,8 +493,9 @@ def atender(conn, cfg: dict) -> int:
             else:
                 _estado(conn, v["id"], "proprietario_nao")
                 trat, pronome = _w().tratamento(lead)
-                _w().mandar_texto(conn, lead, f"{trat + ', o' if trat else 'O'} proprietário não consegue em {dia(q)} às "
-                                              f"{hora(q)}. Que outro dia e horário ficam bons para {pronome}?")
+                if not lead.get("humano_em"):
+                    _w().mandar_texto(conn, lead, f"{trat + ', o' if trat else 'O'} proprietário não consegue em {dia(q)} às "
+                                                  f"{hora(q)}. Que outro dia e horário ficam bons para {pronome}?")
                 _w()._marcar(conn, lead["id"], etapa="visita")
                 _w()._grupo(f"Visita do cliente {_quem(lead)} ao #{v['codigo']}: o proprietário não pode em {dia(q)} às "
                             f"{hora(q)} (\"{(c.get('textos') or '')[:120]}\"). A Nay pediu outro horário ao cliente.")

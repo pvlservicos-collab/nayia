@@ -1,4 +1,4 @@
-# pendencias  (tabela, ~172 linhas)
+# pendencias  (tabela, ~197 linhas)
 
 ## colunas
 id  integer  NOT NULL  padrão nextval('pendencias_id_seq'::regclass)

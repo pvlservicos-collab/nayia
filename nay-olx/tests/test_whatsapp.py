@@ -141,7 +141,8 @@ class NuncaRepetir(unittest.TestCase):
 
     def test_o_dia_do_carlos(self):
         c = self.conv(("c", "Vc teria fotos dele?"), ("n", "Claro, Sr. Carlos. Vou separar as fotos do apartamento e já envio."))
-        self.assertEqual(w.que_seguimento(self.CARLOS, c),
+        self.assertIsNone(w.que_seguimento(self.CARLOS, c))        # prometeu as fotos e elas ainda não saíram
+        self.assertEqual(w.que_seguimento(self.CARLOS, c, entregou_depois=True),
                          "Sr. Carlos, posso estar enviando outras opções semelhantes para o senhor?")
         c += self.conv(("n", "Sr. Carlos, posso estar enviando outras opções semelhantes para o senhor?"),
                        ("c", "Eu só tô aguardando você me falar a questão do valor"),
@@ -179,6 +180,52 @@ class NuncaRepetir(unittest.TestCase):
             "Qual o menor valor do aluguel? E fica tudo como nas fotos (televisão, geladeira, sofá, cama)?",
             "Confirmar o menor valor do aluguel e se televisão, geladeira, sofá e cama ficam no apartamento 9026."))
         self.assertFalse(w._mesmo_assunto("Aceita pet?", "Qual o menor valor do aluguel?"))
+
+
+class UmaConfirmacaoSo(unittest.TestCase):
+    """394 (16/10): o Felipe recebeu três "vou separar" e nenhum imóvel; a Michelle, "Obrigada" e outra confirmação."""
+
+    def test_so_agradeceu(self):
+        for t in (["Obrigada"], ["Fico no aguardo então. Obrigada"[:0] + "Fico no aguardo"], ["ok", "obrigado 🙏"], ["Aguardo"],
+                  ["Tá bom"], ["Valeu!"]):
+            self.assertTrue(w.so_agradeceu(t), t)
+        for t in (["Obrigada, e tem fotos da cozinha?"], ["Pode sim"], ["14h"], [""], []):
+            self.assertFalse(w.so_agradeceu(t), t)
+
+    def test_visita_e_sim_no_mesmo_turno(self):
+        self.assertEqual(w.acoes_da({"acoes": ["visita", "confirmou_visita"]}), ["visita"])
+
+    def test_codigo_da_pergunta(self):
+        lead = {"codigo": 3883}
+        self.assertEqual(w.codigo_da_pergunta(lead, "o 9026 aceita pet?"), 9026)
+        self.assertIsNone(w.codigo_da_pergunta(lead, "fotos dos quartos do 9026, 9037 e 5724"))
+        self.assertEqual(w.codigo_da_pergunta(lead, "a localização exata"), 3883)
+
+    def test_afrouxar(self):
+        f = {"finalidade": "venda", "tipo": "casa_condominio", "teto": 900000, "bairros": ["Flores"], "quartos": 3,
+             "mobilia": "mobiliado"}
+        passos = w._afrouxar(f)
+        self.assertEqual(passos[0], (f, False))
+        self.assertEqual(passos[1][0]["mobilia"], "")
+        self.assertTrue(passos[2][0]["aceita_menos_quartos"])
+        self.assertEqual(passos[3][0]["bairros"], [])
+        self.assertEqual(passos[4][0]["teto"], 1080000)
+
+    def test_fecho_das_mais_proximas(self):
+        self.assertTrue(w.fecho({"nome": "Felipe", "trat": "Sr."}, 3, proximas=True)
+                        .startswith("Essas são as opções mais próximas do que o senhor procura."))
+
+    def test_valor_nao_e_codigo(self):
+        c = [{"direcao": "recebida", "texto": "apartamento até 2500, uns 3000 no máximo, aluguel de 2800 e o 5758"}]
+        self.assertEqual(w.codigos_citados(c), [5758])
+
+    def test_filtros_qualquer_bairro_e_teto(self):
+        f = w._filtros({"bairros": ["Flores"], "teto": 900000}, {"qualquer_bairro": True, "teto": "R$ 1.000.000"})
+        self.assertEqual(f["bairros"], [])
+        self.assertEqual(f["teto"], 1000000)
+
+    def test_um_balao_quando_busca(self):
+        self.assertEqual(w._baloes_do({"baloes": "um texto solto"}), ["um texto solto"])
 
 
 class RespostaDaFila(unittest.TestCase):

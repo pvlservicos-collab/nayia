@@ -41,6 +41,12 @@ class Resposta(unittest.TestCase):
         for t in ("não sei ainda", "qual o endereço?", "vou ver e te falo"):
             self.assertEqual(v.resposta(t), "outro", t)
 
+    def test_394_sim_com_nao_no_meio(self):
+        self.assertEqual(v.resposta("Pode sim, não tem problema"), "sim")
+        self.assertEqual(v.resposta("Bom dia ! Pode sim só me avisar antes"), "sim")
+        self.assertEqual(v.resposta("Sim, qual o endereço?"), "sim")
+        self.assertEqual(v.resposta("Não vai dar, tenho outra visita"), "nao")
+
 
 class Corretores(unittest.TestCase):
     def test_lista_na_ordem(self):

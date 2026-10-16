@@ -15,13 +15,15 @@ cliente_confirmou_em  timestamp with time zone
 confirmada_em  timestamp with time zone
 criado_em  timestamp with time zone  NOT NULL  padrão now()
 atualizado_em  timestamp with time zone  NOT NULL  padrão now()
+lembrete_em  timestamp with time zone
+depois_em  timestamp with time zone
 
 ## índices
 CREATE INDEX olx_visita_lead ON privado.olx_visita USING btree (lead, criado_em DESC)
 CREATE UNIQUE INDEX olx_visita_pkey ON privado.olx_visita USING btree (id)
 
 ## restrições
-olx_visita_estado_check: CHECK ((estado = ANY (ARRAY['confirmar_cliente'::text, 'buscando_corretor'::text, 'pedindo_proprietario'::text, 'confirmada'::text, 'sem_corretor'::text, 'proprietario_nao'::text, 'sem_proprietario'::text, 'cancelada'::text])))
+olx_visita_estado_check: CHECK ((estado = ANY (ARRAY['confirmar_cliente'::text, 'buscando_corretor'::text, 'pedindo_proprietario'::text, 'confirmada'::text, 'sem_corretor'::text, 'proprietario_nao'::text, 'sem_proprietario'::text, 'cancelada'::text, 'expirada'::text])))
 olx_visita_pkey: PRIMARY KEY (id)
 
 ## permissões

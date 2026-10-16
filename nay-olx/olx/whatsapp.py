@@ -126,8 +126,16 @@ O anúncio diz qual é (no orgânico, ela diz). Na locação o campo "incluso" d
 Na locação não fale de financiamento; na venda não fale de caução nem fiador.
 
 === QUANDO É COM A EQUIPE (acao "equipe") ===
-Proposta, desconto, documentação, contrato, reclamação, pedido para falar com uma pessoa, corretor oferecendo parceria.
-Diga com naturalidade que já passa para a equipe e que vão falar com ela por aqui.
+Documentação, contrato, reclamação, pedido para falar com uma pessoa, corretor oferecendo parceria. Diga com
+naturalidade que já passa para a equipe e que vão falar com ela por aqui. (Desconto, proposta e menor valor NÃO: é
+"perguntar", a equipe responde e a conversa continua com você.)
+
+=== UMA CONFIRMAÇÃO SÓ ===
+- Cada pedido é confirmado UMA vez. Quando for buscar, é UM balão só, juntando nele o que for perguntar à equipe (ex.:
+  "Perfeito, Sr. Felipe! Vou confirmar com a equipe a entrada com o apartamento e já pego as opções no meu sistema para
+  lhe enviar."); os imóveis chegam logo depois, pelo sistema.
+- Já disse que vai confirmar algo com a equipe ou que já retorna: não diga de novo. Se ela só agradeceu, disse "ok" ou
+  "aguardo", não responda (balões vazios).
 
 === NUNCA ===
 - Repetir uma pergunta ou uma frase que você já mandou nesta conversa. Perguntou e ela ainda não respondeu: espere a
@@ -173,13 +181,21 @@ def _instancia() -> dict:
     return inst
 
 
+_CONEXAO = [0.0, False]
+
+
 def conectada() -> bool:
-    """Desconectada, a Z-API aceita e não entrega (02/10): sem conexão, a Nay não fala."""
+    """Desconectada, a Z-API aceita e não entrega (02/10): sem conexão, a Nay não fala. A resposta vale 30 s (a volta é
+    de 5 em 5 s e várias partes perguntam)."""
+    if time.monotonic() - _CONEXAO[0] < 30:
+        return bool(_CONEXAO[1])
     try:
         st = grupo._zapi(_instancia(), "GET", "/status")
+        ok = isinstance(st, dict) and bool(st.get("connected"))
     except ErroDeEnvio:
-        return False
-    return isinstance(st, dict) and bool(st.get("connected"))
+        ok = False
+    _CONEXAO[0], _CONEXAO[1] = time.monotonic(), ok
+    return ok
 
 
 def _mandar(conn, lead: dict, caminho: str, corpo: dict, tipo: str, codigo: int | None = None,
@@ -326,12 +342,24 @@ def _marcar(conn, lid: int, **campos) -> None:
 
 def _conversa(conn, lead: dict) -> list[dict]:
     return list(reversed(banco.linhas(conn, """
-        SELECT m.direcao, m.origem, m.texto, m.criada_em,
+        SELECT m.id, m.direcao, m.origem, m.texto, m.criada_em,
                EXISTS (SELECT 1 FROM privado.olx_cliente_enviada e WHERE e.message_id = m.message_id) AS nossa
           FROM captacao_mensagens m
          WHERE right(regexp_replace(coalesce(m.telefone, ''), '\\D', '', 'g'), 8) = %s
            AND m.criada_em > now() - interval '30 days'
+           -- 394: o eco das fotos (sem texto) não ocupa o lugar da conversa
+           AND (m.direcao = 'recebida' OR coalesce(btrim(m.texto), '') <> '')
          ORDER BY m.id DESC LIMIT 40""", (_so8(lead["telefone"]),))))
+
+
+def _int(v) -> int | None:
+    """O número que o modelo mandou ("#9026", "9026", 9026.0, "R$ 2.500") ou None."""
+    if isinstance(v, bool) or v is None:
+        return None
+    if isinstance(v, (int, float)):
+        return int(v) or None
+    d = re.sub(r"\D", "", str(v))
+    return int(d) if d else None
 
 
 def _ultima_recebida(conn, lead: dict) -> int:
@@ -365,7 +393,9 @@ def quem(lead: dict) -> str:
 CODIGO_CITADO = re.compile(r"(?<![\d.,$])#?(\d{4})(?![\d.,]|\s*(?:mil|reais|k\b))", re.I)
 
 
-VALOR_EM_REAIS = re.compile(r"R\$\s*[0-9.,]+", re.I)
+# 394: "até 2500", "uns 3000", "aluguel de 2800" são valor, não código de imóvel
+VALOR_EM_REAIS = re.compile(r"(R\$|\bat[eé]\b|\b(?:uns|umas|uma|um)\b|\bpor\b|\bvalor\b|\baluguel( de)?\b|\bor[cç]amento\b|\bpag(ar|o)\b|"
+                            r"\bteto\b|\bm[aá]ximo\b|\bde\b)\s*[0-9.,]+", re.I)
 
 
 def codigos_citados(conversa: list[dict], ate: int = 2) -> list[int]:
@@ -472,6 +502,9 @@ PE_DA_VISITA = {
     "buscando_corretor": "ela confirmou; você está confirmando com o corretor",
     "pedindo_proprietario": "o corretor confirmou; você está confirmando com o proprietário",
     "confirmada": "CONFIRMADA: ela já recebeu a confirmação com o corretor",
+    "sem_corretor": "a equipe está combinando quem acompanha; se ela perguntar, diga que está confirmando",
+    "sem_proprietario": "a equipe está falando com o proprietário; se ela perguntar, diga que está confirmando",
+    "proprietario_nao": "o proprietário não pode nesse horário; ela precisa escolher outro dia e horário",
 }
 
 
@@ -492,7 +525,13 @@ def _filtros(antes: dict, novos) -> dict:
             continue
         if v is None:
             continue
+        if k == "teto":
+            v = _int(v)
+            if not v:
+                continue
         f[k] = v
+    if f.get("qualquer_bairro") is True and (novos or {}).get("qualquer_bairro") is True:
+        f["bairros"] = []                     # 394: "pode ser qualquer bairro" apaga os bairros ditos antes
     return f
 
 
@@ -505,43 +544,104 @@ def _resumo_dos_filtros(f: dict) -> str:
 
 
 # ── as três tarefas ──
+_FALHAS: dict[int, int] = {}
+_ESPERA: dict[int, float] = {}
+
+
+def _em_espera(lid: int) -> bool:
+    return _ESPERA.get(lid, 0.0) > time.monotonic()
+
+
+def _falhou(conn, lead: dict, ate: int | None, erro: Exception) -> None:
+    """394: um cliente com erro (modelo, Z-API, dado estranho) não trava os outros nem chama o modelo de 5 em 5 s:
+    espera 2 min; na terceira falha seguida, a Nay larga a mensagem (marca lida) e avisa a equipe no grupo."""
+    lid = lead["id"]
+    _FALHAS[lid] = _FALHAS.get(lid, 0) + 1
+    _ESPERA[lid] = time.monotonic() + 120
+    log.warning("lead %s: falhou (%d): %s", lid, _FALHAS[lid], erro)
+    if _FALHAS[lid] >= 3:
+        _FALHAS.pop(lid, None)
+        if ate:
+            _marcar(conn, lid, ultima_lida=ate)
+        _grupo(f"Cliente {quem(lead)} no WhatsApp de captação: a Nay não conseguiu responder a última mensagem "
+               f"(três tentativas). Vejam por lá.")
+
+
+def _deu_certo(lid: int) -> None:
+    _FALHAS.pop(lid, None)
+    _ESPERA.pop(lid, None)
+
+
+def _baloes_do(r: dict) -> list[str]:
+    """Os balões do modelo, limpos. Texto solto (não lista) vira um balão só, não um balão por letra."""
+    brutos = r.get("baloes")
+    if isinstance(brutos, str):
+        brutos = [brutos]
+    if not isinstance(brutos, list):
+        return []
+    return [b for b in (nay.limpar_balao(str(x)) for x in brutos[:MAX_BALOES]) if b]
+
+
+def _falar(conn, lead: dict, r: dict, acoes: list[str]) -> list[str]:
+    """Manda os balões do turno. 394 (Pedro: "ela só deve confirmar que vai mandar as solicitações uma vez ... e depois
+    já vir com as opções pesquisadas"): com "buscar", é UM balão só (o resto vem nos cards); nada repetido sai."""
+    baloes = _baloes_do(r)
+    if "buscar" in acoes and len(baloes) > 1:
+        baloes = [" ".join(baloes)]
+    antes = len(baloes)
+    baloes = sem_repetir(baloes, ja_mandou(conn, lead))
+    if antes != len(baloes):
+        log.info("lead %s: %d balão(ões) repetido(s) não saiu(íram)", lead["id"], antes - len(baloes))
+    for n, b in enumerate(baloes):
+        if n:
+            time.sleep(ENTRE_ENVIOS_S)
+        mandar_texto(conn, lead, b)
+    r["_baloes_que_sairam"] = baloes
+    return baloes
+
+
 def abrir(conn, cfg: dict) -> int:
     feitos = 0
     for l in banco.linhas(conn, """SELECT id FROM privado.olx_lead_whatsapp
                                     WHERE etapa = 'nova' AND assumido_em IS NULL AND humano_em IS NULL
                                       AND criado_em > now() - interval '7 days' ORDER BY criado_em LIMIT 3"""):
+        if _em_espera(l["id"]):
+            continue
         lead = _lead(conn, l["id"])
         if not lead or not _pode(cfg, lead["telefone"]):
             continue
-        # a equipe já chamou por este número (nos últimos 3 dias): a conversa é dela
-        gente = _gente_escreveu(conn, lead, banco.um(conn, "SELECT now() - interval '3 days'"))
-        if gente:
-            _marcar(conn, lead["id"], assumido_em_agora=True, humano_em=gente, etapa="filtrar",
-                    parada_motivo="a equipe já tinha chamado por este número")
-            log.info("lead %s: a equipe já chamou; a Nay não abre", lead["id"])
-            continue
-        ctx_olx = banco.um(conn, "SELECT olx_nay_contexto(%s)", (lead["chat"],)) if lead.get("chat") else None
-        lead["visita_aberta"] = visita.aberta(conn, lead["id"])
-        r = modelo.chamar(PROMPT, montar_turno(lead, ctx_olx, []))
-        baloes = [b for b in (nay.limpar_balao(str(x)) for x in (r.get("baloes") or [])[:MAX_BALOES]) if b]
-        if not baloes:
-            log.warning("lead %s: o modelo não escreveu a abertura", lead["id"])
-            continue
-        ate = _ultima_recebida(conn, lead)
-        baloes = sem_repetir(baloes, ja_mandou(conn, lead))
-        for n, b in enumerate(baloes):
-            if n:
-                time.sleep(ENTRE_ENVIOS_S)
-            mandar_texto(conn, lead, b)
-        r["_baloes_que_sairam"] = baloes
-        filtros = _filtros(lead.get("filtros"), r.get("filtros"))
-        _marcar(conn, lead["id"], assumido_em_agora=True, etapa="filtrar", ultima_lida=ate, filtros=filtros)
-        # 16/10: o que ela promete já na abertura (passar o desconto à equipe, confirmar a visita pedida na OLX...) tem de
-        # chegar à equipe: as ações da abertura valem como as de qualquer resposta
-        for acao in acoes_da(r):
-            _fazer(conn, _lead(conn, lead["id"]), r, acao, filtros, cfg)
-        log.info("lead %s aberto (%d balão/ões)", lead["id"], len(baloes))
-        feitos += 1
+        try:
+            # a equipe já chamou por este número (nos últimos 3 dias): a conversa é dela
+            gente = _gente_escreveu(conn, lead, banco.um(conn, "SELECT now() - interval '3 days'"))
+            if gente:
+                _marcar(conn, lead["id"], assumido_em_agora=True, humano_em=gente, etapa="filtrar",
+                        parada_motivo="a equipe já tinha chamado por este número")
+                log.info("lead %s: a equipe já chamou; a Nay não abre", lead["id"])
+                continue
+            ctx_olx = banco.um(conn, "SELECT olx_nay_contexto(%s)", (lead["chat"],)) if lead.get("chat") else None
+            lead["visita_aberta"] = visita.para_o_modelo(conn, lead["id"])
+            # 394: o que ela já escreveu (ou o que já conversamos, se veio de outro anúncio) entra na abertura
+            conversa = _conversa(conn, lead)
+            ate = max([m["id"] for m in conversa if m.get("direcao") == "recebida"] or [_ultima_recebida(conn, lead)])
+            r = modelo.chamar(PROMPT, montar_turno(lead, ctx_olx, conversa))
+            acoes = acoes_da(r)
+            if not _baloes_do(r):
+                raise ValueError("o modelo não escreveu a abertura")
+            baloes = _falar(conn, lead, r, acoes)
+            filtros = _filtros(lead.get("filtros"), r.get("filtros"))
+            _marcar(conn, lead["id"], assumido_em_agora=True, etapa="filtrar", ultima_lida=ate, filtros=filtros)
+            # 16/10: o que ela promete já na abertura (passar o desconto à equipe, confirmar a visita pedida na OLX...) tem
+            # de chegar à equipe: as ações da abertura valem como as de qualquer resposta
+            for acao in acoes:
+                _fazer(conn, _lead(conn, lead["id"]), r, acao, filtros, cfg)
+            _deu_certo(lead["id"])
+            log.info("lead %s aberto (%d balão/ões)", lead["id"], len(baloes))
+            feitos += 1
+        except Exception as e:  # noqa: BLE001 -- um cliente não para os outros
+            _falhou(conn, lead, None, e)
+            if _FALHAS.get(lead["id"]) is None:       # terceira falha: não abre mais sozinha
+                _marcar(conn, lead["id"], assumido_em_agora=True, humano_em=banco.um(conn, "SELECT now()"),
+                        etapa="filtrar", parada_motivo="a Nay não conseguiu abrir")
     return feitos
 
 
@@ -573,98 +673,167 @@ def descobrir_organicos(conn, cfg: dict, a_cada_s: float = 20.0) -> int:
 
 
 def _fila(conn, cfg: dict) -> list[dict]:
+    """Quem escreveu e ficou `whatsapp_silencio_s` quieto. Um lead por telefone (o mais novo); o encerrado também (394:
+    quem volta a escrever é atendido de novo)."""
     silencio = max(0, int(cfg.get("whatsapp_silencio_s") or 20))
     return banco.linhas(conn, """
-        SELECT l.id, max(m.id) AS ate
-          FROM privado.olx_lead_whatsapp l
-          JOIN captacao_mensagens m ON m.direcao = 'recebida' AND m.id > l.ultima_lida
-                                   AND right(regexp_replace(coalesce(m.telefone, ''), '\\D', '', 'g'), 8) = right(l.telefone, 8)
-         WHERE l.assumido_em IS NOT NULL AND l.etapa <> 'finalizado'
-         GROUP BY l.id
-        HAVING max(m.criada_em) < now() - make_interval(secs => %s)
-         ORDER BY max(m.criada_em) LIMIT 3""", (silencio,))
+        SELECT x.id, x.ate FROM (
+          SELECT DISTINCT ON (right(l.telefone, 8)) l.id, max(m.id) AS ate, max(m.criada_em) AS ultima
+            FROM privado.olx_lead_whatsapp l
+            JOIN captacao_mensagens m ON m.direcao = 'recebida' AND m.id > l.ultima_lida
+                                     AND right(regexp_replace(coalesce(m.telefone, ''), '\\D', '', 'g'), 8) = right(l.telefone, 8)
+           WHERE l.assumido_em IS NOT NULL
+           GROUP BY l.id, l.telefone, l.criado_em
+           ORDER BY right(l.telefone, 8), l.criado_em DESC) x
+         WHERE x.ultima < now() - make_interval(secs => %s)
+         ORDER BY x.ultima LIMIT 5""", (silencio,))
+
+
+# 394: "ok", "obrigada", "aguardo" depois de uma resposta dela não pedem outra resposta (a Michelle, 16:34: "Obrigada" e a
+# Nay confirmou de novo que ia pedir à equipe)
+SO_AGRADECEU = re.compile(
+    r"^(ok+|okay|ok ok|blz|beleza|obrigad[oa]s?|muito obrigad[oa]|obg|brigad[oa]|valeu|vlw|aguardo|fico no aguardo|"
+    r"fico aguardando|aguardando|t[aá] bom|ta|certo|combinado|perfeito|show|top|joia|ok obrigad[oa]|obrigad[oa] aguardo|"
+    r"ok aguardo|tudo bem|de nada|por nada|amem|am[eé]m|grat[oa]|gratid[aã]o)$", re.I)
+
+
+def so_agradeceu(textos: list[str]) -> bool:
+    if not textos:
+        return False
+    for t in textos:
+        sem_emoji = re.sub(r"[\U0001F300-\U0001FAFF☀-➿]", " ", t or "")
+        n = _normal(sem_emoji)
+        if not n and sem_emoji.strip() == "" and (t or "").strip():
+            continue                      # só emoji (👍🙏): agradecimento
+        if not n or not SO_AGRADECEU.match(n):
+            return False                  # mídia sem texto, ou um pedido de verdade
+    return True
 
 
 def responder(conn, cfg: dict) -> int:
     feitos = 0
     for item in _fila(conn, cfg):
+        if _em_espera(item["id"]):
+            continue
         lead = _lead(conn, item["id"])
         if not lead or not _pode(cfg, lead["telefone"]):
             continue
         ate = int(item["ate"])
-        # gente da equipe escreveu para ela por este número: a Nay cala (e não relê o que ficou para trás)
-        gente = _gente_escreveu(conn, lead, lead.get("humano_em") or lead.get("assumido_em"))
-        if gente:
-            _marcar(conn, lead["id"], humano_em=gente, ultima_lida=ate, parada_motivo="a equipe respondeu")
-            continue
-        if lead.get("humano_em"):
-            # a equipe assumiu (Pedro, 16/10, na OLX: "a nay não deve mais responder"): ela não volta sozinha
-            _marcar(conn, lead["id"], ultima_lida=ate)
-            continue
-        conversa = _conversa(conn, lead)
-        if sum(1 for m in conversa if m.get("nossa")) >= LIMITE_DE_MENSAGENS:
-            _marcar(conn, lead["id"], humano_em=banco.um(conn, "SELECT now()"), ultima_lida=ate,
-                    parada_motivo="a conversa foi longe demais para a Nay")
-            _grupo(f"Cliente {quem(lead)}: a conversa no "
-                   f"WhatsApp de captação foi longe; precisa de alguém.")
-            continue
-        ctx_olx = banco.um(conn, "SELECT olx_nay_contexto(%s)", (lead["chat"],)) if lead.get("chat") else None
-        if organico(lead):
-            lead["fichas_citadas"] = _fichas_citadas(conn, conversa)
-        lead["visita_aberta"] = visita.aberta(conn, lead["id"])
-        r = modelo.chamar(PROMPT, montar_turno(lead, ctx_olx, conversa))
-        baloes = [b for b in (nay.limpar_balao(str(x)) for x in (r.get("baloes") or [])[:MAX_BALOES]) if b]
-        tirados = len(baloes)
-        baloes = sem_repetir(baloes, ja_mandou(conn, lead))
-        if tirados != len(baloes):
-            log.info("lead %s: %d balão(ões) repetido(s) não saiu(íram)", lead["id"], tirados - len(baloes))
-        for n, b in enumerate(baloes):
-            if n:
-                time.sleep(ENTRE_ENVIOS_S)
-            mandar_texto(conn, lead, b)
-        r["_baloes_que_sairam"] = baloes
-        filtros = _filtros(lead.get("filtros"), r.get("filtros"))
-        _marcar(conn, lead["id"], ultima_lida=ate, filtros=filtros)
-        for acao in acoes_da(r):
-            _fazer(conn, lead, r, acao, filtros, cfg)
-        feitos += 1
+        try:
+            if _responder_um(conn, cfg, lead, ate):
+                feitos += 1
+            _deu_certo(lead["id"])
+        except Exception as e:  # noqa: BLE001 -- um cliente não para os outros
+            _falhou(conn, lead, ate, e)
     return feitos
 
 
+def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
+    # gente da equipe escreveu para ela por este número: a Nay cala (e não relê o que ficou para trás)
+    gente = _gente_escreveu(conn, lead, lead.get("humano_em") or lead.get("assumido_em"))
+    if gente:
+        _marcar(conn, lead["id"], humano_em=gente, ultima_lida=ate, parada_motivo="a equipe respondeu")
+        return False
+    if lead.get("humano_em"):
+        # a equipe assumiu (Pedro, 16/10, na OLX: "a nay não deve mais responder"): ela não volta sozinha
+        _marcar(conn, lead["id"], ultima_lida=ate)
+        return False
+    conversa = _conversa(conn, lead)
+    if banco.um(conn, "SELECT count(*) FROM privado.olx_cliente_enviada WHERE lead = %s AND tipo = 'texto'",
+                (lead["id"],)) >= LIMITE_DE_MENSAGENS:
+        _marcar(conn, lead["id"], humano_em=banco.um(conn, "SELECT now()"), ultima_lida=ate,
+                parada_motivo="a conversa foi longe demais para a Nay")
+        _grupo(f"Cliente {quem(lead)}: a conversa no WhatsApp de captação foi longe; precisa de alguém.")
+        return False
+    if lead.get("etapa") == "finalizado":
+        # 394: ela tinha encerrado e a pessoa voltou a escrever: a conversa reabre
+        etapa = "visita" if visita.ativa(conn, lead["id"]) else ("imoveis_enviados" if lead.get("enviados") else "filtrar")
+        _marcar(conn, lead["id"], etapa=etapa)
+        lead["etapa"] = etapa
+    lead["visita_aberta"] = visita.para_o_modelo(conn, lead["id"])
+    novas = [m.get("texto") or "" for m in conversa if m.get("direcao") == "recebida" and m.get("id", 0) > (lead.get("ultima_lida") or 0)]
+    nossas = [m for m in conversa if m.get("direcao") == "enviada" and (m.get("texto") or "").strip()]
+    esperando_sim = (lead.get("visita_aberta") or {}).get("estado") == "confirmar_cliente"
+    if (so_agradeceu(novas) and nossas and not nossas[-1]["texto"].strip().endswith("?") and not esperando_sim):
+        _marcar(conn, lead["id"], ultima_lida=ate)          # "obrigada": não é pedido; ela não repete a confirmação
+        log.info("lead %s: só agradeceu; a Nay não responde", lead["id"])
+        return False
+    ctx_olx = banco.um(conn, "SELECT olx_nay_contexto(%s)", (lead["chat"],)) if lead.get("chat") else None
+    if organico(lead):
+        lead["fichas_citadas"] = _fichas_citadas(conn, conversa)
+    r = modelo.chamar(PROMPT, montar_turno(lead, ctx_olx, conversa))
+    acoes = acoes_da(r)
+    _falar(conn, lead, r, acoes)
+    filtros = _filtros(lead.get("filtros"), r.get("filtros"))
+    _marcar(conn, lead["id"], ultima_lida=ate, filtros=filtros)
+    for acao in acoes:
+        _fazer(conn, _lead(conn, lead["id"]), r, acao, filtros, cfg)
+    return True
+
+
 def acoes_da(r: dict) -> list[str]:
-    """As ações da resposta, na ordem, sem repetir (até duas). Aceita o formato antigo ("acao": "buscar")."""
+    """As ações da resposta, na ordem, sem repetir (até duas). Aceita o formato antigo ("acao": "buscar").
+    394: "visita" e "confirmou_visita" no mesmo turno não: o sim é do turno seguinte, depois da confirmação."""
     brutas = r.get("acoes") if isinstance(r.get("acoes"), list) else [r.get("acao")]
     saida: list[str] = []
     for a in brutas:
         a = str(a or "").strip().lower()
         if a in ("fotos", "buscar", "visita", "confirmou_visita", "perguntar", "equipe", "encerrar") and a not in saida:
             saida.append(a)
+    if "visita" in saida and "confirmou_visita" in saida:
+        saida.remove("confirmou_visita")
     return saida[:2]
+
+
+def _ofertavel(conn, codigo: int) -> bool:
+    """O imóvel pode ir ao cliente: anunciável e NÃO de parceria (a regra "parceria nunca sai")."""
+    return bool(banco.um(conn, """SELECT EXISTS (SELECT 1 FROM core_imovel_busca WHERE codigo = %s AND ofertavel
+                                                  AND NOT coalesce(e_parceiro, false))""", (codigo,)))
+
+
+def codigo_da_pergunta(lead: dict, motivo: str) -> int | None:
+    """394: o código que está NA pergunta vence o do anúncio ("o 9026 aceita pet?" não é sobre o #3883); vários códigos,
+    nenhum (a resposta não vira memória de um imóvel só)."""
+    cods = list(dict.fromkeys(re.findall(r"(?<!\d)(\d{4})(?!\d)", motivo or "")))
+    if len(cods) == 1:
+        return int(cods[0])
+    if len(cods) > 1:
+        return None
+    return lead.get("codigo")
 
 
 def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None = None) -> None:
     if acao == "fotos":
         f = r.get("fotos") if isinstance(r.get("fotos"), dict) else {}
-        codigo = int(f.get("codigo") or lead.get("codigo") or 0) or None
+        codigo = _int(f.get("codigo")) or lead.get("codigo")
+        if codigo and not _ofertavel(conn, codigo):
+            _para_a_fila(conn, lead, codigo, f"Pediu fotos do #{codigo}, que é de parceria ou não está disponível: o que dizer?")
+            codigo = None
         if codigo:
             # o imóvel do anúncio ou um que ela já recebeu: só as fotos (o card ela já viu)
             ja_viu = codigo == lead.get("codigo") or codigo in (lead.get("enviados") or [])
             mandar_imovel(conn, lead, codigo, com_card=not ja_viu)
+            if not ja_viu:
+                _marcar(conn, lead["id"], enviados=list(lead.get("enviados") or []) + [codigo])
             time.sleep(DEPOIS_DAS_FOTOS_S)
-        for b in [b for b in (nay.limpar_balao(str(x)) for x in (r.get("depois_das_fotos") or [])[:MAX_BALOES]) if b]:
+        depois = sem_repetir([b for b in (nay.limpar_balao(str(x)) for x in (r.get("depois_das_fotos") or [])[:MAX_BALOES]) if b],
+                             ja_mandou(conn, lead))
+        for b in depois:
             mandar_texto(conn, lead, b)
             time.sleep(ENTRE_ENVIOS_S)
     elif acao == "buscar":
         # ela já disse neste turno que vai pegar/separar as opções: a busca vazia não diz de novo
         ja_avisou = any(re.search(r"op[cç][oõ]es", b, re.I) and re.search(r"separ|pegar|sistema|busc|procur", b, re.I)
-                        for b in (r.get("_baloes_que_sairam") or r.get("baloes") or []))
+                        for b in (r.get("_baloes_que_sairam") or _baloes_do(r)))
         _buscar_e_mandar(conn, lead, filtros, ja_avisou=ja_avisou)
     elif acao == "visita":
         # 389 (Pedro, 16/10): a confirmação no modelo da Parceria; os contatos só depois do sim dela
         v = r.get("visita") if isinstance(r.get("visita"), dict) else {}
-        codigo = int(v.get("codigo") or lead.get("codigo") or 0) or None
-        if not visita.pedir_confirmacao(conn, lead, codigo, str(v.get("data") or ""), str(v.get("hora") or "")):
-            _marcar(conn, lead["id"], etapa="visita")      # faltou dia ou hora: o balão dela já perguntou
+        codigo = _int(v.get("codigo")) or lead.get("codigo")
+        if codigo and not _ofertavel(conn, codigo):
+            _para_a_fila(conn, lead, codigo, f"Quer visitar o #{codigo}, que é de parceria ou não está disponível: o que dizer?")
+        elif visita.pedir_confirmacao(conn, lead, codigo, str(v.get("data") or ""), str(v.get("hora") or "")):
+            pass                                            # a etapa vira 'visita' lá dentro
     elif acao == "confirmou_visita":
         visita.cliente_confirmou(conn, lead, cfg or {})
     elif acao == "perguntar":
@@ -672,8 +841,7 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
         # é de qual lugar". 391: a pergunta vai à FILA do PV do Tel (uma por vez, cobrada); a resposta dele volta por
         # entregar_respostas e a conversa continua com ela. Sem a fila, ao grupo como antes.
         motivo = str(r.get("motivo") or "algo que a Nay não sabe")[:600]
-        codigo = lead.get("codigo") or next((int(c) for c in re.findall(r"(?<!\d)(\d{4})(?!\d)", motivo)), None)
-        if not _para_a_fila(conn, lead, codigo, motivo):
+        if not _para_a_fila(conn, lead, codigo_da_pergunta(lead, motivo), motivo):
             _grupo(f"Cliente {quem(lead)} no WhatsApp de captação "
                    f"pediu: {motivo[:240]}. A Nay disse que já retorna: mandem por lá.")
     elif acao == "equipe":
@@ -681,7 +849,33 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
         _grupo(f"Cliente {quem(lead)} no WhatsApp de "
                f"captação: {str(r.get('motivo') or 'precisa da equipe')[:200]}.")
     elif acao == "encerrar":
-        _marcar(conn, lead["id"], etapa="finalizado")
+        # 394: com visita andando ou marcada, não encerra (a Josy disse "obrigada" e foi para Finalizados com a visita do
+        # dia seguinte)
+        if not visita.ativa(conn, lead["id"]):
+            _marcar(conn, lead["id"], etapa="finalizado")
+
+
+ETAPAS_DA_BUSCA = ("nova", "filtrar", "feito_busca", "imoveis_enviados", "finalizado")
+
+
+def _afrouxar(f: dict) -> list[tuple[dict, bool]]:
+    """394 (Pedro: "e depois já vir com as opções pesquisadas"): nada no perfil exato -> o mais perto, um passo de cada vez
+    (sem mobília, com um quarto a menos, nos bairros vizinhos e em qualquer bairro, até 20% acima do valor)."""
+    passos: list[tuple[dict, bool]] = [(f, False)]
+    g = dict(f)
+    if g.get("mobilia"):
+        g = {**g, "mobilia": ""}
+        passos.append((g, True))
+    if g.get("quartos") and not g.get("aceita_menos_quartos"):
+        g = {**g, "aceita_menos_quartos": True}
+        passos.append((g, True))
+    if g.get("bairros") and not g.get("qualquer_bairro"):
+        g = {**g, "bairros": [], "qualquer_bairro": True}
+        passos.append((g, True))
+    if g.get("teto"):
+        g = {**g, "teto": int(float(g["teto"]) * 1.2)}
+        passos.append((g, True))
+    return passos
 
 
 def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -> None:
@@ -689,15 +883,21 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
     f = dict(filtros)
     if not f.get("finalidade"):
         f["finalidade"] = finalidade_sem_dizer(lead, f)
-    achados = banco.linhas(conn, "SELECT * FROM olx_cliente_buscar(%s::jsonb, %s::int[], %s)",
-                           (json.dumps(f, ensure_ascii=False), excluir, MAX_IMOVEIS))
-    _marcar(conn, lead["id"], etapa="feito_busca")
+    achados, proximas = [], False
+    for tentativa, afrouxou in _afrouxar(f):
+        achados = banco.linhas(conn, "SELECT * FROM olx_cliente_buscar(%s::jsonb, %s::int[], %s)",
+                               (json.dumps(tentativa, ensure_ascii=False), excluir, MAX_IMOVEIS))
+        if achados:
+            proximas = afrouxou
+            break
+    if lead.get("etapa") in ETAPAS_DA_BUSCA:
+        _marcar(conn, lead["id"], etapa="feito_busca")
     if not achados:
         # nunca a negativa: ela diz que está separando e a equipe recebe o perfil (se já disse neste turno, não repete)
         if not ja_avisou:
             mandar_texto(conn, lead, "Estou separando as opções com a nossa equipe e já te retorno por aqui.")
         _grupo(f"Cliente {quem(lead)} procura "
-               f"{_resumo_dos_filtros(f)} e a busca não achou nada: separar opções para ela.")
+               f"{_resumo_dos_filtros(f)} e a busca não achou nada nem perto: separar opções para ela.")
         return
     enviados = list(lead.get("enviados") or [])
     for n, a in enumerate(achados):
@@ -707,12 +907,13 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
         enviados.append(int(a["codigo"]))
         _marcar(conn, lead["id"], enviados=enviados)
     time.sleep(DEPOIS_DAS_FOTOS_S)
-    texto = fecho(lead, len(achados))
+    texto = fecho(lead, len(achados), proximas=proximas)
     if any(_normal(texto) == _normal(x) for x in ja_mandou(conn, lead)):
         texto = fecho(lead, len(achados), de_novo=True)        # a segunda busca não fecha com a mesma frase
     mandar_texto(conn, lead, texto)
-    _marcar(conn, lead["id"], etapa="imoveis_enviados")
-    log.info("lead %s: %d imóvel(is) enviado(s)", lead["id"], len(achados))
+    if lead.get("etapa") in ETAPAS_DA_BUSCA:
+        _marcar(conn, lead["id"], etapa="imoveis_enviados")
+    log.info("lead %s: %d imóvel(is) enviado(s)%s", lead["id"], len(achados), " (os mais próximos)" if proximas else "")
 
 
 def finalidade_sem_dizer(lead: dict, f: dict) -> str:
@@ -726,9 +927,17 @@ def finalidade_sem_dizer(lead: dict, f: dict) -> str:
     return "locacao" if 0 < teto <= 30000 else "venda"
 
 
-def fecho(lead: dict, quantos: int = 2, de_novo: bool = False) -> str:
-    """A mensagem depois dos imóveis (fixa: o modelo não é chamado no meio do envio)."""
+def fecho(lead: dict, quantos: int = 2, de_novo: bool = False, proximas: bool = False) -> str:
+    """A mensagem depois dos imóveis (fixa: o modelo não é chamado no meio do envio). `proximas`: a busca foi afrouxada
+    (o perfil exato não tinha): "as mais próximas do que procura", nunca a negativa."""
     _, pronome = tratamento(lead)
+    if proximas and not de_novo:
+        procura = {"a senhora": "a senhora procura", "o senhor": "o senhor procura"}.get(pronome, "você procura")
+        quem = {"a senhora": "chamou a atenção da senhora", "o senhor": "chamou a atenção do senhor"}.get(pronome, "te chamou a atenção")
+        if quantos == 1:
+            return f"Essa é a opção mais próxima do que {procura}. Ela {quem}? Posso agendar uma visita ou procurar mais opções."
+        return (f"Essas são as opções mais próximas do que {procura}. Alguma {quem}? Posso agendar uma visita ou procurar "
+                f"mais opções.")
     if de_novo:
         quem = {"a senhora": "a senhora gostou", "o senhor": "o senhor gostou"}.get(pronome, "você gostou")
         return (f"{'Essa é mais uma opção' if quantos == 1 else 'Essas são mais opções'} que encontrei. Se {quem} de "
@@ -757,7 +966,7 @@ def _ha_trabalho(conn, cfg: dict) -> bool:
                          ON m.direcao = 'recebida' AND m.id > l.ultima_lida
                         AND right(regexp_replace(coalesce(m.telefone, ''), '\\D', '', 'g'), 8) = right(l.telefone, 8)
                         AND m.criada_em < now() - make_interval(secs => %s)
-                        WHERE l.assumido_em IS NOT NULL AND l.etapa <> 'finalizado')""", (silencio,)))
+                        WHERE l.assumido_em IS NOT NULL)""", (silencio,)))
 
 
 def _para_a_fila(conn, lead: dict, codigo: int | None, pergunta: str) -> bool:
@@ -766,14 +975,15 @@ def _para_a_fila(conn, lead: dict, codigo: int | None, pergunta: str) -> bool:
         if banco.um(conn, "SELECT pergunta_fila_ligada()") is not True:
             return False
         # 392b: a mesma pessoa já tem pergunta aberta na fila: a parecida não entra; a nova vai junto daquela
-        abertas = banco.linhas(conn, """SELECT id, pergunta FROM pergunta_fila WHERE estado IN ('fila', 'perguntada')
+        abertas = banco.linhas(conn, """SELECT id, pergunta, estado, linha FROM pergunta_fila WHERE estado IN ('fila', 'perguntada')
                                          AND right(chave, 8) = %s ORDER BY id""", (_so8(lead["telefone"]),))
         if any(parecida(pergunta, a["pergunta"], 0.55) or _mesmo_assunto(pergunta, a["pergunta"]) for a in abertas):
             log.info("lead %s: a pergunta já está na fila", lead.get("id"))
             return True
-        if abertas:
+        na_fila = [a for a in abertas if a.get("estado") == "fila" and a.get("linha") == "captacao"]
+        if na_fila:
             banco.um(conn, "UPDATE pergunta_fila SET pergunta = pergunta || %s WHERE id = %s",
-                     ("\nE também: " + pergunta.strip(), abertas[-1]["id"]))
+                     ("\nE também: " + pergunta.strip(), na_fila[-1]["id"]))
             return True
         return bool(banco.um(conn, "SELECT pergunta_fila_entrar('captacao', %s, %s, %s, NULL, %s, 'olx_whatsapp', NULL)",
                              (lead["telefone"], lead.get("nome"), codigo, pergunta)))
@@ -848,6 +1058,8 @@ def texto_do_seguimento(lead: dict) -> str:
 
 
 FECHO_DA_BUSCA = ("Essas são as opções", "Essa é a opção", "Essas são mais opções", "Essa é mais uma opção")
+# "vou separar/pegar/enviar": promessa de ENTREGA, que vale como cumprida quando card ou foto saiu depois
+VOU_ENTREGAR = re.compile(r"\b(vou (separar|pegar|enviar|mandar|buscar|procurar)|lhe enviar|te envio|j[aá] envio)\b", re.I)
 OFERTA = "outras opções semelhantes"
 # ela prometeu um retorno (a equipe confirma, ela avisa): quem espera é ela, não o cliente
 PROMESSA = re.compile(r"\b(retorno|retornar|aviso por aqui|te aviso|assim que|vou (confirmar|verificar|checar|ver com)|"
@@ -855,7 +1067,7 @@ PROMESSA = re.compile(r"\b(retorno|retornar|aviso por aqui|te aviso|assim que|vo
                       r"j[aá] (passei|encaminhei|pedi)|passo para a equipe|reforcei|refor[cç]ar)\b", re.I)
 
 
-def que_seguimento(lead: dict, conversa: list[dict]) -> str | None:
+def que_seguimento(lead: dict, conversa: list[dict], entregou_depois: bool = False) -> str | None:
     """392b (Pedro, 16/10: "fez a mesma pergunta duas vezes ... precisa checar para ela nunca fazer isso"). O
     acompanhamento só tem dois casos, e cada um sai UMA vez:
       - depois das opções (a última mensagem dela é o fecho da busca): "conseguiu ver as opções?";
@@ -869,6 +1081,8 @@ def que_seguimento(lead: dict, conversa: list[dict]) -> str | None:
         return texto_do_seguimento({**lead, "enviados": lead.get("enviados") or [0]})
     if ultima.endswith("?") or PROMESSA.search(ultima):
         return None
+    if VOU_ENTREGAR.search(ultima) and not entregou_depois:
+        return None                       # 394: prometeu as opções/fotos e ainda não mandou: quem espera é ela
     if lead.get("enviados") or any(OFERTA in (m.get("texto") or "") for m in nossas):
         return None
     return texto_do_seguimento({**lead, "enviados": []})
@@ -903,7 +1117,7 @@ def seguir(conn, cfg: dict, a_cada_s: float = 60.0) -> int:
            AND (l.seguimento_em IS NULL OR l.seguimento_em < now() - interval '60 minutes')
            AND NOT EXISTS (SELECT 1 FROM privado.olx_visita v WHERE v.lead = l.id
                               AND v.estado IN ('confirmar_cliente', 'buscando_corretor', 'pedindo_proprietario'))
-         ORDER BY x.nos LIMIT 3""", {"m": minutos})
+         ORDER BY x.nos""", {"m": minutos})
     if not candidatos or not conectada():
         return 0
     feitos = 0
@@ -913,8 +1127,13 @@ def seguir(conn, cfg: dict, a_cada_s: float = 60.0) -> int:
             continue
         if _gente_escreveu(conn, lead, lead.get("humano_em") or lead.get("assumido_em")):
             continue                                  # a equipe está na conversa: a vez é dela
-        texto = que_seguimento(lead, _conversa(conn, lead))
-        if not texto or any(parecida(texto, x) for x in ja_mandou(conn, lead, horas=72)):
+        conversa = _conversa(conn, lead)
+        nossas = [m for m in conversa if m.get("direcao") == "enviada" and (m.get("texto") or "").strip()]
+        entregou = bool(nossas) and bool(banco.um(conn, """SELECT EXISTS (SELECT 1 FROM privado.olx_cliente_enviada
+                                  WHERE lead = %s AND tipo IN ('card', 'foto') AND enviado_em > %s)""",
+                                  (lead["id"], nossas[-1]["criada_em"])))
+        texto = que_seguimento(lead, conversa, entregou)
+        if not texto:
             continue
         if mandar_texto(conn, lead, texto):
             _marcar(conn, lead["id"], seguimento_em=banco.um(conn, "SELECT now()"))
@@ -926,32 +1145,23 @@ def seguir(conn, cfg: dict, a_cada_s: float = 60.0) -> int:
 def atender(conn, cfg: dict) -> int:
     if (cfg.get("whatsapp_responde") or "nao").strip().lower() not in ("teste", "sim"):
         return 0
-    # 389: as respostas (e o silêncio) do corretor e do proprietário consultados sobre uma visita
-    try:
-        visita.atender(conn, cfg)
-    except (ErroDeEnvio, modelo.FalhaDoModelo) as e:
-        log.warning("a visita não andou: %s", e)
-    # 390: quem escreveu pela primeira vez neste número (orgânico) entra na fila
-    descobrir_organicos(conn, cfg)
-    # 391: a resposta do Tel na fila de perguntas volta ao cliente
-    if _ha_resposta(conn) and conectada():
+    # 394: cada parte com o seu tropeço (uma não derruba as outras); o que manda mensagem só com a Z-API conectada
+    def parte(nome, f, *a):
         try:
-            entregar_respostas(conn)
-        except ErroDeEnvio as e:
-            log.warning("a resposta do Tel não saiu: %s", e)
-    # 392: o acompanhamento depois de ~10 min de silêncio
-    try:
-        seguir(conn, cfg)
-    except ErroDeEnvio as e:
-        log.warning("o acompanhamento não saiu: %s", e)
+            return f(*a) or 0
+        except Exception as e:  # noqa: BLE001
+            log.warning("%s não andou: %s", nome, e)
+            return 0
+    if visita.ha_trabalho(conn) and conectada():
+        parte("a visita", visita.atender, conn, cfg)                 # 389/393: consultas, lembrete, o depois
+    parte("a descoberta dos orgânicos", descobrir_organicos, conn, cfg)
+    if _ha_resposta(conn) and conectada():
+        parte("a resposta do Tel", entregar_respostas, conn)
+    parte("o acompanhamento", seguir, conn, cfg)
     # a Z-API só é consultada quando há o que fazer (a volta é de 5 em 5 s)
     if not _ha_trabalho(conn, cfg) or not conectada():
         return 0
-    try:
-        return abrir(conn, cfg) + responder(conn, cfg)
-    except (ErroDeEnvio, modelo.FalhaDoModelo) as e:
-        log.warning("a Nay do WhatsApp não conseguiu falar: %s", e)
-        return 0
+    return parte("a abertura", abrir, conn, cfg) + parte("a resposta", responder, conn, cfg)
 
 
 def laco(a_cada_s: float = 5.0) -> None:

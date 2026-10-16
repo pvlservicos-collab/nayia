@@ -1,4 +1,4 @@
-# privado.olx_config  (tabela, ~0 linhas)
+# privado.olx_config  (tabela, ~33 linhas)
 364: as chaves da automação da OLX (publicar anúncios, qual conta, teto, telefone do anúncio, se a Nay responde). Tudo nasce desligado.
 
 ## colunas

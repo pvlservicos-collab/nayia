@@ -18,7 +18,7 @@ CREATE INDEX olx_visita_consulta_esperando ON privado.olx_visita_consulta USING 
 CREATE UNIQUE INDEX olx_visita_consulta_pkey ON privado.olx_visita_consulta USING btree (id)
 
 ## restrições
-olx_visita_consulta_estado_check: CHECK ((estado = ANY (ARRAY['esperando'::text, 'sim'::text, 'nao'::text, 'sem_resposta'::text, 'cancelada'::text])))
+olx_visita_consulta_estado_check: CHECK ((estado = ANY (ARRAY['esperando'::text, 'sim'::text, 'nao'::text, 'sem_resposta'::text, 'cancelada'::text, 'duvida'::text])))
 olx_visita_consulta_papel_check: CHECK ((papel = ANY (ARRAY['corretor'::text, 'proprietario'::text])))
 olx_visita_consulta_pkey: PRIMARY KEY (id)
 

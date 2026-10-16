@@ -4,10 +4,11 @@ CREATE OR REPLACE FUNCTION public.captacao_mensagem_do_python()
 AS $function$
 BEGIN
   IF NEW.direcao = 'recebida' AND NEW.status = 'Recebido' THEN
-    -- 387: quem está com a Nay do WhatsApp da OLX é dela; 389: e quem ela está consultando sobre uma visita
+    -- 387: quem está com a Nay do WhatsApp da OLX é dela; 389: e quem ela está consultando sobre uma visita.
+    -- 394: o que ela encerrou também (quem volta a escrever é atendido de novo); com a equipe (humano_em), não
     IF EXISTS (SELECT 1 FROM privado.olx_lead_whatsapp o
                 WHERE right(o.telefone, 8) = right(regexp_replace(coalesce(NEW.telefone, ''), '\D', '', 'g'), 8)
-                  AND o.assumido_em IS NOT NULL AND o.etapa <> 'finalizado' AND o.humano_em IS NULL)
+                  AND o.assumido_em IS NOT NULL AND o.humano_em IS NULL)
        OR EXISTS (SELECT 1 FROM privado.olx_visita_consulta c
                    WHERE c.estado = 'esperando'
                      AND right(c.telefone, 8) = right(regexp_replace(coalesce(NEW.telefone, ''), '\D', '', 'g'), 8)) THEN
