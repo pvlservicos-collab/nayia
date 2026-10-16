@@ -29,4 +29,4 @@ nay_leitura: SELECT
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-captacao_fora_da_campanha, crm_grupos_conhecidos, crm_mensagem_citada, nai_card_do_banco, nai_card_do_imovel, nai_comando_tel, nai_enviar_imoveis_para, nai_imagens_do_envio, nai_perguntar_se_e_corretor, nai_quem_atende, nai_resposta_da_base, nai_sincronizar_grupos, nay_imovel_do_disparo, nay_qual_imovel, olx_anuncio_montar, site_captacao_grupos, site_captacao_grupos_enviar, site_captacao_grupos_enviar_varios, site_grade_agenda, site_grade_metricas, site_grade_opcoes, site_grade_salvar, site_publicos_disparo
+captacao_fora_da_campanha, crm_grupos_conhecidos, crm_mensagem_citada, nai_card_do_banco, nai_card_do_imovel, nai_comando_tel, nai_enviar_imoveis_para, nai_imagens_do_envio, nai_perguntar_se_e_corretor, nai_quem_atende, nai_resposta_da_base, nai_sincronizar_grupos, nay_imovel_do_disparo, nay_qual_imovel, olx_anuncio_montar, olx_cliente_buscar, site_captacao_grupos, site_captacao_grupos_enviar, site_captacao_grupos_enviar_varios, site_grade_agenda, site_grade_metricas, site_grade_opcoes, site_grade_salvar, site_publicos_disparo

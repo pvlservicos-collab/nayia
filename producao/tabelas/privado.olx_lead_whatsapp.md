@@ -15,6 +15,14 @@ perfil  jsonb  NOT NULL  padrão '{}'::jsonb
 criado_em  timestamp with time zone  NOT NULL  padrão now()
 atualizado_em  timestamp with time zone  NOT NULL  padrão now()
 assumido_em  timestamp with time zone
+etapa  text  NOT NULL  padrão 'nova'::text   -- 385: nova (ainda não chamada) · filtrar · feito_busca · imoveis_enviados · visita · proprietarios · fechamento · finalizado
+etapa_em  timestamp with time zone
+filtros  jsonb  NOT NULL  padrão '{}'::jsonb
+enviados  integer[]  NOT NULL  padrão '{}'::integer[]
+ultima_lida  bigint  NOT NULL  padrão 0
+humano_em  timestamp with time zone
+parada_motivo  text
+visita  jsonb
 
 ## índices
 CREATE UNIQUE INDEX olx_lead_whatsapp_chat_telefone_key ON privado.olx_lead_whatsapp USING btree (chat, telefone)
@@ -22,13 +30,14 @@ CREATE UNIQUE INDEX olx_lead_whatsapp_pkey ON privado.olx_lead_whatsapp USING bt
 
 ## restrições
 olx_lead_whatsapp_chat_telefone_key: UNIQUE (chat, telefone)
+olx_lead_whatsapp_etapa_check: CHECK ((etapa = ANY (ARRAY['nova'::text, 'filtrar'::text, 'feito_busca'::text, 'imoveis_enviados'::text, 'visita'::text, 'proprietarios'::text, 'fechamento'::text, 'finalizado'::text])))
 olx_lead_whatsapp_pkey: PRIMARY KEY (id)
 
 ## permissões
 (só o dono)
 
 ## funções que escrevem aqui
-olx_nay_lead_whatsapp
+crm_olx_cliente_etapa, olx_nay_lead_whatsapp
 
 ## funções que citam
-olx_nay_lead_whatsapp
+crm_olx_cliente_etapa, crm_olx_clientes_etapas, olx_nay_lead_whatsapp

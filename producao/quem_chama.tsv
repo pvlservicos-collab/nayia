@@ -114,6 +114,8 @@ crm_olx_chat_mensagens
 crm_olx_chat_receber	
 crm_olx_chats	
 crm_olx_chats_anuncios	
+crm_olx_cliente_etapa	
+crm_olx_clientes_etapas	
 crm_olx_config_gravar	
 crm_olx_conta_conectar	
 crm_olx_conta_estado	
@@ -165,7 +167,7 @@ nai_atualizar_palavras_conhecidas
 nai_avisar_tel	crm_avisar_tel, crm_checklist_preenchido, nai_abrir_turno, nai_agenda_tick, nai_aprovar_visita, nai_conferir_imoveis_da_saida, nai_conferir_resposta, nai_conferir_texto_da_saida, nai_confirmar_visita, nai_enfileirar_cortesia, nai_escalar, nai_escalar_cadastro, nai_escalar_calado, nai_escalar_link_de_catalogo, nai_guardar_dados_visita, nai_midia_para_o_tel, nai_mudar_horario, nai_pedir_ao_proprietario, nai_pedir_visita, nai_perguntar_se_e_corretor, nai_prosseguir_acesso, nai_resposta_motoboy, nai_resposta_proprietario, nai_resultado_visita, nai_saida_sem_sobras, nai_sec_perguntar_ao_tel, nai_visita_corretor_confirmou, nai_visita_para_a_rayssa, nai_visitas_do_bloco_avisar, nay_saidas_perguntar
 nai_bairro_normal_gatilho	
 nai_bairro_normal_refazer	nai_bairro_normal_gatilho
-nai_bairros_ao_redor	nai_buscar_por_perfil
+nai_bairros_ao_redor	nai_buscar_por_perfil, olx_cliente_buscar
 nai_bairros_do_conjunto	nai_disparo_buscar, nai_lugar_citado
 nai_bairros_do_lugar	nai_buscar_por_perfil, nai_lugar_rotulo, nai_quantos_no_bairro, nai_rodar_casos
 nai_bloco_colher	
@@ -515,7 +517,7 @@ nay_assunto_do_imovel	nay_guardar_do_imovel, nay_o_que_sei_do_imovel, nay_respon
 nay_avaliar_visita	
 nay_aviso_do_foco	
 nay_bairro_e_perto	
-nay_bairro_parecido	nay_buscar_por_perfil
+nay_bairro_parecido	nay_buscar_por_perfil, olx_cliente_buscar
 nay_bairros_proximos	nai_bairros_ao_redor, nay_bairro_e_perto, nay_buscar_por_perfil
 nay_buscar_por_perfil	
 nay_captacao_campos_desconhecidos	
@@ -583,7 +585,7 @@ nay_mobilia_nivel	nai_card_do_banco, nai_disparo_buscar, nai_ficha_completa, nai
 nay_mobilia_rotulo	nai_ficha_completa, nai_mobilia_da_lista, nai_resposta_da_base, nay_linha_da_lista, olx_corpo_do_anuncio
 nay_negocio_pedido	nai_cadastro_ler, nai_negocio_das_falas, nai_rodar_casos, nai_sec_guardar_do_imovel
 nay_nome_de_pessoa	nai_abrir_turno, nai_agenda_por_dia, nai_dados_corretor, nai_frase_visitante, nai_texto_dados_visitante
-nay_normalizar_lugar	crm_anuncio_mensagem, crm_imovel_candidatos, nai_bairro_normal_refazer, nai_bairros_ao_redor, nai_buscar_por_perfil, nai_condominio_da_pergunta, nai_disparo_buscar, nai_imovel_da_conversa, nai_imovel_pela_descricao, nai_nome_so_do_bairro, nai_pedido_de_perfil, nai_quantos_no_bairro, nai_relacionar_imovel_lugar, nay_bairro_e_perto, nay_bairro_parecido, nay_bairros_proximos, nay_buscar_por_perfil, nay_chave_condominio, nay_condominios_candidatos, nay_imoveis_da_linha
+nay_normalizar_lugar	crm_anuncio_mensagem, crm_imovel_candidatos, nai_bairro_normal_refazer, nai_bairros_ao_redor, nai_buscar_por_perfil, nai_condominio_da_pergunta, nai_disparo_buscar, nai_imovel_da_conversa, nai_imovel_pela_descricao, nai_nome_so_do_bairro, nai_pedido_de_perfil, nai_quantos_no_bairro, nai_relacionar_imovel_lugar, nay_bairro_e_perto, nay_bairro_parecido, nay_bairros_proximos, nay_buscar_por_perfil, nay_chave_condominio, nay_condominios_candidatos, nay_imoveis_da_linha, olx_cliente_buscar
 nay_o_que_ficou_de_enviar	
 nay_o_que_sei_do_imovel	nai_o_que_sei_do_imovel, nay_escalar
 nay_opcoes_da_citacao	
@@ -637,6 +639,7 @@ olx_anuncios_candidatos	crm_olx_anuncios_painel, olx_anuncios_plano
 olx_anuncios_plano	
 olx_cfg	crm_olx_config_gravar, olx_anuncio_montar, olx_anuncios_plano, olx_corpo_do_anuncio, olx_nay_fila
 olx_cfg_gravar	crm_olx_config_gravar, olx_permissao_gravar
+olx_cliente_buscar	
 olx_corpo_do_anuncio	olx_anuncio_montar
 olx_fone_bonito	olx_corpo_do_anuncio
 olx_nay_contexto	
