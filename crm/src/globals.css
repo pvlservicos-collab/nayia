@@ -1684,3 +1684,230 @@ html {
   .cad-campo, .cad-campo--s3, .cad-campo--s6 { grid-column: span 2; }
   .cad-campo--s1 { grid-column: span 1; }
 }
+
+/* ============================================================
+   O CHAT OLX DO CRM IGUAL AO CHAT DA OLX (Pedro, 16/10/2026: "quero que refaça o chat da olx do crm para ser
+   igual o da olx normal em estrutura, e informações, só deixe o toggle de claro e escuro para o fundo e texto").
+
+   .olx-theme vai junto de .chat-theme na página /chat/olx. A estrutura e as cores são as da OLX (roxo, balão
+   lilás, chips de contorno); o botão claro/escuro do CRM só troca o fundo e o texto. Os --wa-* também apontam
+   para a OLX aqui dentro: Anúncios, Informações e Consultas do bot ficam com o mesmo roxo, sem mudar o código.
+   ============================================================ */
+.chat-theme.olx-theme {
+  --olx-roxo: #6e0ad6;
+  --olx-roxo-claro: #f0e6ff;
+  --olx-fundo: #ffffff;
+  --olx-fundo-2: #f5f6f7;
+  --olx-texto: #1a1a1a;
+  --olx-texto-2: #5c5c5c;
+  --olx-linha: #e5e5e5;
+  --olx-contorno: #4a4a4a;
+  --olx-sel: #f5f6f7;
+  --olx-balao-nos: #ede3fc;
+  --olx-balao-dele: #f2f3f5;
+  --olx-inicial-fundo: #eef0f2;
+  --olx-inicial-letra: #12304a;
+
+  --wa-app: var(--olx-fundo-2);
+  --wa-panel: var(--olx-fundo);
+  --wa-header: var(--olx-fundo);
+  --wa-search: var(--olx-fundo-2);
+  --wa-row-hover: var(--olx-fundo-2);
+  --wa-row-selected: var(--olx-sel);
+  --wa-divider: var(--olx-linha);
+  --wa-text: var(--olx-texto);
+  --wa-text-2: var(--olx-texto-2);
+  --wa-green: var(--olx-roxo);
+  --wa-unread: var(--olx-roxo);
+  --wa-unread-ink: #ffffff;
+  --wa-chip-bg: transparent;
+  --wa-chip-ink: var(--olx-texto);
+  --wa-chip-border: var(--olx-contorno);
+  --wa-chip-on-bg: var(--olx-roxo-claro);
+  --wa-chip-on-ink: var(--olx-roxo);
+  --wa-conv-bg: var(--olx-fundo);
+  --wa-in: var(--olx-balao-dele);
+  --wa-in-ink: var(--olx-texto);
+  --wa-out: var(--olx-balao-nos);
+  --wa-out-ink: var(--olx-texto);
+  font-family: 'Nunito Sans', 'Segoe UI', Roboto, Arial, sans-serif;
+  background: var(--olx-fundo);
+  color: var(--olx-texto);
+}
+.dark .chat-theme.olx-theme {
+  --olx-roxo: #a97cff;
+  --olx-roxo-claro: rgba(169, 124, 255, 0.16);
+  --olx-fundo: #161718;
+  --olx-fundo-2: #25272a;
+  --olx-texto: #f2f2f2;
+  --olx-texto-2: #a8a8a8;
+  --olx-linha: rgba(255, 255, 255, 0.1);
+  --olx-contorno: #8a8a8a;
+  --olx-sel: #232426;
+  --olx-balao-nos: #35295a;
+  --olx-balao-dele: #26272a;
+  --olx-inicial-fundo: #2a2c2e;
+  --olx-inicial-letra: #cfe3f0;
+}
+
+.olx-barra {
+  display: flex; align-items: center; gap: 6px 14px; flex-wrap: wrap; min-height: 56px; padding: 6px 16px;
+  background: var(--olx-fundo); border-bottom: 1px solid var(--olx-linha);
+}
+.olx-barra__nome { font-size: 16px; font-weight: 800; color: var(--olx-texto); margin-right: 4px; }
+.olx-abas { display: flex; align-self: stretch; gap: 4px; }
+.olx-aba {
+  display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; font-size: 14px; font-weight: 700;
+  color: var(--olx-texto-2); border-bottom: 3px solid transparent; margin-bottom: -7px;
+}
+.olx-aba:hover { color: var(--olx-texto); }
+.olx-aba--on, .olx-aba--on:hover { color: var(--olx-roxo); border-bottom-color: var(--olx-roxo); }
+.olx-aba__n {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; font-size: 11px; font-weight: 800; line-height: 18px;
+  text-align: center; background: var(--olx-roxo); color: #fff;
+}
+
+/* chips de contorno: Todas / Vendendo / Comprando, as contas e as respostas rápidas */
+.olx-chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 16px;
+  border: 1px solid var(--olx-contorno); background: transparent; color: var(--olx-texto);
+  font-size: 14px; font-weight: 700; white-space: nowrap; cursor: pointer;
+}
+.olx-chip:hover { background: var(--olx-fundo-2); }
+.olx-chip--on, .olx-chip--on:hover { border-color: var(--olx-roxo); background: var(--olx-roxo-claro); color: var(--olx-roxo); }
+.olx-chip:disabled { opacity: .45; cursor: default; }
+.olx-chip--p { height: 30px; font-size: 13px; }
+
+.olx-icone {
+  display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 20px; flex-shrink: 0;
+  color: var(--olx-texto-2);
+}
+.olx-icone:hover { background: var(--olx-fundo-2); color: var(--olx-texto); }
+
+/* a coluna da esquerda */
+.olx-lado {
+  width: 360px; flex-shrink: 0; min-height: 0; flex-direction: column;
+  background: var(--olx-fundo); border-right: 1px solid var(--olx-linha);
+}
+.olx-lado__topo { padding: 22px 16px 14px; display: flex; flex-direction: column; gap: 14px; }
+.olx-titulo { font-size: 24px; font-weight: 800; line-height: 1.2; color: var(--olx-texto); display: flex; align-items: center; gap: 6px; }
+.olx-busca {
+  display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 14px; border-radius: 8px;
+  border: 1px solid #cfcfcf; background: var(--olx-fundo); color: var(--olx-texto-2);
+}
+.dark .olx-busca { border-color: rgba(255, 255, 255, 0.18); }
+.olx-busca:focus-within { border-color: var(--olx-roxo); }
+.olx-busca input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 15px; color: var(--olx-texto); }
+.olx-busca input::placeholder { color: var(--olx-texto-2); }
+.olx-filtros { display: flex; gap: 8px; flex-wrap: wrap; }
+.olx-lista { flex: 1; min-height: 0; overflow-y: auto; }
+.olx-linha {
+  position: relative; display: flex; align-items: flex-start; gap: 12px; width: 100%; text-align: left;
+  padding: 14px 16px; border-left: 4px solid transparent; background: transparent; cursor: pointer;
+}
+.olx-linha:hover { background: var(--olx-fundo-2); }
+.olx-linha--sel, .olx-linha--sel:hover { background: var(--olx-sel); border-left-color: var(--olx-roxo); }
+.olx-linha__ponto { position: absolute; left: 3px; top: 50%; width: 7px; height: 7px; margin-top: -3px; border-radius: 4px; background: var(--olx-roxo); }
+.olx-linha__texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; padding-top: 2px; }
+.olx-linha__anuncio { font-size: 12.5px; color: var(--olx-texto-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.olx-linha__nome { font-size: 15.5px; color: var(--olx-texto); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.olx-linha__ultima { display: flex; align-items: baseline; gap: 8px; font-size: 13px; color: var(--olx-texto); }
+.olx-linha__ultima > span:first-child { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.olx-linha__hora { flex-shrink: 0; font-size: 12px; color: var(--olx-texto-2); }
+.olx-linha--nova .olx-linha__nome, .olx-linha--nova .olx-linha__ultima > span:first-child { font-weight: 800; }
+.olx-vazio { padding: 28px 22px; text-align: center; font-size: 14px; line-height: 1.5; color: var(--olx-texto-2); }
+.olx-inativas {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 16px;
+  border-top: 1px solid var(--olx-linha); font-size: 15px; color: var(--olx-texto); background: var(--olx-fundo-2);
+}
+.olx-inativas:hover { background: var(--olx-sel); }
+.olx-inativas__n { color: var(--olx-texto-2); }
+
+/* a capa do anúncio com a inicial de quem escreveu por cima, no canto */
+.olx-capa { position: relative; display: block; flex-shrink: 0; width: 56px; height: 56px; }
+.olx-capa__foto {
+  width: 100%; height: 100%; border-radius: 8px; overflow: hidden; display: grid; place-items: center;
+  background: var(--olx-fundo-2); color: var(--olx-texto-2);
+}
+.olx-capa__foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.olx-capa .olx-inicial { position: absolute; right: -6px; bottom: -6px; }
+.olx-capa--m { width: 48px; height: 48px; }
+.olx-inicial {
+  display: inline-grid; place-items: center; border-radius: 50%; font-weight: 800; flex-shrink: 0;
+  background: var(--olx-inicial-fundo); color: var(--olx-inicial-letra);
+}
+.olx-inicial--p { width: 28px; height: 28px; font-size: 14px; background: var(--olx-fundo); box-shadow: 0 0 0 2px var(--olx-fundo), 0 1px 3px rgba(0, 0, 0, .25); }
+.olx-inicial--m { width: 24px; height: 24px; font-size: 12px; background: var(--olx-fundo); box-shadow: 0 0 0 2px var(--olx-fundo), 0 1px 3px rgba(0, 0, 0, .25); }
+.olx-inicial--g { width: 72px; height: 72px; font-size: 34px; }
+
+/* a conversa */
+/* o display vem do JSX (flex / hidden md:flex): aqui ele venceria o hidden do Tailwind */
+.olx-conversa { flex: 1; min-width: 0; min-height: 0; flex-direction: column; background: var(--olx-fundo); }
+.olx-conv__topo {
+  display: flex; align-items: center; gap: 14px; min-height: 88px; padding: 12px 20px;
+  border-bottom: 1px solid var(--olx-linha);
+}
+.olx-conv__anuncio { display: flex; align-items: baseline; gap: 10px; font-size: 14px; color: var(--olx-texto); min-width: 0; }
+.olx-conv__anuncio a { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: inherit; }
+.olx-conv__anuncio a:hover { text-decoration: underline; }
+.olx-conv__sep { color: var(--olx-linha); }
+.olx-conv__preco { flex-shrink: 0; white-space: nowrap; }
+.olx-conv__nome { font-size: 17px; font-weight: 700; color: var(--olx-texto); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.olx-conv__rolagem { flex: 1; min-height: 0; overflow-y: auto; padding: 28px 24px 16px; display: flex; flex-direction: column; }
+.olx-perfil { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 48px 0 28px; text-align: center; }
+.olx-perfil__nome { font-size: 17px; font-weight: 700; color: var(--olx-texto); margin-top: 4px; }
+.olx-perfil__info { font-size: 13px; color: var(--olx-texto-2); }
+.olx-perfil__info b { color: var(--olx-texto); font-weight: 800; }
+.olx-dia {
+  align-self: center; margin: 14px 0 6px; padding: 8px 14px; border-radius: 18px; font-size: 12px; font-weight: 600;
+  background: var(--olx-fundo-2); color: var(--olx-texto); box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
+}
+.olx-quem { display: flex; gap: 8px; align-items: baseline; margin-top: 14px; margin-bottom: 4px; font-size: 12px; color: var(--olx-texto-2); }
+.olx-quem b { font-weight: 800; color: var(--olx-texto); }
+.olx-quem--nos { justify-content: flex-end; }
+.olx-balao {
+  max-width: min(75%, 720px); padding: 12px 16px; border-radius: 8px; font-size: 15px; line-height: 1.5;
+  white-space: pre-wrap; overflow-wrap: anywhere; color: var(--olx-texto);
+}
+.olx-balao + .olx-balao { margin-top: 4px; }
+.olx-balao--nos { align-self: flex-end; background: var(--olx-balao-nos); }
+.olx-balao--dele { align-self: flex-start; background: var(--olx-balao-dele); }
+.olx-lida { align-self: flex-end; margin-top: 6px; font-size: 12px; color: var(--olx-texto-2); }
+.olx-sistema { align-self: center; margin: 10px 0; max-width: 80%; text-align: center; font-size: 12.5px; color: var(--olx-texto-2); }
+.olx-conv__rodape { border-top: 1px solid var(--olx-linha); padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
+.olx-rapidas { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.olx-rapidas::-webkit-scrollbar { display: none; }
+.olx-caixa { display: flex; align-items: flex-end; gap: 10px; }
+.olx-caixa textarea {
+  flex: 1; min-width: 0; resize: none; border: 0; outline: 0; border-radius: 24px; padding: 13px 20px; min-height: 48px;
+  font: inherit; font-size: 15px; line-height: 22px; background: var(--olx-fundo-2); color: var(--olx-texto);
+}
+.olx-caixa textarea::placeholder { color: var(--olx-texto-2); }
+.olx-caixa textarea:disabled { opacity: .6; }
+.olx-enviar { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 24px; flex-shrink: 0; color: var(--olx-roxo); }
+.olx-enviar:hover:not(:disabled) { background: var(--olx-roxo-claro); }
+.olx-enviar:disabled { color: var(--olx-texto-2); opacity: .5; }
+.olx-menu {
+  position: absolute; right: 0; top: 44px; z-index: 30; min-width: 230px; padding: 6px 0; border-radius: 8px;
+  background: var(--olx-fundo); border: 1px solid var(--olx-linha); box-shadow: 0 8px 28px rgba(0, 0, 0, .16);
+}
+.olx-menu a, .olx-menu button {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 16px; font-size: 14px; text-align: left; color: var(--olx-texto);
+}
+.olx-menu a:hover, .olx-menu button:hover { background: var(--olx-fundo-2); }
+.olx-aviso { padding: 8px 16px; font-size: 13px; display: flex; align-items: flex-start; gap: 8px; }
+.olx-aviso--erro { background: #fee2e2; color: #7f1d1d; }
+.olx-aviso--ok { background: #dcfce7; color: #14532d; }
+
+@media (max-width: 767px) {
+  /* no celular a barra de cima fica numa linha só e rola para o lado */
+  .olx-barra { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 0 12px; min-height: 52px; gap: 8px; }
+  .olx-barra::-webkit-scrollbar { display: none; }
+  .olx-barra__nome { display: none; }
+  .olx-aba { margin-bottom: 0; padding: 0 8px; }
+  .olx-lado { width: 100%; border-right: 0; }
+  .olx-conv__topo { min-height: 72px; padding: 10px 12px; gap: 10px; }
+  .olx-conv__rolagem { padding: 16px 12px; }
+  .olx-perfil { margin: 20px 0 16px; }
+  .olx-balao { max-width: 88%; }
+}

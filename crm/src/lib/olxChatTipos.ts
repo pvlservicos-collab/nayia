@@ -40,6 +40,21 @@ export interface ChatOlxNaLista {
   naoLidas: number
   criadoEm: string
   mensagens: number
+  /** o anúncio da conversa, do que o nay-olx publicou (migração 378); null quando não é um anúncio nosso conhecido */
+  anuncio: AnuncioDoChatOlx | null
+}
+
+/** O que o chat da OLX mostra do anúncio em cada conversa (Pedro, 16/10/2026: "igual o da olx normal"). */
+export interface AnuncioDoChatOlx {
+  codigo: number | null
+  negocio: string | null
+  titulo: string | null
+  preco: number | null
+  /** a capa do anúncio (a primeira foto mandada à OLX) */
+  foto: string | null
+  url: string | null
+  /** ainda publicado na OLX; a conversa de anúncio que saiu vai para "Conversas inativas" */
+  noAr: boolean
 }
 
 export interface MensagemOlx {

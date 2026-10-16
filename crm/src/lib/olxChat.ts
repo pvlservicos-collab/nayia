@@ -10,7 +10,7 @@
  */
 import { randomBytes } from 'node:crypto'
 import { naydb } from '@/lib/nayDisparo'
-import { CONTAS_OLX, type AnuncioOlx, type ChatOlxNaLista, type ContaOlx, type EstadoDaContaOlx, type MensagemOlx, type PainelDosAnunciosOlx } from '@/lib/olxChatTipos'
+import { CONTAS_OLX, type AnuncioDoChatOlx, type AnuncioOlx, type ChatOlxNaLista, type ContaOlx, type EstadoDaContaOlx, type MensagemOlx, type PainelDosAnunciosOlx } from '@/lib/olxChatTipos'
 
 const BASE = (process.env.OLX_WEBHOOK_BASE || 'https://crm.imobeasy.online').replace(/\/+$/, '')
 /** Tem de ser IGUAL à URI cadastrada na OLX no registro do aplicativo. */
@@ -83,7 +83,26 @@ export async function receberDaOlx(conta: string, segredo: string, corpo: unknow
 }
 
 export async function chatsDaContaOlx(conta: ContaOlx): Promise<ChatOlxNaLista[]> {
-  const r = await naydb().query('SELECT * FROM crm_olx_chats($1, $2::int)', [conta, 500])
+  const [r, ra] = await Promise.all([
+    naydb().query('SELECT * FROM crm_olx_chats($1, $2::int)', [conta, 500]),
+    // o anúncio de cada conversa (378): sem ele a lista sai igual, só sem foto, título e preço
+    naydb().query('SELECT * FROM crm_olx_chats_anuncios($1)', [conta]).catch((e: any) => {
+      console.error('[olx/chat] anúncios das conversas', e?.message || e)
+      return { rows: [] as any[] }
+    }),
+  ])
+  const anuncios = new Map<string, AnuncioDoChatOlx>()
+  for (const a of ra.rows) {
+    anuncios.set(String(a.list_id), {
+      codigo: a.codigo == null ? null : Number(a.codigo),
+      negocio: a.negocio || null,
+      titulo: a.titulo || null,
+      preco: a.preco == null ? null : Number(a.preco),
+      foto: /^https?:\/\//i.test(String(a.foto || '')) ? String(a.foto) : null,
+      url: /^https?:\/\//i.test(String(a.url || '')) ? String(a.url) : null,
+      noAr: !!a.no_ar,
+    })
+  }
   return r.rows.map((l: any) => ({
     id: Number(l.id),
     listId: l.list_id || null,
@@ -96,6 +115,7 @@ export async function chatsDaContaOlx(conta: ContaOlx): Promise<ChatOlxNaLista[]
     naoLidas: Number(l.nao_lidas || 0),
     criadoEm: iso(l.criado_em) || new Date().toISOString(),
     mensagens: Number(l.mensagens || 0),
+    anuncio: (l.list_id && anuncios.get(String(l.list_id))) || null,
   }))
 }
 
@@ -226,7 +246,7 @@ export async function anunciosDaContaOlx(conta: ContaOlx): Promise<{ anuncios: A
   const porId = new Map<string, AnuncioOlx>()
   for (const c of await chatsDaContaOlx(conta)) {
     if (!c.listId) continue
-    const a = porId.get(c.listId) || { listId: c.listId, titulo: null, situacao: null, conversas: 0, naoLidas: 0, ultimaEm: null, daOlx: false }
+    const a = porId.get(c.listId) || { listId: c.listId, titulo: c.anuncio?.titulo || null, situacao: null, conversas: 0, naoLidas: 0, ultimaEm: null, daOlx: false }
     a.conversas += 1
     a.naoLidas += c.naoLidas
     if (c.ultimaEm && (!a.ultimaEm || c.ultimaEm > a.ultimaEm)) a.ultimaEm = c.ultimaEm
