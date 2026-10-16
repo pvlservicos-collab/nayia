@@ -54,7 +54,8 @@ class ErroDeEnvio(Exception):
 
 PROMPT = """Você é a Nay, da Imob Easy, imobiliária de Manaus. Você fala pelo WhatsApp com quem se interessou por um anúncio
 nosso na OLX e deixou o número. Você já sabe o que essa pessoa conversou na OLX (está abaixo): NUNCA pergunte de novo o que
-ela já disse lá.
+ela já disse lá. Às vezes é alguém que escreveu DIRETO para este número, sem OLX (o sistema diz "ORGÂNICO"): aí vale a
+parte QUANDO VEIO DIRETO.
 
 === O CAMINHO ===
 1. ABERTURA (a primeira mensagem, quando ainda não há conversa no WhatsApp): lembre que vocês falaram pela OLX sobre o
@@ -98,8 +99,25 @@ BAIRROS: escreva bairros de Manaus. Avenida ou região vira os bairros por onde 
 a Ponta Negra" = Chapada, São Jorge, Dom Pedro, Planalto, Alvorada, Ponta Negra). Os bairros vizinhos o sistema já soma.
 MOBÍLIA (locação): mobiliado = com móveis; semi = modulados e/ou ar-condicionado; "" = tanto faz.
 
+=== QUANDO VEIO DIRETO (ORGÂNICO) ===
+Não houve OLX nem anúncio: a pessoa escreveu para este número por conta própria. NUNCA fale de anúncio, de OLX, de "falamos
+antes". Se uma mensagem sua nesta conversa já falou de anúncio, foi engano: não repita (se ela estranhar, peça desculpas
+pela confusão e siga).
+1. ABERTURA (você ainda não falou com ela): responda o cumprimento pela hora de AGORA, apresente-se e pergunte se ela
+   procura imóvel e se é para alugar ou comprar. Se ela já disse o que quer, não pergunte de novo: siga o roteiro.
+   Ex.: "Boa tarde! Aqui é a Nay, da Imob Easy. Você está procurando imóvel? Seria para alugar ou para comprar?"
+   Se ela citou um imóvel (pelo código ou pelo nome, ex.: "Quero saber mais sobre o imóvel Cobertura - Life Flores"), o
+   sistema dá a ficha: responda pela ficha e pergunte se ela quer agendar uma visita ou receber outras opções parecidas,
+   como na OLX (o tipo, os quartos e a finalidade vêm desse imóvel).
+2. Se o assunto não é procurar imóvel (quer vender ou alugar o imóvel dela, é corretor, cobrança, outro assunto): diga com
+   naturalidade que já passa para a equipe e marque "equipe" com o motivo.
+3. Procura imóvel: o mesmo roteiro de OUTRAS OPÇÕES, uma pergunta por vez, começando pelo que o anúncio daria: o TIPO
+   (apartamento, casa ou casa em condomínio; "tanto faz" vale) e quantos quartos (se 3, serve 2?); depois até que valor,
+   quais bairros, a escada (só na VENDA até R$ 500.000, se ela quer apartamento) e o crédito (só na VENDA). Fechamento
+   e acao "buscar" como lá.
+
 === VENDA OU LOCAÇÃO ===
-O anúncio diz qual é. Na locação o campo "incluso" da ficha é o que está INCLUSO NO ALUGUEL (ex.: água, gás, condomínio).
+O anúncio diz qual é (no orgânico, ela diz). Na locação o campo "incluso" da ficha é o que está INCLUSO NO ALUGUEL (ex.: água, gás, condomínio).
 Na locação não fale de financiamento; na venda não fale de caução nem fiador.
 
 === QUANDO É COM A EQUIPE (acao "equipe") ===
@@ -131,6 +149,7 @@ Valor em reais assim: R$ 700.000 / R$ 2.500.
 - filtros: TUDO o que ela já disse até agora (aqui e na OLX); vazio/0/null o que não disse. finalidade: "locacao" ou
   "venda" (sem ela dizer, é a do anúncio). tipo: "apartamento", "casa", "casa_condominio" ou "tanto_faz". teto: só o
   número em reais. quartos: o número que ela quer. financiamento: "aprovado", "simular", "a vista" ou "".
+  No orgânico, finalidade só quando ela disser.
 - visita: o código do imóvel, a data (DD/MM) e a hora (HH:MM) que ela disse.
 - motivo: em poucas palavras, para a equipe (com "perguntar" ou "equipe"): o que ela pediu, com os códigos.
 """
@@ -272,6 +291,61 @@ def tratamento(lead: dict) -> tuple[str, str]:
     return primeiro or "", "você"
 
 
+def organico(lead: dict) -> bool:
+    return lead.get("origem") == "organico"
+
+
+def quem(lead: dict) -> str:
+    """Para os avisos da equipe: 'Fulana (OLX, (92) 9...)' ou '(orgânico, ...)'."""
+    return (f"{lead.get('nome') or 'sem nome'} ({'orgânico' if organico(lead) else 'OLX'}, "
+            f"{nay.telefone_bonito(lead['telefone'])})")
+
+
+CODIGO_CITADO = re.compile(r"(?<![\d.,$])#?(\d{4})(?![\d.,]|\s*(?:mil|reais|k\b))", re.I)
+
+
+VALOR_EM_REAIS = re.compile(r"R\$\s*[0-9.,]+", re.I)
+
+
+def codigos_citados(conversa: list[dict], ate: int = 2) -> list[int]:
+    """Os códigos de imóvel que a pessoa escreveu (os últimos primeiro): "5758", "#5758", "o 5758"; "2500 reais" não."""
+    vistos: list[int] = []
+    for m in reversed(conversa):
+        if m.get("direcao") != "recebida":
+            continue
+        for c in reversed(CODIGO_CITADO.findall(VALOR_EM_REAIS.sub(" ", m.get("texto") or ""))):
+            if int(c) not in vistos:
+                vistos.append(int(c))
+    return vistos[:ate]
+
+
+def _pelo_nome(conn, conversa: list[dict]) -> list[int]:
+    """Sem código: o condomínio que ela escreveu ("Quero saber mais sobre o imóvel Cobertura - Life Flores", a mensagem
+    pronta dos portais), disponível, o tipo que ela disse primeiro."""
+    texto = " ".join((m.get("texto") or "") for m in conversa if m.get("direcao") == "recebida")[-1500:]
+    if not texto.strip():
+        return []
+    return [int(l["codigo"]) for l in banco.linhas(conn, """
+        SELECT codigo FROM imoveis
+         WHERE status = 'Disponível' AND length(btrim(coalesce(condominio_nome, ''))) >= 6
+           -- o "condomínio" que é só o tipo (Apartamento, Prédio, Loja/Ponto...) não é nome
+           AND lower(unaccent(btrim(condominio_nome))) <> lower(unaccent(coalesce(tipo, '')))
+           AND lower(unaccent(btrim(condominio_nome)))
+               !~ '^(apartamento|predio|casa|cobertura|kitnet|terreno|condominio|residencial|sala|loja|galpao)([/ ].*)?$'
+           AND position(lower(unaccent(btrim(condominio_nome))) IN lower(unaccent(%(t)s))) > 0
+         ORDER BY position(lower(unaccent(coalesce(tipo, '-'))) IN lower(unaccent(%(t)s))) > 0 DESC, codigo DESC
+         LIMIT 2""", {"t": texto})]
+
+
+def _fichas_citadas(conn, conversa: list[dict]) -> list[dict]:
+    fichas = []
+    for c in codigos_citados(conversa) or _pelo_nome(conn, conversa):
+        i = banco.um(conn, "SELECT site_imovel_publico(%s)", (c,))
+        if isinstance(i, dict) and i:
+            fichas.append({"codigo": c, **nay._ficha(i)})
+    return fichas
+
+
 def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
     ctx_olx = ctx_olx or {}
     anuncio = ctx_olx.get("anuncio") or {}
@@ -286,15 +360,27 @@ def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
         "=== QUEM É ===",
         f"Nome: {lead.get('nome') or 'não informado'} | trate como: {trat or 'pelo primeiro nome'} ({pronome})",
         "",
-        "=== DE ONDE VEIO: O ANÚNCIO NA OLX ===",
-        f"{negocio} | {anuncio.get('titulo') or '-'} | cód. {lead.get('codigo') or anuncio.get('codigo') or '-'}",
-        "Ficha do imóvel do anúncio: " + json.dumps(nay._ficha(ctx_olx.get("imovel")), ensure_ascii=False),
-        "O que a Nay da OLX leu dela: " + json.dumps(lead.get("perfil") or {}, ensure_ascii=False),
-        f"Na OLX ela disse que quer visitar: {'sim' if lead.get('quer_visita') else 'não'}",
-        "A conversa na OLX (a mais antiga primeiro):",
     ]
-    for m in ctx_olx.get("mensagens") or []:
-        linhas.append(f"  {nay._quem(m)}: {(m.get('texto') or '').strip()}")
+    if organico(lead):
+        linhas += [
+            "=== DE ONDE VEIO: ORGÂNICO ===",
+            "Escreveu direto para este número: não houve OLX nem anúncio. Siga QUANDO VEIO DIRETO.",
+        ]
+        if not any(m.get("nossa") or m.get("origem") == "resposta" for m in conversa):
+            linhas.append("Você ainda não falou com ela: esta é a sua primeira mensagem (a abertura do orgânico).")
+        for f in lead.get("fichas_citadas") or []:
+            linhas.append(f"Ficha do imóvel {f['codigo']} (o que ela citou): " + json.dumps(f, ensure_ascii=False))
+    else:
+        linhas += [
+            "=== DE ONDE VEIO: O ANÚNCIO NA OLX ===",
+            f"{negocio} | {anuncio.get('titulo') or '-'} | cód. {lead.get('codigo') or anuncio.get('codigo') or '-'}",
+            "Ficha do imóvel do anúncio: " + json.dumps(nay._ficha(ctx_olx.get("imovel")), ensure_ascii=False),
+            "O que a Nay da OLX leu dela: " + json.dumps(lead.get("perfil") or {}, ensure_ascii=False),
+            f"Na OLX ela disse que quer visitar: {'sim' if lead.get('quer_visita') else 'não'}",
+            "A conversa na OLX (a mais antiga primeiro):",
+        ]
+        for m in ctx_olx.get("mensagens") or []:
+            linhas.append(f"  {nay._quem(m)}: {(m.get('texto') or '').strip()}")
     linhas += [
         "",
         "=== ONDE ESTÁ ===",
@@ -373,7 +459,7 @@ def abrir(conn, cfg: dict) -> int:
                     parada_motivo="a equipe já tinha chamado por este número")
             log.info("lead %s: a equipe já chamou; a Nay não abre", lead["id"])
             continue
-        ctx_olx = banco.um(conn, "SELECT olx_nay_contexto(%s)", (lead["chat"],))
+        ctx_olx = banco.um(conn, "SELECT olx_nay_contexto(%s)", (lead["chat"],)) if lead.get("chat") else None
         lead["visita_aberta"] = visita.aberta(conn, lead["id"])
         r = modelo.chamar(PROMPT, montar_turno(lead, ctx_olx, []))
         baloes = [b for b in (nay.limpar_balao(str(x)) for x in (r.get("baloes") or [])[:MAX_BALOES]) if b]
@@ -394,6 +480,33 @@ def abrir(conn, cfg: dict) -> int:
         log.info("lead %s aberto (%d balão/ões)", lead["id"], len(baloes))
         feitos += 1
     return feitos
+
+
+_ULTIMA_DESCOBERTA = [0.0]
+
+
+def descobrir_organicos(conn, cfg: dict, a_cada_s: float = 20.0) -> int:
+    """390 (Pedro, 16/10): "quando chega lead novo a Nay deve atender normal, e perguntar se ele quer imóvel, esse vem com a
+    tag orgânico". Quem escreveu pela primeira vez neste número e não é dono, corretor, equipe nem cliente da OLX
+    (olx_organicos_novos) vira lead da Nay; a resposta sai pela fila de sempre, depois do silêncio."""
+    if (cfg.get("organico_atende") or "nao").strip().lower() != "sim":
+        return 0
+    if time.monotonic() - _ULTIMA_DESCOBERTA[0] < a_cada_s:
+        return 0
+    _ULTIMA_DESCOBERTA[0] = time.monotonic()
+    novos = 0
+    for o in banco.linhas(conn, "SELECT telefone, primeira FROM olx_organicos_novos(60)"):
+        if not _pode(cfg, o["telefone"]):
+            continue
+        lid = banco.um(conn, """
+            INSERT INTO privado.olx_lead_whatsapp (chat, telefone, origem, etapa, etapa_em, assumido_em, ultima_lida, perfil)
+            SELECT NULL, %s, 'organico', 'filtrar', now(), now(), %s - 1, '{"procura": "escreveu direto no WhatsApp"}'::jsonb
+             WHERE NOT EXISTS (SELECT 1 FROM privado.olx_lead_whatsapp WHERE right(telefone, 8) = right(%s, 8))
+            ON CONFLICT DO NOTHING RETURNING id""", (o["telefone"], int(o["primeira"]), o["telefone"]))
+        if lid:
+            log.info("lead %s: orgânico (%s)", lid, nay.telefone_bonito(o["telefone"]))
+            novos += 1
+    return novos
 
 
 def _fila(conn, cfg: dict) -> list[dict]:
@@ -429,10 +542,12 @@ def responder(conn, cfg: dict) -> int:
         if sum(1 for m in conversa if m.get("nossa")) >= LIMITE_DE_MENSAGENS:
             _marcar(conn, lead["id"], humano_em=banco.um(conn, "SELECT now()"), ultima_lida=ate,
                     parada_motivo="a conversa foi longe demais para a Nay")
-            _grupo(f"Cliente {lead.get('nome') or ''} (OLX, {nay.telefone_bonito(lead['telefone'])}): a conversa no "
+            _grupo(f"Cliente {quem(lead)}: a conversa no "
                    f"WhatsApp de captação foi longe; precisa de alguém.")
             continue
-        ctx_olx = banco.um(conn, "SELECT olx_nay_contexto(%s)", (lead["chat"],))
+        ctx_olx = banco.um(conn, "SELECT olx_nay_contexto(%s)", (lead["chat"],)) if lead.get("chat") else None
+        if organico(lead):
+            lead["fichas_citadas"] = _fichas_citadas(conn, conversa)
         lead["visita_aberta"] = visita.aberta(conn, lead["id"])
         r = modelo.chamar(PROMPT, montar_turno(lead, ctx_olx, conversa))
         baloes = [b for b in (nay.limpar_balao(str(x)) for x in (r.get("baloes") or [])[:MAX_BALOES]) if b]
@@ -484,11 +599,11 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
     elif acao == "perguntar":
         # Pedro, 16/10 (a Michelle pediu os quartos com roupeiros): "ela deve nos perguntar porque a Nay não sabe que foto
         # é de qual lugar". A pergunta vai ao grupo e a conversa continua com ela; quem mandar por aqui tira a Nay.
-        _grupo(f"Cliente {lead.get('nome') or ''} (OLX, {nay.telefone_bonito(lead['telefone'])}) no WhatsApp de captação "
+        _grupo(f"Cliente {quem(lead)} no WhatsApp de captação "
                f"pediu: {str(r.get('motivo') or 'algo que a Nay não sabe')[:240]}. A Nay disse que já retorna: mandem por lá.")
     elif acao == "equipe":
         _marcar(conn, lead["id"], humano_em=banco.um(conn, "SELECT now()"), parada_motivo=str(r.get("motivo") or "")[:200])
-        _grupo(f"Cliente {lead.get('nome') or ''} (OLX, {nay.telefone_bonito(lead['telefone'])}) no WhatsApp de "
+        _grupo(f"Cliente {quem(lead)} no WhatsApp de "
                f"captação: {str(r.get('motivo') or 'precisa da equipe')[:200]}.")
     elif acao == "encerrar":
         _marcar(conn, lead["id"], etapa="finalizado")
@@ -498,14 +613,14 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict) -> None:
     excluir = list(lead.get("enviados") or []) + ([lead["codigo"]] if lead.get("codigo") else [])
     f = dict(filtros)
     if not f.get("finalidade"):
-        f["finalidade"] = "locacao" if (lead.get("negocio") or "").startswith("loca") else "venda"
+        f["finalidade"] = finalidade_sem_dizer(lead, f)
     achados = banco.linhas(conn, "SELECT * FROM olx_cliente_buscar(%s::jsonb, %s::int[], %s)",
                            (json.dumps(f, ensure_ascii=False), excluir, MAX_IMOVEIS))
     _marcar(conn, lead["id"], etapa="feito_busca")
     if not achados:
         # nunca a negativa: ela diz que está separando e a equipe recebe o perfil
         mandar_texto(conn, lead, "Estou separando as opções com a nossa equipe e já te retorno por aqui.")
-        _grupo(f"Cliente {lead.get('nome') or ''} (OLX, {nay.telefone_bonito(lead['telefone'])}) procura "
+        _grupo(f"Cliente {quem(lead)} procura "
                f"{_resumo_dos_filtros(f)} e a busca não achou nada: separar opções para ela.")
         return
     enviados = list(lead.get("enviados") or [])
@@ -519,6 +634,17 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict) -> None:
     mandar_texto(conn, lead, fecho(lead, len(achados)))
     _marcar(conn, lead["id"], etapa="imoveis_enviados")
     log.info("lead %s: %d imóvel(is) enviado(s)", lead["id"], len(achados))
+
+
+def finalidade_sem_dizer(lead: dict, f: dict) -> str:
+    """Ela não disse: na OLX é a do anúncio; no orgânico, o valor diz (até R$ 30.000 é aluguel)."""
+    if lead.get("negocio"):
+        return "locacao" if lead["negocio"].startswith("loca") else "venda"
+    try:
+        teto = float(f.get("teto") or 0)
+    except (TypeError, ValueError):
+        teto = 0
+    return "locacao" if 0 < teto <= 30000 else "venda"
 
 
 def fecho(lead: dict, quantos: int = 2) -> str:
@@ -559,6 +685,8 @@ def atender(conn, cfg: dict) -> int:
         visita.atender(conn, cfg)
     except (ErroDeEnvio, modelo.FalhaDoModelo) as e:
         log.warning("a visita não andou: %s", e)
+    # 390: quem escreveu pela primeira vez neste número (orgânico) entra na fila
+    descobrir_organicos(conn, cfg)
     # a Z-API só é consultada quando há o que fazer (a volta é de 5 em 5 s)
     if not _ha_trabalho(conn, cfg) or not conectada():
         return 0

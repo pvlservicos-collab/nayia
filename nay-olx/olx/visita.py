@@ -159,7 +159,7 @@ def _lead(conn, lead_id: int) -> dict:
 
 
 def _quem(lead: dict) -> str:
-    return f"{lead.get('nome') or 'sem nome'} (OLX, {nay.telefone_bonito(lead['telefone'])})"
+    return _w().quem(lead)
 
 
 # ── os passos ──
@@ -208,7 +208,8 @@ def _proximo_corretor(conn, v: dict, cfg: dict) -> None:
         onde = _onde(conn, v["codigo"])
         _mandar_para(conn, v["lead"], fone,
                      f"Oi, {nome}! Aqui é a Nay, da Imob Easy. Tem uma visita para o imóvel #{v['codigo']}"
-                     f"{' (' + onde + ')' if onde else ''} no dia {dia(q)} às {hora(q)}, com um cliente que veio da OLX. "
+                     f"{' (' + onde + ')' if onde else ''} no dia {dia(q)} às {hora(q)}, com um cliente "
+                     f"{'que nos chamou no WhatsApp' if lead.get('origem') == 'organico' else 'que veio da OLX'}. "
                      f"Você consegue ir nesse horário? Me responde com SIM ou NÃO, por favor.")
         log.info("visita %s: perguntado ao corretor %s", v["id"], nome)
         return

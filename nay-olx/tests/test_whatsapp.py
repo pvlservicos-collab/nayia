@@ -79,5 +79,43 @@ class Turno(unittest.TestCase):
             self.assertIn(pedaco, w.PROMPT)
 
 
+class Organico(unittest.TestCase):
+    """390 (16/10): quem escreveu direto no 8595-6408, sem OLX."""
+    LEAD = {"id": 9, "chat": None, "origem": "organico", "nome": None, "trat": None, "telefone": "92982508556",
+            "codigo": None, "negocio": None, "etapa": "filtrar", "perfil": {}, "filtros": {}, "enviados": []}
+
+    def test_turno_sem_olx(self):
+        t = w.montar_turno(self.LEAD, None, [{"direcao": "recebida", "texto": "Boa tarde"}])
+        self.assertIn("ORGÂNICO", t)
+        self.assertNotIn("O ANÚNCIO NA OLX", t)
+        self.assertIn("primeira mensagem (a abertura do orgânico)", t)
+        self.assertIn("CLIENTE: Boa tarde", t)
+
+    def test_depois_da_abertura_nao_abre_de_novo(self):
+        t = w.montar_turno(self.LEAD, None, [{"direcao": "recebida", "texto": "Boa tarde"},
+                                             {"direcao": "enviada", "nossa": True, "texto": "Boa tarde! Aqui é a Nay."}])
+        self.assertNotIn("abertura do orgânico", t)
+
+    def test_finalidade_pelo_valor(self):
+        self.assertEqual(w.finalidade_sem_dizer(self.LEAD, {"teto": 2500}), "locacao")
+        self.assertEqual(w.finalidade_sem_dizer(self.LEAD, {"teto": 450000}), "venda")
+        self.assertEqual(w.finalidade_sem_dizer({"negocio": "locacao"}, {"teto": 450000}), "locacao")
+
+    def test_codigos_que_ela_citou(self):
+        conversa = [{"direcao": "recebida", "texto": "Gostaria de agendar uma visita"},
+                    {"direcao": "enviada", "texto": "Qual imóvel? 9999"},
+                    {"direcao": "recebida", "texto": "5758"},
+                    {"direcao": "recebida", "texto": "até 2500 reais, ou 3000 mil, R$ 1500 e o #9045"}]
+        self.assertEqual(w.codigos_citados(conversa), [9045, 5758])
+
+    def test_ficha_citada_no_turno(self):
+        lead = {**self.LEAD, "fichas_citadas": [{"codigo": 5758, "bairro": "Ponta Negra"}]}
+        self.assertIn("Ficha do imóvel 5758 (o que ela citou)", w.montar_turno(lead, None, []))
+
+    def test_aviso_diz_de_onde_veio(self):
+        self.assertIn("(orgânico, ", w.quem(self.LEAD))
+        self.assertIn("(OLX, ", w.quem({**self.LEAD, "origem": "olx", "nome": "Josy"}))
+
+
 if __name__ == "__main__":
     unittest.main()
