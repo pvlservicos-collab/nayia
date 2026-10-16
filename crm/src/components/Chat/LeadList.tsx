@@ -10,6 +10,8 @@ import { useAuth, useTags, useOrganizationMembers } from '@/hooks'
 import { soRespondeNaCaptacao } from '@/lib/captacaoSoResponde'
 import { useParceriaMarcas } from '@/hooks/useParceriaMarcas'
 import { useCaptacaoDonos } from '@/hooks/useCaptacaoDonos'
+import { useOlxClientes, mudarEtapaOlx } from '@/hooks/useOlxClientes'
+import { ETAPAS_OLX, fim8, type EtapaOlx } from '@/lib/olxClientes'
 import { montarAtendentes, atendenteDaConversa, type Atendente } from '@/lib/atendentes'
 import LeadListItem from './LeadListItem'
 import ChatFilterTabs, { type ChatTab, type FiltroDaLista } from './ChatFilterTabs'
@@ -163,6 +165,13 @@ export default function LeadList({
      igual os que tem na de captação"). A aba de cada conversa vem do dono (crm_captacao_donos), e o dono é o mesmo
      pelos dois números: na Oficial aparecem Todos, Em andamento, Sem resposta, Com o Tel, Disponíveis... */
   const comAbasDaCaptacao = linha === 'captacao' || linha === 'oficial'
+  /* OS CLIENTES DA OLX (Pedro, 16/10/2026: "novas etapas na aba captação baseada nas etapas da nay que está atendendo").
+     A etapa vem da Nay do WhatsApp dos clientes da OLX (src/lib/olxClientes.ts); só na aba Captação, que é o número dela. */
+  const olxClientes = useOlxClientes(linha === 'captacao')
+  const etapaOlxDe = (l: LeadWithOwner): EtapaOlx | null => {
+    const c = olxClientes[fim8(l.phone)]
+    return c && c.etapa !== 'nova' ? c.etapa : null
+  }
 
   // Filtro por etiqueta — multi-seleção, combina com o filtro de cima.
   const { allTags } = useTags(organizationId)
@@ -472,6 +481,13 @@ export default function LeadList({
         const semLer = Number(l.nao_lidas || 0)
         if (semLer) contagem[`semler:cap:${a}`] = (contagem[`semler:cap:${a}`] ?? 0) + semLer
       }
+      // as etapas dos clientes da OLX (16/10)
+      const etapaOlx = linha === 'captacao' ? etapaOlxDe(l) : null
+      if (etapaOlx) {
+        soma(`olx:${etapaOlx}`)
+        const semLer = Number(l.nao_lidas || 0)
+        if (semLer) contagem[`semler:olx:${etapaOlx}`] = (contagem[`semler:olx:${etapaOlx}`] ?? 0) + semLer
+      }
     }
   }
 
@@ -535,6 +551,12 @@ export default function LeadList({
     { chave: 'nao_lidas', rotulo: 'Não lido', contagem: contagem.nao_lidas, titulo: 'Só as conversas com mensagem que ninguém abriu ainda' },
   ] : []
 
+  /* a fileira dos clientes da OLX (16/10): Filtrar · Feito busca · Imóveis enviado · Visita · Proprietários · Fechamento · Finalizados */
+  const filtrosOlx: FiltroDaLista[] = linha === 'captacao'
+    ? ETAPAS_OLX.map((e) => ({ chave: `olx:${e.chave}`, rotulo: e.rotulo, cor: e.cor, titulo: e.titulo, grupo: 'etapa' as const,
+                               contagem: contagem[`olx:${e.chave}`], naoLidas: contagem[`semler:olx:${e.chave}`] }))
+    : []
+
   const passaNoFiltro = (hit: SearchHit): boolean => {
     const l = hit.lead
     /* O PROPRIETÁRIO SÓ APARECE NA ETAPA DELE (Tel, 30/09): "os proprietários
@@ -548,6 +570,7 @@ export default function LeadList({
     }
     if (activeTab === 'all') return true
     if (activeTab.startsWith('cap:')) return (donos[l.id]?.abas || []).includes(activeTab.slice(4))
+    if (activeTab.startsWith('olx:')) return etapaOlxDe(l) === activeTab.slice(4)
     if (activeTab === 'nao_lidas') return !!l.is_unread || l.id === selectedLeadId
     if (activeTab === 'rayssa') return daRayssa(l, marcas[l.id], atendenteDoLead[l.id])
     if (activeTab === 'tel') return doTel(l, marcas[l.id], atendenteDoLead[l.id])
@@ -718,6 +741,15 @@ export default function LeadList({
               <>
                 <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtros.filter((f) => !NA_LINHA_2_DA_CAPTACAO.has(f.chave))} />
                 <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtros.filter((f) => NA_LINHA_2_DA_CAPTACAO.has(f.chave))} />
+                {filtrosOlx.length > 0 && (
+                  <div className="flex items-center gap-1 pl-4">
+                    <span className="text-[12px] flex-shrink-0" style={{ color: 'var(--wa-text-2)' }}
+                          title="Quem chegou pela OLX e a Nay do WhatsApp está atendendo">Clientes OLX:</span>
+                    <div className="flex-1 min-w-0 -ml-3">
+                      <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtrosOlx} />
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtros} />
@@ -812,6 +844,29 @@ export default function LeadList({
               : <Archive size={17} style={{ color: 'var(--wa-icon)' }} />}
             {contextMenu.lead?.is_archived ? 'Desarquivar conversa' : 'Arquivar conversa'}
           </button>
+          {/* 16/10: a etapa do cliente da OLX (Proprietários, Fechamento e Finalizados são da equipe) */}
+          {linha === 'captacao' && contextMenu.lead && olxClientes[fim8(contextMenu.lead.phone)] && (
+            <div className="mt-1 pt-1" style={{ borderTop: '1px solid var(--wa-divider)' }}>
+              <p className="px-4 py-1 text-[12px]" style={{ color: 'var(--wa-text-2)' }}>Etapa do cliente da OLX</p>
+              {ETAPAS_OLX.map((e) => {
+                const atual = olxClientes[fim8(contextMenu.lead!.phone)]?.etapa === e.chave
+                return (
+                  <button key={e.chave} type="button"
+                          onClick={async () => {
+                            const tel = contextMenu.lead!.phone || ''
+                            setContextMenu((prev) => ({ ...prev, visible: false }))
+                            const erro = await mudarEtapaOlx(tel, e.chave)
+                            if (erro) window.alert(erro)
+                          }}
+                          className="w-full text-left px-4 py-2 text-[14px] hover:bg-[var(--wa-row-hover)] flex items-center gap-3" style={{ color: 'var(--wa-text)' }}>
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: e.cor }} />
+                    <span className="flex-1">{e.rotulo}</span>
+                    {atual && <Check size={15} style={{ color: 'var(--wa-green)' }} />}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
