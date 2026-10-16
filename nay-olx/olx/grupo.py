@@ -145,6 +145,28 @@ def mandar_ao_grupo(texto: str) -> str | None:
     return None
 
 
+def mandar_ao_tel(telefone: str | None, texto: str) -> str | None:
+    """16/10 (Pedro): o recado direto no WhatsApp do Tel ("tal cliente não quer falar pelo WhatsApp"). Como o aviso do
+    grupo: pela Parceria; fora do ar, pela captação; só por número conectado. Devolve por qual número saiu, ou None."""
+    fone = "".join(c for c in str(telefone or "") if c.isdigit())
+    conf = _conf_do_vigia()
+    if not conf or len(fone) < 12:
+        log.warning("recado ao Tel sem número ou sem a Z-API")
+        return None
+    for nome in ("parceria", "captacao"):
+        inst = conf["instancias"].get(nome)
+        if not inst:
+            continue
+        st = _zapi(inst, "GET", "/status")
+        if not (isinstance(st, dict) and st.get("connected")):
+            continue
+        r = _zapi(inst, "POST", "/send-text", {"phone": fone, "message": texto})
+        if isinstance(r, dict) and (r.get("messageId") or r.get("id") or r.get("zaapId")):
+            return nome
+        log.warning("o recado ao Tel não saiu pelo número %s: %s", nome, (r or {}).get("_erro") or "sem id")
+    return None
+
+
 # ---------------------------------------------------------------- o laço
 _proxima_tentativa = 0.0
 

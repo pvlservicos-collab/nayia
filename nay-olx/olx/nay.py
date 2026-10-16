@@ -52,6 +52,8 @@ class Decisao:
     aviso_grupo: str | None = None
     # 16/10: quem deu o WhatsApp, para a Nay do WhatsApp: {nome, telefone, quer_visita, perfil}
     lead: dict | None = None
+    # 16/10: o recado que vai ao WhatsApp do Tel (a pessoa não quer o WhatsApp: "tal cliente não quer falar pelo WhatsApp")
+    aviso_tel: str | None = None
 
 
 LIMITE_DE_BALOES = 20    # nossas mensagens na conversa antes de entregar para gente
@@ -104,7 +106,13 @@ Visita, outras opções, proposta, desconto, "aceita X?", negociação, document
 crédito, outro imóvel, corretor oferecendo parceria, pedido para falar com uma pessoa, reclamação. Diga com naturalidade
 que isso a gente vê pelo WhatsApp e peça o número. Se a pessoa não quiser dar, tudo bem, não insista.
 
+=== QUANDO A PESSOA NÃO QUER O WHATSAPP ===
+Se ela diz que não quer ser chamada no WhatsApp, que prefere o chat da OLX, que não gosta de usar o WhatsApp: você NÃO
+responde nada (baloes: []) e marca "sem_whatsapp": true. A equipe continua a conversa por aqui.
+
 === NUNCA ===
+- Dar negativa: "não consigo", "não dá", "não é possível", "só pelo WhatsApp", "por aqui não". Se algo não se resolve
+  por você, diga que a gente vê pelo WhatsApp (ou, se ela não quer WhatsApp, não responda e marque sem_whatsapp).
 - Inventar. O que não está na ficha você não sabe: diga que confirma e manda pelo WhatsApp.
 - Dizer endereço exato, número da casa ou do apartamento, bloco, torre, nem o nome do proprietário. Bairro e
   condomínio pode.
@@ -119,8 +127,9 @@ Easy"). Nada de "Como posso te ajudar hoje?", "Fico à disposição", "Estou aqu
 R$ 700.000 / R$ 2.500.
 
 === A SUA RESPOSTA: SÓ ESTE JSON, NADA MAIS ===
-{"baloes": ["..."], "encaminhar": null, "nome": "", "whatsapp": "", "quer_visita": false,
+{"baloes": ["..."], "encaminhar": null, "nome": "", "whatsapp": "", "quer_visita": false, "sem_whatsapp": false,
  "perfil": {"procura": "", "valor": "", "bairros": "", "quartos": "", "financiamento": "", "duvidas": ""}}
+- sem_whatsapp: true quando ela disse que não quer o WhatsApp (e aí baloes vai vazio).
 - baloes: o que vai para o cliente agora (pode ser [] se não há o que dizer, por exemplo depois de um "ok" final).
 - encaminhar: null | "whatsapp". Só quando JÁ tem o WhatsApp (dito por ela ou o do cadastro que ela confirmou).
 - nome, whatsapp: o que ela informou (whatsapp só com dígitos e DDD).
@@ -246,6 +255,17 @@ def decidir(contexto: dict, responder_duvida: Callable[[int, str], str | None] |
             sugestao = None
 
     r = chamar_modelo(PROMPT, montar_turno(ctx, sugestao))
+
+    # 16/10 (Pedro, o caso da Camila): "nunca deve dar uma negativa; se a pessoa disser que não quer ser chamada pelo
+    # WhatsApp a Nay não responde nada e avisa o Tel: tal cliente não quer falar pelo WhatsApp". A conversa fica com a
+    # equipe, no chat da OLX, e nenhum balão sai (mesmo que o modelo tenha escrito algum).
+    if r.get("sem_whatsapp") is True:
+        quem = (ctx.get("cliente") or {}).get("nome") or "sem nome"
+        titulo = anuncio.get("titulo") or f"imóvel {codigo}"
+        return Decisao(passar_para_gente="não quer falar pelo WhatsApp: responder pelo chat da OLX",
+                       aviso_tel=f"Cliente {quem}, da OLX ({titulo}, cód. {codigo}), não quer falar pelo WhatsApp. "
+                                 f"A Nay parou; a conversa está no CRM › Chat OLX para responder por lá.")
+
     baloes = [b for b in (limpar_balao(str(x)) for x in (r.get("baloes") or [])[:MAX_BALOES_POR_VEZ]) if b]
 
     encaminhar = (r.get("encaminhar") or "").strip().lower() or None

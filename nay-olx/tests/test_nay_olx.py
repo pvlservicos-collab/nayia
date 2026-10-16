@@ -81,6 +81,20 @@ class Etapas(unittest.TestCase):
         self.assertEqual(d.lead["telefone"], "92991540843")
         self.assertIn("pela OLX, número (92) 99154-0843", d.aviso_grupo)
 
+    def test_nao_quer_whatsapp_nao_responde_e_avisa_o_tel(self):
+        # 16/10, o caso da Camila: nenhuma negativa; nada sai para ela, a conversa fica com a equipe e o Tel sabe
+        m = Modelo({"baloes": ["Entendo, Camila. A equipe combina pelo WhatsApp, então não consigo marcar por aqui."],
+                    "sem_whatsapp": True})
+        d = nay.decidir(ctx([dele("Quero visitar!"), nosso("Posso te chamar no WhatsApp?"), dele("Prefiro o chat do Olx")],
+                            telefone="92993767033"), None, m)
+        self.assertEqual(d.baloes, [])
+        self.assertIn("não quer falar pelo WhatsApp", d.passar_para_gente)
+        self.assertIn("FELIPE LADISLAU CARVALHO", d.aviso_tel)
+        self.assertIn("não quer falar pelo WhatsApp", d.aviso_tel)
+        self.assertIsNone(d.aviso_grupo)
+        self.assertIsNone(d.lead)
+        self.assertIn("Dar negativa", nay.PROMPT)
+
     def test_o_prompt_pede_o_whatsapp(self):
         self.assertIn("Me manda seu WhatsApp", nay.PROMPT)
         self.assertIn("LEITURA DE PERFIL", nay.PROMPT)

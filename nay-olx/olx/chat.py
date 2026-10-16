@@ -86,6 +86,15 @@ def _avisar(texto: str) -> None:
         log.exception("o aviso ao grupo falhou")
 
 
+def _avisar_tel(conn, texto: str) -> None:
+    """16/10: o recado no WhatsApp do Tel (o número dele é o do banco, nai_cfg('tel_telefone'))."""
+    try:
+        if not grupo.mandar_ao_tel(banco.um(conn, "SELECT nai_cfg('tel_telefone')"), texto):
+            log.warning("o recado ao Tel não chegou: nenhum número conectado")
+    except Exception:  # noqa: BLE001 -- o recado não pode derrubar o atendimento
+        log.exception("o recado ao Tel falhou")
+
+
 def _guardar_lead(conn, chat: int, decisao) -> None:
     """16/10 (384): quem deu o WhatsApp fica guardado com a leitura de perfil, para a Nay do WhatsApp (número de
     captação) continuar de onde a da OLX parou. Falhar aqui não derruba o atendimento."""
@@ -135,6 +144,9 @@ def atender_fila(conn, cfg: dict[str, str]) -> int:
                 passar_para_gente(conn, chat, decisao.passar_para_gente)
                 log.info("conversa %s passada para gente: %s", chat, decisao.passar_para_gente)
             _guardar_lead(conn, chat, decisao)
+            # 16/10: a pessoa não quer o WhatsApp -> nada sai para ela, e o Tel fica sabendo
+            if decisao.aviso_tel:
+                _avisar_tel(conn, decisao.aviso_tel)
             # no grupo vai SÓ o nome e o número de quem mandou o contato (Pedro, 15/10); o resto fica no CRM
             if decisao.aviso_grupo:
                 _avisar(decisao.aviso_grupo)
