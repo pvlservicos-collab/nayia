@@ -169,7 +169,7 @@ nai_bairro_normal_gatilho
 nai_bairro_normal_refazer	nai_bairro_normal_gatilho
 nai_bairros_ao_redor	nai_buscar_por_perfil, olx_cliente_buscar
 nai_bairros_do_conjunto	nai_disparo_buscar, nai_lugar_citado
-nai_bairros_do_lugar	nai_buscar_por_perfil, nai_lugar_rotulo, nai_quantos_no_bairro, nai_rodar_casos
+nai_bairros_do_lugar	nai_buscar_por_perfil, nai_lugar_rotulo, nai_quantos_no_bairro, nai_rodar_casos, olx_cliente_buscar
 nai_bloco_colher	
 nai_bloco_oferta	nai_buscar_por_perfil
 nai_buscar_por_perfil	nai_escalar

@@ -1,0 +1,63 @@
+/* ==========================================================================
+   A TELA DE EDITAR O IMÓVEL NO ACABAMENTO DO ADMIN ANTIGO (Pedro, 16/10/2026: "um botão editar como /admin e vai abrir
+   essa tela parecido com o antigo mas dividido em nossas categorias hoje" e "quero só o layout parecido mantendo a
+   organização do novo"). Vale só em admin/imovel-editar.html (body.editar-antigo): as categorias, a ordem e o que cada
+   campo faz são os de hoje; muda o acabamento, como o admin antigo (/admin/imoveis/5765): fundo cinza liso, cartões
+   brancos de canto reto, título da seção em maiúsculas pequenas, rótulo do campo em maiúsculas cinza, campo de borda
+   fina, botão azul.
+   ========================================================================== */
+body.editar-antigo { background: #EEF0F5; background-image: none; }
+body.editar-antigo::before { display: none; }
+
+/* a faixa de cima, branca e lisa */
+body.editar-antigo .nv__topo { background: #fff; -webkit-backdrop-filter: none; backdrop-filter: none; border-bottom: 1px solid #E3E5EC; }
+body.editar-antigo .nv__ttl h1 { border-left-color: #1E88E5; font-weight: 700; }
+body.editar-antigo .nv__voltar { color: #1E88E5; }
+body.editar-antigo .nv__pct { color: #1E88E5; }
+body.editar-antigo .nv__cta {
+  background: #1E88E5; border-radius: 4px; box-shadow: none; text-transform: uppercase; letter-spacing: .04em; font-size: 13px;
+}
+body.editar-antigo .nv__cta:hover:not([disabled]) { background: #1976D2; filter: none; }
+
+/* o menu das seções: um cartão branco reto */
+body.editar-antigo .nv__lado {
+  background: #fff; border: 0; border-radius: 4px; box-shadow: 0 1px 3px rgba(20, 20, 50, .07), 0 6px 18px rgba(20, 20, 50, .05);
+}
+body.editar-antigo .nv__item { border-radius: 3px; font-size: 13.5px; }
+body.editar-antigo .nv__item--aqui { background: #EAF3FD; }
+body.editar-antigo .nv__item .nv__sw { border-radius: 3px; }
+
+/* os cartões das seções */
+body.editar-antigo.nv .ed__cartao {
+  background: #fff; border: 0; border-radius: 4px; box-shadow: 0 1px 3px rgba(20, 20, 50, .07), 0 8px 22px rgba(20, 20, 50, .05);
+}
+body.editar-antigo.nv .ed__cartao-titulo {
+  font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #3A3F55;
+  padding: 14px 20px; border-bottom: 1px solid #ECEEF3;
+}
+body.editar-antigo.nv .ed__icone { border-radius: 3px; width: 24px; height: 24px; font-size: 12px; }
+body.editar-antigo.nv .ed__cartao-selo { border-radius: 3px; }
+
+/* o campo: rótulo pequeno em maiúsculas cinza, caixa de borda fina e canto reto */
+body.editar-antigo.nv .ed__campo > label:not(.ed__chave),
+body.editar-antigo.nv .ed__rotulo-grupo {
+  font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #8A8FA3;
+}
+body.editar-antigo.nv .entrada,
+body.editar-antigo.nv .ed__unidade { border-width: 1px; border-color: #DADDE6; border-radius: 3px; }
+body.editar-antigo.nv .ed__campo--cheio .entrada,
+body.editar-antigo.nv .ed__campo--cheio .ed__unidade { border-color: #C9D3E3; }
+body.editar-antigo.nv .entrada:focus,
+body.editar-antigo.nv .entrada:focus-visible,
+body.editar-antigo.nv .ed__unidade:focus-within { border-color: #1E88E5; box-shadow: 0 0 0 3px rgba(30, 136, 229, .14); }
+
+/* a faixa da situação, o aviso do que falta e a biblioteca de fotos: cantos retos */
+body.editar-antigo.nv .ed__estado,
+body.editar-antigo.nv .ed__falta,
+body.editar-antigo.nv .ed__aviso,
+body.editar-antigo.nv .ed__fotos { border-radius: 4px; }
+body.editar-antigo.nv .ed__estado { background: #fff; box-shadow: 0 1px 3px rgba(20, 20, 50, .07); }
+body.editar-antigo.nv .ed__chip,
+body.editar-antigo.nv .ed__chip-botao { border-radius: 3px; }
+body.editar-antigo .btn-azul { border-radius: 4px; background: #1E88E5; }
+body.editar-antigo .btn-neutro { border-radius: 4px; }

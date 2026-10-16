@@ -1,4 +1,4 @@
-# privado.olx_chat_mensagem  (tabela, ~0 linhas)
+# privado.olx_chat_mensagem  (tabela, ~49 linhas)
 314: as mensagens de cada conversa da OLX; `nos` = a nossa conta, `comprador` = quem escreveu
 
 ## colunas
