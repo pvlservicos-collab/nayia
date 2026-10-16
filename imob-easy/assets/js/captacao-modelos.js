@@ -85,8 +85,18 @@
         (resto.length ? " · " + resto.length + " pendentes ou reprovados" : "") + " · lido " + new Date(d.lido_em * 1000).toLocaleString("pt-BR", { timeZone: "America/Manaus" });
       function secao(titulo, lista) { return lista.length ? '<h2 class="mw-secao">' + titulo + " <small>" + lista.length + "</small></h2>" + '<div class="mw-grade">' + lista.map(balao).join("") + "</div>" : ""; }
       // 12/10 (Pedro): duas abas, EM USO (os modelos da campanha) e OUTROS (o resto), a de outros fechada por padrão
-      var emUso = d.modelos.filter(function (m) { return EM_USO.indexOf(m.nome) >= 0; }).sort(function (a, b) { return EM_USO.indexOf(a.nome) - EM_USO.indexOf(b.nome); });
-      var novas = d.modelos.filter(function (m) { return NOVAS.indexOf(m.nome) >= 0; }).sort(function (x, y) { return NOVAS.indexOf(x.nome) - NOVAS.indexOf(y.nome); });
+      // 16/10 (Pedro: "tira lá da aba as que foram aprovadas como marketing, não me interessam"): Marketing não entra
+      // em nenhum título da aba Em uso; continua só em Outros › Marketing
+      function semMkt(m) { return m.categoria !== "MARKETING"; }
+      var emUso = d.modelos.filter(function (m) { return EM_USO.indexOf(m.nome) >= 0; }).filter(semMkt).sort(function (a, b) { return EM_USO.indexOf(a.nome) - EM_USO.indexOf(b.nome); });
+      var novas = d.modelos.filter(function (m) { return NOVAS.indexOf(m.nome) >= 0; }).filter(semMkt).sort(function (x, y) { return NOVAS.indexOf(x.nome) - NOVAS.indexOf(y.nome); });
+      // 16/10 (Pedro: "ponha lá as que eu tinha pedido para corretor, que tinha os botões, pedir imóvel ou falar no
+      // grupo"): título próprio, em cima. A regra é pelo botão (grupo ou pedir): modelo novo assim aparece sozinho.
+      // Os l5 com "Link do grupo / Pedir um imóvel" foram apagados em 11/10 (a Meta pôs todos em Marketing).
+      var corretor = d.modelos.filter(semMkt).filter(function (m) { return (m.botoes || []).some(function (b) { return /grupo|pedir/i.test(b.texto || ""); }); })
+        .sort(function (x, y) { return x.nome < y.nome ? -1 : 1; });
+      var blocoCorretor = corretor.length ? '<h2 class="mw-secao">Para corretores: entrar no grupo ou pedir imóvel <small>' + corretor.length + "</small></h2>" +
+        '<div class="mw-grade">' + corretor.map(balao).join("") + "</div>" : "";
       // 13/10, logo depois (Pedro: "você tirou das de em uso, deixa as antigas e deixa as novas lá também"): o título
       // Em uso continua com os cinco, como era; as novas aparecem nos dois lugares
       var jaEmUso = emUso;
@@ -99,7 +109,7 @@
       // disponível mas sem os botões, se tiver coloca lá para eu ver"): com as três coisas não existe nenhuma. As que
       // PERGUNTAM se está disponível e NÃO têm botão ganham um título próprio; o subtítulo diz se alguma fala de
       // número novo. A regra é pelo texto: modelo novo que couber nela aparece sozinho.
-      var semBotao = d.modelos.filter(function (m) { return !(m.botoes && m.botoes.length) && /dispon[ií]vel\s*\?/i.test(m.corpo || ""); });
+      var semBotao = d.modelos.filter(semMkt).filter(function (m) { return !(m.botoes && m.botoes.length) && /dispon[ií]vel\s*\?/i.test(m.corpo || ""); });
       var comNumero = semBotao.filter(function (m) { return /novo n[uú]mero|n[uú]mero novo/i.test(m.corpo || ""); }).length;
       var blocoSemBotao = semBotao.length ? '<h2 class="mw-secao">Sem botões, perguntando se está disponível <small>' + semBotao.length + " · " +
         (comNumero ? comNumero + (comNumero > 1 ? " se apresentam" : " se apresenta") + " como novo número" : "nenhuma se apresenta como novo número") + "</small></h2>" +
@@ -108,7 +118,7 @@
       var outros = secao("Utilidade", fora(util)) + secao("Marketing", fora(mkt)) + secao("Pendentes e reprovados", fora(resto));
       alvo.innerHTML = '<div class="mw-abas"><button type="button" class="mw-aba mw-aba--ativa" data-aba="uso">Em uso <small>' + emUso.length + "</small></button>" +
         '<button type="button" class="mw-aba" data-aba="outros">Outros <small>' + (d.modelos.length - emUso.length) + "</small></button></div>" +
-        '<section class="mw-painel" data-painel="uso">' + blocoNovas + (jaEmUso.length ? (novas.length ? '<h2 class="mw-secao">Em uso <small>' + jaEmUso.length + "</small></h2>" : "") + '<div class="mw-grade">' + jaEmUso.map(balao).join("") + "</div>" : (novas.length ? "" : '<p class="mw-vazio">Nenhum dos modelos em uso foi lido ainda.</p>')) + blocoSemBotao + "</section>" +
+        '<section class="mw-painel" data-painel="uso">' + blocoCorretor + blocoNovas + (jaEmUso.length ? (novas.length ? '<h2 class="mw-secao">Em uso <small>' + jaEmUso.length + "</small></h2>" : "") + '<div class="mw-grade">' + jaEmUso.map(balao).join("") + "</div>" : (novas.length ? "" : '<p class="mw-vazio">Nenhum dos modelos em uso foi lido ainda.</p>')) + blocoSemBotao + "</section>" +
         '<section class="mw-painel" data-painel="outros" hidden>' + outros + "</section>";
       alvo.querySelectorAll(".mw-aba").forEach(function (b) {
         b.addEventListener("click", function () {
