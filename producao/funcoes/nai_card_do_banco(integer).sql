@@ -53,9 +53,6 @@ AS $function$
 • só climatizado'
               WHEN 'nada' THEN E'
 • sem móveis' ELSE '' END
-      -- 345: a observação do imóvel ("falta só TV", "vista para o rio", "o dono aceita outro imóvel")
-      || CASE WHEN coalesce(btrim(b.observacao), '') <> '' THEN E'
-• ' || left(regexp_replace(btrim(b.observacao), '\s*\n+\s*', ' / ', 'g'), 300) ELSE '' END
       -- A TAXA DE CONDOMINIO, e so quando e recente (Tel, 03/10). A decisao
       -- ("mostra?") e o formato moram em `nay_linha_da_taxa` -- UMA copia, lida
       -- tambem pelo card do publicador (`montar_mensagem.py`). Taxa sem
@@ -74,7 +71,13 @@ Venda: R$ ' || replace(to_char(b.valor_venda, 'FM999,999,990'), ',', '.') ELSE '
       || CASE WHEN coalesce(b.valor_aluguel, 0) > 0
               THEN E'
 Locação: R$ ' || replace(to_char(b.valor_aluguel, 'FM999,999,990'), ',', '.')
-                   || CASE WHEN coalesce(b.extras->>'incluso no aluguel', '') ~* 'condom' THEN ' (incluso a tx)' ELSE '' END ELSE '' END
+                   || CASE WHEN coalesce(b.extras->>'incluso no aluguel', '') ~* 'condom' THEN ' (incluso a tx)'
+                        WHEN coalesce(b.taxa_condominio, 0) > 0 THEN ' fora taxa de CD'
+                        ELSE '' END ELSE '' END
+      -- 345 / 16-10: a observação do imóvel ("falta só TV", "vista para o rio") sai como
+      -- "OBS: ..." logo acima do código -- o MESMO lugar e o mesmo rótulo do card do publicador.
+      || CASE WHEN coalesce(btrim(b.observacao), '') <> '' THEN E'
+OBS: ' || left(regexp_replace(btrim(b.observacao), '\s*\n+\s*', ' / ', 'g'), 300) ELSE '' END
       || E'
 Código: ' || b.codigo
     END,

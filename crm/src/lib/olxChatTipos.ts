@@ -55,6 +55,9 @@ export interface AnuncioDoChatOlx {
   url: string | null
   /** ainda publicado na OLX; a conversa de anúncio que saiu vai para "Conversas inativas" */
   noAr: boolean
+  /** do cadastro do imóvel (383): para saber qual é sem abrir o anúncio */
+  condominio: string | null
+  bairro: string | null
 }
 
 export interface MensagemOlx {

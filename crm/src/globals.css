@@ -1852,6 +1852,14 @@ html {
 .olx-conv__anuncio a:hover { text-decoration: underline; }
 .olx-conv__sep { color: var(--olx-linha); }
 .olx-conv__preco { flex-shrink: 0; white-space: nowrap; }
+/* 383: o código e o condomínio do imóvel, à direita do topo da conversa */
+.olx-conv__imovel {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 1; min-width: 0; max-width: 42%;
+  padding: 8px 14px; border-radius: 10px; border: 1px solid var(--olx-linha); background: var(--olx-fundo-2); text-align: right;
+}
+.olx-conv__imovel:hover { border-color: var(--olx-roxo); }
+.olx-conv__cod { font-size: 16px; font-weight: 800; color: var(--olx-roxo); white-space: nowrap; }
+.olx-conv__condo { font-size: 13px; font-weight: 600; color: var(--olx-texto); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .olx-conv__nome { font-size: 17px; font-weight: 700; color: var(--olx-texto); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .olx-conv__rolagem { flex: 1; min-height: 0; overflow-y: auto; padding: 28px 24px 16px; display: flex; flex-direction: column; }
 .olx-perfil { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 48px 0 28px; text-align: center; }
@@ -1907,6 +1915,9 @@ html {
   .olx-aba { margin-bottom: 0; padding: 0 8px; }
   .olx-lado { width: 100%; border-right: 0; }
   .olx-conv__topo { min-height: 72px; padding: 10px 12px; gap: 10px; }
+  .olx-conv__imovel { padding: 6px 10px; max-width: 38%; }
+  .olx-conv__cod { font-size: 14px; }
+  .olx-conv__condo { font-size: 12px; }
   .olx-conv__rolagem { padding: 16px 12px; }
   .olx-perfil { margin: 20px 0 16px; }
   .olx-balao { max-width: 88%; }

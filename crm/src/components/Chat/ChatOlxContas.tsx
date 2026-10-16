@@ -832,6 +832,16 @@ function ContaOlxAba({ conta, secao, aoMudarSecao, aoContar }: {
           </p>
           <p className="olx-conv__nome">{nomeDe(sel)}</p>
         </div>
+        {/* 383 (Pedro, 16/10: "consegue colocar aqui o código e o nome do condomínio já para eu saber qual é"):
+            o imóvel do anúncio, à direita do topo; o clique abre o imóvel no CRM */}
+        {sel.anuncio?.codigo && (
+          <a href={`/${sel.anuncio.codigo}`} target="_blank" rel="noopener noreferrer" className="olx-conv__imovel" title="Abrir o imóvel no CRM">
+            <span className="olx-conv__cod">Cód. {sel.anuncio.codigo}</span>
+            {(sel.anuncio.condominio || sel.anuncio.bairro) && (
+              <span className="olx-conv__condo">{[sel.anuncio.condominio, sel.anuncio.bairro].filter(Boolean).join(' · ')}</span>
+            )}
+          </a>
+        )}
         <div className="relative" ref={menuRef}>
           <button type="button" className="olx-icone" onClick={() => setMenuAberto((v) => !v)} aria-label="Mais opções" aria-expanded={menuAberto}>
             <DotsThreeVertical size={24} weight="bold" />

@@ -101,6 +101,8 @@ export async function chatsDaContaOlx(conta: ContaOlx): Promise<ChatOlxNaLista[]
       foto: /^https?:\/\//i.test(String(a.foto || '')) ? String(a.foto) : null,
       url: /^https?:\/\//i.test(String(a.url || '')) ? String(a.url) : null,
       noAr: !!a.no_ar,
+      condominio: a.condominio || null,
+      bairro: a.bairro || null,
     })
   }
   return r.rows.map((l: any) => ({
