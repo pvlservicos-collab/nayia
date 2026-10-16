@@ -49,5 +49,17 @@ class Corretores(unittest.TestCase):
         self.assertEqual(v.corretores({}), [])
 
 
+class QuemChamar(unittest.TestCase):
+    """392: locação chama o Diego (e depois os corretores); venda, só os corretores."""
+    CFG = {"visita_locacao": "Diego:5592982092845", "visita_corretores": "Raquel:92988285562, Diego:92982092845"}
+
+    def test_locacao_diego_primeiro_sem_repetir(self):
+        self.assertEqual(v.quem_chamar(self.CFG, True), [("Diego", "92982092845"), ("Raquel", "92988285562")])
+
+    def test_venda_so_corretores(self):
+        self.assertEqual(v.quem_chamar({"visita_locacao": "Diego:5592982092845"}, False), [])
+        self.assertEqual(v.quem_chamar(self.CFG, False), [("Raquel", "92988285562"), ("Diego", "92982092845")])
+
+
 if __name__ == "__main__":
     unittest.main()

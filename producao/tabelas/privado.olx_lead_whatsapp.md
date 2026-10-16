@@ -24,6 +24,7 @@ humano_em  timestamp with time zone
 parada_motivo  text
 visita  jsonb
 origem  text  NOT NULL  padrão 'olx'::text
+seguimento_em  timestamp with time zone
 
 ## índices
 CREATE UNIQUE INDEX olx_lead_whatsapp_chat_telefone_key ON privado.olx_lead_whatsapp USING btree (chat, telefone)

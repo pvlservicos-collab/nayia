@@ -117,6 +117,20 @@ class Organico(unittest.TestCase):
         self.assertIn("(OLX, ", w.quem({**self.LEAD, "origem": "olx", "nome": "Josy"}))
 
 
+class Seguimento(unittest.TestCase):
+    """392: o acompanhamento depois de ~10 min de silêncio."""
+
+    def test_so_um_imovel(self):
+        self.assertEqual(w.texto_do_seguimento({"nome": "Carlos Eduardo", "trat": "Sr.", "enviados": []}),
+                         "Sr. Carlos, posso estar enviando outras opções semelhantes para o senhor?")
+        self.assertEqual(w.texto_do_seguimento({"nome": None, "trat": None, "enviados": []}),
+                         "Posso estar enviando outras opções semelhantes para você?")
+
+    def test_depois_das_opcoes(self):
+        self.assertTrue(w.texto_do_seguimento({"nome": "Michelle", "trat": "Sra.", "enviados": [9026]})
+                        .startswith("Sra. Michelle, conseguiu ver as opções"))
+
+
 class RespostaDaFila(unittest.TestCase):
     """391: a resposta do Tel na fila de perguntas, como chega ao cliente."""
 

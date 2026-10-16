@@ -84,10 +84,10 @@ def texto_confirmacao(codigo: int, q: datetime) -> str:
             "Por favor, confirme se os dados estão corretos para que eu possa entrar em contato com o proprietário.")
 
 
-def corretores(cfg: dict) -> list[tuple[str, str]]:
+def corretores(cfg: dict, chave: str = "visita_corretores") -> list[tuple[str, str]]:
     """`visita_corretores` = "Raquel:92988285562, Neila:92...". Telefone em DDD + número (sem o 55)."""
     saida = []
-    for parte in re.split(r"[,;\n]+", cfg.get("visita_corretores") or ""):
+    for parte in re.split(r"[,;\n]+", cfg.get(chave) or ""):
         if ":" not in parte:
             continue
         nome, fone = parte.split(":", 1)
@@ -97,6 +97,28 @@ def corretores(cfg: dict) -> list[tuple[str, str]]:
         if len(d) in (10, 11) and nome.strip():
             saida.append((nome.strip(), d))
     return saida
+
+
+def quem_chamar(cfg: dict, locacao: bool) -> list[tuple[str, str]]:
+    """392 (Pedro, 16/10): "quando for imóvel de locação não vai chamar corretor ... e sim o Diego direto, ela vai chamar
+    corretor só para venda ... se for locação pode falar com o Diego ou com o corretor para organizar agenda".
+    Locação: os de `visita_locacao` (o Diego) e depois os corretores; venda: só os corretores. Sem repetir telefone."""
+    lista = (corretores(cfg, "visita_locacao") if locacao else []) + corretores(cfg)
+    vistos, saida = set(), []
+    for nome, fone in lista:
+        if fone[-8:] not in vistos:
+            vistos.add(fone[-8:])
+            saida.append((nome, fone))
+    return saida
+
+
+def _e_locacao(conn, v: dict, lead: dict) -> bool:
+    """A visita é de locação? O imóvel diz (só aluguel / só venda); se é dos dois, o que a pessoa procura."""
+    l = banco.linhas(conn, "SELECT de_locacao, de_venda FROM core_imovel_busca WHERE codigo = %s", (v["codigo"],))
+    if l and bool(l[0].get("de_locacao")) != bool(l[0].get("de_venda")):
+        return bool(l[0].get("de_locacao"))
+    neg = (lead.get("negocio") or (lead.get("filtros") or {}).get("finalidade") or "").lower()
+    return neg.startswith("loca")
 
 
 def _so_ddd(t: str | None) -> str:
@@ -196,7 +218,8 @@ def _proximo_corretor(conn, v: dict, cfg: dict) -> None:
     lead = _lead(conn, v["lead"])
     tentados = {r["telefone"][-8:] for r in banco.linhas(
         conn, "SELECT telefone FROM privado.olx_visita_consulta WHERE visita = %s AND papel = 'corretor'", (v["id"],))}
-    lista = corretores(cfg)
+    locacao = _e_locacao(conn, v, lead)
+    lista = quem_chamar(cfg, locacao)
     q = v["quando"].astimezone(_w().MANAUS)
     for nome, fone in lista:
         if fone[-8:] in tentados:
@@ -207,14 +230,20 @@ def _proximo_corretor(conn, v: dict, cfg: dict) -> None:
                           VALUES (%s, 'corretor', %s, %s, %s)""", (v["id"], nome, fone, ate))
         onde = _onde(conn, v["codigo"])
         _mandar_para(conn, v["lead"], fone,
-                     f"Oi, {nome}! Aqui é a Nay, da Imob Easy. Tem uma visita para o imóvel #{v['codigo']}"
+                     f"Oi, {nome}! Aqui é a Nay, da Imob Easy. Tem uma visita {'de locação ' if locacao else ''}"
+                     f"para o imóvel #{v['codigo']}"
                      f"{' (' + onde + ')' if onde else ''} no dia {dia(q)} às {hora(q)}, com um cliente "
                      f"{'que nos chamou no WhatsApp' if lead.get('origem') == 'organico' else 'que veio da OLX'}. "
                      f"Você consegue ir nesse horário? Me responde com SIM ou NÃO, por favor.")
         log.info("visita %s: perguntado ao corretor %s", v["id"], nome)
         return
     _estado(conn, v["id"], "sem_corretor")
-    motivo = "nenhum corretor cadastrado para a Nay chamar" if not lista else "nenhum dos corretores pôde no horário"
+    if not lista:
+        motivo = "nenhum corretor cadastrado para a Nay chamar"
+    elif locacao:
+        motivo = "nem o Diego nem os corretores puderam no horário (ou não responderam)"
+    else:
+        motivo = "nenhum dos corretores pôde no horário"
     _w()._grupo(f"Visita do cliente {_quem(lead)} ao imóvel #{v['codigo']} em {dia(q)} às {hora(q)}: o cliente confirmou e "
                 f"{motivo}. Combinem um corretor e o proprietário e confirmem com ele por lá.")
 

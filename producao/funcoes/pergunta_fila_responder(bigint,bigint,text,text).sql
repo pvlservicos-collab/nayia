@@ -32,6 +32,9 @@ BEGIN
     END IF;
   ELSIF a ~ '^(descartar|descarta|descarte|tira|tirar)( (da|essa|a) (fila|pergunta))?[\s.!]*$' THEN
     UPDATE pergunta_fila SET estado = 'descartada', respondida_em = now() WHERE id = f.id;
+    IF f.origem = 'pendencias' THEN
+      UPDATE pendencias SET status = 'descartada', respondida_em = now() WHERE id = f.origem_id;
+    END IF;
     v_msg := 'Tirei da fila a pergunta ' || pos.k || '/' || pos.n || '.';
   ELSE
     UPDATE pergunta_fila SET estado = 'respondida', resposta = s, respondida_em = now() WHERE id = f.id;
@@ -58,6 +61,9 @@ BEGIN
     ELSE
       v_msg := '✅ Peguei a resposta da pergunta ' || pos.k || '/' || pos.n || ': a Nay manda para ' || v_quem
                || ' pelo WhatsApp de captação.';
+    END IF;
+    IF f.origem = 'pendencias' THEN
+      UPDATE pendencias SET status = 'respondida', resposta = s, respondida_em = now() WHERE id = f.origem_id;
     END IF;
     -- a memória: com o código, a resposta fica no imóvel (sem número de unidade, que é de um apartamento só)
     IF f.codigo IS NOT NULL AND a !~ '\m(apto|ap|apartamento|bloco|torre|unidade)\s*\.?\s*\d' THEN

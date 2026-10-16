@@ -98,6 +98,8 @@ só ela pede as fotos E já diz o que procura (valor, região), faça as duas co
 BAIRROS: escreva bairros de Manaus. Avenida ou região vira os bairros por onde ela passa (ex.: "da Constantino Nery até
 a Ponta Negra" = Chapada, São Jorge, Dom Pedro, Planalto, Alvorada, Ponta Negra). Os bairros vizinhos o sistema já soma.
 MOBÍLIA (locação): mobiliado = com móveis; semi = modulados e/ou ar-condicionado; "" = tanto faz.
+COMERCIAL (galpão, prédio, sala, loja, ponto, terreno): NUNCA pergunte de mobília (mobiliado ou semi) nem de quartos, e
+não pergunte de escada. Pergunte só o valor e a região (e o crédito, na venda).
 
 === QUANDO VEIO DIRETO (ORGÂNICO) ===
 Não houve OLX nem anúncio: a pessoa escreveu para este número por conta própria. NUNCA fale de anúncio, de OLX, de "falamos
@@ -112,7 +114,8 @@ pela confusão e siga).
 2. Se o assunto não é procurar imóvel (quer vender ou alugar o imóvel dela, é corretor, cobrança, outro assunto): diga com
    naturalidade que já passa para a equipe e marque "equipe" com o motivo.
 3. Procura imóvel: o mesmo roteiro de OUTRAS OPÇÕES, uma pergunta por vez, começando pelo que o anúncio daria: o TIPO
-   (apartamento, casa ou casa em condomínio; "tanto faz" vale) e quantos quartos (se 3, serve 2?); depois até que valor,
+   (apartamento, casa, casa em condomínio ou comercial; "tanto faz" vale) e, se residencial, quantos quartos (se 3,
+   serve 2?); depois até que valor,
    quais bairros, a escada (só na VENDA até R$ 500.000, se ela quer apartamento) e o crédito (só na VENDA). Fechamento
    e acao "buscar" como lá.
 
@@ -147,7 +150,8 @@ Valor em reais assim: R$ 700.000 / R$ 2.500.
   que a equipe responda ou mande algo, e a conversa continua com você) | "equipe" (a conversa passa para a equipe) |
   "encerrar" (ela agradeceu e não quer mais nada).
 - filtros: TUDO o que ela já disse até agora (aqui e na OLX); vazio/0/null o que não disse. finalidade: "locacao" ou
-  "venda" (sem ela dizer, é a do anúncio). tipo: "apartamento", "casa", "casa_condominio" ou "tanto_faz". teto: só o
+  "venda" (sem ela dizer, é a do anúncio). tipo: "apartamento", "casa", "casa_condominio", "tanto_faz" ou, no
+  comercial, "galpao", "predio", "sala", "loja", "terreno" ("comercial" quando ela não disser qual). teto: só o
   número em reais. quartos: o número que ela quer. financiamento: "aprovado", "simular", "a vista" ou "".
   No orgânico, finalidade só quando ela disser.
 - visita: o código do imóvel, a data (DD/MM) e a hora (HH:MM) que ela disse.
@@ -732,6 +736,63 @@ def _ha_resposta(conn) -> bool:
         return False
 
 
+def texto_do_seguimento(lead: dict) -> str:
+    """392 (Pedro, 16/10): ~10 min de silêncio depois da última mensagem dela. Já mandou opções: se alguma agradou; só
+    falou de um imóvel: "Sr. Carlos, posso estar enviando outras opções semelhantes para o Sr.?"."""
+    trat, pronome = tratamento(lead)
+    para = {"a senhora": "a senhora", "o senhor": "o senhor"}.get(pronome, "você")
+    if lead.get("enviados"):
+        t = "conseguiu ver as opções que eu mandei? Se quiser, separo outras semelhantes ou já agendo uma visita."
+    else:
+        t = f"posso estar enviando outras opções semelhantes para {para}?"
+    return f"{trat}, {t}" if trat else t[:1].upper() + t[1:]
+
+
+_ULTIMO_SEGUIMENTO = [0.0]
+
+
+def seguir(conn, cfg: dict, a_cada_s: float = 60.0) -> int:
+    """392: quem conversou e ficou `seguimento_min` sem responder depois da última mensagem dela recebe UM acompanhamento
+    (de novo só depois que falar outra vez). Das 8h às 20h, só para mensagem dela das últimas 6 h; visita andando, equipe
+    na conversa e atendimento encerrado ficam de fora."""
+    if time.monotonic() - _ULTIMO_SEGUIMENTO[0] < a_cada_s:
+        return 0
+    _ULTIMO_SEGUIMENTO[0] = time.monotonic()
+    if not (8 <= datetime.now(MANAUS).hour < 20):
+        return 0
+    minutos = max(1, int(cfg.get("seguimento_min") or 10))
+    candidatos = banco.linhas(conn, """
+        SELECT l.id FROM privado.olx_lead_whatsapp l
+         CROSS JOIN LATERAL (
+               SELECT max(m.criada_em) FILTER (WHERE m.direcao = 'recebida') AS ela,
+                      max(m.criada_em) FILTER (WHERE m.direcao = 'enviada' AND coalesce(btrim(m.texto), '') <> '') AS nos
+                 FROM captacao_mensagens m
+                WHERE right(regexp_replace(coalesce(m.telefone, ''), '\\D', '', 'g'), 8) = right(l.telefone, 8)
+                  AND m.criada_em > now() - interval '3 days') x
+         WHERE l.assumido_em IS NOT NULL AND l.humano_em IS NULL
+           AND l.etapa IN ('filtrar', 'feito_busca', 'imoveis_enviados')
+           AND x.ela IS NOT NULL AND x.nos > x.ela
+           AND x.nos < now() - make_interval(mins => %s) AND x.nos > now() - interval '6 hours'
+           AND (l.seguimento_em IS NULL OR l.seguimento_em < x.ela)
+           AND NOT EXISTS (SELECT 1 FROM privado.olx_visita v WHERE v.lead = l.id
+                              AND v.estado IN ('confirmar_cliente', 'buscando_corretor', 'pedindo_proprietario'))
+         ORDER BY x.nos LIMIT 3""", (minutos,))
+    if not candidatos or not conectada():
+        return 0
+    feitos = 0
+    for c in candidatos:
+        lead = _lead(conn, c["id"])
+        if not lead or not _pode(cfg, lead["telefone"]):
+            continue
+        if _gente_escreveu(conn, lead, lead.get("humano_em") or lead.get("assumido_em")):
+            continue                                  # a equipe está na conversa: a vez é dela
+        mandar_texto(conn, lead, texto_do_seguimento(lead))
+        _marcar(conn, lead["id"], seguimento_em=banco.um(conn, "SELECT now()"))
+        log.info("lead %s: acompanhamento mandado", lead["id"])
+        feitos += 1
+    return feitos
+
+
 def atender(conn, cfg: dict) -> int:
     if (cfg.get("whatsapp_responde") or "nao").strip().lower() not in ("teste", "sim"):
         return 0
@@ -748,6 +809,11 @@ def atender(conn, cfg: dict) -> int:
             entregar_respostas(conn)
         except ErroDeEnvio as e:
             log.warning("a resposta do Tel não saiu: %s", e)
+    # 392: o acompanhamento depois de ~10 min de silêncio
+    try:
+        seguir(conn, cfg)
+    except ErroDeEnvio as e:
+        log.warning("o acompanhamento não saiu: %s", e)
     # a Z-API só é consultada quando há o que fazer (a volta é de 5 em 5 s)
     if not _ha_trabalho(conn, cfg) or not conectada():
         return 0
