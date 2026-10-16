@@ -17,6 +17,17 @@ AS ETAPAS (o modelo segue, e pula a que o cliente já adiantou):
   Proposta, desconto, documentação, contrato, outro imóvel, corretor oferecendo parceria: ela não resolve; pede o
   WhatsApp para a equipe falar e entrega do mesmo jeito. No grupo vai SÓ nome e número (15/10); o motivo fica no CRM.
 
+16/10/2026, O OBJETIVO MUDOU (Pedro): "agora o nosso objetivo vai ser chamar a pessoa para o WhatsApp, então ela vai tirar
+as dúvidas sobre o imóvel e já sugerir caso a pessoa não tenha mandado: Me manda seu WhatsApp para eu te mandar informações
+e organizamos a visita por lá". Agora:
+  1. responde a dúvida pela ficha;
+  2. sugere o WhatsApp (se a pessoa ainda não mandou), sem repetir o pedido em toda mensagem;
+  3. faz a LEITURA DE PERFIL sem interrogatório (o que ela procura, valor, bairros, quartos, financiamento, as dúvidas),
+     que vai junto para a Nay do WhatsApp (número de captação) continuar de onde parou;
+  4. deu o WhatsApp -> agradece, diz que chama por lá e ENCAMINHA ("whatsapp"); o perfil fica em
+     privado.olx_lead_whatsapp (384). No grupo, como antes, só nome e número ("solicitou visita" se ela quis visitar).
+  "visita" e "equipe" ainda são aceitos do modelo e viram a mesma entrega.
+
 ATÉ ONDE A ANTIGA IA (14/10) E ESTA SE PARECEM: a fila, a reserva, os 20 s de silêncio e "gente respondeu, a Nay cala"
 continuam no banco (364) e no chat.py. Mudou o cérebro: as regras fixas (regex de "sim", a frase exata "Quer agendar uma
 visita?") viraram o modelo, como na Nay de captação. O que ficou em código são as PAREDES, que o modelo não atravessa:
@@ -39,6 +50,8 @@ class Decisao:
     passar_para_gente: str | None = None
     # quando há: o aviso que vai ao grupo da equipe (visita pedida ou "a equipe precisa falar")
     aviso_grupo: str | None = None
+    # 16/10: quem deu o WhatsApp, para a Nay do WhatsApp: {nome, telefone, quer_visita, perfil}
+    lead: dict | None = None
 
 
 LIMITE_DE_BALOES = 20    # nossas mensagens na conversa antes de entregar para gente
@@ -58,31 +71,41 @@ def telefone_bonito(d: str) -> str:
 
 
 PROMPT = """Você é a Nay, da Imob Easy, imobiliária de Manaus. Você responde, pelo chat da OLX, quem se interessou por
-um anúncio NOSSO. O dono da imobiliária é o Tel; quem marca visita e negocia é a equipe, no WhatsApp.
+um anúncio NOSSO. O SEU OBJETIVO é levar a conversa para o WhatsApp: é lá que a gente manda as informações, outras
+opções parecidas e organiza a visita.
 
-=== O SEU TRABALHO, POR ETAPAS ===
-1. Responder as dúvidas sobre O IMÓVEL DESTE ANÚNCIO, com a ficha que o sistema te entrega.
-2. Convidar para uma visita (uma vez, de um jeito natural; não repita o convite em toda mensagem).
-3. A pessoa quis visitar: pedir o NOME e o WHATSAPP com DDD. Se a OLX já mostra um telefone dela, pergunte se pode
-   chamar nesse número no WhatsApp, em vez de pedir de novo.
-4. Ela deu o nome e o WhatsApp (ou confirmou o número da OLX): agradeça e diga que a equipe vai chamar no WhatsApp para
-   combinar o melhor horário. Aqui você ENCAMINHA ("visita").
-Seja flexível: se ela já chega querendo visitar, pule para o contato; se manda o número sem você pedir, aproveite; se
-faz outra pergunta no meio, responda e continue de onde parou. Não peça o que ela já disse.
+=== O SEU TRABALHO ===
+1. Tirar as dúvidas sobre O IMÓVEL DESTE ANÚNCIO, com a ficha que o sistema te entrega. Responda primeiro o que a
+   pessoa perguntou.
+2. Se ela ainda não mandou o WhatsApp, sugira junto com a resposta: "Me manda seu WhatsApp para eu te mandar as
+   informações e organizamos a visita por lá." Pode mudar as palavras, mas o convite é esse. Se a OLX já mostra um
+   telefone dela, pergunte se pode chamar no WhatsApp desse número do cadastro, em vez de pedir de novo (sem escrever
+   o número).
+3. Ela mandou o WhatsApp (ou confirmou o do cadastro): agradeça pelo nome e diga que já chama por lá. Aqui você
+   ENCAMINHA ("whatsapp").
+Não repita o pedido do WhatsApp em toda mensagem: se ela não quis dar, responda as dúvidas e deixe para convidar de
+novo mais adiante, uma vez. Seja flexível: se manda o número sem você pedir, aproveite; se faz outra pergunta no meio,
+responda e continue de onde parou. Não peça o que ela já disse.
+
+=== A LEITURA DE PERFIL ===
+Enquanto conversa, anote o que já dá para saber do que a pessoa procura. Não faça interrogatório aqui: as perguntas de
+perfil (até que valor, bairros, quartos, financiamento) a Nay do WhatsApp faz. Você só registra o que ela disse, no
+campo "perfil", para a conversa continuar no WhatsApp de onde você parou.
 
 === VENDA OU LOCAÇÃO (o sistema diz qual é este anúncio) ===
 VENDA: valor de venda, se aceita financiamento (campo fin), se aceita permuta (campo permuta), condomínio, IPTU,
   tamanho, quartos, vagas, o que tem no condomínio. Não fale de aluguel, caução nem fiador.
-LOCAÇÃO: valor do aluguel, condomínio, IPTU, o que a taxa de condomínio inclui (campo incluso), a garantia que o dono
-  aceita (campo garantia), a mobília. Não fale de financiamento nem de permuta.
+LOCAÇÃO: valor do aluguel, condomínio, IPTU, o que está INCLUSO NO ALUGUEL (campo incluso: por exemplo "Água, Taxa de
+  Gás, Taxa de Condomínio" quer dizer que o aluguel já cobre isso; não é o que a taxa de condomínio inclui), a garantia
+  que o dono aceita (campo garantia), a mobília. Não fale de financiamento nem de permuta.
 
-=== O QUE NÃO É COM VOCÊ (pede o WhatsApp e ENCAMINHA "equipe") ===
-Proposta, desconto, "aceita X?", negociação, documentação, escritura, contrato, análise de crédito, outro imóvel,
-corretor oferecendo parceria, pedido para falar com uma pessoa, reclamação. Diga com naturalidade que isso a equipe
-resolve pelo WhatsApp e peça o nome e o número. Se a pessoa não quiser dar, tudo bem, não insista.
+=== O QUE SE RESOLVE NO WHATSAPP (pede o WhatsApp e ENCAMINHA) ===
+Visita, outras opções, proposta, desconto, "aceita X?", negociação, documentação, escritura, contrato, análise de
+crédito, outro imóvel, corretor oferecendo parceria, pedido para falar com uma pessoa, reclamação. Diga com naturalidade
+que isso a gente vê pelo WhatsApp e peça o número. Se a pessoa não quiser dar, tudo bem, não insista.
 
 === NUNCA ===
-- Inventar. O que não está na ficha você não sabe: diga que confirma com a equipe e peça o WhatsApp.
+- Inventar. O que não está na ficha você não sabe: diga que confirma e manda pelo WhatsApp.
 - Dizer endereço exato, número da casa ou do apartamento, bloco, torre, nem o nome do proprietário. Bairro e
   condomínio pode.
 - Mandar link, telefone ou e-mail nosso, nem emoji.
@@ -96,12 +119,30 @@ Easy"). Nada de "Como posso te ajudar hoje?", "Fico à disposição", "Estou aqu
 R$ 700.000 / R$ 2.500.
 
 === A SUA RESPOSTA: SÓ ESTE JSON, NADA MAIS ===
-{"baloes": ["..."], "encaminhar": null, "nome": "", "whatsapp": "", "motivo": ""}
+{"baloes": ["..."], "encaminhar": null, "nome": "", "whatsapp": "", "quer_visita": false,
+ "perfil": {"procura": "", "valor": "", "bairros": "", "quartos": "", "financiamento": "", "duvidas": ""}}
 - baloes: o que vai para o cliente agora (pode ser [] se não há o que dizer, por exemplo depois de um "ok" final).
-- encaminhar: null | "visita" | "equipe". Só quando JÁ tem o WhatsApp (dito por ela ou o da OLX que ela confirmou).
+- encaminhar: null | "whatsapp". Só quando JÁ tem o WhatsApp (dito por ela ou o do cadastro que ela confirmou).
 - nome, whatsapp: o que ela informou (whatsapp só com dígitos e DDD).
-- motivo: em poucas palavras, para a equipe (ex.: "quer visitar sábado de manhã", "proposta de R$ 650 mil").
+- quer_visita: true se ela disse que quer visitar.
+- perfil: só o que ela DISSE até agora; vazio o que não disse. procura = o que ela quer, em poucas palavras (ex.:
+  "apartamento para alugar, 2 quartos, mobiliado"); valor = até quanto pode pagar; bairros; quartos; financiamento =
+  vai financiar, à vista, crédito aprovado; duvidas = o que ela perguntou sobre o imóvel e o que você respondeu.
 """
+
+CAMPOS_DO_PERFIL = ("procura", "valor", "bairros", "quartos", "financiamento", "duvidas")
+
+
+def _perfil(p) -> dict:
+    """O perfil que o modelo leu, só com os campos conhecidos e em texto curto (o resto é descartado)."""
+    p = p if isinstance(p, dict) else {}
+    return {k: str(p.get(k) or "").strip()[:300] for k in CAMPOS_DO_PERFIL if str(p.get(k) or "").strip()}
+
+
+def resumo_do_perfil(perfil: dict) -> str:
+    rotulo = {"procura": "procura", "valor": "até", "bairros": "bairros", "quartos": "quartos",
+              "financiamento": "pagamento", "duvidas": "perguntou"}
+    return "; ".join(f"{rotulo[k]}: {perfil[k]}" for k in CAMPOS_DO_PERFIL if perfil.get(k))[:400]
 
 
 def _ficha(imovel: dict | None) -> dict:
@@ -208,20 +249,24 @@ def decidir(contexto: dict, responder_duvida: Callable[[int, str], str | None] |
     baloes = [b for b in (limpar_balao(str(x)) for x in (r.get("baloes") or [])[:MAX_BALOES_POR_VEZ]) if b]
 
     encaminhar = (r.get("encaminhar") or "").strip().lower() or None
-    if encaminhar not in (None, "visita", "equipe"):
-        encaminhar = "equipe"
     if encaminhar:
         fone = telefone_valido(r.get("whatsapp"))
         if not fone:
             # disse que encaminha sem ter o número: a parede segura, e ela continua a conversa
             encaminhar = None
         else:
-            motivo = (r.get("motivo") or "").strip()[:200]
+            # 16/10: tudo vai para o WhatsApp; "visita" e "equipe" (o formato de antes) também valem
             nome = (r.get("nome") or "").strip()[:80]
-            rotulo = "quer visita" if encaminhar == "visita" else "quer falar com a equipe"
+            quer_visita = r.get("quer_visita") is True or encaminhar == "visita"
+            perfil = _perfil(r.get("perfil"))
+            motivo = (r.get("motivo") or "").strip()[:200]
+            resumo = "; ".join(x for x in (resumo_do_perfil(perfil), motivo) if x)
+            rotulo = "mandou o WhatsApp e quer visitar" if quer_visita else "mandou o WhatsApp"
             return Decisao(
                 baloes=baloes,
-                passar_para_gente=f"{rotulo}: {nome or 'sem nome'}, {telefone_bonito(fone)}" + (f" ({motivo})" if motivo else ""),
-                aviso_grupo=_aviso(ctx, encaminhar, nome, fone, motivo))
+                passar_para_gente=f"{rotulo}: {nome or 'sem nome'}, {telefone_bonito(fone)}" + (f" ({resumo})" if resumo else ""),
+                aviso_grupo=_aviso(ctx, "visita" if quer_visita else "whatsapp", nome, fone, motivo),
+                lead={"nome": nome or ((ctx.get("cliente") or {}).get("nome") or ""), "telefone": fone,
+                      "quer_visita": quer_visita, "perfil": perfil})
 
     return Decisao(baloes=baloes) if baloes else None

@@ -57,7 +57,25 @@ class Etapas(unittest.TestCase):
         # no grupo, só nome e número (Pedro, 15/10); o detalhe fica no CRM
         self.assertEqual(d.aviso_grupo, "Lead Felipe solicitou visita pela OLX, número (92) 99154-0843.")
         self.assertIn("sábado de manhã", d.passar_para_gente)
-        self.assertIn("quer visita", d.passar_para_gente)
+        self.assertIn("quer visitar", d.passar_para_gente)
+
+    def test_whatsapp_com_a_leitura_de_perfil(self):
+        # 16/10: o objetivo é o WhatsApp; o perfil vai junto para a Nay do WhatsApp e aparece no CRM
+        m = Modelo({"baloes": ["Obrigada, Michelle! Já te chamo no WhatsApp com as informações."], "encaminhar": "whatsapp",
+                    "nome": "Michelle", "whatsapp": "92981585907", "quer_visita": False,
+                    "perfil": {"procura": "apartamento para alugar, 2 quartos, mobiliado", "valor": "até R$ 3.000",
+                               "bairros": "", "inventado": "não vai", "duvidas": "pediu detalhes; condomínio R$ 350"}})
+        d = nay.decidir(ctx([dele("Pode me enviar mais detalhes? 98158-5907")], negocio="locacao"), None, m)
+        self.assertEqual(d.aviso_grupo, "Lead Michelle pela OLX, número (92) 98158-5907.")
+        self.assertEqual(d.lead["telefone"], "92981585907")
+        self.assertFalse(d.lead["quer_visita"])
+        self.assertEqual(set(d.lead["perfil"]), {"procura", "valor", "duvidas"})   # vazio e campo inventado saem
+        self.assertIn("procura: apartamento para alugar", d.passar_para_gente)
+        self.assertIn("até: até R$ 3.000", d.passar_para_gente)
+
+    def test_o_prompt_pede_o_whatsapp(self):
+        self.assertIn("Me manda seu WhatsApp", nay.PROMPT)
+        self.assertIn("LEITURA DE PERFIL", nay.PROMPT)
 
     def test_proposta_vai_como_equipe(self):
         m = Modelo({"baloes": ["Valor quem trata é a equipe. Ela te chama no WhatsApp."], "encaminhar": "equipe",

@@ -1,4 +1,4 @@
-# privado.olx_chat_nay  (tabela, ~9 linhas)
+# privado.olx_chat_nay  (tabela, ~11 linhas)
 364: o estado de cada conversa da OLX para a Nay: reservada (alguém está respondendo agora) e passada para gente (a Nay não responde mais nela).
 
 ## colunas

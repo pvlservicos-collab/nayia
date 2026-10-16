@@ -86,6 +86,20 @@ def _avisar(texto: str) -> None:
         log.exception("o aviso ao grupo falhou")
 
 
+def _guardar_lead(conn, chat: int, decisao) -> None:
+    """16/10 (384): quem deu o WhatsApp fica guardado com a leitura de perfil, para a Nay do WhatsApp (número de
+    captação) continuar de onde a da OLX parou. Falhar aqui não derruba o atendimento."""
+    if not (decisao and decisao.lead):
+        return
+    try:
+        l = decisao.lead
+        banco.um(conn, "SELECT olx_nay_lead_whatsapp(%s, %s, %s, %s, %s::jsonb)",
+                 (chat, l.get("nome") or None, l["telefone"], bool(l.get("quer_visita")),
+                  json.dumps(l.get("perfil") or {}, ensure_ascii=False)))
+    except Exception:  # noqa: BLE001
+        log.exception("conversa %s: o perfil do lead não foi guardado", chat)
+
+
 def atender_fila(conn, cfg: dict[str, str]) -> int:
     """Uma passada pela fila. Devolve quantas conversas foram respondidas ou passadas para gente."""
     if cfg.get("nay_responde") != "sim":
@@ -120,6 +134,7 @@ def atender_fila(conn, cfg: dict[str, str]) -> int:
             if decisao.passar_para_gente:
                 passar_para_gente(conn, chat, decisao.passar_para_gente)
                 log.info("conversa %s passada para gente: %s", chat, decisao.passar_para_gente)
+            _guardar_lead(conn, chat, decisao)
             # no grupo vai SÓ o nome e o número de quem mandou o contato (Pedro, 15/10); o resto fica no CRM
             if decisao.aviso_grupo:
                 _avisar(decisao.aviso_grupo)
@@ -134,9 +149,10 @@ def atender_fila(conn, cfg: dict[str, str]) -> int:
                 passar_para_gente(conn, chat, f"{quem}: {e}")
             except Exception:                      # noqa: BLE001
                 log.exception("conversa %s: não consegui nem passar para gente", chat)
-            # o lead já tinha dado o contato: o nome e o número vão ao grupo assim mesmo
+            # o lead já tinha dado o contato: o nome e o número vão ao grupo assim mesmo, e o perfil fica guardado
             if decisao and decisao.aviso_grupo:
                 _avisar(decisao.aviso_grupo)
+            _guardar_lead(conn, chat, decisao)
         finally:
             banco.um(conn, "SELECT olx_nay_soltar(%s)", (chat,))
     return feitas

@@ -47,4 +47,4 @@ olx_anuncio_pkey: PRIMARY KEY (id)
 olx_anuncio_enviado, olx_anuncio_falhou, olx_anuncio_na_olx, olx_anuncio_resultado
 
 ## funções que citam
-crm_olx_anuncios_painel, crm_olx_chats_anuncios, crm_olx_metricas, olx_anuncio_enviado, olx_anuncio_falhou, olx_anuncio_na_olx, olx_anuncio_resultado, olx_anuncios_a_conferir, olx_anuncios_plano, olx_nay_contexto
+crm_olx_anuncios_painel, crm_olx_chats_anuncios, crm_olx_metricas, olx_anuncio_enviado, olx_anuncio_falhou, olx_anuncio_na_olx, olx_anuncio_resultado, olx_anuncios_a_conferir, olx_anuncios_plano, olx_nay_contexto, olx_nay_lead_whatsapp
