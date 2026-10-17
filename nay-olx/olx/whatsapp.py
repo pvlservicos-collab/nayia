@@ -147,6 +147,7 @@ naturalidade que já passa para a equipe e que vão falar com ela por aqui. (Des
 - Endereço exato, número da casa ou do apartamento, bloco, torre, nome do proprietário. Bairro e condomínio pode.
 - Link, telefone, e-mail, emoji.
 - Falar de Nay da OLX, de robô, de ficha, de catálogo. Para ela você é só a Nay, da Imob Easy.
+- Dizer que um imóvel é "de parceiro", "de parceria" ou "de outra imobiliária". Para ela todo imóvel é da Imob Easy.
 
 === COMO VOCÊ FALA ===
 Português do Brasil, de gente: uma moça de Manaus no WhatsApp do trabalho, não um assistente traduzido do inglês. Curto:
@@ -276,7 +277,8 @@ def sem_repetir(baloes: list[str], ja: list[str]) -> list[str]:
 def mandar_imovel(conn, lead: dict, codigo: int, com_card: bool = True) -> int:
     """O card e as fotos de UM imóvel (sem a colagem, que é só dos grupos). Devolve quantas fotos saíram.
     `com_card=False`: só as fotos ("gostaria de ver mais fotos" do imóvel que ela já conhece)."""
-    card = banco.um(conn, "SELECT texto_pronto FROM nai_card_do_imovel(%s)", (codigo,)) if com_card else None
+    # 400: o card de CLIENTE (o de parceiro sai completo); só chega aqui o que _ofertavel deixou
+    card = banco.um(conn, "SELECT texto_pronto FROM nai_card_do_imovel(%s, true)", (codigo,)) if com_card else None
     if card:
         _mandar(conn, lead, "/send-text", {"message": card}, "card", codigo, texto_no_crm=card)
     fotos = [l["url"] for l in banco.linhas(conn, "SELECT url FROM nai_imagens_do_envio(%s) WHERE NOT e_colagem", (codigo,))
@@ -428,12 +430,17 @@ def _pelo_nome(conn, conversa: list[dict]) -> list[int]:
          LIMIT 2""", {"t": texto})]
 
 
-def _fichas_citadas(conn, conversa: list[dict]) -> list[dict]:
+def _fichas_citadas(conn, conversa: list[dict], lead: dict | None = None) -> list[dict]:
     fichas = []
     for c in codigos_citados(conversa) or _pelo_nome(conn, conversa):
         i = banco.um(conn, "SELECT site_imovel_publico(%s)", (c,))
         if isinstance(i, dict) and i:
             fichas.append({"codigo": c, **nay._ficha(i)})
+        elif lead and _ofertavel(conn, c, lead):
+            # 400: o de parceiro não tem página pública; ela lê o card de cliente dele
+            card = banco.um(conn, "SELECT texto_pronto FROM nai_card_do_imovel(%s, true)", (c,))
+            if card:
+                fichas.append({"codigo": c, "card": card})
     return fichas
 
 
@@ -760,7 +767,7 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
         return False
     ctx_olx = banco.um(conn, "SELECT olx_nay_contexto(%s)", (lead["chat"],)) if lead.get("chat") else None
     if organico(lead):
-        lead["fichas_citadas"] = _fichas_citadas(conn, conversa)
+        lead["fichas_citadas"] = _fichas_citadas(conn, conversa, lead)
     r = modelo.chamar(PROMPT, montar_turno(lead, ctx_olx, conversa))
     acoes = acoes_da(r)
     _falar(conn, lead, r, acoes)
@@ -785,10 +792,15 @@ def acoes_da(r: dict) -> list[str]:
     return saida[:2]
 
 
-def _ofertavel(conn, codigo: int) -> bool:
-    """O imóvel pode ir ao cliente: anunciável e NÃO de parceria (a regra "parceria nunca sai")."""
-    return bool(banco.um(conn, """SELECT EXISTS (SELECT 1 FROM core_imovel_busca WHERE codigo = %s AND ofertavel
-                                                  AND NOT coalesce(e_parceiro, false))""", (codigo,)))
+def _ofertavel(conn, codigo: int, lead: dict | None = None) -> bool:
+    """O imóvel pode ir a esta pessoa: anunciável; o de PARCEIRO Disponível só a quem não é corretor (400, Pedro 17/10:
+    "não enviamos para os corretores, só para os clientes finais que vêm da OLX"). Sem telefone: parceiro não sai."""
+    return bool(banco.um(conn, "SELECT olx_imovel_vai_ao_cliente(%s, %s)", (codigo, (lead or {}).get("telefone"))))
+
+
+def _aceita_parceiro(conn, lead: dict) -> bool:
+    """400: cliente final (não é corretor dos grupos nem parceiro do site antigo) recebe imóvel de parceiro."""
+    return bool(lead.get("telefone")) and bool(banco.um(conn, "SELECT olx_pode_receber_parceiro(%s)", (lead["telefone"],)))
 
 
 def codigo_da_pergunta(lead: dict, motivo: str) -> int | None:
@@ -806,7 +818,7 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
     if acao == "fotos":
         f = r.get("fotos") if isinstance(r.get("fotos"), dict) else {}
         codigo = _int(f.get("codigo")) or lead.get("codigo")
-        if codigo and not _ofertavel(conn, codigo):
+        if codigo and not _ofertavel(conn, codigo, lead):
             _para_a_fila(conn, lead, codigo, f"Pediu fotos do #{codigo}, que é de parceria ou não está disponível: o que dizer?")
             codigo = None
         if codigo:
@@ -830,7 +842,7 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
         # 389 (Pedro, 16/10): a confirmação no modelo da Parceria; os contatos só depois do sim dela
         v = r.get("visita") if isinstance(r.get("visita"), dict) else {}
         codigo = _int(v.get("codigo")) or lead.get("codigo")
-        if codigo and not _ofertavel(conn, codigo):
+        if codigo and not _ofertavel(conn, codigo, lead):
             _para_a_fila(conn, lead, codigo, f"Quer visitar o #{codigo}, que é de parceria ou não está disponível: o que dizer?")
         elif visita.pedir_confirmacao(conn, lead, codigo, str(v.get("data") or ""), str(v.get("hora") or "")):
             pass                                            # a etapa vira 'visita' lá dentro
@@ -883,6 +895,8 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
     f = dict(filtros)
     if not f.get("finalidade"):
         f["finalidade"] = finalidade_sem_dizer(lead, f)
+    if _aceita_parceiro(conn, lead):
+        f["aceita_parceiro"] = "true"           # 400: o cliente final recebe também os de parceiro
     achados, proximas = [], False
     for tentativa, afrouxou in _afrouxar(f):
         achados = banco.linhas(conn, "SELECT * FROM olx_cliente_buscar(%s::jsonb, %s::int[], %s)",
@@ -1063,7 +1077,7 @@ def enviar_pedidos(conn) -> int:
         enviados, fora = [], []
         try:
             for n, codigo in enumerate(p["codigos"]):
-                if not _ofertavel(conn, codigo):
+                if not _ofertavel(conn, codigo, lead):
                     fora.append(str(codigo))
                     continue
                 if enviados:

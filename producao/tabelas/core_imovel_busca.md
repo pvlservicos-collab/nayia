@@ -1,4 +1,4 @@
-# core_imovel_busca  (view materializada, ~5717 linhas)
+# core_imovel_busca  (view materializada, ~5719 linhas)
 nay-core: um imóvel por linha com tipo, finalidade, zona, mobília (4 níveis, 028) e "ofertável" calculados uma vez. REFRESH CONCURRENTLY pelo worker (005).
 
 ## colunas
@@ -43,7 +43,7 @@ nay_leitura: SELECT
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-olx_cliente_buscar
+olx_cliente_buscar, olx_imovel_vai_ao_cliente
 
 ## definição da view
  SELECT i.codigo,

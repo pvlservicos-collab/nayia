@@ -41,6 +41,7 @@ import AgendarFollowup from './AgendarFollowup'
 import CadastroDeImovel, { type AlvoDoCadastro, type FotoDaConversa } from './CadastroDeImovel'
 import { usePuxador } from '@/hooks/usePuxador'
 import { AVISO_DAS_24_HORAS } from './AgendarNoCardOficial'
+import TagParceiro from '@/components/TagParceiro'
 
 interface ImovelDoCard {
   codigo: number; condominio: string | null; tipo: string | null; bairro: string | null; status: string | null
@@ -360,7 +361,7 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial }:
                     </p>
                     <p className="text-[11.5px] truncate" style={{ color: 'var(--wa-text-2)' }}>
                       #{i.codigo}{i.status ? ` · ${i.status}` : ''}{reais(i.aluguel) ? ` · ${reais(i.aluguel)}` : reais(i.venda) ? ` · ${reais(i.venda)} venda` : ''} · {i.fotos} foto{i.fotos === 1 ? '' : 's'}
-                      {i.parceiro ? ' · parceria' : ''}{i.daCampanha ? ' · da campanha' : ''}
+                      {i.parceiro ? <> <TagParceiro /></> : null}{i.daCampanha ? ' · da campanha' : ''}
                     </p>
                     {p && <Barra pct={p.pct} falta={p.falta} />}
                     <div className="flex items-center gap-1.5 mt-1.5">

@@ -21,6 +21,7 @@
 import { useEffect, useState } from 'react'
 import { X } from '@phosphor-icons/react'
 import { codigosNoTexto } from '@/lib/imovelCodigo'
+import TagParceiro from '@/components/TagParceiro'
 
 interface CardDoImovel {
   codigo: number
@@ -122,7 +123,7 @@ export default function ImovelCitado({
           </span>
           <span className="block text-[11px] opacity-80 truncate">
             {[i.bairro, valor, i.status].filter(Boolean).join(' · ')}
-            {imovel.e_parceiro ? ' · parceiro' : ''}
+            {imovel.e_parceiro ? <> <TagParceiro /></> : null}
           </span>
         </span>
       </button>
@@ -140,7 +141,7 @@ export default function ImovelCitado({
                 <p className="text-xs text-muted">
                   código {imovel.codigo}
                   {i.status ? ` · ${i.status}` : ''}
-                  {imovel.e_parceiro ? ' · imóvel de parceiro' : ''}
+                  {imovel.e_parceiro ? <> <TagParceiro /></> : null}
                 </p>
               </div>
               <button type="button" onClick={() => setAberto(false)} aria-label="Fechar" title="Fechar"

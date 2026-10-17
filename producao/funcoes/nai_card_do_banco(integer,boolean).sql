@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION public.nai_card_do_banco(p_codigo integer)
+CREATE OR REPLACE FUNCTION public.nai_card_do_banco(p_codigo integer, p_cliente boolean DEFAULT false)
  RETURNS TABLE(texto_pronto text, qtd_fotos integer)
  LANGUAGE sql
  STABLE
@@ -12,7 +12,7 @@ AS $function$
                 ELSE coalesce(i.tipo, 'Imóvel') || ' bairro ' || i.bairro END AS titulo
       FROM imoveis i WHERE i.codigo = p_codigo)
   SELECT
-    CASE WHEN coalesce(b.e_parceiro, false) THEN
+    CASE WHEN coalesce(b.e_parceiro, false) AND NOT p_cliente THEN   -- 400: ao cliente final vai o card completo
       '📍 ' || b.titulo || E'
 • esse imovel e de parceria, nao da imob easy.'
     ELSE
@@ -81,6 +81,6 @@ OBS: ' || left(regexp_replace(btrim(b.observacao), '\s*\n+\s*', ' / ', 'g'), 300
       || E'
 Código: ' || b.codigo
     END,
-    CASE WHEN coalesce(b.e_parceiro, false) THEN 0 ELSE (SELECT count(*)::int FROM imovel_fotos f WHERE f.codigo = b.codigo) END
+    CASE WHEN coalesce(b.e_parceiro, false) AND NOT p_cliente THEN 0 ELSE (SELECT count(*)::int FROM imovel_fotos f WHERE f.codigo = b.codigo) END
   FROM b;
 $function$;

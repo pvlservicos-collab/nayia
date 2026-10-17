@@ -543,10 +543,12 @@
       entrada + (c.lista ? datalist(nome) : "") + dica + "</div>";
   }
 
+  function eParceiro() { return $("ed-parceiro") ? $("ed-parceiro").checked : !!item.e_parceiro; }
+
   function chegaNaNay(situacao, noSite) {
     var bloq = inputDe("bloqueado");
     var bloqueado = bloq ? bloq.checked : !!item.bloqueado;
-    return situacao === "Disponível" && noSite && !item.e_parceiro && !bloqueado;
+    return situacao === "Disponível" && noSite && !eParceiro() && !bloqueado;
   }
 
   function desenharEstado() {
@@ -569,7 +571,12 @@
       '<div class="ed__estado-item"><label class="ed__chave ed__chave--forte"><input type="checkbox" data-campo="publicado_no_site" id="ed-no-site"' +
         (item.publicado_no_site ? " checked" : "") + '><span class="ed__chave-trilho" aria-hidden="true"></span><span>No site</span></label></div>' +
       '<div class="ed__estado-item"><span class="ed__nay" id="ed-nay"></span></div>' +
-      (item.e_parceiro ? '<div class="ed__estado-item"><span class="ed__selo ed__selo--parceiro">imóvel de parceiro</span></div>' : "") +
+      // 400 (Pedro, 17/10: "adicione uma Situação, Parceiros ... que fique sempre claro que esses são de parceiros"):
+      // a marca à mão fica gravada e a leitura do site antigo não desfaz
+      '<div class="ed__estado-item"><label class="ed__chave ed__chave--parceiro" title="Imóvel de parceiro: nunca vai a corretor ' +
+        '(número Parceria); vai só a cliente final do número de captação (OLX)"><input type="checkbox" data-campo="e_parceiro" id="ed-parceiro"' +
+        (item.e_parceiro ? " checked" : "") + '><span class="ed__chave-trilho" aria-hidden="true"></span><span>Parceiro</span></label>' +
+        '<span class="etiqueta-parceiro" id="ed-selo-parceiro"' + (item.e_parceiro ? "" : " hidden") + '>Parceiro</span></div>' +
       '<div class="ed__estado-salvar"><span class="ed__status-salvar" id="ed-status-salvar" role="status"></span>' +
         (sit === "Excluído" ? "" : '<button class="btn-neutro ed__excluir" type="button" id="ed-excluir">Excluir imóvel</button>') +
         '<button class="btn-azul" type="submit" id="ed-salvar" disabled>Salvar</button></div>';
@@ -583,8 +590,11 @@
     var sit = sel ? sel.value : (item.status || "");
     var noSite = $("ed-no-site") ? $("ed-no-site").checked : false;
     var chega = chegaNaNay(sit, noSite);
+    var soCliente = !chega && eParceiro() && sit === "Disponível";
     el.className = "ed__nay" + (chega ? " ed__nay--sim" : "");
-    el.textContent = chega ? "Chega na Nay" : "Não chega na Nay";
+    el.textContent = chega ? "Chega na Nay" : soCliente ? "Só cliente final (OLX, 8595)" : "Não chega na Nay";
+    var selo = $("ed-selo-parceiro");
+    if (selo) selo.hidden = !eParceiro();
   }
 
   function desenharCartoes() {
@@ -999,7 +1009,8 @@
       regras = item.campos_editaveis || {};
       document.title = "Imóvel " + item.codigo + " — Imob Easy";
       $("ed-titulo").innerHTML = "Imóvel <span class=\"ed__codigo\">" + esc(item.codigo) + "</span>" +
-        (item.condominio_nome ? " · " + esc(item.condominio_nome) : "");
+        (item.condominio_nome ? " · " + esc(item.condominio_nome) : "") +
+        (item.e_parceiro ? ' <span class="etiqueta-parceiro">Parceiro</span>' : "");
       $("ed-sub").textContent = [item.tipo, item.bairro, item.quartos ? item.quartos + " quartos" : "",
         item.criado_em ? "cadastrado em " + new Date(item.criado_em).toLocaleDateString("pt-BR") : ""]
         .filter(Boolean).join(" · ");
@@ -1107,9 +1118,11 @@
     if (alvo.id === "ed-situacao") {
       alvo.setAttribute("style", corDaSituacao(alvo.value));
       // mostra já o que o servidor vai fazer com o anúncio, se ele não mexeu no "no site"
-      if (!noSiteMexido && $("ed-no-site")) $("ed-no-site").checked = alvo.value === "Disponível" && !item.e_parceiro;
+      if (!noSiteMexido && $("ed-no-site")) $("ed-no-site").checked = alvo.value === "Disponível" && !eParceiro();
     }
     if (alvo.id === "ed-no-site") noSiteMexido = true;
+    // parceiro sai do site (regra de 27/09): a tela mostra já o que o servidor vai fazer
+    if (alvo.id === "ed-parceiro" && alvo.checked && !noSiteMexido && $("ed-no-site")) $("ed-no-site").checked = false;
     atualizarNay();
     atualizarBotao();
   });
@@ -1246,10 +1259,11 @@
           if (novo) $("ed-salvar").disabled = false; else atualizarBotao();
           return;
         }
+        if ("e_parceiro" in corpo) item.e_parceiro = !!corpo.e_parceiro;
         if (corpo.status) {
           item.status = corpo.status;
           // o servidor aplicou a regra do anúncio: a tela passa a mostrar o mesmo
-          if (!("publicado_no_site" in corpo) && $("ed-no-site")) $("ed-no-site").checked = corpo.status === "Disponível" && !item.e_parceiro;
+          if (!("publicado_no_site" in corpo) && $("ed-no-site")) $("ed-no-site").checked = corpo.status === "Disponível" && !eParceiro();
         }
         noSiteMexido = false;
         semDonoOk = false;

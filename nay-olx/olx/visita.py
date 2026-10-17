@@ -305,6 +305,13 @@ def _pedir_ao_dono(conn, v: dict, cfg: dict) -> None:
         return                            # 393: de noite o proprietário espera (_retomar chama de manhã)
     lead = _lead(conn, v["lead"])
     q = v["quando"].astimezone(_w().MANAUS)
+    # 400: imóvel de PARCEIRO -- o "proprietário" do cadastro é o corretor parceiro, e parceria é com o Tel: a Nay não
+    # escreve para ele; a equipe combina com o parceiro e confirma com o cliente
+    if banco.um(conn, "SELECT coalesce(e_parceiro, false) FROM imoveis WHERE codigo = %s", (v["codigo"],)):
+        _estado(conn, v["id"], "sem_proprietario")
+        _w()._grupo(f"Visita do cliente {_quem(lead)} ao imóvel #{v['codigo']} (DE PARCEIRO) em {dia(q)} às {hora(q)}: o "
+                    f"corretor {v.get('corretor_nome') or ''} confirmou. Combinem com o parceiro e confirmem com o cliente por lá.")
+        return
     d = banco.linhas(conn, "SELECT * FROM nai_proprietario_do_imovel(%s)", (v["codigo"],))
     nome = (d[0].get("nome") or "").strip() if d else ""
     fone = _so_ddd(d[0].get("telefone") if d else None)

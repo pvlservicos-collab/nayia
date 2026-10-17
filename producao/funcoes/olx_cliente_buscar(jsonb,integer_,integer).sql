@@ -34,7 +34,10 @@ AS $function$
            CASE WHEN f.fin = 'venda' THEN i.valor_venda ELSE i.valor_aluguel END AS p
       FROM core_imovel_busca i CROSS JOIN f
       LEFT JOIN imoveis x ON x.codigo = i.codigo
-     WHERE i.ofertavel AND NOT coalesce(i.e_parceiro, false)
+     -- 400: o imóvel de parceiro Disponível vai ao cliente final (o nay-olx só manda aceita_parceiro a quem não é corretor)
+     WHERE (i.ofertavel
+            OR (coalesce(p_filtros->>'aceita_parceiro', '') = 'true' AND coalesce(i.e_parceiro, false)
+                AND x.status = 'Disponível' AND coalesce(x.disponivel, true) AND NOT coalesce(x.bloqueado, false)))
        AND CASE WHEN f.fin = 'venda' THEN i.de_venda ELSE i.de_locacao END
        AND CASE WHEN f.tipo IN ('', 'tanto_faz') THEN i.tipo IN ('apartamento', 'casa', 'casa_condominio', 'flat', 'cobertura')
                 WHEN f.tipo = 'casa' THEN i.tipo IN ('casa', 'casa_condominio')

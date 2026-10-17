@@ -169,6 +169,10 @@
               ["Excluído", "Excluído", "#5d566a"]]
     },
     confirmar: { chave: "confirmar", faceta: "confirmar", grupo: "sit", itens: [["sim", "Precisa confirmar"]] },
+    /* 400 (Pedro, 17/10: "adicione uma Situação, Parceiros"): o mesmo filtro de "De quem é", mostrado também na
+       Situação. `espelho`: não conta duas vezes no número do grupo nem vira duas etiquetas de filtro ativo */
+    parceiro_sit: { chave: "parceiro", faceta: "parceiro", grupo: "sit", espelho: true,
+                    itens: [["sim", "Parceiros", "#0e7490"]] },
     quartos: { chave: "quartos", faceta: "quartos", grupo: "imovel",
                itens: [["1", "1+"], ["2", "2+"], ["3", "3+"], ["4", "4+"]] },
     vagas: { chave: "vagas", faceta: "vagas", grupo: "imovel",
@@ -196,7 +200,7 @@
   var NOME = {
     status: "Situação", confirmar: "Situação", quartos: "Quartos", vagas: "Vagas",
     anuncio: "Anúncio", foto: "Fotos", cadastro: "Cadastro", fin: "Finalidade", financia: "Financia",
-    dono: "Proprietário", parceiro: "De quem é"
+    dono: "Proprietário", parceiro: "De quem é", parceiro_sit: "Situação"
   };
 
   /* As duas datas que existem no banco. "Disponível desde" e "última
@@ -308,6 +312,7 @@
     var porGrupo = { sit: 0, imovel: 0, anuncio: 0, onde: 0, valor: 0, dono: 0 };
     Object.keys(GRUPOS).forEach(function (k) {
       var g = GRUPOS[k], v = st[g.chave];
+      if (g.espelho) return;
       porGrupo[g.grupo] += g.multi ? v.length : (v ? 1 : 0);
     });
     porGrupo.imovel += msTiposL.valores().length;
@@ -371,6 +376,7 @@
     }
     Object.keys(GRUPOS).forEach(function (k) {
       var g = GRUPOS[k], v = st[g.chave];
+      if (g.espelho) return;
       (g.multi ? v : (v ? [v] : [])).forEach(function (x) {
         var it = g.itens.filter(function (a) { return a[0] === x; })[0];
         c.push('<button class="ativo" type="button" data-limpa-op="' + k + '" data-v="' + esc(x) + '">' +
@@ -575,7 +581,7 @@
       : '<span class="btn-mini" title="Imóvel só do admin antigo: não está no catálogo, então não abre no editor">só consulta</span>';
     return '<tr data-codigo="' + esc(i.codigo) + '" tabindex="0" class="' + (i.noCatalogo ? "" : "fora-catalogo") + '">' +
       '<td><span class="cod">' + esc(i.codigo) + "</span>" +
-        (i.parceiro ? '<div><span class="etiqueta etiqueta--laranja">parceiro</span></div>' : "") +
+        (i.parceiro ? '<div><span class="etiqueta-parceiro" title="Imóvel de parceiro: nunca vai a corretor; só a cliente final do número de captação (OLX)">Parceiro</span></div>' : "") +
         (i.capa ? '<img class="miniatura" loading="lazy" src="' + esc(i.capa) + '" alt="">' : "") +
         '<div class="sub">' + (i.fotos ? i.fotos + " foto" + (i.fotos > 1 ? "s" : "") : "sem foto") + "</div></td>" +
       "<td>" + seletorDeSituacao(i) +
@@ -588,6 +594,8 @@
               : '<div><span class="etiqueta etiqueta--laranja" title="Abra o imóvel e ' +
                 (i.bloqueado ? "tire o bloqueio" : "ligue o No site") + ' para a Nay voltar a oferecer">a Nay NÃO oferece: ' +
                 (i.bloqueado ? "bloqueado" : "fora do site") + "</span></div>")
+          : i.status === "Disponível" && i.parceiro && !i.bloqueado
+            ? '<div class="sub" style="color:#0e7490">só cliente final (OLX)</div>'
           : "") +
         (i.precisaConfirmar ? '<div class="sub">precisa confirmar</div>' : "") + "</td>" +
       "<td>" + (precos(i).length
@@ -757,9 +765,9 @@
           : esc(i.valor || "Consulte")) + "</div>" +
         "<div><b>Anúncio</b>" + (i.anunciado ? "No site" : "Fora do site") + "</div>" +
         "<div><b>Financiamento</b>" + esc(i.financia) + "</div>" +
-        "<div><b>De quem é</b>" + (i.parceiro ? "Parceiro" : "Nosso (proprietário)") + "</div>" +
+        "<div><b>De quem é</b>" + (i.parceiro ? '<span class="etiqueta-parceiro">Parceiro</span>' : "Nosso (proprietário)") + "</div>" +
         "<div><b>Chega na Nay</b>" + (i.anunciado && !i.parceiro && !i.bloqueado && i.status === "Disponível" ? "Sim"
-          : "Não" + (i.parceiro ? " (parceiro)" : i.status !== "Disponível" ? " (não está Disponível)"
+          : "Não" + (i.parceiro ? " (parceiro: vai só a cliente final do número de captação)" : i.status !== "Disponível" ? " (não está Disponível)"
                      : i.bloqueado ? " (bloqueado)" : " (fora do site)")) + "</div>" +
       "</div></div>" +
 
@@ -885,7 +893,7 @@
           h += '<p style="color:var(--texto-fraco)">' + esc(d.aviso || "sem proprietário cadastrado") + "</p>";
         } else {
           h += '<p style="margin:0 0 10px"><strong>' + esc(p.nome) + "</strong>" +
-               (p.e_parceiro ? ' <span class="etiqueta etiqueta--laranja">parceiro</span>' : "") + "</p>";
+               (p.e_parceiro ? ' <span class="etiqueta-parceiro">Parceiro</span>' : "") + "</p>";
           if (!p.contatos.length) {
             h += '<p style="color:var(--texto-fraco);font-size:var(--fs-xs)">' + esc(d.aviso || "") + "</p>";
           } else {

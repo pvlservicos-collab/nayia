@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION public.nai_card_do_imovel(p_codigo integer)
+CREATE OR REPLACE FUNCTION public.nai_card_do_imovel(p_codigo integer, p_cliente boolean DEFAULT false)
  RETURNS TABLE(texto_pronto text, qtd_fotos integer)
  LANGUAGE sql
  STABLE
@@ -13,11 +13,11 @@ AS $function$
            (SELECT f.card FROM imovel_ficha f JOIN imoveis i ON i.codigo = f.codigo
              WHERE f.codigo = p_codigo AND f.encontrado AND f.erro IS NULL AND f.card IS NOT NULL
                AND f.lido_em > now() - interval '26 hours'
-               AND NOT coalesce(i.e_parceiro, false)
+               AND (p_cliente OR NOT coalesce(i.e_parceiro, false))
                AND coalesce(f.valor_venda, 0) = coalesce(i.valor_venda, 0)
                AND coalesce(f.valor_aluguel, 0) = coalesce(i.valor_aluguel, 0)
                AND f.card ~ ('C[óo]digo:\s*' || p_codigo || '\s*$')),
            b.texto_pronto),
          b.qtd_fotos
-    FROM nai_card_do_banco(p_codigo) b;
+    FROM nai_card_do_banco(p_codigo, p_cliente) b;
 $function$;

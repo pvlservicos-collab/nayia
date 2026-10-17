@@ -242,3 +242,20 @@ class RespostaDaFila(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Parceiro(unittest.TestCase):
+    """400 (Pedro, 17/10): imóvel de parceiro vai ao cliente final do 8595, nunca a corretor; ela não diz "parceiro"."""
+    def test_pergunta_ao_banco_com_o_telefone(self):
+        from unittest import mock
+        with mock.patch.object(w.banco, "um", return_value=True) as um:
+            self.assertTrue(w._ofertavel(None, 5553, {"telefone": "92999990000"}))
+            self.assertEqual(um.call_args[0][1:], ("SELECT olx_imovel_vai_ao_cliente(%s, %s)", (5553, "92999990000")))
+            w._ofertavel(None, 5553)
+            self.assertEqual(um.call_args[0][2], (5553, None))       # sem pessoa: parceiro não sai
+
+    def test_sem_telefone_nao_aceita(self):
+        self.assertFalse(w._aceita_parceiro(None, {"telefone": ""}))
+
+    def test_o_prompt_proibe_a_palavra(self):
+        self.assertIn('"de parceiro"', w.PROMPT)

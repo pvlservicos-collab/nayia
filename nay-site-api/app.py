@@ -1414,6 +1414,9 @@ def api_imovel_salvar(codigo):
     sets = []
     valores = []
     erros = []
+    # 400: marcou como parceiro -> sai do site (vai pelo campo publicado_no_site, que a regra da situação respeita)
+    if corpo.get("e_parceiro") in (True, "true", "sim", 1, "1") and "publicado_no_site" not in corpo:
+        corpo["publicado_no_site"] = False
 
     # CONDOMINIO: escolhido na lista (etiqueta), grava o id; o nome sai da
     # tabela condominios -- nunca o texto que veio do navegador.
@@ -1496,6 +1499,13 @@ def api_imovel_salvar(codigo):
 
     # os campos do site antigo (extras) e a parte privada (unidade, locacao)
     apagar, gravar = _extras_do_corpo(corpo, erros)
+    # IMÓVEL DE PARCEIRO marcado à mão (400, Pedro 17/10: "adicione uma Situação, Parceiros"): a decisão mora em
+    # extras.parceiro_manual e o gatilho imoveis_parceiro_pelo_captador põe e_parceiro -- a leitura diária do site antigo
+    # não desfaz. Parceiro sai do site (regra de 27/09).
+    if "e_parceiro" in corpo:
+        parceiro = corpo.get("e_parceiro") in (True, "true", "sim", 1, "1")
+        gravar = dict(gravar or {})
+        gravar["parceiro_manual"] = "sim" if parceiro else "nao"
     if apagar or gravar:
         sets.append(psycopg2.sql.SQL("extras = (coalesce(extras, '{}'::jsonb) - %s::text[]) || %s::jsonb"))
         valores.append(apagar)
