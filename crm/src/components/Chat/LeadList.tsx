@@ -11,6 +11,7 @@ import { soRespondeNaCaptacao } from '@/lib/captacaoSoResponde'
 import { useParceriaMarcas } from '@/hooks/useParceriaMarcas'
 import { useCaptacaoDonos } from '@/hooks/useCaptacaoDonos'
 import { useOlxClientes, mudarEtapaOlx } from '@/hooks/useOlxClientes'
+import { useDonosDoCadastro } from '@/hooks/useDonosDoCadastro'
 import { ETAPAS_OLX, fim8, type EtapaOlx } from '@/lib/olxClientes'
 import { montarAtendentes, atendenteDaConversa, type Atendente } from '@/lib/atendentes'
 import LeadListItem from './LeadListItem'
@@ -168,6 +169,10 @@ export default function LeadList({
   /* OS CLIENTES DA OLX (Pedro, 16/10/2026: "novas etapas na aba captação baseada nas etapas da nay que está atendendo").
      A etapa vem da Nay do WhatsApp dos clientes da OLX (src/lib/olxClientes.ts); só na aba Captação, que é o número dela. */
   const olxClientes = useOlxClientes(linha === 'captacao')
+  /* 16/10 (Pedro: "no CRM número captação pôr a aba proprietário também"): Proprietários da Captação vale como o da
+     Parceria -- quem é dono de imóvel no cadastro entra, além do dono da campanha (migração 397) */
+  const donosDoCadastro = useDonosDoCadastro(linha === 'captacao')
+  const ehDono = (l: { id: string; phone?: string | null }) => !!donos[l.id] || donosDoCadastro.has(fim8(l.phone))
   const etapaOlxDe = (l: LeadWithOwner): EtapaOlx | null => {
     const c = olxClientes[fim8(l.phone)]
     return c && c.etapa !== 'nova' ? c.etapa : null
@@ -482,7 +487,7 @@ export default function LeadList({
         if (semLer) contagem[`semler:cap:${a}`] = (contagem[`semler:cap:${a}`] ?? 0) + semLer
       }
       // as etapas da aba Captação (16/10): a do cliente da OLX; o dono da campanha conta em Proprietários
-      const etapaOlx = linha === 'captacao' ? (etapaOlxDe(l) || (donos[l.id] ? 'proprietarios' : null)) : null
+      const etapaOlx = linha === 'captacao' ? (etapaOlxDe(l) || (ehDono(l) ? 'proprietarios' : null)) : null
       if (etapaOlx) {
         soma(`olx:${etapaOlx}`)
         const semLer = Number(l.nao_lidas || 0)
@@ -559,7 +564,10 @@ export default function LeadList({
   const filtrosCaptacao: FiltroDaLista[] = linha === 'captacao'
     ? [
         { chave: 'all', rotulo: 'Todos', grupo: 'etapa' as const },
-        ...ETAPAS_OLX.map((e) => ({ chave: `olx:${e.chave}`, rotulo: e.rotulo, cor: e.cor, titulo: e.titulo, grupo: 'etapa' as const,
+        ...ETAPAS_OLX.map((e) => ({ chave: `olx:${e.chave}`, rotulo: e.rotulo, cor: e.cor, grupo: 'etapa' as const,
+                                    titulo: e.chave === 'proprietarios'
+                                      ? 'Os donos de imóvel: do cadastro, da campanha e o cliente da OLX que a equipe pôs aqui'
+                                      : e.titulo,
                                     contagem: contagem[`olx:${e.chave}`], naoLidas: contagem[`semler:olx:${e.chave}`] })),
       ]
     : []
@@ -578,7 +586,7 @@ export default function LeadList({
     }
     if (activeTab === 'all') return true
     if (activeTab.startsWith('cap:')) return (donos[l.id]?.abas || []).includes(activeTab.slice(4))
-    if (activeTab === 'olx:proprietarios') return etapaOlxDe(l) === 'proprietarios' || (!etapaOlxDe(l) && !!donos[l.id])
+    if (activeTab === 'olx:proprietarios') return etapaOlxDe(l) === 'proprietarios' || (!etapaOlxDe(l) && ehDono(l))
     if (activeTab.startsWith('olx:')) return etapaOlxDe(l) === activeTab.slice(4)
     if (activeTab === 'nao_lidas') return !!l.is_unread || l.id === selectedLeadId
     if (activeTab === 'rayssa') return daRayssa(l, marcas[l.id], atendenteDoLead[l.id])

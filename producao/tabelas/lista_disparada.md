@@ -1,4 +1,4 @@
-# lista_disparada  (tabela, ~45 linhas)
+# lista_disparada  (tabela, ~72 linhas)
 
 ## colunas
 id  integer  NOT NULL  padrão nextval('lista_disparada_id_seq'::regclass)

@@ -1,4 +1,4 @@
-# privado.falou_conosco_crm  (tabela, ~681 linhas)
+# privado.falou_conosco_crm  (tabela, ~683 linhas)
 
 ## colunas
 telefone  text  NOT NULL

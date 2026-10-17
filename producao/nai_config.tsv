@@ -1,5 +1,5 @@
 chave	valor	atualizado_em
-_agenda_rodou_em	2026-10-16 18:02:15	2026-10-16T18:02
+_agenda_rodou_em	2026-10-16 20:33:15	2026-10-16T20:33
 agenda_sem_visita_da_nay_desde	2026-10-08 10:44:54.342893-04	2026-10-08T10:44
 antecedencia_minima_horas	3	2026-09-10T18:41
 apresentacao_proprietario	Oi! Esse é o número de visitas da Imob Easy.	2026-09-30T10:15
@@ -58,7 +58,7 @@ pergunta_fila	sim	2026-10-16T16:15
 pergunta_fila_cobrar_min	10	2026-10-16T16:15
 pergunta_fila_hora_fim	22	2026-10-16T16:15
 pergunta_fila_hora_ini	7	2026-10-16T16:15
-_pergunta_fila_rodada	2026-10-16 17:24:51.315004-04	2026-10-16T17:24
+_pergunta_fila_rodada	2026-10-16 19:23:33.58633-04	2026-10-16T19:23
 piso_correcao_nome	0.80	2026-09-23T09:53
 piso_venda	100000	2026-09-22T18:13
 pos_visita_min	60	2026-09-10T18:41

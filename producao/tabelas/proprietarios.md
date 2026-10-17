@@ -25,4 +25,4 @@ nay_site_escrita, só nestas colunas: INSERT(id, nome, telefone, email, tratamen
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-captacao_olx_novo, crm_anuncio_mesma_unidade, crm_captacao_cadastro_opcoes, crm_captacao_dono_cadastro, crm_etapa_da_nay, crm_etapa_manual, crm_imovel_candidatos, crm_imovel_para_cadastro, crm_olx_cliente_etapa, crm_olx_config_gravar, crm_olx_conta_preparar, crm_parceria_marcas, nai_cadastro_pendente, nai_com_a_rayssa, nai_e_proprietario_contato, nai_liberar_saida, nai_proprietario_do_imovel, olx_nay_lead_whatsapp, olx_organicos_novos, site_olx_anuncio_pedir
+captacao_olx_novo, crm_anuncio_mesma_unidade, crm_captacao_cadastro_opcoes, crm_captacao_dono_cadastro, crm_donos_do_cadastro, crm_etapa_da_nay, crm_etapa_manual, crm_imovel_candidatos, crm_imovel_para_cadastro, crm_olx_cliente_etapa, crm_olx_config_gravar, crm_olx_conta_preparar, crm_parceria_marcas, nai_cadastro_pendente, nai_com_a_rayssa, nai_e_proprietario_contato, nai_liberar_saida, nai_proprietario_do_imovel, olx_nay_lead_whatsapp, olx_organicos_novos, site_olx_anuncio_pedir
