@@ -28,6 +28,9 @@ function recarregar(): Promise<void> {
   return buscando
 }
 
+/** Lê de novo agora (o card parou ou soltou a Nay e quer ver o estado novo). */
+export function recarregarOlxClientes(): Promise<void> { return recarregar() }
+
 /** A equipe muda a etapa (Proprietários, Fechamento, Finalizados...). Devolve a mensagem de erro, ou null. */
 export async function mudarEtapaOlx(telefone: string, etapa: EtapaOlx): Promise<string | null> {
   try {

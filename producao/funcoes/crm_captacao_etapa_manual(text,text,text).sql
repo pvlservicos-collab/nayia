@@ -23,7 +23,16 @@ BEGIN
     DELETE FROM captacao_etapa_manual WHERE telefone = v_dig;
     UPDATE captacao_leads SET humano_assumiu_em = NULL, humano_motivo = NULL
      WHERE right(telefone, 8) = right(v_dig, 8) AND humano_assumiu_em IS NOT NULL;
-    RETURN QUERY SELECT true, 'Em Todos: a etapa volta a ser a que a campanha diz.';
+    -- 398: a Nay do WhatsApp (OLX/orgânico) volta e responde a PRÓXIMA mensagem
+    UPDATE privado.olx_lead_whatsapp o
+       SET humano_em = NULL, parada_motivo = NULL, assumido_em = now(), atualizado_em = now(),
+           ultima_lida = greatest(o.ultima_lida, (SELECT coalesce(max(m.id), 0) FROM captacao_mensagens m
+                                                    WHERE m.direcao = 'recebida'
+                                                      AND right(regexp_replace(coalesce(m.telefone, ''), '\D', '', 'g'), 8) = right(v_dig, 8)))
+     WHERE right(o.telefone, 8) = right(v_dig, 8) AND o.humano_em IS NOT NULL;
+    GET DIAGNOSTICS v_n = ROW_COUNT;
+    RETURN QUERY SELECT true, CASE WHEN v_n > 0 THEN 'Em Todos: a Nay volta a atender na próxima mensagem desta pessoa.'
+                                   ELSE 'Em Todos: a etapa volta a ser a que a campanha diz.' END;
     RETURN;
   END IF;
 
@@ -38,6 +47,12 @@ BEGIN
            humano_motivo = coalesce(humano_motivo, left('CRM: ' || v_quem || ' mandou para o Tel', 200))
      WHERE right(telefone, 8) = right(v_dig, 8);
     GET DIAGNOSTICS v_n = ROW_COUNT;
+    -- 398: e a Nay do WhatsApp (OLX/orgânico) sai da conversa
+    UPDATE privado.olx_lead_whatsapp
+       SET humano_em = coalesce(humano_em, now()), atualizado_em = now(),
+           parada_motivo = coalesce(parada_motivo, left('CRM: ' || v_quem || ' parou a Nay', 200))
+     WHERE right(telefone, 8) = right(v_dig, 8);
+    v_n := v_n + (SELECT count(*) FROM privado.olx_lead_whatsapp WHERE right(telefone, 8) = right(v_dig, 8));
     RETURN QUERY SELECT true, CASE WHEN v_n > 0
       THEN 'Com o Tel: a Nay não fala mais com essa pessoa até voltar para Todos.'
       ELSE 'Com o Tel. (Essa pessoa não está na campanha, então não havia nada para calar.)' END;

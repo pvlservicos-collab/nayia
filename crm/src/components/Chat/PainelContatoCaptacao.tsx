@@ -30,6 +30,8 @@ import {
   PaperPlaneRight, CheckCircle, WarningCircle,
 } from '@phosphor-icons/react'
 import EscolherImoveis, { useOpcoesDoDisparo, type ImovelParaEnviar } from '@/components/Disparo/EscolherImoveis'
+import { useOlxClientes, recarregarOlxClientes } from '@/hooks/useOlxClientes'
+import { fim8 } from '@/lib/olxClientes'
 import type { LeadWithOwner } from '@/lib/types'
 import { formatPhone } from '@/lib/utils'
 import { corDaPontuacao } from '@/lib/pontuacaoDoCadastro'
@@ -201,6 +203,9 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial }:
     }
   }
 
+  /* 398 (Pedro, 16/10: "não consigo parar a Nay"): o cliente da OLX e o orgânico são da Nay do WhatsApp; o botão
+     também a para, e o card mostra o estado dela (antes só via o da campanha) */
+  const olxDele = useOlxClientes(!oficial)[fim8(lead.phone)]
   const [mexendoNaNay, setMexendoNaNay] = useState<'parar' | 'voltar' | null>(null)
   const [avisoDaNay, setAvisoDaNay] = useState<{ ok: boolean; texto: string } | null>(null)
   useEffect(() => { setAvisoDaNay(null) }, [lead.id])
@@ -217,7 +222,7 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial }:
       setAvisoDaNay({ ok: true, texto: acao === 'parar'
         ? 'Nay parada para esta pessoa. A conversa foi para a etapa Com o Tel.'
         : 'A Nay voltou a atender esta pessoa: responde na próxima mensagem dela.' })
-      await ler()
+      await Promise.all([ler(), recarregarOlxClientes()])
     } catch (e: any) {
       setAvisoDaNay({ ok: false, texto: e?.message || 'Não consegui.' })
     } finally {
@@ -227,6 +232,8 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial }:
 
   const dono = d?.dono || null
   const c = d?.campanha || null
+  // a Nay da campanha parada (Com o Tel) ou a Nay do WhatsApp fora da conversa (398)
+  const naoResponde = !!c?.comOTel || !!olxDele?.humano
   const imoveis = d?.imoveis || []
   const fotos = d?.fotos || []
 
@@ -261,9 +268,9 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial }:
               </button>
             </p>
           )}
-          {c?.comOTel && (
+          {naoResponde && (
             <p className="text-[12px] mt-1" style={{ color: 'var(--wa-tag-tel)' }}>
-              A Nay não responde esta pessoa{c.comOTelMotivo ? ` — ${c.comOTelMotivo}` : ''}.
+              A Nay não responde esta pessoa{c?.comOTelMotivo ? ` — ${c.comOTelMotivo}` : ''}.
             </p>
           )}
 
@@ -272,17 +279,17 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial }:
               etapa "Com o Tel" (242), que já cala a Nay para a pessoa; "voltar a
               atender" é o "Todos", que solta. O mesmo par de botões da Parceria. */}
           <div className="flex flex-wrap justify-center gap-2 mt-3">
-            <button type="button" onClick={() => void pararOuVoltar('parar')} disabled={!!mexendoNaNay || !!c?.comOTel}
+            <button type="button" onClick={() => void pararOuVoltar('parar')} disabled={!!mexendoNaNay || naoResponde}
                     className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-semibold disabled:opacity-50"
-                    style={c?.comOTel
+                    style={naoResponde
                       ? { color: 'var(--wa-text-2)', border: '1px solid var(--wa-divider)' }
                       : { color: 'var(--wa-tag-tel)', border: '1px solid color-mix(in srgb, var(--wa-tag-tel) 50%, transparent)' }}
                     title="A Nay de captação para de responder esta pessoa, e o disparo e o lembrete não chamam mais">
               {mexendoNaNay === 'parar' ? <CircleNotch size={14} className="animate-spin" /> : <Robot size={14} weight="fill" />} Parar Nay
             </button>
-            <button type="button" onClick={() => void pararOuVoltar('voltar')} disabled={!!mexendoNaNay || !c?.comOTel}
+            <button type="button" onClick={() => void pararOuVoltar('voltar')} disabled={!!mexendoNaNay || !naoResponde}
                     className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-semibold disabled:opacity-50"
-                    style={c?.comOTel
+                    style={naoResponde
                       ? { background: 'var(--wa-green)', color: 'var(--wa-green-ink)' }
                       : { color: 'var(--wa-text-2)', border: '1px solid var(--wa-divider)' }}
                     title="A Nay volta a responder esta pessoa na próxima mensagem dela">
