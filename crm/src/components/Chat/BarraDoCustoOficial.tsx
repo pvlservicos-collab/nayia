@@ -22,8 +22,8 @@ interface Custo {
 }
 
 const REGRA = 'A Meta cobra por modelo entregue (marketing, utilidade, autenticação). A mensagem de serviço (resposta ' +
-  'em até 24 h depois que a pessoa escreve) e o modelo de utilidade dentro dessa janela são grátis. Não existe mais a ' +
-  'franquia de 1.000 grátis por mês (acabou em 07/2025). Números aproximados da Meta: a fatura manda.'
+  'em até 24 h depois que a pessoa escreve) e o modelo de utilidade dentro dessa janela são grátis. Números aproximados ' +
+  'da Meta: a fatura manda.'
 
 export default function BarraDoCustoOficial() {
   const [c, setC] = useState<Custo | null | undefined>(undefined)
@@ -94,9 +94,6 @@ export default function BarraDoCustoOficial() {
           <span className="barra-calma__rotulo">{dinheiro(x.custo, c.moeda)}</span>
         </div>
       ))}
-      <div className="barra-calma__item" title={REGRA}>
-        <span className="barra-calma__rotulo">Franquia de 1.000 grátis: não existe mais</span>
-      </div>
     </div>
   )
 }
