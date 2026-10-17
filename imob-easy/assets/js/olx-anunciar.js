@@ -218,7 +218,14 @@
       b.addEventListener("click", function () { escolher(n); });
       abas.appendChild(b);
     });
-    var primeiro = ["venda", "locacao"].filter(function (n) { return dados && dados[n] && dados[n].ok; })[0] || "venda";
+    // o pronto primeiro; nenhum pronto: o que TEM valor (Pedro, 17/10, o 5739 só de aluguel abria em "sem valor de venda"
+    // e escondia o que faltava de verdade na locação, o CEP)
+    var temValor = function (n) {
+      var m = (dados && dados[n]) || {};
+      return !/sem valor/i.test(String(m.barrado || "") + (m.falta || []).join(" "));
+    };
+    var primeiro = ["venda", "locacao"].filter(function (n) { return dados && dados[n] && dados[n].ok; })[0] ||
+                   ["venda", "locacao"].filter(temValor)[0] || "venda";
     escolher(negocio && dados[negocio] && dados[negocio].ok ? negocio : primeiro);
   }
   function carregar(soAsituacao) {
