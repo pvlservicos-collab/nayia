@@ -4271,7 +4271,7 @@ def api_captacao_publicos():
         return _sem_senha()
     conn = conectar_escrita()
     try:
-        linhas = todas_linhas(conn, "SELECT n, grupo, nome, descricao, total, disparados, falaram FROM site_publicos_disparo()")
+        linhas = todas_linhas(conn, "SELECT n, grupo, nome, descricao, total, disparados, responderam, falaram FROM site_publicos_disparo()")
         return jsonify({"listas": [dict(l) for l in linhas]}), 200, {"Cache-Control": "no-cache"}
     finally:
         conn.close()

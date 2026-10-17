@@ -56,14 +56,20 @@
       // 12/10 (Pedro): "separa para corretores e para donos, já removendo quem falou conosco nos últimos 2 meses"
       function bloco(titulo, lista) {
         return '<h3 class="mw-lado__grupo">' + titulo + "</h3>" + lista.map(function (l) {
-          var pct = l.total ? Math.round(l.disparados * 100 / l.total) : 0;
+          // 402 (Pedro, 17/10: "põe um número lá, ex. 100 disparados, 20% respondeu, aí tu põe a barra 20% verde")
+          var pct = l.disparados ? Math.round((l.responderam || 0) * 100 / l.disparados) : 0;
           return '<div class="mw-publico"><div class="mw-publico__n">' + l.n + '</div><div class="mw-publico__corpo">' +
             '<div class="mw-publico__nome">' + esc(l.nome) + "</div>" +
             '<div class="mw-publico__desc">' + esc(l.descricao) + "</div>" +
-            '<div class="mw-publico__num"><b>' + num(l.total) + "</b> para falar" +
-              (l.disparados ? " · <b>" + num(l.disparados) + "</b> já receberam disparo antes (" + pct + "%)" : "") +
+            (l.disparados
+              ? '<div class="mw-publico__num"><b>' + num(l.disparados) + "</b> disparados · <b style=\"color:#2f7d58\">" + pct +
+                "% responderam</b> (" + num(l.responderam) + ")</div>" +
+                '<div class="mw-publico__barra" title="' + pct + '% dos disparados responderam"><i style="width:' + pct +
+                '%;background:#3f9c6d"></i></div>'
+              : "") +
+            '<div class="mw-publico__num" style="margin-top:4px"><b>' + num(l.total) + "</b> para falar" +
               (l.falaram ? '<span class="mw-publico__fora"> · ' + num(l.falaram) + " com contato nos últimos 60 dias (fora)</span>" : "") + "</div>" +
-            '<div class="mw-publico__barra"><i style="width:' + pct + '%"></i></div></div></div>';
+            "</div></div>";
         }).join("");
       }
       var corr = d.listas.filter(function (l) { return l.grupo === "corretores"; }), donos = d.listas.filter(function (l) { return l.grupo !== "corretores"; });

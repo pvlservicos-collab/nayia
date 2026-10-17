@@ -1,14 +1,25 @@
 CREATE OR REPLACE FUNCTION public.site_publicos_disparo()
- RETURNS TABLE(n integer, grupo text, nome text, descricao text, total integer, disparados integer, falaram integer)
+ RETURNS TABLE(n integer, grupo text, nome text, descricao text, total integer, disparados integer, responderam integer, falaram integer)
  LANGUAGE sql
  STABLE SECURITY DEFINER
  SET search_path TO 'public', 'pg_temp'
 AS $function$
-  WITH oficial AS (                      -- quem já recebeu disparo nosso (oficial, ou a abertura da captação)
-    SELECT DISTINCT nay_fone_chave(m.telefone) AS chave FROM captacao_mensagens m
-     WHERE m.direcao = 'enviada' AND m.status <> 'Falhou' AND (m.message_id LIKE 'wamid%' OR m.origem = 'disparo')
+  WITH oficial AS MATERIALIZED (         -- quem já recebeu disparo nosso (oficial, ou a abertura da captação), e quando
+    SELECT x.chave, min(x.em) AS em FROM (
+      SELECT nay_fone_chave(m.telefone) AS chave, m.criada_em AS em FROM captacao_mensagens m
+       WHERE m.direcao = 'enviada' AND m.status <> 'Falhou' AND (m.message_id LIKE 'wamid%' OR m.origem = 'disparo')
+      UNION ALL
+      SELECT l.telefone_chave, l.ultimo_envio_em FROM captacao_leads l
+       WHERE l.ultimo_envio_em IS NOT NULL AND coalesce(l.telefone_chave, '') <> '') x
+     GROUP BY x.chave
+  ), recebida AS MATERIALIZED (           -- 402: a última mensagem de cada pessoa (o telefone limpo uma vez só)
+    SELECT nay_fone_chave(nay_fone_com_ddi(r.telefone)) AS chave, max(r.criada_em) AS em
+      FROM captacao_mensagens r WHERE r.direcao = 'recebida' GROUP BY 1
+  ), respondeu AS (                       -- 402: escreveu depois do disparo (ou a campanha marcou que respondeu)
+    SELECT o.chave FROM oficial o JOIN recebida r ON r.chave = o.chave AND r.em > o.em
     UNION
-    SELECT l.telefone_chave FROM captacao_leads l WHERE l.ultimo_envio_em IS NOT NULL AND coalesce(l.telefone_chave, '') <> ''
+    SELECT l.telefone_chave FROM captacao_leads l
+     WHERE l.respondeu_em IS NOT NULL AND EXISTS (SELECT 1 FROM oficial o WHERE o.chave = l.telefone_chave)
   ), falou AS (                          -- 352: quem escreveu para a gente nos últimos 60 dias, por QUALQUER número
     SELECT f.chave FROM privado.falou_conosco f WHERE f.ultima_em > now() - interval '60 days'
   ), corretor AS (                        -- 352: corretor (grupos ou parceria) não é dono
@@ -65,8 +76,9 @@ AS $function$
     ) AS v(n, grupo, nome, descricao))
   SELECT x.n, x.grupo, x.nome, x.descricao,
          coalesce(count(DISTINCT l.chave) FILTER (WHERE NOT EXISTS (SELECT 1 FROM falou f WHERE f.chave = l.chave)), 0)::int AS total,
-         coalesce(count(DISTINCT l.chave) FILTER (WHERE NOT EXISTS (SELECT 1 FROM falou f WHERE f.chave = l.chave)
-                                                    AND EXISTS (SELECT 1 FROM oficial o WHERE o.chave = l.chave)), 0)::int AS disparados,
+         -- 402: disparados e responderam sem o corte dos 60 dias (é o placar da lista que já saiu)
+         coalesce(count(DISTINCT l.chave) FILTER (WHERE EXISTS (SELECT 1 FROM oficial o WHERE o.chave = l.chave)), 0)::int AS disparados,
+         coalesce(count(DISTINCT l.chave) FILTER (WHERE EXISTS (SELECT 1 FROM respondeu r WHERE r.chave = l.chave)), 0)::int AS responderam,
          coalesce(count(DISTINCT l.chave) FILTER (WHERE EXISTS (SELECT 1 FROM falou f WHERE f.chave = l.chave)), 0)::int AS falaram
     FROM nomes x LEFT JOIN listas l ON l.n = x.n
    GROUP BY x.n, x.grupo, x.nome, x.descricao
