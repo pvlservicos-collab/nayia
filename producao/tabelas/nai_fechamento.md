@@ -26,4 +26,4 @@ nay_leitura: SELECT
 crm_etapa_manual, crm_fechamento_concluir, nai_enviar_checklist_para
 
 ## funções que citam
-crm_etapa_da_nay, crm_etapa_manual, crm_fechamento_concluir, crm_fechamento_do_contato, crm_fechamentos_por_telefone, crm_parceria_com_a_rayssa, nai_com_a_rayssa, nai_enviar_checklist_para
+crm_etapa_da_nay, crm_etapa_manual, crm_fechamento_concluir, crm_fechamento_do_contato, crm_fechamentos_por_telefone, crm_parceria_com_a_rayssa, nai_com_a_rayssa, nai_enviar_checklist_para, site_painel_metricas

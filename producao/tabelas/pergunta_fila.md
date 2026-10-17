@@ -43,4 +43,4 @@ nay_leitura: SELECT
 pergunta_fila_entrar, pergunta_fila_perguntar_proxima, pergunta_fila_responder, pergunta_fila_tick
 
 ## funções que citam
-pergunta_fila_entrar, pergunta_fila_ligada, pergunta_fila_perguntar_proxima, pergunta_fila_posicao, pergunta_fila_responder, pergunta_fila_resposta_valida, pergunta_fila_texto, pergunta_fila_tick
+pergunta_fila_entrar, pergunta_fila_ligada, pergunta_fila_perguntar_proxima, pergunta_fila_posicao, pergunta_fila_responder, pergunta_fila_resposta_valida, pergunta_fila_texto, pergunta_fila_tick, site_painel_metricas

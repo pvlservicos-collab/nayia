@@ -31,4 +31,4 @@ grupo_pedido_junto_pkey: PRIMARY KEY (pedido_id)
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-site_captacao_grupos, site_captacao_grupos_enviar, site_captacao_grupos_enviar_varios, site_captacao_grupos_estado
+site_captacao_grupos, site_captacao_grupos_enviar, site_captacao_grupos_enviar_varios, site_captacao_grupos_estado, site_painel_metricas

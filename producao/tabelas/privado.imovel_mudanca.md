@@ -37,4 +37,4 @@ imovel_mudanca_tipo_check: CHECK ((tipo = ANY (ARRAY['mudanca'::text, 'confirmac
 imovel_mudanca_registrar, imovel_mudanca_trocar, site_mudanca_revisar
 
 ## funções que citam
-imovel_mudanca_registrar, imovel_mudanca_trocar, site_mudanca_revisar, site_mudancas
+imovel_mudanca_registrar, imovel_mudanca_trocar, site_mudanca_revisar, site_mudancas, site_painel_metricas

@@ -5182,6 +5182,46 @@ def admin_grade_metricas():
         conn.close()
 
 
+# O PAINEL DE MÉTRICAS DO INÍCIO (399, Pedro 16/10/2026): o negócio inteiro por dia, semana ou mês. O que mora no
+# naydb (visitas, imóveis enviados, OLX, disparos, fechamentos) vem de site_painel_metricas; "pessoas que falamos"
+# por linha mora no banco do CRM e vem de /api/metrics/pessoas-por-linha. Se o CRM não responder, o resto do painel
+# sai assim mesmo e "pessoas" volta vazio com o motivo. Só contagem: nenhum telefone sai daqui.
+@app.route("/admin/api/painel")
+def admin_painel_metricas():
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    de = request.args.get("de") or None
+    ate = request.args.get("ate") or None
+    grao = request.args.get("grao") or "dia"
+    for valor in (de, ate):
+        if valor and not re.match(r"^\d{4}-\d{2}-\d{2}$", valor):
+            return jsonify({"erro": "data inválida (use AAAA-MM-DD)"}), 400
+    if grao not in ("dia", "semana", "mes"):
+        return jsonify({"erro": "grao é dia, semana ou mes"}), 400
+    conn = conectar_escrita()
+    try:
+        linhas = todas_linhas(conn, "SELECT site_painel_metricas(%s::date, %s::date, %s) AS j", (de, ate, grao))
+        r = (linhas[0]["j"] if linhas else None) or {}
+    except Exception as exc:  # noqa: BLE001
+        conn.rollback()
+        app.logger.warning("painel: %s", exc.__class__.__name__)
+        return jsonify({"erro": "Não consegui calcular as métricas agora."}), 500
+    finally:
+        conn.close()
+    try:
+        import urllib.parse
+        from disparo_api import _crm
+        caminho ="/api/metrics/pessoas-por-linha?" + urllib.parse.urlencode({
+            "de": r.get("de") or "", "ate": r.get("ate") or "", "grao": grao,
+            "excluir": ",".join(r.get("internos") or [])})
+        status, j = _crm("GET", caminho, timeout=25)
+        r["pessoas"] = j if status == 200 else {"erro": j.get("erro") or f"o CRM respondeu {status}"}
+    except Exception as exc:  # noqa: BLE001
+        r["pessoas"] = {"erro": f"não consegui falar com o CRM: {exc.__class__.__name__}"}
+    r.pop("internos", None)
+    return jsonify(r)
+
+
 @app.route("/admin/api/grade", methods=["POST"])
 @app.route("/admin/api/grade/<int:vaga_id>", methods=["PUT", "DELETE"])
 def admin_grade_mudar(vaga_id=None):

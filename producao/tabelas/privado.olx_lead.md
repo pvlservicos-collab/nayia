@@ -33,4 +33,4 @@ olx_lead_pkey: PRIMARY KEY (id)
 crm_olx_lead_receber
 
 ## funções que citam
-crm_olx_lead_receber, crm_olx_metricas
+crm_olx_lead_receber, crm_olx_metricas, site_painel_metricas
