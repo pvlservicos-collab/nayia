@@ -24,12 +24,11 @@
  *   5. agendar follow-up (a mesma caixa da Parceria)
  *   6. a ficha que a conversa abriu e as fotos que ele mandou
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   X, User, House, ArrowClockwise, Copy, Check, Plus, PencilSimple, Images, CircleNotch, Robot,
-  PaperPlaneRight, CheckCircle, WarningCircle,
 } from '@phosphor-icons/react'
-import EscolherImoveis, { useOpcoesDoDisparo, type ImovelParaEnviar } from '@/components/Disparo/EscolherImoveis'
+import EnviarImovelPelaCaptacao from './EnviarImovelPelaCaptacao'
 import { useOlxClientes, recarregarOlxClientes } from '@/hooks/useOlxClientes'
 import { fim8 } from '@/lib/olxClientes'
 import type { LeadWithOwner } from '@/lib/types'
@@ -152,56 +151,6 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial }:
   async function copiar() {
     if (!numero) return
     try { await navigator.clipboard.writeText(numero); setCopiado(true); setTimeout(() => setCopiado(false), 1500) } catch { /* sem área de transferência */ }
-  }
-
-  /* ── ENVIAR IMÓVEL pelo número de captação (Pedro, 16/10: "coloca esse campo nos cards dos leads também do de
-     captação"). A mesma escolha da Parceria (um a um ou por faixa); quem manda é a Nay do WhatsApp (nay-olx), card +
-     fotos, um imóvel por vez, pelo 8595 (migração 396). O card acompanha o pedido até terminar. ── */
-  const { opcoes: opcoesDoDisparo, teto: tetoDoDisparo } = useOpcoesDoDisparo()
-  const [escolhidos, setEscolhidos] = useState<ImovelParaEnviar[]>([])
-  const [rodadaDoEnvio, setRodadaDoEnvio] = useState(0)
-  const [enviando, setEnviando] = useState(false)
-  const [envio, setEnvio] = useState<{ tipo: 'ok' | 'erro' | 'aviso' | 'vai'; texto: string } | null>(null)
-  const vigiaDoEnvio = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => () => { if (vigiaDoEnvio.current) clearTimeout(vigiaDoEnvio.current) }, [])
-  useEffect(() => { setEscolhidos([]); setEnvio(null) }, [lead.id])
-  const acompanharEnvio = useCallback((id: number, desde: number) => {
-    vigiaDoEnvio.current = setTimeout(async () => {
-      try {
-        const r = await fetch(`/api/captacao/enviar-imoveis?id=${id}`)
-        const e = await r.json().catch(() => ({}))
-        if (e?.estado === 'enviado' || e?.estado === 'falhou') {
-          setEnviando(false)
-          setEnvio({ tipo: e.estado === 'enviado' ? 'ok' : 'erro', texto: e.resultado || (e.estado === 'enviado' ? 'Enviado.' : 'Não saiu.') })
-          return
-        }
-        const feitos = Array.isArray(e?.enviados) ? e.enviados.length : 0
-        const total = Array.isArray(e?.codigos) ? e.codigos.length : 0
-        setEnvio({ tipo: 'vai', texto: `Enviando pelo 8595… ${feitos} de ${total}` })
-      } catch { /* sem rede: tenta de novo */ }
-      if (Date.now() - desde < 15 * 60_000) acompanharEnvio(id, desde)
-      else { setEnviando(false); setEnvio({ tipo: 'aviso', texto: 'O envio está demorando; ele continua saindo pela Nay.' }) }
-    }, 3000)
-  }, [])
-  async function enviarImoveis() {
-    if (!escolhidos.length || enviando) return
-    setEnviando(true)
-    setEnvio({ tipo: 'vai', texto: 'Pedindo o envio…' })
-    try {
-      const r = await fetch('/api/captacao/enviar-imoveis', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telefone: lead.phone, codigos: escolhidos.map((e) => Number(e.codigo)) }),
-      })
-      const j = await r.json().catch(() => ({}))
-      if (!r.ok || !j?.id) throw new Error(j?.error || 'não consegui pedir o envio')
-      setEscolhidos([])
-      setRodadaDoEnvio((n) => n + 1)
-      setEnvio({ tipo: 'vai', texto: 'Na fila da Nay: sai em alguns segundos, um imóvel de cada vez.' })
-      acompanharEnvio(Number(j.id), Date.now())
-    } catch (e: any) {
-      setEnviando(false)
-      setEnvio({ tipo: 'erro', texto: e?.message || 'não consegui pedir o envio' })
-    }
   }
 
   /* 398 (Pedro, 16/10: "não consigo parar a Nay"): o cliente da OLX e o orgânico são da Nay do WhatsApp; o botão
@@ -386,34 +335,10 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial }:
           </p>
         </Secao>
 
-        {/* enviar imóvel pelo 8595 (396); na aba Oficial a conversa é pelo número da Meta, então não */}
-        {!oficial && (
-          <Secao titulo="Enviar imóvel">
-            <EscolherImoveis key={rodadaDoEnvio} compacto escolhidos={escolhidos}
-                             aoMudar={(l) => { setEscolhidos(l); if (!enviando) setEnvio(null) }}
-                             teto={tetoDoDisparo} opcoes={opcoesDoDisparo}
-                             aoAvisar={(texto) => setEnvio(texto ? { tipo: 'aviso', texto } : null)} />
-            <button type="button" onClick={() => void enviarImoveis()} disabled={!escolhidos.length || enviando}
-                    className="mt-3 w-full h-10 rounded-full text-[14px] font-semibold flex items-center justify-center gap-1.5 disabled:opacity-40"
-                    style={{ background: 'var(--wa-green)', color: 'var(--wa-green-ink)' }}>
-              {enviando ? <CircleNotch size={16} className="animate-spin" /> : <PaperPlaneRight size={16} weight="fill" />}
-              {escolhidos.length ? `Enviar ${escolhidos.length} imóve${escolhidos.length === 1 ? 'l' : 'is'}` : 'Enviar'}
-            </button>
-            {envio && (
-              <p className="text-[13px] mt-2 flex items-start gap-1.5 whitespace-pre-wrap"
-                 style={{ color: envio.tipo === 'ok' ? 'var(--wa-green)' : envio.tipo === 'erro' ? 'var(--wa-tag-tel)'
-                          : envio.tipo === 'aviso' ? 'var(--wa-tag-prop)' : 'var(--wa-text-2)' }}>
-                {envio.tipo === 'vai' ? <CircleNotch size={16} className="mt-px flex-shrink-0 animate-spin" />
-                  : envio.tipo === 'ok' ? <CheckCircle size={16} className="mt-px flex-shrink-0" />
-                  : <WarningCircle size={16} className="mt-px flex-shrink-0" />}
-                {envio.texto}
-              </p>
-            )}
-            <p className="text-[11px] mt-1" style={{ color: 'var(--wa-text-2)' }}>
-              Sai pelo número de captação (8595-6408), card e fotos, um imóvel de cada vez. Parceria e fora do ar não saem.
-            </p>
-          </Secao>
-        )}
+        {/* enviar imóvel pelo 8595 (396); 17/10: também na aba Oficial (sai pelo 8595) */}
+        <Secao titulo="Enviar imóvel">
+          <EnviarImovelPelaCaptacao leadId={lead.id} telefone={lead.phone} oficial={oficial} />
+        </Secao>
 
         {/* 4. agendar follow-up */}
         <div style={{ background: 'var(--wa-panel)' }}>

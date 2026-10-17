@@ -19,6 +19,7 @@ import BarraDaCaptacao from './BarraDaCaptacao'
 import BarraDoDisparoOficial from './BarraDoDisparoOficial'
 import BarraDoCustoOficial from './BarraDoCustoOficial'
 import PainelContatoCaptacao from './PainelContatoCaptacao'
+import EnviarImovelPelaCaptacao from './EnviarImovelPelaCaptacao'
 import PainelContatoParceria from './PainelContatoParceria'
 import { usePuxador } from '@/hooks/usePuxador'
 import { useCaptacaoDonos } from '@/hooks/useCaptacaoDonos'
@@ -378,6 +379,14 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
         currentPipelineId={currentPipelineId}
         onPipelineChange={handlePipelineChange}
         onClose={modo === 'gaveta' ? alternarPainel : undefined}
+        // 17/10 (Pedro: "libera o botão enviar imóveis para todos os leads dos 2 números"): na Oficial, quem não é dono
+        // da campanha também recebe imóvel -- sai pelo 8595
+        extra={linha === 'oficial' ? (
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider mb-2 text-[var(--chat-text-muted)]">Enviar imóvel</p>
+            <EnviarImovelPelaCaptacao leadId={displayedLead.id} telefone={displayedLead.phone} oficial />
+          </div>
+        ) : undefined}
       />
     )
     if (modo === 'lateral') return antigo
