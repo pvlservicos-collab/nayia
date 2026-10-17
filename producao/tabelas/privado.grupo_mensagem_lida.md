@@ -1,4 +1,4 @@
-# privado.grupo_mensagem_lida  (tabela, ~3513 linhas)
+# privado.grupo_mensagem_lida  (tabela, ~3914 linhas)
 
 ## colunas
 fonte  text  NOT NULL

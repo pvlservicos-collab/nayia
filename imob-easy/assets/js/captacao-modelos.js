@@ -60,14 +60,16 @@
           return '<div class="mw-publico"><div class="mw-publico__n">' + l.n + '</div><div class="mw-publico__corpo">' +
             '<div class="mw-publico__nome">' + esc(l.nome) + "</div>" +
             '<div class="mw-publico__desc">' + esc(l.descricao) + "</div>" +
-            '<div class="mw-publico__num"><b>' + num(l.total) + "</b> para falar · <b>" + num(l.disparados) + "</b> já receberam (" + pct + "%)" +
-              (l.falaram ? '<span class="mw-publico__fora"> · ' + num(l.falaram) + " falaram conosco (fora)</span>" : "") + "</div>" +
+            '<div class="mw-publico__num"><b>' + num(l.total) + "</b> para falar" +
+              (l.disparados ? " · <b>" + num(l.disparados) + "</b> já receberam disparo antes (" + pct + "%)" : "") +
+              (l.falaram ? '<span class="mw-publico__fora"> · ' + num(l.falaram) + " com contato nos últimos 60 dias (fora)</span>" : "") + "</div>" +
             '<div class="mw-publico__barra"><i style="width:' + pct + '%"></i></div></div></div>';
         }).join("");
       }
       var corr = d.listas.filter(function (l) { return l.grupo === "corretores"; }), donos = d.listas.filter(function (l) { return l.grupo !== "corretores"; });
       lado.innerHTML = '<h2 class="mw-lado__titulo">Listas do disparo</h2>' + bloco("Para corretores", corr) + bloco("Para donos", donos) +
-        '<p class="mw-lado__nota">Quem escreveu para a gente nos últimos 60 dias (por qualquer número) já saiu das listas. "Já receberam" = recebeu disparo nosso.</p>';
+        '<p class="mw-lado__nota">Quem teve contato com a gente nos últimos 60 dias, por qualquer número, já saiu das listas: ' +
+        'quem escreveu para nós e quem nós contatamos (mensagem, disparo, imóvel enviado). "Para falar" é quem falta.</p>';
     }).catch(function () {});
   }
   var carregou = false;
