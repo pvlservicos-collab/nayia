@@ -420,19 +420,25 @@ def api_imoveis():
     # 05/10 (Pedro): os filtros de comprar/alugar eram só desenho. Cada um é opcional; sem nenhum,
     # a rota responde como sempre respondeu (a home e os destaques dependem disso).
     a, params = request.args, []
+    # 16/10 (Pedro: "múltipla seleção de bairro ... e os condomínios em lista para selecionar vários"): vários bairros
+    # E vários condomínios; com os dois, vale o imóvel de QUALQUER um dos lugares escolhidos (bairro OU condomínio).
     bairros = [b.strip()[:60] for b in a.getlist("bairros") + a.getlist("bairro") if b and b.strip()][:20]
+    condominios = [c.strip()[:80] for c in a.getlist("condominios") + a.getlist("condominio") if c and c.strip()][:20]
+    lugares = []
     if bairros:
-        condicoes.append("nay_sem_acento(lower(coalesce(bairro, ''))) LIKE ANY "
-                         "(SELECT '%%' || nay_sem_acento(lower(x)) || '%%' FROM unnest(%s::text[]) x)")
+        lugares.append("nay_sem_acento(lower(coalesce(bairro, ''))) LIKE ANY "
+                       "(SELECT '%%' || nay_sem_acento(lower(x)) || '%%' FROM unnest(%s::text[]) x)")
         params.append(bairros)
+    if condominios:
+        lugares.append("nay_sem_acento(lower(coalesce(condominio_nome, ''))) LIKE ANY "
+                       "(SELECT '%%' || nay_sem_acento(lower(x)) || '%%' FROM unnest(%s::text[]) x)")
+        params.append(condominios)
+    if lugares:
+        condicoes.append("(" + " OR ".join(lugares) + ")")
     tipo = str(a.get("tipo") or "").strip()[:60]
     if tipo and tipo != "Todos":
         condicoes.append("tipo = %s")
         params.append(tipo)
-    condominio = str(a.get("condominio") or "").strip()[:80]
-    if condominio:
-        condicoes.append("nay_sem_acento(lower(coalesce(condominio_nome, ''))) LIKE '%%' || nay_sem_acento(lower(%s)) || '%%'")
-        params.append(condominio)
     for nome, coluna in (("quartos", "quartos"), ("garagem", "vagas"), ("banheiros", "banheiros")):
         pedido = str(a.get(nome) or "").strip()
         n = re.sub(r"\D", "", pedido)[:2]

@@ -8,7 +8,9 @@
    com paginação. Na home, o PESQUISAR leva os mesmos filtros para a lista.
 
    O campo de bairro é o de busca-bairro.js (lista suspensa, filtra pelas
-   iniciais); aqui cada bairro escolhido vira um marcador, e dá para ter vários.
+   iniciais). 16/10: lá se escolhem VÁRIOS bairros e condomínios (marcadores);
+   aqui eles viram `bairros` e `condominios` na busca (a API traz os imóveis de
+   qualquer um dos lugares).
    ========================================================================== */
 (function () {
   "use strict";
@@ -87,11 +89,11 @@
       var cod = codigo ? codigo.value.replace(/\D/g, "") : "";
       if (cod) { window.location.href = "/imovel/" + cod; return; }
       var q = new URLSearchParams(), v;
-      // o que ele escolheu na lista pode ser um condomínio (busca-bairro.js marca data-condominio)
-      var lugar = home.querySelector("#bairro");
-      if ((v = lugar.value.trim())) {
-        if (lugar.dataset.condominio === v) q.set("condominio", v); else q.append("bairros", v);
-      }
+      // os bairros e condomínios escolhidos (busca-bairro.js); o que ficou digitado sem escolher vale também
+      var lugar = home.querySelector("#bairro"), lugares = [];
+      if (lugar.lugares) { lugar.lugares.somarDigitado(); lugares = lugar.lugares.escolhidos(); }
+      else if ((v = lugar.value.trim())) lugares = [{ tipo: "b", nome: v }];
+      lugares.forEach(function (x) { q.append(x.tipo === "c" ? "condominios" : "bairros", x.nome); });
       if ((v = pressionado(home.querySelector("#tipo")))) q.set("tipo", v);
       if ((v = pressionado(home.querySelector('[aria-labelledby="rot-quartos"]')))) q.set("quartos", v);
       if ((v = pressionado(home.querySelector('[aria-labelledby="rot-garagem"]')))) q.set("garagem", v);
@@ -110,7 +112,7 @@
   var form = document.querySelector("form.filtros"), alvo = document.querySelector("[data-lista]");
   if (!form || !alvo) return;
 
-  var POR = 24, pagina = 1, pedido = 0, bairros = [];
+  var POR = 24, pagina = 1, pedido = 0;
   var finalidade = alvo.dataset.lista === "alugar" ? "aluguel" : "venda";
   var campo = {
     bairro: form.querySelector("#bairro"), marcadores: form.querySelector("#f-bairros"),
@@ -122,10 +124,11 @@
   };
   var contagem = document.getElementById("res-contagem"), nav = document.querySelector("nav.paginacao");
 
+  function lugares() { return campo.bairro.lugares ? campo.bairro.lugares.escolhidos() : []; }
+
   function filtros() {
     var q = new URLSearchParams(), v;
-    bairros.forEach(function (b) { q.append("bairros", b); });
-    if ((v = campo.condominio.value.trim())) q.set("condominio", v);
+    lugares().forEach(function (x) { q.append(x.tipo === "c" ? "condominios" : "bairros", x.nome); });
     if ((v = pressionado(campo.tipo))) q.set("tipo", v);
     if ((v = pressionado(campo.quartos))) q.set("quartos", v);
     if ((v = pressionado(campo.garagem))) q.set("garagem", v);
@@ -133,23 +136,6 @@
     if ((v = numero(campo.vmin.value))) q.set("valor_min", v);
     if ((v = numero(campo.vmax.value))) q.set("valor_max", v);
     return q;
-  }
-
-  function pintarMarcadores() {
-    campo.marcadores.style.display = bairros.length ? "" : "none";   // [hidden] perde para o display:flex da caixa
-    campo.marcadores.innerHTML = bairros.map(function (b, i) {
-      return '<span class="marcador">' + escapar(b) + '<button type="button" data-tirar="' + i +
-        '" aria-label="Remover filtro ' + escapar(b) + '">&times;</button></span>';
-    }).join("");
-  }
-  function somarBairro(nome) {
-    nome = String(nome || "").trim();
-    campo.bairro.value = "";
-    if (!nome) return false;
-    var ja = bairros.some(function (b) { return b.toLowerCase() === nome.toLowerCase(); });
-    if (!ja) bairros.push(nome);
-    pintarMarcadores();
-    return !ja;
   }
 
   function pintarPaginas(total) {
@@ -200,15 +186,19 @@
 
   // o que veio no endereço (da home, ou de um link guardado)
   var url = new URLSearchParams(window.location.search);
-  url.getAll("bairros").concat(url.getAll("bairro")).forEach(function (b) { if (b.trim()) bairros.push(b.trim()); });
-  campo.condominio.value = url.get("condominio") || "";
+  var doEndereco = [];
+  url.getAll("bairros").concat(url.getAll("bairro")).forEach(function (b) { if (b.trim()) doEndereco.push({ tipo: "b", nome: b.trim() }); });
+  url.getAll("condominios").concat(url.getAll("condominio")).forEach(function (c) { if (c.trim()) doEndereco.push({ tipo: "c", nome: c.trim() }); });
+  if (campo.bairro.lugares) campo.bairro.lugares.definir(doEndereco);
+  // 16/10: o condomínio é escolhido no mesmo campo dos bairros (vários); o campo de texto antigo sai da tela
+  var grupoDoCondominio = campo.condominio && campo.condominio.closest(".filtros__grupo");
+  if (grupoDoCondominio) grupoDoCondominio.hidden = true;
   campo.vmin.value = url.get("valor_min") || "";
   campo.vmax.value = url.get("valor_max") || "";
   campo.banheiros.value = url.get("banheiros") || "";
   pressionar(campo.quartos, url.get("quartos"));
   pressionar(campo.garagem, url.get("garagem"));
   tiposEmBotoes(campo.tipo, finalidade, url.get("tipo") || "");
-  pintarMarcadores();
 
   // os links Comprar/Alugar levam os filtros junto
   form.querySelectorAll("[data-destino]").forEach(function (aba) {
@@ -219,19 +209,12 @@
     });
   });
 
-  form.addEventListener("bairro-escolhido", function (e) { if (somarBairro(e.detail)) recomecar(); });
-  campo.marcadores.addEventListener("click", function (e) {
-    var b = e.target.closest("[data-tirar]");
-    if (!b) return;
-    e.stopPropagation();               // o site.js antigo apagava o marcador da tela sem refazer a busca
-    bairros.splice(Number(b.dataset.tirar), 1);
-    pintarMarcadores();
-    recomecar();
-  });
+  // marcou ou tirou um bairro/condomínio (busca-bairro.js): a lista refaz
+  form.addEventListener("lugares-mudaram", function () { recomecar(); });
   form.addEventListener("submit", function (e) {
     e.preventDefault();
-    somarBairro(campo.bairro.value);   // digitou e apertou Enter sem clicar na lista: vale o que digitou
-    recomecar();
+    // digitou e apertou Enter sem clicar na lista: vale o que digitou (e o "lugares-mudaram" já refaz a busca)
+    if (!(campo.bairro.lugares && campo.bairro.lugares.somarDigitado())) recomecar();
   });
   [campo.tipo, campo.quartos, campo.garagem].forEach(function (g) {
     g.addEventListener("click", function (e) {
@@ -239,7 +222,7 @@
     });
   });
   var espera;
-  [campo.condominio, campo.vmin, campo.vmax, campo.banheiros].forEach(function (c) {
+  [campo.vmin, campo.vmax, campo.banheiros].forEach(function (c) {
     c.addEventListener("input", function () { clearTimeout(espera); espera = setTimeout(recomecar, 600); });
   });
   nav.addEventListener("click", function (e) {
