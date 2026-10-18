@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scrap — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/scrap.css?v=20261018b">
+<meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
+</head>
+<body class="admin" data-pagina="scrap">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho sc-cabecalho">
+    <div>
+      <h1 class="pagina-titulo">Scrap</h1>
+      <p class="pagina-subtitulo" style="margin-left:0">Listas de contatos: nome e telefone, sem repetidos e sem quem não tem número. Da raspagem da OLX, de um CSV ou da sua mão.</p>
+    </div>
+    <div class="sc-acoes-topo">
+      <button type="button" class="btn-neutro" id="sc-b-importar">Importar CSV</button>
+      <button type="button" class="btn-neutro" id="sc-b-contato">+ Contato</button>
+      <button type="button" class="btn-azul" id="sc-b-nova-lista">+ Nova lista</button>
+    </div>
+  </div>
+
+  <div class="sc-grade">
+    <aside class="sc-lateral">
+      <div class="sc-resumo-geral" id="sc-resumo-geral"></div>
+      <nav class="sc-listas" id="sc-listas" aria-label="Listas"></nav>
+    </aside>
+
+    <section class="sc-principal">
+      <div class="sc-lista-cabeca" id="sc-lista-cabeca"></div>
+
+      <div class="sc-filtros">
+        <input class="entrada" id="sc-f-busca" type="search" placeholder="Nome, telefone, empresa, observação…">
+        <select class="selecao" id="sc-f-status">
+          <option value="">Todos os status</option>
+          <option value="novo">Novo</option>
+          <option value="contatado">Contatado</option>
+          <option value="respondeu">Respondeu</option>
+          <option value="interessado">Interessado</option>
+          <option value="descartado">Descartado</option>
+        </select>
+        <select class="selecao" id="sc-f-etiqueta"><option value="">Todas as etiquetas</option></select>
+        <select class="selecao" id="sc-f-bairro"><option value="">Todos os bairros</option></select>
+        <select class="selecao" id="sc-f-ordem">
+          <option value="anuncios">Mais anúncios primeiro</option>
+          <option value="nome">Nome A–Z</option>
+          <option value="recentes">Mexidos por último</option>
+        </select>
+        <span class="sc-contagem" id="sc-contagem"></span>
+      </div>
+
+      <div class="sc-lote" id="sc-lote" hidden>
+        <strong><span id="sc-lote-n">0</span> marcados</strong>
+        <select class="selecao" id="sc-lote-status">
+          <option value="">Mudar status…</option>
+          <option value="novo">Novo</option>
+          <option value="contatado">Contatado</option>
+          <option value="respondeu">Respondeu</option>
+          <option value="interessado">Interessado</option>
+          <option value="descartado">Descartado</option>
+        </select>
+        <button type="button" class="btn-neutro" data-lote="etiqueta_por">+ Etiqueta</button>
+        <button type="button" class="btn-neutro" data-lote="etiqueta_tirar">– Etiqueta</button>
+        <select class="selecao" id="sc-lote-lista"><option value="">Copiar para a lista…</option></select>
+        <button type="button" class="btn-neutro" data-lote="mover">Mover para…</button>
+        <button type="button" class="btn-neutro" data-lote="copiar_numeros">Copiar números</button>
+        <button type="button" class="btn-neutro sc-perigo" data-lote="apagar">Apagar</button>
+        <button type="button" class="sc-link" data-lote="limpar">desmarcar</button>
+      </div>
+
+      <div class="sc-tabela-caixa">
+        <table class="sc-tabela">
+          <thead>
+            <tr>
+              <th class="sel"><input type="checkbox" id="sc-sel-todos" title="marcar todos da página"></th>
+              <th>Nome</th>
+              <th>Telefone</th>
+              <th class="num">Anúncios</th>
+              <th>Bairros</th>
+              <th>Faixa</th>
+              <th>Status</th>
+              <th>Etiquetas</th>
+              <th>Observação</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="sc-corpo"><tr><td colspan="10" class="sc-vazio">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="sc-rodape-tabela">
+        <button type="button" class="btn-neutro" id="sc-mais" hidden>Carregar mais</button>
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- gaveta: os anúncios do contato -->
+<div class="sc-gaveta" id="sc-gaveta" hidden>
+  <div class="sc-gaveta__fundo" data-fechar></div>
+  <aside class="sc-gaveta__painel" role="dialog" aria-modal="true" aria-labelledby="sc-gaveta-titulo">
+    <header>
+      <div>
+        <h2 id="sc-gaveta-titulo">Contato</h2>
+        <p id="sc-gaveta-sub"></p>
+      </div>
+      <button type="button" class="sc-fechar" data-fechar aria-label="Fechar">×</button>
+    </header>
+    <div class="sc-gaveta__corpo" id="sc-gaveta-corpo"></div>
+  </aside>
+</div>
+
+<!-- janelas -->
+<div class="sc-modal" id="sc-modal" hidden>
+  <div class="sc-modal__fundo" data-fechar></div>
+  <form class="sc-modal__caixa" id="sc-modal-form" autocomplete="off">
+    <header><h2 id="sc-modal-titulo"></h2><button type="button" class="sc-fechar" data-fechar aria-label="Fechar">×</button></header>
+    <div class="sc-modal__corpo" id="sc-modal-corpo"></div>
+    <footer>
+      <span class="sc-modal__aviso" id="sc-modal-aviso"></span>
+      <button type="button" class="btn-neutro" data-fechar>Cancelar</button>
+      <button type="submit" class="btn-azul" id="sc-modal-ok">Salvar</button>
+    </footer>
+  </form>
+</div>
+
+<div class="sc-toast" id="sc-toast" hidden></div>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/dados-admin.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/scrap.js?v=20261018b"></script>
+</body>
+</html>

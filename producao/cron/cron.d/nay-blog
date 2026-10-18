@@ -1,0 +1,4 @@
+# /etc/cron.d/nay-blog -- a newsletter de imoveis do blog (406, 17/10/2026): o imovel novo vai aos corretores cadastrados
+# em blog.imobeasy.online/newsletter, pelo Enviar imovel (Parceria). A funcao so age das 8h as 20h (Manaus).
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+*/15 * * * * root docker exec nay-postgres psql -U nay -d naydb -qtAc "SELECT blog_newsletter_disparar()" >> /var/log/nay-blog.log 2>&1

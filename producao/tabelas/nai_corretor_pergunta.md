@@ -1,4 +1,4 @@
-# nai_corretor_pergunta  (tabela, ~44 linhas)
+# nai_corretor_pergunta  (tabela, ~95 linhas)
 Quem escreveu para a NAI de fora da lista de corretores e ja foi perguntado ao Tel. decisao = resposta dele (CORRETOR / NAO CORRETOR).
 
 ## colunas

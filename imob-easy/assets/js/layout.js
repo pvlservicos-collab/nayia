@@ -90,6 +90,9 @@
   ];
 
   var SUBMENU = [
+    /* O SCRAP (407, 18/10/2026; Pedro: "crie um menu lá no menu que desce do site escrito Scrap ... essa aba scrap vai
+       ser um grande gerenciador de listas"): listas de nome + telefone (raspagem da OLX, CSV, mão). */
+    { rotulo: "Scrap",             href: "scrap.html",       chave: "scrap" },
     { rotulo: "Clientes",          href: "clientes.html",    chave: "clientes" },
     { rotulo: "Vagas",             href: "vagas.html",       chave: "vagas" },
     { rotulo: "Fluxo de mensagens", href: "fluxo.html",      chave: "fluxo" },

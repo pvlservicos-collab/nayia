@@ -25,6 +25,8 @@ COPY fotos_api.py .
 # o blog (406, 17/10): a API e os modelos das paginas (Jinja)
 COPY blog_api.py .
 COPY blog_templates/ ./blog_templates/
+# o Scrap (407, 18/10): listas de nome + telefone
+COPY scrap_api.py .
 
 RUN useradd -m site-api
 USER site-api

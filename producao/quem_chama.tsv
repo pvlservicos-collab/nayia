@@ -673,6 +673,10 @@ pergunta_fila_responder	nai_comando_tel
 pergunta_fila_resposta_valida	nai_abrir_turno, pergunta_fila_responder
 pergunta_fila_texto	pergunta_fila_perguntar_proxima, pergunta_fila_tick
 pergunta_fila_tick	nai_agenda_tick
+scrap_contatos_rebuild	site_scrap_importar
+scrap_telefone_formatar	site_scrap_anuncios, site_scrap_contato_salvar, site_scrap_contatos
+scrap_telefone_normalizar	scrap_telefones_do_texto, site_scrap_anuncios, site_scrap_contato_salvar, site_scrap_importar_contatos
+scrap_telefones_do_texto	scrap_contatos_rebuild
 site_blog_admin_artigo	
 site_blog_admin_lista	
 site_blog_apagar	
@@ -737,3 +741,12 @@ site_painel_metricas
 site_painel_visita_marcar	
 site_painel_visitas	
 site_publicos_disparo	
+site_scrap_anuncios	
+site_scrap_contato_salvar	
+site_scrap_contatos	
+site_scrap_contatos_acao	
+site_scrap_importar	
+site_scrap_importar_contatos	
+site_scrap_lista_apagar	
+site_scrap_lista_salvar	
+site_scrap_listas	

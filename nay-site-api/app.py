@@ -5552,6 +5552,13 @@ try:
 except Exception as _e:  # noqa: BLE001
     app.logger.warning("blog_api nao carregou: %s", _e)
 
+# SCRAP, O GERENCIADOR DE LISTAS (407, 18/10): listas de nome + telefone (raspagem da OLX, CSV, mao). Mesmo try/except.
+try:
+    from scrap_api import scrap_bp
+    app.register_blueprint(scrap_bp)
+except Exception as _e:  # noqa: BLE001
+    app.logger.warning("scrap_api nao carregou: %s", _e)
+
 # A CAPTACAO PEDE SENHA (28/09, Pedro: "com bastante seguranca para o numero nao
 # cair"). As rotas /api/captacao/* e /api/nai/captacao* respondiam sem senha
 # nenhuma: qualquer um na internet ligava o disparo (captacao_pausada), punha o
