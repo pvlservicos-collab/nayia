@@ -74,6 +74,11 @@
       outra.click();
     });
   });
+  // 18/10 (Pedro: "tem abas dentro de abas que não aparecem no menu"): o menu aponta para captacao.html#olx,
+  // #olxbot, #oportunidades e #modelos; a aba do endereço abre sozinha, e mudar o hash com a página aberta também.
+  function abrirPeloHash() { var h = location.hash.replace("#", ""); if (h && $("aba-" + h)) mostrar(h); }
+  abrirPeloHash();
+  window.addEventListener("hashchange", abrirPeloHash);
 
   /* ---- o favorito "Enviar para Imob Easy" ------------------------------------
      Roda NA PÁGINA DA OLX, no navegador de quem clica. Sem comentário dentro da

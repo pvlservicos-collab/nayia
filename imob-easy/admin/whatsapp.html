@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WhatsApp · Mensagens — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/captacao-modelos.css?v=20261012e">
+<link rel="stylesheet" href="../assets/css/whatsapp-mensagens.css?v=20261018a">
+<meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
+</head>
+<body class="admin" data-pagina="whatsapp">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+<div data-layout-topo></div>
+
+<!-- 18/10/2026 (Pedro): "uma aba whatsapp onde vai ficar os grupos e as mensagens aprovadas que tem lá em captação ...
+     um panorama geral de todas que foram aprovadas como uma lista filtrável por data e tipo, e aprovada ou não, e também
+     tags ... 2 colunas de cards e no card tem o mockup". Os modelos vêm de dados/modelos.json (cron nay-agentes, Meta);
+     as etiquetas e a observação ficam no banco (410, /admin/api/whats/modelos/notas). Grupos continua em grupos.html. -->
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho wm-cabecalho">
+    <div>
+      <h1 class="pagina-titulo">WhatsApp · Mensagens</h1>
+      <p class="pagina-subtitulo" style="margin-left:0">Todos os modelos da API oficial (Meta), como chegam no celular. Filtre por situação, tipo, etiqueta e data; ponha etiquetas em cada um.</p>
+    </div>
+    <div class="wm-acoes">
+      <a class="btn-neutro" href="grupos.html">Grupos</a>
+      <a class="btn-neutro" href="captacao.html#modelos">Os modelos da campanha</a>
+    </div>
+  </div>
+
+  <div class="wm-resumo" id="wm-resumo"></div>
+
+  <div class="wm-filtros">
+    <input class="entrada" id="wm-busca" type="search" placeholder="Nome ou texto da mensagem…">
+    <select class="selecao" id="wm-status">
+      <option value="">Aprovadas e não aprovadas</option>
+      <option value="APPROVED" selected>Só aprovadas</option>
+      <option value="PENDING">Pendentes</option>
+      <option value="REJECTED">Reprovadas</option>
+      <option value="PAUSED">Pausadas</option>
+    </select>
+    <select class="selecao" id="wm-cat">
+      <option value="">Todos os tipos</option>
+      <option value="UTILITY">Utilidade</option>
+      <option value="MARKETING">Marketing</option>
+      <option value="AUTHENTICATION">Autenticação</option>
+    </select>
+    <select class="selecao" id="wm-etq"><option value="">Todas as etiquetas</option></select>
+    <label class="wm-data">de <input type="date" id="wm-de"></label>
+    <label class="wm-data">até <input type="date" id="wm-ate"></label>
+    <select class="selecao" id="wm-ordem">
+      <option value="recentes">Mais recentes primeiro</option>
+      <option value="antigas">Mais antigas primeiro</option>
+      <option value="nome">Nome A–Z</option>
+    </select>
+    <span class="wm-contagem" id="wm-contagem"></span>
+  </div>
+
+  <div class="wm-grade" id="wm-grade"><p class="mw-vazio">Lendo os modelos…</p></div>
+</main>
+
+<div class="wm-toast" id="wm-toast" hidden></div>
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/whatsapp-mensagens.js?v=20261018a"></script>
+</body>
+</html>

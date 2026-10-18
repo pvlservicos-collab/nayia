@@ -27,6 +27,8 @@ COPY blog_api.py .
 COPY blog_templates/ ./blog_templates/
 # o Scrap (407, 18/10): listas de nome + telefone
 COPY scrap_api.py .
+# WhatsApp > Mensagens (410, 18/10): etiquetas dos modelos da Meta
+COPY whats_api.py .
 
 RUN useradd -m site-api
 USER site-api

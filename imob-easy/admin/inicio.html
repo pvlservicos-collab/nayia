@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css">
 <link rel="stylesheet" href="../assets/css/painel-metricas.css?v=20261017-abas">
+<link rel="stylesheet" href="../assets/css/visao-geral.css?v=20261018a">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
@@ -228,6 +229,22 @@
 </section>
 
 <main class="conteudo" id="conteudo">
+  <!-- 18/10/2026 (Pedro: "visão geral pega o que tem lá e põe embaixo do dashboard da aba início"): o mapa do fluxo do
+       lead, que era a página visao-geral.html (ela continua no ar para o CRM). O desenho e as frases: visao-geral.js. -->
+  <section class="vg vg--no-inicio" id="vg" data-estado-proprio aria-labelledby="vg-titulo">
+    <div class="pagina-cabecalho" style="margin-top:8px">
+      <div>
+        <h2 class="pagina-titulo" id="vg-titulo" style="font-size:1.3rem">Visão geral</h2>
+        <p class="pagina-subtitulo" style="margin-left:0">Por onde o lead chega e como tudo desemboca no CRM: os lugares que a equipe e as Nays usam.</p>
+      </div>
+    </div>
+    <p class="vg-dica">Cada forma é um lugar que alguém usa. Toque numa forma para acender as ligações dela, ou no <b>i</b> para saber o que é.</p>
+    <div class="vg-palco" id="vg-palco">
+      <svg class="vg-mapa" id="vg-mapa" viewBox="0 0 1640 930" role="img" aria-label="O fluxo do lead até o CRM"></svg>
+      <div class="vg-balao" id="vg-balao" role="status" hidden></div>
+    </div>
+  </section>
+
   <h1 class="sr-only">Painel inicial</h1>
 
 
@@ -414,5 +431,6 @@ flowchart LR
     flowchart: { curve: "basis", nodeSpacing: 40, rankSpacing: 60 }
   });
 </script>
+<script src="../assets/js/visao-geral.js?v=20261018a"></script>
 </body>
 </html>

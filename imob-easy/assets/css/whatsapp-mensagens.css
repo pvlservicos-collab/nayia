@@ -1,0 +1,34 @@
+/* WhatsApp › Mensagens (18/10/2026): o panorama dos modelos da Meta em duas colunas de cards com o mockup
+   (os estilos do balão, mw-*, vêm de captacao-modelos.css). */
+.wm-cabecalho { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.wm-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.wm-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.wm-resumo div { background: #fff; border: 1px solid var(--borda); border-radius: var(--raio); padding: 10px 12px; }
+.wm-resumo span { display: block; font-size: var(--fs-xs); color: var(--texto-fraco); text-transform: uppercase; letter-spacing: .05em; }
+.wm-resumo strong { font: 600 1.35rem/1.2 var(--fonte-titulo); color: var(--texto); }
+.wm-filtros { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.wm-filtros .entrada { width: auto; flex: 1 1 220px; max-width: 320px; }
+.wm-filtros .selecao { width: auto; flex: 0 1 auto; max-width: 240px; }
+.wm-data { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--texto-fraco); }
+.wm-data input { border: 1px solid var(--borda-forte); border-radius: var(--raio-sm); padding: 7px 8px; font: inherit; background: #fff; }
+.wm-contagem { font-size: var(--fs-sm); color: var(--texto-fraco); margin-left: auto; }
+
+/* duas colunas de cards (Pedro: "não são itens finos") */
+.wm-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .wm-grade { grid-template-columns: 1fr; } }
+.wm-card { background: #fff; border: 1px solid var(--borda); border-radius: var(--raio-lg); padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 10px; }
+.wm-card .mw-meta { flex-wrap: wrap; }
+.wm-uso { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: #ece6fb; color: #5b3fb5; text-transform: uppercase; letter-spacing: .04em; }
+.wm-data-chip { margin-left: auto; font-size: 11px; color: var(--texto-fraco); font-variant-numeric: tabular-nums; }
+.wm-etqs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.wm-etq { display: inline-flex; align-items: center; gap: 4px; background: #eef2ff; color: #3b4a9c; border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 600; }
+.wm-etq button { border: 0; background: none; color: inherit; cursor: pointer; font-size: 13px; line-height: 1; padding: 0; opacity: .6; }
+.wm-etq button:hover { opacity: 1; }
+.wm-etq-mais { border: 1px dashed var(--borda-forte); background: none; border-radius: 999px; padding: 2px 10px; color: var(--texto-fraco); cursor: pointer; font: 600 12px var(--fonte); }
+.wm-etq-mais:hover { color: var(--roxo); border-color: var(--roxo-borda); }
+.wm-obs { font-size: var(--fs-xs); color: var(--texto-medio); white-space: pre-wrap; cursor: text; min-height: 18px; border-top: 1px dashed var(--borda); padding-top: 8px; }
+.wm-obs:empty::before { content: "anotar algo sobre este modelo…"; color: #b9b3c9; }
+.wm-obs-edita { font-size: var(--fs-xs); resize: vertical; }
+.wm-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1f1b2e; color: #fff; padding: 10px 16px; border-radius: 999px; font-size: var(--fs-sm); z-index: 90; }
+.wm-toast[hidden] { display: none; }
+.wm-toast.erro { background: #b42323; }

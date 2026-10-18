@@ -64,8 +64,8 @@
      Anúncios, Clientes e o que já estava em "Mais") vai pro dropdown "+". */
   var MENU = [
     { chave: "inicio",        rotulo: "Início",           href: "inicio.html" },
-    /* 15/10/2026 (Pedro): "uma página nova, tanto no site como no CRM, chama Visão geral": o mapa do projeto nas VPS */
-    { chave: "visao-geral",   rotulo: "Visão geral",      href: "visao-geral.html" },
+    /* 15/10/2026: "Visão geral" era uma página; 18/10 (Pedro: "pega o que tem lá e põe embaixo do dashboard da aba
+       início") ela mora dentro de inicio.html. visao-geral.html continua no ar para o CRM (+ Mais > Visão geral). */
     { chave: "imoveis",       rotulo: "Todos os Imóveis", href: "imoveis.html" },
     { chave: "proprietarios", rotulo: "Proprietários",    href: "proprietarios.html" },
     { chave: "corretores",    rotulo: "Corretores",       href: "corretores.html" },
@@ -74,25 +74,35 @@
     { chave: "agentes",       rotulo: "Agentes",          href: "agentes.html" },
     /* 06/10/2026 (Pedro: "vou reformular o site: pega o Locação e põe dentro de Captação"): Captação abre um
        menu com as páginas; nenhuma delas mudou. Oportunidades é a 4ª aba de captacao.html (11/10). */
+    /* 18/10/2026 (Pedro: "o menu do site está bagunçado, tem abas dentro de abas que não aparecem no menu"): cada aba
+       da página Captação aparece aqui como filho, com o hash que a abre (captacao-olx.js lê o hash). */
     { chave: "captacao",      rotulo: "Captação",         href: "captacao.html",
-      filhos: [{ rotulo: "Captação",      href: "captacao.html",               chave: "captacao" },
-               { rotulo: "Locação",       href: "locacao.html",                chave: "locacao" },
-               { rotulo: "Oportunidades", href: "captacao.html#oportunidades", chave: "oportunidades" }] },
-    // A AGENDA DOS GRUPOS (Pedro, 03/10/2026): "uma aba Grupos... ao lado da captação"
-    { chave: "grupos",        rotulo: "Grupos",           href: "grupos.html" },
-    // O BLOG (406, 17/10/2026): artigos, visitas e a newsletter de corretores (blog.imobeasy.online)
-    { chave: "blog",          rotulo: "Blog",             href: "blog.html" },
-    /* 06/10/2026 (Pedro: "põe a Nay antiga dentro do menu Mais e deixa no lugar um menu Nova Nay ... esse menu
-       vazio por enquanto"). As telas da Nay de hoje estão no "Mais", no grupo "Nay antiga". */
-    /* "esse Nova Nay não é uma lista, é só um menu clicável, e o conteúdo eu já coloco": vai para nova-nay.html */
-    { chave: "nova-nay",      rotulo: "Nova Nay",         href: "nova-nay.html" }
-    /* Clientes e Vagas foram para o "Mais" (Tel, 28/09) */
+      filhos: [{ rotulo: "Captação WhatsApp",   href: "captacao.html",               chave: "captacao" },
+               { rotulo: "Captação OLX",        href: "captacao.html#olx",           chave: "captacao-olx" },
+               { rotulo: "Imóveis da OLX Bot",  href: "captacao.html#olxbot",        chave: "captacao-olxbot" },
+               { rotulo: "Oportunidades",       href: "captacao.html#oportunidades", chave: "oportunidades" },
+               { rotulo: "Modelos da campanha", href: "captacao.html#modelos",       chave: "captacao-modelos" },
+               { rotulo: "Locação",             href: "locacao.html",                chave: "locacao" }] },
+    /* 18/10/2026 (Pedro: "quero uma aba whatsapp onde vai ficar os grupos e as mensagens aprovadas"): WhatsApp junta
+       os Grupos (agenda, métricas, captação ativa: grupos.html, 03/10) e as Mensagens (todos os modelos da Meta em
+       cards com o mockup, filtráveis e com etiquetas: whatsapp.html). */
+    { chave: "whatsapp",      rotulo: "WhatsApp",         href: "whatsapp.html",
+      filhos: [{ rotulo: "Mensagens (modelos da Meta)", href: "whatsapp.html",        chave: "whatsapp" },
+               { rotulo: "Grupos",                      href: "grupos.html",          chave: "grupos" },
+               { rotulo: "Métricas dos grupos",         href: "grupos.html#metricas", chave: "grupos-metricas" },
+               { rotulo: "Captação ativa por grupos",   href: "grupos.html#captacao", chave: "grupos-captacao" }] }
+    /* Blog (406) e Nova Nay (06/10) foram para o "Mais" em 18/10 (Pedro: "Blog e nova nay põe para dentro do menu mais").
+       Clientes e Vagas foram para o "Mais" (Tel, 28/09) */
   ];
 
   var SUBMENU = [
     /* O SCRAP (407, 18/10/2026; Pedro: "crie um menu lá no menu que desce do site escrito Scrap ... essa aba scrap vai
        ser um grande gerenciador de listas"): listas de nome + telefone (raspagem da OLX, CSV, mão). */
     { rotulo: "Scrap",             href: "scrap.html",       chave: "scrap" },
+    /* 18/10/2026 (Pedro: "Blog e nova nay põe para dentro do menu mais") */
+    { rotulo: "Blog",              href: "blog.html",        chave: "blog" },
+    { rotulo: "Nova Nay",          href: "nova-nay.html",    chave: "nova-nay" },
+    { rotulo: "Visão geral",       href: "visao-geral.html", chave: "visao-geral" },
     { rotulo: "Clientes",          href: "clientes.html",    chave: "clientes" },
     { rotulo: "Vagas",             href: "vagas.html",       chave: "vagas" },
     { rotulo: "Fluxo de mensagens", href: "fluxo.html",      chave: "fluxo" },
