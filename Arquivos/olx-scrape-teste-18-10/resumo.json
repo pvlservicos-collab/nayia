@@ -1,0 +1,30 @@
+[
+ {
+  "busca": "apto_aluguel_4mil",
+  "url": "https://www.olx.com.br/imoveis/aluguel/estado-am/regiao-de-manaus/manaus?ps=4000&q=apartamento%20aluguel&sf=1&f=c",
+  "total_olx": 476,
+  "paginas": 10,
+  "anuncios": 434
+ },
+ {
+  "busca": "casa_aluguel_4mil",
+  "url": "https://www.olx.com.br/imoveis/aluguel/estado-am/regiao-de-manaus/manaus?ps=4000&q=casa%20aluguel&sf=1&f=c",
+  "total_olx": 266,
+  "paginas": 6,
+  "anuncios": 261
+ },
+ {
+  "busca": "apto_venda_400mil",
+  "url": "https://www.olx.com.br/imoveis/venda/estado-am/regiao-de-manaus/manaus?ps=400000&q=apartamento%20venda&sf=1&f=c",
+  "total_olx": 1021,
+  "paginas": 21,
+  "anuncios": 994
+ },
+ {
+  "busca": "casa_venda_400mil",
+  "url": "https://www.olx.com.br/imoveis/venda/estado-am/regiao-de-manaus/manaus?ps=400000&q=casa%20venda&sf=1&f=c",
+  "total_olx": 1388,
+  "paginas": 28,
+  "anuncios": 1372
+ }
+]

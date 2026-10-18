@@ -1,0 +1,49 @@
+== buscas
+  apto_aluguel_4mil: OLX diz 476, 10 páginas, 434 anúncios lidos
+  casa_aluguel_4mil: OLX diz 266, 6 páginas, 261 anúncios lidos
+  apto_venda_400mil: OLX diz 1021, 21 páginas, 994 anúncios lidos
+  casa_venda_400mil: OLX diz 1388, 28 páginas, 1372 anúncios lidos
+== 3061 linhas, 2986 anúncios distintos, 75 aparecem em mais de uma busca
+== profissionais: 3061 de 3061
+== preenchimento (%): {'preco': 100, 'quartos': 89, 'banheiros': 68, 'vagas': 81, 'area_m2': 93, 'condominio_valor': 23, 'iptu_valor': 21, 'bairro': 100, 'anunciante': 100, 'detalhes_imovel': 68, 'detalhes_condominio': 71, 'n_fotos': 100}
+== apto_aluguel_4mil: preço mediana R$ 5.500 | min 4.000 | max 290.000
+   bairros: Ponta Negra 131, Adrianópolis 57, Parque 10 de Novembro 56, Nossa Senhora das Graças 40, Aleixo 37, Dom Pedro I 29, Flores 23, São Jorge 14
+   anunciantes: K. RODRIGUES 21, Rc Cavalcante Imobiliaria Ltda 21, Cristina Corretora 20, Amazon Brokers 16, Sergio Mourão Cunha 14, Gávea Administradora De Imóveis 12, Solange A. S. Bernardino 10, Amaral E Goncalves Imobiliaria Ltda 10
+   subtipo: {'Padrão': 420, 'Loft': 9, 'Cobertura': 4, 'Duplex ou triplex': 1}
+   patrocinados: 4 | destaque: 32 | baixou preço: 0 | com preço antigo: 61
+== casa_aluguel_4mil: preço mediana R$ 8.000 | min 4.000 | max 35.000
+   bairros: Ponta Negra 76, Parque 10 de Novembro 28, Flores 28, Tarumã 25, Chapada 17, Adrianópolis 14, Dom Pedro I 12, Nossa Senhora das Graças 9
+   anunciantes: K. RODRIGUES 19, Cristina Corretora 17, Rc Cavalcante Imobiliaria Ltda 16, Sergio Mourão Cunha 12, Solange A. S. Bernardino 9, Alan De Lima Rodrigues 7, Darciano Araújo Da Silva Neto 6, Habitamax- Sua Imobiliária Digital 6
+   subtipo: {'Casa de condomínio': 132, 'Padrão': 127, 'Casa de vila': 1, 'Duplex ou triplex': 1}
+   patrocinados: 1 | destaque: 20 | baixou preço: 0 | com preço antigo: 38
+== apto_venda_400mil: preço mediana R$ 800.000 | min 400.000 | max 424.000.000
+   bairros: Ponta Negra 255, Parque 10 de Novembro 108, Adrianópolis 105, Aleixo 102, Dom Pedro I 76, Nossa Senhora das Graças 66, Flores 61, São Jorge 43
+   anunciantes: Amazon Brokers 50, Prime House Imob 49, Cristina Corretora 48, Everton Nunes De Lima 48, Stilloimob Negócios Imobiliários Ltda 39, Padrão Negócios Imobiliários 37, Rc Cavalcante Imobiliaria Ltda 35, Telmario Araújo 35
+   subtipo: {'Padrão': 942, 'Cobertura': 26, 'Loft': 12, 'Duplex ou triplex': 8, 'Casa de condomínio': 2}
+   patrocinados: 1 | destaque: 24 | baixou preço: 0 | com preço antigo: 109
+== casa_venda_400mil: preço mediana R$ 950.000 | min 400.000 | max 170.000.000
+   bairros: Ponta Negra 391, Flores 164, Parque 10 de Novembro 113, Tarumã 106, Novo Aleixo 92, Dom Pedro I 48, Aleixo 46, Tarumã-Açu 41
+   anunciantes: Everton Nunes De Lima 95, Procasa Empresa Imobiliaria Ltda 85, Rc Cavalcante Imobiliaria Ltda 67, Cristina Corretora 50, PadrÃ£o NegÃ³cios ImobiliÃ¡rios 43, Many Imóveis 43, Amazon Brokers 41, Habitamax- Sua Imobiliária Digital 41
+   subtipo: {'Padrão': 720, 'Casa de condomínio': 638, 'Casa de vila': 9, None: 5}
+   patrocinados: 3 | destaque: 39 | baixou preço: 0 | com preço antigo: 171
+== por data de publicação/bump (top 10): [('2026-10-16', 137), ('2026-10-15', 98), ('2025-12-10', 88), ('2026-10-13', 72), ('2026-10-17', 70), ('2026-10-14', 70), ('2026-09-24', 69), ('2026-10-07', 66), ('2026-10-18', 63), ('2026-09-22', 62)]
+== detalhes: 20 ok 19 erro ['sem initial-data']
+  1543132981 | Sampaio | Ponta Negra CEP 69037000 (-3.070458,-60.092245) | tel 9299981*... | Aluguel R$ 7.000 | fotos 12 | descr 846 chars | zap 2916900497 | pub 2026-10-18T21:02:46.000Z
+  1545312951 | Solange A. S. Bernardino | Centro CEP 69010120 (-3.127539,-60.030273) | tel 9298409*... | Aluguel R$ 48.000 | fotos 17 | descr 384 chars | zap 2918152089 | pub 2026-10-18T19:48:49.000Z
+  1544942873 | Sampaio | Ponta Negra CEP 69037000 (-3.075086,-60.087629) | tel 9299981*... | Aluguel R$ 5.000 | fotos 14 | descr 235 chars | zap 2917947954 | pub 2026-10-18T19:02:01.000Z
+  1537086503 | Sampaio | Dom Pedro I CEP 69040270 (-3.092985,-60.039441) | tel 9299981*... | Aluguel R$ 8.000 | fotos 13 | descr 188 chars | zap 2913059737 | pub 2026-10-18T16:04:52.000Z
+  1541910201 | Ossame Imóveis | Ponta Negra CEP 69037145 (-3.045221,-60.083957) | tel 9299194*... | Aluguel R$ 18.000 | fotos 20 | descr 947 chars | zap 2916207147 | pub 2026-10-15T18:51:21.000Z
+  1535738783 | Agnaldo Edson Nogueira | Centro CEP 69025070 (-3.115493,-60.012405) | tel 9298287*... | Aluguel R$ 7.500 | fotos 7 | descr 223 chars | zap 2912150279 | pub 2026-10-18T18:50:32.000Z
+  1543003068 | Lilianny Beth De Souza | Ponta Negra CEP 69037144 (-3.037477,-60.081359) | tel 9299321*... | Aluguel R$ 7.600 | fotos 15 | descr 223 chars | zap 2916842145 | pub 2026-10-10T13:30:50.000Z
+  1545294941 | Fernandes  | São Francisco CEP 69079040 (-3.1126,-60.006749) | tel 9299308*... | Aluguel R$ 4.000 | fotos 20 | descr 707 chars | zap None | pub 2026-10-18T18:02:36.000Z
+  1545261079 | Sergio Mourão Cunha | Parque 10 de Novembro CEP 69054285 (-3.07056,-59.991745) | tel 9299114*... | Aluguel R$ 15.018 | fotos 20 | descr 2904 chars | zap 2918126898 | pub 2026-10-18T15:14:46.000Z
+  1545312960 | Solange A. S. Bernardino | Centro CEP 69010120 (-3.127539,-60.030273) | tel 9298409*... | Preço R$ 480.000 | fotos 17 | descr 384 chars | zap 2918152089 | pub 2026-10-18T19:48:52.000Z
+  1544942872 | Sampaio | Ponta Negra CEP 69037000 (-3.075086,-60.087629) | tel 9299981*... | Preço R$ 5.500.000 | fotos 14 | descr 235 chars | zap 2917947954 | pub 2026-10-18T19:01:58.000Z
+  1538257432 | Tiago Breno | São Geraldo CEP 69050000 (-3.100106,-60.009733) | tel 9298100*... | Preço R$ 670.000 | fotos 17 | descr 678 chars | zap None | pub 2026-10-18T17:50:44.000Z
+  1527491494 | Padrão Negócios Imobiliários | Dom Pedro I CEP 69040000 (-3.087831,-60.03787) | tel 9299298*... | Preço R$ 900.000 | fotos 14 | descr 523 chars | zap None | pub 2026-08-18T21:14:45.000Z
+  1445851167 | Padrão Negócios Imobiliários | Novo Aleixo CEP 69098320 (-3.053639,-59.964077) | tel  | Preço R$ 490.020 | fotos 16 | descr 644 chars | zap None | pub 2026-08-18T11:50:02.000Z
+  1545307139 | Casas Manaus Am | Ponta Negra CEP 69037145 (-3.02898,-60.08036) | tel 9298469*... | Preço R$ 550.000 | fotos 20 | descr 727 chars | zap None | pub 2026-10-18T19:16:25.000Z
+  1525873887 | Cristina Corretora | Parque 10 de Novembro CEP 69050030 (-3.096075,-60.013254) | tel 9299267*... | Preço R$ 550.000 | fotos 19 | descr 418 chars | zap None | pub 2026-10-18T19:13:36.000Z
+  1535738556 | Agnaldo Edson Nogueira | Centro CEP 69025070 (-3.115493,-60.012405) | tel 9298287*... | Preço R$ 1.550.000 | fotos 7 | descr 223 chars | zap 2912150279 | pub 2026-10-18T18:50:32.000Z
+  1525886523 | Imobiliária Amazonas | Ponta Negra CEP 69037071 (-3.053866,-60.092178) | tel 9299112*... | Preço R$ 2.200.000 | fotos 21 | descr 995 chars | zap None | pub 2026-10-15T18:07:35.000Z
+  1527487998 | Padrão Negócios Imobiliários | Coroado CEP 69082660 (-3.089919,-59.98094) | tel 9299298*... | Preço R$ 800.000 | fotos 17 | descr 681 chars | zap None | pub 2026-10-18T15:52:59.000Z
