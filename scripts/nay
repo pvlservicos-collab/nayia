@@ -14,6 +14,7 @@
 #   ./scripts/nay estatico arq1 arq2 ...         sobe SÓ páginas/scripts/estilos do imob-easy/ (PARA e avisa se o servidor mudou)
 #   ./scripts/nay site                           sobe nay-site-api + arquivos do imob-easy/ e confere /api/imoveis/opcoes
 #   ./scripts/nay crm arquivo1 arquivo2 ...      copia para /docker/crm/app e rebuild (~4 min)
+#   ./scripts/nay posts <código> [opções]       os posts do imóvel (post, carrossel, legenda) pelo gerador, na VPS
 # Regras (CLAUDE.md): backup -> ensaio -> aplicar -> foto -> commit. Nunca reaplique .sql antigo.
 set -uo pipefail
 RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
@@ -137,6 +138,19 @@ case "$cmd" in
     for a in $API_ARQS; do subir nay-site-api /docker/nay-site-api "$a"; done
     for f in "$@"; do subir imob-easy /docker/nay-site-web/public "$f"; done
     ssh -o ConnectTimeout=20 $SRV 'cd /docker/nay-site-api && docker compose up -d --build 2>&1 | grep -i started | tail -1; sleep 7; curl -s -m 60 -o /dev/null -w "/api/imoveis/opcoes -> %{http_code} em %{time_total}s\n" http://127.0.0.1:8092/api/imoveis/opcoes' ;;
+  posts)
+    # OS POSTS DE UM IMÓVEL (18/10): o gerador do Pedro (gerador-posts-imob-easy.html) rodando num Chromium sem tela na
+    # VPS. ./scripts/nay posts 5739 [--modelo galeria|classico|vitrine|mosaico] [--carrossel faixaBaixo|faixaLado|etiqueta|nenhum]
+    # [--formatos feed,quadrado,story,paisagem] [--video] [--contato ...] [--chamada ...] [--destaque ...] [--slogan ...]
+    # Sai em imobeasy.online/fotos-captacao/posts/<codigo>/<carimbo>/ com o ZIP. --atualizar sobe o runner e o HTML antes.
+    if [ "${1:-}" = "--atualizar" ]; then
+      shift
+      scp -q "$RAIZ/scripts/servidor/nay-posts/gerar_posts.py" $SRV:/root/nay-posts/gerar_posts.py
+      scp -q "$RAIZ/imob-easy/admin/gerador-posts.html" $SRV:/root/nay-posts/gerador.html
+      echo "runner e gerador atualizados na VPS"
+    fi
+    [ $# -gt 0 ] || { echo "diga o código do imóvel"; exit 1; }
+    ssh -o ConnectTimeout=20 $SRV "/root/nay-posts/.venv/bin/python /root/nay-posts/gerar_posts.py $*" ;;
   crm)
     # cria a pasta antes (rota nova mora em pasta nova) e PARA se a cópia falhar:
     # em 30/09 duas rotas novas não subiram e o scp -q engoliu o erro
