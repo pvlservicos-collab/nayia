@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css">
-<link rel="stylesheet" href="../assets/css/painel-metricas.css?v=20261017a">
+<link rel="stylesheet" href="../assets/css/painel-metricas.css?v=20261017-abas">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
@@ -82,92 +82,148 @@
       </div>
     </article>
 
-    <div class="pm-kpis" id="pm-kpis"></div>
+      <nav class="pm-abas" role="tablist" aria-label="Categorias do painel">
+        <button type="button" role="tab" data-aba="resumo" style="--cor:#8ab8ff"><i></i>Resumo</button>
+        <button type="button" role="tab" data-aba="corretores" style="--cor:#b877d9"><i></i>Corretores</button>
+        <button type="button" role="tab" data-aba="visitas" style="--cor:#4fc4cf"><i></i>Visitas <b id="pm-aba-amarcar" hidden></b></button>
+        <button type="button" role="tab" data-aba="donos" style="--cor:#fade2a"><i></i>Donos e disparos</button>
+        <button type="button" role="tab" data-aba="olx" style="--cor:#ff9830"><i></i>Clientes OLX</button>
+        <button type="button" role="tab" data-aba="catalogo" style="--cor:#e07bc4"><i></i>Catálogo</button>
+        <button type="button" role="tab" data-aba="fechamentos" style="--cor:#73bf69"><i></i>Fechamentos</button>
+        <button type="button" role="tab" data-aba="novidades" style="--cor:#9aa0ac"><i></i>Novidades</button>
+      </nav>
 
-    <h3 class="pm-secao">Por número</h3>
-    <div class="pm-linhas" id="pm-linhas"></div>
-
-    <h3 class="pm-secao">Atendimento</h3>
-    <div class="pm-grade">
-      <article class="pm-painel">
-        <div class="pm-painel__topo">
-          <h3>Pessoas por número <span class="pm-info" title="Conversaram: escreveram ou receberam mensagem que não é modelo. Escreveram: mandaram ao menos uma mensagem. Novas: a primeira mensagem delas naquele número caiu no período. Alcançados: receberam qualquer coisa nossa, modelo incluído.">i</span></h3>
-          <div class="pm-seg pm-seg--mini" data-grupo="medida" role="group" aria-label="Medida">
-            <button type="button" data-v="conversaram">Conversaram</button>
-            <button type="button" data-v="escreveram">Escreveram</button>
-            <button type="button" data-v="novas">Novas</button>
-            <button type="button" data-v="alcancados">Alcançados</button>
-          </div>
+      <!-- RESUMO: o caminho do negócio e os três números -->
+      <section class="pm-aba" data-aba="resumo" role="tabpanel">
+        <div class="pm-kpis" id="pm-kpis-resumo"></div>
+        <div class="pm-grade" style="margin-top:8px">
+          <article class="pm-painel">
+            <div class="pm-painel__topo"><h3>O caminho do negócio <span class="pm-info" title="Pessoas com conversa nos três números, visitas marcadas, visitas que aconteceram e visitas que viraram negócio. Realizada e fechou são o que a equipe marca na aba Visitas.">i</span></h3></div>
+            <div class="pm-funil pm-funil--grande" id="pm-funil-negocio"></div>
+          </article>
+          <article class="pm-painel">
+            <div class="pm-painel__topo">
+              <h3>Pessoas por número</h3>
+              <div class="pm-seg pm-seg--mini" data-grupo="medida" role="group" aria-label="Medida">
+                <button type="button" data-v="conversaram">Conversaram</button>
+                <button type="button" data-v="escreveram">Escreveram</button>
+                <button type="button" data-v="novas">Novas</button>
+              </div>
+            </div>
+            <div class="pm-grafico"><canvas id="pm-g-pessoas"></canvas><div class="pm-vazio" id="pm-g-pessoas-vazio" hidden>sem o CRM agora</div></div>
+          </article>
         </div>
-        <div class="pm-grafico"><canvas id="pm-g-pessoas"></canvas><div class="pm-vazio" id="pm-g-pessoas-vazio" hidden>sem o CRM agora</div></div>
-      </article>
-      <article class="pm-painel">
-        <div class="pm-painel__topo"><h3>Visitas <span class="pm-info" title="Pela Nay: a Nay da Parceria marcou. Pelo CRM: alguém marcou no card. Clientes da OLX: a Nay do WhatsApp (8595). Confirmadas: pelo corretor, aprovadas pela equipe ou confirmadas no fim.">i</span></h3></div>
-        <div class="pm-grafico"><canvas id="pm-g-visitas"></canvas></div>
-      </article>
-      <article class="pm-painel">
-        <div class="pm-painel__topo"><h3>Imóveis enviados <span class="pm-info" title="Pares pessoa × imóvel (card ou foto) por período. Média por corretor = enviados ÷ quem recebeu (Parceria).">i</span></h3></div>
-        <div class="pm-grafico"><canvas id="pm-g-enviados"></canvas></div>
-      </article>
-      <article class="pm-painel">
-        <div class="pm-painel__topo"><h3>Grupos de corretores <span class="pm-info" title="Posts de imóvel nos grupos, quantos imóveis diferentes, os pedidos que os corretores fazem nos grupos (sem repetir o mesmo pedido) e os atendidos.">i</span></h3></div>
-        <div class="pm-grafico"><canvas id="pm-g-grupos"></canvas></div>
-      </article>
-      <article class="pm-painel">
-        <div class="pm-painel__topo"><h3>Fila de perguntas ao Tel</h3></div>
-        <div class="pm-grafico"><canvas id="pm-g-perguntas"></canvas></div>
-      </article>
-      <article class="pm-painel">
-        <div class="pm-painel__topo"><h3>Imóveis mais enviados <small>pessoas que receberam</small></h3></div>
-        <div id="pm-top"></div>
-      </article>
-    </div>
+        <div class="pm-linhas" id="pm-linhas" style="margin-top:8px"></div>
+      </section>
 
-    <h3 class="pm-secao">OLX e cadastro</h3>
-    <div class="pm-grade">
-      <article class="pm-painel">
-        <div class="pm-painel__topo"><h3>Clientes da OLX: até onde chegaram <span class="pm-info" title="Dos clientes que chegaram ao WhatsApp no período, quantos receberam imóvel, pediram visita, tiveram a visita confirmada e já visitaram.">i</span></h3></div>
-        <div class="pm-funil" id="pm-funil"></div>
-      </article>
-      <article class="pm-painel">
-        <div class="pm-painel__topo"><h3>OLX por período</h3></div>
-        <div class="pm-grafico"><canvas id="pm-g-olx"></canvas></div>
-      </article>
-      <article class="pm-painel pm-larga">
-        <div class="pm-painel__topo"><h3>Imóveis novos no cadastro <span class="pm-info" title="Por origem do cadastro. A carga da planilha do site antigo (26/09) não conta como imóvel novo.">i</span></h3></div>
-        <div class="pm-grafico"><canvas id="pm-g-novos"></canvas></div>
-      </article>
-    </div>
+      <!-- CORRETORES: quem atendemos e quantos imóveis cada um recebeu -->
+      <section class="pm-aba" data-aba="corretores" role="tabpanel" hidden>
+        <p class="pm-aba__intro">Os corretores da Parceria: quantos atendemos, quantos receberam imóvel e quantos imóveis cada um recebeu.</p>
+        <div class="pm-kpis" id="pm-kpis-corretores"></div>
+        <div class="pm-grade" style="margin-top:8px">
+          <article class="pm-painel pm-larga">
+            <div class="pm-painel__topo"><h3>Corretores × imóveis <span class="pm-info" title="Barras: imóveis enviados (pela Nay e pela equipe). Linha clara: corretores que receberam. Linha amarela (eixo da direita): média de imóveis por corretor.">i</span></h3></div>
+            <div class="pm-grafico pm-grafico--alto"><canvas id="pm-g-corretores"></canvas></div>
+          </article>
+          <article class="pm-painel">
+            <div class="pm-painel__topo"><h3>Grupos de corretores</h3></div>
+            <div class="pm-statlist" id="pm-grupos"></div>
+          </article>
+          <article class="pm-painel">
+            <div class="pm-painel__topo"><h3>Imóveis mais enviados <small>corretores e clientes que receberam</small></h3></div>
+            <div id="pm-top"></div>
+          </article>
+        </div>
+      </section>
 
-    <h3 class="pm-secao">Disparos para proprietários</h3>
-    <div class="pm-grade">
-      <article class="pm-painel">
-        <div class="pm-painel__topo"><h3>Enviados, respostas e status</h3></div>
-        <div class="pm-grafico"><canvas id="pm-g-disparos"></canvas></div>
-      </article>
-      <article class="pm-painel">
-        <div class="pm-painel__topo"><h3>Cada disparo, até hoje <span class="pm-info" title="Por dia e número: quantos donos receberam, quantos responderam em até 7 dias, quantos mudaram o status do imóvel e quantos atualizaram (mudaram ou confirmaram como está).">i</span></h3></div>
-        <div id="pm-coortes"></div>
-      </article>
-    </div>
+      <!-- VISITAS: o que foi marcado, o que aconteceu e o que virou negócio -->
+      <section class="pm-aba" data-aba="visitas" role="tabpanel" hidden>
+        <p class="pm-aba__intro">Marque cada visita que já passou: <b>Desistiu</b>, <b>Realizada</b> ou <b>Fechou negócio</b>. Os números e o caminho do negócio usam o que vocês marcam aqui.</p>
+        <div class="pm-kpis" id="pm-kpis-visitas"></div>
+        <div class="pm-grade" style="margin-top:8px">
+          <article class="pm-painel pm-larga">
+            <div class="pm-painel__topo"><h3>Visitas por resultado <span class="pm-info" title="Barras pelo dia da visita: fechou negócio, realizada, desistiu, ainda a marcar. Linha: visitas agendadas (pelo dia em que foram marcadas).">i</span></h3></div>
+            <div class="pm-grafico"><canvas id="pm-g-visitas"></canvas></div>
+          </article>
+          <article class="pm-painel pm-larga">
+            <div class="pm-painel__topo"><h3>As visitas <small id="pm-vcontagem"></small></h3></div>
+            <div class="pm-vfiltros" id="pm-vfiltros"></div>
+            <div class="pm-vlista" id="pm-vlista"><p style="color:#8e8ea0;font-size:12px">Carregando…</p></div>
+          </article>
+        </div>
+      </section>
 
-    <h3 class="pm-secao">Fechamentos</h3>
-    <div class="pm-grade">
-      <article class="pm-painel">
-        <div class="pm-painel__topo"><h3>Negócios por período</h3></div>
-        <div class="pm-grafico"><canvas id="pm-g-fech"></canvas></div>
-      </article>
-      <article class="pm-painel">
-        <div class="pm-painel__topo"><h3>Da aba Fechamento</h3></div>
-        <div id="pm-fechamentos"></div>
-      </article>
-    </div>
+      <!-- DONOS E DISPAROS -->
+      <section class="pm-aba" data-aba="donos" role="tabpanel" hidden>
+        <p class="pm-aba__intro">A captação com proprietários: os disparos (oficial e Z-API), quem respondeu e quem atualizou o imóvel.</p>
+        <div class="pm-kpis" id="pm-kpis-donos"></div>
+        <div class="pm-grade" style="margin-top:8px">
+          <article class="pm-painel">
+            <div class="pm-painel__topo"><h3>Do disparo ao cadastro atualizado <span class="pm-info" title="Dos donos que receberam disparo no período: quantos responderam em até 7 dias e quantos mudaram ou confirmaram o status do imóvel depois.">i</span></h3></div>
+            <div class="pm-funil pm-funil--grande" id="pm-funil-donos"></div>
+          </article>
+          <article class="pm-painel">
+            <div class="pm-painel__topo"><h3>Disparos × respostas</h3></div>
+            <div class="pm-grafico"><canvas id="pm-g-disparos"></canvas></div>
+          </article>
+          <article class="pm-painel pm-larga">
+            <div class="pm-painel__topo"><h3>Cada disparo, até hoje</h3></div>
+            <div id="pm-coortes"></div>
+          </article>
+        </div>
+      </section>
 
-    <h3 class="pm-secao">Novidades dos últimos 30 dias <small id="pm-novidades-total" style="text-transform:none;letter-spacing:0;font-weight:400"></small></h3>
-    <article class="pm-painel">
-      <div class="pm-novidades__filtros" id="pm-novidades-filtros"></div>
-      <div class="pm-novidades__lista" id="pm-novidades"></div>
-    </article>
+      <!-- CLIENTES OLX -->
+      <section class="pm-aba" data-aba="olx" role="tabpanel" hidden>
+        <p class="pm-aba__intro">Quem veio da OLX (e quem escreveu direto no 8595): até onde chegou e quantos visitaram.</p>
+        <div class="pm-kpis" id="pm-kpis-olx"></div>
+        <div class="pm-grade" style="margin-top:8px">
+          <article class="pm-painel">
+            <div class="pm-painel__topo"><h3>Até onde chegaram</h3></div>
+            <div class="pm-funil" id="pm-funil"></div>
+          </article>
+          <article class="pm-painel">
+            <div class="pm-painel__topo"><h3>Clientes da OLX por período</h3></div>
+            <div class="pm-grafico"><canvas id="pm-g-olx"></canvas></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- CATÁLOGO: o que entrou de novo -->
+      <section class="pm-aba" data-aba="catalogo" role="tabpanel" hidden>
+        <p class="pm-aba__intro">O que entrou de novo: imóveis no cadastro, anúncios na OLX e cadastros que os donos atualizaram.</p>
+        <div class="pm-kpis" id="pm-kpis-catalogo"></div>
+        <div class="pm-grade" style="margin-top:8px">
+          <article class="pm-painel pm-larga">
+            <div class="pm-painel__topo"><h3>Novidades no catálogo <span class="pm-info" title="Barras: imóveis novos por origem. Linhas (eixo da direita): anúncios publicados na OLX e cadastros atualizados pelos donos.">i</span></h3></div>
+            <div class="pm-grafico pm-grafico--alto"><canvas id="pm-g-catalogo"></canvas></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- FECHAMENTOS -->
+      <section class="pm-aba" data-aba="fechamentos" role="tabpanel" hidden>
+        <div class="pm-kpis" id="pm-kpis-fechamentos"></div>
+        <div class="pm-grade" style="margin-top:8px">
+          <article class="pm-painel">
+            <div class="pm-painel__topo"><h3>Negócios por período</h3></div>
+            <div class="pm-grafico"><canvas id="pm-g-fech"></canvas></div>
+          </article>
+          <article class="pm-painel">
+            <div class="pm-painel__topo"><h3>Da aba Fechamento</h3></div>
+            <div id="pm-fechamentos"></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- NOVIDADES DOS ÚLTIMOS 30 DIAS -->
+      <section class="pm-aba" data-aba="novidades" role="tabpanel" hidden>
+        <p class="pm-aba__intro">O que entrou no ar nos últimos 30 dias, por área. <span id="pm-novidades-total"></span></p>
+        <article class="pm-painel">
+          <div class="pm-novidades__filtros" id="pm-novidades-filtros"></div>
+          <div class="pm-novidades__lista" id="pm-novidades"></div>
+        </article>
+      </section>
   </div>
 </section>
 
@@ -342,7 +398,7 @@ flowchart LR
 <script src="../assets/js/tabelas-banco.js"></script>
 <script src="../assets/js/proximos-passos.js"></script>
 <script src="../assets/js/painel-novidades.js?v=20261017a"></script>
-<script src="../assets/js/painel-metricas.js?v=20261017a"></script>
+<script src="../assets/js/painel-metricas.js?v=20261017-abas"></script>
 <script>
   mermaid.initialize({
     startOnLoad: true,

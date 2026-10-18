@@ -5232,6 +5232,52 @@ def admin_painel_metricas():
     return jsonify(r)
 
 
+# O RESULTADO DE CADA VISITA (404, Pedro 17/10: "a aba visitas vai ter as visitas listadas e um botão de status,
+# Desistiu, Realizada, Fechou negócio, e eu vou poder mudar e salvar manualmente visita a visita").
+@app.route("/admin/api/painel/visitas")
+def admin_painel_visitas():
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    de, ate = request.args.get("de") or "", request.args.get("ate") or ""
+    if not (re.match(r"^\d{4}-\d{2}-\d{2}$", de) and re.match(r"^\d{4}-\d{2}-\d{2}$", ate)):
+        return jsonify({"erro": "data inválida (use AAAA-MM-DD)"}), 400
+    conn = conectar_escrita()
+    try:
+        linhas = todas_linhas(conn, "SELECT site_painel_visitas(%s::date, %s::date) AS j", (de, ate))
+        return jsonify({"visitas": (linhas[0]["j"] if linhas else None) or []})
+    except Exception as exc:  # noqa: BLE001
+        conn.rollback()
+        app.logger.warning("painel/visitas: %s", exc.__class__.__name__)
+        return jsonify({"erro": "Não consegui ler as visitas agora."}), 500
+    finally:
+        conn.close()
+
+
+@app.route("/admin/api/painel/visitas/<origem>/<int:vid>", methods=["POST"])
+def admin_painel_visita_marcar(origem, vid):
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    corpo = request.get_json(silent=True) or {}
+    try:
+        from disparo_api import _usuario_admin
+        quem = _usuario_admin() or "admin"
+    except Exception:  # noqa: BLE001
+        quem = "admin"
+    conn = conectar_escrita()
+    try:
+        linhas = todas_linhas(conn, "SELECT site_painel_visita_marcar(%s, %s, %s, %s) AS j",
+                              (origem, vid, corpo.get("resultado") or "", quem))
+        conn.commit()
+        r = (linhas[0]["j"] if linhas else None) or {"ok": False, "erro": "sem resposta"}
+        return jsonify(r), (200 if r.get("ok") else 422)
+    except Exception as exc:  # noqa: BLE001
+        conn.rollback()
+        app.logger.warning("painel/visita marcar: %s", exc.__class__.__name__)
+        return jsonify({"ok": False, "erro": "Não consegui salvar agora."}), 500
+    finally:
+        conn.close()
+
+
 @app.route("/admin/api/grade", methods=["POST"])
 @app.route("/admin/api/grade/<int:vaga_id>", methods=["PUT", "DELETE"])
 def admin_grade_mudar(vaga_id=None):

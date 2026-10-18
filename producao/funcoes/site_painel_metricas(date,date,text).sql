@@ -15,6 +15,7 @@ DECLARE
   v_nomes text[] := ARRAY[
     'visitas', 'visitas_nay', 'visitas_crm', 'visitas_confirmadas', 'visitas_marcadas_para',
     'visitas_olx', 'visitas_olx_confirmadas',
+    'visitas_realizadas', 'visitas_desistiu', 'visitas_fechou', 'visitas_sem_resultado',
     'enviados', 'enviados_nay', 'enviados_equipe', 'destinatarios', 'enviados_captacao', 'destinatarios_captacao',
     'grupo_posts', 'grupo_imoveis',
     'imoveis_novos', 'imoveis_novos_site', 'imoveis_novos_olx', 'imoveis_novos_crm', 'imoveis_novos_outros',
@@ -40,6 +41,18 @@ BEGIN
                               ('visitas_confirmadas', coalesce(v.confirmada_em, v.confirmada_corretor_em, v.aprovada_em)),
                               ('visitas_marcadas_para', CASE WHEN v.estado NOT IN ('cancelada', 'expirada') THEN v.quando END)) x(m, t)
    WHERE v.excluida_em IS NULL AND x.t >= v_ini AND x.t < v_fim
+  -- 404: o resultado que a equipe marcou, pelo dia da VISITA (as que já passaram); fechou também é realizada
+  UNION ALL
+  SELECT x.m, vv.quando, vv.k
+    FROM (SELECT 'parceria' AS origem, id, quando FROM nai_visita WHERE excluida_em IS NULL AND quando IS NOT NULL
+          UNION ALL SELECT 'olx', id, quando FROM privado.olx_visita WHERE quando IS NOT NULL) vv0
+   CROSS JOIN LATERAL (SELECT vv0.quando, vv0.origem || vv0.id AS k) vv
+    LEFT JOIN privado.visita_resultado r ON r.origem = vv0.origem AND r.visita_id = vv0.id
+   CROSS JOIN LATERAL (VALUES (CASE WHEN r.resultado IN ('realizada', 'fechou') THEN 'visitas_realizadas' END),
+                              (CASE WHEN r.resultado = 'fechou' THEN 'visitas_fechou' END),
+                              (CASE WHEN r.resultado = 'desistiu' THEN 'visitas_desistiu' END),
+                              (CASE WHEN r.resultado IS NULL THEN 'visitas_sem_resultado' END)) x(m)
+   WHERE x.m IS NOT NULL AND vv.quando >= v_ini AND vv.quando < least(v_fim, now())
   -- PARCERIA: imóvel que saiu (card ou foto) para alguém: pela Nay (nay-core e a NAI velha) ou pela equipe
   UNION ALL
   SELECT x.m, s.enviado_em, x.k
