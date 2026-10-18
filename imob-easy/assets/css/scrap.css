@@ -31,8 +31,7 @@
 .sc-numeros span b { color: var(--texto); font-weight: 700; }
 .sc-lista-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
 .sc-filtros { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
-.sc-filtros .entrada { width: auto; max-width: 300px; flex: 1 1 200px; }
-.sc-filtros .selecao { width: auto; flex: 0 1 auto; max-width: 220px; }
+.sc-filtros .entrada { max-width: 300px; flex: 1 1 200px; }
 .sc-contagem { font-size: var(--fs-sm); color: var(--texto-fraco); margin-left: auto; }
 
 .sc-lote { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: #f3eefc; border: 1px solid var(--roxo-borda); border-radius: var(--raio); padding: 8px 12px; margin-bottom: 10px; font-size: var(--fs-sm); }
@@ -42,7 +41,7 @@
 .sc-link { border: 0; background: none; color: var(--roxo); cursor: pointer; font: inherit; font-size: var(--fs-xs); text-decoration: underline; }
 
 .sc-tabela-caixa { background: #fff; border: 1px solid var(--borda); border-radius: var(--raio); overflow: auto; }
-.sc-tabela { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 880px; }
+.sc-tabela { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); min-width: 980px; }
 .sc-tabela th { text-align: left; font-weight: 600; color: var(--texto-fraco); padding: 9px 10px; border-bottom: 1px solid var(--borda-forte); background: var(--superficie-2); white-space: nowrap; position: sticky; top: 0; z-index: 1; }
 .sc-tabela td { padding: 8px 10px; border-bottom: 1px solid var(--borda); vertical-align: top; }
 .sc-tabela tr:hover td { background: #faf8fe; }
@@ -59,7 +58,7 @@
 .sc-ok { display: inline-block; font-size: 10px; font-weight: 700; color: #1f7a4d; background: #e8f7f0; border-radius: 4px; padding: 1px 5px; margin-left: 4px; vertical-align: middle; }
 .sc-anuncios { border: 0; background: #f3eefc; color: var(--roxo); border-radius: 999px; padding: 2px 10px; font: 700 12px var(--fonte); cursor: pointer; }
 .sc-anuncios:hover { background: var(--roxo); color: #fff; }
-.sc-bairros { color: var(--texto-medio); font-size: var(--fs-xs); max-width: 150px; }
+.sc-bairros { color: var(--texto-medio); font-size: var(--fs-xs); max-width: 220px; }
 .sc-faixa { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--texto-medio); font-size: var(--fs-xs); }
 .sc-status { border: 1px solid transparent; border-radius: 999px; padding: 3px 24px 3px 10px; font: 600 11px var(--fonte); text-transform: uppercase; letter-spacing: .04em; appearance: none; -webkit-appearance: none; background: #eee9f6 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23666' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 8px center; cursor: pointer; color: #4b4660; }
 .sc-status--contatado { background-color: #ece6fb; color: #5b3fb5; } .sc-status--respondeu { background-color: #e8f7f0; color: #1f7a4d; }

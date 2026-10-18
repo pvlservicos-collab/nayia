@@ -131,10 +131,6 @@
     $("sc-contagem").textContent = total ? n(contatos.length) + " de " + n(total) + " contatos" : "";
     $("sc-mais").hidden = contatos.length >= total;
   }
-  function maisListas(ts) {
-    if (!ts || !ts.length) return "";
-    return '<span class="sc-tambem" title="também em: ' + esc(ts.join(", ")) + '">também em ' + (ts.length === 1 ? esc(ts[0].replace(/^OLX · /, "")) : ts.length + " listas") + "</span>";
-  }
   function linha(c) {
     var marcado = !!marcados[c.id];
     var faixa = c.preco_min != null ? (c.preco_min === c.preco_max ? "R$ " + moeda(c.preco_min) : "R$ " + moeda(c.preco_min) + " – " + moeda(c.preco_max)) : "";
@@ -143,13 +139,13 @@
       '<td><span class="sc-nome" data-edita="nome" title="clique para editar">' + (esc(c.nome) || '<span style="color:#b9b3c9">sem nome</span>') + "</span>" +
         (c.confirmado ? '<span class="sc-ok" title="o prefixo que a OLX mostra bate com este número">✓ OLX</span>' : "") +
         (c.empresa ? "<small>" + esc(c.empresa) + "</small>" : "") +
-        (!listaAtual && c.lista_nome ? '<small><span class="sc-tambem" style="background:' + esc(c.lista_cor) + '22;color:' + esc(c.lista_cor) + '" title="' + esc(c.lista_nome) + '">' + esc(c.lista_nome.replace(/^OLX · /, "")) + "</span>" + maisListas(c.tambem_em) + "</small>" :
-         (c.tambem_em && c.tambem_em.length ? "<small>" + maisListas(c.tambem_em) + "</small>" : "")) + "</td>" +
+        (!listaAtual && c.lista_nome ? '<small><span class="sc-tambem" style="background:' + esc(c.lista_cor) + '22;color:' + esc(c.lista_cor) + '">' + esc(c.lista_nome) + "</span>" + (c.tambem_em || []).map(function (t) { return '<span class="sc-tambem">' + esc(t) + "</span>"; }).join("") + "</small>" :
+         (c.tambem_em && c.tambem_em.length ? "<small>também em: " + c.tambem_em.map(function (t) { return '<span class="sc-tambem">' + esc(t) + "</span>"; }).join("") + "</small>" : "")) + "</td>" +
       '<td><span class="sc-tel"><a href="tel:+55' + c.telefone + '" data-edita="telefone" title="clique com o botão direito para editar">' + esc(c.telefone_fmt) + "</a>" +
         '<a class="sc-zap" href="https://wa.me/55' + c.telefone + '" target="_blank" rel="noopener" title="abrir no WhatsApp">W</a>' +
         '<button type="button" class="sc-copiar" data-copiar="55' + c.telefone + '" title="copiar o número">⧉</button></span></td>' +
       '<td class="num">' + (c.n_anuncios ? '<button type="button" class="sc-anuncios" data-anuncios="' + c.telefone + '">' + c.n_anuncios + "</button>" : "—") + "</td>" +
-      '<td class="sc-bairros" title="' + esc((c.bairros || []).join(", ")) + '">' + esc((c.bairros || []).slice(0, 2).join(", ")) + ((c.bairros || []).length > 2 ? " +" + (c.bairros.length - 2) : "") + "</td>" +
+      '<td class="sc-bairros">' + esc((c.bairros || []).slice(0, 4).join(", ")) + ((c.bairros || []).length > 4 ? " +" + (c.bairros.length - 4) : "") + "</td>" +
       '<td class="sc-faixa">' + faixa + "</td>" +
       '<td><select class="sc-status sc-status--' + c.status + '" data-status="' + c.id + '">' + Object.keys(STATUS).map(function (s) { return '<option value="' + s + '"' + (s === c.status ? " selected" : "") + ">" + STATUS[s] + "</option>"; }).join("") + "</select></td>" +
       '<td><span class="sc-etqs">' + (c.etiquetas || []).map(function (e) { return '<span class="sc-etq">' + esc(e) + '<button type="button" data-tirar="' + esc(e) + '" title="tirar">×</button></span>'; }).join("") +
