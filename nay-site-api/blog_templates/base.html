@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ titulo }}</title>
+<meta name="description" content="{{ descricao }}">
+<link rel="canonical" href="{{ canonical }}">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta property="og:site_name" content="Blog Imob Easy">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:type" content="{% block og_type %}website{% endblock %}">
+<meta property="og:title" content="{{ titulo }}">
+<meta property="og:description" content="{{ descricao }}">
+<meta property="og:url" content="{{ canonical }}">
+<meta property="og:image" content="{% block og_image %}{{ SITE_URL }}/assets/img/hero-casal.jpg{% endblock %}">
+<meta name="twitter:card" content="summary_large_image">
+{% block meta_extra %}{% endblock %}
+<link rel="alternate" type="application/rss+xml" title="Blog Imob Easy" href="{{ BLOG_URL }}/feed.xml">
+<link rel="icon" href="{{ SITE_URL }}/assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ SITE_URL }}/assets/css/tokens.css">
+<link rel="stylesheet" href="{{ SITE_URL }}/assets/css/site.css">
+<link rel="stylesheet" href="{{ SITE_URL }}/assets/css/home.css?v=20261013b">
+<link rel="stylesheet" href="{{ SITE_URL }}/blog/css/blog.css?v={{ VERSAO }}">
+{% for j in ld_json %}
+<script type="application/ld+json">{{ j | safe }}</script>
+{% endfor %}
+</head>
+<body class="site blog" data-raiz="{{ SITE_URL }}/">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<header class="site-topo topo">
+  <div class="site-topo__interno topo__interno">
+    <a class="site-topo__logo" href="{{ SITE_URL }}/" aria-label="Imob Easy — página inicial">
+      <img src="{{ SITE_URL }}/assets/img/logo.svg" alt="Imob Easy">
+    </a>
+    <nav class="topo__nav" id="nav-principal" aria-label="Seções do site">
+      <a href="{{ BLOG_URL }}/" class="blog-nav__atual">Blog</a>
+      <a href="{{ SITE_URL }}/comprar.html">Comprar</a>
+      <a href="{{ SITE_URL }}/alugar.html">Alugar</a>
+      <a href="{{ SITE_URL }}/imoveis.html">Mapa</a>
+      <a href="{{ SITE_URL }}/#corretores">Para corretores</a>
+      <a href="{{ SITE_URL }}/#anunciar">Anunciar</a>
+    </nav>
+    <div class="site-topo__acoes topo__acoes">
+      <a class="btn-roxo topo__whats" href="https://wa.me/559294717316?text=Ol%C3%A1%2C%20vim%20pelo%20blog%20da%20Imob%20Easy" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 12 12 0 0 0 4.6 4c1.7.7 2.3.8 3.2.7a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3Z"/></svg>
+        WhatsApp
+      </a>
+    </div>
+    <button class="topo__menu" type="button" aria-expanded="false" aria-controls="nav-principal" aria-label="Abrir o menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<main class="blog-pagina" id="conteudo">
+  <div class="blog-pagina__principal">
+    {% block corpo %}{% endblock %}
+  </div>
+
+  <aside class="blog-lado" aria-label="Buscar imóveis e novidades">
+    {# O BUSCADOR DA HOME, na barra lateral (Pedro: "igual o card na home ... a pessoa pode ler enquanto busca imóvel do lado").
+       Os ids são os da home de propósito: busca-bairro.js e busca-filtros.js (os mesmos arquivos) cuidam dele. #}
+    <section class="hero__cartao blog-busca" aria-labelledby="blog-busca-titulo">
+      <h2 class="blog-busca__titulo" id="blog-busca-titulo">Encontre seu imóvel em Manaus</h2>
+      <div class="hero__neg" role="tablist" aria-label="Alugar ou comprar">
+        <button class="hero__neg-aba" role="tab" type="button" aria-selected="false" data-neg="{{ SITE_URL }}/alugar.html">Alugar</button>
+        <button class="hero__neg-aba" role="tab" type="button" aria-selected="true" data-neg="{{ SITE_URL }}/comprar.html">Comprar</button>
+      </div>
+      <form class="painel-busca hero__form" action="{{ SITE_URL }}/comprar.html" method="get">
+        <div class="hero__campo">
+          <label class="hero__rotulo" for="bairro">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 21s7-6.2 7-11a7 7 0 0 0-14 0c0 4.8 7 11 7 11Z"/><circle cx="12" cy="10" r="2.6"/></svg>
+            Bairro ou condomínio
+          </label>
+          <input class="hero__entrada" id="bairro" name="bairro" type="text" placeholder="Busque por bairro ou condomínio" autocomplete="off">
+        </div>
+        <div class="hero__campo">
+          <span class="hero__rotulo" id="rot-tipo">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>
+            Tipo de imóvel
+          </span>
+          <div class="opcoes hero__chips" role="group" aria-labelledby="rot-tipo" data-grupo-exclusivo id="tipo"></div>
+        </div>
+        <div class="hero__campo">
+          <label class="hero__rotulo" for="valor-ate">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M7 12h.01M17 12h.01"/></svg>
+            Valor até
+          </label>
+          <input class="hero__entrada" id="valor-ate" type="text" inputmode="numeric" placeholder="Escolha o valor" aria-label="Valor máximo">
+        </div>
+        <div class="hero__campo">
+          <span class="hero__rotulo" id="rot-quartos">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 18v-7h18v7"/><path d="M5 11V7h14v4"/><path d="M3 18h18"/></svg>
+            Quartos
+          </span>
+          <div class="opcoes hero__chips" role="group" aria-labelledby="rot-quartos" data-grupo-exclusivo>
+            <button class="opcoes__botao" type="button" aria-pressed="false">1</button>
+            <button class="opcoes__botao" type="button" aria-pressed="false">2</button>
+            <button class="opcoes__botao" type="button" aria-pressed="false">3</button>
+            <button class="opcoes__botao" type="button" aria-pressed="false">4+</button>
+          </div>
+        </div>
+        <div class="opcoes" role="group" aria-labelledby="rot-garagem" data-grupo-exclusivo hidden><span id="rot-garagem" class="sr-only">Garagem</span></div>
+        <input class="sr-only" id="codigo" type="text" tabindex="-1" aria-hidden="true">
+        <div class="busca__enviar hero__enviar">
+          <a class="btn-roxo hero__botao" href="{{ SITE_URL }}/comprar.html">Buscar imóveis</a>
+        </div>
+      </form>
+    </section>
+
+    <section class="blog-caixa blog-caixa--news" aria-labelledby="blog-news-titulo">
+      <p class="blog-caixa__sobre">Para corretores</p>
+      <h2 class="blog-caixa__titulo" id="blog-news-titulo">Receba cada imóvel novo no seu WhatsApp</h2>
+      <p>Cadastre o seu número e a Nay te manda o card de cada imóvel que entrar no catálogo. Parceria de 50% em todos.</p>
+      <a class="btn-roxo btn-bloco" href="{{ BLOG_URL }}/newsletter">Quero receber</a>
+    </section>
+
+    <nav class="blog-caixa" aria-labelledby="blog-cats-titulo">
+      <h2 class="blog-caixa__titulo" id="blog-cats-titulo">Categorias</h2>
+      <ul class="blog-cats">
+        {% for chave, nome in CATEGORIAS %}
+        <li><a href="{{ url_categoria(chave) }}"{% if categoria is defined and categoria == chave %} aria-current="page"{% endif %}>{{ nome }}</a></li>
+        {% endfor %}
+      </ul>
+    </nav>
+  </aside>
+</main>
+
+<footer class="site-rodape blog-rodape">
+  <div class="site-rodape__grade">
+    <div class="site-rodape__marca">
+      <img src="{{ SITE_URL }}/assets/img/logo.svg" alt="Imob Easy">
+      <p class="site-rodape__pj">PJ 482</p>
+    </div>
+    <p class="site-rodape__sobre">
+      A Imob Easy é uma empresa consolidada no mercado imobiliário de Manaus. Trabalhando com vendas, locação e
+      administração de imóveis, de uma forma nova e totalmente voltada para facilitar a sua vida.
+    </p>
+    <div>
+      <p class="site-rodape__titulo">Fale com a gente</p>
+      <ul>
+        <li><a href="https://wa.me/559294717316">92 9471-7316</a></li>
+        <li><a href="mailto:contato@imobeasy.com">contato@imobeasy.com</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="site-rodape__titulo">Blog</p>
+      <ul>
+        {% for chave, nome in CATEGORIAS %}
+        <li><a href="{{ url_categoria(chave) }}">{{ nome }}</a></li>
+        {% endfor %}
+        <li><a href="{{ BLOG_URL }}/newsletter">Imóveis novos no WhatsApp</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="site-rodape__titulo">Páginas</p>
+      <ul>
+        <li><a href="{{ SITE_URL }}/">Início</a></li>
+        <li><a href="{{ SITE_URL }}/comprar.html">Comprar</a></li>
+        <li><a href="{{ SITE_URL }}/alugar.html">Alugar</a></li>
+        <li><a href="{{ SITE_URL }}/imoveis.html">Mapa dos imóveis</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="site-rodape__legal">
+    <p>Imob Easy Serviços Imobiliários. PJ 482, CNPJ 33.597.560/0001-24 - Todos os direitos reservados</p>
+    <p>Av. Humberto Calderaro Filho Nº 7, Conj. Abílio Nery - Adrianópolis - Cep 69057-015. Manaus - Amazonas</p>
+    <p class="site-rodape__links">
+      <a href="{{ SITE_URL }}/termos-de-uso.html">Termos de Uso</a><span aria-hidden="true">·</span><a href="{{ SITE_URL }}/politica-de-publicidade.html">Política de Publicidade</a><span aria-hidden="true">·</span><a href="{{ SITE_URL }}/exclusao-de-dados.html">Exclusão de Dados</a><span aria-hidden="true">·</span><a href="{{ BLOG_URL }}/feed.xml">RSS</a>
+    </p>
+  </div>
+</footer>
+
+<a class="whats-flutuante" href="https://wa.me/559294717316?text=Ol%C3%A1%2C%20vim%20pelo%20blog%20da%20Imob%20Easy" target="_blank" rel="noopener" aria-label="Falar no WhatsApp">
+  <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 12 12 0 0 0 4.6 4c1.7.7 2.3.8 3.2.7a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3Z"/></svg>
+</a>
+
+<script src="{{ SITE_URL }}/assets/js/config.js"></script>
+<script src="{{ SITE_URL }}/assets/js/busca-bairro.js?v=20261016-varios"></script>
+<script src="{{ SITE_URL }}/assets/js/busca-filtros.js?v=20261016-varios"></script>
+<script src="{{ SITE_URL }}/blog/js/blog.js?v={{ VERSAO }}"></script>
+</body>
+</html>

@@ -28,4 +28,4 @@ nay_site_leitura: SELECT
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-site_imoveis_para_enviar, site_imovel_publico
+site_blog_imoveis_proximos, site_imoveis_para_enviar, site_imovel_publico

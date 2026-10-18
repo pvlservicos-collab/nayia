@@ -5544,6 +5544,14 @@ try:
 except Exception as _e:  # noqa: BLE001
     app.logger.warning("fotos_api nao carregou: %s", _e)
 
+# O BLOG (406, 17/10): as paginas de blog.imobeasy.online (prontas no HTML, para o Google e as IAs), a API publica,
+# o admin (criar/editar, previa, capa, metricas, newsletter). Mesmo try/except.
+try:
+    from blog_api import blog_bp
+    app.register_blueprint(blog_bp)
+except Exception as _e:  # noqa: BLE001
+    app.logger.warning("blog_api nao carregou: %s", _e)
+
 # A CAPTACAO PEDE SENHA (28/09, Pedro: "com bastante seguranca para o numero nao
 # cair"). As rotas /api/captacao/* e /api/nai/captacao* respondiam sem senha
 # nenhuma: qualquer um na internet ligava o disparo (captacao_pausada), punha o

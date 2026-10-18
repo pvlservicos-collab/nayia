@@ -130,10 +130,11 @@ case "$cmd" in
     conferir_servidor imob-easy /docker/nay-site-web/public "$@"
     for f in "$@"; do subir imob-easy /docker/nay-site-web/public "$f"; echo "subiu $f"; done ;;
   site)
-    # a API são DOIS arquivos: o olx_api.py tinha que ir à mão e era esquecido
-    conferir_servidor nay-site-api /docker/nay-site-api app.py olx_api.py
+    # 17/10: o blog entrou (blog_api.py, os modelos, o Dockerfile e o requirements sobem junto)
+    API_ARQS="app.py olx_api.py blog_api.py Dockerfile requirements.txt $(cd "$RAIZ/nay-site-api" && ls blog_templates/*.html)"
+    conferir_servidor nay-site-api /docker/nay-site-api $API_ARQS
     [ $# -eq 0 ] || conferir_servidor imob-easy /docker/nay-site-web/public "$@"
-    for a in app.py olx_api.py; do subir nay-site-api /docker/nay-site-api "$a"; done
+    for a in $API_ARQS; do subir nay-site-api /docker/nay-site-api "$a"; done
     for f in "$@"; do subir imob-easy /docker/nay-site-web/public "$f"; done
     ssh -o ConnectTimeout=20 $SRV 'cd /docker/nay-site-api && docker compose up -d --build 2>&1 | grep -i started | tail -1; sleep 7; curl -s -m 60 -o /dev/null -w "/api/imoveis/opcoes -> %{http_code} em %{time_total}s\n" http://127.0.0.1:8092/api/imoveis/opcoes' ;;
   crm)

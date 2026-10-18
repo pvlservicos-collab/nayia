@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block corpo %}
+<article class="artigo news-pagina">
+  <nav class="artigo__trilha" aria-label="Você está em"><a href="{{ BLOG_URL }}/">Blog</a> <span aria-hidden="true">›</span> Imóveis novos no WhatsApp</nav>
+  <header class="artigo__cabeca">
+    <p class="secao__sobre">Para corretores</p>
+    <h1 class="artigo__titulo">Receba cada imóvel novo da Imob Easy no seu WhatsApp</h1>
+    <p class="artigo__resumo">Você se cadastra uma vez. Daí em diante, sempre que um imóvel entrar no nosso catálogo, a Nay manda o card com fotos, valor e código direto para você. Parceria de 50% da comissão em todos.</p>
+  </header>
+
+  <div class="news-grade">
+    <form class="news-form" id="news-form" {% if sair %}hidden{% endif %} novalidate>
+      <label class="news-campo">
+        <span>Seu nome</span>
+        <input type="text" name="nome" maxlength="80" required autocomplete="name" placeholder="Como quer ser chamado">
+      </label>
+      <label class="news-campo">
+        <span>Seu WhatsApp</span>
+        <input type="tel" name="telefone" inputmode="tel" maxlength="20" required autocomplete="tel" placeholder="92 99999-9999">
+      </label>
+      <label class="news-campo">
+        <span>CRECI <small>(opcional)</small></span>
+        <input type="text" name="creci" maxlength="30" placeholder="Ex.: 6841">
+      </label>
+      <input type="text" name="site" class="sr-only" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button class="btn-roxo btn-bloco" type="submit">Quero receber os imóveis</button>
+      <p class="news-form__nota">Sem custo. Para sair da lista, é só responder <b>SAIR DA LISTA</b> no WhatsApp ou <a href="{{ BLOG_URL }}/newsletter?sair=1">pedir aqui</a>.</p>
+      <p class="news-form__status" role="status" aria-live="polite"></p>
+    </form>
+
+    <form class="news-form" id="news-sair" {% if not sair %}hidden{% endif %} novalidate>
+      <h2 class="news-form__titulo">Sair da lista</h2>
+      <label class="news-campo">
+        <span>Seu WhatsApp</span>
+        <input type="tel" name="telefone" inputmode="tel" maxlength="20" required placeholder="92 99999-9999">
+      </label>
+      <button class="btn-roxo-vazado btn-bloco" type="submit">Não quero mais receber</button>
+      <p class="news-form__nota"><a href="{{ BLOG_URL }}/newsletter">Voltar ao cadastro</a></p>
+      <p class="news-form__status" role="status" aria-live="polite"></p>
+    </form>
+
+    <aside class="news-como">
+      <h2>Como funciona</h2>
+      <ol>
+        <li><b>Cadastro</b>: nome e WhatsApp. A Nay te manda uma mensagem de boas-vindas na hora.</li>
+        <li><b>Imóvel novo</b>: quando a equipe cadastra um imóvel e ele entra no ar, o card vai para você no mesmo dia, com fotos.</li>
+        <li><b>Fechou?</b> É a parceria de sempre: 50% da comissão para o corretor que trouxe o cliente.</li>
+      </ol>
+      <p>Só imóveis da Imob Easy entram na lista (nada de parceria com outras imobiliárias). No máximo 10 imóveis por dia, das 8h às 20h.</p>
+    </aside>
+  </div>
+</article>
+{% endblock %}

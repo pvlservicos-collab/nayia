@@ -80,6 +80,8 @@
                { rotulo: "Oportunidades", href: "captacao.html#oportunidades", chave: "oportunidades" }] },
     // A AGENDA DOS GRUPOS (Pedro, 03/10/2026): "uma aba Grupos... ao lado da captação"
     { chave: "grupos",        rotulo: "Grupos",           href: "grupos.html" },
+    // O BLOG (406, 17/10/2026): artigos, visitas e a newsletter de corretores (blog.imobeasy.online)
+    { chave: "blog",          rotulo: "Blog",             href: "blog.html" },
     /* 06/10/2026 (Pedro: "põe a Nay antiga dentro do menu Mais e deixa no lugar um menu Nova Nay ... esse menu
        vazio por enquanto"). As telas da Nay de hoje estão no "Mais", no grupo "Nay antiga". */
     /* "esse Nova Nay não é uma lista, é só um menu clicável, e o conteúdo eu já coloco": vai para nova-nay.html */

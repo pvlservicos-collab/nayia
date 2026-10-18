@@ -22,6 +22,9 @@ COPY captacao_campos.py .
 COPY olx_api.py .
 # a biblioteca de fotos do cadastro (03/10): subir, reordenar e excluir
 COPY fotos_api.py .
+# o blog (406, 17/10): a API e os modelos das paginas (Jinja)
+COPY blog_api.py .
+COPY blog_templates/ ./blog_templates/
 
 RUN useradd -m site-api
 USER site-api

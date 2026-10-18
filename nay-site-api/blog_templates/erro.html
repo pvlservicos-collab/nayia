@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% set descricao = "Essa página não existe no blog da Imob Easy." %}
+{% block corpo %}
+<article class="artigo">
+  <header class="artigo__cabeca">
+    <p class="secao__sobre">Blog Imob Easy</p>
+    <h1 class="artigo__titulo">{{ titulo }}</h1>
+    <p class="artigo__resumo">O endereço pode ter mudado ou o artigo saiu do ar. <a href="{{ BLOG_URL }}/">Veja os artigos mais recentes</a> ou <a href="{{ SITE_URL }}/comprar.html">os imóveis</a>.</p>
+  </header>
+</article>
+{% endblock %}

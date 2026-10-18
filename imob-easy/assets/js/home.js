@@ -117,6 +117,24 @@
     document.dispatchEvent(new CustomEvent("dados-site-atualizados"));
   });
 
+  /* ---- do blog (406, 17/10): os 3 artigos mais recentes; sem artigo publicado a seção nem aparece ---- */
+  var doBlog = $("do-blog-lista");
+  if (doBlog && window.API_BASE) {
+    buscar("/api/blog/recentes?n=3").then(function (d) {
+      var arts = (d && d.artigos) || [];
+      if (!arts.length) return;
+      doBlog.innerHTML = arts.map(function (a) {
+        var data = a.publicado_em ? new Date(a.publicado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }) : "";
+        return '<article class="do-blog__card">' +
+          '<a class="do-blog__capa" href="' + esc(a.url) + '" tabindex="-1" aria-hidden="true">' + (a.capa_url ? '<img src="' + esc(a.capa_url) + '" alt="" loading="lazy">' : "") + "</a>" +
+          '<div class="do-blog__corpo"><p class="do-blog__meta">' + esc(a.categoria_nome) + (data ? " · " + esc(data) : "") + "</p>" +
+          '<h3 class="do-blog__titulo"><a href="' + esc(a.url) + '">' + esc(a.titulo) + "</a></h3>" +
+          (a.resumo ? '<p class="do-blog__resumo">' + esc(a.resumo) + "</p>" : "") + "</div></article>";
+      }).join("");
+      doBlog.closest(".do-blog").hidden = false;
+    });
+  }
+
   /* ---- o comparativo da comissão ---- */
   var lista = $("comparativo");
   if (lista) {

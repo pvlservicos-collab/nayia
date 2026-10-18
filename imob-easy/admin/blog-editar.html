@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Artigo — Blog Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/blog-admin.css?v=20261018a">
+<meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
+</head>
+<body class="admin" data-pagina="blog">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+    <div>
+      <p style="font-size:var(--fs-sm);margin:0 0 4px"><a href="blog.html">← Blog</a></p>
+      <h1 class="pagina-titulo" id="ed-titulo-pagina">Novo artigo</h1>
+    </div>
+    <div class="bg-acoes"><a class="btn-neutro" id="ed-ver" href="#" target="_blank" rel="noopener" hidden>Ver no blog</a></div>
+  </div>
+
+  <form id="ed-form" class="ed-grade" novalidate>
+    <div>
+      <section class="ed-cartao">
+        <div class="ed-campo">
+          <label for="f-titulo">Título <span class="conta" data-conta="f-titulo" data-faixa="30-65"></span></label>
+          <input class="entrada" id="f-titulo" maxlength="120" placeholder="O título que aparece no Google e no topo do artigo">
+        </div>
+        <div class="ed-linha">
+          <div class="ed-campo">
+            <label for="f-categoria">Categoria</label>
+            <select class="selecao" id="f-categoria">
+              <option value="">Escolha…</option>
+              <option value="sobre-nos">Sobre nós</option>
+              <option value="clientes">Clientes</option>
+              <option value="corretores">Corretores</option>
+              <option value="locacao">Imóveis de locação</option>
+              <option value="venda">Imóveis de venda</option>
+            </select>
+          </div>
+          <div class="ed-campo">
+            <span class="rot">Tipo de artigo</span>
+            <div class="ed-modos" style="margin:0;justify-self:start" role="radiogroup" aria-label="Tipo">
+              <button type="button" data-tipo="post" aria-selected="true">Post do blog</button>
+              <button type="button" data-tipo="imovel" aria-selected="false">Post de imóvel</button>
+            </div>
+            <span class="dica">Post de imóvel: o card do imóvel abre o artigo e os imóveis perto dele fecham.</span>
+          </div>
+        </div>
+        <div class="ed-linha" id="ed-bloco-imovel">
+          <div class="ed-campo">
+            <label for="f-codigo">Código do imóvel <span class="conta" id="ed-imovel-aviso"></span></label>
+            <input class="entrada" id="f-codigo" inputmode="numeric" placeholder="Ex.: 5739">
+            <div id="ed-imovel" hidden></div>
+          </div>
+          <div class="ed-campo">
+            <label for="f-bairro">Bairro do artigo <span class="conta">para “imóveis perto”</span></label>
+            <input class="entrada" id="f-bairro" placeholder="Vem do imóvel; ou digite (ex.: Ponta Negra)">
+          </div>
+        </div>
+        <div class="ed-campo">
+          <label for="f-resumo">Resumo / meta descrição <span class="conta" data-conta="f-resumo" data-faixa="70-160"></span></label>
+          <textarea class="entrada" id="f-resumo" rows="2" maxlength="220" placeholder="Uma ou duas frases que resumem o artigo. É o que o Google mostra embaixo do título."></textarea>
+        </div>
+        <div class="ed-linha">
+          <div class="ed-campo">
+            <label for="f-palavra">Palavra-chave principal</label>
+            <input class="entrada" id="f-palavra" maxlength="60" placeholder="Ex.: apartamento para alugar na Ponta Negra">
+            <span class="dica">A frase que a pessoa digitaria no Google. Use no título, no primeiro parágrafo e num subtítulo.</span>
+          </div>
+          <div class="ed-campo">
+            <label for="f-slug">Endereço (slug) <span class="conta" id="ed-slug-conta"></span></label>
+            <input class="entrada" id="f-slug" maxlength="80" placeholder="nasce do título">
+            <span class="dica">blog.imobeasy.online/artigo/<b id="ed-slug-previa">…</b></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="ed-cartao">
+        <h2>Capa</h2>
+        <div class="ed-capa">
+          <div class="ed-capa__img" id="ed-capa-img">sem capa</div>
+          <div>
+            <div class="ed-campo">
+              <label for="f-capa-arquivo">Subir imagem <span class="conta">JPG, PNG ou WebP · 1200×675 ou maior</span></label>
+              <input id="f-capa-arquivo" type="file" accept="image/*">
+            </div>
+            <div class="ed-campo">
+              <label for="f-capa">ou o endereço da imagem</label>
+              <input class="entrada" id="f-capa" placeholder="https://…">
+            </div>
+            <div class="ed-campo">
+              <label for="f-capa-alt">Texto alternativo da capa <span class="conta" data-conta="f-capa-alt" data-faixa="10-125"></span></label>
+              <input class="entrada" id="f-capa-alt" maxlength="160" placeholder="O que aparece na foto (o Google e quem não enxerga leem isto)">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="ed-cartao">
+        <div class="ed-barra" id="ed-barra">
+          <button type="button" data-md="h2" title="Subtítulo (## )">H2</button>
+          <button type="button" data-md="h3" title="Sub-subtítulo (### )">H3</button>
+          <button type="button" data-md="b" title="Negrito"><b>B</b></button>
+          <button type="button" data-md="i" title="Itálico"><i>I</i></button>
+          <button type="button" data-md="ul" title="Lista">• Lista</button>
+          <button type="button" data-md="ol" title="Lista numerada">1. Lista</button>
+          <button type="button" data-md="link" title="Link">Link</button>
+          <button type="button" data-md="img" title="Imagem (sobe o arquivo)">Imagem</button>
+          <button type="button" data-md="quote" title="Citação">“ ”</button>
+          <button type="button" data-md="imovel" title="Link para um imóvel do site">Imóvel #</button>
+          <input id="f-img-arquivo" type="file" accept="image/*" hidden>
+          <div class="ed-modos" role="tablist" aria-label="Escrever ou ver">
+            <button type="button" data-modo="escrever" aria-selected="true">Escrever</button>
+            <button type="button" data-modo="previa" aria-selected="false">Prévia</button>
+          </div>
+        </div>
+        <textarea class="entrada ed-textarea" id="f-corpo" placeholder="Escreva aqui. Uma linha em branco separa os parágrafos; ## faz um subtítulo. Comece respondendo a pergunta do leitor nas duas primeiras frases."></textarea>
+        <div class="ed-previa" id="ed-previa" hidden></div>
+        <p class="dica" style="margin:8px 0 0;font-size:var(--fs-xs);color:var(--texto-fraco)"><span id="ed-palavras">0 palavras</span> · Markdown: <code>## Subtítulo</code>, <code>**negrito**</code>, <code>- item</code>, <code>[texto](https://…)</code>, <code>![descrição](https://…)</code></p>
+      </section>
+
+      <section class="ed-cartao">
+        <h2>Perguntas frequentes <span class="conta" style="font-weight:400;color:var(--texto-fraco)">as IAs e o Google leem isto como resposta pronta</span></h2>
+        <div class="ed-faq" id="ed-faq"></div>
+        <button class="btn-neutro" type="button" id="ed-faq-add" style="margin-top:8px">+ Pergunta</button>
+      </section>
+
+      <section class="ed-cartao">
+        <h2>Imóveis citados <span class="conta" style="font-weight:400;color:var(--texto-fraco)">códigos, separados por vírgula: viram cards no fim do artigo</span></h2>
+        <input class="entrada" id="f-relacionados" placeholder="Ex.: 5725, 3210, 1125">
+        <div class="ed-linha" style="margin-top:12px">
+          <div class="ed-campo"><label for="f-autor">Autor</label><input class="entrada" id="f-autor" value="Equipe Imob Easy" maxlength="80"></div>
+          <div class="ed-campo"><label for="f-data">Data de publicação <span class="conta">vazio = agora, ao publicar</span></label><input class="entrada" id="f-data" type="datetime-local"></div>
+        </div>
+      </section>
+    </div>
+
+    <aside class="seo" aria-label="Verificação de SEO">
+      <section class="ed-cartao">
+        <div class="seo__nota">
+          <div class="seo__anel" id="seo-anel"><b id="seo-nota">—</b></div>
+          <p><strong id="seo-frase">Verificação de SEO</strong>Google, IAs (ChatGPT, Perplexity…) e leitura. Atualiza enquanto você escreve.</p>
+        </div>
+        <div id="seo-lista"></div>
+      </section>
+    </aside>
+
+    <div class="ed-rodape" style="grid-column:1 / -1">
+      <label class="ed-pub"><input type="checkbox" id="f-publicado"> Publicado no blog</label>
+      <button class="btn-azul" type="submit" id="ed-salvar">Salvar</button>
+      <button class="btn-neutro" type="button" id="ed-apagar" hidden style="color:var(--vermelho)">Apagar</button>
+      <span class="status" id="ed-status"></span>
+    </div>
+  </form>
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/dados-admin.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/blog-seo.js?v=20261018a"></script>
+<script src="../assets/js/blog-editar.js?v=20261018a"></script>
+</body>
+</html>

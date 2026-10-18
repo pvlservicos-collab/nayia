@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% set categoria = a.categoria %}
+{% block og_type %}article{% endblock %}
+{% block og_image %}{{ capa }}{% endblock %}
+{% block meta_extra %}
+<meta property="article:published_time" content="{{ iso(a.publicado_em) }}">
+<meta property="article:modified_time" content="{{ iso(a.atualizado_em or a.publicado_em) }}">
+<meta property="article:section" content="{{ a.categoria_nome }}">
+{% if a.palavra_chave %}<meta property="article:tag" content="{{ a.palavra_chave }}">{% endif %}
+<meta name="author" content="{{ a.autor }}">
+{% endblock %}
+{% block corpo %}
+<article class="artigo" data-slug="{{ a.slug }}">
+  <nav class="artigo__trilha" aria-label="Você está em">
+    <a href="{{ BLOG_URL }}/">Blog</a> <span aria-hidden="true">›</span> <a href="{{ url_categoria(a.categoria) }}">{{ a.categoria_nome }}</a>
+  </nav>
+  <header class="artigo__cabeca">
+    <h1 class="artigo__titulo">{{ a.titulo }}</h1>
+    {% if a.resumo %}<p class="artigo__resumo">{{ a.resumo }}</p>{% endif %}
+    <p class="artigo__meta">
+      <span>{{ a.autor }}</span>
+      <span aria-hidden="true">·</span>
+      <time datetime="{{ iso(a.publicado_em) }}">{{ data(a.publicado_em) }}</time>
+      {% if a.atualizado_em and a.atualizado_em[:10] != (a.publicado_em or '')[:10] %}<span aria-hidden="true">·</span><span>atualizado em {{ data(a.atualizado_em) }}</span>{% endif %}
+      <span aria-hidden="true">·</span>
+      <span>{{ a.leitura_min }} min de leitura</span>
+    </p>
+  </header>
+
+  {% if a.capa_url %}
+  <figure class="artigo__capa">
+    <img src="{{ a.capa_url }}" alt="{{ a.capa_alt or a.titulo }}" fetchpriority="high" decoding="async">
+  </figure>
+  {% endif %}
+
+  {% if a.imovel %}
+  {% set im = a.imovel %}
+  <section class="artigo__imovel" aria-labelledby="imovel-titulo">
+    <a class="bl-imovel bl-imovel--grande" href="{{ im.url }}">
+      <span class="bl-imovel__capa">{% if im.capa %}<img src="{{ im.capa }}" alt="Foto do imóvel {{ im.codigo }}" loading="lazy" decoding="async">{% endif %}</span>
+      <span class="bl-imovel__corpo">
+        <span class="bl-imovel__tipo">{{ im.tipo }} · cód. {{ im.codigo }}</span>
+        <strong class="bl-imovel__nome" id="imovel-titulo">{{ im.condominio or im.tipo }}</strong>
+        <span class="bl-imovel__onde">{{ im.bairro }}, Manaus</span>
+        <span class="bl-imovel__specs">
+          {% if im.quartos %}<span>{{ im.quartos }} quarto{{ 's' if im.quartos != 1 }}</span>{% endif %}
+          {% if im.area_util %}<span>{{ im.area_util|int }} m²</span>{% endif %}
+          {% if im.vagas %}<span>{{ im.vagas }} vaga{{ 's' if im.vagas != 1 }}</span>{% endif %}
+        </span>
+        <span class="bl-imovel__preco">
+          {% if im.valor_aluguel %}<b>{{ reais(im.valor_aluguel) }}</b><small>/mês</small>{% endif %}
+          {% if im.valor_venda %}{% if im.valor_aluguel %}<span class="bl-imovel__ou">ou</span>{% endif %}<b>{{ reais(im.valor_venda) }}</b><small>à venda</small>{% endif %}
+        </span>
+        <span class="btn-roxo bl-imovel__botao">Ver imóvel e pedir pelo WhatsApp</span>
+      </span>
+    </a>
+  </section>
+  {% endif %}
+
+  <div class="artigo__texto">
+    {{ a.html | safe }}
+  </div>
+
+  {% if a.faq %}
+  <section class="artigo__faq" aria-labelledby="faq-titulo">
+    <h2 id="faq-titulo">Perguntas frequentes</h2>
+    {% for f in a.faq %}
+    <details class="faq" {% if loop.first %}open{% endif %}>
+      <summary>{{ f.pergunta }}</summary>
+      <p>{{ f.resposta }}</p>
+    </details>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {% if a.relacionados %}
+  <section class="artigo__lista" aria-labelledby="rel-titulo">
+    <h2 id="rel-titulo">Imóveis deste artigo</h2>
+    <div class="bl-grade">
+      {% for im in a.relacionados %}{% include "card_imovel.html" %}{% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if a.proximos %}
+  <section class="artigo__lista" aria-labelledby="prox-titulo">
+    <h2 id="prox-titulo">{% if a.imovel %}Imóveis perto deste{% elif a.bairro %}Imóveis em {{ a.bairro }}{% else %}Imóveis em destaque{% endif %}</h2>
+    <div class="bl-grade">
+      {% for im in a.proximos %}{% include "card_imovel.html" %}{% endfor %}
+    </div>
+    <p class="artigo__maisimoveis"><a class="btn-roxo-vazado" href="{{ SITE_URL }}/imoveis.html">Ver todos no mapa</a></p>
+  </section>
+  {% endif %}
+
+  <footer class="artigo__rodape">
+    <p>Publicado em <a href="{{ url_categoria(a.categoria) }}">{{ a.categoria_nome }}</a>. Dúvida sobre um imóvel? <a href="https://wa.me/559294717316?text=Ol%C3%A1%2C%20li%20o%20artigo%20{{ a.titulo | urlencode }}%20no%20blog" target="_blank" rel="noopener">Fale com a Nay no WhatsApp</a>.</p>
+  </footer>
+</article>
+
+{% if a.outros %}
+<section class="blog-outros" aria-labelledby="outros-titulo">
+  <h2 id="outros-titulo">Continue lendo</h2>
+  <div class="blog-grade blog-grade--3">
+    {% for o in a.outros %}
+    <article class="blog-card">
+      <a class="blog-card__capa" href="{{ url_artigo(o.slug) }}" tabindex="-1" aria-hidden="true">
+        {% if o.capa_url %}<img src="{{ o.capa_url }}" alt="" loading="lazy" decoding="async">{% else %}<span class="blog-card__semcapa"></span>{% endif %}
+      </a>
+      <div class="blog-card__corpo">
+        <p class="blog-card__meta"><span class="blog-card__cat">{{ o.categoria_nome }}</span> · <time datetime="{{ iso(o.publicado_em) }}">{{ data(o.publicado_em) }}</time></p>
+        <h3 class="blog-card__titulo"><a href="{{ url_artigo(o.slug) }}">{{ o.titulo }}</a></h3>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

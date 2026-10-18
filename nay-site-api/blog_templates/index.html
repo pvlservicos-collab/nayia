@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block corpo %}
+<header class="blog-cabeca">
+  <p class="secao__sobre">Blog Imob Easy</p>
+  {% if categoria %}
+  <h1 class="blog-cabeca__titulo">{{ nome_categoria(categoria) }}</h1>
+  {% elif busca %}
+  <h1 class="blog-cabeca__titulo">Busca por “{{ busca }}”</h1>
+  {% else %}
+  <h1 class="blog-cabeca__titulo">Imóveis, parceria e o jeito Imob Easy de fazer</h1>
+  <p class="blog-cabeca__texto">Guias para quem vai alugar ou comprar em Manaus, os imóveis em destaque e tudo que o corretor parceiro precisa saber.</p>
+  {% endif %}
+
+  <div class="blog-filtros">
+    <nav class="blog-pills" aria-label="Categorias">
+      <a href="{{ BLOG_URL }}/" class="blog-pill{% if not categoria %} blog-pill--atual{% endif %}">Tudo</a>
+      {% for c in categorias %}
+      <a href="{{ url_categoria(c.chave) }}" class="blog-pill{% if categoria == c.chave %} blog-pill--atual{% endif %}">{{ c.nome }}{% if c.total %} <small>{{ c.total }}</small>{% endif %}</a>
+      {% endfor %}
+    </nav>
+    <form class="blog-procurar" action="{{ BLOG_URL }}/busca" method="get" role="search">
+      <input type="search" name="q" value="{{ busca }}" placeholder="Procurar no blog" aria-label="Procurar no blog" maxlength="80">
+      <button type="submit" aria-label="Procurar"><svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M7 1a6 6 0 1 0 3.7 10.7l3.3 3.3 1.1-1.1-3.3-3.3A6 6 0 0 0 7 1Zm0 1.6a4.4 4.4 0 1 1 0 8.8 4.4 4.4 0 0 1 0-8.8Z"/></svg></button>
+    </form>
+  </div>
+</header>
+
+{% if not artigos %}
+<p class="blog-vazio">
+  {% if busca %}Nada com “{{ busca }}” por enquanto.{% else %}Os primeiros artigos estão a caminho.{% endif %}
+  Enquanto isso, <a href="{{ SITE_URL }}/comprar.html">veja os imóveis</a>.
+</p>
+{% else %}
+<div class="blog-grade">
+  {% for a in artigos %}
+  <article class="blog-card{% if loop.first and pagina == 1 and not busca %} blog-card--destaque{% endif %}">
+    <a class="blog-card__capa" href="{{ url_artigo(a.slug) }}" tabindex="-1" aria-hidden="true">
+      {% if a.capa_url %}<img src="{{ a.capa_url }}" alt="" loading="lazy" decoding="async">{% else %}<span class="blog-card__semcapa"></span>{% endif %}
+      {% if a.tipo == 'imovel' %}<span class="blog-card__selo">Imóvel</span>{% endif %}
+    </a>
+    <div class="blog-card__corpo">
+      <p class="blog-card__meta"><a href="{{ url_categoria(a.categoria) }}" class="blog-card__cat">{{ a.categoria_nome }}</a> · <time datetime="{{ iso(a.publicado_em) }}">{{ data(a.publicado_em) }}</time> · {{ a.leitura_min }} min</p>
+      <h2 class="blog-card__titulo"><a href="{{ url_artigo(a.slug) }}">{{ a.titulo }}</a></h2>
+      {% if a.resumo %}<p class="blog-card__resumo">{{ a.resumo }}</p>{% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+
+{% if paginas > 1 %}
+<nav class="blog-paginas" aria-label="Páginas">
+  {% set base = (url_categoria(categoria) if categoria else (BLOG_URL ~ '/busca?q=' ~ busca if busca else BLOG_URL ~ '/')) %}
+  {% set sep = '&' if busca else '?' %}
+  {% if pagina > 1 %}<a href="{{ base }}{% if pagina > 2 %}{{ sep }}pagina={{ pagina - 1 }}{% endif %}" rel="prev">← Mais recentes</a>{% endif %}
+  <span>Página {{ pagina }} de {{ paginas }}</span>
+  {% if pagina < paginas %}<a href="{{ base }}{{ sep }}pagina={{ pagina + 1 }}" rel="next">Mais antigos →</a>{% endif %}
+</nav>
+{% endif %}
+{% endif %}
+
+<section class="blog-cta" aria-labelledby="cta-titulo">
+  <div>
+    <p class="secao__sobre">É corretor?</p>
+    <h2 id="cta-titulo">Imóvel novo no catálogo, card no seu WhatsApp</h2>
+    <p>Sem procurar: a Nay te avisa de cada imóvel que entra, com fotos, valor e código. Parceria de 50% da comissão em todos.</p>
+  </div>
+  <a class="btn-roxo" href="{{ BLOG_URL }}/newsletter">Quero receber os imóveis</a>
+</section>
+{% endblock %}

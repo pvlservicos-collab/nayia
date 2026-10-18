@@ -43,7 +43,7 @@ nay_leitura: SELECT
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-olx_cliente_buscar, olx_imovel_vai_ao_cliente
+blog_newsletter_disparar, olx_cliente_buscar, olx_imovel_vai_ao_cliente, site_blog_card_imovel, site_blog_imoveis_proximos
 
 ## definição da view
  SELECT i.codigo,

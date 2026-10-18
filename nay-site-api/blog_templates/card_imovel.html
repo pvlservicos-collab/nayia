@@ -1,0 +1,16 @@
+<a class="bl-imovel" href="{{ im.url }}">
+  <span class="bl-imovel__capa">{% if im.capa %}<img src="{{ im.capa }}" alt="Foto do imóvel {{ im.codigo }}" loading="lazy" decoding="async">{% endif %}</span>
+  <span class="bl-imovel__corpo">
+    <span class="bl-imovel__tipo">{{ im.tipo }} · cód. {{ im.codigo }}</span>
+    <strong class="bl-imovel__nome">{{ im.condominio or im.tipo }}</strong>
+    <span class="bl-imovel__onde">{{ im.bairro }}</span>
+    <span class="bl-imovel__specs">
+      {% if im.quartos %}<span>{{ im.quartos }} qto{{ 's' if im.quartos != 1 }}</span>{% endif %}
+      {% if im.area_util %}<span>{{ im.area_util|int }} m²</span>{% endif %}
+      {% if im.vagas %}<span>{{ im.vagas }} vaga{{ 's' if im.vagas != 1 }}</span>{% endif %}
+    </span>
+    <span class="bl-imovel__preco">
+      {% if im.valor_aluguel %}<b>{{ reais(im.valor_aluguel) }}</b><small>/mês</small>{% elif im.valor_venda %}<b>{{ reais(im.valor_venda) }}</b><small>venda</small>{% endif %}
+    </span>
+  </span>
+</a>

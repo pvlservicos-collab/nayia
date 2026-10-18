@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blog — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/blog-admin.css?v=20261018a">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
+</head>
+<body class="admin" data-pagina="blog">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+    <div>
+      <h1 class="pagina-titulo">Blog</h1>
+      <p class="pagina-subtitulo" style="margin-left:0">blog.imobeasy.online · artigos, visitas e a newsletter de imóveis para corretores</p>
+    </div>
+    <div class="bg-acoes">
+      <a class="btn-neutro" href="https://blog.imobeasy.online/" target="_blank" rel="noopener">Ver o blog</a>
+      <a class="btn-azul" href="blog-editar.html">+ Novo artigo</a>
+    </div>
+  </div>
+
+  <div class="bg-abas" role="tablist">
+    <button type="button" role="tab" data-aba="artigos" aria-selected="true">Artigos</button>
+    <button type="button" role="tab" data-aba="metricas" aria-selected="false">Visitas</button>
+    <button type="button" role="tab" data-aba="newsletter" aria-selected="false">Newsletter de corretores</button>
+  </div>
+
+  <section class="bg-aba" data-aba="artigos">
+    <div class="bg-resumo" id="bg-resumo"></div>
+    <div class="bg-filtros">
+      <select class="selecao" id="bg-f-cat"><option value="">Todas as categorias</option></select>
+      <select class="selecao" id="bg-f-status"><option value="">Publicados e rascunhos</option><option value="pub">Só publicados</option><option value="rasc">Só rascunhos</option></select>
+      <input class="entrada" id="bg-f-busca" type="search" placeholder="Procurar pelo título" style="max-width:260px">
+    </div>
+    <div id="bg-artigos"><p class="bg-vazio">Carregando…</p></div>
+  </section>
+
+  <section class="bg-aba" data-aba="metricas" hidden>
+    <div class="bg-filtros">
+      <select class="selecao" id="bg-periodo">
+        <option value="7">Últimos 7 dias</option>
+        <option value="30" selected>Últimos 30 dias</option>
+        <option value="90">Últimos 90 dias</option>
+      </select>
+      <span style="font-size:var(--fs-sm);color:var(--texto-fraco)">Gente por origem (Google, IAs, redes, direto) e as leituras dos robôs (Googlebot, GPTBot, ClaudeBot…), que mostram que o artigo está sendo indexado.</span>
+    </div>
+    <div class="bg-resumo" id="bg-m-resumo"></div>
+    <div class="bg-grafico"><canvas id="bg-g-visitas"></canvas></div>
+    <div class="bg-duas">
+      <div id="bg-m-artigos"></div>
+      <div>
+        <h3 style="font:600 var(--fs-sm) var(--fonte);color:var(--texto-fraco);margin:0 0 8px;text-transform:uppercase;letter-spacing:.05em">Robôs que leram</h3>
+        <div class="bg-lista-simples" id="bg-m-robos"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bg-aba" data-aba="newsletter" hidden>
+    <p class="bg-aviso">Quem se cadastra em <a href="https://blog.imobeasy.online/newsletter" target="_blank" rel="noopener">blog.imobeasy.online/newsletter</a> recebe pelo número da Parceria o card de cada imóvel que entrar no ar (cadastrado depois do cadastro dele, com foto, não de parceiro). A cada 15 min, das 8h às 20h; até 3 por rodada e 10 por dia para cada um; nunca o mesmo imóvel duas vezes.</p>
+    <div class="bg-resumo" id="bg-n-resumo"></div>
+    <div id="bg-news"><p class="bg-vazio">Carregando…</p></div>
+  </section>
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/dados-admin.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/blog-admin.js?v=20261018a"></script>
+</body>
+</html>
