@@ -127,6 +127,20 @@ def lista_apagar(lid):
     return jsonify(r), (200 if r.get("ok") else 422)
 
 
+@scrap_bp.route("/admin/api/scrap/listas/<int:lid>/blacklist-60d", methods=["POST"])
+def blacklist_refazer(lid):
+    """Refaz a blacklist de quem falou conosco (408): privado.falou_conosco, N dias (padrão 60). Tira esses das listas normais."""
+    if not _admin_autenticado():
+        return _negado()
+    b = request.get_json(silent=True) or {}
+    dias = min(max(_int(b.get("dias"), 60), 1), 365)
+    try:
+        r = _um("SELECT scrap_blacklist_60d(%s, %s) AS r", (lid, dias), escrita=True) or {}
+    except Exception as exc:  # noqa: BLE001
+        return _erro(exc, "Não refez a blacklist")
+    return jsonify(r), (200 if r.get("ok") else 422)
+
+
 # ---------------------------------------------------------------- contatos
 def _filtros():
     lista = _int(request.args.get("lista"), 0) or None

@@ -17,6 +17,7 @@ BEGIN
   IF length(d) = 11 AND left(d, 1) = '0' THEN d := substr(d, 2); END IF;       -- 092 ...
   IF length(d) = 9 AND left(d, 1) = '9' THEN d := '92' || d; END IF;
   IF length(d) = 8 AND left(d, 1) IN ('2', '3') THEN d := '92' || d; END IF;
+  IF length(d) = 10 AND substr(d, 3, 1) IN ('6', '7', '8', '9') THEN d := left(d, 2) || '9' || substr(d, 3); END IF;  -- celular sem o 9
   IF length(d) NOT IN (10, 11) THEN RETURN NULL; END IF;
   ddd := left(d, 2)::int;
   IF ddd < 11 OR ddd > 99 OR substr(d, 2, 1) = '0' THEN RETURN NULL; END IF;

@@ -19,4 +19,4 @@ falou_conosco_pkey: PRIMARY KEY (chave)
 nay_falou_conosco_atualizar
 
 ## funções que citam
-nay_falou_conosco, nay_falou_conosco_atualizar, site_publicos_disparo
+nay_falou_conosco, nay_falou_conosco_atualizar, scrap_blacklist_60d, site_publicos_disparo

@@ -4,19 +4,22 @@ CREATE OR REPLACE FUNCTION public.site_scrap_importar(p jsonb, p_quem text DEFAU
  SECURITY DEFINER
  SET search_path TO 'public', 'pg_temp'
 AS $function$
-DECLARE v_lista bigint; v_nome text; v_n int; v_contatos int; v_sem int;
+DECLARE v_lista bigint; v_nome text; v_n int; v_contatos int; v_sem int; v_bloq int;
 BEGIN
   v_lista := nullif(p->'lista'->>'id', '')::bigint;
   v_nome := nullif(trim(p->'lista'->>'nome'), '');
   IF v_lista IS NULL AND v_nome IS NOT NULL THEN SELECT id INTO v_lista FROM scrap_lista WHERE nome = v_nome LIMIT 1; END IF;
   IF v_lista IS NULL THEN
     IF v_nome IS NULL THEN RETURN jsonb_build_object('ok', false, 'erro', 'a lista precisa de nome'); END IF;
-    INSERT INTO scrap_lista (nome, descricao, origem, url_busca, cor, ordem, criado_por)
+    INSERT INTO scrap_lista (nome, descricao, origem, url_busca, cor, ordem, criado_por, pasta)
     VALUES (v_nome, p->'lista'->>'descricao', 'olx', p->'lista'->>'url_busca', coalesce(nullif(p->'lista'->>'cor', ''), '#6d28d9'),
-            coalesce((SELECT max(ordem) + 1 FROM scrap_lista), 0), p_quem)
+            coalesce((SELECT max(ordem) + 1 FROM scrap_lista), 0), p_quem, coalesce(p->'lista'->>'pasta', ''))
     RETURNING id INTO v_lista;
   ELSE
-    UPDATE scrap_lista SET url_busca = coalesce(nullif(p->'lista'->>'url_busca', ''), url_busca), atualizado_em = now() WHERE id = v_lista;
+    UPDATE scrap_lista SET url_busca = coalesce(nullif(p->'lista'->>'url_busca', ''), url_busca),
+           descricao = coalesce(nullif(p->'lista'->>'descricao', ''), descricao),
+           pasta = coalesce(nullif(p->'lista'->>'pasta', ''), pasta), cor = coalesce(nullif(p->'lista'->>'cor', ''), cor),
+           atualizado_em = now() WHERE id = v_lista;
   END IF;
 
   INSERT INTO scrap_anuncio AS a (lista_id, olx_id, titulo, preco, preco_texto, preco_antigo, categoria, tipo_negocio, subtipo, quartos, banheiros,
@@ -44,6 +47,7 @@ BEGIN
   GET DIAGNOSTICS v_n = ROW_COUNT;
   v_contatos := scrap_contatos_rebuild(v_lista);
   SELECT count(*) INTO v_sem FROM scrap_anuncio WHERE lista_id = v_lista AND cardinality(telefones) = 0;
-  RETURN jsonb_build_object('ok', true, 'lista_id', v_lista, 'anuncios', v_n, 'contatos', v_contatos, 'anuncios_sem_telefone', v_sem);
+  SELECT bloqueados INTO v_bloq FROM scrap_lista WHERE id = v_lista;
+  RETURN jsonb_build_object('ok', true, 'lista_id', v_lista, 'anuncios', v_n, 'contatos', v_contatos, 'anuncios_sem_telefone', v_sem, 'bloqueados', v_bloq);
 END
 $function$;

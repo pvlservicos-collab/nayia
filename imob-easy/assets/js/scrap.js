@@ -7,7 +7,7 @@
   var STATUS = { novo: "Novo", contatado: "Contatado", respondeu: "Respondeu", interessado: "Interessado", descartado: "Descartado" };
   var CORES = ["#6d28d9", "#2563eb", "#0e7490", "#059669", "#d97706", "#dc2626", "#db2777", "#4b5563"];
   var POR_PAGINA = 200;
-  var listas = [], listaAtual = null, etiquetasTodas = [];
+  var listas = [], listaAtual = null, etiquetasTodas = [], pastas = [];
   var contatos = [], total = 0, bairros = [], marcados = {};
   var temporizador = null;
 
@@ -34,8 +34,10 @@
   /* ---------------- listas (lateral) ---------------- */
   function carregarListas() {
     return pedir("api/scrap/listas").then(function (j) {
-      listas = j.listas || []; etiquetasTodas = j.etiquetas || [];
-      $("sc-resumo-geral").innerHTML = "<strong>" + n(j.telefones_distintos) + "</strong> telefones distintos · <strong>" + n(j.total_contatos) + "</strong> contatos em <strong>" + listas.length + "</strong> lista" + (listas.length === 1 ? "" : "s");
+      listas = j.listas || []; etiquetasTodas = j.etiquetas || []; pastas = j.pastas || [];
+      var normaisN = listas.filter(function (l) { return l.tipo !== "blacklist"; }).length;
+      $("sc-resumo-geral").innerHTML = "<strong>" + n(j.telefones_distintos) + "</strong> telefones distintos · <strong>" + n(j.total_contatos) + "</strong> contatos em <strong>" + normaisN + "</strong> lista" + (normaisN === 1 ? "" : "s") +
+        (Number(j.na_blacklist) ? " · <strong>" + n(j.na_blacklist) + "</strong> na blacklist" : "");
       pintarListas();
       var sel = $("sc-lote-lista");
       sel.innerHTML = '<option value="">Copiar para a lista…</option>' + listas.map(function (l) { return '<option value="' + l.id + '">' + esc(l.nome) + "</option>"; }).join("");
@@ -47,20 +49,37 @@
     if (!tot) return "";
     return '<span class="sc-lista__barra">' + Object.keys(STATUS).map(function (s) { var v = Number(ps[s] || 0); return v ? '<i class="' + s + '" style="width:' + (100 * v / tot) + '%" title="' + STATUS[s] + ": " + v + '"></i>' : ""; }).join("") + "</span>";
   }
+  var fechadas = {};
+  try { fechadas = JSON.parse(localStorage.getItem("scrap.pastasFechadas") || "{}"); } catch (e) { fechadas = {}; }
+  function guardarFechadas() { try { localStorage.setItem("scrap.pastasFechadas", JSON.stringify(fechadas)); } catch (e) {} }
+  function botaoLista(l) {
+    var sem = Number(l.anuncios_sem_telefone || 0), bl = l.tipo === "blacklist";
+    var sub = bl ? "blacklist · ninguém daqui entra nas outras listas" :
+      l.origem === "olx" ? n(l.anuncios) + " anúncios · " + n(l.anunciantes) + " anunciantes" + (sem ? " · " + n(sem) + " sem número" : "") + (Number(l.bloqueados) ? " · " + n(l.bloqueados) + " na blacklist" : "") :
+      l.origem === "sistema" ? "base da casa" : l.origem === "csv" ? "importada" : "feita à mão";
+    return '<button type="button" class="sc-lista' + (bl ? " sc-lista--bl" : "") + '" data-lista="' + l.id + '" aria-current="' + (l.id === listaAtual) + '" style="--cor:' + esc(l.cor) + '">' +
+      '<span class="sc-lista__cor">' + (bl ? "⛔" : "") + '</span><span class="sc-lista__nome">' + esc(l.nome) + '<span class="sc-lista__sub">' + sub + "</span></span>" +
+      '<span class="sc-lista__n">' + n(l.contatos) + "</span>" + (bl ? "" : barraStatus(l.por_status || {}, Number(l.contatos))) + "</button>";
+  }
   function pintarListas() {
-    var totalC = listas.reduce(function (s, l) { return s + Number(l.contatos || 0); }, 0);
+    var normais = listas.filter(function (l) { return l.tipo !== "blacklist"; });
+    var totalC = normais.reduce(function (s, l) { return s + Number(l.contatos || 0); }, 0);
     var h = '<button type="button" class="sc-lista" data-lista="" aria-current="' + (listaAtual == null) + '"><span class="sc-lista__cor" style="--cor:#1f1b2e"></span>' +
-      '<span class="sc-lista__nome">Todas as listas<span class="sc-lista__sub">um telefone só uma vez</span></span><span class="sc-lista__n">' + n(totalC) + "</span></button>";
-    h += listas.map(function (l) {
-      var sem = Number(l.anuncios_sem_telefone || 0);
-      return '<button type="button" class="sc-lista" data-lista="' + l.id + '" aria-current="' + (l.id === listaAtual) + '" style="--cor:' + esc(l.cor) + '">' +
-        '<span class="sc-lista__cor"></span><span class="sc-lista__nome">' + esc(l.nome) +
-        '<span class="sc-lista__sub">' + (l.origem === "olx" ? n(l.anuncios) + " anúncios · " + n(l.anunciantes) + " anunciantes" + (sem ? " · " + n(sem) + " sem número" : "") : l.origem === "csv" ? "importada" : "feita à mão") + "</span></span>" +
-        '<span class="sc-lista__n">' + n(l.contatos) + "</span>" + barraStatus(l.por_status || {}, Number(l.contatos)) + "</button>";
-    }).join("");
+      '<span class="sc-lista__nome">Todas as listas<span class="sc-lista__sub">um telefone só uma vez · sem as blacklists</span></span><span class="sc-lista__n">' + n(totalC) + "</span></button>";
+    var grupos = {}; var ordem = [];
+    listas.forEach(function (l) { var p = l.pasta || ""; if (!grupos[p]) { grupos[p] = []; ordem.push(p); } grupos[p].push(l); });
+    ordem.sort(function (a, b) { if (!a) return 1; if (!b) return -1; if (a === "Blacklist") return 1; if (b === "Blacklist") return -1; return a.localeCompare(b); });
+    ordem.forEach(function (p) {
+      var ls = grupos[p], tot = ls.reduce(function (s, l) { return s + Number(l.contatos || 0); }, 0), fechada = !!fechadas[p];
+      if (p) h += '<div class="sc-pasta' + (fechada ? " fechada" : "") + '" data-pasta="' + esc(p) + '"><span class="sc-pasta__seta">▾</span><span class="sc-pasta__nome">' + esc(p) + '</span><small>' + ls.length + " lista" + (ls.length === 1 ? "" : "s") + " · " + n(tot) + "</small></div>";
+      else if (ordem.length > 1) h += '<div class="sc-pasta sc-pasta--solta"><span class="sc-pasta__nome">Sem pasta</span><small>' + ls.length + "</small></div>";
+      if (!fechada) h += ls.map(botaoLista).join("");
+    });
     $("sc-listas").innerHTML = h;
   }
   $("sc-listas").addEventListener("click", function (e) {
+    var p = e.target.closest("[data-pasta]");
+    if (p) { fechadas[p.dataset.pasta] = !fechadas[p.dataset.pasta]; guardarFechadas(); pintarListas(); return; }
     var b = e.target.closest("[data-lista]"); if (!b) return;
     listaAtual = b.dataset.lista ? Number(b.dataset.lista) : null;
     marcados = {}; pintarListas(); pintarCabeca(); carregarContatos(true);
@@ -71,12 +90,21 @@
     if (!l) {
       h = "<div><h2><i style=\"--cor:#1f1b2e\"></i>Todas as listas</h2><p>Um telefone aparece uma vez só, com as listas em que ele está. Para editar a lista, escolha-a ao lado.</p></div>" +
         '<div class="sc-lista-acoes"><button type="button" class="btn-neutro" data-acao="exportar">Exportar CSV</button></div>';
+    } else if (l.tipo === "blacklist") {
+      h = '<div><h2><i style="--cor:' + esc(l.cor) + '"></i>⛔ ' + esc(l.nome) + "</h2>" +
+        "<p>" + esc(l.descricao || "Quem está aqui não entra em nenhuma lista normal: a carga da raspagem e a importação de CSV pulam estes números.") + "</p>" +
+        '<div class="sc-numeros"><span><b>' + n(l.contatos) + "</b> números bloqueados</span>" + (l.pasta ? "<span>pasta <b>" + esc(l.pasta) + "</b></span>" : "") + "</div></div>" +
+        '<div class="sc-lista-acoes">' + (l.origem === "sistema" ? '<button type="button" class="btn-azul" data-acao="refazer-bl">Refazer (60 dias)</button>' : "") +
+        '<button type="button" class="btn-neutro" data-acao="exportar">Exportar CSV</button>' +
+        '<button type="button" class="btn-neutro" data-acao="editar-lista">Editar lista</button>' +
+        '<button type="button" class="btn-neutro sc-perigo" data-acao="apagar-lista">Apagar lista</button></div>';
     } else {
       var ps = l.por_status || {};
-      h = '<div><h2><i style="--cor:' + esc(l.cor) + '"></i>' + esc(l.nome) + "</h2>" +
+      h = '<div><h2><i style="--cor:' + esc(l.cor) + '"></i>' + esc(l.nome) + (l.pasta ? ' <small class="sc-pasta-chip">' + esc(l.pasta) + "</small>" : "") + "</h2>" +
         (l.descricao || l.url_busca ? "<p>" + esc(l.descricao || "") + (l.url_busca ? (l.descricao ? " · " : "") + '<a href="' + esc(l.url_busca) + '" target="_blank" rel="noopener">abrir a busca na OLX</a>' : "") + "</p>" : "") +
         '<div class="sc-numeros"><span><b>' + n(l.contatos) + "</b> contatos</span>" +
         (l.origem === "olx" ? "<span><b>" + n(l.anuncios) + "</b> anúncios</span><span><b>" + n(l.anunciantes) + "</b> anunciantes</span><span><b>" + n(l.anuncios_sem_telefone) + "</b> anúncios sem número (fora)</span>" : "") +
+        (Number(l.bloqueados) ? '<span title="números que estavam na blacklist e ficaram de fora"><b>' + n(l.bloqueados) + "</b> na blacklist (fora)</span>" : "") +
         Object.keys(STATUS).filter(function (s) { return ps[s]; }).map(function (s) { return "<span><b>" + n(ps[s]) + "</b> " + STATUS[s].toLowerCase() + "</span>"; }).join("") + "</div></div>" +
         '<div class="sc-lista-acoes"><button type="button" class="btn-neutro" data-acao="exportar">Exportar CSV</button>' +
         '<button type="button" class="btn-neutro" data-acao="copiar-todos">Copiar números</button>' +
@@ -90,6 +118,12 @@
     var a = b.dataset.acao, l = listaObj();
     if (a === "exportar") { window.location.href = "api/scrap/exportar.csv?" + filtrosQuery(); }
     if (a === "editar-lista" && l) modalLista(l);
+    if (a === "refazer-bl" && l) {
+      var d = prompt("Refazer a blacklist com quem falou conosco nos últimos quantos dias?", "60");
+      if (!d) return;
+      b.disabled = true;
+      post("api/scrap/listas/" + l.id + "/blacklist-60d", { dias: Number(d) }).then(function (r) { toast(n(r.na_blacklist) + " números na blacklist · " + n(r.bloqueados_total) + " tirados das listas"); return recarregarTudo(); }).catch(function (e) { toast(e.message, true); }).then(function () { b.disabled = false; });
+    }
     if (a === "apagar-lista" && l) {
       if (!confirm("Apagar a lista \"" + l.nome + "\" com " + n(l.contatos) + " contatos? Não tem volta.")) return;
       pedir("api/scrap/listas/" + l.id, { method: "DELETE" }).then(function () { toast("Lista apagada"); listaAtual = null; return carregarListas(); }).then(function () { carregarContatos(true); }).catch(function (e) { toast(e.message, true); });
@@ -131,6 +165,10 @@
     $("sc-contagem").textContent = total ? n(contatos.length) + " de " + n(total) + " contatos" : "";
     $("sc-mais").hidden = contatos.length >= total;
   }
+  function maisListas(ts) {
+    if (!ts || !ts.length) return "";
+    return '<span class="sc-tambem" title="também em: ' + esc(ts.join(", ")) + '">também em ' + (ts.length === 1 ? esc(ts[0].replace(/^OLX · /, "")) : ts.length + " listas") + "</span>";
+  }
   function linha(c) {
     var marcado = !!marcados[c.id];
     var faixa = c.preco_min != null ? (c.preco_min === c.preco_max ? "R$ " + moeda(c.preco_min) : "R$ " + moeda(c.preco_min) + " – " + moeda(c.preco_max)) : "";
@@ -138,14 +176,15 @@
       '<td class="sel"><input type="checkbox" data-marcar="' + c.id + '"' + (marcado ? " checked" : "") + "></td>" +
       '<td><span class="sc-nome" data-edita="nome" title="clique para editar">' + (esc(c.nome) || '<span style="color:#b9b3c9">sem nome</span>') + "</span>" +
         (c.confirmado ? '<span class="sc-ok" title="o prefixo que a OLX mostra bate com este número">✓ OLX</span>' : "") +
+        (c.na_blacklist ? '<span class="sc-bl" title="este número está numa blacklist (ficou porque foi posto à mão)">⛔ blacklist</span>' : "") +
         (c.empresa ? "<small>" + esc(c.empresa) + "</small>" : "") +
-        (!listaAtual && c.lista_nome ? '<small><span class="sc-tambem" style="background:' + esc(c.lista_cor) + '22;color:' + esc(c.lista_cor) + '">' + esc(c.lista_nome) + "</span>" + (c.tambem_em || []).map(function (t) { return '<span class="sc-tambem">' + esc(t) + "</span>"; }).join("") + "</small>" :
-         (c.tambem_em && c.tambem_em.length ? "<small>também em: " + c.tambem_em.map(function (t) { return '<span class="sc-tambem">' + esc(t) + "</span>"; }).join("") + "</small>" : "")) + "</td>" +
+        (!listaAtual && c.lista_nome ? '<small><span class="sc-tambem" style="background:' + esc(c.lista_cor) + '22;color:' + esc(c.lista_cor) + '" title="' + esc(c.lista_nome) + '">' + esc(c.lista_nome.replace(/^OLX · /, "")) + "</span>" + maisListas(c.tambem_em) + "</small>" :
+         (c.tambem_em && c.tambem_em.length ? "<small>" + maisListas(c.tambem_em) + "</small>" : "")) + "</td>" +
       '<td><span class="sc-tel"><a href="tel:+55' + c.telefone + '" data-edita="telefone" title="clique com o botão direito para editar">' + esc(c.telefone_fmt) + "</a>" +
         '<a class="sc-zap" href="https://wa.me/55' + c.telefone + '" target="_blank" rel="noopener" title="abrir no WhatsApp">W</a>' +
         '<button type="button" class="sc-copiar" data-copiar="55' + c.telefone + '" title="copiar o número">⧉</button></span></td>' +
       '<td class="num">' + (c.n_anuncios ? '<button type="button" class="sc-anuncios" data-anuncios="' + c.telefone + '">' + c.n_anuncios + "</button>" : "—") + "</td>" +
-      '<td class="sc-bairros">' + esc((c.bairros || []).slice(0, 4).join(", ")) + ((c.bairros || []).length > 4 ? " +" + (c.bairros.length - 4) : "") + "</td>" +
+      '<td class="sc-bairros" title="' + esc((c.bairros || []).join(", ")) + '">' + esc((c.bairros || []).slice(0, 2).join(", ")) + ((c.bairros || []).length > 2 ? " +" + (c.bairros.length - 2) : "") + "</td>" +
       '<td class="sc-faixa">' + faixa + "</td>" +
       '<td><select class="sc-status sc-status--' + c.status + '" data-status="' + c.id + '">' + Object.keys(STATUS).map(function (s) { return '<option value="' + s + '"' + (s === c.status ? " selected" : "") + ">" + STATUS[s] + "</option>"; }).join("") + "</select></td>" +
       '<td><span class="sc-etqs">' + (c.etiquetas || []).map(function (e) { return '<span class="sc-etq">' + esc(e) + '<button type="button" data-tirar="' + esc(e) + '" title="tirar">×</button></span>'; }).join("") +
@@ -287,6 +326,10 @@
     l = l || {};
     abrirModal(l.id ? "Editar lista" : "Nova lista",
       campo("Nome", '<input class="entrada" name="nome" required value="' + esc(l.nome || "") + '" placeholder="ex.: Corretores de locação">') +
+      '<div class="sc-duas">' +
+      campo("Pasta", '<input class="entrada" name="pasta" list="sc-pastas" value="' + esc(l.pasta || "") + '" placeholder="ex.: OLX, Base, Campanhas"><datalist id="sc-pastas">' + pastas.map(function (p) { return '<option value="' + esc(p) + '">'; }).join("") + "</datalist>", "agrupa na lateral") +
+      campo("Tipo", '<select class="selecao" name="tipo"><option value="lista"' + (l.tipo !== "blacklist" ? " selected" : "") + '>Lista normal</option><option value="blacklist"' + (l.tipo === "blacklist" ? " selected" : "") + ">Blacklist (quem está aqui não entra nas outras)</option></select>") +
+      "</div>" +
       campo("Descrição", '<input class="entrada" name="descricao" value="' + esc(l.descricao || "") + '" placeholder="de onde veio, para que serve">', "opcional") +
       campo("Link da busca", '<input class="entrada" name="url_busca" value="' + esc(l.url_busca || "") + '" placeholder="https://www.olx.com.br/…">', "opcional") +
       '<div class="sc-campo"><span>Cor</span><div class="sc-cores">' + CORES.map(function (c, i) { return '<input type="radio" name="cor" id="cor' + i + '" value="' + c + '"' + ((l.cor || CORES[0]) === c ? " checked" : "") + '><label for="cor' + i + '" style="background:' + c + '"></label>'; }).join("") + "</div></div>",

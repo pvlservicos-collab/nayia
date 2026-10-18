@@ -4,7 +4,7 @@ CREATE OR REPLACE FUNCTION public.scrap_contatos_rebuild(p_lista bigint)
  SECURITY DEFINER
  SET search_path TO 'public', 'pg_temp'
 AS $function$
-DECLARE v_n integer;
+DECLARE v_n integer; v_b integer;
 BEGIN
   UPDATE scrap_anuncio SET telefones = scrap_telefones_do_texto(descricao)
    WHERE lista_id = p_lista AND descricao IS NOT NULL;
@@ -28,7 +28,7 @@ BEGIN
                                   exemplo_url, exemplo_titulo, origem)
   SELECT lista_id, telefone, nome, anunciante_id, confirmado, n_anuncios, coalesce(bairros, '{}'), preco_min, preco_max,
          exemplo_url, exemplo_titulo, 'olx'
-    FROM agr
+    FROM agr WHERE NOT scrap_bloqueado(telefone)
   ON CONFLICT (lista_id, telefone) DO UPDATE SET
     nome = CASE WHEN c.origem = 'olx' THEN EXCLUDED.nome ELSE c.nome END,
     anunciante_id = coalesce(EXCLUDED.anunciante_id, c.anunciante_id),
@@ -38,7 +38,11 @@ BEGIN
     exemplo_url = EXCLUDED.exemplo_url, exemplo_titulo = EXCLUDED.exemplo_titulo,
     atualizado_em = now();
   GET DIAGNOSTICS v_n = ROW_COUNT;
-  UPDATE scrap_lista SET atualizado_em = now() WHERE id = p_lista;
+  DELETE FROM scrap_contato c WHERE c.lista_id = p_lista AND c.origem = 'olx' AND scrap_bloqueado(c.telefone);
+  GET DIAGNOSTICS v_b = ROW_COUNT;
+  UPDATE scrap_lista SET atualizado_em = now(),
+         bloqueados = (SELECT count(DISTINCT telefone) FROM (SELECT unnest(telefones) telefone FROM scrap_anuncio WHERE lista_id = p_lista) x WHERE scrap_bloqueado(telefone))
+   WHERE id = p_lista;
   RETURN v_n;
 END
 $function$;
