@@ -362,6 +362,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
           modo={modo}
           aoFechar={alternarPainel}
           oficial={linha === 'oficial'}
+          onTagsChange={handleTagsChange}
         />
       )
     }

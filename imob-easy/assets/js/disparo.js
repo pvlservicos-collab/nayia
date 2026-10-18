@@ -49,6 +49,7 @@
   }
   function digitos() { return $("dp-telefone").value.replace(/\D/g, ""); }
   function formatar(v) {
+    if (/[a-zà-ú]/i.test(String(v))) return v;
     var d = String(v).replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "");
     if (d.length === 11) return d.slice(0, 2) + " " + d.slice(2, 7) + "-" + d.slice(7);
     if (d.length === 10) return d.slice(0, 2) + " " + d.slice(2, 6) + "-" + d.slice(6);
@@ -249,6 +250,73 @@
   $("dp-telefone").addEventListener("input", function () { limparResposta(); atualizar(); });
   $("dp-telefone").addEventListener("blur", function () { this.value = formatar(this.value); atualizar(); });
 
+  /* ---- O CLIENTE PELO NOME OU PELO NÚMERO, e por qual número ele fala com a gente (Pedro, 17/10: "onde põe o número ou
+     pesquisa o nome do cliente, se a pessoa pesquisou um cliente que é de um número e marcou para disparar do outro
+     aparece um avisozinho"). A busca é do CRM (/api/disparo/contatos); escolher o cliente põe o número e a linha dele. ---- */
+  var ROTULO_LINHA = { whatsapp_zapi: "Parceria (9445)", whatsapp_zapi_captacao: "Captação (8595)", whatsapp_cloud_official: "Oficial (8456)" };
+  var contato = null, contatosAchados = [], esperaContato = null;
+  function tipoDaLinha() {
+    var l = linhas.filter(function (x) { return x.id === $("dp-linha").value; })[0];
+    return l ? l.tipo : null;
+  }
+  function avisoDoContato() {
+    var p = $("dp-aviso-linha"), tipo = tipoDaLinha();
+    if (!contato || !tipo || !contato.tipos.length || contato.tipos.indexOf(tipo) >= 0) { p.hidden = true; return; }
+    p.hidden = false;
+    p.innerHTML = "⚠️ <b>" + esc(contato.nome || formatar(contato.telefone)) + "</b> fala com a gente pelo " +
+      contato.tipos.map(function (t) { return "<b>" + esc(ROTULO_LINHA[t] || t) + "</b>"; }).join(" e ") +
+      ". Mandando pelo " + esc(ROTULO_LINHA[tipo] || "outro número") + ", vai chegar de um número que ele não conhece.";
+  }
+  function pintarContatos() {
+    var caixa = $("dp-contatos");
+    if (!contatosAchados.length) { caixa.hidden = true; return; }
+    caixa.hidden = false;
+    caixa.innerHTML = contatosAchados.map(function (c, n) {
+      return '<button type="button" class="dp-item" data-c="' + n + '"><div class="dp-texto"><b>' + esc(c.nome || "sem nome") +
+        "</b><span>" + esc(formatar(c.telefone)) + " · " +
+        c.tipos.map(function (t) { return esc(ROTULO_LINHA[t] || t); }).join(" · ") + "</span></div></button>";
+    }).join("");
+  }
+  function procurarContato() {
+    var v = $("dp-telefone").value.trim(), d = v.replace(/\D/g, ""), temLetra = /[a-zà-ú]/i.test(v);
+    clearTimeout(esperaContato);
+    if (!(temLetra ? v.length >= 2 : d.length >= 4)) { contatosAchados = []; pintarContatos(); return; }
+    esperaContato = setTimeout(function () {
+      fetch("api/disparo/contatos?q=" + encodeURIComponent(v), { credentials: "same-origin", cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : { contatos: [] }; })
+        .then(function (j) {
+          if ($("dp-telefone").value.trim() !== v) return;          // ele já digitou outra coisa
+          contatosAchados = j.contatos || [];
+          // o número inteiro digitado e um contato só com ele: já é esse (não precisa clicar)
+          if (!temLetra && d.length >= 10 && contatosAchados.length === 1) {
+            contato = contatosAchados[0]; contatosAchados = []; avisoDoContato();
+          }
+          pintarContatos();
+        })
+        .catch(function () { contatosAchados = []; pintarContatos(); });
+    }, 250);
+  }
+  function escolherContato(c) {
+    contato = c;
+    $("dp-telefone").value = formatar(c.telefone);
+    contatosAchados = []; pintarContatos();
+    // a linha dele: se a escolhida não é uma das dele, vai para a primeira dele
+    var tipo = tipoDaLinha();
+    if (c.tipos.length && c.tipos.indexOf(tipo) < 0) {
+      var l = linhas.filter(function (x) { return c.tipos.indexOf(x.tipo) >= 0; })[0];
+      if (l) { $("dp-linha").value = l.id; avisoDaLinha(); }
+    }
+    avisoDoContato(); limparResposta(); atualizar();
+  }
+  $("dp-contatos").addEventListener("mousedown", function (e) {
+    var b = e.target.closest("[data-c]"); if (!b) return;
+    e.preventDefault();
+    escolherContato(contatosAchados[+b.dataset.c]);
+  });
+  $("dp-telefone").addEventListener("input", function () { contato = null; avisoDoContato(); procurarContato(); });
+  $("dp-telefone").addEventListener("blur", function () { setTimeout(function () { contatosAchados = []; pintarContatos(); }, 150); });
+  $("dp-linha").addEventListener("change", avisoDoContato);
+
   /* ---- a resposta ---- */
   function limparResposta() { $("dp-resposta").hidden = true; }
   function mostrar(ok, texto, canal) {
@@ -279,6 +347,7 @@
         if (!x.ok) throw new Error(x.j.erro || "não consegui enviar");
         mostrar(true, x.j.resumo || "Enviado.", x.j.canal);
         escolhidos = []; resultados = []; achados = null; $("dp-q").value = "";
+        contato = null; avisoDoContato();
         avisoFaixa(""); pintarLista(); pintarAchados();
       })
       .catch(function (e) { mostrar(false, e.message || "não consegui enviar"); })

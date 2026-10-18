@@ -41,6 +41,7 @@ import { comAlguemPelaNay, escolhaAMao } from '@/lib/etapaDaParceria'
 import AgendarFollowup from './AgendarFollowup'
 import AgendarVisita from './AgendarVisita'
 import { FUSO_DE_MANAUS, dataHoraEmManaus, diasAteEmManaus, horaEmManaus } from '@/lib/fusoDeManaus'
+import EtiquetasDoCard from './EtiquetasDoCard'
 
 const LARGURA_GUARDADA = 'crm:largura-card-parceria'
 const LARGURA_MIN = 300
@@ -62,17 +63,6 @@ function tamanhoDoArquivo(bytes: number | null | undefined) {
 }
 
 type Documento = { id: string; nome: string; url: string; tipo: string | null; tamanho: number | null; criadoEm: string }
-
-let etiquetasGuardadas: Promise<Array<{ id: string; name: string; color: string }>> | null = null
-function etiquetasDaOrganizacao() {
-  if (!etiquetasGuardadas) {
-    etiquetasGuardadas = fetch('/api/tags').then((r) => r.json()).then((j) => j?.data || j?.tags || []).catch(() => {
-      etiquetasGuardadas = null
-      return []
-    })
-  }
-  return etiquetasGuardadas
-}
 
 /* A HORA DA VISITA É A DE MANAUS (Pedro, 03/10: "está com o horário de São Paulo... e na
    agenda mesmo está horários de Manaus"). Este card mostrava a visita no relógio do
@@ -206,52 +196,6 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
       setEnviando(false)
     }
   }, [escolhidos, enviando, lead.phone, lead.integration_id, recarregar])
-
-  /* ── as etiquetas, embaixo do número: pôr, tirar, criar ── */
-  const [etiquetas, setEtiquetas] = useState<Array<{ id: string; name: string; color: string }>>([])
-  const [menuEtiquetas, setMenuEtiquetas] = useState(false)
-  const [novaEtiqueta, setNovaEtiqueta] = useState('')
-  useEffect(() => {
-    let vivo = true
-    etiquetasDaOrganizacao().then((todas) => {
-      // as "Nay: ..." são da Nay (a etapa já aparece no quadradinho da lista)
-      if (vivo) setEtiquetas(todas.filter((t) => !t.name.startsWith('Nay:')).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')))
-    })
-    return () => { vivo = false }
-  }, [])
-  const temEtiqueta = (id: string) => (lead.lead_tags || []).some((lt) => lt.tag_id === id)
-  const alternarEtiqueta = async (t: { id: string; name: string; color: string }) => {
-    const tem = temEtiqueta(t.id)
-    onTagsChange?.(lead.id, t.id, tem ? 'remove' : 'add', t)
-    try {
-      const r = await fetch(`/api/leads/${lead.id}/tags`, {
-        method: tem ? 'DELETE' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tag_id: t.id }),
-      })
-      if (!r.ok) throw new Error()
-    } catch {
-      onTagsChange?.(lead.id, t.id, tem ? 'add' : 'remove', t)
-    }
-  }
-  const criarEtiqueta = async () => {
-    const nome = novaEtiqueta.trim()
-    if (!nome) return
-    const existente = etiquetas.find((t) => t.name.toLowerCase() === nome.toLowerCase())
-    if (existente) { if (!temEtiqueta(existente.id)) void alternarEtiqueta(existente); setNovaEtiqueta(''); return }
-    try {
-      const r = await fetch('/api/tags', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: nome, source: 'crm', color: '#64748b' }) })
-      const j = await r.json().catch(() => ({}))
-      if (!r.ok || !j?.data?.id) throw new Error()
-      const t = { id: j.data.id, name: j.data.name, color: j.data.color || '#64748b' }
-      etiquetasGuardadas = null
-      setEtiquetas((xs) => [...xs, t].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')))
-      setNovaEtiqueta('')
-      void alternarEtiqueta(t)
-    } catch { /* o nome já existe em outra forma, ou sem rede: fica o texto para tentar de novo */ }
-  }
-  const etiquetasDoLead = (lead.lead_tags || [])
-    .map((lt: any) => lt.tag || etiquetas.find((t) => t.id === lt.tag_id))
-    .filter((t: any) => t && !String(t.name).startsWith('Nay:'))
 
   /* ── apelido (o nome que a lista mostra) ── */
   const [editandoNome, setEditandoNome] = useState(false)
@@ -711,45 +655,8 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
               : 'A Nay está decidindo sozinha: visita passada à Rayssa, dono do imóvel ou checklist pedido.'}
           </p>
           {/* as etiquetas: embaixo do número (Pedro, 29/09) */}
-          <div className="flex flex-wrap justify-center items-center gap-1.5 mt-3 relative">
-            {etiquetasDoLead.map((t: any) => (
-              <span key={t.id} className="wa-marca !pr-1 inline-flex items-center gap-1" style={{ color: t.color?.startsWith('#') ? t.color : 'var(--wa-text-2)' }}>
-                {t.name}
-                <button type="button" onClick={() => void alternarEtiqueta(t)} className="rounded-full hover:bg-black/10 p-0.5" title={`Tirar "${t.name}"`} aria-label={`Tirar ${t.name}`}>
-                  <X size={10} weight="bold" />
-                </button>
-              </span>
-            ))}
-            <button type="button" onClick={() => setMenuEtiquetas((m) => !m)} className="wa-chip !h-7 !px-2.5 !text-[12.5px]"
-                    aria-expanded={menuEtiquetas} title="Pôr ou trocar etiqueta">
-              <Plus size={12} weight="bold" /> Etiqueta
-            </button>
-            {menuEtiquetas && (
-              <div className="absolute top-full mt-1.5 z-30 w-[260px] max-h-[300px] overflow-y-auto wa-rolagem rounded-xl shadow-2xl p-1.5 text-left"
-                   style={{ background: 'var(--wa-menu)', border: '1px solid var(--wa-divider)' }}>
-                {etiquetas.map((t) => {
-                  const on = temEtiqueta(t.id)
-                  return (
-                    <button key={t.id} type="button" onClick={() => void alternarEtiqueta(t)}
-                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[13.5px] hover:bg-[var(--wa-row-hover)]"
-                            style={{ color: 'var(--wa-text)' }}>
-                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
-                      <span className="flex-1 truncate">{t.name}</span>
-                      {on && <Check size={14} weight="bold" style={{ color: 'var(--wa-green)' }} />}
-                    </button>
-                  )
-                })}
-                <form className="flex items-center gap-1 mt-1 pt-1.5" style={{ borderTop: '1px solid var(--wa-divider)' }}
-                      onSubmit={(e) => { e.preventDefault(); void criarEtiqueta() }}>
-                  <input value={novaEtiqueta} onChange={(e) => setNovaEtiqueta(e.target.value)} placeholder="Criar etiqueta…" maxLength={40}
-                         className="flex-1 min-w-0 h-8 px-2 rounded-md text-[13px]" style={{ background: 'var(--wa-app)', color: 'var(--wa-text)' }} />
-                  <button type="submit" disabled={!novaEtiqueta.trim()} className="wa-icone-btn !w-8 !h-8 disabled:opacity-40" aria-label="Criar etiqueta">
-                    <Plus size={15} weight="bold" />
-                  </button>
-                </form>
-                <button type="button" onClick={() => setMenuEtiquetas(false)} className="w-full mt-1 text-[12.5px] py-1" style={{ color: 'var(--wa-text-2)' }}>Fechar</button>
-              </div>
-            )}
+          <div className="mt-3">
+            <EtiquetasDoCard lead={lead} onTagsChange={onTagsChange} />
           </div>
 
           <div className="flex flex-wrap justify-center gap-1.5 mt-2.5">

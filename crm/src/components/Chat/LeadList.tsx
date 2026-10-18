@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { LeadWithOwner, SearchHit } from '@/lib/types'
-import { MagnifyingGlass, PushPin, Archive, ArrowCounterClockwise, ArrowLeft, Tag as TagIcon, Check, X, ChatCircleText, ChatCircleDots } from '@phosphor-icons/react'
+import { MagnifyingGlass, PushPin, Archive, ArrowCounterClockwise, ArrowLeft, Check, X, ChatCircleText, ChatCircleDots } from '@phosphor-icons/react'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 import { useLeadSearch } from '@/hooks/useLeadSearch'
 import { DIAS_CONVERSA_IMPORTADA } from '@/lib/conversas'
@@ -20,6 +20,7 @@ import BuscaDaLista, { casaNaBusca } from './BuscaDaLista'
 import { conversaEstaNaLinha, type LinhaWhatsapp } from '@/lib/leadChannel'
 import { pedeResposta } from '@/lib/esperaResposta'
 import { comAlguemPelaNay, etapaDaParceria, escolhaAMao } from '@/lib/etapaDaParceria'
+import PranchetaDeEtiquetas from './PranchetaDeEtiquetas'
 
 /*
  * FOLLOW-UP DA PARCERIA (Pedro, 29/09/2026): "Últimas 6h | Últimas 24h | Essa
@@ -229,18 +230,14 @@ export default function LeadList({
   const comAlguem = (l: LeadWithOwner, m: any, atendente?: { nome: string } | null) =>
     doTel(l, m, atendente) || daRayssa(l, m, atendente)
 
-  const [tagFilterOpen, setTagFilterOpen] = useState(false)
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
-  const tagFilterRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (!tagFilterOpen) return
-    const handleClickOutside = (e: MouseEvent) => {
-      if (tagFilterRef.current && !tagFilterRef.current.contains(e.target as Node)) setTagFilterOpen(false)
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [tagFilterOpen])
+  // quantas conversas desta linha têm cada etiqueta (o número ao lado de cada uma na prancheta)
+  const contagemPorEtiqueta = useMemo(() => {
+    const c: Record<string, number> = {}
+    for (const l of leads) for (const lt of ((l as any).lead_tags || []) as any[]) c[lt.tag_id] = (c[lt.tag_id] || 0) + 1
+    return c
+  }, [leads])
 
   const toggleTagFilter = (tagId: string) => {
     setSelectedTagIds((prev) => (prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]))
@@ -675,47 +672,10 @@ export default function LeadList({
                 <MagnifyingGlass size={20} />
               </button>
             )}
-            {allTags.length > 0 && !verArquivadas && (
-              <div className="relative" ref={tagFilterRef}>
-                <button
-                  type="button"
-                  onClick={() => setTagFilterOpen((v) => !v)}
-                  className={`wa-icone-btn relative ${selectedTagIds.length > 0 ? 'wa-icone-btn--on' : ''}`}
-                  title="Filtrar por etiqueta"
-                >
-                  <TagIcon size={20} />
-                  {selectedTagIds.length > 0 && (
-                    <span className="wa-badge absolute -top-0.5 -right-0.5 !min-w-[16px] !h-4 !text-[10px] !px-1">{selectedTagIds.length}</span>
-                  )}
-                </button>
-                {tagFilterOpen && (
-                  <div className="absolute z-50 right-0 top-full mt-1 w-60 max-h-80 overflow-y-auto rounded-xl py-1.5 shadow-xl wa-rolagem"
-                       style={{ background: 'var(--wa-menu)', border: '1px solid var(--wa-divider)' }}>
-                    <div className="flex items-center justify-between px-3 py-1.5">
-                      <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--wa-text-2)' }}>Etiquetas</span>
-                      {selectedTagIds.length > 0 && (
-                        <button type="button" onClick={() => setSelectedTagIds([])} className="text-[12px] font-semibold hover:underline" style={{ color: 'var(--wa-green)' }}>
-                          Limpar
-                        </button>
-                      )}
-                    </div>
-                    {allTags.map((tag) => {
-                      const on = selectedTagIds.includes(tag.id)
-                      return (
-                        <button key={tag.id} type="button" onClick={() => toggleTagFilter(tag.id)}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[14px] hover:bg-[var(--wa-row-hover)]"
-                                style={{ color: 'var(--wa-text)' }}>
-                          <span className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border-2"
-                                style={{ borderColor: tag.color, backgroundColor: on ? tag.color : 'transparent' }}>
-                            {on && <Check size={11} weight="bold" className="text-white" />}
-                          </span>
-                          <span className="truncate">{tag.name}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
+            {/* a prancheta das etiquetas (Pedro, 17/10): filtrar e criar, nos números da Parceria e da Captação */}
+            {!verArquivadas && (
+              <PranchetaDeEtiquetas escolhidas={selectedTagIds} aoAlternar={toggleTagFilter} aoLimpar={() => setSelectedTagIds([])}
+                                    contagem={contagemPorEtiqueta} />
             )}
           </div>
         </div>

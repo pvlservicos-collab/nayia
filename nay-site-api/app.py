@@ -5232,6 +5232,19 @@ def admin_painel_metricas():
     return jsonify(r)
 
 
+# ENVIAR IMÓVEL: o cliente pelo nome ou número, e por qual número ele fala com a gente (Pedro, 17/10: "se a pessoa
+# pesquisou um cliente que é de um número e marcou para disparar do outro aparece um avisozinho"). Quem procura é o CRM.
+@app.route("/admin/api/disparo/contatos")
+def admin_disparo_contatos():
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    import urllib.parse
+    from disparo_api import _crm
+    q = (request.args.get("q") or "").strip()[:60]
+    status, j = _crm("GET", "/api/disparo/contatos?" + urllib.parse.urlencode({"q": q}), timeout=15)
+    return jsonify(j), status
+
+
 # O RESULTADO DE CADA VISITA (404, Pedro 17/10: "a aba visitas vai ter as visitas listadas e um botão de status,
 # Desistiu, Realizada, Fechou negócio, e eu vou poder mudar e salvar manualmente visita a visita").
 @app.route("/admin/api/painel/visitas")

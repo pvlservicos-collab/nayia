@@ -18,6 +18,7 @@
   .dp-rotulo { display: block; font-size: var(--fs-xs); color: var(--texto-fraco); margin-bottom: 4px; }
   .dp .entrada, .dp .selecao { width: 100%; }
   .dp-aviso { grid-column: 1 / -1; margin: 0; font-size: var(--fs-xs); color: #92400e; }
+  .dp-aviso--linha { padding: 8px 12px; border-radius: var(--raio-sm, 8px); background: #fef3c7; border: 1px solid #f59e0b; color: #78350f; }
   .dp-busca { position: relative; }
   .dp-lista { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px); max-height: 360px; overflow-y: auto;
               background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra-1); }
@@ -82,20 +83,23 @@
     <h1 class="pagina-titulo">Enviar imóvel</h1>
   </div>
   <p class="pagina-subtitulo" style="margin-bottom:16px">
-    Vai o card dos grupos e as fotos. As regras da Nay valem aqui também: imóvel de parceiro e indisponível
-    não saem, e as fotos do mesmo imóvel vão uma vez a cada 24h para cada número.
+    Vai o card dos grupos e as fotos. As regras da Nay valem aqui também: indisponível não sai; imóvel de parceiro
+    só sai pela Captação, para cliente final (nunca para corretor). Escolha o cliente pelo nome ou número: a linha
+    dele vem junto.
   </p>
 
   <section class="cartao dp-bloco dp-grade">
-    <label>
-      <span class="dp-rotulo">Para qual número</span>
-      <input class="entrada" id="dp-telefone" inputmode="tel" placeholder="92 99999-9999" autocomplete="off">
+    <label class="dp-busca">
+      <span class="dp-rotulo">Cliente: nome ou número</span>
+      <input class="entrada" id="dp-telefone" placeholder="92 99999-9999 ou o nome do cliente" autocomplete="off">
+      <div class="dp-lista" id="dp-contatos" hidden></div>
     </label>
     <label>
       <span class="dp-rotulo">Por qual WhatsApp</span>
       <select class="selecao" id="dp-linha"><option value="">carregando…</option></select>
     </label>
     <p class="dp-aviso" id="dp-aviso" hidden></p>
+    <p class="dp-aviso dp-aviso--linha" id="dp-aviso-linha" hidden></p>
   </section>
 
   <section class="cartao dp-bloco">
@@ -150,6 +154,6 @@
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/layout.js"></script>
 <script src="../assets/js/multiselecao.js"></script>
-<script src="../assets/js/disparo.js"></script>
+<script src="../assets/js/disparo.js?v=20261017-contato"></script>
 </body>
 </html>

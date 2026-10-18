@@ -28,12 +28,15 @@ import { integrations, leadActivities, leads, organizationMembers, profiles } fr
 import { getChannelAdapter } from '@/lib/channels/registry'
 import { ehEspelhoDeTreino, normalizePhone, telefoneVariantes } from '@/lib/leadSources'
 import { registrarEnvioNoCrm } from '@/lib/registrarEnvio'
-import { conferirParaOficial, enfileirarNaNay, liberarReserva, opcoesNaNay, TETO_POR_ENVIO } from '@/lib/nayDisparo'
+import { conferirParaOficial, enfileirarNaNay, liberarReserva, naydb, opcoesNaNay, TETO_POR_ENVIO } from '@/lib/nayDisparo'
 
 const TETO_DE_IMOVEIS = TETO_POR_ENVIO
 /** Fotos por imóvel na API oficial (a mesma conta do "enviar imóvel" da conversa). */
 const TETO_DE_FOTOS = 8
-const TIPOS = ['whatsapp_zapi', 'whatsapp_cloud_official']
+// 17/10 (Pedro: "no site onde tem enviar imóvel tivesse opção de selecionar o número"): a Captação (8595) entra -- sai
+// pela Nay do WhatsApp (nay-olx), card e fotos, um imóvel por vez, a mesma fila do card da Captação no CRM (396)
+const TIPOS = ['whatsapp_zapi', 'whatsapp_zapi_captacao', 'whatsapp_cloud_official']
+const ORDEM: Record<string, number> = { whatsapp_zapi: 0, whatsapp_zapi_captacao: 1, whatsapp_cloud_official: 2 }
 
 async function linhasDaOrganizacao(organizationId: string) {
   const rows = await db
@@ -54,9 +57,11 @@ async function linhasDaOrganizacao(organizationId: string) {
       padrao: r.tipo === 'whatsapp_zapi',
       aviso: r.tipo === 'whatsapp_cloud_official'
         ? 'Só chega para quem falou com este número nas últimas 24h.'
-        : null,
+        : r.tipo === 'whatsapp_zapi_captacao'
+          ? 'Sai pelo número de captação (8595-6408), pela Nay do WhatsApp: card e fotos, um imóvel de cada vez.'
+          : null,
     }))
-    .sort((a, b) => Number(b.padrao) - Number(a.padrao))
+    .sort((a, b) => (ORDEM[a.tipo] ?? 9) - (ORDEM[b.tipo] ?? 9))
 }
 
 export async function GET(req: NextRequest) {
@@ -117,6 +122,21 @@ export async function POST(req: NextRequest) {
     if (linha.tipo === 'whatsapp_zapi') {
       const resumo = await enfileirarNaNay(telefone, codigos, quem)
       return Response.json({ ok: true, linha: linha.nome, canal: 'parceria', resumo })
+    }
+
+    // ---------------- CAPTAÇÃO (8595): a fila da Nay do WhatsApp ----------------
+    if (linha.tipo === 'whatsapp_zapi_captacao') {
+      try {
+        const r = await naydb().query('SELECT crm_captacao_enviar_imoveis($1, $2::int[], $3) AS id', [telefone, codigos, quem])
+        return Response.json({
+          ok: true, linha: linha.nome, canal: 'captacao', pedido: Number(r.rows[0]?.id),
+          resumo: `Na fila da Nay do WhatsApp: ${codigos.length} imóve${codigos.length === 1 ? 'l' : 'is'} para ${telefone}, `
+            + 'pelo 8595, um de cada vez (card e fotos). De parceiro só sai para cliente final; fora do ar não sai.',
+        })
+      } catch (err: any) {
+        if (err?.code === 'P0001') return apiError(400, String(err.message || 'não deu para pedir o envio'))
+        throw err
+      }
     }
 
     // ---------------- API OFICIAL: o CRM manda ----------------

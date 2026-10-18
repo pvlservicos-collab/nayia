@@ -29,6 +29,7 @@ import {
   X, User, House, ArrowClockwise, Copy, Check, Plus, PencilSimple, Images, CircleNotch, Robot,
 } from '@phosphor-icons/react'
 import EnviarImovelPelaCaptacao from './EnviarImovelPelaCaptacao'
+import EtiquetasDoCard from './EtiquetasDoCard'
 import { useOlxClientes, recarregarOlxClientes } from '@/hooks/useOlxClientes'
 import { fim8 } from '@/lib/olxClientes'
 import type { LeadWithOwner } from '@/lib/types'
@@ -116,12 +117,13 @@ function Barra({ pct, falta }: { pct: number; falta: string[] }) {
   )
 }
 
-export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial }: {
+export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, onTagsChange }: {
   lead: LeadWithOwner
   modo: 'lateral' | 'gaveta'
   aoFechar: () => void
   /** aberto na aba Oficial (09/10): a conversa é pelo número da Meta, com a regra das 24 h */
   oficial?: boolean
+  onTagsChange?: (leadId: string, tagId: string, action: 'add' | 'remove', tagObj?: any) => void
 }) {
   const [d, setD] = useState<Dados | null>(null)
   const [carregando, setCarregando] = useState(true)
@@ -257,6 +259,11 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial }:
             <EtapaDaCaptacao leadId={lead.id} etapaManual={dono.etapaManual} abas={dono.abas} aoMudar={() => void ler()} />
           </div>
         )}
+
+        {/* 17/10 (Pedro): as etiquetas da equipe também no card da Captação */}
+        <Secao titulo="Etiquetas">
+          <EtiquetasDoCard lead={lead as any} onTagsChange={onTagsChange} alinhar="esquerda" />
+        </Secao>
 
         {/* 2. o que a campanha sabe */}
         {c && (
