@@ -1922,3 +1922,26 @@ html {
   .olx-perfil { margin: 20px 0 16px; }
   .olx-balao { max-width: 88%; }
 }
+
+/* HOJE / ESSA SEMANA NA PARCERIA (Pedro, 19/10/2026): "uma aba Hoje, bastante destaque, até borda colorida ... é tipo
+   um toggle; e do lado Essa semana". Nenhum marcado = todas as conversas. Hoje ligado é verde (a cor de "a Nay
+   oferece" e do WhatsApp), com a borda sempre colorida para chamar o olho; Essa semana é o chip comum. */
+.wa-periodo {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 14px; border-radius: 9999px;
+  font-size: 14px; line-height: 20px; font-weight: 600; white-space: nowrap;
+  background: var(--wa-chip-bg); color: var(--wa-chip-ink);
+  border: 2px solid var(--wa-chip-border);
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.wa-periodo:hover { background: var(--wa-row-hover); }
+.wa-periodo--hoje { border-color: #25d366; color: #15803d; }
+.wa-periodo--hoje.wa-periodo--on, .wa-periodo--hoje.wa-periodo--on:hover {
+  background: #25d366; color: #0b2e1a; border-color: #128c4a;
+  box-shadow: 0 0 0 3px rgba(37, 211, 102, .25), inset 0 2px 3px rgba(0, 0, 0, .18);
+}
+.wa-periodo--on:not(.wa-periodo--hoje), .wa-periodo--on:not(.wa-periodo--hoje):hover {
+  background: var(--wa-chip-on-bg); color: var(--wa-chip-on-ink); border-color: var(--wa-chip-on-bg);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, .18);
+}
+.wa-periodo__n { font-size: 12px; font-weight: 700; opacity: .85; }

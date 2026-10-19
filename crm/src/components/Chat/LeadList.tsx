@@ -20,23 +20,31 @@ import LeadListItem from './LeadListItem'
 import ChatFilterTabs, { type ChatTab, type FiltroDaLista } from './ChatFilterTabs'
 import BuscaDaLista, { casaNaBusca } from './BuscaDaLista'
 import { conversaEstaNaLinha, type LinhaWhatsapp } from '@/lib/leadChannel'
-import { pedeResposta } from '@/lib/esperaResposta'
 import { comAlguemPelaNay, etapaDaParceria, escolhaAMao } from '@/lib/etapaDaParceria'
 import PranchetaDeEtiquetas from './PranchetaDeEtiquetas'
 
 /*
- * FOLLOW-UP DA PARCERIA (Pedro, 29/09/2026): "Últimas 6h | Últimas 24h | Essa
- * semana -- todo mundo que a última mensagem foi da pessoa e não nossa,
- * baseado na janela de tempo". As janelas se somam (a de 24h tem a de 6h).
- * "Essa semana" = os últimos 7 dias. Reação ("Reagiu com 👍") não conta: ela
- * fecha a conversa, não pede resposta.
+ * HOJE / ESSA SEMANA NA PARCERIA (Pedro, 19/10/2026): "tirar Sem resposta: Últimas 6h / 24h / Essa semana. Colocar no
+ * lugar uma aba Hoje (bastante destaque, até borda colorida): quando a Rayssa clicar ali ela vai ver somente as
+ * conversas que mandaram mensagem no dia de hoje; é tipo um toggle. E do lado uma aba Essa semana que mostra as
+ * OUTRAS conversas da semana. Se ela não marcar nenhuma, fica mostrando todas as conversas normal. Vale a todos."
+ *
+ * É um filtro à parte das etapas (Todos, Visitas, Tel...): soma com a aba que estiver aberta. O dia é o de Manaus
+ * (a última movimentação da conversa, `last_activity_at`). Substituiu o follow-up de 29/09 (últimas 6h/24h/semana
+ * sem resposta nossa), que ninguém usava.
  */
-const HORA = 3_600_000
-const JANELAS_DE_FOLLOWUP: Array<[string, number]> = [['seg_6h', 6 * HORA], ['seg_24h', 24 * HORA], ['seg_semana', 7 * 24 * HORA]]
-function esperandoResposta(l: { last_message_sender_type?: string | null; last_message_content?: string | null; last_activity_at?: string | null; phone?: string | null }, janela: number, agora: number) {
-  if (!pedeResposta(l)) return false   // cortesia, reação e o número da Nay não contam (30/09)
-  const t = Date.parse(l.last_activity_at || '')
-  return Number.isFinite(t) && agora - t <= janela
+type Periodo = '' | 'hoje' | 'semana'
+const DIA = 86_400_000
+function diaEmManaus(iso?: string | null): string | null {
+  const t = Date.parse(iso || '')
+  if (!Number.isFinite(t)) return null
+  return new Date(t).toLocaleDateString('en-CA', { timeZone: 'America/Manaus' })   // AAAA-MM-DD
+}
+function periodoDaConversa(l: { last_activity_at?: string | null }, hoje: string | null, agora: number): Periodo {
+  const dia = diaEmManaus(l.last_activity_at)
+  if (!dia) return ''
+  if (dia === hoje) return 'hoje'
+  return agora - Date.parse(l.last_activity_at || '') <= 7 * DIA ? 'semana' : ''
 }
 
 /*
@@ -156,6 +164,8 @@ export default function LeadList({
   const [search, setSearch] = useState('')
   const [buscaAberta, setBuscaAberta] = useState(false)
   const [activeTab, setActiveTab] = useState<ChatTab>('all')
+  // 19/10: Hoje / Essa semana na Parceria -- um toggle à parte da aba
+  const [periodo, setPeriodo] = useState<Periodo>('')
   // a busca por nome/número, só na etapa Proprietários (30/09)
   const [buscaDono, setBuscaDono] = useState('')
   const [verArquivadas, setVerArquivadas] = useState(false)
@@ -454,6 +464,7 @@ export default function LeadList({
   const contagem: Record<string, number> = { all: visiveis.length }
   const soma = (k: string) => { contagem[k] = (contagem[k] ?? 0) + 1 }
   const agora = Date.now()
+  const hoje = diaEmManaus(new Date(agora).toISOString())
   for (const hit of visiveis) {
     const l = hit.lead
     if (l.is_unread) soma('nao_lidas')
@@ -480,7 +491,9 @@ export default function LeadList({
       if (daRayssa(l, m, atendente)) { soma('rayssa'); if (semLer) contagem['semler:rayssa'] = (contagem['semler:rayssa'] ?? 0) + semLer }
       // "Tel": a Nay diz que ele está com a conversa OU ele mandou pelo login dele
       if (doTel(l, m, atendente)) { soma('tel'); if (semLer) contagem['semler:tel'] = (contagem['semler:tel'] ?? 0) + semLer }
-      for (const [k, ms] of JANELAS_DE_FOLLOWUP) if (esperandoResposta(l, ms, agora)) soma(k)
+      // 19/10: quantas conversas se mexeram hoje e quantas nos outros dias da semana
+      const p = periodoDaConversa(l, hoje, agora)
+      if (p) soma(`periodo:${p}`)
     } else {
       for (const lt of (l.lead_tags || []) as any[]) soma(`tag:${lt.tag_id}`)
       if (atendente) soma(`atendente:${atendente.id}`)
@@ -553,14 +566,9 @@ export default function LeadList({
           .map((t: any) => ({ chave: `tag:${t.id}`, rotulo: t.name, cor: t.color || '#8b5cf6', contagem: contagem[`tag:${t.id}`] })),
       ]
 
-  /* FOLLOW-UP (Pedro, 29/09): "os filtros finais de últimas 6h ficam fora das
-     tags, no lugar daquela barra de pesquisar" -- a última mensagem é da pessoa
-     e ninguém respondeu. Mesmo estado das etiquetas: um filtro por vez. */
-  const filtrosDeFollowup: FiltroDaLista[] = ehParceria ? [
-    { chave: 'seg_6h', rotulo: 'Últimas 6h', contagem: contagem.seg_6h, titulo: 'A pessoa escreveu por último nas últimas 6 horas e ainda não respondemos' },
-    { chave: 'seg_24h', rotulo: 'Últimas 24h', contagem: contagem.seg_24h, titulo: 'A pessoa escreveu por último nas últimas 24 horas e ainda não respondemos' },
-    { chave: 'seg_semana', rotulo: 'Essa semana', contagem: contagem.seg_semana, titulo: 'A pessoa escreveu por último nos últimos 7 dias e ainda não respondemos' },
-  ] : linha === 'oficial' ? [
+  /* 19/10: na Parceria o follow-up de 29/09 (últimas 6h/24h/semana sem resposta) saiu; no lugar, o toggle
+     Hoje / Essa semana (abaixo, `periodo`), que soma com a aba. */
+  const filtrosDeFollowup: FiltroDaLista[] = linha === 'oficial' ? [
     /* NA OFICIAL, SÓ "NÃO LIDO" (Pedro, 09/10/2026: "coloca aquilo de filtrar por não lido que nem tem nas outras
        conversas ... coloca só Não lido nele"). */
     { chave: 'nao_lidas', rotulo: 'Não lido', contagem: contagem.nao_lidas, titulo: 'Só as conversas com mensagem que ninguém abriu ainda' },
@@ -609,8 +617,6 @@ export default function LeadList({
     if (activeTab === 'rayssa') return daRayssa(l, marcas[l.id], atendenteDoLead[l.id])
     if (activeTab === 'tel' && linha === 'captacao') return comOTelNaCaptacao(l)
     if (activeTab === 'tel') return doTel(l, marcas[l.id], atendenteDoLead[l.id])
-    const janela = JANELAS_DE_FOLLOWUP.find(([k]) => k === activeTab)
-    if (janela) return esperandoResposta(l, janela[1], agora)
     if (activeTab.startsWith('tag:')) return (l.lead_tags || []).some((lt: any) => `tag:${lt.tag_id}` === activeTab)
     if (activeTab.startsWith('atendente:')) return `atendente:${atendenteDoLead[l.id]?.id}` === activeTab
     return true
@@ -623,6 +629,8 @@ export default function LeadList({
      (etapa, Tel/Rayssa, não lidas, etiqueta) não filtra: acha no número inteiro. */
   const filtradas = visiveis
     .filter((hit) => buscando || passaNoFiltro(hit))
+    // 19/10: Hoje / Essa semana (Parceria) soma com a aba; com a lupa, não filtra
+    .filter((hit) => buscando || !periodo || periodoDaConversa(hit.lead, hoje, agora) === periodo)
     .filter((hit) => buscando || !buscandoDono || casaNaBusca(buscaDono, hit.lead))
     .filter((hit) => buscando || selectedTagIds.length === 0 || hit.lead.lead_tags?.some((lt: any) => selectedTagIds.includes(lt.tag_id)))
 
@@ -727,10 +735,26 @@ export default function LeadList({
 
         {!verArquivadas && (
           <>
+            {/* HOJE / ESSA SEMANA (Pedro, 19/10): toggle à parte da aba; nenhum marcado = todas as conversas */}
+            {ehParceria && (
+              <div className="flex items-center gap-2 px-4 pb-2 pt-0.5 -mb-1" role="group" aria-label="Período das conversas">
+                <button type="button" aria-pressed={periodo === 'hoje'}
+                        className={`wa-periodo wa-periodo--hoje ${periodo === 'hoje' ? 'wa-periodo--on' : ''}`}
+                        title="Só as conversas que se mexeram hoje (hora de Manaus). Clique de novo para ver todas."
+                        onClick={() => setPeriodo(periodo === 'hoje' ? '' : 'hoje')}>
+                  Hoje{!!contagem['periodo:hoje'] && <span className="wa-periodo__n">{contagem['periodo:hoje']}</span>}
+                </button>
+                <button type="button" aria-pressed={periodo === 'semana'}
+                        className={`wa-periodo ${periodo === 'semana' ? 'wa-periodo--on' : ''}`}
+                        title="As outras conversas da semana (dos últimos 7 dias, fora as de hoje). Clique de novo para ver todas."
+                        onClick={() => setPeriodo(periodo === 'semana' ? '' : 'semana')}>
+                  Essa semana{!!contagem['periodo:semana'] && <span className="wa-periodo__n">{contagem['periodo:semana']}</span>}
+                </button>
+              </div>
+            )}
             {filtrosDeFollowup.length > 0 && (
-              <div className={`flex items-center gap-1 -mb-1 ${ehParceria ? 'pl-4' : ''}`}>
-                {ehParceria && <span className="text-[12px] flex-shrink-0" style={{ color: 'var(--wa-text-2)' }}>Sem resposta:</span>}
-                <div className={`flex-1 min-w-0 ${ehParceria ? '-ml-3' : ''}`}>
+              <div className="flex items-center gap-1 -mb-1">
+                <div className="flex-1 min-w-0">
                   <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtrosDeFollowup} />
                 </div>
               </div>
