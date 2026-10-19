@@ -5,7 +5,7 @@ CREATE OR REPLACE FUNCTION public.site_captacao_grupos_demanda(p_dias integer DE
  SET search_path TO 'public', 'privado'
 AS $function$
   WITH base AS (
-    SELECT q.id, q.faixa,
+    SELECT coalesce((SELECT j.card FROM privado.grupo_pedido_junto j WHERE j.pedido_id = q.id), q.id) AS id, q.faixa,
            coalesce(q.local->>'operacao', q.ficha->>'operacao') AS operacao,
            nullif(q.ficha->>'quartos', '')::int AS quartos,
            nullif(q.ficha->>'preco_max', '')::numeric AS teto,
@@ -13,7 +13,8 @@ AS $function$
                        SELECT jsonb_array_elements_text(coalesce(q.local->'bairros', '[]'::jsonb)) AS z
                        UNION SELECT jsonb_array_elements_text(coalesce(q.local->'condominios', '[]'::jsonb))) s), ARRAY['(sem lugar)']) AS lugares
       FROM privado.grupo_pedido q
-     WHERE q.fonte = 'grupo' AND q.enviada_em >= now() - make_interval(days => least(greatest(coalesce(p_dias, 30), 1), 365))
+     WHERE q.fonte = 'grupo' AND NOT privado.grupo_e_nosso(q.grupo_id, q.grupo_nome)          -- 418
+       AND q.enviada_em >= now() - make_interval(days => least(greatest(coalesce(p_dias, 30), 1), 365))
   ), linhas AS (
     SELECT b.id, b.faixa, coalesce(b.operacao, '(não disse)') AS operacao, lugar, b.quartos,
            CASE WHEN b.teto IS NULL THEN '(sem valor)'
@@ -26,8 +27,8 @@ AS $function$
   )
   SELECT jsonb_build_object(
     'dias', least(greatest(coalesce(p_dias, 30), 1), 365),
-    'pedidos', (SELECT count(*) FROM base),
-    'sem_imovel', (SELECT count(*) FROM base WHERE faixa = 'sem_match'),
+    'pedidos', (SELECT count(DISTINCT id) FROM base),
+    'sem_imovel', (SELECT count(DISTINCT id) FROM base WHERE faixa = 'sem_match'),
     'linhas', coalesce((SELECT jsonb_agg(jsonb_build_object('operacao', g.operacao, 'lugar', g.lugar, 'quartos', g.quartos,
                                                              'preco', g.faixa_de_preco, 'pedidos', g.n, 'sem_imovel', g.sem)
                                          ORDER BY g.sem DESC, g.n DESC, g.lugar)

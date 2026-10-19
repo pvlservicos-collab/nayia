@@ -285,6 +285,10 @@ prompt: comece pelo `nay onde`.
   em `nay-site-api/app.py` (senha do painel). A conversa exportada é lida NO NAVEGADOR por `assets/js/whatsapp-exportado.js`
   (.txt do Android, .zip do iPhone) e enviada em lotes a `/admin/api/grupos/captacao/importar`. Os botões usam `data-gc-...`: o ouvinte geral do `grupos-agenda.js` pega `data-dias` e
   `data-excluir`. Provar sem senha: `python -m unittest discover -s tests` em `nay-grupos/` e `scripts/provar_extracao.py --conta` no servidor.
+- O RADAR (Grupos › Captação ativa) junta o mesmo pedido num card: `privado.grupo_pedido_juntar_novos` (380: mesmo número;
+  418: o mesmo texto de OUTRO número, `privado.grupo_pedido_card_de_outro`, semelhança >= 0,85 em 72 h). Os NOSSOS grupos
+  ficam fora (`privado.grupo_fora` + `privado.grupo_e_nosso`): o leitor (`nay-grupos/grupos/banco.py`), a lista
+  (`site_captacao_grupos`), a Demanda do mercado (conta por card) e o painel não os veem. Tirar/pôr grupo = linha na tabela.
 - A NOTA da Captação ativa por grupos (19/10): `nay-grupos/grupos/pontuar.py` (pesos em `regras.py`/`config.json`). Elevador é
   pilar (peso 35): o pedido diz (`texto.pede_elevador`, ou "serve escada? não"); o imóvel pelo cadastro
   (`nai_imovel_tem_elevador`) ou deduzido em `catalogo.elevador_do` (5º andar+ tem; até o 4º com a lista do condomínio sem

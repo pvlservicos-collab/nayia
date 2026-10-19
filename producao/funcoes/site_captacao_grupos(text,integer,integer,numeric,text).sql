@@ -35,6 +35,7 @@ BEGIN
            coalesce(jt.nt, q.texto) AS nt
       FROM privado.grupo_pedido q LEFT JOIN privado.grupo_pedido_junto jt ON jt.pedido_id = q.id
      WHERE q.enviada_em >= v_desde
+       AND NOT privado.grupo_e_nosso(q.grupo_id, q.grupo_nome)          -- 418: os nossos grupos não são o mercado
   ), junta AS (
     -- 'vezes' conta MENSAGENS (a mesma mensagem em 3 partes é 1 vez), 'versoes' os textos diferentes
     SELECT k, count(DISTINCT fonte || ':' || ref)::int AS n, array_agg(id ORDER BY enviada_em, id) AS ids,

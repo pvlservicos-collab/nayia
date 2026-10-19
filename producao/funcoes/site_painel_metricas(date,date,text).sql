@@ -154,6 +154,7 @@ BEGIN
    CROSS JOIN LATERAL (VALUES ('pedidos_grupo', 'gp' || coalesce(j.card, g.id)),
                               ('pedidos_grupo_atendidos', CASE WHEN g.estado = 'enviado' THEN 'gp' || coalesce(j.card, g.id) END)) x(m, k)
    WHERE g.fonte = 'grupo' AND g.enviada_em >= v_ini AND g.enviada_em < v_fim AND x.k IS NOT NULL
+     AND NOT privado.grupo_e_nosso(g.grupo_id, g.grupo_nome)                                     -- 418
   -- A FILA DE PERGUNTAS ao Tel (a limpeza que ele fez em 16/10, "zerada pelo Tel", não conta)
   UNION ALL
   SELECT x.m, x.t, 'pf' || p.id

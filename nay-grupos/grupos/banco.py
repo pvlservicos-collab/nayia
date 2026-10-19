@@ -17,13 +17,15 @@ SELECT * FROM (
          c.enviada_em, c.texto
     FROM privado.grupo_conversa c
    WHERE NOT c.de_mim AND nullif(btrim(c.texto), '') IS NOT NULL
+     AND NOT privado.grupo_e_nosso(c.grupo_id, c.grupo_nome)          -- 418: os nossos grupos não são o mercado
      AND c.enviada_em > now() - make_interval(hours => %(janela)s)
      AND NOT EXISTS (SELECT 1 FROM privado.grupo_mensagem_lida l WHERE l.fonte = 'grupo' AND l.ref = c.message_id
                         AND NOT (l.erro IS NOT NULL AND l.tentativas < 5 AND l.lida_em < now() - interval '10 minutes'))
   UNION ALL
   SELECT 'grupo', g.ref, NULL, g.grupo_nome, g.remetente, g.remetente_nome, g.enviada_em, g.texto
     FROM privado.grupo_importada g
-   WHERE g.enviada_em > now() - make_interval(hours => %(janela)s)
+   WHERE NOT privado.grupo_e_nosso(NULL, g.grupo_nome)
+     AND g.enviada_em > now() - make_interval(hours => %(janela)s)
      AND NOT EXISTS (SELECT 1 FROM privado.grupo_mensagem_lida l WHERE l.fonte = 'grupo' AND l.ref = g.ref
                         AND NOT (l.erro IS NOT NULL AND l.tentativas < 5 AND l.lida_em < now() - interval '10 minutes'))
   UNION ALL

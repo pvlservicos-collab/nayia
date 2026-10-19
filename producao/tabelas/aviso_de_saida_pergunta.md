@@ -1,4 +1,4 @@
-# aviso_de_saida_pergunta  (tabela, ~78 linhas)
+# aviso_de_saida_pergunta  (tabela, ~84 linhas)
 334: a pergunta que a Nay faz ao Tel antes de avisar no grupo Easy que o imóvel saiu. Só resposta = sim libera o aviso.
 
 ## colunas
