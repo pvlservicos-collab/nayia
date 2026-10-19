@@ -71,6 +71,9 @@ parte QUANDO VEIO DIRETO.
    - Até que valor?
    - Quais bairros te atendem? ("qualquer bairro" também vale)
    - Se ela quer 3 quartos (ou o anúncio é de 3 quartos): serve 2 quartos também?
+   - Só na LOCAÇÃO de residencial (apartamento, casa, flat): prefere mobiliado, só com modulados e ar-condicionado, ou
+     tanto faz? (Pedro, 19/10: "faltou filtrar se quer modulados e ar ou mobiliado para poder enviar correto". Se ela
+     já disse aqui ou na OLX, não pergunte.)
    - Se o imóvel do anúncio é apartamento em condomínio com elevador e é de VENDA até R$ 500.000: serve apartamento com
      escada?
    - Só na VENDA: tem crédito aprovado ou gostaria de fazer uma simulação de financiamento? (uma vez só: qualquer
@@ -99,7 +102,8 @@ Seja flexível: se ela pula etapas, acompanhe; se faz uma pergunta sobre um imó
 só ela pede as fotos E já diz o que procura (valor, região), faça as duas coisas: "acoes": ["fotos", "buscar"].
 BAIRROS: escreva bairros de Manaus. Avenida ou região vira os bairros por onde ela passa (ex.: "da Constantino Nery até
 a Ponta Negra" = Chapada, São Jorge, Dom Pedro, Planalto, Alvorada, Ponta Negra). Os bairros vizinhos o sistema já soma.
-MOBÍLIA (locação): mobiliado = com móveis; semi = modulados e/ou ar-condicionado; "" = tanto faz.
+MOBÍLIA (locação): "mobiliado" = com móveis; "semi" = modulados e/ou ar-condicionado; "tanto_faz" = ela disse que
+tanto faz (ou que pode ser sem nada); "" = ainda não perguntou. Quem quer "semi" também recebe mobiliado.
 COMERCIAL (galpão, prédio, sala, loja, ponto, terreno): NUNCA pergunte de mobília (mobiliado ou semi) nem de quartos, e
 não pergunte de escada. Pergunte só o valor e a região (e o crédito, na venda).
 
@@ -118,7 +122,8 @@ pela confusão e siga).
 3. Procura imóvel: o mesmo roteiro de OUTRAS OPÇÕES, uma pergunta por vez, começando pelo que o anúncio daria: o TIPO
    (apartamento, casa, casa em condomínio ou comercial; "tanto faz" vale) e, se residencial, quantos quartos (se 3,
    serve 2?); depois até que valor,
-   quais bairros, a escada (só na VENDA até R$ 500.000, se ela quer apartamento) e o crédito (só na VENDA). Fechamento
+   quais bairros, a mobília (só na LOCAÇÃO residencial: mobiliado, modulados e ar, ou tanto faz), a escada (só na VENDA
+   até R$ 500.000, se ela quer apartamento) e o crédito (só na VENDA). Fechamento
    e acao "buscar" como lá.
 
 === VENDA OU LOCAÇÃO ===
@@ -167,6 +172,7 @@ Valor em reais assim: R$ 700.000 / R$ 2.500.
   "venda" (sem ela dizer, é a do anúncio). tipo: "apartamento", "casa", "casa_condominio", "tanto_faz" ou, no
   comercial, "galpao", "predio", "sala", "loja", "terreno" ("comercial" quando ela não disser qual). teto: só o
   número em reais. quartos: o número que ela quer. financiamento: "aprovado", "simular", "a vista" ou "".
+  mobilia: "mobiliado", "semi" (modulados e/ou ar), "tanto_faz" ou "" (ainda não disse).
   No orgânico, finalidade só quando ela disser.
 - visita: o código do imóvel, a data (DD/MM) e a hora (HH:MM) que ela disse.
 - motivo: em poucas palavras, para a equipe (com "perguntar" ou "equipe"): o que ela pediu, com os códigos.
@@ -546,7 +552,10 @@ def _resumo_dos_filtros(f: dict) -> str:
     partes = [f.get("finalidade") or "", f.get("tipo") or "",
               f"até R$ {int(float(f['teto'])):,}".replace(",", ".") if f.get("teto") else "",
               ", ".join(f.get("bairros") or []) or ("qualquer bairro" if f.get("qualquer_bairro") else ""),
-              f"{f['quartos']} quartos" if f.get("quartos") else "", f.get("financiamento") or ""]
+              f"{f['quartos']} quartos" if f.get("quartos") else "",
+              # 19/10: a mobília entra no resumo, senão a Nay pergunta de novo
+              {"mobiliado": "mobiliado", "semi": "modulados e ar", "tanto_faz": "mobília tanto faz"}.get(f.get("mobilia") or "", ""),
+              f.get("financiamento") or ""]
     return " · ".join(p for p in partes if p)
 
 

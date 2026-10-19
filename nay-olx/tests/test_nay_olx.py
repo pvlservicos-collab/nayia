@@ -96,7 +96,7 @@ class Etapas(unittest.TestCase):
         self.assertIn("Dar negativa", nay.PROMPT)
 
     def test_o_prompt_pede_o_whatsapp(self):
-        self.assertIn("Me manda seu WhatsApp", nay.PROMPT)
+        self.assertIn("Irei direcionar você para nosso time comercial, só me", nay.PROMPT)
         self.assertIn("LEITURA DE PERFIL", nay.PROMPT)
 
     def test_proposta_vai_como_equipe(self):
@@ -166,6 +166,21 @@ class Paredes(unittest.TestCase):
         self.assertEqual(nay.telefone_valido("+55 (92) 99154-0843"), "92991540843")
         self.assertIsNone(nay.telefone_valido("99154-0843"))   # sem DDD
 
+
+
+class TestSaudacaoDaOlx(unittest.TestCase):
+    """19/10: a frase sem telefone leva a saudação da hora de Manaus."""
+
+    def test_saudacao_pela_hora(self):
+        from datetime import datetime
+        m = nay.MANAUS
+        self.assertEqual(nay.saudacao_de_manaus(datetime(2026, 10, 19, 9, 0, tzinfo=m)), "bom dia")
+        self.assertEqual(nay.saudacao_de_manaus(datetime(2026, 10, 19, 15, 0, tzinfo=m)), "boa tarde")
+        self.assertEqual(nay.saudacao_de_manaus(datetime(2026, 10, 19, 20, 0, tzinfo=m)), "boa noite")
+
+    def test_turno_traz_a_saudacao(self):
+        t = nay.montar_turno({"anuncio": {"negocio": "locacao"}, "cliente": {}, "mensagens": []}, None)
+        self.assertIn("Saudação desta hora (Manaus):", t)
 
 if __name__ == "__main__":
     unittest.main()

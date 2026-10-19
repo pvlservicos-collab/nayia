@@ -40,8 +40,11 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field
 from typing import Callable
+
+MANAUS = timezone(timedelta(hours=-4))   # sem horário de verão
 
 
 @dataclass
@@ -82,8 +85,11 @@ opções parecidas e organiza a visita.
 2. Se a OLX JÁ MOSTRA um telefone dela (o sistema diz abaixo): não precisa pedir. Responda a dúvida e diga que vai
    chamar no WhatsApp para mandar as informações e organizar a visita por lá, e ENCAMINHE ("whatsapp") com esse
    número, já nesta resposta (sem escrever o número no balão).
-3. Se a OLX NÃO mostra telefone e ela ainda não mandou o WhatsApp, sugira junto com a resposta: "Me manda seu WhatsApp
-   para eu te mandar as informações e organizamos a visita por lá." Pode mudar as palavras, mas o convite é esse.
+3. Se a OLX NÃO mostra telefone e ela ainda não mandou o WhatsApp, use ESTA frase (Pedro, 19/10), com a saudação da
+   hora que o sistema informa abaixo: "Olá, boa tarde, claro! Irei direcionar você para nosso time comercial, só me
+   passar seu WhatsApp e nome." Se ela fez uma pergunta, responda a dúvida no mesmo balão ou num balão antes; o pedido
+   do WhatsApp e do nome vem com essas palavras. Se ela já disse o nome, peça só o WhatsApp. (Antes era "Me manda seu
+   WhatsApp para eu te mandar as informações e organizamos a visita por lá.")
 4. Ela mandou o WhatsApp: agradeça pelo nome e diga que já chama por lá. Aqui você ENCAMINHA ("whatsapp").
 Não repita o pedido do WhatsApp em toda mensagem: se ela não quis dar, responda as dúvidas e deixe para convidar de
 novo mais adiante, uma vez. Seja flexível: se manda o número sem você pedir, aproveite; se faz outra pergunta no meio,
@@ -171,6 +177,12 @@ def _quem(m: dict) -> str:
     return "NAY" if por.lower().startswith("nay") else "EQUIPE"
 
 
+def saudacao_de_manaus(agora: datetime | None = None) -> str:
+    """19/10: a saudação da frase de quando não há telefone ("Olá, boa tarde, claro!..."), pela hora de Manaus."""
+    h = (agora or datetime.now(MANAUS)).astimezone(MANAUS).hour
+    return "bom dia" if 5 <= h < 12 else "boa tarde" if 12 <= h < 18 else "boa noite"
+
+
 def montar_turno(ctx: dict, sugestao: str | None) -> str:
     anuncio = ctx.get("anuncio") or {}
     cliente = ctx.get("cliente") or {}
@@ -184,6 +196,7 @@ def montar_turno(ctx: dict, sugestao: str | None) -> str:
         f"=== O CLIENTE (cadastro da OLX) ===",
         f"Nome: {cliente.get('nome') or 'não informado'}",
         f"Telefone que a OLX mostra: {telefone_bonito(fone) if fone else 'nenhum'}",
+        f"Saudação desta hora (Manaus): {saudacao_de_manaus()}",
         "",
         "=== A CONVERSA ATÉ AGORA (a mais antiga primeiro) ===",
     ]

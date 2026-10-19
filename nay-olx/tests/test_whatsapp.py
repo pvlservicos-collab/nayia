@@ -240,6 +240,22 @@ class RespostaDaFila(unittest.TestCase):
                          "Sobre a sua pergunta: Pode sim")
 
 
+
+class TestMobiliaNoRoteiro(unittest.TestCase):
+    """19/10: a locação residencial pergunta mobiliado / modulados e ar / tanto faz, e o resumo guarda a resposta."""
+
+    def test_pergunta_no_roteiro(self):
+        self.assertIn("prefere mobiliado, só com modulados e ar-condicionado, ou", w.PROMPT)
+        self.assertIn('"tanto_faz" = ela disse que', w.PROMPT)
+
+    def test_resumo_leva_a_mobilia(self):
+        self.assertIn("modulados e ar", w._resumo_dos_filtros({"finalidade": "locacao", "mobilia": "semi"}))
+        self.assertIn("mobília tanto faz", w._resumo_dos_filtros({"mobilia": "tanto_faz"}))
+        self.assertNotIn("mob", w._resumo_dos_filtros({"finalidade": "venda"}))
+
+    def test_tanto_faz_fica_guardado(self):
+        self.assertEqual(w._filtros({}, {"mobilia": "tanto_faz"})["mobilia"], "tanto_faz")
+
 if __name__ == "__main__":
     unittest.main()
 
