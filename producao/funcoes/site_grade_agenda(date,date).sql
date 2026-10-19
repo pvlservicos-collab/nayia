@@ -18,7 +18,9 @@ BEGIN
     SELECT array_agg(id_grupo) AS ids FROM grupos WHERE ativo AND NOT coalesce(todas_fotos, false)
   ), vg AS (
     SELECT v.*,
-           CASE WHEN v.categoria IS NOT NULL THEN   -- a LISTA: os destinos do `_disparar_lista` do publicador
+           CASE WHEN coalesce(cardinality(v.grupos_ids), 0) > 0 AND v.categoria IS NULL THEN   -- 415: os grupos marcados
+                  (SELECT array_agg(g.id_grupo) FROM grupos g WHERE g.ativo AND g.id_grupo = ANY (v.grupos_ids))
+                WHEN v.categoria IS NOT NULL THEN   -- a LISTA: os destinos do `_disparar_lista` do publicador
                   (SELECT array_agg(g.id_grupo) FROM grupos g
                     WHERE g.ativo
                       AND CASE v.destino WHEN 'easy' THEN g.apelido = 'easy'
@@ -96,7 +98,7 @@ BEGIN
     'de', v_de, 'ate', v_ate, 'agora', now(),
     'vagas', coalesce((SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
         'id', vg.id, 'horario', to_char(vg.horario, 'HH24:MI'), 'recorrencia', vg.tipo_recorrencia,
-        'dias', to_jsonb(vg.dias_semana), 'data', vg.data_unica, 'destino', vg.destino,
+        'dias', to_jsonb(vg.dias_semana), 'data', vg.data_unica, 'destino', vg.destino, 'grupos_ids', to_jsonb(vg.grupos_ids),
         'categoria', vg.categoria, 'negocio', vg.negocio, 'texto_fixo', vg.texto_fixo, 'criada_em', vg.criado_em,
         'previstos', to_jsonb(vg.previstos),
         'imoveis', (SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object(

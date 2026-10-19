@@ -265,6 +265,24 @@ def teste_nenhuma_vaga_valida_e_silencio_total():
     print("OK\n")
 
 
+
+def teste_vaga_com_grupos_marcados_vai_so_neles():
+    print("--- 415: a vaga com grupos marcados posta só neles (o apelido pelo caminho dele) ---")
+    vaga = _vaga(9, datetime.time(14, 0), ["5644"])
+    vaga["grupos_ids"] = ["g-a", "g-easy"]
+    grupos = [dict(GRUPO_FAKE, id_grupo="g-a", nome="A", apelido=None),
+              dict(GRUPO_FAKE, id_grupo="g-b", nome="B (não marcado)", apelido=None),
+              dict(GRUPO_FAKE, id_grupo="g-easy", nome="Easy", apelido="easy")]
+    conn = FakeConn([vaga])
+    with patch("disparar_grade.carregar_grupos_db", return_value=grupos),          patch("disparar_grade._postar_codigo", return_value={"codigo": "5644", "sucesso": True, "nome_imovel": "x",
+                                                            "grupos_atingidos": 1, "avisos": []}) as postar,          patch("disparar_grade._postar_da_vaga", return_value={"codigo": "5644", "resposta": "postado no Easy"}) as pela_vaga,          patch("disparar_grade.enviar_texto"):
+        disparar_grade.disparar_grade(conexao=conn, agora=AGORA, tel_whatsapp=TEL)
+    assert postar.call_count == 1
+    assert [g["id_grupo"] for g in postar.call_args[0][1]] == ["g-a"], "só o grupo marcado sem apelido"
+    assert pela_vaga.call_count == 1 and pela_vaga.call_args[0][3] == "easy"
+    print("OK")
+
+
 if __name__ == "__main__":
     teste_vaga_dispara_e_confirma()
     teste_vaga_de_lista_dispara_pelo_mesmo_caminho_do_comando()
@@ -274,4 +292,5 @@ if __name__ == "__main__":
     teste_falha_parcial_no_envio_mostra_grupos_reais_na_confirmacao()
     teste_tel_whatsapp_ausente_falha_cedo_antes_do_banco()
     teste_nenhuma_vaga_valida_e_silencio_total()
+    teste_vaga_com_grupos_marcados_vai_so_neles()
     print("TODOS OS TESTES DE DISPARAR_GRADE PASSARAM")

@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css?v=20261003-grupos">
-<link rel="stylesheet" href="../assets/css/grupos-agenda.css?v=20261003f">
+<link rel="stylesheet" href="../assets/css/grupos-agenda.css?v=20261019a">
 <link rel="stylesheet" href="../assets/css/grupos-captacao.css?v=20261016b">
 </head>
 <body class="admin" data-pagina="grupos">
@@ -319,7 +319,16 @@
 
     <fieldset class="ga-campo" id="ga-ed-destino">
       <legend>Para onde</legend>
-      <select class="entrada" id="ga-destino"></select>
+      <!-- 415 (Pedro, 19/10: "uma lista marcável para selecionar o grupo que quero mandar a mesma mensagem em vários") -->
+      <div class="ga-destino-modo" role="radiogroup" aria-label="Para onde">
+        <label><input type="radio" name="destmodo" value="todos" checked> Todos os grupos que aceitam o imóvel</label>
+        <label><input type="radio" name="destmodo" value="marcados"> Escolher os grupos</label>
+      </div>
+      <div class="ga-grupos-marcar" id="ga-destino-grupos" hidden>
+        <div class="ga-grupos-marcar__acoes"><button type="button" class="btn-mini" data-marcar="todos">Marcar todos</button>
+          <button type="button" class="btn-mini" data-marcar="nenhum">Desmarcar</button></div>
+        <div class="ga-grupos-marcar__lista" id="ga-destino-lista-grupos"></div>
+      </div>
       <p class="ga-dica" id="ga-destino-dica"></p>
     </fieldset>
 
@@ -346,7 +355,7 @@
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/layout.js?v=20261003-grupos"></script>
 <script src="../assets/js/admin.js"></script>
-<script src="../assets/js/grupos-agenda.js?v=20261003g"></script>
+<script src="../assets/js/grupos-agenda.js?v=20261019a"></script>
 <script src="../assets/js/whatsapp-exportado.js?v=20261009d"></script>
 <script src="../assets/js/grupos-captacao.js?v=20261016b"></script>
 </body>

@@ -17,6 +17,7 @@ DECLARE
   v_cat     text := nullif(btrim(coalesce(p->>'categoria', '')), '');
   v_neg     text := nullif(btrim(coalesce(p->>'negocio', '')), '');
   v_texto   text;
+  v_gids    text[];      -- 415: os grupos marcados um a um
 BEGIN
   IF v_id IS NOT NULL THEN
     SELECT * INTO v_atual FROM vagas WHERE id = v_id;
@@ -93,6 +94,19 @@ BEGIN
     RETURN jsonb_build_object('ok', true, 'id', v_id);
   END IF;
 
+  -- 415 (Pedro, 19/10: "não tem uma lista marcável para selecionar o grupo que quero mandar a mesma mensagem em
+  -- vários"): os grupos marcados. Com eles, o destino por apelido sai (cada grupo marcado já é o destino).
+  SELECT array_agg(DISTINCT x) INTO v_gids
+    FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(p->'grupos_ids') = 'array' THEN p->'grupos_ids' ELSE '[]'::jsonb END) x
+   WHERE btrim(x) <> '';
+  IF coalesce(cardinality(v_gids), 0) > 0 THEN
+    IF EXISTS (SELECT 1 FROM unnest(v_gids) x
+                WHERE NOT EXISTS (SELECT 1 FROM grupos g WHERE g.id_grupo = x AND g.ativo AND coalesce(g.apelido, '') <> 'lotado')) THEN
+      RETURN jsonb_build_object('ok', false, 'erro', 'Um dos grupos marcados não está mais ativo. Recarregue a página.');
+    END IF;
+    v_dest := NULL;
+  END IF;
+
   -- o destino: um apelido de grupo que existe (vazio = cada imóvel vai aos grupos que aceitam o tipo e o valor dele)
   IF v_dest IS NOT NULL
      AND NOT EXISTS (SELECT 1 FROM grupos g WHERE g.ativo AND g.apelido = v_dest AND v_dest <> 'lotado') THEN
@@ -121,18 +135,19 @@ BEGIN
 
   BEGIN
     IF v_id IS NULL THEN
-      INSERT INTO vagas (horario, tipo_recorrencia, dias_semana, data_unica, codigos, destino)
-      VALUES (v_hora, v_rec, CASE WHEN v_rec = 'semanal' THEN v_dias END, CASE WHEN v_rec = 'unica' THEN v_data END, v_cods, v_dest)
+      INSERT INTO vagas (horario, tipo_recorrencia, dias_semana, data_unica, codigos, destino, grupos_ids)
+      VALUES (v_hora, v_rec, CASE WHEN v_rec = 'semanal' THEN v_dias END, CASE WHEN v_rec = 'unica' THEN v_data END, v_cods, v_dest,
+              CASE WHEN cardinality(v_gids) > 0 THEN v_gids END)
       RETURNING id INTO v_id;
     ELSE
       UPDATE vagas SET horario = v_hora, tipo_recorrencia = v_rec,
                        dias_semana = CASE WHEN v_rec = 'semanal' THEN v_dias END,
                        data_unica = CASE WHEN v_rec = 'unica' THEN v_data END,
-                       codigos = v_cods, destino = v_dest
+                       codigos = v_cods, destino = v_dest, grupos_ids = CASE WHEN cardinality(v_gids) > 0 THEN v_gids END
        WHERE id = v_id;
     END IF;
   EXCEPTION WHEN unique_violation THEN
-    RETURN jsonb_build_object('ok', false, 'erro', 'Já existe uma mensagem com esses imóveis, nesse horário e para esse destino.');
+    RETURN jsonb_build_object('ok', false, 'erro', 'Já existe uma mensagem com esses imóveis, nesse horário e para esses grupos.');
   END;
   RETURN jsonb_build_object('ok', true, 'id', v_id);
 END;

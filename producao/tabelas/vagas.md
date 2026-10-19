@@ -1,4 +1,4 @@
-# vagas  (tabela, ~25 linhas)
+# vagas  (tabela, ~24 linhas)
 
 ## colunas
 id  integer  NOT NULL  padrão nextval('vagas_id_seq'::regclass)
@@ -12,9 +12,10 @@ categoria  text
 negocio  text
 destino  text
 texto_fixo  text   -- Vaga de LISTA com o texto editado à mão no site (285). NULL = a lista é montada na hora do envio (nay_lista_de_imoveis).
+grupos_ids  text[]
 
 ## índices
-CREATE UNIQUE INDEX vagas_imovel_unica ON public.vagas USING btree (codigos, COALESCE(destino, ''::text), horario, tipo_recorrencia, COALESCE(dias_semana, '{}'::integer[])) WHERE ((categoria IS NULL) AND (COALESCE(array_length(codigos, 1), 0) > 0))
+CREATE UNIQUE INDEX vagas_imovel_unica ON public.vagas USING btree (codigos, COALESCE(destino, ''::text), horario, tipo_recorrencia, COALESCE(dias_semana, '{}'::integer[]), COALESCE(grupos_ids, '{}'::text[])) WHERE ((categoria IS NULL) AND (COALESCE(array_length(codigos, 1), 0) > 0))
 CREATE UNIQUE INDEX vagas_lista_unica ON public.vagas USING btree (categoria, negocio, destino, horario, tipo_recorrencia, COALESCE(dias_semana, '{}'::integer[])) WHERE (categoria IS NOT NULL)
 CREATE UNIQUE INDEX vagas_pkey ON public.vagas USING btree (id)
 

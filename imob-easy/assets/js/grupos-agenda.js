@@ -169,10 +169,23 @@
       return !g.todas_fotos && (negocio === "venda" ? g.venda : g.locacao) && !(g.so_comercial && categoria !== "sala");
     });
   }
+  /* 415: os grupos que se marcam na mensagem de imóvel (ativos, menos os lotados) */
+  function gruposMarcaveis() {
+    return (opcoes.grupos || []).filter(function (g) { return g.ativo && !g.lotado; });
+  }
+  function modoDoDestino() { var r = document.querySelector('#ga-form input[name="destmodo"]:checked'); return r ? r.value : "todos"; }
+  function idsMarcados() {
+    return Array.prototype.map.call(document.querySelectorAll("#ga-destino-lista-grupos input:checked"), function (c) { return c.value; });
+  }
   function nomeDoDestino(v) {
     if (v.categoria) {
       var dl = (opcoes.destinos_lista || []).find(function (x) { return x.chave === (v.destino || "parceiros"); });
       return dl ? dl.nome : "Grupos de parceiros";
+    }
+    if (v.grupos_ids && v.grupos_ids.length) {
+      var gs = v.grupos_ids.map(function (id) { return grupoPorId[id]; }).filter(Boolean);
+      return gs.length <= 2 && gs.length ? gs.map(function (g) { return nomeCurto(g.nome); }).join(" e ")
+                                         : v.grupos_ids.length + " grupos marcados";
     }
     if (!v.destino) return "Todos os grupos que aceitam o imóvel";
     var d = opcoes.destinos.find(function (x) { return x.apelido === v.destino; });
@@ -606,10 +619,14 @@
     }).join("");
     $("ga-data").value = v && v.data ? v.data : somaDias(diaDe(new Date()), 1);
     $("ga-data").min = diaDe(new Date());
-    $("ga-destino").innerHTML = '<option value="">Todos os grupos que aceitam o imóvel</option>' + opcoes.destinos.map(function (d) {
-      return '<option value="' + esc(d.apelido) + '">' + esc(ROTULO_DESTINO[d.apelido] || d.apelido) + " — " + esc(d.grupos.map(nomeCurto).join(", ")) + "</option>";
+    var jaMarcados = v && !lista ? (v.grupos_ids && v.grupos_ids.length ? v.grupos_ids
+      : v.destino ? gruposMarcaveis().filter(function (g) { return g.apelido === v.destino; }).map(function (g) { return g.id; }) : []) : [];
+    $("ga-destino-lista-grupos").innerHTML = gruposMarcaveis().map(function (g) {
+      return '<label class="ga-grupo-marca"><input type="checkbox" value="' + esc(g.id) + '"' + (jaMarcados.indexOf(g.id) >= 0 ? " checked" : "") + ">" +
+        "<span>" + tacha(g) + esc(nomeCurto(g.nome)) + (g.apelido ? ' <small>' + esc(ROTULO_DESTINO[g.apelido] || g.apelido) + "</small>" : "") + "</span></label>";
     }).join("");
-    $("ga-destino").value = v && !lista && v.destino ? v.destino : "";
+    document.querySelectorAll('#ga-form input[name="destmodo"]').forEach(function (r) { r.checked = r.value === (jaMarcados.length ? "marcados" : "todos"); });
+    $("ga-destino-grupos").hidden = !jaMarcados.length;
     $("ga-busca").value = ""; $("ga-achados").innerHTML = ""; $("ga-erro").textContent = "";
     mostrarRepeticao(); mostrarTipo(); desenharEscolhidos(); mostrarTexto(); resumoDoEditor();
     abrirDialogo($("ga-editor"));
@@ -687,7 +704,8 @@
   function resumoDoEditor() {
     var lista = edicao.tipo === "lista";
     var v = { horario: $("ga-hora").value || "--:--", recorrencia: recAtual(), dias: diasMarcados(), data: $("ga-data").value,
-              destino: lista ? $("ga-destino-lista").value : $("ga-destino").value,
+              destino: lista ? $("ga-destino-lista").value : "",
+              grupos_ids: lista || modoDoDestino() !== "marcados" ? [] : idsMarcados(),
               categoria: lista ? $("ga-categoria").value : null, negocio: lista ? negAtual() : null };
     var quando = v.recorrencia === "semanal" && !v.dias.length ? "escolha os dias" : v.recorrencia === "unica" && !v.data ? "escolha o dia" : descreverRepeticao(v);
     if (lista) {
@@ -707,11 +725,12 @@
     var n = edicao.escolhidos.length;
     $("ga-resumo-ed").textContent = (n ? n + (n === 1 ? " imóvel" : " imóveis") + ", " : "Escolha os imóveis. ") +
       quando + ", para " + nomeDoDestino(v).toLowerCase() + ".";
-    var d = opcoes.destinos.find(function (x) { return x.apelido === v.destino; });
-    var gsDestino = d ? d.grupos.map(function (nome) { return grupoPorNome[nome]; }).filter(Boolean) : [];
-    $("ga-destino-dica").innerHTML = v.destino
-      ? gsDestino.map(function (g) { return tacha(g); }).join("") + " Vai para: " + esc(d ? d.grupos.map(nomeCurto).join(", ") : v.destino) +
-        ". O Comercial só aceita imóvel comercial e o Alto Padrão tem valor mínimo: o publicador confere na hora."
+    var gsDestino = v.grupos_ids.map(function (id) { return grupoPorId[id]; }).filter(Boolean);
+    $("ga-destino-grupos").hidden = modoDoDestino() !== "marcados";
+    $("ga-destino-dica").innerHTML = modoDoDestino() === "marcados"
+      ? (gsDestino.length ? plural(gsDestino.length, "grupo marcado", "grupos marcados") +
+          ". Cada um recebe se aceitar o imóvel (venda ou locação, valor mínimo, comercial): o publicador confere na hora."
+        : "Marque pelo menos um grupo.")
       : "Cada imóvel vai aos grupos que aceitam o tipo e o valor dele (venda, locação, condomínio, comercial).";
     // a prévia: a conversa como vai chegar (no grupo do destino, ou com o card inteiro)
     desenharConversa($("ga-previa"), { imoveis: edicao.escolhidos }, gsDestino[0] || null, null, "previa", $("ga-hora").value || "");
@@ -754,7 +773,9 @@
       corpo.destino = $("ga-destino-lista").value;
       corpo.texto_fixo = edicao.modo === "mao" ? edicao.texto : "";      // vazio: a lista volta a ser montada na hora
     } else {
-      corpo.destino = $("ga-destino").value;
+      corpo.destino = "";
+      corpo.grupos_ids = modoDoDestino() === "marcados" ? idsMarcados() : [];
+      if (modoDoDestino() === "marcados" && !corpo.grupos_ids.length) { $("ga-erro").textContent = "Marque pelo menos um grupo, ou escolha Todos."; return; }
       corpo.codigos = edicao.escolhidos.map(function (i) { return i.codigo; });
     }
     $("ga-salvar").disabled = true;
@@ -923,6 +944,11 @@
     if (t.id === "ga-ant") { semana = somaDias(semana, -7); carregar(); }
     if (t.id === "ga-prox") { semana = somaDias(semana, 7); carregar(); }
     if (t.id === "ga-hoje") { semana = segundaDe(diaDe(new Date())); carregar(); }
+  });
+  $("ga-destino-grupos").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-marcar]"); if (!b) return;
+    document.querySelectorAll("#ga-destino-lista-grupos input").forEach(function (c) { c.checked = b.dataset.marcar === "todos"; });
+    resumoDoEditor();
   });
   $("ga-busca").addEventListener("input", function () { procurar(this.value); });
   $("ga-busca").addEventListener("keydown", function (e) {

@@ -41,7 +41,7 @@ FUSO_MANAUS = ZoneInfo("America/Manaus")
 
 QUERY_VAGAS = (
     "SELECT id, horario, tipo_recorrencia, dias_semana, data_unica, codigos, "
-    "       categoria, negocio, destino, texto_fixo "
+    "       categoria, negocio, destino, texto_fixo, grupos_ids "
     "FROM vagas"
 )
 
@@ -118,9 +118,23 @@ def disparar_grade(conexao=None, agora=None, tel_whatsapp=None):
             # `destino` na vaga de IMÓVEL é de 27/09: "posta no grupo
             # comercial o 5763 segunda, quarta e sexta as 08h". Sem destino,
             # nada muda -- vai para todos os grupos elegíveis, como sempre.
-            resultados = [_postar_da_vaga(codigo, grupos, conn,
-                                          vaga.get("destino"))
-                          for codigo in vaga["codigos"]]
+            # OS GRUPOS MARCADOS (415, Pedro 19/10: "uma lista marcável para selecionar o grupo que quero mandar a
+            # mesma mensagem em vários"): cada grupo marcado recebe, com a regra de valor e tipo dele; quem tem
+            # apelido (Easy, Comercial, Alto Padrão) vai pelo caminho do apelido, como no destino de antes.
+            marcados = set(vaga.get("grupos_ids") or [])
+            if marcados:
+                escolhidos = [g for g in grupos if g["id_grupo"] in marcados]
+                apelidos = sorted({g["apelido"] for g in escolhidos if g.get("apelido") and g["apelido"] != "lotado"})
+                sem_apelido = [g for g in escolhidos if not g.get("apelido")]
+                resultados = []
+                for codigo in vaga["codigos"]:
+                    resultados += [_postar_da_vaga(codigo, grupos, conn, ap) for ap in apelidos]
+                    if sem_apelido:
+                        resultados.append(_postar_codigo(codigo, sem_apelido, conn))
+            else:
+                resultados = [_postar_da_vaga(codigo, grupos, conn,
+                                              vaga.get("destino"))
+                              for codigo in vaga["codigos"]]
             confirmacao = _montar_confirmacao(vaga, resultados)
             enviar_ao_tel(destino, confirmacao, enviar_texto)
     finally:
