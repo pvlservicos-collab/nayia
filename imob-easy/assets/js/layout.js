@@ -101,6 +101,9 @@
     { rotulo: "Scrap",             href: "scrap.html",       chave: "scrap" },
     /* 18/10/2026 (Pedro: "Blog e nova nay põe para dentro do menu mais") */
     { rotulo: "Blog",              href: "blog.html",        chave: "blog" },
+    /* 19/10/2026 (Pedro: "coloca o criador de post no menu lá dentro de Mais"): o gerador de posts de imóvel
+       (gerador-posts.html, o mesmo que o `nay posts` roda na VPS) -- página própria, sem o layout do admin */
+    { rotulo: "Gerador de posts",  href: "gerador-posts.html", chave: "gerador-posts" },
     { rotulo: "Nova Nay",          href: "nova-nay.html",    chave: "nova-nay" },
     { rotulo: "Visão geral",       href: "visao-geral.html", chave: "visao-geral" },
     { rotulo: "Clientes",          href: "clientes.html",    chave: "clientes" },
