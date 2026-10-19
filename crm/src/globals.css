@@ -1160,7 +1160,9 @@ html {
 .wa-puxador::after { content: ''; position: absolute; top: 0; bottom: 0; left: 2px; width: 2px; background: transparent; transition: background-color 0.15s; }
 .wa-puxador:hover::after, .wa-puxador--arrastando::after { background: var(--wa-green); }
 
-.wa-rolagem { scrollbar-width: thin; scrollbar-color: var(--wa-divider) transparent; }
+/* 19/10 (Pedro: "rolar a tela para baixo só ali na lista de conversa e não no app todo"): no fim da lista a roda do
+   mouse para ali, não passa para a página (que rolava e mostrava o fundo preto embaixo) */
+.wa-rolagem { scrollbar-width: thin; scrollbar-color: var(--wa-divider) transparent; overscroll-behavior: contain; }
 .wa-rolagem::-webkit-scrollbar { width: 6px; height: 6px; }
 .wa-rolagem::-webkit-scrollbar-thumb { background-color: var(--wa-divider); border-radius: 6px; }
 .wa-rolagem::-webkit-scrollbar-track { background: transparent; }
