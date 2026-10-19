@@ -26,7 +26,7 @@ _FINANCIAMENTO = re.compile(r"financ|(?<![a-z])fgts(?![a-z])|minha casa,? minha 
 
 # 19/10 (Pedro: "teve um cliente que pediu com elevador e o Parque dos Ingleses não tem elevador"): a IA lia "Elevador"
 # solto no fim como "próximo ao elevador". O trecho decide quando a leitura não trouxe o campo.
-_ELEVADOR = re.compile(r"(?<!sem )(?<!nao precisa de )(?<!não precisa de )elevador(es)?")
+_ELEVADOR = re.compile(r"(?<!sem )(?<!nao precisa de )(?<!não precisa de )\belevador(es)?\b")
 
 
 def pede_elevador(texto: str | None) -> bool:

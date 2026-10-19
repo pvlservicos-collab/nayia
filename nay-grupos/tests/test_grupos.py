@@ -383,9 +383,6 @@ class Envio(unittest.TestCase):
         self.assertNotIn("http", fonte)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class Elevador(unittest.TestCase):
     """19/10 (Pedro): "pediu com elevador e o Parque dos Ingleses não tem elevador ... elevador um dos pilares"."""
@@ -422,3 +419,6 @@ class Elevador(unittest.TestCase):
         from grupos.texto import pede_elevador
         self.assertTrue(pede_elevador("Busco apt 3 quartos. 2 vagas Ate 500.000 Financiado Próximo ao pq 10 e Recife Elevador"))
         self.assertFalse(pede_elevador("não precisa de elevador"))
+
+if __name__ == "__main__":
+    unittest.main()
