@@ -1,4 +1,4 @@
-# nai_visita  (tabela, ~124 linhas)
+# nai_visita  (tabela, ~131 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('nai_visita_id_seq'::regclass)

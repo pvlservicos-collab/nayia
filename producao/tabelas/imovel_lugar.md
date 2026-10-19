@@ -1,4 +1,4 @@
-# imovel_lugar  (tabela, ~5674 linhas)
+# imovel_lugar  (tabela, ~5719 linhas)
 229 (30/09): zona, conjuntos e avenidas de cada imóvel; nai_relacionar_imovel_lugar() refaz
 
 ## colunas

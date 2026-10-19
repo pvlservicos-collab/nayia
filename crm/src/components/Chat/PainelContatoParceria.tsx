@@ -25,7 +25,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   X, User, PaperPlaneRight, CalendarCheck, ChatCircleDots, House, ArrowClockwise, CircleNotch, WarningCircle, CheckCircle,
-  PencilSimple, Check, Copy, Plus, FolderSimple, FileText, UploadSimple, Trash, Robot, CalendarPlus,
+  PencilSimple, Check, Copy, Plus, FolderSimple, FileText, UploadSimple, Trash, Robot, CalendarPlus, CalendarBlank,
 } from '@phosphor-icons/react'
 import type { LeadWithOwner } from '@/lib/types'
 import { formatPhone } from '@/lib/utils'
@@ -79,11 +79,24 @@ function diaDoHistorico(iso: string): string {
   return d.toLocaleDateString('pt-BR', { timeZone: FUSO_DE_MANAUS, weekday: 'short', day: '2-digit', month: '2-digit' })
 }
 
-function Secao({ titulo, children, acao }: { titulo: string; children: React.ReactNode; acao?: React.ReactNode }) {
+/* CADA FUNÇÃO NUM CARTÃO (Pedro, 19/10/2026): "quero cada função dessas que está espalhada dentro de um card
+   separado, organizado e com espaçamento um do outro, até com cores diferentes". A cor marca a borda da esquerda,
+   o título e um véu leve no fundo; o conteúdo continua nas cores do tema. */
+const COR = {
+  nay: '#16a34a', instrucao: '#7c3aed', followup: '#d97706', visita: '#2563eb', observacao: '#ca8a04',
+  enviar: '#0d9488', checklist: '#db2777', dono: '#ea580c', pasta: '#4f46e5', etiquetas: '#64748b',
+  enviados: '#0891b2', historico: '#94a3b8',
+} as const
+
+function Secao({ titulo, children, acao, cor = COR.historico, icone }: {
+  titulo: string; children: React.ReactNode; acao?: React.ReactNode; cor?: string; icone?: React.ReactNode
+}) {
   return (
-    <section className="px-5 py-4" style={{ background: 'var(--wa-panel)' }}>
-      <div className="flex items-center justify-between mb-2.5">
-        <h3 className="text-[14px]" style={{ color: 'var(--wa-text-2)' }}>{titulo}</h3>
+    <section className="rounded-xl px-4 py-3.5 shadow-sm"
+             style={{ background: `linear-gradient(0deg, color-mix(in srgb, ${cor} 5%, transparent), color-mix(in srgb, ${cor} 5%, transparent)), var(--wa-panel)`,
+                      border: `1px solid color-mix(in srgb, ${cor} 28%, transparent)`, borderLeft: `4px solid ${cor}` }}>
+      <div className="flex items-center justify-between mb-2.5 gap-2">
+        <h3 className="text-[13.5px] font-semibold flex items-center gap-1.5" style={{ color: cor }}>{icone}{titulo}</h3>
         {acao}
       </div>
       {children}
@@ -341,9 +354,10 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto wa-rolagem flex flex-col gap-2">
+      <div className="flex-1 overflow-y-auto wa-rolagem flex flex-col gap-3 px-3 py-3">
         {/* quem é */}
-        <div className="flex flex-col items-center text-center px-6 pt-6 pb-5" style={{ background: 'var(--wa-panel)' }}>
+        <div className="flex flex-col items-center text-center px-5 pt-5 pb-4 rounded-xl shadow-sm"
+             style={{ background: 'var(--wa-panel)', border: '1px solid var(--wa-divider)' }}>
           <div className="w-[120px] h-[120px] rounded-full overflow-hidden flex items-center justify-center mb-3"
                style={{ backgroundColor: 'var(--wa-row-selected)' }}>
             {lead.avatar_url
@@ -391,7 +405,10 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
           <div className="mt-3 text-left">
             <EtapaDoLead lead={lead} onUpdateLead={onUpdateLead} semExplicacao />
           </div>
+        </div>
 
+        {/* A NAY NESTA CONVERSA: a trilha, quem atendeu e os botões de parar/voltar (19/10: um cartão só) */}
+        <Secao titulo="A Nay nesta conversa" cor={COR.nay} icone={<Robot size={15} weight="fill" />}>
           {/* a trilha da Nay com o contato, ativa ou parada (Pedro, 29/09) */}
           <TrilhaDaNay marca={marca} nay={nay} />
           {/* quem atendeu, em tags que rolam para o lado (Pedro, 05/10) */}
@@ -423,11 +440,13 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
               <WarningCircle size={14} /> Não consegui ler a Nay agora.
             </p>
           )}
+        </Secao>
 
-          {/* Nay atender com instrução (Pedro, 30/09: "eu digito o histórico do cliente e o que ele
-              busca, clico e a Nay lê a conversa recente e atende baseado na instrução"; vale 48 h) */}
-          <div className="w-full mt-4 text-left">
-            <label htmlFor={`instr-${lead.id}`} className="text-[13px] block mb-1" style={{ color: 'var(--wa-text-2)' }}>Instrução para a Nay (vale 48 h)</label>
+        {/* Nay atender com instrução (Pedro, 30/09: "eu digito o histórico do cliente e o que ele
+            busca, clico e a Nay lê a conversa recente e atende baseado na instrução"; vale 48 h) */}
+        <Secao titulo="Instrução para a Nay (vale 48 h)" cor={COR.instrucao} icone={<ChatCircleDots size={15} weight="fill" />}>
+          <div className="w-full text-left">
+            <label htmlFor={`instr-${lead.id}`} className="sr-only">Instrução para a Nay</label>
             <textarea id={`instr-${lead.id}`} value={instrucao} rows={3} maxLength={4000}
                       onChange={(e) => setInstrucao(e.target.value)}
                       placeholder="Ex.: cliente dela quer 2 quartos mobiliado até 4 mil na Ponta Negra; se não tiver, ofereça 3 quartos até 4.400"
@@ -440,9 +459,12 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
               {mexendoNaNay === 'instruir' ? <CircleNotch size={14} className="animate-spin" /> : <Robot size={14} weight="fill" />} Nay atender com instrução
             </button>
           </div>
+        </Secao>
 
-          {/* agendar follow-up (Pedro, 30/09): mensagem + amanhã / uma semana / data + hora */}
-          <AgendarFollowup leadId={lead.id} />
+        {/* agendar follow-up (Pedro, 30/09): mensagem + hoje / amanhã / uma semana / data + hora; editar; o da Nay (19/10) */}
+        <Secao titulo="Follow-up" cor={COR.followup} icone={<CalendarBlank size={15} weight="fill" />}>
+          <AgendarFollowup leadId={lead.id} semTitulo mostrarNay />
+        </Secao>
 
           {/* AGENDAR VISITA, em azul, no card do proprietário (Pedro, 01/10): "eu vou
               agendar manualmente, vou pôr o corretor, a duração e o dia, e posso
@@ -452,7 +474,25 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
               conversa ... dentro do chat"). Antes só aparecia no card do dono. No card
               do dono, os imóveis são os dele e o lembrete dele sai por esta conversa;
               em qualquer outro, quem está aberto já vem como o corretor da visita. */}
-          <div className="w-full mt-4 text-left">
+        {/* 19/10: a visita em andamento e o agendar visita no mesmo cartão azul */}
+        <Secao titulo={marca?.visitaAberta ? 'Visita em andamento' : 'Visita'} cor={COR.visita} icone={<CalendarCheck size={15} weight="fill" />}>
+          {marca?.visitaAberta && (
+            <button type="button" onClick={() => marca.visitaId && aoVerVisita?.(marca.visitaId)}
+                    className="w-full flex items-start gap-3 text-left rounded-lg p-2.5 mb-2 hover:bg-[var(--wa-row-hover)]"
+                    style={{ border: '1px solid var(--wa-divider)' }}>
+              <CalendarCheck size={22} style={{ color: 'var(--wa-tag-visita)' }} className="flex-shrink-0 mt-0.5" />
+              <span className="min-w-0">
+                <span className="block text-[15px]" style={{ color: 'var(--wa-text)' }}>
+                  {dataHora(marca.visitaQuando)}{marca.visitaCodigo ? ` · código ${marca.visitaCodigo}` : ''}
+                </span>
+                <span className="block text-[13px]" style={{ color: 'var(--wa-text-2)' }}>
+                  {estadoDaVisita?.rotulo || marca.visitaEstado}{marca.visitaPapel === 'proprietario' ? ' · ele é o proprietário' : ''}
+                </span>
+                {aoVerVisita && <span className="block text-[13px] mt-0.5" style={{ color: 'var(--wa-green)' }}>Ver o andamento em Visitas</span>}
+              </span>
+            </button>
+          )}
+          <div className="w-full text-left">
             {visitaAberta ? (
               marca?.proprietario
                 ? <AgendarVisita key={lead.id} imoveis={marca.imoveisDoDono} proprietarioLeadId={lead.id}
@@ -470,15 +510,17 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
               </button>
             )}
           </div>
+        </Secao>
 
-          {/* observação (Pedro, 29/09: "um quadradinho de observação, caixa de mensagem para escrever") */}
-          <div className="w-full mt-4 text-left">
-            <div className="flex items-center justify-between mb-1">
-              <label htmlFor={`obs-${lead.id}`} className="text-[13px]" style={{ color: 'var(--wa-text-2)' }}>Observação</label>
-              <span className="text-[11.5px]" style={{ color: estadoObs === 'erro' ? 'var(--wa-tag-tel)' : 'var(--wa-text-2)' }}>
-                {estadoObs === 'salvando' ? 'Salvando…' : estadoObs === 'salvo' ? 'Salvo' : estadoObs === 'erro' ? 'Não salvou — tente de novo' : ''}
-              </span>
-            </div>
+        {/* observação (Pedro, 29/09: "um quadradinho de observação, caixa de mensagem para escrever") */}
+        <Secao titulo="Observação" cor={COR.observacao} icone={<PencilSimple size={15} weight="fill" />}
+               acao={
+                 <span className="text-[11.5px]" style={{ color: estadoObs === 'erro' ? 'var(--wa-tag-tel)' : 'var(--wa-text-2)' }}>
+                   {estadoObs === 'salvando' ? 'Salvando…' : estadoObs === 'salvo' ? 'Salvo' : estadoObs === 'erro' ? 'Não salvou — tente de novo' : ''}
+                 </span>
+               }>
+          <div className="w-full text-left">
+            <label htmlFor={`obs-${lead.id}`} className="sr-only">Observação</label>
             <textarea id={`obs-${lead.id}`} value={observacao} rows={3} maxLength={4000}
                       onChange={(e) => { obsTocada.current = true; setObservacao(e.target.value) }}
                       onBlur={() => void salvarObservacao()}
@@ -486,10 +528,10 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
                       className="w-full rounded-lg px-3 py-2 text-[14px] leading-5 resize-y min-h-[72px]"
                       style={{ background: 'var(--wa-app)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }} />
           </div>
-        </div>
+        </Secao>
 
         {/* mandar imóvel */}
-        <Secao titulo="Enviar imóvel">
+        <Secao titulo="Enviar imóvel" cor={COR.enviar} icone={<PaperPlaneRight size={15} weight="fill" />}>
           <EscolherImoveis key={rodadaDoEnvio} compacto escolhidos={escolhidos}
                            aoMudar={(l) => { setEscolhidos(l); setResultado(null) }}
                            teto={tetoDoDisparo} opcoes={opcoesDoDisparo} pedido={pedidoDeCodigo}
@@ -516,7 +558,7 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
 
         {/* o checklist de documentos, só para corretor (29/09) */}
         {ehCorretor && (
-          <Secao titulo="Checklist de documentos">
+          <Secao titulo="Checklist de documentos" cor={COR.checklist} icone={<FileText size={15} weight="fill" />}>
             {!checklistAberto ? (
               <button type="button" onClick={() => { setChecklistAberto(true); setAvisoChecklist(null) }}
                       className="w-full h-10 rounded-full text-[14px] font-semibold flex items-center justify-center gap-1.5"
@@ -558,28 +600,10 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
           </Secao>
         )}
 
-        {/* visita */}
-        {marca?.visitaAberta && (
-          <Secao titulo="Visita em andamento">
-            <button type="button" onClick={() => marca.visitaId && aoVerVisita?.(marca.visitaId)}
-                    className="w-full flex items-start gap-3 text-left rounded-lg p-2.5 hover:bg-[var(--wa-row-hover)]">
-              <CalendarCheck size={22} style={{ color: 'var(--wa-tag-visita)' }} className="flex-shrink-0 mt-0.5" />
-              <span className="min-w-0">
-                <span className="block text-[15px]" style={{ color: 'var(--wa-text)' }}>
-                  {dataHora(marca.visitaQuando)}{marca.visitaCodigo ? ` · código ${marca.visitaCodigo}` : ''}
-                </span>
-                <span className="block text-[13px]" style={{ color: 'var(--wa-text-2)' }}>
-                  {estadoDaVisita?.rotulo || marca.visitaEstado}{marca.visitaPapel === 'proprietario' ? ' · ele é o proprietário' : ''}
-                </span>
-                {aoVerVisita && <span className="block text-[13px] mt-0.5" style={{ color: 'var(--wa-green)' }}>Ver o andamento em Visitas</span>}
-              </span>
-            </button>
-          </Secao>
-        )}
-
-        {/* imóveis do dono */}
+        {/* imóveis do dono (a visita em andamento subiu para o cartão azul de Visita, 19/10) */}
         {marca?.proprietario && (
-          <Secao titulo={marca.imoveisDoDono.length ? `Imóveis dele (${marca.imoveisDoDono.length})` : 'Proprietário'}>
+          <Secao titulo={marca.imoveisDoDono.length ? `Imóveis dele (${marca.imoveisDoDono.length})` : 'Proprietário'}
+                 cor={COR.dono} icone={<House size={15} weight="fill" />}>
             {marca.proprietarioNome && (
               <p className="text-[13px] mb-2" style={{ color: 'var(--wa-text-2)' }}>No cadastro: {marca.proprietarioNome}</p>
             )}
@@ -602,6 +626,7 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
             e depois: "põe em cima de O que já pediu, recebeu e visitou") */}
         {ehCorretor && (
           <Secao titulo={`Pasta do corretor${documentos.length ? ` (${documentos.length})` : ''}`}
+                 cor={COR.pasta} icone={<FolderSimple size={15} weight="fill" />}
                  acao={
                    <button type="button" onClick={() => entradaDeArquivo.current?.click()} disabled={enviandoDoc}
                            className="inline-flex items-center gap-1 text-[13px] font-semibold disabled:opacity-50" style={{ color: 'var(--wa-green)' }}>
@@ -648,7 +673,8 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
         {/* A FRASE DA ETAPA, A ETIQUETA E AS MARCAS descem para cá (Pedro, 30/09: "põe lá para
             baixo ... antes de O que já pediu, recebeu e visitou"): o topo do card fica só com
             a etapa, a trilha e os botões da Nay. */}
-        <div className="px-6 py-4 text-center" style={{ borderTop: '1px solid var(--wa-divider)' }}>
+        <Secao titulo="Etiquetas e marcas" cor={COR.etiquetas} icone={<Plus size={15} weight="bold" />}>
+        <div className="text-center">
           <p className="text-[12px] leading-4" style={{ color: 'var(--wa-text-2)' }}>
             {escolhaDoCard
               ? 'Preso nesta etapa por você, e a Nay já sabe. Escolha Todos e salve para devolver a conversa a ela.'
@@ -683,15 +709,16 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
             {!marca && carregando && <span className="text-[13px]" style={{ color: 'var(--wa-text-2)' }}>Perguntando à Nay…</span>}
           </div>
         </div>
+        </Secao>
 
         {/* o que já saiu para a pessoa: a Nay não manda de novo sem ela dizer que tem interesse (Pedro, 05/10) */}
         {enviados.length > 0 && (
-          <Secao titulo={`Imóveis já enviados (${enviados.length})`}>
+          <Secao titulo={`Imóveis já enviados (${enviados.length})`} cor={COR.enviados} icone={<House size={15} weight="fill" />}>
             <ImoveisJaEnviados enviados={enviados} aoEscolher={(codigo) => setPedidoDeCodigo({ codigo: String(codigo), vez: Date.now() })} />
           </Secao>
         )}
 
-        <Secao titulo="O que já pediu, recebeu e visitou">
+        <Secao titulo="O que já pediu, recebeu e visitou" cor={COR.historico} icone={<ChatCircleDots size={15} weight="fill" />}>
           {carregando && !historico.length ? (
             <p className="text-[13px]" style={{ color: 'var(--wa-text-2)' }}>Carregando…</p>
           ) : historico.length === 0 ? (
