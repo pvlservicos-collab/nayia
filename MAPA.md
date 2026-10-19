@@ -310,7 +310,8 @@ prompt: comece pelo `nay onde`.
   nota com o código da aba Grupos (`olx/busca_olx.py` importa `/root/nay-grupos`), abre o anúncio de nota ≥ 88, acha o
   telefone (descrição + `scrap_anuncio`/`scrap_contato`) e decide pela `privado.falou_conosco`: conhecido → pergunta pela
   Parceria/Captação e, com "sim", manda ao cliente; desconhecido, sem resposta ou "não" → grupo Altarquia e a Nay para com o
-  cliente. Chaves `busca_parceiro*` em `privado.olx_config` (teste = só o 1º número de `whatsapp_teste`). Painel:
+  cliente; 421: o caminho do grupo cria o pré-cadastro (Rascunho, `extras.busca_parceiro`) e, ficando Disponível, a Nay manda
+  (`aguardando_cadastro` -> `enviado`). Chaves `busca_parceiro*` em `privado.olx_config` (sim desde 19/10). Painel:
   `crm_olx_buscas_parceiro(dias)`. Ensaio só leitura: `busca_olx.buscar(conn, base, filtros)`.
 - Mensagem marcada (a barra "Lead se refere a mensagem"): `src/lib/mensagemCitada.ts` procura o ID no CRM e depois no banco da Nay
   (`crm_mensagem_citada`, 335). Chamado na chegada (`zapiInbound.ts`) e ao abrir a conversa (GET `/api/leads/[id]/messages`, que
