@@ -108,6 +108,7 @@ export const pipelineStages = pgTable('pipeline_stages', {
   name: text('name').notNull(),
   color: text('color'),
   rank: numeric('rank', { precision: 20, scale: 6 }).notNull(),
+  nomeOriginal: text('nome_original'),   // 0133
   targetVolume: integer('target_volume'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -196,6 +197,8 @@ export const tags = pgTable('tags', {
   organizationId: uuid('organization_id').notNull().references(() => organizations.id),
   name: text('name').notNull(),
   color: text('color').default('#6366f1'),
+  // 0133: o nome de nascença, quando a etiqueta foi renomeada (o código que acha pelo nome procura nos dois)
+  nomeOriginal: text('nome_original'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })

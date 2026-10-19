@@ -69,6 +69,18 @@ export async function mudarCorDaEtiqueta(id: string, cor: string): Promise<void>
   avisar()
 }
 
+/** Renomear (19/10): a etapa do funil de mesmo nome muda junto (api/tags PATCH). */
+export async function renomearEtiqueta(id: string, nome: string): Promise<void> {
+  const limpo = nome.trim().slice(0, 40)
+  if (!limpo) throw new Error('o nome não pode ficar vazio')
+  const r = await fetch(`/api/tags?id=${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: limpo }) })
+  const j = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(j?.error || 'não consegui renomear')
+  lista = ordenar((lista || []).map((t) => (t.id === id ? { ...t, name: limpo } : t)))
+  avisar()
+}
+
 export async function apagarEtiqueta(id: string): Promise<void> {
   const r = await fetch(`/api/tags?id=${id}`, { method: 'DELETE' })
   if (!r.ok) throw new Error('não consegui apagar a etiqueta')

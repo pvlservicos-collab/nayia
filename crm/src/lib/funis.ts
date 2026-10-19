@@ -50,15 +50,21 @@ export async function sincronizarFunis(org: string): Promise<ResultadoDosFunis |
     }
 
     // as etapas de cada funil, por nome
+    // 0133: a etapa e a etiqueta renomeadas na tela continuam achadas pelo nome de nascença (nome_original)
     const etapas = await db.execute(sql`
-      SELECT s.id, s.name, p.name AS pipeline FROM pipeline_stages s JOIN pipelines p ON p.id = s.pipeline_id
+      SELECT s.id, s.name, s.nome_original, p.name AS pipeline FROM pipeline_stages s JOIN pipelines p ON p.id = s.pipeline_id
        WHERE s.organization_id = ${org} AND s.deleted_at IS NULL AND p.deleted_at IS NULL`)
-    const etapaDe = (pipeline: string, nome: string) =>
-      (etapas.rows as Array<{ id: string; name: string; pipeline: string }>).find((e) => e.pipeline === pipeline && e.name === nome)?.id ?? null
+    type Etapa = { id: string; name: string; nome_original: string | null; pipeline: string }
+    const etapaDe = (pipeline: string, nome: string) => {
+      const doFunil = (etapas.rows as Etapa[]).filter((e) => e.pipeline === pipeline)
+      return (doFunil.find((e) => e.name === nome) ?? doFunil.find((e) => e.nome_original === nome))?.id ?? null
+    }
 
     // as etiquetas de mesmo nome (a da captação acompanha o card)
-    const etiquetas = await db.execute(sql`SELECT id, name FROM tags WHERE organization_id = ${org}`)
-    const etiquetaDe = (nome: string) => (etiquetas.rows as Array<{ id: string; name: string }>).find((t) => t.name === nome)?.id ?? null
+    const etiquetas = await db.execute(sql`SELECT id, name, nome_original FROM tags WHERE organization_id = ${org}`)
+    type Marca = { id: string; name: string; nome_original: string | null }
+    const etiquetaDe = (nome: string) =>
+      ((etiquetas.rows as Marca[]).find((t) => t.name === nome) ?? (etiquetas.rows as Marca[]).find((t) => t.nome_original === nome))?.id ?? null
     const idsDaCaptacao = ETAPAS_DA_CAPTACAO.map(etiquetaDe).filter(Boolean) as string[]
 
     const linhas = await db.select({ id: integrations.id, type: integrations.type }).from(integrations)

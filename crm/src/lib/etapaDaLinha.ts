@@ -54,7 +54,7 @@ export async function etapaEmAtendimentoDoMesmoPipeline(
      WHERE s1.id = ${etapaAtual}
        AND s1.organization_id = ${organizationId}
        AND s2.deleted_at IS NULL
-       AND s2.name ILIKE 'Em atendimento'
+       AND (s2.name ILIKE 'Em atendimento' OR s2.nome_original ILIKE 'Em atendimento')   -- 0133: renomeada na tela
        AND s2.rank > s1.rank
      LIMIT 1`)
   return (r.rows[0] as { id: string } | undefined)?.id ?? null

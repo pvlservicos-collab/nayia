@@ -21,7 +21,8 @@ export async function marcarOrganicos(organizacao: string): Promise<number> {
 
   let [tag] = (await db.execute(sql`
     SELECT id::text AS id FROM tags
-     WHERE organization_id = ${organizacao} AND lower(name) IN ('orgânico', 'organico')
+     WHERE organization_id = ${organizacao}
+       AND (lower(name) IN ('orgânico', 'organico') OR lower(coalesce(nome_original, '')) IN ('orgânico', 'organico'))
      ORDER BY created_at LIMIT 1`)).rows as Array<{ id: string }>
   if (!tag) {
     [tag] = (await db.execute(sql`

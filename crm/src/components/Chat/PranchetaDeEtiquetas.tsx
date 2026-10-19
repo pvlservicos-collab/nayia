@@ -9,7 +9,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { Check, ClipboardText, PencilSimple, Plus, Trash } from '@phosphor-icons/react'
-import { apagarEtiqueta, CORES_DE_ETIQUETA, criarEtiqueta, mudarCorDaEtiqueta, useEtiquetas } from '@/lib/etiquetas'
+import { apagarEtiqueta, CORES_DE_ETIQUETA, criarEtiqueta, mudarCorDaEtiqueta, renomearEtiqueta, useEtiquetas } from '@/lib/etiquetas'
 
 export default function PranchetaDeEtiquetas({ escolhidas, aoAlternar, aoLimpar, contagem }: {
   escolhidas: string[]
@@ -41,6 +41,17 @@ export default function PranchetaDeEtiquetas({ escolhidas, aoAlternar, aoLimpar,
     const i = CORES_DE_ETIQUETA.indexOf(atual)
     try { await mudarCorDaEtiqueta(id, CORES_DE_ETIQUETA[(i + 1) % CORES_DE_ETIQUETA.length]) } catch { /* fica a de antes */ }
   }
+  /* 19/10 (Pedro: "editar o nome de todas as tags"): no modo Editar o nome é um campo; Enter ou sair do campo grava */
+  const [nomes, setNomes] = useState<Record<string, string>>({})
+  const renomear = async (id: string, antes: string) => {
+    const novo = (nomes[id] ?? antes).trim()
+    if (!novo || novo === antes) { setNomes((n) => { const c = { ...n }; delete c[id]; return c }); return }
+    setErro('')
+    try {
+      await renomearEtiqueta(id, novo)
+      setNomes((n) => { const c = { ...n }; delete c[id]; return c })
+    } catch (e: any) { setErro(e?.message || 'não consegui renomear') }
+  }
   const apagar = async (id: string, nome: string) => {
     if (!window.confirm(`Apagar a etiqueta "${nome}"? Ela sai de todos os leads.`)) return
     try { await apagarEtiqueta(id); if (escolhidas.includes(id)) aoAlternar(id) } catch { /* fica */ }
@@ -66,7 +77,7 @@ export default function PranchetaDeEtiquetas({ escolhidas, aoAlternar, aoLimpar,
                   Limpar filtro
                 </button>
               )}
-              <button type="button" onClick={() => setEditando((v) => !v)} title="Mudar cor ou apagar"
+              <button type="button" onClick={() => setEditando((v) => !v)} title="Mudar o nome, a cor ou apagar"
                       className="text-[12px] font-semibold inline-flex items-center gap-1" style={{ color: editando ? 'var(--wa-green)' : 'var(--wa-text-2)' }}>
                 <PencilSimple size={13} /> {editando ? 'Pronto' : 'Editar'}
               </button>
@@ -91,11 +102,23 @@ export default function PranchetaDeEtiquetas({ escolhidas, aoAlternar, aoLimpar,
                     {on && <Check size={11} weight="bold" className="text-white" />}
                   </span>
                 )}
-                <button type="button" onClick={() => !editando && aoAlternar(t.id)} disabled={editando}
-                        className="flex-1 min-w-0 flex items-center gap-2 px-2.5 py-2 text-left text-[14px]" style={{ color: 'var(--wa-text)' }}>
-                  <span className="truncate flex-1">{t.name}</span>
-                  <span className="text-[12px] tabular-nums" style={{ color: 'var(--wa-text-2)' }}>{n}</span>
-                </button>
+                {editando ? (
+                  <input value={nomes[t.id] ?? t.name} maxLength={40} aria-label={`Nome da etiqueta ${t.name}`}
+                         onChange={(e) => { const v = e.target.value; setNomes((m) => ({ ...m, [t.id]: v })) }}
+                         onBlur={() => void renomear(t.id, t.name)}
+                         onKeyDown={(e) => {
+                           if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur() }
+                           if (e.key === 'Escape') setNomes((m) => { const c = { ...m }; delete c[t.id]; return c })
+                         }}
+                         className="flex-1 min-w-0 h-8 mx-2 px-2 rounded-md text-[14px]"
+                         style={{ background: 'var(--wa-app)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }} />
+                ) : (
+                  <button type="button" onClick={() => aoAlternar(t.id)}
+                          className="flex-1 min-w-0 flex items-center gap-2 px-2.5 py-2 text-left text-[14px]" style={{ color: 'var(--wa-text)' }}>
+                    <span className="truncate flex-1">{t.name}</span>
+                    <span className="text-[12px] tabular-nums" style={{ color: 'var(--wa-text-2)' }}>{n}</span>
+                  </button>
+                )}
                 {editando && (
                   <button type="button" onClick={() => void apagar(t.id, t.name)} title="Apagar etiqueta" className="px-3 py-2"
                           style={{ color: 'var(--wa-tag-tel)' }} aria-label={`Apagar ${t.name}`}>
