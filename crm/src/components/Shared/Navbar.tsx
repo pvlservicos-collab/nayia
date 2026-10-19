@@ -46,7 +46,8 @@ const NAV_ITEMS = [
   // conversas separadas por linha. `curto` é o nome na barra do celular.
   { label: 'WhatsApp Oficial', curto: 'Oficial', href: '/chat', icon: WhatsappLogo },
   { label: 'WhatsApp Parceria', curto: 'Parceria', href: '/chat/parceria', icon: WhatsappLogo },
-  { label: 'WhatsApp Captação', curto: 'Captação', href: '/chat/captacao', icon: WhatsappLogo },
+  // 19/10 (Pedro: "lá em cima, de WhatsApp Captação para WhatsApp Leads"); a rota e a linha continuam 'captacao'
+  { label: 'WhatsApp Leads', curto: 'Leads', href: '/chat/captacao', icon: WhatsappLogo },
   // CHAT OLX (08/10, Pedro): "troca a página conversa por um redirect em outra aba para https://chat.olx.com.br/".
   // O item abre o chat da própria OLX numa aba nova do navegador (`externo`). A página de conversas do CRM
   // (/chat/olx: as duas contas e as consultas do bot) continua existindo, sem link no menu -- é para lá que a
@@ -77,7 +78,7 @@ const PAGINA_INICIAL = '/chat/parceria'
 // Destinos mais usados — ficam sempre à mão na barra inferior do celular.
 // Os demais (Configurações, Funil de Mensagens, Métricas) ficam atrás do "Mais",
 // que abre a mesma gaveta lateral — só um sistema de navegação por vez no celular.
-const MOBILE_TAB_LABELS = ['WhatsApp Oficial', 'WhatsApp Parceria', 'WhatsApp Captação', 'Pipeline', 'Imóveis']
+const MOBILE_TAB_LABELS = ['WhatsApp Oficial', 'WhatsApp Parceria', 'WhatsApp Leads', 'Pipeline', 'Imóveis']
 
 export default function Navbar() {
   const pathname = usePathname()
@@ -170,7 +171,7 @@ export default function Navbar() {
       case 'Pipeline': return !!permissions.settings?.view_pipeline
       case 'WhatsApp Oficial': return !!permissions.settings?.view_chat
       case 'WhatsApp Parceria': return !!permissions.settings?.view_chat
-      case 'WhatsApp Captação': return !!permissions.settings?.view_chat
+      case 'WhatsApp Leads': return !!permissions.settings?.view_chat
       case 'Chat OLX': return !!permissions.settings?.view_chat
       case 'Grupos': return !!permissions.settings?.view_chat
       case 'DM Instagram': return !!permissions.settings?.view_chat

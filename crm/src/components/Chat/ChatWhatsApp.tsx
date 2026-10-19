@@ -34,7 +34,8 @@ const CHAVE_PAINEL = 'crm:painel-do-contato-aberto'
 const IDENTIDADE_DA_LINHA: Record<LinhaWhatsapp, { titulo: string; numero: string }> = {
   oficial: { titulo: 'API Oficial (Meta)', numero: '+55 92 8456-0874' },
   parceria: { titulo: 'Parceria', numero: 'Z-API · +55 92 9445-3618' },
-  captacao: { titulo: 'Captação', numero: 'Z-API · +55 92 8595-6408' },
+  // 19/10 (Pedro: "coloque o nome do número de captação como Leads (imobeasy)")
+  captacao: { titulo: 'Leads (imobeasy)', numero: 'Z-API · +55 92 8595-6408' },
 }
 
 /** Tela larga o bastante para o card do contato ficar ao lado (e não por cima). */
@@ -323,6 +324,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
       painelAberto={painelAberto}
       aoAlternarPainel={alternarPainel}
       aoVoltar={voltar}
+      onTagsChange={handleTagsChange}
     />
   ) : (
     <div className="wa-papel flex flex-col items-center justify-center h-full gap-2 px-8 text-center">

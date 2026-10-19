@@ -20,6 +20,7 @@ import { quandoCurtoEmManaus } from '@/lib/fusoDeManaus'
 import { nayEmPausa } from '@/lib/etapaDaParceria'
 import type { DonoNaLista } from '@/lib/tiposNay'
 import { nomeDoDono, imovelDoDono } from './LeadListItem'
+import { useEtiquetas, marcarEtiqueta } from '@/lib/etiquetas'
 
 interface ChatWindowProps {
   lead: LeadWithOwner
@@ -34,6 +35,8 @@ interface ChatWindowProps {
   aoAlternarPainel?: () => void
   /** Só no celular: volta para a lista. */
   aoVoltar?: () => void
+  /** 19/10: a lista suspensa de etiquetas no cabeçalho (Captação) avisa a tela quando marca/desmarca */
+  onTagsChange?: (leadId: string, tagId: string, action: 'add' | 'remove', tagObj?: any) => void
 }
 
 export interface ReplyContext {
@@ -75,7 +78,55 @@ function RoboDaNay({ nay, marca }: { nay: EstadoDaNay | null; marca?: MarcaDaNay
   )
 }
 
-function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlternarPainel, aoVoltar, dono }: {
+/* A LISTA SUSPENSA DE ETIQUETAS (Pedro, 19/10/2026: "coloca do lado do nome, no número de captação, uma lista suspensa
+   com os nomes das etiquetas; ele pode selecionar por lá"). Escolheu uma: entra no card na hora; escolheu uma que ele
+   já tem: sai. As etiquetas são as mesmas da prancheta (lib/etiquetas). */
+function EtiquetasNoCabecalho({ lead, onTagsChange }: {
+  lead: { id: string; lead_tags?: Array<{ tag_id: string; tag?: any }> | null }
+  onTagsChange?: (leadId: string, tagId: string, action: 'add' | 'remove', tagObj?: any) => void
+}) {
+  const etiquetas = useEtiquetas()
+  const [mexendo, setMexendo] = useState(false)
+  const tem = new Set((lead.lead_tags || []).map((lt) => lt.tag_id))
+  const escolher = async (id: string) => {
+    if (!id || mexendo) return
+    const e = etiquetas.find((x) => x.id === id)
+    const por = !tem.has(id)
+    setMexendo(true)
+    try {
+      await marcarEtiqueta(lead.id, id, por)
+      onTagsChange?.(lead.id, id, por ? 'add' : 'remove', e)
+    } catch (err: any) {
+      window.alert(err?.message || 'Não consegui mudar a etiqueta.')
+    } finally {
+      setMexendo(false)
+    }
+  }
+  return (
+    <span className="inline-flex items-center gap-1 flex-shrink-0 max-w-[46%]" onClick={(e) => e.stopPropagation()}>
+      <span className="hidden md:flex items-center gap-1 overflow-hidden">
+        {(lead.lead_tags || []).slice(0, 3).map((lt) => lt.tag && (
+          <span key={lt.tag_id} className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full truncate max-w-[88px]"
+                style={{ background: (lt.tag.color || '#64748b') + '22', color: lt.tag.color || '#64748b' }} title={lt.tag.name}>{lt.tag.name}</span>
+        ))}
+      </span>
+      <select value="" disabled={mexendo || !etiquetas.length} onChange={(e) => void escolher(e.target.value)}
+              className="text-[12px] rounded-md px-1.5 py-1 max-w-[120px]"
+              style={{ background: 'var(--wa-panel)', color: 'var(--wa-text-2)', border: '1px solid var(--wa-divider)' }}
+              title="Marcar ou tirar uma etiqueta deste contato">
+        <option value="">{mexendo ? '…' : etiquetas.length ? 'Etiqueta…' : 'sem etiquetas'}</option>
+        {etiquetas.map((e) => (
+          <option key={e.id} value={e.id}>{tem.has(e.id) ? '✓ ' : ''}{e.name}</option>
+        ))}
+      </select>
+    </span>
+  )
+}
+
+function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlternarPainel, aoVoltar, dono, etiquetasRapidas, onTagsChange }: {
+  /** 19/10: a lista suspensa de etiquetas ao lado do nome (Captação) */
+  etiquetasRapidas?: boolean
+  onTagsChange?: (leadId: string, tagId: string, action: 'add' | 'remove', tagObj?: any) => void
   lead: LeadWithOwner
   marca?: MarcaDaNay
   dono?: DonoNaLista
@@ -120,6 +171,7 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
           </span>
         </span>
       </button>
+      {etiquetasRapidas && <EtiquetasNoCabecalho lead={lead} onTagsChange={onTagsChange} />}
       {aoAlternarPainel && (
         <button type="button" onClick={aoAlternarPainel} className={`wa-icone-btn ${painelAberto ? 'wa-icone-btn--on' : ''}`}
                 title={painelAberto ? 'Fechar os dados do contato' : 'Dados do contato'} aria-pressed={!!painelAberto}>
@@ -130,7 +182,7 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
   )
 }
 
-export default function ChatWindow({ lead, organizationId, onMessageSent, linha, marca, dono, painelAberto, aoAlternarPainel, aoVoltar }: ChatWindowProps) {
+export default function ChatWindow({ lead, organizationId, onMessageSent, linha, marca, dono, painelAberto, aoAlternarPainel, aoVoltar, onTagsChange }: ChatWindowProps) {
   const {
     activities, loading, error: erroDasMensagens, refresh: recarregarMensagens, sendHumanMessage, sendMediaMessage, deleteMessage,
     temMais, carregandoAnteriores, carregarAnteriores,
@@ -372,7 +424,8 @@ export default function ChatWindow({ lead, organizationId, onMessageSent, linha,
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <CabecalhoConversa lead={lead} marca={marca} nay={nay} mostrarRobo={false} painelAberto={painelAberto} aoAlternarPainel={aoAlternarPainel} aoVoltar={aoVoltar} dono={dono} />
+      <CabecalhoConversa lead={lead} marca={marca} nay={nay} mostrarRobo={false} painelAberto={painelAberto} aoAlternarPainel={aoAlternarPainel} aoVoltar={aoVoltar} dono={dono}
+                         etiquetasRapidas={linha === 'captacao'} onTagsChange={onTagsChange} />
 
       {/* Arrastar-e-soltar — cobre a conversa inteira, não só o clipe */}
       {isDraggingFile && (
