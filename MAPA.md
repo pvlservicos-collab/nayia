@@ -296,6 +296,14 @@ prompt: comece pelo `nay onde`.
 - Uma mensagem de imóvel para VÁRIOS grupos (415): "Nova mensagem" em admin › Grupos, destino "Marcar grupos"
   (`grupos-agenda.js`), gravado em `vagas.grupos_ids` por `site_grade_salvar`; `nay-publicador/disparar_grade.py` posta
   em cada marcado com a regra de cada grupo.
+- ENVIO AUTOMÁTICO DO RADAR (modo "ativo", 19/10): `nay-grupos/grupos/envio.py` (chamado no laço do `worker.py`) manda o
+  melhor imóvel de cada pedido com nota ACIMA de `nota_min_automatico` (88) ao corretor, no PV pela Parceria, chamando
+  `site_captacao_grupos_enviar(..., 'automático')`. Chaves em `nay-grupos/config.json` (`modo`, `mensagem_automatica`,
+  `automatico_max_dia`, `automatico_das/ate`, `automatico_desde`). Desligar = `"modo": "treino"`. Os envios: `privado.grupo_pedido_oferta`
+  com `quem = 'automático'`.
+- IMÓVEIS › APROVAR IMÓVEIS (419/420): `site_aprovar_imoveis()` (fichas do WhatsApp, bot da OLX, cadastro fora de Disponível
+  com dono que disse disponível/mandou atualização), rotas `/admin/api/imoveis/aprovar` e `/aprovar/tirar` (app.py), tela
+  `imob-easy/assets/js/aprovar-imoveis.js` (aba em `admin/imoveis.html`). Tirados em `privado.imovel_aprovar_fora`.
 - BUSCA DE IMÓVEL DE PARCEIRO NA OLX (416): o catálogo não tem nada para o cliente da Nay do WhatsApp (8595) →
   `whatsapp.abrir_busca_na_olx` abre `privado.olx_busca_parceiro` e ela diz "Vou verificar as opções...". O laço
   `nay-olx/olx/parceiro.py` busca pelo Chrome do PC (`olx/cdp.py`, túnel 127.0.0.1:9304 do `navegador-olx.ps1`), dá a
