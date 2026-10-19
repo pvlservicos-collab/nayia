@@ -1909,6 +1909,41 @@ def api_ficha_preparada(fid):
         conn.close()
 
 
+@app.route("/admin/api/imoveis/aprovar")
+def api_aprovar_imoveis():
+    """IMÓVEIS › APROVAR IMÓVEIS (419; Pedro, 19/10/2026: "todos os imóveis que os proprietários mandaram pelo WhatsApp ou
+    confirmaram a autorização pela OLX e hoje ainda não estão disponíveis ... com uma opção de editar cada campo").
+    A lista com a origem, o dono (telefone: só com senha) e os campos do cadastro. Editar e aprovar usam as rotas de
+    sempre (PUT /admin/api/imoveis/<código>); a ficha e o envio do bot viram pré-cadastro pelo POST e pelo aprovar do bot."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    conn = conectar_escrita()
+    try:
+        linhas = todas_linhas(conn, "SELECT site_aprovar_imoveis() AS r")
+        return jsonify(linhas[0]["r"] or {"itens": []})
+    finally:
+        conn.close()
+
+
+@app.route("/admin/api/imoveis/aprovar/tirar", methods=["POST"])
+def api_aprovar_tirar():
+    """Tirar da lista do Aprovar imóveis (ou pôr de volta, {tirar: false}). Não mexe na ficha, no envio nem no imóvel."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    corpo = request.get_json(silent=True) or {}
+    conn = conectar_escrita()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT site_aprovar_tirar(%s, %s, %s, %s) AS r",
+                        (str(corpo.get("chave") or ""), corpo.get("tirar", True) is not False,
+                         (str(corpo.get("motivo") or "").strip() or None), _quem_esta_no_painel()))
+            r = cur.fetchone()["r"]
+        conn.commit()
+        return (jsonify(r), 400) if r.get("erro") else jsonify(r)
+    finally:
+        conn.close()
+
+
 @app.route("/admin/api/imoveis/juntar", methods=["POST"])
 def api_cadastro_juntar():
     """"NA VERDADE É ATUALIZAÇÃO DESTE IMÓVEL" (326; Pedro, 09/10). {de_codigo | de_ficha, em, fotos}: as fotos e o

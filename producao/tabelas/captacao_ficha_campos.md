@@ -26,4 +26,4 @@ nay_leitura: SELECT
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-site_ficha_preparada
+site_aprovar_imoveis, site_ficha_preparada

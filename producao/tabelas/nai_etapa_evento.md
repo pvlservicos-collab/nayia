@@ -1,4 +1,4 @@
-# nai_etapa_evento  (tabela, ~235 linhas)
+# nai_etapa_evento  (tabela, ~309 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('nai_etapa_evento_id_seq'::regclass)

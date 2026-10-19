@@ -43,6 +43,8 @@
     <button class="abas__item" role="tab" type="button" data-painel-abre="imoveis" data-vista="mapa" aria-selected="false">Mapa</button>
     <!-- 248 (Pedro, 01/10): o que precisa de gente para terminar o cadastro -->
     <button class="abas__item" role="tab" type="button" data-painel-abre="rapido" aria-selected="false">CADASTRO RÁPIDO</button>
+    <!-- 419 (Pedro, 19/10): só o que o proprietário mandou pelo WhatsApp ou autorizou pela OLX e ainda não está disponível -->
+    <button class="abas__item" role="tab" type="button" data-painel-abre="aprovar" aria-selected="false">Aprovar imóveis <span class="abas__n" data-ap-conta>—</span></button>
     <!-- 361 (Pedro, 13/10): o que a resposta do proprietário mudou no cadastro, com a conversa e o voltar atrás -->
     <button class="abas__item" role="tab" type="button" data-painel-abre="mudancas" aria-selected="false">Mudanças recentes <span class="abas__n" data-mu-conta>—</span></button>
   </div>
@@ -271,6 +273,7 @@
   <!-- ===================== CONDOMÍNIOS (Pedro, 30/09) ===================== -->
   <!-- ===================== CADASTRO RÁPIDO (Pedro, 09/10): a curadoria de todas as fontes, uma por vez ===================== -->
   <div data-painel="rapido" hidden></div>
+  <div data-painel="aprovar" hidden></div>
 
   <!-- ===================== MUDANÇAS RECENTES (Pedro, 13/10): montada por assets/js/imovel-mudancas.js ===================== -->
   <div data-painel="mudancas" hidden></div>
@@ -328,6 +331,7 @@
 <script src="../assets/js/condominio-cadastro.js?v=20261014t"></script>
 <script src="../assets/js/cadastro-rapido.js?v=20261012r"></script>
 <script src="../assets/js/imovel-mudancas.js?v=20261013a"></script>
+<script src="../assets/js/aprovar-imoveis.js?v=20261019a"></script>
 <!-- a barrinha de mobília ANTES do popup, que a usa -->
 <script src="../assets/js/mobilia-barra.js?v=20261012r"></script>
 <script src="../assets/js/imovel-ficha-popup.js?v=20261014t"></script>

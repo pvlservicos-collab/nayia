@@ -684,6 +684,8 @@ scrap_contatos_rebuild	site_scrap_importar
 scrap_telefone_formatar	site_scrap_anuncios, site_scrap_contato_salvar, site_scrap_contatos
 scrap_telefone_normalizar	scrap_telefones_do_texto, site_scrap_anuncios, site_scrap_contato_salvar, site_scrap_importar_contatos
 scrap_telefones_do_texto	scrap_contatos_rebuild
+site_aprovar_imoveis	
+site_aprovar_tirar	
 site_blog_admin_artigo	
 site_blog_admin_lista	
 site_blog_apagar	

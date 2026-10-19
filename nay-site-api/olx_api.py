@@ -1177,6 +1177,7 @@ def olx_bot_lista():
 
 
 @olx_bp.route("/admin/api/olx-bot/<int:eid>/aprovar", methods=["POST"])
+@olx_bp.route("/admin/api/imoveis/olx-bot/<int:eid>/aprovar", methods=["POST"])   # Aprovar imóveis (419): o CRM só deixa passar /admin/api/imoveis/*
 def olx_bot_aprovar(eid):
     if not _admin_autenticado():
         return _sem_senha()

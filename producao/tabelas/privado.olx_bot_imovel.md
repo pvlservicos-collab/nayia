@@ -42,4 +42,4 @@ nay_site_escrita: SELECT, UPDATE
 crm_olx_bot_receber
 
 ## funções que citam
-crm_olx_bot_receber
+crm_olx_bot_receber, site_aprovar_imoveis
