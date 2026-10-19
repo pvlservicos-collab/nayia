@@ -83,7 +83,14 @@
   /* ── o topo: modo, serviço, de onde vêm as mensagens, taxa de acerto ── */
   function desenharTopo(d) {
     var h = [];
-    h.push(manual()
+    var cf = d.config || {};
+    if (d.modo === "ativo") {
+      /* 19/10 (Pedro): o modo ativo manda sozinho o melhor imóvel ao corretor que pediu */
+      h.push('<span class="gc-selo gc-selo--ok" title="O melhor imóvel de cada pedido com nota acima de ' + esc(String(cf.nota_min_automatico || 88)) +
+             ' vai sozinho ao corretor, no PV, pelo número da Parceria (das ' + esc(String(cf.automatico_das || 8)) + 'h às ' + esc(String(cf.automatico_ate || 20)) +
+             'h, até ' + esc(String(cf.automatico_max_dia || 40)) + ' por dia). Os outros continuam no botão.">ENVIO AUTOMÁTICO · nota acima de ' +
+             esc(String(cf.nota_min_automatico || 88)) + '</span>');
+    } else h.push(manual()
       ? '<span class="gc-selo gc-selo--treino" title="O leitor só lê, extrai, pontua e mostra. Mensagem só sai quando você clica em Enviar ao corretor.">ENVIO SÓ MANUAL · nada sai sozinho</span>'
       : '<span class="gc-selo gc-selo--treino" title="O envio manual está desligado em config.json (envio_manual).">MODO TREINO · nada é enviado</span>');
     h.push(d.servico_vivo

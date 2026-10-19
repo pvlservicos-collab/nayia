@@ -1,8 +1,8 @@
 {
   "_leia": "Captação ativa por grupos: tudo o que se ajusta sem mexer no código. O serviço relê este arquivo sozinho (não precisa reiniciar). Chave que faltar vale o padrão de grupos/regras.py.",
 
-  "modo": "treino",
-  "_modo": "treino = lê, extrai, pontua e mostra; NUNCA envia sozinho. 'ativo' (envio automático) ainda não existe nesta versão: se estiver escrito, o serviço continua em treino e avisa na tela.",
+  "modo": "ativo",
+  "_modo": "treino = lê, extrai, pontua e mostra; nada sai sozinho. ativo (Pedro, 19/10) = além disso, o melhor imóvel de cada pedido com nota ACIMA de nota_min_automatico vai sozinho ao corretor que pediu, no PV, pelo número da Parceria (mensagem_automatica + card + fotos), pela mesma função do botão Enviar ao corretor.",
 
   "envio_manual": true,
   "_envio_manual": "true = a tela mostra o botão 'Enviar ao corretor' (um clique seu por pedido: a mensagem de abertura e, se enviar_dados_e_fotos, o card e as fotos, pelo número da Parceria). false = o botão some e o banco recusa o envio.",
@@ -35,5 +35,13 @@
   "intervalo_min_entre_envios": 0,
   "mensagem_de_abertura": "Oi, vi sua solicitação no grupo, tenho um imóvel que pode se encaixar no que o seu cliente quer, vou te enviar aqui ok? Qualquer dúvida me avisa",
   "enviar_dados_e_fotos": true,
+
+  "nota_min_automatico": 88,
+  "mensagem_automatica": "Oi, vi seu pedido lá no grupo! Veja se esse imóvel serve 😊",
+  "automatico_max_dia": 40,
+  "automatico_das": 8,
+  "automatico_ate": 20,
+  "automatico_desde": "2026-10-19T00:00:00-04:00",
+  "_automatico": "modo ativo: nota mínima (só ACIMA dela), a mensagem que abre, quantos envios automáticos por dia, o horário (hora de Manaus, das 8 até antes das 20) e o momento em que ligou: pedido mais antigo que isso não é varrido. Um corretor recebe no máximo um automático por hora; equipe e grupos nossos nunca.",
   "_envio": "valem para o envio manual: o intervalo mínimo entre duas mensagens ao mesmo corretor (minutos; 0 = sem espera, Pedro 15/10), a mensagem que abre a conversa e se depois dela vão o card e as fotos (false = só a abertura sai, e o resto você manda na mão)"
 }

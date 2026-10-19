@@ -1,10 +1,11 @@
-"""O serviço: a cada passada lê o que chegou dos grupos, extrai os pedidos, pontua e grava. NUNCA envia.
+"""O serviço: a cada passada lê o que chegou dos grupos, extrai os pedidos, pontua e grava; no modo ativo, envia.
 
     python -m grupos.worker              o serviço (systemd: nay-grupos.service)
     python -m grupos.worker --uma-vez    uma passada só, e sai (para conferir depois de publicar)
 
 Pedro, 09/10/2026: modo TREINO -- "lê as solicitações de TODOS os grupos das últimas 48h, extrai, pontua e
-mostra na tela. NUNCA envia mensagem." O envio não está neste arquivo nem em lugar nenhum: ver envio.py.
+mostra na tela. NUNCA envia mensagem." Em 19/10 ele ligou o modo ativo: ver envio.py (o melhor imóvel, nota acima
+de 88, ao corretor que pediu, pela caixa da Nay).
 
 A cada passada:
   1. relê config.json (pesos, cortes, janela) e publica na tabela de estado, para a tela mostrar;
@@ -22,7 +23,7 @@ import pathlib
 import sys
 import time
 
-from grupos import banco, catalogo, config, extrair, lugares, pontuar, regras
+from grupos import banco, catalogo, config, envio, extrair, lugares, pontuar, regras
 
 log = logging.getLogger("grupos")
 
@@ -130,6 +131,14 @@ def main() -> None:
             feitos = pontuar_pedidos(conn, r, todos=refazer)
             if refazer:
                 ultima_conta_geral = time.time()
+            # 19/10: o modo ativo manda o melhor imóvel (nota acima de 88) ao corretor que pediu (grupos/envio.py)
+            try:
+                saiu = envio.automatico(conn, r, banco.linhas)
+                if saiu:
+                    log.info("envio automático: %s pedido(s) atendido(s)", saiu)
+            except Exception:              # noqa: BLE001 - o envio não para a leitura
+                conn.rollback()
+                log.exception("o envio automático falhou nesta passada")
             if novos or (feitos and not refazer):
                 log.info("pedidos novos: %s; pontuados: %s", novos, feitos)
             conn.rollback()        # fecha a transação das leituras: o serviço não dorme com transação aberta

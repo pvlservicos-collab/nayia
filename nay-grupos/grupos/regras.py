@@ -29,6 +29,14 @@ PADRAO = {
     "mensagem_de_abertura": ("Oi, vi sua solicitação no grupo, tenho um imóvel que pode se encaixar no que o seu "
                              "cliente quer, vou te enviar aqui ok? Qualquer dúvida me avisa"),
     "enviar_dados_e_fotos": True,
+    # 19/10 (Pedro: "pode ativar um envio automático para o corretor que pediu, em imóveis com a nota acima de 88 ...
+    # pode botar para chamar o corretor no PV pelo número da Parceria no automático"): com modo "ativo"
+    "nota_min_automatico": 88,
+    "mensagem_automatica": "Oi, vi seu pedido lá no grupo! Veja se esse imóvel serve 😊",
+    "automatico_max_dia": 40,
+    "automatico_das": 8,
+    "automatico_ate": 20,
+    "automatico_desde": "",
 }
 
 
@@ -72,12 +80,15 @@ def conferir(regras: dict) -> tuple[dict, list[str]]:
     if r["modo"] not in ("treino", "ativo"):
         avisos.append(f"modo '{r['modo']}' não existe; fica treino")
         r["modo"] = "treino"
-    if r["modo"] == "ativo":
-        # O MODO ATIVO (envio automático) NÃO EXISTE NESTA VERSÃO. Escrever "ativo" no arquivo não liga envio
-        # nenhum: grupos/envio.py recusa sempre. Fica treino, com o aviso na tela. O que existe é o envio MANUAL
-        # (`envio_manual`): o botão da tela, um clique dele por pedido, pela caixa da Nay.
-        avisos.append("o arquivo pede modo ativo, mas esta versão só tem o treino: nada é enviado sozinho")
+    # O MODO ATIVO (19/10, Pedro): o envio automático do melhor imóvel ao corretor que pediu, quando a nota passa de
+    # `nota_min_automatico` (grupos/envio.py). Sem o botão manual ligado o banco recusa o envio, então ativo exige ele.
+    if r["modo"] == "ativo" and not r["envio_manual"]:
+        avisos.append("modo ativo precisa de envio_manual = true (o envio passa pela mesma função do botão); ficou treino")
         r["modo"] = "treino"
+    r["nota_min_automatico"] = min(max(float(r["nota_min_automatico"]), 70.0), 100.0)
+    r["automatico_max_dia"] = max(0, int(r["automatico_max_dia"]))
+    r["automatico_das"] = min(max(int(r["automatico_das"]), 0), 23)
+    r["automatico_ate"] = min(max(int(r["automatico_ate"]), r["automatico_das"] + 1), 24)
     if sum(r["pesos"].values()) <= 0:
         avisos.append("os pesos somam zero; ficou o padrão")
         r["pesos"] = copy.deepcopy(PADRAO["pesos"])

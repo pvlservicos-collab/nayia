@@ -309,16 +309,20 @@ class Regras(unittest.TestCase):
 
     def test_o_arquivo_do_repositorio_e_igual_ao_padrao(self):
         r, avisos = regras.carregar(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.json"))
-        self.assertEqual((r, avisos), (R, []))
+        # 19/10: o arquivo do servidor liga o modo ativo e diz desde quando; o resto é o padrão
+        self.assertEqual((r["modo"], bool(r["automatico_desde"])), ("ativo", True))
+        self.assertEqual(({**r, "modo": R["modo"], "automatico_desde": R["automatico_desde"]}, avisos), (R, []))
 
     def test_mudar_um_peso_vale_e_o_resto_fica(self):
         r, avisos = regras.carregar(self._arquivo('{"pesos": {"preco": 50}, "cortes": {"verde": 85}}'))
         self.assertEqual((r["pesos"]["preco"], r["pesos"]["local"], r["cortes"], avisos), (50, 20, {"verde": 85, "amarelo": 70}, []))
 
-    def test_escrever_ativo_nao_liga_envio(self):
+    def test_ativo_vale_e_sem_o_botao_manual_volta_a_treino(self):
         r, avisos = regras.carregar(self._arquivo('{"modo": "ativo"}'))
+        self.assertEqual((r["modo"], avisos), ("ativo", []))
+        r, avisos = regras.carregar(self._arquivo('{"modo": "ativo", "envio_manual": false}'))
         self.assertEqual(r["modo"], "treino")
-        self.assertTrue(any("nada é enviado sozinho" in a for a in avisos))
+        self.assertTrue(any("envio_manual" in a for a in avisos))
 
     def test_arquivo_estragado_vale_o_padrao_com_aviso(self):
         r, avisos = regras.carregar(self._arquivo('{"pesos": '))
@@ -373,14 +377,33 @@ class Financiamento(unittest.TestCase):
 
 
 class Envio(unittest.TestCase):
-    def test_o_envio_nao_existe_nesta_versao(self):
-        with self.assertRaises(envio.EnvioBloqueado):
-            envio.enviar("um telefone", "qualquer coisa")
+    def test_o_envio_automatico_so_liga_com_ativo_e_a_hora_de_inicio(self):
+        r = dict(R)
+        self.assertFalse(envio.ligado(r))                                          # treino
+        self.assertFalse(envio.ligado({**r, "modo": "ativo"}))                     # ativo sem dizer desde quando
+        self.assertTrue(envio.ligado({**r, "modo": "ativo", "automatico_desde": "2026-10-19T20:00:00-04:00"}))
+        self.assertFalse(envio.ligado({**r, "modo": "ativo", "automatico_desde": "2026-10-19", "envio_manual": False}))
+
+    def test_horario_de_manaus(self):
+        m = envio.MANAUS
+        self.assertFalse(envio.no_horario(R, datetime.datetime(2026, 10, 19, 7, 59, tzinfo=m)))
+        self.assertTrue(envio.no_horario(R, datetime.datetime(2026, 10, 19, 8, 0, tzinfo=m)))
+        self.assertTrue(envio.no_horario(R, datetime.datetime(2026, 10, 19, 19, 59, tzinfo=m)))
+        self.assertFalse(envio.no_horario(R, datetime.datetime(2026, 10, 19, 20, 0, tzinfo=m)))
+        # 23:30 em UTC é 19:30 em Manaus
+        self.assertTrue(envio.no_horario(R, datetime.datetime(2026, 10, 19, 23, 30, tzinfo=datetime.timezone.utc)))
+
+    def test_nota_minima_e_so_acima(self):
+        self.assertIn("q.nota > %(nota)s", envio.CANDIDATOS)
+        self.assertEqual(R["nota_min_automatico"], 88)
+
+    def test_o_modulo_nao_fala_com_a_rede(self):
         with open(envio.__file__, encoding="utf-8") as f:
             fonte = f.read()
-        # o módulo não tem como mandar nada: não importa coisa nenhuma nem conhece endereço de rede
-        self.assertNotIn("import ", fonte)
-        self.assertNotIn("http", fonte)
+        # o envio é a função do banco (a caixa da Nay); daqui não sai requisição nenhuma
+        for proibido in ("requests", "urllib", "http", "socket"):
+            self.assertNotIn(proibido, fonte)
+        self.assertIn("site_captacao_grupos_enviar", fonte)
 
 
 
