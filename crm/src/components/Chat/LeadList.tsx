@@ -738,7 +738,10 @@ export default function LeadList({
             {linha === 'captacao' ? (
               <>
                 {/* 16/10: as etapas da Captação são a fileira principal; o subfiltro dos donos só com Proprietários aberto */}
-                <ChatFilterTabs ativo={activeTab.startsWith('cap:') ? 'olx:proprietarios' : activeTab} aoMudar={setActiveTab} filtros={filtrosCaptacao} />
+                {/* 18/10 (Pedro: "pega a tag Tel e põe acima da tag Todos"): o Tel numa fileira própria, em cima das etapas */}
+                <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtrosCaptacao.filter((f) => f.grupo === 'pessoa')} />
+                <ChatFilterTabs ativo={activeTab.startsWith('cap:') ? 'olx:proprietarios' : activeTab} aoMudar={setActiveTab}
+                                filtros={filtrosCaptacao.filter((f) => f.grupo !== 'pessoa')} />
                 {noSubfiltroDosDonos && (
                   <div className="flex items-center gap-1 pl-4">
                     <span className="text-[12px] flex-shrink-0" style={{ color: 'var(--wa-text-2)' }}
