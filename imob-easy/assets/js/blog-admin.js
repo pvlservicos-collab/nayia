@@ -21,18 +21,23 @@
     return '<span class="bg-nota bg-nota--' + c + '" title="nota de SEO">' + v + "</span>";
   }
 
-  function dmh(iso) { return iso ? new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"; }
+  /* TUDO EM HORA DE MANAUS (o relógio do Pedro é Brasília, 1 h na frente): o que se vê e o que se digita é Manaus,
+     e vai ao banco com -04:00 (Manaus não tem horário de verão). */
+  var FUSO = "America/Manaus", DESLOC = "-04:00";
+  function dmh(iso) { return iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: FUSO, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"; }
   function toast(msg, erro) {
     var t = document.getElementById("bg-toast");
     if (!t) { t = document.createElement("div"); t.id = "bg-toast"; t.className = "bg-toast"; document.body.appendChild(t); }
     t.textContent = msg; t.classList.toggle("erro", !!erro); t.hidden = false; clearTimeout(t._t); t._t = setTimeout(function () { t.hidden = true; }, erro ? 6000 : 2600);
   }
-  /* a data local (Manaus = fuso do navegador dele) em ISO com fuso, para o banco não interpretar como UTC */
-  function isoLocal(d) {
-    var p = function (n) { return String(n).padStart(2, "0"); }, off = -d.getTimezoneOffset(), s = off >= 0 ? "+" : "-";
-    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes()) + ":00" + s + p(Math.floor(Math.abs(off) / 60)) + ":" + p(Math.abs(off) % 60);
+  /* "AAAA-MM-DDTHH:MM" digitado como hora de Manaus -> ISO com -04:00 */
+  function isoLocal(valor) { return String(valor).slice(0, 16) + ":00" + DESLOC; }
+  /* ISO qualquer -> "AAAA-MM-DDTHH:MM" na hora de Manaus (para o input datetime-local) */
+  function paraInputLocal(iso) {
+    var d = new Date(iso), f = new Intl.DateTimeFormat("en-CA", { timeZone: FUSO, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
+    var o = {}; f.formatToParts(d).forEach(function (x) { o[x.type] = x.value; });
+    return o.year + "-" + o.month + "-" + o.day + "T" + (o.hour === "24" ? "00" : o.hour) + ":" + o.minute;
   }
-  function paraInputLocal(iso) { var d = new Date(iso), p = function (n) { return String(n).padStart(2, "0"); }; return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes()); }
 
   /* ================================================================ AGENDA (412) */
   function agenda() {
@@ -51,7 +56,7 @@
         "<div><span>Publicados na última semana</span><strong>" + recentes.length + "</strong></div>" +
         "<div><span>Rascunhos</span><strong>" + todos.filter(function (a) { return !a.publicado && !a.agendado_para; }).length + "</strong></div>";
       var porDia = {};
-      agendados.forEach(function (a) { var k = new Date(a.agendado_para).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" }); (porDia[k] = porDia[k] || []).push(a); });
+      agendados.forEach(function (a) { var k = new Date(a.agendado_para).toLocaleDateString("pt-BR", { timeZone: FUSO, weekday: "long", day: "2-digit", month: "2-digit" }); (porDia[k] = porDia[k] || []).push(a); });
       var h = "";
       Object.keys(porDia).forEach(function (dia) {
         h += '<div class="ag-dia"><h3>' + esc(dia) + " <small>" + porDia[dia].length + " post" + (porDia[dia].length === 1 ? "" : "s") + "</small></h3>" + porDia[dia].map(linhaAgenda).join("") + "</div>";
@@ -87,7 +92,7 @@
     var item = b.closest("[data-id]"), id = item.dataset.id, acao = b.dataset.acao;
     b.disabled = true;
     carregarArtigo(id).then(function (a) {
-      if (acao === "salvar-data") { var v = item.querySelector("[data-data]").value; if (!v) throw new Error("escolha a data"); return salvarArtigo(a, { agendado_para: isoLocal(new Date(v)) }).then(function () { toast("Data salva"); }); }
+      if (acao === "salvar-data") { var v = item.querySelector("[data-data]").value; if (!v) throw new Error("escolha a data"); return salvarArtigo(a, { agendado_para: isoLocal(v) }).then(function () { toast("Data salva (hora de Manaus)"); }); }
       if (acao === "publicar") { if (!confirm("Publicar “" + a.titulo + "” agora?")) return; return salvarArtigo(a, { publicado: true, agendado_para: null }).then(function () { toast("No ar"); }); }
       if (acao === "capa") return escolherCapa(a);
     }).then(function () { agenda(); }).catch(function (err) { toast(err.message, true); b.disabled = false; });
@@ -133,7 +138,7 @@
       var t = e.target, card = t.closest("[data-k]"); if (!card) return;
       var p = imPosts[Number(card.dataset.k)];
       if (t.dataset.campo) { p[t.dataset.campo] = t.value; if (t.dataset.campo !== "agendado_local") p.seo = avaliarPost(p); }
-      if (t.dataset.campo === "agendado_local") p.agendado_para = isoLocal(new Date(t.value));
+      if (t.dataset.campo === "agendado_local") p.agendado_para = isoLocal(t.value);
       pintarCabecalhoImport(card, p);
     });
   }
@@ -146,9 +151,11 @@
       $("im-texto").value = t;
       return pedir("api/blog/importar/previa", { method: "POST", body: JSON.stringify({ texto: t, imagens: !$("im-sem-imagens").checked }) });
     }).then(function (j) {
+      /* a 1ª candidata só entra sozinha quando vem do Pexels; do Openverse/Wikimedia (sem chave) a escolha é à mão,
+         porque em 19/10 a escolha automática trouxe envelope antigo e foto de político como capa */
       imPosts = (j.posts || []).map(function (p, k) {
-        p.k = k; p.capa = (p.capa_candidatas || [])[0] || null;
-        p.imagens = {}; (p.imagens_pedidas || []).forEach(function (im) { p.imagens[im.marcador] = (im.candidatas || [])[0] || null; });
+        p.k = k; p.capa = j.pexels ? ((p.capa_candidatas || [])[0] || null) : null;
+        p.imagens = {}; (p.imagens_pedidas || []).forEach(function (im) { p.imagens[im.marcador] = j.pexels ? ((im.candidatas || [])[0] || null) : null; });
         p.seo = avaliarPost(p); return p;
       });
       $("im-aviso-pexels").hidden = !!j.pexels;
@@ -177,8 +184,9 @@
     }
     ordem.forEach(function (p, i) {
       var d = new Date(de); d.setDate(de.getDate() + Math.floor(i / porDia));
-      var hm = horas[i % porDia].split(":"); d.setHours(Number(hm[0]) || 9, Number(hm[1]) || 0, 0, 0);
-      p.agendado_para = isoLocal(d); p.ordem = i;
+      var hm = horas[i % porDia].split(":"), pp = function (n) { return String(n).padStart(2, "0"); };
+      // a data do calendário + o horário digitado = hora de Manaus
+      p.agendado_para = isoLocal(d.getFullYear() + "-" + pp(d.getMonth() + 1) + "-" + pp(d.getDate()) + "T" + pp(Number(hm[0]) || 9) + ":" + pp(Number(hm[1]) || 0)); p.ordem = i;
     });
     imPosts.sort(function (a, b) { return a.ordem - b.ordem; }).forEach(function (p, k) { p.k = k; });
   }

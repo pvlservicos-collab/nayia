@@ -2,3 +2,5 @@
 # em blog.imobeasy.online/newsletter, pelo Enviar imovel (Parceria). A funcao so age das 8h as 20h (Manaus).
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 */15 * * * * root docker exec nay-postgres psql -U nay -d naydb -qtAc "SELECT blog_newsletter_disparar()" >> /var/log/nay-blog.log 2>&1
+# 412 (19/10): o artigo agendado entra no ar na hora marcada
+*/5 * * * * root docker exec nay-postgres psql -U nay -d naydb -qtAc "SELECT blog_publicar_agendados()" >> /var/log/nay-blog.log 2>&1
