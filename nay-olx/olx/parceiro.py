@@ -8,6 +8,12 @@ não tem nada para o cliente (olx/whatsapp.py, `_buscar_e_mandar`). Roda numa li
                  disponível -> o imóvel vai ao cliente pelo 8595 (sem link, sem dizer "parceiro"); grupo avisado
                  não / outra coisa / sem resposta -> grupo; a Nay para de falar com o cliente (a equipe assume)
      não    -> grupo: "Achei esse imóvel ... chamar na OLX pelo anúncio"; a Nay para de falar com o cliente
+421 (Pedro, 19/10: "buscar na OLX > cadastrar > enviar ... assim que o imóvel for cadastrado e dado como disponível ela
+manda ao lead"): todo caminho que vai ao grupo (desconhecido, sem resposta, resposta que precisa de gente) cria o
+PRÉ-CADASTRO (Rascunho, origem olx, com as fotos do anúncio; parceiro quando o anúncio é de corretor) e a ordem fica em
+'aguardando_cadastro'. A equipe fala com o anunciante e aprova em Imóveis > Aprovar imóveis; quando o imóvel fica
+Disponível, a Nay manda o card ao cliente e volta a atender ('enviado'). Descartado/vendido/alugado ou 7 dias:
+'sem_cadastro'. O "sim" do anunciante conhecido continua indo direto ao cliente (Pedro: "ela pode oferecer").
 Em TESTE (`busca_parceiro = teste`) a pergunta vai ao primeiro número de `whatsapp_teste`, nunca ao anunciante.
 """
 from __future__ import annotations
@@ -20,7 +26,9 @@ import time
 from olx import banco, busca_olx, cdp, grupo, modelo, whatsapp
 
 log = logging.getLogger("nay-olx.parceiro")
-ABERTAS = ("pendente", "buscando", "sem_navegador", "perguntado")
+ABERTAS = ("pendente", "buscando", "sem_navegador", "perguntado", "aguardando_cadastro")
+ESPERA_DO_CADASTRO_DIAS = 7
+FIM_SEM_CADASTRO = ("Excluído", "Vendido", "Alugado", "Removido", "Arquivado", "Indisponível")
 LINHA_DA_ORIGEM = {"parceria": "parceria", "parceria_saida": "parceria", "nay": "parceria", "nay_saida": "parceria",
                    "core_saida": "parceria", "corretores": "parceria", "envio_saida": "parceria",
                    "captacao": "captacao", "captacao_saida": "captacao"}
@@ -140,6 +148,75 @@ def pergunta(nome: str | None, a: dict) -> str:
             f"perfil.\n{a.get('url')}")
 
 
+# ── o pré-cadastro (421) ──
+def precadastrar(conn, o: dict, a: dict, lead: dict) -> int:
+    """O anúncio da OLX vira Rascunho (fora do site e da Nay) para a equipe completar e aprovar. Devolve o código."""
+    if o.get("codigo"):
+        return int(o["codigo"])
+    im = a.get("imovel") or {}
+    tipo = {"apartamento": "Apartamento", "casa": "Casa"}.get(im.get("tipo"))
+    extras = {"olx_url": a.get("url"), "olx_id": str(a.get("olx_id") or ""), "olx_titulo": a.get("titulo"),
+              "busca_parceiro": str(o["id"]), "cliente": _cliente(lead), "nota": str(round(float(o.get("nota") or a.get("nota") or 0))),
+              "anunciante": o.get("contato_nome") or a.get("anunciante"), "anunciante_telefone": o.get("contato_tel"),
+              "cadastrado_pelo": "busca na OLX (Nay)"}
+    extras = {k: v for k, v in extras.items() if v}
+    codigo = banco.um(conn, """
+        INSERT INTO imoveis (codigo, origem, status, disponivel, publicado_no_site, criado_em, captado_em, e_parceiro, tipo,
+                             bairro, cep, quartos, vagas, area_util, valor_aluguel, valor_venda, descricao, extras)
+        VALUES (nextval('imoveis_crm_codigo_seq'), 'olx', 'Rascunho', false, false, now(), to_char(now(), 'DD/MM/YYYY'), %s, %s,
+                %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb)
+        RETURNING codigo""", (bool(a.get("profissional")), tipo, a.get("bairro") or im.get("bairro"), a.get("cep"),
+                               im.get("quartos"), im.get("vagas"), im.get("area"), im.get("valor_aluguel"), im.get("valor_venda"),
+                               (a.get("descricao") or "")[:4000] or None, banco.js(extras)))
+    for n, url in enumerate((a.get("fotos") or [])[:12], start=1):
+        banco.um(conn, "INSERT INTO imovel_fotos (codigo, ordem, url, e_capa) VALUES (%s, %s, %s, %s)", (codigo, n, url, n == 1))
+    conn.commit()
+    return int(codigo)
+
+
+def _ao_grupo_com_cadastro(conn, o: dict, lead: dict, a: dict, texto: str, motivo_da_pausa: str, **campos) -> None:
+    """O caminho do grupo (421): pré-cadastro, ordem esperando o cadastro, aviso e a Nay calada com o cliente."""
+    codigo = precadastrar(conn, {**o, **campos}, a, lead)
+    _marcar(conn, o["id"], estado="aguardando_cadastro", codigo=codigo, **campos)
+    _aviso(o, texto + f"\nCriei o pré-cadastro #{codigo} (Rascunho) em Imóveis › Aprovar imóveis. Falem com o anunciante, "
+                      "completem e aprovem: quando ele ficar Disponível, a Nay manda ao cliente sozinha. Até lá ela não "
+                      "fala com o cliente.")
+    _parar_cliente(conn, lead, motivo_da_pausa)
+
+
+def entregar_do_cadastro(conn, o: dict, lead: dict) -> None:
+    """O pré-cadastro ficou Disponível: o card vai ao cliente e a Nay volta a atender."""
+    codigo = int(o["codigo"])
+    whatsapp.mandar_texto(conn, lead, "Boa notícia! Consegui uma opção que combina com o que você procura:")
+    time.sleep(whatsapp.ENTRE_ENVIOS_S)
+    whatsapp.mandar_imovel(conn, lead, codigo)
+    time.sleep(whatsapp.DEPOIS_DAS_FOTOS_S)
+    whatsapp.mandar_texto(conn, lead, "O que achou dessa? Se gostar, já vejo a visita para você.")
+    enviados = list(lead.get("enviados") or [])
+    if codigo not in enviados:
+        whatsapp._marcar(conn, lead["id"], enviados=enviados + [codigo])
+    if str(lead.get("parada_motivo") or "").startswith("busca na OLX"):
+        whatsapp._marcar(conn, lead["id"], humano_em=None, parada_motivo=None)
+    conn.commit()
+
+
+def _cadastro(conn, o: dict, lead: dict) -> None:
+    st = banco.um(conn, "SELECT status FROM imoveis WHERE codigo = %s", (o["codigo"],))
+    a = o["escolhido"] or {}
+    if st == "Disponível":
+        entregar_do_cadastro(conn, o, lead)
+        _marcar(conn, o["id"], estado="enviado")
+        _aviso(o, f"o imóvel #{o['codigo']} ({a.get('titulo')}) ficou Disponível e a Nay mandou ao cliente {_cliente(lead)}. "
+                  "Ela voltou a atender a conversa.")
+        return
+    velho = time.time() - o["atualizado_em"].timestamp() > ESPERA_DO_CADASTRO_DIAS * 86400
+    if st is None or st in FIM_SEM_CADASTRO or velho:
+        _marcar(conn, o["id"], estado="sem_cadastro")
+        _aviso(o, f"o pré-cadastro #{o['codigo']} ({a.get('titulo')}) do cliente {_cliente(lead)} "
+                  f"{'ficou ' + st if st else 'sumiu'}{' e passou de 7 dias' if velho else ''}: a Nay não vai mandar. "
+                  "A conversa com o cliente continua com a equipe.")
+
+
 # ── os passos ──
 def _buscar(conn, o: dict, c: dict, lead: dict) -> None:
     if not cdp.no_ar(c["cdp"]):
@@ -160,7 +237,8 @@ def _buscar(conn, o: dict, c: dict, lead: dict) -> None:
         return
     melhor = bons[0]
     det = busca_olx.detalhe(c["cdp"], melhor["anuncio"]["url"]) or {}
-    escolhido = {**melhor["anuncio"], **{k: v for k, v in det.items() if v}}
+    escolhido = {**melhor["anuncio"], **{k: v for k, v in det.items() if v}, "imovel": melhor.get("imovel") or {},
+                 "nota": melhor["nota"]}
     tels = telefones_do_anuncio(conn, det)
     linha, nome, tel = None, det.get("anunciante") or melhor["anuncio"].get("anunciante"), None
     for t in tels:
@@ -172,11 +250,12 @@ def _buscar(conn, o: dict, c: dict, lead: dict) -> None:
            f"{escolhido.get('titulo')} · {escolhido.get('preco_texto') or ''} · {escolhido.get('bairro') or ''}.\n"
            f"Anúncio: {escolhido.get('url')}\nAnunciante: {nome or 'sem nome'}")
     if not linha:
-        _marcar(conn, o["id"], estado="no_grupo", candidatos=resumo, escolhido=escolhido, nota=melhor["nota"],
-                contato_tel=(tels[0] if tels else None), contato_nome=nome)
-        _aviso(o, cab + (f" · telefone na descrição: {tels[0]}" if tels else " · sem telefone no anúncio") +
-               "\nNão falamos com ele ainda: chamar na OLX pelo anúncio. A Nay parou de responder esse cliente: a conversa é nossa agora.")
-        _parar_cliente(conn, lead, "busca na OLX: imóvel achado, a equipe chama o anunciante")
+        _ao_grupo_com_cadastro(conn, o, lead, escolhido,
+                               cab + (f" · telefone na descrição: {tels[0]}" if tels else " · sem telefone no anúncio") +
+                               "\nNão falamos com ele ainda: chamar na OLX pelo anúncio.",
+                               "busca na OLX: imóvel achado, a equipe chama o anunciante",
+                               candidatos=resumo, escolhido=escolhido, nota=melhor["nota"],
+                               contato_tel=(tels[0] if tels else None), contato_nome=nome)
         return
     destino = c["teste"][0] if o["teste"] and c["teste"] else tel
     texto = pergunta(nome, escolhido)
@@ -245,11 +324,11 @@ def _esperar(conn, o: dict, c: dict, lead: dict) -> None:
     texto = _resposta(conn, o)
     if not texto:
         if time.time() - o["perguntado_em"].timestamp() > c["espera_h"] * 3600:
-            _marcar(conn, o["id"], estado="sem_resposta")
             _pausar_parceria(conn, o["contato_tel"], "", False)
-            _aviso(o, f"{nome} ({o['contato_tel']}) não respondeu em {c['espera_h']:.0f} h se {a.get('titulo')} está disponível "
-                      f"({a.get('url')}). A Nay parou de responder o cliente {_cliente(lead)}: seguir com ele.")
-            _parar_cliente(conn, lead, "busca na OLX: o anunciante não respondeu")
+            _ao_grupo_com_cadastro(conn, o, lead, a,
+                                   f"{nome} ({o['contato_tel']}) não respondeu em {c['espera_h']:.0f} h se {a.get('titulo')} está "
+                                   f"disponível ({a.get('url')}). Cliente: {_cliente(lead)}.",
+                                   "busca na OLX: o anunciante não respondeu")
         return
     veredito = disponivel(texto)
     _pausar_parceria(conn, o["contato_tel"], "", False)
@@ -259,11 +338,17 @@ def _esperar(conn, o: dict, c: dict, lead: dict) -> None:
         _aviso(o, f"{nome} ({o['contato_tel']}) confirmou que {a.get('titulo')} está disponível. A Nay mandou ao cliente "
                   f"{_cliente(lead)}. Anúncio: {a.get('url')}. Se ele quiser visitar, combinar com {nome}.")
         return
-    _marcar(conn, o["id"], estado="negado" if veredito == "nao" else "no_grupo", resposta_texto=texto[:1000],
-            resposta_em=banco.um(conn, "SELECT now()"))
-    _aviso(o, f"{nome} ({o['contato_tel']}) respondeu sobre {a.get('titulo')}: \"{texto[:300]}\". "
-              f"{'Não está disponível. ' if veredito == 'nao' else ''}A Nay parou de responder o cliente {_cliente(lead)}: "
-              f"seguir com ele. Anúncio: {a.get('url')}")
+    agora = banco.um(conn, "SELECT now()")
+    if veredito == "duvida":
+        _ao_grupo_com_cadastro(conn, o, lead, a,
+                               f"{nome} ({o['contato_tel']}) respondeu sobre {a.get('titulo')}: \"{texto[:300]}\". "
+                               f"Cliente: {_cliente(lead)}. Anúncio: {a.get('url')}",
+                               "busca na OLX: o anunciante respondeu e precisa de gente",
+                               resposta_texto=texto[:1000], resposta_em=agora)
+        return
+    _marcar(conn, o["id"], estado="negado", resposta_texto=texto[:1000], resposta_em=agora)
+    _aviso(o, f"{nome} ({o['contato_tel']}) respondeu sobre {a.get('titulo')}: \"{texto[:300]}\". Não está disponível. "
+              f"A Nay parou de responder o cliente {_cliente(lead)}: seguir com ele. Anúncio: {a.get('url')}")
     _parar_cliente(conn, lead, "busca na OLX: o anunciante respondeu e precisa de gente")
 
 
@@ -275,12 +360,20 @@ def uma_volta(conn) -> int:
                        WHERE estado = 'buscando' AND atualizado_em < now() - interval '10 minutes'""")
     conn.commit()
     feitas = 0
-    for o in banco.linhas(conn, """SELECT * FROM privado.olx_busca_parceiro WHERE estado IN ('pendente', 'perguntado')
-                                    ORDER BY id LIMIT 5"""):
+    # 421: as que esperam cadastro só entram quando há o que fazer (ficou Disponível, saiu ou passou do prazo)
+    for o in banco.linhas(conn, """
+            SELECT b.* FROM privado.olx_busca_parceiro b
+             WHERE b.estado IN ('pendente', 'perguntado')
+                OR (b.estado = 'aguardando_cadastro' AND (
+                      NOT EXISTS (SELECT 1 FROM imoveis i WHERE i.codigo = b.codigo AND i.status NOT IN %(fim)s AND i.status <> 'Disponível')
+                      OR b.atualizado_em < now() - make_interval(days => %(dias)s)))
+             ORDER BY (b.estado = 'pendente') DESC, b.id LIMIT 8""", {"fim": FIM_SEM_CADASTRO, "dias": ESPERA_DO_CADASTRO_DIAS}):
         lead = whatsapp._lead(conn, o["lead"])
         try:
             if o["estado"] == "pendente":
                 _buscar(conn, o, c, lead)
+            elif o["estado"] == "aguardando_cadastro":
+                _cadastro(conn, o, lead)
             else:
                 _esperar(conn, o, c, lead)
             feitas += 1

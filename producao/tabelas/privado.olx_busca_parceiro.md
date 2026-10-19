@@ -1,4 +1,4 @@
-# privado.olx_busca_parceiro  (tabela, ~0 linhas)
+# privado.olx_busca_parceiro  (tabela, ~1 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('privado.olx_busca_parceiro_id_seq'::regclass)
@@ -20,14 +20,15 @@ resposta_em  timestamp with time zone
 erro  text
 criado_em  timestamp with time zone  NOT NULL  padrão now()
 atualizado_em  timestamp with time zone  NOT NULL  padrão now()
+codigo  integer
 
 ## índices
 CREATE INDEX olx_busca_parceiro_estado ON privado.olx_busca_parceiro USING btree (estado, criado_em)
-CREATE UNIQUE INDEX olx_busca_parceiro_aberta ON privado.olx_busca_parceiro USING btree (lead) WHERE (estado = ANY (ARRAY['pendente'::text, 'buscando'::text, 'sem_navegador'::text, 'perguntado'::text]))
+CREATE UNIQUE INDEX olx_busca_parceiro_aberta ON privado.olx_busca_parceiro USING btree (lead) WHERE (estado = ANY (ARRAY['pendente'::text, 'buscando'::text, 'sem_navegador'::text, 'perguntado'::text, 'aguardando_cadastro'::text]))
 CREATE UNIQUE INDEX olx_busca_parceiro_pkey ON privado.olx_busca_parceiro USING btree (id)
 
 ## restrições
-olx_busca_parceiro_estado_check: CHECK ((estado = ANY (ARRAY['pendente'::text, 'buscando'::text, 'sem_navegador'::text, 'sem_resultado'::text, 'perguntado'::text, 'confirmado'::text, 'negado'::text, 'sem_resposta'::text, 'no_grupo'::text, 'erro'::text, 'cancelado'::text])))
+olx_busca_parceiro_estado_check: CHECK ((estado = ANY (ARRAY['pendente'::text, 'buscando'::text, 'sem_navegador'::text, 'sem_resultado'::text, 'perguntado'::text, 'confirmado'::text, 'negado'::text, 'sem_resposta'::text, 'no_grupo'::text, 'erro'::text, 'cancelado'::text, 'aguardando_cadastro'::text, 'enviado'::text, 'sem_cadastro'::text])))
 olx_busca_parceiro_lead_fkey: FOREIGN KEY (lead) REFERENCES privado.olx_lead_whatsapp(id) ON DELETE CASCADE
 olx_busca_parceiro_linha_check: CHECK ((linha = ANY (ARRAY['parceria'::text, 'captacao'::text])))
 olx_busca_parceiro_pkey: PRIMARY KEY (id)

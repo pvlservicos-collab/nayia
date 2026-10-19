@@ -73,23 +73,28 @@ AS $function$
            (SELECT c.id FROM captacao_cadastro c WHERE c.codigo = i.codigo AND c.tipo = 'atualizar' AND c.estado IN ('coletando', 'pronto') ORDER BY c.id DESC LIMIT 1) AS atualizacao,
            (SELECT l.id FROM captacao_leads l WHERE btrim(l.codigo) = i.codigo::text AND l.situacao = 'disponivel' ORDER BY l.respondeu_em DESC NULLS LAST LIMIT 1) AS disse_disponivel
       FROM imoveis i
-     WHERE i.status IS DISTINCT FROM 'Disponível' AND i.status IS DISTINCT FROM 'Excluído' AND NOT i.e_parceiro),
+     WHERE i.status IS DISTINCT FROM 'Disponível' AND i.status IS DISTINCT FROM 'Excluído'
+       AND (NOT i.e_parceiro OR i.extras ? 'busca_parceiro')),          -- 421: o achado na OLX para um cliente entra
   ims AS (
     SELECT 'imovel:' || i.codigo, 'imovel', i.codigo::bigint, i.codigo,
-           CASE WHEN m.de_ficha IS NOT NULL OR m.atualizacao IS NOT NULL OR m.disse_disponivel IS NOT NULL THEN 'Proprietário pelo WhatsApp'
+           CASE WHEN i.extras ? 'busca_parceiro' THEN 'OLX: achado para um cliente da Nay'
+                WHEN m.de_ficha IS NOT NULL OR m.atualizacao IS NOT NULL OR m.disse_disponivel IS NOT NULL THEN 'Proprietário pelo WhatsApp'
                 ELSE 'OLX com autorização do proprietário' END,
            concat_ws(' · ',
-             CASE WHEN i.origem = 'olx' AND i.extras->>'cadastrado_pelo' = 'grokbot' THEN 'bot da OLX, aprovado como Rascunho'
+             CASE WHEN i.extras ? 'busca_parceiro' THEN 'busca na OLX para o cliente ' || coalesce(i.extras->>'cliente', '?')
+                         || ' (nota ' || coalesce(i.extras->>'nota', '?') || ')'
+                  WHEN i.origem = 'olx' AND i.extras->>'cadastrado_pelo' = 'grokbot' THEN 'bot da OLX, aprovado como Rascunho'
                   WHEN i.origem = 'olx' THEN 'importado do anúncio da OLX' END,
              CASE WHEN m.de_ficha IS NOT NULL THEN 'pré-cadastro da ficha do dono' END,
              CASE WHEN m.atualizacao IS NOT NULL THEN 'ficha de atualização ' || m.atualizacao END,
              CASE WHEN m.disse_disponivel IS NOT NULL THEN (SELECT ll.linha FROM linha_do_lead ll WHERE ll.id = m.disse_disponivel) END),
            coalesce((SELECT ll.respondeu_em FROM linha_do_lead ll WHERE ll.id = m.disse_disponivel), i.criado_em),
-           coalesce(pr.nome, (SELECT ll.nome FROM linha_do_lead ll WHERE ll.id = m.disse_disponivel)),
-           coalesce(pr.telefone, (SELECT ll.telefone FROM linha_do_lead ll WHERE ll.id = m.disse_disponivel)),
+           coalesce(pr.nome, (SELECT ll.nome FROM linha_do_lead ll WHERE ll.id = m.disse_disponivel), i.extras->>'anunciante'),
+           coalesce(pr.telefone, (SELECT ll.telefone FROM linha_do_lead ll WHERE ll.id = m.disse_disponivel), i.extras->>'anunciante_telefone'),
            i.status,
            concat_ws('; ',
-             CASE WHEN i.status = 'Rascunho' THEN 'pré-cadastro: falta aprovar' END,
+             CASE WHEN i.extras ? 'busca_parceiro' THEN 'a Nay achou na OLX para um cliente: falar com o anunciante; quando ficar Disponível ela manda ao cliente sozinha'
+                  WHEN i.status = 'Rascunho' THEN 'pré-cadastro: falta aprovar' END,
              CASE WHEN m.atualizacao IS NOT NULL THEN 'o dono mandou atualização pela conversa e ninguém aplicou' END,
              CASE WHEN m.disse_disponivel IS NOT NULL THEN 'o dono disse que está disponível e o imóvel está ' || coalesce(i.status, 'sem situação') END),
            pa.categoria, pa.porque, NULL::text,

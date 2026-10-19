@@ -1,6 +1,6 @@
 # Foto da produção (gerada por scripts/foto_producao.sh; não edite à mão)
 
-Tirada em 19/10/2026 17:40. Segredos trocados por <REDIGIDO>; telefones só com os 4 últimos.
+Tirada em 19/10/2026 19:27. Segredos trocados por <REDIGIDO>; telefones só com os 4 últimos.
 
 - funcoes/: 768 funções vivas do schema public, uma por arquivo (nome e tipos dos argumentos)
 - tabelas/: 301 tabelas e views (public e privado): colunas, índices, restrições, gatilhos,

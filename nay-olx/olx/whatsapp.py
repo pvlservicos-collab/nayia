@@ -963,7 +963,7 @@ def abrir_busca_na_olx(conn, lead: dict, filtros: dict) -> bool:
         return False
     # o mesmo pedido já procurado nas últimas 6 h e encerrado: a busca daria o mesmo; fica o caminho de antes (equipe)
     if banco.um(conn, """SELECT EXISTS (SELECT 1 FROM privado.olx_busca_parceiro WHERE lead = %s AND filtros = %s::jsonb
-                           AND estado NOT IN ('pendente', 'buscando', 'sem_navegador', 'perguntado')
+                           AND estado NOT IN ('pendente', 'buscando', 'sem_navegador', 'perguntado', 'aguardando_cadastro')
                            AND criado_em > now() - interval '6 hours')""", (lead["id"], json.dumps(filtros, ensure_ascii=False))):
         return False
     try:

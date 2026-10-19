@@ -13,7 +13,8 @@ SELECT (site_aprovar_imoveis()->>'fora')::int AS fora_depois_de_tirar;
 RESET ROLE;
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM jsonb_array_elements(site_aprovar_imoveis()->'itens') x
-              JOIN imoveis i ON i.codigo = (x->>'codigo')::int WHERE i.e_parceiro OR i.status IN ('Disponível', 'Excluído')) THEN
+              JOIN imoveis i ON i.codigo = (x->>'codigo')::int
+               WHERE (i.e_parceiro AND NOT i.extras ? 'busca_parceiro') OR i.status IN ('Disponível', 'Excluído')) THEN
     RAISE EXCEPTION 'parceiro, Disponível ou Excluído entrou na lista';
   END IF;
   RAISE NOTICE 'teste 419: ok';
