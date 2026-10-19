@@ -1,4 +1,4 @@
-# nai_grupo_corretor  (tabela, ~27 linhas)
+# nai_grupo_corretor  (tabela, ~28 linhas)
 Grupos de WhatsApp cujos membros viram corretores que a NAI pode atender. incluir=false tira o grupo da lista (ex.: MOTO AGENTE).
 
 ## colunas

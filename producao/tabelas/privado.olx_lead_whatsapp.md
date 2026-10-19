@@ -34,7 +34,7 @@ CREATE UNIQUE INDEX olx_lead_whatsapp_pkey ON privado.olx_lead_whatsapp USING bt
 ## restrições
 olx_lead_whatsapp_chat_telefone_key: UNIQUE (chat, telefone)
 olx_lead_whatsapp_etapa_check: CHECK ((etapa = ANY (ARRAY['nova'::text, 'filtrar'::text, 'feito_busca'::text, 'imoveis_enviados'::text, 'visita'::text, 'proprietarios'::text, 'fechamento'::text, 'finalizado'::text])))
-olx_lead_whatsapp_origem_check: CHECK ((origem = ANY (ARRAY['olx'::text, 'organico'::text])))
+olx_lead_whatsapp_origem_check: CHECK ((origem = ANY (ARRAY['olx'::text, 'organico'::text, 'manual'::text])))
 olx_lead_whatsapp_pkey: PRIMARY KEY (id)
 
 ## permissões

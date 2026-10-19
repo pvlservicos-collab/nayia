@@ -38,6 +38,8 @@ import { corDaPontuacao } from '@/lib/pontuacaoDoCadastro'
 import { numeroParaCopiar } from './PainelContatoParceria'
 import EtapaDaCaptacao from './EtapaDaCaptacao'
 import EtapaDoClienteOlx from './EtapaDoClienteOlx'
+import AgendarVisita from './AgendarVisita'
+import { CalendarPlus } from '@phosphor-icons/react'
 import AgendarFollowup from './AgendarFollowup'
 import CadastroDeImovel, { type AlvoDoCadastro, type FotoDaConversa } from './CadastroDeImovel'
 import { usePuxador } from '@/hooks/usePuxador'
@@ -131,6 +133,8 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
   const [erro, setErro] = useState<string | null>(null)
   const [alvo, setAlvo] = useState<AlvoDoCadastro | null>(null)
   const [copiado, setCopiado] = useState(false)
+  // 18/10 (Pedro: "põe o card de criar visita no card lateral do contato do número de captação também")
+  const [visitaAberta, setVisitaAberta] = useState(false)
   /* a borda esquerda puxa para alargar (Pedro, 09/10), como no card da Parceria */
   const borda = usePuxador('crm:largura-card-captacao', { min: 300, max: 640, padrao: 380, lado: 'esquerda' })
 
@@ -259,7 +263,7 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
         <div style={{ background: 'var(--wa-panel)' }}>
           {dono
             ? <EtapaDaCaptacao leadId={lead.id} etapaManual={dono.etapaManual} abas={dono.abas} aoMudar={() => void ler()} />
-            : !oficial && <EtapaDoClienteOlx telefone={lead.phone} />}
+            : !oficial && <EtapaDoClienteOlx telefone={lead.phone} leadId={lead.id} comOTel={!!c?.comOTel} aoMudar={() => void ler()} />}
         </div>
 
         {/* 17/10 (Pedro): as etiquetas da equipe também no card da Captação */}
@@ -345,6 +349,25 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
         </Secao>
 
         {/* enviar imóvel pelo 8595 (396); 17/10: também na aba Oficial (sai pelo 8595) */}
+        {/* 18/10 (Pedro: "põe o card de criar visita no card lateral do contato do número de captação também"): a mesma
+            ferramenta da Parceria. No card do dono, os imóveis são os dele e o lembrete sai por esta conversa; no de
+            um cliente, escolhe-se o imóvel e o corretor; a visita entra na agenda, que é uma só para todos os números. */}
+        <Secao titulo="Agendar visita">
+          {visitaAberta ? (
+            dono && imoveis.length
+              ? <AgendarVisita key={lead.id} imoveis={imoveis.map((i) => String(i.codigo))} proprietarioLeadId={lead.id}
+                               aoCancelar={() => setVisitaAberta(false)} aoAgendar={() => setVisitaAberta(false)} />
+              : <AgendarVisita key={lead.id} aoCancelar={() => setVisitaAberta(false)} aoAgendar={() => setVisitaAberta(false)} />
+          ) : (
+            <button type="button" onClick={() => setVisitaAberta(true)}
+                    className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-semibold"
+                    style={{ background: '#2563eb', color: '#fff' }}
+                    title="Agendar uma visita à mão: corretor, imóvel, dia, duração e lembrete">
+              <CalendarPlus size={14} weight="fill" /> Agendar visita
+            </button>
+          )}
+        </Secao>
+
         <Secao titulo="Enviar imóvel">
           <EnviarImovelPelaCaptacao leadId={lead.id} telefone={lead.phone} oficial={oficial} />
         </Secao>
