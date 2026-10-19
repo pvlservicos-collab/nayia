@@ -301,6 +301,9 @@ prompt: comece pelo `nay onde`.
   `site_captacao_grupos_enviar(..., 'automático')`. Chaves em `nay-grupos/config.json` (`modo`, `mensagem_automatica`,
   `automatico_max_dia`, `automatico_das/ate`, `automatico_desde`). Desligar = `"modo": "treino"`. Os envios: `privado.grupo_pedido_oferta`
   com `quem = 'automático'`.
+- CRM › Mais › BUSCAR IMÓVEL OLX (422): `crm/src/app/(authenticated)/buscar-imovel-olx/page.tsx` + `/api/olx/busca-parceiro`
+  -> `crm_olx_busca_parceiro_abrir(dados, quem)` (lead da Nay do WhatsApp pelo telefone, ou um novo 'manual') e
+  `crm_olx_buscas_parceiro(dias)` para a lista. A ordem segue o laço do `nay-olx/olx/parceiro.py`.
 - IMÓVEIS › APROVAR IMÓVEIS (419/420): `site_aprovar_imoveis()` (fichas do WhatsApp, bot da OLX, cadastro fora de Disponível
   com dono que disse disponível/mandou atualização), rotas `/admin/api/imoveis/aprovar` e `/aprovar/tirar` (app.py), tela
   `imob-easy/assets/js/aprovar-imoveis.js` (aba em `admin/imoveis.html`). Tirados em `privado.imovel_aprovar_fora`.
