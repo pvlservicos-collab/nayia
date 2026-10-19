@@ -10,3 +10,9 @@
 .etiqueta-parceiro[hidden] { display: none; }
 .ed__chave--parceiro input:checked + .ed__chave-trilho { background: #0e7490 !important; border-color: #0e7490 !important; }
 .ed__chave--parceiro span:last-child { font-weight: 600; color: #0e7490; }
+/* 413 (Pedro, 19/10/2026): "os antigos viram a tag Parceiros antigos". O parceiro importado do site antigo, com o
+   status por atualizar pelo disparo: a Nay de captação não oferece. Mesma forma, cor de ardósia, para não confundir. */
+.etiqueta-parceiro--antigo { background: #64748b; }
+.etiqueta-parceiro--antigo::before { content: "⏳"; }
+.ed__chave--antigo input:checked + .ed__chave-trilho { background: #64748b !important; border-color: #64748b !important; }
+.ed__chave--antigo span:last-child { font-weight: 600; color: #475569; }

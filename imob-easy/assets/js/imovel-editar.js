@@ -544,6 +544,11 @@
   }
 
   function eParceiro() { return $("ed-parceiro") ? $("ed-parceiro").checked : !!item.e_parceiro; }
+  // 413: a marca do parceiro do site antigo mora em extras.parceiro_antigo
+  function eParceiroAntigo() {
+    if ($("ed-parceiro-antigo")) return $("ed-parceiro-antigo").checked;
+    return !!(item.extras && String(item.extras.parceiro_antigo || "").toLowerCase() === "sim");
+  }
 
   function chegaNaNay(situacao, noSite) {
     var bloq = inputDe("bloqueado");
@@ -577,6 +582,13 @@
         '(número Parceria); vai só a cliente final do número de captação (OLX)"><input type="checkbox" data-campo="e_parceiro" id="ed-parceiro"' +
         (item.e_parceiro ? " checked" : "") + '><span class="ed__chave-trilho" aria-hidden="true"></span><span>Parceiro</span></label>' +
         '<span class="etiqueta-parceiro" id="ed-selo-parceiro"' + (item.e_parceiro ? "" : " hidden") + '>Parceiro</span></div>' +
+      // 413 (Pedro, 19/10: "os antigos viram a tag Parceiros antigos ... vou fazer um disparo para atualizar o status
+      // deles antes de podermos oferecer"): parceiro do site antigo; ligada, a Nay de captação não oferece aos leads.
+      // Desligar é liberar. Só aparece em imóvel de parceiro.
+      '<div class="ed__estado-item" id="ed-item-antigo"' + (item.e_parceiro ? "" : " hidden") + '><label class="ed__chave ed__chave--antigo" title="Parceiro antigo (importado do site antigo): a Nay de captação não oferece ' +
+        'até o disparo atualizar o status. Desligue para liberar aos leads."><input type="checkbox" data-campo="parceiro_antigo" id="ed-parceiro-antigo"' +
+        (eParceiroAntigo() ? " checked" : "") + '><span class="ed__chave-trilho" aria-hidden="true"></span><span>Parceiro antigo</span></label>' +
+        '<span class="etiqueta-parceiro etiqueta-parceiro--antigo" id="ed-selo-antigo"' + (eParceiroAntigo() ? "" : " hidden") + '>Parceiro antigo</span></div>' +
       '<div class="ed__estado-salvar"><span class="ed__status-salvar" id="ed-status-salvar" role="status"></span>' +
         (sit === "Excluído" ? "" : '<button class="btn-neutro ed__excluir" type="button" id="ed-excluir">Excluir imóvel</button>') +
         '<button class="btn-azul" type="submit" id="ed-salvar" disabled>Salvar</button></div>';
@@ -591,10 +603,18 @@
     var noSite = $("ed-no-site") ? $("ed-no-site").checked : false;
     var chega = chegaNaNay(sit, noSite);
     var soCliente = !chega && eParceiro() && sit === "Disponível";
+    var antigo = eParceiro() && eParceiroAntigo();
     el.className = "ed__nay" + (chega ? " ed__nay--sim" : "");
-    el.textContent = chega ? "Chega na Nay" : soCliente ? "Só cliente final (OLX, 8595)" : "Não chega na Nay";
+    el.textContent = chega ? "Chega na Nay"
+      : soCliente && antigo ? "Parceiro antigo: não vai a ninguém até atualizar o status"
+      : soCliente ? "Só cliente final (OLX, 8595)" : "Não chega na Nay";
     var selo = $("ed-selo-parceiro");
     if (selo) selo.hidden = !eParceiro();
+    // 413: a chave e o selo de parceiro antigo só em imóvel de parceiro
+    var itemAntigo = $("ed-item-antigo");
+    if (itemAntigo) itemAntigo.hidden = !eParceiro();
+    var seloAntigo = $("ed-selo-antigo");
+    if (seloAntigo) seloAntigo.hidden = !antigo;
   }
 
   function desenharCartoes() {
@@ -1260,6 +1280,7 @@
           return;
         }
         if ("e_parceiro" in corpo) item.e_parceiro = !!corpo.e_parceiro;
+        if ("parceiro_antigo" in corpo) { item.extras = item.extras || {}; item.extras.parceiro_antigo = corpo.parceiro_antigo ? "sim" : "nao"; }
         if (corpo.status) {
           item.status = corpo.status;
           // o servidor aplicou a regra do anúncio: a tela passa a mostrar o mesmo

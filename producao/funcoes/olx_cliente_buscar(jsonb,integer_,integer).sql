@@ -35,9 +35,11 @@ AS $function$
       FROM core_imovel_busca i CROSS JOIN f
       LEFT JOIN imoveis x ON x.codigo = i.codigo
      -- 400: o imóvel de parceiro Disponível vai ao cliente final (o nay-olx só manda aceita_parceiro a quem não é corretor)
+     -- 413: o parceiro ANTIGO (do site antigo, extras.parceiro_antigo = sim) fica fora até o disparo atualizar o status
      WHERE (i.ofertavel
             OR (coalesce(p_filtros->>'aceita_parceiro', '') = 'true' AND coalesce(i.e_parceiro, false)
-                AND x.status = 'Disponível' AND coalesce(x.disponivel, true) AND NOT coalesce(x.bloqueado, false)))
+                AND x.status = 'Disponível' AND coalesce(x.disponivel, true) AND NOT coalesce(x.bloqueado, false)
+                AND coalesce(x.extras->>'parceiro_antigo', '') <> 'sim'))
        AND CASE WHEN f.fin = 'venda' THEN i.de_venda ELSE i.de_locacao END
        AND CASE WHEN f.tipo IN ('', 'tanto_faz') THEN i.tipo IN ('apartamento', 'casa', 'casa_condominio', 'flat', 'cobertura')
                 WHEN f.tipo = 'casa' THEN i.tipo IN ('casa', 'casa_condominio')

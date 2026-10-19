@@ -1506,6 +1506,11 @@ def api_imovel_salvar(codigo):
         parceiro = corpo.get("e_parceiro") in (True, "true", "sim", 1, "1")
         gravar = dict(gravar or {})
         gravar["parceiro_manual"] = "sim" if parceiro else "nao"
+    # 413: a chave "Parceiro antigo" do editar (parceiro do site antigo, status por atualizar: a Nay de captação não
+    # oferece). Desligar a chave é liberar o imóvel para os leads de novo.
+    if "parceiro_antigo" in corpo:
+        gravar = dict(gravar or {})
+        gravar["parceiro_antigo"] = "sim" if corpo.get("parceiro_antigo") in (True, "true", "sim", 1, "1") else "nao"
     if apagar or gravar:
         sets.append(psycopg2.sql.SQL("extras = (coalesce(extras, '{}'::jsonb) - %s::text[]) || %s::jsonb"))
         valores.append(apagar)
@@ -2420,6 +2425,9 @@ def api_imoveis_lista():
         grupos.setdefault("parceiro", []).append(("v.e_parceiro", []))
     elif a.get("parceiro") == "nao":
         grupos.setdefault("parceiro", []).append(("NOT v.e_parceiro", []))
+    elif a.get("parceiro") == "antigo":
+        # 413: Situação > Parceiros antigos (do site antigo, status por atualizar)
+        grupos.setdefault("parceiro", []).append(("imovel_parceiro_antigo(v.codigo)", []))
 
     if a.get("sem_dono") == "1":
         grupos.setdefault("dono", []).append(("coalesce(v.proprietario_nome, '') = ''", []))
@@ -2519,6 +2527,8 @@ def api_imoveis_lista():
         # QUANTO O CADASTRO ESTÁ PREENCHIDO (244, Pedro 30/09): o pct e o que falta
         linhas = todas_linhas(conn, "SELECT v.*" + geo_col +
                               ", pt.pct AS cadastro_pct, pt.falta AS cadastro_falta"
+                              # 413: parceiro do site antigo, status por atualizar: a Nay de captação não oferece
+                              ", imovel_parceiro_antigo(v.codigo) AS parceiro_antigo"
                               ", count(*) OVER () AS total FROM vw_imoveis_todos v" +
                               geo_join + " LEFT JOIN vw_imovel_pontuacao pt ON pt.codigo = v.codigo " + where +
                               " ORDER BY " + ordem + " LIMIT %s OFFSET %s",
@@ -2536,6 +2546,7 @@ def api_imoveis_lista():
         crus = todas_linhas(conn, """
             SELECT v.codigo, v.status, v.tipo, v.grupo_tipo, v.publicado_no_site, v.fotos, v.quartos, v.vagas,
                    v.e_parceiro, v.financia, v.precisa_confirmacao,
+                   imovel_parceiro_antigo(v.codigo) AS parceiro_antigo,
                    coalesce(pt.pct, 0) AS cadastro_pct,
                    coalesce(v.proprietario_nome, '') <> '' AS tem_dono,
                    (coalesce(v.valor_venda, 0) > 0 OR v.valor_texto ILIKE 'Venda%%') AS e_venda,
@@ -2552,7 +2563,8 @@ def api_imoveis_lista():
             # 01/10: igual ao SQL -- em branco nao e escondido
             "quartos": lambda l: l["quartos"] is None or l["quartos"] >= int(re.sub(r"[^\d]", "", a.get("quartos") or "0") or 0),
             "vagas": lambda l: l["vagas"] is None or l["vagas"] >= int(re.sub(r"[^\d]", "", a.get("vagas") or "0") or 0),
-            "parceiro": lambda l: l["e_parceiro"] if a.get("parceiro") == "sim" else not l["e_parceiro"],
+            "parceiro": lambda l: (l["parceiro_antigo"] if a.get("parceiro") == "antigo"
+                                   else l["e_parceiro"] if a.get("parceiro") == "sim" else not l["e_parceiro"]),
             "dono": lambda l: (not l["tem_dono"]) if a.get("sem_dono") == "1" else l["tem_dono"],
             "anuncio": lambda l: l["publicado_no_site"] if a.get("anunciado") == "sim" else not l["publicado_no_site"],
             "foto": lambda l: (l["fotos"] > 0) if a.get("com_foto") == "sim" else (l["fotos"] == 0),
@@ -2581,7 +2593,8 @@ def api_imoveis_lista():
             "fin": contar("fin", {"venda": lambda l: l["e_venda"], "aluguel": lambda l: l["e_aluguel"]}),
             "quartos": contar("quartos", {str(n): (lambda l, n=n: (l["quartos"] or 0) >= n) for n in (1, 2, 3, 4)}),
             "vagas": contar("vagas", {str(n): (lambda l, n=n: (l["vagas"] or 0) >= n) for n in (1, 2, 3, 4)}),
-            "parceiro": contar("parceiro", {"sim": lambda l: l["e_parceiro"], "nao": lambda l: not l["e_parceiro"]}),
+            "parceiro": contar("parceiro", {"sim": lambda l: l["e_parceiro"], "nao": lambda l: not l["e_parceiro"],
+                                            "antigo": lambda l: l["parceiro_antigo"]}),
             "dono": contar("dono", {"com": lambda l: l["tem_dono"], "sem": lambda l: not l["tem_dono"]}),
             "anuncio": contar("anuncio", {"sim": lambda l: l["publicado_no_site"],
                                           "nao": lambda l: not l["publicado_no_site"]}),
@@ -2608,6 +2621,7 @@ def api_imoveis_lista():
             "condominio": l["condominio"] or "", "condoId": l["condo_id"],
             "bairro": l["bairro"], "endereco": l["endereco"] or "",
             "proprietario": l["proprietario_nome"] or "", "parceiro": l["e_parceiro"],
+            "parceiroAntigo": bool(l.get("parceiro_antigo")),
             "quartos": l["quartos"], "vagas": l["vagas"],
             "suites": l["suites"], "banheiros": l["banheiros"],
             "area": float(l["area_total"]) if l["area_total"] else None,

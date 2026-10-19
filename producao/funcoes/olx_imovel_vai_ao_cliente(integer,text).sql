@@ -8,6 +8,8 @@ AS $function$
       OR (EXISTS (SELECT 1 FROM imoveis i
                    WHERE i.codigo = p_codigo AND i.e_parceiro AND i.status = 'Disponível'
                      AND coalesce(i.disponivel, true) AND NOT coalesce(i.bloqueado, false)
-                     AND (coalesce(i.valor_aluguel, 0) > 0 OR coalesce(i.valor_venda, 0) > 0))
+                     AND (coalesce(i.valor_aluguel, 0) > 0 OR coalesce(i.valor_venda, 0) > 0)
+                     -- 413: parceiro ANTIGO (do site antigo) não sai até o disparo atualizar o status
+                     AND coalesce(i.extras->>'parceiro_antigo', '') <> 'sim')
           AND olx_pode_receber_parceiro(p_telefone))
 $function$;

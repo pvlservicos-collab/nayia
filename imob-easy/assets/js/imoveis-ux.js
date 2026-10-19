@@ -171,8 +171,10 @@
     confirmar: { chave: "confirmar", faceta: "confirmar", grupo: "sit", itens: [["sim", "Precisa confirmar"]] },
     /* 400 (Pedro, 17/10: "adicione uma Situação, Parceiros"): o mesmo filtro de "De quem é", mostrado também na
        Situação. `espelho`: não conta duas vezes no número do grupo nem vira duas etiquetas de filtro ativo */
+    /* 413 (Pedro, 19/10): "os antigos viram a tag Parceiros antigos" -- os de parceiro importados do site antigo, com o
+       status por atualizar pelo disparo; a Nay de captação não oferece esses aos leads, só os novos do Tel */
     parceiro_sit: { chave: "parceiro", faceta: "parceiro", grupo: "sit", espelho: true,
-                    itens: [["sim", "Parceiros", "#0e7490"]] },
+                    itens: [["sim", "Parceiros", "#0e7490"], ["antigo", "Parceiros antigos", "#64748b"]] },
     quartos: { chave: "quartos", faceta: "quartos", grupo: "imovel",
                itens: [["1", "1+"], ["2", "2+"], ["3", "3+"], ["4", "4+"]] },
     vagas: { chave: "vagas", faceta: "vagas", grupo: "imovel",
@@ -581,7 +583,8 @@
       : '<span class="btn-mini" title="Imóvel só do admin antigo: não está no catálogo, então não abre no editor">só consulta</span>';
     return '<tr data-codigo="' + esc(i.codigo) + '" tabindex="0" class="' + (i.noCatalogo ? "" : "fora-catalogo") + '">' +
       '<td><span class="cod">' + esc(i.codigo) + "</span>" +
-        (i.parceiro ? '<div><span class="etiqueta-parceiro" title="Imóvel de parceiro: nunca vai a corretor; só a cliente final do número de captação (OLX)">Parceiro</span></div>' : "") +
+        (i.parceiroAntigo ? '<div><span class="etiqueta-parceiro etiqueta-parceiro--antigo" title="Parceiro antigo (do site antigo): a Nay de captação não oferece até o disparo atualizar o status">Parceiro antigo</span></div>'
+          : i.parceiro ? '<div><span class="etiqueta-parceiro" title="Imóvel de parceiro: nunca vai a corretor; só a cliente final do número de captação (OLX)">Parceiro</span></div>' : "") +
         (i.capa ? '<img class="miniatura" loading="lazy" src="' + esc(i.capa) + '" alt="">' : "") +
         '<div class="sub">' + (i.fotos ? i.fotos + " foto" + (i.fotos > 1 ? "s" : "") : "sem foto") + "</div></td>" +
       "<td>" + seletorDeSituacao(i) +
@@ -594,6 +597,8 @@
               : '<div><span class="etiqueta etiqueta--laranja" title="Abra o imóvel e ' +
                 (i.bloqueado ? "tire o bloqueio" : "ligue o No site") + ' para a Nay voltar a oferecer">a Nay NÃO oferece: ' +
                 (i.bloqueado ? "bloqueado" : "fora do site") + "</span></div>")
+          : i.status === "Disponível" && i.parceiroAntigo
+            ? '<div><span class="etiqueta etiqueta--laranja" title="Parceiro antigo: espera o disparo atualizar o status (ou desligue a chave Parceiro antigo no editar)">a Nay NÃO oferece: parceiro antigo</span></div>'
           : i.status === "Disponível" && i.parceiro && !i.bloqueado
             ? '<div class="sub" style="color:#0e7490">só cliente final (OLX)</div>'
           : "") +
@@ -765,9 +770,11 @@
           : esc(i.valor || "Consulte")) + "</div>" +
         "<div><b>Anúncio</b>" + (i.anunciado ? "No site" : "Fora do site") + "</div>" +
         "<div><b>Financiamento</b>" + esc(i.financia) + "</div>" +
-        "<div><b>De quem é</b>" + (i.parceiro ? '<span class="etiqueta-parceiro">Parceiro</span>' : "Nosso (proprietário)") + "</div>" +
+        "<div><b>De quem é</b>" + (i.parceiroAntigo ? '<span class="etiqueta-parceiro etiqueta-parceiro--antigo">Parceiro antigo</span>'
+          : i.parceiro ? '<span class="etiqueta-parceiro">Parceiro</span>' : "Nosso (proprietário)") + "</div>" +
         "<div><b>Chega na Nay</b>" + (i.anunciado && !i.parceiro && !i.bloqueado && i.status === "Disponível" ? "Sim"
-          : "Não" + (i.parceiro ? " (parceiro: vai só a cliente final do número de captação)" : i.status !== "Disponível" ? " (não está Disponível)"
+          : "Não" + (i.parceiroAntigo ? " (parceiro antigo: não vai a ninguém até o disparo atualizar o status)"
+                     : i.parceiro ? " (parceiro: vai só a cliente final do número de captação)" : i.status !== "Disponível" ? " (não está Disponível)"
                      : i.bloqueado ? " (bloqueado)" : " (fora do site)")) + "</div>" +
       "</div></div>" +
 
