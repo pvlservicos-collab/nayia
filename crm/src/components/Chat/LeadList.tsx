@@ -282,6 +282,11 @@ export default function LeadList({
   const INITIAL_DISPLAY = 25
   const DISPLAY_INCREMENT = 20
   const [displayLimit, setDisplayLimit] = useState(INITIAL_DISPLAY)
+  /* PÁGINAS NA ABA TODOS DA CAPTAÇÃO (Pedro, 19/10/2026: "mude a visualização da aba Todos em páginas, põe em ordem
+     de mais recente primeiro, os grupos [as fileiras de abas] continuam lá em cima"). 50 por página, a mais recente
+     primeiro (última atividade); as fixadas continuam no topo da primeira. As outras abas seguem rolando. */
+  const POR_PAGINA = 50
+  const [pagina, setPagina] = useState(1)
 
   const { results: searchResults, loading: searching } = useLeadSearch(search, linha)
 
@@ -296,6 +301,8 @@ export default function LeadList({
     el.addEventListener('scroll', handleScroll, { passive: true })
     return () => el.removeEventListener('scroll', handleScroll)
   }, [])
+
+  useEffect(() => { setPagina(1) }, [activeTab, search, verArquivadas, selectedTagIds.length, linha])
 
   // Fecha o menu de contexto ao clicar fora ou rolar
   useEffect(() => {
@@ -643,7 +650,16 @@ export default function LeadList({
     filtradas.sort((a, b) => Number(!!marcas[b.lead.id]?.acompanhante) - Number(!!marcas[a.lead.id]?.acompanhante))
   }
 
-  const visibleHits = filtradas.slice(0, displayLimit)
+  const emPaginas = linha === 'captacao' && activeTab === 'all' && !buscando && !verArquivadas && selectedTagIds.length === 0
+  const totalDePaginas = Math.max(1, Math.ceil(filtradas.length / POR_PAGINA))
+  const paginaAtual = Math.min(pagina, totalDePaginas)
+  const visibleHits = emPaginas
+    ? filtradas.slice((paginaAtual - 1) * POR_PAGINA, paginaAtual * POR_PAGINA)
+    : filtradas.slice(0, displayLimit)
+  const irParaPagina = (n: number) => {
+    setPagina(Math.min(Math.max(1, n), totalDePaginas))
+    if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0
+  }
   leadsNaTela.current = Object.fromEntries(visibleHits.map((hit) => [hit.lead.id, hit.lead]))
 
   const leadDaLinha = (alvo: EventTarget | null): LeadWithOwner | undefined => {
@@ -847,6 +863,9 @@ export default function LeadList({
                 />
               )
             })}
+            {emPaginas && totalDePaginas > 1 && (
+              <PaginasDaLista atual={paginaAtual} total={totalDePaginas} conversas={filtradas.length} aoIr={irParaPagina} />
+            )}
           </div>
         )}
       </div>
@@ -899,6 +918,33 @@ export default function LeadList({
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+/* O rodapé das páginas (aba Todos da Captação): anterior / números / próxima, e quantas conversas há. */
+function PaginasDaLista({ atual, total, conversas, aoIr }: { atual: number; total: number; conversas: number; aoIr: (n: number) => void }) {
+  const numeros: Array<number | '…'> = []
+  for (let n = 1; n <= total; n++) {
+    if (n === 1 || n === total || Math.abs(n - atual) <= 1) numeros.push(n)
+    else if (numeros[numeros.length - 1] !== '…') numeros.push('…')
+  }
+  const botao = 'min-w-[32px] h-8 px-2 rounded-full text-[13px] font-semibold disabled:opacity-40'
+  return (
+    <div className="flex flex-col items-center gap-1.5 px-3 pt-3 pb-2" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+      <div className="flex items-center gap-1 flex-wrap justify-center">
+        <button type="button" className={botao} style={{ color: 'var(--wa-text)' }} disabled={atual <= 1} onClick={() => aoIr(atual - 1)}
+                aria-label="Página anterior">‹</button>
+        {numeros.map((n, i) => n === '…'
+          ? <span key={`r${i}`} className="px-1 text-[13px]" style={{ color: 'var(--wa-text-2)' }}>…</span>
+          : (
+            <button key={n} type="button" className={botao} onClick={() => aoIr(n)} aria-current={n === atual ? 'page' : undefined}
+                    style={n === atual ? { background: 'var(--wa-green)', color: '#fff' } : { color: 'var(--wa-text)' }}>{n}</button>
+          ))}
+        <button type="button" className={botao} style={{ color: 'var(--wa-text)' }} disabled={atual >= total} onClick={() => aoIr(atual + 1)}
+                aria-label="Próxima página">›</button>
+      </div>
+      <span className="text-[12px]" style={{ color: 'var(--wa-text-2)' }}>Página {atual} de {total} · {conversas} conversas, as mais recentes primeiro</span>
     </div>
   )
 }
