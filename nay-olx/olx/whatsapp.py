@@ -394,7 +394,9 @@ def organico(lead: dict) -> bool:
 
 def quem(lead: dict) -> str:
     """Para os avisos da equipe: 'Fulana (OLX, (92) 9...)' ou '(orgânico, ...)'."""
-    return (f"{lead.get('nome') or 'sem nome'} ({'orgânico' if organico(lead) else 'OLX'}, "
+    # 422: o cliente posto à mão no CRM (Buscar imóvel OLX) aparece como "pelo CRM"
+    origem = {"organico": "orgânico", "manual": "pelo CRM"}.get(lead.get("origem") or "", "OLX")
+    return (f"{lead.get('nome') or 'sem nome'} ({origem}, "
             f"{nay.telefone_bonito(lead['telefone'])})")
 
 

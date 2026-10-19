@@ -37,7 +37,7 @@ olx_busca_parceiro_pkey: PRIMARY KEY (id)
 (só o dono)
 
 ## funções que escrevem aqui
-(nenhuma função; quem escreve é o n8n, o site ou o CRM)
+crm_olx_busca_parceiro_abrir
 
 ## funções que citam
-crm_olx_buscas_parceiro
+crm_olx_busca_parceiro_abrir, crm_olx_buscas_parceiro
