@@ -21,6 +21,250 @@
     return '<span class="bg-nota bg-nota--' + c + '" title="nota de SEO">' + v + "</span>";
   }
 
+  function dmh(iso) { return iso ? new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"; }
+  function toast(msg, erro) {
+    var t = document.getElementById("bg-toast");
+    if (!t) { t = document.createElement("div"); t.id = "bg-toast"; t.className = "bg-toast"; document.body.appendChild(t); }
+    t.textContent = msg; t.classList.toggle("erro", !!erro); t.hidden = false; clearTimeout(t._t); t._t = setTimeout(function () { t.hidden = true; }, erro ? 6000 : 2600);
+  }
+  /* a data local (Manaus = fuso do navegador dele) em ISO com fuso, para o banco não interpretar como UTC */
+  function isoLocal(d) {
+    var p = function (n) { return String(n).padStart(2, "0"); }, off = -d.getTimezoneOffset(), s = off >= 0 ? "+" : "-";
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes()) + ":00" + s + p(Math.floor(Math.abs(off) / 60)) + ":" + p(Math.abs(off) % 60);
+  }
+  function paraInputLocal(iso) { var d = new Date(iso), p = function (n) { return String(n).padStart(2, "0"); }; return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes()); }
+
+  /* ================================================================ AGENDA (412) */
+  function agenda() {
+    $("ag-lista").innerHTML = '<p class="bg-vazio">Carregando…</p>';
+    pedir("api/blog/artigos").then(function (j) {
+      var todos = j.artigos || [];
+      var agendados = todos.filter(function (a) { return !a.publicado && a.agendado_para; }).sort(function (a, b) { return new Date(a.agendado_para) - new Date(b.agendado_para); });
+      var desde = new Date(); desde.setDate(desde.getDate() - 7);
+      var recentes = todos.filter(function (a) { return a.publicado && a.publicado_em && new Date(a.publicado_em) >= desde; }).sort(function (a, b) { return new Date(b.publicado_em) - new Date(a.publicado_em); });
+      var semCapa = agendados.filter(function (a) { return !a.capa_url; }).length;
+      var prox7 = agendados.filter(function (a) { return new Date(a.agendado_para) - Date.now() < 7 * 86400000; }).length;
+      $("ag-resumo").innerHTML =
+        "<div><span>Agendados</span><strong>" + agendados.length + "</strong></div>" +
+        "<div><span>Nos próximos 7 dias</span><strong>" + prox7 + "</strong></div>" +
+        "<div><span>Sem capa</span><strong>" + semCapa + "</strong></div>" +
+        "<div><span>Publicados na última semana</span><strong>" + recentes.length + "</strong></div>" +
+        "<div><span>Rascunhos</span><strong>" + todos.filter(function (a) { return !a.publicado && !a.agendado_para; }).length + "</strong></div>";
+      var porDia = {};
+      agendados.forEach(function (a) { var k = new Date(a.agendado_para).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" }); (porDia[k] = porDia[k] || []).push(a); });
+      var h = "";
+      Object.keys(porDia).forEach(function (dia) {
+        h += '<div class="ag-dia"><h3>' + esc(dia) + " <small>" + porDia[dia].length + " post" + (porDia[dia].length === 1 ? "" : "s") + "</small></h3>" + porDia[dia].map(linhaAgenda).join("") + "</div>";
+      });
+      if (!agendados.length) h += '<p class="bg-vazio">Nenhum artigo agendado. Use a aba "Importar posts" ou marque uma data no editor.</p>';
+      if (recentes.length) h += '<div class="ag-dia ag-dia--pub"><h3>Saíram na última semana</h3>' + recentes.map(linhaAgenda).join("") + "</div>";
+      $("ag-lista").innerHTML = h;
+    }).catch(function (e) { $("ag-lista").innerHTML = '<p class="bg-vazio">' + esc(e.message) + "</p>"; });
+  }
+  function linhaAgenda(a) {
+    var pub = !!a.publicado, quando = pub ? a.publicado_em : a.agendado_para;
+    return '<article class="ag-item" data-id="' + a.id + '">' +
+      (a.capa_url ? '<img class="ag-capa" src="' + esc(a.capa_url) + '" alt="">' : '<div class="ag-capa ag-capa--vazia" title="sem capa">sem capa</div>') +
+      '<div class="ag-corpo"><div class="bg-titulo"><a href="blog-editar.html?id=' + a.id + '">' + esc(a.titulo) + "</a><small>" + esc(a.categoria_nome || a.categoria) + " · " + nota(a.seo_nota).replace(/<[^>]+>/g, "") + " de SEO · " + n(a.palavras) + " palavras" + (a.palavra_chave ? " · “" + esc(a.palavra_chave) + "”" : "") + "</small></div>" +
+      '<div class="ag-acoes">' + (pub
+        ? '<span class="bg-status bg-status--pub">no ar ' + dmh(quando) + "</span>"
+        : '<label>sai em <input type="datetime-local" value="' + paraInputLocal(quando) + '" data-data></label>' +
+          '<button type="button" class="btn-neutro" data-acao="salvar-data">Salvar data</button>' +
+          '<button type="button" class="btn-neutro" data-acao="publicar">Publicar agora</button>' +
+          (a.capa_url ? "" : '<button type="button" class="btn-neutro" data-acao="capa">Buscar capa</button>')) +
+      "</div></div></article>";
+  }
+  function carregarArtigo(id) { return pedir("api/blog/artigos/" + id); }
+  function salvarArtigo(a, mud) {
+    var corpo = { id: a.id, titulo: a.titulo, slug: a.slug, resumo: a.resumo, categoria: a.categoria, tipo: a.tipo, codigo: a.codigo, bairro: a.bairro, corpo: a.corpo,
+                  capa_url: a.capa_url, capa_alt: a.capa_alt, autor: a.autor, palavra_chave: a.palavra_chave, faq: a.faq || [], imoveis_relacionados: a.imoveis_relacionados || [],
+                  publicado: a.publicado, publicado_em: a.publicado_em, agendado_para: a.agendado_para, seo_nota: a.seo_nota };
+    Object.keys(mud || {}).forEach(function (k) { corpo[k] = mud[k]; });
+    return pedir("api/blog/artigos", { method: "POST", body: JSON.stringify(corpo) });
+  }
+  $("ag-lista").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-acao]"); if (!b) return;
+    var item = b.closest("[data-id]"), id = item.dataset.id, acao = b.dataset.acao;
+    b.disabled = true;
+    carregarArtigo(id).then(function (a) {
+      if (acao === "salvar-data") { var v = item.querySelector("[data-data]").value; if (!v) throw new Error("escolha a data"); return salvarArtigo(a, { agendado_para: isoLocal(new Date(v)) }).then(function () { toast("Data salva"); }); }
+      if (acao === "publicar") { if (!confirm("Publicar “" + a.titulo + "” agora?")) return; return salvarArtigo(a, { publicado: true, agendado_para: null }).then(function () { toast("No ar"); }); }
+      if (acao === "capa") return escolherCapa(a);
+    }).then(function () { agenda(); }).catch(function (err) { toast(err.message, true); b.disabled = false; });
+  });
+  /* buscar e escolher a capa de um artigo já criado */
+  function escolherCapa(a) {
+    var q = prompt("Buscar imagem de capa (em inglês acha mais):", a.capa_busca || a.palavra_chave || a.titulo);
+    if (!q) return Promise.resolve();
+    return pedir("api/blog/imagens?q=" + encodeURIComponent(q) + "&n=10").then(function (j) {
+      var c = j.candidatas || [];
+      if (!c.length) { toast("Nenhuma imagem para “" + q + "”" + (j.pexels ? "" : " (sem a chave do Pexels acha pouco)"), true); return; }
+      return new Promise(function (resolve) {
+        var caixa = document.createElement("div"); caixa.className = "im-escolha";
+        caixa.innerHTML = '<div class="im-escolha__caixa"><h3>Capa para “' + esc(a.titulo) + '”</h3><div class="im-cands">' + c.map(function (x, i) {
+          return '<figure data-i="' + i + '"><img src="' + esc(x.thumb || x.url) + '" alt="" loading="lazy"><figcaption>' + esc(x.credito || x.fonte) + " · " + (x.largura || "?") + "×" + (x.altura || "?") + "</figcaption></figure>"; }).join("") +
+          '</div><div class="bg-acoes"><button type="button" class="btn-neutro" data-fechar>Cancelar</button></div></div>';
+        document.body.appendChild(caixa);
+        caixa.addEventListener("click", function (ev) {
+          if (ev.target.closest("[data-fechar]") || ev.target === caixa) { caixa.remove(); resolve(); return; }
+          var f = ev.target.closest("figure[data-i]"); if (!f) return;
+          var x = c[Number(f.dataset.i)]; caixa.remove();
+          toast("Baixando e convertendo…");
+          pedir("api/blog/imagens/guardar", { method: "POST", body: JSON.stringify({ url: x.url, capa: true }) }).then(function (g) {
+            var corpo = a.corpo || ""; if (x.credito && corpo.indexOf(x.credito) < 0) corpo = corpo.trim() + "\n\n*Foto da capa: " + x.credito + "*";
+            return salvarArtigo(a, { capa_url: g.url, capa_alt: a.capa_alt || a.titulo, corpo: corpo });
+          }).then(function () { toast("Capa salva"); resolve(); }).catch(function (err) { toast(err.message, true); resolve(); });
+        });
+      });
+    });
+  }
+
+  /* ================================================================ IMPORTAR POSTS (412) */
+  var imPosts = [], imPreparado = false;
+  function importarPreparar() {
+    if (imPreparado) return; imPreparado = true;
+    var amanha = new Date(); amanha.setDate(amanha.getDate() + 1);
+    $("im-de").value = amanha.toISOString().slice(0, 10);
+    $("im-ler").addEventListener("click", importarLer);
+    $("im-recalcular").addEventListener("click", function () { calcularDatas(); pintarImport(); });
+    $("im-criar").addEventListener("click", importarCriar);
+    $("im-posts").addEventListener("click", importarClique);
+    $("im-posts").addEventListener("change", function (e) {
+      var t = e.target, card = t.closest("[data-k]"); if (!card) return;
+      var p = imPosts[Number(card.dataset.k)];
+      if (t.dataset.campo) { p[t.dataset.campo] = t.value; if (t.dataset.campo !== "agendado_local") p.seo = avaliarPost(p); }
+      if (t.dataset.campo === "agendado_local") p.agendado_para = isoLocal(new Date(t.value));
+      pintarCabecalhoImport(card, p);
+    });
+  }
+  function importarLer() {
+    var arq = $("im-arquivo").files[0], texto = $("im-texto").value;
+    var ler = arq ? arq.text() : Promise.resolve(texto);
+    $("im-estado").textContent = "lendo e buscando imagens… (uns segundos por post)"; $("im-ler").disabled = true;
+    ler.then(function (t) {
+      if (!t || !t.trim()) throw new Error("escolha o arquivo ou cole o texto");
+      $("im-texto").value = t;
+      return pedir("api/blog/importar/previa", { method: "POST", body: JSON.stringify({ texto: t, imagens: !$("im-sem-imagens").checked }) });
+    }).then(function (j) {
+      imPosts = (j.posts || []).map(function (p, k) {
+        p.k = k; p.capa = (p.capa_candidatas || [])[0] || null;
+        p.imagens = {}; (p.imagens_pedidas || []).forEach(function (im) { p.imagens[im.marcador] = (im.candidatas || [])[0] || null; });
+        p.seo = avaliarPost(p); return p;
+      });
+      $("im-aviso-pexels").hidden = !!j.pexels;
+      $("im-agendamento").hidden = false; $("im-rodape").hidden = false;
+      calcularDatas(); pintarImport();
+      $("im-estado").textContent = imPosts.length + " post" + (imPosts.length === 1 ? "" : "s") + " lidos";
+    }).catch(function (e) { $("im-estado").textContent = ""; toast(e.message, true); }).then(function () { $("im-ler").disabled = false; });
+  }
+  function avaliarPost(p) {
+    if (!window.BlogSEO) return null;
+    try { return window.BlogSEO.avaliar({ titulo: p.titulo, slug: p.slug, resumo: p.resumo, corpo: p.corpo, palavra_chave: p.palavra_chave, faq: p.faq, categoria: p.categoria, capa_url: p.capa ? "x" : "", capa_alt: p.capa_alt, codigo: p.codigo, tipo: p.tipo }); }
+    catch (e) { return null; }
+  }
+  /* 2 por dia (Pedro), nos horários dados, alternando categorias para não sair dois de corretores seguidos */
+  function calcularDatas() {
+    var de = $("im-de").value ? new Date($("im-de").value + "T00:00:00") : new Date();
+    var porDia = Math.max(1, Math.min(6, Number($("im-por-dia").value) || 2));
+    var horas = $("im-horas").value.split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+    while (horas.length < porDia) horas.push(horas.length ? horas[horas.length - 1] : "09:00");
+    var ordem = imPosts.slice();
+    if ($("im-alternar").checked) {
+      var grupos = {}; ordem.forEach(function (p) { (grupos[p.categoria] = grupos[p.categoria] || []).push(p); });
+      var chaves = Object.keys(grupos), out = []; var resta = true;
+      while (resta) { resta = false; chaves.forEach(function (c) { if (grupos[c].length) { out.push(grupos[c].shift()); resta = true; } }); }
+      ordem = out;
+    }
+    ordem.forEach(function (p, i) {
+      var d = new Date(de); d.setDate(de.getDate() + Math.floor(i / porDia));
+      var hm = horas[i % porDia].split(":"); d.setHours(Number(hm[0]) || 9, Number(hm[1]) || 0, 0, 0);
+      p.agendado_para = isoLocal(d); p.ordem = i;
+    });
+    imPosts.sort(function (a, b) { return a.ordem - b.ordem; }).forEach(function (p, k) { p.k = k; });
+  }
+  function pintarCabecalhoImport(card, p) {
+    var s = p.seo; var cab = card.querySelector(".im-cab");
+    if (cab) cab.innerHTML = '<span class="bg-status bg-status--ag">' + dmh(p.agendado_para) + "</span> " + esc(p.titulo) + " " + (s ? nota(s.nota) : "") +
+      (p.avisos && p.avisos.length ? ' <span class="bg-status bg-status--rasc" title="' + esc(p.avisos.join("; ")) + '">' + p.avisos.length + " aviso(s)</span>" : "");
+  }
+  function cands(lista, escolhido, tipo, marcador) {
+    if (!lista || !lista.length) return '<p class="im-nada">nenhuma imagem encontrada <button type="button" class="sc-link" data-buscar="' + esc(tipo) + '" data-marcador="' + esc(marcador || "") + '">buscar com outras palavras</button></p>';
+    return '<div class="im-cands im-cands--mini">' + lista.map(function (x, i) {
+      var on = escolhido && escolhido.url === x.url;
+      return '<figure data-escolher="' + esc(tipo) + '" data-marcador="' + esc(marcador || "") + '" data-i="' + i + '" class="' + (on ? "on" : "") + '"><img src="' + esc(x.thumb || x.url) + '" alt="" loading="lazy"><figcaption>' + esc(x.credito || x.fonte) + "</figcaption></figure>";
+    }).join("") + '<figure data-escolher="' + esc(tipo) + '" data-marcador="' + esc(marcador || "") + '" data-i="-1" class="im-sem ' + (escolhido ? "" : "on") + '"><span>sem imagem</span></figure></div>' +
+      '<button type="button" class="sc-link" data-buscar="' + esc(tipo) + '" data-marcador="' + esc(marcador || "") + '">buscar com outras palavras</button>';
+  }
+  function pintarImport() {
+    $("im-posts").innerHTML = imPosts.map(function (p) {
+      return '<article class="ed-cartao im-post" data-k="' + p.k + '">' +
+        '<h2 class="im-cab"></h2>' +
+        '<div class="ed-linha">' +
+          '<label class="ed-campo"><span>Título</span><input class="entrada" data-campo="titulo" value="' + esc(p.titulo) + '"></label>' +
+          '<label class="ed-campo"><span>Slug</span><input class="entrada" data-campo="slug" value="' + esc(p.slug || "") + '"></label>' +
+        "</div>" +
+        '<div class="ed-linha">' +
+          '<label class="ed-campo"><span>Categoria</span><select class="selecao" data-campo="categoria">' + categorias.map(function (c) { return '<option value="' + c[0] + '"' + (c[0] === p.categoria ? " selected" : "") + ">" + esc(c[1]) + "</option>"; }).join("") + "</select></label>" +
+          '<label class="ed-campo"><span>Palavra-chave</span><input class="entrada" data-campo="palavra_chave" value="' + esc(p.palavra_chave || "") + '"></label>' +
+        "</div>" +
+        '<label class="ed-campo"><span>Resumo <span class="conta">' + (p.resumo || "").length + " caracteres</span></span><input class=\"entrada\" data-campo=\"resumo\" value=\"" + esc(p.resumo || "") + '"></label>' +
+        '<div class="ed-linha">' +
+          '<label class="ed-campo"><span>Sai em</span><input type="datetime-local" class="entrada" data-campo="agendado_local" value="' + paraInputLocal(p.agendado_para) + '"></label>' +
+          '<label class="ed-campo"><span>Alt da capa</span><input class="entrada" data-campo="capa_alt" value="' + esc(p.capa_alt || "") + '"></label>' +
+        "</div>" +
+        '<div class="ed-campo"><span class="rot">Capa <span class="dica">busca: “' + esc(p.capa_busca || "") + "” · " + esc(p.capa_fontes || "") + "</span></span>" + cands(p.capa_candidatas, p.capa, "capa", "") + "</div>" +
+        (p.imagens_pedidas || []).map(function (im, j) {
+          return '<div class="ed-campo"><span class="rot">Imagem do texto ' + (j + 1) + ' <span class="dica">busca: “' + esc(im.busca) + "” · alt: " + esc(im.alt) + "</span></span>" + cands(im.candidatas, p.imagens[im.marcador], "texto", im.marcador) + "</div>";
+        }).join("") +
+        "<details><summary>" + n((p.corpo || "").split(/\s+/).length) + " palavras · " + (p.faq || []).length + " perguntas no FAQ · ver o corpo</summary><pre class=\"im-corpo\">" + esc(p.corpo) + "</pre></details>" +
+        "</article>";
+    }).join("");
+    document.querySelectorAll("#im-posts [data-k]").forEach(function (card) { pintarCabecalhoImport(card, imPosts[Number(card.dataset.k)]); });
+  }
+  function importarClique(e) {
+    var f = e.target.closest("figure[data-escolher]"), bb = e.target.closest("[data-buscar]");
+    var card = e.target.closest("[data-k]"); if (!card) return;
+    var p = imPosts[Number(card.dataset.k)];
+    if (f) {
+      var i = Number(f.dataset.i), tipo = f.dataset.escolher, marcador = f.dataset.marcador;
+      if (tipo === "capa") p.capa = i >= 0 ? p.capa_candidatas[i] : null;
+      else p.imagens[marcador] = i >= 0 ? (p.imagens_pedidas.find(function (im) { return im.marcador === marcador; }) || {}).candidatas[i] : null;
+      p.seo = avaliarPost(p); pintarImport(); return;
+    }
+    if (bb) {
+      var tipo2 = bb.dataset.buscar, marcador2 = bb.dataset.marcador;
+      var atual = tipo2 === "capa" ? p.capa_busca : ((p.imagens_pedidas.find(function (im) { return im.marcador === marcador2; }) || {}).busca);
+      var q = prompt("Buscar imagem (em inglês acha mais):", atual || p.palavra_chave); if (!q) return;
+      bb.disabled = true;
+      pedir("api/blog/imagens?q=" + encodeURIComponent(q) + "&n=10").then(function (j) {
+        if (tipo2 === "capa") { p.capa_busca = q; p.capa_candidatas = j.candidatas || []; p.capa_fontes = j.fontes; p.capa = p.capa_candidatas[0] || null; }
+        else { var im = p.imagens_pedidas.find(function (x) { return x.marcador === marcador2; }); im.busca = q; im.candidatas = j.candidatas || []; im.fontes = j.fontes; p.imagens[marcador2] = im.candidatas[0] || null; }
+        p.seo = avaliarPost(p); pintarImport();
+      }).catch(function (err) { toast(err.message, true); });
+    }
+  }
+  function importarCriar() {
+    if (!imPosts.length) return;
+    var semCapa = imPosts.filter(function (p) { return !p.capa; }).length;
+    if (!confirm("Criar " + imPosts.length + " artigos agendados" + (semCapa ? " (" + semCapa + " sem capa)" : "") + "?")) return;
+    $("im-criar").disabled = true; $("im-resultado").textContent = "baixando imagens e criando… (uns segundos por post)";
+    var corpo = { posts: imPosts.map(function (p) {
+      return { titulo: p.titulo, slug: p.slug, resumo: p.resumo, categoria: p.categoria, tipo: p.tipo, codigo: p.codigo, bairro: p.bairro, corpo: p.corpo, capa_alt: p.capa_alt,
+               palavra_chave: p.palavra_chave, faq: p.faq, imagens_pedidas: p.imagens_pedidas.map(function (im) { return { marcador: im.marcador, alt: im.alt, legenda: im.legenda }; }),
+               capa: p.capa ? { url: p.capa.url, credito: p.capa.credito } : null,
+               imagens: Object.keys(p.imagens).reduce(function (o, k) { if (p.imagens[k]) o[k] = { url: p.imagens[k].url, credito: p.imagens[k].credito }; return o; }, {}),
+               agendado_para: p.agendado_para, seo_nota: p.seo ? p.seo.nota : null };
+    }) };
+    pedir("api/blog/importar/criar", { method: "POST", body: JSON.stringify(corpo) }).then(function (j) {
+      var ok = (j.resultados || []).filter(function (r) { return r.ok; }).length, erros = (j.resultados || []).filter(function (r) { return !r.ok; });
+      $("im-resultado").innerHTML = ok + " criado" + (ok === 1 ? "" : "s") + (erros.length ? " · " + erros.length + " com erro: " + esc(erros.map(function (r) { return r.titulo + " (" + (r.erro || "?") + ")"; }).join("; ")) : "") + ' · <a href="#" data-ir-agenda>ver a agenda</a>';
+      toast(ok + " artigos agendados");
+      if (!erros.length) { imPosts = []; $("im-posts").innerHTML = ""; $("im-agendamento").hidden = true; $("im-rodape").hidden = false; }
+      listar();
+    }).catch(function (e) { $("im-resultado").textContent = e.message; toast(e.message, true); }).then(function () { $("im-criar").disabled = false; });
+  }
+  document.addEventListener("click", function (e) { if (e.target.closest("[data-ir-agenda]")) { e.preventDefault(); document.querySelector('.bg-abas [data-aba="agenda"]').click(); } });
+
   /* ---- abas ---- */
   document.querySelector(".bg-abas").addEventListener("click", function (e) {
     var b = e.target.closest("[data-aba]"); if (!b) return;
@@ -28,6 +272,8 @@
     document.querySelectorAll(".bg-aba").forEach(function (s) { s.hidden = s.dataset.aba !== b.dataset.aba; });
     if (b.dataset.aba === "metricas") metricas();
     if (b.dataset.aba === "newsletter") newsletter();
+    if (b.dataset.aba === "agenda") agenda();
+    if (b.dataset.aba === "importar") importarPreparar();
   });
 
   /* ---- artigos ---- */
@@ -56,7 +302,7 @@
       lista.map(function (a) {
         return "<tr><td class=\"bg-titulo\"><a href=\"blog-editar.html?id=" + a.id + '">' + esc(a.titulo) + "</a><small>" + (a.tipo === "imovel" ? "post de imóvel · cód. " + esc(a.codigo) + " · " : "") + n(a.palavras) + " palavras · /" + esc(a.slug) + "</small></td>" +
           "<td>" + esc(a.categoria_nome) + "</td>" +
-          "<td>" + (a.publicado ? '<span class="bg-status bg-status--pub">no ar</span>' : '<span class="bg-status bg-status--rasc">rascunho</span>') + "</td>" +
+          "<td>" + (a.publicado ? '<span class="bg-status bg-status--pub">no ar</span>' : a.agendado_para ? '<span class="bg-status bg-status--ag" title="sai sozinho na hora marcada">agendado ' + dmh(a.agendado_para) + "</span>" : '<span class="bg-status bg-status--rasc">rascunho</span>') + "</td>" +
           '<td class="num">' + nota(a.seo_nota) + "</td>" +
           '<td class="num">' + n(a.visitas_7d) + '</td><td class="num">' + n(a.visitas_30d) + '</td><td class="num">' + n(a.rastreadores_30d) + "</td>" +
           "<td>" + dm(a.atualizado_em) + "</td>" +

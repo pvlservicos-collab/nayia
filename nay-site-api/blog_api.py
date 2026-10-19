@@ -31,6 +31,7 @@ import json
 import os
 import re
 import time
+import unicodedata
 import uuid
 from urllib.parse import urlparse
 
@@ -659,3 +660,298 @@ def _quem():
         return _usuario_admin() or "admin"
     except Exception:  # noqa: BLE001
         return "admin"
+
+
+# ====================================================================== IMPORTAR POSTS + IMAGENS + AGENDA (412, 19/10/2026)
+# Pedro: "peguei uma lista de post para nosso blog ... programa lá 2 por dia ... pesquise a imagem que ele sugere aí no
+# formato certinho ... faz uma ferramenta interna só para isso ... e lá no blog põe uma agenda de planejamento".
+#
+# O arquivo é o .md que a IA devolve com o prompt do blog (Arquivos/prompt-posts-do-blog.md): blocos "## POST n de N",
+# os campos num ```...``` (TÍTULO, SLUG, CATEGORIA, TIPO, PALAVRA-CHAVE, RESUMO, CAPA (buscar...), CAPA (alt)), o corpo
+# num ````markdown````, o FAQ em P:/R: e um SCHEMA que ignoramos (a página já gera o JSON-LD). Dentro do corpo, o marcador
+# [IMAGEM | buscar: "..." | alt: "..." | legenda: "..."] vira uma imagem do texto.
+#
+# As imagens: Pexels (oficial, se PEXELS_API_KEY estiver no ambiente da API), senão Openverse (CC comercial) e
+# Wikimedia Commons, os dois sem chave. A capa é cortada em 16:9 (1600x900), a do texto fica em até 1200 de largura.
+import urllib.request
+import urllib.parse
+
+CAPA_LARGURA, CAPA_ALTURA = 1600, 900
+TEXTO_LARGURA = 1200
+_UA = "Mozilla/5.0 (compatible; ImobEasyBlog/1.0; +https://blog.imobeasy.online)"
+
+
+def _normalizar_chave(s):
+    s = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode().lower()
+    s = re.sub(r"\(.*?\)", "", s)            # "TÍTULO (H1)" -> "titulo"
+    return re.sub(r"[^a-z]", "", s)
+
+
+_CAMPOS = {"titulo": "titulo", "slug": "slug", "urlfinal": None, "categoria": "categoria", "tipo": "tipo", "codigo": "codigo",
+           "codigodoimovel": "codigo", "bairro": "bairro", "palavrachave": "palavra_chave", "palavrassecundarias": "palavras_secundarias",
+           "resumo": "resumo", "capa": "capa_busca", "capaalt": "capa_alt", "ctadomeio": None, "ctafinal": None}
+
+
+def _parse_posts(texto):
+    """Divide o .md em posts e lê os campos. Devolve [{campos..., imagens_pedidas: [{marcador, busca, alt, legenda}], avisos: []}]."""
+    texto = (texto or "").replace("\r\n", "\n").lstrip("\ufeff")
+    partes = re.split(r"^##\s+POST\s+\d+.*$", texto, flags=re.M | re.I)
+    if len(partes) <= 1:
+        partes = re.split(r"^---\s*$", texto, flags=re.M)
+    posts = []
+    for bloco in partes[1:] if len(partes) > 1 else partes:
+        if "CORPO" not in bloco.upper() or "TÍTULO" not in bloco.upper() and "TITULO" not in bloco.upper():
+            continue
+        p = {"faq": [], "imagens_pedidas": [], "avisos": []}
+        # 1. os campos: o primeiro bloco ``` ... ``` com "CHAVE: valor" por linha
+        m = re.search(r"```[^\n]*\n(.*?)```", bloco, flags=re.S)
+        if m:
+            for linha in m.group(1).split("\n"):
+                mm = re.match(r"^\s*([^:]{2,60}?)\s*:\s*(.*)$", linha)
+                if not mm:
+                    continue
+                bruta = mm.group(1).strip().lower()
+                k = _normalizar_chave(mm.group(1))
+                if bruta.startswith("capa"):
+                    campo = "capa_alt" if re.search(r"\balt\b", bruta) else "capa_busca"
+                else:
+                    campo = _CAMPOS.get(k)
+                if campo:
+                    p[campo] = mm.group(2).strip()
+        # 2. o corpo: ````markdown ... ```` (4 crases) ou, sem ele, ```markdown ... ```
+        m = re.search(r"````(?:markdown)?\s*\n(.*?)\n````", bloco, flags=re.S)
+        if not m:
+            m = re.search(r"\*\*CORPO[^\n]*\n+```(?:markdown)?\s*\n(.*?)\n```", bloco, flags=re.S)
+        p["corpo"] = (m.group(1).strip() if m else "")
+        if not p["corpo"]:
+            p["avisos"].append("não achei o corpo em markdown")
+        # 3. o FAQ: linhas P:/R:
+        m = re.search(r"\*\*FAQ[^\n]*\n+```\s*\n(.*?)\n```", bloco, flags=re.S)
+        if m:
+            perg = None
+            for linha in m.group(1).split("\n"):
+                mm = re.match(r"^\s*(P|R)\s*:\s*(.*)$", linha)
+                if not mm:
+                    continue
+                if mm.group(1) == "P":
+                    perg = mm.group(2).strip()
+                elif perg:
+                    p["faq"].append({"pergunta": perg, "resposta": mm.group(2).strip()})
+                    perg = None
+        # 4. as imagens do texto
+        for mm in re.finditer(r"\[IMAGEM\s*\|([^\]]*)\]", p["corpo"]):
+            partes_i = [x.strip() for x in mm.group(1).split("|")]
+            item = {"marcador": mm.group(0), "busca": "", "alt": "", "legenda": ""}
+            for x in partes_i:
+                mk = re.match(r"^(buscar|busca|alt|legenda)\s*:\s*\"?(.*?)\"?$", x, flags=re.I)
+                if mk:
+                    item["busca" if mk.group(1).lower().startswith("busca") else mk.group(1).lower()] = mk.group(2).strip()
+            p["imagens_pedidas"].append(item)
+        p["titulo"] = (p.get("titulo") or "").strip()
+        p["categoria"] = (p.get("categoria") or "").strip().lower()
+        p["tipo"] = (p.get("tipo") or "post").strip().lower()
+        if not p["titulo"]:
+            p["avisos"].append("sem título")
+        if p["categoria"] not in dict(CATEGORIAS):
+            p["avisos"].append("categoria desconhecida: %s" % (p["categoria"] or "(vazia)"))
+        if len(p["faq"]) < 2:
+            p["avisos"].append("FAQ com menos de 2 perguntas")
+        posts.append(p)
+    return posts
+
+
+def _http_json(url, cab=None, tempo=20):
+    req = urllib.request.Request(url, headers=dict({"User-Agent": _UA, "Accept": "application/json"}, **(cab or {})))
+    with urllib.request.urlopen(req, timeout=tempo) as r:
+        return json.loads(r.read().decode("utf-8", "replace"))
+
+
+def _buscar_imagens(q, n=8, orientacao="landscape"):
+    """Candidatas para uma busca: [{url, thumb, largura, altura, fonte, credito, licenca, pagina}]. Pexels > Openverse > Wikimedia."""
+    q = (q or "").strip()
+    if not q:
+        return [], "sem busca"
+    saida, fontes = [], []
+    chave = os.environ.get("PEXELS_API_KEY", "").strip()
+    if chave:
+        try:
+            d = _http_json("https://api.pexels.com/v1/search?" + urllib.parse.urlencode({"query": q, "per_page": n, "orientation": orientacao}), {"Authorization": chave})
+            for f in d.get("photos") or []:
+                saida.append({"url": f["src"].get("large2x") or f["src"].get("original"), "thumb": f["src"].get("medium"), "largura": f.get("width"), "altura": f.get("height"),
+                              "fonte": "pexels", "credito": "Foto de %s (Pexels)" % f.get("photographer", ""), "licenca": "Pexels", "pagina": f.get("url")})
+            fontes.append("pexels")
+        except Exception as exc:  # noqa: BLE001
+            fontes.append("pexels: %s" % str(exc)[:80])
+    if len(saida) < 3:
+        try:
+            d = _http_json("https://api.openverse.org/v1/images/?" + urllib.parse.urlencode({"q": q, "license_type": "commercial", "page_size": max(n, 12)}))
+            for f in d.get("results") or []:
+                w, h = int(f.get("width") or 0), int(f.get("height") or 0)
+                if w < 1000 or (orientacao == "landscape" and h and w < h):
+                    continue
+                saida.append({"url": f.get("url"), "thumb": f.get("thumbnail") or f.get("url"), "largura": w, "altura": h, "fonte": "openverse/" + str(f.get("source") or ""),
+                              "credito": "%s (%s, %s)" % (f.get("creator") or "autor não informado", f.get("source") or "Openverse", (f.get("license") or "").upper()),
+                              "licenca": (f.get("license") or "").upper(), "pagina": f.get("foreign_landing_url")})
+            fontes.append("openverse")
+        except Exception as exc:  # noqa: BLE001
+            fontes.append("openverse: %s" % str(exc)[:80])
+    if len(saida) < 3:
+        try:
+            d = _http_json("https://commons.wikimedia.org/w/api.php?" + urllib.parse.urlencode({
+                "action": "query", "format": "json", "generator": "search", "gsrsearch": "filetype:bitmap " + q, "gsrnamespace": 6, "gsrlimit": max(n, 10),
+                "prop": "imageinfo", "iiprop": "url|size|extmetadata", "iiurlwidth": 1600}))
+            for pg in (d.get("query") or {}).get("pages", {}).values():
+                ii = (pg.get("imageinfo") or [{}])[0]
+                w, h = int(ii.get("width") or 0), int(ii.get("height") or 0)
+                if w < 1000 or (orientacao == "landscape" and h and w < h):
+                    continue
+                meta = ii.get("extmetadata") or {}
+                autor = re.sub(r"<[^>]+>", "", (meta.get("Artist") or {}).get("value", "") or "")[:60]
+                lic = (meta.get("LicenseShortName") or {}).get("value", "")
+                saida.append({"url": ii.get("thumburl") or ii.get("url"), "thumb": ii.get("thumburl") or ii.get("url"), "largura": w, "altura": h, "fonte": "wikimedia",
+                              "credito": "%s (Wikimedia Commons, %s)" % (autor or "autor não informado", lic), "licenca": lic, "pagina": ii.get("descriptionurl")})
+            fontes.append("wikimedia")
+        except Exception as exc:  # noqa: BLE001
+            fontes.append("wikimedia: %s" % str(exc)[:80])
+    return saida[:n], ", ".join(fontes)
+
+
+def _baixar_imagem(url):
+    req = urllib.request.Request(url, headers={"User-Agent": _UA})
+    with urllib.request.urlopen(req, timeout=40) as r:
+        return r.read(IMAGEM_MAXIMA + 1)
+
+
+def _guardar_imagem(conteudo, capa=False):
+    """Reduz e grava na pasta pública (fotos-captacao/blog/AAAAMM/). Capa: corte 16:9 em 1600x900; texto: até 1200 de largura."""
+    from PIL import Image, ImageOps
+    img = Image.open(io.BytesIO(conteudo))
+    img = ImageOps.exif_transpose(img)
+    if img.mode in ("RGBA", "P", "LA"):
+        fundo = Image.new("RGB", img.size, (255, 255, 255))
+        fundo.paste(img.convert("RGBA"), mask=img.convert("RGBA").split()[-1])
+        img = fundo
+    elif img.mode != "RGB":
+        img = img.convert("RGB")
+    if capa:
+        img = ImageOps.fit(img, (CAPA_LARGURA, CAPA_ALTURA), Image.LANCZOS, centering=(0.5, 0.45))
+    else:
+        img.thumbnail((TEXTO_LARGURA, TEXTO_LARGURA * 3), Image.LANCZOS)
+    saida = io.BytesIO()
+    img.save(saida, "JPEG", quality=84, optimize=True, progressive=True)
+    mes = dt.datetime.now().strftime("%Y%m")
+    pasta = os.path.join(PASTA_FOTOS, "blog", mes)
+    os.makedirs(pasta, exist_ok=True)
+    nome = uuid.uuid4().hex[:16] + ".jpg"
+    with open(os.path.join(pasta, nome), "wb") as arq:
+        arq.write(saida.getvalue())
+    return "%s/blog/%s/%s" % (URL_FOTOS, mes, nome), img.size
+
+
+@blog_bp.route("/admin/api/blog/importar/previa", methods=["POST"])
+def admin_importar_previa():
+    """Lê o .md e devolve os posts com os campos e, para cada busca de imagem, as candidatas."""
+    if not _admin_autenticado():
+        return _negado()
+    b = request.get_json(silent=True) or {}
+    texto = str(b.get("texto") or "")
+    if not texto.strip() and request.files.get("arquivo"):
+        texto = request.files["arquivo"].read(5_000_000).decode("utf-8", "replace")
+    posts = _parse_posts(texto)
+    if not posts:
+        return jsonify({"ok": False, "erro": "não achei nenhum post no arquivo (esperava blocos '## POST n de N' com CORPO em markdown)"}), 422
+    com_imagens = b.get("imagens", True)
+    for p in posts:
+        p["capa_candidatas"], p["capa_fontes"] = (_buscar_imagens(p.get("capa_busca"), 8) if com_imagens else ([], ""))
+        for im in p["imagens_pedidas"]:
+            im["candidatas"], im["fontes"] = (_buscar_imagens(im.get("busca"), 6) if com_imagens else ([], ""))
+    return jsonify({"ok": True, "posts": posts, "pexels": bool(os.environ.get("PEXELS_API_KEY", "").strip())})
+
+
+@blog_bp.route("/admin/api/blog/imagens")
+def admin_imagens_buscar():
+    if not _admin_autenticado():
+        return _negado()
+    q = (request.args.get("q") or "").strip()[:120]
+    cands, fontes = _buscar_imagens(q, min(max(int(request.args.get("n") or 8), 1), 20), request.args.get("orientacao") or "landscape")
+    return jsonify({"ok": True, "candidatas": cands, "fontes": fontes, "pexels": bool(os.environ.get("PEXELS_API_KEY", "").strip())})
+
+
+@blog_bp.route("/admin/api/blog/imagens/guardar", methods=["POST"])
+def admin_imagem_guardar():
+    """Baixa uma imagem escolhida (capa ou do texto) e grava no formato do blog; devolve a URL nossa."""
+    if not _admin_autenticado():
+        return _negado()
+    b = request.get_json(silent=True) or {}
+    url = str(b.get("url") or "").strip()
+    if not url.startswith("http"):
+        return jsonify({"ok": False, "erro": "sem a URL da imagem"}), 422
+    try:
+        nossa, tam = _guardar_imagem(_baixar_imagem(url), capa=bool(b.get("capa", True)))
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"ok": False, "erro": "não consegui baixar ou converter: %s" % str(exc)[:160]}), 502
+    return jsonify({"ok": True, "url": nossa, "largura": tam[0], "altura": tam[1]})
+
+
+def _montar_corpo(p, escolhas):
+    """Troca cada [IMAGEM | ...] pela imagem escolhida (markdown + legenda em itálico) ou tira o marcador."""
+    corpo = p.get("corpo") or ""
+    for im in p.get("imagens_pedidas") or []:
+        esc = escolhas.get(im["marcador"]) or {}
+        if esc.get("url"):
+            trecho = "![%s](%s)" % ((im.get("alt") or "").replace("]", ""), esc["url"])
+            legenda = (im.get("legenda") or "").strip()
+            credito = (esc.get("credito") or "").strip()
+            if legenda or credito:
+                trecho += "\n\n*%s*" % " · ".join(x for x in [legenda, credito] if x)
+            corpo = corpo.replace(im["marcador"], trecho)
+        else:
+            corpo = corpo.replace(im["marcador"], "")
+    return re.sub(r"\n{3,}", "\n\n", corpo).strip()
+
+
+@blog_bp.route("/admin/api/blog/importar/criar", methods=["POST"])
+def admin_importar_criar():
+    """Cria os artigos: {posts: [{...campos do post, agendado_para, capa: {url, credito} | null, imagens: {marcador: {url, credito}}, seo_nota}]}.
+    Baixa e converte as imagens escolhidas; agenda (publicado=false + agendado_para) ou publica se a hora já passou."""
+    if not _admin_autenticado():
+        return _negado()
+    b = request.get_json(silent=True) or {}
+    posts = b.get("posts") or []
+    if not isinstance(posts, list) or not posts:
+        return jsonify({"ok": False, "erro": "mande os posts"}), 422
+    quem = _quem()
+    saida = []
+    for p in posts:
+        item = {"titulo": p.get("titulo"), "ok": False}
+        try:
+            capa_url, capa_credito = None, ""
+            capa = p.get("capa") or {}
+            if capa.get("url"):
+                if str(capa["url"]).startswith(URL_FOTOS):
+                    capa_url = capa["url"]
+                else:
+                    capa_url, _ = _guardar_imagem(_baixar_imagem(capa["url"]), capa=True)
+                capa_credito = capa.get("credito") or ""
+            escolhas = {}
+            for marcador, esc in (p.get("imagens") or {}).items():
+                if not esc or not esc.get("url"):
+                    continue
+                url = esc["url"] if str(esc["url"]).startswith(URL_FOTOS) else _guardar_imagem(_baixar_imagem(esc["url"]), capa=False)[0]
+                escolhas[marcador] = {"url": url, "credito": esc.get("credito") or ""}
+            corpo = _montar_corpo(p, escolhas)
+            if capa_credito and capa_credito not in corpo:
+                corpo = corpo.rstrip() + "\n\n*Foto da capa: %s*" % capa_credito
+            dados = {"titulo": p.get("titulo"), "slug": p.get("slug"), "resumo": p.get("resumo"), "categoria": p.get("categoria"), "tipo": p.get("tipo") or "post",
+                     "codigo": p.get("codigo"), "bairro": p.get("bairro"), "corpo": corpo, "capa_url": capa_url, "capa_alt": p.get("capa_alt"),
+                     "palavra_chave": p.get("palavra_chave"), "faq": p.get("faq") or [], "publicado": bool(p.get("publicado")),
+                     "agendado_para": p.get("agendado_para"), "seo_nota": p.get("seo_nota")}
+            r = _um("SELECT site_blog_salvar(%s::jsonb, %s) AS r", (json.dumps(dados, ensure_ascii=False), quem), escrita=True) or {}
+            item.update(r)
+            if r.get("ok"):
+                item["url"] = _url_artigo(r["slug"])
+                item["capa_url"] = capa_url
+        except Exception as exc:  # noqa: BLE001
+            item["erro"] = str(exc).splitlines()[0][:200]
+        saida.append(item)
+    return jsonify({"ok": all(x.get("ok") for x in saida), "resultados": saida})

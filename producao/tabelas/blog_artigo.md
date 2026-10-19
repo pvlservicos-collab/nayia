@@ -1,4 +1,4 @@
-# blog_artigo  (tabela, ~0 linhas)
+# blog_artigo  (tabela, ~2 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('blog_artigo_id_seq'::regclass)
@@ -22,8 +22,10 @@ seo_nota  integer
 criado_por  text
 criado_em  timestamp with time zone  NOT NULL  padrão now()
 atualizado_em  timestamp with time zone  NOT NULL  padrão now()
+agendado_para  timestamp with time zone
 
 ## índices
+CREATE INDEX blog_artigo_agendado ON public.blog_artigo USING btree (agendado_para) WHERE ((NOT publicado) AND (agendado_para IS NOT NULL))
 CREATE INDEX blog_artigo_publicado ON public.blog_artigo USING btree (publicado, publicado_em DESC)
 CREATE UNIQUE INDEX blog_artigo_pkey ON public.blog_artigo USING btree (id)
 CREATE UNIQUE INDEX blog_artigo_slug_key ON public.blog_artigo USING btree (slug)
@@ -40,7 +42,7 @@ nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 nay_leitura: SELECT
 
 ## funções que escrevem aqui
-site_blog_apagar, site_blog_salvar
+blog_publicar_agendados, site_blog_apagar, site_blog_salvar
 
 ## funções que citam
-site_blog_admin_artigo, site_blog_admin_lista, site_blog_apagar, site_blog_artigo, site_blog_lista, site_blog_metricas, site_blog_salvar, site_blog_visita
+blog_publicar_agendados, site_blog_admin_artigo, site_blog_admin_lista, site_blog_apagar, site_blog_artigo, site_blog_lista, site_blog_metricas, site_blog_salvar, site_blog_visita

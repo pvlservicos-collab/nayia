@@ -14,6 +14,7 @@ DECLARE
                           THEN ARRAY(SELECT (x)::int FROM jsonb_array_elements_text(p->'imoveis_relacionados') x WHERE x ~ '^\d+$')
                           ELSE '{}' END;
   v_pub boolean := coalesce((p->>'publicado')::boolean, false);
+  v_agendado timestamptz := nullif(p->>'agendado_para', '')::timestamptz;
   v_antes blog_artigo;
 BEGIN
   IF nullif(btrim(coalesce(p->>'titulo', '')), '') IS NULL THEN RETURN jsonb_build_object('ok', false, 'erro', 'o artigo precisa de título'); END IF;
@@ -27,7 +28,8 @@ BEGIN
   IF coalesce(p->>'tipo', 'post') = 'imovel' AND v_codigo IS NULL THEN
     RETURN jsonb_build_object('ok', false, 'erro', 'post de imóvel precisa do código do imóvel');
   END IF;
-  -- slug único
+  -- agendar para já = publicar agora
+  IF NOT v_pub AND v_agendado IS NOT NULL AND v_agendado <= now() THEN v_pub := true; END IF;
   v_base := left(v_slug, 80);
   v_slug := v_base;
   WHILE EXISTS (SELECT 1 FROM blog_artigo WHERE slug = v_slug AND id IS DISTINCT FROM v_id) LOOP
@@ -36,20 +38,21 @@ BEGIN
   IF v_id IS NOT NULL THEN SELECT * INTO v_antes FROM blog_artigo WHERE id = v_id; END IF;
 
   INSERT INTO blog_artigo AS a (id, slug, titulo, resumo, categoria, tipo, codigo, bairro, corpo, capa_url, capa_alt, autor,
-                                palavra_chave, faq, imoveis_relacionados, publicado, publicado_em, seo_nota, criado_por)
+                                palavra_chave, faq, imoveis_relacionados, publicado, publicado_em, agendado_para, seo_nota, criado_por)
   VALUES (coalesce(v_id, nextval('blog_artigo_id_seq')), v_slug, btrim(p->>'titulo'), nullif(btrim(coalesce(p->>'resumo', '')), ''),
           p->>'categoria', coalesce(nullif(p->>'tipo', ''), 'post'), v_codigo, nullif(btrim(coalesce(p->>'bairro', '')), ''),
           coalesce(p->>'corpo', ''), nullif(btrim(coalesce(p->>'capa_url', '')), ''), nullif(btrim(coalesce(p->>'capa_alt', '')), ''),
           coalesce(nullif(btrim(coalesce(p->>'autor', '')), ''), 'Equipe Imob Easy'), nullif(btrim(coalesce(p->>'palavra_chave', '')), ''),
           v_faq, v_rel, v_pub,
-          CASE WHEN v_pub THEN coalesce(v_antes.publicado_em, nullif(p->>'publicado_em', '')::timestamptz, now()) ELSE v_antes.publicado_em END,
+          CASE WHEN v_pub THEN coalesce(v_antes.publicado_em, v_agendado, nullif(p->>'publicado_em', '')::timestamptz, now()) ELSE v_antes.publicado_em END,
+          CASE WHEN v_pub THEN NULL WHEN p ? 'agendado_para' THEN v_agendado ELSE v_antes.agendado_para END,
           nullif(p->>'seo_nota', '')::integer, left(coalesce(p_quem, ''), 80))
   ON CONFLICT (id) DO UPDATE SET
     slug = EXCLUDED.slug, titulo = EXCLUDED.titulo, resumo = EXCLUDED.resumo, categoria = EXCLUDED.categoria, tipo = EXCLUDED.tipo,
     codigo = EXCLUDED.codigo, bairro = EXCLUDED.bairro, corpo = EXCLUDED.corpo, capa_url = EXCLUDED.capa_url, capa_alt = EXCLUDED.capa_alt,
     autor = EXCLUDED.autor, palavra_chave = EXCLUDED.palavra_chave, faq = EXCLUDED.faq, imoveis_relacionados = EXCLUDED.imoveis_relacionados,
-    publicado = EXCLUDED.publicado, publicado_em = EXCLUDED.publicado_em, seo_nota = EXCLUDED.seo_nota, atualizado_em = now()
+    publicado = EXCLUDED.publicado, publicado_em = EXCLUDED.publicado_em, agendado_para = EXCLUDED.agendado_para, seo_nota = EXCLUDED.seo_nota, atualizado_em = now()
   RETURNING a.id INTO v_id;
-  RETURN jsonb_build_object('ok', true, 'id', v_id, 'slug', v_slug);
+  RETURN jsonb_build_object('ok', true, 'id', v_id, 'slug', v_slug, 'publicado', v_pub, 'agendado_para', (SELECT agendado_para FROM blog_artigo WHERE id = v_id));
 END
 $function$;

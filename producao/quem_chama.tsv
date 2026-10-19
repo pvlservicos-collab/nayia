@@ -1,6 +1,7 @@
 funcao	chamada_por
 blog_categoria_nome	site_blog_admin_artigo, site_blog_admin_lista, site_blog_artigo, site_blog_lista
 blog_newsletter_disparar	
+blog_publicar_agendados	
 blog_slug	site_blog_salvar
 captacao_ainda_e_da_ia	
 captacao_aplicar_ao_cadastro	captacao_aplicar_pendentes
