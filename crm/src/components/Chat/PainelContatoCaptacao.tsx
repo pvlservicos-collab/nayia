@@ -37,6 +37,7 @@ import { formatPhone } from '@/lib/utils'
 import { corDaPontuacao } from '@/lib/pontuacaoDoCadastro'
 import { numeroParaCopiar } from './PainelContatoParceria'
 import EtapaDaCaptacao from './EtapaDaCaptacao'
+import EtapaDoClienteOlx from './EtapaDoClienteOlx'
 import AgendarFollowup from './AgendarFollowup'
 import CadastroDeImovel, { type AlvoDoCadastro, type FotoDaConversa } from './CadastroDeImovel'
 import { usePuxador } from '@/hooks/usePuxador'
@@ -253,12 +254,13 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
           )}
         </div>
 
-        {/* a etapa (242) */}
-        {dono && (
-          <div style={{ background: 'var(--wa-panel)' }}>
-            <EtapaDaCaptacao leadId={lead.id} etapaManual={dono.etapaManual} abas={dono.abas} aoMudar={() => void ler()} />
-          </div>
-        )}
+        {/* a etapa (242); 18/10 (Pedro: "as Etapas da captação não estão lá no número de captação"): quem não é dono da
+            campanha (cliente da OLX, orgânico) ganha a etapa do cliente da OLX, a mesma do botão direito da lista */}
+        <div style={{ background: 'var(--wa-panel)' }}>
+          {dono
+            ? <EtapaDaCaptacao leadId={lead.id} etapaManual={dono.etapaManual} abas={dono.abas} aoMudar={() => void ler()} />
+            : !oficial && <EtapaDoClienteOlx telefone={lead.phone} />}
+        </div>
 
         {/* 17/10 (Pedro): as etiquetas da equipe também no card da Captação */}
         <Secao titulo="Etiquetas">

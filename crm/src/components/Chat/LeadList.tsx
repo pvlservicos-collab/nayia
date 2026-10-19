@@ -13,6 +13,8 @@ import { useCaptacaoDonos } from '@/hooks/useCaptacaoDonos'
 import { useOlxClientes, mudarEtapaOlx } from '@/hooks/useOlxClientes'
 import { useDonosDoCadastro } from '@/hooks/useDonosDoCadastro'
 import { ETAPAS_OLX, fim8, type EtapaOlx } from '@/lib/olxClientes'
+/* 18/10 (Pedro): as etapas em que a Nay ainda está atendendo não são abas; quem está nelas fica em Todos */
+const ETAPAS_OLX_FORA_DA_FILEIRA = new Set<string>(['filtrar', 'feito_busca', 'imoveis_enviados'])
 import { montarAtendentes, atendenteDaConversa, type Atendente } from '@/lib/atendentes'
 import LeadListItem from './LeadListItem'
 import ChatFilterTabs, { type ChatTab, type FiltroDaLista } from './ChatFilterTabs'
@@ -178,6 +180,11 @@ export default function LeadList({
     const c = olxClientes[fim8(l.phone)]
     return c && c.etapa !== 'nova' ? c.etapa : null
   }
+  /* 18/10 (Pedro: "precisa pôr a aba Tel lá" na Captação): a conversa está com o Tel quando a etapa manual é
+     Com o Tel (242, dono da campanha), quando alguém da equipe escreveu e a Nay do WhatsApp saiu (`humano`, 385),
+     ou quando o card foi posto em Tel à mão. */
+  const comOTelNaCaptacao = (l: LeadWithOwner): boolean =>
+    (donos[l.id]?.abas || []).includes('com_o_tel') || !!olxClientes[fim8(l.phone)]?.humano || escolhaAMao(l as any) === 'tel'
 
   // Filtro por etiqueta — multi-seleção, combina com o filtro de cima.
   const { allTags } = useTags(organizationId)
@@ -490,6 +497,12 @@ export default function LeadList({
         const semLer = Number(l.nao_lidas || 0)
         if (semLer) contagem[`semler:olx:${etapaOlx}`] = (contagem[`semler:olx:${etapaOlx}`] ?? 0) + semLer
       }
+      // 18/10: a aba Tel da Captação
+      if (linha === 'captacao' && comOTelNaCaptacao(l)) {
+        soma('tel')
+        const semLer = Number(l.nao_lidas || 0)
+        if (semLer) contagem['semler:tel'] = (contagem['semler:tel'] ?? 0) + semLer
+      }
     }
   }
 
@@ -558,14 +571,21 @@ export default function LeadList({
      uma terceira fileira pequena, embaixo das abas da campanha, e ele não as achou). Proprietários junta os donos da
      campanha (as abas antigas viram o subfiltro dela) e o cliente da OLX que a equipe pôs ali. Só na Captação: a
      Oficial continua com as abas da campanha. */
+  /* 18/10 (Pedro: "retira essas 3: Filtrar, Feito busca, Imóveis enviado; deixa todos os que estavam nesse estado
+     dentro de Todos ... precisa pôr a aba Tel lá, mesmo que tenha 2 linhas de etapas"): as três etapas em que a Nay
+     ainda está atendendo saem da fileira (quem está nelas aparece em Todos, que mostra tudo); entra Tel, de quem está
+     com a conversa (a etapa manual Com o Tel, ou alguém da equipe escreveu e a Nay saiu). */
   const filtrosCaptacao: FiltroDaLista[] = linha === 'captacao'
     ? [
         { chave: 'all', rotulo: 'Todos', grupo: 'etapa' as const },
-        ...ETAPAS_OLX.map((e) => ({ chave: `olx:${e.chave}`, rotulo: e.rotulo, cor: e.cor, grupo: 'etapa' as const,
-                                    titulo: e.chave === 'proprietarios'
-                                      ? 'Os donos de imóvel: do cadastro, da campanha e o cliente da OLX que a equipe pôs aqui'
-                                      : e.titulo,
-                                    contagem: contagem[`olx:${e.chave}`], naoLidas: contagem[`semler:olx:${e.chave}`] })),
+        ...ETAPAS_OLX.filter((e) => !ETAPAS_OLX_FORA_DA_FILEIRA.has(e.chave))
+          .map((e) => ({ chave: `olx:${e.chave}`, rotulo: e.rotulo, cor: e.cor, grupo: 'etapa' as const,
+                         titulo: e.chave === 'proprietarios'
+                           ? 'Os donos de imóvel: do cadastro, da campanha e o cliente da OLX que a equipe pôs aqui'
+                           : e.titulo,
+                         contagem: contagem[`olx:${e.chave}`], naoLidas: contagem[`semler:olx:${e.chave}`] })),
+        { chave: 'tel', rotulo: 'Tel', grupo: 'pessoa' as const, contagem: contagem['tel'], naoLidas: contagem['semler:tel'],
+          titulo: 'O Tel está com a conversa: etapa Com o Tel, ou alguém da equipe escreveu e a Nay saiu' },
       ]
     : []
   const noSubfiltroDosDonos = activeTab === 'olx:proprietarios' || activeTab.startsWith('cap:')
@@ -587,6 +607,7 @@ export default function LeadList({
     if (activeTab.startsWith('olx:')) return etapaOlxDe(l) === activeTab.slice(4)
     if (activeTab === 'nao_lidas') return !!l.is_unread || l.id === selectedLeadId
     if (activeTab === 'rayssa') return daRayssa(l, marcas[l.id], atendenteDoLead[l.id])
+    if (activeTab === 'tel' && linha === 'captacao') return comOTelNaCaptacao(l)
     if (activeTab === 'tel') return doTel(l, marcas[l.id], atendenteDoLead[l.id])
     const janela = JANELAS_DE_FOLLOWUP.find(([k]) => k === activeTab)
     if (janela) return esperandoResposta(l, janela[1], agora)

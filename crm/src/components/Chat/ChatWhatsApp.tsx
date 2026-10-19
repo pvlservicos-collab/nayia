@@ -407,21 +407,29 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
   ) : linha === 'captacao' ? (
     // a barra da captação (Pedro, 29/09): hoje, as etapas e o relatório ao Tel
     <>
+      {/* 18/10 (Pedro: "a agenda não está lá no número de captação ... todos os números compartilhando a mesma
+          agenda"): Conversas e Visitas agendadas também aqui; a agenda é a mesma da Parceria */}
+      <AbasParceria aba={aba} aoMudar={(k) => { setAba(k); if (k === 'conversas') setMobileView('list') }}
+                    naoLidas={naoLidas} visitasAbertas={0} abas={['conversas', 'visitas']}
+                    rotuloConversas="As conversas do WhatsApp da Captação" />
       {/* quem só responde na captação vê o aviso sempre que abre esta tela (Pedro, 02/10) */}
-      {soRespondeNaCaptacao(profileName || user?.name) && (
+      {aba === 'conversas' && soRespondeNaCaptacao(profileName || user?.name) && (
         <div role="alert" className="px-4 py-2.5 text-[13.5px] font-medium leading-snug"
              style={{ background: '#FEF3C7', color: '#78350F', borderBottom: '1px solid #F59E0B' }}>
           ⚠️ {AVISO_DA_CAPTACAO}
         </div>
       )}
-      <BarraDaCaptacao leads={allLeads} />
+      {aba === 'conversas' && <BarraDaCaptacao leads={allLeads} />}
     </>
   ) : linha === 'oficial' ? (
     // o contador da Meta no mês (Pedro, 16/10: "quanto já disparamos ... e quanto estamos gastando") e a barrinha do
     // disparo pela API oficial (Pedro, 09/10): qual lista está saindo e quanto falta
     <>
-      <BarraDoCustoOficial />
-      <BarraDoDisparoOficial />
+      <AbasParceria aba={aba} aoMudar={(k) => { setAba(k); if (k === 'conversas') setMobileView('list') }}
+                    naoLidas={naoLidas} visitasAbertas={0} abas={['conversas', 'visitas']}
+                    rotuloConversas="As conversas do número oficial (Meta)" />
+      {aba === 'conversas' && <BarraDoCustoOficial />}
+      {aba === 'conversas' && <BarraDoDisparoOficial />}
     </>
   ) : null
 
@@ -431,7 +439,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
     return (
       <div className="chat-theme h-full flex flex-col">
         {!naConversa && abas}
-        {ehParceria && aba === 'visitas' ? (
+        {aba === 'visitas' ? (
           <div className="flex-1 min-h-0 flex"><VisitasAgendadas aoAbrirConversa={abrirConversaPorId} destaque={visitaDestaque} /></div>
         ) : ehParceria && aba === 'fechamento' ? (
           <div className="flex-1 min-h-0 overflow-y-auto"><FechamentoChecklists /></div>
@@ -450,7 +458,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
     <div className="chat-theme flex flex-col h-full min-h-0">
       {abas}
       <div className="flex flex-1 min-h-0">
-        {ehParceria && aba === 'visitas' ? (
+        {aba === 'visitas' ? (
           <VisitasAgendadas aoAbrirConversa={abrirConversaPorId} destaque={visitaDestaque} />
         ) : ehParceria && aba === 'fechamento' ? (
           <div className="flex-1 min-h-0 overflow-y-auto"><FechamentoChecklists /></div>

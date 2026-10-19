@@ -15,13 +15,20 @@ import { ChatCircleText, CalendarCheck, ClipboardText } from '@phosphor-icons/re
  */
 export type AbaDaParceria = 'conversas' | 'visitas' | 'fechamento'
 
-export default function AbasParceria({ aba, aoMudar, naoLidas, visitasAbertas, children }: {
+/* 18/10 (Pedro: "a agenda não está lá no número de captação; precisa estar, é claro, todos os números compartilhando a
+   mesma agenda"): as outras linhas usam estas mesmas abas, só sem Fechamento (que é da Parceria). `abas` escolhe. */
+export default function AbasParceria({ aba, aoMudar, naoLidas, visitasAbertas, children, abas, rotuloConversas }: {
   aba: AbaDaParceria
   aoMudar: (aba: AbaDaParceria) => void
   naoLidas: number
   visitasAbertas: number
   children?: ReactNode
+  /** quais abas mostrar; sem isso, as três da Parceria */
+  abas?: AbaDaParceria[]
+  /** a dica da aba Conversas (o número da linha) */
+  rotuloConversas?: string
 }) {
+  const mostra = (k: AbaDaParceria) => !abas || abas.includes(k)
   const aba_ = (chave: AbaDaParceria, rotulo: string, Icone: typeof ChatCircleText, contagem: number, titulo: string) => {
     const on = aba === chave
     return (
@@ -42,10 +49,10 @@ export default function AbasParceria({ aba, aoMudar, naoLidas, visitasAbertas, c
 
   return (
     <div className="wa-abas">
-      <div className="wa-abas__abas" role="tablist" aria-label="Abas da Parceria">
-        {aba_('conversas', 'Conversas', ChatCircleText, naoLidas, 'As conversas do WhatsApp da Parceria')}
-        {aba_('visitas', 'Visitas agendadas', CalendarCheck, visitasAbertas, 'As visitas que a Nay agendou, com o andamento e as datas')}
-        {aba_('fechamento', 'Fechamento', ClipboardText, 0, 'Os checklists de aluguel e venda para o contrato')}
+      <div className="wa-abas__abas" role="tablist" aria-label="Abas da linha">
+        {mostra('conversas') && aba_('conversas', 'Conversas', ChatCircleText, naoLidas, rotuloConversas || 'As conversas do WhatsApp da Parceria')}
+        {mostra('visitas') && aba_('visitas', 'Visitas agendadas', CalendarCheck, visitasAbertas, 'A agenda de visitas: é uma só para todos os números')}
+        {mostra('fechamento') && aba_('fechamento', 'Fechamento', ClipboardText, 0, 'Os checklists de aluguel e venda para o contrato')}
       </div>
       {children}
     </div>
