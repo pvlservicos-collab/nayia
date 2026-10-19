@@ -1,4 +1,4 @@
-# core_conversa  (tabela, ~234 linhas)
+# core_conversa  (tabela, ~237 linhas)
 
 ## colunas
 chave  text  NOT NULL

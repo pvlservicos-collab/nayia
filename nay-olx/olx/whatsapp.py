@@ -907,6 +907,11 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
     if lead.get("etapa") in ETAPAS_DA_BUSCA:
         _marcar(conn, lead["id"], etapa="feito_busca")
     if not achados:
+        # 416 (Pedro, 19/10): o catálogo não tem -> ordem de busca na OLX (olx/parceiro.py); ela "vai verificar"
+        if abrir_busca_na_olx(conn, lead, f):
+            if not ja_avisou:
+                mandar_texto(conn, lead, "Vou verificar as opções que tenho aqui se estão disponíveis e já te retorno.")
+            return
         # nunca a negativa: ela diz que está separando e a equipe recebe o perfil (se já disse neste turno, não repete)
         if not ja_avisou:
             mandar_texto(conn, lead, "Estou separando as opções com a nossa equipe e já te retorno por aqui.")
@@ -928,6 +933,38 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
     if lead.get("etapa") in ETAPAS_DA_BUSCA:
         _marcar(conn, lead["id"], etapa="imoveis_enviados")
     log.info("lead %s: %d imóvel(is) enviado(s)%s", lead["id"], len(achados), " (os mais próximos)" if proximas else "")
+
+
+def busca_na_olx_vale(cfg: dict, telefone: str) -> tuple[bool, bool]:
+    """(abre, teste): a chave `busca_parceiro` (nao | teste | sim); em teste só para o PRIMEIRO número de `whatsapp_teste`
+    (o do Pedro: o segundo da lista é a Michelle, cliente de verdade)."""
+    modo = (cfg.get("busca_parceiro") or "nao").strip().lower()
+    if modo == "sim":
+        return True, False
+    primeiro = [x for x in re.split(r"[,;\s]+", cfg.get("whatsapp_teste") or "") if x.strip()][:1]
+    if modo == "teste" and primeiro and _so8(telefone) == _so8(primeiro[0]):
+        return True, True
+    return False, False
+
+
+def abrir_busca_na_olx(conn, lead: dict, filtros: dict) -> bool:
+    """Abre (ou reconhece a que já está aberta) a ordem de busca de imóvel de parceiro na OLX deste cliente."""
+    abre, teste = busca_na_olx_vale(banco.chaves(conn), lead["telefone"])
+    if not abre:
+        return False
+    # o mesmo pedido já procurado nas últimas 6 h e encerrado: a busca daria o mesmo; fica o caminho de antes (equipe)
+    if banco.um(conn, """SELECT EXISTS (SELECT 1 FROM privado.olx_busca_parceiro WHERE lead = %s AND filtros = %s::jsonb
+                           AND estado NOT IN ('pendente', 'buscando', 'sem_navegador', 'perguntado')
+                           AND criado_em > now() - interval '6 hours')""", (lead["id"], json.dumps(filtros, ensure_ascii=False))):
+        return False
+    try:
+        nova = banco.um(conn, """INSERT INTO privado.olx_busca_parceiro (lead, filtros, teste) VALUES (%s, %s::jsonb, %s)
+                                 ON CONFLICT DO NOTHING RETURNING id""", (lead["id"], json.dumps(filtros, ensure_ascii=False), teste))
+    except Exception:  # noqa: BLE001
+        log.exception("lead %s: a ordem de busca na OLX não abriu", lead["id"])
+        return False
+    log.info("lead %s: busca na OLX %s", lead["id"], f"aberta ({nova})" if nova else "já aberta")
+    return True
 
 
 def finalidade_sem_dizer(lead: dict, f: dict) -> str:

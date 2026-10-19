@@ -29,6 +29,13 @@ def main() -> None:
     # 16/10 (385): a Nay do WhatsApp dos clientes da OLX (8595-6408) numa linha própria: o envio de card e fotos leva
     # minutos e não pode segurar o chat da OLX. Ela só fala com `whatsapp_responde` = teste | sim.
     whatsapp.iniciar()
+    # 416 (19/10): a busca de imóvel de parceiro na OLX, noutra linha (abre página no Chrome do PC, leva minutos). Sem o
+    # código da aba Grupos (/root/nay-grupos) ou o websocket, só ela fica parada: o resto do serviço segue.
+    try:
+        from olx import parceiro
+        parceiro.iniciar()
+    except Exception:  # noqa: BLE001
+        log.exception("a busca de parceiro na OLX não iniciou")
     conn = None
     proxima_rodada = 0.0        # a conferência do que foi mandado e a rodada, juntas, a cada 5 min
     espera_ate = 0.0            # a OLX disse não: até aqui a rodada não manda nada (a conferência continua)

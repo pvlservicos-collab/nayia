@@ -282,6 +282,21 @@ prompt: comece pelo `nay onde`.
   em `nay-site-api/app.py` (senha do painel). A conversa exportada é lida NO NAVEGADOR por `assets/js/whatsapp-exportado.js`
   (.txt do Android, .zip do iPhone) e enviada em lotes a `/admin/api/grupos/captacao/importar`. Os botões usam `data-gc-...`: o ouvinte geral do `grupos-agenda.js` pega `data-dias` e
   `data-excluir`. Provar sem senha: `python -m unittest discover -s tests` em `nay-grupos/` e `scripts/provar_extracao.py --conta` no servidor.
+- A NOTA da Captação ativa por grupos (19/10): `nay-grupos/grupos/pontuar.py` (pesos em `regras.py`/`config.json`). Elevador é
+  pilar (peso 35): o pedido diz (`texto.pede_elevador`, ou "serve escada? não"); o imóvel pelo cadastro
+  (`nai_imovel_tem_elevador`) ou deduzido em `catalogo.elevador_do` (5º andar+ tem; até o 4º com a lista do condomínio sem
+  elevador não tem; térreo dispensa). Preço dentro de -15%/+10% quase não pesa (acima do teto cai só até 90).
+- Uma mensagem de imóvel para VÁRIOS grupos (415): "Nova mensagem" em admin › Grupos, destino "Marcar grupos"
+  (`grupos-agenda.js`), gravado em `vagas.grupos_ids` por `site_grade_salvar`; `nay-publicador/disparar_grade.py` posta
+  em cada marcado com a regra de cada grupo.
+- BUSCA DE IMÓVEL DE PARCEIRO NA OLX (416): o catálogo não tem nada para o cliente da Nay do WhatsApp (8595) →
+  `whatsapp.abrir_busca_na_olx` abre `privado.olx_busca_parceiro` e ela diz "Vou verificar as opções...". O laço
+  `nay-olx/olx/parceiro.py` busca pelo Chrome do PC (`olx/cdp.py`, túnel 127.0.0.1:9304 do `navegador-olx.ps1`), dá a
+  nota com o código da aba Grupos (`olx/busca_olx.py` importa `/root/nay-grupos`), abre o anúncio de nota ≥ 88, acha o
+  telefone (descrição + `scrap_anuncio`/`scrap_contato`) e decide pela `privado.falou_conosco`: conhecido → pergunta pela
+  Parceria/Captação e, com "sim", manda ao cliente; desconhecido, sem resposta ou "não" → grupo Altarquia e a Nay para com o
+  cliente. Chaves `busca_parceiro*` em `privado.olx_config` (teste = só o 1º número de `whatsapp_teste`). Painel:
+  `crm_olx_buscas_parceiro(dias)`. Ensaio só leitura: `busca_olx.buscar(conn, base, filtros)`.
 - Mensagem marcada (a barra "Lead se refere a mensagem"): `src/lib/mensagemCitada.ts` procura o ID no CRM e depois no banco da Nay
   (`crm_mensagem_citada`, 335). Chamado na chegada (`zapiInbound.ts`) e ao abrir a conversa (GET `/api/leads/[id]/messages`, que
   conserta as antigas e grava). A barra abre com um toque (`QuotedMessageBar` em `ActivityTimeline.tsx`).

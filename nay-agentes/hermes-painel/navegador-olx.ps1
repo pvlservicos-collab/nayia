@@ -17,6 +17,10 @@ $ErrorActionPreference = 'Continue'
 $porta = 9377          # a porta do Chrome aqui (so 127.0.0.1)
 $portaVps = 9303       # a porta na VPS2 (so 127.0.0.1 de la)
 $vps = 'nay-srv1877774'
+# 19/10/2026 (Pedro: "buscar imovel de parceiro na OLX"): o servidor da Nay (srv1894338) tambem usa este Chrome, pela
+# porta 9304 de la (so 127.0.0.1). O servico nay-olx procura ali o anuncio parecido com o que o cliente pediu.
+$portaNay = 9304
+$vpsNay = 'nay-srv1894338'
 $perfil = Join-Path $env:LOCALAPPDATA 'NavegadorAgenteOLX'
 $registro = Join-Path $perfil 'navegador-olx.log'
 
@@ -102,6 +106,7 @@ if (-not (Chrome-No-Ar)) { Anota 'o Chrome do agente nao abriu'; exit 1 }
 Anota "ligado (Chrome do agente, pid $(Pid-Do-Chrome))"
 
 $tunel = $null
+$tunelNay = $null
 while ($true) {
   if (-not (Chrome-No-Ar)) { Start-Sleep -Seconds 2; if (-not (Chrome-No-Ar)) { Anota 'o Chrome do agente foi fechado; encerrando'; break } }
   Janelas-Do-Agente 0      # janela nova (popup de login, por exemplo) tambem fica escondida: ela aparece como aba na tela do admin
@@ -111,7 +116,14 @@ while ($true) {
       '-o', 'ServerAliveInterval=30', '-o', 'ServerAliveCountMax=3', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=20',
       '-R', "127.0.0.1:${portaVps}:127.0.0.1:${porta}", $vps)
   }
+  if ($null -eq $tunelNay -or $tunelNay.HasExited) {
+    if ($null -ne $tunelNay) { Anota 'a ligacao com o servidor da Nay caiu; ligando de novo'; Start-Sleep -Seconds 4 }
+    $tunelNay = Start-Process -FilePath $ssh -WindowStyle Hidden -PassThru -ArgumentList @('-N', '-o', 'ExitOnForwardFailure=yes',
+      '-o', 'ServerAliveInterval=30', '-o', 'ServerAliveCountMax=3', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=20',
+      '-R', "127.0.0.1:${portaNay}:127.0.0.1:${porta}", $vpsNay)
+  }
   Start-Sleep -Seconds 3
 }
 if ($null -ne $tunel -and -not $tunel.HasExited) { Stop-Process -Id $tunel.Id -Force -Confirm:$false }
+if ($null -ne $tunelNay -and -not $tunelNay.HasExited) { Stop-Process -Id $tunelNay.Id -Force -Confirm:$false }
 $unico.ReleaseMutex()

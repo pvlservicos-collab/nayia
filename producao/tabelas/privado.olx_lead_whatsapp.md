@@ -1,4 +1,4 @@
-# privado.olx_lead_whatsapp  (tabela, ~17 linhas)
+# privado.olx_lead_whatsapp  (tabela, ~20 linhas)
 384: quem deu o WhatsApp no chat da OLX, com a leitura de perfil da Nay da OLX, para a Nay do WhatsApp continuar.
 
 ## colunas
@@ -44,4 +44,4 @@ olx_lead_whatsapp_pkey: PRIMARY KEY (id)
 crm_captacao_etapa_manual, crm_olx_cliente_etapa, olx_nay_lead_whatsapp
 
 ## funções que citam
-captacao_mensagem_do_python, crm_captacao_etapa_manual, crm_olx_cliente_etapa, crm_olx_clientes_etapas, olx_nay_lead_whatsapp, olx_organicos_novos, site_painel_metricas, site_painel_visitas
+captacao_mensagem_do_python, crm_captacao_etapa_manual, crm_olx_buscas_parceiro, crm_olx_cliente_etapa, crm_olx_clientes_etapas, olx_nay_lead_whatsapp, olx_organicos_novos, site_painel_metricas, site_painel_visitas
