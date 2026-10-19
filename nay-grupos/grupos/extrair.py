@@ -23,7 +23,7 @@ from grupos import config
 
 URL = "https://api.openai.com/v1/responses"
 CAMPOS = ("operacao", "tipo", "bairros", "condominio", "quartos", "preco_max", "mobiliado", "andar", "suite",
-          "vagas", "pet", "financiamento", "contato")
+          "vagas", "pet", "financiamento", "elevador", "contato")
 
 PROMPT = """Você lê mensagens de grupos de WhatsApp de corretores de imóveis de Manaus e extrai os PEDIDOS de imóvel:
 um corretor procurando imóvel para um cliente dele.
@@ -56,8 +56,10 @@ CAMPOS de cada pedido:
 - pet: true se o cliente tem animal ou pediu que aceite pet.
 - financiamento: true se pediu imóvel que ACEITE FINANCIAMENTO (financiamento bancário, pela Caixa, FGTS, Minha Casa
   Minha Vida, "cliente vai financiar"); false se disse que é à vista e não precisa; null se não falou.
+- elevador: true se pediu prédio com elevador ("com elevador", "Elevador" solto na lista do que ele quer). "Térreo ou com
+  elevador" = elevador true E andar ["terreo"]. false se disse que não precisa. null se não falou.
 - contato: nome ou telefone que a pessoa deixou NA MENSAGEM (assinatura "Att Fulana", "falar com", um número).
-- observacao: o que ele pediu e não cabe nos campos ("enviar no PV", "andar alto", "com elevador", "perto do
+- observacao: o que ele pediu e não cabe nos campos ("enviar no PV", "andar alto", "perto do
   trabalho"). Uma frase curta.
 - trecho: o pedaço da mensagem que é este pedido, copiado.
 - confianca: para CADA campo, "certo", "duvidoso" ou "nao_informado".
@@ -93,6 +95,7 @@ ESQUEMA = {
             "vagas": _ou_nulo({"type": "integer"}),
             "pet": _ou_nulo({"type": "boolean"}),
             "financiamento": _ou_nulo({"type": "boolean"}),
+            "elevador": _ou_nulo({"type": "boolean"}),
             "contato": _ou_nulo({"type": "string"}),
             "observacao": _ou_nulo({"type": "string"}),
             "trecho": {"type": "string"},
@@ -183,6 +186,7 @@ def limpar(p: dict) -> dict | None:
         "vagas": _inteiro(p.get("vagas"), 0, 12),
         "pet": sim_nao("pet"),
         "financiamento": sim_nao("financiamento"),
+        "elevador": sim_nao("elevador"),
         "contato": texto("contato", 80),
         "observacao": texto("observacao", 200),
         "trecho": texto("trecho", 600),

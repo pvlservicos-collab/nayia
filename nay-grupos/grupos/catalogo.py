@@ -20,10 +20,15 @@ SELECT i.codigo, i.tipo, i.bairro, i.condominio_nome, i.quartos, i.suites, i.vag
        (array_to_string(coalesce(i.caracteristicas, '{}'), ' ') ~* '(aceita|permite)\\s+(pet|anima)|pet\\s*friendly'
         OR coalesce(i.extras::text, '') ~* '(aceita|permite)[^"]{0,12}(pet|anima)') AS pet,
        nullif(btrim(i.extras->>'aceita financiamento'), '') AS financiamento,
+       -- 19/10: o elevador (o que o cadastro e o anúncio dizem; null = não informado) e quantas características do
+       -- condomínio o anúncio lista (lista cheia SEM elevador num 4º andar ou mais baixo = não tem elevador)
+       nai_imovel_tem_elevador(i.codigo) AS elevador_dado, cc.n_car_cond,
        f.visto, a.dono, CASE WHEN i.travado THEN i.travado_em END AS a_mao, i.criado_em
   FROM imoveis i
   LEFT JOIN LATERAL (SELECT max(x.lido_em) AS visto FROM imovel_ficha x
                       WHERE x.codigo = i.codigo AND x.encontrado AND x.erro IS NULL) f ON true
+  LEFT JOIN LATERAL (SELECT coalesce(cardinality(x.caracteristicas_condominio), 0) AS n_car_cond FROM imovel_ficha x
+                      WHERE x.codigo = i.codigo AND x.encontrado ORDER BY x.lido_em DESC LIMIT 1) cc ON true
   LEFT JOIN LATERAL (SELECT max(x.aplicado_em) AS dono FROM captacao_aplicado x
                       WHERE x.codigo::text = i.codigo::text AND x.situacao = 'disponivel') a ON true
  WHERE coalesce(i.disponivel, true) AND i.status = 'Disponível'
@@ -79,6 +84,21 @@ def financiamento_do(f: str | None) -> bool | None:
     return None
 
 
+def elevador_do(dado: bool | None, tipo: str, andar: int | None, n_car_cond: int | None) -> tuple[bool | None, str]:
+    """(tem elevador?, de onde se sabe). Pedro, 19/10: "o Parque dos Ingleses não tem elevador". O cadastro e o anúncio
+    dizem quando listam; senão: casa não tem; 5º andar para cima tem (prédio desse tamanho tem elevador); do 4º para
+    baixo, com a lista de características do condomínio preenchida e SEM elevador, não tem; o resto não se sabe."""
+    if dado is not None:
+        return dado, ("o anúncio lista elevador" if dado else "o cadastro diz que não tem")
+    if tipo == "casa":
+        return False, "casa"
+    if andar is not None and 5 <= andar < 99:
+        return True, f"{andar}º andar (prédio com elevador)"
+    if tipo == "apartamento" and andar is not None and andar <= 4 and (n_car_cond or 0) > 0:
+        return False, "o condomínio lista as características e o elevador não está entre elas"
+    return None, "elevador não informado no cadastro"
+
+
 def andar_do(a: str | None) -> int | None:
     n = normal(a)
     if not n:
@@ -115,6 +135,8 @@ def carregar(conn) -> tuple[list[dict], dict]:
             "pet": True if l["pet"] else None,
             # o "aceita financiamento" do cadastro (Sim / Não / vazio = não informado)
             "financiamento": financiamento_do(l["financiamento"]),
+            **dict(zip(("elevador", "elevador_como"),
+                       elevador_do(l["elevador_dado"], tipo_do(l["tipo"]), andar_do(l["andar"]), l["n_car_cond"]))),
             "valor_aluguel": float(l["valor_aluguel"]) if l["valor_aluguel"] else None,
             "valor_venda": float(l["valor_venda"]) if l["valor_venda"] else None,
             "taxa_condominio": float(l["taxa_condominio"]) if l["taxa_condominio"] else None,
@@ -133,6 +155,7 @@ def para_a_tela(imovel: dict) -> dict:
     """O retrato do imóvel que fica guardado com o par (só o que a tela mostra, em JSON)."""
     r = {k: imovel.get(k) for k in ("codigo", "tipo_cadastro", "bairro", "condominio", "quartos", "suites", "vagas",
                                     "andar_cadastro", "mobilia_cadastro", "valor_aluguel", "valor_venda",
-                                    "taxa_condominio", "area", "logradouro", "confirmado_como", "financiamento")}
+                                    "taxa_condominio", "area", "logradouro", "confirmado_como", "financiamento",
+                                    "elevador", "elevador_como")}
     r["confirmado_em"] = imovel["confirmado_em"].isoformat() if imovel.get("confirmado_em") else None
     return r

@@ -10,13 +10,13 @@
   "janela_h": 48,
   "_janela_h": "pedidos mais velhos que isto são ignorados (horas)",
 
-  "pesos": { "preco": 40, "local": 20, "quartos": 15, "mobiliado": 10, "andar": 10, "extras": 5 },
-  "_pesos": "só entram na conta os critérios que o corretor pediu; os que sobram são reescalados para somar 100",
+  "pesos": { "preco": 40, "local": 20, "quartos": 15, "mobiliado": 10, "andar": 10, "extras": 5, "elevador": 35 },
+  "_pesos": "só entram na conta os critérios que o corretor pediu; os que sobram são reescalados para somar 100. Elevador (19/10, Pedro: um dos pilares principais) só conta quando ele pede e o imóvel tem andar: com elevador 100, sem 0, não informado 50",
 
   "cortes": { "verde": 90, "amarelo": 70 },
 
-  "preco": { "cheio_ate_abaixo": 0.20, "zera_em": 0.40, "tolerancia_acima": 0.10 },
-  "_preco": "de 20% abaixo do teto até o teto vale 100%; mais barato que isso cai em linha reta até 0% quando o imóvel custa 40% do teto; acima do teto cai de 100% a 0% em 10%, e mais que 10% acima elimina",
+  "preco": { "cheio_ate_abaixo": 0.15, "zera_em": 0.40, "tolerancia_acima": 0.10, "rend_no_limite_acima": 90 },
+  "_preco": "19/10 (Pedro: dentro do filtro de 10% a mais ou 15% a menos a diferença de preço quase não pesa): de 15% abaixo do teto até o teto vale 100%; acima do teto cai de 100% só até 90% nos 10% de tolerância; mais que 10% acima elimina; mais barato que 15% abaixo cai em linha reta até 0% quando o imóvel custa 40% do teto",
 
   "local": { "exato": 100, "divisa_colado": 85, "divisa_piso": 45, "perto_sem_divisa": 65, "perto_ate_km": 5, "km_que_zera": 10, "vizinho_a_mao": 65, "mesmo_bairro_outro_condominio": 50 },
   "_local": "bairro pedido vale 100. Bairro PRÓXIMO vale menos, e cai com a distância entre os centros dos bairros: o que faz divisa vai de 85 (colado) para baixo, nunca menos que 45; o que fica perto sem fazer divisa vai de 65 para baixo, e só conta até 5 km (perto_ate_km); os dois chegariam a zero em 10 km. Par posto à mão na tabela de bairros vizinhos, sem distância no mapa, vale 65. Bairro que o mapa não lista como próximo não entra",

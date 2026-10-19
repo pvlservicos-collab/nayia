@@ -15,9 +15,9 @@ PADRAO = {
     "modo": "treino",
     "envio_manual": True,
     "janela_h": 48,
-    "pesos": {"preco": 40, "local": 20, "quartos": 15, "mobiliado": 10, "andar": 10, "extras": 5},
+    "pesos": {"preco": 40, "local": 20, "quartos": 15, "mobiliado": 10, "andar": 10, "extras": 5, "elevador": 35},
     "cortes": {"verde": 90, "amarelo": 70},
-    "preco": {"cheio_ate_abaixo": 0.20, "zera_em": 0.40, "tolerancia_acima": 0.10},
+    "preco": {"cheio_ate_abaixo": 0.15, "zera_em": 0.40, "tolerancia_acima": 0.10, "rend_no_limite_acima": 90},
     "local": {"exato": 100, "divisa_colado": 85, "divisa_piso": 45, "perto_sem_divisa": 65, "perto_ate_km": 5,
               "km_que_zera": 10, "vizinho_a_mao": 65, "mesmo_bairro_outro_condominio": 50},
     "quartos": {"igual": 100, "um_a_mais": 60},
@@ -25,7 +25,7 @@ PADRAO = {
     "confirmado_dias": 30,
     "alternativas": 4,
     "limite_de_leituras_por_dia": 6000,
-    "intervalo_min_entre_envios": 30,
+    "intervalo_min_entre_envios": 0,          # 15/10 (Pedro): sem espera entre mensagens ao mesmo corretor
     "mensagem_de_abertura": ("Oi, vi sua solicitação no grupo, tenho um imóvel que pode se encaixar no que o seu "
                              "cliente quer, vou te enviar aqui ok? Qualquer dúvida me avisa"),
     "enviar_dados_e_fotos": True,

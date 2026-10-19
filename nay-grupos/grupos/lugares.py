@@ -15,7 +15,7 @@ A ordem, para cada nome:
 """
 from __future__ import annotations
 
-from grupos.texto import normal, pede_financiamento
+from grupos.texto import normal, pede_elevador, pede_financiamento
 
 PARECIDO_MINIMO = 0.55       # abaixo disso o "mais parecido" é só sugestão: não entra na conta
 
@@ -177,6 +177,9 @@ def resolver(ficha: dict, grupo_nome: str | None, lugares: Lugares) -> tuple[dic
         # 15/10: pedido lido antes do campo existir (ou que a IA deixou escapar) vale pela frase do trecho
         "financiamento": ficha.get("financiamento") if ficha.get("financiamento") is not None
                          else (True if pede_financiamento(ficha.get("trecho")) else None),
+        # 19/10: elevador é pilar; pedido lido antes do campo existir vale pela frase do trecho
+        "elevador": ficha.get("elevador") if ficha.get("elevador") is not None
+                    else (True if pede_elevador(ficha.get("trecho")) else None),
         "bairro_chaves": [normal(b) for b in todos_bairros],
         "condominio_chaves": sorted(set(chaves)),
         "condominio_sem_reconhecer": bool(ficha.get("condominio") and not chaves),

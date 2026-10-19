@@ -99,21 +99,25 @@ class Nota(unittest.TestCase):
         self.assertEqual(n, 100.0)
         self.assertEqual([d["criterio"] for d in r["detalhe"]], ["local"])
 
-    def test_preco_de_vinte_abaixo_ate_o_teto_vale_cheio(self):
-        for valor in (3200.0, 3600.0, 4000.0):
+    def test_preco_de_quinze_abaixo_ate_o_teto_vale_cheio(self):
+        # 19/10 (Pedro): dentro do filtro de 15% a menos a diferença de preço não pesa
+        for valor in (3400.0, 3600.0, 4000.0):
             self.assertEqual(nota(pedido(), imovel(valor_aluguel=valor))[1], 100.0, valor)
 
     def test_preco_muito_abaixo_cai_aos_poucos(self):
-        # 2.400 é 60% do teto: meio caminho entre 80% (cheio) e 40% (zero) -> 50% do critério
-        _, n, r = nota(pedido(), imovel(valor_aluguel=2400.0))
+        # 2.500 é 62,5% do teto: meio caminho entre 85% (cheio) e 40% (zero) -> 50% do critério
+        _, n, r = nota(pedido(), imovel(valor_aluguel=2500.0))
         self.assertEqual(r["detalhe"][0]["rendimento"], 50.0)
         self.assertEqual(n, round((40 * 50 + 20 * 100 + 15 * 100) / 75, 1))
 
-    def test_acima_do_teto_cai_em_linha_reta_e_avisa_que_e_negociavel(self):
-        _, n, r = nota(pedido(), imovel(valor_aluguel=4200.0))      # 5% acima: metade
+    def test_acima_do_teto_quase_nao_pesa_e_avisa_que_e_negociavel(self):
+        # 19/10 (Pedro): até 10% acima a nota continua alta; 5% acima vale 95% do critério, 10% acima 90%
+        _, n, r = nota(pedido(), imovel(valor_aluguel=4200.0))
         self.assertTrue(r["acima_do_teto"])
-        self.assertEqual(r["detalhe"][0]["rendimento"], 50.0)
+        self.assertEqual(r["detalhe"][0]["rendimento"], 95.0)
         self.assertIn("negociável", r["detalhe"][0]["texto"])
+        self.assertGreaterEqual(n, 96)
+        self.assertEqual(nota(pedido(), imovel(valor_aluguel=4400.0))[2]["detalhe"][0]["rendimento"], 90.0)
 
     def _local(self, bairro, **p):
         etapa, _, r = nota(pedido(**p), imovel(bairro=bairro))
@@ -200,7 +204,8 @@ class Melhores(unittest.TestCase):
     def test_o_melhor_primeiro_e_as_alternativas_depois(self):
         catalogo = [imovel(1, valor_aluguel=4200.0), imovel(2), imovel(3, bairro="Aleixo"), imovel(4, quartos=1)]
         r = pontuar.melhores(pedido(), catalogo, R, VIZINHOS, LIMITE)
-        self.assertEqual([p["codigo"] for p in r["pares"]], [2, 3, 1])
+        # 19/10: 5% acima do teto no bairro pedido (1) já vale mais que o vizinho (3): o preço na faixa quase não pesa
+        self.assertEqual([p["codigo"] for p in r["pares"]], [2, 1, 3])
         self.assertEqual(r["pares"][0]["posicao"], 1)
         self.assertEqual(r["funil"]["quartos"], 3)
         self.assertEqual(pontuar.faixa_da(r["pares"][0]["nota"], R), "verde")
@@ -380,3 +385,40 @@ class Envio(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Elevador(unittest.TestCase):
+    """19/10 (Pedro): "pediu com elevador e o Parque dos Ingleses não tem elevador ... elevador um dos pilares"."""
+
+    def test_sem_elevador_derruba_a_nota_que_era_quase_cheia(self):
+        _, com, _ = nota(pedido(elevador=True), imovel(elevador=True, elevador_como="o anúncio lista elevador"))
+        _, sem, r = nota(pedido(elevador=True), imovel(elevador=False, elevador_como="o condomínio lista as características"))
+        self.assertEqual(com, 100.0)
+        self.assertLess(sem, 70)                     # abaixo do amarelo: não vira match
+        self.assertIn("sem elevador", next(d for d in r["detalhe"] if d["criterio"] == "elevador")["texto"])
+
+    def test_nao_informado_vale_metade_e_casa_nao_entra(self):
+        _, n, r = nota(pedido(elevador=True), imovel(elevador=None))
+        self.assertEqual(next(d for d in r["detalhe"] if d["criterio"] == "elevador")["rendimento"], 50.0)
+        _, n2, r2 = nota(pedido(elevador=True, tipo="casa"), imovel(tipo="casa", elevador=False))
+        self.assertNotIn("elevador", [d["criterio"] for d in r2["detalhe"]])
+
+    def test_terreo_dispensa_e_terreo_ou_elevador_aceita_andar_alto_com_elevador(self):
+        _, n, _ = nota(pedido(elevador=True), imovel(andar=0, elevador=False))
+        self.assertEqual(n, 100.0)
+        _, n2, r2 = nota(pedido(elevador=True, andar=["terreo"]), imovel(andar=6, elevador=True))
+        self.assertEqual(n2, 100.0)
+        self.assertNotIn("andar", [d["criterio"] for d in r2["detalhe"]])
+
+    def test_o_elevador_do_cadastro_e_a_deducao(self):
+        from grupos.catalogo import elevador_do
+        self.assertEqual(elevador_do(True, "apartamento", 3, 0)[0], True)
+        self.assertEqual(elevador_do(None, "apartamento", 3, 3)[0], False)    # Parque dos Ingleses: 3º andar, lista sem elevador
+        self.assertEqual(elevador_do(None, "apartamento", 6, 0)[0], True)     # 6º andar
+        self.assertIsNone(elevador_do(None, "apartamento", 3, 0)[0])          # nada listado: não se sabe
+        self.assertEqual(elevador_do(None, "casa", None, 0)[0], False)
+
+    def test_a_frase_do_trecho_vale_quando_a_ia_nao_trouxe_o_campo(self):
+        from grupos.texto import pede_elevador
+        self.assertTrue(pede_elevador("Busco apt 3 quartos. 2 vagas Ate 500.000 Financiado Próximo ao pq 10 e Recife Elevador"))
+        self.assertFalse(pede_elevador("não precisa de elevador"))

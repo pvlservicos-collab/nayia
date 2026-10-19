@@ -96,7 +96,11 @@ def _rendimento_do_preco(preco: float, teto: float, regras: dict) -> tuple[float
     p = regras["preco"]
     razao = preco / teto
     if razao > 1:
-        return max(0.0, (1 + p["tolerancia_acima"] - razao) / p["tolerancia_acima"]) * 100, True
+        # 19/10 (Pedro: "se ele entra no filtro de 10% a mais ou 15% a menos, a diferença de preço quase não pese"):
+        # dentro da tolerância o preço cai de 100 só até `rend_no_limite_acima` (90); antes ia a zero
+        minimo = p.get("rend_no_limite_acima", 90)
+        frac = min(1.0, (razao - 1) / p["tolerancia_acima"]) if p["tolerancia_acima"] else 1.0
+        return 100.0 - frac * (100.0 - minimo), True
     piso_cheio = 1 - p["cheio_ate_abaixo"]
     if razao >= piso_cheio:
         return 100.0, False
@@ -148,6 +152,22 @@ def _extras(pedido: dict, imovel: dict) -> tuple[float, str] | None:
     return 100.0 * sum(1 for ok, _ in partes if ok) / len(partes), "; ".join(t for _, t in partes)
 
 
+def _elevador(pedido: dict, imovel: dict) -> tuple[float, str] | None:
+    """Pilar (Pedro, 19/10: "elevador quero que seja um dos pilares principais"). Só vale para quem tem andar:
+    casa e sala térrea não entram na conta. Térreo (ou o 1º andar, se ele aceita) dispensa o elevador."""
+    if pedido.get("elevador") is not True or imovel.get("tipo") not in ("apartamento", "sala"):
+        return None
+    andar, aceita = imovel.get("andar"), pedido.get("andar") or []
+    if andar == 0 or (andar == 1 and "1_andar" in aceita):
+        return 100.0, "térreo/1º andar: não precisa de elevador"
+    tem, como = imovel.get("elevador"), imovel.get("elevador_como") or ""
+    if tem is True:
+        return 100.0, f"tem elevador ({como})"
+    if tem is False:
+        return 0.0, f"sem elevador ({como})"
+    return 50.0, "elevador não informado no cadastro"
+
+
 def avaliar(pedido: dict, imovel: dict, regras: dict, vizinhos: dict, hoje_menos_dias=None) -> tuple[str | None, dict | None]:
     """Devolve (etapa em que caiu, None) ou (None, {nota, detalhe, acima_do_teto})."""
     operacao = pedido.get("operacao")
@@ -190,8 +210,12 @@ def avaliar(pedido: dict, imovel: dict, regras: dict, vizinhos: dict, hoje_menos
     if pedido.get("mobiliado") is not None:
         rend, texto = _mobilia(pedido["mobiliado"], imovel, regras)
         itens.append({"criterio": "mobiliado", "rendimento": float(rend), "texto": texto})
+    elevador = _elevador(pedido, imovel)
+    if elevador:
+        itens.append({"criterio": "elevador", "rendimento": elevador[0], "texto": elevador[1]})
     aceita = pedido.get("andar") or []
-    if aceita and "qualquer" not in aceita:
+    # "térreo OU com elevador": o andar alto com elevador atende (não se cobra o andar de quem tem elevador)
+    if aceita and "qualquer" not in aceita and not (pedido.get("elevador") is True and imovel.get("elevador") is True):
         rend, texto = _andar(aceita, imovel)
         itens.append({"criterio": "andar", "rendimento": rend, "texto": texto})
     extras = _extras(pedido, imovel)

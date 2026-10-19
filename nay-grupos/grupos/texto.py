@@ -24,6 +24,16 @@ def reais(v) -> str:
 _FINANCIAMENTO = re.compile(r"financ|(?<![a-z])fgts(?![a-z])|minha casa,? minha vida|(?<![a-z])mcmv(?![a-z])|carta de cr[eé]dito")
 
 
+# 19/10 (Pedro: "teve um cliente que pediu com elevador e o Parque dos Ingleses não tem elevador"): a IA lia "Elevador"
+# solto no fim como "próximo ao elevador". O trecho decide quando a leitura não trouxe o campo.
+_ELEVADOR = re.compile(r"(?<!sem )(?<!nao precisa de )(?<!não precisa de )elevador(es)?")
+
+
+def pede_elevador(texto: str | None) -> bool:
+    """O pedido pede elevador ("com elevador", "Elevador" solto)?"""
+    return bool(_ELEVADOR.search(str(texto or "").lower()))
+
+
 def pede_financiamento(texto: str | None) -> bool:
     """O pedido fala em financiamento (bancário, FGTS, Minha Casa Minha Vida)?"""
     return bool(_FINANCIAMENTO.search(str(texto or "").lower()))
