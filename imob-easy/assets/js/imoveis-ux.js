@@ -904,8 +904,11 @@
           if (!p.contatos.length) {
             h += '<p style="color:var(--texto-fraco);font-size:var(--fs-xs)">' + esc(d.aviso || "") + "</p>";
           } else {
+            /* 19/10 (Pedro: "põe um iconezinho de copiar o número"): ao lado de cada telefone */
             h += p.contatos.map(function (c) {
+              var dig = String(c.telefone || "").replace(/\D/g, "");
               return '<p style="margin:0 0 8px">' + esc(c.telefone || "sem telefone") +
+                (dig ? ' <button type="button" class="btn-copiar-fone" data-copiar="' + esc(c.telefone) + '" title="copiar o número" aria-label="copiar o número" style="border:0;background:none;cursor:pointer;color:var(--roxo);font-size:14px;vertical-align:middle;padding:0 4px">⧉</button>' : "") +
                 '<br><span style="color:var(--texto-fraco);font-size:var(--fs-xs)">' +
                 esc(c.email || "sem e-mail") + " · " + esc(c.fonte) + "</span></p>";
             }).join("");
@@ -915,6 +918,14 @@
              esc([d.imovel.condominio, d.imovel.endereco].filter(Boolean).join(" — ")) + "</p>" +
              '<button type="button" class="btn-mini" style="margin-top:14px">Fechar</button>';
         caixa.innerHTML = h;
+        caixa.querySelectorAll("[data-copiar]").forEach(function (b) {
+          b.addEventListener("click", function () {
+            var t = b.getAttribute("data-copiar"), ok = function () { b.textContent = "✓"; setTimeout(function () { b.textContent = "⧉"; }, 1500); };
+            (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(ok).catch(function () {
+              var ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); ok();
+            });
+          });
+        });
         ligarFechar();
       })
       .catch(function (e) {
