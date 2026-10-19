@@ -185,6 +185,41 @@ export async function sincronizarFunis(org: string): Promise<ResultadoDosFunis |
       }
     }
 
+    /* A ETIQUETA ACOMPANHA A ETAPA NA PARCERIA E NA OFICIAL (Pedro, 19/10/2026: "todas as tags do WhatsApp Parceria
+       ainda zeradas"). Aqui o card andava (Identificação 119, Recebeu imóvel 69...) mas a etiqueta de mesmo nome nunca
+       era posta: só havia as "Nay: ...", que a prancheta esconde. Agora cada conversa da linha tem a etiqueta da etapa em
+       que está, e só ela (entre as etiquetas de etapa daquele funil). Marcar a etiqueta à mão já move o card
+       (api/leads/[id]/tags); arrastar o card troca a etiqueta aqui, no minuto seguinte. A etiqueta que faltar é criada. */
+    for (const tipo of ['whatsapp_zapi', 'whatsapp_cloud_official'] as const) {
+      const linhaId = linhaDe(tipo)
+      const funil = PIPELINE_DA_LINHA[tipo]
+      if (!linhaId || !funil) continue
+      await db.execute(sql`
+        INSERT INTO tags (organization_id, name, color)
+        SELECT DISTINCT ${org}::uuid, s.name, '#64748b' FROM pipeline_stages s JOIN pipelines p ON p.id = s.pipeline_id
+         WHERE p.organization_id = ${org} AND p.name = ${funil} AND s.deleted_at IS NULL AND p.deleted_at IS NULL
+           AND NOT EXISTS (SELECT 1 FROM tags t WHERE t.organization_id = ${org} AND t.name = s.name)`)
+      const espelho = await db.execute(sql`
+        WITH etapas AS (
+          SELECT s.id AS stage_id, s.name FROM pipeline_stages s JOIN pipelines p ON p.id = s.pipeline_id
+           WHERE p.organization_id = ${org} AND p.name = ${funil} AND s.deleted_at IS NULL AND p.deleted_at IS NULL),
+        marcas AS (SELECT t.id AS tag_id, t.name FROM tags t WHERE t.organization_id = ${org} AND t.name IN (SELECT name FROM etapas)),
+        dela AS (
+          SELECT l.id AS lead_id, m.tag_id FROM leads l JOIN etapas e ON e.stage_id = l.stage_id JOIN marcas m ON m.name = e.name
+           WHERE l.organization_id = ${org} AND l.integration_id = ${linhaId} AND l.deleted_at IS NULL),
+        tira AS (
+          DELETE FROM lead_tags lt USING leads l
+           WHERE lt.lead_id = l.id AND l.integration_id = ${linhaId} AND lt.tag_id IN (SELECT tag_id FROM marcas)
+             AND NOT EXISTS (SELECT 1 FROM dela d WHERE d.lead_id = lt.lead_id AND d.tag_id = lt.tag_id)
+          RETURNING 1),
+        poe AS (
+          INSERT INTO lead_tags (lead_id, tag_id, organization_id) SELECT lead_id, tag_id, ${org}::uuid FROM dela
+          ON CONFLICT DO NOTHING RETURNING 1)
+        SELECT (SELECT count(*) FROM tira)::int AS tirou, (SELECT count(*) FROM poe)::int AS pos`)
+      const e = (espelho.rows[0] || {}) as { tirou?: number; pos?: number }
+      if ((e.tirou || 0) + (e.pos || 0) > 0) mexeu = true
+    }
+
     if (mexeu) await publishEvent(channels.orgLeads(org), events.LEAD_UPDATED, { id: null, funis: true })
     return r
   } finally {
