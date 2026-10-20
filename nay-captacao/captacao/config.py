@@ -11,6 +11,8 @@ SEGREDO = os.environ.get("CAPTACAO_OFICIAL_SEGREDO", "")
 # o modelo que abre a conversa pelo número oficial (Pedro, 08/10)
 MODELO_DE_ABERTURA = os.environ.get("CAPTACAO_MODELO_ABERTURA", "situacao_imovel_cadastrado_1")
 IDIOMA_DO_MODELO = os.environ.get("CAPTACAO_MODELO_IDIOMA", "pt_BR")
+# 447: a foto dos modelos da Meta (cron nay-agentes, de 10 em 10 min); o lead com modelo próprio só sai com ele APPROVED
+MODELOS_JSON = os.environ.get("CAPTACAO_MODELOS_JSON", "/docker/nay-site-web/public/admin/dados/modelos.json")
 # o Tel recebe o aviso de escalada e de foto pela caixa da Nay; "nao" desliga tudo. O telefone de teste nunca avisa.
 AVISAR_TEL = os.environ.get("CAPTACAO_AVISAR_TEL", "sim") == "sim"
 # segundos de silêncio antes de responder (o "Janela de 20s" do fluxo)

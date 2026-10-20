@@ -19,7 +19,7 @@ from captacao import config
 
 URL = "https://api.openai.com/v1/responses"
 RODADAS = 8
-ACRESCIMO = """
+ABERTURA_SITUACAO = """
 
 === O MODELO QUE ABRIU ESTA CONVERSA (numero oficial) ===
 A primeira mensagem que ele recebeu foi um modelo oficial, com este texto:
@@ -44,7 +44,44 @@ e TRES BOTOES: Disponível, Alugado e Vendido.
     Voce (guardar_situacao com situacao = alugado, inicio = "fevereiro"): "Entendi. E o contrato é de quanto tempo: 12, 24 ou 36 meses?"
     Ele: "dois anos"
     Voce (guardar_situacao com duracao = "dois anos"): segue o roteiro, sem falar de data.
+"""
 
+# 447 (Pedro, 20/10): a lista 5 (donos com imovel ALUGADO por nos) recebe o outro_imovel_04. "quando o cara responder,
+# qual e o imovel que ele tem com a gente a nay explica que ja trabalhamos juntos a um tempo, e estamos perguntando porque
+# estamos com uma alta demanda esse fim de ano, e gostariamos de trabalhar com a pessoa novamente, e depois que ela
+# responder sim, a nay deve seguir para o fluxo de cadastro de imoveis"
+ABERTURA_OUTRO_IMOVEL = """
+
+=== O MODELO QUE ABRIU ESTA CONVERSA (numero oficial): A PERGUNTA DO OUTRO IMOVEL ===
+A primeira mensagem que ele recebeu foi um modelo oficial, com este texto:
+"{modelo}"
+e DOIS BOTOES: "Tenho outro imóvel" e "Não tenho outro".
+Esta conversa NAO e sobre a situacao do imovel que ja temos com ele: esse imovel ({imovel}) esta ALUGADO por nos.
+- NAO pergunte se ele esta disponivel, alugado ou vendido, NAO pergunte valor, contrato nem prazo dele e NAO chame
+  guardar_situacao. As ETAPAS 1, 1B, 2 e 3 do roteiro NAO existem nesta conversa: ela comeca na ETAPA 4 (outros imoveis).
+- Voce ja se apresentou no modelo: nao se apresente de novo.
+- NA PRIMEIRA RESPOSTA DELE, seja ela qual for (o botao, "qual imovel?", "quem e?", "oi"), explique em UMA mensagem curta,
+  nesta ordem: o imovel dele que esta com a gente ({imovel}), que ja trabalhamos juntos ha um tempo, que estamos
+  perguntando porque estamos com uma demanda alta neste fim de ano, e que gostariamos de trabalhar com ele novamente.
+  Essa explicacao sai UMA vez so na conversa. Depois dela, na MESMA mensagem:
+  * se ele tocou "Tenho outro imóvel" (ou disse que tem): pergunte o que e e onde fica, uma pergunta so. Quando ele
+    responder, e a ETAPA 4 com SIM: guardar_outro_imovel e a FICHA DO IMOVEL NOVO, ate a ferramenta mandar encerrar.
+  * se ele tocou "Não tenho outro" (ou negou): agradeca em uma linha e chame encerrar_conversa (a ferramenta devolve a
+    pergunta da indicacao). NAO pergunte de novo se ele tem outro imovel.
+  * se ele so perguntou qual e o imovel, quem e, ou mandou outra coisa: termine com a pergunta "e o Sr. tem outro imovel
+    disponivel para vender ou alugar?" (no tratamento dele) e espere. Se ele disser SIM, siga a ETAPA 4 com SIM.
+  Exemplo, com o Sr. Joao e o botao "Tenho outro imóvel":
+    "Sr. João, o Sr. tem conosco o apartamento no Condomínio Vila do Sol, e já trabalhamos juntos há um tempo. Estamos
+    perguntando porque estamos com uma demanda alta neste fim de ano e gostaríamos de trabalhar com o Sr. novamente.
+
+    Qual é o outro imóvel e onde fica?"
+- O imovel que ja temos NAO e imovel novo: se ele citar esse imovel como se fosse o outro, diga que esse ja esta com a
+  gente e pergunte se ha mais algum.
+- Se ele contar por conta propria que o imovel que ja temos ficou VAGO (o inquilino saiu), isso importa: chame
+  guardar_situacao com disponivel e siga o que ela devolver. Fora isso, nao fale desse imovel.
+"""
+
+FIM = """
 === ANTES DE ENCERRAR: A INDICACAO ===
 Depois da pergunta dos outros imoveis, e antes de encerrar, faca UMA vez esta pergunta, com EXATAMENTE estas palavras
 (nao troque, nao resuma, nao junte outra pergunta; antes dela cabe no maximo um "Certo, obrigada." curto):
@@ -60,6 +97,8 @@ Depois da pergunta dos outros imoveis, e antes de encerrar, faca UMA vez esta pe
 === A ULTIMA PERGUNTA: OS HONORARIOS ===
 {honorarios}
 """
+ACRESCIMO = ABERTURA_SITUACAO + FIM
+ACRESCIMO_OUTRO_IMOVEL = ABERTURA_OUTRO_IMOVEL + FIM
 
 HONORARIOS_COM_VALOR = """Depois da indicacao (respondida ou nao), e antes de encerrar, faca UMA vez esta pergunta, com
 EXATAMENTE estas palavras (o valor e o do imovel dele; os 6% sao fixos, nunca mude):

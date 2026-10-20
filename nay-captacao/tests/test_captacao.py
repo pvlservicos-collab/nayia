@@ -320,5 +320,36 @@ class ImovelDeVenda(unittest.TestCase):
         self.assertNotIn("{", sec)
 
 
+class OutroImovel(unittest.TestCase):
+    """447: a lista 5 com o modelo outro_imovel_04, que só sai depois que a Meta aprovar."""
+
+    def test_a_foto_da_meta_da_so_os_aprovados(self):
+        import json
+        import tempfile
+        from captacao import disparo
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as f:
+            json.dump({"lido_em": "x", "modelos": [{"name": "outro_imovel_04", "status": "PENDING"},
+                                                   {"name": "situacao_imovel_cadastrado_1", "status": "APPROVED"},
+                                                   {"name": "situacao_imovel_cadastrado_1", "status": "APPROVED"},
+                                                   {"nome": "cadastro_imobeasy_02", "status": "APPROVED"}]}, f)
+        self.assertEqual(disparo.aprovados_na_foto(f.name), ["cadastro_imobeasy_02", "situacao_imovel_cadastrado_1"])
+        Path(f.name).write_text("{quebrado", encoding="utf-8")
+        self.assertIsNone(disparo.aprovados_na_foto(f.name))
+        self.assertIsNone(disparo.aprovados_na_foto(f.name + ".nao-existe"))
+
+    def test_lead_sem_modelo_proprio_usa_o_de_sempre(self):
+        from captacao import disparo
+        self.assertEqual(disparo.modelo_do_lead(None), config.MODELO_DE_ABERTURA)
+        self.assertEqual(disparo.modelo_do_lead(" outro_imovel_04 "), "outro_imovel_04")
+
+    def test_a_abertura_do_outro_imovel_no_lugar_da_situacao(self):
+        self.assertEqual(modelo.ACRESCIMO, modelo.ABERTURA_SITUACAO + modelo.FIM)
+        a = modelo.ACRESCIMO_OUTRO_IMOVEL
+        for marca in ("{modelo}", "{imovel}", "{indicacao}", "{honorarios}", "Tenho outro imóvel", "Não tenho outro",
+                      "demanda alta neste fim de ano", "trabalhar com ele novamente"):
+            self.assertIn(marca, a)
+        self.assertNotIn("Disponível, Alugado e Vendido", a)
+
+
 if __name__ == "__main__":
     unittest.main()

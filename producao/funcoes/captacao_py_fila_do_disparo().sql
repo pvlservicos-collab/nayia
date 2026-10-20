@@ -28,5 +28,9 @@ AS $function$
      -- 352: quem falou conosco por qualquer número nos últimos 60 dias não recebe disparo; corretor não é proprietário
      AND NOT nay_falou_conosco(l.telefone_chave, 60)
      AND NOT nay_e_corretor_chave(l.telefone_chave)
+     -- 447: o modelo próprio do lead só sai depois que a Meta aprovar (o nay-captacao escreve a lista)
+     AND (l.modelo_abertura IS NULL
+          OR l.modelo_abertura = ANY (regexp_split_to_array(
+               coalesce((SELECT c.valor FROM captacao_config c WHERE c.chave = 'python_modelos_aprovados'), ''), '\s*,\s*')))
    ORDER BY (l.status = 'enviado'), l.id;
 $function$;

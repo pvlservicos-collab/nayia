@@ -41,6 +41,16 @@ def _prompt(conn, t: turno.Turno) -> str:
                      (t.telefone, t.telefone))[0]
     # a última pergunta (324): só quando há valor de venda para pôr na frase
     honorarios = modelo.HONORARIOS_COM_VALOR.replace("{frase}", r["h"]) if r["h"] else modelo.HONORARIOS_SEM_VALOR
+    # 447: o lead que recebeu o modelo do "outro imóvel" (lista 5, imóvel alugado por nós) tem a abertura própria
+    lead = banco.linhas(conn, """
+        SELECT coalesce(l.modelo_abertura, '') LIKE 'outro\\_imovel%%' AS outro, l.tipo_imovel, l.imovel_desc, l.condominio, l.bairro
+          FROM captacao_leads l WHERE l.telefone_chave = nay_fone_chave(%s)""", (t.telefone,))
+    if lead and lead[0]["outro"]:
+        d = lead[0]
+        onde = d["imovel_desc"] or d["condominio"] or d["bairro"] or ""
+        imovel = " ".join(x for x in ((d["tipo_imovel"] or "").strip().lower(), onde) if x) or "o imovel do cadastro"
+        return (t.prompt + modelo.ACRESCIMO_OUTRO_IMOVEL.replace("{modelo}", abertura).replace("{imovel}", imovel)
+                .replace("{indicacao}", r["f"]).replace("{honorarios}", honorarios))
     return (t.prompt + modelo.ACRESCIMO.replace("{modelo}", abertura).replace("{indicacao}", r["f"])
             .replace("{honorarios}", honorarios)
             # o imóvel dele está no cadastro para VENDA: a pergunta do valor da locação não cabe (12/10, venda.py)

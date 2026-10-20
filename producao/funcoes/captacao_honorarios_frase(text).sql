@@ -4,13 +4,15 @@ CREATE OR REPLACE FUNCTION public.captacao_honorarios_frase(p_telefone text)
  STABLE
 AS $function$
   WITH l AS (
-    SELECT c.tratamento, nay_primeiro_nome(c.nome) AS n
+    SELECT c.tratamento, nay_primeiro_nome(c.nome) AS n, c.modelo_abertura
       FROM captacao_leads c WHERE c.telefone_chave = nay_fone_chave(p_telefone) LIMIT 1
   ), d AS (
     SELECT l.tratamento,
            CASE WHEN l.n = upper(l.n) OR l.n = lower(l.n) THEN initcap(l.n) ELSE l.n END AS nome,
            captacao_honorarios_valor(p_telefone) AS valor
       FROM l
+     -- 447: na campanha do "outro imóvel" não se fala do imóvel que já temos (está alugado): sem a pergunta dos 6%
+     WHERE coalesce(l.modelo_abertura, '') NOT LIKE 'outro\_imovel%'
   )
   SELECT CASE WHEN d.tratamento IN ('Sr.', 'Sra.') THEN d.tratamento || coalesce(' ' || d.nome, '') || ', só'
               WHEN d.nome IS NOT NULL THEN d.nome || ', só'

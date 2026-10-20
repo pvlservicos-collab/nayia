@@ -72,6 +72,10 @@ export default function BarraDoDisparoOficial() {
     explica = 'O disparo só sai no horário da captação (com a pausa do almoço)'
   } else if (d.motivo && /falharam/.test(d.motivo)) {
     luz = 'barra-calma__luz--ruim'; estado = 'Parado: os 3 últimos falharam'; explica = 'Confira a conta da API oficial antes de religar'
+  } else if (d.motivo && /^esperando a Meta/.test(d.motivo)) {
+    // 449: o modelo próprio da lista (447) ainda não foi aprovado; sai sozinho quando a Meta aprovar
+    luz = 'barra-calma__luz--pausa'; estado = 'Esperando a Meta aprovar o modelo'
+    explica = d.motivo.replace(/^e/, 'E') + '. Sai sozinho quando aprovar.'
   }
 
   return (

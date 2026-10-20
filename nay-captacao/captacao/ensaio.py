@@ -9,6 +9,9 @@
     python -m captacao.ensaio venda_outro   idem, e ele diz outro valor
     python -m captacao.ensaio sem_imovel    lead sem imóvel ligado (planilha antiga): "é para venda ou para locação?"
     python -m captacao.ensaio sem_imovel_loc  idem, e ele diz que é para alugar
+    python -m captacao.ensaio outro_tem     447: modelo outro_imovel_04 (lista 5, imóvel alugado), ele toca "Tenho outro imóvel"
+    python -m captacao.ensaio outro_nao     idem, "Não tenho outro"
+    python -m captacao.ensaio outro_qual    idem, ele pergunta qual é o imóvel e depois diz que tem
 
 Tudo roda numa transação só, DESFEITA no fim. Nenhuma mensagem sai (o envio é pulado) e nada fica gravado.
 É o simulador do fluxo (Arquivos/captacao_ficha/simular_captacao.js), agora no serviço em Python, e começa pelo
@@ -46,7 +49,15 @@ CENARIOS = {
     # 12/10: lead sem imóvel ligado -- não presume locação, pergunta o negócio
     "sem_imovel": ["Disponível", "é para vender", "450 mil", "não, só esse", "não conheço ninguém", "já está incluso"],
     "sem_imovel_loc": ["Disponível", "pra alugar", "2.500", "agora não posso responder mais nada, depois falo"],
+    # 447: a lista 5 (imóvel alugado por nós) com o outro_imovel_04 -- explica, e o "sim" segue para a ficha do imóvel novo
+    "outro_tem": ["Tenho outro imóvel", "é uma casa no Parque das Laranjeiras, quero alugar", "3 quartos, 2 suítes, 3 banheiros e 2 vagas",
+                  "uns 200 metros", "4.500", "não tem condomínio, o IPTU é uns 150", "sem móveis", "mando as fotos amanhã",
+                  "não, só essa", "não conheço ninguém", "obrigado"],
+    "outro_nao": ["Não tenho outro", "não conheço ninguém", "ok"],
+    "outro_qual": ["qual imóvel?", "tenho sim, um apartamento no Adrianópolis pra vender", "agora não posso, depois falo"],
 }
+# 447: o texto do outro_imovel_04 (o CRM devolve este texto quando o modelo sai)
+ABERTURA_OUTRO = "Cadastro de proprietário: {quem}, o(a) Sr.(a) possui outro imóvel disponível além do que já consta conosco?"
 # de qual imóvel o lead de teste fica dono até o ROLLBACK: de locação (ja_temos) ou só de venda (venda, venda_outro)
 EMPRESTADO = {"ja_temos": "coalesce(i.valor_aluguel, 0) > 0",
               "venda": "coalesce(i.valor_venda, 0) > 0 AND coalesce(i.valor_aluguel, 0) = 0",
@@ -80,11 +91,23 @@ def rodar(cenario: str) -> None:
                        (SELECT i.valor_venda FROM imoveis i WHERE i.codigo::text = t.codigo) AS venda,
                        (SELECT i.valor_aluguel FROM imoveis i WHERE i.codigo::text = t.codigo) AS aluguel""", (lead["id"], lead["id"]))
             print("imóvel emprestado ao lead de teste:", dele[0] if dele else "NENHUM (não há lead com imóvel assim)")
+        outro = cenario.startswith("outro_")
+        if outro:
+            # o imóvel alugado de um lead da lista 5, emprestado ao lead de teste até o ROLLBACK, com o modelo dele
+            dele = banco.linhas(conn, """
+                UPDATE captacao_leads t SET codigo = o.codigo, imovel_desc = o.imovel_desc, condominio = o.condominio,
+                       bairro = o.bairro, tipo_imovel = o.tipo_imovel, imoveis_prop = o.imoveis_prop,
+                       modelo_abertura = o.modelo_abertura, etapa = 'aguardando_outros', pergunta_pendente = o.pergunta_pendente
+                  FROM (SELECT l.* FROM captacao_leads l WHERE l.id <> %s AND l.modelo_abertura LIKE 'outro\\_imovel%%'
+                         ORDER BY l.id LIMIT 1) o
+                 WHERE t.id = %s RETURNING t.codigo, t.tipo_imovel, t.imovel_desc, t.modelo_abertura""", (lead["id"], lead["id"]))
+            print("imóvel emprestado ao lead de teste:", dele[0] if dele else "NENHUM (a 447 não está aplicada?)")
         config.AVISAR_TEL = False   # ensaio nunca avisa o Tel
-        abertura = ABERTURA.format(quem=vocativo(lead["tratamento"], lead["nome"]))
+        abertura = (ABERTURA_OUTRO if outro else ABERTURA).format(quem=vocativo(lead["tratamento"], lead["nome"]))
         banco.linhas(conn, banco.REGISTRAR_DISPARO, {"lead": lead["id"], "tel": tel, "mid": "ensaio", "texto": abertura})
         print(f"=== cenário {cenario} | modelo {config.MODELO} | lead de teste {lead['id']}\n")
-        print("NAY (modelo oficial):", abertura, "[Disponível] [Alugado] [Vendido]\n")
+        print("NAY (modelo oficial):", abertura,
+              "[Tenho outro imóvel] [Não tenho outro]\n" if outro else "[Disponível] [Alugado] [Vendido]\n")
         for fala in CENARIOS[cenario]:
             # como o "Gravar na fila": a fala dele entra na caixa e o lead passa a 'respondendo'
             banco.linhas(conn, """

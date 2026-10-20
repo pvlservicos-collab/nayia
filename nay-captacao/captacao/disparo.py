@@ -13,17 +13,23 @@ O DISPARO DA FILA (Pedro, 08/10: "prepare tudo para começarmos a disparar ... u
 O modelo: "Olá, {{1}}! Este é o novo número da Imob Easy. Precisamos atualizar a situação do seu imóvel cadastrado
 conosco. Por favor, selecione a opção que corresponde à situação atual:" + botões Disponível / Alugado / Vendido.
 {{1}} é o tratamento e o primeiro nome ("Sr. Pedro"), ou só o nome quando não há tratamento.
+
+O MODELO DE CADA LEAD (447, Pedro, 20/10): `captacao_leads.modelo_abertura` troca o modelo daquele lead (a lista 5 vai
+com o `outro_imovel_04`, "possui outro imóvel disponível além do que já consta conosco?"). Vazio = o de sempre. O banco
+só põe na fila o lead cujo modelo está em `captacao_config.python_modelos_aprovados`, que `atualizar_aprovados` escreve
+a partir da foto dos modelos da Meta.
 """
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 
 from captacao import banco, config, envio
 from captacao.turno import primeiro_nome
 
 LEAD = """
-SELECT l.id, l.telefone, l.nome, l.tratamento, l.opt_out, l.humano_assumiu_em IS NOT NULL AS com_gente,
+SELECT l.id, l.telefone, l.nome, l.tratamento, l.opt_out, l.humano_assumiu_em IS NOT NULL AS com_gente, l.modelo_abertura,
        captacao_e_do_python(l.telefone) AS do_python,
        nay_fone_chave(l.telefone) = nay_fone_chave((SELECT valor FROM captacao_config WHERE chave = 'telefone_teste')) AS de_teste
   FROM captacao_leads l WHERE l.id = %s
@@ -51,6 +57,38 @@ def vocativo(tratamento: str | None, nome: str | None) -> str:
     return " ".join(x for x in ((tratamento or "").strip(), n) if x)
 
 
+def modelo_do_lead(modelo_abertura: str | None) -> str:
+    return (modelo_abertura or "").strip() or config.MODELO_DE_ABERTURA
+
+
+def aprovados_na_foto(caminho: str) -> list[str] | None:
+    """Os modelos APPROVED da foto da Meta (admin/dados/modelos.json). None quando a foto não deu para ler."""
+    try:
+        with open(caminho, encoding="utf-8") as f:
+            foto = json.load(f)
+    except (OSError, ValueError):
+        return None
+    modelos = foto.get("modelos") if isinstance(foto, dict) else foto
+    if not isinstance(modelos, list):
+        return None
+    # a foto do cron nay-agentes escreve "nome"; a Graph API escreve "name"
+    return sorted({str(m.get("nome") or m.get("name")) for m in modelos
+                   if isinstance(m, dict) and (m.get("nome") or m.get("name")) and m.get("status") == "APPROVED"})
+
+
+def atualizar_aprovados(conn) -> str | None:
+    """Escreve em captacao_config.python_modelos_aprovados o que a Meta aprovou. Foto ilegível = não mexe (a fila fica
+    como estava). Devolve a lista nova quando mudou."""
+    aprovados = aprovados_na_foto(config.MODELOS_JSON)
+    if aprovados is None:
+        return None
+    valor = ",".join(aprovados)
+    r = banco.linhas(conn, """
+        UPDATE captacao_config SET valor = %s WHERE chave = 'python_modelos_aprovados' AND valor IS DISTINCT FROM %s
+        RETURNING valor""", (valor, valor))
+    return valor if r else None
+
+
 def disparar(conn, lead_id: int, zerar: bool = False) -> str:
     r = banco.linhas(conn, LEAD, (lead_id,))
     if not r:
@@ -71,9 +109,10 @@ def disparar(conn, lead_id: int, zerar: bool = False) -> str:
         banco.linhas(conn, "DELETE FROM captacao_imoveis_extra WHERE lead_id = %s", (lead_id,))
     elif lead["com_gente"]:
         return "RECUSADO: alguém da equipe assumiu esta conversa."
-    mid, texto, erro = envio.modelo(lead["telefone"], config.MODELO_DE_ABERTURA, config.IDIOMA_DO_MODELO, [quem])
+    nome_modelo = modelo_do_lead(lead["modelo_abertura"])
+    mid, texto, erro = envio.modelo(lead["telefone"], nome_modelo, config.IDIOMA_DO_MODELO, [quem])
     gravado = banco.linhas(conn, banco.REGISTRAR_DISPARO, {"lead": lead_id, "tel": lead["telefone"], "mid": mid or "",
-                                                           "texto": texto or f"[modelo {config.MODELO_DE_ABERTURA}]"})
+                                                           "texto": texto or f"[modelo {nome_modelo}]"})
     if not mid:
         return f"NÃO SAIU: {erro}. O lead ficou como '{gravado[0]['status'] if gravado else '?'}'."
     return f"modelo enviado para …{lead['telefone'][-4:]} ({quem}). Texto: {texto}"
@@ -94,15 +133,18 @@ def proximo(conn) -> str | None:
             INSERT INTO captacao_nao_disparar (telefone_chave, motivo) SELECT telefone_chave, 'sem nome para o modelo' FROM v
             ON CONFLICT (telefone_chave) DO NOTHING""", (lead["lead_id"],))
         return f"lead {lead['lead_id']} pulado: sem nome para o modelo"
-    mid, texto, erro = envio.modelo(lead["telefone"], config.MODELO_DE_ABERTURA, config.IDIOMA_DO_MODELO, [quem])
+    # 447: o modelo próprio do lead (a reserva do banco devolve só o básico)
+    nome_modelo = modelo_do_lead(banco.linhas(conn, "SELECT modelo_abertura FROM captacao_leads WHERE id = %s",
+                                              (lead["lead_id"],))[0]["modelo_abertura"])
+    mid, texto, erro = envio.modelo(lead["telefone"], nome_modelo, config.IDIOMA_DO_MODELO, [quem])
     banco.linhas(conn, banco.REGISTRAR_DISPARO, {"lead": lead["lead_id"], "tel": lead["telefone"], "mid": mid or "",
-                                                 "texto": texto or f"[modelo {config.MODELO_DE_ABERTURA}]"})
+                                                 "texto": texto or f"[modelo {nome_modelo}]"})
     if not mid:
         if (erro or "").startswith(envio.INCERTO):
             # pode ter saído: este não volta sozinho para a fila (mandar duas vezes é pior que deixar um para conferir)
             banco.linhas(conn, NAO_REPETIR, (lead["lead_id"],))
         return f"NÃO SAIU para o lead {lead['lead_id']} (…{lead['telefone'][-4:]}): {erro}"
-    return f"modelo para o lead {lead['lead_id']} (…{lead['telefone'][-4:]}, {quem})"
+    return f"{nome_modelo} para o lead {lead['lead_id']} (…{lead['telefone'][-4:]}, {quem})"
 
 
 def main() -> None:

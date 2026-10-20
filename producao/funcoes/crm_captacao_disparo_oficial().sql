@@ -8,12 +8,20 @@ AS $function$
   WITH da_lista AS (       -- de qual lista é cada lead
     SELECT l.id,
            CASE WHEN EXISTS (SELECT 1 FROM captacao_retomada_oficial r WHERE r.lead_id = l.id) THEN 'retomada'
+                WHEN l.quem_importou LIKE 'Pedro (lista 5:%' THEN 'lista5'   -- 449
                 WHEN l.quem_importou LIKE 'Pedro (lista 6:%' THEN 'lista6'
                 WHEN l.quem_importou LIKE 'Pedro (lista 8:%' THEN 'lista8'
                 ELSE 'anterior' END AS lista
       FROM captacao_leads l
-  ), fila AS (
-    SELECT d.lista FROM captacao_py_fila_do_disparo() f(id) JOIN da_lista d ON d.id = f.id
+  ), fila AS MATERIALIZED (
+    SELECT d.lista, f.id FROM captacao_py_fila_do_disparo() f(id) JOIN da_lista d ON d.id = f.id
+  ), esperando AS (        -- 449: na fila, mas o modelo próprio dele ainda não foi aprovado pela Meta
+    SELECT d.lista, l.modelo_abertura
+      FROM captacao_leads l JOIN da_lista d ON d.id = l.id
+     WHERE l.modelo_abertura IS NOT NULL AND l.status = 'novo' AND l.ultimo_envio_em IS NULL
+       AND NOT l.opt_out AND l.humano_assumiu_em IS NULL
+       AND NOT l.modelo_abertura = ANY (regexp_split_to_array(
+             coalesce((SELECT c.valor FROM captacao_config c WHERE c.chave = 'python_modelos_aprovados'), ''), '\s*,\s*'))
   ), saiu AS (
     -- quem já recebeu o modelo oficial do disparo (o lead entra em captacao_motor ao receber)
     SELECT d.lista
@@ -29,8 +37,13 @@ AS $function$
   ), ritmo AS (
     SELECT coalesce((SELECT nullif(btrim(valor), '')::numeric FROM captacao_config WHERE chave = 'python_disparo_seg_min'), 45) AS menor,
            coalesce((SELECT nullif(btrim(valor), '')::numeric FROM captacao_config WHERE chave = 'python_disparo_seg_max'), 75) AS maior
-  ), m AS (SELECT captacao_py_disparo_motivo() AS motivo
+  ), m AS (
+    -- 449: sem ninguém pronto na fila e com gente esperando a aprovação do modelo, o motivo é a Meta
+    SELECT coalesce(captacao_py_disparo_motivo(),
+                    CASE WHEN NOT EXISTS (SELECT 1 FROM fila) AND EXISTS (SELECT 1 FROM esperando)
+                         THEN 'esperando a Meta aprovar o modelo ' || (SELECT string_agg(DISTINCT e.modelo_abertura, ', ') FROM esperando e) END) AS motivo
   ), nomes AS (SELECT * FROM (VALUES
+      (0, 'lista5', 'Donos com imóvel alugado', 'Lista 5: donos com imóvel alugado por nós, modelo outro_imovel_04 ("possui outro imóvel disponível?"), entraram em 20/10'),
       (1, 'lista6', 'Donos com imóvel disponível', 'Lista 6: donos com imóvel disponível no cadastro (entraram em 12/10)'),
       (2, 'lista8', 'Donos da planilha antiga', 'Lista 8: donos da planilha antiga que nunca viraram imóvel (entraram em 12/10)'),
       (3, 'anterior', 'Campanha anterior', 'Proprietários das listas de antes de 12/10 que nunca receberam nada nosso'),
@@ -50,6 +63,8 @@ AS $function$
     'listas', (SELECT jsonb_agg(jsonb_build_object(
                         'chave', n.chave, 'rotulo', n.rotulo, 'titulo', n.titulo,
                         'enviados', (SELECT count(*) FROM saiu s WHERE s.lista = n.chave),
-                        'faltam', (SELECT count(*) FROM fila f WHERE f.lista = n.chave)) ORDER BY n.ordem)
+                        'faltam', (SELECT count(*) FROM fila f WHERE f.lista = n.chave)
+                                  + (SELECT count(*) FROM esperando e WHERE e.lista = n.chave),
+                        'esperando', (SELECT count(*) FROM esperando e WHERE e.lista = n.chave)) ORDER BY n.ordem)
                  FROM nomes n));
 $function$;

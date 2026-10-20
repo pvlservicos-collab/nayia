@@ -1,0 +1,80 @@
+-- 449 -- CRM › aba Oficial: a barrinha do disparo mostra a lista 5 (donos com imóvel alugado, outro_imovel_04)
+--
+-- Pedro, 20/10/2026: "começa o disparo ... e quero ali em cima na captação API oficial a lista do disparo acontecendo".
+-- A lista 5 entra primeiro (é a da vez). Enquanto a Meta não aprova o modelo próprio do lead (447), ele não está na
+-- fila do disparo: conta em 'faltam' e em 'esperando', e o motivo vira "esperando a Meta aprovar o modelo ...".
+BEGIN;
+SET LOCAL lock_timeout = '3s';
+
+CREATE OR REPLACE FUNCTION public.crm_captacao_disparo_oficial()
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+ SET jit TO 'off'
+AS $function$
+  WITH da_lista AS (       -- de qual lista é cada lead
+    SELECT l.id,
+           CASE WHEN EXISTS (SELECT 1 FROM captacao_retomada_oficial r WHERE r.lead_id = l.id) THEN 'retomada'
+                WHEN l.quem_importou LIKE 'Pedro (lista 5:%' THEN 'lista5'   -- 449
+                WHEN l.quem_importou LIKE 'Pedro (lista 6:%' THEN 'lista6'
+                WHEN l.quem_importou LIKE 'Pedro (lista 8:%' THEN 'lista8'
+                ELSE 'anterior' END AS lista
+      FROM captacao_leads l
+  ), fila AS MATERIALIZED (
+    SELECT d.lista, f.id FROM captacao_py_fila_do_disparo() f(id) JOIN da_lista d ON d.id = f.id
+  ), esperando AS (        -- 449: na fila, mas o modelo próprio dele ainda não foi aprovado pela Meta
+    SELECT d.lista, l.modelo_abertura
+      FROM captacao_leads l JOIN da_lista d ON d.id = l.id
+     WHERE l.modelo_abertura IS NOT NULL AND l.status = 'novo' AND l.ultimo_envio_em IS NULL
+       AND NOT l.opt_out AND l.humano_assumiu_em IS NULL
+       AND NOT l.modelo_abertura = ANY (regexp_split_to_array(
+             coalesce((SELECT c.valor FROM captacao_config c WHERE c.chave = 'python_modelos_aprovados'), ''), '\s*,\s*'))
+  ), saiu AS (
+    -- quem já recebeu o modelo oficial do disparo (o lead entra em captacao_motor ao receber)
+    SELECT d.lista
+      FROM captacao_motor mt JOIN da_lista d ON d.id = mt.lead_id
+     WHERE EXISTS (SELECT 1 FROM captacao_mensagens m
+                    WHERE m.lead_id = mt.lead_id AND m.direcao = 'enviada' AND m.origem = 'disparo' AND m.status <> 'Falhou')
+  ), hoje AS (
+    SELECT count(*) FILTER (WHERE m.status <> 'Falhou') AS ok, count(*) FILTER (WHERE m.status = 'Falhou') AS falhou,
+           max(m.criada_em) AS ultimo
+      FROM captacao_mensagens m JOIN captacao_motor mt ON mt.lead_id = m.lead_id
+     WHERE m.direcao = 'enviada' AND m.origem = 'disparo'
+       AND (m.criada_em AT TIME ZONE 'America/Manaus')::date = (now() AT TIME ZONE 'America/Manaus')::date
+  ), ritmo AS (
+    SELECT coalesce((SELECT nullif(btrim(valor), '')::numeric FROM captacao_config WHERE chave = 'python_disparo_seg_min'), 45) AS menor,
+           coalesce((SELECT nullif(btrim(valor), '')::numeric FROM captacao_config WHERE chave = 'python_disparo_seg_max'), 75) AS maior
+  ), m AS (
+    -- 449: sem ninguém pronto na fila e com gente esperando a aprovação do modelo, o motivo é a Meta
+    SELECT coalesce(captacao_py_disparo_motivo(),
+                    CASE WHEN NOT EXISTS (SELECT 1 FROM fila) AND EXISTS (SELECT 1 FROM esperando)
+                         THEN 'esperando a Meta aprovar o modelo ' || (SELECT string_agg(DISTINCT e.modelo_abertura, ', ') FROM esperando e) END) AS motivo
+  ), nomes AS (SELECT * FROM (VALUES
+      (0, 'lista5', 'Donos com imóvel alugado', 'Lista 5: donos com imóvel alugado por nós, modelo outro_imovel_04 ("possui outro imóvel disponível?"), entraram em 20/10'),
+      (1, 'lista6', 'Donos com imóvel disponível', 'Lista 6: donos com imóvel disponível no cadastro (entraram em 12/10)'),
+      (2, 'lista8', 'Donos da planilha antiga', 'Lista 8: donos da planilha antiga que nunca viraram imóvel (entraram em 12/10)'),
+      (3, 'anterior', 'Campanha anterior', 'Proprietários das listas de antes de 12/10 que nunca receberam nada nosso'),
+      (4, 'retomada', 'Não responderam no outro número',
+          'Receberam a abertura pela Z-API, nunca responderam, e recebem o modelo oficial uma vez (323)')
+    ) AS v(ordem, chave, rotulo, titulo))
+  SELECT jsonb_build_object(
+    'ligado', coalesce((SELECT valor FROM captacao_config WHERE chave = 'python_disparo'), 'nao') = 'sim',
+    'motivo', (SELECT motivo FROM m),
+    -- fora do horário: o próximo minuto em que o disparo pode sair (almoço, noite, fim de semana)
+    'volta_em', CASE WHEN (SELECT motivo FROM m) = 'fora do horário' THEN
+                  (SELECT min(t) FROM generate_series(date_trunc('minute', now()) + interval '1 minute',
+                                                      now() + interval '3 days', interval '1 minute') t
+                    WHERE captacao_no_horario(t)) END,
+    'hoje', (SELECT ok FROM hoje), 'falharam_hoje', (SELECT falhou FROM hoje), 'ultimo_em', (SELECT ultimo FROM hoje),
+    'seg_medio', (SELECT (menor + maior) / 2 FROM ritmo),
+    'listas', (SELECT jsonb_agg(jsonb_build_object(
+                        'chave', n.chave, 'rotulo', n.rotulo, 'titulo', n.titulo,
+                        'enviados', (SELECT count(*) FROM saiu s WHERE s.lista = n.chave),
+                        'faltam', (SELECT count(*) FROM fila f WHERE f.lista = n.chave)
+                                  + (SELECT count(*) FROM esperando e WHERE e.lista = n.chave),
+                        'esperando', (SELECT count(*) FROM esperando e WHERE e.lista = n.chave)) ORDER BY n.ordem)
+                 FROM nomes n));
+$function$;
+
+COMMIT;

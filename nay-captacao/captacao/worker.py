@@ -109,11 +109,18 @@ def ciclo(conn, turma: ThreadPoolExecutor) -> None:
 def disparador(parar: threading.Event) -> None:
     """O laço do disparo do modelo. Quem diz se pode sair é o banco; aqui só o ritmo."""
     conn = None
+    aprovados_em = 0.0
     while not parar.is_set():
         espera = 10.0
         try:
             if conn is None or conn.closed:
                 conn = banco.conectar()
+            # 447: o que a Meta aprovou, para o banco soltar o lead que tem modelo próprio (no máximo uma vez por minuto)
+            if time.monotonic() - aprovados_em >= 60:
+                aprovados_em = time.monotonic()
+                novos = disparo.atualizar_aprovados(conn)
+                if novos is not None:
+                    log.info("modelos aprovados na Meta: %s", novos)
             # a primeira mensagem da Nay proprietários da OLX (370), para quem está liberado em olx_telefones
             try:
                 for linha in olx.abridor(conn):
