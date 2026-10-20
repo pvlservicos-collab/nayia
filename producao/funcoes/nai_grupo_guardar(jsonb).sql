@@ -27,7 +27,16 @@ BEGIN
       ('figurinha', 'sticker',  NULL,                         p->'sticker'->>'stickerUrl'),
       -- o que a aba não tem desenho próprio entra como texto, dizendo o que é
       ('texto',     'poll',     '📊 Enquete: ' || coalesce(p->'poll'->>'question', ''), NULL),
-      ('texto',     'contact',  '👤 Contato: ' || coalesce(p->'contact'->>'displayName', ''), NULL),
+      -- 428: o telefone vai junto ("👤 Contato: NOME — 5592..."); sem ele o Tel não tinha como mandar o corretor
+      ('texto',     'contact',  '👤 Contato: ' || coalesce(p->'contact'->>'displayName', '')
+                               || coalesce(' — ' || coalesce(
+                                    (SELECT string_agg(regexp_replace(t, '\D', '', 'g'), ' / ')
+                                       FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(p->'contact'->'phones') = 'array'
+                                                                           THEN p->'contact'->'phones' ELSE '[]'::jsonb END) t
+                                      WHERE regexp_replace(t, '\D', '', 'g') <> ''),
+                                    (SELECT string_agg(m[1], ' / ')
+                                       FROM regexp_matches(coalesce(p->'contact'->>'vCard', ''), 'waid=(\d{8,15})', 'g') m)), ''),
+                       NULL),
       ('texto',     'location', '📍 Localização: ' || coalesce(nullif(p->'location'->>'name', ''), p->'location'->>'address', ''), NULL)
     ) x(tipo, chave, texto, midia)
    WHERE jsonb_typeof(p->x.chave) = 'object'

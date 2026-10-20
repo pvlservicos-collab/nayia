@@ -116,6 +116,24 @@ BEGIN
     END IF;
   END;
 
+  -- 428 (Pedro, 20/10/2026): O CADASTRO PELO WHATSAPP. Enquanto a Nay do cadastro pergunta a este corretor (ou
+  -- proprietário) o que falta do imóvel que o Tel mandou no grupo CADASTRO DE IMÓVEL IMOBEASY, a resposta é dela: vai
+  -- para a fila do serviço nay-cadastro (privado.cadastro_whats_entrada) e a NAI não atende. Depois do "o Tel assumiu",
+  -- como a OLX: gente no chat cala as duas. A ficha fechada (concluída, sem resposta) devolve a pessoa à Nay sozinha.
+  DECLARE v_cad bigint := cadastro_whats_da_parceria(p_tel, v_contato);
+  BEGIN
+    IF v_cad IS NOT NULL THEN
+      INSERT INTO privado.cadastro_whats_entrada (cadastro_id, texto, midias, ids)
+      SELECT v_cad, nullif(btrim(coalesce(p_texto, '')), ''),
+             coalesce((SELECT array_agg(m.midia_url ORDER BY m.id) FROM mensagens m
+                        WHERE m.id = ANY (coalesce(p_ids, '{}')) AND m.midia_url IS NOT NULL
+                          AND m.origem IN ('imagem', 'image', 'foto')), '{}'),
+             coalesce(p_ids, '{}');
+      UPDATE privado.cadastro_whats SET atualizado_em = now() WHERE id = v_cad;
+      RETURN jsonb_build_object('ok', false, 'motivo', 'cadastro_whats', 'contato_id', v_contato, 'cadastro', v_cad);
+    END IF;
+  END;
+
   IF v_teste THEN
     -- No teste, o mesmo numero faz todos os papeis. O papel vem da MARCACAO
     -- (ele respondeu marcando a mensagem que iria para o proprietario) ou

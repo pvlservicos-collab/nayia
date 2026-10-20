@@ -23,4 +23,4 @@ nay_site_leitura, só nestas colunas: SELECT(id, nome, bairro)
 site_condominio_guardar, site_condominio_salvar
 
 ## funções que citam
-condominio_aplicar_google, crm_captacao_cadastro_opcoes, crm_condominio_pelo_texto, nai_cadastro_importar, nai_condominio_do_imovel, nai_imovel_da_conversa, nai_resposta_da_base, nay_disponibilidade_no_condominio, site_captacao_grupos_apelido_salvar, site_captacao_grupos_apelidos, site_captacao_grupos_demanda, site_condominio_guardar, site_condominio_salvar, site_ficha_preparada
+cadastro_whats_condominio, condominio_aplicar_google, crm_captacao_cadastro_opcoes, crm_condominio_pelo_texto, nai_cadastro_importar, nai_condominio_do_imovel, nai_imovel_da_conversa, nai_resposta_da_base, nay_disponibilidade_no_condominio, site_captacao_grupos_apelido_salvar, site_captacao_grupos_apelidos, site_captacao_grupos_demanda, site_condominio_guardar, site_condominio_salvar, site_ficha_preparada

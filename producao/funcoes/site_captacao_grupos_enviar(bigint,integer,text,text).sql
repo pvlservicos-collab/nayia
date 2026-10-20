@@ -103,6 +103,9 @@ BEGIN
   INSERT INTO privado.grupo_pedido_oferta (pedido_id, codigo, telefone, abertura, com_card, turno_id, resumo, quem)
   VALUES (q.id, p_codigo, v_fone, v_abert, v_card, v_turno, v_resumo, nullif(btrim(coalesce(p_quem, '')), ''));
   UPDATE privado.grupo_pedido SET estado = 'enviado' WHERE id = ANY (v_ids);
+  -- 429: o contexto para a Nay da Parceria (nay-core): o pedido do grupo e o card que saiu
+  INSERT INTO nay_contexto_do_grupo (final8, telefone, pedido_id, codigo, pergunta, filtros, pedido_texto)
+  VALUES (right(v_fone, 8), v_fone, q.id, p_codigo, NULL, privado.grupo_pedido_filtros_para_nay(q.id), q.texto);
   RETURN jsonb_build_object('ok', true, 'resumo', v_resumo, 'turno', v_turno);
 END
 $function$;

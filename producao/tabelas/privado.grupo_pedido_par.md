@@ -1,4 +1,4 @@
-# privado.grupo_pedido_par  (tabela, ~4224 linhas)
+# privado.grupo_pedido_par  (tabela, ~4264 linhas)
 
 ## colunas
 pedido_id  bigint  NOT NULL
@@ -23,4 +23,4 @@ grupo_pedido_par_pkey: PRIMARY KEY (pedido_id, codigo)
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-site_captacao_grupos, site_captacao_grupos_enviar
+site_captacao_grupos, site_captacao_grupos_enviar, site_captacao_grupos_perguntar
