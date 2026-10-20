@@ -667,7 +667,7 @@ olx_nay_reservar
 olx_nay_soltar	
 olx_organicos_novos	
 olx_permissao_gravar	
-olx_pode_receber_parceiro	olx_imovel_vai_ao_cliente
+olx_pode_receber_parceiro	crm_olx_busca_parceiro_abrir, olx_imovel_vai_ao_cliente
 olx_reais	olx_corpo_do_anuncio
 olx_tem	olx_anuncio_montar
 olx_texto_limpo	

@@ -1,4 +1,4 @@
-# privado.captacao_envio_pedido  (tabela, ~0 linhas)
+# privado.captacao_envio_pedido  (tabela, ~12 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('privado.captacao_envio_pedido_id_seq'::regclass)
