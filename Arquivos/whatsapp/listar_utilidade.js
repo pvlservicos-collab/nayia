@@ -24,6 +24,17 @@ async function main() {
     for (const t of util.sort((a, b) => a.name.localeCompare(b.name))) console.log(`${t.name} | ${t.status} | ${t.category}`)
     return
   }
+  // "texto": todos os modelos (qualquer situação) cujo texto fala de imóvel extra / vender / demanda, com o texto
+  if (process.argv[3] === 'texto') {
+    const re = /outro im[oó]vel|mais (algum|um) im[oó]vel|vender ou alugar|para vender|demanda|adicionar|al[eé]m do que/i
+    for (const t of todos.filter((x) => re.test(JSON.stringify(x.components || []))).sort((a, b) => a.name.localeCompare(b.name))) {
+      const c = t.components || []
+      const corpo = ((c.find((x) => x.type === 'BODY') || {}).text || '').replace(/\s+/g, ' ')
+      const botoes = ((c.find((x) => x.type === 'BUTTONS') || {}).buttons || []).map((b) => b.text)
+      console.log(`${t.name} | ${t.status} | ${t.category}\n   ${corpo}${botoes.length ? '\n   [' + botoes.join('] [') + ']' : ''}\n`)
+    }
+    return
+  }
   console.log(`total ${todos.length} modelos; aprovados como Utilidade: ${util.length}\n`)
   for (const t of util.sort((a, b) => a.name.localeCompare(b.name))) {
     const c = t.components || []
