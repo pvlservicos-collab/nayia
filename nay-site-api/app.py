@@ -1554,6 +1554,12 @@ def api_imovel_salvar(codigo):
                 return jsonify({"erro": "não encontrado"}), 404
             _gravar_privado(cur, codigo, unidade, ficha, vencimento)
             pid = _gravar_proprietario(cur, codigo, dono, dono_novo)
+            if pid is None and dono is not None:
+                # só os contatos mudaram: o dono é o de hoje
+                cur.execute("SELECT coalesce(p.proprietario_id, i.proprietario_id) AS id FROM imoveis i "
+                            "LEFT JOIN imovel_privado p ON p.codigo = i.codigo WHERE i.codigo = %s", (codigo,))
+                pid = (cur.fetchone() or {}).get("id")
+            _gravar_contatos(cur, pid, _contatos_do_corpo(corpo))
             _guardar_no_condominio(cur, codigo, corpo, gravar)
         conn.commit()
         resposta = {"status": "salvo", "codigo": codigo, "proprietario_id": pid}
@@ -1712,6 +1718,35 @@ def _proprietario_do_corpo(corpo):
     return dados, bool(corpo.get("proprietario_novo"))
 
 
+def _contatos_do_corpo(corpo):
+    """432 (Pedro, 20/10): os OUTROS contatos do dono, o botão + do cartão Proprietário. None = a tela não mandou
+    (não mexe); lista (até vazia) = é assim que fica. Cada um: nome, telefone e quem é (esposa, filho, administrador)."""
+    p = corpo.get("proprietario")
+    if not isinstance(p, dict) or not isinstance(p.get("contatos"), list):
+        return None
+    saida = []
+    for c in p["contatos"][:6]:
+        if not isinstance(c, dict):
+            continue
+        nome = str(c.get("nome") or "").strip()[:200] or None
+        telefone = str(c.get("telefone") or "").strip()[:60] or None
+        quem_e = str(c.get("quem_e") or "").strip()[:80] or None
+        if nome or telefone:
+            saida.append({"nome": nome, "telefone": _telefone_formatado(telefone) if telefone else None,
+                          "quem_e": quem_e})
+    return saida
+
+
+def _gravar_contatos(cur, pid, contatos):
+    """A lista inteira do dono é trocada pela que a tela mandou (na ordem)."""
+    if pid is None or contatos is None:
+        return
+    cur.execute("DELETE FROM privado.proprietario_contato WHERE proprietario_id = %s", (pid,))
+    for ordem, c in enumerate(contatos, start=1):
+        cur.execute("INSERT INTO privado.proprietario_contato (proprietario_id, ordem, nome, telefone, quem_e) "
+                    "VALUES (%s, %s, %s, %s, %s)", (pid, ordem, c["nome"], c["telefone"], c["quem_e"]))
+
+
 def _gravar_proprietario(cur, codigo, dados, novo):
     """Grava o dono do imóvel e liga os dois lugares. Devolve o id (ou None).
 
@@ -1783,6 +1818,9 @@ def _proprietario_do_imovel(conn, codigo):
         UNION SELECT codigo FROM imovel_privado WHERE proprietario_id = %s AND codigo <> %s
         ORDER BY 1 LIMIT 40""", (dono["id"], codigo, dono["id"], codigo))
     dono["outros_imoveis"] = [o["codigo"] for o in outros]
+    dono["contatos"] = [dict(c) for c in todas_linhas(conn, """
+        SELECT nome, telefone, quem_e FROM privado.proprietario_contato
+         WHERE proprietario_id = %s ORDER BY ordem, id""", (dono["id"],))]
     return dono
 
 
@@ -3381,7 +3419,7 @@ def api_imovel_criar():
             cur.execute(query, vals)
             novo = cur.fetchone()["codigo"]
             _gravar_privado(cur, novo, unidade, ficha, vencimento)
-            _gravar_proprietario(cur, novo, dono, True)
+            _gravar_contatos(cur, _gravar_proprietario(cur, novo, dono, True), _contatos_do_corpo(corpo))
             _guardar_no_condominio(cur, novo, corpo, gravar)
         conn.commit()
         return jsonify({"status": "criado", "codigo": novo}), 201

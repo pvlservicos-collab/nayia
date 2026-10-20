@@ -154,6 +154,31 @@ body.admin .conteudo { max-width: 1680px; padding-left: 20px; padding-right: 20p
   border: 0; background: none; padding: 0; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600;
   color: var(--gc); text-decoration: underline; text-underline-offset: 2px;
 }
+/* 432: outros contatos do dono (o botão +) */
+.ed__contatos { grid-column: 1 / -1; display: grid; gap: 8px; }
+.ed__contatos-titulo { margin: 4px 0 0; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--gc); }
+.ed__contato {
+  display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; align-items: end;
+  padding: 10px; border-radius: 12px; background: #fff; border: 1px solid color-mix(in srgb, var(--gc) 25%, transparent);
+}
+.ed__contato-campo { display: grid; gap: 4px; min-width: 0; font-size: 12px; color: var(--texto-fraco, #6b6478); }
+.ed__contato-campo input {
+  width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; color: inherit; padding: 8px 10px;
+  border: 1px solid #d9d3e6; border-radius: 9px; background: #fff;
+}
+.ed__contato-tirar {
+  width: 34px; height: 34px; border-radius: 50%; border: 1px solid #e5d4d4; background: #fff; color: #b42323;
+  font-size: 18px; line-height: 1; cursor: pointer;
+}
+.ed__contato-mais {
+  justify-self: start; border: 1px dashed var(--gc); background: transparent; color: var(--gc); cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 700; padding: 7px 14px; border-radius: 999px;
+}
+.ed__contatos--mudou .ed__contato { border-color: #d29b10; }
+@media (max-width: 640px) {
+  .ed__contato { grid-template-columns: 1fr; }
+  .ed__contato-tirar { justify-self: end; }
+}
 .ed__cartao--chamando { animation: ed-chamando 1.8s ease-out 1; }
 @keyframes ed-chamando {
   0% { box-shadow: 0 0 0 0 rgba(3, 105, 161, .55); }

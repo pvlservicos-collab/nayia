@@ -636,10 +636,76 @@
           (g.privado ? '<span class="ed__cartao-selo">uso interno</span>' : "") + "</h2>" +
         '<div class="ed__grade">' + (g.nota && !aviso ? '<p class="ed__cartao-nota">' + esc(g.nota) + "</p>" : "") + aviso +
           campos.map(campoHtml).join("") +
-          (g.id === "ed-cartao-dono" && !aviso ? '<div class="ed__dono-extra" id="ed-dono-extra"></div>' : "") +
+          (g.id === "ed-cartao-dono" && !aviso ? '<div class="ed__contatos" id="ed-dono-contatos"></div>' +
+            '<div class="ed__dono-extra" id="ed-dono-extra"></div>' : "") +
         "</div></section>";
     }).join("");
     desenharDono();
+    desenharContatos(privado && privado.proprietario && !donoNovo ? privado.proprietario.contatos : []);
+  }
+
+  /* ---- OUTROS CONTATOS DO DONO (432, Pedro, 20/10/2026) -----------------------
+     "coloca uma segunda opção de contato aqui, a gente clica no + e aparece outra opção para cadastro". Cada linha:
+     nome, telefone e quem é (esposa, filho, administrador). Valem para todos os imóveis do dono, como o resto do
+     cartão. O telefone principal continua sendo o de cima (é por ele que a Nay fala com o dono). */
+  var MAX_CONTATOS = 6;
+  var contatosInicial = "[]";
+
+  function linhaDeContato(c, i) {
+    c = c || {};
+    return '<div class="ed__contato" data-contato="' + i + '">' +
+      '<label class="ed__contato-campo"><span>Nome</span><input type="text" data-contato-campo="nome" value="' + esc(c.nome || "") + '"></label>' +
+      '<label class="ed__contato-campo"><span>Telefone / WhatsApp</span><input type="tel" inputmode="tel" data-contato-campo="telefone" value="' + esc(c.telefone || "") + '"></label>' +
+      '<label class="ed__contato-campo"><span>Quem é</span><input type="text" data-contato-campo="quem_e" placeholder="esposa, filho, administrador" value="' + esc(c.quem_e || "") + '"></label>' +
+      '<button type="button" class="ed__contato-tirar" data-contato-acao="tirar" aria-label="Tirar este contato" title="Tirar este contato">×</button>' +
+      "</div>";
+  }
+
+  function desenharContatos(lista) {
+    var alvo = $("ed-dono-contatos");
+    if (!alvo) return;
+    lista = (lista || []).slice(0, MAX_CONTATOS);
+    alvo.innerHTML = (lista.length ? '<p class="ed__contatos-titulo">Outros contatos</p>' : "") +
+      lista.map(linhaDeContato).join("") +
+      (lista.length < MAX_CONTATOS
+        ? '<button type="button" class="ed__contato-mais" data-contato-acao="mais">+ ' +
+          (lista.length ? "Mais um contato" : "Outro contato") + "</button>" : "");
+  }
+
+  function contatosDaTela() {
+    var alvo = $("ed-dono-contatos");
+    if (!alvo) return [];
+    return Array.prototype.map.call(alvo.querySelectorAll(".ed__contato"), function (linha) {
+      var c = {};
+      linha.querySelectorAll("[data-contato-campo]").forEach(function (el) {
+        c[el.getAttribute("data-contato-campo")] = String(el.value || "").trim();
+      });
+      return c;
+    }).filter(function (c) { return c.nome || c.telefone; });
+  }
+
+  function contatosMudaram() {
+    return $("ed-dono-contatos") ? JSON.stringify(contatosDaTela()) !== contatosInicial : false;
+  }
+
+  function mexerNosContatos(acao, botao) {
+    var lista = Array.prototype.map.call($("ed-dono-contatos").querySelectorAll(".ed__contato"), function (linha) {
+      var c = {};
+      linha.querySelectorAll("[data-contato-campo]").forEach(function (el) { c[el.getAttribute("data-contato-campo")] = el.value; });
+      return c;
+    });
+    if (acao === "mais") lista.push({});
+    if (acao === "tirar") {
+      var linha = botao.closest(".ed__contato");
+      lista.splice(Number(linha.getAttribute("data-contato")), 1);
+    }
+    desenharContatos(lista);
+    if (acao === "mais") {
+      var novas = $("ed-dono-contatos").querySelectorAll(".ed__contato");
+      var ultima = novas[novas.length - 1];
+      if (ultima) ultima.querySelector("input").focus();
+    }
+    atualizarBotao();
   }
 
   /* ---- o proprietário: de quem mais ele é dono, e "é outra pessoa" ---------- */
@@ -669,6 +735,8 @@
       if (el) el.value = donoNovo ? "" : (valorGuardado(n) == null ? "" : valorGuardado(n));
     });
     desenharDono();
+    // outra pessoa começa sem os contatos do dono de antes; desfazer traz de volta
+    desenharContatos(donoNovo ? [] : (privado && privado.proprietario ? privado.proprietario.contatos : []));
     atualizarBotao();
     var nome = inputDe("o:nome");
     if (donoNovo && nome) nome.focus();
@@ -763,6 +831,7 @@
     var sel = $("ed-situacao");
     if (sel) inicial.status = sel.value;
     condoInicial = seletorCondo ? (seletorCondo.valores()[0] || null) : condoInicial;
+    contatosInicial = JSON.stringify(contatosDaTela());
   }
 
   function mudancas() {
@@ -787,6 +856,12 @@
       var envolveCondo = form.querySelector('[data-envolve="condominio"]');
       if (envolveCondo) envolveCondo.classList.toggle("ed__campo--mudou", agora !== antes);
       if (agora !== antes) m.push("condo_id");
+    }
+    var caixaContatos = $("ed-dono-contatos");
+    if (caixaContatos) {
+      var mudaramContatos = contatosMudaram();
+      caixaContatos.classList.toggle("ed__contatos--mudou", mudaramContatos);
+      if (mudaramContatos) m.push("contatos");
     }
     return m;
   }
@@ -1104,6 +1179,8 @@
   form.addEventListener("click", function (e) {
     var acaoDono = e.target.closest ? e.target.closest("[data-dono-acao]") : null;
     if (acaoDono) { trocarDono(acaoDono.getAttribute("data-dono-acao")); return; }
+    var acaoContato = e.target.closest ? e.target.closest("[data-contato-acao]") : null;
+    if (acaoContato) { mexerNosContatos(acaoContato.getAttribute("data-contato-acao"), acaoContato); return; }
     var botao = e.target.closest ? e.target.closest("[data-tirar], [data-mover]") : null;
     if (!botao) return;
     var chip = botao.closest(".ed__chip");
@@ -1232,6 +1309,10 @@
     }
     if (Object.keys(extras).length) corpo.extras = extras;
     if (Object.keys(priv).length) corpo.privado = priv;
+    // os outros contatos vão inteiros quando mudaram (ou no cadastro novo / outra pessoa, se houver algum)
+    if ((mudou && mudou.indexOf("contatos") >= 0) || ((novo || donoNovo) && contatosDaTela().length)) {
+      dono.contatos = contatosDaTela();
+    }
     if (Object.keys(dono).length) corpo.proprietario = dono;
     var donoAntes = privado && privado.proprietario ? privado.proprietario.id : null;
     var sel = $("ed-situacao");
@@ -1304,6 +1385,7 @@
             if (el) el.value = p && p[k] != null ? p[k] : "";
           });
           desenharDono();
+          desenharContatos(p ? p.contatos : []);
           if (p && p.id !== donoAntes && (p.outros_imoveis || []).length) {
             recado = " Esse proprietário já era dono de " + p.outros_imoveis.join(", ") + ": o imóvel foi ligado a ele.";
           }
