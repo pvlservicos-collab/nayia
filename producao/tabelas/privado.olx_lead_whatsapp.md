@@ -1,4 +1,4 @@
-# privado.olx_lead_whatsapp  (tabela, ~20 linhas)
+# privado.olx_lead_whatsapp  (tabela, ~23 linhas)
 384: quem deu o WhatsApp no chat da OLX, com a leitura de perfil da Nay da OLX, para a Nay do WhatsApp continuar.
 
 ## colunas

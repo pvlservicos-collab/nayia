@@ -1,4 +1,4 @@
-# core_conversa  (tabela, ~261 linhas)
+# core_conversa  (tabela, ~269 linhas)
 
 ## colunas
 chave  text  NOT NULL
@@ -33,6 +33,7 @@ filtro_extras  text[]  NOT NULL  padrão '{}'::text[]
 filtro_piso  numeric
 pergunta_vezes  integer  NOT NULL  padrão 0
 pedido_desde  timestamp with time zone
+filtro_condominio  text
 
 ## índices
 CREATE INDEX core_conversa_estado ON public.core_conversa USING btree (estado)

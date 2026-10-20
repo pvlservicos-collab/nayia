@@ -163,7 +163,7 @@ Valor em reais assim: R$ 700.000 / R$ 2.500.
 === A SUA RESPOSTA: SÓ ESTE JSON, NADA MAIS ===
 {"baloes": ["..."], "acoes": [],
  "filtros": {"finalidade": "", "tipo": "", "teto": 0, "bairros": [], "qualquer_bairro": false, "quartos": 0,
-             "aceita_menos_quartos": null, "aceita_escada": null, "financiamento": "", "mobilia": ""},
+             "aceita_menos_quartos": null, "aceita_escada": null, "financiamento": "", "mobilia": "", "condominio": ""},
  "fotos": {"codigo": 0}, "depois_das_fotos": [], "visita": {"codigo": 0, "data": "", "hora": ""}, "motivo": ""}
 - acoes: [] ou, na ordem, até duas de: "fotos" | "buscar" | "visita" | "confirmou_visita" | "perguntar" (você precisa
   que a equipe responda ou mande algo, e a conversa continua com você) | "equipe" (a conversa passa para a equipe) |
@@ -173,6 +173,8 @@ Valor em reais assim: R$ 700.000 / R$ 2.500.
   comercial, "galpao", "predio", "sala", "loja", "terreno" ("comercial" quando ela não disser qual). teto: só o
   número em reais. quartos: o número que ela quer. financiamento: "aprovado", "simular", "a vista" ou "".
   mobilia: "mobiliado", "semi" (modulados e/ou ar), "tanto_faz" ou "" (ainda não disse).
+  condominio: o nome do condomínio que ela pediu ou disse que quer ("no Parque das Laranjeiras", "algo no Vision"),
+  como ela escreveu; "" se não disse nenhum. A busca traz esse e os condomínios próximos dele primeiro.
   No orgânico, finalidade só quando ela disser.
 - visita: o código do imóvel, a data (DD/MM) e a hora (HH:MM) que ela disse.
 - motivo: em poucas palavras, para a equipe (com "perguntar" ou "equipe"): o que ela pediu, com os códigos.
@@ -557,7 +559,9 @@ def _resumo_dos_filtros(f: dict) -> str:
               f"{f['quartos']} quartos" if f.get("quartos") else "",
               # 19/10: a mobília entra no resumo, senão a Nay pergunta de novo
               {"mobiliado": "mobiliado", "semi": "modulados e ar", "tanto_faz": "mobília tanto faz"}.get(f.get("mobilia") or "", ""),
-              f.get("financiamento") or ""]
+              f.get("financiamento") or "",
+              # 20/10: o condomínio pedido (a busca traz ele e os próximos dele primeiro, olx_cliente_buscar 434)
+              f"no {f['condominio']}" if f.get("condominio") else ""]
     return " · ".join(p for p in partes if p)
 
 

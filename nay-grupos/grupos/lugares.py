@@ -15,6 +15,8 @@ A ordem, para cada nome:
 """
 from __future__ import annotations
 
+import re
+
 from grupos.texto import mobilia_pedida, normal, pede_elevador, pede_financiamento
 
 PARECIDO_MINIMO = 0.55       # abaixo disso o "mais parecido" é só sugestão: não entra na conta
@@ -77,6 +79,28 @@ class Lugares:
                             r["sugestao"] = linha[0]
         self._guardado[("b", chave)] = r
         return r
+
+    # ── condomínios próximos (Pedro, 20/10; nayia 433) ──
+    def proximos(self, nomes: list[str]) -> dict | None:
+        """O condomínio pedido na planilha: {id, nome, recente, bairros (os da planilha), lista {id: {recente,
+        mesmo_bairro}}}. None se a planilha não o conhece por nenhum dos nomes."""
+        nomes = [n for n in nomes if n]
+        if not nomes:
+            return None
+        with self.conn.cursor() as cur:
+            cur.execute("""SELECT p.id, p.nome, p.recente, p.bairro,
+                                (SELECT coalesce(jsonb_object_agg(l.para_id::text, jsonb_build_object(
+                                          'recente', l.para_recente, 'mesmo_bairro', l.mesmo_bairro)), '{}'::jsonb)
+                                   FROM condominio_proximo_lista l WHERE l.de_id = p.id) AS lista
+                             FROM condominio_proximo p
+                            WHERE p.id IN (SELECT n.id FROM condominio_proximo_nomes n
+                                            WHERE n.norma = ANY (SELECT lower(unaccent(x)) FROM unnest(%s::text[]) x))
+                            ORDER BY p.id LIMIT 1""", (nomes,))
+            r = cur.fetchone()
+        if not r:
+            return None
+        return {"id": r[0], "nome": r[1], "recente": bool(r[2]),
+                "bairros": [b.strip() for b in (r[3] or "").split(",") if b.strip()], "lista": r[4] or {}}
 
     # ── condomínio ──
     def _bairros_do(self, cur, nomes: list[str]) -> list[str]:
@@ -169,6 +193,13 @@ def resolver(ficha: dict, grupo_nome: str | None, lugares: Lugares) -> tuple[dic
         operacao = _operacao_do_grupo(grupo_nome)
         origem = "nome do grupo" if operacao else None
 
+    # 20/10: a planilha dos condomínios próximos (o condomínio pedido, reconhecido ou não pelo cadastro)
+    ler = getattr(lugares, "proximos", None)      # o leitor de nomes dos testes não tem a planilha
+    planilha = ler([*condominios, ficha.get("condominio")]) if ler and ficha.get("condominio") else None
+    if planilha and not chaves:
+        # o cadastro não conhece o condomínio, a planilha sim: o bairro dela ("Parque 10 Norte" = Parque 10)
+        for b in planilha["bairros"]:
+            bairros += lugares.bairro(re.sub(r"\s+(Norte|Sul|Leste|Oeste)$", "", b))["oficiais"]
     todos_bairros = sorted(set(bairros) | (set(bairros_dos_condominios) if chaves else set()))
     pedido = {
         "operacao": operacao, "tipo": ficha.get("tipo"), "quartos": ficha.get("quartos"),
@@ -183,6 +214,7 @@ def resolver(ficha: dict, grupo_nome: str | None, lugares: Lugares) -> tuple[dic
         "bairro_chaves": [normal(b) for b in todos_bairros],
         "condominio_chaves": sorted(set(chaves)),
         "condominio_sem_reconhecer": bool(ficha.get("condominio") and not chaves),
+        "condominio_planilha": planilha,
         # pediu lugar e NADA foi reconhecido: não se compara (nem se chuta)
         "local_nao_reconhecido": nao_reconhecidos if (itens and not bairros and not chaves) else [],
     }

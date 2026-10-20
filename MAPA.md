@@ -313,6 +313,13 @@ prompt: comece pelo `nay onde`.
   turno (`nay/contexto/do_grupo.py`, 72 h) e começa um pedido NOVO; "sim" manda card e fotos, "não serve" recusa e busca
   (`nay/classificador/serve.py`). Mobília rígida no radar: `catalogo.mobilia_do` ("com modulados e ar" = semi),
   `texto.mobilia_pedida` (a frase decide), `pontuar._mobilia`.
+- CONDOMÍNIOS PRÓXIMOS (433/434, 20/10): a planilha `condominios_proximos.xlsx` (raiz) em `condominio_proximo` (+ as
+  visões `condominio_proximo_nomes`, `condominio_proximo_lista`; 338 condomínios, 22 recentes, 279 ligados ao cadastro).
+  Pedido num condomínio = os próximos da MESMA classe primeiro (recente/normal), depois a outra, depois o resto. Quem usa:
+  nay-core (`nay/cerebro/proximos.py`, `filtro_condominio` da core 030, a ordem em `acoes/buscar.py`; "condomínio novo"
+  sem nome em `frases.CONDOMINIO_NOVO`), o radar (`nay-grupos/grupos/pontuar.py` `_proximo`, notas 80/60 em
+  `config.json` local) e a Nay do WhatsApp da OLX (`olx_cliente_buscar`, `filtros.condominio` no prompt de
+  `nay-olx/olx/whatsapp.py`). Planilha nova = refazer com `gerar_433.py` (a tabela é apagada e refeita).
 - AS ABAS DE CADA NÚMERO SÃO ETIQUETAS (20/10): `crm/src/components/Chat/AbasDeEtiquetas.tsx` (`useAbasDaLinha`,
   `EditarAbas`, o lápis no fim da fileira) + `/api/linhas/abas` (integrations.config.abas_etiquetas). Nunca editado =
   etiquetas com gente na linha. Tel/Rayssa/Com o Tel continuam na fileira de cima; Todos = a linha inteira.

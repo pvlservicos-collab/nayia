@@ -18,7 +18,7 @@
   "preco": { "cheio_ate_abaixo": 0.15, "zera_em": 0.40, "tolerancia_acima": 0.10, "rend_no_limite_acima": 90 },
   "_preco": "19/10 (Pedro: dentro do filtro de 10% a mais ou 15% a menos a diferença de preço quase não pesa): de 15% abaixo do teto até o teto vale 100%; acima do teto cai de 100% só até 90% nos 10% de tolerância; mais que 10% acima elimina; mais barato que 15% abaixo cai em linha reta até 0% quando o imóvel custa 40% do teto",
 
-  "local": { "exato": 100, "divisa_colado": 85, "divisa_piso": 45, "perto_sem_divisa": 65, "perto_ate_km": 5, "km_que_zera": 10, "vizinho_a_mao": 65, "mesmo_bairro_outro_condominio": 50 },
+  "local": { "exato": 100, "divisa_colado": 85, "divisa_piso": 45, "perto_sem_divisa": 65, "perto_ate_km": 5, "km_que_zera": 10, "vizinho_a_mao": 65, "mesmo_bairro_outro_condominio": 50, "proximo_mesma_classe": 80, "proximo_outra_classe": 60 },
   "_local": "bairro pedido vale 100. Bairro PRÓXIMO vale menos, e cai com a distância entre os centros dos bairros: o que faz divisa vai de 85 (colado) para baixo, nunca menos que 45; o que fica perto sem fazer divisa vai de 65 para baixo, e só conta até 5 km (perto_ate_km); os dois chegariam a zero em 10 km. Par posto à mão na tabela de bairros vizinhos, sem distância no mapa, vale 65. Bairro que o mapa não lista como próximo não entra",
   "quartos": { "igual": 100, "um_a_mais": 60 },
   "mobiliado": { "atende": 100, "semi": 50, "nao_atende": 0, "nao_informado": 50 },

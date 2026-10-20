@@ -25,12 +25,29 @@ AS $function$
       CROSS JOIN LATERAL unnest(coalesce(CASE WHEN nay_bairro_parecido(b) IS NOT NULL THEN ARRAY[nay_bairro_parecido(b)] END,
                                          nullif(nai_bairros_do_lugar('no ' || b), '{}'), ARRAY[b])) x
      WHERE btrim(b) <> ''
+  ), ref AS (       -- 434: o condomínio que ela pediu, na planilha dos condomínios próximos (433)
+    SELECT p.id, p.recente, p.bairro FROM condominio_proximo p
+     WHERE coalesce(btrim(p_filtros->>'condominio'), '') <> ''
+       AND p.id IN (SELECT n.id FROM condominio_proximo_nomes n
+                     WHERE n.norma = lower(unaccent(btrim(p_filtros->>'condominio')))
+                        OR (nay_chave_condominio(n.norma) = nay_chave_condominio(p_filtros->>'condominio')
+                            AND nay_chave_condominio(n.norma) <> ''))
+     ORDER BY p.id LIMIT 1
+  ), prox AS (      -- os próximos dele: a mesma classe (recente com recente, normal com normal) vem primeiro
+    SELECT l.para_id, (l.para_recente = r.recente) AS mesma_classe, l.mesmo_bairro
+      FROM condominio_proximo_lista l JOIN ref r ON r.id = l.de_id
   ), perto AS (
     SELECT DISTINCT nay_normalizar_lugar(x, true) AS n
       FROM unnest(nai_bairros_ao_redor(ARRAY(SELECT n FROM pedidos))) x
      WHERE nay_normalizar_lugar(x, true) NOT IN (SELECT n FROM pedidos)
+  ), do_ref AS (    -- 434: o bairro do condomínio pedido, pela planilha ("Parque 10 Norte" = Parque 10), quando ela não disse bairro
+    SELECT DISTINCT nay_normalizar_lugar(coalesce(nay_bairro_parecido(b), b), true) AS n
+      FROM ref r CROSS JOIN LATERAL unnest(string_to_array(r.bairro, ', ')) x
+      CROSS JOIN LATERAL (SELECT regexp_replace(btrim(x), '\s+(Norte|Sul|Leste|Oeste)$', '') AS b) y
+     WHERE NOT EXISTS (SELECT 1 FROM pedidos)
   ), c AS (
     SELECT i.codigo, i.bairro, i.condominio_nome, i.tipo, i.quartos, nay_normalizar_lugar(i.bairro, true) AS bn,
+           (SELECT n.id FROM condominio_proximo_nomes n WHERE n.norma = lower(unaccent(i.condominio_nome)) LIMIT 1) AS pl,
            CASE WHEN f.fin = 'venda' THEN i.valor_venda ELSE i.valor_aluguel END AS p
       FROM core_imovel_busca i CROSS JOIN f
       LEFT JOIN imoveis x ON x.codigo = i.codigo
@@ -59,12 +76,23 @@ AS $function$
        -- quem vai financiar não recebe imóvel que não aceita financiamento (a regra dos pedidos dos grupos, 371)
        AND NOT (f.fin = 'venda' AND f.financia AND lower(coalesce(x.extras->>'aceita financiamento', '')) LIKE 'n%')
   )
-  SELECT c.codigo, c.bairro, c.condominio_nome, c.tipo, c.quartos, c.p, (c.bn IN (SELECT n FROM perto))
+  SELECT c.codigo, c.bairro, c.condominio_nome, c.tipo, c.quartos, c.p,
+         (c.bn NOT IN (SELECT n FROM pedidos) AND c.bn NOT IN (SELECT n FROM do_ref)
+          AND (c.bn IN (SELECT n FROM perto) OR c.pl IN (SELECT para_id FROM prox)))
     FROM c CROSS JOIN f
    WHERE c.p > 0
      -- 394: a faixa firme da Parceria (225): 20% abaixo, 10% acima
      AND (f.teto IS NULL OR c.p BETWEEN f.teto * 0.80 AND f.teto * 1.10)
-     AND (NOT EXISTS (SELECT 1 FROM pedidos) OR c.bn IN (SELECT n FROM pedidos) OR c.bn IN (SELECT n FROM perto))
-   ORDER BY (c.bn IN (SELECT n FROM perto)), abs(c.p - coalesce(f.teto, c.p)), c.codigo
+     AND ((NOT EXISTS (SELECT 1 FROM pedidos) AND NOT EXISTS (SELECT 1 FROM do_ref))
+          OR c.bn IN (SELECT n FROM pedidos) OR c.bn IN (SELECT n FROM perto) OR c.bn IN (SELECT n FROM do_ref)
+          -- 434: o condomínio pedido e os próximos dele (planilha) valem mesmo fora dos bairros
+          OR c.pl IN (SELECT id FROM ref) OR c.pl IN (SELECT para_id FROM prox))
+   -- 434 (Pedro, 20/10): o condomínio pedido; os próximos da mesma classe (os do mesmo bairro antes); os da outra
+   -- classe; e só depois o resto, como antes (o bairro pedido antes do vizinho, o valor mais perto do teto)
+   ORDER BY CASE WHEN c.pl IN (SELECT id FROM ref) THEN 0
+                 WHEN c.pl IN (SELECT para_id FROM prox WHERE mesma_classe) THEN 1
+                 WHEN c.pl IN (SELECT para_id FROM prox) THEN 2 ELSE 3 END,
+            NOT coalesce((SELECT mesmo_bairro FROM prox WHERE para_id = c.pl), false),
+            (c.bn IN (SELECT n FROM perto)), abs(c.p - coalesce(f.teto, c.p)), c.codigo
    LIMIT least(greatest(coalesce(p_limite, 5), 1), 10)
 $function$;

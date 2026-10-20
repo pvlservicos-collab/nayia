@@ -41,10 +41,12 @@ BEGIN
 
   -- QUEM NÃO PODE IR (e sai, se estiver lá)
   v_barrado := CASE
-    WHEN coalesce(i.e_parceiro, false) THEN 'imóvel de parceiro'
+    -- 435 (Pedro, 20/10): "libere eu postar na OLX imóveis de parceiros". O parceiro vai, inclusive o ANTIGO do site
+    -- antigo (860 dos 862 parceiros Disponíveis em 20/10): quem clica em Anunciar confere a situação.
     WHEN i.status IS DISTINCT FROM 'Disponível' OR NOT coalesce(i.disponivel, false) THEN 'não está Disponível (' || coalesce(i.status, 'sem situação') || ')'
     WHEN coalesce(i.bloqueado, false) THEN 'bloqueado'
-    WHEN NOT coalesce(i.publicado_no_site, false) THEN 'fora do nosso site'
+    -- parceiro nunca fica no nosso site (regra de 27/09): para ele esta regra não vale
+    WHEN NOT coalesce(i.publicado_no_site, false) AND NOT coalesce(i.e_parceiro, false) THEN 'fora do nosso site'
     WHEN coalesce(v_preco, 0) <= 0 THEN 'sem valor de ' || CASE WHEN p_negocio = 'venda' THEN 'venda' ELSE 'aluguel' END
   END;
   IF v_barrado IS NOT NULL THEN

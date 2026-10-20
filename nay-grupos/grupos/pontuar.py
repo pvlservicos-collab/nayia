@@ -10,7 +10,9 @@ Pedro, 09/10/2026:
 Decisões que a especificação não fecha (ditas a ele em 09/10):
   - 2 quartos ou mais ACIMA do pedido elimina (ele disse "igual ou 1 a mais").
   - pediu um CONDOMÍNIO: o condomínio vale "exato"; outro imóvel do mesmo bairro vale como vizinho
-    (`local.mesmo_bairro_outro_condominio`); bairro vizinho não entra.
+    (`local.mesmo_bairro_outro_condominio`); bairro vizinho não entra. Desde 20/10 o condomínio PRÓXIMO da
+    planilha (nayia 433) vale mais (`local.proximo_mesma_classe`, `local.proximo_outra_classe`): recente com recente,
+    normal com normal.
   - BAIRRO PRÓXIMO VALE MAIS QUE BAIRRO LONGE (Pedro, 09/10 à noite: "pontuação por bairros próximos serem maiores
     do que bairros longes ... você sabe os bairros que são próximos"). O que faz divisa vale mais que o que só
     fica perto, e os dois caem com a distância entre os centros dos bairros (`_vizinho`). Bairro que o mapa não
@@ -54,6 +56,20 @@ def _vizinho(v: dict, regras: dict) -> float:
     return r["perto_sem_divisa"] * cai
 
 
+def _proximo(pedido: dict, imovel: dict, regras: dict):
+    """20/10 (Pedro): o imóvel fica num condomínio PRÓXIMO do pedido (planilha, nayia 433). A mesma classe vale mais:
+    "se o cara pede condomínio normal ela relaciona primariamente os normais, se pede um condomínio novo (últimos 5
+    anos) ... priorizar os imóveis em condomínios novos"."""
+    pl = pedido.get("condominio_planilha") or {}
+    perto = (pl.get("lista") or {}).get(str(imovel.get("planilha_id"))) if imovel.get("planilha_id") else None
+    if not perto:
+        return None
+    r, novo = regras["local"], "recente" if perto.get("recente") else "normal"
+    if bool(perto.get("recente")) == bool(pl.get("recente")):
+        return r["proximo_mesma_classe"], f"condomínio próximo do pedido ({imovel.get('condominio') or ''}, {novo})"
+    return r["proximo_outra_classe"], f"condomínio próximo do pedido, mas {novo} ({imovel.get('condominio') or ''})"
+
+
 def _local(pedido: dict, imovel: dict, vizinhos: dict, regras: dict):
     """(rendimento 0-100, texto) ou None = fora do local pedido. `nao_pedido` quando ele não disse lugar."""
     r = regras["local"]
@@ -64,6 +80,9 @@ def _local(pedido: dict, imovel: dict, vizinhos: dict, regras: dict):
         palavras = set((imovel.get("condominio_chave") or "").split())
         if any(c and set(c.split()) <= palavras for c in chaves):
             return r["exato"], f"é o condomínio pedido ({imovel.get('condominio') or ''})"
+        proximo = _proximo(pedido, imovel, regras)
+        if proximo:
+            return proximo
         if bairro and bairro in bairros:
             return r["mesmo_bairro_outro_condominio"], f"mesmo bairro ({imovel.get('bairro')}), outro condomínio"
         return None
@@ -71,6 +90,9 @@ def _local(pedido: dict, imovel: dict, vizinhos: dict, regras: dict):
         return "nao_pedido"
     if pedido.get("condominio_sem_reconhecer"):
         # ele pediu um condomínio que o cadastro não conhece: o bairro serve, mas não é o que ele pediu
+        proximo = _proximo(pedido, imovel, regras)
+        if proximo:
+            return proximo
         if bairro and bairro in bairros:
             return r["mesmo_bairro_outro_condominio"], f"no bairro pedido ({imovel.get('bairro')}), mas não é o condomínio pedido"
         return None

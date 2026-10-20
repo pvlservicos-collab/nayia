@@ -19,7 +19,9 @@ PADRAO = {
     "cortes": {"verde": 90, "amarelo": 70},
     "preco": {"cheio_ate_abaixo": 0.15, "zera_em": 0.40, "tolerancia_acima": 0.10, "rend_no_limite_acima": 90},
     "local": {"exato": 100, "divisa_colado": 85, "divisa_piso": 45, "perto_sem_divisa": 65, "perto_ate_km": 5,
-              "km_que_zera": 10, "vizinho_a_mao": 65, "mesmo_bairro_outro_condominio": 50},
+              "km_que_zera": 10, "vizinho_a_mao": 65, "mesmo_bairro_outro_condominio": 50,
+              # 20/10: condomínio próximo do pedido (planilha do Pedro, nayia 433): a mesma classe (recente/normal) vale mais
+              "proximo_mesma_classe": 80, "proximo_outra_classe": 60},
     "quartos": {"igual": 100, "um_a_mais": 60},
     "mobiliado": {"atende": 100, "semi": 50, "nao_atende": 0, "nao_informado": 50},
     "confirmado_dias": 30,

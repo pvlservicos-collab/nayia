@@ -455,6 +455,26 @@ class Envio(unittest.TestCase):
 
 
 
+class CondominiosProximos(unittest.TestCase):
+    """20/10 (Pedro): pediu um condomínio, os próximos dele (planilha) valem mais, a mesma classe primeiro."""
+
+    def _local(self, pedido_recente: bool, imovel_recente: bool | None, mesmo_bairro_do_pedido: bool = False):
+        lista = {"7": {"recente": imovel_recente, "mesmo_bairro": True}} if imovel_recente is not None else {}
+        p = {"condominio_chaves": ["bosque flores"], "bairro_chaves": ["flores"],
+             "condominio_planilha": {"id": 1, "recente": pedido_recente, "lista": lista}}
+        i = {"condominio_chave": "outro", "condominio": "Outro", "bairro_chave": "flores" if mesmo_bairro_do_pedido else "aleixo",
+             "planilha_id": 7}
+        return pontuar._local(p, i, {}, R)
+
+    def test_a_mesma_classe_vale_mais_que_a_outra_e_que_o_mesmo_bairro(self):
+        self.assertEqual(self._local(True, True)[0], 80)          # pediu recente, é recente e próximo
+        self.assertEqual(self._local(True, False)[0], 60)         # pediu recente, é normal e próximo
+        self.assertEqual(self._local(False, False)[0], 80)        # pediu normal, é normal e próximo
+        self.assertEqual(self._local(False, True)[0], 60)
+        self.assertEqual(self._local(False, None, True)[0], 50)   # não está na lista: o mesmo bairro, como antes
+        self.assertIsNone(self._local(False, None))               # nem próximo nem do bairro: fora
+
+
 class Elevador(unittest.TestCase):
     """19/10 (Pedro): "pediu com elevador e o Parque dos Ingleses não tem elevador ... elevador um dos pilares"."""
 

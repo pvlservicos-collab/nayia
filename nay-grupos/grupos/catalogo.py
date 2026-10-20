@@ -23,7 +23,9 @@ SELECT i.codigo, i.tipo, i.bairro, i.condominio_nome, i.quartos, i.suites, i.vag
        -- 19/10: o elevador (o que o cadastro e o anúncio dizem; null = não informado) e quantas características do
        -- condomínio o anúncio lista (lista cheia SEM elevador num 4º andar ou mais baixo = não tem elevador)
        nai_imovel_tem_elevador(i.codigo) AS elevador_dado, cc.n_car_cond,
-       f.visto, a.dono, CASE WHEN i.travado THEN i.travado_em END AS a_mao, i.criado_em
+       f.visto, a.dono, CASE WHEN i.travado THEN i.travado_em END AS a_mao, i.criado_em,
+       -- 20/10: o condomínio da planilha dos condomínios próximos (nayia 433) em que ele fica
+       (SELECT n.id FROM condominio_proximo_nomes n WHERE n.norma = lower(unaccent(i.condominio_nome)) LIMIT 1) AS planilha_id
   FROM imoveis i
   LEFT JOIN LATERAL (SELECT max(x.lido_em) AS visto FROM imovel_ficha x
                       WHERE x.codigo = i.codigo AND x.encontrado AND x.erro IS NULL) f ON true
@@ -133,6 +135,7 @@ def carregar(conn) -> tuple[list[dict], dict]:
             "codigo": l["codigo"], "tipo": tipo_do(l["tipo"]), "tipo_cadastro": l["tipo"],
             "bairro": (l["bairro"] or "").strip() or None, "bairro_chave": normal(l["bairro"]),
             "condominio": (l["condominio_nome"] or "").strip() or None, "condominio_chave": l["condominio_chave"] or "",
+            "planilha_id": l["planilha_id"],
             "quartos": l["quartos"], "suites": l["suites"], "vagas": l["vagas"],
             "andar": andar_do(l["andar"]), "andar_cadastro": (l["andar"] or "").strip() or None,
             "mobilia": mobilia_do(l["mobilia"]), "mobilia_cadastro": (l["mobilia"] or "").strip() or None,

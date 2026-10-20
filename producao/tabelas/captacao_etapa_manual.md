@@ -1,4 +1,4 @@
-# captacao_etapa_manual  (tabela, ~0 linhas)
+# captacao_etapa_manual  (tabela, ~47 linhas)
 242: a etapa da captação escolhida no CRM; vale mais que a deduzida pela campanha
 
 ## colunas
