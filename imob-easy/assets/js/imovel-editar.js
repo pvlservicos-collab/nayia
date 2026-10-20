@@ -148,6 +148,7 @@
     // locação atual (privado)
     "p:locatario_nome": { rotulo: "Locatário" },
     "p:locatario_contato": { rotulo: "Contato do locatário" },
+    "x:alugado em": { rotulo: "Alugado em", tipo: "data", dica: "quando o contrato começou" },
     "p:vencimento": { rotulo: "Vencimento do contrato", tipo: "data" },
     "p:observacao_aluguel": { rotulo: "Observação do aluguel", largo: true },
     // uso interno
@@ -186,7 +187,7 @@
       campos: ["captado_por", "captado_em", "x:indicado por", "x:inspecionado por"] },
     { titulo: "Locação atual", icone: "⚿", cor: "#be185d", fundo: "#fdf0f6", privado: true,
       nota: "Fica fora do site. O vencimento é o mesmo da lista de proprietários por vencimento.",
-      campos: ["p:locatario_nome", "p:locatario_contato", "p:vencimento", "p:observacao_aluguel"] },
+      campos: ["p:locatario_nome", "p:locatario_contato", "x:alugado em", "p:vencimento", "p:observacao_aluguel"] },
     { titulo: "Uso interno", icone: "⚑", cor: "#b42323", fundo: "#fdeef1",
       campos: ["p:observacoes", "bloqueado", "motivo_bloqueio"] }
   ];
@@ -1218,6 +1219,7 @@
     }
     if (alvo.id === "ed-situacao") {
       alvo.setAttribute("style", corDaSituacao(alvo.value));
+      if (alvo.value === "Alugado" && inicial.status !== "Alugado") perguntarDatasDoAluguel();
       // mostra já o que o servidor vai fazer com o anúncio, se ele não mexeu no "no site"
       if (!noSiteMexido && $("ed-no-site")) $("ed-no-site").checked = alvo.value === "Disponível" && !eParceiro();
     }
@@ -1227,6 +1229,64 @@
     atualizarNay();
     atualizarBotao();
   });
+
+  /* ---- ALUGADO: as datas do contrato num popupzinho (Pedro, 20/10/2026) ----------------------------------------
+     "quando eu mudar o status de um imóvel para alugado, põe para pôr a data que foi alugado e a data de expiração
+     como campos não obrigatórios mas possíveis, num popupzinho". As datas vão para os campos do cartão Locação atual
+     ("Alugado em" e "Vencimento do contrato", que é o da lista por vencimento) e saem no Salvar de sempre. */
+  var popupAluguel = null;
+  function somarMeses(iso, meses) {
+    var p = String(iso || "").split("-").map(Number);
+    if (p.length !== 3 || !p[0]) return "";
+    var d = new Date(p[0], p[1] - 1 + meses, p[2]);
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function perguntarDatasDoAluguel() {
+    var campoInicio = inputDe("x:alugado em"), campoFim = inputDe("p:vencimento");
+    if (!campoInicio && !campoFim) return;      // a parte privada não abriu: não há onde guardar
+    if (!popupAluguel) {
+      popupAluguel = document.createElement("dialog");
+      popupAluguel.className = "ed__aviso-dono ed__aluguel";
+      popupAluguel.setAttribute("aria-labelledby", "ed-aluguel-titulo");
+      popupAluguel.innerHTML =
+        '<h2 id="ed-aluguel-titulo">Imóvel alugado</h2>' +
+        "<p>Se souber, anote as datas do contrato. Pode deixar em branco.</p>" +
+        '<label class="ed__aluguel-campo"><span>Alugado em</span><input type="date" data-aluguel="inicio"></label>' +
+        '<label class="ed__aluguel-campo"><span>Vencimento do contrato</span><input type="date" data-aluguel="fim"></label>' +
+        '<div class="ed__aluguel-meses"><span>Contrato de</span>' +
+          [12, 24, 30, 36].map(function (m) { return '<button type="button" data-aluguel-meses="' + m + '">' + m + " meses</button>"; }).join("") +
+        "</div>" +
+        '<div class="ed__aviso-dono-botoes"><button type="button" class="btn-azul" data-aluguel-acao="anotar">Anotar as datas</button>' +
+        '<button type="button" class="btn-neutro" data-aluguel-acao="pular">Agora não</button></div>';
+      document.body.appendChild(popupAluguel);
+      popupAluguel.addEventListener("click", function (e) {
+        var meses = e.target.closest("[data-aluguel-meses]");
+        var inicio = popupAluguel.querySelector('[data-aluguel="inicio"]'), fim = popupAluguel.querySelector('[data-aluguel="fim"]');
+        if (meses) {
+          // conta a partir da data do aluguel (ou de hoje, se ela ficou em branco)
+          var base = inicio.value || new Date().toISOString().slice(0, 10);
+          fim.value = somarMeses(base, Number(meses.getAttribute("data-aluguel-meses")));
+          return;
+        }
+        var acao = e.target.closest("[data-aluguel-acao]");
+        if (!acao) return;
+        if (acao.getAttribute("data-aluguel-acao") === "anotar") {
+          [[inputDe("x:alugado em"), inicio.value], [inputDe("p:vencimento"), fim.value]].forEach(function (par) {
+            if (par[0] && par[1] && par[0].value !== par[1]) {
+              par[0].value = par[1];
+              par[0].dispatchEvent(new Event("input", { bubbles: true }));
+            }
+          });
+          var st = $("ed-status-salvar");
+          if (st && (inicio.value || fim.value)) { st.textContent = "Datas anotadas no cartão Locação atual: agora é só Salvar."; st.className = "ed__status-salvar"; }
+        }
+        popupAluguel.close();
+      });
+    }
+    popupAluguel.querySelector('[data-aluguel="inicio"]').value = campoInicio && campoInicio.value ? campoInicio.value : "";
+    popupAluguel.querySelector('[data-aluguel="fim"]').value = campoFim && campoFim.value ? campoFim.value : "";
+    if (popupAluguel.showModal) popupAluguel.showModal(); else popupAluguel.setAttribute("open", "");
+  }
 
   // as fotos: clicar abre grande; setas e teclado andam
   var visor = $("ed-visor");

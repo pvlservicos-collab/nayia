@@ -128,6 +128,9 @@ EXTRAS_EDITAVEIS = {
     # fino acabamento". Sim / Não; sem a chave = PENDENTE (o Checklist rápido mostra até alguém responder). A Nay nova
     # lê pela view core_imovel_busca (nay-core 029) e põe estes primeiro quando o pedido fala de alto padrão.
     "fino acabamento": "simnao",
+    # 20/10 (Pedro): "quando eu mudar o status para alugado, põe para pôr a data que foi alugado e a data de expiração,
+    # não obrigatórios, num popupzinho". A data de expiração é o vencimento de sempre (contratos_locacao).
+    "alugado em": "data",
 }
 
 # IMÓVEIS › CHECKLIST RÁPIDO (Pedro, 20/10/2026: "vou fazer outros, e eles vão ficar em lista lá"). Cada checklist é
@@ -1595,6 +1598,14 @@ def _extra_normalizado(tipo, valor):
         if baixo in ("não", "nao", "n", "false", "0"):
             return "Não"
         raise ValueError
+    if tipo == "data":          # "2026-10-20" ou "20/10/2026" -> "2026-10-20"
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", txt[:10]):
+            return date.fromisoformat(txt[:10]).isoformat()
+        achou = re.fullmatch(r"(\d{1,2})/(\d{1,2})/(\d{4})", txt)
+        if not achou:
+            raise ValueError
+        d, m, a = achou.groups()
+        return date(int(a), int(m), int(d)).isoformat()
     if tipo == "lista_texto":   # "A, B, A" -> "A, B" (o jeito do site antigo)
         itens = []
         for item in re.split(r"[,\n]", txt):

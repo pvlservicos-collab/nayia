@@ -193,6 +193,15 @@ body.admin .conteudo { max-width: 1680px; padding-left: 20px; padding-right: 20p
 .ed__aviso-dono h2 { margin: 0 0 8px; font-size: 18px; }
 .ed__aviso-dono p { margin: 0 0 18px; font-size: 14.5px; line-height: 1.5; color: var(--texto-fraco, #6b6478); }
 .ed__aviso-dono-botoes { display: flex; flex-wrap: wrap; gap: 10px; }
+/* o popupzinho do Alugado: as datas do contrato (20/10) */
+.ed__aluguel { border-top-color: #6d28d9; }
+.ed__aluguel-campo { display: grid; gap: 4px; margin: 0 0 12px; font-size: 13px; font-weight: 600; }
+.ed__aluguel-campo input { font: inherit; font-weight: 400; padding: 9px 10px; border: 1px solid #d9d3e6; border-radius: 10px; }
+.ed__aluguel-meses { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -2px 0 18px; font-size: 12.5px; color: var(--texto-fraco, #6b6478); }
+.ed__aluguel-meses button {
+  border: 1px solid #d9c9f5; background: #f6f1ff; color: #5b21b6; border-radius: 999px; padding: 4px 10px;
+  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
 
 /* o que tem: características do imóvel e do condomínio, como a OLX mostra */
 .ed__cartao--largo { grid-column: 1 / -1; }
