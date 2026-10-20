@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""Agente Claude: manda a mensagem pré-setada de uma regra ao Claude (claude -p, conta do Pedro)
+"""Agente Claude: manda a mensagem pré-setada de uma regra ao Claude (claude -p, conta do Pedro) no servidor da regra
 e grava tempo, tokens e custo em metricas.db. Só biblioteca padrão, para subir rápido.
 
   agente disparar <regra> [<regra> ...]   manda a(s) mensagem(ns); várias rodam em paralelo
   agente regras                           lista as regras de regras.json
   agente metricas [dias]                  resumo por regra (padrão: 7 dias)
   agente ultimas [n]                      as n últimas execuções com a resposta
+
+Cada regra diz o servidor (vps2, onde isto mora, ou vps1) e o modo: "responder" (só texto) ou "alterar" (o Claude
+mexe no servidor como root). Quem roda o Claude é o claude-agente de cada servidor; a vps1 é alcançada por ssh no
+Tailscale. Quem dispara: o terminal, o painel (agentes.imobeasy.online) ou o Hermes do Claude (mcp_agente.py).
 """
 import json, os, sqlite3, subprocess, sys, time
 from concurrent.futures import ThreadPoolExecutor
@@ -14,17 +18,15 @@ from datetime import datetime, timezone
 BASE = os.path.dirname(os.path.abspath(__file__))
 REGRAS = os.path.join(BASE, "regras.json")
 DB = os.path.join(BASE, "metricas.db")
-CLAUDE = os.path.expanduser("~/.local/bin/claude")
-VAZIO = os.path.join(BASE, "vazio")  # cwd sem CLAUDE.md nem configuração para ler
-
-PADRAO = {"modelo": "sonnet", "timeout_s": 300, "ativa": True}
-
-# o login (CLAUDE_CODE_OAUTH_TOKEN) mora no .env, para o cron não precisar carregar nada
-if os.path.exists(os.path.join(BASE, ".env")):
-    for l in open(os.path.join(BASE, ".env"), encoding="utf-8"):
-        if "=" in l and not l.lstrip().startswith("#"):
-            k, v = l.strip().split("=", 1)
-            os.environ.setdefault(k, v.strip().strip('"'))
+EXECUTOR = "/usr/local/sbin/claude-agente"
+SERVIDORES = {
+    "vps2": [],
+    "vps1": ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-i", "/root/.ssh/agente_claude_vps1",
+             "root@100.86.114.74"],
+}
+MODOS = ("responder", "alterar")
+PADRAO = {"modelo": "sonnet", "servidor": "vps2", "modo": "responder", "ativa": True}
+LIMITE_S = {"responder": 300, "alterar": 1800}
 
 
 def regras():
@@ -40,24 +42,28 @@ def banco():
         ok INTEGER NOT NULL, ms_total INTEGER, ms_claude INTEGER, ms_api INTEGER,
         tokens_entrada INTEGER, tokens_saida INTEGER, cache_lido INTEGER, cache_criado INTEGER,
         custo_usd REAL, mensagem TEXT, resposta TEXT, erro TEXT, sessao TEXT)""")
+    tem = {r[1] for r in con.execute("PRAGMA table_info(execucoes)")}
+    for col in ("servidor", "modo", "origem"):
+        if col not in tem:
+            con.execute(f"ALTER TABLE execucoes ADD COLUMN {col} TEXT")
     con.execute("CREATE INDEX IF NOT EXISTS execucoes_regra_inicio ON execucoes(regra, inicio)")
     return con
 
 
-def disparar(nome, r):
+def disparar(nome, r, origem):
     r = {**PADRAO, **r}
-    cmd = [CLAUDE, "-p", r["mensagem"], "--output-format", "json", "--model", r["modelo"],
-           "--tools", "", "--strict-mcp-config", "--no-session-persistence"]
-    if r.get("sistema"):
-        cmd += ["--system-prompt", r["sistema"]]
-    if r.get("esforco"):
-        cmd += ["--effort", r["esforco"]]
-    env = {**os.environ, "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1", "DISABLE_AUTOUPDATER": "1"}
+    limite = r.get("timeout_s") or LIMITE_S.get(r["modo"], 300)
+    pedido = {k: r.get(k) for k in ("mensagem", "modelo", "sistema", "esforco", "modo")}
+    pedido["timeout_s"] = limite
     inicio = datetime.now(timezone.utc).isoformat(timespec="seconds")
     t0 = time.monotonic()
-    linha = {"regra": nome, "inicio": inicio, "modelo": r["modelo"], "mensagem": r["mensagem"], "ok": 0}
+    linha = {"regra": nome, "inicio": inicio, "modelo": r["modelo"], "mensagem": r["mensagem"], "ok": 0,
+             "servidor": r["servidor"], "modo": r["modo"], "origem": origem}
     try:
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=r["timeout_s"], cwd=VAZIO, env=env)
+        if r["servidor"] not in SERVIDORES:
+            raise OSError(f"servidor desconhecido: {r['servidor']}")
+        p = subprocess.run(SERVIDORES[r["servidor"]] + [EXECUTOR], input=json.dumps(pedido), capture_output=True,
+                           text=True, timeout=limite + 60)
         linha["ms_total"] = round((time.monotonic() - t0) * 1000)
         try:
             j = json.loads(p.stdout)
@@ -75,22 +81,22 @@ def disparar(nome, r):
                 linha["erro"] = (j.get("result") or p.stderr or "").strip()[:2000]
     except subprocess.TimeoutExpired:
         linha["ms_total"] = round((time.monotonic() - t0) * 1000)
-        linha["erro"] = f"passou de {r['timeout_s']} s"
+        linha["erro"] = f"passou de {limite} s"
     except OSError as e:
         linha["ms_total"] = round((time.monotonic() - t0) * 1000)
         linha["erro"] = f"não rodou o claude: {e}"
     return linha
 
 
-def executar(nomes):
-    """Dispara as regras (em paralelo), grava em metricas.db e devolve as linhas. O terminal e o painel usam esta."""
+def executar(nomes, origem="terminal"):
+    """Dispara as regras (em paralelo), grava em metricas.db e devolve as linhas. Terminal, painel e Hermes usam esta."""
     todas = regras()
     faltam = [n for n in nomes if n not in todas]
     if faltam:
         raise KeyError(f"regra não existe: {', '.join(faltam)}")
     alvo = [(n, todas[n]) for n in nomes if todas[n].get("ativa", True)]
     with ThreadPoolExecutor(max_workers=max(1, len(alvo))) as ex:
-        linhas = list(ex.map(lambda nr: disparar(*nr), alvo))
+        linhas = list(ex.map(lambda nr: disparar(nr[0], nr[1], origem), alvo))
     con = banco()
     for l in linhas:
         cols = ", ".join(l)
@@ -114,14 +120,16 @@ def cmd_disparar(nomes):
 def cmd_regras():
     for n, r in regras().items():
         r = {**PADRAO, **r}
-        print(f"{n:24} {'ativa' if r['ativa'] else 'parada':7} {r['modelo']:8} {r['mensagem'][:70]!r}")
+        print(f"{n:24} {'ativa' if r['ativa'] else 'parada':7} {r['servidor']:5} {r['modo']:9} {r['modelo']:8} "
+              f"{r['mensagem'][:60]!r}")
 
 
 def cmd_metricas(dias):
     con = banco()
     linhas = con.execute("""
         SELECT regra, COUNT(*), SUM(ok), ROUND(AVG(ms_total)), MAX(ms_total),
-               SUM(tokens_entrada), SUM(tokens_saida), SUM(cache_lido), ROUND(SUM(custo_usd), 4), datetime(MAX(inicio), '-3 hours')
+               SUM(tokens_entrada), SUM(tokens_saida), SUM(cache_lido), ROUND(SUM(custo_usd), 4),
+               datetime(MAX(inicio), '-3 hours')
         FROM execucoes WHERE inicio >= datetime('now', ?) GROUP BY regra ORDER BY regra""",
         (f"-{dias} days",)).fetchall()
     print(f"últimos {dias} dias (hora de Brasília)")
@@ -133,9 +141,9 @@ def cmd_metricas(dias):
 
 
 def cmd_ultimas(n):
-    for r in banco().execute("SELECT datetime(inicio, '-3 hours'), regra, ok, ms_total, resposta, erro FROM execucoes "
-                             "ORDER BY id DESC LIMIT ?", (n,)):
-        print(f"{r[0]} [{r[1]}] {'ok' if r[2] else 'ERRO'} {r[3]} ms\n  {(r[4] or r[5] or '')[:500]}\n")
+    for r in banco().execute("SELECT datetime(inicio, '-3 hours'), regra, origem, ok, ms_total, resposta, erro "
+                             "FROM execucoes ORDER BY id DESC LIMIT ?", (n,)):
+        print(f"{r[0]} [{r[1]}] ({r[2]}) {'ok' if r[3] else 'ERRO'} {r[4]} ms\n  {(r[5] or r[6] or '')[:500]}\n")
 
 
 if __name__ == "__main__":

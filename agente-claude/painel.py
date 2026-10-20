@@ -6,8 +6,11 @@ site principal").
 
 Escuta só no endereço do Tailscale e recusa quem chega sem o segredo que o Traefik põe no pedido. Gravar ou disparar
 exige também o cabeçalho X-Agente: 1, que só a própria tela manda (formulário de outro site não consegue).
+
+Roda como root (Pedro, 20/10: as regras "alterar" põem o Claude a mexer no servidor como root). O disparo pela tela vai
+para segundo plano, porque uma alteração pode levar até 30 minutos; a tela acompanha pela lista "rodando" do /api/estado.
 """
-import hmac, json, os, sys, threading
+import hmac, json, os, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -21,7 +24,9 @@ PORTA = int(os.environ.get("PAINEL_PORTA", "8660"))
 with open(os.path.join(BASE, "painel.html"), "rb") as f:
     HTML = f.read()
 TRAVA_REGRAS = threading.Lock()
-CAMPOS = {"mensagem": str, "modelo": str, "sistema": str, "esforco": str, "timeout_s": int, "ativa": bool}
+RODANDO = {}  # chave -> {"regras", "desde"}
+CAMPOS = {"mensagem": str, "modelo": str, "sistema": str, "esforco": str, "timeout_s": int, "ativa": bool,
+          "servidor": str, "modo": str}
 
 
 def estado(dias):
@@ -33,11 +38,12 @@ def estado(dias):
                SUM(cache_lido) cache_lido, ROUND(SUM(custo_usd), 4) custo_usd, datetime(MAX(inicio), '-3 hours') ultima
         FROM execucoes WHERE inicio >= datetime('now', ?) GROUP BY regra ORDER BY regra""", (f"-{dias} days",)).fetchall()
     ultimas = con.execute("""
-        SELECT id, datetime(inicio, '-3 hours') inicio, regra, modelo, ok, ms_total, ms_api, tokens_entrada,
-               tokens_saida, custo_usd, resposta, erro
+        SELECT id, datetime(inicio, '-3 hours') inicio, regra, modelo, servidor, modo, origem, ok, ms_total, ms_api,
+               tokens_entrada, tokens_saida, custo_usd, resposta, erro
         FROM execucoes ORDER BY id DESC LIMIT 40""").fetchall()
     con.close()
-    return {"regras": agente.regras(), "padrao": agente.PADRAO, "metricas": metricas, "ultimas": ultimas}
+    return {"regras": agente.regras(), "padrao": agente.PADRAO, "limite_s": agente.LIMITE_S,
+            "metricas": metricas, "ultimas": ultimas, "rodando": list(RODANDO.values())}
 
 
 def validar(regras):
@@ -58,6 +64,10 @@ def validar(regras):
             if not isinstance(v, tipo) or (tipo is int and isinstance(v, bool)):
                 raise ValueError(f"{nome}: o campo {k} tem de ser {tipo.__name__}")
             limpa[k] = v
+        if limpa.get("servidor", "vps2") not in agente.SERVIDORES:
+            raise ValueError(f"{nome}: servidor tem de ser {' ou '.join(agente.SERVIDORES)}")
+        if limpa.get("modo", "responder") not in agente.MODOS:
+            raise ValueError(f"{nome}: modo tem de ser {' ou '.join(agente.MODOS)}")
         limpas[nome] = limpa
     return limpas
 
@@ -126,11 +136,20 @@ class Pedido(BaseHTTPRequestHandler):
             return
         if self.path != "/api/disparar":
             return self.responder(404, {"erro": "não existe"})
-        nomes = self.corpo().get("regras") or []
-        try:
-            self.responder(200, {"linhas": agente.executar([str(n) for n in nomes])})
-        except KeyError as e:
-            self.responder(400, {"erro": e.args[0]})
+        nomes = [str(n) for n in self.corpo().get("regras") or []]
+        faltam = [n for n in nomes if n not in agente.regras()]
+        if not nomes or faltam:
+            return self.responder(400, {"erro": "regra não existe: " + ", ".join(faltam)})
+        chave = object()
+        RODANDO[id(chave)] = {"regras": nomes, "desde": time.time()}
+
+        def rodar():
+            try:
+                agente.executar(nomes, origem="painel")
+            finally:
+                RODANDO.pop(id(chave), None)
+        threading.Thread(target=rodar, daemon=True).start()
+        self.responder(202, {"iniciado": nomes})
 
 
 if __name__ == "__main__":

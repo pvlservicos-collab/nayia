@@ -38,7 +38,9 @@ label { display: grid; gap: 4px; font-size: 13px; color: var(--texto-2); }
 .regras { display: grid; gap: 12px; }
 .regra { border: 1px solid var(--borda); border-radius: var(--raio); padding: 12px; display: grid; gap: 10px; }
 .regra.parada { opacity: .7; }
-.linha { display: grid; grid-template-columns: 1.4fr 1fr 1fr .8fr auto; gap: 10px; align-items: end; }
+.linha { display: grid; grid-template-columns: 1.4fr 1fr 1.2fr auto; gap: 10px; align-items: end; }
+.linha.tres { grid-template-columns: 1fr 1fr 1fr; }
+.root { font-size: 12px; color: var(--erro); }
 .linha label.marca { display: flex; align-items: center; gap: 6px; white-space: nowrap; padding-bottom: 8px; }
 .linha label.marca input { width: auto; }
 .acoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -60,7 +62,7 @@ td.texto pre { white-space: pre-wrap; margin: 6px 0 0; font: inherit; color: var
 .dica { position: absolute; pointer-events: none; background: var(--texto); color: var(--superficie); font-size: 12px; padding: 6px 8px; border-radius: 6px; white-space: nowrap; transform: translate(-50%, -110%); display: none; }
 .vazio { color: var(--texto-3); font-size: 14px; }
 .aviso { padding: 10px 12px; border-radius: 8px; background: color-mix(in srgb, var(--erro) 12%, transparent); color: var(--erro); display: none; }
-@media (max-width: 720px) { .linha { grid-template-columns: 1fr 1fr; } .linha label.nome { grid-column: 1 / -1; } }
+@media (max-width: 720px) { .linha, .linha.tres { grid-template-columns: 1fr 1fr; } .linha label.nome { grid-column: 1 / -1; } }
 </style>
 </head>
 <body>
@@ -100,7 +102,9 @@ td.texto pre { white-space: pre-wrap; margin: 6px 0 0; font: inherit; color: var
   "use strict";
   var MODELOS = ["haiku", "sonnet", "opus"];
   var ESFORCOS = ["", "low", "medium", "high"];
-  var regras = {}, padrao = {}, sujo = false;
+  var SERVIDORES = [["vps2", "VPS2 (Hermes, agentes)"], ["vps1", "VPS1 (Nay, site, CRM)"]];
+  var MODOS = [["responder", "Só responder"], ["alterar", "Fazer alterações (root)"]];
+  var regras = {}, padrao = {}, limites = {}, rodando = [], ultimas = [], sujo = false, espera = null;
 
   function el(tag, attrs, filhos) {
     var e = document.createElement(tag);
@@ -148,24 +152,34 @@ td.texto pre { white-space: pre-wrap; margin: 6px 0 0; font: inherit; color: var
       var modelo = el("input", { value: r.modelo || "", placeholder: padrao.modelo, list: "modelos", onchange: function () { campo("modelo", this.value.trim()); } });
       var esforco = el("select", { onchange: function () { campo("esforco", this.value); } },
         ESFORCOS.map(function (e) { return el("option", { value: e, selected: (r.esforco || "") === e, texto: e || "padrão" }); }));
-      var timeout = el("input", { type: "number", min: 10, value: r.timeout_s || "", placeholder: padrao.timeout_s, onchange: function () { campo("timeout_s", this.value ? parseInt(this.value, 10) : ""); } });
+      var modo = r.modo || padrao.modo;
+      var timeout = el("input", { type: "number", min: 10, value: r.timeout_s || "", placeholder: limites[modo], onchange: function () { campo("timeout_s", this.value ? parseInt(this.value, 10) : ""); } });
       var marca = el("input", { type: "checkbox", checked: ativa, onchange: function () { r.ativa = this.checked; sujo = true; desenharRegras(); } });
-      var disparar = el("button", { class: "primario", disabled: !ativa, title: ativa ? "" : "Regra parada", onclick: function () {
+      function opcoes(lista, atual) { return lista.map(function (o) { return el("option", { value: o[0], selected: atual === o[0], texto: o[1] }); }); }
+      var servidor = el("select", { onchange: function () { campo("servidor", this.value); } }, opcoes(SERVIDORES, r.servidor || padrao.servidor));
+      var modoSel = el("select", { onchange: function () { campo("modo", this.value); desenharRegras(); } }, opcoes(MODOS, modo));
+      var correndo = rodando.some(function (x) { return x.regras.indexOf(nome) >= 0; });
+      var ultima = ultimas.filter(function (u) { return u.regra === nome; })[0];
+      if (correndo) resultado.textContent = "rodando…";
+      else if (ultima) resultado.textContent = "última: " + (ultima.ok ? "ok" : "erro") + " em " + seg(ultima.ms_total) + " · " + ultima.inicio.slice(5, 16).replace("-", "/");
+      var disparar = el("button", { class: "primario", disabled: !ativa || correndo, title: ativa ? "" : "Regra parada", onclick: function () {
         if (sujo) { aviso("Salve as regras antes de disparar."); return; }
-        disparar.disabled = true; resultado.textContent = "mandando…";
-        api("POST", "/api/disparar", { regras: [nome] }).then(function (j) {
-          var l = j.linhas[0];
-          resultado.textContent = l ? (l.ok ? "ok em " + seg(l.ms_total) : "erro: " + (l.erro || "")) : "regra parada";
-          carregar();
-        }).catch(function (e) { resultado.textContent = e.message; }).then(function () { disparar.disabled = false; });
+        disparar.disabled = true; resultado.textContent = "rodando…";
+        api("POST", "/api/disparar", { regras: [nome] }).then(function () { carregar(); })
+          .catch(function (e) { resultado.textContent = e.message; disparar.disabled = false; });
       } }, ["Disparar"]);
       caixa.appendChild(el("div", { class: "regra" + (ativa ? "" : " parada") }, [
         el("div", { class: "linha" }, [
           el("label", { class: "nome" }, ["Nome", nomeInput]),
+          el("label", {}, ["Servidor", servidor]),
+          el("label", {}, ["Modo", modoSel]),
+          el("label", { class: "marca" }, [marca, "Ativa"])
+        ]),
+        modo === "alterar" ? el("div", { class: "root", texto: "Esta ordem mexe no servidor como root: o Claude roda comandos e edita arquivos sozinho." }) : null,
+        el("div", { class: "linha tres" }, [
           el("label", {}, ["Modelo", modelo]),
           el("label", {}, ["Esforço", esforco]),
-          el("label", {}, ["Limite (s)", timeout]),
-          el("label", { class: "marca" }, [marca, "Ativa"])
+          el("label", {}, ["Limite (s)", timeout])
         ]),
         el("label", {}, ["Mensagem", el("textarea", { rows: 3, oninput: function () { campo("mensagem", this.value); } }, [r.mensagem || ""])]),
         el("label", {}, ["Instrução fixa (opcional)", el("textarea", { rows: 2, oninput: function () { campo("sistema", this.value); } }, [r.sistema || ""])]),
@@ -275,6 +289,8 @@ td.texto pre { white-space: pre-wrap; margin: 6px 0 0; font: inherit; color: var
     u.appendChild(tabela([
       { t: "Quando", f: function (l) { return l.inicio.slice(5, 16).replace("-", "/"); } },
       { t: "Regra", f: function (l) { return l.regra; } },
+      { t: "Onde", f: function (l) { return (l.servidor || "vps2") + (l.modo === "alterar" ? " · alterou" : ""); } },
+      { t: "Quem", f: function (l) { return l.origem || "—"; } },
       { t: "", f: function (l) { return estado(l.ok); } },
       { t: "Tempo", num: 1, f: function (l) { return seg(l.ms_total); } },
       { t: "Tokens", num: 1, f: function (l) { return num((l.tokens_entrada || 0) + (l.tokens_saida || 0)); } },
@@ -288,9 +304,16 @@ td.texto pre { white-space: pre-wrap; margin: 6px 0 0; font: inherit; color: var
 
   function carregar(primeira) {
     return api("GET", "/api/estado?dias=" + document.getElementById("dias").value).then(function (j) {
-      padrao = j.padrao;
-      if (primeira) { regras = j.regras; desenharRegras(); }
+      padrao = j.padrao; limites = j.limite_s;
+      var antes = rodando.length;
+      rodando = j.rodando || [];
+      ultimas = j.ultimas || [];
+      if (primeira) regras = j.regras;
+      if (primeira || (!sujo && (antes || rodando.length))) desenharRegras();
       desenharTabelas(j);
+      /* enquanto houver disparo rodando, confere de novo a cada 4 s */
+      clearTimeout(espera);
+      if (rodando.length) espera = setTimeout(function () { carregar(); }, 4000);
     }).catch(function (e) { aviso(e.message); });
   }
   document.getElementById("dias").addEventListener("change", function () { carregar(); });

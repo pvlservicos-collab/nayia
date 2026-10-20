@@ -1,6 +1,7 @@
 #!/bin/bash
 # Publica o painel dos agentes de site (admin › Agentes). Uso (Git Bash, na raiz do nayia):
 #   ./nay-agentes/hermes-painel/publicar.sh        VPS2: instala/atualiza a ponte e o agente OLX (perfil, alma, config, serviço)
+#   ./nay-agentes/hermes-painel/publicar.sh claude VPS2: o Hermes do Claude (perfil claude), sem reiniciar o agente OLX
 #   ./nay-agentes/hermes-painel/publicar.sh vps1   VPS1, só na primeira vez: põe no compose da API do site o endereço da
 #                                                  ponte e leva o segredo para o .env de lá (de servidor para servidor, sem imprimir)
 #   ./scripts/nay site admin/agentes.html assets/js/agentes.js assets/js/hermes-painel.js assets/css/hermes-painel.css
@@ -21,6 +22,11 @@ if [ "${1:-}" = vps1 ]; then
         if grep -q "^HERMES_PAINEL_TOKEN=" "$f"; then sed -i "s/^HERMES_PAINEL_TOKEN=.*/HERMES_PAINEL_TOKEN=$v/" "$f"; else printf "HERMES_PAINEL_TOKEN=%s\n" "$v" >> "$f"; fi
         echo "segredo gravado no .env da API do site ($(grep -c "^HERMES_PAINEL_TOKEN=" "$f") linha)"'
   echo "Falta reconstruir a API para ela ler as variáveis: ./scripts/nay site admin/agentes.html ..."
+  exit 0
+fi
+if [ "${1:-}" = claude ]; then
+  # o Hermes do Claude (20/10): só o perfil claude e o perfis.json; o agente OLX não reinicia
+  tar -cz perfis.json instalar-claude.sh alma-claude.md configurar_perfil.py | ssh -o ConnectTimeout=20 $VPS2 'rm -rf /root/hermes-claude-fonte && mkdir -p /root/hermes-claude-fonte && tar -xz -C /root/hermes-claude-fonte && sed -i "s/\r$//" /root/hermes-claude-fonte/* && bash /root/hermes-claude-fonte/instalar-claude.sh'
   exit 0
 fi
 tar -cz ponte.py perfis.json instalar.sh alma-olx.md configurar_perfil.py | ssh -o ConnectTimeout=20 $VPS2 'rm -rf /root/hermes-painel-fonte && mkdir -p /root/hermes-painel-fonte && tar -xz -C /root/hermes-painel-fonte && sed -i "s/\r$//" /root/hermes-painel-fonte/* && bash /root/hermes-painel-fonte/instalar.sh'

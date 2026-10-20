@@ -5,17 +5,15 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=agclaude
+# root: as regras "alterar" põem o Claude a mexer no servidor como root (Pedro, 20/10: "tudo, como root")
+User=root
 WorkingDirectory=/opt/agente-claude
 EnvironmentFile=/etc/agente-claude/painel.env
 ExecStart=/usr/bin/python3 /opt/agente-claude/painel.py
 Restart=always
 RestartSec=5
-MemoryMax=300M
-NoNewPrivileges=true
-ProtectSystem=strict
-PrivateTmp=true
-ReadWritePaths=/opt/agente-claude
+# o disparo em andamento é um processo filho: parar o painel não mata um Claude no meio de uma alteração
+KillMode=process
 
 [Install]
 WantedBy=multi-user.target

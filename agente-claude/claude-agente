@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+"""claude-agente: roda UM pedido do Agente Claude NESTE servidor, como root. Fica em /usr/local/sbin nas duas VPS.
+
+Recebe no stdin {"mensagem", "modelo", "sistema"?, "esforco"?, "modo", "timeout_s"} e devolve no stdout o JSON do
+`claude -p`. O agente.py da VPS2 chama este arquivo direto (servidor vps2) ou por ssh (servidor vps1).
+
+- modo "responder": sem ferramentas, numa pasta vazia; só devolve texto.
+- modo "alterar" (Pedro, 20/10/2026: "esse claude fazer alterações que eu mandar", "tudo, como root"): terminal,
+  edição de arquivo e web liberados, trabalhando em /root. A sessão fica guardada em /root/.claude/projects para
+  se poder ler depois o que ele fez (o id vai para metricas.db).
+
+Login: CLAUDE_CODE_OAUTH_TOKEN de /etc/agente-claude/claude.env (claude setup-token); sem ele, vale o /login feito
+no `claude` do root deste servidor.
+"""
+import json, os, socket, subprocess, sys
+
+CLAUDE = "/root/.local/bin/claude"
+LOGIN = "/etc/agente-claude/claude.env"
+VAZIO = "/var/lib/agente-claude/vazio"
+FERRAMENTAS = "Bash,Edit,Write,Read,Glob,Grep,NotebookEdit,WebFetch,WebSearch,TodoWrite"
+
+p = json.load(sys.stdin)
+env = {**os.environ, "HOME": "/root", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1", "DISABLE_AUTOUPDATER": "1"}
+if os.path.exists(LOGIN):
+    for l in open(LOGIN, encoding="utf-8"):
+        if "=" in l and not l.lstrip().startswith("#"):
+            k, v = l.strip().split("=", 1)
+            if v.strip().strip('"'):
+                env[k] = v.strip().strip('"')
+
+cmd = [CLAUDE, "-p", p["mensagem"], "--output-format", "json", "--model", p.get("modelo") or "sonnet",
+       "--strict-mcp-config"]
+if p.get("esforco"):
+    cmd += ["--effort", p["esforco"]]
+if p.get("modo") == "alterar":
+    contexto = (f"Você é o Claude do servidor {socket.gethostname()}, rodando como root sem ninguém olhando: quem "
+                "pediu foi o Pedro, pelo Agente Claude, e vai ler só a sua resposta final. Faça a alteração pedida. "
+                "No fim, responda em poucas linhas, em português: o que mudou (arquivos, comandos, serviços), "
+                "como conferir e como desfazer. Se não deu para fazer, diga o porquê.")
+    cmd += ["--allowedTools", FERRAMENTAS, "--permission-mode", "acceptEdits",
+            "--append-system-prompt", contexto + ("\n\n" + p["sistema"] if p.get("sistema") else "")]
+    cwd = "/root"
+else:
+    cmd += ["--tools", "", "--no-session-persistence"]
+    if p.get("sistema"):
+        cmd += ["--system-prompt", p["sistema"]]
+    os.makedirs(VAZIO, exist_ok=True)
+    cwd = VAZIO
+
+try:
+    r = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd, env=env, timeout=int(p.get("timeout_s") or 300))
+except subprocess.TimeoutExpired:
+    print(json.dumps({"is_error": True, "result": f"passou de {p.get('timeout_s')} s"}))
+    sys.exit(1)
+sys.stdout.write(r.stdout if r.stdout.strip() else json.dumps({"is_error": True, "result": (r.stderr or "").strip()[:2000]}))
+sys.exit(r.returncode)
