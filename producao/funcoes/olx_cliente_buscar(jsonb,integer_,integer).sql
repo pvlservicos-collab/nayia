@@ -93,6 +93,9 @@ AS $function$
                  WHEN c.pl IN (SELECT para_id FROM prox WHERE mesma_classe) THEN 1
                  WHEN c.pl IN (SELECT para_id FROM prox) THEN 2 ELSE 3 END,
             NOT coalesce((SELECT mesmo_bairro FROM prox WHERE para_id = c.pl), false),
+            -- 438: entre os recentes, o lançamento mais novo primeiro (o ano da ficha do condomínio, 436)
+            -coalesce((SELECT q.ano FROM condominio_proximo q WHERE q.id = c.pl AND q.recente
+                        AND c.pl IN (SELECT para_id FROM prox)), 0),
             (c.bn IN (SELECT n FROM perto)), abs(c.p - coalesce(f.teto, c.p)), c.codigo
    LIMIT least(greatest(coalesce(p_limite, 5), 1), 10)
 $function$;

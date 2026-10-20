@@ -319,7 +319,10 @@ prompt: comece pelo `nay onde`.
   nay-core (`nay/cerebro/proximos.py`, `filtro_condominio` da core 030, a ordem em `acoes/buscar.py`; "condomínio novo"
   sem nome em `frases.CONDOMINIO_NOVO`), o radar (`nay-grupos/grupos/pontuar.py` `_proximo`, notas 80/60 em
   `config.json` local) e a Nay do WhatsApp da OLX (`olx_cliente_buscar`, `filtros.condominio` no prompt de
-  `nay-olx/olx/whatsapp.py`). Planilha nova = refazer com `gerar_433.py` (a tabela é apagada e refeita).
+  `nay-olx/olx/whatsapp.py`). Recente = a marca da planilha OU lançado nos últimos 5 anos pela ficha do condomínio
+  (436: `privado.condominio_proximo_anos()`, que roda a cada ficha gravada; os 20 do cadastro entram como linhas
+  `origem = 'cadastro'` com os próximos do mesmo bairro, 438). Entre os recentes, o lançamento mais novo primeiro.
+  Planilha nova = `scripts/ler_planilha_condominios_proximos.py` + `scripts/gerar_433_condominios_proximos.py`.
 - AS ABAS DE CADA NÚMERO SÃO ETIQUETAS (20/10): `crm/src/components/Chat/AbasDeEtiquetas.tsx` (`useAbasDaLinha`,
   `EditarAbas`, o lápis no fim da fileira) + `/api/linhas/abas` (integrations.config.abas_etiquetas). Nunca editado =
   etiquetas com gente na linha. Tel/Rayssa/Com o Tel continuam na fileira de cima; Todos = a linha inteira.

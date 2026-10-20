@@ -33,7 +33,8 @@ sql = f"""-- 433: CONDOMÍNIOS PRÓXIMOS (Pedro, 20/10/2026: "coloquei uma plani
 --   condominio_proximo_nomes   todos os jeitos de escrever cada condomínio da planilha (o da planilha, o do cadastro e
 --                              o dos imóveis ligados a ele), normalizados como o nay-core e o radar comparam;
 --   condominio_proximo_lista   para cada condomínio, os próximos na ordem, com o recente de cada um.
--- Atualizar a planilha = rodar de novo o gerador (scratchpad/gerar_433.py) num 433b: a tabela é apagada e refeita.
+-- Atualizar a planilha = scripts/ler_planilha_condominios_proximos.py e este gerador num 433b: a tabela é apagada e
+-- refeita; depois rodar `SELECT privado.condominio_proximo_anos();` (436) para os recentes pelo ano.
 BEGIN;
 SET LOCAL lock_timeout = '3s';
 
@@ -45,13 +46,16 @@ CREATE TABLE IF NOT EXISTS public.condominio_proximo (
   proximos    text[] NOT NULL DEFAULT '{{}}',
   condo_id    integer REFERENCES condominios(id),
   ligado_como text,
+  recente_planilha boolean NOT NULL DEFAULT false,   -- 436
+  ano          integer,                            -- 436
+  origem       text NOT NULL DEFAULT 'planilha',   -- 436
   carregado_em timestamptz NOT NULL DEFAULT now()
 );
 COMMENT ON TABLE public.condominio_proximo IS '433: a planilha condominios_proximos.xlsx do Pedro (20/10): os condomínios próximos de cada um e se é recente (últimos 5 anos).';
 
 DELETE FROM public.condominio_proximo;
-INSERT INTO public.condominio_proximo (nome, bairro, recente, proximos)
-SELECT nome, bairro, recente, normal FROM (VALUES
+INSERT INTO public.condominio_proximo (nome, bairro, recente, recente_planilha, proximos)
+SELECT nome, bairro, recente, recente, normal FROM (VALUES
 {linhas}
 ) v(nome, bairro, recente, normal, novo);
 
@@ -79,7 +83,8 @@ UPDATE public.condominio_proximo p SET condo_id = b.id, ligado_como = 'parecido 
            -- conferidos à mão em 20/10: parecidos no texto, outro condomínio
            AND p2.nome NOT IN ('Le Gran Ponta Negra', 'La Maison Adrianópolis', 'Ed Palácio Adrianópolis',
                                'Condominio Leda Vieiralves', 'Altos Das Laranjeiras', 'Moradas do Parque Laranjeiras',
-                               'Cond Villagio Del Fiori', 'Edificio Cristal', 'Edifício Lírios')) b
+                               'Cond Villagio Del Fiori', 'Edificio Cristal', 'Edifício Lírios',
+                               'Vila das Flores', 'Amazon Boulevard Life e Garden')) b
  WHERE p.id = b.pid;
 
 -- todos os jeitos de escrever cada um (minúsculo e sem acento, como o nay-core: core_imovel_busca.condominio_norm)
@@ -99,10 +104,13 @@ SELECT DISTINCT p.id, n.norma
 CREATE OR REPLACE VIEW public.condominio_proximo_lista AS
 SELECT p.id AS de_id, p.nome AS de_nome, p.recente AS de_recente, l.ordem, q.id AS para_id, q.nome AS para_nome,
        q.recente AS para_recente,
-       string_to_array(p.bairro, ', ') && string_to_array(q.bairro, ', ') AS mesmo_bairro
+       privado.bairros_iguais(p.bairro, q.bairro) AS mesmo_bairro       -- 438
   FROM public.condominio_proximo p
   CROSS JOIN LATERAL unnest(p.proximos) WITH ORDINALITY l(nome, ordem)
   JOIN public.condominio_proximo q ON q.nome = l.nome;
+
+-- 436/438: os recentes pelo ano da ficha e os do cadastro com os próximos do mesmo bairro
+SELECT privado.condominio_proximo_anos();
 
 GRANT SELECT ON public.condominio_proximo, public.condominio_proximo_nomes, public.condominio_proximo_lista
   TO nay_core, nay_leitura, nay_site_leitura;

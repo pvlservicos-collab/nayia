@@ -30,7 +30,7 @@ olx_cliente_buscar
     q.id AS para_id,
     q.nome AS para_nome,
     q.recente AS para_recente,
-    string_to_array(p.bairro, ', '::text) && string_to_array(q.bairro, ', '::text) AS mesmo_bairro
+    privado.bairros_iguais(p.bairro, q.bairro) AS mesmo_bairro
    FROM condominio_proximo p
      CROSS JOIN LATERAL unnest(p.proximos) WITH ORDINALITY l(nome, ordem)
      JOIN condominio_proximo q ON q.nome = l.nome;
