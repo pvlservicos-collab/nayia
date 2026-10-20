@@ -55,9 +55,9 @@ def contexto(conn, c: dict) -> dict:
 
 
 def quem(c: dict) -> str:
-    papel = {"corretor": "corretor(a)", "proprietario": "proprietário(a)"}.get(c.get("papel") or "", "")
+    papel = {"corretor": "corretor", "proprietario": "proprietário"}.get(c.get("papel") or "", "")
     nome = c.get("contato_nome") or "o contato"
-    return f"{nome}" + (f" ({papel})" if papel else "") + (f" {fone_bonito(c['contato_tel'])}" if c.get("contato_tel") else "")
+    return f"{nome}" + (f", {papel}" if papel else "") + (f", {fone_bonito(c['contato_tel'])}" if c.get("contato_tel") else "")
 
 
 def salvar_no_site(c: dict, extra: dict | None = None) -> None:

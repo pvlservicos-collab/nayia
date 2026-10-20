@@ -260,9 +260,10 @@ def resumo_do_que_tem(ficha: dict) -> list[str]:
         linhas.append(f"aluguel {_dinheiro(ficha['valor_aluguel'])}")
     if tem(ficha, "valor_venda"):
         linhas.append(f"venda {_dinheiro(ficha['valor_venda'])}")
-    for chave, nome in (("quartos", "quartos"), ("suites", "suítes"), ("banheiros", "banheiros"), ("vagas", "vagas")):
+    for chave, um, varios in (("quartos", "quarto", "quartos"), ("suites", "suíte", "suítes"),
+                              ("banheiros", "banheiro", "banheiros"), ("vagas", "vaga", "vagas")):
         if tem(ficha, chave):
-            linhas.append(f"{ficha[chave]} {nome}")
+            linhas.append(f"{ficha[chave]} {um if str(ficha[chave]) == '1' else varios}")
     if tem(ficha, "area_util"):
         linhas.append(f"{ficha['area_util']} m²")
     if tem(ficha, "mobilia"):
