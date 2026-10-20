@@ -50,6 +50,8 @@ BEGIN
       v_pula := 'visita em andamento';
     ELSIF nai_tel_com_a_conversa(v_ct) THEN
       v_pula := 'o Tel está com a conversa';
+    ELSIF cadastro_whats_da_parceria(r.chave, v_ct) IS NOT NULL THEN
+      v_pula := 'a Nay do cadastro está falando com ele';      -- 430
     ELSIF EXISTS (SELECT 1 FROM mensagens m WHERE nai_chave(m.telefone) = ANY (v_chaves) AND m.direcao = 'recebida'
                    AND (m.criada_em AT TIME ZONE 'America/Manaus')::date = v_hoje) THEN
       v_pula := 'já conversou hoje';

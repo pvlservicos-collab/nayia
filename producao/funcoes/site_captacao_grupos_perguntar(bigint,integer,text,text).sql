@@ -39,6 +39,10 @@ BEGIN
   IF length(v_fone) NOT BETWEEN 10 AND 13 OR nai_chave(v_fone) IS NULL THEN
     RETURN jsonb_build_object('erro', 'Não tenho o telefone de quem escreveu (a mensagem veio sem número). Fale com a pessoa pelo grupo.');
   END IF;
+  -- 430: a Nay do cadastro está perguntando a ele sobre um imóvel: nada mais sai até ela terminar
+  IF cadastro_whats_da_parceria(v_fone) IS NOT NULL THEN
+    RETURN jsonb_build_object('erro', 'A Nay do cadastro está falando com esse corretor agora (cadastro de imóvel). Espere ela terminar.');
+  END IF;
   -- 380: o card inteiro (partes da mensagem, cópias em outros grupos e versões reescritas); sem card, as cópias da 371
   PERFORM privado.grupo_pedido_juntar_novos();
   v_k := privado.grupo_pedido_chave(q.fonte, q.id, q.remetente, q.texto, q.parte);
