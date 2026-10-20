@@ -2696,6 +2696,9 @@ def api_imoveis_lista():
              # 244: do mais incompleto para o mais completo, e o contrário
              "falta": "pt.pct ASC NULLS LAST, v.codigo DESC",   # quem não está no catálogo não tem pontuação: vai para o fim
              "completo": "pt.pct DESC NULLS LAST, v.codigo DESC"}.get(a.get("ordem"), "v.criado DESC NULLS LAST, v.codigo DESC")
+    # Pedro, 20/10: "quando pesquiso um imóvel em todos os imóveis os antigos aparecem em cima e o nosso lá embaixo,
+    # sendo que nossa prioridade são os nossos": os nossos primeiro, os de parceiro depois, em qualquer ordem escolhida
+    ordem = "coalesce(v.e_parceiro, false), " + ordem
 
     conn = conectar()
     try:
