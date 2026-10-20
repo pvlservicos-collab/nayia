@@ -326,6 +326,12 @@ prompt: comece pelo `nay onde`.
 - WHATSAPP LEADS, card do imóvel do proprietário no painel da direita (20/10): `crm/src/components/Chat/CardDoImovelDoDono.tsx`
   (lê `/api/imoveis-nay/card/<código>`, o card do WhatsApp + capa), na seção "Imóvel do proprietário" de
   `PainelContatoCaptacao.tsx`; só quando o contato é dono (os imóveis dele, o da campanha primeiro).
+- VISITA DA PARCERIA, o checklist no grupo Altarquia (443/444, 20/10): a confirmação ao corretor traz o nome do imóvel
+  (nay-core `acoes/preparo.nomes_dos_imoveis` + `templates/visita_confirmar.md`); a Nay avisa o motoboy (acompanhante
+  ativo) em `nai_visita_para_a_rayssa` (chave `visita_avisar_motoboy`); o checklist (✅/❌ proprietário, corretor,
+  motoboy) e os avisos (proprietário não alcançado, sem resposta em `visita_dono_sem_resposta_min`, "anotei" sem visita)
+  saem por `nay-olx/olx/visitas_parceria.py` lendo `privado.visitas_parceria_situacao()` /
+  `privado.visitas_parceria_sem_visita()`; marcas em `privado.visita_parceria_grupo`. Desligar: `visitas_parceria_grupo = nao`.
 - AS ABAS DE CADA NÚMERO SÃO ETIQUETAS (20/10): `crm/src/components/Chat/AbasDeEtiquetas.tsx` (`useAbasDaLinha`,
   `EditarAbas`, o lápis no fim da fileira) + `/api/linhas/abas` (integrations.config.abas_etiquetas). Nunca editado =
   etiquetas com gente na linha. Tel/Rayssa/Com o Tel continuam na fileira de cima; Todos = a linha inteira.

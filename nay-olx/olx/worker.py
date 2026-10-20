@@ -17,7 +17,7 @@ import logging
 import pathlib
 import time
 
-from olx import anuncios, api, banco, chat, config, grupo, whatsapp
+from olx import anuncios, api, banco, chat, config, grupo, visitas_parceria, whatsapp
 
 log = logging.getLogger("olx.worker")
 
@@ -66,6 +66,12 @@ def main() -> None:
                 grupo.avisar(conn, cfg)
             except Exception:  # noqa: BLE001 -- o aviso não pode parar o chat nem os anúncios
                 log.exception("o aviso ao grupo falhou")
+            # 20/10 (444): o checklist da visita da Parceria e os avisos do proprietário no grupo da equipe
+            try:
+                visitas_parceria.atender(conn, cfg)
+            except Exception:  # noqa: BLE001 -- o checklist não pode parar o chat nem os anúncios
+                conn.rollback()
+                log.exception("o checklist das visitas falhou")
 
             agora = time.time()
             if agora >= proxima_rodada:
