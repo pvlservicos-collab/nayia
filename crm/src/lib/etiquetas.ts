@@ -10,7 +10,7 @@
  */
 import { useEffect, useState } from 'react'
 
-export interface Etiqueta { id: string; name: string; color: string }
+export interface Etiqueta { id: string; name: string; color: string; /** o nome de nascença (0133): renomear não muda */ nomeOriginal?: string | null }
 
 /** As cores para escolher ao criar (fortes o bastante para o texto colorido no tema claro e no escuro). */
 export const CORES_DE_ETIQUETA = ['#e11d48', '#ea580c', '#ca8a04', '#16a34a', '#0d9488', '#2563eb', '#7c3aed', '#c026d3', '#64748b']
@@ -28,7 +28,7 @@ export function carregarEtiquetas(forcar = false): Promise<Etiqueta[]> {
   if (lista && !forcar) return Promise.resolve(lista)
   if (!pedido || forcar) {
     pedido = fetch('/api/tags').then((r) => r.json()).then((j) => {
-      lista = ordenar(((j?.data || []) as any[]).filter(daEquipe).map((t) => ({ id: t.id, name: t.name, color: t.color || '#64748b' })))
+      lista = ordenar(((j?.data || []) as any[]).filter(daEquipe).map((t) => ({ id: t.id, name: t.name, color: t.color || '#64748b', nomeOriginal: t.nomeOriginal ?? t.nome_original ?? null })))
       avisar()
       return lista
     }).catch(() => { pedido = null; return lista || [] })

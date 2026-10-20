@@ -44,6 +44,8 @@ interface LeadListItemProps {
   dono?: DonoNaLista
   /** a chave geral da Nay -- com ela a linha mostra o robô (só na Parceria) */
   nay?: EstadoDaNay | null
+  /** WhatsApp Leads (20/10): as etiquetas que são aba (as etapas) aparecem antes das outras na linha */
+  etiquetasEmDestaque?: string[]
 }
 
 const RECEBIDO = ['lead']
@@ -70,6 +72,12 @@ export function imovelDoDono(dono: { condominio: string | null; codigo: string |
   const codigo = (dono.codigo || '').trim()
   if (!onde && !codigo) return ''
   return [onde, codigo ? `#${codigo}` : ''].filter(Boolean).join(' ') + (dono.imoveis > 1 ? ` +${dono.imoveis - 1}` : '')
+}
+
+/** As etiquetas da linha com as de destaque (a etapa, no WhatsApp Leads) na frente; o resto na ordem de sempre. */
+function emDestaquePrimeiro<T extends { tag_id: string }>(lista: T[], destaque?: string[]): T[] {
+  if (!destaque?.length) return lista
+  return [...lista.filter((lt) => destaque.includes(lt.tag_id)), ...lista.filter((lt) => !destaque.includes(lt.tag_id))]
 }
 
 /* a hora da visita é a de Manaus, não a do computador (src/lib/fusoDeManaus.ts) */
@@ -104,7 +112,7 @@ function Avatar({ lead, robo }: { lead: LeadWithOwner; robo?: { parada: boolean;
   )
 }
 
-const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono }: LeadListItemProps) => {
+const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque }: LeadListItemProps) => {
   const robo = nay === undefined ? null : !nay ? { parada: true, texto: 'Lendo a Nay…' }
     : !nay.ligada ? { parada: true, texto: `Nay parada: ${nay.motivo || 'desligada'}` }
     : nayEmPausa(marca) ? { parada: true, texto: TEXTO_DA_PAUSA }
@@ -174,7 +182,7 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
               Proprietário
             </span>
           )}
-          {!marca && (lead.lead_tags || []).slice(0, 2).map((lt: any) => lt.tag && (
+          {!marca && emDestaquePrimeiro(lead.lead_tags || [], etiquetasEmDestaque).slice(0, 2).map((lt: any) => lt.tag && (
             <span key={lt.tag_id} className="wa-marca" style={{ color: 'var(--wa-text-2)' }}>
               {lt.tag.name}
             </span>
@@ -217,6 +225,8 @@ export default memo(LeadListItem, (a, b) => (
   a.lead.last_message_content === b.lead.last_message_content &&
   a.lead.last_message_sender_type === b.lead.last_message_sender_type &&
   (a.lead.lead_tags?.length ?? 0) === (b.lead.lead_tags?.length ?? 0) &&
+  (a.lead.lead_tags || []).map((lt: any) => lt.tag_id).join() === (b.lead.lead_tags || []).map((lt: any) => lt.tag_id).join() &&
+  (a.etiquetasEmDestaque || []).join() === (b.etiquetasEmDestaque || []).join() &&
   a.isSelected === b.isSelected &&
   a.atendente?.id === b.atendente?.id &&
   a.timeStr === b.timeStr &&

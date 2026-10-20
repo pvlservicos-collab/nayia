@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { authenticateRequest, apiError } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { integrations, leadStageHistory, leadTags, leads, pipelineStages, pipelines, tags } from '@/lib/schema'
-import { eq, and, ilike, isNull } from 'drizzle-orm'
+import { eq, and, ilike, isNull, sql } from 'drizzle-orm'
 import { channels, events, publishEvent } from '@/lib/realtime'
 import { pipelineDaLinha } from '@/lib/etapaDaLinha'
 
@@ -96,6 +96,32 @@ export async function POST(req: NextRequest, { params }: Params) {
       tagId: body.tag_id,
       organizationId: auth.organizationId,
     }).onConflictDoNothing()
+
+    /* WHATSAPP LEADS: A ETIQUETA DA ETAPA É A ABA (Pedro, 20/10/2026: "as etapas não viraram as tags como eu pedi").
+       Visita, Proprietários, Fechamento e Finalizados são as abas da linha; pôr uma delas à mão muda a conversa de aba,
+       então as outras três saem desta conversa (só delas; as outras etiquetas e o lead ficam). O espelho do funis.ts
+       não desfaz: ele só age quando a etapa da Nay muda. */
+    let trocouAEtapa = false
+    try {
+      const r = await db.execute(sql`
+        WITH etapa AS (
+          SELECT t.id FROM tags t
+           WHERE t.organization_id = ${auth.organizationId} AND t.id = ${body.tag_id}
+             AND coalesce(t.nome_original, t.name) IN ('Visita', 'Proprietários', 'Fechamento', 'Finalizados')),
+        lead AS (
+          SELECT l.id FROM leads l JOIN integrations i ON i.id = l.integration_id
+           WHERE l.id = ${id} AND l.organization_id = ${auth.organizationId} AND i.type = 'whatsapp_zapi_captacao'
+             AND EXISTS (SELECT 1 FROM etapa))
+        DELETE FROM lead_tags lt USING tags t
+         WHERE lt.lead_id IN (SELECT id FROM lead) AND lt.tag_id = t.id AND t.organization_id = ${auth.organizationId}
+           AND lt.tag_id <> ${body.tag_id}
+           AND coalesce(t.nome_original, t.name) IN ('Visita', 'Proprietários', 'Fechamento', 'Finalizados')
+        RETURNING lt.tag_id`)
+      trocouAEtapa = r.rows.length > 0
+    } catch (err) {
+      console.error('[tags] etiqueta gravada, mas não tirei as outras etapas do Leads:', err)
+    }
+    if (trocouAEtapa) await publishEvent(channels.orgLeads(auth.organizationId), events.LEAD_UPDATED, { id })
 
     // A etiqueta move o card no pipeline da linha (ver o comentário acima).
     let etapaId: string | null = null

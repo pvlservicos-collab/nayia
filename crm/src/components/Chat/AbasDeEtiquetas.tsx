@@ -4,6 +4,11 @@
  * AS ABAS DE CADA NÚMERO SÃO ETIQUETAS (Tel, por Pedro, 20/10/2026: "troque as etapas que têm Todos, Visitas, pelas
  * tags que têm pessoas ... de forma editável, todas as etapas de todos os números editáveis").
  *
+ * SÓ NO WHATSAPP LEADS (Pedro, 20/10/2026, mais tarde: "bugou os filtros das etapas do whatsapp parceria, eu não pedi
+ * para mexer lá e sim no whatsapp leads captação"). A Parceria e a Oficial voltaram às etapas de antes (LeadList.tsx).
+ * No Leads, nunca editado = as etiquetas das etapas (Visita, Proprietários, Fechamento, Finalizados), não mais as
+ * etiquetas do disparo que têm gente.
+ *
  * useAbasDaLinha(linha): as etiquetas que viram aba nesta linha (integrations.config.abas_etiquetas, /api/linhas/abas).
  * Nunca editado = as etiquetas que têm pessoas nesta linha, da mais cheia para a mais vazia.
  * <EditarAbas>: o lápis no fim da fileira. Marca quais etiquetas são aba, a ordem (setas), o nome (renomear muda a
@@ -41,9 +46,19 @@ export function useAbasDaLinha(linha?: string | null) {
   return { ids, carregou: ids !== undefined, salvar }
 }
 
-/** As abas que valem: as escolhidas, ou (nunca editado) as etiquetas com gente nesta linha. */
-export function abasQueValem(ids: string[] | null | undefined, etiquetas: Etiqueta[], contagem: Record<string, number>): Etiqueta[] {
+/** As etapas do WhatsApp Leads que viraram etiquetas (426, funis.ts), pelo nome de nascença: renomear não as perde. */
+export const ETAPAS_DO_LEADS = ['Visita', 'Proprietários', 'Fechamento', 'Finalizados'] as const
+
+/** As etiquetas das etapas do Leads, na ordem das etapas. */
+export function etiquetasDasEtapasDoLeads(etiquetas: Etiqueta[]): Etiqueta[] {
+  return ETAPAS_DO_LEADS.map((nome) => etiquetas.find((t) => (t.nomeOriginal || t.name) === nome)).filter(Boolean) as Etiqueta[]
+}
+
+/** As abas que valem: as escolhidas; nunca editado, as do `padrao` (Leads: as etapas) ou as etiquetas com gente. */
+export function abasQueValem(ids: string[] | null | undefined, etiquetas: Etiqueta[], contagem: Record<string, number>,
+                             padrao?: Etiqueta[]): Etiqueta[] {
   if (Array.isArray(ids)) return ids.map((id) => etiquetas.find((t) => t.id === id)).filter(Boolean) as Etiqueta[]
+  if (padrao?.length) return padrao
   return etiquetas.filter((t) => (contagem[`tag:${t.id}`] || 0) > 0)
     .sort((a, b) => (contagem[`tag:${b.id}`] || 0) - (contagem[`tag:${a.id}`] || 0))
 }

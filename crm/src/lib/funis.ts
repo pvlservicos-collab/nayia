@@ -229,8 +229,14 @@ export async function sincronizarFunis(org: string): Promise<ResultadoDosFunis |
     /* AS ETAPAS DO WHATSAPP LEADS VIRAM ETIQUETAS (Pedro, 20/10/2026: "a partir de agora vão sair essas etapas [as do
        disparo] e as etapas vão virar as tags lá em cima"). Visita, Proprietários, Fechamento e Finalizados: a etapa do
        cliente da OLX (crm_olx_clientes_etapas, a mesma da lista) ou, sem ela, Proprietários para o dono da campanha.
-       Cada conversa da linha tem a etiqueta da etapa em que está, e só ela entre essas quatro. As etiquetas do disparo
-       antigo NÃO são tocadas (a foto delas está em Relatórios, 426). Achadas pelo nome de nascença (0133). */
+       As etiquetas do disparo antigo NÃO são tocadas (a foto delas está em Relatórios, 426). Achadas pelo nome de
+       nascença (0133).
+       ETIQUETA DE VERDADE, EDITÁVEL (Pedro, 20/10, mais tarde: "lá no whatsapp leads as etapas não viraram as tags como
+       eu pedi"). Até aqui o espelho refazia as quatro a cada minuto: quem pusesse ou tirasse a etiqueta da etapa à mão
+       via a mudança desfeita no minuto seguinte. Agora o espelho só age quando a ETAPA muda (a Nay mudou, ou a equipe
+       pelo card / botão direito): tira as outras três e põe a da etapa nova. A última etapa espelhada fica em
+       leads.custom_attributes.etapa_leads_fato ('' = nenhuma das quatro). Pôr ou tirar a etiqueta à mão fica valendo
+       (api/leads/[id]/tags: pôr uma das quatro tira as outras três, é mudar de aba). Nada de lead é apagado. */
     const linhaLeads = linhaDe('whatsapp_zapi_captacao')
     if (linhaLeads) {
       const ETAPA_PARA_ETIQUETA: Record<string, { nome: string; cor: string }> = {
@@ -258,25 +264,42 @@ export async function sincronizarFunis(org: string): Promise<ResultadoDosFunis |
       for (const d of donosDaCampanha.rows as Array<{ telefone: string }>) if (fim8(d.telefone).length === 8) etapaPorFim.set(fim8(d.telefone), 'proprietarios')
       for (const c of clientes.rows as Array<{ telefone: string; etapa: string }>) if (fim8(c.telefone).length === 8) etapaPorFim.set(fim8(c.telefone), c.etapa)
       const conversas = (await db.execute(sql`
-        SELECT id::text, phone FROM leads
-         WHERE organization_id = ${org} AND integration_id = ${linhaLeads} AND deleted_at IS NULL AND NOT coalesce(is_group, false)`))
-        .rows as Array<{ id: string; phone: string | null }>
-      const alvo = conversas.map((l) => ({ lead_id: l.id, tag_id: etiquetaDaEtapa(etapaPorFim.get(fim8(l.phone)) || '') }))
-        .filter((x): x is { lead_id: string; tag_id: string } => !!x.tag_id)
-      if (marcas.length) {
+        SELECT l.id::text, l.phone, l.custom_attributes->>'etapa_leads_fato' AS antes,
+               EXISTS (SELECT 1 FROM lead_tags lt WHERE lt.lead_id = l.id
+                          AND lt.tag_id = ANY(${sql.raw(`ARRAY[${marcas.map((m) => `'${m.id}'`).join(',')}]::uuid[]`)})) AS tem_etapa
+          FROM leads l
+         WHERE l.organization_id = ${org} AND l.integration_id = ${linhaLeads} AND l.deleted_at IS NULL AND NOT coalesce(l.is_group, false)`))
+        .rows as Array<{ id: string; phone: string | null; antes: string | null; tem_etapa: boolean }>
+      /* só quem mudou de etapa desde o último espelho. Sem anotação (a 1ª vez, ou alguém regravou o custom_attributes
+         inteiro): quem já tem uma das quatro só ganha a anotação, para não desfazer o que foi posto à mão. */
+      const mudou = conversas
+        .map((l) => {
+          const e = etapaPorFim.get(fim8(l.phone)) || ''
+          const fato = ETAPA_PARA_ETIQUETA[e] ? e : ''
+          const soAnota = l.antes === null && !!l.tem_etapa
+          return { lead_id: l.id, tag_id: fato ? etiquetaDaEtapa(fato) || null : null, fato, antes: l.antes, so_anota: soAnota }
+        })
+        .filter((x) => x.antes === null || x.antes !== x.fato)
+        .map(({ lead_id, tag_id, fato, so_anota }) => ({ lead_id, tag_id, fato, so_anota }))
+      if (marcas.length && mudou.length) {
         const ids = marcas.map((m) => m.id)
         const espelho = await db.execute(sql`
-          WITH alvo AS (SELECT * FROM jsonb_to_recordset(${JSON.stringify(alvo)}::jsonb) AS x(lead_id uuid, tag_id uuid)),
+          WITH alvo AS (SELECT * FROM jsonb_to_recordset(${JSON.stringify(mudou)}::jsonb) AS x(lead_id uuid, tag_id uuid, fato text, so_anota boolean)),
           tira AS (
-            DELETE FROM lead_tags lt USING leads l
-             WHERE lt.lead_id = l.id AND l.integration_id = ${linhaLeads}
+            DELETE FROM lead_tags lt USING alvo a
+             WHERE lt.lead_id = a.lead_id AND NOT a.so_anota
                AND lt.tag_id = ANY(${sql.raw(`ARRAY[${ids.map((i) => `'${i}'`).join(',')}]::uuid[]`)})
-               AND NOT EXISTS (SELECT 1 FROM alvo a WHERE a.lead_id = lt.lead_id AND a.tag_id = lt.tag_id)
+               AND lt.tag_id IS DISTINCT FROM a.tag_id
             RETURNING 1),
           poe AS (
             INSERT INTO lead_tags (lead_id, tag_id, organization_id) SELECT lead_id, tag_id, ${org}::uuid FROM alvo
-            ON CONFLICT DO NOTHING RETURNING 1)
-          SELECT (SELECT count(*) FROM tira)::int AS tirou, (SELECT count(*) FROM poe)::int AS pos`)
+             WHERE tag_id IS NOT NULL AND NOT so_anota
+            ON CONFLICT DO NOTHING RETURNING 1),
+          anota AS (
+            UPDATE leads l SET custom_attributes = coalesce(l.custom_attributes, '{}'::jsonb) || jsonb_build_object('etapa_leads_fato', a.fato)
+              FROM alvo a WHERE l.id = a.lead_id
+            RETURNING 1)
+          SELECT (SELECT count(*) FROM tira)::int AS tirou, (SELECT count(*) FROM poe)::int AS pos, (SELECT count(*) FROM anota)::int AS anotou`)
         const e = (espelho.rows[0] || {}) as { tirou?: number; pos?: number }
         if ((e.tirou || 0) + (e.pos || 0) > 0) mexeu = true
       }

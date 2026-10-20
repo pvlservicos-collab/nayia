@@ -22,7 +22,7 @@ import BuscaDaLista, { casaNaBusca } from './BuscaDaLista'
 import { conversaEstaNaLinha, type LinhaWhatsapp } from '@/lib/leadChannel'
 import { comAlguemPelaNay, etapaDaParceria, escolhaAMao } from '@/lib/etapaDaParceria'
 import PranchetaDeEtiquetas from './PranchetaDeEtiquetas'
-import { EditarAbas, abasQueValem, useAbasDaLinha } from './AbasDeEtiquetas'
+import { EditarAbas, abasQueValem, etiquetasDasEtapasDoLeads, useAbasDaLinha } from './AbasDeEtiquetas'
 import { useEtiquetas } from '@/lib/etiquetas'
 
 /*
@@ -168,8 +168,8 @@ export default function LeadList({
   const [activeTab, setActiveTab] = useState<ChatTab>('all')
   // 19/10: Hoje / Essa semana na Parceria -- um toggle à parte da aba
   const [periodo, setPeriodo] = useState<Periodo>('')
-  // 20/10 (Tel): as abas de cada número são etiquetas, editáveis (AbasDeEtiquetas.tsx)
-  const abasDaLinha = useAbasDaLinha(linha)
+  // 20/10 (Tel): as abas do WhatsApp Leads são etiquetas, editáveis (AbasDeEtiquetas.tsx); só no Leads
+  const abasDaLinha = useAbasDaLinha(linha === 'captacao' ? linha : null)
   const etiquetasDaEquipe = useEtiquetas()
   // a busca por nome/número, só na etapa Proprietários (30/09)
   const [buscaDono, setBuscaDono] = useState('')
@@ -494,11 +494,6 @@ export default function LeadList({
          cada conversa com mensagem sem ler conta 1, em todas as etapas, inclusive
          Todos. O balãozinho de cada conversa continua mostrando quantas mensagens. */
       const semLer = Number(l.nao_lidas || 0) > 0 || !!l.is_unread ? 1 : 0
-      // 20/10: as abas de etiqueta contam também na Parceria
-      for (const lt of (l.lead_tags || []) as any[]) {
-        soma(`tag:${lt.tag_id}`)
-        if (semLer) contagem[`semler:tag:${lt.tag_id}`] = (contagem[`semler:tag:${lt.tag_id}`] ?? 0) + 1
-      }
       const comPessoa = comAlguem(l, m, atendente)
       if (!comPessoa) {
         const etapa = etapaDaParceria(l, m)
@@ -622,23 +617,27 @@ export default function LeadList({
       ]
     : []
   /* AS ABAS SÃO ETIQUETAS (Tel, por Pedro, 20/10/2026: "troque as etapas que têm Todos, Visitas, pelas tags que têm
-     pessoas ... editável, todas as etapas de todos os números"). Fica Todos + as etiquetas escolhidas (lápis no fim da
-     fileira); quem atende (Tel, Rayssa, Com o Tel) continua na fileira de cima. */
-  const usarAbasDeEtiquetas = linha === 'parceria' || linha === 'captacao' || linha === 'oficial'
-  const abasDeEtiqueta = usarAbasDeEtiquetas ? abasQueValem(abasDaLinha.ids, etiquetasDaEquipe, contagem) : []
+     pessoas ... editável"). Fica Todos + as etiquetas escolhidas (lápis no fim da fileira); o Tel continua na fileira
+     de cima. SÓ NO WHATSAPP LEADS (Pedro, 20/10, mais tarde: "bugou os filtros das etapas do whatsapp parceria, eu não
+     pedi para mexer lá e sim no whatsapp leads captação"): a Parceria voltou a Todos / Visitas / Proprietários /
+     Fechamento pelo fato (etapaDaParceria.ts) com Tel e Rayssa, e a Oficial às abas da campanha. No Leads, sem
+     edição, as abas são as etiquetas das etapas (Visita, Proprietários, Fechamento, Finalizados; 426), e não as do
+     disparo. */
+  const usarAbasDeEtiquetas = linha === 'captacao'
+  const etapasDoLeads = usarAbasDeEtiquetas ? etiquetasDasEtapasDoLeads(etiquetasDaEquipe) : []
+  const abasDeEtiqueta = usarAbasDeEtiquetas ? abasQueValem(abasDaLinha.ids, etiquetasDaEquipe, contagem, etapasDoLeads) : []
+  // na linha da conversa, a etiqueta da aba (a etapa) aparece antes das outras
+  const etiquetasEmDestaque = abasDeEtiqueta.map((t) => t.id)
   const filtrosDeEtiquetas: FiltroDaLista[] = [
     { chave: 'all', rotulo: 'Todos', grupo: 'etapa' as const, contagem: contagem.all },
     ...abasDeEtiqueta.map((t) => ({ chave: `tag:${t.id}`, rotulo: t.name, cor: t.color, grupo: 'etapa' as const,
                                     contagem: contagem[`tag:${t.id}`], pessoas: contagem[`semler:tag:${t.id}`] })),
   ]
-  const filtrosDeQuemAtende: FiltroDaLista[] = linha === 'captacao'
-    ? filtrosCaptacao.filter((f) => f.grupo === 'pessoa')
-    : filtros.filter((f) => f.grupo === 'pessoa')
-  const noSubfiltroDosDonos = activeTab === 'olx:proprietarios' || activeTab.startsWith('cap:')
+  const filtrosDeQuemAtende: FiltroDaLista[] = filtrosCaptacao.filter((f) => f.grupo === 'pessoa')
 
   const passaNoFiltro = (hit: SearchHit): boolean => {
     const l = hit.lead
-    // 20/10: com as abas de etiqueta, Todos é a linha inteira (antes cada número escondia o que era de outra etapa)
+    // 20/10: no Leads, Todos é a linha inteira (como já era)
     if (usarAbasDeEtiquetas && activeTab === 'all') return true
     /* O PROPRIETÁRIO SÓ APARECE NA ETAPA DELE (Tel, 30/09): "os proprietários
        não vão aparecer em outras etapas, só ali, para ficar mais organizado".
@@ -821,23 +820,6 @@ export default function LeadList({
                   <EditarAbas linha={linha as string} atuais={abasDeEtiqueta} contagem={contagem} />
                 </div>
               </>
-            ) : linha === 'captacao' ? (
-              <>
-                {/* 16/10: as etapas da Captação são a fileira principal; o subfiltro dos donos só com Proprietários aberto */}
-                {/* 18/10 (Pedro: "pega a tag Tel e põe acima da tag Todos"): o Tel numa fileira própria, em cima das etapas */}
-                <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtrosCaptacao.filter((f) => f.grupo === 'pessoa')} />
-                <ChatFilterTabs ativo={activeTab.startsWith('cap:') ? 'olx:proprietarios' : activeTab} aoMudar={setActiveTab}
-                                filtros={filtrosCaptacao.filter((f) => f.grupo !== 'pessoa')} />
-                {noSubfiltroDosDonos && (
-                  <div className="flex items-center gap-1 pl-4">
-                    <span className="text-[12px] flex-shrink-0" style={{ color: 'var(--wa-text-2)' }}
-                          title="Os donos da campanha de captação, pelo que cada um respondeu">Donos:</span>
-                    <div className="flex-1 min-w-0 -ml-3">
-                      <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtros.filter((f) => f.chave.startsWith('cap:'))} />
-                    </div>
-                  </div>
-                )}
-              </>
             ) : comAbasDaCaptacao ? (
               <>
                 <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtros.filter((f) => !NA_LINHA_2_DA_CAPTACAO.has(f.chave))} />
@@ -906,6 +888,7 @@ export default function LeadList({
                   marca={ehParceria ? marcas[lead.id] : undefined}
                   nay={ehParceria ? nay : undefined}
                   dono={donos[lead.id]}
+                  etiquetasEmDestaque={usarAbasDeEtiquetas ? etiquetasEmDestaque : undefined}
                 />
               )
             })}
