@@ -323,6 +323,9 @@ prompt: comece pelo `nay onde`.
   (436: `privado.condominio_proximo_anos()`, que roda a cada ficha gravada; os 20 do cadastro entram como linhas
   `origem = 'cadastro'` com os próximos do mesmo bairro, 438). Entre os recentes, o lançamento mais novo primeiro.
   Planilha nova = `scripts/ler_planilha_condominios_proximos.py` + `scripts/gerar_433_condominios_proximos.py`.
+- WHATSAPP LEADS, card do imóvel do proprietário no painel da direita (20/10): `crm/src/components/Chat/CardDoImovelDoDono.tsx`
+  (lê `/api/imoveis-nay/card/<código>`, o card do WhatsApp + capa), na seção "Imóvel do proprietário" de
+  `PainelContatoCaptacao.tsx`; só quando o contato é dono (os imóveis dele, o da campanha primeiro).
 - AS ABAS DE CADA NÚMERO SÃO ETIQUETAS (20/10): `crm/src/components/Chat/AbasDeEtiquetas.tsx` (`useAbasDaLinha`,
   `EditarAbas`, o lápis no fim da fileira) + `/api/linhas/abas` (integrations.config.abas_etiquetas). Nunca editado =
   etiquetas com gente na linha. Tel/Rayssa/Com o Tel continuam na fileira de cima; Todos = a linha inteira.

@@ -29,6 +29,7 @@ import {
   X, User, House, ArrowClockwise, Copy, Check, Plus, PencilSimple, Images, CircleNotch, Robot,
 } from '@phosphor-icons/react'
 import EnviarImovelPelaCaptacao from './EnviarImovelPelaCaptacao'
+import CardDoImovelDoDono from './CardDoImovelDoDono'
 import EtiquetasDoCard from './EtiquetasDoCard'
 import { useOlxClientes, recarregarOlxClientes } from '@/hooks/useOlxClientes'
 import { fim8 } from '@/lib/olxClientes'
@@ -300,6 +301,19 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
         <Secao titulo="Etiquetas">
           <EtiquetasDoCard lead={lead as any} onTagsChange={onTagsChange} alinhar="esquerda" />
         </Secao>
+
+        {/* 20/10 (Pedro: "quando ela for falar com um proprietário coloca um card com o imóvel do proprietário no menu à
+            direita"): o card do WhatsApp de cada imóvel dele, o da campanha primeiro */}
+        {(dono || c) && (imoveis.length > 0 || c?.codigo) && (
+          <Secao titulo={imoveis.length > 1 ? `Imóveis do proprietário (${imoveis.length})` : 'Imóvel do proprietário'}>
+            <div className="space-y-3">
+              {(imoveis.length
+                ? [...imoveis].sort((a, b) => Number(!!b.daCampanha) - Number(!!a.daCampanha))
+                : [{ codigo: c!.codigo, daCampanha: true }]
+              ).map((i: any) => <CardDoImovelDoDono key={i.codigo} codigo={Number(i.codigo)} daCampanha={!!i.daCampanha} />)}
+            </div>
+          </Secao>
+        )}
 
         {/* 2. o que a campanha sabe */}
         {c && (
