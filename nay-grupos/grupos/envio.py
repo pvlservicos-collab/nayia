@@ -32,7 +32,7 @@ import datetime
 import logging
 
 from grupos.catalogo import mobilia_do, tipo_do
-from grupos.texto import mobilia_pedida
+from grupos.texto import mobilia_pedida, normal
 
 log = logging.getLogger("grupos.envio")
 QUEM = "automático"
@@ -58,6 +58,13 @@ SELECT * FROM (
      -- o mesmo imóvel nunca vai duas vezes ao mesmo corretor (ele pede o mesmo em vários grupos, em mensagens diferentes)
      AND NOT EXISTS (SELECT 1 FROM privado.grupo_pedido_oferta o
                       WHERE o.codigo = q.melhor_codigo AND nai_chave(o.telefone) = nai_chave(q.remetente))
+     -- 20/10 (Júlio, 5516): o Tel mandou o 5725 à mão às 10:04 e às 10:48 o radar perguntou do mesmo imóvel. Imóvel
+     -- que já saiu para ele por QUALQUER caminho nos últimos 30 dias (o card leva "Código: N") não é perguntado
+     AND NOT EXISTS (SELECT 1 FROM mensagens m
+                      WHERE right(regexp_replace(m.telefone, '\\D', '', 'g'), 8)
+                            = right(regexp_replace(coalesce(q.remetente, ''), '\\D', '', 'g'), 8)
+                        AND m.direcao <> 'recebida' AND m.criada_em > now() - interval '30 days'
+                        AND m.texto ~ ('C[oó]digo:\\s*' || q.melhor_codigo || '\\M'))
    ORDER BY coalesce(j.card, q.id), q.nota DESC, q.enviada_em DESC) x
  ORDER BY x.enviada_em
 """
@@ -89,9 +96,24 @@ def _dinheiro(v: float) -> str:
     return "R$ " + f"{v:,.0f}".replace(",", ".")
 
 
+# 20/10: "Oi, Corretora!" (o nome do WhatsApp dela é a profissão) e "uma casa no Casa, Flores" (o condomínio do 5613
+# está escrito "Casa" no cadastro)
+NAO_E_NOME = {"corretor", "corretora", "corretores", "imobiliaria", "imob", "imoveis", "creci", "consultor",
+              "consultora", "dr", "dra", "sr", "sra"}
+NAO_E_CONDOMINIO = {"casa", "apartamento", "apto", "ap", "condominio", "residencial", "edificio", "sem", "nao",
+                    "nao tem", "n/a", "na", "-", "outro", "outros"}
+
+
 def _primeiro_nome(nome: str | None) -> str | None:
     p = (nome or "").strip().split()
-    return p[0].capitalize() if p and p[0].isalpha() and len(p[0]) > 1 else None
+    if not p or not p[0].isalpha() or len(p[0]) < 2 or normal(p[0]) in NAO_E_NOME:
+        return None
+    return p[0].capitalize()
+
+
+def _condominio(c: str | None) -> str:
+    c = (c or "").strip()
+    return "" if len(c) < 3 or normal(c) in NAO_E_CONDOMINIO else c
 
 
 def pergunta(d: dict) -> str:
@@ -100,7 +122,7 @@ def pergunta(d: dict) -> str:
     nome = _primeiro_nome(d.get("remetente_nome"))
     casa = tipo_do(d.get("tipo")) == "casa"
     o_que, ele, mob = ("uma casa", "Ela", "mobiliada") if casa else ("um apartamento", "Ele", "mobiliado")
-    onde = ", ".join(x for x in ((d.get("condominio_nome") or "").strip(), (d.get("bairro") or "").strip()) if x)
+    onde = ", ".join(x for x in (_condominio(d.get("condominio_nome")), (d.get("bairro") or "").strip()) if x)
     venda = ficha.get("operacao") == "venda" or (ficha.get("operacao") != "aluguel" and not d.get("valor_aluguel"))
     valor = d.get("valor_venda") if venda else d.get("valor_aluguel")
     partes = []

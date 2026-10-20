@@ -447,6 +447,10 @@ class Envio(unittest.TestCase):
         self.assertIn("Oi! Vi seu pedido", venda)
         self.assertIn("Tenho uma casa no Parque 10 de Novembro: 2 quartos, à venda por R$ 780.000. Serve para o seu", venda)
         casa = envio.pergunta({**julio, "tipo": "Casa", "mobilia": "Mobiliado"})
+        sem_lixo = envio.pergunta({**julio, "remetente_nome": "Corretora Ana", "tipo": "Casa", "condominio_nome": "Casa"})
+        self.assertTrue(sem_lixo.startswith("Oi! Vi seu pedido"), sem_lixo)
+        self.assertIn("Tenho uma casa no Parque 10 de Novembro:", sem_lixo)
+        self.assertIn("m.texto ~ ('C[oó]digo:", envio.CANDIDATOS)          # o que já saiu por outro caminho não volta
         self.assertIn("Ela é mobiliada. Serve mobiliada para o seu cliente?", casa)
 
 
