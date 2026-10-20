@@ -76,14 +76,18 @@ def disparar(nome, r):
     except subprocess.TimeoutExpired:
         linha["ms_total"] = round((time.monotonic() - t0) * 1000)
         linha["erro"] = f"passou de {r['timeout_s']} s"
+    except OSError as e:
+        linha["ms_total"] = round((time.monotonic() - t0) * 1000)
+        linha["erro"] = f"não rodou o claude: {e}"
     return linha
 
 
-def cmd_disparar(nomes):
+def executar(nomes):
+    """Dispara as regras (em paralelo), grava em metricas.db e devolve as linhas. O terminal e o painel usam esta."""
     todas = regras()
     faltam = [n for n in nomes if n not in todas]
     if faltam:
-        sys.exit(f"regra não existe: {', '.join(faltam)}")
+        raise KeyError(f"regra não existe: {', '.join(faltam)}")
     alvo = [(n, todas[n]) for n in nomes if todas[n].get("ativa", True)]
     with ThreadPoolExecutor(max_workers=max(1, len(alvo))) as ex:
         linhas = list(ex.map(lambda nr: disparar(*nr), alvo))
@@ -91,10 +95,19 @@ def cmd_disparar(nomes):
     for l in linhas:
         cols = ", ".join(l)
         con.execute(f"INSERT INTO execucoes ({cols}) VALUES ({', '.join('?' * len(l))})", list(l.values()))
-        estado = "ok" if l["ok"] else "ERRO"
-        print(f"[{l['regra']}] {estado} {l.get('ms_total')} ms")
-        print(l.get("resposta") or l.get("erro") or "")
     con.commit()
+    con.close()
+    return linhas
+
+
+def cmd_disparar(nomes):
+    try:
+        linhas = executar(nomes)
+    except KeyError as e:
+        sys.exit(e.args[0])
+    for l in linhas:
+        print(f"[{l['regra']}] {'ok' if l['ok'] else 'ERRO'} {l.get('ms_total')} ms")
+        print(l.get("resposta") or l.get("erro") or "")
     sys.exit(0 if all(l["ok"] for l in linhas) else 1)
 
 

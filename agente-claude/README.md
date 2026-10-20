@@ -18,7 +18,20 @@ num canto próprio da VPS para metrificar sozinho, rápido e otimizado.
 | `metricas.db` | SQLite, tabela `execucoes`: tempo total, tempo do Claude e da API, tokens, cache, custo equivalente, resposta, erro |
 | `.env` | `CLAUDE_CODE_OAUTH_TOKEN=...` (o login; modo 600, fora do git) |
 
-## Uso
+## Painel: https://agentes.imobeasy.online (site › Mais › Agente Claude)
+Regras (criar, editar, parar, apagar, Disparar), gráfico do tempo de cada disparo, métricas por regra e os últimos
+disparos com a resposta. Pedro, 20/10: "só dá pra entrar nessa tela quem vier do site principal".
+
+    navegador ─ senha do /admin ─► Traefik da VPS1 (agentes.yml) ─ Tailscale + X-Agentes-Token ─► painel.py (VPS2)
+
+- O DNS aponta para a VPS1. `traefik-agentes.yml` é a cópia (sem o segredo) de `/docker/traefik/dynamic/agentes.yml`:
+  usa o mesmo middleware `nay-site-admin-auth@docker` do /admin e põe o `X-Agentes-Token`.
+- `painel.py` escuta só em `100.113.222.11:8660` (Tailscale) e recusa sem o token; gravar/disparar exige também
+  `X-Agente: 1`, que só a tela manda. Serviço `agente-claude-painel` (usuário agclaude); o token está em
+  `/etc/agente-claude/painel.env` (root, 600). O HTML é lido na partida: mudou o `painel.html`, reinicie o serviço.
+- Desfazer: apagar `agentes.yml` na VPS1; `systemctl disable --now agente-claude-painel` na VPS2.
+
+## Uso pelo terminal
 ```
 ssh nay-srv1877774
 runuser -u agclaude -- /opt/agente-claude/agente regras

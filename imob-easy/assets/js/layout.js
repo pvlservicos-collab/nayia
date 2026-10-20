@@ -104,6 +104,9 @@
     /* 19/10/2026 (Pedro: "coloca o criador de post no menu lá dentro de Mais"): o gerador de posts de imóvel
        (gerador-posts.html, o mesmo que o `nay posts` roda na VPS) -- página própria, sem o layout do admin */
     { rotulo: "Gerador de posts",  href: "gerador-posts.html", chave: "gerador-posts" },
+    /* 20/10/2026 (Pedro: "põe um item no menu do site lá em Mais"): o painel do Agente Claude, em subdomínio próprio
+       na VPS2 (agente-claude/ no repo); pede a mesma senha do /admin */
+    { rotulo: "Agente Claude",     href: "https://agentes.imobeasy.online/" },
     { rotulo: "Nova Nay",          href: "nova-nay.html",    chave: "nova-nay" },
     { rotulo: "Visão geral",       href: "visao-geral.html", chave: "visao-geral" },
     { rotulo: "Clientes",          href: "clientes.html",    chave: "clientes" },

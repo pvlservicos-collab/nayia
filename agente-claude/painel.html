@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agente Claude</title>
+<style>
+:root {
+  --fundo: #f4f4f2; --superficie: #fcfcfb; --borda: #e2e1dc; --texto: #0b0b0b; --texto-2: #52514e; --texto-3: #8a8983;
+  --azul: #2a78d6; --azul-forte: #1c5cab; --erro: #d03b3b; --ok: #0ca30c; --grade: #ecebe7; --raio: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fundo: #111110; --superficie: #1a1a19; --borda: #2e2e2b; --texto: #f0efec; --texto-2: #c3c2b7; --texto-3: #8f8e86;
+    --azul: #3987e5; --azul-forte: #6da7ec; --erro: #e66767; --ok: #2fbf2f; --grade: #262624;
+  }
+}
+:root[data-theme="dark"] {
+  --fundo: #111110; --superficie: #1a1a19; --borda: #2e2e2b; --texto: #f0efec; --texto-2: #c3c2b7; --texto-3: #8f8e86;
+  --azul: #3987e5; --azul-forte: #6da7ec; --erro: #e66767; --ok: #2fbf2f; --grade: #262624;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fundo); color: var(--texto); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--borda); background: var(--superficie); position: sticky; top: 0; z-index: 2; }
+header h1 { font-size: 17px; margin: 0; flex: 1; }
+header a { color: var(--texto-2); text-decoration: none; font-size: 14px; }
+main { max-width: 1100px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+section { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); padding: 16px; min-width: 0; }
+h2 { font-size: 15px; margin: 0 0 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+h2 .direita { margin-left: auto; display: flex; gap: 8px; }
+button, select, input, textarea { font: inherit; color: inherit; }
+button { border: 1px solid var(--borda); background: var(--superficie); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+button.primario { background: var(--azul); border-color: var(--azul); color: #fff; }
+button:disabled { opacity: .5; cursor: default; }
+input, select, textarea { width: 100%; border: 1px solid var(--borda); background: var(--fundo); border-radius: 8px; padding: 7px 9px; }
+textarea { resize: vertical; min-height: 64px; }
+label { display: grid; gap: 4px; font-size: 13px; color: var(--texto-2); }
+.regras { display: grid; gap: 12px; }
+.regra { border: 1px solid var(--borda); border-radius: var(--raio); padding: 12px; display: grid; gap: 10px; }
+.regra.parada { opacity: .7; }
+.linha { display: grid; grid-template-columns: 1.4fr 1fr 1fr .8fr auto; gap: 10px; align-items: end; }
+.linha label.marca { display: flex; align-items: center; gap: 6px; white-space: nowrap; padding-bottom: 8px; }
+.linha label.marca input { width: auto; }
+.acoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.acoes .resultado { font-size: 13px; color: var(--texto-2); }
+.tabela { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--grade); white-space: nowrap; }
+th { color: var(--texto-2); font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.texto { white-space: normal; min-width: 260px; max-width: 520px; }
+td.texto details summary { cursor: pointer; color: var(--texto-2); }
+td.texto pre { white-space: pre-wrap; margin: 6px 0 0; font: inherit; color: var(--texto); }
+.estado { display: inline-flex; align-items: center; gap: 4px; }
+.estado.ok { color: var(--ok); } .estado.erro { color: var(--erro); }
+.grafico { position: relative; }
+.grafico svg { width: 100%; height: 180px; display: block; }
+.legenda { display: flex; gap: 14px; font-size: 12px; color: var(--texto-2); margin-top: 6px; }
+.legenda i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.dica { position: absolute; pointer-events: none; background: var(--texto); color: var(--superficie); font-size: 12px; padding: 6px 8px; border-radius: 6px; white-space: nowrap; transform: translate(-50%, -110%); display: none; }
+.vazio { color: var(--texto-3); font-size: 14px; }
+.aviso { padding: 10px 12px; border-radius: 8px; background: color-mix(in srgb, var(--erro) 12%, transparent); color: var(--erro); display: none; }
+@media (max-width: 720px) { .linha { grid-template-columns: 1fr 1fr; } .linha label.nome { grid-column: 1 / -1; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Agente Claude</h1>
+  <a href="https://imobeasy.online/admin/inicio.html">← Admin</a>
+</header>
+<main>
+  <div class="aviso" id="aviso"></div>
+
+  <section>
+    <h2>Regras <span class="direita"><button id="nova">+ Regra</button><button class="primario" id="salvar">Salvar regras</button></span></h2>
+    <div class="regras" id="regras"></div>
+  </section>
+
+  <section>
+    <h2>Tempo de cada disparo <span class="direita" style="font-weight:400;font-size:13px;color:var(--texto-2)">últimos 40, em segundos</span></h2>
+    <div class="grafico" id="grafico"></div>
+  </section>
+
+  <section>
+    <h2>Métricas por regra
+      <span class="direita"><select id="dias" style="width:auto">
+        <option value="1">hoje e ontem</option><option value="7" selected>7 dias</option><option value="30">30 dias</option><option value="365">1 ano</option>
+      </select></span></h2>
+    <div class="tabela" id="metricas"></div>
+  </section>
+
+  <section>
+    <h2>Últimos disparos</h2>
+    <div class="tabela" id="ultimas"></div>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var MODELOS = ["haiku", "sonnet", "opus"];
+  var ESFORCOS = ["", "low", "medium", "high"];
+  var regras = {}, padrao = {}, sujo = false;
+
+  function el(tag, attrs, filhos) {
+    var e = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      if (k === "texto") e.textContent = attrs[k];
+      else if (k.slice(0, 2) === "on") e.addEventListener(k.slice(2), attrs[k]);
+      else if (attrs[k] !== false && attrs[k] != null) e.setAttribute(k, attrs[k] === true ? "" : attrs[k]);
+    });
+    (filhos || []).forEach(function (f) { if (f) e.appendChild(typeof f === "string" ? document.createTextNode(f) : f); });
+    return e;
+  }
+  function aviso(msg) { var a = document.getElementById("aviso"); a.textContent = msg || ""; a.style.display = msg ? "block" : "none"; }
+  function api(metodo, caminho, corpo) {
+    return fetch(caminho, {
+      method: metodo, credentials: "same-origin",
+      headers: corpo ? { "Content-Type": "application/json", "X-Agente": "1" } : {},
+      body: corpo ? JSON.stringify(corpo) : undefined
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok) throw new Error(j.erro || ("erro " + r.status));
+        return j;
+      });
+    });
+  }
+  function num(v) { return v == null ? "—" : Number(v).toLocaleString("pt-BR"); }
+  function seg(ms) { return ms == null ? "—" : (ms / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " s"; }
+
+  /* ---- regras ---- */
+  function desenharRegras() {
+    var caixa = document.getElementById("regras");
+    caixa.textContent = "";
+    var nomes = Object.keys(regras);
+    if (!nomes.length) caixa.appendChild(el("p", { class: "vazio", texto: "Nenhuma regra. Clique em + Regra." }));
+    nomes.forEach(function (nome) {
+      var r = regras[nome], ativa = r.ativa !== false;
+      function campo(k, v) { if (v === "" || v == null) delete r[k]; else r[k] = v; sujo = true; }
+      var resultado = el("span", { class: "resultado" });
+      var nomeInput = el("input", { value: nome, onchange: function () {
+        var novo = this.value.trim();
+        if (!novo || novo === nome) { this.value = nome; return; }
+        if (regras[novo]) { aviso("Já existe uma regra " + novo); this.value = nome; return; }
+        var copia = {}; Object.keys(regras).forEach(function (k) { copia[k === nome ? novo : k] = regras[k]; });
+        regras = copia; sujo = true; desenharRegras();
+      } });
+      var modelo = el("input", { value: r.modelo || "", placeholder: padrao.modelo, list: "modelos", onchange: function () { campo("modelo", this.value.trim()); } });
+      var esforco = el("select", { onchange: function () { campo("esforco", this.value); } },
+        ESFORCOS.map(function (e) { return el("option", { value: e, selected: (r.esforco || "") === e, texto: e || "padrão" }); }));
+      var timeout = el("input", { type: "number", min: 10, value: r.timeout_s || "", placeholder: padrao.timeout_s, onchange: function () { campo("timeout_s", this.value ? parseInt(this.value, 10) : ""); } });
+      var marca = el("input", { type: "checkbox", checked: ativa, onchange: function () { r.ativa = this.checked; sujo = true; desenharRegras(); } });
+      var disparar = el("button", { class: "primario", disabled: !ativa, title: ativa ? "" : "Regra parada", onclick: function () {
+        if (sujo) { aviso("Salve as regras antes de disparar."); return; }
+        disparar.disabled = true; resultado.textContent = "mandando…";
+        api("POST", "/api/disparar", { regras: [nome] }).then(function (j) {
+          var l = j.linhas[0];
+          resultado.textContent = l ? (l.ok ? "ok em " + seg(l.ms_total) : "erro: " + (l.erro || "")) : "regra parada";
+          carregar();
+        }).catch(function (e) { resultado.textContent = e.message; }).then(function () { disparar.disabled = false; });
+      } }, ["Disparar"]);
+      caixa.appendChild(el("div", { class: "regra" + (ativa ? "" : " parada") }, [
+        el("div", { class: "linha" }, [
+          el("label", { class: "nome" }, ["Nome", nomeInput]),
+          el("label", {}, ["Modelo", modelo]),
+          el("label", {}, ["Esforço", esforco]),
+          el("label", {}, ["Limite (s)", timeout]),
+          el("label", { class: "marca" }, [marca, "Ativa"])
+        ]),
+        el("label", {}, ["Mensagem", el("textarea", { rows: 3, oninput: function () { campo("mensagem", this.value); } }, [r.mensagem || ""])]),
+        el("label", {}, ["Instrução fixa (opcional)", el("textarea", { rows: 2, oninput: function () { campo("sistema", this.value); } }, [r.sistema || ""])]),
+        el("div", { class: "acoes" }, [
+          disparar,
+          el("button", { onclick: function () {
+            if (!confirm("Apagar a regra " + nome + "? (só some de vez ao salvar)")) return;
+            delete regras[nome]; sujo = true; desenharRegras();
+          } }, ["Apagar"]),
+          resultado
+        ])
+      ]));
+    });
+  }
+  document.getElementById("nova").addEventListener("click", function () {
+    var n = 1; while (regras["regra-" + n]) n++;
+    regras["regra-" + n] = { mensagem: "", ativa: true }; sujo = true; desenharRegras();
+  });
+  document.getElementById("salvar").addEventListener("click", function () {
+    var b = this; b.disabled = true; aviso("");
+    api("PUT", "/api/regras", regras).then(function (j) {
+      regras = j.regras; sujo = false; desenharRegras(); b.textContent = "Salvo ✓";
+      setTimeout(function () { b.textContent = "Salvar regras"; }, 1500);
+    }).catch(function (e) { aviso(e.message); }).then(function () { b.disabled = false; });
+  });
+
+  /* ---- gráfico: tempo de cada disparo (uma série; erro em vermelho com ✕) ---- */
+  function desenharGrafico(ultimas) {
+    var caixa = document.getElementById("grafico");
+    caixa.textContent = "";
+    var dados = ultimas.slice().reverse();
+    if (!dados.length) { caixa.appendChild(el("p", { class: "vazio", texto: "Nenhum disparo ainda." })); return; }
+    var W = 1000, H = 180, esq = 40, base = H - 20, topo = 10;
+    var max = Math.max.apply(null, dados.map(function (d) { return d.ms_total || 0; })) || 1;
+    var passo = Math.pow(10, Math.floor(Math.log10(max / 1000 / 3 || 1)));
+    var marca = [1, 2, 5, 10].map(function (m) { return m * passo; }).filter(function (m) { return max / 1000 / m <= 4; })[0] || passo * 10;
+    var topoS = Math.ceil(max / 1000 / marca) * marca;
+    function y(ms) { return base - (ms / 1000 / topoS) * (base - topo); }
+    var ns = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H); svg.setAttribute("preserveAspectRatio", "none");
+    svg.setAttribute("role", "img"); svg.setAttribute("aria-label", "Tempo de cada disparo, em segundos");
+    function s(tag, a) { var e = document.createElementNS(ns, tag); Object.keys(a).forEach(function (k) { e.setAttribute(k, a[k]); }); svg.appendChild(e); return e; }
+    for (var v = 0; v <= topoS + 1e-9; v += marca) {
+      s("line", { x1: esq, x2: W, y1: y(v * 1000), y2: y(v * 1000), stroke: "var(--grade)", "stroke-width": 1, "vector-effect": "non-scaling-stroke" });
+      var t = s("text", { x: esq - 6, y: y(v * 1000) + 4, "text-anchor": "end", "font-size": 11, fill: "var(--texto-3)" });
+      t.textContent = v.toLocaleString("pt-BR");
+    }
+    var larg = (W - esq) / Math.max(dados.length, 10), barra = Math.max(2, Math.min(larg - 2, 28));
+    var dica = el("div", { class: "dica" });
+    dados.forEach(function (d, i) {
+      var x = esq + i * larg + (larg - barra) / 2, h = Math.max(2, base - y(d.ms_total || 0));
+      var rx = Math.min(4, barra / 2);
+      s("path", {
+        d: "M" + x + "," + base + "V" + (base - h + rx) + "q0,-" + rx + " " + rx + ",-" + rx + "h" + (barra - 2 * rx) + "q" + rx + ",0 " + rx + "," + rx + "V" + base + "Z",
+        fill: d.ok ? "var(--azul)" : "var(--erro)"
+      });
+      if (!d.ok) { var xx = s("text", { x: x + barra / 2, y: base - h - 4, "text-anchor": "middle", "font-size": 11, fill: "var(--erro)" }); xx.textContent = "✕"; }
+      var alvo = s("rect", { x: esq + i * larg, y: topo, width: larg, height: base - topo, fill: "transparent" });
+      alvo.addEventListener("mouseenter", function () {
+        dica.textContent = d.regra + " · " + seg(d.ms_total) + (d.ok ? "" : " · erro") + " · " + d.inicio.slice(5, 16).replace("-", "/");
+        var caixaR = caixa.getBoundingClientRect(), r = alvo.getBoundingClientRect();
+        dica.style.left = (r.left - caixaR.left + r.width / 2) + "px";
+        dica.style.top = (r.top - caixaR.top + (y(d.ms_total || 0) / H) * r.height) + "px";
+        dica.style.display = "block";
+      });
+      alvo.addEventListener("mouseleave", function () { dica.style.display = "none"; });
+    });
+    s("line", { x1: esq, x2: W, y1: base, y2: base, stroke: "var(--borda)", "stroke-width": 1, "vector-effect": "non-scaling-stroke" });
+    caixa.appendChild(svg); caixa.appendChild(dica);
+    caixa.appendChild(el("div", { class: "legenda" }, [
+      el("span", {}, [el("i", { style: "background:var(--azul)" }), "ok"]),
+      el("span", {}, [el("i", { style: "background:var(--erro)" }), "✕ erro"])
+    ]));
+  }
+
+  /* ---- tabelas ---- */
+  function tabela(colunas, linhas, vazio) {
+    if (!linhas.length) return el("p", { class: "vazio", texto: vazio });
+    return el("table", {}, [
+      el("thead", {}, [el("tr", {}, colunas.map(function (c) { return el("th", { class: c.num ? "num" : "", texto: c.t }); }))]),
+      el("tbody", {}, linhas.map(function (l) {
+        return el("tr", {}, colunas.map(function (c) {
+          var v = c.f(l);
+          return el("td", { class: c.num ? "num" : (c.texto ? "texto" : "") }, [typeof v === "string" ? v : v]);
+        }));
+      }))
+    ]);
+  }
+  function estado(ok) { return el("span", { class: "estado " + (ok ? "ok" : "erro"), texto: ok ? "✓ ok" : "✕ erro" }); }
+  function desenharTabelas(j) {
+    var m = document.getElementById("metricas"); m.textContent = "";
+    m.appendChild(tabela([
+      { t: "Regra", f: function (l) { return l.regra; } },
+      { t: "Vezes", num: 1, f: function (l) { return num(l.vezes); } },
+      { t: "Ok", num: 1, f: function (l) { return num(l.ok); } },
+      { t: "Tempo médio", num: 1, f: function (l) { return seg(l.ms_medio); } },
+      { t: "Tempo máx.", num: 1, f: function (l) { return seg(l.ms_max); } },
+      { t: "Só a API", num: 1, f: function (l) { return seg(l.ms_api_medio); } },
+      { t: "Tokens entrada", num: 1, f: function (l) { return num(l.tokens_entrada); } },
+      { t: "Tokens saída", num: 1, f: function (l) { return num(l.tokens_saida); } },
+      { t: "Cache lido", num: 1, f: function (l) { return num(l.cache_lido); } },
+      { t: "US$ equiv.", num: 1, f: function (l) { return l.custo_usd == null ? "—" : "$" + l.custo_usd.toFixed(4); } },
+      { t: "Última", f: function (l) { return l.ultima; } }
+    ], j.metricas, "Nenhum disparo no período."));
+    var u = document.getElementById("ultimas"); u.textContent = "";
+    u.appendChild(tabela([
+      { t: "Quando", f: function (l) { return l.inicio.slice(5, 16).replace("-", "/"); } },
+      { t: "Regra", f: function (l) { return l.regra; } },
+      { t: "", f: function (l) { return estado(l.ok); } },
+      { t: "Tempo", num: 1, f: function (l) { return seg(l.ms_total); } },
+      { t: "Tokens", num: 1, f: function (l) { return num((l.tokens_entrada || 0) + (l.tokens_saida || 0)); } },
+      { t: "Resposta", texto: 1, f: function (l) {
+        var t = l.resposta || l.erro || "";
+        return el("details", {}, [el("summary", { texto: t.slice(0, 90) + (t.length > 90 ? "…" : "") }), el("pre", { texto: t })]);
+      } }
+    ], j.ultimas, "Nenhum disparo ainda."));
+    desenharGrafico(j.ultimas);
+  }
+
+  function carregar(primeira) {
+    return api("GET", "/api/estado?dias=" + document.getElementById("dias").value).then(function (j) {
+      padrao = j.padrao;
+      if (primeira) { regras = j.regras; desenharRegras(); }
+      desenharTabelas(j);
+    }).catch(function (e) { aviso(e.message); });
+  }
+  document.getElementById("dias").addEventListener("change", function () { carregar(); });
+  document.body.appendChild(el("datalist", { id: "modelos" }, MODELOS.map(function (m) { return el("option", { value: m }); })));
+  window.addEventListener("beforeunload", function (e) { if (sujo) { e.preventDefault(); e.returnValue = ""; } });
+  carregar(true);
+})();
+</script>
+</body>
+</html>

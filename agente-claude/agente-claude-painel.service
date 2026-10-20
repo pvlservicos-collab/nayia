@@ -1,0 +1,21 @@
+[Unit]
+Description=Painel do Agente Claude (agentes.imobeasy.online, via Traefik da VPS1 pelo Tailscale)
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=agclaude
+WorkingDirectory=/opt/agente-claude
+EnvironmentFile=/etc/agente-claude/painel.env
+ExecStart=/usr/bin/python3 /opt/agente-claude/painel.py
+Restart=always
+RestartSec=5
+MemoryMax=300M
+NoNewPrivileges=true
+ProtectSystem=strict
+PrivateTmp=true
+ReadWritePaths=/opt/agente-claude
+
+[Install]
+WantedBy=multi-user.target

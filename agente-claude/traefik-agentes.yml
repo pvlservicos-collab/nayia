@@ -1,0 +1,33 @@
+# O PAINEL DO AGENTE CLAUDE EM agentes.imobeasy.online (20/10/2026).
+# Cópia de /docker/traefik/dynamic/agentes.yml no srv1894338 (VPS1), sem o segredo.
+#
+# Pedro: "só dá pra entrar nessa tela quem vier do site principal". Então a porta é a MESMA senha do /admin
+# (middleware nay-site-admin-auth, do container do site). O painel mora na VPS2 e escuta só no Tailscale
+# (100.113.222.11:8660); este router leva o pedido até lá e põe o X-Agentes-Token, sem o qual o painel recusa.
+#
+# No servidor o __SEGREDO__ é o AGENTES_TOKEN de /etc/agente-claude/painel.env da VPS2.
+# Recarregado sozinho (providers.file.watch). Para desfazer: apagar o arquivo no servidor.
+http:
+  routers:
+    agentes:
+      rule: "Host(`agentes.imobeasy.online`)"
+      entryPoints:
+        - websecure
+      middlewares:
+        - nay-site-admin-auth@docker
+        - agentes-segredo
+      service: agentes
+      tls:
+        certResolver: letsencrypt
+
+  middlewares:
+    agentes-segredo:
+      headers:
+        customRequestHeaders:
+          X-Agentes-Token: "__SEGREDO__"
+
+  services:
+    agentes:
+      loadBalancer:
+        servers:
+          - url: "http://100.113.222.11:8660"
