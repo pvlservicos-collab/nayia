@@ -40,11 +40,43 @@
       pintarEtiquetas(); pintarResumo(); pintar();
     }).catch(function (e) { $("wm-grade").innerHTML = '<p class="mw-vazio">' + esc(e.message) + "</p>"; });
   }
+  /* CATEGORIAS (441, Pedro 20/10: "põe lá como uma categoria com um título diferente"): a etiqueta que começa com ★ é
+     uma categoria. Fica no topo do seletor, num grupo próprio, e ganha um botão acima dos cartões. */
+  function eCategoria(e) { return String(e).charAt(0) === "★"; }
   function pintarEtiquetas() {
     var s = $("wm-etq"), v = s.value;
-    s.innerHTML = '<option value="">Todas as etiquetas</option><option value="__em_uso">em uso (campanha)</option><option value="__sem">sem etiqueta</option>' +
-      etiquetasTodas.map(function (e) { return '<option value="' + esc(e) + '">' + esc(e) + "</option>"; }).join("");
+    var cats = etiquetasTodas.filter(eCategoria), resto = etiquetasTodas.filter(function (e) { return !eCategoria(e); });
+    var opcao = function (e) { return '<option value="' + esc(e) + '">' + esc(e) + "</option>"; };
+    s.innerHTML = '<option value="">Todas as etiquetas</option>' +
+      (cats.length ? '<optgroup label="Categorias">' + cats.map(opcao).join("") + "</optgroup>" : "") +
+      '<optgroup label="Etiquetas"><option value="__em_uso">em uso (campanha)</option><option value="__sem">sem etiqueta</option>' +
+      resto.map(opcao).join("") + "</optgroup>";
     s.value = (v === "__em_uso" || v === "__sem" || etiquetasTodas.indexOf(v) >= 0) ? v : "";
+    pintarCategorias(cats);
+  }
+  function pintarCategorias(cats) {
+    var alvo = $("wm-categorias");
+    if (!alvo) {
+      alvo = document.createElement("div");
+      alvo.id = "wm-categorias";
+      alvo.className = "wm-categorias";
+      $("wm-grade").parentNode.insertBefore(alvo, $("wm-grade"));
+      alvo.addEventListener("click", function (e) {
+        var b = e.target.closest("[data-categoria]");
+        if (!b) return;
+        var s = $("wm-etq");
+        s.value = s.value === b.dataset.categoria ? "" : b.dataset.categoria;    // clicar de novo tira o filtro
+        s.dispatchEvent(new Event("change", { bubbles: true }));
+        pintarCategorias(etiquetasTodas.filter(eCategoria));
+      });
+    }
+    var atual = $("wm-etq").value;
+    alvo.hidden = !cats.length;
+    alvo.innerHTML = cats.map(function (c) {
+      var n = modelos.filter(function (m) { return (nota(m).etiquetas || []).indexOf(c) >= 0; }).length;
+      return '<button type="button" class="wm-categoria" data-categoria="' + esc(c) + '" aria-pressed="' + (atual === c) + '">' +
+        esc(c) + " <b>" + n + "</b></button>";
+    }).join("");
   }
   function pintarResumo() {
     var ap = modelos.filter(function (m) { return m.status === "APPROVED"; });
@@ -143,6 +175,7 @@
     }
   });
   ["wm-status", "wm-cat", "wm-etq", "wm-de", "wm-ate", "wm-ordem"].forEach(function (id) { $(id).addEventListener("change", pintar); });
+  $("wm-etq").addEventListener("change", function () { pintarCategorias(etiquetasTodas.filter(eCategoria)); });
   $("wm-busca").addEventListener("input", function () { clearTimeout(temporizador); temporizador = setTimeout(pintar, 250); });
 
   carregar();
