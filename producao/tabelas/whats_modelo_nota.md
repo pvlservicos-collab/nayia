@@ -1,4 +1,4 @@
-# whats_modelo_nota  (tabela, ~0 linhas)
+# whats_modelo_nota  (tabela, ~105 linhas)
 
 ## colunas
 nome  text  NOT NULL

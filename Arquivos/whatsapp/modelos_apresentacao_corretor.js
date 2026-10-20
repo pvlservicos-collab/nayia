@@ -59,6 +59,19 @@ const MODELOS = {
   28: { corpo: 'Olá, {{1}}! O seu cadastro de corretor parceiro na Imob Easy aguarda uma confirmação. Somos uma imobiliária em Manaus e os imóveis da nossa carteira são liberados em parceria. Selecione como prefere ser atendido:' },
   29: { corpo: 'Olá, {{1}}. O seu cadastro de corretor parceiro na Imob Easy está em andamento. Somos uma imobiliária em Manaus que trabalha em parceria com os corretores da cidade. Para concluir o cadastro, selecione uma opção:' },
   30: { corpo: 'Olá, {{1}}! O seu cadastro de parceiro na Imob Easy está pendente. Somos uma imobiliária em Manaus e trabalhamos em parceria: o imóvel é nosso e o cliente é seu. Para concluir, selecione como prefere ser atendido:' },
+  // 31-40 (4ª leva, Pedro 20/10: "vc criou umas variações muito próximas umas das outras ... precisa variar mais mantendo
+  // o sentido, muda ordem das palavras, encurta tudo"): mesmo sentido (cadastro de parceiro em aberto + quem somos +
+  // escolha), mas cada uma com outra abertura, outra ordem e bem mais curta.
+  31: { corpo: 'Cadastro de parceiro pendente, {{1}}. Somos a Imob Easy, imobiliária em Manaus que trabalha com corretores. Escolha uma opção para concluir:' },
+  32: { corpo: 'Oi, {{1}}. Seu cadastro como corretor parceiro ainda não foi concluído. A Imob Easy, de Manaus, divide a carteira de imóveis com parceiros. Escolha abaixo:' },
+  33: { corpo: 'Prezado(a) {{1}}, o seu cadastro de parceiro na Imob Easy, imobiliária de Manaus, foi aberto. Para finalizar, toque em uma das opções:' },
+  34: { corpo: 'Olá, {{1}}. Para finalizar o seu cadastro de corretor parceiro, escolha como quer receber os imóveis da Imob Easy, imobiliária em Manaus:' },
+  35: { corpo: 'Seu cadastro na rede de parceiros da Imob Easy está quase pronto, {{1}}. Somos de Manaus e trabalhamos com imóveis em parceria. Falta só escolher:' },
+  36: { corpo: 'Olá, {{1}}! Etapa final do cadastro de corretor parceiro. Imob Easy, imobiliária em Manaus: imóveis para você fechar com os seus clientes. Selecione:' },
+  37: { corpo: 'Aviso de cadastro para {{1}}: o acesso de corretor parceiro da Imob Easy, em Manaus, aguarda a sua escolha. Toque em uma opção:' },
+  38: { corpo: 'Olá, {{1}}. O seu cadastro de parceiro na Imob Easy, imobiliária em Manaus, está em aberto. Imóvel nosso, cliente seu. Conclua tocando abaixo:' },
+  39: { corpo: 'Status do cadastro de {{1}}: em andamento. Imob Easy, imobiliária de Manaus que atende corretores parceiros. Para concluir, escolha uma opção:' },
+  40: { corpo: 'Olá, {{1}}! Confirme o seu cadastro de corretor parceiro na Imob Easy. Somos de Manaus e a nossa carteira fica liberada para parceiros. Escolha:' },
 }
 const nomeDe = (n) => PREFIXO + String(n).padStart(2, '0')
 
