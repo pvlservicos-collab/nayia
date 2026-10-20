@@ -25,9 +25,32 @@ def test_tipo_canonico_do_jeito_que_ele_escreve():
 
 def test_apartamento_pergunta_o_condominio_antes_e_nao_pergunta_endereco():
     f = {"tipo": "Apartamento", "valor_aluguel": 3500, "_fotos": 5}
-    falta = campos.faltam(f, {"papel_conhecido": True})
+    falta = campos.faltam(f, {"papel_conhecido": True, "papel": "proprietario"})
     assert falta[0] == "condominio"
     assert "endereco" not in falta and "unidade" in falta and "andar" in falta and "mobilia" in falta
+
+
+def test_ao_corretor_nunca_o_numero_do_apartamento():
+    """Tel, 20/10 (a Raquel): ao corretor só o andar; o número da unidade só ao proprietário."""
+    f = {"tipo": "Apartamento", "condominio": "Reserva das Praias", "condo_id": 213, "valor_venda": 550000}
+    corretor = campos.faltam(f, {"papel_conhecido": True, "papel": "corretor"})
+    assert "unidade" not in corretor and "andar" in corretor
+
+
+def test_andar_com_e_sem_elevador():
+    assert campos.POR_CHAVE["andar"].texto({"_elevador": "sim"}) == "Em qual andar ele fica?"
+    assert campos.POR_CHAVE["andar"].texto({"_elevador": "nao"}) == "Quantos lances de escada até ele?"
+    assert "lances de escada" in campos.POR_CHAVE["andar"].texto({})
+    assert campos.POR_CHAVE["andar"].preenchida({"x:lances de escada": 2})
+
+
+def test_abertura_do_tel():
+    f = {"tipo": "Apartamento", "condominio": "Reserva das Praias"}
+    assert campos.abertura("Raquel Paiva", f) == ("Oi, Raquel! Estou fazendo o cadastro do seu imóvel por esse número, "
+                                                  "imóvel Reserva das Praias. Pode me confirmar umas informações, "
+                                                  "por favor?")
+    assert campos.abertura(None, {"tipo": "Casa", "bairro": "Aleixo"}).startswith("Oi! Estou fazendo")
+    assert "imóvel casa no Aleixo" in campos.abertura(None, {"tipo": "Casa", "bairro": "Aleixo"})
 
 
 def test_condominio_cadastrado_nao_pergunta_nada_do_condominio():
@@ -75,9 +98,9 @@ def test_papel_desconhecido_e_a_primeira_pergunta():
 
 def test_pergunta_feita_nao_volta():
     f = {"tipo": "Apartamento", "_feitas": ["condominio", "unidade"]}
-    falta = campos.faltam(f, {"papel_conhecido": True})
+    falta = campos.faltam(f, {"papel_conhecido": True, "papel": "proprietario"})
     assert "condominio" not in falta and "unidade" not in falta
-    assert "unidade" in campos.ficou_sem(f, {"papel_conhecido": True})
+    assert "unidade" in campos.ficou_sem(f, {"papel_conhecido": True, "papel": "proprietario"})
 
 
 def test_valor_sem_finalidade_pergunta_as_duas_coisas():

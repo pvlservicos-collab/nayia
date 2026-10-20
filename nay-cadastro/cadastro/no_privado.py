@@ -30,6 +30,12 @@ def iniciar(conn) -> None:
             fluxo.avisar_erro(conn, c, "Não consegui começar a conversa do cadastro", e)
 
 
+def do_chat_pausado(conn) -> None:
+    """A resposta que a porta deu ao Tel (chat pausado) entra na fila do cadastro; a próxima pergunta não sai (fluxo)."""
+    for r in banco.linhas(conn, banco.DO_CHAT_PAUSADO):
+        log.info("ficha %s: resposta do chat pausado entrou na fila", r["cadastro_id"])
+
+
 def responder(conn) -> bool:
     """Uma resposta (a mais antiga que já está pronta). True se tratou alguma."""
     entradas = banco.linhas(conn, banco.RESERVAR_RESPOSTA, {"silencio": config.RESPOSTA_SILENCIO_S})

@@ -48,6 +48,7 @@ def ciclo(conn, est: Estado) -> None:
         return
     if time.monotonic() >= est.modelo_ate:
         _levas(conn, est)
+        no_privado.do_chat_pausado(conn)
         try:
             for _ in range(5):
                 if not no_privado.responder(conn):

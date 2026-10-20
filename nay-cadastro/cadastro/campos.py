@@ -130,6 +130,21 @@ def _unidade_preenchida(ficha: dict) -> bool:
     return any(tem(ficha, k) for k in ("p:unidade", "p:casa", "p:lote"))
 
 
+def _pergunta_andar(ficha: dict) -> str:
+    """Tel, 20/10: "nunca se deve pedir o número do apartamento para o corretor, só o andar, e nos que têm escada
+    quantos lances de escada". O elevador vem do condomínio (`_elevador`, posto pelo serviço) ou da resposta dele."""
+    elevador = ficha.get("_elevador") or ficha.get("c:elevador")
+    if elevador == "sim":
+        return "Em qual andar ele fica?"
+    if elevador == "nao":
+        return "Quantos lances de escada até ele?"
+    return "Em qual andar ele fica? E, se o prédio não tiver elevador, quantos lances de escada?"
+
+
+def _andar_preenchido(ficha: dict) -> bool:
+    return tem(ficha, "andar") or tem(ficha, "x:lances de escada")
+
+
 def _area_preenchida(ficha: dict) -> bool:
     if familia(ficha.get("tipo")) == "terreno":
         return tem(ficha, "x:tamanho do terreno") or tem(ficha, "area_util")
@@ -187,10 +202,10 @@ PERGUNTAS: tuple[Pergunta, ...] = (
              lambda f: tem(f, "bairro"), _sempre, True),
     Pergunta("endereco", "endereço (rua e número)", _texto("Qual o endereço do imóvel (rua e número)?"),
              lambda f: tem(f, "logradouro"), lambda f, _c: not em_condominio(f)),
+    # o número do apartamento/sala/casa NUNCA é perguntado ao corretor (Tel, 20/10): só ao proprietário
     Pergunta("unidade", "unidade (torre/bloco e número)", _pergunta_unidade, _unidade_preenchida,
-             lambda f, _c: em_condominio(f) or familia(f.get("tipo")) == "sala"),
-    Pergunta("andar", "andar", _texto("Em qual andar ele fica?"),
-             lambda f: tem(f, "andar"), _f("vertical", "sala")),
+             lambda f, c: c.get("papel") == "proprietario" and (em_condominio(f) or familia(f.get("tipo")) == "sala")),
+    Pergunta("andar", "andar (ou lances de escada)", _pergunta_andar, _andar_preenchido, _f("vertical", "sala")),
     Pergunta("area", "área (m²)", _pergunta_area, _area_preenchida, _sempre, True),
     Pergunta("quartos", "quartos e suítes", _texto("Quantos quartos, e quantos deles são suítes?"),
              lambda f: tem(f, "quartos"), _f("vertical", "casa"), True),
@@ -277,6 +292,23 @@ def resumo_do_que_tem(ficha: dict) -> list[str]:
 
 def rotulos(chaves: list[str]) -> list[str]:
     return [POR_CHAVE[c].rotulo for c in chaves if c in POR_CHAVE]
+
+
+def nome_do_imovel(ficha: dict) -> str:
+    """"imóvel Reserva das Praias" / "imóvel casa no Aleixo": o nome que ele reconhece."""
+    if tem(ficha, "condominio"):
+        return ficha["condominio"]
+    tipo = (ficha.get("tipo") or "").split("/")[0].lower()
+    return " ".join(x for x in (tipo, f"no {ficha['bairro']}" if tem(ficha, "bairro") else "") if x) or "que você nos passou"
+
+
+def abertura(nome: str | None, ficha: dict) -> str:
+    """Tel, 20/10: "Oi (NOME) estou fazendo o cadastro do seu imóvel por esse número, imóvel (NOME) pode me confirmar
+    umas informações por favor?"."""
+    primeiro = (nome or "").strip().split(" ")[0].capitalize()
+    oi = f"Oi, {primeiro}!" if primeiro and primeiro.isalpha() else "Oi!"
+    return (f"{oi} Estou fazendo o cadastro do seu imóvel por esse número, imóvel {nome_do_imovel(ficha)}. "
+            "Pode me confirmar umas informações, por favor?")
 
 
 def descricao_do_imovel(ficha: dict) -> str:

@@ -28,7 +28,7 @@ CAMPOS_DO_MODELO = {
     "condominio": _n("string"),
     "bairro": _n("string"), "logradouro": _n("string"), "numero": _n("string"), "complemento": _n("string"),
     "torre": _n("string"), "bloco": _n("string"), "unidade": _n("string"), "casa": _n("string"), "lote": _n("string"),
-    "andar": _n("string"),
+    "andar": _n("string"), "lances_escada": _n("integer"),
     "area_util": _n("number"), "area_total": _n("number"), "tamanho_terreno": _n("number"),
     "quartos": _n("integer"), "suites": _n("integer"), "banheiros": _n("integer"), "vagas": _n("integer"),
     "vagas_cobertas": _n("integer"),
@@ -65,7 +65,7 @@ SCHEMA_RESPOSTA = _objeto({
 # do nome no modelo para a chave da ficha
 PARA_A_FICHA = {
     "torre": "p:torre", "bloco": "p:bloco", "unidade": "p:unidade", "casa": "p:casa", "lote": "p:lote",
-    "tamanho_terreno": "x:tamanho do terreno", "aceita_financiamento": "x:aceita financiamento",
+    "tamanho_terreno": "x:tamanho do terreno", "lances_escada": "x:lances de escada", "aceita_financiamento": "x:aceita financiamento",
     "permuta": "x:permuta", "condominio_logradouro": "c:logradouro", "condominio_numero": "c:numero",
     "condominio_elevador": "c:elevador", "condominio_lazer": "c:lazer", "condominio_seguranca": "c:seguranca",
     "papel": "_papel", "finalidade": "_finalidade", "contato_nome": "_contato_nome",

@@ -72,6 +72,32 @@ UPDATE privado.cadastro_whats_entrada e SET status = 'Processando'
   FROM pronta WHERE e.cadastro_id = pronta.cadastro_id AND e.status = 'Recebido'
 RETURNING e.id, e.cadastro_id, e.texto, e.midias, e.criada_em
 """
+# O CHAT PAUSADO PELO TEL (20/10, a Raquel): a porta manda a resposta para o Tel ('Com o Tel') antes do bloco do
+# cadastro. A resposta à pergunta que está no ar ainda é do cadastro: vem daqui, da caixa de entrada (mensagens), uma vez.
+DO_CHAT_PAUSADO = """
+WITH aberta AS (
+  SELECT c.id, c.pergunta_em,
+         ARRAY(SELECT k2.chave FROM nai_contato k1
+                 CROSS JOIN LATERAL unnest(coalesce(nai_contato_irmaos(k1.id), ARRAY[k1.id])) AS i(id)
+                 JOIN nai_contato k2 ON k2.id = i.id
+                WHERE k1.chave = nai_chave(c.contato_tel)) AS chaves
+    FROM privado.cadastro_whats c
+   WHERE c.estado = 'perguntando' AND c.pergunta_em IS NOT NULL
+), novas AS (
+  SELECT a.id AS cadastro_id, m.id, m.texto, m.midia_url, m.origem
+    FROM aberta a JOIN mensagens m ON nai_chave(m.telefone) = ANY (a.chaves)
+   WHERE m.direcao = 'recebida' AND m.status = 'Com o Tel' AND m.criada_em > a.pergunta_em
+     AND NOT EXISTS (SELECT 1 FROM privado.cadastro_whats_entrada e WHERE m.id = ANY (e.ids))
+)
+INSERT INTO privado.cadastro_whats_entrada (cadastro_id, texto, midias, ids)
+SELECT cadastro_id,
+       string_agg(texto, E'\\n' ORDER BY id) FILTER (WHERE nullif(btrim(texto), '') IS NOT NULL),
+       coalesce(array_agg(midia_url ORDER BY id) FILTER (WHERE origem = 'imagem' AND midia_url IS NOT NULL), '{}'),
+       array_agg(id::bigint ORDER BY id)
+  FROM novas GROUP BY cadastro_id
+RETURNING cadastro_id
+"""
+
 # reiniciou no meio: o que ficou reservado volta
 RECUPERAR = """
 UPDATE privado.cadastro_whats_entrada SET status = 'Recebido'

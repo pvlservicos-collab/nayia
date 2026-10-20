@@ -12,6 +12,7 @@ Uma ficha anda assim (privado.cadastro_whats.estado):
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -51,7 +52,18 @@ def contexto(conn, c: dict) -> dict:
     taxa = False
     if f.get("condo_id"):
         taxa = banco.uma(conn, banco.TAXA_NO_CONDOMINIO, {"id": f["condo_id"], "quartos": f.get("quartos")})["sim"]
-    return {"papel_conhecido": bool(c.get("papel")), "taxa_no_condominio": taxa}
+    return {"papel_conhecido": bool(c.get("papel")), "papel": c.get("papel"), "taxa_no_condominio": taxa}
+
+
+def com_elevador(conn, ficha: dict) -> dict:
+    """O elevador do condomínio cadastrado ("Sim, possui elevador" / "Não possui elevador") decide a pergunta do andar:
+    com elevador, o andar; sem, os lances de escada (Tel, 20/10)."""
+    if ficha.get("_elevador") or not ficha.get("condo_id"):
+        return ficha
+    r = banco.uma(conn, "SELECT elevador FROM condominio_ficha WHERE condominio_id = %s", (ficha["condo_id"],))
+    texto = campos.sem_acento((r or {}).get("elevador"))
+    valor = "nao" if re.search(r"\bnao\b", texto) else "sim" if re.search(r"\bsim\b|possui|\d", texto) else None
+    return {**ficha, "_elevador": valor} if valor else ficha
 
 
 def quem(c: dict) -> str:
@@ -78,15 +90,22 @@ def avisar_erro(conn, c: dict | None, o_que: str, erro: Exception | str) -> None
 
 
 def proxima(conn, c: dict, primeira: bool = False) -> None:
-    """Manda a próxima pergunta (uma só), ou conclui."""
+    """Manda a próxima pergunta (uma só), ou conclui.
+
+    GENTE NO CHAT (Tel, 20/10, com a Raquel: ele pausou a conversa e corrigiu a pergunta à mão): com o Tel ou a
+    equipe na conversa, ela não manda mais nada; a resposta que estava esperando ainda é lida (no_privado) e a ficha
+    fecha com o que tem. `_so_esperar` na ficha faz o mesmo sem a pausa."""
+    c = {**c, "ficha": com_elevador(conn, c["ficha"])}
     falta = campos.faltam(c["ficha"], contexto(conn, c))
-    if not falta:
-        concluir(conn, c, "concluido")
+    gente = not primeira and (c["ficha"].get("_so_esperar")
+                              or banco.uma(conn, banco.TEL_COM_A_CONVERSA, (c["contato_tel"],))["sim"])
+    if not falta or gente:
+        concluir(conn, c, "concluido", despedir=not gente)
         return
     chave = falta[0]
     pergunta = campos.POR_CHAVE[chave].texto(c["ficha"])
     if primeira:
-        baloes = [config.ABERTURA, f"É sobre {campos.descricao_do_imovel(c['ficha'])}. {pergunta}"]
+        baloes = [campos.abertura(c.get("contato_nome"), c["ficha"]), pergunta]
     else:
         baloes = [pergunta]
     if not envio.privado(conn, c["contato_tel"], c.get("contato_nome"), baloes):
@@ -105,7 +124,7 @@ def _criar_condominio_novo(conn, c: dict) -> dict:
     return c
 
 
-def concluir(conn, c: dict, como: str) -> None:
+def concluir(conn, c: dict, como: str, despedir: bool = True) -> None:
     """Fim da ficha. Com tipo, bairro e valor o imóvel fica Disponível (Pedro, 20/10); sem eles, fica Rascunho."""
     c = _criar_condominio_novo(conn, c)
     ctx = contexto(conn, c)
@@ -114,7 +133,7 @@ def concluir(conn, c: dict, como: str) -> None:
     if not faltou_essencial and c.get("papel") == "corretor":
         extra["e_parceiro"] = True       # parceiro fica fora do site e nunca vai a corretor (regra de 27/09 e 400)
     salvar_no_site(c, extra)
-    if como == "concluido" and c.get("contato_tel") and c.get("estado") == "perguntando":
+    if despedir and como == "concluido" and c.get("contato_tel") and c.get("estado") == "perguntando":
         envio.privado(conn, c["contato_tel"], c.get("contato_nome"), ["Pronto, cadastro concluído. Muito obrigada!"])
     gravar(conn, c["id"], estado=como, pergunta=None, concluido_em=agora())
     envio.grupo(conn, texto_do_fim(c, como, ctx, faltou_essencial), c["id"])

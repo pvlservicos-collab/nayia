@@ -25,4 +25,4 @@ HORA_FIM = int(os.environ.get("CADASTRO_HORA_FIM", "20"))
 # só o que chegou ao grupo depois disto entra (o serviço não cadastra o histórico de antes de ser ligado)
 DESDE_H = float(os.environ.get("CADASTRO_DESDE_H", "48"))
 BATIMENTO = os.environ.get("CADASTRO_BATIMENTO", "/tmp/nay-cadastro.batimento")
-ABERTURA = "Só para concluir o cadastro do imóvel, pode me confirmar umas informações por favor?"   # Pedro, 20/10
+# a abertura do privado é campos.abertura (Tel, 20/10: "Oi (NOME) estou fazendo o cadastro do seu imóvel ...")
