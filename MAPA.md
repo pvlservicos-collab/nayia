@@ -311,6 +311,8 @@ prompt: comece pelo `nay onde`.
 - RELATÓRIOS › WhatsApp Leads por etiqueta (426): `imob-easy/assets/js/relatorio-etiquetas.js`, `site_relatorio_etiquetas`,
   a foto por `scripts/foto_etiquetas_leads.sh`. As etapas do Leads como etiquetas: o bloco "AS ETAPAS DO WHATSAPP LEADS" do `funis.ts`.
 - LEMBRETE DA VISITA: `/api/parceria/visitas/[id]/lembretes` (GET, DELETE) e `LembretesDaVisita.tsx` (agenda e agendar).
+- CRM › VISITANTES (427): `crm/src/app/(authenticated)/visitantes/page.tsx` + `/api/visitantes` -> `crm_visitantes(de, ate)`.
+- O FILTRO DA OLX no endereço da busca: `nay-olx/olx/busca_olx.py` `parametros_da_olx` (códigos da OLX no topo do arquivo).
 - CRM › Mais › BUSCAR IMÓVEL OLX (422): `crm/src/app/(authenticated)/buscar-imovel-olx/page.tsx` + `/api/olx/busca-parceiro`
   -> `crm_olx_busca_parceiro_abrir(dados, quem)` (lead da Nay do WhatsApp pelo telefone, ou um novo 'manual') e
   `crm_olx_buscas_parceiro(dias)` para a lista. A ordem segue o laço do `nay-olx/olx/parceiro.py`.
