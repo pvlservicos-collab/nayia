@@ -1,0 +1,19 @@
+# A Nay do cadastro (20/10/2026): o grupo CADASTRO DE IMÓVEL IMOBEASY e as perguntas no privado, pelo número da
+# Parceria. Ver README.md.
+# Instalar: cp nay-cadastro.service /etc/systemd/system/ && systemctl daemon-reload
+#           && systemctl enable --now nay-cadastro
+[Unit]
+Description=Nay do cadastro de imoveis pelo WhatsApp (Parceria)
+After=network-online.target docker.service
+Wants=network-online.target
+StartLimitIntervalSec=0
+[Service]
+Type=simple
+WorkingDirectory=/root/nay-cadastro
+EnvironmentFile=/root/nay-cadastro/.env
+Environment=TZ=America/Manaus PYTHONUNBUFFERED=1
+ExecStart=/root/nay-cadastro/.venv/bin/python -u -m cadastro.worker
+Restart=always
+RestartSec=5
+[Install]
+WantedBy=multi-user.target
