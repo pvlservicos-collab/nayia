@@ -66,11 +66,15 @@ def mobilia_do(m: str | None) -> str | None:
     n = normal(m)
     if not n:
         return None
-    if n.startswith("semi"):
+    # 20/10 (Pedro: "se quer mobiliado é mobiliado, se quer semi é semi"): o cadastro escreve "com modulados e ar" (o
+    # semimobiliado, 232 imóveis) e "só climatizado"; antes os dois caíam em "não informado" e a nota errava
+    if n.startswith(("semi", "com modulad", "modulad", "planejad")):
         return "semi"
     if n.startswith(("mobiliado", "porteira")):
         return "mobiliado"
-    if n.startswith(("so ar", "sem mob", "vazio", "nao mobiliado", "cru")):
+    if n.startswith(("so climatiz", "so ar", "climatiz")):
+        return "climatizado"
+    if n.startswith(("sem mob", "sem nada", "vazio", "nao mobiliado", "cru")):
         return "vazio"
     return None
 

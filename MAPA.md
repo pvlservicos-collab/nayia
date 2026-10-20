@@ -305,6 +305,13 @@ prompt: comece pelo `nay onde`.
   `site_captacao_grupos_enviar(..., 'automático')`. Chaves em `nay-grupos/config.json` (`modo`, `mensagem_automatica`,
   `automatico_max_dia`, `automatico_das/ate`, `automatico_desde`). Desligar = `"modo": "treino"`. Os envios: `privado.grupo_pedido_oferta`
   com `quem = 'automático'`.
+- NAY CAPTAÇÃO DOS GRUPOS (429, 20/10): o automático NÃO manda mais o card, só a PERGUNTA (`envio.pergunta`: o imóvel em
+  uma linha, a mobília dele dita — "Ele é mobiliado. Serve mobiliado para o seu cliente?" / "com modulados e ar") por
+  `site_captacao_grupos_perguntar`. Ela e o botão manual (`_enviar`) gravam `nay_contexto_do_grupo` (o pedido do grupo
+  nos filtros do nay-core por `privado.grupo_pedido_filtros_para_nay`, o imóvel, a pergunta). O nay-core lê antes do
+  turno (`nay/contexto/do_grupo.py`, 72 h) e começa um pedido NOVO; "sim" manda card e fotos, "não serve" recusa e busca
+  (`nay/classificador/serve.py`). Mobília rígida no radar: `catalogo.mobilia_do` ("com modulados e ar" = semi),
+  `texto.mobilia_pedida` (a frase decide), `pontuar._mobilia`.
 - AS ABAS DE CADA NÚMERO SÃO ETIQUETAS (20/10): `crm/src/components/Chat/AbasDeEtiquetas.tsx` (`useAbasDaLinha`,
   `EditarAbas`, o lápis no fim da fileira) + `/api/linhas/abas` (integrations.config.abas_etiquetas). Nunca editado =
   etiquetas com gente na linha. Tel/Rayssa/Com o Tel continuam na fileira de cima; Todos = a linha inteira.

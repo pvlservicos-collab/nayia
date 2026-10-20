@@ -21,7 +21,7 @@ PADRAO = {
     "local": {"exato": 100, "divisa_colado": 85, "divisa_piso": 45, "perto_sem_divisa": 65, "perto_ate_km": 5,
               "km_que_zera": 10, "vizinho_a_mao": 65, "mesmo_bairro_outro_condominio": 50},
     "quartos": {"igual": 100, "um_a_mais": 60},
-    "mobiliado": {"atende": 100, "semi": 50, "nao_atende": 0},
+    "mobiliado": {"atende": 100, "semi": 50, "nao_atende": 0, "nao_informado": 50},
     "confirmado_dias": 30,
     "alternativas": 4,
     "limite_de_leituras_por_dia": 6000,

@@ -5,10 +5,17 @@ Pedro, 19/10, confirmando: "pode ativar um envio automático para o corretor que
 88, com uma mensagem bacana: 'Oi, vi seu pedido lá no grupo, veja se esse imóvel serve' ... pode botar para chamar o
 corretor no PV pelo número da Parceria no automático".
 
-Este módulo não fala com a rede: escolhe os pedidos e chama, para cada um, a MESMA função do botão "Enviar ao corretor"
-(`site_captacao_grupos_enviar`, 339), que põe a mensagem, o card e as fotos na caixa de saída da Nay (número da
-Parceria) com todas as travas dela: janela de 48 h, um envio por card, o imóvel tem de ter casado com o pedido, e as
-paredes da caixa da Nay (imóvel de parceiro nunca sai para corretor).
+Pedro, 20/10 (o Júlio recebeu o 9003 MOBILIADO para "modulados e climatizado"): "se achar uma opção de nota acima de
+88 ela não manda direto, ela vai lá no corretor e pergunta se serve para ele com modulados e ar, ou serve para ele
+mobiliado ... essa Nay deve se chamar NAY CAPTAÇÃO DOS GRUPOS". Desde então o automático NÃO manda o card: manda só a
+PERGUNTA (`pergunta`, abaixo: o imóvel em uma linha, a mobília dele dita, "serve para o seu cliente?") pela
+`site_captacao_grupos_perguntar` (429), que deixa em `nay_contexto_do_grupo` o pedido do grupo e o imóvel. A Nay da
+Parceria (nay-core) lê esse contexto antes de responder: "sim" manda o card e as fotos; "não" recusa o imóvel e a busca
+segue com o pedido do grupo (nada do pedido velho do corretor). O botão manual do painel continua mandando o card.
+
+Este módulo não fala com a rede: escolhe os pedidos e chama a função do banco, que põe a pergunta na caixa de saída da
+Nay (número da Parceria) com as travas do botão "Enviar ao corretor" (339): janela de 48 h, um envio por card, o imóvel
+tem de ter casado com o pedido, e as paredes da caixa da Nay (imóvel de parceiro nunca sai para corretor).
 
 As travas daqui, a mais:
   - só com modo "ativo" em config.json; só pedido com nota ACIMA de `nota_min_automatico` (88), o melhor imóvel dele;
@@ -23,6 +30,9 @@ from __future__ import annotations
 
 import datetime
 import logging
+
+from grupos.catalogo import mobilia_do, tipo_do
+from grupos.texto import mobilia_pedida
 
 log = logging.getLogger("grupos.envio")
 QUEM = "automático"
@@ -63,6 +73,56 @@ SELECT EXISTS (SELECT 1 FROM privado.grupo_pedido_oferta
 """
 
 
+DADOS_DA_PERGUNTA = """
+SELECT q.remetente_nome, q.texto, q.ficha, i.tipo, i.bairro, i.condominio_nome, i.quartos, i.mobilia,
+       i.valor_aluguel, i.valor_venda
+  FROM privado.grupo_pedido q JOIN imoveis i ON i.codigo = %(codigo)s
+ WHERE q.id = %(id)s
+"""
+
+# a mobília do imóvel dita ao corretor (o "com modulados e ar" é o semimobiliado do cadastro)
+COMO_E = {"mobiliado": "mobiliado", "semi": "com modulados e ar", "climatizado": "só climatizado",
+          "vazio": "sem mobília"}
+
+
+def _dinheiro(v: float) -> str:
+    return "R$ " + f"{v:,.0f}".replace(",", ".")
+
+
+def _primeiro_nome(nome: str | None) -> str | None:
+    p = (nome or "").strip().split()
+    return p[0].capitalize() if p and p[0].isalpha() and len(p[0]) > 1 else None
+
+
+def pergunta(d: dict) -> str:
+    """A pergunta da Nay Captação dos Grupos. Nunca leva "Código:": o card só sai quando ele disser que serve."""
+    ficha = d.get("ficha") or {}
+    nome = _primeiro_nome(d.get("remetente_nome"))
+    casa = tipo_do(d.get("tipo")) == "casa"
+    o_que, ele, mob = ("uma casa", "Ela", "mobiliada") if casa else ("um apartamento", "Ele", "mobiliado")
+    onde = ", ".join(x for x in ((d.get("condominio_nome") or "").strip(), (d.get("bairro") or "").strip()) if x)
+    venda = ficha.get("operacao") == "venda" or (ficha.get("operacao") != "aluguel" and not d.get("valor_aluguel"))
+    valor = d.get("valor_venda") if venda else d.get("valor_aluguel")
+    partes = []
+    if d.get("quartos"):
+        partes.append(f"{d['quartos']} {'quarto' if d['quartos'] == 1 else 'quartos'}")
+    if valor:
+        partes.append(f"à venda por {_dinheiro(float(valor))}" if venda else f"{_dinheiro(float(valor))} de aluguel")
+    linha = f"Tenho {o_que}" + (f" no {onde}" if onde else "") + (": " + ", ".join(partes) if partes else "") + "."
+    tem = mobilia_do(d.get("mobilia"))
+    pediu = mobilia_pedida(ficha.get("trecho") or d.get("texto"), ficha.get("mobiliado"))
+    if tem == "mobiliado" and pediu not in (None, "mobiliado"):
+        serve = f"{ele} é {mob}. Serve {mob} para o seu cliente?"
+    elif tem in COMO_E and pediu not in (None, "sem") and tem != pediu:
+        serve = f"{ele} é {COMO_E[tem]}. Serve assim para o seu cliente?"
+    elif tem in COMO_E:
+        serve = f"{ele} é {COMO_E[tem]}. Serve para o seu cliente?"
+    else:
+        serve = "Serve para o seu cliente?"
+    oi = f"Oi, {nome}! Vi seu pedido lá no grupo 😊" if nome else "Oi! Vi seu pedido lá no grupo 😊"
+    return f"{oi}\n\n{linha} {serve} Se servir, te mando as fotos."
+
+
 def no_horario(r: dict, agora: datetime.datetime | None = None) -> bool:
     h = (agora or datetime.datetime.now(MANAUS)).astimezone(MANAUS).hour
     return r["automatico_das"] <= h < r["automatico_ate"]
@@ -90,8 +150,12 @@ def automatico(conn, r: dict, linhas) -> int:
             continue
         if linhas(conn, CORRETOR_NA_ULTIMA_HORA, {"quem": QUEM, "fone": c["remetente"]})[0]["ja"]:
             continue
-        res = linhas(conn, "SELECT site_captacao_grupos_enviar(%s, %s, %s, %s) AS r",
-                     (c["id"], c["melhor_codigo"], r["mensagem_automatica"], QUEM))[0]["r"] or {}
+        dados = linhas(conn, DADOS_DA_PERGUNTA, {"id": c["id"], "codigo": c["melhor_codigo"]})
+        if not dados:
+            _RECUSADOS.add(c["id"])
+            continue
+        res = linhas(conn, "SELECT site_captacao_grupos_perguntar(%s, %s, %s, %s) AS r",
+                     (c["id"], c["melhor_codigo"], pergunta(dados[0]), QUEM))[0]["r"] or {}
         conn.commit()
         if res.get("ok"):
             saiu += 1

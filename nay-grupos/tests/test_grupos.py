@@ -173,10 +173,33 @@ class Nota(unittest.TestCase):
         self.assertIn("não informada no cadastro", textos)
         self.assertIn("não informado no cadastro", textos)
 
-    def test_cru_quer_sem_mobilia_e_semi_vale_metade(self):
-        self.assertEqual(pontuar._mobilia(False, {"mobilia": "vazio"}, R)[0], 100)
-        self.assertEqual(pontuar._mobilia(False, {"mobilia": "mobiliado"}, R)[0], 0)
-        self.assertEqual(pontuar._mobilia(True, {"mobilia": "semi"}, R)[0], 50)
+    def test_mobilia_rigida(self):
+        # 20/10 (Pedro): "se quer mobiliado é mobiliado, se quer semi é semi"
+        m = pontuar._mobilia
+        self.assertEqual(m(False, {"mobilia": "vazio"}, R)[0], 100)
+        self.assertEqual(m(False, {"mobilia": "mobiliado"}, R)[0], 0)
+        self.assertEqual(m(True, {"mobilia": "semi"}, R)[0], 0)
+        self.assertEqual(m("semi", {"mobilia": "mobiliado"}, R)[0], 0)        # o 9003 do Júlio
+        self.assertEqual(m("semi", {"mobilia": "semi"}, R)[0], 100)           # o 5725
+        self.assertEqual(m("climatizado", {"mobilia": "semi"}, R)[0], 100)
+        self.assertEqual(m("semi", {"mobilia": None}, R)[0], 50)
+        self.assertIn("é mobiliado", m("semi", {"mobilia": "mobiliado"}, R)[1])
+
+    def test_mobilia_do_pedido_pela_frase(self):
+        from grupos.texto import mobilia_pedida
+        self.assertEqual(mobilia_pedida("Busco apartamento na área do Parque Dez, com 02 dormitórios, modulados e climatizado"), "semi")
+        self.assertEqual(mobilia_pedida("N serve totalmente mobiliado, só quer modulados e climatização"), "semi")
+        self.assertEqual(mobilia_pedida("Preciso de casa p LOCAÇÃO mobiliada"), "mobiliado")
+        self.assertEqual(mobilia_pedida("apto sem mobília no Aleixo"), "sem")
+        self.assertEqual(mobilia_pedida("apto climatizado"), "climatizado")
+        self.assertEqual(mobilia_pedida("apto 2 quartos", True), "mobiliado")
+        self.assertIsNone(mobilia_pedida("apto 2 quartos"))
+
+    def test_mobilia_do_cadastro(self):
+        self.assertEqual(mobilia_do("com modulados e ar"), "semi")
+        self.assertEqual(mobilia_do("só climatizado"), "climatizado")
+        self.assertEqual(mobilia_do("sem nada"), "vazio")
+        self.assertEqual(mobilia_do("mobiliado (moveis + cama + tudo)"), "mobiliado")
 
     def test_qualquer_andar_sai_da_conta_e_casa_e_terrea(self):
         _, _, r = nota(pedido(andar=["qualquer"]), imovel())
@@ -345,7 +368,7 @@ class Cadastro(unittest.TestCase):
         self.assertEqual([tipo_do(t) for t in ("Apartamento", "Casa de condomínio", "Flat", "Cobertura", "Sala/Andar", "Loja/Ponto", "Lote em Condomínio")],
                          ["apartamento", "casa", "apartamento", "apartamento", "sala", "sala", "outro"])
         self.assertEqual([mobilia_do(m) for m in ("", "semi-mobiliado (moveis planejados + ar)", "mobiliado (moveis + cama + tudo)", "so ar-condicionado")],
-                         [None, "semi", "mobiliado", "vazio"])
+                         [None, "semi", "mobiliado", "climatizado"])
         self.assertEqual([andar_do(a) for a in ("Térreo", "1º", "3ª", "18", "Andar alto", "", None)], [0, 1, 3, 18, 99, None, None])
 
 
@@ -403,7 +426,28 @@ class Envio(unittest.TestCase):
         # o envio é a função do banco (a caixa da Nay); daqui não sai requisição nenhuma
         for proibido in ("requests", "urllib", "http", "socket"):
             self.assertNotIn(proibido, fonte)
-        self.assertIn("site_captacao_grupos_enviar", fonte)
+        self.assertIn("site_captacao_grupos_perguntar", fonte)
+
+    def test_a_pergunta_diz_a_mobilia_e_nao_manda_o_codigo(self):
+        """20/10 (Júlio): pediu "modulados e climatizado" e o 9003 é mobiliado: ela pergunta antes de mandar."""
+        julio = {"remetente_nome": "Júlio Gomes", "texto": "Busco apartamento no Parque Dez, modulados e climatizado. LOCAÇÃO.",
+                 "ficha": {"operacao": "aluguel"}, "tipo": "Apartamento", "bairro": "Parque 10 de Novembro",
+                 "condominio_nome": "Residencial Tal", "quartos": 2, "mobilia": "Mobiliado", "valor_aluguel": 3800.0}
+        p = envio.pergunta(julio)
+        self.assertTrue(p.startswith("Oi, Júlio! Vi seu pedido lá no grupo"), p)
+        self.assertIn("Tenho um apartamento no Residencial Tal, Parque 10 de Novembro: 2 quartos, R$ 3.800 de aluguel.", p)
+        self.assertIn("Ele é mobiliado. Serve mobiliado para o seu cliente?", p)
+        self.assertNotIn("Código", p)
+        semi = envio.pergunta({**julio, "texto": "apto mobiliado", "mobilia": "Com modulados e ar"})
+        self.assertIn("Ele é com modulados e ar. Serve assim para o seu cliente?", semi)
+        igual = envio.pergunta({**julio, "mobilia": "Com modulados e ar"})
+        self.assertIn("Ele é com modulados e ar. Serve para o seu cliente?", igual)
+        venda = envio.pergunta({**julio, "remetente_nome": "~ 92 9999", "ficha": {"operacao": "venda"}, "tipo": "Casa",
+                                "condominio_nome": None, "mobilia": None, "valor_venda": 780000.0})
+        self.assertIn("Oi! Vi seu pedido", venda)
+        self.assertIn("Tenho uma casa no Parque 10 de Novembro: 2 quartos, à venda por R$ 780.000. Serve para o seu", venda)
+        casa = envio.pergunta({**julio, "tipo": "Casa", "mobilia": "Mobiliado"})
+        self.assertIn("Ela é mobiliada. Serve mobiliada para o seu cliente?", casa)
 
 
 

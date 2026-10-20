@@ -108,16 +108,25 @@ def _rendimento_do_preco(preco: float, teto: float, regras: dict) -> tuple[float
     return max(0.0, (razao - p["zera_em"]) / (piso_cheio - p["zera_em"])) * 100, False
 
 
-def _mobilia(pedido: bool, imovel: dict, regras: dict) -> tuple[float, str]:
+COMO_ESTA = {"mobiliado": "é mobiliado", "semi": "é com modulados e ar", "climatizado": "é só climatizado",
+             "vazio": "é sem mobília"}
+
+
+def _mobilia(pedido, imovel: dict, regras: dict) -> tuple[float, str]:
+    """RÍGIDA (Pedro, 20/10/2026: "se o cara quer mobiliado é mobiliado, se quer semi mobiliado é semi"). Mobiliado
+    não serve para quem quer modulados e ar, e o contrário também não. Só o "climatizado" aceita o semi (tem o ar).
+    Mobília que o cadastro não informa vale `nao_informado` (a pergunta ao corretor esclarece, envio.py)."""
     m = regras["mobiliado"]
-    estado = imovel.get("mobilia")            # 'mobiliado' | 'semi' | 'vazio' | None
+    quer = "mobiliado" if pedido is True else "sem" if pedido is False else pedido
+    estado = imovel.get("mobilia")            # 'mobiliado' | 'semi' | 'climatizado' | 'vazio' | None
     if estado is None:
-        return m["nao_atende"], "mobília não informada no cadastro"
-    if estado == "semi":
-        return m["semi"], "semi-mobiliado"
-    if pedido:
-        return (m["atende"], "mobiliado") if estado == "mobiliado" else (m["nao_atende"], "sem mobília")
-    return (m["atende"], "sem mobília") if estado == "vazio" else (m["nao_atende"], "é mobiliado")
+        return m.get("nao_informado", 50), "mobília não informada no cadastro"
+    serve = {"mobiliado": ("mobiliado",), "semi": ("semi",), "climatizado": ("climatizado", "semi"),
+             "sem": ("vazio", "climatizado")}.get(quer, ())
+    if estado in serve:
+        return m["atende"], COMO_ESTA[estado].replace("é ", "", 1)
+    return m["nao_atende"], COMO_ESTA[estado] + " (pediu " + {"mobiliado": "mobiliado", "semi": "modulados e ar",
+                                                               "climatizado": "climatizado", "sem": "sem mobília"}.get(quer, quer) + ")"
 
 
 def _andar(aceita: list[str], imovel: dict) -> tuple[float, str]:

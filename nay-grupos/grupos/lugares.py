@@ -15,7 +15,7 @@ A ordem, para cada nome:
 """
 from __future__ import annotations
 
-from grupos.texto import normal, pede_elevador, pede_financiamento
+from grupos.texto import mobilia_pedida, normal, pede_elevador, pede_financiamento
 
 PARECIDO_MINIMO = 0.55       # abaixo disso o "mais parecido" é só sugestão: não entra na conta
 
@@ -172,7 +172,7 @@ def resolver(ficha: dict, grupo_nome: str | None, lugares: Lugares) -> tuple[dic
     todos_bairros = sorted(set(bairros) | (set(bairros_dos_condominios) if chaves else set()))
     pedido = {
         "operacao": operacao, "tipo": ficha.get("tipo"), "quartos": ficha.get("quartos"),
-        "preco_max": ficha.get("preco_max"), "mobiliado": ficha.get("mobiliado"), "andar": ficha.get("andar"),
+        "preco_max": ficha.get("preco_max"), "mobiliado": mobilia_pedida(ficha.get("trecho"), ficha.get("mobiliado")), "andar": ficha.get("andar"),
         "suite": ficha.get("suite"), "vagas": ficha.get("vagas"), "pet": ficha.get("pet"),
         # 15/10: pedido lido antes do campo existir (ou que a IA deixou escapar) vale pela frase do trecho
         "financiamento": ficha.get("financiamento") if ficha.get("financiamento") is not None

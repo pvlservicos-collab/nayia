@@ -29,6 +29,32 @@ _FINANCIAMENTO = re.compile(r"financ|(?<![a-z])fgts(?![a-z])|minha casa,? minha 
 _ELEVADOR = re.compile(r"(?<!sem )(?<!nao precisa de )(?<!não precisa de )\belevador(es)?\b")
 
 
+SEMI = re.compile(r"\b(modulad|planejad|semi[\s-]?mobil|semimobil)", re.I)
+SEM_MOBILIA = re.compile(r"\b(sem mob[ií]lia|sem m[oó]veis|n[aã]o mobiliad|vazio\b|\bcru\b)", re.I)
+MOBILIADO = re.compile(r"\b(mobiliad|porteira fechada)", re.I)
+CLIMATIZADO = re.compile(r"\b(climatizad|ar[\s-]condicionado|com ar\b)", re.I)
+
+
+def mobilia_pedida(frase: str | None, do_modelo=None) -> str | None:
+    """'mobiliado' | 'semi' | 'climatizado' | 'sem' | None. A frase decide; o modelo só vale quando ela não diz nada.
+    20/10 (Júlio): "modulados e climatizado" virava "não disse" e o 9003 MOBILIADO foi com nota 100; "N serve
+    totalmente mobiliado, só quer modulados e climatização" é semi (o modulado ganha do "mobiliado" negado)."""
+    t = frase or ""
+    if SEMI.search(t):
+        return "semi"
+    if SEM_MOBILIA.search(t):
+        return "sem"
+    if MOBILIADO.search(t):
+        return "mobiliado"
+    if CLIMATIZADO.search(t):
+        return "climatizado"
+    if do_modelo is True:
+        return "mobiliado"
+    if do_modelo is False:
+        return "sem"
+    return do_modelo if do_modelo in ("mobiliado", "semi", "climatizado", "sem") else None
+
+
 def pede_elevador(texto: str | None) -> bool:
     """O pedido pede elevador ("com elevador", "Elevador" solto)?"""
     return bool(_ELEVADOR.search(str(texto or "").lower()))
