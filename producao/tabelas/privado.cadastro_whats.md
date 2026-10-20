@@ -41,4 +41,4 @@ cadastro_whats_pkey: PRIMARY KEY (id)
 nai_abrir_turno
 
 ## funções que citam
-cadastro_whats_da_parceria, nai_abrir_turno
+cadastro_whats_da_parceria, crm_parceria_funil, nai_abrir_turno

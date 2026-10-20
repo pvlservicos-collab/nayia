@@ -46,6 +46,7 @@ export interface CamposDoCadastro {
   caracteristicas?: string[] | null
   descricao?: string | null
   inclusoNoAluguel?: string | null
+  finoAcabamento?: string | null      // Sim / Não / vazio (pendente), extras."fino acabamento" (20/10)
 }
 
 export type BlocoDoPeso = 'essencial' | 'importante' | 'detalhe'

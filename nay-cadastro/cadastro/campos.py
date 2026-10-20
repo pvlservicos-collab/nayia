@@ -281,6 +281,11 @@ def resumo_do_que_tem(ficha: dict) -> list[str]:
             linhas.append(f"{ficha[chave]} {um if str(ficha[chave]) == '1' else varios}")
     if tem(ficha, "area_util"):
         linhas.append(f"{ficha['area_util']} m²")
+    if tem(ficha, "andar"):
+        a = str(ficha["andar"])
+        linhas.append(f"{a}º andar" if a.isdigit() else a)
+    if tem(ficha, "x:lances de escada"):
+        linhas.append(f"{ficha['x:lances de escada']} lance(s) de escada")
     if tem(ficha, "mobilia"):
         linhas.append(str(ficha["mobilia"]))
     if tem(ficha, "taxa_condominio"):

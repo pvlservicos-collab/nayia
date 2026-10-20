@@ -154,6 +154,10 @@ def texto_do_fim(c: dict, como: str, ctx: dict, faltou_essencial: list[str]) -> 
     sem = [s for s in dict.fromkeys(sem) if not campos.POR_CHAVE[s].preenchida(f)]
     if sem:
         linhas.append("Sem resposta: " + ", ".join(campos.rotulos(sem)) + ".")
+    # o que nem chegou a ser perguntado (o Tel pegou a conversa, ou a ficha fechou antes): a equipe completa
+    nao_perguntado = [k for k in campos.faltam(f, ctx) if k not in sem]
+    if nao_perguntado:
+        linhas.append("Ficou faltando: " + ", ".join(campos.rotulos(nao_perguntado)) + ".")
     if cod:
         linhas.append(config.LINK_DO_EDITOR.format(codigo=cod))
     return "\n".join(linhas)

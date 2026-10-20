@@ -1,4 +1,4 @@
-# nai_config  (tabela, ~88 linhas)
+# nai_config  (tabela, ~89 linhas)
 
 ## colunas
 chave  text  NOT NULL

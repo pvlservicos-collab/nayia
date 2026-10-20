@@ -800,6 +800,13 @@ def _aplicar_dados_do_popup(cur, codigo, dados):
             "extras = coalesce(extras, '{}'::jsonb) || jsonb_build_object('incluso no aluguel', %s::text)"))
         valores.append(incluso)
         entraram.append("incluso no aluguel")
+    # Fino acabamento (Pedro, 20/10): Sim / Não; vazio no popup = não mexe (o pendente do Checklist rápido continua)
+    fino = str(dados.get("finoAcabamento") or "").strip()
+    if fino in ("Sim", "Não"):
+        sets.append(psycopg2.sql.SQL(
+            "extras = coalesce(extras, '{}'::jsonb) || jsonb_build_object('fino acabamento', %s::text)"))
+        valores.append(fino)
+        entraram.append("fino acabamento")
     if not sets:
         return []
     cur.execute(psycopg2.sql.SQL("UPDATE imoveis SET {} WHERE codigo = %s").format(

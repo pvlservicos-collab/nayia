@@ -169,7 +169,7 @@ export default function CadastroDeImovel({ leadId, donoNome, temProprietario, al
           taxaCondominio: t(i.taxaCondominio), iptu: t(i.iptu),
           aluguel: t(i.aluguel), venda: t(i.venda),
           caracteristicas: Array.isArray(i.caracteristicas) ? i.caracteristicas.map(String) : [],
-          descricao: t(i.descricao), inclusoNoAluguel: t(i.inclusoNoAluguel),
+          descricao: t(i.descricao), inclusoNoAluguel: t(i.inclusoNoAluguel), finoAcabamento: t(i.finoAcabamento),
         })
         setFotosJa(Number(i.fotos || 0))
         setTemDono(!!i.temDono || temProprietario)
@@ -503,6 +503,12 @@ export default function CadastroDeImovel({ leadId, donoNome, temProprietario, al
               <Campo rotulo="Mobília" cheio={!!campos.mobilia?.trim()}>
                 <select value={campos.mobilia ?? ''} onChange={(e) => mudar({ mobilia: e.target.value })}>
                   <option value="">—</option>{MOBILIAS.map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </Campo>
+              {/* Fino acabamento (Pedro, 20/10): o mesmo campo do Editar imóvel; vazio = pendente no Checklist rápido */}
+              <Campo rotulo="Fino acabamento" cheio={!!campos.finoAcabamento?.trim()}>
+                <select value={campos.finoAcabamento ?? ''} onChange={(e) => mudar({ finoAcabamento: e.target.value })}>
+                  <option value="">—</option><option value="Sim">Sim</option><option value="Não">Não</option>
                 </select>
               </Campo>
               <Campo rotulo="Sol" cheio={!!campos.sol?.trim()}>

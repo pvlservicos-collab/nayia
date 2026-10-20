@@ -18,6 +18,7 @@ AS $function$
     'caracteristicas', to_jsonb(coalesce(i.caracteristicas, '{}'::text[])),
     'descricao', i.descricao,
     'inclusoNoAluguel', i.extras->>'incluso no aluguel',
+    'finoAcabamento', i.extras->>'fino acabamento',
     'temDono', i.proprietario_id IS NOT NULL,
     'dono', (SELECT p.nome FROM proprietarios p WHERE p.id = i.proprietario_id),
     'fotos', (SELECT count(*) FROM imovel_fotos f WHERE f.codigo = i.codigo),

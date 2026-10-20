@@ -29,6 +29,8 @@ import { isUniqueViolation } from '@/lib/db-helpers'
 import { publishEvent, channels, events } from '@/lib/realtime'
 
 const ETAPAS_DA_NAY = ['Identificação', 'Recebeu imóvel', 'Agendamento de visita']
+// 431: o cadastro de imóvel pelo WhatsApp (nay-cadastro), a última etapa do funil da Parceria
+const CADASTRANDO = 'Cadastrando'
 const ETAPAS_DA_CAPTACAO = ['Não respondeu', 'Respondeu', 'Disponível', 'Alugado', 'Vendido', 'Mandou os dados']
 
 export interface ResultadoDosFunis {
@@ -169,12 +171,27 @@ export async function sincronizarFunis(org: string): Promise<ResultadoDosFunis |
         if (lid) porLid.set(lid, l)
         if (l.phone && !l.phone.startsWith('55')) porLid.set(l.phone, l)
       }
+      const emCadastro = new Set<string>()
       for (const linha of rows as Array<{ telefone: string | null; lid: string | null; etapa: string }>) {
         const etapa = etapaDe(funilParceria, linha.etapa)
         if (!etapa) continue
         const lead = (linha.telefone ? telefoneVariantes(linha.telefone).map((f) => porTelefone.get(f)).find(Boolean) : undefined)
           ?? (linha.lid ? porLid.get(linha.lid) : undefined)
         if (!lead) { r.parceria.semConversa++; continue }
+        /* CADASTRANDO (Pedro, 20/10/2026, 431): a Nay do cadastro está perguntando a ele sobre um imóvel. Passa na frente
+           de qualquer etapa (da Nay ou da equipe) e guarda onde o card estava, para devolver quando o cadastro acabar. */
+        if (linha.etapa === CADASTRANDO) {
+          emCadastro.add(lead.id)
+          if (lead.stage_id !== etapa) {
+            await db.execute(sql`
+              UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb)
+                     || jsonb_build_object('antes_do_cadastro', ${lead.stage_id ?? ''}::text)
+               WHERE id = ${lead.id}`)
+            await mover(lead, etapa, CADASTRANDO)
+            r.parceria.movidos++
+          }
+          continue
+        }
         if (lead.custom_attributes?.funil_auto === linha.etapa) continue
         // quem a equipe já pôs nas etapas dela fica lá
         if (lead.stage_id && !idsDaNay.has(lead.stage_id)) {
@@ -188,6 +205,25 @@ export async function sincronizarFunis(org: string): Promise<ResultadoDosFunis |
         } else {
           await lembrar(lead, linha.etapa)
         }
+      }
+      // o cadastro acabou: o card volta para a etapa em que estava antes (ou sai do funil, se não estava em nenhuma)
+      const etapaCadastrando = etapaDe(funilParceria, CADASTRANDO)
+      for (const lead of doBanco.rows as LeadDoFunil[]) {
+        if (!etapaCadastrando || lead.stage_id !== etapaCadastrando || emCadastro.has(lead.id)) continue
+        if (lead.custom_attributes?.funil_auto !== CADASTRANDO) continue      // quem a equipe pôs em Cadastrando fica
+        const antes = String(lead.custom_attributes?.antes_do_cadastro || '') || null
+        await db.execute(sql`
+          UPDATE leads SET stage_id = ${antes}, updated_at = now(),
+                 custom_attributes = (coalesce(custom_attributes, '{}'::jsonb) - 'antes_do_cadastro')
+                   || jsonb_build_object('funil_auto', 'saiu_do_cadastro')
+           WHERE id = ${lead.id}`)
+        if (antes) {
+          await db.insert(leadStageHistory).values({
+            organizationId: org, leadId: lead.id, fromStageId: lead.stage_id, toStageId: antes, movedByMemberId: null, movedAt: new Date(),
+          })
+        }
+        r.parceria.movidos++
+        mexeu = true
       }
     }
 
