@@ -5,6 +5,8 @@ Recebe no stdin {"mensagem", "modelo", "sistema"?, "esforco"?, "modo", "timeout_
 `claude -p`. O agente.py da VPS2 chama este arquivo direto (servidor vps2) ou por ssh (servidor vps1).
 
 - modo "responder": sem ferramentas, numa pasta vazia; só devolve texto.
+- modo "projeto" (20/10, os chats do painel): só Read/Glob/Grep, na pasta do projeto (CLAUDE.md com o contexto),
+  com --session-id na primeira mensagem e --resume nas outras: o histórico é a sessão do Claude.
 - modo "alterar" (Pedro, 20/10/2026: "esse claude fazer alterações que eu mandar", "tudo, como root"): terminal,
   edição de arquivo e web liberados, trabalhando em /root. A sessão fica guardada em /root/.claude/projects para
   se poder ler depois o que ele fez (o id vai para metricas.db).
@@ -17,6 +19,7 @@ import json, os, socket, subprocess, sys
 CLAUDE = "/root/.local/bin/claude"
 LOGIN = "/etc/agente-claude/claude.env"
 VAZIO = "/var/lib/agente-claude/vazio"
+PROJETOS = "/opt/agente-claude/projetos"
 FERRAMENTAS = "Bash,Edit,Write,Read,Glob,Grep,NotebookEdit,WebFetch,WebSearch,TodoWrite"
 
 p = json.load(sys.stdin)
@@ -32,7 +35,15 @@ cmd = [CLAUDE, "-p", p["mensagem"], "--output-format", "json", "--model", p.get(
        "--strict-mcp-config"]
 if p.get("esforco"):
     cmd += ["--effort", p["esforco"]]
-if p.get("modo") == "alterar":
+if p.get("modo") == "projeto":
+    # um projeto do painel (projetos.py): só leitura, dentro da pasta dele, retomando a sessão da conversa
+    cwd = os.path.realpath(p["pasta"])
+    if not cwd.startswith(PROJETOS + "/"):
+        print(json.dumps({"is_error": True, "result": "pasta de projeto inválida"}))
+        sys.exit(1)
+    cmd += ["--tools", "Read,Glob,Grep"]
+    sessao = ["--session-id", p["sessao"]] if p.get("nova") else ["--resume", p["sessao"]]
+elif p.get("modo") == "alterar":
     contexto = (f"Você é o Claude do servidor {socket.gethostname()}, rodando como root sem ninguém olhando: quem "
                 "pediu foi o Pedro, pelo Agente Claude, e vai ler só a sua resposta final. Faça a alteração pedida. "
                 "No fim, responda em poucas linhas, em português: o que mudou (arquivos, comandos, serviços), "
@@ -47,8 +58,20 @@ else:
     os.makedirs(VAZIO, exist_ok=True)
     cwd = VAZIO
 
+
+def rodar(extra):
+    return subprocess.run(cmd + extra, capture_output=True, text=True, cwd=cwd, env=env,
+                          timeout=int(p.get("timeout_s") or 300))
+
+
 try:
-    r = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd, env=env, timeout=int(p.get("timeout_s") or 300))
+    if p.get("modo") == "projeto":
+        r = rodar(sessao)
+        # a sessão já nasceu numa tentativa anterior que deu erro depois de criada: segue por ela
+        if p.get("nova") and "already in use" in (r.stdout + r.stderr):
+            r = rodar(["--resume", p["sessao"]])
+    else:
+        r = rodar([])
 except subprocess.TimeoutExpired:
     print(json.dumps({"is_error": True, "result": f"passou de {p.get('timeout_s')} s"}))
     sys.exit(1)

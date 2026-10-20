@@ -15,7 +15,10 @@ VPS2=nay-srv1877774
 VPS1=nay-srv1894338
 VPS2_TS=100.113.222.11
 VPS1_TS=100.86.114.74
-ARQS="agente.py painel.py painel.html mcp_agente.py regras.exemplo.json claude-agente agente-claude-painel.service"
+ARQS="agente.py painel.py painel.html projetos.py importar_nay.py mcp_agente.py regras.exemplo.json claude-agente agente-claude-painel.service"
+# os projetos (20/10): a pasta vai junto, mas um projeto que já existe no servidor NÃO é sobrescrito (o contexto é
+# editado pela tela e os dados nascem lá); só o como-ler-os-dados.md, que é daqui, é atualizado.
+PROJS="projetos/*/projeto.json projetos/*/contexto.md projetos/*/como-ler-os-dados.md"
 
 # 1) VPS1: o executor e o arquivo do login
 tr -d '\r' < claude-agente | ssh $VPS1 'install -m 750 /dev/stdin /usr/local/sbin/claude-agente
@@ -24,9 +27,9 @@ tr -d '\r' < claude-agente | ssh $VPS1 'install -m 750 /dev/stdin /usr/local/sbi
   echo "VPS1: claude-agente instalado"'
 
 # 2) VPS2: arquivos, executor, chave para a VPS1, serviço
-tar -c $ARQS | ssh $VPS2 'set -e
+tar -c $ARQS $PROJS | ssh $VPS2 'set -e
   rm -rf /root/agente-claude-fonte && mkdir -p /root/agente-claude-fonte && tar -x -C /root/agente-claude-fonte
-  cd /root/agente-claude-fonte && sed -i "s/\r$//" *
+  cd /root/agente-claude-fonte && find . -type f -exec sed -i "s/\r$//" {} +
   D=/opt/agente-claude
   # o usuário agclaude (20/10, primeira versão) sai: agora tudo roda como root
   if id agclaude >/dev/null 2>&1; then
@@ -35,7 +38,15 @@ tar -c $ARQS | ssh $VPS2 'set -e
     echo "VPS2: usuário agclaude removido"
   fi
   install -d -m 750 $D; chown -R root:root $D
-  install -m 750 agente.py painel.py mcp_agente.py $D/
+  install -m 750 agente.py painel.py projetos.py importar_nay.py mcp_agente.py $D/
+  for p in projetos/*/; do
+    p=${p%/}; alvo=$D/$p
+    if [ ! -f $alvo/projeto.json ]; then
+      install -d -m 750 $alvo/dados/anexos; install -m 640 $p/* $alvo/; echo "VPS2: projeto ${p#projetos/} criado"
+    elif [ -f $p/como-ler-os-dados.md ]; then
+      install -m 640 $p/como-ler-os-dados.md $alvo/
+    fi
+  done
   install -m 640 painel.html regras.exemplo.json $D/
   ln -sfn agente.py $D/agente
   [ -f $D/regras.json ] || install -m 640 regras.exemplo.json $D/regras.json

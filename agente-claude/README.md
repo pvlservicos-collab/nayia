@@ -42,6 +42,25 @@ e os últimos disparos (onde, quem disparou, resposta). Pedro: "só dá pra entr
   `X-Agente: 1`, que só a tela manda. O disparo pela tela vai para segundo plano; a tela acompanha a cada 4 s.
   Token em `/etc/agente-claude/painel.env`. O HTML é lido na partida: mudou o `painel.html`, reinicie o serviço.
 
+## Projetos (aba Projetos do painel)
+Pedido de 20/10: "um projeto para cada um desses contextos que vai analisar uma parte da minha empresa ... vários
+quadrados ... deixa um campo para eu digitar ... a que revisa a Nay de uma forma otimizada porque no futuro eu vou subir
+todas as conversas da Nay para ele". Seis projetos: Estratégia, Visitas, Métricas, Financeiro, Análise das respostas e
+Nay Parceria (revisão), cada um com o contexto que o Tel escreveu (`projetos/<id>/contexto.md`).
+
+- `projetos.py`: cada conversa é uma sessão do Claude Code (`--session-id` na primeira mensagem, `--resume` depois);
+  as mensagens e as métricas também vão para `metricas.db` (tabelas `conversas` e `mensagens`). Uma resposta por vez
+  em cada conversa, em segundo plano; a tela acompanha a cada 2,5 s.
+- O Claude do projeto só tem Read, Glob e Grep, e só na pasta do projeto. O `CLAUDE.md` da pasta é refeito a cada
+  mensagem: cabeçalho (o que ele pode, data e hora de Manaus e Brasília) + `como-ler-os-dados.md` + o contexto.
+- Anexos em `dados/anexos` (até 50 MB; `.xlsx` vira um `.csv` por aba, com os valores que o Excel salvou).
+- Contexto, modelo e esforço se editam na tela. **No servidor está a verdade**: o `publicar.sh` só cria projeto que
+  ainda não existe lá e só atualiza o `como-ler-os-dados.md`.
+- **Nay:** `importar_nay.py` (botão "Importar conversas da Nay") lê `core_turno` + `core_saida` do naydb (VPS1, read only,
+  pela chave da VPS2) e grava `dados/conversas/indice.tsv`, `AAAA-MM-DD/_resumo.txt` e uma conversa por corretor por
+  dia, com o RESULTADO (visita marcada, escalada e motivo, corretor sumiu). Telefone só com os 4 últimos dígitos.
+  Tudo (desde 07/10, 456 conversas) leva menos de 1 s e ocupa 2 MB. O Claude lê o índice e abre só o que precisa.
+
 ## Hermes do Claude (admin › Agentes)
 Perfil `claude` do Hermes, serviço `hermes-gateway-claude` (API 127.0.0.1:8645), fonte em `nay-agentes/hermes-painel/`
 (`alma-claude.md`, `instalar-claude.sh`, `publicar.sh claude`). Só fala pela tela admin › Agentes. Ferramentas:

@@ -1,0 +1,6 @@
+{
+  "nome": "Financeiro",
+  "descricao": "Quanto sobra por negócio, imposto, custos fixos, recebíveis e fluxo de caixa até 27/12.",
+  "ordem": 4,
+  "modelo": "sonnet"
+}

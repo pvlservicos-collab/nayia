@@ -1,0 +1,6 @@
+{
+  "nome": "Visitas",
+  "descricao": "Cada visita vira proposta ou aprendizado: análise da planilha VISITAS (taxas, faltas, motivos de perda, agenda).",
+  "ordem": 2,
+  "modelo": "sonnet"
+}

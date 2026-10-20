@@ -10,13 +10,14 @@ exige também o cabeçalho X-Agente: 1, que só a própria tela manda (formulár
 Roda como root (Pedro, 20/10: as regras "alterar" põem o Claude a mexer no servidor como root). O disparo pela tela vai
 para segundo plano, porque uma alteração pode levar até 30 minutos; a tela acompanha pela lista "rodando" do /api/estado.
 """
-import hmac, json, os, sys, threading, time
+import hmac, json, os, re, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 import agente  # noqa: E402
+import projetos  # noqa: E402
 
 TOKEN = os.environ.get("AGENTES_TOKEN", "")
 ENDERECO = os.environ.get("PAINEL_ENDERECO", "100.113.222.11")
@@ -103,53 +104,109 @@ class Pedido(BaseHTTPRequestHandler):
         n = int(self.headers.get("Content-Length") or 0)
         return json.loads(self.rfile.read(n) or b"{}") if n <= 1_000_000 else {}
 
-    def do_GET(self):
-        if not self.liberado():
+    def tratar(self, metodo):
+        """Chama a rota; KeyError vira 404 e ValueError vira 400, com o texto do erro para a tela."""
+        if not self.liberado(escrita=metodo != "GET"):
             return
         url = urlparse(self.path)
-        if url.path == "/":
-            self.responder(200, HTML, "text/html; charset=utf-8")
-        elif url.path == "/api/estado":
-            dias = parse_qs(url.query).get("dias", ["7"])[0]
-            self.responder(200, estado(int(dias) if dias.isdigit() else 7))
-        else:
-            self.responder(404, {"erro": "não existe"})
+        q = {k: v[0] for k, v in parse_qs(url.query).items()}
+        for m, padrao, funcao in ROTAS:
+            achou = m == metodo and re.fullmatch(padrao, url.path)
+            if achou:
+                try:
+                    codigo, corpo = funcao(self, q, *achou.groups())
+                except KeyError as e:
+                    codigo, corpo = 404, {"erro": e.args[0] if e.args else "não existe"}
+                except ValueError as e:
+                    codigo, corpo = 400, {"erro": str(e)}
+                if isinstance(corpo, bytes):
+                    return self.responder(codigo, corpo, "text/html; charset=utf-8")
+                return self.responder(codigo, corpo)
+        self.responder(404, {"erro": "não existe"})
+
+    def do_GET(self):
+        self.tratar("GET")
 
     def do_PUT(self):
-        if not self.liberado(escrita=True):
-            return
-        if self.path != "/api/regras":
-            return self.responder(404, {"erro": "não existe"})
-        try:
-            regras = validar(self.corpo())
-        except ValueError as e:
-            return self.responder(400, {"erro": str(e)})
-        with TRAVA_REGRAS:
-            tmp = agente.REGRAS + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(regras, f, ensure_ascii=False, indent=2)
-            os.replace(tmp, agente.REGRAS)
-        self.responder(200, {"regras": regras})
+        self.tratar("PUT")
 
     def do_POST(self):
-        if not self.liberado(escrita=True):
-            return
-        if self.path != "/api/disparar":
-            return self.responder(404, {"erro": "não existe"})
-        nomes = [str(n) for n in self.corpo().get("regras") or []]
-        faltam = [n for n in nomes if n not in agente.regras()]
-        if not nomes or faltam:
-            return self.responder(400, {"erro": "regra não existe: " + ", ".join(faltam)})
-        chave = object()
-        RODANDO[id(chave)] = {"regras": nomes, "desde": time.time()}
+        self.tratar("POST")
 
-        def rodar():
-            try:
-                agente.executar(nomes, origem="painel")
-            finally:
-                RODANDO.pop(id(chave), None)
-        threading.Thread(target=rodar, daemon=True).start()
-        self.responder(202, {"iniciado": nomes})
+    def do_DELETE(self):
+        self.tratar("DELETE")
+
+
+def gravar_regras(pedido, q):
+    regras = validar(pedido.corpo())
+    with TRAVA_REGRAS:
+        tmp = agente.REGRAS + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(regras, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, agente.REGRAS)
+    return 200, {"regras": regras}
+
+
+def disparar(pedido, q):
+    nomes = [str(n) for n in pedido.corpo().get("regras") or []]
+    faltam = [n for n in nomes if n not in agente.regras()]
+    if not nomes or faltam:
+        raise ValueError("regra não existe: " + ", ".join(faltam))
+    chave = object()
+    RODANDO[id(chave)] = {"regras": nomes, "desde": time.time()}
+
+    def rodar():
+        try:
+            agente.executar(nomes, origem="painel")
+        finally:
+            RODANDO.pop(id(chave), None)
+    threading.Thread(target=rodar, daemon=True).start()
+    return 202, {"iniciado": nomes}
+
+
+def anexar(pedido, q, pid):
+    n = int(pedido.headers.get("Content-Length") or 0)
+    if n > projetos.MAX_ANEXO:
+        raise ValueError("arquivo maior que 50 MB")
+    return 200, projetos.anexar(pid, q.get("nome"), pedido.rfile.read(n))
+
+
+def novo_projeto(pedido, q):
+    d = pedido.corpo()
+    return 200, projetos.salvar(str(d.get("id") or "").strip(), d, novo=True)
+
+
+def nova_conversa(pedido, q, pid):
+    return 200, {"id": projetos.nova_conversa(pid)}
+
+
+def enviar(pedido, q, cid):
+    projetos.enviar(int(cid), pedido.corpo().get("texto"))
+    return 202, {"ok": True}
+
+
+def importar(pedido, q, pid):
+    dias = int(pedido.corpo().get("dias") or 7)
+    projetos.importar(pid, max(1, min(dias, 400)))
+    return 202, {"ok": True}
+
+
+ROTAS = [
+    ("GET", r"/", lambda p, q: (200, HTML)),
+    ("GET", r"/api/estado", lambda p, q: (200, estado(int(q["dias"]) if q.get("dias", "").isdigit() else 7))),
+    ("PUT", r"/api/regras", gravar_regras),
+    ("POST", r"/api/disparar", disparar),
+    ("GET", r"/api/projetos", lambda p, q: (200, {"projetos": projetos.listar()})),
+    ("POST", r"/api/projetos", novo_projeto),
+    ("GET", r"/api/projetos/([\w-]+)", lambda p, q, pid: (200, projetos.detalhe(pid))),
+    ("PUT", r"/api/projetos/([\w-]+)", lambda p, q, pid: (200, projetos.salvar(pid, p.corpo()))),
+    ("POST", r"/api/projetos/([\w-]+)/conversas", nova_conversa),
+    ("POST", r"/api/projetos/([\w-]+)/anexos", anexar),
+    ("DELETE", r"/api/projetos/([\w-]+)/anexos", lambda p, q, pid: (200, {"anexos": projetos.apagar_anexo(pid, q.get("nome"))})),
+    ("POST", r"/api/projetos/([\w-]+)/importar", importar),
+    ("GET", r"/api/conversas/(\d+)", lambda p, q, cid: (200, projetos.mensagens(int(cid)))),
+    ("POST", r"/api/conversas/(\d+)/mensagens", enviar),
+]
 
 
 if __name__ == "__main__":

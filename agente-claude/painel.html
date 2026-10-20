@@ -63,14 +63,98 @@ td.texto pre { white-space: pre-wrap; margin: 6px 0 0; font: inherit; color: var
 .vazio { color: var(--texto-3); font-size: 14px; }
 .aviso { padding: 10px 12px; border-radius: 8px; background: color-mix(in srgb, var(--erro) 12%, transparent); color: var(--erro); display: none; }
 @media (max-width: 720px) { .linha, .linha.tres { grid-template-columns: 1fr 1fr; } .linha label.nome { grid-column: 1 / -1; } }
+
+/* abas do topo */
+.abas { display: flex; gap: 4px; }
+.abas button { border: 0; background: transparent; color: var(--texto-2); padding: 6px 10px; border-radius: 8px; }
+.abas button[aria-selected="true"] { background: var(--fundo); color: var(--texto); font-weight: 600; }
+[hidden] { display: none !important; }
+
+/* projetos: os quadrados */
+.quadros { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.quadro { text-align: left; display: grid; gap: 6px; align-content: start; padding: 14px; min-height: 150px; border-radius: var(--raio); border: 1px solid var(--borda); background: var(--superficie); }
+.quadro:hover { border-color: var(--azul); }
+.quadro b { font-size: 15px; }
+.quadro .desc { font-size: 13px; color: var(--texto-2); }
+.quadro .rodape { font-size: 12px; color: var(--texto-3); margin-top: auto; }
+
+/* projetos: o chat */
+.proj { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 12px; min-height: calc(100vh - 150px); }
+.proj-topo { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.proj-topo h2 { margin: 0; flex: 1; }
+.lista-conv { display: grid; gap: 4px; align-content: start; }
+.lista-conv button { text-align: left; border: 0; background: transparent; padding: 8px 10px; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lista-conv button[aria-current="true"] { background: var(--fundo); font-weight: 600; }
+.lista-conv button.primario { background: var(--azul); color: #fff; }
+.chat { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 60vh; padding: 0; }
+.msgs { overflow-y: auto; padding: 16px; display: grid; gap: 14px; align-content: start; max-height: calc(100vh - 260px); }
+.msg { max-width: 92%; }
+.msg.voce { justify-self: end; background: var(--fundo); border: 1px solid var(--borda); border-radius: 14px; padding: 9px 13px; white-space: pre-wrap; }
+.msg.claude { justify-self: start; width: 100%; }
+.msg .meta { font-size: 11px; color: var(--texto-3); margin-top: 4px; }
+.msg.claude .corpo { line-height: 1.55; overflow-x: auto; }
+.msg.claude .corpo table { font-size: 13px; margin: 8px 0; }
+.msg.claude .corpo td, .msg.claude .corpo th { white-space: normal; border: 1px solid var(--grade); }
+.msg.claude .corpo pre { background: var(--fundo); padding: 10px; border-radius: 8px; overflow-x: auto; }
+.msg.claude .corpo code { font-size: 13px; }
+.msg.erro .corpo { color: var(--erro); white-space: pre-wrap; }
+.pensando { color: var(--texto-2); font-size: 14px; }
+.compor { border-top: 1px solid var(--borda); padding: 10px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.compor textarea { min-height: 48px; max-height: 40vh; resize: none; }
+.gaveta { display: grid; gap: 10px; }
+.anexo { display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 4px 0; border-bottom: 1px solid var(--grade); }
+.anexo span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.importa { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--texto-2); }
+.importa select { width: auto; }
+@media (max-width: 720px) {
+  .proj { grid-template-columns: 1fr; min-height: 0; align-content: start; }
+  .lista-conv { grid-auto-flow: column; grid-auto-columns: minmax(140px, 1fr); overflow-x: auto; }
+  .msgs { max-height: none; }
+}
 </style>
 </head>
 <body>
 <header>
   <h1>Agente Claude</h1>
+  <nav class="abas" role="tablist">
+    <button type="button" role="tab" data-aba="projetos" aria-selected="true">Projetos</button>
+    <button type="button" role="tab" data-aba="regras" aria-selected="false">Regras e métricas</button>
+  </nav>
   <a href="https://imobeasy.online/admin/inicio.html">← Admin</a>
 </header>
-<main>
+
+<main id="vista-projetos">
+  <div class="aviso" id="aviso-p"></div>
+  <div id="p-inicio">
+    <section>
+      <h2>Projetos <span class="direita"><button id="p-novo">+ Projeto</button></span></h2>
+      <div class="quadros" id="p-quadros"></div>
+    </section>
+  </div>
+  <div id="p-aberto" hidden>
+    <section class="proj-topo">
+      <button id="p-voltar">← Projetos</button>
+      <h2 id="p-nome"></h2>
+      <button id="p-bt-anexos">Anexos</button>
+      <button id="p-bt-contexto">Contexto e modelo</button>
+    </section>
+    <section id="p-importa" class="importa" hidden></section>
+    <section id="p-anexos" class="gaveta" hidden></section>
+    <section id="p-contexto" class="gaveta" hidden></section>
+    <div class="proj">
+      <section class="lista-conv" id="p-conversas"></section>
+      <section class="chat">
+        <div class="msgs" id="p-msgs"></div>
+        <form class="compor" id="p-compor">
+          <textarea id="p-texto" rows="2" placeholder="Escreva aqui. Enter envia, Shift+Enter pula linha."></textarea>
+          <button class="primario" id="p-enviar" type="submit">Enviar</button>
+        </form>
+      </section>
+    </div>
+  </div>
+</main>
+
+<main id="vista-regras" hidden>
   <div class="aviso" id="aviso"></div>
 
   <section>
@@ -320,6 +404,249 @@ td.texto pre { white-space: pre-wrap; margin: 6px 0 0; font: inherit; color: var
   document.body.appendChild(el("datalist", { id: "modelos" }, MODELOS.map(function (m) { return el("option", { value: m }); })));
   window.addEventListener("beforeunload", function (e) { if (sujo) { e.preventDefault(); e.returnValue = ""; } });
   carregar(true);
+})();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script>
+/* PROJETOS (20/10/2026): um chat por assunto da empresa, cada um com o seu contexto (projetos.py no servidor). */
+(function () {
+  "use strict";
+  var est = { pid: null, cid: null, detalhe: null, espera: null, ultimoN: -1 };
+  var $ = function (id) { return document.getElementById(id); };
+
+  function el(tag, attrs, filhos) {
+    var e = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      if (k === "texto") e.textContent = attrs[k];
+      else if (k.slice(0, 2) === "on") e.addEventListener(k.slice(2), attrs[k]);
+      else if (attrs[k] !== false && attrs[k] != null) e.setAttribute(k, attrs[k] === true ? "" : attrs[k]);
+    });
+    (filhos || []).forEach(function (f) { if (f) e.appendChild(typeof f === "string" ? document.createTextNode(f) : f); });
+    return e;
+  }
+  function aviso(msg) { var a = $("aviso-p"); a.textContent = msg || ""; a.style.display = msg ? "block" : "none"; }
+  function api(metodo, caminho, corpo, cru) {
+    var h = { "X-Agente": "1" };
+    if (corpo && !cru) h["Content-Type"] = "application/json";
+    return fetch(caminho, { method: metodo, credentials: "same-origin", headers: metodo === "GET" ? {} : h,
+                            body: cru ? corpo : (corpo ? JSON.stringify(corpo) : undefined) })
+      .then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          if (!r.ok) throw new Error(j.erro || ("erro " + r.status));
+          return j;
+        });
+      });
+  }
+  function quando(iso) {
+    if (!iso) return "";
+    var d = new Date(iso.indexOf("T") > 0 ? iso : iso.replace(" ", "T") + "-03:00");
+    return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+  }
+  function md(texto) {
+    if (window.marked && window.DOMPurify) {
+      var div = el("div", { class: "corpo" });
+      div.innerHTML = DOMPurify.sanitize(marked.parse(texto || "", { breaks: true }));
+      return div;
+    }
+    return el("div", { class: "corpo", style: "white-space:pre-wrap", texto: texto || "" });
+  }
+  function kb(n) { return n > 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB"; }
+
+  /* ---- abas do topo ---- */
+  [].forEach.call(document.querySelectorAll("[data-aba]"), function (b) {
+    b.addEventListener("click", function () {
+      [].forEach.call(document.querySelectorAll("[data-aba]"), function (x) { x.setAttribute("aria-selected", x === b); });
+      $("vista-projetos").hidden = b.dataset.aba !== "projetos";
+      $("vista-regras").hidden = b.dataset.aba !== "regras";
+    });
+  });
+
+  /* ---- endereço: #p=<projeto>&c=<conversa> (o voltar do navegador funciona) ---- */
+  function lerHash() {
+    var h = {}; location.hash.replace(/^#/, "").split("&").forEach(function (kv) { var p = kv.split("="); if (p[0]) h[p[0]] = decodeURIComponent(p[1] || ""); });
+    return h;
+  }
+  function irPara(pid, cid) { location.hash = pid ? "p=" + pid + (cid ? "&c=" + cid : "") : ""; }
+  window.addEventListener("hashchange", rota);
+  function rota() {
+    var h = lerHash();
+    clearTimeout(est.espera);
+    if (!h.p) { est.pid = null; $("p-aberto").hidden = true; $("p-inicio").hidden = false; return carregarQuadros(); }
+    $("p-inicio").hidden = true; $("p-aberto").hidden = false;
+    var mudou = h.p !== est.pid;
+    est.pid = h.p; est.cid = h.c ? parseInt(h.c, 10) : null; est.ultimoN = -1;
+    if (mudou) { $("p-anexos").hidden = true; $("p-contexto").hidden = true; }
+    carregarProjeto();
+  }
+
+  /* ---- os quadrados ---- */
+  function carregarQuadros() {
+    api("GET", "/api/projetos").then(function (j) {
+      var c = $("p-quadros"); c.textContent = "";
+      j.projetos.forEach(function (p) {
+        var rodape = p.conversas + (p.conversas === 1 ? " conversa" : " conversas") +
+          (p.ultima ? " · última " + quando(p.ultima) : "") + (p.anexos ? " · " + p.anexos + " anexos" : "") + " · " + p.modelo;
+        c.appendChild(el("button", { type: "button", class: "quadro", onclick: function () { irPara(p.id); } }, [
+          el("b", { texto: p.nome }), el("span", { class: "desc", texto: p.descricao }), el("span", { class: "rodape", texto: rodape })
+        ]));
+      });
+    }).catch(function (e) { aviso(e.message); });
+  }
+  $("p-novo").addEventListener("click", function () {
+    var nome = prompt("Nome do projeto novo:"); if (!nome) return;
+    var id = nome.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+    api("POST", "/api/projetos", { id: id, nome: nome, contexto: "# Contexto: " + nome + "\n\n(escreva aqui quem você é, o objetivo e como o Claude deve agir)\n" })
+      .then(function () { irPara(id); }).catch(function (e) { aviso(e.message); });
+  });
+
+  /* ---- o projeto aberto ---- */
+  function carregarProjeto() {
+    return api("GET", "/api/projetos/" + est.pid).then(function (d) {
+      est.detalhe = d; aviso("");
+      $("p-nome").textContent = d.nome;
+      $("p-bt-anexos").textContent = "Anexos (" + d.anexos.length + ")";
+      desenharConversas(d);
+      desenharImporta(d);
+      if (!$("p-anexos").hidden) desenharAnexos(d);
+      if (!est.cid && d.conversas.length) { irPara(est.pid, d.conversas[0].id); return; }
+      carregarConversa();
+    }).catch(function (e) { aviso(e.message); });
+  }
+  function desenharConversas(d) {
+    var c = $("p-conversas"); c.textContent = "";
+    c.appendChild(el("button", { type: "button", class: "primario", style: "text-align:center", onclick: function () {
+      api("POST", "/api/projetos/" + est.pid + "/conversas", {}).then(function (j) { irPara(est.pid, j.id); }).catch(function (e) { aviso(e.message); });
+    } }, ["+ Nova conversa"]));
+    d.conversas.forEach(function (cv) {
+      c.appendChild(el("button", { type: "button", "aria-current": cv.id === est.cid ? "true" : "false", title: cv.titulo,
+        onclick: function () { irPara(est.pid, cv.id); } }, [cv.titulo + (d.pendentes.indexOf(cv.id) >= 0 ? " · …" : "")]));
+    });
+  }
+  function desenharImporta(d) {
+    var box = $("p-importa");
+    if (!d.nay) { box.hidden = true; return; }
+    box.hidden = false; box.textContent = "";
+    var n = d.nay;
+    box.appendChild(el("span", { texto: n.conversas ? "Conversas da Nay no índice: " + n.conversas + " (de " + n.de.slice(8) + "/" + n.de.slice(5, 7) + " a " + n.ate.slice(8) + "/" + n.ate.slice(5, 7) + ")" : "Nenhuma conversa da Nay importada ainda." }));
+    var sel = el("select", {}, [["1", "hoje"], ["7", "últimos 7 dias"], ["30", "últimos 30 dias"], ["90", "últimos 90 dias"], ["400", "tudo"]].map(function (o) { return el("option", { value: o[0], selected: o[0] === "7" }, [o[1]]); }));
+    var bt = el("button", { type: "button", disabled: !!n.importando, onclick: function () {
+      bt.disabled = true;
+      api("POST", "/api/projetos/" + est.pid + "/importar", { dias: parseInt(sel.value, 10) }).then(function () { setTimeout(carregarProjeto, 3000); })
+        .catch(function (e) { aviso(e.message); bt.disabled = false; });
+    } }, [n.importando ? "Importando…" : "Importar conversas da Nay"]);
+    box.appendChild(sel); box.appendChild(bt);
+    if (n.ultima_importacao) box.appendChild(el("span", { style: n.ultima_importacao.ok ? "" : "color:var(--erro)", texto: "· " + n.ultima_importacao.texto }));
+    if (n.importando) setTimeout(carregarProjeto, 4000);
+  }
+
+  /* ---- anexos ---- */
+  $("p-bt-anexos").addEventListener("click", function () { var g = $("p-anexos"); g.hidden = !g.hidden; if (!g.hidden) desenharAnexos(est.detalhe); });
+  function desenharAnexos(d) {
+    var g = $("p-anexos"); g.textContent = "";
+    var entrada = el("input", { type: "file", multiple: true, accept: ".txt,.md,.csv,.tsv,.json,.jsonl,.pdf,.png,.jpg,.jpeg,.xlsx" });
+    var estado = el("span", { class: "pensando" });
+    entrada.addEventListener("change", function () {
+      var arqs = [].slice.call(entrada.files), feitos = 0;
+      if (!arqs.length) return;
+      estado.textContent = "enviando…";
+      arqs.reduce(function (p, f) {
+        return p.then(function () {
+          return api("POST", "/api/projetos/" + est.pid + "/anexos?nome=" + encodeURIComponent(f.name), f, true).then(function (j) {
+            feitos++; estado.textContent = feitos + " de " + arqs.length + (j.gerados && j.gerados.length ? " · virou " + j.gerados.join(", ") : "");
+          });
+        });
+      }, Promise.resolve()).then(carregarProjeto).then(function () { desenharAnexos(est.detalhe); })
+        .catch(function (e) { estado.textContent = e.message; });
+    });
+    g.appendChild(el("h2", {}, ["Anexos do projeto", el("span", { class: "direita", style: "font-weight:400;font-size:13px;color:var(--texto-2)", texto: "o Claude lê estes arquivos quando a pergunta precisar" })]));
+    g.appendChild(el("div", { class: "acoes" }, [entrada, estado]));
+    if (!d.anexos.length) g.appendChild(el("p", { class: "vazio", texto: "Nenhum anexo. Aceita .txt, .md, .csv, .tsv, .json, .pdf, imagem e .xlsx (a planilha vira um .csv por aba)." }));
+    d.anexos.forEach(function (a) {
+      g.appendChild(el("div", { class: "anexo" }, [el("span", { texto: a.nome, title: a.nome }), el("small", { texto: kb(a.bytes) + " · " + quando(a.em) }),
+        el("button", { type: "button", onclick: function () {
+          if (!confirm("Apagar " + a.nome + "?")) return;
+          api("DELETE", "/api/projetos/" + est.pid + "/anexos?nome=" + encodeURIComponent(a.nome)).then(carregarProjeto).then(function () { desenharAnexos(est.detalhe); })
+            .catch(function (e) { aviso(e.message); });
+        } }, ["Apagar"])]));
+    });
+  }
+
+  /* ---- contexto e modelo ---- */
+  $("p-bt-contexto").addEventListener("click", function () {
+    var g = $("p-contexto"); g.hidden = !g.hidden; if (g.hidden) return;
+    var d = est.detalhe; g.textContent = "";
+    var nome = el("input", { value: d.nome }), desc = el("input", { value: d.descricao || "" });
+    var modelo = el("select", {}, [["haiku", "Haiku (rápido)"], ["sonnet", "Sonnet (padrão)"], ["opus", "Opus (mais profundo)"]].map(function (o) { return el("option", { value: o[0], selected: d.modelo === o[0] }, [o[1]]); }));
+    var esforco = el("select", {}, [["", "padrão"], ["low", "baixo"], ["medium", "médio"], ["high", "alto"]].map(function (o) { return el("option", { value: o[0], selected: (d.esforco || "") === o[0] }, [o[1]]); }));
+    var ctx = el("textarea", { rows: 18 }, [d.contexto || ""]);
+    var ok = el("span", { class: "pensando" });
+    g.appendChild(el("div", { class: "linha" }, [el("label", { class: "nome" }, ["Nome", nome]), el("label", {}, ["Modelo", modelo]), el("label", {}, ["Esforço", esforco])]));
+    g.appendChild(el("label", {}, ["Descrição (aparece no quadrado)", desc]));
+    g.appendChild(el("label", {}, ["Contexto (o Claude lê antes de cada resposta; vale para as próximas mensagens)", ctx]));
+    g.appendChild(el("div", { class: "acoes" }, [el("button", { type: "button", class: "primario", onclick: function () {
+      ok.textContent = "salvando…";
+      api("PUT", "/api/projetos/" + est.pid, { nome: nome.value, descricao: desc.value, modelo: modelo.value, esforco: esforco.value, contexto: ctx.value })
+        .then(function (j) { est.detalhe = j; $("p-nome").textContent = j.nome; ok.textContent = "salvo ✓"; }).catch(function (e) { ok.textContent = e.message; });
+    } }, ["Salvar"]), ok]));
+  });
+
+  /* ---- a conversa ---- */
+  function carregarConversa() {
+    clearTimeout(est.espera);
+    var caixa = $("p-msgs");
+    if (!est.cid) {
+      caixa.textContent = "";
+      caixa.appendChild(el("p", { class: "vazio", texto: "Escreva a primeira mensagem: a conversa nasce com o contexto deste projeto." }));
+      return;
+    }
+    api("GET", "/api/conversas/" + est.cid).then(function (j) {
+      var n = j.mensagens.length + (j.pendente ? 0.5 : 0);
+      if (n !== est.ultimoN) {
+        est.ultimoN = n;
+        caixa.textContent = "";
+        j.mensagens.forEach(function (m) {
+          if (m.papel === "voce") {
+            caixa.appendChild(el("div", { class: "msg voce" }, [m.texto, el("div", { class: "meta", texto: quando(m.inicio) })]));
+          } else {
+            var meta = quando(m.inicio) + (m.ms_total ? " · " + Math.round(m.ms_total / 1000) + " s" : "") +
+              (m.tokens_saida ? " · " + ((m.tokens_entrada || 0) + (m.tokens_saida || 0) + (m.cache_lido || 0)).toLocaleString("pt-BR") + " tokens" : "");
+            caixa.appendChild(el("div", { class: "msg claude" + (m.ok ? "" : " erro") }, [
+              m.ok ? md(m.texto) : el("div", { class: "corpo", texto: "Erro: " + (m.erro || "") }), el("div", { class: "meta", texto: meta })]));
+          }
+        });
+        if (j.pendente) caixa.appendChild(el("div", { class: "msg claude" }, [el("div", { class: "pensando", id: "p-pensando" })]));
+        caixa.scrollTop = caixa.scrollHeight;
+      }
+      $("p-enviar").disabled = !!j.pendente;
+      if (j.pendente) {
+        var p = $("p-pensando"); if (p) p.textContent = "Claude está lendo e pensando… " + j.pendente.segundos + " s";
+        est.espera = setTimeout(carregarConversa, 2500);
+      } else if (est.ultimoN % 1 === 0 && est.detalhe && est.detalhe.pendentes.indexOf(est.cid) >= 0) {
+        carregarProjeto();
+      }
+    }).catch(function (e) { aviso(e.message); });
+  }
+  function enviar(ev) {
+    if (ev) ev.preventDefault();
+    var t = $("p-texto"), texto = t.value.trim();
+    if (!texto || $("p-enviar").disabled) return;
+    $("p-enviar").disabled = true;
+    var cid = est.cid ? Promise.resolve(est.cid) : api("POST", "/api/projetos/" + est.pid + "/conversas", {}).then(function (j) { return j.id; });
+    cid.then(function (id) {
+      return api("POST", "/api/conversas/" + id + "/mensagens", { texto: texto }).then(function () {
+        t.value = ""; ajustar();
+        if (id !== est.cid) irPara(est.pid, id); else { est.ultimoN = -1; carregarConversa(); }
+      });
+    }).catch(function (e) { aviso(e.message); $("p-enviar").disabled = false; });
+  }
+  function ajustar() { var t = $("p-texto"); t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight + 2, window.innerHeight * 0.4) + "px"; }
+  $("p-compor").addEventListener("submit", enviar);
+  $("p-texto").addEventListener("input", ajustar);
+  $("p-texto").addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) enviar(e); });
+  $("p-voltar").addEventListener("click", function () { irPara(null); });
+
+  rota();
 })();
 </script>
 </body>
