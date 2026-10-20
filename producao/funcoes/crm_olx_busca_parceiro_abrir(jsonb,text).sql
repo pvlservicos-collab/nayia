@@ -34,7 +34,9 @@ BEGIN
     'quartos', nullif(p->>'quartos', '')::int, 'aceita_menos_quartos', CASE WHEN (p->>'aceita_menos_quartos')::boolean THEN true END,
     'mobilia', nullif(btrim(p->>'mobilia'), ''), 'aceita_escada', CASE WHEN (p->>'precisa_elevador')::boolean THEN false END,
     'financiamento', nullif(btrim(p->>'financiamento'), ''), 'aceita_parceiro', 'true',
-    '_aberta_por', coalesce(nullif(btrim(p_quem), ''), 'CRM'), '_observacao', nullif(btrim(p->>'observacao'), '')));
+    '_aberta_por', coalesce(nullif(btrim(p_quem), ''), 'CRM'), '_observacao', nullif(btrim(p->>'observacao'), ''),
+    -- 427: o filtro igual ao da OLX (tipos, subtipos, faixas, quartos/banheiros/vagas, detalhes, anunciante, ordem)
+    'olx', CASE WHEN jsonb_typeof(p->'olx') = 'object' THEN jsonb_strip_nulls(p->'olx') END));
 
   SELECT id INTO v_lead FROM privado.olx_lead_whatsapp WHERE right(telefone, 8) = right(v_tel, 8) ORDER BY id DESC LIMIT 1;
   IF v_lead IS NULL THEN

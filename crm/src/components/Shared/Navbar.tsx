@@ -62,6 +62,8 @@ const NAV_ITEMS = [
   // A ABA IMOVEIS (Tel, 27/09/2026): o mesmo acervo da tela do site, aqui dentro,
   // para achar imovel e mandar direto numa conversa.
   { label: 'Imóveis', href: '/imoveis', icon: Buildings },
+  // VISITANTES (Pedro, 20/10/2026): quem já visitou com a gente (corretores e clientes), por dia, mês, trimestre e total
+  { label: 'Visitantes', href: '/visitantes', icon: Users },
   // BUSCAR IMÓVEL OLX (Pedro, 19/10/2026): a busca da OLX aberta à mão com os dados do cliente (422); o mesmo caminho da Nay
   { label: 'Buscar imóvel OLX', curto: 'Buscar OLX', href: '/buscar-imovel-olx', icon: MagnifyingGlass, mais: true },
   // CORRETORES (Pedro, 30/09/2026): "cria mais uma aba ali no CRM ... Corretores,

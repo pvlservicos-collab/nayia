@@ -27,16 +27,38 @@ class Busca(unittest.TestCase):
     def test_uma_url_por_bairro_e_a_faixa_larga(self):
         us = b.urls_da_busca({"finalidade": "locacao", "tipo": "apartamento", "teto": 3000, "bairros": ["Parque 10", "Flores"]})
         self.assertEqual(len(us), 2)
-        self.assertTrue(us[0].startswith("https://www.olx.com.br/imoveis/aluguel/estado-am/regiao-de-manaus/manaus?"))
+        # 20/10: o tipo vai no caminho, como a OLX faz ("apartamentos"), e o texto é o bairro
+        self.assertTrue(us[0].startswith("https://www.olx.com.br/imoveis/aluguel/apartamentos/estado-am/regiao-de-manaus/manaus?"))
         self.assertIn("ps=1800", us[0])
         self.assertIn("pe=3300", us[0])
-        self.assertIn("q=apartamento+Parque+10", us[0])
+        self.assertIn("sf=1", us[0])
+        self.assertIn("q=Parque+10", us[0])
 
     def test_venda_e_qualquer_bairro(self):
         us = b.urls_da_busca({"finalidade": "venda", "tipo": "casa", "bairros": ["Flores"], "qualquer_bairro": True})
         self.assertEqual(len(us), 1)
-        self.assertIn("/imoveis/venda/", us[0])
-        self.assertIn("q=casa", us[0])
+        self.assertIn("/imoveis/venda/casas/", us[0])
+        self.assertNotIn("q=", us[0])
+
+    def test_o_filtro_da_olx_do_crm_vai_no_endereco(self):
+        f = {"finalidade": "venda", "teto": 500000, "bairros": ["Flores"],
+             "olx": {"tipos": ["apartamento", "casa"], "subtipos": ["cobertura", "padrao", "xis"], "preco_min": 300000,
+                     "iptu_max": 800, "quartos": [2, 3], "banheiros": [2], "vagas": [7], "area_min": 60, "area_max": 120,
+                     "detalhes": ["piscina", "mobiliado"], "condominio": ["elevador", "aceita_pet"], "anunciante": "p",
+                     "ordem": "menor_preco"}}
+        u = b.urls_da_busca(f)[0]
+        q = u.split("?", 1)[1]
+        for par in ("sp=1", "ps=300000", "pe=550000", "ipe=800", "ss=60", "se=120", "ros=2", "ros=3", "bas=2", "gsp=5",
+                    "rts=302", "rts=306", "rfs=110", "rfs=109", "rcf=203", "rcf=204", "f=p", "ret=1020", "ret=1040", "q=Flores"):
+            self.assertIn(par, q.split("&"), par)
+        self.assertNotIn("sf=1", q)
+        self.assertTrue(u.startswith("https://www.olx.com.br/imoveis/venda/estado-am/"))        # dois tipos: pelo ret
+
+    def test_elevador_e_mobiliado_do_filtro_entram_na_nota(self):
+        with mock.patch.object(b.glugares, "resolver", side_effect=lambda ficha, g, l: (ficha, None, None)):
+            ped = b.pedido_dos_filtros({"finalidade": "locacao", "teto": 3000, "bairros": ["Flores"],
+                                        "olx": {"quartos": [3, 2], "detalhes": ["mobiliado"], "condominio": ["elevador"]}}, None)
+        self.assertEqual((ped["quartos"], ped["mobiliado"], ped["elevador"]), (2, True, True))
 
     def test_anuncio_vira_imovel_da_nota(self):
         im = b.para_imovel(ANUNCIO, "aluguel")

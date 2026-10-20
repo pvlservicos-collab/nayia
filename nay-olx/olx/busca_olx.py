@@ -66,18 +66,87 @@ def tipo_texto(tipo: str | None) -> str:
     return "casa" if t.startswith("casa") else "apartamento" if t.startswith(("apart", "kitnet", "flat", "studio")) else ""
 
 
-def urls_da_busca(filtros: dict, max_bairros: int = 3) -> list[str]:
-    """Uma busca por bairro pedido (até 3), ou uma só sem bairro; a faixa de preço larga (a nota é quem separa)."""
-    params = {"sf": "1"}
+# OS FILTROS DA OLX (Pedro, 20/10/2026: "a busca precisa ser mais detalhada, de preferência igual ao filtro da OLX").
+# Os nomes e códigos foram lidos da própria página de busca da OLX (definição dos filtros no Next.js) e conferidos em
+# 20/10: múltipla escolha = o parâmetro repetido; anunciante f=p/f=c; ordem sf=1 (recentes) e sp=1 (menor preço).
+SUBTIPOS_OLX = {"casa_condominio": "300", "casa_vila": "301", "cobertura": "302", "duplex": "303", "kitnet": "304",
+                "loft": "305", "padrao": "306"}
+DETALHES_DO_IMOVEL_OLX = {"academia": "100", "aquecimento": "101", "ar_condicionado": "102", "area_servico": "103",
+                          "armarios_cozinha": "104", "armarios_quarto": "105", "banheiro_quarto": "106", "churrasqueira": "107",
+                          "internet": "108", "mobiliado": "109", "piscina": "110", "porteiro_24h": "111",
+                          "quarto_servico": "112", "salao_festas": "113", "tv_cabo": "114", "varanda": "115"}
+DETALHES_DO_CONDOMINIO_OLX = {"academia": "200", "area_murada": "201", "condominio_fechado": "202", "elevador": "203",
+                              "aceita_pet": "204", "piscina": "205", "portao_eletronico": "206", "portaria": "207",
+                              "salao_festas": "208", "seguranca_24h": "209"}
+TIPOS_OLX = {"apartamento": ("apartamentos", "1020"), "casa": ("casas", "1040")}
+
+
+def _lista(v) -> list:
+    return [x for x in (v if isinstance(v, list) else [v] if v not in (None, "") else []) if x not in (None, "")]
+
+
+def _ate_5(v) -> list[str]:
+    """Quartos, banheiros, vagas: 0..4 e 5 (= 5 ou mais), como os chips da OLX."""
+    saida = []
+    for x in _lista(v):
+        n = _int(x)
+        if n is not None and 0 <= n:
+            saida.append(str(min(n, 5)))
+    return sorted(set(saida))
+
+
+def parametros_da_olx(filtros: dict) -> tuple[list[tuple[str, str]], str]:
+    """(os pares do endereço, o pedaço do caminho do tipo) a partir dos filtros (os da Nay e o bloco "olx" do CRM)."""
+    o = filtros.get("olx") if isinstance(filtros.get("olx"), dict) else {}
+    pares: list[tuple[str, str]] = []
+    ordem = str(o.get("ordem") or "recentes")
+    if ordem == "recentes":
+        pares.append(("sf", "1"))
+    elif ordem == "menor_preco":
+        pares.append(("sp", "1"))
     teto = _numero(filtros.get("teto"))
+    minimo = _numero(o.get("preco_min"))
+    if minimo or teto:
+        pares.append(("ps", str(int(minimo if minimo else teto * 0.6))))
     if teto:
-        params["ps"] = str(int(teto * 0.6))
-        params["pe"] = str(int(teto * 1.1))
-    tipo = tipo_texto(filtros.get("tipo"))
+        pares.append(("pe", str(int(teto * 1.1))))      # até 10% acima do teto: a nota sabe pesar (aba Grupos)
+    for qs, k in (("ips", "iptu_min"), ("ipe", "iptu_max"), ("ss", "area_min"), ("se", "area_max")):
+        n = _numero(o.get(k))
+        if n:
+            pares.append((qs, str(int(n))))
+    quartos = _ate_5(o.get("quartos")) or ([str(min(_int(filtros.get("quartos")), 5))] if _int(filtros.get("quartos")) else [])
+    if quartos and filtros.get("aceita_menos_quartos") in (True, "true"):
+        quartos = sorted(set(quartos) | {str(max(0, int(min(quartos)) - 1))})
+    for qs, valores in (("ros", quartos), ("bas", _ate_5(o.get("banheiros"))), ("gsp", _ate_5(o.get("vagas")))):
+        pares += [(qs, v) for v in valores]
+    pares += [("rts", SUBTIPOS_OLX[x]) for x in _lista(o.get("subtipos")) if x in SUBTIPOS_OLX]
+    detalhes = [x for x in _lista(o.get("detalhes")) if x in DETALHES_DO_IMOVEL_OLX]
+    if normal(filtros.get("mobilia")).startswith("mobil") and "mobiliado" not in detalhes:
+        detalhes.append("mobiliado")
+    pares += [("rfs", DETALHES_DO_IMOVEL_OLX[x]) for x in detalhes]
+    cond = [x for x in _lista(o.get("condominio")) if x in DETALHES_DO_CONDOMINIO_OLX]
+    if filtros.get("aceita_escada") in (False, "false") and "elevador" not in cond:
+        cond.append("elevador")
+    pares += [("rcf", DETALHES_DO_CONDOMINIO_OLX[x]) for x in cond]
+    if o.get("anunciante") in ("p", "c"):
+        pares.append(("f", o["anunciante"]))
+    tipos = [t for t in _lista(o.get("tipos")) if t in TIPOS_OLX] or ([tipo_texto(filtros.get("tipo"))] if tipo_texto(filtros.get("tipo")) else [])
+    caminho = ""
+    if len(tipos) == 1:
+        caminho = TIPOS_OLX[tipos[0]][0]
+    elif len(tipos) > 1:
+        pares += [("ret", TIPOS_OLX[t][1]) for t in tipos]
+    return pares, caminho
+
+
+def urls_da_busca(filtros: dict, max_bairros: int = 3) -> list[str]:
+    """Uma busca por bairro pedido (até 3), ou uma só sem bairro; os filtros da OLX no endereço (a nota é quem separa)."""
+    pares, caminho = parametros_da_olx(filtros)
     bairros = [] if filtros.get("qualquer_bairro") else [b for b in (filtros.get("bairros") or []) if str(b).strip()][:max_bairros]
-    termos = [" ".join(x for x in (tipo, b) if x) for b in bairros] or [tipo]
     base = BASE.format(negocio=operacao(filtros))
-    return [base + "?" + urllib.parse.urlencode({**params, **({"q": t} if t else {})}) for t in termos]
+    if caminho:
+        base = base.replace("/imoveis/" + operacao(filtros) + "/", "/imoveis/" + operacao(filtros) + "/" + caminho + "/")
+    return [base + "?" + urllib.parse.urlencode(pares + ([("q", b)] if b else [])) for b in (bairros or [""])]
 
 
 def anuncios_da_lista(flight: str) -> list[dict]:
@@ -121,10 +190,17 @@ def para_imovel(a: dict, oper: str) -> dict:
 def pedido_dos_filtros(filtros: dict, lugares) -> dict:
     """Os filtros da Nay do WhatsApp no formato do pedido da aba Grupos (o lugar passa pelo mesmo resolvedor)."""
     q = _int(filtros.get("quartos"))
+    if not q and _ate_5((filtros.get("olx") or {}).get("quartos") if isinstance(filtros.get("olx"), dict) else None):
+        q = int(min(_ate_5(filtros["olx"]["quartos"])))     # o menor dos marcados é o que a nota pede
     if q and filtros.get("aceita_menos_quartos") in (True, "true"):
         q = max(1, q - 1)
     mob = normal(filtros.get("mobilia"))
+    o = filtros.get("olx") if isinstance(filtros.get("olx"), dict) else {}
+    if not mob and "mobiliado" in _lista(o.get("detalhes")):
+        mob = "mobiliado"                                   # 20/10: marcado no filtro da OLX do CRM
     escada = filtros.get("aceita_escada")
+    if escada is None and "elevador" in _lista(o.get("condominio")):
+        escada = False
     ficha = {
         "bairros": [] if filtros.get("qualquer_bairro") else list(filtros.get("bairros") or []),
         "condominio": None, "operacao": operacao(filtros), "tipo": tipo_texto(filtros.get("tipo")) or None,
