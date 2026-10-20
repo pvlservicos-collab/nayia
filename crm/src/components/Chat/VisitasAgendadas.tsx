@@ -32,6 +32,7 @@
  *   - excluir: some da agenda e ninguém é avisado.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import LembretesDaVisita from './LembretesDaVisita'
 import dynamic from 'next/dynamic'
 import {
   ArrowClockwise, CalendarCheck, ChatCircleText, MagnifyingGlass, X, CircleNotch, Warning,
@@ -468,6 +469,8 @@ function PainelDaVisita({ v, aoFechar, aoAbrirConversa, aoMexer }: {
       </div>
 
       <div className="flex-1 overflow-y-auto wa-rolagem px-4 py-3 flex flex-col gap-4">
+        {/* 20/10: os lembretes desta visita, com Excluir lembrete (a visita fica) */}
+        <section><LembretesDaVisita key={v.id} visita={v.id} /></section>
         <section>
           <h3 className="text-[13px] font-semibold mb-1.5 flex items-center gap-1.5" style={{ color: 'var(--wa-text-2)', fontFamily: 'inherit' }}>
             <Clock size={15} /> Quando (horário de Manaus)

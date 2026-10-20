@@ -30,6 +30,12 @@ import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 import { LeadDetailsSidebar } from '@/components/Chat'
 import { X, Plus } from '@phosphor-icons/react'
 import { linkDaConversa } from '@/lib/links'
+import { diaEmManaus, diaEmManausMais } from '@/lib/fusoDeManaus'
+import { conversaEstaNaLinha } from '@/lib/leadChannel'
+import { useCaptacaoDonos } from '@/hooks/useCaptacaoDonos'
+import PainelContatoParceria from '@/components/Chat/PainelContatoParceria'
+import PainelContatoCaptacao from '@/components/Chat/PainelContatoCaptacao'
+import EnviarImovelPelaCaptacao from '@/components/Chat/EnviarImovelPelaCaptacao'
 
 const ORDEM_DO_FUNIL: Record<string, number> = { oficial: 0, parceria: 1, captacao: 2 }
 function rotuloDoFunil(p: { name: string; settings?: any }) {
@@ -93,6 +99,14 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
   const [activeMobileStageId, setActiveMobileStageId] = useState<string | null>(null)
   const [movingLead, setMovingLead] = useState<LeadWithOwner | null>(null)
   const [detailLead, setDetailLead] = useState<LeadWithOwner | null>(null)
+  /* OS FILTROS À VISTA (Pedro, 20/10/2026: "na pipeline quero todas as etapas e tags por lá filtrando, e também filtrar
+     por tempo, dia"). Etapas e etiquetas: várias marcadas = qualquer uma. Quando: pela última movimentação do lead
+     (ou a criação), no dia de Manaus. Somam com o filtro do botão. */
+  const [etapasSel, setEtapasSel] = useState<string[]>([])
+  const [tagsSel, setTagsSel] = useState<string[]>([])
+  const [quando, setQuando] = useState<'' | 'hoje' | 'ontem' | 'semana' | 'mes' | 'dia'>('')
+  const [diaSel, setDiaSel] = useState('')
+  const donosDaCaptacao = useCaptacaoDonos(true)
 
   // Lead aceso pelo clique num minicard da coluna "Fonte:". Limpa sozinho depois
   // da animação (3 pulsos de 0,75s em globals.css) — senão clicar de novo no
@@ -216,15 +230,50 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
     return filtered
   }, [leads, stageIds, filters, matchesDateFilter])
 
+  // 20/10: as etiquetas que os leads deste funil têm (as "Nay: ..." são da Nay e não entram)
+  const etiquetasDoFunil = useMemo(() => {
+    const m = new Map<string, { id: string; nome: string; cor: string; n: number }>()
+    for (const l of pipelineLeads) for (const lt of ((l as any).lead_tags || []) as any[]) {
+      const nome = String(lt.tag?.name || '')
+      if (!nome || nome.startsWith('Nay:')) continue
+      const x = m.get(lt.tag_id) || { id: lt.tag_id, nome, cor: lt.tag?.color || '#64748b', n: 0 }
+      x.n++
+      m.set(lt.tag_id, x)
+    }
+    return [...m.values()].sort((a, b) => b.n - a.n || a.nome.localeCompare(b.nome, 'pt-BR'))
+  }, [pipelineLeads])
+
+  const diaDoLead = (l: LeadWithOwner) => {
+    const t = new Date((l as any).last_activity_at || l.created_at)
+    return Number.isNaN(t.getTime()) ? '' : diaEmManaus(t)
+  }
+  const passaNoQuando = useCallback((l: LeadWithOwner) => {
+    if (!quando) return true
+    const d = diaDoLead(l)
+    if (!d) return false
+    const hoje = diaEmManaus()
+    if (quando === 'hoje') return d === hoje
+    if (quando === 'ontem') return d === diaEmManausMais(-1)
+    if (quando === 'semana') return d >= diaEmManausMais(-6) && d <= hoje
+    if (quando === 'mes') return d.slice(0, 7) === hoje.slice(0, 7)
+    return !!diaSel && d === diaSel
+  }, [quando, diaSel])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const leadsFiltrados = useMemo(() => pipelineLeads.filter((l) =>
+    (!tagsSel.length || ((l as any).lead_tags || []).some((lt: any) => tagsSel.includes(lt.tag_id))) && passaNoQuando(l)
+  ), [pipelineLeads, tagsSel, passaNoQuando])
+  const etapasVisiveis = useMemo(() => (etapasSel.length ? stages.filter((s2) => etapasSel.includes(s2.id)) : stages), [stages, etapasSel])
+  const contaDaEtapa = (id: string) => leadsFiltrados.filter((l) => l.stage_id === id).length
+
   const leadsByStage = useMemo(() => {
     return stages.reduce(
       (acc, stage) => {
-        acc[stage.id] = pipelineLeads.filter((l) => l.stage_id === stage.id)
+        acc[stage.id] = leadsFiltrados.filter((l) => l.stage_id === stage.id)
         return acc
       },
       {} as Record<string, LeadWithOwner[]>
     )
-  }, [stages, pipelineLeads])
+  }, [stages, leadsFiltrados])
 
   // Nome e cor de cada etapa, pro minicard da coluna "Fonte:" conseguir mostrar
   // em que status o lead está sem ter que carregar as etapas por conta própria.
@@ -462,6 +511,62 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
         </button>
       </div>
 
+      {/* 20/10: os filtros à vista -- etapas, etiquetas e quando */}
+      <div className="px-4 pt-2 flex flex-col gap-1.5 flex-shrink-0 text-xs">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+          <span className="text-muted font-semibold flex-shrink-0 w-[62px]">Etapas</span>
+          <button type="button" onClick={() => setEtapasSel([])}
+                  className={`flex-shrink-0 px-2.5 py-1 rounded-full border ${!etapasSel.length ? 'bg-accent/15 border-accent/40 text-accent' : 'border-line text-ink-2'}`}>
+            Todas <span className="opacity-70">({leadsFiltrados.length})</span>
+          </button>
+          {stages.map((st) => {
+            const on = etapasSel.includes(st.id)
+            return (
+              <button key={st.id} type="button" aria-pressed={on}
+                      onClick={() => setEtapasSel((l) => (on ? l.filter((x) => x !== st.id) : [...l, st.id]))}
+                      className={`flex-shrink-0 px-2.5 py-1 rounded-full border whitespace-nowrap ${on ? 'bg-accent/15 border-accent/40 text-accent' : 'border-line text-ink-2'}`}>
+                {st.name} <span className="opacity-70">({contaDaEtapa(st.id)})</span>
+              </button>
+            )
+          })}
+        </div>
+        {etiquetasDoFunil.length > 0 && (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+            <span className="text-muted font-semibold flex-shrink-0 w-[62px]">Etiquetas</span>
+            {etiquetasDoFunil.map((t) => {
+              const on = tagsSel.includes(t.id)
+              return (
+                <button key={t.id} type="button" aria-pressed={on}
+                        onClick={() => setTagsSel((l) => (on ? l.filter((x) => x !== t.id) : [...l, t.id]))}
+                        className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full border whitespace-nowrap"
+                        style={on ? { background: t.cor, borderColor: t.cor, color: '#fff' } : { borderColor: 'var(--line)' }}>
+                  <span className="w-2 h-2 rounded-full" style={{ background: on ? '#fff' : t.cor }} />
+                  {t.nome} <span className="opacity-70">({t.n})</span>
+                </button>
+              )
+            })}
+            {tagsSel.length > 0 && (
+              <button type="button" onClick={() => setTagsSel([])} className="flex-shrink-0 px-2 py-1 text-accent font-semibold">Limpar</button>
+            )}
+          </div>
+        )}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+          <span className="text-muted font-semibold flex-shrink-0 w-[62px]">Quando</span>
+          {([['', 'Sempre'], ['hoje', 'Hoje'], ['ontem', 'Ontem'], ['semana', 'Últimos 7 dias'], ['mes', 'Este mês'], ['dia', 'Um dia']] as const).map(([k, r]) => (
+            <button key={k || 'sempre'} type="button" aria-pressed={quando === k}
+                    onClick={() => { setQuando(k); if (k === 'dia' && !diaSel) setDiaSel(diaEmManaus()) }}
+                    className={`flex-shrink-0 px-2.5 py-1 rounded-full border ${quando === k ? 'bg-accent/15 border-accent/40 text-accent' : 'border-line text-ink-2'}`}>
+              {r}
+            </button>
+          ))}
+          {quando === 'dia' && (
+            <input type="date" value={diaSel} onChange={(e) => setDiaSel(e.target.value)} aria-label="O dia"
+                   className="flex-shrink-0 px-2 py-0.5 rounded-md border border-line bg-transparent text-ink" style={{ colorScheme: 'light dark' }} />
+          )}
+          <span className="text-muted flex-shrink-0">pela última movimentação</span>
+        </div>
+      </div>
+
       {abrirNovoLead && (
         <NovoLeadImobEasy
           etapas={stages.map((s2) => ({ id: s2.id, name: s2.name }))}
@@ -497,8 +602,8 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
 
               {/* Seletor de etapa — abas roláveis horizontalmente */}
               <div className="flex gap-2 overflow-x-auto pb-3 -mx-1 px-1 flex-shrink-0">
-                {stages.map(stage => {
-                  const count = stageStats[stage.id]?.count ?? leadsByStage[stage.id]?.length ?? 0
+                {etapasVisiveis.map(stage => {
+                  const count = leadsByStage[stage.id]?.length ?? 0
                   const isActive = stage.id === activeMobileStageId
                   return (
                     <button
@@ -521,7 +626,7 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
                     stage={stage}
                     leads={leadsByStage[stage.id] || []}
                     organizationId={organizationId}
-                    totalLeads={pipelineLeads.length}
+                    totalLeads={leadsFiltrados.length}
                     isGoalsEnabled={isGoalsEnabled}
                     stageStats={stageStats[stage.id]}
                     highlightedLeadId={highlightedLeadId}
@@ -538,13 +643,13 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
                   fontes eram agenda_ascensao, site_evento e indicacao -- nada
                   da Imob Easy. O SourceRail continua no repositório, então
                   voltar é só recolocar estas linhas. */}
-              {stages.map((stage) => (
+              {etapasVisiveis.map((stage) => (
                 <StageColumn
                   key={stage.id}
                   stage={stage}
                   leads={leadsByStage[stage.id] || []}
                   organizationId={organizationId}
-                  totalLeads={pipelineLeads.length}
+                  totalLeads={leadsFiltrados.length}
                   isGoalsEnabled={isGoalsEnabled}
                   stageStats={stageStats[stage.id]}
                   highlightedLeadId={highlightedLeadId}
@@ -610,7 +715,16 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
       {/* Detalhes do lead — clicar num card (desktop) ou no "ⓘ" (qualquer tela) */}
       {detailLead && (
         <div className="fixed inset-0 z-50 bg-black/55 backdrop-blur-sm flex items-stretch sm:items-center sm:justify-end" onClick={() => setDetailLead(null)}>
-          <div className="flex ml-auto h-full sm:h-[92vh] sm:my-auto sm:mr-4 sm:rounded-2xl overflow-hidden shadow-2xl w-full sm:w-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="chat-theme flex ml-auto h-full sm:h-[92vh] sm:my-auto sm:mr-4 sm:rounded-2xl overflow-hidden shadow-2xl w-full sm:w-auto" onClick={(e) => e.stopPropagation()}>
+            {/* 20/10 (Pedro: "o card lateral que abre do lead do pipeline não está igual o que está dentro do chat, deixa
+                igual"): a mesma escolha do ChatWhatsApp -- Parceria, dono da captação (ou dono na Oficial) e o genérico */}
+            {conversaEstaNaLinha(detailLead, 'parceria') ? (
+              <PainelContatoParceria key={detailLead.id} lead={detailLead} modo="lateral" aoFechar={() => setDetailLead(null)}
+                                     onTagsChange={handleDetailTagsChange} onUpdateLead={handleDetailUpdateLead} />
+            ) : conversaEstaNaLinha(detailLead, 'captacao') || (conversaEstaNaLinha(detailLead, 'oficial') && donosDaCaptacao[detailLead.id]) ? (
+              <PainelContatoCaptacao key={detailLead.id} lead={detailLead} modo="lateral" aoFechar={() => setDetailLead(null)}
+                                     oficial={conversaEstaNaLinha(detailLead, 'oficial')} onTagsChange={handleDetailTagsChange} />
+            ) : (
             <LeadDetailsSidebar
               lead={detailLead}
               stages={stages}
@@ -627,7 +741,14 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
                 setDetailLead(null)
                 router.push(linkDaConversa(detailLead.id))
               }}
+              extra={conversaEstaNaLinha(detailLead, 'oficial') ? (
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider mb-2 text-[var(--chat-text-muted)]">Enviar imóvel</p>
+                  <EnviarImovelPelaCaptacao leadId={detailLead.id} telefone={detailLead.phone} oficial />
+                </div>
+              ) : undefined}
             />
+            )}
           </div>
         </div>
       )}

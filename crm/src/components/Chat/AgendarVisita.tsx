@@ -44,6 +44,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarPlus, CircleNotch, Clock, CalendarBlank, BellRinging, X } from '@phosphor-icons/react'
 import { MODELO_DO_LEMBRETE } from '@/lib/lembreteDaVisitaTexto'
+import LembretesDaVisita from './LembretesDaVisita'
 import { diaEmManaus, diaEmManausMais, horaEmManaus, instanteEmManaus } from '@/lib/fusoDeManaus'
 import EscolherImovelDaVisita from './EscolherImovelDaVisita'
 import { imovelPeloCodigo } from '@/lib/imovelDaVisita'
@@ -89,6 +90,8 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, corretorIni
   const [mensagem, setMensagem] = useState(MODELO_DO_LEMBRETE)
   const [salvando, setSalvando] = useState(false)
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null)
+  // 20/10 (Pedro: "ao criar uma visita quero uma opção excluir lembrete"): a visita que acabou de nascer, para o Excluir lembrete
+  const [agendada, setAgendada] = useState<{ id: number; comLembrete: boolean } | null>(null)
 
   useEffect(() => {
     let vivo = true
@@ -137,7 +140,7 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, corretorIni
     // o dia e a hora do formulário são os de MANAUS, não os do relógio deste computador
     const quando = instanteEmManaus(dia, hora)
     if (Number.isNaN(quando.getTime())) { setAviso({ ok: false, texto: 'Escolha o dia e a hora.' }); return }
-    setSalvando(true); setAviso(null)
+    setSalvando(true); setAviso(null); setAgendada(null)
     try {
       const r = await fetch('/api/parceria/visitas', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -162,6 +165,7 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, corretorIni
       }
       if (Array.isArray(j.avisos)) partes.push(...j.avisos)
       setAviso({ ok: true, texto: partes.join(' ') })
+      setAgendada({ id: Number(j.visita), comLembrete: Array.isArray(j.lembretes) && j.lembretes.length > 0 })
       setMensagem(MODELO_DO_LEMBRETE)
       aoAgendar?.(Number(j.visita))
     } catch (e: any) {
@@ -287,6 +291,7 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, corretorIni
         {salvando ? <CircleNotch size={14} className="animate-spin" /> : <CalendarPlus size={14} weight="fill" />} Agendar visita
       </button>
       {aviso && <p className="text-[12.5px] mt-1.5 leading-4" style={{ color: aviso.ok ? AZUL : 'var(--wa-tag-tel)' }}>{aviso.texto}</p>}
+      {agendada?.comLembrete && Number.isFinite(agendada.id) && <LembretesDaVisita key={agendada.id} visita={agendada.id} compacto />}
       <p className="text-[11px] mt-1.5 leading-4" style={{ color: 'var(--wa-text-2)' }}>
         Entra na agenda como visita da equipe: a Nay não manda nada sozinha, e o corretor fica na etapa Visitas até ela acabar.
       </p>

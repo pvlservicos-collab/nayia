@@ -22,6 +22,8 @@ import BuscaDaLista, { casaNaBusca } from './BuscaDaLista'
 import { conversaEstaNaLinha, type LinhaWhatsapp } from '@/lib/leadChannel'
 import { comAlguemPelaNay, etapaDaParceria, escolhaAMao } from '@/lib/etapaDaParceria'
 import PranchetaDeEtiquetas from './PranchetaDeEtiquetas'
+import { EditarAbas, abasQueValem, useAbasDaLinha } from './AbasDeEtiquetas'
+import { useEtiquetas } from '@/lib/etiquetas'
 
 /*
  * HOJE / ESSA SEMANA NA PARCERIA (Pedro, 19/10/2026): "tirar Sem resposta: Últimas 6h / 24h / Essa semana. Colocar no
@@ -166,6 +168,9 @@ export default function LeadList({
   const [activeTab, setActiveTab] = useState<ChatTab>('all')
   // 19/10: Hoje / Essa semana na Parceria -- um toggle à parte da aba
   const [periodo, setPeriodo] = useState<Periodo>('')
+  // 20/10 (Tel): as abas de cada número são etiquetas, editáveis (AbasDeEtiquetas.tsx)
+  const abasDaLinha = useAbasDaLinha(linha)
+  const etiquetasDaEquipe = useEtiquetas()
   // a busca por nome/número, só na etapa Proprietários (30/09)
   const [buscaDono, setBuscaDono] = useState('')
   const [verArquivadas, setVerArquivadas] = useState(false)
@@ -489,6 +494,11 @@ export default function LeadList({
          cada conversa com mensagem sem ler conta 1, em todas as etapas, inclusive
          Todos. O balãozinho de cada conversa continua mostrando quantas mensagens. */
       const semLer = Number(l.nao_lidas || 0) > 0 || !!l.is_unread ? 1 : 0
+      // 20/10: as abas de etiqueta contam também na Parceria
+      for (const lt of (l.lead_tags || []) as any[]) {
+        soma(`tag:${lt.tag_id}`)
+        if (semLer) contagem[`semler:tag:${lt.tag_id}`] = (contagem[`semler:tag:${lt.tag_id}`] ?? 0) + 1
+      }
       const comPessoa = comAlguem(l, m, atendente)
       if (!comPessoa) {
         const etapa = etapaDaParceria(l, m)
@@ -502,8 +512,16 @@ export default function LeadList({
       const p = periodoDaConversa(l, hoje, agora)
       if (p) soma(`periodo:${p}`)
     } else {
-      for (const lt of (l.lead_tags || []) as any[]) soma(`tag:${lt.tag_id}`)
+      for (const lt of (l.lead_tags || []) as any[]) {
+        soma(`tag:${lt.tag_id}`)
+        if (Number(l.nao_lidas || 0) > 0 || l.is_unread) contagem[`semler:tag:${lt.tag_id}`] = (contagem[`semler:tag:${lt.tag_id}`] ?? 0) + 1
+      }
       if (atendente) soma(`atendente:${atendente.id}`)
+      // 20/10: Hoje / Essa semana também no WhatsApp Leads
+      if (linha === 'captacao') {
+        const p = periodoDaConversa(l, hoje, agora)
+        if (p) soma(`periodo:${p}`)
+      }
       // as abas da captação (migração 236)
       if (comAbasDaCaptacao) for (const a of donos[l.id]?.abas || []) {
         soma(`cap:${a}`)
@@ -603,10 +621,25 @@ export default function LeadList({
           titulo: 'O Tel está com a conversa: etapa Com o Tel, ou alguém da equipe escreveu e a Nay saiu' },
       ]
     : []
+  /* AS ABAS SÃO ETIQUETAS (Tel, por Pedro, 20/10/2026: "troque as etapas que têm Todos, Visitas, pelas tags que têm
+     pessoas ... editável, todas as etapas de todos os números"). Fica Todos + as etiquetas escolhidas (lápis no fim da
+     fileira); quem atende (Tel, Rayssa, Com o Tel) continua na fileira de cima. */
+  const usarAbasDeEtiquetas = linha === 'parceria' || linha === 'captacao' || linha === 'oficial'
+  const abasDeEtiqueta = usarAbasDeEtiquetas ? abasQueValem(abasDaLinha.ids, etiquetasDaEquipe, contagem) : []
+  const filtrosDeEtiquetas: FiltroDaLista[] = [
+    { chave: 'all', rotulo: 'Todos', grupo: 'etapa' as const, contagem: contagem.all },
+    ...abasDeEtiqueta.map((t) => ({ chave: `tag:${t.id}`, rotulo: t.name, cor: t.color, grupo: 'etapa' as const,
+                                    contagem: contagem[`tag:${t.id}`], pessoas: contagem[`semler:tag:${t.id}`] })),
+  ]
+  const filtrosDeQuemAtende: FiltroDaLista[] = linha === 'captacao'
+    ? filtrosCaptacao.filter((f) => f.grupo === 'pessoa')
+    : filtros.filter((f) => f.grupo === 'pessoa')
   const noSubfiltroDosDonos = activeTab === 'olx:proprietarios' || activeTab.startsWith('cap:')
 
   const passaNoFiltro = (hit: SearchHit): boolean => {
     const l = hit.lead
+    // 20/10: com as abas de etiqueta, Todos é a linha inteira (antes cada número escondia o que era de outra etapa)
+    if (usarAbasDeEtiquetas && activeTab === 'all') return true
     /* O PROPRIETÁRIO SÓ APARECE NA ETAPA DELE (Tel, 30/09): "os proprietários
        não vão aparecer em outras etapas, só ali, para ficar mais organizado".
        Vale para as ETAPAS (Todos, Visitas). Tel e Rayssa são quem atende, não
@@ -751,8 +784,9 @@ export default function LeadList({
 
         {!verArquivadas && (
           <>
-            {/* HOJE / ESSA SEMANA (Pedro, 19/10): toggle à parte da aba; nenhum marcado = todas as conversas */}
-            {ehParceria && (
+            {/* HOJE / ESSA SEMANA (Pedro, 19/10): toggle à parte da aba; nenhum marcado = todas as conversas.
+                20/10: também no WhatsApp Leads (captação) */}
+            {(ehParceria || linha === 'captacao') && (
               <div className="flex items-center gap-2 px-4 pb-2 pt-0.5 -mb-1" role="group" aria-label="Período das conversas">
                 <button type="button" aria-pressed={periodo === 'hoje'}
                         className={`wa-periodo wa-periodo--hoje ${periodo === 'hoje' ? 'wa-periodo--on' : ''}`}
@@ -775,7 +809,19 @@ export default function LeadList({
                 </div>
               </div>
             )}
-            {linha === 'captacao' ? (
+            {usarAbasDeEtiquetas ? (
+              <>
+                {filtrosDeQuemAtende.length > 0 && (
+                  <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtrosDeQuemAtende} />
+                )}
+                <div className="flex items-center gap-1 pr-2">
+                  <div className="flex-1 min-w-0">
+                    <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtrosDeEtiquetas} />
+                  </div>
+                  <EditarAbas linha={linha as string} atuais={abasDeEtiqueta} contagem={contagem} />
+                </div>
+              </>
+            ) : linha === 'captacao' ? (
               <>
                 {/* 16/10: as etapas da Captação são a fileira principal; o subfiltro dos donos só com Proprietários aberto */}
                 {/* 18/10 (Pedro: "pega a tag Tel e põe acima da tag Todos"): o Tel numa fileira própria, em cima das etapas */}
