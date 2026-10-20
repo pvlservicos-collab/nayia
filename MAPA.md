@@ -308,6 +308,8 @@ prompt: comece pelo `nay onde`.
   `EditarAbas`, o lápis no fim da fileira) + `/api/linhas/abas` (integrations.config.abas_etiquetas). Nunca editado =
   etiquetas com gente na linha. Tel/Rayssa/Com o Tel continuam na fileira de cima; Todos = a linha inteira.
 - PIPELINE: filtros à vista (etapas, etiquetas, quando) e o card lateral do chat em `PipelineBoard.tsx`.
+- RELATÓRIOS › WhatsApp Leads por etiqueta (426): `imob-easy/assets/js/relatorio-etiquetas.js`, `site_relatorio_etiquetas`,
+  a foto por `scripts/foto_etiquetas_leads.sh`. As etapas do Leads como etiquetas: o bloco "AS ETAPAS DO WHATSAPP LEADS" do `funis.ts`.
 - LEMBRETE DA VISITA: `/api/parceria/visitas/[id]/lembretes` (GET, DELETE) e `LembretesDaVisita.tsx` (agenda e agendar).
 - CRM › Mais › BUSCAR IMÓVEL OLX (422): `crm/src/app/(authenticated)/buscar-imovel-olx/page.tsx` + `/api/olx/busca-parceiro`
   -> `crm_olx_busca_parceiro_abrir(dados, quem)` (lead da Nay do WhatsApp pelo telefone, ou um novo 'manual') e
