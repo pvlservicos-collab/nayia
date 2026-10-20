@@ -1,4 +1,4 @@
-# privado.grupo_conversa  (tabela, ~10013 linhas)
+# privado.grupo_conversa  (tabela, ~11069 linhas)
 277: toda mensagem dos grupos do número da Parceria, guardada do webhook da Z-API (a Z-API não entrega histórico).
 
 ## colunas

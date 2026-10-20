@@ -23,7 +23,8 @@ AS $function$
              '{}'::text[]) AS tags,
            (SELECT jsonb_strip_nulls(jsonb_build_object('nome', cf.nome, 'tipo', cf.tipo, 'torres', cf.torres, 'andares', cf.andares,
                       'aptos_por_andar', cf.aptos_por_andar, 'elevador', cf.elevador, 'construtora', cf.construtora,
-                      'ano', coalesce(cf.ano_construcao, cf.ano_lancamento::text), 'taxas', nullif(cf.taxas, '[]'::jsonb)))
+                      'ano', coalesce(cf.ano_construcao, cf.ano_lancamento::text), 'taxas', nullif(cf.taxas, '[]'::jsonb),
+                      'taxa_inclui', nullif(to_jsonb(cf.taxa_inclui), '[]'::jsonb)))   -- 448: o que a taxa inclui
               FROM t JOIN condominio_ficha cf ON cf.condominio_id = t.condo_id) AS ficha
   )
   SELECT jsonb_build_object(

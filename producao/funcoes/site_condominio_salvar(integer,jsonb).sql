@@ -144,20 +144,21 @@ BEGIN
     END IF;
   END LOOP;
   -- as taxas por quartos (ou metragem): condomínio fixo para todos daquele tamanho; IPTU quando for fixo
+  -- 448: o valor em reais como se escreve aqui ("3.200" = 3200, "550,50" = 550,5); o gatilho leva aos imóveis
   IF jsonb_typeof(p_dados->'taxas') = 'array' THEN
     IF (SELECT coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
                  'quartos', nullif(regexp_replace(coalesce(t->>'quartos', ''), '\D', '', 'g'), '')::int,
                  'metragem', nullif(regexp_replace(coalesce(t->>'metragem', ''), '[^0-9.,]', '', 'g'), ''),
-                 'condominio', nullif(replace(regexp_replace(coalesce(t->>'condominio', ''), '[^0-9,.]', '', 'g'), ',', '.'), '')::numeric::float8,
-                 'iptu', nullif(replace(regexp_replace(coalesce(t->>'iptu', ''), '[^0-9,.]', '', 'g'), ',', '.'), '')::numeric::float8)))
+                 'condominio', captacao_numero(t->>'condominio')::float8,
+                 'iptu', captacao_numero(t->>'iptu')::float8)))
                  FILTER (WHERE coalesce(t->>'condominio', t->>'iptu', '') <> ''), '[]'::jsonb)
           FROM jsonb_array_elements(p_dados->'taxas') t) IS DISTINCT FROM f.taxas THEN
       UPDATE condominio_ficha SET taxas = (
         SELECT coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
                  'quartos', nullif(regexp_replace(coalesce(t->>'quartos', ''), '\D', '', 'g'), '')::int,
                  'metragem', nullif(regexp_replace(coalesce(t->>'metragem', ''), '[^0-9.,]', '', 'g'), ''),
-                 'condominio', nullif(replace(regexp_replace(coalesce(t->>'condominio', ''), '[^0-9,.]', '', 'g'), ',', '.'), '')::numeric::float8,
-                 'iptu', nullif(replace(regexp_replace(coalesce(t->>'iptu', ''), '[^0-9,.]', '', 'g'), ',', '.'), '')::numeric::float8)))
+                 'condominio', captacao_numero(t->>'condominio')::float8,
+                 'iptu', captacao_numero(t->>'iptu')::float8)))
                  FILTER (WHERE coalesce(t->>'condominio', t->>'iptu', '') <> ''), '[]'::jsonb)
           FROM jsonb_array_elements(p_dados->'taxas') t) WHERE id = f.id;
       v_mudou := array_append(v_mudou, 'taxas');

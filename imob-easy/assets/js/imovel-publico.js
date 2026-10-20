@@ -112,7 +112,10 @@
       "<div><small>Honorários</small><b>50/50</b></div>";
     var neg = [["fin", "Aceita financiamento"], ["permuta", "Permuta"]].filter(function (c) { return has(V[c[0]]); })
       .map(function (c) { return "<div><small>" + c[1] + "</small><b>" + esc(V[c[0]]) + "</b></div>"; }).join("");
+    // 448: o que a taxa de condomínio inclui vem da ficha do condomínio (vale para todos os imóveis dele)
+    var inclusoTaxa = I.condo && Array.isArray(I.condo.taxa_inclui) ? pills(I.condo.taxa_inclui) : null;
     $("#valB").innerHTML = '<div class="kv">' + dinheiro + neg + "</div>" +
+      (inclusoTaxa ? '<div style="margin-top:14px"><p class="sub-t">Incluso na taxa de condomínio</p>' + inclusoTaxa + "</div>" : "") +
       '<div class="two" style="margin-top:14px"><div><p class="sub-t">Incluso no aluguel</p>' + (pills(lista(I.incluso)) || '<p class="none">Não informado</p>') + "</div>" +
       '<div><p class="sub-t">Garantia de aluguel</p>' + (pills(lista(I.garantia)) || '<p class="none">Não informado</p>') + "</div></div>";
 

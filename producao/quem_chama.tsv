@@ -37,7 +37,7 @@ captacao_lead_por_contato	captacao_ainda_e_da_ia
 captacao_mensagem_do_python	
 captacao_mensagens_da_mudanca	imovel_mudanca_registrar
 captacao_no_horario	captacao_disparo_liberado, captacao_py_disparo_motivo, crm_captacao_disparo_oficial
-captacao_numero	captacao_aplicar_ao_cadastro, nai_cadastro_importar
+captacao_numero	captacao_aplicar_ao_cadastro, nai_cadastro_importar, site_condominio_salvar
 captacao_olx_anuncio	captacao_olx_novo
 captacao_olx_da_parceria	nai_abrir_turno
 captacao_olx_encerrar	
@@ -64,6 +64,8 @@ condominio_google_bate	condominio_google_marcar
 condominio_google_chave	condominio_aplicar_google, condominio_google_bate, condominio_google_marcar
 condominio_google_marcar	
 condominio_nome_nucleo	cadastro_whats_condominio, site_ficha_preparada
+condominio_taxa_aos_imoveis	condominio_taxa_aos_imoveis_tg
+condominio_taxa_aos_imoveis_tg	
 core_saida_pergunta_na_fila	
 core_saida_validar	
 crm_anuncio_decidir	
@@ -158,6 +160,7 @@ crm_visitas_pessoas
 imoveis_a_situacao_manda	
 imoveis_carimbar_taxa	
 imoveis_parceiro_pelo_captador	
+imoveis_taxa_do_condominio	
 imovel_mudanca_registrar	captacao_aplicar_ao_cadastro, captacao_aplicar_pendentes
 imovel_mudanca_trocar	
 imovel_parceiro_antigo	

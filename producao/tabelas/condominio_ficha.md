@@ -1,4 +1,4 @@
-# condominio_ficha  (tabela, ~465 linhas)
+# condominio_ficha  (tabela, ~468 linhas)
 
 ## colunas
 id  integer  NOT NULL  padrão nextval('condominio_ficha_id_seq'::regclass)
@@ -51,6 +51,7 @@ condominio_ficha_tipo_check: CHECK ((tipo = ANY (ARRAY['apartamentos'::text, 'ca
 ## gatilhos
 CREATE TRIGGER condominio_google_tg BEFORE INSERT OR UPDATE ON public.condominio_ficha FOR EACH ROW EXECUTE FUNCTION condominio_google_marcar()
 CREATE TRIGGER condominio_proximo_anos_tg AFTER INSERT OR UPDATE OF ano_lancamento, ano_construcao, condominio_id ON public.condominio_ficha FOR EACH STATEMENT EXECUTE FUNCTION privado.condominio_proximo_anos_tg()
+CREATE TRIGGER condominio_taxa_aos_imoveis_tg AFTER INSERT OR UPDATE ON public.condominio_ficha FOR EACH ROW EXECUTE FUNCTION condominio_taxa_aos_imoveis_tg()
 
 ## permissões
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
@@ -63,4 +64,4 @@ nay_site_leitura: SELECT
 condominio_aplicar_google, site_condominio_guardar, site_condominio_salvar
 
 ## funções que citam
-captacao_olx_anuncio, condominio_aplicar_google, crm_captacao_cadastro_opcoes, nai_cadastro_importar, nai_condominio_do_imovel, olx_anuncio_montar, site_condominio_guardar, site_condominio_salvar, site_imovel_publico
+captacao_olx_anuncio, condominio_aplicar_google, condominio_taxa_aos_imoveis, crm_captacao_cadastro_opcoes, imoveis_taxa_do_condominio, nai_cadastro_importar, nai_condominio_do_imovel, olx_anuncio_montar, site_condominio_guardar, site_condominio_salvar, site_imovel_publico
