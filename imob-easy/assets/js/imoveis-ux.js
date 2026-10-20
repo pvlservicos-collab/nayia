@@ -59,8 +59,12 @@
   window.addEventListener("scroll", medirTopo, { passive: true });
 
   /* ---- o estado da tela -------------------------------------------- */
+  /* 20/10 (Pedro): "quero por padrão em situação já apareça os disponíveis". A tela abre (e o
+     "Limpar filtros" volta) com Disponível marcado; os atalhos e o link de condomínio continuam
+     vendo todas as situações, como antes. */
+  var STATUS_PADRAO = ["Disponível"];
   var st = {
-    page: 1, grupo: "", status: [],
+    page: 1, grupo: "", status: STATUS_PADRAO.slice(),
     quartos: "", vagas: "", fin: "", financia: "", anuncio: "", foto: "",
     dono: "", parceiro: "", confirmar: "",
     dataCampo: "", dataPer: "", dataMeses: "",
@@ -110,23 +114,41 @@
   };
   /* TIPOS EM BOTÃO (Pedro, 06/10: "deixa selecionável mesmo os principais, o resto no +").
      Os três principais ficam à mostra; o "+" abre o campo de várias escolhas com todos. */
+  /* 20/10 (Pedro): "o imóvel [tipo] não quero ele como um menu de abrir, quero fora do menu já as opções:
+     Apartamento | Casa e aí a setinha, com a setinha aí aparece mais opções dessa aba". Apartamento e Casa
+     ficam sempre à vista; a setinha abre Casa de condomínio, o campo com os outros tipos e as vagas. */
   var TIPOS_PRINCIPAIS = ["Apartamento", "Casa", "Casa de condomínio"], contaDosTipos = {}, tiposAbertos = false;
+  var TIPOS_A_VISTA = ["Apartamento", "Casa"];
+  function botaoTipo(t, marcados) {
+    return '<button type="button" class="op" data-tipo-rapido="' + esc(t) + '" aria-pressed="' +
+      (marcados.indexOf(t) >= 0 ? "true" : "false") + '">' + esc(t) +
+      (contaDosTipos[t] != null ? '<span class="n">' + contaDosTipos[t] + "</span>" : "") + "</button>";
+  }
   function pintarTiposRapidos() {
     var alvo = $("f-tipos-rapidos");
     if (!alvo) return;                       // HTML antigo no cache
     var marcados = msTiposL.valores();
-    var outros = marcados.filter(function (v) { return TIPOS_PRINCIPAIS.indexOf(v) < 0; }).length;
-    if (outros) tiposAbertos = true;         // tipo escolhido lá dentro: o campo fica à vista
-    alvo.innerHTML = TIPOS_PRINCIPAIS.map(function (t) {
-      return '<button type="button" class="op" data-tipo-rapido="' + esc(t) + '" aria-pressed="' +
-        (marcados.indexOf(t) >= 0 ? "true" : "false") + '">' + esc(t) +
-        (contaDosTipos[t] != null ? '<span class="n">' + contaDosTipos[t] + "</span>" : "") + "</button>";
-    }).join("") + '<button type="button" class="op" data-tipo-mais aria-expanded="' + (tiposAbertos ? "true" : "false") +
-      '" title="Outros tipos">' + (tiposAbertos ? "−" : "+") + "</button>";
-    $("f-tipos").style.display = tiposAbertos ? "" : "none";
+    // tipo escolhido lá dentro (ou vagas): o que está atrás da setinha fica à vista
+    var escondidos = marcados.filter(function (v) { return TIPOS_A_VISTA.indexOf(v) < 0; }).length;
+    if (escondidos || st.vagas) tiposAbertos = true;
+    alvo.innerHTML = TIPOS_A_VISTA.map(function (t) { return botaoTipo(t, marcados); }).join("") +
+      '<button type="button" class="op op--seta" data-tipo-mais aria-expanded="' + (tiposAbertos ? "true" : "false") +
+      '" aria-controls="f-imovel-mais" title="' + (tiposAbertos ? "Esconder" : "Mais tipos e vagas") + '" aria-label="' +
+      (tiposAbertos ? "Esconder os outros tipos" : "Mais tipos e vagas") + '">' +
+      '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" ' +
+      'stroke-linejoin="round" aria-hidden="true"><path d="' + (tiposAbertos ? "m6 15 6-6 6 6" : "m6 9 6 6 6-6") + '"/></svg></button>';
+    var mais = $("f-tipos-rapidos-mais");
+    if (mais) {
+      mais.innerHTML = TIPOS_PRINCIPAIS.filter(function (t) { return TIPOS_A_VISTA.indexOf(t) < 0; })
+        .map(function (t) { return botaoTipo(t, marcados); }).join("");
+    }
+    if ($("f-imovel-mais")) $("f-imovel-mais").hidden = !tiposAbertos;
+    else if ($("f-tipos")) $("f-tipos").style.display = tiposAbertos ? "" : "none";   // HTML antigo
   }
   if ($("f-tipos-rapidos")) {
-    $("f-tipos-rapidos").addEventListener("click", function (e) {
+    // no formulário inteiro: os botões moram em dois lugares (à vista e atrás da setinha)
+    form.addEventListener("click", function (e) {
+      if (!e.target.closest) return;
       if (e.target.closest("[data-tipo-mais]")) { tiposAbertos = !tiposAbertos; pintarTiposRapidos(); return; }
       var b = e.target.closest("[data-tipo-rapido]");
       if (!b) return;
@@ -324,6 +346,29 @@
     form.querySelectorAll(".ux-qtd[data-g]").forEach(function (e) {
       var q = porGrupo[e.dataset.g] || 0;
       e.hidden = !q; e.textContent = q;
+    });
+
+    /* 20/10: a Situação fica recolhida, então o título diz o que está valendo ("Disponível") */
+    var escolhaSit = form.querySelector('[data-g-escolha="sit"]');
+    if (escolhaSit) {
+      var nomesSit = st.status.slice();
+      if (st.confirmar) nomesSit.push("Precisa confirmar");
+      if (st.parceiro === "sim") nomesSit.push("Parceiros");
+      if (st.parceiro === "antigo") nomesSit.push("Parceiros antigos");
+      escolhaSit.textContent = nomesSit.length ? nomesSit.join(", ") : "todas";
+      escolhaSit.title = escolhaSit.textContent;
+    }
+    /* o que está atrás da setinha e foi escolhido: o número aparece nela e ela não fecha calada */
+    var porMais = {
+      onde: msZonasL.valores().length + msConjuntosL.valores().length + msAvenidasL.valores().length +
+            msCondosL.valores().length + (condoDoLink ? 1 : 0),
+      valor: st.financia ? 1 : 0
+    };
+    form.querySelectorAll(".ux-qtd[data-g-mais]").forEach(function (e) {
+      var q = porMais[e.dataset.gMais] || 0;
+      e.hidden = !q; e.textContent = q;
+      var d = e.closest("details");
+      if (q && d && !d.open) d.open = true;
     });
 
     // as abas de tipo
@@ -656,9 +701,20 @@
         ultimo = d;
         window.IMOVEIS_NA_TELA = {};
         d.itens.forEach(function (i) { window.IMOVEIS_NA_TELA[i.codigo] = i; });
+        /* 20/10: com Disponível já marcado de saída, quem busca um código alugado veria "nenhum".
+           A conta da situação vem ignorando a própria situação, então dá para dizer quantos há nas outras. */
+        var nasOutras = 0;
+        if (!d.itens.length && st.status.length) {
+          Object.keys((d.facetas || {}).status || {}).forEach(function (s) {
+            if (st.status.indexOf(s) < 0 && s !== "Excluído") nasOutras += Number(d.facetas.status[s]) || 0;
+          });
+        }
         corpo.innerHTML = d.itens.length ? d.itens.map(linha).join("")
           : '<tr><td colspan="8" style="text-align:center;color:var(--texto-fraco);padding:26px">' +
-            "Nenhum imóvel com esses filtros. Tire um filtro acima.</td></tr>";
+            (nasOutras
+              ? "Nenhum " + esc(st.status.join(" / ").toLowerCase()) + " com esses filtros. Há " + nasOutras.toLocaleString("pt-BR") +
+                " em outras situações. " + '<button type="button" class="btn-mini" data-todas-situacoes>Ver todas as situações</button>'
+              : "Nenhum imóvel com esses filtros. Tire um filtro acima.") + "</td></tr>";
         var ini = d.total ? (st.page - 1) * POR_PAGINA + 1 : 0;
         $("contagem-imoveis").innerHTML = "<b>" + d.total.toLocaleString("pt-BR") + "</b> imóve" +
           (d.total === 1 ? "l" : "is") +
@@ -845,26 +901,162 @@
     carregarSugestoes(i.codigo);
 
     if (i.fotos) {
+      var deste = String(i.codigo);
       fetch(API + "/api/imoveis/" + encodeURIComponent(i.codigo) + "/fotos")
         .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
         .then(function (d) {
-          var fotos = (d.fotos || []).slice(0, 9);
-          $("ux-fotos").innerHTML = fotos.length
-            ? fotos.map(function (u) {
-                var url = typeof u === "string" ? u : (u.url || u.arquivo);
-                return '<img loading="lazy" src="' + esc(url) + '" alt="">';
-              }).join("")
-            : (i.capa ? '<img loading="lazy" src="' + esc(i.capa) + '" alt="">' : '<span class="ux-dica">não consegui abrir as fotos</span>');
+          if ($("ux-ficha").dataset.codigo !== deste || !$("ux-fotos")) return;   // já é outra ficha
+          var fotos = (d.fotos || []).map(function (u) { return typeof u === "string" ? u : (u.url || u.arquivo); })
+            .filter(Boolean);
+          if (!fotos.length && i.capa) fotos = [i.capa];
+          montarGaleria($("ux-fotos"), fotos);
         })
         .catch(function () {
-          $("ux-fotos").innerHTML = i.capa ? '<img loading="lazy" src="' + esc(i.capa) + '" alt="">'
-            : '<span class="ux-dica">não consegui abrir as fotos</span>';
+          if ($("ux-ficha").dataset.codigo !== deste || !$("ux-fotos")) return;
+          montarGaleria($("ux-fotos"), i.capa ? [i.capa] : []);
         });
     }
   }
+
+  /* ---- as fotos do Ver imóvel ----------------------------------------
+     20/10 (Pedro): "tem várias fotos abertas, não quero isso, quero uma fotona e o resto em slide, e uma
+     lupa no canto para aumentar e ver a foto em tela cheia". A foto grande (a capa primeiro), setas e
+     miniaturas embaixo; arrastar para o lado no celular; a lupa abre a tela cheia (setas, Esc, clique fora). */
+  var gal = { fotos: [], i: 0 };
+  var LUPA = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" ' +
+    'stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/><path d="M11 8v6M8 11h6"/></svg>';
+
+  function montarGaleria(alvo, fotos) {
+    gal.fotos = fotos; gal.i = 0;
+    if (!fotos.length) { alvo.innerHTML = '<span class="ux-dica">não consegui abrir as fotos</span>'; return; }
+    var varias = fotos.length > 1;
+    alvo.className = "ux-fotos ux-gal";
+    alvo.innerHTML =
+      '<div class="ux-gal__palco" data-gal-palco>' +
+        '<img class="ux-gal__img" data-gal-img src="' + esc(fotos[0]) + '" alt="Foto 1 de ' + fotos.length + '">' +
+        (varias ? '<button type="button" class="ux-gal__seta ux-gal__seta--e" data-gal-passo="-1" aria-label="Foto anterior">‹</button>' +
+                  '<button type="button" class="ux-gal__seta ux-gal__seta--d" data-gal-passo="1" aria-label="Próxima foto">›</button>' : "") +
+        '<button type="button" class="ux-gal__lupa" data-gal-lupa aria-label="Ver a foto em tela cheia" title="Tela cheia">' + LUPA + "</button>" +
+        '<span class="ux-gal__conta" data-gal-conta>1 / ' + fotos.length + "</span>" +
+      "</div>" +
+      (varias ? '<div class="ux-gal__trilho" data-gal-trilho>' + fotos.map(function (u, k) {
+        return '<button type="button" class="ux-gal__mini' + (k ? "" : " ux-gal__mini--on") + '" data-gal-ir="' + k +
+          '" aria-label="Foto ' + (k + 1) + '"><img loading="lazy" src="' + esc(u) + '" alt=""></button>';
+      }).join("") + "</div>" : "");
+  }
+
+  function irFoto(k) {
+    var n = gal.fotos.length;
+    if (!n) return;
+    gal.i = ((k % n) + n) % n;
+    var palco = document.querySelector("[data-gal-palco]");
+    if (palco) {
+      var img = palco.querySelector("[data-gal-img]");
+      img.src = gal.fotos[gal.i];
+      img.alt = "Foto " + (gal.i + 1) + " de " + n;
+      palco.querySelector("[data-gal-conta]").textContent = (gal.i + 1) + " / " + n;
+      document.querySelectorAll("[data-gal-ir]").forEach(function (b) {
+        var on = +b.dataset.galIr === gal.i;
+        b.classList.toggle("ux-gal__mini--on", on);
+        if (on && b.parentNode.scrollTo) {
+          var t = b.parentNode, x = b.offsetLeft - (t.clientWidth - b.offsetWidth) / 2;
+          t.scrollTo({ left: Math.max(0, x), behavior: "smooth" });
+        }
+      });
+    }
+    var cheia = $("ux-tela-cheia");
+    if (cheia && !cheia.hidden) pintarTelaCheia();
+  }
+
+  function pintarTelaCheia() {
+    var c = $("ux-tela-cheia");
+    c.querySelector("img").src = gal.fotos[gal.i];
+    c.querySelector("[data-tc-conta]").textContent = (gal.i + 1) + " / " + gal.fotos.length;
+    // vizinhas já baixando: a seta não espera a rede
+    [gal.i + 1, gal.i - 1].forEach(function (k) {
+      var u = gal.fotos[((k % gal.fotos.length) + gal.fotos.length) % gal.fotos.length];
+      if (u) (new Image()).src = u;
+    });
+  }
+  var quemAbriuTC = null;
+  function abrirTelaCheia() {
+    if (!gal.fotos.length) return;
+    var c = $("ux-tela-cheia");
+    if (!c) {
+      c = document.createElement("div");
+      c.id = "ux-tela-cheia";
+      c.className = "ux-tc";
+      c.setAttribute("role", "dialog");
+      c.setAttribute("aria-modal", "true");
+      c.setAttribute("aria-label", "Foto em tela cheia");
+      c.innerHTML = '<img class="ux-tc__img" alt="">' +
+        '<span class="ux-tc__conta" data-tc-conta></span>' +
+        '<button type="button" class="ux-tc__x" data-tc-fechar aria-label="Fechar (Esc)">✕</button>' +
+        '<button type="button" class="ux-tc__seta ux-tc__seta--e" data-tc-passo="-1" aria-label="Foto anterior">‹</button>' +
+        '<button type="button" class="ux-tc__seta ux-tc__seta--d" data-tc-passo="1" aria-label="Próxima foto">›</button>';
+      document.body.appendChild(c);
+      c.addEventListener("click", function (e) {
+        var p = e.target.closest("[data-tc-passo]");
+        if (p) { irFoto(gal.i + Number(p.dataset.tcPasso)); return; }
+        // clique fora da foto (ou no X) fecha
+        if (e.target.closest("[data-tc-fechar]") || !e.target.closest(".ux-tc__img")) fecharTelaCheia();
+      });
+      arrastar(c, function (lado) { irFoto(gal.i + lado); });
+    }
+    var umaSo = gal.fotos.length < 2;
+    c.querySelectorAll("[data-tc-passo]").forEach(function (b) { b.hidden = umaSo; });
+    quemAbriuTC = document.activeElement;
+    c.hidden = false;
+    document.documentElement.classList.add("ux-tc-aberta");
+    pintarTelaCheia();
+    c.querySelector("[data-tc-fechar]").focus({ preventScroll: true });
+  }
+  function fecharTelaCheia() {
+    var c = $("ux-tela-cheia");
+    if (!c || c.hidden) return false;
+    c.hidden = true;
+    document.documentElement.classList.remove("ux-tc-aberta");
+    if (quemAbriuTC && quemAbriuTC.focus && document.body.contains(quemAbriuTC)) quemAbriuTC.focus({ preventScroll: true });
+    return true;
+  }
+  /* arrastar o dedo para o lado troca a foto (no celular não há seta à mão) */
+  function arrastar(el, aoPassar, so) {
+    var x0 = null, y0 = null;
+    el.addEventListener("touchstart", function (e) {
+      if (e.touches.length !== 1 || (so && !(e.target.closest && e.target.closest(so)))) { x0 = null; return; }
+      x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+    }, { passive: true });
+    el.addEventListener("touchend", function (e) {
+      if (x0 === null) return;
+      var t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0;
+      x0 = null;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.3) aoPassar(dx < 0 ? 1 : -1);
+    }, { passive: true });
+  }
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest || !e.target.closest("#ux-fotos")) return;
+    var passo = e.target.closest("[data-gal-passo]");
+    if (passo) { irFoto(gal.i + Number(passo.dataset.galPasso)); return; }
+    var ir = e.target.closest("[data-gal-ir]");
+    if (ir) { irFoto(+ir.dataset.galIr); return; }
+    // a lupa, ou um clique na própria foto grande: tela cheia
+    if (e.target.closest("[data-gal-lupa]") || e.target.closest("[data-gal-img]")) abrirTelaCheia();
+  });
+  // o palco é recriado a cada ficha: o arrastar fica no #ux-ficha, que é fixo, e só vale em cima da foto
+  if ($("ux-ficha")) arrastar($("ux-ficha"), function (lado) { irFoto(gal.i + lado); }, "[data-gal-palco]");
+  /* Esc fecha só a tela cheia (a ficha continua aberta); as setas do teclado passam as fotos.
+     Na captura da janela, antes do Esc da ficha (lá embaixo, no document), que fecharia tudo. */
+  window.addEventListener("keydown", function (e) {
+    var c = $("ux-tela-cheia");
+    if (!c || c.hidden) return;
+    if (e.key === "Escape") { fecharTelaCheia(); e.stopPropagation(); e.preventDefault(); }
+    else if (e.key === "ArrowRight") { irFoto(gal.i + 1); e.preventDefault(); }
+    else if (e.key === "ArrowLeft") { irFoto(gal.i - 1); e.preventDefault(); }
+  }, true);
   var quemAbriu = null;
   function fecharFicha() {
     if ($("ux-ficha").hidden) return;
+    fecharTelaCheia();
     $("ux-ficha").hidden = true; $("ux-veu").hidden = true;
     if (quemAbriu && quemAbriu.focus && document.body.contains(quemAbriu)) quemAbriu.focus({ preventScroll: true });
   }
@@ -1017,6 +1209,7 @@
       return;
     }
     if (achar("[data-tentar-de-novo]")) return carregar();
+    if (achar("[data-todas-situacoes]")) { st.status = []; return recomecar(); }
 
     if (achar("#ux-veu")) return fecharFicha();
     var sugestao = achar("[data-sugestao]");
@@ -1056,6 +1249,7 @@
   form.addEventListener("reset", function (e) {
     e.preventDefault();
     limparFiltros();
+    st.status = STATUS_PADRAO.slice();   // 20/10: limpar volta ao começo da tela, só os disponíveis
     recomecar();
   });
   document.addEventListener("keydown", function (e) {
@@ -1576,6 +1770,7 @@
   var qs = new URLSearchParams(location.search);
   if (qs.get("condo")) {
     condoDoLink = { id: Number(qs.get("condo")), nome: qs.get("condo_nome") || "Condomínio " + qs.get("condo") };
+    st.status = [];   // o link "imóveis do condomínio" mostra todos dele, como antes do padrão Disponível
   }
 
   /* as opções dos três campos de várias escolhas, com a conta de cada uma */

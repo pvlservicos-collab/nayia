@@ -124,7 +124,21 @@ EXTRAS_EDITAVEIS = {
     # a Nay procura "tem piscina?" --; esta chave só diz em que grupo cada uma
     # aparece. Sem ela, a tela separa por palavra (portaria, salão de festas...).
     "caracteristicas do condominio": "lista_texto",
+    # 20/10 (Pedro): "imóvel de fino acabamento tem prioridade ao ser enviado para um cliente que já pediu imóveis de
+    # fino acabamento". Sim / Não; sem a chave = PENDENTE (o Checklist rápido mostra até alguém responder). A Nay nova
+    # lê pela view core_imovel_busca (nay-core 029) e põe estes primeiro quando o pedido fala de alto padrão.
+    "fino acabamento": "simnao",
 }
+
+# IMÓVEIS › CHECKLIST RÁPIDO (Pedro, 20/10/2026: "vou fazer outros, e eles vão ficar em lista lá"). Cada checklist é
+# uma pergunta sobre uma chave do `extras` (que precisa estar em EXTRAS_EDITAVEIS: é o PUT de sempre que grava), feita
+# um imóvel por vez. `publico`: locacao (aluguel > 0) | venda (venda > 0) | todos. Sem resposta = pendente; imóvel novo
+# entra sozinho, por não ter a chave. Para criar outro: uma entrada aqui + a chave em EXTRAS_EDITAVEIS.
+CHECKLISTS_RAPIDOS = [
+    {"id": "fino-acabamento", "titulo": "Fino acabamento", "pergunta": "Fino acabamento?",
+     "chave": "fino acabamento", "opcoes": ["Sim", "Não"], "publico": "locacao",
+     "explica": "Alto padrão de acabamento. Os de SIM vão primeiro para o corretor que pede alto padrão ou fino acabamento."},
+]
 
 # A UNIDADE e a LOCACAO ATUAL nunca saem pela rota aberta: so por
 # /admin/api/imoveis/<codigo>/privado, que confere a senha (migracao 157).
@@ -1921,6 +1935,70 @@ def api_aprovar_imoveis():
     try:
         linhas = todas_linhas(conn, "SELECT site_aprovar_imoveis() AS r")
         return jsonify(linhas[0]["r"] or {"itens": []})
+    finally:
+        conn.close()
+
+
+def _checklist_onde(ck):
+    """O WHERE de quem entra num checklist: o público dele, sem o Excluído (some da lista do admin desde 01/10)."""
+    publico = {"locacao": "coalesce(i.valor_aluguel, 0) > 0", "venda": "coalesce(i.valor_venda, 0) > 0"}
+    return publico.get(ck.get("publico"), "true") + " AND coalesce(i.status, '') <> 'Excluído'"
+
+
+@app.route("/admin/api/imoveis/checklists")
+def api_checklists_rapidos():
+    """A LISTA DOS CHECKLISTS RÁPIDOS, com quantos faltam (pendente = sem a chave no extras) em cada um: nos
+    Disponíveis e em todos os do público dele."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    conn = conectar_escrita()
+    try:
+        saida = []
+        for ck in CHECKLISTS_RAPIDOS:
+            r = todas_linhas(conn, "SELECT count(*) AS total, count(*) FILTER (WHERE i.status = 'Disponível') AS disp,"
+                             " count(*) FILTER (WHERE coalesce(i.extras ->> %(c)s, '') = '') AS pend,"
+                             " count(*) FILTER (WHERE i.status = 'Disponível' AND coalesce(i.extras ->> %(c)s, '') = '')"
+                             " AS pend_disp FROM imoveis i WHERE " + _checklist_onde(ck), {"c": ck["chave"]})[0]
+            saida.append({**ck, "total": r["total"], "disponiveis": r["disp"], "pendentes": r["pend"],
+                          "pendentes_disponiveis": r["pend_disp"]})
+        return jsonify({"checklists": saida})
+    finally:
+        conn.close()
+
+
+@app.route("/admin/api/imoveis/checklists/<ck_id>")
+def api_checklist_rapido(ck_id):
+    """UM CHECKLIST, os imóveis um por um (o "tinder" do Pedro): os Disponíveis primeiro, do mais novo para o mais
+    antigo; `?todos=1` traz também os demais do público (alugado, arquivado, rascunho...). Cada um com a resposta de
+    hoje (vazia = pendente), os dados do card e até 15 fotos, a capa primeiro. Responder = PUT /admin/api/imoveis/<cód>
+    {extras: {<chave>: "Sim" | "Não" | null}} (null volta a pendente)."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    ck = next((c for c in CHECKLISTS_RAPIDOS if c["id"] == ck_id), None)
+    if not ck:
+        return jsonify({"erro": "checklist não encontrado"}), 404
+    todos = request.args.get("todos") in ("1", "sim", "true")
+    conn = conectar_escrita()
+    try:
+        linhas = todas_linhas(conn, """
+            SELECT i.codigo, i.tipo, i.status, i.condominio_nome, i.bairro, i.valor_aluguel, i.valor_venda,
+                   i.taxa_condominio, i.quartos, i.suites, i.banheiros, i.vagas, i.area_util, i.area_total, i.mobilia,
+                   i.andar, coalesce(i.e_parceiro, false) AS e_parceiro, i.criado_em,
+                   nullif(btrim(i.extras ->> %(c)s), '') AS resposta,
+                   (SELECT coalesce(array_agg(f.url ORDER BY f.capa DESC, f.ordem NULLS LAST, f.id), '{}')
+                      FROM (SELECT url, coalesce(e_capa, false) AS capa, ordem, id FROM imovel_fotos
+                             WHERE codigo = i.codigo ORDER BY coalesce(e_capa, false) DESC, ordem NULLS LAST, id
+                             LIMIT 15) f) AS fotos
+              FROM imoveis i
+             WHERE """ + _checklist_onde(ck) + """ AND (%(todos)s OR i.status = 'Disponível')
+             ORDER BY (i.status = 'Disponível') DESC, i.codigo DESC""", {"c": ck["chave"], "todos": todos})
+        for item in linhas:
+            for campo in ("valor_venda", "valor_aluguel", "taxa_condominio", "area_util", "area_total"):
+                if item.get(campo) is not None:
+                    item[campo] = float(item[campo])
+            if item.get("criado_em") is not None:
+                item["criado_em"] = item["criado_em"].isoformat()
+        return jsonify({"checklist": ck, "todos": todos, "itens": linhas})
     finally:
         conn.close()
 

@@ -11,9 +11,10 @@
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css">
 <link rel="stylesheet" href="../assets/css/parceiro.css?v=20261019-antigo">
-<link rel="stylesheet" href="../assets/css/imoveis-ux.css?v=20261005-zoom2">
+<link rel="stylesheet" href="../assets/css/imoveis-ux.css?v=20261020-filtros">
 <!-- Ver imóvel em popup, com o cadastro completo e o papelzinho de copiar (Tel, 11 e 12/10; religado em 12/10) -->
 <link rel="stylesheet" href="../assets/css/imovel-ficha-popup.css?v=20261012r">
+<link rel="stylesheet" href="../assets/css/checklist-rapido.css?v=20261020a">
 <meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
 </head>
 <body class="admin" data-pagina="imoveis">
@@ -47,6 +48,8 @@
     <button class="abas__item" role="tab" type="button" data-painel-abre="aprovar" aria-selected="false">Aprovar imóveis <span class="abas__n" data-ap-conta>—</span></button>
     <!-- 361 (Pedro, 13/10): o que a resposta do proprietário mudou no cadastro, com a conversa e o voltar atrás -->
     <button class="abas__item" role="tab" type="button" data-painel-abre="mudancas" aria-selected="false">Mudanças recentes <span class="abas__n" data-mu-conta>—</span></button>
+    <!-- 20/10 (Pedro): uma lista de checklists (hoje: Fino acabamento), um imóvel por vez, SIM / NÃO à mão -->
+    <button class="abas__item" role="tab" type="button" data-painel-abre="checklist" aria-selected="false">Checklist rápido <span class="abas__n" data-ck-conta>—</span></button>
   </div>
 
   <div data-painel="imoveis">
@@ -61,9 +64,11 @@
                placeholder="Código, condomínio, bairro, rua ou proprietário">
       </div>
 
-      <!-- Situação: o que acontece com o imóvel no mundo -->
-      <details class="ux-grupo" open style="--cor:#3f9c6d;--corbg:var(--verde-suave)">
-        <summary><span class="ux-ico">●</span><b>Situação</b><span class="ux-qtd" data-g="sit" hidden></span><span class="ux-seta">▾</span></summary>
+      <!-- Situação: o que acontece com o imóvel no mundo.
+           20/10 (Pedro): "por padrão em situação já apareça os disponíveis... mas fechado" --
+           começa com Disponível marcado e o grupo recolhido; o que está escolhido aparece no título. -->
+      <details class="ux-grupo" style="--cor:#3f9c6d;--corbg:var(--verde-suave)">
+        <summary><span class="ux-ico">●</span><b>Situação</b><span class="ux-escolha" data-g-escolha="sit"></span><span class="ux-qtd" data-g="sit" hidden></span><span class="ux-seta">▾</span></summary>
         <div class="ux-corpo">
           <div>
             <div class="ux-rot">Como o imóvel está</div>
@@ -83,23 +88,71 @@
         </div>
       </details>
 
-      <!-- Imóvel -->
-      <details class="ux-grupo" open style="--cor:var(--roxo);--corbg:var(--roxo-suave)">
-        <summary><span class="ux-ico">⌂</span><b>Imóvel</b><span class="ux-qtd" data-g="imovel" hidden></span><span class="ux-seta">▾</span></summary>
+      <!-- 20/10 (Pedro: "tenho que ficar clicando para abrir... os filtros mais comuns para fora"):
+           Imóvel, Localização e Valor são cartões sempre abertos com o que mais se usa à vista;
+           o resto de cada um fica atrás da setinha. Anúncio e Proprietário, que quase não se usam,
+           continuam recolhidos. -->
+
+      <!-- Imóvel: Apartamento | Casa à vista; a setinha abre os outros tipos e as vagas -->
+      <div class="ux-grupo ux-grupo--fixo" style="--cor:var(--roxo);--corbg:var(--roxo-suave)">
+        <div class="ux-cab"><span class="ux-ico">⌂</span><b>Imóvel</b><span class="ux-qtd" data-g="imovel" hidden></span></div>
         <div class="ux-corpo">
-          <div><div class="ux-rot">Quartos</div><div class="ux-ops" data-f="quartos"></div></div>
-          <div><div class="ux-rot">Vagas</div><div class="ux-ops" data-f="vagas"></div></div>
           <!-- VÁRIOS DE UMA VEZ (Pedro, 28/09): o mesmo campo do "Enviar imóvel" --
                digita, a lista do banco desce, escolhe quantos quiser -->
-          <!-- 06/10 (Pedro): os principais em botão; o "+" abre o campo com todos os tipos -->
-          <div><div class="ux-rot">Tipos</div>
-            <div class="ux-ops" id="f-tipos-rapidos"></div>
-            <div id="f-tipos" style="margin-top:6px;display:none"></div></div>
+          <!-- 06/10 (Pedro): os principais em botão; 20/10: só Apartamento e Casa de fora, a setinha abre o resto -->
+          <div><div class="ux-rot">Tipo</div>
+            <div class="ux-ops" id="f-tipos-rapidos"></div></div>
+          <div class="ux-mais-corpo" id="f-imovel-mais" hidden>
+            <div><div class="ux-rot">Outros tipos</div>
+              <div class="ux-ops" id="f-tipos-rapidos-mais"></div>
+              <div id="f-tipos" style="margin-top:6px"></div></div>
+            <div><div class="ux-rot">Vagas</div><div class="ux-ops" data-f="vagas"></div></div>
+          </div>
+          <div><div class="ux-rot">Quartos</div><div class="ux-ops" data-f="quartos"></div></div>
         </div>
-      </details>
+      </div>
 
-      <!-- Anúncio: decisão nossa, imóvel por imóvel -->
-      <details class="ux-grupo" open style="--cor:#7c3aed;--corbg:var(--azul-claro)">
+      <!-- Localização: o bairro à vista; zona, conjunto, avenida e condomínio na setinha -->
+      <div class="ux-grupo ux-grupo--fixo" style="--cor:#2f6fb8;--corbg:var(--azul-claro)">
+        <div class="ux-cab"><span class="ux-ico">⌖</span><b>Localização</b><span class="ux-qtd" data-g="onde" hidden></span></div>
+        <div class="ux-corpo">
+          <div><div class="ux-rot">Bairros</div><div id="f-bairros"></div></div>
+          <details class="ux-mais" data-mais="onde">
+            <summary>Zona, conjunto, avenida, condomínio<span class="ux-qtd" data-g-mais="onde" hidden></span><span class="ux-seta">▾</span></summary>
+            <div class="ux-mais-corpo">
+              <!-- zona = os bairros dela (Pedro, 30/09: "por bairro, por zona e por avenida") -->
+              <div><div class="ux-rot">Zonas</div><div id="f-zonas"></div></div>
+              <!-- conjunto = o bairro dele; avenida = os bairros por onde passa (Pedro, 30/09) -->
+              <div><div class="ux-rot">Conjuntos</div><div id="f-conjuntos"></div></div>
+              <div><div class="ux-rot">Avenidas</div><div id="f-avenidas"></div></div>
+              <div><div class="ux-rot">Condomínios</div><div id="f-condominios"></div></div>
+            </div>
+          </details>
+          <!-- a aba Mapa ainda preenche esta lista -->
+          <datalist id="lista-bairros"></datalist>
+        </div>
+      </div>
+
+      <!-- Valor: finalidade e faixa à vista; financiamento na setinha -->
+      <div class="ux-grupo ux-grupo--fixo" style="--cor:#c4762f;--corbg:var(--laranja-suave)">
+        <div class="ux-cab"><span class="ux-ico">$</span><b>Valor</b><span class="ux-qtd" data-g="valor" hidden></span></div>
+        <div class="ux-corpo">
+          <div><div class="ux-rot">Finalidade</div><div class="ux-ops" data-f="fin"></div></div>
+          <div class="ux-faixa">
+            <div><div class="ux-rot">Mínimo (R$)</div><input class="entrada" name="vmin" inputmode="numeric" placeholder="0"></div>
+            <div><div class="ux-rot">Máximo (R$)</div><input class="entrada" name="vmax" inputmode="numeric" placeholder="sem limite"></div>
+          </div>
+          <details class="ux-mais" data-mais="valor">
+            <summary>Aceita financiamento<span class="ux-qtd" data-g-mais="valor" hidden></span><span class="ux-seta">▾</span></summary>
+            <div class="ux-mais-corpo">
+              <div class="ux-ops" data-f="financia"></div>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <!-- Anúncio: decisão nossa, imóvel por imóvel (recolhido: pouco usado) -->
+      <details class="ux-grupo" style="--cor:#7c3aed;--corbg:var(--azul-claro)">
         <summary><span class="ux-ico">◷</span><b>Anúncio e fotos</b><span class="ux-qtd" data-g="anuncio" hidden></span><span class="ux-seta">▾</span></summary>
         <div class="ux-corpo">
           <div><div class="ux-rot">Está no site</div><div class="ux-ops" data-f="anuncio"></div></div>
@@ -107,35 +160,6 @@
           <!-- 244: quanto o cadastro está preenchido (Pedro, 30/09) -->
           <div><div class="ux-rot">Cadastro preenchido</div><div class="ux-ops" data-f="cadastro"></div></div>
           <p class="ux-dica">Só imóvel no site chega na Nay. Estar disponível e estar anunciado são duas coisas.</p>
-        </div>
-      </details>
-
-      <!-- Localização -->
-      <details class="ux-grupo" open style="--cor:#2f6fb8;--corbg:var(--azul-claro)">
-        <summary><span class="ux-ico">⌖</span><b>Localização</b><span class="ux-qtd" data-g="onde" hidden></span><span class="ux-seta">▾</span></summary>
-        <div class="ux-corpo">
-          <div><div class="ux-rot">Bairros</div><div id="f-bairros"></div></div>
-          <!-- zona = os bairros dela (Pedro, 30/09: "por bairro, por zona e por avenida") -->
-          <div><div class="ux-rot">Zonas</div><div id="f-zonas"></div></div>
-          <!-- conjunto = o bairro dele; avenida = os bairros por onde passa (Pedro, 30/09) -->
-          <div><div class="ux-rot">Conjuntos</div><div id="f-conjuntos"></div></div>
-          <div><div class="ux-rot">Avenidas</div><div id="f-avenidas"></div></div>
-          <div><div class="ux-rot">Condomínios</div><div id="f-condominios"></div></div>
-          <!-- a aba Mapa ainda preenche esta lista -->
-          <datalist id="lista-bairros"></datalist>
-        </div>
-      </details>
-
-      <!-- Valor -->
-      <details class="ux-grupo" open style="--cor:#c4762f;--corbg:var(--laranja-suave)">
-        <summary><span class="ux-ico">$</span><b>Valor</b><span class="ux-qtd" data-g="valor" hidden></span><span class="ux-seta">▾</span></summary>
-        <div class="ux-corpo">
-          <div><div class="ux-rot">Finalidade</div><div class="ux-ops" data-f="fin"></div></div>
-          <div class="ux-faixa">
-            <div><div class="ux-rot">Mínimo (R$)</div><input class="entrada" name="vmin" inputmode="numeric" placeholder="0"></div>
-            <div><div class="ux-rot">Máximo (R$)</div><input class="entrada" name="vmax" inputmode="numeric" placeholder="sem limite"></div>
-          </div>
-          <div><div class="ux-rot">Aceita financiamento</div><div class="ux-ops" data-f="financia"></div></div>
         </div>
       </details>
 
@@ -149,7 +173,7 @@
         </div>
       </details>
 
-      <button class="ux-limpar" type="reset">Limpar todos os filtros</button>
+      <button class="ux-limpar" type="reset" title="Tira todos os filtros e volta só para os disponíveis">Limpar filtros (volta aos disponíveis)</button>
       <p class="ux-dica" id="copiar-status" role="status"></p>
     </form>
 
@@ -278,6 +302,9 @@
   <!-- ===================== MUDANÇAS RECENTES (Pedro, 13/10): montada por assets/js/imovel-mudancas.js ===================== -->
   <div data-painel="mudancas" hidden></div>
 
+  <!-- ===================== CHECKLIST RÁPIDO (Pedro, 20/10): montada por assets/js/checklist-rapido.js ===================== -->
+  <div data-painel="checklist" hidden></div>
+
   <!-- A aba CADASTRO PENDENTE saiu em 09/10 (Pedro: "você dividiu em 2, não quero isso"): a mesma fila
        está no CADASTRO RÁPIDO, com o Importar tudo dentro do popup. -->
 
@@ -325,13 +352,15 @@
 <script src="../assets/js/admin.js"></script>
 <script src="../assets/js/seletor-condominio.js?v=20261008"></script>
 <script src="../assets/js/multiselecao.js"></script>
-<script src="../assets/js/imoveis-ux.js?v=20261019-copiar"></script>
+<script src="../assets/js/imoveis-ux.js?v=20261020-filtros"></script>
 <script src="../assets/js/condominios-aba.js?v=20261008"></script>
 <script src="../assets/js/condominio-google.js?v=20261012r"></script>
 <script src="../assets/js/condominio-cadastro.js?v=20261014t"></script>
 <script src="../assets/js/cadastro-rapido.js?v=20261012r"></script>
 <script src="../assets/js/imovel-mudancas.js?v=20261013a"></script>
 <script src="../assets/js/aprovar-imoveis.js?v=20261019a"></script>
+<!-- 20/10 (Pedro): Checklist rápido (Fino acabamento, um imóvel por vez) -->
+<script src="../assets/js/checklist-rapido.js?v=20261020a"></script>
 <!-- a barrinha de mobília ANTES do popup, que a usa -->
 <script src="../assets/js/mobilia-barra.js?v=20261012r"></script>
 <script src="../assets/js/imovel-ficha-popup.js?v=20261014t"></script>

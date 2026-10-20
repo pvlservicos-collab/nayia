@@ -116,6 +116,10 @@
     sol: { rotulo: "Face solar", lista: true },
     // os 4 níveis (Pedro, 11/10): "pelado (sem nada), climatizado (só), com modulados e ar (o antigo semimobiliado), mobiliado"
     mobilia: { rotulo: "Mobília", tipo: "escolha", opcoes: ["sem nada", "só climatizado", "com modulados e ar", "mobiliado"] },
+    /* 20/10 (Pedro): "tem apartamentos que são de alto padrão de acabamento ... esse imóvel teria prioridade ao ser
+       enviado para um cliente que já pediu imóveis de fino acabamento". Não obrigatório: vazio = pendente no
+       Imóveis › Checklist rápido. Mora em extras."fino acabamento" (Sim/Não). */
+    "x:fino acabamento": { rotulo: "Fino acabamento", tipo: "simnao", dica: "alto padrão: vai primeiro para quem pede" },
     /* 12/10 (Pedro): "a descrição é o texto de anúncio; a observação quem preenche somos nós, e quando preenchermos
        aí sim vai com o card". Nasce vazia: só o que a equipe escrever aqui sai com o card. */
     observacao: { rotulo: "Observação da equipe (sai com o card quando preenchida)", largo: true, longo: true,
@@ -170,7 +174,7 @@
     { titulo: "Características", icone: "⌂", cor: "#6d28d9", fundo: "#f1eaff",
       campos: ["tipo", "quartos", "suites", "banheiros", "x:salas", "vagas", "vagas_cobertas", "area_util", "area_total",
         "x:tamanho do terreno", "x:frente", "x:fundo", "x:pe direito", "x:andares",
-        "cobertura", "x:tipo de cobertura", "sol", "mobilia", "observacao"] },
+        "cobertura", "x:tipo de cobertura", "sol", "mobilia", "x:fino acabamento", "observacao"] },
     { titulo: "O que tem", icone: "✓", cor: "#0e7490", fundo: "#e6f6fa", largo: true,
       campos: ["caracteristicas"] },
     { titulo: "Valores e negócio", icone: "$", cor: "#c4762f", fundo: "#fdf2ea",
@@ -285,7 +289,7 @@
     "p:torre": ["vertical"], "p:bloco": ["vertical", "sala"], "p:unidade": ["vertical", "sala"],
     "p:casa": ["casa"], "p:lote": ["casa", "terreno"],
     quartos: ["vertical", "casa", "outro"], suites: ["vertical", "casa", "outro"], "x:salas": ["sala", "outro"],
-    mobilia: ["vertical", "casa", "sala", "outro"]
+    mobilia: ["vertical", "casa", "sala", "outro"], "x:fino acabamento": ["vertical", "casa", "sala", "outro"]
   };
   var ROTULO_POR_TIPO = {
     area_util: { casa: "Área construída", terreno: "Área construída" },

@@ -1,5 +1,5 @@
-# core_imovel_busca  (view materializada, ~5719 linhas)
-nay-core: um imóvel por linha com tipo, finalidade, zona, mobília (4 níveis, 028) e "ofertável" calculados uma vez. REFRESH CONCURRENTLY pelo worker (005).
+# core_imovel_busca  (view materializada, ~5720 linhas)
+nay-core: um imóvel por linha com tipo, finalidade, zona, mobília (4 níveis, 028), fino acabamento (029) e "ofertável" calculados uma vez. REFRESH CONCURRENTLY pelo worker (005).
 
 ## colunas
 codigo  integer
@@ -26,6 +26,7 @@ tem_ficha  boolean
 e_parceiro  boolean
 ofertavel  boolean
 no_mercado  boolean
+fino_acabamento  boolean
 montado_em  timestamp with time zone
 
 ## índices
@@ -90,6 +91,11 @@ blog_newsletter_disparar, olx_cliente_buscar, olx_imovel_vai_ao_cliente, site_bl
     COALESCE(i.e_parceiro, false) AS e_parceiro,
     COALESCE(i.disponivel, true) AND NOT COALESCE(i.bloqueado, false) AND COALESCE(i.publicado_no_site, false) AND NOT COALESCE(i.e_parceiro, false) AND (COALESCE(i.valor_aluguel, 0::numeric) > 0::numeric OR COALESCE(i.valor_venda, 0::numeric) > 0::numeric) AS ofertavel,
     COALESCE(i.disponivel, true) AND NOT COALESCE(i.bloqueado, false) AND COALESCE(i.publicado_no_site, false) AND NOT COALESCE(i.e_parceiro, false) AS no_mercado,
+        CASE
+            WHEN btrim(i.extras ->> 'fino acabamento'::text) ~* '^s'::text THEN true
+            WHEN btrim(i.extras ->> 'fino acabamento'::text) ~* '^n'::text THEN false
+            ELSE NULL::boolean
+        END AS fino_acabamento,
     now() AS montado_em
    FROM imoveis i
      LEFT JOIN bairro_zona z ON lower(unaccent('unaccent'::regdictionary, z.bairro)) = lower(unaccent('unaccent'::regdictionary, COALESCE(i.bairro, ''::text)));
