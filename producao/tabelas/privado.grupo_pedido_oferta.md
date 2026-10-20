@@ -1,4 +1,4 @@
-# privado.grupo_pedido_oferta  (tabela, ~0 linhas)
+# privado.grupo_pedido_oferta  (tabela, ~51 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('privado.grupo_pedido_oferta_id_seq'::regclass)
