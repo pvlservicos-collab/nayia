@@ -35,26 +35,44 @@
 .ck-salvando { color: var(--texto-fraco); }
 
 .ck-cartao {
-  max-width: 760px; margin: 0 auto; border-radius: var(--raio-lg, 16px); overflow: hidden;
+  max-width: 1180px; margin: 0 auto; border-radius: var(--raio-lg, 16px); overflow: hidden;
   border: 1px solid var(--borda, #d6d9de); background: var(--superficie-solida, #fff);
   box-shadow: 0 8px 28px rgba(0, 0, 0, .10); touch-action: pan-y; user-select: none;
   transition: transform .12s ease-out, box-shadow .12s;
 }
 .ck-cartao--sim { box-shadow: 0 0 0 4px #2f7d58; }
 .ck-cartao--nao { box-shadow: 0 0 0 4px #b42323; }
-.ck-foto { position: relative; background: #111; aspect-ratio: 4 / 3; max-height: 62vh; width: 100%; }
-.ck-foto img { width: 100%; height: 100%; object-fit: contain; display: block; }
-.ck-foto--sem { display: flex; align-items: center; justify-content: center; color: #bbb; font-size: 18px; }
-.ck-foto__seta {
-  position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 64px; border: 0;
-  background: rgba(0, 0, 0, .45); color: #fff; font-size: 34px; line-height: 1; cursor: pointer; border-radius: 8px;
+/* a galeria: todas as fotos juntas, a grade se ajusta à quantidade (--ck-min vem do JS), nada rola para o lado */
+.ck-galeria {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(var(--ck-min, 200px), 100%), 1fr));
+  gap: 8px; padding: 0 14px 14px;
 }
-.ck-foto__seta--ant { left: 8px; }
-.ck-foto__seta--prox { right: 8px; }
-.ck-foto__n {
-  position: absolute; right: 10px; bottom: 10px; padding: 2px 8px; border-radius: 999px;
-  background: rgba(0, 0, 0, .55); color: #fff; font-size: 12px;
+.ck-galeria--sem { display: flex; align-items: center; justify-content: center; min-height: 140px; color: var(--texto-fraco); }
+.ck-galeria__foto {
+  position: relative; padding: 0; border: 0; border-radius: 10px; overflow: hidden; cursor: zoom-in;
+  aspect-ratio: 4 / 3; background: #111; transition: transform .15s ease-out, box-shadow .15s ease-out;
 }
+.ck-galeria__foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ck-galeria__foto:hover, .ck-galeria__foto:focus-visible {
+  transform: scale(1.07); z-index: 2; box-shadow: 0 10px 26px rgba(0, 0, 0, .35);
+}
+@media (prefers-reduced-motion: reduce) { .ck-galeria__foto { transition: none; } }
+
+/* a foto em tela cheia */
+.ck-zoom {
+  position: fixed; inset: 0; z-index: 1000; background: rgba(10, 10, 14, .94);
+  display: flex; align-items: center; justify-content: center;
+}
+.ck-zoom[hidden] { display: none; }
+.ck-zoom img { max-width: 94vw; max-height: 90vh; object-fit: contain; border-radius: 6px; }
+.ck-zoom__seta, .ck-zoom__fechar {
+  position: absolute; border: 0; background: rgba(255, 255, 255, .12); color: #fff; cursor: pointer; border-radius: 10px;
+}
+.ck-zoom__seta { top: 50%; transform: translateY(-50%); width: 52px; height: 72px; font-size: 40px; line-height: 1; }
+.ck-zoom__seta--ant { left: 14px; }
+.ck-zoom__seta--prox { right: 14px; }
+.ck-zoom__fechar { top: 14px; right: 14px; width: 44px; height: 44px; font-size: 28px; line-height: 1; }
+.ck-zoom__n { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 14px; }
 .ck-dados { padding: 14px 18px 16px; display: flex; flex-direction: column; gap: 4px; }
 .ck-dados__linha1 { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 .ck-cod { font-weight: 800; font-size: 18px; color: var(--roxo, #6d28d9); text-decoration: none; }
@@ -71,7 +89,13 @@
 .ck-valores { font-size: 15px; }
 .ck-linha { font-size: 14px; color: var(--texto-medio, #444); }
 
-.ck-botoes { max-width: 760px; margin: 14px auto 0; display: flex; gap: 10px; }
+/* os botões ficam presos embaixo da tela quando as fotos passam da altura: nunca somem */
+.ck-botoes {
+  max-width: 760px; margin: 14px auto 0; display: flex; gap: 10px;
+  position: sticky; bottom: 10px; z-index: 5; padding: 8px; border-radius: 16px;
+  background: color-mix(in srgb, var(--superficie-solida, #fff) 88%, transparent); backdrop-filter: blur(6px);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, .12);
+}
 .ck-btn {
   flex: 1 1 0; min-height: 60px; border-radius: var(--raio, 12px); border: 2px solid transparent;
   font: inherit; font-size: 20px; font-weight: 800; letter-spacing: .5px; cursor: pointer; color: #fff;
@@ -85,7 +109,8 @@
 }
 .ck-btn:hover { filter: brightness(1.08); }
 .ck-btn:focus-visible { outline: 3px solid var(--foco, #1f6feb); outline-offset: 2px; }
-.ck-rodape { max-width: 760px; margin: 10px auto 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+/* espaço embaixo para a tela poder descer até o topo do cartão mesmo com poucas fotos (Pedro, 20/10) */
+.ck-rodape { max-width: 760px; margin: 10px auto 60vh; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
 .ck-teclas { font-size: 12px; color: var(--texto-fraco); }
 .ck-fim { max-width: 760px; margin: 30px auto; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }
 .ck-fim .ck-btn { flex: 0 0 auto; padding: 0 28px; font-size: 16px; }
@@ -95,5 +120,6 @@
   .ck-btn { min-height: 56px; font-size: 17px; }
   .ck-btn--pular { padding: 0 12px; }
   .ck-teclas { display: none; }
-  .ck-foto { max-height: 48vh; }
+  .ck-galeria { padding: 0 8px 10px; gap: 6px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ck-galeria__foto:hover { transform: none; box-shadow: none; }
 }

@@ -12,8 +12,8 @@
      PUT /admin/api/imoveis/<código> {extras: {<chave>: "Sim" | "Não" | null}}   responder (null = pendente de novo)
    Pendente = o imóvel não tem a chave; imóvel novo aparece sozinho.
 
-   Um imóvel por vez, foto grande. Teclado: S ou → = Sim, N ou ← = Não, ↓ ou P = pular, ↑ ou Z = desfazer o último,
-   A e D = foto anterior e próxima. No celular: arrastar o cartão para a direita = Sim, para a esquerda = Não.
+   Um imóvel por vez, com todas as fotos numa grade (clique amplia em tela cheia). Teclado: S ou → = Sim, N ou ← = Não,
+   ↓ ou P = pular, ↑ ou Z = desfazer o último. No celular: arrastar o cartão para a direita = Sim, para a esquerda = Não.
    ========================================================================== */
 (function () {
   "use strict";
@@ -100,6 +100,7 @@
       itens = d.itens || [];
       montarFila();
       desenhar();
+      centrarBotoes(true);
     }).catch(function (e) {
       painel.innerHTML = '<p class="ck-erro">Não deu para carregar: ' + esc(e.message) + "</p>";
     });
@@ -161,14 +162,59 @@
       (i.mobilia ? '<div class="ck-linha">Mobília: ' + esc(i.mobilia) + "</div>" : "") + "</div>";
   }
 
+  /* TODAS AS FOTOS JUNTAS (Pedro, 20/10: "quero já todas as fotos aparecendo juntas em uma galeria adaptativa, não
+     quero ter que rolar para o lado, e quando passo o mouse por cima a foto aumenta um pouco"). A grade se ajusta à
+     quantidade: poucas fotos ficam grandes, muitas ficam menores, e tudo cabe na largura. Clicar abre em tela cheia. */
   function fotos(i) {
     var f = i.fotos || [];
-    if (!f.length) return '<div class="ck-foto ck-foto--sem">Sem foto</div>';
-    foto = Math.max(0, Math.min(foto, f.length - 1));
-    return '<div class="ck-foto"><img src="' + esc(f[foto]) + '" alt="Foto ' + (foto + 1) + " do imóvel " + i.codigo + '" draggable="false">' +
-      (f.length > 1 ? '<button type="button" class="ck-foto__seta ck-foto__seta--ant" data-ck-foto="-1" aria-label="Foto anterior">‹</button>' +
-        '<button type="button" class="ck-foto__seta ck-foto__seta--prox" data-ck-foto="1" aria-label="Próxima foto">›</button>' : "") +
-      '<span class="ck-foto__n">' + (foto + 1) + " / " + f.length + "</span></div>";
+    if (!f.length) return '<div class="ck-galeria ck-galeria--sem">Sem foto</div>';
+    var minimo = f.length <= 2 ? 340 : f.length <= 4 ? 260 : f.length <= 9 ? 200 : 165;
+    return '<div class="ck-galeria" style="--ck-min:' + minimo + 'px">' + f.map(function (u, k) {
+      return '<button type="button" class="ck-galeria__foto" data-ck-ampliar="' + k + '" aria-label="Ampliar a foto ' + (k + 1) +
+        " de " + f.length + '"><img src="' + esc(u) + '" alt="" loading="' + (k < 10 ? "eager" : "lazy") + '" draggable="false"></button>';
+    }).join("") + "</div>";
+  }
+
+  /* a foto em tela cheia: setas e Esc, sem responder o checklist enquanto está aberta */
+  var zoom = null;
+  function ampliar(k) {
+    var i = fila.length ? porCodigo(fila[0]) : null;
+    if (!i || !i.fotos || !i.fotos.length) return;
+    if (!zoom) {
+      zoom = document.createElement("div");
+      zoom.className = "ck-zoom";
+      zoom.innerHTML = '<img alt=""><button type="button" class="ck-zoom__seta ck-zoom__seta--ant" data-zoom="-1" aria-label="Foto anterior">‹</button>' +
+        '<button type="button" class="ck-zoom__seta ck-zoom__seta--prox" data-zoom="1" aria-label="Próxima foto">›</button>' +
+        '<button type="button" class="ck-zoom__fechar" data-zoom="x" aria-label="Fechar">×</button><span class="ck-zoom__n"></span>';
+      zoom.addEventListener("click", function (e) {
+        var b = e.target.closest("[data-zoom]");
+        if (b && b.getAttribute("data-zoom") !== "x") return passarZoom(Number(b.getAttribute("data-zoom")));
+        if (b || e.target === zoom) fecharZoom();
+      });
+      document.body.appendChild(zoom);
+    }
+    zoom.dataset.k = String(k);
+    zoom.hidden = false;
+    passarZoom(0);
+  }
+  function passarZoom(passo) {
+    var i = fila.length ? porCodigo(fila[0]) : null;
+    if (!zoom || !i || !i.fotos || !i.fotos.length) return;
+    var n = i.fotos.length, k = (Number(zoom.dataset.k || 0) + passo + n) % n;
+    zoom.dataset.k = String(k);
+    zoom.querySelector("img").src = i.fotos[k];
+    zoom.querySelector(".ck-zoom__n").textContent = (k + 1) + " / " + n;
+  }
+  function fecharZoom() { if (zoom) zoom.hidden = true; }
+  function zoomAberto() { return zoom && !zoom.hidden; }
+
+  /* OS CONTROLES NO MEIO DA TELA (Pedro, 20/10): ao abrir o checklist a tela desce até os botões, e a cada imóvel
+     eles continuam no mesmo lugar (o próximo imóvel pode ter mais ou menos fotos). */
+  // a tela desce até o topo do cartão: os dados, todas as fotos e, logo embaixo, os botões
+  function centrarBotoes(suave) {
+    var c = painel.querySelector(".ck-cartao");
+    if (!c || !visivel()) return;
+    window.scrollBy({ top: c.getBoundingClientRect().top - 8, behavior: suave ? "smooth" : "auto" });
   }
 
   function botoes() {
@@ -184,7 +230,7 @@
     return '<div class="ck-botoes">' + resp + "</div>" +
       '<div class="ck-rodape"><button type="button" class="ck-desfazer" data-ck-desfazer' + (historico.length ? "" : " disabled") +
       ' title="Desfazer o último (↑ ou Z)">↶ Desfazer o último</button>' +
-      '<span class="ck-teclas">S/→ sim · N/← não · ↓ pular · ↑ desfazer · A/D fotos</span></div>';
+      '<span class="ck-teclas">S/→ sim · N/← não · ↓ pular · ↑ desfazer · clique na foto para ampliar</span></div>';
   }
 
   function desenhar() {
@@ -198,14 +244,23 @@
         (historico.length ? '<button type="button" class="ck-desfazer" data-ck-desfazer>↶ Desfazer o último</button>' : "") + "</div>";
       return;
     }
-    painel.innerHTML = cabecalho() + '<article class="ck-cartao" data-ck-cartao>' + fotos(i) + dados(i) + "</article>" + botoes();
+    // a altura muda de um imóvel para o outro: guarda onde os botões estavam e põe de volta no mesmo lugar
+    var antes = painel.querySelector(".ck-rodape");          // a linha embaixo dos botões (eles são sticky)
+    var topo = antes ? antes.getBoundingClientRect().top : null;
+    painel.innerHTML = cabecalho() + '<article class="ck-cartao" data-ck-cartao>' + dados(i) + fotos(i) + "</article>" + botoes();
+    var depois = painel.querySelector(".ck-rodape");
+    if (topo !== null && depois) window.scrollBy(0, depois.getBoundingClientRect().top - topo);
+    // o imóvel novo é mais alto e o topo dele sumiu: o topo do cartão volta para a tela (os botões são sticky)
+    var cartao = painel.querySelector(".ck-cartao");
+    if (topo !== null && cartao && cartao.getBoundingClientRect().top < 0) centrarBotoes(false);
     preCarregar();
   }
 
+  // as fotos dos próximos já vêm baixando: a grade aparece inteira na hora
   function preCarregar() {
-    fila.slice(1, 4).forEach(function (cod) {
+    fila.slice(1, 3).forEach(function (cod) {
       var i = porCodigo(cod);
-      if (i && i.fotos && i.fotos[0]) { var im = new Image(); im.src = i.fotos[0]; }
+      (i && i.fotos ? i.fotos.slice(0, 10) : []).forEach(function (u) { var im = new Image(); im.src = u; });
     });
   }
 
@@ -272,18 +327,11 @@
     if (el) el.outerHTML = contaHtml();
   }
 
-  function mudarFoto(passo) {
-    var i = fila.length ? porCodigo(fila[0]) : null;
-    if (!i || !i.fotos || i.fotos.length < 2) return;
-    foto = (foto + passo + i.fotos.length) % i.fotos.length;
-    var caixa = painel.querySelector(".ck-foto");
-    if (caixa) caixa.outerHTML = fotos(i);
-  }
-
   /* ── cliques, teclado e arrastar ───────────────────────────────────────── */
   painel.addEventListener("click", function (e) {
     var b = e.target.closest("button");
     if (!b || b.disabled) return;
+    if (b.hasAttribute("data-ck-ampliar")) return ampliar(Number(b.getAttribute("data-ck-ampliar")));
     if (b.hasAttribute("data-ck-abrir")) return abrir(b.getAttribute("data-ck-abrir"), false);
     if (b.hasAttribute("data-ck-voltar")) { atual = null; itens = []; carregarLista(); return desenharLista(); }
     if (b.hasAttribute("data-ck-todos")) { var t = b.getAttribute("data-ck-todos") === "1"; if (t !== todos || revisar) { revisar = false; abrir(atual.id, t); } return; }
@@ -291,10 +339,17 @@
     if (b.hasAttribute("data-ck-resp")) return responder(b.getAttribute("data-ck-resp"));
     if (b.hasAttribute("data-ck-pular")) return pular();
     if (b.hasAttribute("data-ck-desfazer")) return desfazer();
-    if (b.hasAttribute("data-ck-foto")) return mudarFoto(Number(b.getAttribute("data-ck-foto")));
   });
 
   document.addEventListener("keydown", function (e) {
+    if (zoomAberto()) {      // na tela cheia as setas passam a foto; nada responde o checklist
+      if (e.key === "Escape") fecharZoom();
+      else if (e.key === "ArrowRight") passarZoom(1);
+      else if (e.key === "ArrowLeft") passarZoom(-1);
+      else return;
+      e.preventDefault();
+      return;
+    }
     if (!visivel() || !atual || e.ctrlKey || e.metaKey || e.altKey) return;
     var alvo = e.target;
     if (alvo && (alvo.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName))) return;
@@ -304,8 +359,6 @@
     else if (k === "ArrowLeft" || k === "n" || k === "N") acao = function () { responder(op[1] || op[0]); };
     else if (k === "ArrowDown" || k === "p" || k === "P") acao = pular;
     else if (k === "ArrowUp" || k === "z" || k === "Z") acao = desfazer;
-    else if (k === "a" || k === "A") acao = function () { mudarFoto(-1); };
-    else if (k === "d" || k === "D") acao = function () { mudarFoto(1); };
     else if (/^[1-9]$/.test(k) && op[Number(k) - 1]) acao = function () { responder(op[Number(k) - 1]); };
     if (!acao) return;
     e.preventDefault();
@@ -316,7 +369,8 @@
   var arrasto = null;
   painel.addEventListener("pointerdown", function (e) {
     var c = e.target.closest("[data-ck-cartao]");
-    if (!c || e.target.closest("button, a") || e.pointerType === "mouse") return;
+    // arrastar por cima das fotos também vale (elas são botões só para ampliar)
+    if (!c || e.target.closest("button:not(.ck-galeria__foto), a") || e.pointerType === "mouse") return;
     arrasto = { x: e.clientX, y: e.clientY, el: c };
   });
   painel.addEventListener("pointermove", function (e) {

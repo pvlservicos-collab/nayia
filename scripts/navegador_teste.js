@@ -34,8 +34,10 @@ async function main() {
     const p = await js('window.__cdpClique'); if (!p) return
     for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased']) await cmd('Input.dispatchMouseEvent', { type, x: p[0], y: p[1], button: type === 'mouseMoved' ? 'none' : 'left', clickCount: 1 })
   }
-  const fn = new Function('js', 'digitar', 'tecla', 'dorme', 'console', 'cliqueReal', 'return (async () => {' + fs.readFileSync(passos, 'utf8') + '})()')
-  await fn(js, digitar, tecla, dorme, console, cliqueReal)
+  // `cmd` (o protocolo do Chrome: foto de tela, mouse de verdade) e `require` também vão para os passos (20/10)
+  const fn = new Function('js', 'digitar', 'tecla', 'dorme', 'console', 'cliqueReal', 'cmd', 'require',
+    'return (async () => {' + fs.readFileSync(passos, 'utf8') + '})()')
+  await fn(js, digitar, tecla, dorme, console, cliqueReal, cmd, require)
   console.log('--- erros da página:', erros.length ? '\n' + [...new Set(erros)].join('\n') : 'nenhum')
   await cmd('Page.close'); ws.close()
 }
