@@ -129,6 +129,19 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
   onTagsChange?: (leadId: string, tagId: string, action: 'add' | 'remove', tagObj?: any) => void
 }) {
   const [d, setD] = useState<Dados | null>(null)
+  /* 20/10 (Pedro: "adicione no card do lead que abre na direita uma forma de editar o nome do contato"): o lápis ao lado
+     do nome. O nome posto aqui (o apelido) vale antes do nome do dono que veio da campanha. */
+  const [editandoNome, setEditandoNome] = useState(false)
+  const [nomeNovo, setNomeNovo] = useState('')
+  const [apelido, setApelido] = useState<string | null>(((lead as any).custom_attributes?.apelido as string) || null)
+  useEffect(() => { setApelido(((lead as any).custom_attributes?.apelido as string) || null); setEditandoNome(false) }, [lead.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  const salvarNome = async () => {
+    const novo = nomeNovo.trim()
+    if (!novo) { setEditandoNome(false); return }
+    const r = await fetch(`/api/leads/${lead.id}/contato`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apelido: novo }) }).catch(() => null)
+    if (r?.ok) { setApelido(novo); setEditandoNome(false) }
+  }
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [alvo, setAlvo] = useState<AlvoDoCadastro | null>(null)
@@ -213,9 +226,26 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
               ? <img src={lead.avatar_url} alt="" className="w-full h-full object-cover" />
               : <User size={52} weight="fill" style={{ color: 'var(--wa-text-2)', opacity: 0.5 }} />}
           </div>
-          <p className="text-[18px] leading-6 break-words" style={{ color: 'var(--wa-text)' }}>
-            {dono?.nome || c?.nome || formatPhone(lead.title)}
-          </p>
+          {editandoNome ? (
+            <form className="flex items-center gap-1.5 w-full max-w-[300px]" onSubmit={(e) => { e.preventDefault(); void salvarNome() }}>
+              <input value={nomeNovo} onChange={(e) => setNomeNovo(e.target.value)} autoFocus maxLength={120} aria-label="Nome do contato"
+                     className="flex-1 min-w-0 h-9 px-3 rounded-lg text-[16px] text-center"
+                     style={{ background: 'var(--wa-app)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }} />
+              <button type="submit" className="wa-icone-btn !w-8 !h-8" title="Salvar o nome" aria-label="Salvar o nome">
+                <Check size={17} weight="bold" style={{ color: 'var(--wa-green)' }} />
+              </button>
+              <button type="button" className="wa-icone-btn !w-8 !h-8" onClick={() => setEditandoNome(false)} aria-label="Cancelar"><X size={16} /></button>
+            </form>
+          ) : (
+            <p className="text-[18px] leading-6 break-words flex items-center justify-center gap-1" style={{ color: 'var(--wa-text)' }}>
+              {apelido || dono?.nome || c?.nome || formatPhone(lead.title)}
+              <button type="button" className="wa-icone-btn !w-7 !h-7 opacity-70 hover:opacity-100" title="Editar o nome do contato"
+                      aria-label="Editar o nome do contato"
+                      onClick={() => { setNomeNovo(apelido || dono?.nome || c?.nome || lead.title || ''); setEditandoNome(true) }}>
+                <PencilSimple size={15} />
+              </button>
+            </p>
+          )}
           {numero && (
             <p className="text-[14px] mt-0.5 flex items-center justify-center gap-1" style={{ color: 'var(--wa-text-2)' }}>
               <span className="select-all">{numero}</span>

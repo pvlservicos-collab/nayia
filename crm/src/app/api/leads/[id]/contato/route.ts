@@ -53,6 +53,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const apelido = corpo.apelido.trim().slice(0, 120)
       if (!apelido) return apiError(400, 'O nome não pode ficar vazio.')
       await db.update(leads).set({ title: apelido, updatedAt: new Date() }).where(eq(leads.id, id))
+      // 20/10: o card da captação mostra o nome do dono da campanha; o apelido posto à mão vale antes dele
+      await db.execute(sql`
+        UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) || jsonb_build_object('apelido', ${apelido}::text)
+         WHERE id = ${id}`)
     }
     if (typeof corpo.observacao === 'string') {
       const observacao = corpo.observacao.slice(0, 4000)

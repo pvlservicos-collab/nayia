@@ -226,6 +226,62 @@ export async function sincronizarFunis(org: string): Promise<ResultadoDosFunis |
       if ((e.tirou || 0) + (e.pos || 0) > 0) mexeu = true
     }
 
+    /* AS ETAPAS DO WHATSAPP LEADS VIRAM ETIQUETAS (Pedro, 20/10/2026: "a partir de agora vão sair essas etapas [as do
+       disparo] e as etapas vão virar as tags lá em cima"). Visita, Proprietários, Fechamento e Finalizados: a etapa do
+       cliente da OLX (crm_olx_clientes_etapas, a mesma da lista) ou, sem ela, Proprietários para o dono da campanha.
+       Cada conversa da linha tem a etiqueta da etapa em que está, e só ela entre essas quatro. As etiquetas do disparo
+       antigo NÃO são tocadas (a foto delas está em Relatórios, 426). Achadas pelo nome de nascença (0133). */
+    const linhaLeads = linhaDe('whatsapp_zapi_captacao')
+    if (linhaLeads) {
+      const ETAPA_PARA_ETIQUETA: Record<string, { nome: string; cor: string }> = {
+        visita: { nome: 'Visita', cor: '#be185d' }, proprietarios: { nome: 'Proprietários', cor: '#d97706' },
+        fechamento: { nome: 'Fechamento', cor: '#7c3aed' }, finalizado: { nome: 'Finalizados', cor: '#6b7280' },
+      }
+      for (const { nome, cor } of Object.values(ETAPA_PARA_ETIQUETA)) {
+        await db.execute(sql`
+          INSERT INTO tags (organization_id, name, color, nome_original)
+          SELECT ${org}::uuid, ${nome}, ${cor}, ${nome}
+           WHERE NOT EXISTS (SELECT 1 FROM tags WHERE organization_id = ${org} AND (nome_original = ${nome} OR name = ${nome}))`)
+      }
+      const marcas = (await db.execute(sql`
+        SELECT id::text, coalesce(nome_original, name) AS chave FROM tags
+         WHERE organization_id = ${org}
+           AND coalesce(nome_original, name) IN (${sql.join(Object.values(ETAPA_PARA_ETIQUETA).map((e) => sql`${e.nome}`), sql`, `)})`))
+        .rows as Array<{ id: string; chave: string }>
+      const etiquetaDaEtapa = (etapa: string) => marcas.find((m) => m.chave === ETAPA_PARA_ETIQUETA[etapa]?.nome)?.id
+      const [clientes, donosDaCampanha] = await Promise.all([
+        naydb().query('SELECT telefone, etapa FROM crm_olx_clientes_etapas()'),
+        naydb().query('SELECT telefone FROM crm_captacao_donos()'),
+      ])
+      const fim8 = (t: unknown) => String(t || '').replace(/\D/g, '').slice(-8)
+      const etapaPorFim = new Map<string, string>()
+      for (const d of donosDaCampanha.rows as Array<{ telefone: string }>) if (fim8(d.telefone).length === 8) etapaPorFim.set(fim8(d.telefone), 'proprietarios')
+      for (const c of clientes.rows as Array<{ telefone: string; etapa: string }>) if (fim8(c.telefone).length === 8) etapaPorFim.set(fim8(c.telefone), c.etapa)
+      const conversas = (await db.execute(sql`
+        SELECT id::text, phone FROM leads
+         WHERE organization_id = ${org} AND integration_id = ${linhaLeads} AND deleted_at IS NULL AND NOT coalesce(is_group, false)`))
+        .rows as Array<{ id: string; phone: string | null }>
+      const alvo = conversas.map((l) => ({ lead_id: l.id, tag_id: etiquetaDaEtapa(etapaPorFim.get(fim8(l.phone)) || '') }))
+        .filter((x): x is { lead_id: string; tag_id: string } => !!x.tag_id)
+      if (marcas.length) {
+        const ids = marcas.map((m) => m.id)
+        const espelho = await db.execute(sql`
+          WITH alvo AS (SELECT * FROM jsonb_to_recordset(${JSON.stringify(alvo)}::jsonb) AS x(lead_id uuid, tag_id uuid)),
+          tira AS (
+            DELETE FROM lead_tags lt USING leads l
+             WHERE lt.lead_id = l.id AND l.integration_id = ${linhaLeads}
+               AND lt.tag_id = ANY(${sql.raw(`ARRAY[${ids.map((i) => `'${i}'`).join(',')}]::uuid[]`)})
+               AND NOT EXISTS (SELECT 1 FROM alvo a WHERE a.lead_id = lt.lead_id AND a.tag_id = lt.tag_id)
+            RETURNING 1),
+          poe AS (
+            INSERT INTO lead_tags (lead_id, tag_id, organization_id) SELECT lead_id, tag_id, ${org}::uuid FROM alvo
+            ON CONFLICT DO NOTHING RETURNING 1)
+          SELECT (SELECT count(*) FROM tira)::int AS tirou, (SELECT count(*) FROM poe)::int AS pos`)
+        const e = (espelho.rows[0] || {}) as { tirou?: number; pos?: number }
+        if ((e.tirou || 0) + (e.pos || 0) > 0) mexeu = true
+      }
+    }
+
     if (mexeu) await publishEvent(channels.orgLeads(org), events.LEAD_UPDATED, { id: null, funis: true })
     return r
   } finally {

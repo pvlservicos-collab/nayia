@@ -1944,6 +1944,21 @@ def api_aprovar_tirar():
         conn.close()
 
 
+@app.route("/admin/api/relatorio/etiquetas-leads")
+def api_relatorio_etiquetas_leads():
+    """RELATÓRIO › AS ETIQUETAS DO WHATSAPP LEADS (426; Pedro, 20/10/2026: "salve todos esses leads lá no site na aba
+    relatório ... cada contato em cada uma das etapas"). A foto guardada (?foto=<id>; sem ela, a mais nova). Tem telefone:
+    só com senha."""
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    conn = conectar_escrita()
+    try:
+        linhas = todas_linhas(conn, "SELECT site_relatorio_etiquetas(%s) AS r", (request.args.get("foto", type=int),))
+        return jsonify(linhas[0]["r"] or {})
+    finally:
+        conn.close()
+
+
 @app.route("/admin/api/imoveis/juntar", methods=["POST"])
 def api_cadastro_juntar():
     """"NA VERDADE É ATUALIZAÇÃO DESTE IMÓVEL" (326; Pedro, 09/10). {de_codigo | de_ficha, em, fotos}: as fotos e o

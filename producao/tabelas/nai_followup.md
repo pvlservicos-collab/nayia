@@ -1,4 +1,4 @@
-# nai_followup  (tabela, ~237 linhas)
+# nai_followup  (tabela, ~312 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('nai_followup_id_seq'::regclass)
