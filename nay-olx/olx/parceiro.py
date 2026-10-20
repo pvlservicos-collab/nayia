@@ -187,13 +187,6 @@ def _ao_grupo_com_cadastro(conn, o: dict, lead: dict, a: dict, texto: str, motiv
 def entregar_do_cadastro(conn, o: dict, lead: dict) -> None:
     """O pré-cadastro ficou Disponível: o card vai ao cliente e a Nay volta a atender."""
     codigo = int(o["codigo"])
-    parceria = banco.um(conn, "SELECT coalesce(e_parceiro, false) FROM imoveis WHERE codigo = %s", (codigo,))
-    if parceria and not whatsapp._aceita_parceiro(conn, lead):
-        # Pedro, 20/10: o cadastrado como PARCERIA só vai a lead da OLX (cliente final), nunca a corretor
-        _marcar(conn, o["id"], estado="cancelado", erro="imóvel de parceria: quem pediu não é lead da OLX")
-        _aviso(o, f"o #{codigo} é de parceria e {_cliente(lead)} não é lead da OLX (cliente final): não mandei. "
-                  "Imóvel de parceria só vai a lead da OLX.")
-        return
     whatsapp.mandar_texto(conn, lead, "Boa notícia! Consegui uma opção que combina com o que você procura:")
     time.sleep(whatsapp.ENTRE_ENVIOS_S)
     whatsapp.mandar_imovel(conn, lead, codigo)
