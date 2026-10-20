@@ -84,6 +84,8 @@
     "p:bloco": { rotulo: "Bloco" },
     "p:unidade": { rotulo: "Apartamento" },
     "p:casa": { rotulo: "Número da casa", dica: "de rua ou no condomínio" },
+    // 442 (Pedro, 20/10): "casa de condomínio colocando o nome ou número da rua"
+    "p:rua": { rotulo: "Rua (nome ou número)", dica: "a rua dentro do condomínio" },
     "p:lote": { rotulo: "Lote" },
     // o proprietário (fonte "o", migração 162): a OLX não traz -- é o último passo da captação
     "o:nome": { rotulo: "Nome" },
@@ -168,7 +170,7 @@
        número da casa. O que aparece depende do tipo e do elevador do condomínio (aplicarRegrasDoTipo). */
     { titulo: "Unidade", icone: "⌗", cor: "#4338ca", fundo: "#eef0ff", privado: true,
       nota: "Torre, bloco, número e lote nunca saem para o cliente. O andar e os lances de escada a Nay responde.",
-      campos: ["p:torre", "p:bloco", "p:unidade", "p:casa", "p:lote", "andar", "x:lances de escada"] },
+      campos: ["p:torre", "p:bloco", "p:unidade", "p:rua", "p:casa", "p:lote", "andar", "x:lances de escada"] },
     { titulo: "Proprietário", icone: "✆", cor: "#0369a1", fundo: "#e0f2fe", privado: true, id: "ed-cartao-dono",
       nota: "A OLX não traz o dono do imóvel: estes dados são o último passo da captação.",
       campos: ["o:nome", "o:telefone", "o:email", "o:documento", "o:tratamento"] },
@@ -288,13 +290,14 @@
     "x:pe direito": ["casa", "outro"], "x:andares": ["casa", "outro"],
     andar: ["vertical", "sala", "outro"], "x:lances de escada": ["vertical", "sala", "outro"],
     "p:torre": ["vertical"], "p:bloco": ["vertical", "sala"], "p:unidade": ["vertical", "sala"],
-    "p:casa": ["casa"], "p:lote": ["casa", "terreno"],
+    "p:casa": ["casa"], "p:lote": ["casa", "terreno"], "p:rua": ["casa", "terreno"],
     quartos: ["vertical", "casa", "outro"], suites: ["vertical", "casa", "outro"], "x:salas": ["sala", "outro"],
     mobilia: ["vertical", "casa", "sala", "outro"], "x:fino acabamento": ["vertical", "casa", "sala", "outro"]
   };
   var ROTULO_POR_TIPO = {
     area_util: { casa: "Área construída", terreno: "Área construída" },
-    "p:bloco": { sala: "Bloco / setor" }, "p:unidade": { sala: "Número da sala" }
+    // 442 (Pedro, 20/10): no apartamento um campo só, "Bloco / Torre", e o "Apartamento"
+    "p:bloco": { sala: "Bloco / setor", vertical: "Bloco / Torre" }, "p:unidade": { sala: "Número da sala" }
   };
   var condoFicha = null;      // a ficha do condomínio escolhido (elevador decide andar x lances)
 
@@ -329,6 +332,15 @@
       if (nome === "andar" && mostra && elev === false) mostra = false;               // sem elevador: lances
       if (nome === "x:lances de escada" && mostra && elev === true) mostra = false;   // com elevador: andar
       if (nome === "x:tipo de cobertura" && mostra) mostra = !!(cob && cob.checked);
+      // 442: a torre virou parte do "Bloco / Torre"; o campo antigo só aparece onde já tem algo escrito (não esconde dado)
+      if (nome === "p:torre" && mostra) {
+        var torre = bloco.querySelector("[data-campo]");
+        mostra = !!(torre && String(torre.value || "").trim());
+      }
+      // 442: a rua é da casa (ou lote) DE CONDOMÍNIO: tipo de condomínio ou um condomínio escolhido
+      if (nome === "p:rua" && mostra) {
+        mostra = /condom/i.test(tipoAtual()) || !!(seletorCondo && seletorCondo.valores()[0]);
+      }
       bloco.hidden = !mostra;
     });
     Object.keys(ROTULO_POR_TIPO).forEach(function (nome) {

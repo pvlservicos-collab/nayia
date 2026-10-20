@@ -374,7 +374,7 @@ nai_midia_para_o_tel
 nai_midias_do_turno	nai_abrir_turno, nai_midia_para_o_tel
 nai_minhas_visitas	
 nai_mobilia_da_lista	nai_bloco_oferta
-nai_motoboy	nai_confirmar_visita, nai_core_visita_confirmada, nai_pedir_visita, nai_texto_visita_completa
+nai_motoboy	nai_confirmar_visita, nai_core_visita_confirmada, nai_pedir_visita, nai_texto_visita_completa, nai_visita_para_a_rayssa
 nai_mudar_horario	
 nai_na_lista_curta	nai_deve_atender, nai_followup_rodar
 nai_negocio_antes_do_card	nai_conferir_resposta, nai_enfileirar_card

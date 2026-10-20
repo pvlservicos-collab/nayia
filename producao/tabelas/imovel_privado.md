@@ -13,6 +13,7 @@ proprietario_acompanha  boolean
 bloco  text
 casa  text
 lote  text
+rua  text   -- 442: a rua da casa dentro do condomínio (nome ou número), do Editar imóvel. Uso interno, como torre/bloco/casa/lote.
 
 ## índices
 CREATE UNIQUE INDEX imovel_privado_pkey ON public.imovel_privado USING btree (codigo)
@@ -26,7 +27,7 @@ imovel_privado_proprietario_id_fkey: FOREIGN KEY (proprietario_id) REFERENCES pr
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 nay_core: SELECT
 nay_leitura: SELECT
-nay_site_escrita, só nestas colunas: INSERT(codigo, torre, unidade, proprietario_id, bloco, casa, lote); SELECT(codigo, torre, unidade, proprietario_id, bloco, casa, lote); UPDATE(torre, unidade, proprietario_id, bloco, casa, lote)
+nay_site_escrita, só nestas colunas: INSERT(codigo, torre, unidade, proprietario_id, bloco, casa, lote, rua); SELECT(codigo, torre, unidade, proprietario_id, bloco, casa, lote, rua); UPDATE(torre, unidade, proprietario_id, bloco, casa, lote, rua)
 
 ## funções que escrevem aqui
 nai_cadastro_importar, nay_guardar_como_funciona_visita, site_juntar_cadastro

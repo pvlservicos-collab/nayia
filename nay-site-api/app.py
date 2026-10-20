@@ -147,7 +147,7 @@ CHECKLISTS_RAPIDOS = [
 # /admin/api/imoveis/<codigo>/privado, que confere a senha (migracao 157).
 # O numero do apartamento em `imovel_privado` e o que a Nay usa no endereco
 # interno (motoboy); o locatario fica no schema `privado`, fora do public.
-PRIVADO_UNIDADE = ("torre", "unidade", "bloco", "casa", "lote")
+PRIVADO_UNIDADE = ("torre", "unidade", "bloco", "casa", "lote", "rua")   # rua: 442 (a rua da casa no condomínio)
 PRIVADO_FICHA = ("locatario_nome", "locatario_contato", "observacao_aluguel", "observacoes")
 _SEM_VENCIMENTO = object()  # "o corpo nao falou do vencimento" (None apaga)
 
@@ -2287,7 +2287,7 @@ def api_imovel_privado(codigo):
     conn = conectar_escrita()
     try:
         saida = {c: None for c in PRIVADO_UNIDADE + PRIVADO_FICHA}
-        u = todas_linhas(conn, "SELECT torre, unidade, bloco, casa, lote FROM imovel_privado WHERE codigo = %s", (codigo,))
+        u = todas_linhas(conn, "SELECT torre, unidade, bloco, casa, lote, rua FROM imovel_privado WHERE codigo = %s", (codigo,))
         f = todas_linhas(conn, "SELECT locatario_nome, locatario_contato, observacao_aluguel, observacoes "
                                "FROM privado.imovel_ficha WHERE codigo = %s", (codigo,))
         v = todas_linhas(conn, "SELECT vencimento FROM contratos_locacao WHERE codigo = %s "
