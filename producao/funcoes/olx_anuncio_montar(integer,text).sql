@@ -27,6 +27,8 @@ DECLARE
   v_c       text[] := '{}';
   v_area    numeric;
   v_falta   text[] := '{}';
+  v_avisos  text[] := '{}';   -- 437: o que falta só é marcado; o anúncio vai com o que temos
+  v_cep_bairro text;
   v_barrado text;
   v_an      jsonb;
 BEGIN
@@ -79,15 +81,33 @@ BEGIN
   END IF;
 
   -- o valor tem de ser crível (um zero a mais ou a menos vira anúncio errado no ar)
-  IF p_negocio = 'venda' AND v_preco < 20000 THEN v_falta := array_append(v_falta, 'valor de venda baixo demais para ser de venda (' || v_preco::bigint || ')'); END IF;
-  IF p_negocio = 'locacao' AND v_preco NOT BETWEEN 300 AND 200000 THEN v_falta := array_append(v_falta, 'valor de aluguel fora do esperado (' || v_preco::bigint || ')'); END IF;
+  IF p_negocio = 'venda' AND v_preco < 20000 THEN v_avisos := array_append(v_avisos, 'valor de venda baixo demais para ser de venda (' || v_preco::bigint || ')'); END IF;
+  IF p_negocio = 'locacao' AND v_preco NOT BETWEEN 300 AND 200000 THEN v_avisos := array_append(v_avisos, 'valor de aluguel fora do esperado (' || v_preco::bigint || ')'); END IF;
 
   -- o CEP: o do imóvel; sem ele, o do condomínio
   v_cep := regexp_replace(coalesce(i.cep, ''), '\D', '', 'g');
   IF v_cep !~ '^\d{8}$' THEN v_cep := regexp_replace(coalesce(cf.cep, ''), '\D', '', 'g'); END IF;
-  IF v_cep !~ '^\d{8}$' THEN v_falta := array_append(v_falta, 'sem CEP (nem no imóvel nem no condomínio)'); END IF;
+  -- 437: sem CEP no imóvel nem no condomínio, o CEP mais comum do MESMO BAIRRO nos nossos cadastros (aproximado)
+  IF v_cep !~ '^\d{8}$' AND nullif(btrim(coalesce(i.bairro, '')), '') IS NOT NULL THEN
+    SELECT t.c INTO v_cep_bairro
+      FROM (SELECT regexp_replace(x.cep, '\D', '', 'g') AS c FROM imoveis x
+             WHERE lower(nay_sem_acento(btrim(x.bairro))) = lower(nay_sem_acento(btrim(i.bairro)))
+            UNION ALL
+            SELECT regexp_replace(y.cep, '\D', '', 'g') FROM condominio_ficha y
+             WHERE lower(nay_sem_acento(btrim(y.bairro))) = lower(nay_sem_acento(btrim(i.bairro)))) t
+     WHERE t.c ~ '^\d{8}$'
+     GROUP BY t.c ORDER BY count(*) DESC, t.c LIMIT 1;
+    IF v_cep_bairro IS NOT NULL THEN
+      v_cep := v_cep_bairro;
+      v_avisos := array_append(v_avisos, 'CEP aproximado: o mais comum do bairro ' || btrim(i.bairro) || ' (o imóvel e o condomínio não têm CEP)');
+    END IF;
+  END IF;
+  IF v_cep !~ '^\d{8}$' THEN
+    v_cep := NULL;
+    v_avisos := array_append(v_avisos, 'sem CEP (nem no imóvel, nem no condomínio, nem no bairro): escreva o CEP aqui, a OLX pede');
+  END IF;
 
-  IF length(v_fone) NOT BETWEEN 10 AND 11 THEN v_falta := array_append(v_falta, 'o telefone do anúncio (chave telefone) não tem 10 ou 11 dígitos'); END IF;
+  IF length(v_fone) NOT BETWEEN 10 AND 11 THEN v_avisos := array_append(v_avisos, 'o telefone do anúncio (chave telefone) não tem 10 ou 11 dígitos'); END IF;
 
   -- as fotos: a capa primeiro, sem a montagem dos grupos, sem repetir, só JPG/PNG/GIF (a OLX não aceita webp), até 20
   SELECT jsonb_agg(x.url ORDER BY x.n) INTO v_fotos
@@ -99,7 +119,7 @@ BEGIN
            GROUP BY y.url
            ORDER BY 2
            LIMIT 20) x;
-  IF v_fotos IS NULL THEN v_falta := array_append(v_falta, 'sem foto que a OLX aceite (JPG, PNG ou GIF)'); END IF;
+  IF v_fotos IS NULL THEN v_avisos := array_append(v_avisos, 'sem foto que a OLX aceite (JPG, PNG ou GIF)'); END IF;
 
   -- os parâmetros da categoria. O que não sabemos NÃO vai: opcional vazio ou zero derruba a importação
   v_area := CASE WHEN v_cat = 1100 THEN coalesce(nullif(i.area_total, 0), nullif(i.area_util, 0)) ELSE coalesce(nullif(i.area_util, 0), nullif(i.area_total, 0)) END;
@@ -111,7 +131,7 @@ BEGIN
     v_params := v_params || jsonb_build_object('garage_spaces', least(i.vagas, 5)::text);
   END IF;
   IF v_cat IN (1020, 1040) THEN
-    IF i.quartos IS NULL OR i.quartos < 0 THEN v_falta := array_append(v_falta, 'sem número de quartos');
+    IF i.quartos IS NULL OR i.quartos < 0 THEN v_avisos := array_append(v_avisos, 'sem número de quartos');
     ELSE v_params := v_params || jsonb_build_object('rooms', least(i.quartos, 5)::text); END IF;
     IF coalesce(i.banheiros, 0) >= 1 THEN v_params := v_params || jsonb_build_object('bathrooms', least(i.banheiros, 5)::text); END IF;
   END IF;
@@ -202,8 +222,9 @@ BEGIN
     'price', round(v_preco)::bigint, 'zipcode', v_cep,
     'phone_hidden', coalesce(olx_cfg('mostrar_telefone'), 'nao') <> 'sim',
     'params', v_params, 'images', v_fotos);
-  RETURN jsonb_build_object('ok', true, 'barrado', NULL, 'falta', '[]'::jsonb, 'ad_id', v_ad, 'anuncio', v_an,
+  v_an := jsonb_strip_nulls(v_an);
+  RETURN jsonb_build_object('ok', true, 'barrado', NULL, 'falta', '[]'::jsonb, 'avisos', to_jsonb(v_avisos), 'ad_id', v_ad, 'anuncio', v_an,
                             'hash', md5(v_an::text), 'titulo', v_titulo, 'preco', round(v_preco)::bigint,
-                            'fotos', jsonb_array_length(v_fotos));
+                            'fotos', coalesce(jsonb_array_length(v_fotos), 0));
 END
 $function$;

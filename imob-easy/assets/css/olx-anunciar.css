@@ -28,6 +28,7 @@
 .olxa__aviso--ok { background: #EAF7EE; color: #1E6B3A; }
 .olxa__aviso--erro { background: #FDECEC; color: #9B2222; }
 .olxa__aviso--vai { background: #EAF3FD; color: #1E5FA8; }
+.olxa__aviso--falta { background: #FFF6E0; color: #8A5A00; }   /* 437: o que falta, sem travar */
 .olxa__aviso a { color: inherit; font-weight: 700; }
 
 .olxa__abas { display: flex; gap: 6px; }

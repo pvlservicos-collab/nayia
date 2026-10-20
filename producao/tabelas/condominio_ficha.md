@@ -50,6 +50,7 @@ condominio_ficha_tipo_check: CHECK ((tipo = ANY (ARRAY['apartamentos'::text, 'ca
 
 ## gatilhos
 CREATE TRIGGER condominio_google_tg BEFORE INSERT OR UPDATE ON public.condominio_ficha FOR EACH ROW EXECUTE FUNCTION condominio_google_marcar()
+CREATE TRIGGER condominio_proximo_anos_tg AFTER INSERT OR UPDATE OF ano_lancamento, ano_construcao, condominio_id ON public.condominio_ficha FOR EACH STATEMENT EXECUTE FUNCTION privado.condominio_proximo_anos_tg()
 
 ## permissões
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE

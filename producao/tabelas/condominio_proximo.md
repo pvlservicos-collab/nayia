@@ -1,4 +1,4 @@
-# condominio_proximo  (tabela, ~338 linhas)
+# condominio_proximo  (tabela, ~358 linhas)
 433: a planilha condominios_proximos.xlsx do Pedro (20/10): os condomínios próximos de cada um e se é recente (últimos 5 anos).
 
 ## colunas
@@ -10,6 +10,9 @@ proximos  text[]  NOT NULL  padrão '{}'::text[]
 condo_id  integer
 ligado_como  text
 carregado_em  timestamp with time zone  NOT NULL  padrão now()
+recente_planilha  boolean  NOT NULL  padrão false
+ano  integer
+origem  text  NOT NULL  padrão 'planilha'::text
 
 ## índices
 CREATE UNIQUE INDEX condominio_proximo_nome_key ON public.condominio_proximo USING btree (nome)

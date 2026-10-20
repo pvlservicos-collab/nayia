@@ -63,6 +63,9 @@
   var abas = el("div", "olxa__abas");
   var barrado = el("div", "olxa__aviso olxa__aviso--erro");
   barrado.hidden = true;
+  // 437 (Pedro, 20/10: "não pedi nenhum filtro obrigatório, pode só marcar o que falta"): o que falta não trava mais
+  var avisos = el("div", "olxa__aviso olxa__aviso--falta");
+  avisos.hidden = true;
 
   function campo(rotulo, entrada, limite) {
     var c = el("label", "olxa__campo");
@@ -96,7 +99,7 @@
   resultado.hidden = true;
   var pedidos = el("div", "olxa__pedidos");
 
-  [naOlx, abas, barrado, cTitulo, cDescricao, dupla, info, rotFotos, grade, resultado, pedidos].forEach(function (x) {
+  [naOlx, abas, barrado, avisos, cTitulo, cDescricao, dupla, info, rotFotos, grade, resultado, pedidos].forEach(function (x) {
     corpo.appendChild(x);
   });
 
@@ -187,6 +190,9 @@
     barrado.hidden = ok;
     barrado.textContent = ok ? "" : "Não dá para anunciar " + NOME[n].toLowerCase() + ": " +
       (m.barrado || (m.falta || []).join("; ") || "o anúncio não monta") + ".";
+    var lista = ok ? (m.avisos || []) : [];
+    avisos.hidden = !lista.length;
+    avisos.textContent = lista.length ? "Vai com o que temos. Falta (ou foi preenchido aproximado): " + lista.join("; ") + "." : "";
     var a = m.anuncio || {};
     titulo.value = a.subject || m.titulo || "";
     descricao.value = a.body || "";
