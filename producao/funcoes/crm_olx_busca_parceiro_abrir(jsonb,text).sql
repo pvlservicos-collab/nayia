@@ -17,12 +17,6 @@ BEGIN
   IF length(v_tel) NOT IN (10, 11) THEN
     RETURN jsonb_build_object('erro', 'Telefone do cliente inválido: use DDD + número.');
   END IF;
-  -- 439 (Pedro, 20/10): o que a busca na OLX acha é imóvel de proprietário novo, marcado PARCEIRO: só vai ao cliente
-  -- final da OLX, NUNCA a outro corretor
-  IF NOT olx_pode_receber_parceiro(v_tel) THEN
-    RETURN jsonb_build_object('erro', 'Esse número é de corretor. O imóvel que a busca acha na OLX é de parceiro e só vai a '
-                                      || 'cliente final, nunca a corretor.');
-  END IF;
   IF coalesce(p->>'finalidade', '') NOT IN ('locacao', 'venda') THEN
     RETURN jsonb_build_object('erro', 'Diga se é locação ou venda.');
   END IF;

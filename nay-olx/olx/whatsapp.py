@@ -965,7 +965,7 @@ def busca_na_olx_vale(cfg: dict, telefone: str) -> tuple[bool, bool]:
 def abrir_busca_na_olx(conn, lead: dict, filtros: dict) -> bool:
     """Abre (ou reconhece a que já está aberta) a ordem de busca de imóvel de parceiro na OLX deste cliente."""
     abre, teste = busca_na_olx_vale(banco.chaves(conn), lead["telefone"])
-    if not abre or not _aceita_parceiro(conn, lead):    # 20/10: o achado na OLX é de parceiro: corretor nunca recebe
+    if not abre:
         return False
     # o mesmo pedido já procurado nas últimas 6 h e encerrado: a busca daria o mesmo; fica o caminho de antes (equipe)
     if banco.um(conn, """SELECT EXISTS (SELECT 1 FROM privado.olx_busca_parceiro WHERE lead = %s AND filtros = %s::jsonb

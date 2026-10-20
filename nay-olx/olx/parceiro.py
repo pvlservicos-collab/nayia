@@ -150,10 +150,7 @@ def pergunta(nome: str | None, a: dict) -> str:
 
 # ── o pré-cadastro (421) ──
 def precadastrar(conn, o: dict, a: dict, lead: dict) -> int:
-    """O anúncio da OLX vira Rascunho (fora do site e da Nay) para a equipe completar e aprovar. Devolve o código.
-    Pedro, 20/10: "esses imóveis de proprietário novo só podem ser oferecidos para leads na OLX, e NUNCA para outros
-    corretores ... a Nay parceria não pode e nunca deve nem ver esses marcados como parceiros": nasce SEMPRE parceiro
-    (antes só quando o anúncio era de profissional), e aprovado continua só da Nay do WhatsApp da OLX (400)."""
+    """O anúncio da OLX vira Rascunho (fora do site e da Nay) para a equipe completar e aprovar. Devolve o código."""
     if o.get("codigo"):
         return int(o["codigo"])
     im = a.get("imovel") or {}
@@ -161,15 +158,14 @@ def precadastrar(conn, o: dict, a: dict, lead: dict) -> int:
     extras = {"olx_url": a.get("url"), "olx_id": str(a.get("olx_id") or ""), "olx_titulo": a.get("titulo"),
               "busca_parceiro": str(o["id"]), "cliente": _cliente(lead), "nota": str(round(float(o.get("nota") or a.get("nota") or 0))),
               "anunciante": o.get("contato_nome") or a.get("anunciante"), "anunciante_telefone": o.get("contato_tel"),
-              "cadastrado_pelo": "busca na OLX (Nay)", "parceiro_novo": "sim",
-              "anunciante_e": "profissional" if a.get("profissional") else "proprietário"}
+              "cadastrado_pelo": "busca na OLX (Nay)"}
     extras = {k: v for k, v in extras.items() if v}
     codigo = banco.um(conn, """
         INSERT INTO imoveis (codigo, origem, status, disponivel, publicado_no_site, criado_em, captado_em, e_parceiro, tipo,
                              bairro, cep, quartos, vagas, area_util, valor_aluguel, valor_venda, descricao, extras)
         VALUES (nextval('imoveis_crm_codigo_seq'), 'olx', 'Rascunho', false, false, now(), to_char(now(), 'DD/MM/YYYY'), %s, %s,
                 %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb)
-        RETURNING codigo""", (True, tipo, a.get("bairro") or im.get("bairro"), a.get("cep"),
+        RETURNING codigo""", (bool(a.get("profissional")), tipo, a.get("bairro") or im.get("bairro"), a.get("cep"),
                                im.get("quartos"), im.get("vagas"), im.get("area"), im.get("valor_aluguel"), im.get("valor_venda"),
                                (a.get("descricao") or "")[:4000] or None, banco.js(extras)))
     for n, url in enumerate((a.get("fotos") or [])[:12], start=1):
@@ -191,6 +187,13 @@ def _ao_grupo_com_cadastro(conn, o: dict, lead: dict, a: dict, texto: str, motiv
 def entregar_do_cadastro(conn, o: dict, lead: dict) -> None:
     """O pré-cadastro ficou Disponível: o card vai ao cliente e a Nay volta a atender."""
     codigo = int(o["codigo"])
+    parceria = banco.um(conn, "SELECT coalesce(e_parceiro, false) FROM imoveis WHERE codigo = %s", (codigo,))
+    if parceria and not whatsapp._aceita_parceiro(conn, lead):
+        # Pedro, 20/10: o cadastrado como PARCERIA só vai a lead da OLX (cliente final), nunca a corretor
+        _marcar(conn, o["id"], estado="cancelado", erro="imóvel de parceria: quem pediu não é lead da OLX")
+        _aviso(o, f"o #{codigo} é de parceria e {_cliente(lead)} não é lead da OLX (cliente final): não mandei. "
+                  "Imóvel de parceria só vai a lead da OLX.")
+        return
     whatsapp.mandar_texto(conn, lead, "Boa notícia! Consegui uma opção que combina com o que você procura:")
     time.sleep(whatsapp.ENTRE_ENVIOS_S)
     whatsapp.mandar_imovel(conn, lead, codigo)
@@ -373,12 +376,6 @@ def uma_volta(conn) -> int:
                       OR b.atualizado_em < now() - make_interval(days => %(dias)s)))
              ORDER BY (b.estado = 'pendente') DESC, b.id LIMIT 8""", {"fim": FIM_SEM_CADASTRO, "dias": ESPERA_DO_CADASTRO_DIAS}):
         lead = whatsapp._lead(conn, o["lead"])
-        if not whatsapp._aceita_parceiro(conn, lead):
-            # 20/10 (Pedro): o que a busca na OLX acha é imóvel de parceiro: só o cliente final da OLX, NUNCA corretor
-            _marcar(conn, o["id"], estado="cancelado", erro="quem pediu é corretor: imóvel de parceiro não vai a corretor")
-            _aviso(o, f"a busca na OLX do {_cliente(lead)} foi cancelada: é corretor, e o imóvel achado na OLX é de "
-                      "parceiro (só vai ao cliente final).")
-            continue
         try:
             if o["estado"] == "pendente":
                 _buscar(conn, o, c, lead)
