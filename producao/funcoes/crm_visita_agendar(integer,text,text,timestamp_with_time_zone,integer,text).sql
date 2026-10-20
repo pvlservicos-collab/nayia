@@ -18,6 +18,7 @@ DECLARE
   dono    record;
   c       nai_contato;
   v_id    bigint;
+  v_registro boolean := false;   -- 450
   v_outra bigint;
   v_da_nay bigint;
   v_corte  timestamptz := nai_cfg('agenda_sem_visita_da_nay_desde', 'infinity')::timestamptz;
@@ -25,8 +26,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM imoveis WHERE codigo = p_codigo) THEN
     RETURN QUERY SELECT false, 'Não achei o imóvel ' || coalesce(p_codigo::text, '') || '.', NULL::bigint, NULL::text, NULL::text, NULL::text, NULL::text, NULL::text, NULL::text; RETURN;
   END IF;
-  IF p_quando IS NULL OR p_quando < now() - interval '5 minutes' THEN
-    RETURN QUERY SELECT false, 'Escolha um dia e hora no futuro.', NULL::bigint, NULL::text, NULL::text, NULL::text, NULL::text, NULL::text, NULL::text; RETURN;
+  -- 450 (Pedro, 20/10): sem trava de horário. A visita de dia/hora que já passou é só registro (o lembrete não sai)
+  IF p_quando IS NULL THEN
+    RETURN QUERY SELECT false, 'Escolha o dia e a hora.', NULL::bigint, NULL::text, NULL::text, NULL::text, NULL::text, NULL::text, NULL::text; RETURN;
   END IF;
   IF v_dur < 15 OR v_dur > 480 THEN
     RETURN QUERY SELECT false, 'A duração tem que ficar entre 15 minutos e 8 horas.', NULL::bigint, NULL::text, NULL::text, NULL::text, NULL::text, NULL::text, NULL::text; RETURN;
@@ -83,6 +85,10 @@ BEGIN
         left(v_quem || ' agendou outra visita do mesmo corretor ao mesmo imóvel', 200));
       v_aviso := ' A de ' || coalesce(to_char(v_aberta.quando AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI'), 'antes')
                  || ' (#' || v_aberta.id || '), que tinha ficado aberta, foi encerrada.';
+    ELSIF v_aberta.id IS NOT NULL AND p_quando < now() THEN
+      -- 450: registro de uma visita que já passou, com outra deste corretor a este imóvel ainda por acontecer: a aberta
+      -- fica como está e o registro nasce encerrado (o índice nai_visita_uma_aberta deixa só uma aberta)
+      v_registro := true;
     ELSIF v_aberta.id IS NOT NULL THEN
       SELECT m.ok, m.mensagem INTO v_mudou, v_msg FROM crm_visita_mudar_horario(v_aberta.id, p_quando, v_quem) m;
       IF NOT coalesce(v_mudou, false) THEN
@@ -119,9 +125,13 @@ BEGIN
                           quando, estado, aguardando, duracao_min, criada_no_crm_por,
                           confirmada_corretor_em, aprovada_em, aprovada_por)
   VALUES (p_codigo, v_cor, v_prop, dono.cadastro_id, dono.nome,
-          p_quando, 'com_rayssa', 'equipe', v_dur, v_quem,
+          p_quando, CASE WHEN v_registro THEN 'encerrada' ELSE 'com_rayssa' END,
+          CASE WHEN v_registro THEN NULL ELSE 'equipe' END, v_dur, v_quem,
           now(), now(), left('CRM: ' || v_quem, 120))
   RETURNING id INTO v_id;
+  IF v_registro THEN
+    UPDATE nai_visita SET encerrada_em = now(), motivo = 'Registro no CRM de uma visita que já passou' WHERE id = v_id;
+  END IF;
   PERFORM nai_evento(v_id, 'agendada_no_crm', left(v_quem || ' agendou à mão, ' || v_dur || ' min', 200));
   END IF;
 

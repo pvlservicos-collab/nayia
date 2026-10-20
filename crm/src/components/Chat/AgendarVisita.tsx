@@ -244,7 +244,8 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, corretorIni
         <button type="button" onClick={() => escolher('amanha')} aria-pressed={atalho === 'amanha'} className={classeChip} style={chip(atalho === 'amanha')}>Amanhã</button>
         <button type="button" onClick={() => escolher('data')} aria-pressed={atalho === 'data'} className={classeChip} style={chip(atalho === 'data')}><CalendarBlank size={14} /> Data</button>
         {atalho === 'data' && (
-          <input type="date" value={dia} min={diaMais(0)} onChange={(e) => setDia(e.target.value)} aria-label="Dia da visita"
+          // 450 (Pedro, 20/10): sem trava de dia; visita que já passou é só registro (o lembrete não sai)
+          <input type="date" value={dia} onChange={(e) => setDia(e.target.value)} aria-label="Dia da visita"
                  className="h-7 rounded-lg px-2 text-[12.5px]" style={campo} />
         )}
         <span className="inline-flex items-center gap-1 text-[12.5px]" style={{ color: 'var(--wa-text-2)' }}>
