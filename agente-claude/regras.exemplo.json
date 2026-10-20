@@ -1,0 +1,14 @@
+{
+  "teste": {
+    "mensagem": "Responda só: ok",
+    "modelo": "haiku"
+  },
+  "exemplo-completo": {
+    "mensagem": "Escreva a mensagem pré-setada aqui.",
+    "modelo": "sonnet",
+    "sistema": "Opcional: instrução fixa de como o Claude deve responder.",
+    "esforco": "low",
+    "timeout_s": 300,
+    "ativa": false
+  }
+}
