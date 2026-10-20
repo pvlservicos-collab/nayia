@@ -44,6 +44,8 @@ def banco():
         id INTEGER PRIMARY KEY, conversa_id INTEGER NOT NULL, papel TEXT NOT NULL, texto TEXT, inicio TEXT NOT NULL,
         ok INTEGER, ms_total INTEGER, ms_api INTEGER, tokens_entrada INTEGER, tokens_saida INTEGER,
         cache_lido INTEGER, custo_usd REAL, erro TEXT)""")
+    if "origem" not in {r[1] for r in con.execute("PRAGMA table_info(mensagens)")}:
+        con.execute("ALTER TABLE mensagens ADD COLUMN origem TEXT")  # 'agenda' = mandada pelo horário marcado
     con.execute("CREATE INDEX IF NOT EXISTS mensagens_conversa ON mensagens(conversa_id, id)")
     con.execute("CREATE INDEX IF NOT EXISTS conversas_projeto ON conversas(projeto, atualizada_em)")
     con.row_factory = lambda c, r: {d[0]: v for d, v in zip(c.description, r)}
@@ -91,9 +93,11 @@ def listar():
         except (KeyError, ValueError):
             continue
         r = con.execute("SELECT COUNT(*) n, MAX(atualizada_em) ultima FROM conversas WHERE projeto = ?", (pid,)).fetchone()
+        ids = {x["id"] for x in con.execute("SELECT id FROM conversas WHERE projeto = ?", (pid,))}
         saida.append({"id": pid, "nome": c.get("nome", pid), "descricao": c.get("descricao", ""),
                       "modelo": c["modelo"], "ordem": c.get("ordem", 99), "importador": c.get("importador"),
-                      "conversas": r["n"], "ultima": r["ultima"], "anexos": len(anexos(pid))})
+                      "conversas": r["n"], "ultima": r["ultima"], "anexos": len(anexos(pid)),
+                      "agenda": c.get("agenda"), "pendente": any(k in ids for k in PENDENTES)})
     con.close()
     return sorted(saida, key=lambda p: (p["ordem"], p["nome"]))
 
@@ -144,10 +148,39 @@ def salvar(pid, dados, novo=False):
                 c[k] = v[:400]
             else:
                 c.pop(k, None)
+    if "agenda" in dados:
+        c.pop("agenda", None)
+        ag = agenda_valida(dados["agenda"])
+        if ag:
+            c["agenda"] = ag
     gravar(os.path.join(p, "projeto.json"), json.dumps(c, ensure_ascii=False, indent=2) + "\n")
     if "contexto" in dados:
         gravar(os.path.join(p, "contexto.md"), str(dados["contexto"] or ""))
     return detalhe(pid)
+
+
+DIAS_AGENDA = {"todos": range(7), "seg-sex": range(5), "seg-sab": range(6)}
+
+
+def agenda_valida(ag):
+    """{"horario": "HH:MM" (Brasília), "dias": todos|seg-sex|seg-sab, "mensagem"}; sem horário ou mensagem = sem agenda."""
+    if not isinstance(ag, dict) or not ag.get("horario") or not str(ag.get("mensagem") or "").strip():
+        return None
+    if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", str(ag["horario"])):
+        raise ValueError("horário no formato HH:MM")
+    dias = ag.get("dias") or "todos"
+    if dias not in DIAS_AGENDA:
+        raise ValueError("dias: todos, seg-sex ou seg-sab")
+    return {"horario": ag["horario"], "dias": dias, "mensagem": str(ag["mensagem"]).strip()}
+
+
+def conversa_atual(pid):
+    """A conversa mais recente do projeto (a que aparece no quadrado); cria uma se não houver."""
+    con = banco()
+    r = con.execute("SELECT id FROM conversas WHERE projeto = ? ORDER BY atualizada_em DESC, id DESC LIMIT 1",
+                    (pid,)).fetchone()
+    con.close()
+    return r["id"] if r else nova_conversa(pid)
 
 
 def claude_md(pid):
@@ -188,7 +221,8 @@ def mensagens(cid):
         con.close()
         raise KeyError("conversa não existe")
     linhas = con.execute("SELECT id, papel, texto, datetime(inicio, '-3 hours') inicio, ok, ms_total, tokens_entrada, "
-                         "tokens_saida, cache_lido, custo_usd, erro FROM mensagens WHERE conversa_id = ? ORDER BY id",
+                         "tokens_saida, cache_lido, custo_usd, erro, origem FROM mensagens WHERE conversa_id = ? "
+                         "ORDER BY id",
                          (cid,)).fetchall()
     con.close()
     pend = PENDENTES.get(cid)
@@ -196,8 +230,9 @@ def mensagens(cid):
             "pendente": {"segundos": round(time.time() - pend["desde"])} if pend else None}
 
 
-def enviar(cid, texto):
-    """Grava a mensagem e põe o Claude para responder em segundo plano. Uma resposta por vez em cada conversa."""
+def enviar(cid, texto, origem=None):
+    """Grava a mensagem e põe o Claude para responder em segundo plano. Uma resposta por vez em cada conversa.
+    origem 'agenda' = mandada pelo horário marcado no projeto."""
     texto = (texto or "").strip()
     if not texto:
         raise ValueError("mensagem vazia")
@@ -214,7 +249,8 @@ def enviar(cid, texto):
     primeira = not con.execute("SELECT 1 FROM mensagens WHERE conversa_id = ? AND papel = 'claude' AND ok = 1",
                                (cid,)).fetchone()
     t = agora()
-    con.execute("INSERT INTO mensagens (conversa_id, papel, texto, inicio) VALUES (?, 'voce', ?, ?)", (cid, texto, t))
+    con.execute("INSERT INTO mensagens (conversa_id, papel, texto, inicio, origem) VALUES (?, 'voce', ?, ?, ?)",
+                (cid, texto, t, origem))
     if conv["titulo"] == "Conversa nova":
         con.execute("UPDATE conversas SET titulo = ? WHERE id = ?", (texto.splitlines()[0][:80], cid))
     con.execute("UPDATE conversas SET atualizada_em = ? WHERE id = ?", (t, cid))

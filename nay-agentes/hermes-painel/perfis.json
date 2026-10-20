@@ -11,16 +11,5 @@
       "Quantos anúncios ativos eu tenho?",
       "Abra o chat e me diga quantas conversas não lidas tem"
     ]
-  },
-  "claude": {
-    "nome": "Hermes do Claude",
-    "faz": "Só fala com você: na hora que você marcar, manda ao Claude as ordens escritas no painel agentes.imobeasy.online e conta o que ele fez.",
-    "servico": "hermes-gateway-claude",
-    "api_porta": 8645,
-    "exemplos": [
-      "Quais regras existem no painel?",
-      "Todo dia às 3h dispare a regra teste",
-      "Dispare agora a regra teste e me diga o resultado"
-    ]
   }
 }

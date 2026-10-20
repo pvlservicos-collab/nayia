@@ -11,6 +11,7 @@ Roda como root (Pedro, 20/10: as regras "alterar" põem o Claude a mexer no serv
 para segundo plano, porque uma alteração pode levar até 30 minutos; a tela acompanha pela lista "rodando" do /api/estado.
 """
 import hmac, json, os, re, sys, threading, time
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -27,7 +28,50 @@ with open(os.path.join(BASE, "painel.html"), "rb") as f:
 TRAVA_REGRAS = threading.Lock()
 RODANDO = {}  # chave -> {"regras", "desde"}
 CAMPOS = {"mensagem": str, "modelo": str, "sistema": str, "esforco": str, "timeout_s": int, "ativa": bool,
-          "servidor": str, "modo": str}
+          "servidor": str, "modo": str, "horario": str, "dias": str}
+BRASILIA = timezone(timedelta(hours=-3))
+AGENDA_FEITA = os.path.join(BASE, "agenda_feita.json")
+
+
+def agendador():
+    """O horário marcado (Pedro, 20/10: "só o Claude", sem o Hermes no meio). A cada 20 s olha a hora de Brasília e
+    dispara as regras e os projetos marcados para este minuto. O que já saiu fica em agenda_feita.json, para um
+    reinício do painel no mesmo minuto não mandar de novo."""
+    while True:
+        try:
+            agora = datetime.now(BRASILIA)
+            minuto, dia = agora.strftime("%H:%M"), agora.weekday()
+            chave_min = agora.strftime("%Y-%m-%d %H:%M")
+            try:
+                with open(AGENDA_FEITA, encoding="utf-8") as f:
+                    feita = json.load(f)
+            except (FileNotFoundError, ValueError):
+                feita = {}
+            novas = {}
+            for nome, r in agente.regras().items():
+                if (r.get("ativa", True) and r.get("horario") == minuto
+                        and dia in projetos.DIAS_AGENDA.get(r.get("dias") or "todos", ())
+                        and feita.get("regra:" + nome) != chave_min):
+                    novas["regra:" + nome] = chave_min
+                    threading.Thread(target=agente.executar, args=([nome], "agenda"), daemon=True).start()
+            for p in projetos.listar():
+                ag = p.get("agenda") or {}
+                if (ag.get("horario") == minuto and dia in projetos.DIAS_AGENDA.get(ag.get("dias"), ())
+                        and feita.get("projeto:" + p["id"]) != chave_min):
+                    novas["projeto:" + p["id"]] = chave_min
+                    try:
+                        projetos.enviar(projetos.conversa_atual(p["id"]), ag["mensagem"], origem="agenda")
+                    except ValueError:  # a conversa ainda está respondendo: a agenda deste minuto fica para amanhã
+                        pass
+            if novas:
+                feita.update(novas)
+                tmp = AGENDA_FEITA + ".tmp"
+                with open(tmp, "w", encoding="utf-8") as f:
+                    json.dump(feita, f)
+                os.replace(tmp, AGENDA_FEITA)
+        except Exception as e:  # noqa: BLE001 - o agendador não pode morrer por um erro de uma regra
+            print("agenda:", type(e).__name__, e, flush=True)
+        time.sleep(20)
 
 
 def estado(dias):
@@ -69,6 +113,10 @@ def validar(regras):
             raise ValueError(f"{nome}: servidor tem de ser {' ou '.join(agente.SERVIDORES)}")
         if limpa.get("modo", "responder") not in agente.MODOS:
             raise ValueError(f"{nome}: modo tem de ser {' ou '.join(agente.MODOS)}")
+        if limpa.get("horario") and not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", limpa["horario"]):
+            raise ValueError(f"{nome}: horário no formato HH:MM")
+        if limpa.get("dias", "todos") not in projetos.DIAS_AGENDA:
+            raise ValueError(f"{nome}: dias tem de ser todos, seg-sex ou seg-sab")
         limpas[nome] = limpa
     return limpas
 
@@ -212,4 +260,5 @@ ROTAS = [
 if __name__ == "__main__":
     if not TOKEN:
         sys.exit("falta AGENTES_TOKEN")
+    threading.Thread(target=agendador, daemon=True).start()
     ThreadingHTTPServer((ENDERECO, PORTA), Pedido).serve_forever()

@@ -61,11 +61,21 @@ Nay Parceria (revisão), cada um com o contexto que o Tel escreveu (`projetos/<i
   dia, com o RESULTADO (visita marcada, escalada e motivo, corretor sumiu). Telefone só com os 4 últimos dígitos.
   Tudo (desde 07/10, 456 conversas) leva menos de 1 s e ocupa 2 MB. O Claude lê o índice e abre só o que precisa.
 
-## Hermes do Claude (admin › Agentes)
-Perfil `claude` do Hermes, serviço `hermes-gateway-claude` (API 127.0.0.1:8645), fonte em `nay-agentes/hermes-painel/`
-(`alma-claude.md`, `instalar-claude.sh`, `publicar.sh claude`). Só fala pela tela admin › Agentes. Ferramentas:
-memória, agenda (cronjob, fuso de Brasília) e `agente` (`mcp_agente.py`: `listar_regras`, `disparar_regra`). Sem
-terminal. Pede-se a ele, por exemplo: "todo dia às 3h dispare a regra X".
+## Horário marcado (só o Claude, sem o Hermes)
+Pedro/Tel, 20/10: "precisa do gpt no hermes? ... ou poderia ser só o Claude?" → só o Claude. Cada regra tem `horario`
+(HH:MM, Brasília) e `dias` (todos, seg-sex, seg-sab); cada projeto tem `agenda` {horario, dias, mensagem} no ⚙ do
+quadro. O `agendador()` do `painel.py` olha a hora a cada 20 s e dispara; o que já saiu fica em `agenda_feita.json`
+(um reinício no mesmo minuto não repete). A mensagem do projeto entra na conversa atual do quadro, marcada "agendada".
+A resposta fica no painel (escolha dele: "só no painel").
+
+O **Hermes do Claude** (perfil `claude`, `nay-agentes/hermes-painel/alma-claude.md`, `instalar-claude.sh`) foi
+desligado em 20/10 (`hermes-gateway-claude` parado e fora do boot; saiu do `perfis.json`); o perfil ficou em
+`/root/.hermes/profiles/claude`. `mcp_agente.py` ficou sem uso.
+
+## A tela dos projetos
+Os seis chats ficam abertos ao mesmo tempo, 3 em cima e 3 embaixo ("deixa os chats já lá abertos em quadradinhos
+separados"): cada quadro tem a conversa, o campo de digitar, a lista de conversas (e "+ Nova conversa"), ⤢ para
+ampliar e ⚙ para contexto e modelo, horário e anexos. A cada 10 s a tela confere se algum projeto mudou sozinho.
 
 ## Uso pelo terminal (VPS2, root)
 ```
