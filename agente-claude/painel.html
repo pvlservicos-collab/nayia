@@ -118,6 +118,34 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 .rodape-p { display: flex; justify-content: flex-end; }
 @media (max-width: 1100px) { .grade { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 720px) { .grade { grid-template-columns: 1fr; } .caixa { height: 75vh; } }
+
+/* vista em lista (Pedro, 21/10): como o Claude, os chats numa lista na esquerda (30%) e o aberto grande na direita.
+   Os quadradinhos continuam; o ícone no topo troca e a escolha fica guardada neste navegador. */
+.vistas { display: flex; gap: 2px; border: 1px solid var(--borda); border-radius: 8px; padding: 2px; }
+.vistas button { border: 0; background: transparent; color: var(--texto-2); padding: 4px 7px; border-radius: 6px; display: grid; place-items: center; }
+.vistas button[aria-pressed="true"] { background: var(--fundo); color: var(--texto); }
+.vistas svg { width: 18px; height: 18px; }
+#p-lista { display: none; }
+.modo-lista .p-corpo { display: grid; grid-template-columns: minmax(220px, 30%) minmax(0, 1fr); gap: 10px; }
+.modo-lista #p-lista { display: flex; flex-direction: column; gap: 2px; padding: 6px; height: calc(100vh - 84px); overflow-y: auto; }
+.modo-lista .grade { display: block; }
+.modo-lista .caixa { display: none; height: calc(100vh - 84px); }
+.modo-lista .caixa.aberta { display: flex; }
+.modo-lista .caixa .ampliar, .modo-lista .rodape-p { display: none; }
+.item-chat.novo { color: var(--texto-2); justify-content: center; margin-top: 6px; }
+.item-chat { display: flex; gap: 10px; align-items: center; text-align: left; border: 0; background: transparent; border-radius: 8px; padding: 9px 10px; width: 100%; color: var(--texto); }
+.item-chat:hover { background: var(--fundo); }
+.item-chat[aria-current="true"] { background: var(--fundo); box-shadow: inset 3px 0 0 var(--cor, var(--azul)); }
+.item-chat .txt { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.item-chat .linha1 { display: flex; gap: 6px; align-items: baseline; }
+.item-chat b { flex: 1; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-chat time { flex: none; font-size: 11px; color: var(--texto-3); }
+.item-chat small { font-size: 12px; color: var(--texto-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 720px) {
+  .modo-lista .p-corpo { grid-template-columns: 1fr; }
+  .modo-lista #p-lista { height: auto; max-height: 40vh; }
+  .modo-lista .caixa { height: 75vh; }
+}
 </style>
 </head>
 <body>
@@ -127,12 +155,16 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     <button type="button" role="tab" data-aba="projetos" aria-selected="true">Projetos</button>
     <button type="button" role="tab" data-aba="regras" aria-selected="false">Regras e métricas</button>
   </nav>
+  <div class="vistas" id="vistas" role="group" aria-label="Visualização">
+    <button type="button" data-vista="grade" title="Quadradinhos: os chats todos abertos" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg></button>
+    <button type="button" data-vista="lista" title="Lista: os chats na esquerda, o aberto grande na direita" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/></svg></button>
+  </div>
   <a href="https://imobeasy.online/admin/inicio.html">← Admin</a>
 </header>
 
 <main id="vista-projetos" class="largo">
   <div class="aviso" id="aviso-p"></div>
-  <div class="grade" id="p-grade"></div>
+  <div class="p-corpo"><nav id="p-lista" aria-label="Chats"><div id="p-itens"></div><button type="button" class="item-chat novo" id="p-novo2">+ Projeto</button></nav><div class="grade" id="p-grade"></div></div>
   <div class="rodape-p"><button id="p-novo">+ Projeto</button></div>
 </main>
 <dialog id="p-dialogo">
@@ -455,8 +487,56 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
       [].forEach.call(document.querySelectorAll("[data-aba]"), function (x) { x.setAttribute("aria-selected", x === b); });
       $("vista-projetos").hidden = b.dataset.aba !== "projetos";
       $("vista-regras").hidden = b.dataset.aba !== "regras";
+      $("vistas").hidden = b.dataset.aba !== "projetos";
     });
   });
+
+  /* ---- quadradinhos ou lista (21/10) ---- */
+  var vista = "grade", aberto = null, itens = {};
+  function lido(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function anotar(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* sem armazenamento: tudo bem */ } }
+  function mudarVista(v) {
+    vista = v === "lista" ? "lista" : "grade";
+    anotar("vista-projetos", vista);
+    $("vista-projetos").classList.toggle("modo-lista", vista === "lista");
+    [].forEach.call(document.querySelectorAll("[data-vista]"), function (b) { b.setAttribute("aria-pressed", b.dataset.vista === vista); });
+    if (vista === "lista") {
+      ordem.forEach(function (pid) { if (caixas[pid].raiz.classList.contains("ampliada")) caixas[pid].ampliar.click(); });
+      abrir(aberto || (caixas[lido("chat-aberto")] ? lido("chat-aberto") : ordem[0]));
+    }
+  }
+  [].forEach.call(document.querySelectorAll("[data-vista]"), function (b) {
+    b.addEventListener("click", function () { mudarVista(b.dataset.vista); });
+  });
+  function abrir(pid) {
+    if (!pid || !caixas[pid]) return;
+    aberto = pid; anotar("chat-aberto", pid);
+    ordem.forEach(function (x) {
+      caixas[x].raiz.classList.toggle("aberta", x === pid);
+      if (itens[x]) itens[x].raiz.setAttribute("aria-current", x === pid ? "true" : "false");
+    });
+    var c = caixas[pid]; c.msgs.scrollTop = c.msgs.scrollHeight;
+  }
+  function criarItem(p) {
+    var it = { robo: el("span", { class: "robo" }), nome: el("b", { texto: p.nome }), hora: el("time", {}),
+               previa: el("small", { texto: p.descricao || "" }), ponto: el("span", { class: "ponto", title: "respondendo" }) };
+    it.robo.innerHTML = ROBO;
+    it.raiz = el("button", { type: "button", class: "item-chat", style: p.cor ? "--cor:" + p.cor : null, title: p.descricao,
+                             onclick: function () { abrir(p.id); } },
+      [it.robo, el("span", { class: "txt" }, [el("span", { class: "linha1" }, [it.nome, it.hora]), it.previa]), it.ponto]);
+    itens[p.id] = it;
+    $("p-itens").appendChild(it.raiz);
+    return it;
+  }
+  function desenharItem(c, ultima, pendente) {
+    var it = itens[c.pid]; if (!it) return;
+    it.nome.textContent = c.nome.textContent;
+    if (resumo[c.pid]) it.hora.textContent = quando(resumo[c.pid].ultima).replace(",", "");
+    it.ponto.classList.toggle("vivo", !!pendente);
+    if (pendente) it.previa.textContent = "respondendo…";
+    else if (ultima) it.previa.textContent = (ultima.papel === "voce" ? "Você: " : "") +
+      String(ultima.texto || ultima.erro || "").replace(/[#*_`>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+  }
 
   /* ---- os quadros ---- */
   function montar() {
@@ -467,8 +547,10 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
         if (caixas[p.id]) return;
         ordem.push(p.id);
         grade.appendChild(criarCaixa(p));
+        criarItem(p);
         carregarProjeto(p.id);
       });
+      mudarVista(vista === "lista" || lido("vista-projetos") === "lista" ? "lista" : "grade");
     }).catch(function (e) { aviso(e.message); });
   }
 
@@ -497,7 +579,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     var form = el("form", { class: "compor", onsubmit: function (ev) { ev.preventDefault(); enviar(c); } }, [c.texto, c.enviar]);
     c.texto.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); enviar(c); } });
     c.texto.addEventListener("input", function () { c.texto.style.height = "auto"; c.texto.style.height = Math.min(c.texto.scrollHeight + 2, window.innerHeight * 0.3) + "px"; });
-    var ampliar = el("button", { type: "button", title: "Ampliar / voltar", onclick: function () {
+    var ampliar = c.ampliar = el("button", { type: "button", class: "ampliar", title: "Ampliar / voltar", onclick: function () {
       c.raiz.classList.toggle("ampliada"); ampliar.textContent = c.raiz.classList.contains("ampliada") ? "✕" : "⤢";
     } }, ["⤢"]);
     var topo = el("div", { class: "caixa-topo" }, [c.robo, c.nome, c.ponto, c.sel, ampliar,
@@ -570,6 +652,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
       }
       c.enviar.disabled = !!j.pendente;
       c.ponto.classList.toggle("vivo", !!j.pendente);
+      desenharItem(c, j.mensagens[j.mensagens.length - 1], j.pendente);
       if (j.pendente) {
         if (c.pensando) c.pensando.textContent = "Claude está lendo e pensando… " + j.pendente.segundos + " s";
         c.espera = setTimeout(function () { carregarConversa(c); }, 2500);
@@ -597,7 +680,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     api("GET", "/api/projetos").then(function (j) {
       j.projetos.forEach(function (p) {
         var antes = resumo[p.id]; resumo[p.id] = p;
-        if (!caixas[p.id]) { ordem.push(p.id); $("p-grade").appendChild(criarCaixa(p)); return carregarProjeto(p.id); }
+        if (!caixas[p.id]) { ordem.push(p.id); $("p-grade").appendChild(criarCaixa(p)); criarItem(p); if (vista === "lista" && !aberto) abrir(p.id); return carregarProjeto(p.id); }
         if (!antes || antes.ultima !== p.ultima || antes.conversas !== p.conversas || (p.pendente && !caixas[p.id].espera)) carregarProjeto(p.id);
       });
     }).catch(function () { /* sem rede por um instante: tenta de novo em 10 s */ });
@@ -690,6 +773,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     lista();
   }
 
+  $("p-novo2").addEventListener("click", function () { $("p-novo").click(); });
   $("p-novo").addEventListener("click", function () {
     var nome = prompt("Nome do projeto novo:"); if (!nome) return;
     var id = nome.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
