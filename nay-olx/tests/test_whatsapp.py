@@ -67,6 +67,8 @@ class Turno(unittest.TestCase):
         self.assertEqual(w.acoes_da({"acoes": []}), [])
         self.assertEqual(w.acoes_da({}), [])
         self.assertEqual(w.acoes_da({"acoes": ["perguntar"]}), ["perguntar"])
+        # 21/10: o card de novo, para ela apontar o imóvel da visita sem o código
+        self.assertEqual(w.acoes_da({"acoes": ["card", "visita"]}), ["card", "visita"])
 
     def test_foto_de_uma_parte_pergunta_a_equipe(self):
         # 16/10: "fotos dos quartos com roupeiros" -> ela não sabe qual foto é de qual cômodo: pergunta à equipe
@@ -275,3 +277,8 @@ class Parceiro(unittest.TestCase):
 
     def test_o_prompt_proibe_a_palavra(self):
         self.assertIn('"de parceiro"', w.PROMPT)
+
+    def test_o_prompt_nao_pede_o_codigo(self):
+        # 21/10 (Pedro): "tira para pedir esse código do imóvel que os clientes não entendem"
+        self.assertIn("NUNCA peça o código do imóvel", w.PROMPT)
+        self.assertIn("Pedir o código do imóvel", w.PROMPT)

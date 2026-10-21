@@ -83,9 +83,15 @@ parte QUANDO VEIO DIRETO.
    mais perguntas depois do fechamento.
 3. DEPOIS DAS OPÇÕES: se ela gostou de algum, ofereça a visita; se quer mais, refaça o roteiro só no que mudou e peça
    "buscar" de novo.
-4. VISITA: descubra QUAL imóvel (o código está nos cards e no anúncio) e o DIA e o HORÁRIO exatos (ex.: 17/10 às 11h;
-   "amanhã", "sábado" você converte pela data de AGORA; "de manhã", "à tarde" não é horário: pergunte a hora). Com os
-   três, marque acao "visita" com "visita": {"codigo", "data": "DD/MM", "hora": "HH:MM"} e NÃO escreva a confirmação: o
+4. VISITA: NUNCA peça o código do imóvel a ela (Pedro, 21/10: "os clientes não entendem e mandam até errado ou acabam
+   falando que não sabem"). QUAL imóvel você descobre pela conversa: o do anúncio, um dos IMÓVEIS DESTA CONVERSA (a lista
+   do sistema, com condomínio, bairro e valor) ou o que ela citou pelo nome. Dela você pergunta só o DIA e o HORÁRIO
+   exatos (ex.: 17/10 às 11h; "amanhã", "sábado" você converte pela data de AGORA; "de manhã", "à tarde" não é horário:
+   pergunte a hora). Ficou em dúvida entre dois ou mais imóveis: pergunte pelo NOME ("o do Piazza dell'Acqua de 4
+   quartos ou o do Acquarelle?") e, se ajudar, mande o card de cada um de novo: acao "card" com "card": {"codigos": [...]}
+   (o sistema manda os cards depois dos seus balões). Ela falou de um imóvel que não está na lista e você não sabe qual
+   é: marque "perguntar" com o que ela disse (a equipe identifica), sem pedir código. Com o imóvel, o dia e a hora,
+   marque acao "visita" com "visita": {"codigo", "data": "DD/MM", "hora": "HH:MM"} e NÃO escreva a confirmação: o
    sistema manda a mensagem de confirmação ("🏠 Só para confirmar a solicitação de visita..."); seus balões podem ficar
    vazios. Quando ela responder que os dados estão certos ("sim", "isso", "pode", "confirmo"), marque acao
    "confirmou_visita" e diga que vai confirmar com o corretor e com o proprietário e já retorna. Se ela mudar o dia ou o
@@ -143,6 +149,7 @@ naturalidade que já passa para a equipe e que vão falar com ela por aqui. (Des
   "aguardo", não responda (balões vazios).
 
 === NUNCA ===
+- Pedir o código do imóvel. O código é nosso, não dela: ele vem da conversa (anúncio, cards, nome do condomínio).
 - Repetir uma pergunta ou uma frase que você já mandou nesta conversa. Perguntou e ela ainda não respondeu: espere a
   resposta dela (balões vazios é melhor que repetir). Já disse que vai confirmar com a equipe: não diga de novo a cada
   mensagem; responda o que ela disse agora.
@@ -164,8 +171,10 @@ Valor em reais assim: R$ 700.000 / R$ 2.500.
 {"baloes": ["..."], "acoes": [],
  "filtros": {"finalidade": "", "tipo": "", "teto": 0, "bairros": [], "qualquer_bairro": false, "quartos": 0,
              "aceita_menos_quartos": null, "aceita_escada": null, "financiamento": "", "mobilia": "", "condominio": ""},
- "fotos": {"codigo": 0}, "depois_das_fotos": [], "visita": {"codigo": 0, "data": "", "hora": ""}, "motivo": ""}
-- acoes: [] ou, na ordem, até duas de: "fotos" | "buscar" | "visita" | "confirmou_visita" | "perguntar" (você precisa
+ "fotos": {"codigo": 0}, "depois_das_fotos": [], "card": {"codigos": []}, "visita": {"codigo": 0, "data": "", "hora": ""},
+ "motivo": ""}
+- acoes: [] ou, na ordem, até duas de: "fotos" | "card" (manda de novo o card dos imóveis em card.codigos) | "buscar" |
+  "visita" | "confirmou_visita" | "perguntar" (você precisa
   que a equipe responda ou mande algo, e a conversa continua com você) | "equipe" (a conversa passa para a equipe) |
   "encerrar" (ela agradeceu e não quer mais nada).
 - filtros: TUDO o que ela já disse até agora (aqui e na OLX); vazio/0/null o que não disse. finalidade: "locacao" ou
@@ -176,7 +185,7 @@ Valor em reais assim: R$ 700.000 / R$ 2.500.
   condominio: o nome do condomínio que ela pediu ou disse que quer ("no Parque das Laranjeiras", "algo no Vision"),
   como ela escreveu; "" se não disse nenhum. A busca traz esse e os condomínios próximos dele primeiro.
   No orgânico, finalidade só quando ela disser.
-- visita: o código do imóvel, a data (DD/MM) e a hora (HH:MM) que ela disse.
+- visita: o código do imóvel (da lista do sistema, NUNCA perguntado a ela), a data (DD/MM) e a hora (HH:MM) que ela disse.
 - motivo: em poucas palavras, para a equipe (com "perguntar" ou "equipe"): o que ela pediu, com os códigos.
 """
 
@@ -282,13 +291,16 @@ def sem_repetir(baloes: list[str], ja: list[str]) -> list[str]:
     return saida
 
 
-def mandar_imovel(conn, lead: dict, codigo: int, com_card: bool = True) -> int:
+def mandar_imovel(conn, lead: dict, codigo: int, com_card: bool = True, com_fotos: bool = True) -> int:
     """O card e as fotos de UM imóvel (sem a colagem, que é só dos grupos). Devolve quantas fotos saíram.
-    `com_card=False`: só as fotos ("gostaria de ver mais fotos" do imóvel que ela já conhece)."""
+    `com_card=False`: só as fotos ("gostaria de ver mais fotos" do imóvel que ela já conhece).
+    `com_fotos=False`: só o card (21/10: para ela dizer qual imóvel quer visitar, sem pedir o código)."""
     # 400: o card de CLIENTE (o de parceiro sai completo); só chega aqui o que _ofertavel deixou
     card = banco.um(conn, "SELECT texto_pronto FROM nai_card_do_imovel(%s, true)", (codigo,)) if com_card else None
     if card:
         _mandar(conn, lead, "/send-text", {"message": card}, "card", codigo, texto_no_crm=card)
+    if not com_fotos:
+        return 0
     fotos = [l["url"] for l in banco.linhas(conn, "SELECT url FROM nai_imagens_do_envio(%s) WHERE NOT e_colagem", (codigo,))
              if l.get("url")][:MAX_FOTOS]
     for url in fotos:
@@ -429,15 +441,56 @@ def _pelo_nome(conn, conversa: list[dict]) -> list[int]:
     if not texto.strip():
         return []
     return [int(l["codigo"]) for l in banco.linhas(conn, """
-        SELECT codigo FROM imoveis
-         WHERE status = 'Disponível' AND length(btrim(coalesce(condominio_nome, ''))) >= 6
-           -- o "condomínio" que é só o tipo (Apartamento, Prédio, Loja/Ponto...) não é nome
-           AND lower(unaccent(btrim(condominio_nome))) <> lower(unaccent(coalesce(tipo, '')))
-           AND lower(unaccent(btrim(condominio_nome)))
-               !~ '^(apartamento|predio|casa|cobertura|kitnet|terreno|condominio|residencial|sala|loja|galpao)([/ ].*)?$'
-           AND position(lower(unaccent(btrim(condominio_nome))) IN lower(unaccent(%(t)s))) > 0
+        WITH n AS (
+          -- 21/10 ("Esse apartamento Piazza dell'acqua" não achava o "Residencial Piazza Dell'Acqua"): o nome sem
+          -- "Residencial/Condomínio/Edifício..." na frente e sem pontuação, comparado com o texto dela do mesmo jeito
+          SELECT codigo, tipo, condominio_nome,
+                 btrim(regexp_replace(regexp_replace(lower(unaccent(btrim(condominio_nome))),
+                       '^(residencial|condominio|cond|edificio|ed|conjunto|conj|residence|resort)[ .]+', ''),
+                       '[^a-z0-9]+', ' ', 'g')) AS nome
+            FROM imoveis
+           WHERE status = 'Disponível' AND length(btrim(coalesce(condominio_nome, ''))) >= 6
+             -- o "condomínio" que é só o tipo (Apartamento, Prédio, Loja/Ponto...) não é nome
+             AND lower(unaccent(btrim(condominio_nome))) <> lower(unaccent(coalesce(tipo, '')))
+             AND lower(unaccent(btrim(condominio_nome)))
+                 !~ '^(apartamento|predio|casa|cobertura|kitnet|terreno|sala|loja|galpao)([/ ].*)?$'
+             -- "Residencial"/"Condomínio" sozinho (ou "não identificado") não é nome; "Residencial Piazza..." é
+             AND lower(unaccent(btrim(condominio_nome))) !~ '^(condominio|residencial)( nao identificado)?$')
+        SELECT codigo FROM n
+         WHERE length(nome) >= 5
+           AND position(' ' || nome || ' ' IN ' ' || btrim(regexp_replace(lower(unaccent(%(t)s)), '[^a-z0-9]+', ' ', 'g')) || ' ') > 0
          ORDER BY position(lower(unaccent(coalesce(tipo, '-'))) IN lower(unaccent(%(t)s))) > 0 DESC, codigo DESC
-         LIMIT 2""", {"t": texto})]
+         LIMIT 3""", {"t": texto})]
+
+
+def imoveis_da_conversa(conn, lead: dict) -> list[str]:
+    """21/10: os imóveis que já apareceram (o do anúncio, os enviados, os que ela citou), um por linha, com o nome:
+    "#3227 · Apartamento · Residencial Piazza Dell'Acqua, Ponta Negra · venda R$ 950.000 · 4 quartos"."""
+    cods: list[int] = []
+    for c in [lead.get("codigo"), *(lead.get("enviados") or []), *[f.get("codigo") for f in lead.get("fichas_citadas") or []]]:
+        c = _int(c)
+        if c and c not in cods:
+            cods.append(c)
+    if not cods:
+        return []
+    linhas = banco.linhas(conn, """
+        SELECT i.codigo, i.tipo, nay_condominio_de_verdade(i.tipo, i.condominio_nome) AS condo, i.bairro, i.quartos,
+               i.valor_venda, i.valor_aluguel
+          FROM imoveis i WHERE i.codigo = ANY(%s::int[])""", (cods,))
+    por = {int(l["codigo"]): l for l in linhas}
+    saida = []
+    for c in cods:
+        l = por.get(c)
+        if not l:
+            continue
+        valores = " e ".join(x for x in (
+            f"venda R$ {int(l['valor_venda']):,}".replace(",", ".") if l.get("valor_venda") else "",
+            f"aluguel R$ {int(l['valor_aluguel']):,}".replace(",", ".") if l.get("valor_aluguel") else "") if x)
+        onde = ", ".join(x for x in (l.get("condo"), l.get("bairro")) if x)
+        saida.append(" · ".join(x for x in (f"#{c}", l.get("tipo") or "", onde, valores,
+                                            f"{l['quartos']} quartos" if l.get("quartos") else "",
+                                            "o do anúncio" if c == lead.get("codigo") else "") if x))
+    return saida
 
 
 def _fichas_citadas(conn, conversa: list[dict], lead: dict | None = None) -> list[dict]:
@@ -495,6 +548,8 @@ def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
         f"Etapa: {lead.get('etapa')}",
         "Filtros já ditos: " + json.dumps(lead.get("filtros") or {}, ensure_ascii=False),
         "Imóveis já enviados (códigos): " + (", ".join(str(c) for c in lead.get("enviados") or []) or "nenhum"),
+        "IMÓVEIS DESTA CONVERSA (é daqui que sai o código da visita; NUNCA peça o código a ela):",
+        *[f"  {x}" for x in (lead.get("imoveis_conhecidos") or ["nenhum"])],
         _linha_da_visita(lead.get("visita_aberta")),
         "",
         "=== A CONVERSA NO WHATSAPP (a mais antiga primeiro) ===",
@@ -783,6 +838,7 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
     ctx_olx = banco.um(conn, "SELECT olx_nay_contexto(%s)", (lead["chat"],)) if lead.get("chat") else None
     if organico(lead):
         lead["fichas_citadas"] = _fichas_citadas(conn, conversa, lead)
+    lead["imoveis_conhecidos"] = imoveis_da_conversa(conn, lead)
     r = modelo.chamar(PROMPT, montar_turno(lead, ctx_olx, conversa))
     acoes = acoes_da(r)
     _falar(conn, lead, r, acoes)
@@ -800,7 +856,7 @@ def acoes_da(r: dict) -> list[str]:
     saida: list[str] = []
     for a in brutas:
         a = str(a or "").strip().lower()
-        if a in ("fotos", "buscar", "visita", "confirmou_visita", "perguntar", "equipe", "encerrar") and a not in saida:
+        if a in ("fotos", "card", "buscar", "visita", "confirmou_visita", "perguntar", "equipe", "encerrar") and a not in saida:
             saida.append(a)
     if "visita" in saida and "confirmou_visita" in saida:
         saida.remove("confirmou_visita")
@@ -848,6 +904,19 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
         for b in depois:
             mandar_texto(conn, lead, b)
             time.sleep(ENTRE_ENVIOS_S)
+    elif acao == "card":
+        # 21/10: o card de novo (até 3), para ela apontar o imóvel da visita pelo nome; nunca se pede o código
+        cods = (r.get("card") or {}).get("codigos") if isinstance(r.get("card"), dict) else []
+        enviados = list(lead.get("enviados") or [])
+        for n, c in enumerate([x for x in (_int(c) for c in (cods or [])) if x][:3]):
+            if not _ofertavel(conn, c, lead):
+                continue
+            if n:
+                time.sleep(ENTRE_ENVIOS_S)
+            mandar_imovel(conn, lead, c, com_card=True, com_fotos=False)
+            if c not in enviados and c != lead.get("codigo"):
+                enviados.append(c)
+        _marcar(conn, lead["id"], enviados=enviados)
     elif acao == "buscar":
         # ela já disse neste turno que vai pegar/separar as opções: a busca vazia não diz de novo
         ja_avisou = any(re.search(r"op[cç][oõ]es", b, re.I) and re.search(r"separ|pegar|sistema|busc|procur", b, re.I)
