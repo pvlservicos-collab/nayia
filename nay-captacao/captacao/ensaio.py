@@ -15,6 +15,8 @@
     python -m captacao.ensaio vendido_tem   455: lista 4 (só imóvel vendido): "Tenho outro imóvel" e a ficha, para vender
     python -m captacao.ensaio vendido_nao   idem, "Não tenho outro"
     python -m captacao.ensaio removido_qual 455: lista 3 (removido/arquivado): ele pergunta qual é o imóvel e depois diz que tem
+    python -m captacao.ensaio removido_mesma  21/10: não sabia do cadastro; "a minha casa" é a mesma que tínhamos (voltou à venda)
+    python -m captacao.ensaio removido_outra  idem, "a minha casa" é outra: a ficha do imóvel novo
 
 Tudo roda numa transação só, DESFEITA no fim. Nenhuma mensagem sai (o envio é pulado) e nada fica gravado.
 É o simulador do fluxo (Arquivos/captacao_ficha/simular_captacao.js), agora no serviço em Python, e começa pelo
@@ -65,6 +67,13 @@ CENARIOS = {
     "vendido_nao": ["Não tenho outro", "não conheço ninguém", "ok"],
     "removido_qual": ["qual imóvel?", "tenho um terreno no Tarumã pra vender", "uns 600 metros", "350 mil", "depois mando foto",
                       "não conheço ninguém"],
+    # 21/10 (a Sra. Conceição, lead 5560): não sabia do cadastro, e "a minha casa" é a MESMA que tínhamos
+    "removido_mesma": ["Não tenho outro", "Mas eu nem sabia que tinha cadastro com vocês", "Eu tenho a minha casa pra vender",
+                       "é essa mesma, eu dei uma parada pra venda mas agora voltei e quero vender", "continua sim",
+                       "não conheço ninguém"],
+    # idem, e "a minha casa" é OUTRA
+    "removido_outra": ["Eu tenho a minha casa pra vender", "não, é outra, uma casa no Tarumã", "3 quartos, 2 banheiros e 2 vagas",
+                       "agora não posso responder mais nada, depois falo"],
 }
 # 455: de qual situação é o imóvel do lead de teste em cada campanha do outro_imovel_04
 CAMPANHA_DO_CENARIO = {"alugado": "Alugado", "vendido": "Vendido", "removido": "Removido"}
