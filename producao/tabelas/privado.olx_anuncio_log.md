@@ -1,4 +1,4 @@
-# privado.olx_anuncio_log  (tabela, ~132 linhas)
+# privado.olx_anuncio_log  (tabela, ~196 linhas)
 364: o diário do que o serviço mandou à OLX e do que ela respondeu, por anúncio. Sem o token da conta.
 
 ## colunas
