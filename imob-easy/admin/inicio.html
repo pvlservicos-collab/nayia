@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="../assets/css/admin.css">
 <link rel="stylesheet" href="../assets/css/painel-metricas.css?v=20261017-abas">
 <link rel="stylesheet" href="../assets/css/visao-geral.css?v=20261018a">
+<link rel="stylesheet" href="../assets/css/uso-recursos.css?v=20261021a">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
@@ -228,6 +229,56 @@
   </div>
 </section>
 
+<!-- ================= Uso de recursos (Pedro, 20/10: "separa todos os recursos da vps por função em porcentagem") ================= -->
+<section class="pm ur" id="uso-recursos" aria-label="Uso de recursos da VPS">
+  <div class="pm__dentro">
+    <header class="pm__barra">
+      <div class="pm__titulo">
+        <h2>Uso de recursos</h2>
+        <small id="ur-servidor">carregando…</small>
+      </div>
+      <div class="pm__controles">
+        <div class="pm-seg" id="ur-quando" role="group" aria-label="Período">
+          <button type="button" data-v="agora" aria-pressed="true">Agora</button>
+          <button type="button" data-v="media">Média 24 h</button>
+        </div>
+      </div>
+    </header>
+    <p class="pm__aviso" id="ur-aviso" role="status" hidden></p>
+    <div class="ur-grade">
+      <article class="pm-painel ur-cartao" data-recurso="cpu">
+        <div class="pm-painel__topo"><h3>CPU <small>2 núcleos</small> <span class="pm-info" title="Quanto da CPU da VPS cada função usou nos últimos 5 minutos (ou, em Média 24 h, nas últimas 24 horas). 100% = os dois núcleos ocupados.">i</span></h3></div>
+        <div class="ur-total"><strong data-total>–</strong><span>em uso</span></div>
+        <div class="ur-barra" data-barra></div>
+        <ol class="ur-lista" data-lista></ol>
+      </article>
+      <article class="pm-painel ur-cartao" data-recurso="mem">
+        <div class="pm-painel__topo"><h3>Memória <small data-cap></small> <span class="pm-info" title="A memória que cada função ocupa de verdade. O cache de arquivos, que o sistema devolve quando precisa, conta como livre.">i</span></h3></div>
+        <div class="ur-total"><strong data-total>–</strong><span>em uso</span></div>
+        <div class="ur-barra" data-barra></div>
+        <ol class="ur-lista" data-lista></ol>
+      </article>
+      <article class="pm-painel ur-cartao" data-recurso="disco">
+        <div class="pm-painel__topo"><h3>Disco <small data-cap></small> <span class="pm-info" title="O espaço de cada função no disco da VPS: pastas, banco, cópias de segurança e o Docker. Medido uma vez por hora.">i</span></h3></div>
+        <div class="ur-total"><strong data-total>–</strong><span>ocupado</span></div>
+        <div class="ur-barra" data-barra></div>
+        <ol class="ur-lista" data-lista></ol>
+        <p class="ur-nota" data-nota hidden></p>
+      </article>
+    </div>
+    <article class="pm-painel ur-historia">
+      <div class="pm-painel__topo">
+        <h3>Últimas 24 horas, por função <span class="pm-info" title="Cada faixa é uma função; a altura é a porcentagem da VPS que ela usava naquela hora. Uma medida a cada 5 minutos.">i</span></h3>
+        <div class="pm-seg pm-seg--mini" id="ur-serie" role="group" aria-label="Recurso do gráfico">
+          <button type="button" data-v="cpu" aria-pressed="true">CPU</button>
+          <button type="button" data-v="mem">Memória</button>
+        </div>
+      </div>
+      <div class="pm-grafico"><canvas id="ur-grafico"></canvas><div class="pm-vazio" id="ur-grafico-vazio" hidden>o histórico começa a se formar nas próximas medidas</div></div>
+    </article>
+  </div>
+</section>
+
 <main class="conteudo" id="conteudo">
   <!-- 18/10/2026 (Pedro: "visão geral pega o que tem lá e põe embaixo do dashboard da aba início"): o mapa do fluxo do
        lead, que era a página visao-geral.html (ela continua no ar para o CRM). O desenho e as frases: visao-geral.js. -->
@@ -416,6 +467,7 @@ flowchart LR
 <script src="../assets/js/proximos-passos.js"></script>
 <script src="../assets/js/painel-novidades.js?v=20261017a"></script>
 <script src="../assets/js/painel-metricas.js?v=20261017-abas"></script>
+<script src="../assets/js/uso-recursos.js?v=20261021a"></script>
 <script>
   mermaid.initialize({
     startOnLoad: true,

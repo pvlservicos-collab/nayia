@@ -1,0 +1,26 @@
+/* Uso de recursos da VPS (aba Início): usa as cores e os painéis do .pm (painel-metricas.css). Pedro, 20/10/2026. */
+.ur { border-top: 1px solid var(--pm-borda); }
+.ur .pm__titulo h2::before { background: var(--pm-azul); box-shadow: 0 0 0 3px rgba(87, 148, 242, .18); }
+.ur-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.ur-cartao { display: flex; flex-direction: column; gap: 10px; }
+.ur-total { display: flex; align-items: baseline; gap: 8px; }
+.ur-total strong { font: 500 30px/1 "Rubik", sans-serif; color: var(--pm-titulo); font-variant-numeric: tabular-nums; }
+.ur-total span { color: var(--pm-fraco); font-size: 12px; }
+.ur-barra { display: flex; height: 14px; border-radius: 3px; overflow: hidden; background: var(--pm-painel-2); }
+.ur-barra i { display: block; height: 100%; min-width: 0; background: var(--cor); }
+.ur-barra i + i { box-shadow: inset 1px 0 0 rgba(0, 0, 0, .35); }
+.ur-barra i.ur-livre { background: transparent; }
+.ur-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ur-lista li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; grid-template-rows: auto 4px; column-gap: 8px; row-gap: 3px; align-items: center; font-size: 12.5px; }
+.ur-lista li > i { width: 10px; height: 10px; border-radius: 2px; background: var(--cor); }
+.ur-lista li > span { color: var(--pm-texto); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ur-lista li > b { font-weight: 500; color: var(--pm-titulo); font-variant-numeric: tabular-nums; }
+.ur-lista li > b small { color: var(--pm-fraco); font-weight: 400; margin-left: 6px; }
+.ur-lista li > em { grid-column: 2 / 4; height: 4px; border-radius: 2px; background: var(--pm-painel-2); overflow: hidden; display: block; }
+.ur-lista li > em::before { content: ""; display: block; height: 100%; width: var(--w); background: var(--cor); opacity: .85; }
+.ur-lista li.ur-pouco { opacity: .62; }
+.ur-lista li.ur-livre > i { background: transparent; border: 1px dashed var(--pm-borda-forte); }
+.ur-nota { margin: 0; font-size: 12px; color: #ffc58c; background: rgba(255, 152, 48, .08); border: 1px solid rgba(255, 152, 48, .28); border-radius: 4px; padding: 7px 10px; }
+.ur-nota[hidden] { display: none; }
+.ur-historia .pm-grafico { height: 260px; }
+@media (max-width: 700px) { .ur-total strong { font-size: 24px; } .ur-historia .pm-grafico { height: 220px; } }
