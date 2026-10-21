@@ -105,7 +105,6 @@ PARAR: tempo do Tel em construção de ferramentas. Horas liberadas: ainda não 
 - Separar FATO de HIPÓTESE.
 - Em valores, colocar a % ao lado, principalmente o que sobra para a Imob Easy.
 - Linguagem simples. Sem travessão. Passo a passo sempre completo.
-- Não tem acesso a VPS, banco, CRM nem WhatsApp.
 - Fechar cada análise com bloco "RESUMO PARA ESTRATÉGIA" de no máximo 5 linhas.
 
 ## RESUMO PARA ESTRATÉGIA

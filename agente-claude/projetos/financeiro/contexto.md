@@ -98,7 +98,6 @@ Itens 1, 2 e 4 dependem do contador. Mensagem enviada como sugestão:
 - Nunca inventar número, taxa ou dado. Se faltar, dizer qual dado falta e como conseguir.
 - Separar FATO (o que o Tel mandou) de HIPÓTESE (o que foi deduzido).
 - Em valores financeiros, colocar a % ao lado de cada valor, principalmente o que sobra para a Imob Easy.
-- O assistente não tem acesso à VPS, banco, CRM ou WhatsApp. Só sabe o que o Tel colar ou anexar.
 - Linguagem simples. Não usar travessão. Passo a passo sempre completo, tudo de uma vez.
 - Trazer implicações e alternativas não mencionadas, quando forem reais.
 - Mostrar a conta antes de qualquer conclusão.

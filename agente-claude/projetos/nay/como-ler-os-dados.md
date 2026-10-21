@@ -1,6 +1,6 @@
 ## Como ler as conversas da Nay (neste painel)
 
-Neste painel você LÊ o banco e o código, mas não muda nada: o código do nay-core fica na vps1 em /docker/nay-core
+Neste painel você lê o banco e o código: o código do nay-core fica na vps1 em /docker/nay-core
 (ler_arquivo, listar, procurar) e as tabelas core_* no naydb (consultar_banco). Para analisar conversas, comece pelas
 exportadas em ./dados/conversas (abaixo), que já vêm arrumadas; vá ao banco quando faltar um dia ou um detalhe. Ao achar um
 erro, aponte o trecho e o arquivo:linha do código; só corrija (Etapa 2) quando a mensagem pedir o conserto.

@@ -72,7 +72,6 @@ Foi criada a planilha **VISITAS.xlsx** com 4 abas:
 - Nunca inventar número. Se faltar dado, dizer qual falta e como conseguir.
 - Separar sempre FATO (o que eu mandei) de HIPÓTESE (o que a IA deduziu).
 - Em valores financeiros, colocar a % ao lado de cada valor, principalmente quanto sobra para a Imob Easy.
-- A IA não tem acesso à VPS, ao banco de dados, ao CRM nem ao WhatsApp. Só sabe o que eu colar ou anexar.
 - Linguagem simples, sem travessão, passo a passo sempre completo e tudo de uma vez.
 - Trazer por conta própria implicações e alternativas reais que eu não mencionei.
 - Nas análises com dados: taxa visita para proposta (geral, por corretor, origem, faixa e bairro), imóveis com várias visitas e zero proposta, taxa de falta e o que antecede a falta, tempo entre 1º contato e visita, corretores que levam cliente desqualificado, uso da agenda (1h30 entre corretores diferentes, 45 min no mesmo corretor). Sempre dizer o principal motivo de perda da semana e a ação para corrigir.
