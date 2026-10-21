@@ -62,8 +62,12 @@ const NAV_ITEMS = [
   // A ABA IMOVEIS (Tel, 27/09/2026): o mesmo acervo da tela do site, aqui dentro,
   // para achar imovel e mandar direto numa conversa.
   { label: 'Imóveis', href: '/imoveis', icon: Buildings },
-  // VISITANTES (Pedro, 20/10/2026): quem já visitou com a gente (corretores e clientes), por dia, mês, trimestre e total
-  { label: 'Visitantes', href: '/visitantes', icon: Users },
+  // CHAT CHAVES NA MÃO (Pedro, 21/10/2026: "no lugar de visitantes que vai pra dentro do menu, Chat Chaves na Mão igual o
+  // olx mesmas coisas"): os leads do portal, os imóveis do XML e as informações da integração (458/459)
+  { label: 'Chat Chaves na Mão', curto: 'Chaves', href: '/chat/chavesnamao', icon: ChatsCircle },
+  // VISITANTES (Pedro, 20/10/2026): quem já visitou com a gente (corretores e clientes), por dia, mês, trimestre e total.
+  // 21/10: foi para dentro do "+ Mais" (o lugar dela ficou com o Chat Chaves na Mão)
+  { label: 'Visitantes', href: '/visitantes', icon: Users, mais: true },
   // BUSCAR IMÓVEL OLX (Pedro, 19/10/2026): a busca da OLX aberta à mão com os dados do cliente (422); o mesmo caminho da Nay
   { label: 'Buscar imóvel OLX', curto: 'Buscar OLX', href: '/buscar-imovel-olx', icon: MagnifyingGlass, mais: true },
   // CORRETORES (Pedro, 30/09/2026): "cria mais uma aba ali no CRM ... Corretores,

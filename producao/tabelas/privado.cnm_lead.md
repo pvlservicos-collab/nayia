@@ -20,6 +20,7 @@ negocio  text
 valor  numeric
 criado_no_portal  timestamp with time zone
 payload  jsonb  NOT NULL
+lido_em  timestamp with time zone   -- 459: quando alguém abriu a conversa no CRM (Chat Chaves na Mão); NULL = não lida.
 
 ## índices
 CREATE INDEX cnm_lead_recebido ON privado.cnm_lead USING btree (recebido_em DESC)
@@ -33,7 +34,7 @@ cnm_lead_pkey: PRIMARY KEY (lead_id)
 (só o dono)
 
 ## funções que escrevem aqui
-cnm_lead_receber
+cnm_lead_receber, crm_cnm_ler
 
 ## funções que citam
-cnm_lead_receber
+cnm_chave, cnm_lead_receber, crm_cnm_chats, crm_cnm_conversa, crm_cnm_ler, crm_cnm_painel

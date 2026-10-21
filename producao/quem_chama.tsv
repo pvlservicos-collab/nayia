@@ -59,8 +59,10 @@ captacao_status_da_mensagem
 captacao_teto_hoje	captacao_disparo_liberado, captacao_relatorio_da_vez, crm_captacao_placar, crm_captacao_relatorio
 captacao_valor_venda_num	captacao_aplicar_ao_cadastro
 captacao_vigiar	
+cnm_anuncio_do_codigo	crm_cnm_chats
 cnm_areas	cnm_imovel_montar
-cnm_imoveis	
+cnm_chave	crm_cnm_chats, crm_cnm_conversa, crm_cnm_ler, crm_cnm_painel
+cnm_imoveis	crm_cnm_painel
 cnm_imovel_montar	cnm_imoveis
 cnm_lead_receber	
 cnm_norm	cnm_areas
@@ -98,6 +100,10 @@ crm_captacao_mensagens
 crm_captacao_placar	
 crm_captacao_relatorio	captacao_relatorio_da_vez
 crm_checklist_preenchido	
+crm_cnm_chats	
+crm_cnm_conversa	
+crm_cnm_ler	
+crm_cnm_painel	
 crm_condominio_pelo_texto	nai_condominio_da_pergunta
 crm_contato_da_mensagem	
 crm_contato_historico	
@@ -562,7 +568,7 @@ nay_codigos_da_saida	nay_imovel_da_citacao, nay_opcoes_da_citacao
 nay_comando	nay_responder_conversando
 nay_como_funciona_visita	
 nay_cond	
-nay_condominio_de_verdade	cnm_imovel_montar, nai_condominio_do_imovel, nai_tipo_preciso, nay_categoria_do_imovel, nay_codigos_da_lista, nay_imoveis_da_linha, nay_linha_da_lista, nay_lista_de_imoveis, olx_corpo_do_anuncio
+nay_condominio_de_verdade	cnm_anuncio_do_codigo, cnm_imovel_montar, nai_condominio_do_imovel, nai_tipo_preciso, nay_categoria_do_imovel, nay_codigos_da_lista, nay_imoveis_da_linha, nay_linha_da_lista, nay_lista_de_imoveis, olx_corpo_do_anuncio
 nay_condominios_candidatos	nay_disponibilidade_no_condominio, nay_imoveis_da_linha
 nay_congelar_lembretes	
 nay_custo_cheio	nay_lista_de_imoveis

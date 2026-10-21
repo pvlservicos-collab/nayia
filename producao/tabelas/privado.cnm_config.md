@@ -19,4 +19,4 @@ cnm_config_pkey: PRIMARY KEY (chave)
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-cnm_lead_receber
+cnm_lead_receber, crm_cnm_painel
