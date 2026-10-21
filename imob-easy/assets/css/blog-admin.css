@@ -17,7 +17,7 @@
 .bg-titulo a { color: var(--texto); font-weight: 600; text-decoration: none; }
 .bg-titulo a:hover { color: var(--roxo); }
 .bg-titulo small { display: block; color: var(--texto-fraco); font-size: var(--fs-xs); }
-.bg-nota { display: inline-grid; place-items: center; min-width: 38px; height: 24px; padding: 0 7px; border-radius: 999px; font-weight: 700; font-size: 12px; color: #fff; background: #9aa0ac; }
+.bg-nota { display: inline-grid; place-items: center; min-width: 38px; height: 24px; padding: 0 7px; border-radius: 999px; font-weight: 700; font-size: 12px; color: #fff; background: #6b7280; } /* 21/10: era #9aa0ac, branco nele dava 2,6:1 */
 .bg-nota--boa { background: #3f9c6d; } .bg-nota--media { background: #c4762f; } .bg-nota--ruim { background: #b42323; }
 .bg-status { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: .05em; }
 .bg-status--pub { background: #e8f7f0; color: #1f7a4d; } .bg-status--rasc { background: #fdf2ea; color: #a8672f; }

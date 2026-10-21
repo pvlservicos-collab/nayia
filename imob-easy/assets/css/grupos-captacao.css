@@ -193,6 +193,10 @@
 }
 
 /* 371: o filtro de nota e as cópias juntadas */
+/* 21/10 (contraste): a barra do filtro usa a classe gc-nota, que é a do selo cinza da nota no card -- ela herdava o
+   fundo #8f879e, a largura de 84px e a letra branca, e o rótulo escuro (Nota mínima, Ordem) ficava sobre o cinza.
+   Na barra ela volta a ser só a barra, sem fundo. */
+.ga-nav.gc-nota { width: auto; padding: 0; border-radius: 0; background: none; color: inherit; text-align: left; flex-shrink: 1; }
 .gc-nota label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--texto-medio); }
 .gc-nota select { font: inherit; font-size: 13px; padding: 4px 8px; border: 1px solid var(--borda, #d6d1df); border-radius: 6px;
   background: var(--fundo, #fff); color: var(--texto); }
