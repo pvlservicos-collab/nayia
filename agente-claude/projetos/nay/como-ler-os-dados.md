@@ -1,9 +1,10 @@
 ## Como ler as conversas da Nay (neste painel)
 
-Neste painel você NÃO acessa servidor, banco nem código do nay-core: você analisa as conversas exportadas em
-./dados/conversas. As partes do contexto que pedem descobrir a VPS, ler código, exportar ou corrigir (Etapa 1 itens 1
-e 2, Etapa 2) são feitas pelo Claude Code do Pedro, fora daqui. O que dá para fazer aqui é o item 3 da Etapa 1 (a
-leitura das conversas) e toda a análise: contar, achar exemplos, comparar dias, apontar os erros com o trecho.
+Neste painel você LÊ o banco e o código, mas não muda nada: o código do nay-core fica na vps1 em /docker/nay-core
+(ler_arquivo, listar, procurar) e as tabelas core_* no naydb (consultar_banco). Para analisar conversas, comece pelas
+exportadas em ./dados/conversas (abaixo), que já vêm arrumadas; vá ao banco quando faltar um dia ou um detalhe. As
+partes do contexto que pedem corrigir (Etapa 2) são feitas pelo Claude Code do Pedro, fora daqui: aqui você aponta o
+erro com o trecho e o arquivo:linha do código.
 
 Os arquivos (gerados pelo botão "Importar conversas da Nay", direto do banco da Nay nova, horários de Manaus):
 

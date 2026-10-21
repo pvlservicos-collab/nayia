@@ -198,8 +198,11 @@ def claude_md(pid):
     cab = (f"# Projeto {c.get('nome', pid)} (painel Agente Claude da Imob Easy)\n\n"
            f"Agora: {DIAS_SEMANA[m.weekday()]}, {m:%d/%m/%Y %H:%M} em Manaus ({b:%H:%M} em Brasília).\n\n"
            "Você conversa pelo painel agentes.imobeasy.online com quem é da Imob Easy (o Tel, dono, ou o Pedro).\n"
-           "Neste projeto você só LÊ: as ferramentas são Read, Glob e Grep, dentro desta pasta. Não acessa servidor, "
-           "banco, CRM nem WhatsApp, e não muda nada.\n"
+           "Neste projeto você só LÊ e não muda nada. Read, Glob e Grep valem dentro desta pasta. Para o resto, as "
+           "ferramentas do MCP leitura: consultar_banco (naydb: Nay, imóveis, visitas, captação; crmdb: o CRM), "
+           "ler_arquivo, listar e procurar (códigos da vps1: site, CRM, Nay nova, n8n; e da vps2: este painel). "
+           "Não tem terminal, não manda WhatsApp e não abre arquivo de senha ou chave. Antes de consultar uma "
+           "tabela, confira as colunas no information_schema.columns.\n"
            "Os arquivos anexados pela equipe ficam em ./dados/anexos (uma planilha .xlsx vira um .csv por aba, ao "
            "lado, com o nome da aba). Quando a pergunta citar um arquivo, leia antes de responder.\n"
            "O contexto abaixo foi escrito pelo Tel: siga as regras dele, inclusive o formato das respostas.\n")

@@ -5,8 +5,9 @@ Recebe no stdin {"mensagem", "modelo", "sistema"?, "esforco"?, "modo", "timeout_
 `claude -p`. O agente.py da VPS2 chama este arquivo direto (servidor vps2) ou por ssh (servidor vps1).
 
 - modo "responder": sem ferramentas, numa pasta vazia; só devolve texto.
-- modo "projeto" (20/10, os chats do painel): só Read/Glob/Grep, na pasta do projeto (CLAUDE.md com o contexto),
-  com --session-id na primeira mensagem e --resume nas outras: o histórico é a sessão do Claude.
+- modo "projeto" (20/10, os chats do painel): Read/Glob/Grep na pasta do projeto (CLAUDE.md com o contexto) e as
+  ferramentas de LEITURA do mcp_leitura.py (banco naydb/crmdb e códigos das duas VPS, sem terminal e sem mudar
+  nada), com --session-id na primeira mensagem e --resume nas outras: o histórico é a sessão do Claude.
 - modo "alterar" (Pedro, 20/10/2026: "esse claude fazer alterações que eu mandar", "tudo, como root"): terminal,
   edição de arquivo e web liberados, trabalhando em /root. A sessão fica guardada em /root/.claude/projects para
   se poder ler depois o que ele fez (o id vai para metricas.db).
@@ -21,6 +22,10 @@ LOGIN = "/etc/agente-claude/claude.env"
 VAZIO = "/var/lib/agente-claude/vazio"
 PROJETOS = "/opt/agente-claude/projetos"
 FERRAMENTAS = "Bash,Edit,Write,Read,Glob,Grep,NotebookEdit,WebFetch,WebSearch,TodoWrite"
+# o MCP de leitura dos projetos (só na VPS2, onde estão o painel e o Python do Hermes, que tem o pacote mcp)
+LEITURA = {"mcpServers": {"leitura": {"command": "/usr/local/lib/hermes-agent/venv/bin/python",
+                                      "args": ["/opt/agente-claude/mcp_leitura.py"]}}}
+FERRAMENTAS_LEITURA = ",".join("mcp__leitura__" + f for f in ("consultar_banco", "ler_arquivo", "listar", "procurar"))
 
 p = json.load(sys.stdin)
 env = {**os.environ, "HOME": "/root", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1", "DISABLE_AUTOUPDATER": "1"}
@@ -36,12 +41,12 @@ cmd = [CLAUDE, "-p", p["mensagem"], "--output-format", "json", "--model", p.get(
 if p.get("esforco"):
     cmd += ["--effort", p["esforco"]]
 if p.get("modo") == "projeto":
-    # um projeto do painel (projetos.py): só leitura, dentro da pasta dele, retomando a sessão da conversa
+    # um projeto do painel (projetos.py): só leitura (a pasta dele + banco e códigos pelo MCP), retomando a sessão
     cwd = os.path.realpath(p["pasta"])
     if not cwd.startswith(PROJETOS + "/"):
         print(json.dumps({"is_error": True, "result": "pasta de projeto inválida"}))
         sys.exit(1)
-    cmd += ["--tools", "Read,Glob,Grep"]
+    cmd += ["--tools", "Read,Glob,Grep", "--mcp-config", json.dumps(LEITURA), "--allowedTools", FERRAMENTAS_LEITURA]
     sessao = ["--session-id", p["sessao"]] if p.get("nova") else ["--resume", p["sessao"]]
 elif p.get("modo") == "alterar":
     contexto = (f"Você é o Claude do servidor {socket.gethostname()}, rodando como root sem ninguém olhando: quem "
