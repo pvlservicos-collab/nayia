@@ -440,8 +440,11 @@ export default function LeadList({
      13/10 (Pedro): "sempre que um proprietário mandar msg a conversa dele suba para o topo da lista, hoje só as
      minhas mensagens fazem isso". Com o disparo de volta, o mesmo enterro: quem escreveu às 10:17 estava na 108ª
      posição às 12:40. Agora vale a última mensagem de GENTE -- a do proprietário ou a que alguém do time escreveu
-     à mão; o modelo do disparo e a resposta da Nay não mexem na ordem. Quem só recebeu disparo vem depois. */
-  const ordemDeQuemEscreveu = linha === 'oficial'
+     à mão; o modelo do disparo e a resposta da Nay não mexem na ordem. Quem só recebeu disparo vem depois.
+     21/10 (Pedro, com o disparo do outro_imovel_04 rodando e "nada no CRM"): "quem dispara volta para o topo e quem
+     responde volta também, pelo evento mais recente". De novo a última atividade, como nas outras abas; a ordem de
+     quem escreveu fica desligada (ultima_de_gente continua vindo da rota, para religar é só voltar esta linha). */
+  const ordemDeQuemEscreveu = false
   const escreveuEm = (l: LeadWithOwner) => { const t = Date.parse(l.ultima_de_gente || ''); return Number.isFinite(t) ? t : 0 }
 
   const ordenados: SearchHit[] = [...daLinha].sort((a, b) => {
