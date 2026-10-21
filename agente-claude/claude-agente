@@ -5,9 +5,10 @@ Recebe no stdin {"mensagem", "modelo", "sistema"?, "esforco"?, "modo", "timeout_
 `claude -p`. O agente.py da VPS2 chama este arquivo direto (servidor vps2) ou por ssh (servidor vps1).
 
 - modo "responder": sem ferramentas, numa pasta vazia; só devolve texto.
-- modo "projeto" (20/10, os chats do painel): Read/Glob/Grep na pasta do projeto (CLAUDE.md com o contexto) e as
-  ferramentas de LEITURA do mcp_leitura.py (banco naydb/crmdb e códigos das duas VPS, sem terminal e sem mudar
-  nada), com --session-id na primeira mensagem e --resume nas outras: o histórico é a sessão do Claude.
+- modo "projeto" (20/10, os chats do painel): a pasta do projeto (CLAUDE.md com o contexto), as ferramentas de
+  LEITURA do mcp_leitura.py (banco naydb/crmdb e códigos das duas VPS) e, para consertar bug quando pedirem (Pedro,
+  20/10: "deixa o root para esses terminais caso eles precisem consertar um bug"), terminal e edição como root em
+  todo o disco (--add-dir /; a VPS1 pelo ssh). --session-id na primeira mensagem e --resume nas outras.
 - modo "alterar" (Pedro, 20/10/2026: "esse claude fazer alterações que eu mandar", "tudo, como root"): terminal,
   edição de arquivo e web liberados, trabalhando em /root. A sessão fica guardada em /root/.claude/projects para
   se poder ler depois o que ele fez (o id vai para metricas.db).
@@ -41,12 +42,13 @@ cmd = [CLAUDE, "-p", p["mensagem"], "--output-format", "json", "--model", p.get(
 if p.get("esforco"):
     cmd += ["--effort", p["esforco"]]
 if p.get("modo") == "projeto":
-    # um projeto do painel (projetos.py): só leitura (a pasta dele + banco e códigos pelo MCP), retomando a sessão
+    # um projeto do painel (projetos.py): lê pelo MCP e, se pedirem conserto, mexe como root; retomando a sessão
     cwd = os.path.realpath(p["pasta"])
     if not cwd.startswith(PROJETOS + "/"):
         print(json.dumps({"is_error": True, "result": "pasta de projeto inválida"}))
         sys.exit(1)
-    cmd += ["--tools", "Read,Glob,Grep", "--mcp-config", json.dumps(LEITURA), "--allowedTools", FERRAMENTAS_LEITURA]
+    cmd += ["--mcp-config", json.dumps(LEITURA), "--allowedTools", FERRAMENTAS + "," + FERRAMENTAS_LEITURA,
+            "--permission-mode", "acceptEdits", "--add-dir", "/"]
     sessao = ["--session-id", p["sessao"]] if p.get("nova") else ["--resume", p["sessao"]]
 elif p.get("modo") == "alterar":
     contexto = (f"Você é o Claude do servidor {socket.gethostname()}, rodando como root sem ninguém olhando: quem "

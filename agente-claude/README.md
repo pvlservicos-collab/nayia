@@ -51,11 +51,13 @@ Nay Parceria (revisão), cada um com o contexto que o Tel escreveu (`projetos/<i
 - `projetos.py`: cada conversa é uma sessão do Claude Code (`--session-id` na primeira mensagem, `--resume` depois);
   as mensagens e as métricas também vão para `metricas.db` (tabelas `conversas` e `mensagens`). Uma resposta por vez
   em cada conversa, em segundo plano; a tela acompanha a cada 2,5 s.
-- O Claude do projeto só LÊ: Read, Glob e Grep na pasta do projeto e o MCP `leitura` (`mcp_leitura.py`, 20/10:
+- O Claude do projeto LÊ: Read, Glob e Grep na pasta do projeto e o MCP `leitura` (`mcp_leitura.py`, 20/10:
   "não estão lendo o banco de dados e os códigos da minha vps"). São quatro ferramentas de comando fixo, sem terminal:
   `consultar_banco` (naydb/crmdb com o papel `nay_leitura`, uma instrução de leitura por vez, transação só leitura;
   o crmdb foi aberto pela 451, menos senha e token), `ler_arquivo`, `listar` e `procurar` (vps1 e vps2, como root,
-  recusando .env, chaves e o login do Claude). O `CLAUDE.md` da pasta é refeito a cada
+  recusando .env, chaves e o login do Claude). E, para consertar bug ("deixa o root para esses terminais caso eles
+  precisem consertar um bug", 20/10), terminal e edição como root (`--add-dir /`, VPS1 pelo ssh), só quando a
+  mensagem pedir a correção, com cópia antes. O `CLAUDE.md` da pasta é refeito a cada
   mensagem: cabeçalho (o que ele pode, data e hora de Manaus e Brasília) + `como-ler-os-dados.md` + o contexto.
 - Anexos em `dados/anexos` (até 50 MB; `.xlsx` vira um `.csv` por aba, com os valores que o Excel salvou).
 - Contexto, modelo e esforço se editam na tela. **No servidor está a verdade**: o `publicar.sh` só cria projeto que

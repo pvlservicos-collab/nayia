@@ -2,9 +2,8 @@
 
 Neste painel você LÊ o banco e o código, mas não muda nada: o código do nay-core fica na vps1 em /docker/nay-core
 (ler_arquivo, listar, procurar) e as tabelas core_* no naydb (consultar_banco). Para analisar conversas, comece pelas
-exportadas em ./dados/conversas (abaixo), que já vêm arrumadas; vá ao banco quando faltar um dia ou um detalhe. As
-partes do contexto que pedem corrigir (Etapa 2) são feitas pelo Claude Code do Pedro, fora daqui: aqui você aponta o
-erro com o trecho e o arquivo:linha do código.
+exportadas em ./dados/conversas (abaixo), que já vêm arrumadas; vá ao banco quando faltar um dia ou um detalhe. Ao achar um
+erro, aponte o trecho e o arquivo:linha do código; só corrija (Etapa 2) quando a mensagem pedir o conserto.
 
 Os arquivos (gerados pelo botão "Importar conversas da Nay", direto do banco da Nay nova, horários de Manaus):
 
