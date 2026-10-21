@@ -21,7 +21,7 @@ VPS1 = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-i", "/root/.s
         "root@100.86.114.74"]
 SERVIDORES = ("vps1", "vps2")
 BANCOS = ("naydb", "crmdb")
-MAX = 200_000  # caracteres por resposta
+MAX = 60_000  # caracteres por resposta: acima de ~80 mil o Claude Code recusa o resultado (20/10, listar nay-core)
 # arquivos que nunca são abertos nem procurados: segredos do servidor
 SEGREDO = re.compile(r"(^|/)\.env($|[./_-])|\.env$|(^|/)\.ssh(/|$)|authorized_keys|(^|/)id_(rsa|ed25519|ecdsa|dsa)"
                      r"|\.(pem|key|p12|pfx)$|^/etc/(shadow|gshadow|sudoers|agente-claude)|^/proc(/|$)|^/sys(/|$)"
@@ -47,7 +47,8 @@ def _rodar(servidor, comando, timeout=90):
     except subprocess.TimeoutExpired:
         return f"passou de {timeout} s"
     saida = (r.stdout or "") + (("\n[erro] " + r.stderr.strip()) if r.stderr.strip() else "")
-    return (saida[:MAX] + "\n[cortado em 200 mil caracteres]") if len(saida) > MAX else (saida or "(vazio)")
+    return ((saida[:MAX] + "\n[cortado em 60 mil caracteres: peça um pedaço menor]") if len(saida) > MAX
+            else (saida or "(vazio)"))
 
 
 def _caminho(servidor, caminho):
@@ -94,15 +95,16 @@ def ler_arquivo(servidor: str, caminho: str, de_linha: int = 1, ate_linha: int =
     if erro:
         return erro
     a, b = max(1, int(de_linha)), max(1, int(ate_linha))
+    # sem "--" depois do programa: o awk da vps1 o lê como nome de arquivo (20/10); o caminho sempre começa com /
     return _rodar(servidor, f"[ -f {shlex.quote(real)} ] || {{ echo 'não é arquivo (use listar)'; exit; }}; "
                             f"awk 'NR>={a} && NR<={b} {{printf \"%6d\\t%s\\n\", NR, $0}} NR>{b} {{exit}}' "
-                            f"-- {shlex.quote(real)}")
+                            f"{shlex.quote(real)}")
 
 
 @mcp.tool()
 def listar(servidor: str, pasta: str, nome: str = "", profundidade: int = 2) -> str:
     """Lista uma pasta: tipo (d = pasta, f = arquivo, l = link), tamanho, data de mudança e caminho. nome filtra pelo
-    nome do arquivo (ex.: "*.py"). profundidade de 1 a 6 (padrão 2). Até 1000 linhas; pula .git e node_modules."""
+    nome do arquivo (ex.: "*.py"). profundidade de 1 a 6 (padrão 2). Até 500 linhas; pula .git e node_modules."""
     real, erro = _caminho(servidor, pasta)
     if erro:
         return erro
@@ -110,7 +112,7 @@ def listar(servidor: str, pasta: str, nome: str = "", profundidade: int = 2) -> 
     filtro = f"-name {shlex.quote(nome)} " if nome else ""
     return _rodar(servidor, f"find {shlex.quote(real)} -maxdepth {p} \\( -name .git -o -name node_modules -o "
                             f"-name __pycache__ \\) -prune -o {filtro}-printf '%y %10s %TY-%Tm-%Td %TH:%TM %p\\n' "
-                            f"| sort -k5 | head -1000")
+                            f"| sort -k5 | head -500")
 
 
 @mcp.tool()

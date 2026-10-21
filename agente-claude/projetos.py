@@ -28,6 +28,8 @@ ANEXO_OK = re.compile(r"^[\w.\- ()À-ÿ]{1,120}$")
 TIPOS_ANEXO = {".txt", ".md", ".csv", ".tsv", ".json", ".jsonl", ".pdf", ".png", ".jpg", ".jpeg", ".xlsx"}
 MAX_ANEXO = 50 * 1024 * 1024
 PENDENTES = {}  # conversa_id -> {"desde": t}
+# 20/10: a revisão da Nay (lê o dia inteiro, banco e código) passou de 900 s; agora que pode consertar, 30 min
+LIMITE_S = 1800
 IMPORTANDO = {}  # projeto -> {"desde": t, "dias": n}
 ULTIMA_IMPORTACAO = {}  # projeto -> {"em", "ok", "texto"}
 TRAVA = threading.Lock()
@@ -54,6 +56,21 @@ def banco():
 
 def agora():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def sem_resposta():
+    """Na subida do painel: pergunta que ficou sem resposta porque o painel reiniciou no meio (20/10, Visitas às
+    20:43) ganha um aviso, em vez de ficar muda na tela. O Claude daquela vez termina sozinho, mas ninguém grava."""
+    con = banco()
+    orfas = con.execute("SELECT m.conversa_id FROM mensagens m WHERE m.id = (SELECT max(id) FROM mensagens "
+                        "WHERE conversa_id = m.conversa_id) AND m.papel = 'voce'").fetchall()
+    for o in orfas:
+        con.execute("INSERT INTO mensagens (conversa_id, papel, inicio, ok, erro) VALUES (?, 'claude', ?, 0, ?)",
+                    (o["conversa_id"], agora(), "o painel reiniciou enquanto o Claude respondia: mande a pergunta "
+                                                "de novo"))
+    con.commit()
+    con.close()
+    return len(orfas)
 
 
 def pasta(pid):
@@ -284,8 +301,9 @@ def _responder(cid, conv, texto, primeira):
         c = config(pid)
         claude_md(pid)
         pedido = {"modo": "projeto", "mensagem": texto, "modelo": c["modelo"], "esforco": c.get("esforco") or None,
-                  "pasta": pasta(pid), "sessao": conv["sessao"], "nova": primeira, "timeout_s": 900}
-        p = subprocess.run([agente.EXECUTOR], input=json.dumps(pedido), capture_output=True, text=True, timeout=960)
+                  "pasta": pasta(pid), "sessao": conv["sessao"], "nova": primeira, "timeout_s": LIMITE_S}
+        p = subprocess.run([agente.EXECUTOR], input=json.dumps(pedido), capture_output=True, text=True,
+                           timeout=LIMITE_S + 60)
         j = json.loads(p.stdout) if p.stdout.strip().startswith("{") else {"is_error": True,
                                                                             "result": (p.stderr or p.stdout)[:2000]}
         u = j.get("usage") or {}

@@ -260,5 +260,6 @@ ROTAS = [
 if __name__ == "__main__":
     if not TOKEN:
         sys.exit("falta AGENTES_TOKEN")
+    projetos.sem_resposta()
     threading.Thread(target=agendador, daemon=True).start()
     ThreadingHTTPServer((ENDERECO, PORTA), Pedido).serve_forever()

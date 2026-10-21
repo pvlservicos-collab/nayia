@@ -55,6 +55,8 @@ tar -c $ARQS $PROJS | ssh $VPS2 'set -e
   [ -e /etc/agente-claude/claude.env ] || ( umask 077; printf "# CLAUDE_CODE_OAUTH_TOKEN=  (claude setup-token)\n" > /etc/agente-claude/claude.env )
   [ -f /root/.ssh/agente_claude_vps1 ] || ssh-keygen -q -t ed25519 -N "" -C agente-claude-vps2 -f /root/.ssh/agente_claude_vps1
   install -m 644 agente-claude-painel.service /etc/systemd/system/agente-claude-painel.service
+  # 20/10: reiniciar no meio de uma resposta a perde (Visitas, 20:43). Espera os Claudes terminarem (até 10 min)
+  for i in $(seq 120); do pgrep -f "[c]laude -p" >/dev/null || break; [ $i = 1 ] && echo "VPS2: esperando o Claude terminar de responder..."; sleep 5; done
   systemctl daemon-reload; systemctl enable agente-claude-painel >/dev/null 2>&1; systemctl restart agente-claude-painel
   echo "VPS2: painel $(systemctl is-active agente-claude-painel)"'
 
