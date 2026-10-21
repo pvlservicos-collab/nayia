@@ -102,11 +102,11 @@ CONFERENCIA_PERGUNTA = """Conferência das visitas das {hora_m} (Manaus), {hora_
 
 No arquivo {rel} estão, primeiro, as visitas do sistema (a agenda, tabela nai_visita, de ontem até daqui a 7 dias) e, depois, as {n} conversas de WhatsApp de ontem e de hoje em que se falou de visita ({pessoas}). As conversas são da tabela mensagens do naydb: o que a equipe escreve à mão pelo número da Nay também está lá, como "Imob Easy". Se precisar de mais, leia a conversa inteira no banco (como-ler-os-dados).
 
-Compare as conversas com a agenda e responda:
-1. Visita combinada na conversa (hoje ou nos próximos dias) que NÃO está no sistema: corretor (nome e 4 últimos dígitos), imóvel, dia e hora, e a frase que prova.
-2. Visita do sistema que a conversa diz que foi cancelada, remarcada ou mudou de hora, e continua igual no sistema.
-3. Pendência: quem ficou de confirmar e não confirmou, ou pediu visita e ninguém da equipe respondeu.
-Se estiver tudo no sistema, diga só isso, em uma linha. Não mude nada nem mande mensagem: é só a lista para a equipe acertar."""
+Toda visita tem de estar no mesmo lugar, a agenda do CRM, para não perdermos dado. Compare as conversas com a agenda e ATUALIZE a agenda pelas funções do CRM, do jeito que está em "Como registrar" (como-ler-os-dados):
+1. Visita combinada na conversa (a equipe confirmou o dia e a hora) que NÃO está no sistema: agende (crm_visita_agendar).
+2. Visita do sistema que a conversa diz que foi cancelada: exclua (crm_visita_excluir). Remarcada para outro dia ou hora já combinado: mude o horário (crm_visita_mudar_horario).
+3. Pendência (ficou de confirmar e não confirmou, pediu visita e ninguém respondeu, remarcação sem hora fechada): não registre, só liste.
+Não mande mensagem a ninguém. Responda com o que você fez (o número da visita, corretor com 4 últimos dígitos, imóvel, dia e hora, e a frase da conversa que prova), o que ficou pendente, e o que não fez por dúvida. Se já estava tudo no sistema, diga só isso, em uma linha."""
 DIAS = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
 
 

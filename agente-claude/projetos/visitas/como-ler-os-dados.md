@@ -25,8 +25,29 @@ conversas da tabela `mensagens`, que não foi aberta. Visita é combinada em con
 3. **Visita no sistema** = linha em `nai_visita`, não excluída, com o dia e a hora certos. Combinada na conversa e sem
    essa linha = fora do sistema: é o que a conferência procura.
 
+### Como registrar (o mesmo lugar: a agenda do CRM)
+Pedro, 21/10: "tudo é bom passar pelo mesmo lugar ... atualiza o que fez para não perdermos dados". Visita que só
+existe na conversa vai para a agenda pelas MESMAS funções que a tela do CRM usa; nunca INSERT/UPDATE direto em
+`nai_visita`. Na vps1, como o usuário nay:
+`ssh -i /root/.ssh/agente_claude_vps1 root@100.86.114.74 "docker exec -i nay-postgres psql -U nay -d naydb -X -A"`
+e mande o SELECT pela entrada. Quem = `'Agente Visitas'`. Hora sempre com o fuso de Manaus (`'2026-10-21 13:00-04'`).
+- **Faltou na agenda:** `SELECT * FROM crm_visita_agendar(<código>, '<telefone do corretor, só dígitos>', '<nome>',
+  '<AAAA-MM-DD HH:MI-04>', 60, 'Agente Visitas');`. Se a Nay já tinha um pedido daquele corretor + imóvel, a função
+  assume a mesma linha (não duplica). Nasce `com_rayssa` e não manda nada a ninguém. Efeito: o corretor vai para a etapa
+  Visitas do CRM e a Nay fica calada com ele até 2 h depois do horário (é o mesmo de quando a Rayssa agenda).
+- **Cancelada:** `SELECT * FROM crm_visita_excluir(<id>, 'Agente Visitas: <quem cancelou, quando>');`. Ninguém é avisado.
+- **Remarcada (dia e hora já fechados):** `SELECT * FROM crm_visita_mudar_horario(<id>, '<AAAA-MM-DD HH:MI-04>',
+  'Agente Visitas');`. Só aceita horário futuro. Remarcação sem hora fechada = pendência, não mexa.
+- **NÃO use** `crm_visita_realizada`: ela manda ao corretor "como foi a visita?" pelo WhatsApp. Visita que aconteceu
+  fica para a equipe marcar; você só diz qual foi.
+- Só registre o que a conversa prova (a equipe confirmou o horário, o corretor ou o dono cancelou). Dúvida = liste, não
+  registre. Imóvel: pelo código do card na conversa (`Código: 5731`); sem código, procure em `imoveis` e diga como achou.
+- Toda função devolve `ok` e `mensagem`: copie a mensagem no relato. Desfazer: agendada por engano =
+  `crm_visita_excluir`; excluída por engano = agendar de novo; horário = mudar de volta.
+
 ### A conferência (6 vezes por dia)
 Às 07, 09, 11, 13, 15 e 17 h de Manaus chega a pergunta "veja se todas as visitas estão no sistema", com o arquivo
 `dados/conferencia/AAAA-MM-DD/HHMM.txt`: as visitas da agenda (de ontem até daqui a 7 dias) e as conversas de ontem e
-de hoje em que se falou de visita (telefone só com os 4 últimos dígitos; o card longo da Nay vem cortado). Responda
-pelo arquivo; se faltar algo (conversa mais antiga, a fala inteira), consulte `mensagens` no banco.
+de hoje em que se falou de visita (telefone só com os 4 últimos dígitos; o card longo da Nay vem cortado). Compare,
+registre como acima e relate. Para o telefone inteiro do corretor, a conversa mais antiga ou a fala inteira, consulte
+`mensagens` / `nai_contato` no banco.
