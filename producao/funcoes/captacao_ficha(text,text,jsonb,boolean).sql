@@ -8,6 +8,7 @@ DECLARE
   i        imoveis%ROWTYPE;
   v_qual   text := lower(btrim(coalesce(p_qual, '')));
   v_tipo   text;
+  v_sem_comodos boolean;   -- 455: terreno, lote, galpão, sala, loja, chácara, sítio: sem cômodos nem mobília
   v_outra  text;
   v_novos  jsonb;
   v_resp   jsonb;
@@ -114,16 +115,20 @@ BEGIN
   v_aluga := CASE WHEN v_tipo = 'atualizar' THEN true ELSE coalesce(d->>'negocio', '') !~* 'vend' OR coalesce(d->>'negocio', '') ~* 'amb|alug|loca' END;
   v_cond  := coalesce(NULLIF(btrim(d->>'condominio'), ''), i.condominio_nome) IS NOT NULL
              OR coalesce(d->>'tipo', i.tipo, '') ~* 'apart|condom|flat|cobertura|sala';
+  -- 455 (Pedro, 21/10: a Nay perguntou "quantos quartos" de um terreno): o tipo dito, ou o começo da descrição dele
+  v_sem_comodos := coalesce(d->>'tipo', i.tipo, '') ~* '(terreno|lote|galp|sala|loja|comercial|ch[aá]cara|s[ií]tio)'
+                   OR (coalesce(d->>'tipo', i.tipo) IS NULL
+                       AND coalesce(d->>'detalhes', '') ~* '^\W*(um |uma )?(terreno|lote|galp[aã]o|sala comercial|loja|ponto comercial|ch[aá]cara|s[ií]tio)');
 
   -- o que ainda falta, NA ORDEM do roteiro (grupo respondido não volta)
   v_falta := ARRAY[]::text[];
-  IF v_tipo = 'novo' AND NOT v_resp ? 'local' AND (d->>'tipo' IS NULL OR coalesce(d->>'bairro', d->>'condominio') IS NULL) THEN
+  IF v_tipo = 'novo' AND NOT v_resp ? 'local' AND ((d->>'tipo' IS NULL AND NOT v_sem_comodos) OR coalesce(d->>'bairro', d->>'condominio') IS NULL) THEN
     v_falta := v_falta || 'local'::text;
   END IF;
   IF v_tipo = 'novo' AND NOT v_resp ? 'negocio' AND d->>'negocio' IS NULL THEN
     v_falta := v_falta || 'negocio'::text;
   END IF;
-  IF NOT v_resp ? 'comodos' AND (coalesce(d->>'quartos', i.quartos::text) IS NULL
+  IF NOT v_sem_comodos AND NOT v_resp ? 'comodos' AND (coalesce(d->>'quartos', i.quartos::text) IS NULL
                                  OR coalesce(d->>'banheiros', i.banheiros::text) IS NULL
                                  OR coalesce(d->>'vagas', i.vagas::text) IS NULL) THEN
     v_falta := v_falta || 'comodos'::text;
@@ -137,7 +142,7 @@ BEGIN
   IF NOT v_resp ? 'taxas' AND (d->>'iptu' IS NULL OR (v_cond AND d->>'condominio_valor' IS NULL) OR (v_aluga AND d->>'incluso' IS NULL)) THEN
     v_falta := v_falta || 'taxas'::text;
   END IF;
-  IF v_aluga AND NOT v_resp ? 'mobilia' AND coalesce(d->>'mobilia', CASE WHEN v_tipo = 'atualizar' THEN i.mobilia END) IS NULL THEN
+  IF v_aluga AND NOT v_sem_comodos AND NOT v_resp ? 'mobilia' AND coalesce(d->>'mobilia', CASE WHEN v_tipo = 'atualizar' THEN i.mobilia END) IS NULL THEN
     v_falta := v_falta || 'mobilia'::text;
   END IF;
   IF NOT v_resp ? 'fotos' AND d->>'fotos' IS NULL AND jsonb_array_length(c.fotos) = 0 THEN

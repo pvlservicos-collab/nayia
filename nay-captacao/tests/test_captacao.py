@@ -343,12 +343,20 @@ class OutroImovel(unittest.TestCase):
         self.assertEqual(disparo.modelo_do_lead(" outro_imovel_04 "), "outro_imovel_04")
 
     def test_a_abertura_do_outro_imovel_no_lugar_da_situacao(self):
-        self.assertEqual(modelo.ACRESCIMO, modelo.ABERTURA_SITUACAO + modelo.FIM)
+        self.assertEqual(modelo.ACRESCIMO, modelo.ABERTURA_SITUACAO + modelo.CONTRATO + modelo.FIM)
         a = modelo.ACRESCIMO_OUTRO_IMOVEL
         for marca in ("{modelo}", "{imovel}", "{indicacao}", "{honorarios}", "Tenho outro imóvel", "Não tenho outro",
-                      "demanda alta neste fim de ano", "trabalhar com ele novamente"):
+                      "demanda alta neste fim de ano", "trabalhar com ele novamente", "o contrato de locacao desse imovel vai",
+                      "QUANDO COMECOU"):
             self.assertIn(marca, a)
         self.assertNotIn("Disponível, Alugado e Vendido", a)
+
+    def test_a_abertura_das_listas_3_e_4_pergunta_imovel_para_vender(self):
+        v = modelo.ACRESCIMO_OUTRO_VENDER
+        for marca in ("{modelo}", "{imovel}", "{situacao_antiga}", "{indicacao}", "demanda alta de imoveis", "para vender"):
+            self.assertIn(marca, v)
+        self.assertNotIn("QUANDO COMECOU", v)
+        self.assertEqual(set(modelo.SITUACAO_ANTIGA), {"vendido", "removido"})
 
 
 if __name__ == "__main__":

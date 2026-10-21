@@ -39,6 +39,7 @@ valor_locacao_pedido  text   -- Valor da locacao que o proprietario informou na 
 situacao_por  text   -- Quem gravou a situacao: NULL/ia = a ferramenta do agente; rede = o gatilho de 15/09, quando a IA nao gravou.
 canal  text   -- Por qual número o dono escreveu por último: oficial (8456-0874, via CRM) ou zapi (8595-6408). A Nay responde por ele. (154, 28/09)
 modelo_abertura  text   -- 447: o modelo da Meta que abre a conversa deste lead. NULL = o do serviço (CAPTACAO_MODELO_ABERTURA, situacao_imovel_cadastrado_1). Só sai quando está em captacao_config.python_modelos_aprovados.
+campanha  text   -- 454: o roteiro do modelo outro_imovel_04: alugado (lista 5: o contrato e o outro imóvel), vendido (lista 4) ou removido (lista 3: imóvel para vender). NULL = não é dessa campanha.
 
 ## índices
 CREATE INDEX captacao_leads_chat_lid ON public.captacao_leads USING btree (chat_lid) WHERE (chat_lid IS NOT NULL)

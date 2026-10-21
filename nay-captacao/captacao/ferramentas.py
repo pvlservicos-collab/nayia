@@ -98,6 +98,37 @@ def _parede_da_indicacao(conn, telefone: str, motivo: str) -> str | None:
             "chame encerrar_conversa de novo. Se indicar alguem, chame guardar_indicacao.")
 
 
+# 455: na lista 5 (outro_imovel_04 para quem tem imóvel alugado por nós) a primeira resposta é sempre a explicação e a
+# pergunta de até quando vai o contrato (Pedro, 21/10). No ensaio, quem tocou "Não tenho outro" ia direto para a
+# indicação: a regra geral (ETAPA 4, NÃO = encerrar) vencia a da campanha. Esta parede segura o encerramento.
+CONTRATO_PENDENTE = """
+SELECT l.tratamento, l.nome, l.tipo_imovel, coalesce(l.imovel_desc, l.condominio, l.bairro) AS onde
+  FROM captacao_leads l
+ WHERE l.telefone_chave = nay_fone_chave(%s) AND coalesce(l.modelo_abertura, '') LIKE 'outro\\_imovel%%'
+   AND coalesce(l.campanha, 'alugado') = 'alugado' AND l.contrato_ate IS NULL
+   AND NOT EXISTS (SELECT 1 FROM captacao_mensagens m
+                    WHERE m.lead_id = l.id AND m.direcao = 'enviada' AND m.texto ~* 'contrato de loca'
+                      AND m.id > coalesce((SELECT max(d.id) FROM captacao_mensagens d
+                                            WHERE d.lead_id = l.id AND d.direcao = 'enviada' AND d.origem = 'disparo'), 0))
+"""
+
+
+def _parede_do_contrato(conn, telefone: str, motivo: str) -> str | None:
+    """A pergunta do contrato da lista 5, antes de qualquer encerramento. None quando já saiu ou não é dessa campanha."""
+    if motivo.strip().lower() in SEM_PAREDE_DA_INDICACAO:
+        return None
+    r = banco.linhas(conn, CONTRATO_PENDENTE, (telefone,))
+    if not r:
+        return None
+    imovel = " ".join(x for x in ((r[0]["tipo_imovel"] or "").strip().lower(), r[0]["onde"] or "") if x) or "o imóvel do cadastro"
+    return ("NAO encerrei: falta a sua primeira resposta desta conversa. Diga agora, em UMA mensagem: o imovel dele que "
+            f"esta com a gente ({imovel}), que ja trabalhamos juntos ha um tempo, que estamos perguntando porque estamos "
+            "com uma demanda alta neste fim de ano e que gostariamos de trabalhar com ele novamente; e, no fim, a pergunta "
+            '"Para eu deixar o cadastro certinho: o contrato de locação desse imóvel vai até quando?" (no tratamento dele). '
+            "Se ele ja disse que NAO tem outro imovel: quando ele responder a data, chame guardar_situacao (alugado, prazo) "
+            "e depois encerrar_conversa de novo, SEM perguntar de novo se ele tem outro imovel.")
+
+
 def _parede_dos_honorarios(conn, telefone: str, motivo: str) -> str | None:
     """A última pergunta (324): os 6% no valor de venda. None quando já saiu ou não se aplica (sem valor de venda)."""
     if motivo.strip().lower() in SEM_PAREDE_DA_INDICACAO:
@@ -180,7 +211,8 @@ def executar(conn, nome: str, args: dict, telefone: str, nome_do_dono: str = "",
             return json.dumps(r, ensure_ascii=False, default=str)
         if nome == "encerrar_conversa":
             # primeiro a indicação, por último os honorários (Pedro, 09/10: "mais uma pergunta no final, sempre")
-            parede = (_parede_da_indicacao(conn, telefone, _texto(args.get("motivo")))
+            parede = (_parede_do_contrato(conn, telefone, _texto(args.get("motivo")))
+                      or _parede_da_indicacao(conn, telefone, _texto(args.get("motivo")))
                       or _parede_dos_honorarios(conn, telefone, _texto(args.get("motivo"))))
             if parede:
                 return json.dumps([{"instrucao_para_voce": parede}], ensure_ascii=False)
