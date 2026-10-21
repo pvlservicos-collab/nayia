@@ -12,12 +12,18 @@
   "Quero que pela manhã seja enviado as métricas para o Estratégia ... às 7 hrs"
       ESTRATÉGIA: às 07:00 de Brasília, os números de ONTEM e dos últimos 7 dias, do mesmo jeito, para o projeto
       "estrategia".
+  "que seja enviado para ele uma pergunta a cada 2 hrs 3 de manha e 3 a tarde pedindo para ele ver se todas as
+  visitas estão do sistema" (21/10, depois de o Visitas dizer que as visitas do dia "não existiam": elas estavam
+  nas conversas que a equipe faz à mão pelo número da Nay, tabela mensagens, que ele nunca abriu)
+      CONFERÊNCIA: às 07, 09, 11, 13, 15 e 17 h de MANAUS (08 a 18 h de Brasília), as conversas de visita de ontem
+      e de hoje (mensagens) e as visitas da agenda (nai_visita) vão para
+      projetos/visitas/dados/conferencia/AAAA-MM-DD/HHMM.txt e a pergunta para o projeto "visitas".
 
 A mensagem entra na conversa do projeto em que a equipe escreveu por último (fila_nay.conversa_da_equipe), marcada
 "rotina". Agente ocupado = tenta de novo na próxima olhada: a visita fica pendente; o horário vale até o fim da hora
 (23:59 / 07:59) e depois, naquele dia, não sai mais. O painel chama `laco()` numa thread.
 Estado em metricas.db: rotina_visita (as visitas e quando foram) e rotinas_estado (marcadores).
-Desligar uma rotina sem mexer no código: /opt/agente-claude/rotinas.json, ex. {"visitas": false}.
+Desligar uma rotina sem mexer no código: /opt/agente-claude/rotinas.json, ex. {"visitas": false} ou {"conferencia": false}.
 
   rotinas.py        o estado (só leitura)
 """
@@ -36,6 +42,9 @@ HORARIOS = {
     "metricas": {"projeto": "metricas", "de": "23:00", "ate": "23:59", "fim_dias_atras": 0, "dias": 1},
     "estrategia": {"projeto": "estrategia", "de": "07:00", "ate": "07:59", "fim_dias_atras": 1, "dias": 7},
 }
+# a conferência das visitas: horas de MANAUS (onde as visitas acontecem); cada uma vale até o minuto 59 daquela hora
+CONFERENCIA_HORAS = ["07", "09", "11", "13", "15", "17"]
+CONFERENCIA_TEXTO_MAX = 400   # o card da Nay é longo e repete a ficha: o começo basta para saber de que imóvel é
 
 SQL_ULTIMO_EVENTO = "SELECT json_build_object('id', coalesce(max(id), 0))::text FROM nai_visita_evento WHERE tipo = 'agendada_no_crm';"
 SQL_VISITAS = """
@@ -57,6 +66,47 @@ SELECT json_build_object('de', '{de}', 'ate', '{ate}',
          'painel', site_painel_metricas('{de}'::date, '{ate}'::date, 'dia'),
          'visitas', site_painel_visitas('{de}'::date, '{ate}'::date))::text;
 """
+# Conferência. As conversas de visita: quem, desde ontem 00:00 de Manaus, falou de visita (pedido, horário, cancelar,
+# remarcar, portaria, chave). A fala da Nay que é card ("Código:", "#1234", "R$") não puxa a conversa sozinha.
+# A conversa vai inteira desde ontem, menos as imagens sem legenda que a Nay manda (fotos dos imóveis).
+SQL_CONF_CONVERSAS = r"""
+WITH desde AS (SELECT (date_trunc('day', now() AT TIME ZONE 'America/Manaus') - interval '1 day')
+                      AT TIME ZONE 'America/Manaus' AS t),
+rel AS (
+  SELECT DISTINCT m.telefone FROM mensagens m, desde
+   WHERE m.criada_em > desde.t
+     AND m.texto ~* '(visit|agend|remarc|cancel|desmarc|portaria|\mchave|\m\d{1,2} ?(h|hs|hrs|horas)\M|\m\d{1,2}:\d\d)'
+     AND (m.direcao = 'recebida' OR m.texto !~* '(c[óo]digo:|#\d{3,5}|R\$)'))
+SELECT json_build_object('id', m.id, 'tel', m.telefone, 'nome', m.nome, 'direcao', m.direcao, 'origem', m.origem,
+         'texto', m.texto, 'em', to_char(m.criada_em AT TIME ZONE 'America/Manaus', 'YYYY-MM-DD HH24:MI'),
+         'contato', (SELECT coalesce(c.nome_completo, c.nome_whatsapp) FROM nai_contato c
+                      WHERE c.telefone = m.telefone LIMIT 1))::text
+  FROM mensagens m JOIN rel USING (telefone), desde
+ WHERE m.criada_em > desde.t
+   AND NOT (m.direcao = 'enviada' AND m.origem = 'imagem' AND coalesce(m.texto, '') = '')
+ ORDER BY m.telefone, m.id;
+"""
+# as visitas do sistema (a agenda): de ontem até daqui a 7 dias, inclusive as excluídas e as encerradas
+SQL_CONF_VISITAS = """
+SELECT json_build_object('visita', v.id, 'codigo', v.codigo, 'imovel', nai_ref_imovel(v.codigo),
+         'quando', to_char(v.quando AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI'), 'estado', v.estado,
+         'resultado', v.resultado, 'motivo', v.motivo, 'corretor', coalesce(c.nome_completo, c.nome_whatsapp),
+         'corretor_tel', c.telefone, 'proprietario', v.proprietario_nome, 'quem', v.criada_no_crm_por,
+         'excluida', to_char(v.excluida_em AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI'))::text
+  FROM nai_visita v LEFT JOIN nai_contato c ON c.id = v.corretor_id
+ WHERE v.quando >= date_trunc('day', now() AT TIME ZONE 'America/Manaus') AT TIME ZONE 'America/Manaus' - interval '1 day'
+   AND v.quando <  date_trunc('day', now() AT TIME ZONE 'America/Manaus') AT TIME ZONE 'America/Manaus' + interval '8 days'
+ ORDER BY v.quando;
+"""
+CONFERENCIA_PERGUNTA = """Conferência das visitas das {hora_m} (Manaus), {hora_b} em Brasília. Veja se todas as visitas estão no sistema.
+
+No arquivo {rel} estão, primeiro, as visitas do sistema (a agenda, tabela nai_visita, de ontem até daqui a 7 dias) e, depois, as {n} conversas de WhatsApp de ontem e de hoje em que se falou de visita ({pessoas}). As conversas são da tabela mensagens do naydb: o que a equipe escreve à mão pelo número da Nay também está lá, como "Imob Easy". Se precisar de mais, leia a conversa inteira no banco (como-ler-os-dados).
+
+Compare as conversas com a agenda e responda:
+1. Visita combinada na conversa (hoje ou nos próximos dias) que NÃO está no sistema: corretor (nome e 4 últimos dígitos), imóvel, dia e hora, e a frase que prova.
+2. Visita do sistema que a conversa diz que foi cancelada, remarcada ou mudou de hora, e continua igual no sistema.
+3. Pendência: quem ficou de confirmar e não confirmou, ou pediu visita e ninguém da equipe respondeu.
+Se estiver tudo no sistema, diga só isso, em uma linha. Não mude nada nem mande mensagem: é só a lista para a equipe acertar."""
 DIAS = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
 
 
@@ -189,6 +239,99 @@ def horario(nome):
     return True
 
 
+# ---------------------------------------------------------------- conferência das visitas (6 vezes por dia)
+def _linha_agenda(v):
+    partes = [f"#{v['visita']} · {v.get('imovel') or 'imóvel ' + str(v['codigo'])}", f"{v.get('quando')} (Manaus)",
+              f"corretor {v.get('corretor') or '?'} (…{importar_nay.tel4(v.get('corretor_tel'))})",
+              f"estado {v.get('estado')}" + (f", resultado {v['resultado']}" if v.get("resultado") else "")]
+    if v.get("proprietario"):
+        partes.append(f"proprietário {v['proprietario']}")
+    partes.append(f"agendada no CRM por {v['quem']}" if v.get("quem") else "pedido da Nay (não aparece na Agenda do CRM)")
+    if v.get("motivo"):
+        partes.append(f"motivo: {v['motivo']}")
+    if v.get("excluida"):
+        partes.append(f"EXCLUÍDA em {v['excluida']}")
+    return "- " + " · ".join(partes)
+
+
+def _nome(ms):
+    """O nome do cadastro (nai_contato) quando é um nome de verdade; senão, o do WhatsApp."""
+    cad = (ms[0].get("contato") or "").strip()
+    zap = next((m["nome"] for m in ms if m["direcao"] == "recebida" and m.get("nome")), None)
+    return (cad if sum(ch.isalpha() for ch in cad) >= 4 else None) or zap or cad or "sem nome"
+
+
+def _bloco_conversa(ms):
+    nome = _nome(ms)
+    tel = ms[0]["tel"]
+    linhas = [f"=== {nome} …{importar_nay.tel4(tel)}{' (@lid)' if '@lid' in tel else ''} · {len(ms)} falas · "
+              f"{ms[0]['em'][8:10]}/{ms[0]['em'][5:7]} {ms[0]['em'][11:]} a "
+              f"{ms[-1]['em'][8:10]}/{ms[-1]['em'][5:7]} {ms[-1]['em'][11:]} ==="]
+    dia = None
+    for m in ms:
+        if m["em"][:10] != dia:
+            dia = m["em"][:10]
+            linhas.append(f"-- {dia[8:10]}/{dia[5:7]} --")
+        texto = importar_nay.mascarar((m.get("texto") or "").strip())
+        if len(texto) > CONFERENCIA_TEXTO_MAX:
+            texto = texto[:CONFERENCIA_TEXTO_MAX] + "…"
+        if not texto:
+            texto = f"[{m.get('origem') or 'mídia'}]"
+        quem = "Imob Easy" if m["direcao"] == "enviada" else "Ele(a)"
+        linhas.append(importar_nay.recuo(f"{m['em'][11:]} {quem}: {texto}"))
+    return "\n".join(linhas)
+
+
+def conferencia(hora_m):
+    """A conferência daquela hora de Manaus, uma vez. True quando saiu (ou já tinha saído)."""
+    agora_m = datetime.now(MANAUS)
+    marca = f"{agora_m:%Y-%m-%d} {hora_m}"
+    con = banco()
+    if _estado(con, "conferencia") == marca:
+        con.close()
+        return True
+    pronta = _estado(con, "conferencia_texto") or ""
+    con.close()
+    if pronta.startswith(marca + "\n"):   # o arquivo já foi feito nesta hora; o agente estava ocupado
+        return _conferencia_mandar(marca, pronta[len(marca) + 1:])
+    agenda = fila_nay._naydb(SQL_CONF_VISITAS)
+    msgs = fila_nay._naydb(SQL_CONF_CONVERSAS)
+    conversas = {}
+    for m in msgs:
+        conversas.setdefault(m["tel"], []).append(m)
+    blocos = sorted((_bloco_conversa(ms) for ms in conversas.values()), key=lambda b: b.split(" ·")[0].lower())
+    rel = os.path.join("dados", "conferencia", f"{agora_m:%Y-%m-%d}", f"{agora_m:%H%M}.txt")
+    caminho = os.path.join(projetos.pasta("visitas"), rel)
+    os.makedirs(os.path.dirname(caminho), exist_ok=True)
+    with open(caminho, "w", encoding="utf-8", newline="\n") as f:
+        f.write(f"CONFERÊNCIA DAS VISITAS · {agora_m:%d/%m/%Y %H:%M} em Manaus\n"
+                "Telefones só com os 4 últimos dígitos. \"Imob Easy\" = o número da Nay Parceria (a Nay ou alguém da "
+                "equipe escrevendo à mão); \"Ele(a)\" = o corretor, o proprietário ou quem for o contato.\n\n"
+                f"## VISITAS NO SISTEMA (nai_visita, de ontem até daqui a 7 dias): {len(agenda)}\n"
+                + ("\n".join(_linha_agenda(v) for v in agenda) or "- nenhuma") + "\n\n"
+                f"## CONVERSAS EM QUE SE FALOU DE VISITA (mensagens, desde ontem 00:00): {len(blocos)}\n\n"
+                + "\n\n".join(blocos) + "\n")
+    nomes = [_nome(ms) for ms in conversas.values()]
+    agora_b = datetime.now(BRASILIA)
+    texto = CONFERENCIA_PERGUNTA.format(hora_m=f"{agora_m:%H:%M}", hora_b=f"{agora_b:%H:%M}", rel=rel, n=len(blocos),
+                                        pessoas=", ".join(sorted(set(nomes), key=str.lower)[:40]) or "nenhuma")
+    con = banco()
+    _gravar(con, "conferencia_texto", marca + "\n" + texto)
+    con.commit()
+    con.close()
+    return _conferencia_mandar(marca, texto)
+
+
+def _conferencia_mandar(marca, texto):
+    if not _mandar("visitas", texto):
+        return False
+    con = banco()
+    _gravar(con, "conferencia", marca)
+    con.commit()
+    con.close()
+    return True
+
+
 # ---------------------------------------------------------------- o laço
 def laco():
     """A thread do painel: as visitas a cada 5 min; as rotinas de horário dentro da janela de cada uma."""
@@ -205,6 +348,9 @@ def laco():
                 for nome, cfg in HORARIOS.items():
                     if ligada(nome) and cfg["de"] <= agora <= cfg["ate"] and not horario(nome):
                         pass   # agente ocupado: tenta de novo na próxima olhada, até o fim da janela
+                hora_m = datetime.now(MANAUS).strftime("%H")
+                if ligada("conferencia") and hora_m in CONFERENCIA_HORAS and not conferencia(hora_m):
+                    pass   # agente ocupado: tenta de novo até o fim daquela hora
         except Exception as e:  # noqa: BLE001 - uma rotina com erro não derruba o painel; tenta na próxima volta
             print("rotinas:", type(e).__name__, e, flush=True)
         time.sleep(20)
@@ -212,7 +358,7 @@ def laco():
 
 def estado():
     con = banco()
-    r = {"ligadas": {n: ligada(n) for n in ["visitas", *HORARIOS]},
+    r = {"ligadas": {n: ligada(n) for n in ["visitas", *HORARIOS, "conferencia"]},
          "marcadores": {x["chave"]: x["valor"] for x in con.execute("SELECT chave, valor FROM rotinas_estado")},
          "visitas_na_espera": con.execute("SELECT count(*) n FROM rotina_visita WHERE enviado_em IS NULL").fetchone()["n"],
          "ultimas_visitas": con.execute("SELECT evento, visita, entrou_em, enviado_em FROM rotina_visita "
