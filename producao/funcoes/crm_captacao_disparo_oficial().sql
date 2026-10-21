@@ -9,6 +9,8 @@ AS $function$
     SELECT l.id,
            CASE WHEN EXISTS (SELECT 1 FROM captacao_retomada_oficial r WHERE r.lead_id = l.id) THEN 'retomada'
                 WHEN l.quem_importou LIKE 'Pedro (lista 5:%' THEN 'lista5'   -- 449
+                WHEN l.quem_importou LIKE 'Pedro (lista 4:%' THEN 'lista4'   -- 456
+                WHEN l.quem_importou LIKE 'Pedro (lista 3:%' THEN 'lista3'   -- 456
                 WHEN l.quem_importou LIKE 'Pedro (lista 6:%' THEN 'lista6'
                 WHEN l.quem_importou LIKE 'Pedro (lista 8:%' THEN 'lista8'
                 ELSE 'anterior' END AS lista
@@ -43,7 +45,9 @@ AS $function$
                     CASE WHEN NOT EXISTS (SELECT 1 FROM fila) AND EXISTS (SELECT 1 FROM esperando)
                          THEN 'esperando a Meta aprovar o modelo ' || (SELECT string_agg(DISTINCT e.modelo_abertura, ', ') FROM esperando e) END) AS motivo
   ), nomes AS (SELECT * FROM (VALUES
-      (0, 'lista5', 'Donos com imóvel alugado', 'Lista 5: donos com imóvel alugado por nós, modelo outro_imovel_04 ("possui outro imóvel disponível?"), entraram em 20/10'),
+      (-1, 'lista4', 'Donos que só têm imóvel vendido', 'Lista 4: donos que só têm imóvel vendido, modelo outro_imovel_04 (imóvel para vender), entraram em 21/10'),
+      (-2, 'lista3', 'Donos com imóvel removido ou arquivado', 'Lista 3: donos com imóvel removido ou arquivado, modelo outro_imovel_04 (imóvel para vender), entraram em 21/10'),
+      (-3, 'lista5', 'Donos com imóvel alugado', 'Lista 5: donos com imóvel alugado por nós, modelo outro_imovel_04 ("possui outro imóvel disponível?"), entraram em 20/10'),
       (1, 'lista6', 'Donos com imóvel disponível', 'Lista 6: donos com imóvel disponível no cadastro (entraram em 12/10)'),
       (2, 'lista8', 'Donos da planilha antiga', 'Lista 8: donos da planilha antiga que nunca viraram imóvel (entraram em 12/10)'),
       (3, 'anterior', 'Campanha anterior', 'Proprietários das listas de antes de 12/10 que nunca receberam nada nosso'),

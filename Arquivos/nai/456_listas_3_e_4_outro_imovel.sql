@@ -5,8 +5,10 @@
 -- (591): mandar se tem algum imóvel para adicionar, estamos com uma demanda alta de imóveis e queremos saber se você tem
 -- imóveis para vender". O roteiro é o ACRESCIMO_OUTRO_VENDER do nay-captacao (campanha vendido/removido, 454).
 -- As exclusões são as da 447 (60 dias por qualquer número, nas duas direções; quem já está na captação; corretor e
--- parceiro; as fontes que privado.falou_conosco não lê). Saem depois da lista 5 (a fila vai por id): na barrinha a
--- lista 5 vem primeiro e as listas 4 e 3 (que saem misturadas, pela ordem do cadastro do dono) depois.
+-- parceiro; as fontes que privado.falou_conosco não lê).
+-- Ordem (Pedro, 21/10: "pode disparar, primeiro as listas menores 1 por minuto"): a fila vai por id, então a lista 5 (163,
+-- já na fila) sai primeiro, depois a 3 (589) e por último a 4 (974); a barrinha do CRM segue a mesma ordem. O ritmo vira
+-- 55 a 65 s entre um modelo e outro.
 BEGIN;
 SET LOCAL lock_timeout = '3s';
 
@@ -71,8 +73,12 @@ SELECT e.telefone, e.nome, e.tratamento, e.proprietario_id, e.codigo::text, e.im
        'novo', 'aguardando_outros', 'tem outro imóvel disponível além do que já consta conosco?', e.imoveis_prop,
        'outro_imovel_04', e.campanha
   FROM _entram e
- ORDER BY e.proprietario_id
+ ORDER BY (e.campanha = 'vendido'), e.proprietario_id   -- Pedro: "primeiro as listas menores" (a 3, com 589, antes da 4)
 ON CONFLICT DO NOTHING;
+
+-- Pedro, 21/10: "1 por minuto" (era 25 a 35 s: 2 por minuto)
+UPDATE captacao_config SET valor = '55' WHERE chave = 'python_disparo_seg_min';
+UPDATE captacao_config SET valor = '65' WHERE chave = 'python_disparo_seg_max';
 
 -- a regra da campanha (308: corretor, nome de corretor/imobiliária, imóvel de parceiro...) é por lead: quem ela barra sai agora
 DELETE FROM captacao_leads l
@@ -125,8 +131,8 @@ AS $function$
                     CASE WHEN NOT EXISTS (SELECT 1 FROM fila) AND EXISTS (SELECT 1 FROM esperando)
                          THEN 'esperando a Meta aprovar o modelo ' || (SELECT string_agg(DISTINCT e.modelo_abertura, ', ') FROM esperando e) END) AS motivo
   ), nomes AS (SELECT * FROM (VALUES
-      (-2, 'lista4', 'Donos que só têm imóvel vendido', 'Lista 4: donos que só têm imóvel vendido, modelo outro_imovel_04 (imóvel para vender), entraram em 21/10'),
-      (-1, 'lista3', 'Donos com imóvel removido ou arquivado', 'Lista 3: donos com imóvel removido ou arquivado, modelo outro_imovel_04 (imóvel para vender), entraram em 21/10'),
+      (-1, 'lista4', 'Donos que só têm imóvel vendido', 'Lista 4: donos que só têm imóvel vendido, modelo outro_imovel_04 (imóvel para vender), entraram em 21/10'),
+      (-2, 'lista3', 'Donos com imóvel removido ou arquivado', 'Lista 3: donos com imóvel removido ou arquivado, modelo outro_imovel_04 (imóvel para vender), entraram em 21/10'),
       (-3, 'lista5', 'Donos com imóvel alugado', 'Lista 5: donos com imóvel alugado por nós, modelo outro_imovel_04 ("possui outro imóvel disponível?"), entraram em 20/10'),
       (1, 'lista6', 'Donos com imóvel disponível', 'Lista 6: donos com imóvel disponível no cadastro (entraram em 12/10)'),
       (2, 'lista8', 'Donos da planilha antiga', 'Lista 8: donos da planilha antiga que nunca viraram imóvel (entraram em 12/10)'),

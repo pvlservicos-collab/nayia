@@ -11,7 +11,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 SRV=nay-srv1894338
 DEST=/root/nay-captacao
-ARQS=$(cd captacao && ls *.py ferramentas.json)
+ARQS=$(cd captacao && ls *.py ferramentas.json | tr '\n' ' ')
 md5() { tr -d '\r' | md5sum | cut -c1-32; }
 
 parar=0

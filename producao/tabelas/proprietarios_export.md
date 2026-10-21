@@ -27,4 +27,4 @@ nay_site_listas: SELECT
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-nay_e_corretor_chave, site_publicos_disparo
+captacao_py_fila_do_disparo, nay_e_corretor_chave, site_publicos_disparo
