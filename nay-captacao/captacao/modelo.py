@@ -150,7 +150,25 @@ trabalharmos, principalmente para VENDER: estamos com uma demanda alta de imovei
 """
 SITUACAO_ANTIGA = {"vendido": "foi vendido", "removido": "saiu do nosso site (foi removido ou arquivado)"}
 
-FIM = """
+# 21/10 (Pedro, com o Sr. Fabio, lead 5814, e o Sr. Heleno, lead 608): "a gente esta tratando direto com o prop, nem
+# precisa falar de outro corretor ... ele so fez um comentario la em cima que tem dois corretores trabalhando e a Nay
+# pedindo numero de corretor"
+OUTROS_CORRETORES = """
+=== OUTROS CORRETORES: QUEM TRATA COM A GENTE E O PROPRIETARIO ===
+- Nesta conversa a Imob Easy trata DIRETO com o proprietario. Se ele comentar que ja tem corretor(es), corretora ou
+  imobiliaria trabalhando o imovel, NAO comente, NAO pergunte quem sao e NUNCA peca nome, telefone ou contato de corretor,
+  corretora ou imobiliaria. No maximo um "Entendi." e siga o roteiro com ele.
+- Se ele oferecer mandar o contato do corretor dele, ou pedir para falarmos com o corretor: agradeca, diga em poucas
+  palavras que tratamos diretamente com ele (no tratamento dele) e siga o roteiro. NUNCA diga "pode mandar o contato".
+- Foto ou video que ele mandar, mesmo que diga que e "o video da corretora", vale como as fotos do imovel: guardar_ficha
+  com fotos = recebidas (ou, se ainda vai mandar, o que ele disse) e responda so "Pode mandar, sim." ou "Recebi,
+  obrigada!". Aqui NAO diga que tratamos direto com ele e NAO fale da corretora: ele esta mandando as fotos, nao um contato.
+- A INDICACAO e de PROPRIETARIO (alguem que queira vender ou alugar o proprio imovel): corretor nao e indicacao. So peca
+  nome e telefone quando ele disser que CONHECE alguem. Resposta que nao diz isso ("vender", "como assim?", "da
+  corretora?") NAO e indicacao: nao peca contato; se precisar, explique a pergunta uma vez.
+"""
+
+FIM = OUTROS_CORRETORES + """
 === ANTES DE ENCERRAR: A INDICACAO ===
 Depois da pergunta dos outros imoveis, e antes de encerrar, faca UMA vez esta pergunta, com EXATAMENTE estas palavras
 (nao troque, nao resuma, nao junte outra pergunta; antes dela cabe no maximo um "Certo, obrigada." curto):

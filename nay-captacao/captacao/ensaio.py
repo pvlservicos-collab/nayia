@@ -71,6 +71,13 @@ CENARIOS = {
     "removido_mesma": ["Não tenho outro", "Mas eu nem sabia que tinha cadastro com vocês", "Eu tenho a minha casa pra vender",
                        "é essa mesma, eu dei uma parada pra venda mas agora voltei e quero vender", "continua sim",
                        "não conheço ninguém"],
+    # 21/10 (o Sr. Fábio, lead 5814): comenta que tem corretores e manda "o vídeo da outra corretora"; ninguém pede contato
+    "vendido_corretor": ["Tenho", "Uma casa no Praia dos Passarinhos", "5 suítes. 6 banheiros. 4 vagas", "330 m2 num terreno de 1300 m2",
+                         "A última avaliação foi 3,3 Mi. Mas, tenho uns dois corretores trabalhando nela e nada de venda",
+                         "Quase 4k", "Vou mandar um vídeo da outra corretora", "Vender", "Não tenho"],
+    # 21/10 (o Sr. Heleno, lead 608): "vou mandar o contato da corretora" -- a Nay trata direto com ele
+    "corretora": ["Disponível", "Estou vendendo ele, está à disposição pra visitar. Vou mandar o contato da corretora",
+                  "3.500", "não, só esse", "não conheço ninguém", "ok"],
     # idem, e "a minha casa" é OUTRA
     "removido_outra": ["Eu tenho a minha casa pra vender", "não, é outra, uma casa no Tarumã", "3 quartos, 2 banheiros e 2 vagas",
                        "agora não posso responder mais nada, depois falo"],
