@@ -149,7 +149,7 @@ export default function MetricasDoFluxo({
                               <td className="py-2.5 px-3 text-right tabular-nums text-ink">{v.enviado}</td>
                               <td className="py-2.5 px-3 text-right tabular-nums text-muted">{v.entregue}</td>
                               <td className="py-2.5 px-3 text-right tabular-nums text-ink">{v.responderam}</td>
-                              <td className="py-2.5 pl-3 text-right tabular-nums font-bold" style={{ color: ehMelhor ? '#fbbf24' : undefined }}>
+                              <td className="py-2.5 pl-3 text-right tabular-nums font-bold text-ink" style={{ color: ehMelhor ? '#fbbf24' : undefined }}>
                                 {porcento(v.taxa_resposta)}
                               </td>
                             </tr>

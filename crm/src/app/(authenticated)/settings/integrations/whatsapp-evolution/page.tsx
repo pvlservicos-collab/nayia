@@ -381,7 +381,7 @@ export default function WhatsAppEvolutionPage() {
               </div>
             ))}
           </div>
-          <div className="mt-8 bg-purple-50/50 rounded-lg p-4 flex gap-3 border border-purple-100">
+          <div className="mt-8 bg-purple-50 dark:bg-purple-50/50 rounded-lg p-4 flex gap-3 border border-purple-100">
             <Info size={18} className="text-purple-600 flex-shrink-0 mt-0.5" />
             <p className="text-xs leading-relaxed text-purple-800">
               <span className="font-semibold">Dica:</span> Desative a economia de bateria para o WhatsApp no smartphone para manter a conexão estável.

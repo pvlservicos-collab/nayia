@@ -364,7 +364,7 @@ export default function LeadDetailsSidebar({
 
   return (
     <>
-    <div className="relative w-full md:w-[var(--largura-card)] border-l border-[var(--chat-border)] flex flex-col flex-shrink-0 overflow-y-auto bg-[var(--chat-bg-base)] surface-rail chat-dark-scroll"
+    <div className="relative w-full md:w-[var(--largura-card)] border-l border-[var(--chat-border)] flex flex-col flex-shrink-0 overflow-y-auto bg-[var(--chat-bg-base)] dark:surface-rail chat-dark-scroll"
          style={{ ['--largura-card' as string]: `${borda.largura}px` }}>
       <div {...borda.puxador} className={`${borda.puxador.className} hidden md:block`} />
       {onClose && (

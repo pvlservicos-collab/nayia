@@ -41,7 +41,7 @@ export default function CheckboxRow({ label, checked, onChange, icon }: Checkbox
 
             <span className={`
         text-sm font-medium transition-colors select-none
-        ${checked ? 'text-gray-900' : 'text-gray-600 group-hover:text-gray-900'}
+        ${checked ? 'text-ink' : 'text-muted'}
       `}>
                 {label}
             </span>

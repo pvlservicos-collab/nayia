@@ -212,7 +212,7 @@ function BotaoPipeline({
   if (row.stage_id) {
     return (
       <span
-        className="btn btn-sm !px-2 whitespace-nowrap cursor-default !bg-transparent !border-transparent !text-muted/50 !shadow-none"
+        className="btn btn-sm !px-2 whitespace-nowrap cursor-default !bg-transparent !border-transparent !text-ink !shadow-none"
         title={`Já está no pipeline, em ${row.stage_name ?? 'uma etapa'}`}
       >
         <Check size={13} weight="bold" />

@@ -494,7 +494,7 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
                 onClick={() => trocarDeFunil(p.id)}
                 className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap ${p.id === selectedPipelineId
                   ? 'bg-accent/15 text-accent'
-                  : 'text-ink-2 hover:text-ink hover:bg-graphite-6/40'}`}
+                  : 'text-ink hover:bg-graphite-6/40'}`}
               >
                 {rotuloDoFunil(p)}
               </button>
@@ -516,7 +516,7 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
           <span className="text-muted font-semibold flex-shrink-0 w-[62px]">Etapas</span>
           <button type="button" onClick={() => setEtapasSel([])}
-                  className={`flex-shrink-0 px-2.5 py-1 rounded-full border ${!etapasSel.length ? 'bg-accent/15 border-accent/40 text-accent' : 'border-line text-ink-2'}`}>
+                  className={`flex-shrink-0 px-2.5 py-1 rounded-full border ${!etapasSel.length ? 'bg-accent/15 border-accent/40 text-accent' : 'border-line text-ink'}`}>
             Todas <span className="opacity-70">({leadsFiltrados.length})</span>
           </button>
           {stages.map((st) => {
@@ -524,7 +524,7 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
             return (
               <button key={st.id} type="button" aria-pressed={on}
                       onClick={() => setEtapasSel((l) => (on ? l.filter((x) => x !== st.id) : [...l, st.id]))}
-                      className={`flex-shrink-0 px-2.5 py-1 rounded-full border whitespace-nowrap ${on ? 'bg-accent/15 border-accent/40 text-accent' : 'border-line text-ink-2'}`}>
+                      className={`flex-shrink-0 px-2.5 py-1 rounded-full border whitespace-nowrap ${on ? 'bg-accent/15 border-accent/40 text-accent' : 'border-line text-ink'}`}>
                 {st.name} <span className="opacity-70">({contaDaEtapa(st.id)})</span>
               </button>
             )
@@ -538,7 +538,7 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
               return (
                 <button key={t.id} type="button" aria-pressed={on}
                         onClick={() => setTagsSel((l) => (on ? l.filter((x) => x !== t.id) : [...l, t.id]))}
-                        className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full border whitespace-nowrap"
+                        className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full border whitespace-nowrap text-ink"
                         style={on ? { background: t.cor, borderColor: t.cor, color: '#fff' } : { borderColor: 'var(--line)' }}>
                   <span className="w-2 h-2 rounded-full" style={{ background: on ? '#fff' : t.cor }} />
                   {t.nome} <span className="opacity-70">({t.n})</span>
@@ -555,7 +555,7 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
           {([['', 'Sempre'], ['hoje', 'Hoje'], ['ontem', 'Ontem'], ['semana', 'Últimos 7 dias'], ['mes', 'Este mês'], ['dia', 'Um dia']] as const).map(([k, r]) => (
             <button key={k || 'sempre'} type="button" aria-pressed={quando === k}
                     onClick={() => { setQuando(k); if (k === 'dia' && !diaSel) setDiaSel(diaEmManaus()) }}
-                    className={`flex-shrink-0 px-2.5 py-1 rounded-full border ${quando === k ? 'bg-accent/15 border-accent/40 text-accent' : 'border-line text-ink-2'}`}>
+                    className={`flex-shrink-0 px-2.5 py-1 rounded-full border ${quando === k ? 'bg-accent/15 border-accent/40 text-accent' : 'border-line text-ink'}`}>
               {r}
             </button>
           ))}

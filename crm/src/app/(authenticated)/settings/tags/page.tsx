@@ -84,7 +84,7 @@ export default function TagsSettingsPage() {
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Buscar tags..."
-                        className="block w-full pl-10 pr-3 py-2.5 border border-line rounded-xl leading-5 bg-panel placeholder-muted focus:outline-none focus:bg-panel focus:ring-2 focus:ring-accent focus:border-accent sm:text-sm transition-all shadow-sm"
+                        className="block w-full pl-10 pr-3 py-2.5 border border-line rounded-xl leading-5 bg-panel text-ink placeholder-muted focus:outline-none focus:bg-panel focus:ring-2 focus:ring-accent focus:border-accent sm:text-sm transition-all shadow-sm"
                     />
                 </div>
             </div>

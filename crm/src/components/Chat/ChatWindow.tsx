@@ -444,7 +444,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent, linha,
       {erroDasMensagens && activities.length === 0 && !loading && (
         <div className="relative z-10 mx-4 mt-2 px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between gap-3">
           <span className="text-sm" style={{ color: 'var(--wa-tag-prop)' }}>Não consegui carregar as mensagens desta conversa.</span>
-          <button onClick={() => recarregarMensagens(true)} className="btn btn-outline btn-sm !py-1 !text-[11px] flex-shrink-0">Tentar de novo</button>
+          <button onClick={() => recarregarMensagens(true)} className="btn btn-outline btn-sm !py-1 !text-[11px] flex-shrink-0 text-[var(--wa-text)] dark:text-ink">Tentar de novo</button>
         </div>
       )}
 

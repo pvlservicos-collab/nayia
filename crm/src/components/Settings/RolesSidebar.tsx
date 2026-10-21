@@ -82,7 +82,7 @@ export default function RolesSidebar({ organizationId, selectedRoleId, onSelectR
   if (isLoading) {
     return (
       <div className="space-y-3">
-        <h2 className="text-lg font-bold text-gray-900 mb-4 tracking-tight">Cargos</h2>
+        <h2 className="text-lg font-bold text-ink mb-4 tracking-tight">Cargos</h2>
         {[1, 2, 3].map(i => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}
       </div>
     )
@@ -90,13 +90,13 @@ export default function RolesSidebar({ organizationId, selectedRoleId, onSelectR
 
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-lg font-bold text-gray-900 mb-1 tracking-tight">Cargos</h2>
+      <h2 className="text-lg font-bold text-ink mb-1 tracking-tight">Cargos</h2>
       <div className="flex flex-col gap-2">
         {roles.map((role) => {
           const isSelected = selectedRoleId === role.id
           return (
             <button key={role.id} onClick={() => onSelectRole(role.id)}
-              className={`flex items-center justify-between p-4 rounded-xl border text-left transition-all ${isSelected ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50/30' : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'}`}>
+              className={`flex items-center justify-between p-4 rounded-xl border text-left transition-all ${isSelected ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50 dark:bg-blue-50/30' : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'}`}>
               <div>
                 <p className={`text-sm font-semibold ${isSelected ? 'text-gray-900' : 'text-gray-700'}`}>{role.name}</p>
                 <p className="text-xs text-gray-500 mt-1">{getRoleDescription(role.name)}</p>

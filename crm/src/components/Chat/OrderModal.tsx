@@ -293,7 +293,7 @@ export default function OrderModal({ lead, organizationId, onClose, onSuccess }:
 
   const modal = (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
-      <div className="bg-[#1a2730] border border-[var(--chat-border)] rounded-2xl w-full max-w-2xl max-h-[90dvh] flex flex-col shadow-2xl">
+      <div className="bg-[var(--chat-bg-base)] dark:bg-[#1a2730] border border-[var(--chat-border)] rounded-2xl w-full max-w-2xl max-h-[90dvh] flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-[var(--chat-border)]">
           <h2 className="text-lg font-bold text-[var(--chat-text-primary)]">Registrar Venda</h2>

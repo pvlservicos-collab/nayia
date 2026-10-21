@@ -106,8 +106,8 @@ export default function PeriodSelector({
                         </span>
                         <span
                             className={`text-sm font-medium transition-colors whitespace-nowrap ${selectedType === opt.id
-                                    ? 'text-gray-900'
-                                    : 'text-gray-500 group-hover:text-gray-700'
+                                    ? 'text-ink'
+                                    : 'text-gray-500'
                                 }`}
                         >
                             {opt.label}

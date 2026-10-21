@@ -185,7 +185,7 @@ export default function IaSettingsPage() {
                 <span className="min-w-0">
                   <span className="block text-sm text-ink">{meta?.nome ?? id}</span>
                   <span className="block text-[11px] text-muted">{meta?.nota}</span>
-                  <code className="block text-[10px] text-muted/70 mt-0.5">{id}</code>
+                  <code className="block text-[10px] text-ink mt-0.5">{id}</code>
                 </span>
               </label>
             )

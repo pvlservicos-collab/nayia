@@ -309,7 +309,7 @@ export default function ProfileSettingsPage() {
                             value={profileData.name}
                             onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
                             disabled={isLoading}
-                            className="w-full px-4 py-2 border border-line rounded-lg text-sm text-ink disabled:bg-void focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                            className="w-full px-4 py-2 border border-line rounded-lg bg-panel-2 text-sm text-ink disabled:bg-void focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                         />
                     </div>
 
@@ -324,7 +324,7 @@ export default function ProfileSettingsPage() {
                                 value={profileData.corporate_email}
                                 onChange={(e) => setProfileData({ ...profileData, corporate_email: e.target.value })}
                                 disabled={isLoading}
-                                className="w-full px-4 py-2 border border-line rounded-lg text-sm text-ink disabled:bg-void focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                                className="w-full px-4 py-2 border border-line rounded-lg bg-panel-2 text-sm text-ink disabled:bg-void focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                             />
                         </div>
 
@@ -338,7 +338,7 @@ export default function ProfileSettingsPage() {
                                 value={profileData.phone}
                                 onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
                                 disabled={isLoading}
-                                className="w-full px-4 py-2 border border-line rounded-lg text-sm text-ink disabled:bg-void focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                                className="w-full px-4 py-2 border border-line rounded-lg bg-panel-2 text-sm text-ink disabled:bg-void focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                             />
                         </div>
                     </div>
@@ -355,7 +355,7 @@ export default function ProfileSettingsPage() {
                                 value={profileData.website}
                                 onChange={(e) => setProfileData({ ...profileData, website: e.target.value })}
                                 disabled={isLoading}
-                                className="w-full px-4 py-2 border border-line rounded-lg text-sm text-ink disabled:bg-void focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                                className="w-full px-4 py-2 border border-line rounded-lg bg-panel-2 text-sm text-ink disabled:bg-void focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                             />
                         </div>
 
@@ -369,7 +369,7 @@ export default function ProfileSettingsPage() {
                                 value={profileData.foundation_date}
                                 onChange={(e) => setProfileData({ ...profileData, foundation_date: e.target.value })}
                                 disabled={isLoading}
-                                className="w-full px-4 py-2 border border-line rounded-lg text-sm text-ink disabled:bg-void focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                                className="w-full px-4 py-2 border border-line rounded-lg bg-panel-2 text-sm text-ink disabled:bg-void focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                             />
                         </div>
                     </div>
@@ -441,7 +441,7 @@ export default function ProfileSettingsPage() {
                                 value={newTokenName}
                                 onChange={(e) => setNewTokenName(e.target.value)}
                                 placeholder="Ex: Agente IA, n8n, Zapier..."
-                                className="w-full px-4 py-2 border border-line rounded-lg text-sm text-ink focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                                className="w-full px-4 py-2 border border-line rounded-lg bg-panel-2 text-sm text-ink focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                             />
                             <div className="flex gap-2">
                                 <button

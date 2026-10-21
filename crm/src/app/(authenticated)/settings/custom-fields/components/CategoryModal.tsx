@@ -74,7 +74,7 @@ export function CategoryModal({ isOpen, onClose, category, onSubmit, onDelete }:
                             value={name}
                             onChange={e => setName(e.target.value)}
                             placeholder="Ex: Dados Pessoais"
-                            className="w-full h-11 px-4 bg-void border border-line rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all font-medium"
+                            className="w-full h-11 px-4 bg-void text-ink border border-line rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all font-medium"
                         />
                     </div>
 

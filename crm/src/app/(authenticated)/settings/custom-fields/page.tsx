@@ -300,7 +300,7 @@ function ChatButtonTogglesSection() {
                                                 value={config.webhook_url}
                                                 onChange={(e) => updateSettings({ [toggle.key]: { ...config, webhook_url: e.target.value } })}
                                                 placeholder="https://exemplo.com/webhook"
-                                                className="w-full border border-line rounded-lg px-3 py-2 text-sm text-ink placeholder-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-colors"
+                                                className="w-full border border-line rounded-lg bg-panel-2 px-3 py-2 text-sm text-ink placeholder-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-colors"
                                                 tabIndex={config.enabled ? 0 : -1}
                                             />
                                             <p className="text-[11px] text-muted mt-1">

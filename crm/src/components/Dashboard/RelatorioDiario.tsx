@@ -237,7 +237,7 @@ function Numero({
       <p className={`text-2xl font-bold tabular-nums leading-tight mt-0.5 ${destaque ? 'text-accent-2' : 'text-ink'}`}>
         {valor}
       </p>
-      {rodape && <p className="text-[10px] text-muted/70 mt-0.5">{rodape}</p>}
+      {rodape && <p className="text-[10px] text-ink mt-0.5">{rodape}</p>}
     </div>
   )
 }
@@ -255,7 +255,7 @@ function Lista({
     <div className="panel rounded-xl px-3.5 py-3">
       <p className="text-[11px] font-bold uppercase tracking-wider text-muted mb-2">{titulo}</p>
       {itens.length === 0 ? (
-        <p className="text-[11px] text-muted/70">{vazio}</p>
+        <p className="text-[11px] text-ink">{vazio}</p>
       ) : (
         <dl className="space-y-1">
           {itens.map((i) => (

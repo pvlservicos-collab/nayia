@@ -207,7 +207,7 @@ export function FieldItem({ field, categories, isEditing, onStartEdit, onCancelE
                             onChange={(e) => setName(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Escape') onCancelEdit() }}
                             placeholder="Ex: CPF, Cargo, Escolaridade"
-                            className="w-full h-11 px-4 bg-void border border-line rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all font-medium"
+                            className="w-full h-11 px-4 bg-void text-ink border border-line rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all font-medium"
                         />
                     </div>
 
@@ -245,7 +245,7 @@ export function FieldItem({ field, categories, isEditing, onStartEdit, onCancelE
                         value={description}
                         onChange={e => setDescription(e.target.value)}
                         placeholder="Exemplo de preenchimento ou ajuda para o usuário"
-                        className="w-full p-4 bg-void border border-line rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all resize-none"
+                        className="w-full p-4 bg-void text-ink border border-line rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all resize-none"
                     />
                 </div>
 
@@ -275,7 +275,7 @@ export function FieldItem({ field, categories, isEditing, onStartEdit, onCancelE
                                         value={opt}
                                         onChange={e => handleUpdateOption(idx, e.target.value)}
                                         placeholder={`Opção ${idx + 1}`}
-                                        className="flex-1 h-9 px-3 bg-panel border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+                                        className="flex-1 h-9 px-3 bg-panel text-ink border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
                                     />
                                     <button
                                         type="button"

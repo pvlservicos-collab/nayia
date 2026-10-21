@@ -584,7 +584,7 @@ function SelectMomento({
       value={valor}
       onChange={(e) => onChange(e.target.value)}
       title={atual?.descricao}
-      className={`${largura} bg-transparent border border-white/[0.08] rounded-md text-[11.5px] px-1.5 py-1 outline-none focus:border-accent/50`}
+      className={`${largura} bg-transparent border border-white/[0.08] rounded-md text-[11.5px] text-ink px-1.5 py-1 outline-none focus:border-accent/50`}
       style={{ color: atual?.cor }}
     >
       {permitirVazio && <option value="">Não definido</option>}
@@ -612,7 +612,7 @@ function SelectResponsavel({
       value={valor}
       onChange={(e) => onChange(e.target.value)}
       title="Só marca de quem é o lead — a mensagem sai sempre do número do CRM"
-      className={`${largura} bg-transparent border border-white/[0.08] rounded-md text-[11.5px] px-1.5 py-1 outline-none focus:border-accent/50`}
+      className={`${largura} bg-transparent border border-white/[0.08] rounded-md text-[11.5px] text-ink px-1.5 py-1 outline-none focus:border-accent/50`}
       style={cor ? { color: cor } : undefined}
     >
       <option value={RESPONSAVEL_PADRAO}>CRM</option>

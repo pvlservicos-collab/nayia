@@ -163,7 +163,7 @@ export default function RolePermissionsPanel({ organizationId, selectedRoleId }:
       <div className="flex justify-between items-start">
         <div>
           <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">CONFIGURAÇÕES &gt; CARGOS</h2>
-          <h3 className="text-2xl font-bold text-gray-900 mb-1">Permissões: <span className="text-blue-600">{roleName}</span></h3>
+          <h3 className="text-2xl font-bold text-ink mb-1">Permissões: <span className="text-blue-600">{roleName}</span></h3>
           <p className="text-sm text-gray-500">Defina o que os usuários com este cargo podem ver e fazer no CRM.</p>
         </div>
         {message && <div className={`px-4 py-2 rounded-lg text-sm font-medium ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>{message.text}</div>}
@@ -213,7 +213,7 @@ export default function RolePermissionsPanel({ organizationId, selectedRoleId }:
         </div>
 
         {!isAdmin && (
-          <div className="border border-red-200 border-dashed bg-red-50/50 rounded-xl p-6 flex items-center justify-between">
+          <div className="border border-red-200 border-dashed bg-red-50 dark:bg-red-50/50 rounded-xl p-6 flex items-center justify-between">
             <div>
               <h4 className="text-sm font-bold text-red-900">Remover Cargo</h4>
               <p className="text-sm text-red-700 mt-1">Este cargo não poderá ser excluído se houver membros vinculados a ele.</p>

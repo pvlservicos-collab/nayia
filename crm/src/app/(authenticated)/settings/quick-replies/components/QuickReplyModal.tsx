@@ -491,7 +491,7 @@ export default function QuickReplyModal({ scope, quickReply, existingCategories,
                     onChange={(e) => updateStepContent(i, e.target.value)}
                     rows={2}
                     placeholder="Texto (opcional)..."
-                    className="w-full px-3 py-2 border border-line rounded-lg text-sm bg-panel focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent resize-none"
+                    className="w-full px-3 py-2 border border-line rounded-lg text-sm text-ink bg-panel focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent resize-none"
                   />
                   <MediaAttachField
                     mediaUrl={step.mediaUrl || null}
@@ -511,7 +511,7 @@ export default function QuickReplyModal({ scope, quickReply, existingCategories,
                         max={MAX_STEP_DELAY_SECONDS}
                         value={step.delaySeconds || 0}
                         onChange={(e) => updateStepDelay(i, Number(e.target.value))}
-                        className="w-16 px-2 py-1 border border-line rounded-md text-sm text-center bg-panel focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+                        className="w-16 px-2 py-1 border border-line rounded-md text-sm text-center text-ink bg-panel focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
                       />
                       <span className="text-xs text-muted">segundos antes do próximo passo</span>
                     </div>

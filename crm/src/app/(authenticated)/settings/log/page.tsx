@@ -250,7 +250,7 @@ export default function LogPage() {
                         <td className="px-3.5 py-2.5 align-top whitespace-nowrap">
                           <span className="text-muted">{e.origem || '—'}</span>
                           {e.status && (
-                            <span className="block text-[10px] text-muted/70">{e.status}</span>
+                            <span className="block text-[10px] text-ink">{e.status}</span>
                           )}
                         </td>
                       </tr>

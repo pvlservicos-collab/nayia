@@ -9,7 +9,7 @@ export default function NotAuthorized() {
             <div className="bg-red-50 text-red-500 p-4 rounded-full mb-6">
                 <ShieldWarning weight="duotone" className="w-12 h-12" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Acesso Negado</h1>
+            <h1 className="text-2xl font-bold text-ink mb-2">Acesso Negado</h1>
             <p className="text-gray-500 max-w-md mb-8">
                 Você não tem autorização para visualizar esse conteúdo. Consulte seu administrador do sistema se acreditar que isso é um erro.
             </p>

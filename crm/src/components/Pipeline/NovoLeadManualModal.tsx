@@ -308,7 +308,7 @@ function Campo({
         {label}
         {obrigatorio && <span className="text-red-400 ml-0.5">*</span>}
       </span>
-      {dica && <span className="block text-[10px] text-muted/70 mb-1">{dica}</span>}
+      {dica && <span className="block text-[10px] text-ink mb-1">{dica}</span>}
       <div className={dica ? '' : 'mt-1'}>{children}</div>
     </label>
   )

@@ -370,7 +370,7 @@ export default function EscolherImoveis({ escolhidos, aoMudar, teto, opcoes, com
           {avisoFaixa && <p className="mt-3 text-xs text-muted">{avisoFaixa}</p>}
 
           {achados && achados.length > 0 && (
-            <div className={`mt-2 overflow-y-auto rounded-lg border border-line ${compacto ? 'max-h-[340px]' : 'max-h-[420px]'}`}>
+            <div className={`mt-2 overflow-y-auto rounded-lg border border-line bg-panel dark:bg-transparent ${compacto ? 'max-h-[340px]' : 'max-h-[420px]'}`}>
               <div className="flex items-center justify-between gap-2 flex-wrap px-3 py-1.5 text-[11px] text-muted border-b border-line bg-panel-2 sticky top-0">
                 <span><b className="text-ink">{escolhidos.length}</b> de {achados.length} marcados (máximo {teto})</span>
                 <span className="flex gap-3">
@@ -411,7 +411,7 @@ export default function EscolherImoveis({ escolhidos, aoMudar, teto, opcoes, com
       {modo === 'um' && escolhidos.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {escolhidos.map((i) => (
-            <span key={i.codigo} className="inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-full text-xs bg-accent/15 text-ink border border-accent/40">
+            <span key={i.codigo} className="inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-full text-xs bg-accent/15 bg-panel-2 dark:bg-transparent text-ink border border-accent/40">
               #{i.codigo} {i.condominio || i.tipo || ''}
               <button type="button" onClick={() => alternar(i)} className="p-0.5 rounded-full hover:bg-white/10" aria-label="tirar">
                 <X size={11} />

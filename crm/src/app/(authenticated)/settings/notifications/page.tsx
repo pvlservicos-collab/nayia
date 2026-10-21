@@ -159,7 +159,7 @@ function ApiNotificationCard({
                             type="text"
                             value={notification.label}
                             onChange={(e) => onNameChange(e.target.value)}
-                            className="block w-full px-3 py-2 text-sm bg-panel border border-line rounded-lg focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                            className="block w-full px-3 py-2 text-sm text-ink bg-panel border border-line rounded-lg focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                         />
                     </div>
 
@@ -173,7 +173,7 @@ function ApiNotificationCard({
                             value={notification.description || ''}
                             onChange={(e) => onDescriptionChange(e.target.value)}
                             placeholder="Ex: Um novo negócio foi fechado na sua equipe"
-                            className="block w-full px-3 py-2 text-sm bg-panel border border-line rounded-lg focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                            className="block w-full px-3 py-2 text-sm text-ink bg-panel border border-line rounded-lg focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                         />
                     </div>
 

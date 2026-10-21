@@ -140,7 +140,7 @@ export default function CorretoresPage() {
         <div className="flex items-center gap-1 rounded-lg border border-line bg-panel p-0.5">
           {PERIODOS.map(([d, r]) => (
             <button key={d} type="button" onClick={() => setDias(d)}
-                    className={`px-3 py-1.5 rounded-md text-xs font-semibold ${dias === d ? 'bg-accent/15 text-accent' : 'text-ink-2 hover:text-ink'}`}>
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold ${dias === d ? 'bg-accent/15 text-accent' : 'text-ink'}`}>
               {r}
             </button>
           ))}
@@ -162,7 +162,7 @@ export default function CorretoresPage() {
       <div className="relative">
         <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={18} />
         <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome, CRECI ou número…"
-               className="block w-full pl-10 pr-3 py-2.5 border border-line rounded-xl bg-panel text-sm placeholder-muted focus:outline-none focus:ring-2 focus:ring-accent" />
+               className="block w-full pl-10 pr-3 py-2.5 border border-line rounded-xl bg-panel text-sm text-ink placeholder-muted focus:outline-none focus:ring-2 focus:ring-accent" />
       </div>
 
       {erro ? (
@@ -227,11 +227,11 @@ function FragmentoDaLinha({ c, aberto, aoAbrir }: { c: Corretor; aberto: boolean
         </td>
         <td className="px-3 py-2.5 text-right tabular-nums text-ink">{c.visitasRealizadas}</td>
         <td className="px-3 py-2.5 text-right">
-          <button type="button" onClick={aoAbrir} className="inline-flex items-center gap-1 text-ink-2 hover:text-ink" aria-expanded={aberto}>
+          <button type="button" onClick={aoAbrir} className="inline-flex items-center gap-1 text-ink" aria-expanded={aberto}>
             <FolderSimple size={16} /> {c.documentos} {aberto ? <CaretUp size={11} /> : <CaretDown size={11} />}
           </button>
         </td>
-        <td className="px-3 py-2.5 text-right text-ink-2 whitespace-nowrap">{quando(c.ultimaMensagem)}</td>
+        <td className="px-3 py-2.5 text-right text-ink whitespace-nowrap">{quando(c.ultimaMensagem)}</td>
       </tr>
       {aberto && (
         <tr className="border-b border-line/60 bg-graphite-6/10">

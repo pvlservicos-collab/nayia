@@ -238,7 +238,7 @@ export default function NotificationsPage() {
                             placeholder="Buscar nas notificações..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2.5 text-sm bg-void border border-line rounded-xl focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all placeholder:text-muted"
+                            className="w-full pl-9 pr-4 py-2.5 text-sm text-ink bg-void border border-line rounded-xl focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all placeholder:text-muted"
                         />
                     </div>
                 </div>

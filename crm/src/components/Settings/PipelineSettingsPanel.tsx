@@ -356,7 +356,7 @@ export default function PipelineSettingsPanel() {
         <div className="space-y-10">
             {/* Header */}
             <div>
-                <h1 className="text-2xl font-bold text-gray-900 pb-1">Configurações do Pipeline</h1>
+                <h1 className="text-2xl font-bold text-ink pb-1">Configurações do Pipeline</h1>
                 <p className="text-sm text-gray-500">Gerencie as etapas e o fluxo do seu processo comercial.</p>
             </div>
 
@@ -490,7 +490,7 @@ export default function PipelineSettingsPanel() {
                     {/* Stages List */}
                     <div className="space-y-3">
                         <div className="flex justify-between items-end mb-4">
-                            <h2 className="text-base font-bold text-gray-900">Etapas do Funil</h2>
+                            <h2 className="text-base font-bold text-ink">Etapas do Funil</h2>
                             <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Arraste para reordenar</span>
                         </div>
 

@@ -102,7 +102,7 @@ export default function VisitantesPage() {
     setTimeout(() => setRecado(''), 4000)
   }
 
-  const chip = (on: boolean) => `px-3 py-1.5 rounded-full border text-sm ${on ? 'bg-accent/15 border-accent/40 text-accent font-semibold' : 'border-line text-ink-2'}`
+  const chip = (on: boolean) => `px-3 py-1.5 rounded-full border text-sm ${on ? 'bg-accent/15 border-accent/40 text-accent font-semibold' : 'border-line text-ink'}`
   const campo = 'px-3 py-1.5 border border-line rounded-lg text-sm text-ink bg-transparent'
 
   return (
