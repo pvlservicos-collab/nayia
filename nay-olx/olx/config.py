@@ -6,6 +6,9 @@ nay_responde...), e a tela Chat OLX › Anúncios do CRM muda. O serviço relê 
 import os
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
+# 21/10: o crmdb mora no mesmo Postgres; a Nay lê de lá o que a equipe mandou pelo CRM (WhatsApp Leads). Sem a variável,
+# o mesmo endereço com o banco trocado
+CRM_DATABASE_URL = os.environ.get("CRM_DATABASE_URL", "") or (DATABASE_URL.rsplit("/", 1)[0] + "/crmdb" if DATABASE_URL else "")
 # a API da OLX (developers.olx.com.br)
 OLX_APPS = os.environ.get("OLX_APPS", "https://apps.olx.com.br").rstrip("/")
 ESPERA_S = int(os.environ.get("OLX_ESPERA_S", "40"))

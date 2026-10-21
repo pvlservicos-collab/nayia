@@ -81,10 +81,12 @@ def hora(q: datetime) -> str:
     return f"{q:%H}h{q:%M}"
 
 
-def texto_confirmacao(codigo: int, q: datetime) -> str:
-    """O modelo da Nay de Parceria (nai_texto_confirmar_visita), igual."""
+def texto_confirmacao(codigo: int, q: datetime, onde: str = "") -> str:
+    """O modelo da Nay de Parceria (nai_texto_confirmar_visita), igual: "🏢 Imóvel: condomínio, bairro" acima do código
+    (Pedro, 21/10: "no card de imóvel está faltando dizer qual o condomínio da visita")."""
     return ("🏠 *Só para confirmar a solicitação de visita*\n\nVisita ao imóvel:\n\n"
-            f"🔑 Código do imóvel: #{codigo}\n📅 Data: {dia(q)}\n🕐 Horário: {hora(q)}\n\n"
+            + (f"🏢 Imóvel: {onde}\n" if onde else "")
+            + f"🔑 Código do imóvel: #{codigo}\n📅 Data: {dia(q)}\n🕐 Horário: {hora(q)}\n\n"
             "Por favor, confirme se os dados estão corretos para que eu possa entrar em contato com o proprietário.")
 
 
@@ -243,7 +245,7 @@ def pedir_confirmacao(conn, lead: dict, codigo: int | None, data: str | None, ho
              (lead["id"],))
     vid = banco.um(conn, "INSERT INTO privado.olx_visita (lead, codigo, quando) VALUES (%s, %s, %s) RETURNING id",
                    (lead["id"], int(codigo), q))
-    w.mandar_texto(conn, lead, texto_confirmacao(int(codigo), q))
+    w.mandar_texto(conn, lead, texto_confirmacao(int(codigo), q, _onde(conn, int(codigo))))
     w._marcar(conn, lead["id"], etapa="visita", visita={"id": vid, "codigo": int(codigo), "quando": q.isoformat()})
     log.info("lead %s: confirmação da visita %s mandada", lead["id"], vid)
     return True

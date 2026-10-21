@@ -32,6 +32,12 @@ class Confirmacao(unittest.TestCase):
                             "Por favor, confirme se os dados estão corretos para que eu possa entrar em contato com o proprietário.")
 
 
+    def test_com_o_condominio(self):
+        # 21/10 (Pedro): o condomínio e o bairro em cima do código
+        t = v.texto_confirmacao(3227, datetime(2026, 10, 22, 11, 0, tzinfo=MANAUS), "Residencial Piazza Dell'Acqua, Ponta Negra")
+        self.assertIn("🏢 Imóvel: Residencial Piazza Dell'Acqua, Ponta Negra\n🔑 Código do imóvel: #3227", t)
+
+
 class Resposta(unittest.TestCase):
     def test_sim_nao_e_o_resto(self):
         for t in ("Sim", "pode sim", "Consigo", "ok, confirmado", "posso ir", "Beleza"):

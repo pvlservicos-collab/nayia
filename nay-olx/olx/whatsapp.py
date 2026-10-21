@@ -31,7 +31,10 @@ import unicodedata
 from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 
-from olx import banco, grupo, modelo, nay, visita
+import psycopg2
+import psycopg2.extras
+
+from olx import banco, config, grupo, modelo, nay, visita
 
 log = logging.getLogger("olx.whatsapp")
 try:
@@ -135,6 +138,16 @@ pela confusão e siga).
 === VENDA OU LOCAÇÃO ===
 O anúncio diz qual é (no orgânico, ela diz). Na locação o campo "incluso" da ficha é o que está INCLUSO NO ALUGUEL (ex.: água, gás, condomínio).
 Na locação não fale de financiamento; na venda não fale de caução nem fiador.
+
+=== A EQUIPE NA CONVERSA (as falas EQUIPE) ===
+(Pedro, 21/10: "toda vez que eu mandar mensagem para o lead ... ela tem que entender o contexto da conversa para poder
+voltar a atender".) EQUIPE é a nossa equipe (o Tel) escrevendo por este mesmo número: para ela, foi a Imob Easy. O que a
+equipe disse VALE, e você continua de onde ela parou:
+- A equipe confirmou a visita ("confirmado", "confirmada a visita amanhã às 11h"): a visita ESTÁ confirmada. Não mande
+  confirmação, não diga que vai confirmar com corretor ou proprietário, não marque "visita" nem "confirmou_visita".
+- A equipe fez uma pergunta e ela respondeu: a resposta é para ESSA pergunta (ex.: a equipe perguntou "até que valor?" e
+  ela disse "1.000.000": é o teto da busca, não a escolha de um imóvel). Siga o roteiro a partir daí.
+- Não repita o que a equipe já disse ou perguntou, e não se apresente de novo.
 
 === QUANDO É COM A EQUIPE (acao "equipe") ===
 Documentação, contrato, reclamação, pedido para falar com uma pessoa, corretor oferecendo parceria. Diga com
@@ -332,7 +345,15 @@ def _lead(conn, lid: int) -> dict:
 
 
 def _gente_escreveu(conn, lead: dict, desde) -> object:
-    """A última mensagem de GENTE para esta pessoa por este número (texto que não foi a Nay), depois de `desde`."""
+    """A última mensagem de GENTE para esta pessoa por este número (texto que não foi a Nay), depois de `desde`: a do
+    celular (captacao_mensagens) ou, desde 21/10, a do CRM (crmdb)."""
+    daqui = _gente_escreveu_daqui(conn, lead, desde or banco.um(conn, "SELECT now() - interval '30 days'"))
+    crm = [e["criada_em"] for e in da_equipe_no_crm(_so8(lead.get("telefone")), 1)
+           if desde is None or e["criada_em"] > desde]
+    return max([x for x in [daqui, *crm] if x is not None], default=None)
+
+
+def _gente_escreveu_daqui(conn, lead: dict, desde) -> object:
     return banco.um(conn, """
         SELECT max(m.criada_em) FROM captacao_mensagens m
          WHERE m.direcao = 'enviada' AND m.criada_em > %s AND coalesce(btrim(m.texto), '') <> ''
@@ -362,7 +383,58 @@ def _marcar(conn, lid: int, **campos) -> None:
              (*vals, lid))
 
 
+_CRM = [None]
+
+
+def da_equipe_no_crm(tel8: str, limite: int = 20) -> list[dict]:
+    """21/10: o que a equipe mandou pelo CRM (WhatsApp Leads, a linha Z-API da captação) para este número. Fica só no crmdb
+    (lead_activities), não em captacao_mensagens: sem isto a Nay não via o Tel ("confirmado a nossa visita amanhã") e
+    respondia por cima. Só leitura; falhou = [] e a Nay segue como antes."""
+    if not tel8 or not config.CRM_DATABASE_URL:
+        return []
+    try:
+        if _CRM[0] is None or _CRM[0].closed:
+            _CRM[0] = psycopg2.connect(config.CRM_DATABASE_URL, connect_timeout=5, application_name="nay-olx-crm",
+                                       options="-c statement_timeout=15000 -c default_transaction_read_only=on")
+            _CRM[0].autocommit = True
+        with _CRM[0].cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT a.created_at AS criada_em, btrim(a.content) AS texto, p.full_name AS quem
+                  FROM lead_activities a
+                  JOIN leads l ON l.id = a.lead_id
+                  JOIN integrations i ON i.id = l.integration_id
+                  LEFT JOIN organization_members m ON m.id = a.actor_member_id
+                  LEFT JOIN profiles p ON p.id = m.user_id
+                 WHERE i.type = 'whatsapp_zapi_captacao' AND a.type = 'whatsapp'
+                   AND right(regexp_replace(coalesce(l.phone, ''), '[^0-9]', '', 'g'), 8) = %s
+                   AND a.metadata->>'direction' = 'outbound' AND a.metadata->>'source' = 'human'
+                   AND coalesce(btrim(a.content), '') <> '' AND a.created_at > now() - interval '30 days'
+                 ORDER BY a.created_at DESC LIMIT %s""", (tel8, limite))
+            return [dict(r) for r in cur.fetchall()]
+    except Exception:  # noqa: BLE001
+        log.exception("não li a equipe no crmdb")
+        try:
+            if _CRM[0] is not None:
+                _CRM[0].close()
+        except Exception:  # noqa: BLE001
+            pass
+        _CRM[0] = None
+        return []
+
+
 def _conversa(conn, lead: dict) -> list[dict]:
+    """As mensagens daqui (captacao_mensagens) e, junto, as da equipe pelo CRM (21/10), na ordem do relógio."""
+    daqui = _conversa_daqui(conn, lead)
+    textos = {_normal(m.get("texto") or "") for m in daqui if m.get("direcao") == "enviada"}
+    equipe = [{"id": 0, "direcao": "enviada", "origem": "equipe_crm", "texto": e["texto"], "criada_em": e["criada_em"],
+               "nossa": False, "quem": e.get("quem")}
+              for e in da_equipe_no_crm(_so8(lead.get("telefone")))
+              if _normal(e["texto"]) not in textos]
+    juntas = sorted(daqui + equipe, key=lambda m: m["criada_em"])
+    return juntas[-40:]
+
+
+def _conversa_daqui(conn, lead: dict) -> list[dict]:
     return list(reversed(banco.linhas(conn, """
         SELECT m.id, m.direcao, m.origem, m.texto, m.criada_em,
                EXISTS (SELECT 1 FROM privado.olx_cliente_enviada e WHERE e.message_id = m.message_id) AS nossa
@@ -564,7 +636,7 @@ def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
             if texto:
                 linhas.append(f"NAY: {texto}")
         elif texto:
-            linhas.append(f"EQUIPE: {texto}")
+            linhas.append(f"EQUIPE{' (' + m['quem'] + ')' if m.get('quem') else ''}: {texto}")
     linhas += ["", "Responda agora, só com o JSON."]
     return "\n".join(linhas)
 
@@ -806,11 +878,20 @@ def responder(conn, cfg: dict) -> int:
 
 
 def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
-    # gente da equipe escreveu para ela por este número: a Nay cala (e não relê o que ficou para trás)
-    gente = _gente_escreveu(conn, lead, lead.get("humano_em") or lead.get("assumido_em"))
-    if gente:
-        _marcar(conn, lead["id"], humano_em=gente, ultima_lida=ate, parada_motivo="a equipe respondeu")
-        return False
+    # 21/10 (Pedro: "toda vez que eu mandar mensagem para o lead ... ela tem que entender o contexto da conversa para poder
+    # voltar a atender"): a equipe escreveu por este número (celular ou CRM) -> a Nay espera `gap_equipe_min` (30) desde a
+    # ÚLTIMA mensagem da equipe, sem marcar como lida, e depois responde lendo o que a equipe disse (as falas EQUIPE).
+    # Antes ela calava para sempre ("a equipe respondeu"); essa marca antiga deixa de valer.
+    if lead.get("humano_em") and lead.get("parada_motivo") == "a equipe respondeu":
+        _marcar(conn, lead["id"], humano_em=None, parada_motivo=None)
+        lead["humano_em"] = None
+    gente = _gente_escreveu(conn, lead, None)
+    try:
+        gap = max(0, int(cfg.get("gap_equipe_min") or 30))
+    except (TypeError, ValueError):
+        gap = 30
+    if gente and gente > banco.um(conn, "SELECT now() - make_interval(mins => %s)", (gap,)):
+        return False                      # a equipe está na conversa: espera, e a mensagem dela continua não lida
     if lead.get("humano_em"):
         # a equipe assumiu (Pedro, 16/10, na OLX: "a nay não deve mais responder"): ela não volta sozinha
         _marcar(conn, lead["id"], ultima_lida=ate)
