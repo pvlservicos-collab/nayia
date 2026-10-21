@@ -20,6 +20,7 @@ sys.path.insert(0, BASE)
 import agente  # noqa: E402
 import projetos  # noqa: E402
 import fila_nay  # noqa: E402
+import rotinas  # noqa: E402
 
 TOKEN = os.environ.get("AGENTES_TOKEN", "")
 ENDERECO = os.environ.get("PAINEL_ENDERECO", "100.113.222.11")
@@ -264,6 +265,8 @@ ROTAS = [
     # a fila da revisão da Nay (fila_nay.py): toda conversa com imóvel enviado, de 20 em 20 min; às 22h o relatório
     ("GET", r"/api/fila_nay", lambda p, q: (200, fila_nay.estado())),
     ("POST", r"/api/fila_nay/agora", fila_agora),
+    # as rotinas dos outros agentes (rotinas.py): visitas novas do CRM, métricas às 23h, estratégia às 7h
+    ("GET", r"/api/rotinas", lambda p, q: (200, rotinas.estado())),
 ]
 
 
@@ -273,4 +276,5 @@ if __name__ == "__main__":
     projetos.sem_resposta()
     threading.Thread(target=agendador, daemon=True).start()
     threading.Thread(target=fila_nay.laco, daemon=True).start()
+    threading.Thread(target=rotinas.laco, daemon=True).start()
     ThreadingHTTPServer((ENDERECO, PORTA), Pedido).serve_forever()

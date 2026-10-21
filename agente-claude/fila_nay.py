@@ -183,12 +183,18 @@ def _conversa_do_quadro():
     É lá que o Pedro combinou com o agente como tratar os lotes (20/10, 22:38: "se vier as que você já leu só ignora
     ... as erradas ... responder o lead da forma certa e depois alterar a nay"): uma conversa nova não saberia disso.
     Sem nenhuma, a do quadro."""
+    return conversa_da_equipe(PROJETO)
+
+
+def conversa_da_equipe(pid):
+    """A conversa mais recente do projeto em que alguém da equipe escreveu (o que os envios automáticos mandam não
+    conta); sem nenhuma, a do quadro. Vale para a fila da Nay e para as rotinas dos outros agentes (rotinas.py)."""
     con = banco()
     r = con.execute("SELECT m.conversa_id FROM mensagens m JOIN conversas c ON c.id = m.conversa_id "
-                    "WHERE c.projeto = ? AND m.papel = 'voce' AND coalesce(m.origem, '') NOT IN ('fila', 'agenda') "
-                    "ORDER BY m.id DESC LIMIT 1", (PROJETO,)).fetchone()
+                    "WHERE c.projeto = ? AND m.papel = 'voce' AND coalesce(m.origem, '') NOT IN ('fila', 'agenda', 'rotina') "
+                    "ORDER BY m.id DESC LIMIT 1", (pid,)).fetchone()
     con.close()
-    return r["conversa_id"] if r else projetos.conversa_atual(PROJETO)
+    return r["conversa_id"] if r else projetos.conversa_atual(pid)
 
 
 def enviar_fila():

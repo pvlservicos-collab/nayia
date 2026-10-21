@@ -15,7 +15,7 @@ VPS2=nay-srv1877774
 VPS1=nay-srv1894338
 VPS2_TS=100.113.222.11
 VPS1_TS=100.86.114.74
-ARQS="agente.py painel.py painel.html projetos.py importar_nay.py fila_nay.py mcp_agente.py mcp_leitura.py regras.exemplo.json claude-agente agente-claude-painel.service"
+ARQS="agente.py painel.py painel.html projetos.py importar_nay.py fila_nay.py rotinas.py mcp_agente.py mcp_leitura.py regras.exemplo.json claude-agente agente-claude-painel.service"
 # os projetos (20/10): a pasta vai junto, mas um projeto que já existe no servidor NÃO é sobrescrito (o contexto é
 # editado pela tela e os dados nascem lá); só o como-ler-os-dados.md, que é daqui, é atualizado.
 PROJS="projetos/*/projeto.json projetos/*/contexto.md projetos/*/como-ler-os-dados.md"
@@ -38,7 +38,7 @@ tar -c $ARQS $PROJS | ssh $VPS2 'set -e
     echo "VPS2: usuário agclaude removido"
   fi
   install -d -m 750 $D; chown -R root:root $D
-  install -m 750 agente.py painel.py projetos.py importar_nay.py fila_nay.py mcp_agente.py mcp_leitura.py $D/
+  install -m 750 agente.py painel.py projetos.py importar_nay.py fila_nay.py rotinas.py mcp_agente.py mcp_leitura.py $D/
   for p in projetos/*/; do
     p=${p%/}; alvo=$D/$p
     if [ ! -f $alvo/projeto.json ]; then
