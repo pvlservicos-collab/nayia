@@ -76,8 +76,12 @@ main.largo { max-width: 1680px; padding: 10px; gap: 10px; }
 .caixa { padding: 0; display: flex; flex-direction: column; height: calc((100vh - 96px) / 2); min-height: 330px; overflow: hidden; }
 .caixa > .msgs { flex: 1; min-height: 0; }
 .caixa.ampliada { position: fixed; inset: 64px 12px 12px; height: auto; z-index: 5; box-shadow: 0 10px 40px rgba(0,0,0,.35); }
-.caixa-topo { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--borda); }
-.caixa-topo b { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.caixa { border-top: 3px solid var(--cor, var(--borda)); }
+.caixa-topo { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--borda); }
+.caixa-topo b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.robo { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--cor, var(--texto-3)); color: #fff; }
+.robo svg { width: 18px; height: 18px; }
+.caixa .compor button.primario { background: var(--cor, var(--azul)); border-color: var(--cor, var(--azul)); }
 .caixa-topo select { width: auto; max-width: 42%; font-size: 12px; padding: 4px 6px; }
 .caixa-topo button { padding: 3px 8px; font-size: 13px; }
 .ponto { width: 8px; height: 8px; border-radius: 50%; background: var(--borda); flex: none; }
@@ -468,10 +472,16 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     }).catch(function (e) { aviso(e.message); });
   }
 
+  /* o robô "bot" da biblioteca Lucide (lucide.dev, licença ISC), desenhado aqui para não depender de CDN */
+  var ROBO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>';
+
   function criarCaixa(p) {
     var c = { pid: p.id, cid: null, ultimoN: -1, espera: null, detalhe: null };
     caixas[p.id] = c;
     c.nome = el("b", { texto: p.nome, title: p.descricao });
+    c.robo = el("span", { class: "robo" });
+    c.robo.innerHTML = ROBO;
     c.ponto = el("span", { class: "ponto", title: "respondendo" });
     c.sel = el("select", { title: "Conversa", onchange: function () {
       if (this.value === "nova") {
@@ -479,7 +489,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
           .catch(function (e) { aviso(e.message); });
       } else { c.cid = parseInt(this.value, 10); guardar(p.id, c.cid); c.ultimoN = -1; carregarConversa(c); }
     } });
-    c.raiz = el("section", { class: "caixa" });
+    c.raiz = el("section", { class: "caixa", style: p.cor ? "--cor:" + p.cor : null });
     c.barra = el("div", { class: "barra-nay", hidden: !p.importador });
     c.msgs = el("div", { class: "msgs" });
     c.texto = el("textarea", { rows: 1, placeholder: "Pergunte ao " + p.nome + "… (Enter envia)" });
@@ -490,7 +500,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     var ampliar = el("button", { type: "button", title: "Ampliar / voltar", onclick: function () {
       c.raiz.classList.toggle("ampliada"); ampliar.textContent = c.raiz.classList.contains("ampliada") ? "✕" : "⤢";
     } }, ["⤢"]);
-    var topo = el("div", { class: "caixa-topo" }, [c.ponto, c.nome, c.sel, ampliar,
+    var topo = el("div", { class: "caixa-topo" }, [c.robo, c.nome, c.ponto, c.sel, ampliar,
       el("button", { type: "button", title: "Contexto, horário e anexos", onclick: function () { abrirAjustes(c); } }, ["⚙"])]);
     [topo, c.barra, c.msgs, form].forEach(function (x) { c.raiz.appendChild(x); });
     return c.raiz;

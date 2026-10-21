@@ -3,5 +3,6 @@
   "descricao": "Revisão das conversas da Nay Mendes com os corretores parceiros: escaladas, visitas, busca e valores.",
   "ordem": 6,
   "modelo": "sonnet",
-  "importador": "nay"
+  "importador": "nay",
+  "cor": "#d55181"
 }

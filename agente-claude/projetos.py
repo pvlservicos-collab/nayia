@@ -97,7 +97,7 @@ def listar():
         saida.append({"id": pid, "nome": c.get("nome", pid), "descricao": c.get("descricao", ""),
                       "modelo": c["modelo"], "ordem": c.get("ordem", 99), "importador": c.get("importador"),
                       "conversas": r["n"], "ultima": r["ultima"], "anexos": len(anexos(pid)),
-                      "agenda": c.get("agenda"), "pendente": any(k in ids for k in PENDENTES)})
+                      "agenda": c.get("agenda"), "cor": c.get("cor"), "pendente": any(k in ids for k in PENDENTES)})
     con.close()
     return sorted(saida, key=lambda p: (p["ordem"], p["nome"]))
 
@@ -148,6 +148,12 @@ def salvar(pid, dados, novo=False):
                 c[k] = v[:400]
             else:
                 c.pop(k, None)
+    if "cor" in dados:  # a cor do quadro (Pedro/Tel, 20/10: "cada um com uma cor que faça sentido")
+        if dados["cor"] and not re.fullmatch(r"#[0-9a-fA-F]{6}", str(dados["cor"])):
+            raise ValueError("cor no formato #rrggbb")
+        c.pop("cor", None)
+        if dados["cor"]:
+            c["cor"] = dados["cor"]
     if "agenda" in dados:
         c.pop("agenda", None)
         ag = agenda_valida(dados["agenda"])
