@@ -113,12 +113,15 @@ BEGIN
   END IF;
 
   v_aluga := CASE WHEN v_tipo = 'atualizar' THEN true ELSE coalesce(d->>'negocio', '') !~* 'vend' OR coalesce(d->>'negocio', '') ~* 'amb|alug|loca' END;
+  -- 460 (Pedro, 21/10: "ele disse que é prédio e ela perguntou o valor do condomínio e IPTU"): prédio inteiro, galpão,
+  -- terreno, lote, chácara e sítio não têm condomínio, a não ser que ele diga o nome de um ("sala" no tipo dele não conta)
   v_cond  := coalesce(NULLIF(btrim(d->>'condominio'), ''), i.condominio_nome) IS NOT NULL
-             OR coalesce(d->>'tipo', i.tipo, '') ~* 'apart|condom|flat|cobertura|sala';
+             OR (coalesce(d->>'tipo', i.tipo, '') ~* 'apart|condom|flat|cobertura|sala'
+                 AND coalesce(d->>'tipo', i.tipo, '') !~* '(pr[eé]dio|galp|terreno|lote|ch[aá]cara|s[ií]tio)');
   -- 455 (Pedro, 21/10: a Nay perguntou "quantos quartos" de um terreno): o tipo dito, ou o começo da descrição dele
-  v_sem_comodos := coalesce(d->>'tipo', i.tipo, '') ~* '(terreno|lote|galp|sala|loja|comercial|ch[aá]cara|s[ií]tio)'
+  v_sem_comodos := coalesce(d->>'tipo', i.tipo, '') ~* '(terreno|lote|galp|sala|loja|comercial|pr[eé]dio|ch[aá]cara|s[ií]tio)'
                    OR (coalesce(d->>'tipo', i.tipo) IS NULL
-                       AND coalesce(d->>'detalhes', '') ~* '^\W*(um |uma )?(terreno|lote|galp[aã]o|sala comercial|loja|ponto comercial|ch[aá]cara|s[ií]tio)');
+                       AND coalesce(d->>'detalhes', '') ~* '^\W*(um |uma )?(terreno|lote|galp[aã]o|sala comercial|loja|ponto comercial|pr[eé]dio|ch[aá]cara|s[ií]tio)');
 
   -- o que ainda falta, NA ORDEM do roteiro (grupo respondido não volta)
   v_falta := ARRAY[]::text[];
@@ -157,7 +160,7 @@ BEGIN
 
   v_prox := v_falta[1];
   v_frase := CASE v_prox
-    WHEN 'local'   THEN 'É casa ou apartamento? E em qual bairro ou condomínio fica?'
+    WHEN 'local'   THEN 'Que tipo de imóvel é (casa, apartamento, sala, prédio, terreno...) e em qual bairro ou condomínio fica?'
     WHEN 'negocio' THEN v_pron_m || ' quer alugar ou vender esse imóvel?'
     WHEN 'comodos' THEN 'Quantos quartos (e quantas suítes), banheiros e vagas de garagem ele tem?'
     WHEN 'area'    THEN 'E a área, ' || v_pron || ' sabe mais ou menos quantos metros quadrados?'

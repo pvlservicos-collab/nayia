@@ -1,4 +1,4 @@
-# captacao_imoveis_extra  (tabela, ~0 linhas)
+# captacao_imoveis_extra  (tabela, ~51 linhas)
 
 ## colunas
 id  bigint  NOT NULL

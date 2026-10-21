@@ -1,4 +1,4 @@
-# pergunta_fila  (tabela, ~184 linhas)
+# pergunta_fila  (tabela, ~190 linhas)
 391: a fila de perguntas que a Nay não sabe, feitas ao Tel no PV uma por vez (Pergunta k/N). linha: parceria | captacao
 
 ## colunas
