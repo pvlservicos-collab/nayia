@@ -1,4 +1,4 @@
-# privado.grupo_pedido_junto  (tabela, ~2183 linhas)
+# privado.grupo_pedido_junto  (tabela, ~2458 linhas)
 380: o card de cada pedido dos grupos. card = o primeiro pedido do card. Preenchida por privado.grupo_pedido_juntar_novos().
 
 ## colunas

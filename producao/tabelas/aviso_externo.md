@@ -1,4 +1,4 @@
-# aviso_externo  (tabela, ~0 linhas)
+# aviso_externo  (tabela, ~51 linhas)
 251: avisos que um robô de fora (Grok) mandou ao Tel, aceitos ou recusados
 
 ## colunas

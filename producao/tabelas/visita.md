@@ -1,4 +1,4 @@
-# visita  (tabela, ~2 linhas)
+# visita  (tabela, ~10 linhas)
 
 ## colunas
 id  integer  NOT NULL  padrão nextval('visita_id_seq'::regclass)

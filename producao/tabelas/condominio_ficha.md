@@ -64,4 +64,4 @@ nay_site_leitura: SELECT
 condominio_aplicar_google, site_condominio_guardar, site_condominio_salvar
 
 ## funções que citam
-captacao_olx_anuncio, condominio_aplicar_google, condominio_taxa_aos_imoveis, crm_captacao_cadastro_opcoes, imoveis_taxa_do_condominio, nai_cadastro_importar, nai_condominio_do_imovel, olx_anuncio_montar, site_condominio_guardar, site_condominio_salvar, site_imovel_publico
+captacao_olx_anuncio, cnm_imovel_montar, condominio_aplicar_google, condominio_taxa_aos_imoveis, crm_captacao_cadastro_opcoes, imoveis_taxa_do_condominio, nai_cadastro_importar, nai_condominio_do_imovel, olx_anuncio_montar, site_condominio_guardar, site_condominio_salvar, site_imovel_publico

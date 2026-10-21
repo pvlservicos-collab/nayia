@@ -1,4 +1,4 @@
-# privado.visita_resultado  (tabela, ~0 linhas)
+# privado.visita_resultado  (tabela, ~56 linhas)
 
 ## colunas
 origem  text  NOT NULL

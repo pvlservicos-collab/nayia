@@ -59,6 +59,11 @@ captacao_status_da_mensagem
 captacao_teto_hoje	captacao_disparo_liberado, captacao_relatorio_da_vez, crm_captacao_placar, crm_captacao_relatorio
 captacao_valor_venda_num	captacao_aplicar_ao_cadastro
 captacao_vigiar	
+cnm_areas	cnm_imovel_montar
+cnm_imoveis	
+cnm_imovel_montar	cnm_imoveis
+cnm_lead_receber	
+cnm_norm	cnm_areas
 condominio_aplicar_google	
 condominio_google_bate	condominio_google_marcar
 condominio_google_chave	condominio_aplicar_google, condominio_google_bate, condominio_google_marcar
@@ -557,7 +562,7 @@ nay_codigos_da_saida	nay_imovel_da_citacao, nay_opcoes_da_citacao
 nay_comando	nay_responder_conversando
 nay_como_funciona_visita	
 nay_cond	
-nay_condominio_de_verdade	nai_condominio_do_imovel, nai_tipo_preciso, nay_categoria_do_imovel, nay_codigos_da_lista, nay_imoveis_da_linha, nay_linha_da_lista, nay_lista_de_imoveis, olx_corpo_do_anuncio
+nay_condominio_de_verdade	cnm_imovel_montar, nai_condominio_do_imovel, nai_tipo_preciso, nay_categoria_do_imovel, nay_codigos_da_lista, nay_imoveis_da_linha, nay_linha_da_lista, nay_lista_de_imoveis, olx_corpo_do_anuncio
 nay_condominios_candidatos	nay_disponibilidade_no_condominio, nay_imoveis_da_linha
 nay_congelar_lembretes	
 nay_custo_cheio	nay_lista_de_imoveis
@@ -638,7 +643,7 @@ nay_saida_rotulo	nay_saida_responder, nay_saidas_perguntar
 nay_saida_rotulo_do_imovel	crm_mensagem_citada
 nay_saidas_a_avisar	
 nay_saidas_perguntar	nai_agenda_tick
-nay_sem_acento	cadastro_whats_condominio, captacao_olx_guardar, captacao_olx_perfil, captacao_olx_proxima, condominio_nome_nucleo, crm_anuncio_decidir, crm_anuncio_familia, crm_anuncio_mesma_unidade, crm_anuncio_nome_palavras, crm_condominio_pelo_texto, crm_imovel_candidatos, crm_olx_chats_anuncios, nai_cadastro_importar, nai_condominio_da_pergunta, nai_imovel_da_conversa, nay_tratamento_por_nome, olx_anuncio_montar, olx_corpo_do_anuncio, olx_tem, site_ficha_preparada, site_imoveis_para_enviar, site_imovel_publico
+nay_sem_acento	cadastro_whats_condominio, captacao_olx_guardar, captacao_olx_perfil, captacao_olx_proxima, cnm_imovel_montar, cnm_norm, condominio_nome_nucleo, crm_anuncio_decidir, crm_anuncio_familia, crm_anuncio_mesma_unidade, crm_anuncio_nome_palavras, crm_condominio_pelo_texto, crm_imovel_candidatos, crm_olx_chats_anuncios, nai_cadastro_importar, nai_condominio_da_pergunta, nai_imovel_da_conversa, nay_tratamento_por_nome, olx_anuncio_montar, olx_corpo_do_anuncio, olx_tem, site_ficha_preparada, site_imoveis_para_enviar, site_imovel_publico
 nay_sincronizar_nome	
 nay_tem_numero_de_unidade	nay_escalar, nay_responder_pendencia
 nay_tirar_valores	nay_codigos_citados
@@ -659,7 +664,7 @@ olx_anuncios_plano
 olx_cfg	crm_olx_config_gravar, olx_anuncio_montar, olx_anuncios_plano, olx_corpo_do_anuncio, olx_nay_fila
 olx_cfg_gravar	crm_olx_config_gravar, olx_permissao_gravar
 olx_cliente_buscar	
-olx_corpo_do_anuncio	olx_anuncio_montar
+olx_corpo_do_anuncio	cnm_imovel_montar, olx_anuncio_montar
 olx_fone_bonito	olx_corpo_do_anuncio
 olx_imovel_vai_ao_cliente	
 olx_nay_contexto	

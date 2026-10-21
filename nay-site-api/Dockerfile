@@ -29,6 +29,8 @@ COPY blog_templates/ ./blog_templates/
 COPY scrap_api.py .
 # WhatsApp > Mensagens (410, 18/10): etiquetas dos modelos da Meta
 COPY whats_api.py .
+# Chaves na Mão (458, 21/10): o XML dos imóveis e os leads do portal
+COPY chavesnamao_api.py .
 
 RUN useradd -m site-api
 USER site-api
