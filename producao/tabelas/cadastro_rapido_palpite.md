@@ -1,4 +1,4 @@
-# cadastro_rapido_palpite  (tabela, ~110 linhas)
+# cadastro_rapido_palpite  (tabela, ~135 linhas)
 332: o palpite da IA para cada item da fila do Cadastro rápido (nay-captacao/captacao/palpite.py). Só triagem: a tela ordena e filtra por ele.
 
 ## colunas

@@ -19,6 +19,7 @@ DECLARE
   v_voc    text;
   v_aluga  boolean;
   v_cond   boolean;
+  v_cadastro boolean := false;   -- 461: o imóvel da conversa já está no nosso cadastro (imoveis)
   v_parar  boolean;
   v_falta  text[];
   v_prox   text;
@@ -82,16 +83,9 @@ BEGIN
                   THEN 'siga o roteiro: se ainda nao perguntou, pergunte se ' || v_pron || ' tem algum outro imovel alem desse que queira vender ou alugar.'
                   ELSE 'agradeca em uma linha e chame encerrar_conversa, a menos que ' || v_pron || ' fale de mais um imovel.' END;
     END IF;
-    -- 318: o imóvel dele JÁ ESTÁ no nosso cadastro -> só o valor do aluguel, sem as perguntas da ficha
-    IF v_tipo = 'atualizar' AND l.codigo ~ '^\d+$' AND EXISTS (SELECT 1 FROM imoveis x WHERE x.codigo = l.codigo::int) THEN
-      INSERT INTO captacao_cadastro (lead_id, tipo, codigo, estado, dados)
-      VALUES (l.id, v_tipo, l.codigo::int, 'pronto', v_novos);
-      RETURN 'o imovel dele ja esta no nosso cadastro'
-          || CASE WHEN v_novos ? 'valor' THEN ', e o valor do aluguel ficou anotado' ELSE '' END
-          || '. NAO pergunte mais nada sobre este imovel (quartos, area, condominio, IPTU, mobilia, fotos). '
-          || 'siga o roteiro: se ainda nao perguntou, pergunte se ' || v_pron
-          || ' tem algum outro imovel alem desse que queira vender ou alugar.';
-    END IF;
+    -- 318 parava aqui: imóvel JÁ no cadastro = só o valor, nada da ficha. 461 (Pedro, 21/10: "ela só pega as informações
+    -- atualizadas que faltam no imóvel, não pegando tudo, que faz pensar que é golpe"): a ficha abre e pergunta SÓ o
+    -- que está vazio no cadastro (mais abaixo, v_cadastro).
     INSERT INTO captacao_cadastro (lead_id, tipo, codigo)
     VALUES (l.id, v_tipo, CASE WHEN v_tipo = 'atualizar' AND l.codigo ~ '^\d+$' THEN l.codigo::int END)
     RETURNING * INTO c;
@@ -110,12 +104,15 @@ BEGIN
 
   IF c.codigo IS NOT NULL THEN
     SELECT * INTO i FROM imoveis WHERE codigo = c.codigo;
+    v_cadastro := i.codigo IS NOT NULL;
   END IF;
 
-  v_aluga := CASE WHEN v_tipo = 'atualizar' THEN true ELSE coalesce(d->>'negocio', '') !~* 'vend' OR coalesce(d->>'negocio', '') ~* 'amb|alug|loca' END;
+  -- 461: o imóvel do cadastro diz se é de aluguel (o de VENDA não tem "o aluguel inclui", nem pergunta de locação)
+  v_aluga := CASE WHEN v_cadastro THEN coalesce(i.valor_aluguel, 0) > 0 OR coalesce(i.valor_venda, 0) = 0
+                  WHEN v_tipo = 'atualizar' THEN true ELSE coalesce(d->>'negocio', '') !~* 'vend' OR coalesce(d->>'negocio', '') ~* 'amb|alug|loca' END;
   -- 460 (Pedro, 21/10: "ele disse que é prédio e ela perguntou o valor do condomínio e IPTU"): prédio inteiro, galpão,
   -- terreno, lote, chácara e sítio não têm condomínio, a não ser que ele diga o nome de um ("sala" no tipo dele não conta)
-  v_cond  := coalesce(NULLIF(btrim(d->>'condominio'), ''), i.condominio_nome) IS NOT NULL
+  v_cond  := coalesce(NULLIF(btrim(d->>'condominio'), ''), nay_condominio_de_verdade(i.tipo, i.condominio_nome)) IS NOT NULL
              OR (coalesce(d->>'tipo', i.tipo, '') ~* 'apart|condom|flat|cobertura|sala'
                  AND coalesce(d->>'tipo', i.tipo, '') !~* '(pr[eé]dio|galp|terreno|lote|ch[aá]cara|s[ií]tio)');
   -- 455 (Pedro, 21/10: a Nay perguntou "quantos quartos" de um terreno): o tipo dito, ou o começo da descrição dele
@@ -139,16 +136,19 @@ BEGIN
   IF NOT v_resp ? 'area' AND coalesce(d->>'area', i.area_util::text, i.area_total::text) IS NULL THEN
     v_falta := v_falta || 'area'::text;
   END IF;
-  IF NOT v_resp ? 'valor' AND coalesce(d->>'valor', CASE WHEN v_tipo = 'atualizar' THEN l.valor_locacao_pedido END) IS NULL THEN
+  IF NOT v_cadastro AND NOT v_resp ? 'valor' AND coalesce(d->>'valor', CASE WHEN v_tipo = 'atualizar' THEN l.valor_locacao_pedido END) IS NULL THEN
     v_falta := v_falta || 'valor'::text;
   END IF;
-  IF NOT v_resp ? 'taxas' AND (d->>'iptu' IS NULL OR (v_cond AND d->>'condominio_valor' IS NULL) OR (v_aluga AND d->>'incluso' IS NULL)) THEN
+  IF NOT v_resp ? 'taxas' AND (coalesce(d->>'iptu', CASE WHEN v_cadastro AND i.iptu > 0 THEN i.iptu::text END) IS NULL
+                               OR (v_cond AND coalesce(d->>'condominio_valor', CASE WHEN v_cadastro AND i.taxa_condominio > 0 THEN i.taxa_condominio::text END) IS NULL)
+                               OR (v_aluga AND d->>'incluso' IS NULL)) THEN
     v_falta := v_falta || 'taxas'::text;
   END IF;
   IF v_aluga AND NOT v_sem_comodos AND NOT v_resp ? 'mobilia' AND coalesce(d->>'mobilia', CASE WHEN v_tipo = 'atualizar' THEN i.mobilia END) IS NULL THEN
     v_falta := v_falta || 'mobilia'::text;
   END IF;
-  IF NOT v_resp ? 'fotos' AND d->>'fotos' IS NULL AND jsonb_array_length(c.fotos) = 0 THEN
+  IF NOT v_resp ? 'fotos' AND d->>'fotos' IS NULL AND jsonb_array_length(c.fotos) = 0
+     AND NOT (v_cadastro AND EXISTS (SELECT 1 FROM imovel_fotos f WHERE f.codigo = i.codigo)) THEN
     v_falta := v_falta || 'fotos'::text;
   END IF;
 
@@ -173,7 +173,27 @@ BEGIN
                               THEN 'E qual valor ' || v_pron || ' pensa em pedir, no aluguel ou na venda?'
                               WHEN v_aluga THEN 'E qual valor ' || v_pron || ' quer pedir no aluguel?'
                               ELSE 'E qual valor ' || v_pron || ' quer pedir na venda?' END
-    WHEN 'taxas'   THEN CASE WHEN v_cond AND v_aluga AND (v_tipo = 'atualizar' OR coalesce(d->>'negocio', '') ~* 'alug|loca|amb')
+    WHEN 'taxas'   THEN CASE WHEN v_cadastro THEN
+                                btrim(CASE
+                                  WHEN coalesce(d->>'iptu', CASE WHEN i.iptu > 0 THEN 'x' END) IS NULL
+                                       AND v_cond AND coalesce(d->>'condominio_valor', CASE WHEN i.taxa_condominio > 0 THEN 'x' END) IS NULL
+                                    THEN 'E o condomínio e o IPTU, estão em quanto?'
+                                  WHEN v_cond AND coalesce(d->>'condominio_valor', CASE WHEN i.taxa_condominio > 0 THEN 'x' END) IS NULL
+                                    THEN 'E o condomínio, está em quanto?'
+                                  WHEN coalesce(d->>'iptu', CASE WHEN i.iptu > 0 THEN 'x' END) IS NULL
+                                    THEN 'E o IPTU, sabe me dizer o valor?'
+                                  ELSE '' END
+                                || CASE WHEN v_aluga AND d->>'incluso' IS NULL
+                                        THEN CASE WHEN coalesce(d->>'iptu', CASE WHEN i.iptu > 0 THEN 'x' END) IS NULL
+                                                    AND v_cond AND coalesce(d->>'condominio_valor', CASE WHEN i.taxa_condominio > 0 THEN 'x' END) IS NULL
+                                                  THEN ' O aluguel já inclui algum deles?'
+                                                  WHEN coalesce(d->>'iptu', CASE WHEN i.iptu > 0 THEN 'x' END) IS NULL
+                                                    OR (v_cond AND coalesce(d->>'condominio_valor', CASE WHEN i.taxa_condominio > 0 THEN 'x' END) IS NULL)
+                                                  THEN ' O aluguel já inclui ' || CASE WHEN v_cond THEN 'o condomínio ou o IPTU' ELSE 'o IPTU' END || '?'
+                                                  ELSE 'O aluguel já inclui ' || CASE WHEN v_cond THEN 'o condomínio ou o IPTU' ELSE 'o IPTU' END
+                                                       || ', ou são pagos à parte?' END
+                                        ELSE '' END)
+                              WHEN v_cond AND v_aluga AND (v_tipo = 'atualizar' OR coalesce(d->>'negocio', '') ~* 'alug|loca|amb')
                                    THEN 'E o condomínio e o IPTU, estão em quanto? O aluguel já inclui algum deles?'
                               WHEN v_aluga AND (v_tipo = 'atualizar' OR coalesce(d->>'negocio', '') ~* 'alug|loca|amb')
                                    THEN 'E o IPTU, sabe me dizer o valor? O aluguel já inclui alguma coisa, como água ou IPTU?'
@@ -195,7 +215,11 @@ BEGIN
           || CASE WHEN v_outra = 'novo' THEN 'do outro imovel' ELSE 'do imovel da campanha' END || ' -- '
           || captacao_ficha(p_telefone, CASE WHEN v_outra = 'novo' THEN 'outro' ELSE 'este' END, '{}'::jsonb, false);
     END IF;
-    RETURN CASE WHEN v_tipo = 'atualizar'
+    RETURN CASE WHEN v_tipo = 'atualizar' AND v_cadastro AND NOT p_resposta
+      THEN 'o imovel dele ja esta no nosso cadastro e nao falta nada nele: NAO pergunte nada sobre este imovel (tipo, local, '
+           || 'quartos, area, condominio, IPTU, mobilia, fotos). siga o roteiro: se ainda nao perguntou, pergunte se ' || v_pron
+           || ' tem algum outro imovel alem desse que queira vender ou alugar.'
+      WHEN v_tipo = 'atualizar'
       THEN 'ficha do imovel completa (o Tel confere e aplica). agradeca em uma linha e va para a ETAPA 4: pergunte se ' || v_pron
            || ' tem algum outro imovel alem desse que queira vender ou alugar.'
       ELSE 'ficha do imovel novo completa (o Tel confere e cadastra). agradeca em uma linha e chame encerrar_conversa -- a menos que '
@@ -203,7 +227,11 @@ BEGIN
   END IF;
 
   UPDATE captacao_cadastro SET dados = jsonb_set(d, '{_perguntou}', to_jsonb(v_prox)), atualizado_em = now() WHERE id = c.id;
-  RETURN 'anotado na ficha do imovel' || CASE WHEN v_tipo = 'novo' THEN ' novo' ELSE '' END
+  RETURN CASE WHEN v_cadastro
+           THEN 'o imovel dele ja esta no nosso cadastro: NAO pergunte o que ja temos (tipo, local e o que nao estiver '
+                || 'nesta lista). falta so: ' || array_to_string(v_falta, ', ') || '. '
+           ELSE '' END
+         || 'anotado na ficha do imovel' || CASE WHEN v_tipo = 'novo' THEN ' novo' ELSE '' END
          || '. agora pergunte isto, com estas palavras, UMA pergunta so (pode comecar com "Certo." ou "Entendi."): "'
          || v_frase || '". quando ' || v_pron || ' responder, chame guardar_ficha com o que disse'
          || ' (se nao souber ou nao quiser dizer, passe "nao sabe" no campo perguntado).';

@@ -10,12 +10,13 @@ imovel  text
 relacionado_a  text
 criado_em  timestamp with time zone  NOT NULL  padrão now()
 criado_por  text
+funcao  text
 
 ## índices
 CREATE UNIQUE INDEX administracao_contato_pkey ON public.administracao_contato USING btree (telefone_chave)
 
 ## restrições
-administracao_contato_papel_check: CHECK ((papel = ANY (ARRAY['locador'::text, 'locatario'::text])))
+administracao_contato_papel_check: CHECK ((papel = ANY (ARRAY['locador'::text, 'locatario'::text, 'prestador'::text])))
 administracao_contato_pkey: PRIMARY KEY (telefone_chave)
 
 ## permissões
