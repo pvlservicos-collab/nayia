@@ -557,7 +557,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
         c.msgs.textContent = "";
         j.mensagens.forEach(function (m) {
           if (m.papel === "voce") {
-            c.msgs.appendChild(el("div", { class: "msg voce" }, [m.texto, el("div", { class: "meta", texto: quando(m.inicio) + (m.origem === "agenda" ? " · agendada" : "") })]));
+            c.msgs.appendChild(el("div", { class: "msg voce" }, [m.texto, el("div", { class: "meta", texto: quando(m.inicio) + (m.origem === "agenda" ? " · agendada" : m.origem === "fila" ? " · fila da revisão" : "") })]));
           } else {
             var meta = quando(m.inicio) + (m.ms_total ? " · " + Math.round(m.ms_total / 1000) + " s" : "") +
               (m.tokens_saida ? " · " + ((m.tokens_entrada || 0) + (m.tokens_saida || 0) + (m.cache_lido || 0)).toLocaleString("pt-BR") + " tokens" : "");

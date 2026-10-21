@@ -19,6 +19,7 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 import agente  # noqa: E402
 import projetos  # noqa: E402
+import fila_nay  # noqa: E402
 
 TOKEN = os.environ.get("AGENTES_TOKEN", "")
 ENDERECO = os.environ.get("PAINEL_ENDERECO", "100.113.222.11")
@@ -233,6 +234,12 @@ def enviar(pedido, q, cid):
     return 202, {"ok": True}
 
 
+def fila_agora(pedido, q):
+    """Uma volta da fila da revisão da Nay já (enfileira e manda, se tiver), em segundo plano."""
+    threading.Thread(target=lambda: print("fila_nay:", fila_nay.volta(), flush=True), daemon=True).start()
+    return 202, {"ok": True}
+
+
 def importar(pedido, q, pid):
     dias = int(pedido.corpo().get("dias") or 7)
     projetos.importar(pid, max(1, min(dias, 400)))
@@ -254,6 +261,9 @@ ROTAS = [
     ("POST", r"/api/projetos/([\w-]+)/importar", importar),
     ("GET", r"/api/conversas/(\d+)", lambda p, q, cid: (200, projetos.mensagens(int(cid)))),
     ("POST", r"/api/conversas/(\d+)/mensagens", enviar),
+    # a fila da revisão da Nay (fila_nay.py): toda conversa com imóvel enviado, de 20 em 20 min; às 22h o relatório
+    ("GET", r"/api/fila_nay", lambda p, q: (200, fila_nay.estado())),
+    ("POST", r"/api/fila_nay/agora", fila_agora),
 ]
 
 
@@ -262,4 +272,5 @@ if __name__ == "__main__":
         sys.exit("falta AGENTES_TOKEN")
     projetos.sem_resposta()
     threading.Thread(target=agendador, daemon=True).start()
+    threading.Thread(target=fila_nay.laco, daemon=True).start()
     ThreadingHTTPServer((ENDERECO, PORTA), Pedido).serve_forever()
