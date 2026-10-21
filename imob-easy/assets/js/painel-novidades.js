@@ -15,6 +15,8 @@ window.PAINEL_AREAS = {
 };
 
 window.PAINEL_NOVIDADES = [
+  { d: "2026-10-21", a: "infra", t: "Uso de recursos da VPS no Início", x: "CPU, memória e disco da VPS separados por função, em %, agora e na média de 24 h; medido a cada 5 min", n: "—" },
+  { d: "2026-10-20", a: "nay", t: "Fila da revisão da Nay", x: "toda conversa em que a Nay envia imóvel vai, de 20 em 20 min, para o agente Nay Parceria (revisão); às 22h o relatório", n: "—" },
   { d: "2026-10-17", a: "site", t: "Painel de métricas no Início", x: "pessoas × visitas, por número, por dia/semana/mês, OLX, disparos, fechamentos", n: "399" },
 
   { d: "2026-10-16", a: "olx", t: "Nay do WhatsApp dos clientes da OLX (8595)", x: "abre já sabendo da conversa da OLX, segue o roteiro (valor, bairros, quartos), busca e manda as opções", n: "385–389" },
