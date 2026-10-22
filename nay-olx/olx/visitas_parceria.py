@@ -133,6 +133,30 @@ def atender(conn, cfg: dict, agora: datetime | None = None) -> int:
                      (p["core_saida_id"],))
             feitas += 1
         conn.commit()
+    # 466 (Pedro, 22/10: "1 hora antes ele vai lembrar a gente no grupo"; e, depois do limite do Claude estourado, sem o
+    # agente): o card padrão (visita_card, 464) de toda visita aberta que começa entre 50 e 70 min, uma vez
+    if cfg.get("visitas_lembrete_1h", "sim") != "nao":
+        for v in banco.linhas(conn, """
+                SELECT v.id, visita_card(v.id)->>'texto' AS card FROM nai_visita v
+                 WHERE v.excluida_em IS NULL AND v.estado NOT IN ('cancelada', 'expirada', 'encerrada', 'realizada')
+                   AND v.quando BETWEEN now() + interval '50 minutes' AND now() + interval '70 minutes'
+                   AND NOT EXISTS (SELECT 1 FROM privado.visita_lembrete_grupo l WHERE l.visita_id = v.id)"""):
+            if v.get("card") and grupo.mandar_ao_grupo(lembrete(v["card"])):
+                banco.um(conn, "INSERT INTO privado.visita_lembrete_grupo (visita_id) VALUES (%s) ON CONFLICT DO NOTHING",
+                         (v["id"],))
+                feitas += 1
+            conn.commit()
     if feitas:
         log.info("visitas da Parceria: %d mensagem(ns) no grupo", feitas)
     return feitas
+
+
+def lembrete(card: str) -> str:
+    """O card e, se o checklist tem ❌, o que falta: "falar com o proprietário", "avisar o motoboy"."""
+    falta = []
+    for linha in card.splitlines():
+        if linha.startswith("❌ Proprietário"):
+            falta.append("falar com o proprietário")
+        elif linha.startswith("❌ Motoboy"):
+            falta.append("avisar o motoboy")
+    return "⏰ *Daqui a 1 hora*\n\n" + card + (f"\n\n⚠️ Falta: {' e '.join(falta)}." if falta else "")
