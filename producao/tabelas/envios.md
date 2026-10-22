@@ -1,4 +1,4 @@
-# envios  (tabela, ~4585 linhas)
+# envios  (tabela, ~5098 linhas)
 
 ## colunas
 id  integer  NOT NULL  padrão nextval('envios_id_seq'::regclass)

@@ -1,4 +1,4 @@
-# core_avaliacao  (tabela, ~298 linhas)
+# core_avaliacao  (tabela, ~379 linhas)
 
 ## colunas
 turno_id  bigint  NOT NULL

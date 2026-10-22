@@ -1,4 +1,4 @@
-# captacao_ficha_campos  (tabela, ~35 linhas)
+# captacao_ficha_campos  (tabela, ~58 linhas)
 327: a ficha da conversa analisada pelo modelo (nay-captacao/captacao/preparar.py): os campos do cadastro prontos para a tela de Cadastro rápido.
 
 ## colunas
