@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """A fila da revisão da Nay: toda conversa em que a Nay Parceria ENVIOU UM IMÓVEL vai para o projeto
-"Nay Parceria (revisão)" do painel, de 20 em 20 minutos. Às 22h (Brasília) sai o pedido do relatório do dia.
+"Nay Parceria (revisão)" do painel, de 3 em 3 horas. Às 22h (Brasília) sai o pedido do relatório do dia.
+
+22/10 (o limite da conta do Claude estourou; a fila era ~60% do gasto): cada lote abre uma CONVERSA NOVA, com só as
+conversas novas, em vez de entrar na conversa longa da equipe (a 5, desde 20/10), que o Claude relia inteira a cada
+passo. O que o Pedro combinou naquela conversa passou para projetos/nay/como-ler-os-dados.md, que toda conversa lê.
+O relatório das 22h também nasce numa conversa nova, com o arquivo das respostas do dia. O modelo é o do
+projeto.json (Sonnet 5.5, antes Opus). Pedro: "executa só A, enviando só as conversas novas, executa B mas um Sonnet
+bom ... vou só aumentar o tempo das consultas para a cada 3 horas".
 
 Pedro, 20/10/2026: "preciso que mande para elas as conversas que formos tendo em que a nay envia um imóvel, sempre
 que ela enviar um imóvel essa conversa vai para a fila de envio para essa nay parceria revisão, as filas vão ocorrer a
@@ -11,13 +18,12 @@ Como anda, a cada volta (o painel chama `laco()` numa thread; olha o relógio a 
   1. ENFILEIRAR: lê no naydb (VPS1, só leitura, a mesma chave do importar_nay.py) as saídas da Nay ao corretor com
      motivo card ou foto (imóvel enviado) desde a última leitura, e põe a conversa na fila (`fila_nay`, uma linha
      pendente por corretor; um imóvel novo na mesma conversa só soma o código).
-  2. ENVIAR (nos minutos :00, :20 e :40): fila vazia = nada. Com gente na fila: monta cada conversa (a das últimas 24 h,
-     ou só o que veio depois do último envio daquele corretor), grava o histórico em
-     projetos/nay/dados/fila/AAAA-MM-DD/HHMM.txt e manda a mensagem do lote para a conversa do quadro
-     (a mais recente em que alguém da equipe escreveu). Se o Claude ainda estiver respondendo, a fila espera a próxima volta
-     (nada se perde: só sai da fila o que foi mandado).
-  3. RELATÓRIO: às 22:00 de Brasília, uma vez por dia, a mensagem RELATORIO na mesma conversa (se estiver ocupada,
-     tenta de novo a cada 20 s até as 22:59; depois disso, naquele dia, não sai mais).
+  2. ENVIAR (às 06, 09, 12, 15, 18 e 21 h de Brasília; 00 e 03 caem na madrugada): fila vazia = nada. Com gente na
+     fila: monta cada conversa (a das últimas 24 h, ou só o que veio depois do último envio daquele corretor), grava o
+     histórico em projetos/nay/dados/fila/AAAA-MM-DD/HHMM.txt e manda a mensagem do lote numa conversa NOVA do projeto.
+     Se não sair, a fila espera a próxima volta (nada se perde: só sai da fila o que foi mandado).
+  3. RELATÓRIO: às 22:00 de Brasília, uma vez por dia, numa conversa nova: o pedido RELATORIO e o arquivo
+     dados/fila/AAAA-MM-DD/respostas-do-dia.txt (o que o agente respondeu hoje em cada conversa do projeto).
 
 Estado em metricas.db: fila_nay (a fila e o que já foi), fila_nay_lote (cada envio), fila_nay_estado (marcadores).
 Desligar sem mexer no código: /opt/agente-claude/fila_nay.json com {"ativa": false}.
@@ -31,10 +37,14 @@ from datetime import datetime, timedelta, timezone
 import agente, importar_nay, projetos
 
 PROJETO = "nay"
-A_CADA_MIN = 20
+A_CADA_MIN = 180          # 22/10 (Pedro): "a cada 3 horas"; antes 20
 RELATORIO_HORA = "22:00"   # Brasília (o relógio do Pedro)
 RELATORIO_ATE = "22:59"    # depois disso não sai mais naquele dia: painel que subiu tarde não manda o pedido fora de hora
 RELATORIO = "Manda o relatório de hoje no grupo. Não precisa pôr as fotos."
+# o que o agente respondeu hoje no projeto, para o relatório (que nasce numa conversa nova e não viu os lotes)
+SQL_RESPOSTAS_DO_DIA = """
+SELECT c.id, c.titulo, m.inicio, m.texto FROM mensagens m JOIN conversas c ON c.id = m.conversa_id
+ WHERE c.projeto = ? AND m.papel = 'claude' AND m.ok = 1 AND m.inicio >= ? ORDER BY m.id"""
 BRASILIA = timezone(timedelta(hours=-3))
 MANAUS = timezone(timedelta(hours=-4))
 CONFIG = os.path.join(agente.BASE, "fila_nay.json")
@@ -178,14 +188,6 @@ def _conversas(itens):
     return blocos, ate
 
 
-def _conversa_do_quadro():
-    """A conversa mais recente em que ALGUÉM DA EQUIPE escreveu (o que a fila e o horário marcado mandam não conta).
-    É lá que o Pedro combinou com o agente como tratar os lotes (20/10, 22:38: "se vier as que você já leu só ignora
-    ... as erradas ... responder o lead da forma certa e depois alterar a nay"): uma conversa nova não saberia disso.
-    Sem nenhuma, a do quadro."""
-    return conversa_da_equipe(PROJETO)
-
-
 def conversa_da_equipe(pid):
     """A conversa mais recente do projeto em que alguém da equipe escreveu (o que os envios automáticos mandam não
     conta); sem nenhuma, a do quadro. Vale para a fila da Nay e para as rotinas dos outros agentes (rotinas.py)."""
@@ -224,8 +226,13 @@ def enviar_fila():
         f.write(cab + "\n" + "\n\n".join(blocos) + "\n")
     lista = "\n".join(f"- …{it['tel4']}: imóveis {it['codigos']}" for it in itens if it["id"] in ate)
     mensagem = (f"Fila da revisão das {agora_b:%H:%M}: {len(blocos)} conversa(s) em que a Nay enviou imóvel.\n"
-                f"Elas estão no arquivo {rel}.\n{lista}\n\nRevise cada uma conforme o seu contexto.")
-    cid = _conversa_do_quadro()
+                f"Elas estão no arquivo {rel}.\n{lista}\n\nRevise cada uma conforme o seu contexto (o CLAUDE.md: "
+                "como-ler-os-dados e o contexto do Tel, inclusive o \"Combinado com o Pedro\"). Esta conversa é nova e "
+                "o arquivo traz só o que é novo: \"CONTINUAÇÃO\" quer dizer que o começo daquela conversa já foi revisado "
+                "num lote anterior (os arquivos de antes estão em dados/fila/). No fim, em poucas linhas: cada erro "
+                "achado (corretor com 4 dígitos), o que você mandou ao lead e o que mudou na Nay. Esse texto vai para "
+                "o relatório das 22h.")
+    cid = projetos.nova_conversa(PROJETO, f"Fila da revisão {agora_m:%d/%m %H:%M}")
     con = banco()
     lote = con.execute("INSERT INTO fila_nay_lote (em, conversas, arquivo, conversa_id) VALUES (?, ?, ?, ?)",
                        (projetos.agora(), len(blocos), rel, cid)).lastrowid
@@ -247,15 +254,30 @@ def enviar_fila():
 
 
 def relatorio():
-    """O pedido do relatório do dia, uma vez por dia. True quando saiu."""
-    hoje = datetime.now(BRASILIA).strftime("%Y-%m-%d")
+    """O pedido do relatório do dia, uma vez por dia, numa conversa nova. True quando saiu."""
+    agora_b, agora_m = datetime.now(BRASILIA), datetime.now(MANAUS)
+    hoje = agora_b.strftime("%Y-%m-%d")
     con = banco()
     if _estado(con, "relatorio_dia") == hoje:
         con.close()
         return True
+    # o dia de Brasília começa às 03:00 UTC; o inicio das mensagens é UTC em texto ISO
+    desde = (datetime.strptime(hoje, "%Y-%m-%d") + timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%S")
+    respostas = con.execute(SQL_RESPOSTAS_DO_DIA, (PROJETO, desde)).fetchall()
     con.close()
+    rel = os.path.join("dados", "fila", f"{agora_m:%Y-%m-%d}", "respostas-do-dia.txt")
+    caminho = os.path.join(projetos.pasta(PROJETO), rel)
+    os.makedirs(os.path.dirname(caminho), exist_ok=True)
+    with open(caminho, "w", encoding="utf-8", newline="\n") as f:
+        f.write(f"O QUE O AGENTE RESPONDEU HOJE ({agora_b:%d/%m}) NO PROJETO NAY PARCERIA (REVISÃO), conversa por conversa\n\n"
+                + "\n\n".join(f"=== conversa {r['id']} · {r['titulo']} · {r['inicio'][:16]} UTC ===\n{r['texto']}"
+                              for r in respostas) + "\n")
+    texto = (RELATORIO + f"\n\nEsta conversa é nova. O que foi revisado e corrigido hoje está em {rel} (as suas respostas "
+             f"de cada lote e de cada pedido da equipe, {len(respostas)} no total); as conversas dos lotes, em "
+             f"dados/fila/{agora_m:%Y-%m-%d}/. O formato é o de sempre: problema x solução aplicada, e a lista das "
+             "sessões de correção do dia.")
     try:
-        projetos.enviar(_conversa_do_quadro(), RELATORIO, origem="fila")
+        projetos.enviar(projetos.nova_conversa(PROJETO, f"Relatório {agora_b:%d/%m}"), texto, origem="fila")
     except ValueError:
         return False
     con = banco()
@@ -272,15 +294,23 @@ def volta():
 
 
 def laco():
-    """A thread do painel. Enfileira e manda nos minutos :00/:20/:40; às 22:00 o relatório."""
-    feito = None
+    """A thread do painel. Enfileira e manda de 3 em 3 horas (06, 09 ... 21 h de Brasília); às 22:00 o relatório."""
     while True:
         try:
             agora = datetime.now(BRASILIA)
-            slot = agora.strftime("%Y-%m-%d %H:") + f"{agora.minute - agora.minute % A_CADA_MIN:02d}"
-            # 21/10: de madrugada (0h-6h de Brasília) nem lê o banco; o que entrou fica no marcador e sai às 6h
+            m = agora.hour * 60 + agora.minute
+            m -= m % A_CADA_MIN
+            slot = f"{agora:%Y-%m-%d} {m // 60:02d}:{m % 60:02d}"
+            # 21/10: de madrugada (0h-6h de Brasília) nem lê o banco; o que entrou fica no marcador e sai às 6h.
+            # 22/10: o horário feito fica no banco: reiniciar o painel no meio das 3 h não solta um lote fora de hora
+            con = banco()
+            feito = _estado(con, "slot")
+            con.close()
             if ativa() and slot != feito and not projetos.madrugada():
-                feito = slot
+                con = banco()
+                _gravar_estado(con, "slot", slot)
+                con.commit()
+                con.close()
                 print("fila_nay:", volta(), flush=True)
             if ativa() and RELATORIO_HORA <= agora.strftime("%H:%M") <= RELATORIO_ATE and not relatorio():
                 pass   # ocupado: tenta de novo na próxima olhada (até 22:59)

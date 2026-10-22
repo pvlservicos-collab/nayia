@@ -203,7 +203,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 <script>
 (function () {
   "use strict";
-  var MODELOS = ["haiku", "sonnet", "opus"];
+  var MODELOS = ["haiku", "sonnet", "claude-sonnet-5-5", "opus"];
   var ESFORCOS = ["", "low", "medium", "high"];
   var SERVIDORES = [["vps2", "VPS2 (Hermes, agentes)"], ["vps1", "VPS1 (Nay, site, CRM)"]];
   var MODOS = [["responder", "Só responder"], ["alterar", "Fazer alterações (root)"]];
@@ -711,7 +711,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
   function abaContexto(c) {
     var d = c.detalhe, b = corpo();
     var nome = el("input", { value: d.nome }), desc = el("input", { value: d.descricao || "" });
-    var modelo = el("select", {}, [["haiku", "Haiku (rápido)"], ["sonnet", "Sonnet (padrão)"], ["opus", "Opus (mais profundo)"]].map(function (o) { return el("option", { value: o[0], selected: d.modelo === o[0] }, [o[1]]); }));
+    var modelo = el("select", {}, [["haiku", "Haiku (rápido)"], ["sonnet", "Sonnet (padrão)"], ["claude-sonnet-5-5", "Sonnet 5.5 (fixo)"], ["opus", "Opus (mais profundo)"]].map(function (o) { return el("option", { value: o[0], selected: d.modelo === o[0] }, [o[1]]); }));
     var esforco = el("select", {}, [["", "padrão"], ["low", "baixo"], ["medium", "médio"], ["high", "alto"]].map(function (o) { return el("option", { value: o[0], selected: (d.esforco || "") === o[0] }, [o[1]]); }));
     var ctx = el("textarea", { rows: 16 }, [d.contexto || ""]);
     var ok = el("span", { class: "pensando" });
