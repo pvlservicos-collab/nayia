@@ -1,4 +1,4 @@
-# nai_core_turno  (tabela, ~2332 linhas)
+# nai_core_turno  (tabela, ~2616 linhas)
 Turnos de corretor que a porta (nai_abrir_turno) entregou ao núcleo novo (269). O nay-core lê daqui.
 
 ## colunas

@@ -19,6 +19,7 @@ imovel_conhecimento_pkey: PRIMARY KEY (id)
 ## permissões
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 nay_leitura: SELECT
+nay_core, só nestas colunas: SELECT(codigo, assunto, texto, atualizado_em)
 
 ## funções que escrevem aqui
 nay_esquecer_imovel, nay_gravar_conhecimento, nay_guardar_do_imovel

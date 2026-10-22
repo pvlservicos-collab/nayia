@@ -56,6 +56,7 @@ nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 nay_leitura: SELECT
 nay_site_escrita: SELECT
 nay_site_listas: SELECT
+nay_core, só nestas colunas: SELECT(codigo, andar, apartamento)
 
 ## funções que escrevem aqui
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
