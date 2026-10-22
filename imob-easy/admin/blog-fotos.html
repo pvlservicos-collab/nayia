@@ -9,68 +9,100 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/tokens.css">
-<link rel="stylesheet" href="../assets/css/admin.css">
-<link rel="stylesheet" href="../assets/css/blog-admin.css?v=20261021a">
 <style>
-  /* Pedro, 22/10/2026: a tela das fotos do Unsplash para os artigos do blog (e para a aprovação de produção deles) */
-  .bf-busca { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-  .bf-busca .entrada { flex: 1 1 260px; max-width: 520px; }
-  .bf-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
-  .bf-foto { background: #fff; border: 1px solid var(--borda); border-radius: var(--raio); overflow: hidden; display: flex; flex-direction: column; }
-  .bf-foto img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; display: block; }
-  .bf-corpo { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
-  .bf-credito { font-size: var(--fs-sm); color: var(--texto-fraco); margin: 0; }
-  .bf-credito a { color: var(--texto); font-weight: 600; }
-  .bf-foto .btn-azul { margin-top: auto; align-self: flex-start; }
-  .bf-usada { outline: 3px solid var(--roxo); }
-  .bf-copiado { background: #fff; border: 1px solid var(--borda); border-left: 4px solid var(--roxo); border-radius: var(--raio); padding: 14px 16px; margin-bottom: 16px; }
-  .bf-copiado pre { white-space: pre-wrap; word-break: break-all; background: var(--fundo, #f6f6f8); padding: 10px; border-radius: 8px; font-size: 13px; margin: 8px 0; }
-  .bf-previa figure { margin: 8px 0 0; max-width: 560px; }
-  .bf-previa img { width: 100%; border-radius: 8px; display: block; }
-  .bf-previa figcaption { font-size: var(--fs-sm); color: var(--texto-fraco); margin-top: 6px; font-style: italic; }
-  .bf-mais { margin: 18px 0; text-align: center; }
+  /* Pedro, 22/10/2026: "uma página contendo todas as coisas que ele pede ... quando eu passe o mouse pela foto apareça
+     um alertzinho com o link da foto ... caiba tudo em 1 tela". Tudo do checklist de produção do Unsplash numa tela só. */
+  :root { --bf-roxo: var(--roxo, #5b3df5); --bf-borda: var(--borda, #e4e4ea); --bf-fraco: var(--texto-fraco, #6b6b78); --bf-texto: var(--texto, #1d1d27); }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { font-family: Rubik, system-ui, sans-serif; color: var(--bf-texto); background: #f4f4f8; display: flex; flex-direction: column; overflow: hidden; }
+  a { color: inherit; }
+  .bf-topo { display: flex; align-items: center; gap: 14px; padding: 10px 18px; background: #fff; border-bottom: 1px solid var(--bf-borda); flex-wrap: wrap; }
+  .bf-marca { display: flex; align-items: center; gap: 10px; font: 700 18px Barlow, sans-serif; white-space: nowrap; }
+  .bf-marca img { width: 28px; height: 28px; }
+  .bf-marca small { font: 500 13px Rubik, sans-serif; color: var(--bf-fraco); }
+  .bf-busca { display: flex; gap: 8px; flex: 1; min-width: 280px; justify-content: flex-end; }
+  .bf-busca input, .bf-busca select { height: 38px; border: 1px solid var(--bf-borda); border-radius: 10px; padding: 0 12px; font: inherit; background: #fff; }
+  .bf-busca input { flex: 1; max-width: 380px; }
+  .bf-btn { height: 38px; border: 0; border-radius: 10px; padding: 0 16px; font: 600 14px Rubik, sans-serif; background: var(--bf-roxo); color: #fff; cursor: pointer; }
+  .bf-btn[disabled] { opacity: .55; cursor: default; }
+  .bf-btn--claro { background: #fff; color: var(--bf-texto); border: 1px solid var(--bf-borda); text-decoration: none; display: inline-flex; align-items: center; }
+
+  .bf-meio { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 360px; gap: 14px; padding: 14px 18px; }
+  .bf-grade { min-height: 0; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); grid-auto-rows: 150px; gap: 10px; align-content: start; }
+  .bf-foto { position: relative; border-radius: 12px; overflow: hidden; cursor: pointer; border: 3px solid transparent; background: #ddd; }
+  .bf-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .bf-foto.ativa { border-color: var(--bf-roxo); }
+  .bf-foto.usada::after { content: "✓ usada"; position: absolute; top: 8px; right: 8px; background: var(--bf-roxo); color: #fff; font: 600 11px Rubik; padding: 3px 8px; border-radius: 99px; }
+  /* o "alertzinho" ao passar o mouse: o crédito com o link do fotógrafo, do Unsplash e da foto */
+  .bf-dica { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 10px 8px; background: linear-gradient(transparent, rgba(0,0,0,.82));
+             color: #fff; font-size: 12px; line-height: 1.35; opacity: 0; transform: translateY(6px); transition: .15s; }
+  .bf-foto:hover .bf-dica, .bf-foto:focus-within .bf-dica { opacity: 1; transform: none; }
+  .bf-dica a { color: #fff; font-weight: 600; }
+  .bf-dica .bf-ver { display: inline-block; margin-top: 4px; font-weight: 500; opacity: .9; }
+  .bf-vazio { grid-column: 1 / -1; color: var(--bf-fraco); padding: 18px; background: #fff; border-radius: 12px; }
+
+  .bf-painel { min-height: 0; overflow: auto; background: #fff; border: 1px solid var(--bf-borda); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .bf-painel h2 { font: 700 16px Barlow, sans-serif; margin: 0; }
+  .bf-previa { margin: 0; }
+  .bf-previa img { width: 100%; height: 170px; object-fit: cover; border-radius: 10px; display: block; background: #eee; }
+  .bf-previa figcaption { font-size: 12.5px; color: var(--bf-fraco); margin-top: 5px; font-style: italic; }
+  .bf-previa figcaption a { color: var(--bf-texto); font-weight: 600; }
+  .bf-regras { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+  .bf-regras li { display: grid; grid-template-columns: 22px 1fr; gap: 6px; font-size: 12.5px; line-height: 1.35; }
+  .bf-regras b { display: block; font-size: 13px; }
+  .bf-ok { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; background: #1f9d55; }
+  .bf-ok.espera { background: #c9c9d3; }
+  .bf-mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; color: var(--bf-fraco); word-break: break-all; }
+  .bf-acoes { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .bf-copiado { font-size: 12px; color: #1f9d55; }
+
+  @media (max-width: 900px) {
+    body { overflow: auto; }
+    .bf-meio { grid-template-columns: 1fr; }
+    .bf-grade { overflow: visible; }
+  }
 </style>
-<meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
 </head>
-<body class="admin" data-pagina="blog">
+<body>
 
-<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
-<div data-layout-topo></div>
-
-<main class="conteudo" id="conteudo">
-  <div class="pagina-cabecalho" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-    <div>
-      <h1 class="pagina-titulo">Fotos para os artigos</h1>
-      <p class="pagina-subtitulo" style="margin-left:0">Procure uma foto, clique em “Usar no artigo” e cole no texto do artigo: a foto e o crédito do fotógrafo vão juntos.</p>
-    </div>
-    <div class="bg-acoes">
-      <a class="btn-neutro" href="blog.html">Voltar ao blog</a>
-      <a class="btn-azul" href="blog-editar.html" target="_blank" rel="noopener">+ Novo artigo</a>
-    </div>
-  </div>
-
+<header class="bf-topo">
+  <div class="bf-marca"><img src="../assets/img/logo-simbolo.svg" alt="">Imob Easy <small>· fotos para os artigos do blog</small></div>
   <form class="bf-busca" id="bf-form" role="search">
-    <input class="entrada" id="bf-q" type="search" placeholder="Ex.: apartamento moderno, sala de estar, Manaus" aria-label="O que procurar" required>
-    <select class="selecao" id="bf-orientacao" aria-label="Formato">
-      <option value="landscape">Deitada (capa e texto)</option>
-      <option value="">Qualquer formato</option>
+    <input id="bf-q" type="search" value="modern apartment interior" aria-label="O que procurar" required>
+    <select id="bf-orientacao" aria-label="Formato">
+      <option value="landscape">Deitada</option>
+      <option value="">Qualquer</option>
       <option value="portrait">Em pé</option>
       <option value="squarish">Quadrada</option>
     </select>
-    <button class="btn-azul" type="submit">Procurar</button>
+    <button class="bf-btn" type="submit">Procurar</button>
+    <a class="bf-btn bf-btn--claro" href="blog.html">Blog</a>
   </form>
+</header>
 
-  <div id="bf-copiado" class="bf-copiado" hidden></div>
-  <div id="bf-grade" class="bf-grade"><p class="bg-vazio">Digite o que procura e clique em Procurar.</p></div>
-  <div class="bf-mais"><button class="btn-neutro" id="bf-mais" type="button" hidden>Mais fotos</button></div>
-</main>
+<div class="bf-meio">
+  <section class="bf-grade" id="bf-grade" aria-label="Fotos encontradas"><p class="bf-vazio">Procurando…</p></section>
 
-<div data-layout-rodape></div>
+  <aside class="bf-painel" aria-label="A foto escolhida">
+    <h2>A foto no artigo</h2>
+    <figure class="bf-previa" id="bf-previa"><img alt=""><figcaption>Passe o mouse numa foto para ver o crédito; clique para escolher.</figcaption></figure>
+    <div class="bf-acoes">
+      <button class="bf-btn" id="bf-usar" type="button" disabled>Usar no artigo</button>
+      <span class="bf-copiado" id="bf-copiado"></span>
+    </div>
+    <h2 style="margin-top:4px">Como usamos o Unsplash</h2>
+    <ul class="bf-regras">
+      <li><span class="bf-ok">✓</span><div><b>Foto direto do Unsplash (hotlink)</b>A imagem é mostrada do endereço original, sem cópia no nosso servidor.
+        <div class="bf-mono" id="bf-r-url">—</div></div></li>
+      <li><span class="bf-ok espera" id="bf-r-dl-ok">✓</span><div><b>Download registrado ao usar</b>“Usar no artigo” avisa o Unsplash pelo download_location da foto.
+        <div class="bf-mono" id="bf-r-dl">ainda não usada</div></div></li>
+      <li><span class="bf-ok">✓</span><div><b>Crédito ao fotógrafo e ao Unsplash</b>Nome do fotógrafo com link para o perfil e link para o Unsplash, na foto (ao passar o mouse) e na legenda do artigo.</div></li>
+      <li><span class="bf-ok">✓</span><div><b>Aplicativo: Pvlwordpress</b>Fotos para ilustrar os artigos do blog da Imob Easy (imobiliária em Manaus), com visual próprio.</div></li>
+    </ul>
+  </aside>
+</div>
 
-<script src="../assets/js/config.js"></script>
-<script src="../assets/js/dados-admin.js"></script>
-<script src="../assets/js/layout.js"></script>
-<script src="../assets/js/admin.js"></script>
-<script src="../assets/js/blog-fotos.js?v=20261022a"></script>
+<script src="../assets/js/blog-fotos.js?v=20261022b"></script>
 </body>
 </html>
