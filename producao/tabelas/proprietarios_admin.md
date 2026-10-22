@@ -24,4 +24,4 @@ nay_site_listas: SELECT
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-crm_parceria_marcas, nai_e_proprietario_contato, nai_proprietario_do_imovel
+crm_parceria_marcas, nai_e_proprietario_contato, nai_proprietario_do_imovel, nay_proprietario_bloqueio_atualizar

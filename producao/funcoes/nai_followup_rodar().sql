@@ -41,6 +41,8 @@ BEGIN
 
     IF nay_fora_da_regra_do_dia(r.chave) THEN
       v_pula := 'equipe ou teste';
+    ELSIF nai_e_proprietario_contato(v_ct) THEN
+      v_pula := 'proprietário';                             -- 463: "seu cliente tem interesse?" é de corretor
     ELSIF EXISTS (SELECT 1 FROM nai_followup f WHERE f.chave = ANY (v_chaves) AND f.dia_recebeu = ANY (v_dias)) THEN
       v_pula := 'a outra linha dele já recebeu';
     ELSIF EXISTS (SELECT 1 FROM mensagens m WHERE nai_chave(m.telefone) = ANY (v_chaves) AND m.direcao = 'recebida'

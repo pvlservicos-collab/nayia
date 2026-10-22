@@ -31,7 +31,7 @@ BEGIN
      WHERE id = v.id;
     -- a 1ª solicitação ao proprietário: o mesmo texto de nai_pedir_ao_proprietario
     PERFORM nai_enfileirar_texto(p_turno, v.id, v_prop, 'proprietario',
-      nai_apresentacao_prop(v_prop) || nai_saudacao() || coalesce(', ' || nai_vocativo(dono.nome), '')
+      nai_apresentacao_prop(v_prop) || nai_saudacao() || coalesce(', ' || nay_vocativo_dono(dono.nome), '')
         || '! Tudo bem? Aqui é a Nay, da Imob Easy. Temos um pedido de visita ' || nai_ref_imovel_prop(v.codigo)
         || ' para ' || nai_quando_humano(v.quando) || '. Tem como receber a visita nesse horário?',
       'p_solicita', 500);

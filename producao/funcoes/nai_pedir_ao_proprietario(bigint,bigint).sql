@@ -44,7 +44,7 @@ BEGIN
     RETURN 'com_tel';
   END IF;
 
-  v_voc := nai_vocativo(dono.nome);
+  v_voc := nay_vocativo_dono(dono.nome);   -- 463: sem sigla
   -- Card p_solicita, humanizado como o Tel pediu ("hoje a tarde", sem data numerica).
   -- A APRESENTACAO (Tel, 15/09), so na primeira vez com este proprietario: ele
   -- ja fala com a Imob Easy em outro numero, e sem isto a mensagem chega de um
