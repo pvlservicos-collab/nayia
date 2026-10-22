@@ -282,3 +282,18 @@ class Parceiro(unittest.TestCase):
         # 21/10 (Pedro): "tira para pedir esse código do imóvel que os clientes não entendem"
         self.assertIn("NUNCA peça o código do imóvel", w.PROMPT)
         self.assertIn("Pedir o código do imóvel", w.PROMPT)
+
+
+class EquipeJaRespondeu(unittest.TestCase):
+    """22/10 (Eudes): "Qual andar?" 09:31, o Tel respondeu 09:32, e às 10:02 a Nay respondeu de novo."""
+
+    def test_o_que_veio_antes_da_equipe_ja_foi_respondido(self):
+        from datetime import datetime, timezone
+        t = lambda h, m: datetime(2026, 10, 22, h, m, tzinfo=timezone.utc)  # noqa: E731
+        conversa = [{"id": 10, "direcao": "recebida", "texto": "Sim", "criada_em": t(13, 30)},
+                    {"id": 11, "direcao": "recebida", "texto": "Qual andar?", "criada_em": t(13, 31)},
+                    {"id": 0, "direcao": "enviada", "origem": "equipe_crm", "texto": "é andar baixo", "criada_em": t(13, 32)}]
+        self.assertEqual(w.novas_depois_da_equipe(conversa, 9, t(13, 32)), [])
+        depois = conversa + [{"id": 12, "direcao": "recebida", "texto": "Com quem eu vou", "criada_em": t(14, 33)}]
+        self.assertEqual([m["id"] for m in w.novas_depois_da_equipe(depois, 9, t(13, 32))], [12])
+        self.assertEqual([m["id"] for m in w.novas_depois_da_equipe(conversa, 9, None)], [10, 11])

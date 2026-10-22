@@ -434,6 +434,13 @@ def _conversa(conn, lead: dict) -> list[dict]:
     return juntas[-40:]
 
 
+def novas_depois_da_equipe(conversa: list[dict], ultima_lida: int, equipe_em) -> list[dict]:
+    """As mensagens dela ainda não lidas que chegaram DEPOIS da última fala da equipe (22/10): as de antes, a equipe já
+    respondeu."""
+    return [m for m in conversa if m.get("direcao") == "recebida" and (m.get("id") or 0) > ultima_lida
+            and (equipe_em is None or m.get("criada_em") is None or m["criada_em"] > equipe_em)]
+
+
 def _conversa_daqui(conn, lead: dict) -> list[dict]:
     return list(reversed(banco.linhas(conn, """
         SELECT m.id, m.direcao, m.origem, m.texto, m.criada_em,
@@ -731,9 +738,11 @@ def _baloes_do(r: dict) -> list[str]:
     return [b for b in (nay.limpar_balao(str(x)) for x in brutos[:MAX_BALOES]) if b]
 
 
-def _falar(conn, lead: dict, r: dict, acoes: list[str]) -> list[str]:
+def _falar(conn, lead: dict, r: dict, acoes: list[str], desde=None) -> list[str]:
     """Manda os balões do turno. 394 (Pedro: "ela só deve confirmar que vai mandar as solicitações uma vez ... e depois
-    já vir com as opções pesquisadas"): com "buscar", é UM balão só (o resto vem nos cards); nada repetido sai."""
+    já vir com as opções pesquisadas"): com "buscar", é UM balão só (o resto vem nos cards); nada repetido sai.
+    22/10 (Eudes, 10:33: o Tel disse "a Raquel que vai" e ela, no mesmo segundo, "ainda estou confirmando quem vai"):
+    com `desde`, a equipe que escreveu depois disso (enquanto o modelo pensava) cala o resto do turno."""
     baloes = _baloes_do(r)
     if "buscar" in acoes and len(baloes) > 1:
         baloes = [" ".join(baloes)]
@@ -744,6 +753,11 @@ def _falar(conn, lead: dict, r: dict, acoes: list[str]) -> list[str]:
     for n, b in enumerate(baloes):
         if n:
             time.sleep(ENTRE_ENVIOS_S)
+        if desde is not None and _gente_escreveu(conn, lead, desde):
+            log.info("lead %s: a equipe escreveu durante o turno; %d balão(ões) não saiu(íram)", lead["id"], len(baloes) - n)
+            baloes = baloes[:n]
+            r["_equipe_no_meio"] = True
+            break
         mandar_texto(conn, lead, b)
     r["_baloes_que_sairam"] = baloes
     return baloes
@@ -885,6 +899,7 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
     if lead.get("humano_em") and lead.get("parada_motivo") == "a equipe respondeu":
         _marcar(conn, lead["id"], humano_em=None, parada_motivo=None)
         lead["humano_em"] = None
+    inicio = banco.um(conn, "SELECT clock_timestamp()")
     gente = _gente_escreveu(conn, lead, None)
     try:
         gap = max(0, int(cfg.get("gap_equipe_min") or 30))
@@ -897,6 +912,12 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
         _marcar(conn, lead["id"], ultima_lida=ate)
         return False
     conversa = _conversa(conn, lead)
+    if gente and not novas_depois_da_equipe(conversa, lead.get("ultima_lida") or 0, gente):
+        # 22/10 (Eudes: "Qual andar?" às 09:31, o Tel respondeu às 09:32, e às 10:02 ela respondeu de novo): o que a
+        # pessoa escreveu ANTES da última fala da equipe a equipe já respondeu. Só o que veio depois é com ela.
+        _marcar(conn, lead["id"], ultima_lida=ate)
+        log.info("lead %s: a equipe já respondeu o que ela escreveu; a Nay não responde", lead["id"])
+        return False
     if banco.um(conn, "SELECT count(*) FROM privado.olx_cliente_enviada WHERE lead = %s AND tipo = 'texto'",
                 (lead["id"],)) >= LIMITE_DE_MENSAGENS:
         _marcar(conn, lead["id"], humano_em=banco.um(conn, "SELECT now()"), ultima_lida=ate,
@@ -922,7 +943,9 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
     lead["imoveis_conhecidos"] = imoveis_da_conversa(conn, lead)
     r = modelo.chamar(PROMPT, montar_turno(lead, ctx_olx, conversa))
     acoes = acoes_da(r)
-    _falar(conn, lead, r, acoes)
+    _falar(conn, lead, r, acoes, desde=inicio)
+    if r.get("_equipe_no_meio"):
+        return False                      # a equipe entrou no meio: sem ações, e o que ela escreveu fica não lido
     filtros = _filtros(lead.get("filtros"), r.get("filtros"))
     _marcar(conn, lead["id"], ultima_lida=ate, filtros=filtros)
     for acao in acoes:
