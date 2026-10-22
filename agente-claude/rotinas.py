@@ -337,6 +337,9 @@ def laco():
     """A thread do painel: as visitas a cada 5 min; as rotinas de horário dentro da janela de cada uma."""
     ultima_visita = 0.0
     while True:
+        if projetos.madrugada():      # 21/10: 0h-6h de Brasília nada roda; as visitas novas ficam no marcador e saem às 6h
+            time.sleep(60)
+            continue
         try:
             with TRAVA:
                 if ligada("visitas") and time.monotonic() - ultima_visita >= VISITAS_A_CADA_S:

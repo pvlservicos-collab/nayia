@@ -278,7 +278,8 @@ def laco():
         try:
             agora = datetime.now(BRASILIA)
             slot = agora.strftime("%Y-%m-%d %H:") + f"{agora.minute - agora.minute % A_CADA_MIN:02d}"
-            if ativa() and slot != feito:
+            # 21/10: de madrugada (0h-6h de Brasília) nem lê o banco; o que entrou fica no marcador e sai às 6h
+            if ativa() and slot != feito and not projetos.madrugada():
                 feito = slot
                 print("fila_nay:", volta(), flush=True)
             if ativa() and RELATORIO_HORA <= agora.strftime("%H:%M") <= RELATORIO_ATE and not relatorio():

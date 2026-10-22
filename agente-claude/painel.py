@@ -56,11 +56,22 @@ def agendador():
                         and feita.get("regra:" + nome) != chave_min):
                     novas["regra:" + nome] = chave_min
                     threading.Thread(target=agente.executar, args=([nome], "agenda"), daemon=True).start()
+            madrugada = projetos.madrugada(agora)
             for p in projetos.listar():
                 ag = p.get("agenda") or {}
+                # 21/10: o horário marcado que caiu de madrugada (0h-6h de Brasília) ficou adiado: sai às 6h
+                if not madrugada and feita.get("adiada:" + p["id"]) and ag.get("mensagem"):
+                    try:
+                        projetos.enviar(projetos.conversa_atual(p["id"]), ag["mensagem"], origem="agenda")
+                        novas["adiada:" + p["id"]] = ""
+                    except ValueError:  # ainda respondendo: tenta na próxima olhada
+                        pass
                 if (ag.get("horario") == minuto and dia in projetos.DIAS_AGENDA.get(ag.get("dias"), ())
                         and feita.get("projeto:" + p["id"]) != chave_min):
                     novas["projeto:" + p["id"]] = chave_min
+                    if madrugada:
+                        novas["adiada:" + p["id"]] = chave_min
+                        continue
                     try:
                         projetos.enviar(projetos.conversa_atual(p["id"]), ag["mensagem"], origem="agenda")
                     except ValueError:  # a conversa ainda está respondendo: a agenda deste minuto fica para amanhã

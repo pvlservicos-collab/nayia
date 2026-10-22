@@ -34,6 +34,16 @@ IMPORTANDO = {}  # projeto -> {"desde": t, "dias": n}
 ULTIMA_IMPORTACAO = {}  # projeto -> {"em", "ok", "texto"}
 TRAVA = threading.Lock()
 MANAUS = timezone(timedelta(hours=-4))
+BRASILIA = timezone(timedelta(hours=-3))
+# 21/10 (Pedro: "os avisos lá dos chats pararem de madrugada e voltarem às 6 para economizar recurso"): o que entra
+# sozinho nos chats (a fila da revisão, as rotinas, o horário marcado no ⚙) não sai da meia-noite às 6h de Brasília;
+# fica esperando e sai às 6h. O que a equipe escreve no painel sai a qualquer hora.
+AUTOMATICAS = {"fila", "rotina", "agenda"}
+MADRUGADA = (0, 6)   # [de, até) em horas de Brasília
+
+
+def madrugada(agora=None) -> bool:
+    return MADRUGADA[0] <= (agora or datetime.now(BRASILIA)).astimezone(BRASILIA).hour < MADRUGADA[1]
 DIAS_SEMANA = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
 
 
@@ -275,6 +285,8 @@ def enviar(cid, texto, origem=None):
     texto = (texto or "").strip()
     if not texto:
         raise ValueError("mensagem vazia")
+    if origem in AUTOMATICAS and madrugada():
+        raise ValueError("madrugada: os avisos automáticos voltam às 6h (Brasília)")
     con = banco()
     conv = con.execute("SELECT * FROM conversas WHERE id = ?", (cid,)).fetchone()
     if not conv:
