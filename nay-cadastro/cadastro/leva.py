@@ -111,3 +111,12 @@ def fone_bonito(fone: str | None) -> str:
     if len(d) == 10:
         return f"({d[:2]}) {d[2:6]}-{d[6:]}"
     return fone or ""
+
+
+def parece_anuncio(texto: str, saida: dict) -> bool:
+    """Um imóvel novo, não um complemento ("4 banheiros", "64m2", "é condomínio novo"): o texto é de anúncio (longo) ou
+    traz o valor junto com o tipo ou o condomínio e mais alguma coisa (os quartos, ou texto de anúncio)."""
+    t = (texto or "").strip()
+    valor = saida.get("valor_venda") or saida.get("valor_aluguel")
+    de_anuncio = bool(valor and (saida.get("tipo") or saida.get("condominio")) and (saida.get("quartos") or len(t) >= 80))
+    return len(t) >= 250 or de_anuncio

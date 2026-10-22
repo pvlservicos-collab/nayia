@@ -52,12 +52,58 @@ def tratar(conn, leva: Leva) -> None:
     dito = levas.normalizar_fone(*m.groups()) if (m := levas.FONE.search(saida.get("contato_telefone") or "")) else None
     if dito and dito not in fones:
         fones.append(dito)
-    if not saida.get("e_imovel") and not leva.fotos:
-        if fones:
+    if not leva.fotos and not levas.parece_anuncio(leva.texto, saida):
+        if fones and not saida.get("e_imovel"):
             _contato_que_faltava(conn, leva, fones, saida, citada)
+            banco.linhas(conn, banco.MARCAR_LIDAS, {"ids": leva.ids, "cadastro": citada})
+            return
+        # 22/10 (Pedro: "vê se a IA de cadastro entende o que o Tel manda no grupo complementando o que faltou"): o
+        # "4 banheiros" depois do Vila Palmas virou o imóvel 9056 e o "64m2" do Paradise Lake ficou só lido. O que vem
+        # sem foto e sem cara de anúncio, até 24 h depois de um cadastro do grupo (ou marcando a mensagem dele), é
+        # COMPLEMENTO desse cadastro.
+        alvo = citada or _ficha_recente(conn)
+        if alvo and _complemento(conn, leva, saida, alvo):
+            return
+        banco.linhas(conn, banco.MARCAR_LIDAS, {"ids": leva.ids, "cadastro": alvo})
+        return
+    if not saida.get("e_imovel") and not leva.fotos:
         banco.linhas(conn, banco.MARCAR_LIDAS, {"ids": leva.ids, "cadastro": citada})
         return
     _nova_ficha(conn, leva, saida, fones)
+
+
+COMPLEMENTO_H = 24
+
+
+def _ficha_recente(conn) -> int | None:
+    r = banco.uma(conn, "SELECT id FROM privado.cadastro_whats WHERE grupo_id = %s AND estado <> 'cancelado' "
+                        "AND codigo IS NOT NULL AND criado_em > now() - make_interval(hours => %s) ORDER BY id DESC LIMIT 1",
+                  (config.GRUPO_ID, COMPLEMENTO_H))
+    return r["id"] if r else None
+
+
+def _complemento(conn, leva: Leva, saida: dict, alvo: int) -> bool:
+    """Grava no cadastro (e na ficha) o que o Tel disse; o que ele disse vale (é a correção dele). Devolve se gravou."""
+    c = fluxo.ler(conn, alvo)
+    novo = {k: v for k, v in fichas.do_modelo(saida).items() if not k.startswith("_") and k != "descricao"}
+    if not c or not c.get("codigo") or not novo:
+        return False
+    antes = c["ficha"] or {}
+    ficha = achar_condominio(conn, fichas.juntar(antes, novo))
+    chaves = set(novo) | ({"condo_id"} if ficha.get("condo_id") and not antes.get("condo_id") else set())
+    try:
+        corpo = fichas.para_o_site({k: ficha[k] for k in chaves if k in ficha})
+        if corpo:
+            site.salvar_imovel(c["codigo"], corpo)
+    except Exception as e:  # noqa: BLE001
+        fluxo.avisar_erro(conn, c, "Não consegui gravar o complemento do cadastro", e)
+        return True
+    fluxo.gravar(conn, c["id"], ficha=ficha)
+    banco.linhas(conn, banco.MARCAR_LIDAS, {"ids": leva.ids, "cadastro": c["id"]})
+    o_que = ", ".join(campos.resumo_do_que_tem(novo)) or ", ".join(campos.rotulos(list(novo)))
+    envio.grupo(conn, f"Anotado no imóvel {c['codigo']}: {o_que}.", c["id"], citar=leva.ids[0])
+    log.info("complemento do cadastro %s (imóvel %s): %s", c["id"], c["codigo"], sorted(novo))
+    return True
 
 
 def _ficha_citada(conn, leva: Leva) -> int | None:

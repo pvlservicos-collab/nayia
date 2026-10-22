@@ -211,3 +211,18 @@ def test_condominio_novo_para_o_site():
 def test_schema_estrito_tem_tudo_obrigatorio():
     for s in (ficha.SCHEMA_LEVA, ficha.SCHEMA_RESPOSTA):
         assert set(s["required"]) == set(s["properties"]) and s["additionalProperties"] is False
+
+
+# 22/10: o que o Tel manda depois do anúncio ("4 banheiros", "64m2") completa o cadastro, não vira imóvel novo.
+def test_complemento_curto_nao_e_anuncio():
+    assert not leva.parece_anuncio("condominio Vila Palmas\n4 banheiros", {"condominio": "Vila Palmas", "banheiros": 4})
+    assert not leva.parece_anuncio("64m2", {"area_util": 64})
+    assert not leva.parece_anuncio("valor 600 mil", {"valor_venda": 600000})
+
+
+def test_anuncio_e_anuncio():
+    texto = ("*VENDO | Condomínio de Casa Vila Palmas* *Casa DUPLEX* R$ 798.000 Flores • 157,50m2 de área construída "
+             "• 2 Suítes • 2 quartos • 3 banheiros • 2 vagas • área gourmet • piscina no condomínio • segurança 24h")
+    assert leva.parece_anuncio(texto, {"valor_venda": 798000, "tipo": "Casa de condomínio"})
+    assert leva.parece_anuncio("Apto 3 quartos no Weekend Club, venda R$ 450 mil, 2 vagas, 90m2",
+                               {"valor_venda": 450000, "condominio": "Weekend Club", "quartos": 3})
