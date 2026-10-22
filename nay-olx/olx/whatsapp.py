@@ -1121,6 +1121,10 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
 
 
 ETAPAS_DA_BUSCA = ("nova", "filtrar", "feito_busca", "imoveis_enviados", "finalizado")
+# 475 (Pedro, 22/10: "se não tivermos avisamos a ele que vamos continuar verificando")
+CONTINUO_VERIFICANDO = ("Ainda não tenho uma opção com esse perfil exato aqui, mas já estou verificando com os nossos "
+                        "corretores parceiros e te aviso por aqui assim que aparecer.")
+CONTINUO_EXATO = "E continuo verificando com os nossos corretores parceiros uma com o perfil exato. Te aviso por aqui."
 
 
 def _afrouxar(f: dict) -> list[tuple[dict, bool]]:
@@ -1159,6 +1163,19 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
             break
     if lead.get("etapa") in ETAPAS_DA_BUSCA:
         _marcar(conn, lead["id"], etapa="feito_busca")
+    # 475 (Pedro, 22/10): a busca do cliente conta o que a nossa base deu; nada no perfil exato ativa os grupos e a OLX
+    # (olx/buscas.py) e ela avisa que vai continuar verificando
+    from olx import buscas
+    ativou = buscas.resultado_da_base(conn, lead, f, len(achados), bool(achados) and not proximas)
+    buscando = ativou or banco.um(conn, "SELECT estado = 'buscando' FROM privado.busca_cliente WHERE lead = %s", (lead["id"],))
+    if not achados and buscando:
+        texto = CONTINUO_VERIFICANDO
+        if any(parecida(texto, x) for x in ja_mandou(conn, lead)):
+            texto = "Continuo verificando com os nossos corretores parceiros e te aviso por aqui assim que aparecer."
+        if not ja_avisou:
+            mandar_texto(conn, lead, texto)
+            buscas.cliente_avisado(conn, lead, texto)
+        return
     if not achados:
         # 416 (Pedro, 19/10): o catálogo não tem -> ordem de busca na OLX (olx/parceiro.py); ela "vai verificar"
         if abrir_busca_na_olx(conn, lead, f):
@@ -1183,6 +1200,11 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
     if any(_normal(texto) == _normal(x) for x in ja_mandou(conn, lead)):
         texto = fecho(lead, len(achados), de_novo=True)        # a segunda busca não fecha com a mesma frase
     mandar_texto(conn, lead, texto)
+    if ativou and proximas:
+        # 475: mandou as mais próximas e a busca do perfil exato continua nos grupos e na OLX
+        time.sleep(ENTRE_ENVIOS_S)
+        mandar_texto(conn, lead, CONTINUO_EXATO)
+        buscas.cliente_avisado(conn, lead, CONTINUO_EXATO)
     if lead.get("etapa") in ETAPAS_DA_BUSCA:
         _marcar(conn, lead["id"], etapa="imoveis_enviados")
     log.info("lead %s: %d imóvel(is) enviado(s)%s", lead["id"], len(achados), " (os mais próximos)" if proximas else "")

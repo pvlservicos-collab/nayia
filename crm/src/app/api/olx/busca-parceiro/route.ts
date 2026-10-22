@@ -42,6 +42,11 @@ export async function POST(req: NextRequest) {
     }
     const r = await naydb().query('SELECT crm_olx_busca_parceiro_abrir($1::jsonb, $2) AS r', [JSON.stringify(corpo || {}), quem])
     const res = r.rows[0]?.r ?? { erro: 'sem resposta do banco' }
+    // 475b (22/10): a busca manual vai ao fluxo novo (grupos e base da OLX), já ativada; a ordem antiga fica cancelada
+    if (res.ok && res.id) {
+      const m = await naydb().query('SELECT crm_busca_cliente_manual($1, $2) AS m', [res.id, quem])
+      res.busca = m.rows[0]?.m?.busca ?? null
+    }
     return Response.json(res, { status: res.erro ? 400 : 200 })
   } catch (err: any) {
     return apiError(err?.status || 500, err?.message || 'Não consegui abrir a busca.')

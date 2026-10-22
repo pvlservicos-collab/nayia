@@ -53,4 +53,4 @@ nay_leitura: SELECT
 scrap_contatos_rebuild, site_scrap_importar
 
 ## funções que citam
-scrap_contatos_rebuild, site_scrap_anuncios, site_scrap_importar, site_scrap_listas
+busca_olx_candidatos, scrap_contatos_rebuild, site_scrap_anuncios, site_scrap_importar, site_scrap_listas

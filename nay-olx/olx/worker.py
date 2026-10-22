@@ -36,6 +36,12 @@ def main() -> None:
         parceiro.iniciar()
     except Exception:  # noqa: BLE001
         log.exception("a busca de parceiro na OLX não iniciou")
+    # 475 (22/10): o fluxo de busca do cliente (grupos, base de scrap da OLX, Nay dos corretores), noutra linha
+    try:
+        from olx import buscas
+        buscas.iniciar()
+    except Exception:  # noqa: BLE001
+        log.exception("o fluxo de busca do cliente não iniciou")
     conn = None
     proxima_rodada = 0.0        # a conferência do que foi mandado e a rodada, juntas, a cada 5 min
     espera_ate = 0.0            # a OLX disse não: até aqui a rodada não manda nada (a conferência continua)

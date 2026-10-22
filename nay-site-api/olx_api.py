@@ -477,6 +477,27 @@ def _incluso_do_dono(texto):
     return ", ".join(itens) or None
 
 
+def _foto_do_corretor_da_busca(conn, telefone, url, mid):
+    """476b: baixa para fotos-captacao/whatsapp-busca/<8 dígitos>/ e registra (a Nay dos corretores põe no pré-cadastro)."""
+    try:
+        conteudo, extensao = _baixar(url, host_ok=_host_do_whatsapp, exigir_tipo=False)
+    except (urllib.error.URLError, ValueError, TimeoutError, OSError) as exc:
+        return jsonify({"ok": False, "erro": f"não baixou: {exc}"[:200]}), 502
+    pasta_tel = telefone[-8:]
+    pasta = os.path.join(PASTA_FOTOS, "whatsapp-busca", pasta_tel)
+    os.makedirs(pasta, exist_ok=True)
+    nome = re.sub(r"[^A-Za-z0-9_-]", "", mid or datetime.now().strftime("%H%M%S%f"))[:60] + "." + extensao
+    temporario = os.path.join(pasta, nome + ".parcial")
+    with open(temporario, "wb") as f:
+        f.write(conteudo)
+    os.replace(temporario, os.path.join(pasta, nome))
+    publica = f"{URL_FOTOS}/whatsapp-busca/{pasta_tel}/{nome}"
+    with conn.cursor() as cur:
+        cur.execute("SELECT busca_corretor_foto_guardar(%s, %s, %s) AS ok", (telefone, publica, mid or nome))
+    conn.commit()
+    return jsonify({"ok": True, "url": publica, "busca": True})
+
+
 @olx_bp.route("/api/fotos-captacao/whatsapp", methods=["POST"])
 def captacao_foto_whatsapp():
     if not CAPTACAO_FOTO_SEGREDO or not hmac.compare_digest(
@@ -498,6 +519,11 @@ def captacao_foto_whatsapp():
                         "ORDER BY id DESC LIMIT 1", (telefone,))
             lead = cur.fetchone()
             if not lead:
+                # 476b (Pedro, 22/10): a foto do CORRETOR que oferece imóvel para uma busca de cliente
+                cur.execute("SELECT busca_corretor_e(%s) AS e", (telefone,))
+                if (cur.fetchone() or {}).get("e"):
+                    conn.commit()
+                    return _foto_do_corretor_da_busca(conn, telefone, url, mid)
                 return jsonify({"ok": False, "erro": "não é da campanha"}), 200
             # a mesma trava da captacao_ficha (165): foto e resposta juntas não abrem duas fichas
             cur.execute("SELECT pg_advisory_xact_lock(hashtext('captacao_ficha'), %s)", (int(lead["id"]),))
