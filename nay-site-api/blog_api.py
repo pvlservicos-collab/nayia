@@ -893,6 +893,65 @@ def admin_imagem_guardar():
     return jsonify({"ok": True, "url": nossa, "largura": tam[0], "altura": tam[1]})
 
 
+# ---- Unsplash (Pedro, 22/10/2026: "API Unsplash ... prepara uma tela rápida lá no blog para eu passar nessa autorização").
+# As regras de produção deles: a foto é mostrada direto da URL do Unsplash (hotlink, nunca baixada para cá), usar a foto
+# dispara o download_location deles, e o crédito leva o nome do fotógrafo com link para o perfil e link para o Unsplash,
+# com utm_source = o nome do aplicativo lá ("Pvlwordpress"). A chave mora no .env do servidor (UNSPLASH_ACCESS_KEY).
+UNSPLASH_APP = "pvlwordpress"
+UNSPLASH_UTM = "utm_source=%s&utm_medium=referral" % UNSPLASH_APP
+
+
+def _unsplash_cab():
+    return {"Authorization": "Client-ID " + os.environ.get("UNSPLASH_ACCESS_KEY", "").strip(), "Accept-Version": "v1"}
+
+
+def _com_utm(url):
+    return (url or "") + ("&" if "?" in (url or "") else "?") + UNSPLASH_UTM if url else ""
+
+
+@blog_bp.route("/admin/api/blog/unsplash")
+def admin_unsplash_buscar():
+    if not _admin_autenticado():
+        return _negado()
+    if not os.environ.get("UNSPLASH_ACCESS_KEY", "").strip():
+        return jsonify({"ok": False, "erro": "falta a chave UNSPLASH_ACCESS_KEY no servidor"}), 503
+    q = (request.args.get("q") or "").strip()[:120]
+    if not q:
+        return jsonify({"ok": True, "fotos": [], "total": 0})
+    pagina = min(max(int(request.args.get("pagina") or 1), 1), 50)
+    params = {"query": q, "page": pagina, "per_page": 24, "content_filter": "high"}
+    if request.args.get("orientacao") in ("landscape", "portrait", "squarish"):
+        params["orientation"] = request.args["orientacao"]
+    try:
+        d = _http_json("https://api.unsplash.com/search/photos?" + urllib.parse.urlencode(params), _unsplash_cab())
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"ok": False, "erro": "o Unsplash não respondeu: %s" % str(exc)[:160]}), 502
+    fotos = []
+    for f in d.get("results") or []:
+        u, urls, links = f.get("user") or {}, f.get("urls") or {}, f.get("links") or {}
+        fotos.append({"id": f.get("id"), "alt": f.get("alt_description") or f.get("description") or "",
+                      "url": urls.get("regular"), "thumb": urls.get("small"), "largura": f.get("width"), "altura": f.get("height"),
+                      "cor": f.get("color"), "autor": u.get("name") or u.get("username") or "",
+                      "perfil": _com_utm((u.get("links") or {}).get("html")), "pagina": _com_utm(links.get("html")),
+                      "unsplash": "https://unsplash.com/?" + UNSPLASH_UTM, "download": links.get("download_location")})
+    return jsonify({"ok": True, "fotos": fotos, "total": d.get("total", 0), "paginas": d.get("total_pages", 0)})
+
+
+@blog_bp.route("/admin/api/blog/unsplash/usar", methods=["POST"])
+def admin_unsplash_usar():
+    """A foto foi usada: avisa o Unsplash pelo download_location dela (regra deles; não baixa a imagem)."""
+    if not _admin_autenticado():
+        return _negado()
+    dl = str((request.get_json(silent=True) or {}).get("download") or "")
+    if not dl.startswith("https://api.unsplash.com/photos/"):
+        return jsonify({"ok": False, "erro": "download_location inválido"}), 422
+    try:
+        _http_json(dl, _unsplash_cab())
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"ok": False, "erro": "o Unsplash não respondeu: %s" % str(exc)[:160]}), 502
+    return jsonify({"ok": True})
+
+
 def _montar_corpo(p, escolhas):
     """Troca cada [IMAGEM | ...] pela imagem escolhida (markdown + legenda em itálico) ou tira o marcador."""
     corpo = p.get("corpo") or ""

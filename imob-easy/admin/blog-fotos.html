@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fotos para o blog — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/blog-admin.css?v=20261021a">
+<style>
+  /* Pedro, 22/10/2026: a tela das fotos do Unsplash para os artigos do blog (e para a aprovação de produção deles) */
+  .bf-busca { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .bf-busca .entrada { flex: 1 1 260px; max-width: 520px; }
+  .bf-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  .bf-foto { background: #fff; border: 1px solid var(--borda); border-radius: var(--raio); overflow: hidden; display: flex; flex-direction: column; }
+  .bf-foto img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; display: block; }
+  .bf-corpo { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .bf-credito { font-size: var(--fs-sm); color: var(--texto-fraco); margin: 0; }
+  .bf-credito a { color: var(--texto); font-weight: 600; }
+  .bf-foto .btn-azul { margin-top: auto; align-self: flex-start; }
+  .bf-usada { outline: 3px solid var(--roxo); }
+  .bf-copiado { background: #fff; border: 1px solid var(--borda); border-left: 4px solid var(--roxo); border-radius: var(--raio); padding: 14px 16px; margin-bottom: 16px; }
+  .bf-copiado pre { white-space: pre-wrap; word-break: break-all; background: var(--fundo, #f6f6f8); padding: 10px; border-radius: 8px; font-size: 13px; margin: 8px 0; }
+  .bf-previa figure { margin: 8px 0 0; max-width: 560px; }
+  .bf-previa img { width: 100%; border-radius: 8px; display: block; }
+  .bf-previa figcaption { font-size: var(--fs-sm); color: var(--texto-fraco); margin-top: 6px; font-style: italic; }
+  .bf-mais { margin: 18px 0; text-align: center; }
+</style>
+<meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
+</head>
+<body class="admin" data-pagina="blog">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+<div data-layout-topo></div>
+
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+    <div>
+      <h1 class="pagina-titulo">Fotos para os artigos</h1>
+      <p class="pagina-subtitulo" style="margin-left:0">Procure uma foto, clique em “Usar no artigo” e cole no texto do artigo: a foto e o crédito do fotógrafo vão juntos.</p>
+    </div>
+    <div class="bg-acoes">
+      <a class="btn-neutro" href="blog.html">Voltar ao blog</a>
+      <a class="btn-azul" href="blog-editar.html" target="_blank" rel="noopener">+ Novo artigo</a>
+    </div>
+  </div>
+
+  <form class="bf-busca" id="bf-form" role="search">
+    <input class="entrada" id="bf-q" type="search" placeholder="Ex.: apartamento moderno, sala de estar, Manaus" aria-label="O que procurar" required>
+    <select class="selecao" id="bf-orientacao" aria-label="Formato">
+      <option value="landscape">Deitada (capa e texto)</option>
+      <option value="">Qualquer formato</option>
+      <option value="portrait">Em pé</option>
+      <option value="squarish">Quadrada</option>
+    </select>
+    <button class="btn-azul" type="submit">Procurar</button>
+  </form>
+
+  <div id="bf-copiado" class="bf-copiado" hidden></div>
+  <div id="bf-grade" class="bf-grade"><p class="bg-vazio">Digite o que procura e clique em Procurar.</p></div>
+  <div class="bf-mais"><button class="btn-neutro" id="bf-mais" type="button" hidden>Mais fotos</button></div>
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/dados-admin.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/blog-fotos.js?v=20261022a"></script>
+</body>
+</html>
