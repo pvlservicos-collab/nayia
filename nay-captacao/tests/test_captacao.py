@@ -361,3 +361,17 @@ class OutroImovel(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ExcluirContato(unittest.TestCase):
+    """Pedro, 22/10: o botão "Excluir meu contato" desliga o lead sem resposta; frase solta com as palavras não."""
+
+    def test_o_botao(self):
+        from captacao import atender
+        for t in ("Excluir meu contato", "excluir meu contato", " Excluir meu contato. ", "oi\nExcluir meu contato"):
+            self.assertTrue(atender.pediu_excluir_contato(t), t)
+
+    def test_nao_e_o_botao(self):
+        from captacao import atender
+        for t in ("Não tenho outro", "Tenho outro imóvel", "não quero excluir meu contato, só mudar o número", "", None):
+            self.assertFalse(atender.pediu_excluir_contato(t), t)

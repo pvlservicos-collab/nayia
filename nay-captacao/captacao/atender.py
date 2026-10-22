@@ -8,6 +8,7 @@ Ainda é da IA? -> Enviar resposta (oficial) -> Registrar saida" do fluxo do n8n
 from __future__ import annotations
 
 import logging
+import re
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -17,6 +18,27 @@ from captacao import banco, config, envio, ferramentas, modelo, olx, resposta, t
 
 log = logging.getLogger("captacao.atender")
 HISTORICO = 20   # o mesmo tamanho da memória do agente no fluxo
+
+# Pedro, 22/10: o botão "Excluir meu contato" dos modelos outro_imovel_sair_* ("quem clica nisso a Nay não responde
+# mais, como uma opção do cliente desligar sem ele precisar denunciar para a Meta"). Vale a linha que é só o botão.
+EXCLUIR_CONTATO = re.compile(r"^\W*excluir\s+meu\s+contato\W*$", re.I | re.M)
+SAIR_DA_LISTA = """
+WITH l AS (
+  UPDATE captacao_leads
+     SET opt_out = true, status = 'concluido', etapa = 'concluido', pergunta_pendente = NULL,
+         motivo_fim = 'opt_out', fechado_em = coalesce(fechado_em, now()), atualizado_em = now()
+   WHERE telefone_chave = nay_fone_chave(%(tel)s)
+  RETURNING id
+)
+INSERT INTO captacao_nao_disparar (telefone_chave, motivo)
+VALUES (nay_fone_chave(%(tel)s), 'clicou em Excluir meu contato')
+ON CONFLICT (telefone_chave) DO UPDATE SET motivo = EXCLUDED.motivo
+RETURNING (SELECT count(*) FROM l) AS leads
+"""
+
+
+def pediu_excluir_contato(texto: str) -> bool:
+    return bool(EXCLUIR_CONTATO.search(texto or ""))
 
 
 @dataclass
@@ -120,6 +142,13 @@ def atender(conn, telefone: str, enviar: bool = True, agora: datetime | None = N
         _avisar_tel(conn, t.aviso_ao_tel, t.telefone)
     if not t.texto:
         feito.motivo = "só foto, e ela já tinha seguido o atendimento depois das fotos anteriores"
+        return feito
+    if pediu_excluir_contato(t.texto):
+        # sai da lista e do disparo, sem resposta nenhuma (nem o "desculpe" do opt_out pelo modelo)
+        banco.linhas(conn, SAIR_DA_LISTA, {"tel": t.telefone})
+        feito.recebido = t.texto
+        feito.motivo = "clicou em Excluir meu contato: saiu da lista, sem resposta"
+        log.info("…%s clicou em Excluir meu contato: opt_out e fora do disparo", t.telefone[-4:])
         return feito
     if not t.prompt:
         raise RuntimeError("o prompt da captação não veio do banco (nai_prompt_de('captacao'))")
