@@ -45,8 +45,8 @@ e mande o SELECT pela entrada. Quem = `'Agente Visitas'`. Hora sempre com o fuso
 - Toda função devolve `ok` e `mensagem`: copie a mensagem no relato. Desfazer: agendada por engano =
   `crm_visita_excluir`; excluída por engano = agendar de novo; horário = mudar de volta.
 
-### A conferência (6 vezes por dia)
-Às 07, 09, 11, 13, 15 e 17 h de Manaus chega a pergunta "veja se todas as visitas estão no sistema", com o arquivo
+### A conferência (3 vezes por dia)
+Às 07, 13 e 17 h de Manaus (manhã cedo, começo e fim da tarde; Pedro, 22/10) chega a pergunta "veja se todas as visitas estão no sistema", com o arquivo
 `dados/conferencia/AAAA-MM-DD/HHMM.txt`: as visitas da agenda (de ontem até daqui a 7 dias) e as conversas de ontem e
 de hoje em que se falou de visita (telefone só com os 4 últimos dígitos; o card longo da Nay vem cortado). Compare,
 registre como acima e relate. Para o telefone inteiro do corretor, a conversa mais antiga ou a fala inteira, consulte
@@ -60,15 +60,16 @@ Pedro: "quero que elas sejam organizadas em um card padrão a partir de agora no
     "(respondeu)" quando ele escreveu depois.
   - ✅/❌ Motoboy: saiu mensagem para o acompanhante que cita o código, o condomínio ou o dia DESTA visita.
 - `SELECT visitas_cards(<de>, <até>)`: os cards das visitas abertas no intervalo (ex.: `now()`, `now() + interval '2 days'`).
-- Toda visita nova (da agenda do CRM ou que a Nay passou à equipe) chega aqui com o card. Confira o checklist.
+- Toda visita nova (da agenda do CRM ou que a Nay passou à equipe) chega aqui com o card, no fim da conferência
+  seguinte (não mais uma a uma). Confira o checklist.
 
 ### O lembrete de 1 hora antes, no grupo
-Pedro: "no dia da visita 1 hora antes ele vai lembrar a gente no grupo". A rotina manda o card aqui uma hora antes (entre
-45 e 65 min). Mande o lembrete no grupo **Altarquia Imobeasy** (o grupo da equipe onde já sai o checklist da visita), na
-vps1, como o projeto Nay faz:
+Pedro: "no dia da visita 1 hora antes ele vai lembrar a gente no grupo". Desde 22/10 quem manda é o SISTEMA, não você
+(o nay-olx, migração 466): entre 50 e 70 min antes, o card desta visita vai ao grupo **Altarquia Imobeasy** com
+"⏰ Daqui a 1 hora" e, se houver ❌, o que falta (falar com o proprietário, avisar o motoboy). Fica marcado em
+`privado.visita_lembrete_grupo`. Você não precisa mandar lembrete; se o Pedro pedir um à mão, o envio ao grupo é:
 - o id do grupo (uma vez; guarde em ./dados/grupo_altarquia.txt):
   `scp -q -i /root/.ssh/agente_claude_vps1 /opt/agente-claude/projetos/nay/dados/achar_grupo.py root@100.86.114.74:/docker/nay-core/scripts/achar_grupo.py && ssh -i /root/.ssh/agente_claude_vps1 root@100.86.114.74 'cd /docker/nay-core && docker compose run --rm --no-deps -v /docker/nay-core/scripts/achar_grupo.py:/app/scripts/achar_grupo.py:ro nay-core python scripts/achar_grupo.py Altarquia'`
 - o envio (o texto vai por arquivo, como o projeto Nay faz): grave o texto em /tmp/lembrete.txt e rode
   `scp -q -i /root/.ssh/agente_claude_vps1 /tmp/lembrete.txt root@100.86.114.74:/docker/nay-core/relatorios/lembrete.txt && ssh -i /root/.ssh/agente_claude_vps1 root@100.86.114.74 'cd /docker/nay-core && docker compose run --rm --no-deps -v /docker/nay-core/scripts/mandar.py:/app/scripts/mandar.py:ro -v /docker/nay-core/relatorios:/app/relatorios:ro nay-core python scripts/mandar.py --grupo <id> --arquivo --texto relatorios/lembrete.txt --confirmar'`
-O lembrete leva o card; se houver ❌, diga o que falta (falar com o proprietário, avisar o motoboy) e quem resolve.
 Nada de mandar mensagem a corretor, cliente ou proprietário por conta própria: o lembrete é para a equipe, no grupo.

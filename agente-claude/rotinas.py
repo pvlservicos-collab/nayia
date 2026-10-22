@@ -4,7 +4,9 @@
   "Quero que toda visita nova no crm seja enviada para a ia visitas no agentes.imobeasy"
       VISITAS: a cada 5 min, as visitas que entraram na agenda do CRM desde a última olhada (o evento
       'agendada_no_crm' que crm_visita_agendar grava: agendada à mão, pedido da Nay posto na agenda, ou registro
-      de visita que já passou) vão, com os dados de cada uma, para o projeto "visitas".
+      de visita que já passou) entram na espera; desde 22/10 vão, com o card de cada uma, JUNTO da conferência
+      (Pedro: "diminui a frequência do visita para uma vez de manhã cedo, começo da tarde e fim da tarde", depois de o
+      limite da conta do Claude estourar). O lembrete de 1 hora antes no grupo saiu do agente: é o nay-olx (466).
   "Quero que envie todos os dias as métricas do dia para a ia Métricas ... fim da noite 23 hrs"
       MÉTRICAS: às 23:00 de Brasília, os números do dia (o dia de Manaus) do Painel do negócio do site
       (site_painel_metricas + site_painel_visitas) vão para projetos/metricas/dados/metricas/AAAA-MM-DD.json e a
@@ -15,7 +17,7 @@
   "que seja enviado para ele uma pergunta a cada 2 hrs 3 de manha e 3 a tarde pedindo para ele ver se todas as
   visitas estão do sistema" (21/10, depois de o Visitas dizer que as visitas do dia "não existiam": elas estavam
   nas conversas que a equipe faz à mão pelo número da Nay, tabela mensagens, que ele nunca abriu)
-      CONFERÊNCIA: às 07, 09, 11, 13, 15 e 17 h de MANAUS (08 a 18 h de Brasília), as conversas de visita de ontem
+      CONFERÊNCIA: às 07, 13 e 17 h de MANAUS (08, 14 e 18 h de Brasília; até 22/10 eram 6), as conversas de visita de ontem
       e de hoje (mensagens) e as visitas da agenda (nai_visita) vão para
       projetos/visitas/dados/conferencia/AAAA-MM-DD/HHMM.txt e a pergunta para o projeto "visitas".
 
@@ -43,7 +45,8 @@ HORARIOS = {
     "estrategia": {"projeto": "estrategia", "de": "07:00", "ate": "07:59", "fim_dias_atras": 1, "dias": 7},
 }
 # a conferência das visitas: horas de MANAUS (onde as visitas acontecem); cada uma vale até o minuto 59 daquela hora
-CONFERENCIA_HORAS = ["07", "09", "11", "13", "15", "17"]
+# 22/10 (Pedro): "uma vez de manhã cedo, começo da tarde e fim da tarde"
+CONFERENCIA_HORAS = ["07", "13", "17"]
 CONFERENCIA_TEXTO_MAX = 400   # o card da Nay é longo e repete a ficha: o começo basta para saber de que imóvel é
 
 SQL_ULTIMO_EVENTO = "SELECT json_build_object('id', coalesce(max(id), 0))::text FROM nai_visita_evento WHERE tipo = 'agendada_no_crm';"
@@ -65,17 +68,6 @@ SELECT json_build_object(
  WHERE e.tipo IN ('agendada_no_crm', 'com_a_rayssa') AND e.id > {cursor}
  ORDER BY e.id;
 """
-# 22/10 (Pedro: "no dia da visita 1 hora antes ele vai lembrar a gente no grupo"): a visita que começa entre 45 e 65 min
-SQL_LEMBRETE = """
-SELECT json_build_object('visita', v.id, 'card', visita_card(v.id)->>'texto')::text
-  FROM nai_visita v
- WHERE v.excluida_em IS NULL AND v.estado NOT IN ('cancelada', 'expirada', 'encerrada')
-   AND v.quando BETWEEN now() + interval '45 minutes' AND now() + interval '65 minutes'
- ORDER BY v.quando;
-"""
-LEMBRETE = ("Daqui a 1 hora tem visita. Mande o lembrete no grupo Altarquia Imobeasy com este card (o como-ler-os-dados diz "
-            "como). Se o checklist tiver ❌, diga no lembrete o que falta (falar com o proprietário, avisar o motoboy) e quem "
-            "resolve.")
 SQL_METRICAS = """
 SELECT json_build_object('de', '{de}', 'ate', '{ate}',
          'painel', site_painel_metricas('{de}'::date, '{ate}'::date, 'dia'),
@@ -216,7 +208,7 @@ def _linha_visita(v):
 
 
 def visitas():
-    """Enfileira as visitas novas da agenda do CRM e manda as pendentes ao projeto. Devolve um resumo."""
+    """Enfileira as visitas novas da agenda do CRM. Elas vão ao projeto junto da conferência. Devolve um resumo."""
     con = banco()
     cursor = _estado(con, "visita_evento")
     if cursor is None:
@@ -233,39 +225,23 @@ def visitas():
     if novas:
         _gravar(con, "visita_evento", str(max(v["evento"] for v in novas)))
     con.commit()
+    con.close()
+    return f"visitas: {len(novas)} na espera da conferência" if novas else "visitas: nenhuma nova"
+
+
+def _visitas_na_espera():
+    """As visitas novas que ainda não foram ao projeto: (eventos, texto para o fim da conferência)."""
+    con = banco()
     pend = con.execute("SELECT evento, dados FROM rotina_visita WHERE enviado_em IS NULL ORDER BY evento").fetchall()
     con.close()
     if not pend:
-        return "visitas: nenhuma nova"
+        return [], ""
     vs = [json.loads(p["dados"]) for p in pend]
-    texto = (("Visita nova:\n\n" if len(vs) == 1 else f"{len(vs)} visitas novas:\n\n")
+    texto = (("\n\nVISITA NOVA desde a última conferência:\n\n" if len(vs) == 1
+              else f"\n\n{len(vs)} VISITAS NOVAS desde a última conferência:\n\n")
              + "\n\n".join(_linha_visita(v) for v in vs)
              + "\n\nConfira o checklist (falaram com o proprietário? com o motoboy?) e analise conforme o seu contexto.")
-    if not _mandar("visitas", texto):
-        return f"visitas: agente ocupado, {len(vs)} na espera"
-    con = banco()
-    con.executemany("UPDATE rotina_visita SET enviado_em = ? WHERE evento = ?", [(projetos.agora(), p["evento"]) for p in pend])
-    con.commit()
-    con.close()
-    return f"visitas: {len(vs)} enviada(s)"
-
-
-def lembretes():
-    """1 hora antes de cada visita, o card vai ao projeto Visitas com o pedido do lembrete no grupo. Uma vez por visita."""
-    con = banco()
-    con.execute("CREATE TABLE IF NOT EXISTS rotina_lembrete (visita INTEGER PRIMARY KEY, enviado_em TEXT NOT NULL)")
-    feitas = {r["visita"] for r in con.execute("SELECT visita FROM rotina_lembrete")}
-    con.close()
-    vs = [v for v in fila_nay._naydb(SQL_LEMBRETE) if v["visita"] not in feitas]
-    if not vs:
-        return "lembretes: nenhuma nova"
-    if not _mandar("visitas", LEMBRETE + "\n\n" + "\n\n".join(v["card"] for v in vs)):
-        return f"lembretes: agente ocupado, {len(vs)} na espera"
-    con = banco()
-    con.executemany("INSERT OR IGNORE INTO rotina_lembrete (visita, enviado_em) VALUES (?, ?)", [(v["visita"], projetos.agora()) for v in vs])
-    con.commit()
-    con.close()
-    return f"lembretes: {len(vs)} visita(s)"
+    return [p["evento"] for p in pend], texto
 
 
 # ---------------------------------------------------------------- métricas (horário)
@@ -395,9 +371,11 @@ def conferencia(hora_m):
 
 
 def _conferencia_mandar(marca, texto):
-    if not _mandar("visitas", texto):
+    eventos, novas = _visitas_na_espera()
+    if not _mandar("visitas", texto + novas):
         return False
     con = banco()
+    con.executemany("UPDATE rotina_visita SET enviado_em = ? WHERE evento = ?", [(projetos.agora(), e) for e in eventos])
     _gravar(con, "conferencia", marca)
     con.commit()
     con.close()
@@ -540,7 +518,7 @@ def laco():
                 # 462: as dúvidas da Nay Parceria e as respostas dos donos, de minuto em minuto
                 if ligada("duvidas") and time.monotonic() - ultima_duvida >= 60:
                     ultima_duvida = time.monotonic()
-                    for r in (duvidas(), donos(), lembretes() if ligada("lembretes") else "lembretes: nenhuma nova"):
+                    for r in (duvidas(), donos()):
                         if "nenhuma" not in r and "nada novo" not in r:
                             print("rotinas:", r, flush=True)
                 hora_m = datetime.now(MANAUS).strftime("%H")
@@ -553,7 +531,7 @@ def laco():
 
 def estado():
     con = banco()
-    r = {"ligadas": {n: ligada(n) for n in ["visitas", *HORARIOS, "conferencia", "duvidas", "lembretes"]},
+    r = {"ligadas": {n: ligada(n) for n in ["visitas", *HORARIOS, "conferencia", "duvidas"]},
          "marcadores": {x["chave"]: x["valor"] for x in con.execute("SELECT chave, valor FROM rotinas_estado")},
          "visitas_na_espera": con.execute("SELECT count(*) n FROM rotina_visita WHERE enviado_em IS NULL").fetchone()["n"],
          "ultimas_visitas": con.execute("SELECT evento, visita, entrou_em, enviado_em FROM rotina_visita "
