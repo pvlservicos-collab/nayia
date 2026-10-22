@@ -45,20 +45,12 @@ BEGIN
                        WHEN 'sem_cadastro' THEN 'imóvel sem proprietário cadastrado'
                        ELSE 'o telefone do proprietário é o do próprio corretor' END || '): fale você com ele';
   END IF;
-  -- 443 (Pedro, 20/10/2026: a Nay passa a avisar o motoboy): o acompanhante ativo da equipe recebe a visita completa
-  -- junto com o pedido ao proprietário. O checklist do grupo (nay-olx, olx/visitas_parceria.py) marca se saiu e se ele
-  -- respondeu. Desligar: nai_config visita_avisar_motoboy = nao.
-  IF coalesce(nai_cfg('visita_avisar_motoboy', 'sim'), 'sim') = 'sim' THEN
-    SELECT * INTO moto FROM nai_motoboy();
-    IF moto.contato_id IS NOT NULL AND moto.contato_id <> v.corretor_id THEN
-      UPDATE nai_visita SET motoboy_id = moto.contato_id, ult_msg_moto_em = now() WHERE id = v.id;
-      PERFORM nai_enfileirar_texto(p_turno, v.id, moto.contato_id, 'motoboy',
-        nai_texto_visita_completa(v.id, 'Oi, ' || coalesce(nullif(split_part(btrim(coalesce(moto.nome, '')), ' ', 1), ''), 'tudo bem')
-          || '! Aqui é a Nay, da Imob Easy. Pedido de visita (o horário ainda está sendo confirmado com o proprietário)')
-          || E'\n\nVocê consegue acompanhar? Me responde SIM ou NÃO, por favor.',
-        'visita_motoboy', 520);
-      PERFORM nai_evento(v.id, 'motoboy_avisado', left(coalesce(moto.nome, ''), 200));
-    END IF;
+  -- 468 (Pedro, 22/10/2026: "não mande para o André sem o proprietário ter confirmado que pode"): o acompanhante NÃO
+  -- recebe mais junto com o pedido ao proprietário (a 443 mandava aos três de uma vez; na #1156 o dono respondeu "o
+  -- imóvel renovou o contrato" e o Diego já tinha o pedido). Ele recebe quando o dono diz sim (nai_turno_dono_respondeu)
+  -- ou quando a equipe marca no CRM (crm_visita_proprietario_ok): nai_visita_avisar_acompanhante.
+  IF coalesce(nai_cfg('visita_avisar_motoboy', 'sim'), 'sim') = 'sim' AND v_prop IS NOT NULL AND v_prop <> v.corretor_id THEN
+    v_dono := v_dono || '. O ' || nai_acompanhante() || ' (acompanhante) só recebe quando o proprietário confirmar';
   END IF;
 
   IF v.quando IS NOT NULL AND v.quando < now() + make_interval(hours => v_min_h) THEN
