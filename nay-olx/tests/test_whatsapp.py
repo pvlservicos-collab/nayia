@@ -297,3 +297,17 @@ class EquipeJaRespondeu(unittest.TestCase):
         depois = conversa + [{"id": 12, "direcao": "recebida", "texto": "Com quem eu vou", "criada_em": t(14, 33)}]
         self.assertEqual([m["id"] for m in w.novas_depois_da_equipe(depois, 9, t(13, 32))], [12])
         self.assertEqual([m["id"] for m in w.novas_depois_da_equipe(conversa, 9, None)], [10, 11])
+
+
+class FinalidadePeloValor(unittest.TestCase):
+    """22/10 (…6380): "até R$ 1.000.000" e ela perguntou "Você procura para comprar ou alugar?"."""
+
+    def test_o_valor_diz(self):
+        pergunta = ["Certo, apartamento em Adrianópolis até R$ 1.000.000. Você procura para comprar ou alugar?"]
+        self.assertEqual(w.finalidade_pelo_valor({"baloes": pergunta, "filtros": {"teto": 1000000}}), "venda")
+        self.assertEqual(w.finalidade_pelo_valor({"baloes": ["Seria para alugar ou comprar?"], "filtros": {"teto": 3500}}), "locacao")
+
+    def test_sem_a_pergunta_ou_valor_do_meio_nao_mexe(self):
+        self.assertIsNone(w.finalidade_pelo_valor({"baloes": ["Quais bairros te atendem?"], "filtros": {"teto": 1000000}}))
+        self.assertIsNone(w.finalidade_pelo_valor({"baloes": ["Seria para alugar ou comprar?"], "filtros": {"teto": 60000}}))
+        self.assertIsNone(w.finalidade_pelo_valor({"baloes": ["Seria para alugar ou comprar?"], "filtros": {}}))

@@ -136,7 +136,11 @@ pela confusão e siga).
    e acao "buscar" como lá.
 
 === VENDA OU LOCAÇÃO ===
-O anúncio diz qual é (no orgânico, ela diz). Na locação o campo "incluso" da ficha é o que está INCLUSO NO ALUGUEL (ex.: água, gás, condomínio).
+O anúncio diz qual é (no orgânico, ela diz). O VALOR também diz (Pedro, 22/10: "o cliente disse que quer até 1 milhão
+e ela não precisa perguntar se é para venda ou locação"): acima de R$ 100.000 é COMPRA; até R$ 30.000 é ALUGUEL. Com
+um valor desses, não pergunte se é para alugar ou comprar: siga o roteiro da compra ou da locação. Só entre R$ 30.000 e
+R$ 100.000 (ou sem valor) é que se pergunta.
+Na locação o campo "incluso" da ficha é o que está INCLUSO NO ALUGUEL (ex.: água, gás, condomínio).
 Na locação não fale de financiamento; na venda não fale de caução nem fiador.
 
 === A EQUIPE NA CONVERSA (as falas EQUIPE) ===
@@ -197,7 +201,7 @@ Valor em reais assim: R$ 700.000 / R$ 2.500.
   mobilia: "mobiliado", "semi" (modulados e/ou ar), "tanto_faz" ou "" (ainda não disse).
   condominio: o nome do condomínio que ela pediu ou disse que quer ("no Parque das Laranjeiras", "algo no Vision"),
   como ela escreveu; "" se não disse nenhum. A busca traz esse e os condomínios próximos dele primeiro.
-  No orgânico, finalidade só quando ela disser.
+  No orgânico, finalidade quando ela disser ou pelo valor (acima de R$ 100.000 "venda", até R$ 30.000 "locacao").
 - visita: o código do imóvel (da lista do sistema, NUNCA perguntado a ela), a data (DD/MM) e a hora (HH:MM) que ela disse.
 - motivo: em poucas palavras, para a equipe (com "perguntar" ou "equipe"): o que ela pediu, com os códigos.
 """
@@ -738,6 +742,26 @@ def _baloes_do(r: dict) -> list[str]:
     return [b for b in (nay.limpar_balao(str(x)) for x in brutos[:MAX_BALOES]) if b]
 
 
+PERGUNTA_DA_FINALIDADE = re.compile(
+    r"\b(alugar ou (para |pra )?comprar|comprar ou (para |pra )?alugar|venda ou (para |pra )?loca[cç][aã]o|"
+    r"loca[cç][aã]o ou (para |pra )?venda|compra ou (para |pra )?loca[cç][aã]o|loca[cç][aã]o ou (para |pra )?compra)\b",
+    re.I)
+
+
+def finalidade_pelo_valor(r: dict) -> str | None:
+    """22/10 (…6380: "apartamento em Adrianópolis até R$ 1.000.000" e ela perguntou "comprar ou alugar?"): o modelo
+    perguntou a finalidade com um valor que já a diz. Devolve "venda" (acima de R$ 100.000) ou "locacao" (até
+    R$ 30.000) quando a pergunta está nos balões; None quando a pergunta não está ou o valor não decide."""
+    f = r.get("filtros") if isinstance(r.get("filtros"), dict) else {}
+    try:
+        teto = float(f.get("teto") or 0)
+    except (TypeError, ValueError):
+        teto = 0
+    if not any(PERGUNTA_DA_FINALIDADE.search(b) for b in _baloes_do(r)):
+        return None
+    return "venda" if teto > 100000 else "locacao" if 0 < teto <= 30000 else None
+
+
 def _falar(conn, lead: dict, r: dict, acoes: list[str], desde=None) -> list[str]:
     """Manda os balões do turno. 394 (Pedro: "ela só deve confirmar que vai mandar as solicitações uma vez ... e depois
     já vir com as opções pesquisadas"): com "buscar", é UM balão só (o resto vem nos cards); nada repetido sai.
@@ -941,7 +965,16 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
     if organico(lead):
         lead["fichas_citadas"] = _fichas_citadas(conn, conversa, lead)
     lead["imoveis_conhecidos"] = imoveis_da_conversa(conn, lead)
-    r = modelo.chamar(PROMPT, montar_turno(lead, ctx_olx, conversa))
+    turno = montar_turno(lead, ctx_olx, conversa)
+    r = modelo.chamar(PROMPT, turno)
+    pelo_valor = finalidade_pelo_valor(r)
+    if pelo_valor:
+        # 22/10: o valor já diz a finalidade e ela perguntou mesmo assim: uma segunda chamada, avisada
+        log.info("lead %s: perguntou a finalidade com o valor que já diz (%s); de novo", lead["id"], pelo_valor)
+        r = modelo.chamar(PROMPT, turno + "\n\nATENÇÃO: pelo valor que ela disse, é "
+                          + ("COMPRA (acima de R$ 100.000)" if pelo_valor == "venda" else "ALUGUEL (até R$ 30.000)")
+                          + ". NÃO pergunte se é para alugar ou comprar: filtros.finalidade = \"" + pelo_valor
+                          + "\" e siga o roteiro com a próxima pergunta que falta.")
     acoes = acoes_da(r)
     _falar(conn, lead, r, acoes, desde=inicio)
     if r.get("_equipe_no_meio"):
