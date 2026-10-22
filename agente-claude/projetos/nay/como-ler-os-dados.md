@@ -31,3 +31,23 @@ Como trabalhar sem desperdiçar (as conversas podem ser milhares):
    número menor: diga qual dos dois você está usando.
 
 Arquivos anexados à mão (outras exportações, relatórios) ficam em ./dados/anexos.
+
+## As dúvidas da Nay (462, Pedro, 22/10/2026)
+A dúvida que a Nay Parceria não soube responder (`core_pendencia`) não vai mais ao PV do Tel: chega aqui, de minuto em
+minuto, com o número de quem perguntou, a dúvida, o imóvel e o proprietário do cadastro (`nai_proprietario_do_imovel`).
+O caminho:
+1. Procure a resposta: a ficha do imóvel (`site_imovel_publico`, `imoveis`, `condominio_ficha`), o que já se falou dele
+   nas conversas (`mensagens`). Achou: responda o corretor e devolva o atendimento à Nay:
+   `mandar.py --corretor <número do corretor> --texto "..." --devolver --confirmar` (na voz da Nay, sem falar de sistema).
+2. Não achou: NÃO pergunte ao Tel. Pergunte DIRETO ao proprietário, pelo número da Parceria, só sobre essa dúvida:
+   `mandar.py --corretor <telefone do dono> --texto "..." --confirmar` (sem `--devolver`: a Nay nunca atende dono).
+   Chame pelo NOME dele (nunca sigla, apelido estranho ou o nome do WhatsApp quando for sigla); sem nome, sem nome.
+   Em seguida ANOTE a pergunta, uma linha por pergunta, em `dados/duvidas/aguardando_dono.jsonl`:
+   `{"dono": "5592...", "nome": "Fulano", "corretor": "5592...", "duvida": "tem piscina?", "pendencia": 150,
+     "perguntado_em": "2026-10-22T10:15:00-04:00"}`
+   A rotina vigia a resposta dele na linha da Parceria e traz aqui ("o proprietário ... respondeu ..."); sem resposta em
+   3 h, traz o aviso. Com a resposta: responda o corretor e devolva à Nay, como no passo 1.
+3. Depois, veja por que ela teve a dúvida (a ficha não tinha o dado? ela não leu o que tinha?) e ajuste para não ter mais.
+4. Se realmente não tem (o dono também não sabe, não respondeu ou não temos o contato): mande só a dúvida no grupo
+   (o mesmo do relatório, "Imob Easy AI": `mandar.py --grupo <id> --texto "..." --confirmar`).
+Desligar e voltar ao PV do Tel: `UPDATE nai_config SET valor = 'nao' WHERE chave = 'duvida_vai_ao_agente'` (vps1).

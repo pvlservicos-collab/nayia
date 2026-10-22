@@ -107,6 +107,40 @@ Toda visita tem de estar no mesmo lugar, a agenda do CRM, para não perdermos da
 2. Visita do sistema que a conversa diz que foi cancelada: exclua (crm_visita_excluir). Remarcada para outro dia ou hora já combinado: mude o horário (crm_visita_mudar_horario).
 3. Pendência (ficou de confirmar e não confirmou, pediu visita e ninguém respondeu, remarcação sem hora fechada): não registre, só liste.
 Não mande mensagem a ninguém. Responda com o que você fez (o número da visita, corretor com 4 últimos dígitos, imóvel, dia e hora, e a frase da conversa que prova), o que ficou pendente, e o que não fez por dúvida. Se já estava tudo no sistema, diga só isso, em uma linha."""
+# 462 (Pedro, 22/10): a DÚVIDA da Nay Parceria vai ao agente de revisão (projeto "nay"), não ao PV do Tel; e "quando ele
+# não souber ele não vai mais perguntar para o Tel, ele vai perguntar para o proprietário diretamente"
+SQL_DUVIDAS = """
+SELECT json_build_object(
+         'id', p.id, 'chave', p.chave, 'codigo', p.codigo, 'pergunta', p.pergunta,
+         'faltou', array_to_string(array_remove(p.faltou, 'assunto nao reconhecido'), ', '),
+         'em', to_char(p.criado_em AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI'),
+         'nome', (SELECT coalesce(nullif(btrim(k.nome_completo), ''), nullif(btrim(k.nome_whatsapp), ''))
+                    FROM nai_contato k WHERE k.chave = p.chave LIMIT 1),
+         'imovel', CASE WHEN p.codigo IS NOT NULL THEN nai_ref_imovel(p.codigo) END,
+         'disse', (SELECT t.texto FROM core_turno t WHERE t.id = p.turno_id),
+         'dono', (SELECT json_build_object('nome', d.nome, 'telefone', d.telefone, 'motivo', d.motivo)
+                    FROM nai_proprietario_do_imovel(p.codigo) d WHERE p.codigo IS NOT NULL LIMIT 1))::text
+  FROM core_pendencia p WHERE p.id > {cursor} ORDER BY p.id LIMIT 20;
+"""
+SQL_ULTIMA_DUVIDA = "SELECT json_build_object('id', coalesce(max(id), 0))::text FROM core_pendencia;"
+DUVIDA_PROMPT = (
+    "A Nay não soube responder. Veja a dúvida dela e responda lá para o cliente e depois reative ela "
+    "(mandar.py --corretor <número> --devolver). Quando você não souber a resposta, NÃO pergunte ao Tel: pergunte "
+    "DIRETAMENTE ao proprietário do imóvel, pelo número da Parceria, só sobre essa dúvida, chamando pelo nome dele "
+    "(sem o nome, sem nome nenhum; nunca sigla) e anote a pergunta em dados/duvidas/aguardando_dono.jsonl (o como-ler-os-dados "
+    "diz como): quando ele responder, a resposta chega aqui. Depois veja por que ela teve essa dúvida e ajuste para não "
+    "ter mais lá. Caso realmente não tenha (o proprietário também não sabe, não respondeu ou não temos o contato), aí "
+    "você manda só a dúvida no grupo.")
+# a pergunta ao dono que o agente anotou: a resposta dele (linha da Parceria, tabela mensagens) volta ao agente
+DONO_ESPERA_H = 3
+SQL_RESPOSTA_DO_DONO = """
+SELECT json_build_object('texto', string_agg(coalesce(nullif(btrim(m.texto), ''), '[' || m.origem || ']'), ' / ' ORDER BY m.id),
+                         'ultima', to_char(max(m.criada_em) AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI'))::text
+  FROM mensagens m
+ WHERE m.direcao = 'recebida' AND right(regexp_replace(m.telefone, '\\D', '', 'g'), 8) = '{tel8}'
+   AND m.criada_em > '{desde}'::timestamptz
+HAVING count(*) > 0;
+"""
 DIAS = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
 
 
@@ -332,10 +366,123 @@ def _conferencia_mandar(marca, texto):
     return True
 
 
+# ---------------------------------------------------------------- as dúvidas da Nay Parceria (462)
+def _linha_duvida(d):
+    linhas = [f"Número que perguntou: {d.get('chave')}" + (f" ({d['nome']})" if d.get("nome") else ""),
+              f"Dúvida: {d.get('pergunta')}"]
+    extra = []
+    if d.get("imovel"):
+        extra.append(f"imóvel: {d['imovel']}")
+    if d.get("faltou"):
+        extra.append(f"o que faltou na ficha: {d['faltou']}")
+    dono = d.get("dono") or {}
+    if dono.get("telefone"):
+        extra.append(f"proprietário: {dono.get('nome') or 'sem nome no cadastro'}, {dono['telefone']}")
+    elif d.get("codigo"):
+        extra.append("proprietário: " + ("o imóvel tem dois donos no cadastro" if dono.get("motivo") == "dois_donos"
+                                         else "sem contato no cadastro"))
+    if d.get("disse"):
+        extra.append(f"o que ele escreveu: «{d['disse'][:400]}»")
+    extra.append(f"às {d.get('em')} (Manaus), pendência #{d.get('id')}")
+    return "\n".join(linhas + ["(" + "; ".join(extra) + ")"])
+
+
+def duvidas():
+    """As dúvidas novas da Nay Parceria (core_pendencia) vão ao projeto "nay", com o prompt do Pedro. Devolve um resumo."""
+    con = banco()
+    con.execute("CREATE TABLE IF NOT EXISTS rotina_duvida (id INTEGER PRIMARY KEY, dados TEXT NOT NULL, entrou_em TEXT NOT NULL, "
+                "enviado_em TEXT)")
+    cursor = _estado(con, "duvida_pendencia")
+    if cursor is None:
+        _gravar(con, "duvida_pendencia", str(fila_nay._naydb(SQL_ULTIMA_DUVIDA)[0]["id"]))
+        con.commit()
+        con.close()
+        return "dúvidas: marcador posto, começa a partir de agora"
+    novas = fila_nay._naydb(SQL_DUVIDAS.format(cursor=int(cursor)))
+    t = projetos.agora()
+    for d in novas:
+        con.execute("INSERT OR IGNORE INTO rotina_duvida (id, dados, entrou_em) VALUES (?, ?, ?)",
+                    (d["id"], json.dumps(d, ensure_ascii=False), t))
+    if novas:
+        _gravar(con, "duvida_pendencia", str(max(d["id"] for d in novas)))
+    con.commit()
+    pend = con.execute("SELECT id, dados FROM rotina_duvida WHERE enviado_em IS NULL ORDER BY id").fetchall()
+    con.close()
+    if not pend:
+        return "dúvidas: nenhuma nova"
+    ds = [json.loads(p["dados"]) for p in pend]
+    texto = DUVIDA_PROMPT + "\n\n" + "\n\n".join(_linha_duvida(d) for d in ds)
+    if not _mandar("nay", texto):
+        return f"dúvidas: agente ocupado, {len(ds)} na espera"
+    con = banco()
+    con.executemany("UPDATE rotina_duvida SET enviado_em = ? WHERE id = ?", [(projetos.agora(), p["id"]) for p in pend])
+    con.commit()
+    con.close()
+    return f"dúvidas: {len(ds)} enviada(s)"
+
+
+def _aguardando_dono():
+    """As perguntas que o agente fez a donos (dados/duvidas/aguardando_dono.jsonl, uma por linha, escritas por ele)."""
+    caminho = os.path.join(projetos.pasta("nay"), "dados", "duvidas", "aguardando_dono.jsonl")
+    saida = []
+    try:
+        with open(caminho, encoding="utf-8") as f:
+            for n, linha in enumerate(f, 1):
+                try:
+                    a = json.loads(linha)
+                    tel8 = "".join(ch for ch in str(a.get("dono") or "") if ch.isdigit())[-8:]
+                    desde = datetime.fromisoformat(str(a.get("perguntado_em")))
+                    if desde.tzinfo is None:
+                        desde = desde.replace(tzinfo=MANAUS)
+                    if len(tel8) == 8:
+                        saida.append({**a, "_n": n, "_tel8": tel8, "_desde": desde})
+                except (ValueError, TypeError, AttributeError):
+                    continue
+    except FileNotFoundError:
+        pass
+    return saida
+
+
+def donos():
+    """A resposta do dono à pergunta do agente volta ao agente; sem resposta em DONO_ESPERA_H, o agente fica sabendo."""
+    con = banco()
+    con.execute("CREATE TABLE IF NOT EXISTS rotina_dono (chave TEXT PRIMARY KEY, fim TEXT NOT NULL, em TEXT NOT NULL)")
+    feitas = {r["chave"] for r in con.execute("SELECT chave FROM rotina_dono")}
+    con.close()
+    avisos, fechar = [], []
+    agora = datetime.now(MANAUS)
+    for a in _aguardando_dono():
+        chave = f"{a['_tel8']}|{a['_desde'].isoformat()}"
+        if chave in feitas:
+            continue
+        r = fila_nay._naydb(SQL_RESPOSTA_DO_DONO.format(tel8=a["_tel8"], desde=a["_desde"].isoformat()))
+        quem = f"o proprietário {a.get('nome') or ''} ({a.get('dono')})".replace("  ", " ")
+        sobre = f"a dúvida do corretor {a.get('corretor') or '?'}: {a.get('duvida') or '?'}"
+        if r:
+            avisos.append(f"{quem} respondeu sobre {sobre}\nResposta dele (até {r[0]['ultima']}): «{r[0]['texto'][:1500]}»\n"
+                          "Responda o corretor com isso e reative a Nay (mandar.py --corretor <número> --devolver). Se a "
+                          "resposta não resolver, mande só a dúvida no grupo.")
+            fechar.append((chave, "respondeu"))
+        elif agora - a["_desde"] > timedelta(hours=DONO_ESPERA_H):
+            avisos.append(f"{quem} não respondeu em {DONO_ESPERA_H} h sobre {sobre}\nMande só a dúvida no grupo.")
+            fechar.append((chave, "sem resposta"))
+    if not avisos:
+        return "donos: nada novo"
+    if not _mandar("nay", "\n\n".join(avisos)):
+        return f"donos: agente ocupado, {len(avisos)} na espera"
+    con = banco()
+    con.executemany("INSERT OR IGNORE INTO rotina_dono (chave, fim, em) VALUES (?, ?, ?)",
+                    [(c, f, projetos.agora()) for c, f in fechar])
+    con.commit()
+    con.close()
+    return f"donos: {len(avisos)} aviso(s) ao agente"
+
+
 # ---------------------------------------------------------------- o laço
 def laco():
     """A thread do painel: as visitas a cada 5 min; as rotinas de horário dentro da janela de cada uma."""
     ultima_visita = 0.0
+    ultima_duvida = 0.0
     while True:
         if projetos.madrugada():      # 21/10: 0h-6h de Brasília nada roda; as visitas novas ficam no marcador e saem às 6h
             time.sleep(60)
@@ -351,6 +498,12 @@ def laco():
                 for nome, cfg in HORARIOS.items():
                     if ligada(nome) and cfg["de"] <= agora <= cfg["ate"] and not horario(nome):
                         pass   # agente ocupado: tenta de novo na próxima olhada, até o fim da janela
+                # 462: as dúvidas da Nay Parceria e as respostas dos donos, de minuto em minuto
+                if ligada("duvidas") and time.monotonic() - ultima_duvida >= 60:
+                    ultima_duvida = time.monotonic()
+                    for r in (duvidas(), donos()):
+                        if "nenhuma" not in r and "nada novo" not in r:
+                            print("rotinas:", r, flush=True)
                 hora_m = datetime.now(MANAUS).strftime("%H")
                 if ligada("conferencia") and hora_m in CONFERENCIA_HORAS and not conferencia(hora_m):
                     pass   # agente ocupado: tenta de novo até o fim daquela hora
@@ -361,7 +514,7 @@ def laco():
 
 def estado():
     con = banco()
-    r = {"ligadas": {n: ligada(n) for n in ["visitas", *HORARIOS, "conferencia"]},
+    r = {"ligadas": {n: ligada(n) for n in ["visitas", *HORARIOS, "conferencia", "duvidas"]},
          "marcadores": {x["chave"]: x["valor"] for x in con.execute("SELECT chave, valor FROM rotinas_estado")},
          "visitas_na_espera": con.execute("SELECT count(*) n FROM rotina_visita WHERE enviado_em IS NULL").fetchone()["n"],
          "ultimas_visitas": con.execute("SELECT evento, visita, entrou_em, enviado_em FROM rotina_visita "
