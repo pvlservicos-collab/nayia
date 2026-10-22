@@ -16,7 +16,7 @@ AS $function$
     SELECT DISTINCT ON (a.olx_id) a.*
       FROM scrap_anuncio a, f
      WHERE cardinality(a.telefones) > 0
-       AND a.coletado_em > now() - interval '30 days'
+       AND a.coletado_em > now() - interval '10 days'   -- 475e: a raspagem é diária; o que sumiu da OLX deixa de vir
        AND NOT (a.olx_id = ANY (p_excluir))
        AND (f.fin = '' OR (f.fin LIKE 'loca%' AND a.tipo_negocio ILIKE 'Aluguel%') OR (f.fin LIKE 'vend%' AND a.tipo_negocio ILIKE 'Venda%'))
        AND (f.tipo = ''
