@@ -199,21 +199,30 @@ def conversa_da_equipe(pid):
     return r["conversa_id"] if r else projetos.conversa_atual(pid)
 
 
+def _junto():
+    """22/10 (Pedro: "analisa você as conversas, manda as erradas pra ele somente e esperemos pelo próximo"): o que a
+    equipe deixar em dados/fila/junto-do-proximo-lote.md vai no próximo lote, mesmo com a fila vazia. (caminho, texto)"""
+    caminho = os.path.join(projetos.pasta(PROJETO), "dados", "fila", "junto-do-proximo-lote.md")
+    texto = projetos.ler(caminho).strip()
+    return (caminho, texto) if texto else (None, "")
+
+
 def enviar_fila():
     """Fila vazia: nada. Com gente: grava o histórico do lote e manda ao projeto. Devolve um resumo."""
     con = banco()
     itens = con.execute("SELECT * FROM fila_nay WHERE enviado_em IS NULL ORDER BY primeiro_envio").fetchall()
     con.close()
-    if not itens:
+    junto_arq, junto = _junto()
+    if not itens and not junto:
         return "fila vazia: nada enviado"
-    blocos, ate = _conversas(itens)
+    blocos, ate = _conversas(itens) if itens else ([], {})
     vazios = [it["id"] for it in itens if it["id"] not in ate]
     if vazios:   # nada de novo desde o último envio desse corretor: sai da fila sem lote
         con = banco()
         con.executemany("UPDATE fila_nay SET enviado_em = ? WHERE id = ?", [(projetos.agora(), i) for i in vazios])
         con.commit()
         con.close()
-    if not blocos:
+    if not blocos and not junto:
         return "fila só com conversas sem nada novo: nada enviado"
     agora_b, agora_m = datetime.now(BRASILIA), datetime.now(MANAUS)
     rel = os.path.join("dados", "fila", f"{agora_m:%Y-%m-%d}", f"{agora_m:%H%M}.txt")
@@ -232,6 +241,8 @@ def enviar_fila():
                 "num lote anterior (os arquivos de antes estão em dados/fila/). No fim, em poucas linhas: cada erro "
                 "achado (corretor com 4 dígitos), o que você mandou ao lead e o que mudou na Nay. Esse texto vai para "
                 "o relatório das 22h.")
+    if junto:
+        mensagem = (mensagem + "\n\n---\n\n" if blocos else "") + junto
     cid = projetos.nova_conversa(PROJETO, f"Fila da revisão {agora_m:%d/%m %H:%M}")
     con = banco()
     lote = con.execute("INSERT INTO fila_nay_lote (em, conversas, arquivo, conversa_id) VALUES (?, ?, ?, ?)",
@@ -250,7 +261,9 @@ def enviar_fila():
     con.execute("UPDATE fila_nay_lote SET enviado = 1 WHERE id = ?", (lote,))
     con.commit()
     con.close()
-    return f"lote {lote}: {len(blocos)} conversa(s) enviadas ({rel})"
+    if junto_arq:   # foi: guarda com a hora, para não ir de novo
+        os.replace(junto_arq, os.path.join(os.path.dirname(caminho), f"{agora_m:%H%M}-junto.md"))
+    return f"lote {lote}: {len(blocos)} conversa(s) enviadas ({rel})" + (" + o recado da equipe" if junto else "")
 
 
 def relatorio():
