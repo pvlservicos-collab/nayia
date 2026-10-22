@@ -1,4 +1,4 @@
-# nay_proprietario_bloqueio  (tabela, ~0 linhas)
+# nay_proprietario_bloqueio  (tabela, ~2758 linhas)
 463: os proprietários. A Nay não atende nem manda nada que não seja visita, fechamento ou pedido da equipe.
 
 ## colunas

@@ -56,11 +56,26 @@ SELECT json_build_object(
          'corretor', coalesce(c.nome_completo, c.nome_whatsapp), 'corretor_tel', c.telefone,
          'proprietario', v.proprietario_nome, 'visitante', v.visitante_nome, 'quem', v.criada_no_crm_por,
          'detalhe', e.detalhe, 'em', to_char(e.quando AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI'),
-         'ja_passou', v.quando < now())::text
+         'ja_passou', v.quando < now(), 'tipo', e.tipo,
+         -- 464 (22/10): o card padrão da visita, com o checklist (proprietário e motoboy)
+         'card', visita_card(v.id)->>'texto')::text
   FROM nai_visita_evento e JOIN nai_visita v ON v.id = e.visita_id LEFT JOIN nai_contato c ON c.id = v.corretor_id
- WHERE e.tipo = 'agendada_no_crm' AND e.id > {cursor}
+ -- 22/10 (Pedro: "o agente de visitas eu quero que seja enviado para ele as visitas"): a da agenda do CRM e a que a
+ -- Nay passou à equipe (com_a_rayssa)
+ WHERE e.tipo IN ('agendada_no_crm', 'com_a_rayssa') AND e.id > {cursor}
  ORDER BY e.id;
 """
+# 22/10 (Pedro: "no dia da visita 1 hora antes ele vai lembrar a gente no grupo"): a visita que começa entre 45 e 65 min
+SQL_LEMBRETE = """
+SELECT json_build_object('visita', v.id, 'card', visita_card(v.id)->>'texto')::text
+  FROM nai_visita v
+ WHERE v.excluida_em IS NULL AND v.estado NOT IN ('cancelada', 'expirada', 'encerrada')
+   AND v.quando BETWEEN now() + interval '45 minutes' AND now() + interval '65 minutes'
+ ORDER BY v.quando;
+"""
+LEMBRETE = ("Daqui a 1 hora tem visita. Mande o lembrete no grupo Altarquia Imobeasy com este card (o como-ler-os-dados diz "
+            "como). Se o checklist tiver ❌, diga no lembrete o que falta (falar com o proprietário, avisar o motoboy) e quem "
+            "resolve.")
 SQL_METRICAS = """
 SELECT json_build_object('de', '{de}', 'ate', '{ate}',
          'painel', site_painel_metricas('{de}'::date, '{ate}'::date, 'dia'),
@@ -181,6 +196,9 @@ def _mandar(pid, texto):
 
 # ---------------------------------------------------------------- visitas
 def _linha_visita(v):
+    if v.get("card"):           # 464: o card padrão; embaixo, de onde veio
+        origem = "a Nay passou à equipe" if v.get("tipo") == "com_a_rayssa" else "entrou na agenda do CRM"
+        return v["card"] + f"\n(nova: {origem}, {v.get('em')}" + (f"; {importar_nay.mascarar(v['detalhe'])}" if v.get("detalhe") else "") + ")"
     dia = DIAS[v["dia_semana"] - 1] if v.get("dia_semana") else ""
     partes = [f"#{v['visita']} · {v.get('imovel') or 'imóvel ' + str(v['codigo'])}",
               f"{dia} {v.get('quando') or 'sem data'} (Manaus)" + (f", {v['duracao']} min" if v.get("duracao") else ""),
@@ -219,8 +237,9 @@ def visitas():
     if not pend:
         return "visitas: nenhuma nova"
     vs = [json.loads(p["dados"]) for p in pend]
-    texto = ((f"Visita nova no CRM:\n" if len(vs) == 1 else f"{len(vs)} visitas novas no CRM:\n")
-             + "\n".join(_linha_visita(v) for v in vs) + "\n\nAnalise conforme o seu contexto.")
+    texto = (("Visita nova:\n\n" if len(vs) == 1 else f"{len(vs)} visitas novas:\n\n")
+             + "\n\n".join(_linha_visita(v) for v in vs)
+             + "\n\nConfira o checklist (falaram com o proprietário? com o motoboy?) e analise conforme o seu contexto.")
     if not _mandar("visitas", texto):
         return f"visitas: agente ocupado, {len(vs)} na espera"
     con = banco()
@@ -228,6 +247,24 @@ def visitas():
     con.commit()
     con.close()
     return f"visitas: {len(vs)} enviada(s)"
+
+
+def lembretes():
+    """1 hora antes de cada visita, o card vai ao projeto Visitas com o pedido do lembrete no grupo. Uma vez por visita."""
+    con = banco()
+    con.execute("CREATE TABLE IF NOT EXISTS rotina_lembrete (visita INTEGER PRIMARY KEY, enviado_em TEXT NOT NULL)")
+    feitas = {r["visita"] for r in con.execute("SELECT visita FROM rotina_lembrete")}
+    con.close()
+    vs = [v for v in fila_nay._naydb(SQL_LEMBRETE) if v["visita"] not in feitas]
+    if not vs:
+        return "lembretes: nenhuma nova"
+    if not _mandar("visitas", LEMBRETE + "\n\n" + "\n\n".join(v["card"] for v in vs)):
+        return f"lembretes: agente ocupado, {len(vs)} na espera"
+    con = banco()
+    con.executemany("INSERT OR IGNORE INTO rotina_lembrete (visita, enviado_em) VALUES (?, ?)", [(v["visita"], projetos.agora()) for v in vs])
+    con.commit()
+    con.close()
+    return f"lembretes: {len(vs)} visita(s)"
 
 
 # ---------------------------------------------------------------- métricas (horário)
@@ -501,7 +538,7 @@ def laco():
                 # 462: as dúvidas da Nay Parceria e as respostas dos donos, de minuto em minuto
                 if ligada("duvidas") and time.monotonic() - ultima_duvida >= 60:
                     ultima_duvida = time.monotonic()
-                    for r in (duvidas(), donos()):
+                    for r in (duvidas(), donos(), lembretes() if ligada("lembretes") else "lembretes: nenhuma nova"):
                         if "nenhuma" not in r and "nada novo" not in r:
                             print("rotinas:", r, flush=True)
                 hora_m = datetime.now(MANAUS).strftime("%H")
@@ -514,7 +551,7 @@ def laco():
 
 def estado():
     con = banco()
-    r = {"ligadas": {n: ligada(n) for n in ["visitas", *HORARIOS, "conferencia", "duvidas"]},
+    r = {"ligadas": {n: ligada(n) for n in ["visitas", *HORARIOS, "conferencia", "duvidas", "lembretes"]},
          "marcadores": {x["chave"]: x["valor"] for x in con.execute("SELECT chave, valor FROM rotinas_estado")},
          "visitas_na_espera": con.execute("SELECT count(*) n FROM rotina_visita WHERE enviado_em IS NULL").fetchone()["n"],
          "ultimas_visitas": con.execute("SELECT evento, visita, entrou_em, enviado_em FROM rotina_visita "

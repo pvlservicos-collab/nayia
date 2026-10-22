@@ -1,4 +1,4 @@
-# privado.nai_contato_nome_antes_463  (tabela, ~0 linhas)
+# privado.nai_contato_nome_antes_463  (tabela, ~147 linhas)
 
 ## colunas
 id  bigint  NOT NULL

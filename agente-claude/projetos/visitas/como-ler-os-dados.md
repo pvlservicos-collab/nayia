@@ -51,3 +51,24 @@ e mande o SELECT pela entrada. Quem = `'Agente Visitas'`. Hora sempre com o fuso
 de hoje em que se falou de visita (telefone só com os 4 últimos dígitos; o card longo da Nay vem cortado). Compare,
 registre como acima e relate. Para o telefone inteiro do corretor, a conversa mais antiga ou a fala inteira, consulte
 `mensagens` / `nai_contato` no banco.
+
+### O card padrão da visita (464, 22/10)
+Pedro: "quero que elas sejam organizadas em um card padrão a partir de agora no bd, que facilite o agente visitas a ler".
+- `SELECT visita_card(<id>)`: um JSON com tudo da visita (dia e hora, imóvel com condomínio e código, corretor, cliente,
+  proprietário, motoboy, de onde veio, estado) e `texto`, o card pronto. O CHECKLIST vem nele:
+  - ✅/❌ Proprietário: saiu mensagem nossa (da Nay ou da equipe) para o telefone do dono desde a criação da visita;
+    "(respondeu)" quando ele escreveu depois.
+  - ✅/❌ Motoboy: saiu mensagem para o acompanhante que cita o código, o condomínio ou o dia DESTA visita.
+- `SELECT visitas_cards(<de>, <até>)`: os cards das visitas abertas no intervalo (ex.: `now()`, `now() + interval '2 days'`).
+- Toda visita nova (da agenda do CRM ou que a Nay passou à equipe) chega aqui com o card. Confira o checklist.
+
+### O lembrete de 1 hora antes, no grupo
+Pedro: "no dia da visita 1 hora antes ele vai lembrar a gente no grupo". A rotina manda o card aqui uma hora antes (entre
+45 e 65 min). Mande o lembrete no grupo **Altarquia Imobeasy** (o grupo da equipe onde já sai o checklist da visita), na
+vps1, como o projeto Nay faz:
+- o id do grupo (uma vez; guarde em ./dados/grupo_altarquia.txt):
+  `scp -q -i /root/.ssh/agente_claude_vps1 /opt/agente-claude/projetos/nay/dados/achar_grupo.py root@100.86.114.74:/docker/nay-core/scripts/achar_grupo.py && ssh -i /root/.ssh/agente_claude_vps1 root@100.86.114.74 'cd /docker/nay-core && docker compose run --rm --no-deps -v /docker/nay-core/scripts/achar_grupo.py:/app/scripts/achar_grupo.py:ro nay-core python scripts/achar_grupo.py Altarquia'`
+- o envio (o texto vai por arquivo, como o projeto Nay faz): grave o texto em /tmp/lembrete.txt e rode
+  `scp -q -i /root/.ssh/agente_claude_vps1 /tmp/lembrete.txt root@100.86.114.74:/docker/nay-core/relatorios/lembrete.txt && ssh -i /root/.ssh/agente_claude_vps1 root@100.86.114.74 'cd /docker/nay-core && docker compose run --rm --no-deps -v /docker/nay-core/scripts/mandar.py:/app/scripts/mandar.py:ro -v /docker/nay-core/relatorios:/app/relatorios:ro nay-core python scripts/mandar.py --grupo <id> --arquivo --texto relatorios/lembrete.txt --confirmar'`
+O lembrete leva o card; se houver ❌, diga o que falta (falar com o proprietário, avisar o motoboy) e quem resolve.
+Nada de mandar mensagem a corretor, cliente ou proprietário por conta própria: o lembrete é para a equipe, no grupo.
