@@ -44,9 +44,35 @@ O caminho:
    Chame pelo NOME dele (nunca sigla, apelido estranho ou o nome do WhatsApp quando for sigla); sem nome, sem nome.
    Em seguida ANOTE a pergunta, uma linha por pergunta, em `dados/duvidas/aguardando_dono.jsonl`:
    `{"dono": "5592...", "nome": "Fulano", "corretor": "5592...", "duvida": "tem piscina?", "pendencia": 150,
-     "perguntado_em": "2026-10-22T10:15:00-04:00"}`
+     "codigo": 4207, "campos": ["taxa", "iptu"], "perguntado_em": "2026-10-22T10:15:00-04:00"}`
    A rotina vigia a resposta dele na linha da Parceria e traz aqui ("o proprietário ... respondeu ..."); sem resposta em
    3 h, traz o aviso. Com a resposta: responda o corretor e devolva à Nay, como no passo 1.
+### Taxa de condomínio, IPTU e lances de escada: perguntar ao dono e PREENCHER NO CADASTRO (Pedro, 22/10)
+Quando a dúvida é um destes, você mesmo pergunta ao proprietário e grava a resposta no cadastro do imóvel:
+- o valor da TAXA DE CONDOMÍNIO e o que está INCLUSO nela;
+- o valor do IPTU;
+- APARTAMENTO em condomínio SEM ELEVADOR: quantos LANCES DE ESCADA até o apartamento.
+ANTES de perguntar, procure em TODOS os WhatsApp se a informação já foi dita (pelo telefone do dono, 8 últimos dígitos):
+- Parceria: `SELECT criada_em, direcao, texto FROM mensagens WHERE right(regexp_replace(telefone,'\D','','g'),8) = '<8 dígitos>' ORDER BY criada_em`;
+- oficial e 8595 (captação): a mesma consulta em `captacao_mensagens`;
+- o CRM (as três linhas, inclusive o que a equipe digitou): crmdb, `lead_activities` + `leads` pelo telefone;
+- e o próprio cadastro: `condominio_ficha` (taxas por quartos, `taxa_inclui`) e os outros imóveis do mesmo condomínio.
+Achou: grave no cadastro e responda o corretor. Não achou: pergunte ao dono (mandar.py --corretor <telefone do dono>, sem
+--devolver), uma mensagem só com o que falta. Se você NÃO conversou com ele HOJE (nenhuma mensagem trocada hoje, nos dois
+sentidos), cumprimente; se já conversou hoje, vá direto à pergunta. O modelo:
+  "Olá seu <nome>, eu estou com um cliente perguntando qual o valor da taxa de condomínio e o que está incluso, o Sr. pode me informar?"
+  (IPTU: "qual o valor do IPTU"; escada: "quantos lances de escada tem até o apartamento"; várias juntas numa frase só.)
+"seu <nome>" e "o Sr." para homem, "dona <nome>" e "a Sra." para mulher; o nome é o do cadastro (`SELECT nay_vocativo_dono(nome)
+FROM nay_proprietario_bloqueio WHERE chave = nai_chave('<telefone>')`), nunca sigla; sem nome, "Olá!" sem nome; na dúvida
+do gênero, só o nome, sem seu/dona e sem Sr./Sra. Anote em `dados/duvidas/aguardando_dono.jsonl` com "codigo" e "campos".
+Quando ele responder, GRAVE (vps1, `psql -U nay -d naydb`), e depois responda o corretor e devolva à Nay:
+- taxa: `UPDATE imoveis SET taxa_condominio = <valor> WHERE codigo = <código>;` (o gatilho carimba a data);
+- o que a taxa inclui: `UPDATE condominio_ficha SET taxa_inclui = ARRAY['Água','Gás', ...] WHERE condominio_id = (SELECT condo_id FROM imoveis WHERE codigo = <código>);`
+  (os nomes da tela: Segurança 24 horas, Água, Gás, Energia...; sem condomínio cadastrado, ponha na observação do imóvel);
+- IPTU: `UPDATE imoveis SET iptu = <valor> WHERE codigo = <código>;` (anual ou mensal: grave o que ele disse e diga qual no relato);
+- escada: `UPDATE imoveis SET extras = coalesce(extras, '{}'::jsonb) || jsonb_build_object('lances de escada', '<N>') WHERE codigo = <código>;`
+Nunca apague linha de imoveis. No relato, diga o que gravou (imóvel, campo, valor) para a equipe conferir.
+
 3. Depois, veja por que ela teve a dúvida (a ficha não tinha o dado? ela não leu o que tinha?) e ajuste para não ter mais.
 4. Se realmente não tem (o dono também não sabe, não respondeu ou não temos o contato): mande só a dúvida no grupo
    (o mesmo do relatório, "Imob Easy AI": `mandar.py --grupo <id> --texto "..." --confirmar`).

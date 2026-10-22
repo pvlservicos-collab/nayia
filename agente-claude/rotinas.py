@@ -145,7 +145,8 @@ DUVIDA_PROMPT = (
     "(sem o nome, sem nome nenhum; nunca sigla) e anote a pergunta em dados/duvidas/aguardando_dono.jsonl (o como-ler-os-dados "
     "diz como): quando ele responder, a resposta chega aqui. Depois veja por que ela teve essa dúvida e ajuste para não "
     "ter mais lá. Caso realmente não tenha (o proprietário também não sabe, não respondeu ou não temos o contato), aí "
-    "você manda só a dúvida no grupo.")
+    "você manda só a dúvida no grupo. Taxa de condomínio (e o que inclui), IPTU e lances de escada: siga as regras do "
+    "como-ler-os-dados (procure em todos os WhatsApp antes, pergunte ao dono com o modelo e PREENCHA NO CADASTRO).")
 # a pergunta ao dono que o agente anotou: a resposta dele (linha da Parceria, tabela mensagens) volta ao agente
 DONO_ESPERA_H = 3
 SQL_RESPOSTA_DO_DONO = """
@@ -497,8 +498,9 @@ def donos():
         sobre = f"a dúvida do corretor {a.get('corretor') or '?'}: {a.get('duvida') or '?'}"
         if r:
             avisos.append(f"{quem} respondeu sobre {sobre}\nResposta dele (até {r[0]['ultima']}): «{r[0]['texto'][:1500]}»\n"
-                          "Responda o corretor com isso e reative a Nay (mandar.py --corretor <número> --devolver). Se a "
-                          "resposta não resolver, mande só a dúvida no grupo.")
+                          "Se for taxa de condomínio, o que ela inclui, IPTU ou lances de escada, GRAVE no cadastro do imóvel "
+                          "(como o como-ler-os-dados diz). Responda o corretor com isso e reative a Nay (mandar.py --corretor "
+                          "<número> --devolver). Se a resposta não resolver, mande só a dúvida no grupo.")
             fechar.append((chave, "respondeu"))
         elif agora - a["_desde"] > timedelta(hours=DONO_ESPERA_H):
             avisos.append(f"{quem} não respondeu em {DONO_ESPERA_H} h sobre {sobre}\nMande só a dúvida no grupo.")
