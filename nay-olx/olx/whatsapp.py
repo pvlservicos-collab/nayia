@@ -73,7 +73,8 @@ parte QUANDO VEIO DIRETO.
 2. OUTRAS OPÇÕES: o roteiro, UMA pergunta por vez, pulando o que ela já disse (aqui ou na OLX):
    - Até que valor?
    - Quais bairros te atendem? ("qualquer bairro" também vale)
-   - Se ela quer 3 quartos (ou o anúncio é de 3 quartos): serve 2 quartos também?
+   - Só se o anúncio é de 3 quartos e ELA NÃO DISSE quantos quer: serve 2 quartos também? Se ela mesma disse o número
+     ("3", "3 quartos"), é esse: não pergunte se serve menos (Pedro, 22/10: "perguntou 2 vezes de quartos").
    - Só na LOCAÇÃO de residencial (apartamento, casa, flat): prefere mobiliado, só com modulados e ar-condicionado, ou
      tanto faz? (Pedro, 19/10: "faltou filtrar se quer modulados e ar ou mobiliado para poder enviar correto". Se ela
      já disse aqui ou na OLX, não pergunte.)
@@ -129,8 +130,8 @@ pela confusão e siga).
 2. Se o assunto não é procurar imóvel (quer vender ou alugar o imóvel dela, é corretor, cobrança, outro assunto): diga com
    naturalidade que já passa para a equipe e marque "equipe" com o motivo.
 3. Procura imóvel: o mesmo roteiro de OUTRAS OPÇÕES, uma pergunta por vez, começando pelo que o anúncio daria: o TIPO
-   (apartamento, casa, casa em condomínio ou comercial; "tanto faz" vale) e, se residencial, quantos quartos (se 3,
-   serve 2?); depois até que valor,
+   (apartamento, casa, casa em condomínio ou comercial; "tanto faz" vale) e, se residencial, quantos quartos (UMA
+   pergunta: o número que ela disser é o que vale, sem "serve 2?" depois); depois até que valor,
    quais bairros, a mobília (só na LOCAÇÃO residencial: mobiliado, modulados e ar, ou tanto faz), a escada (só na VENDA
    até R$ 500.000, se ela quer apartamento) e o crédito (só na VENDA). Fechamento
    e acao "buscar" como lá.
@@ -762,6 +763,40 @@ def finalidade_pelo_valor(r: dict) -> str | None:
     return "venda" if teto > 100000 else "locacao" if 0 < teto <= 30000 else None
 
 
+PERGUNTA_DE_MENOS_QUARTOS = re.compile(
+    r"\b(\d|um|dois|tr[eê]s|quatro)\s*quartos?\b[^?]*\b(serve|servem|tamb[eé]m|aceita|atende)\b|"
+    r"\b(serve|servem|aceita|atende)\b[^?]*\b(\d|um|dois|tr[eê]s|quatro)\s*quartos?\b", re.I)
+
+
+def quartos_que_ela_disse(r: dict, conversa: list[dict]) -> int | None:
+    """22/10 (…6380: "Quantos quartos?" -> "3" -> "Se aparecer um de 2 quartos, também serve?"): ela mesma disse o número
+    de quartos e o modelo perguntou se serve menos. Devolve o número quando a pergunta está nos balões; senão None."""
+    f = r.get("filtros") if isinstance(r.get("filtros"), dict) else {}
+    try:
+        q = int(f.get("quartos") or 0)
+    except (TypeError, ValueError):
+        q = 0
+    if not q or not any(PERGUNTA_DE_MENOS_QUARTOS.search(b) for b in _baloes_do(r)):
+        return None
+    dela = [str(m.get("texto") or "") for m in conversa if m.get("direcao") == "recebida"]
+    return q if any(re.search(rf"(?<!\d){q}(?!\d)", t) for t in dela) else None
+
+
+def pergunta_a_toa(r: dict, conversa: list[dict]) -> str:
+    """O aviso para a segunda chamada quando o modelo perguntou o que já se sabe (vazio = nada a corrigir)."""
+    avisos = []
+    pelo_valor = finalidade_pelo_valor(r)
+    if pelo_valor:
+        avisos.append("pelo valor que ela disse, é " + ("COMPRA (acima de R$ 100.000)" if pelo_valor == "venda" else
+                      "ALUGUEL (até R$ 30.000)") + ". NÃO pergunte se é para alugar ou comprar: filtros.finalidade = \""
+                      + pelo_valor + "\"")
+    q = quartos_que_ela_disse(r, conversa)
+    if q:
+        avisos.append(f"ela mesma disse {q} quartos. NÃO pergunte se serve menos quartos: filtros.quartos = {q} e "
+                      "aceita_menos_quartos = false")
+    return ("ATENÇÃO: " + "; ".join(avisos) + ". Siga o roteiro com a próxima pergunta que falta.") if avisos else ""
+
+
 def _falar(conn, lead: dict, r: dict, acoes: list[str], desde=None) -> list[str]:
     """Manda os balões do turno. 394 (Pedro: "ela só deve confirmar que vai mandar as solicitações uma vez ... e depois
     já vir com as opções pesquisadas"): com "buscar", é UM balão só (o resto vem nos cards); nada repetido sai.
@@ -967,14 +1002,11 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
     lead["imoveis_conhecidos"] = imoveis_da_conversa(conn, lead)
     turno = montar_turno(lead, ctx_olx, conversa)
     r = modelo.chamar(PROMPT, turno)
-    pelo_valor = finalidade_pelo_valor(r)
-    if pelo_valor:
-        # 22/10: o valor já diz a finalidade e ela perguntou mesmo assim: uma segunda chamada, avisada
-        log.info("lead %s: perguntou a finalidade com o valor que já diz (%s); de novo", lead["id"], pelo_valor)
-        r = modelo.chamar(PROMPT, turno + "\n\nATENÇÃO: pelo valor que ela disse, é "
-                          + ("COMPRA (acima de R$ 100.000)" if pelo_valor == "venda" else "ALUGUEL (até R$ 30.000)")
-                          + ". NÃO pergunte se é para alugar ou comprar: filtros.finalidade = \"" + pelo_valor
-                          + "\" e siga o roteiro com a próxima pergunta que falta.")
+    aviso = pergunta_a_toa(r, conversa)
+    if aviso:
+        # 22/10: perguntou o que já se sabe (a finalidade pelo valor, os quartos que ela disse): uma segunda chamada, avisada
+        log.info("lead %s: perguntou o que já se sabe; de novo (%s)", lead["id"], aviso[:120])
+        r = modelo.chamar(PROMPT, turno + "\n\n" + aviso)
     acoes = acoes_da(r)
     _falar(conn, lead, r, acoes, desde=inicio)
     if r.get("_equipe_no_meio"):

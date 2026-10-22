@@ -311,3 +311,20 @@ class FinalidadePeloValor(unittest.TestCase):
         self.assertIsNone(w.finalidade_pelo_valor({"baloes": ["Quais bairros te atendem?"], "filtros": {"teto": 1000000}}))
         self.assertIsNone(w.finalidade_pelo_valor({"baloes": ["Seria para alugar ou comprar?"], "filtros": {"teto": 60000}}))
         self.assertIsNone(w.finalidade_pelo_valor({"baloes": ["Seria para alugar ou comprar?"], "filtros": {}}))
+
+
+class QuartosQueElaDisse(unittest.TestCase):
+    """22/10 (…6380): "Quantos quartos?" -> "3" -> "Se aparecer um apartamento de 2 quartos, também serve?"."""
+
+    def test_ela_disse_e_o_modelo_perguntou_se_serve_menos(self):
+        conversa = [{"direcao": "enviada", "texto": "Quantos quartos você procura?"}, {"direcao": "recebida", "texto": "3"}]
+        r = {"baloes": ["Anotei. Se aparecer um apartamento de 2 quartos, também serve?"], "filtros": {"quartos": 3}}
+        self.assertEqual(w.quartos_que_ela_disse(r, conversa), 3)
+        self.assertIn("NÃO pergunte se serve menos quartos", w.pergunta_a_toa(r, conversa))
+
+    def test_do_anuncio_pode_perguntar(self):
+        # os 3 quartos vieram do anúncio: ela não disse o número, a pergunta vale
+        conversa = [{"direcao": "recebida", "texto": "quero outras opções"}]
+        r = {"baloes": ["Serve 2 quartos também?"], "filtros": {"quartos": 3}}
+        self.assertIsNone(w.quartos_que_ela_disse(r, conversa))
+        self.assertEqual(w.pergunta_a_toa({"baloes": ["Quais bairros?"], "filtros": {"teto": 900000}}, conversa), "")
