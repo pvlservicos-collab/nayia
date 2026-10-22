@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modelos de IA — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/modelos.css?v=20261022a">
+</head>
+<body class="admin" data-pagina="modelos">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+<div data-layout-topo></div>
+
+<!-- 22/10/2026 (Pedro): "uma página nova no menu chamada Modelos, vai pegar toda a nossa tecnologia de integrações e fazer
+     uma conexão grande de nós, mostrando onde estão todos os modelos de IA e dando a opção de substituirmos esses modelos
+     por lá, e um contador de quanto estamos gastando em cada modelo, por nó de modelo ... um painel no topo fixado com os
+     gastos por período ... que nem o mapa fixo no site, mas navegável com o mouse dentro ... uma sidebar na esquerda com
+     os modelos também como atalho e vista rápida". Os gastos vêm de /admin/api/modelos (470: site_ia_modelos); o desenho
+     do ecossistema mora em assets/js/modelos.js. -->
+<main class="conteudo md-conteudo" id="conteudo">
+  <section class="md-gastos" id="md-gastos" aria-label="Gastos com modelos de IA por período">
+    <div class="md-gastos-titulo">
+      <h1>Modelos de IA</h1>
+      <p id="md-atualizado">Carregando os gastos…</p>
+    </div>
+    <div class="md-periodos" id="md-periodos" role="tablist" aria-label="Período" data-estado-proprio></div>
+    <div class="md-serie" id="md-serie" aria-hidden="true"></div>
+  </section>
+
+  <div class="md-palco-area">
+    <aside class="md-lado" id="md-lado" aria-label="Os modelos">
+      <div class="md-lado-lista" id="md-lista"></div>
+      <div class="md-lado-detalhe" id="md-detalhe" hidden></div>
+    </aside>
+
+    <section class="md-palco" id="md-palco" aria-label="O ecossistema: arraste com o botão direito (ou o esquerdo no fundo), rodinha para zoom">
+      <div class="md-mundo" id="md-mundo">
+        <svg class="md-linhas" id="md-linhas" aria-hidden="true"></svg>
+        <div class="md-nos" id="md-nos"></div>
+      </div>
+      <div class="md-controles" data-estado-proprio>
+        <button type="button" class="md-ctrl" id="md-mais" title="Aproximar" aria-label="Aproximar">+</button>
+        <button type="button" class="md-ctrl" id="md-menos" title="Afastar" aria-label="Afastar">−</button>
+        <button type="button" class="md-ctrl md-ctrl-texto" id="md-ajustar" title="Ver tudo">Ver tudo</button>
+      </div>
+      <p class="md-dica">Botão direito (ou esquerdo no fundo) arrasta · rodinha dá zoom · clique num modelo para ver onde ele está</p>
+      <div class="md-legenda" aria-label="Legenda">
+        <span><i class="md-leg md-leg-modelo"></i> Modelo de IA</span>
+        <span><i class="md-leg md-leg-no"></i> Canal, serviço ou função</span>
+        <span><i class="md-leg md-leg-dado"></i> Banco de dados</span>
+      </div>
+    </section>
+  </div>
+  <div class="md-toast" id="md-toast" role="status" hidden></div>
+</main>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/modelos.js?v=20261022a"></script>
+</body>
+</html>

@@ -5767,6 +5767,13 @@ try:
 except Exception as _e:  # noqa: BLE001
     app.logger.warning("chavesnamao_api nao carregou: %s", _e)
 
+# MODELOS (470, 22/10): a pagina admin > Modelos (gastos por no de modelo de IA e a troca do modelo). Mesmo try/except.
+try:
+    from modelos_api import modelos_bp
+    app.register_blueprint(modelos_bp)
+except Exception as _e:  # noqa: BLE001
+    app.logger.warning("modelos_api nao carregou: %s", _e)
+
 # A CAPTACAO PEDE SENHA (28/09, Pedro: "com bastante seguranca para o numero nao
 # cair"). As rotas /api/captacao/* e /api/nai/captacao* respondiam sem senha
 # nenhuma: qualquer um na internet ligava o disparo (captacao_pausada), punha o

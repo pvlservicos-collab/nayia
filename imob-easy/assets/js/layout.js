@@ -6,6 +6,10 @@
   "use strict";
 
   var ICONE = {
+    modelos:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">' +
+      '<circle cx="5" cy="6" r="2.2"/><circle cx="5" cy="18" r="2.2"/><circle cx="19" cy="12" r="2.6"/>' +
+      '<path d="M7.1 6.8 16.6 11M7.1 17.2l9.5-4.2"/></svg>',
     inicio:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true">' +
       '<path d="M4 15a8 8 0 0 1 16 0"/><path d="M12 15l4-4"/><circle cx="12" cy="15" r="1.4" fill="currentColor" stroke="none"/></svg>',
@@ -72,6 +76,9 @@
     /* 11/10/2026 (Pedro: "pega a aba Oportunidades e põe como uma tab dentro da aba Captação e troca lá por uma
        aba Agentes"): Agentes = um quadrado por agente da VPS, com o uso por dia (agentes.html). */
     { chave: "agentes",       rotulo: "Agentes",          href: "agentes.html" },
+    /* 22/10/2026 (Pedro: "uma página nova no menu chamada Modelos ... onde estão todos os modelos de IA ... e quanto
+       estamos gastando em cada modelo"): o mapa do ecossistema com os gastos por nó (modelos.html, 470). */
+    { chave: "modelos",       rotulo: "Modelos",          href: "modelos.html" },
     /* 06/10/2026 (Pedro: "vou reformular o site: pega o Locação e põe dentro de Captação"): Captação abre um
        menu com as páginas; nenhuma delas mudou. Oportunidades é a 4ª aba de captacao.html (11/10). */
     /* 18/10/2026 (Pedro: "o menu do site está bagunçado, tem abas dentro de abas que não aparecem no menu"): cada aba
