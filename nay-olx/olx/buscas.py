@@ -413,10 +413,14 @@ def olx_volta(conn, c: dict) -> int:
     if c["olx"] == "nao" or not no_horario(c):
         return 0
     feitos = 0
+    # 476c: os nossos números nunca são perguntados; o mesmo anunciante uma vez por volta (também em teste)
+    nossos = set(banco.um(conn, "SELECT busca_nossos_numeros()") or [])
+    nesta_volta: set[str] = set()
     for b in banco.linhas(conn, f"""SELECT * FROM privado.busca_cliente WHERE estado = 'buscando'
                                      AND (olx_em IS NULL OR olx_em < now() - interval '{OLX_DE_NOVO_H} hours')
                                    ORDER BY olx_em NULLS FIRST, id LIMIT 4"""):
-        if not pronto(b["filtros"]):
+        # sem valor no perfil a base da OLX traria de tudo (no teste de 22/10, casas de R$ 1,6 a 2 mi): espera o valor
+        if not pronto(b["filtros"]) or not b["filtros"].get("teto"):
             continue
         teste = c["olx"] == "teste"
         tentados = [int(x["olx_id"]) for x in b["olx"] or [] if x.get("olx_id") and (teste or not x.get("teste"))]
@@ -435,8 +439,9 @@ def olx_volta(conn, c: dict) -> int:
         n = 0
         for a in cands:
             tel = next((t for t in (_telefone_bom(x) for x in a["telefones"] or []) if t), None)
-            if not tel:
+            if not tel or tel[-8:] in nossos or tel[-8:] in nesta_volta:
                 continue
+            nesta_volta.add(tel[-8:])
             if banco.um(conn, """SELECT EXISTS (SELECT 1 FROM privado.busca_contato WHERE telefone8 = %s
                                     AND em > now() - make_interval(hours => %s))""", (tel[-8:], CONTATO_DE_NOVO_H)):
                 continue
