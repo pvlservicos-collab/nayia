@@ -203,7 +203,9 @@ BEGIN
   -- Foto repetida fica 'bloqueado', com o rastro no painel de envios. Card
   -- repetido vira a frase dizendo que ja foi e a hora -- sumir calado seria
   -- pior do que avisar.
-  IF NEW.papel_destino <> 'tel' AND nai_cfg('envio_simulado', 'nao') <> 'sim' THEN
+  -- 467: a entrega feita À MÃO pela equipe (painel, comando) não para nas 24 h: card e fotos saem de novo.
+  IF NEW.papel_destino <> 'tel' AND nai_cfg('envio_simulado', 'nao') <> 'sim'
+     AND NOT (NEW.papel_destino = 'entrega' AND nai_turno_feito_a_mao(NEW.turno_id)) THEN
     v_cod := NEW.codigo;
     IF v_cod IS NULL AND NEW.tipo = 'texto'
        AND position('📍' IN coalesce(NEW.texto, '')) > 0

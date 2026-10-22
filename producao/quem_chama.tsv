@@ -523,6 +523,7 @@ nai_treino_contexto	nai_treino_montar_ciclo
 nai_treino_montar_ciclo	
 nai_treino_semear_memoria	
 nai_trilha	
+nai_turno_feito_a_mao	nai_enviar_imoveis_para, nai_saida_validar
 nai_turnos_para_o_jev	
 nai_um_nome_so	nai_sec_guardar_do_imovel
 nai_uma_pergunta_da_sequencia	nai_conferir_resposta

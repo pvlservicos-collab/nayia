@@ -16,6 +16,7 @@ nay_proprietario_bloqueio_pkey: PRIMARY KEY (chave)
 
 ## permissões
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
+nay_core: SELECT
 nay_leitura: SELECT
 
 ## funções que escrevem aqui

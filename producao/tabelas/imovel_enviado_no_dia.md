@@ -20,7 +20,7 @@ nay_core: SELECT
 nay_leitura: SELECT
 
 ## funções que escrevem aqui
-nai_confirmar_envio, nai_disparo_liberar, nay_liberar_imovel_do_dia, nay_reservar_imovel_do_dia
+nai_confirmar_envio, nai_disparo_liberar, nai_enviar_imoveis_para, nay_liberar_imovel_do_dia, nay_reservar_imovel_do_dia
 
 ## funções que citam
-crm_imoveis_enviados, crm_parceria_followup_nay, nai_confirmar_envio, nai_disparo_liberar, nai_etapa_calcular, nai_followup_rodar, nai_saida_validar, nay_imovel_ja_foi_24h, nay_liberar_imovel_do_dia, nay_reservar_imovel_do_dia
+crm_imoveis_enviados, crm_parceria_followup_nay, nai_confirmar_envio, nai_disparo_liberar, nai_enviar_imoveis_para, nai_etapa_calcular, nai_followup_rodar, nai_saida_validar, nay_imovel_ja_foi_24h, nay_liberar_imovel_do_dia, nay_reservar_imovel_do_dia

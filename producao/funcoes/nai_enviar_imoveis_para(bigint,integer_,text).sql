@@ -40,7 +40,16 @@ BEGIN
       v_linhas := v_linhas || (c || ': está indisponível, não mandei');
     ELSE
       v_ja := nay_reservar_imovel_do_dia(v_chave, c, 'nai', p_turno);
-      IF v_ja IS NOT NULL THEN
+      IF v_ja IS NOT NULL AND nai_turno_feito_a_mao(p_turno) THEN
+        -- 467 (Tel/Pedro, 22/10: "enviei 2 vezes o imóvel que a corretora pediu e parou"): o envio feito À MÃO pela
+        -- equipe (painel do CRM/site, comando no WhatsApp) passa por cima das 24 h. Fica registrado como o último envio
+        -- e quem pediu fica sabendo que já tinha ido.
+        UPDATE imovel_enviado_no_dia SET primeiro_em = now(), turno_id = p_turno, origem = 'nai'
+         WHERE chave = v_chave AND codigo = c AND dia = (now() AT TIME ZONE 'America/Manaus')::date;
+        v_linhas := v_linhas || (c || ': já tinha ido para esse número ' || nay_quando_foi(v_ja)
+                                 || '; mandei de novo (envio da equipe)');
+        v_vao := v_vao || c;
+      ELSIF v_ja IS NOT NULL THEN
         v_linhas := v_linhas || (c || ': já foi para esse número ' || nay_quando_foi(v_ja)
                                  || ', não mandei de novo (libera '
                                  || nay_quando_foi(v_ja + interval '24 hours') || ')');
