@@ -91,9 +91,17 @@
   var periodo = "d7", selecionado = null;
   try { periodo = localStorage.getItem("md-periodo") || "d7"; } catch (e) { /* sem armazenamento */ }
 
+  function numero(n, prefixo) {
+    var casas = n === 0 || n >= 0.01 ? 2 : 4;
+    return prefixo + n.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
+  }
+  function dolar(v) { return numero(Number(v || 0), "US$ "); }
+  /* 22/10 (Pedro: "em reais principalmente, e dólar pequenininho em cinza"): o custo vem em dólar (é como a OpenAI
+     cobra) e sai em reais pela cotação do dia (474), com o dólar embaixo, pequeno. Sem cotação, só o dólar. */
   function dinheiro(v) {
-    var n = Number(v || 0), casas = n === 0 ? 2 : n < 1 ? 4 : 2;
-    return "US$ " + n.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
+    var usd = Number(v || 0), cot = Number((dados.cotacao || {}).usd_brl || 0);
+    if (!cot) return '<span class="md-brl">' + dolar(usd) + "</span>";
+    return '<span class="md-brl">' + numero(usd * cot, "R$ ") + '</span><span class="md-usd">' + dolar(usd) + "</span>";
   }
   function inteiro(v) { return Number(v || 0).toLocaleString("pt-BR"); }
   function doNo(no) { return dados.nos[no] || { gasto: {}, chamadas: {} }; }
@@ -247,7 +255,9 @@
       '<polyline points="0,' + h + " " + pts.join(" ") + " " + w + "," + h + '" fill="#efe8fd" stroke="none"/>' +
       '<polyline points="' + pts.join(" ") + '" fill="none" stroke="#6d28d9" stroke-width="1.8" vector-effect="non-scaling-stroke"/></svg>' +
       "<small>gasto por dia · 30 dias</small>" : "";
-    $("md-atualizado").textContent = "Em dólar (US$) · atualizado às " + (dados.gerado_em ? dados.gerado_em.slice(11, 16) : "--:--");
+    var cot = dados.cotacao || {};
+    $("md-atualizado").textContent = (cot.usd_brl ? "Em reais · dólar a R$ " + Number(cot.usd_brl).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + " (" + (cot.atualizado_em || "") + ")" : "Em dólar (US$)") +
+      " · atualizado às " + (dados.gerado_em ? dados.gerado_em.slice(11, 16) : "--:--");
   }
 
   /* ---- a barra (atalho e vista rápida) ---- */
@@ -262,7 +272,7 @@
         return '<button type="button" class="md-item' + (selecionado === c.id ? " ativo" : "") + '" data-card="' + esc(c.id) + '">' + logo(c.prov) +
           '<span class="md-item-texto"><span class="md-item-nome">' + esc(c.modelo) + '</span><span class="md-item-onde">' +
           esc(c.funcoes.length + (c.funcoes.length === 1 ? " função" : " funções")) + "</span></span>" +
-          '<span class="md-item-valor">' + esc(valorCurto(c)) + "</span></button>";
+          '<span class="md-item-valor">' + valorCurto(c) + "</span></button>";
       }).join("");
     }).join("");
   }
@@ -274,7 +284,7 @@
     var linhasFn = c.funcoes.map(function (f) {
       var d = doNo(f.no), ch = (d.chamadas || {})[periodo] || 0;
       var valor = f.assinatura ? "" : f.semMedicao ? inteiro(ch) + " cham." : dinheiro((d.gasto || {})[periodo]);
-      return '<div class="md-fn"><div class="md-fn-topo"><span class="md-tag">' + esc(f.nome) + "</span><b>" + esc(valor) + "</b></div>" +
+      return '<div class="md-fn"><div class="md-fn-topo"><span class="md-tag">' + esc(f.nome) + "</span><b>" + valor + "</b></div>" +
         '<p class="md-det-texto">' + esc(f.faz) + "</p>" +
         (f.trocavel
           ? '<form class="md-trocar" data-trocar="' + esc(f.no) + '"><input name="modelo" list="md-sugestoes" value="' + esc(modeloDe(f)) +
@@ -296,8 +306,8 @@
         '<div class="md-passo"><i></i><div>' + esc(c.modelo) + "<small>" + esc(c.funcoes.length + (c.funcoes.length === 1 ? " função" : " funções")) + "</small></div></div>" +
       "</div></div>" +
       '<div class="md-det-sec"><h3>Gastos</h3><table class="md-tabela">' + tabela + "</table>" +
-        (preco && preco.entrada != null ? '<p class="md-aviso">Por milhão de tokens: entrada ' + dinheiro(preco.entrada) + ", em cache " + dinheiro(preco.entrada_cache) + ", saída " + dinheiro(preco.saida) + ".</p>"
-          : preco && preco.por_minuto ? '<p class="md-aviso">' + dinheiro(preco.por_minuto) + " por minuto de áudio.</p>" : "") +
+        (preco && preco.entrada != null ? '<p class="md-aviso">Por milhão de tokens (a OpenAI cobra em dólar): entrada ' + dolar(preco.entrada) + ", em cache " + dolar(preco.entrada_cache) + ", saída " + dolar(preco.saida) + ".</p>"
+          : preco && preco.por_minuto ? '<p class="md-aviso">' + dolar(preco.por_minuto) + " por minuto de áudio.</p>" : "") +
         (t === "sem" ? '<p class="md-aviso">Este lugar não registra tokens: só as chamadas.</p>' : "") +
         (t === "medido" && c.funil.id !== "corretores" ? '<p class="md-aviso">A medição aqui começou em 22/10/2026.</p>' : "") +
       "</div>" +
