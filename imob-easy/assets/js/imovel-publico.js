@@ -131,9 +131,13 @@
     var na = '<span class="na">não informado</span>';
     var linhas = "<div><span>" + (aluga ? "Aluguel" : "Venda") + "</span><b>R$ " + reais(principal) + "</b></div>";
     if (aluga && has(V.venda)) linhas += "<div><span>Venda</span><b>R$ " + reais(V.venda) + "</b></div>";
-    linhas += "<div><span>Condomínio</span>" + (has(V.condo) ? "<b>R$ " + reais(V.condo) + "</b>" : na) + "</div>";
-    linhas += "<div><span>IPTU</span>" + (has(V.iptu) ? "<b>R$ " + reais(V.iptu) + "</b>" : na) + "</div>";
-    if (aluga && has(V.condo)) linhas += '<div class="tot"><span>Aluguel + condomínio</span><b>R$ ' + reais(Number(V.aluguel) + Number(V.condo)) + "</b></div>";
+    // 469 (Pedro, 22/10): com "Taxa de Condomínio" no Incluso no aluguel, o condomínio já está dentro do aluguel: não soma
+    var inclusoNoAluguel = String(I.incluso || "");
+    var condoIncluso = aluga && /condom/i.test(inclusoNoAluguel), iptuIncluso = aluga && /iptu/i.test(inclusoNoAluguel);
+    var incl = '<small class="na"> (incluso no aluguel)</small>';
+    linhas += "<div><span>Condomínio</span>" + (has(V.condo) ? "<b>R$ " + reais(V.condo) + "</b>" + (condoIncluso ? incl : "") : condoIncluso ? "<b>incluso no aluguel</b>" : na) + "</div>";
+    linhas += "<div><span>IPTU</span>" + (has(V.iptu) ? "<b>R$ " + reais(V.iptu) + "</b>" + (iptuIncluso ? incl : "") : iptuIncluso ? "<b>incluso no aluguel</b>" : na) + "</div>";
+    if (aluga && has(V.condo) && !condoIncluso) linhas += '<div class="tot"><span>Aluguel + condomínio</span><b>R$ ' + reais(Number(V.aluguel) + Number(V.condo)) + "</b></div>";
     var html = "<small>" + (aluga ? "Aluguel" : "Venda") + '</small><div class="big">R$ ' + reais(principal) + (aluga ? "<span>/mês</span>" : "") + '</div><div class="rows">' + linhas + "</div>";
     $("#priceCard").innerHTML = html; $("#priceMobile").innerHTML = html;
   }

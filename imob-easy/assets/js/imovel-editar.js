@@ -370,8 +370,30 @@
         caixa.hidden = false;
         caixa.innerHTML = fichaHtml(escolhido, f);
         aplicarRegrasDoTipo();
+        mostrarTaxaDoCondominio();
       })
-      .catch(function () { if (meu === pedidoDaFicha) { condoFicha = null; aplicarRegrasDoTipo(); } });
+      .catch(function () { if (meu === pedidoDaFicha) { condoFicha = null; aplicarRegrasDoTipo(); mostrarTaxaDoCondominio(); } });
+  }
+  /* 469: a taxa de condomínio do imóvel = a linha da ficha com os quartos dele (o banco aplica; a tela só mostra) */
+  function mostrarTaxaDoCondominio() {
+    var caixa = $("ed-taxa-do-condo");
+    if (!caixa) return;
+    var escolhido = seletorCondo && seletorCondo.valores()[0];
+    var q = form ? form.querySelector('[data-campo="quartos"]') : null;
+    var quartos = q ? String(q.value || "").trim() : String(item.quartos == null ? "" : item.quartos);
+    var linha = condoFicha && escolhido ? (condoFicha.taxas || []).filter(function (t) {
+      return String(t.quartos) === quartos && t.condominio;
+    })[0] : null;
+    var editar = escolhido && escolhido.id ? ' <a href="imoveis.html?condominio=' + encodeURIComponent(escolhido.id) +
+      '" target="_blank" rel="noopener">Editar condomínio</a>' : "";
+    var guardado = Number(item.taxa_condominio) > 0 ? dinheiroDoBanco(item.taxa_condominio) : "";
+    var valor = linha ? "<b>R$ " + esc(dinheiroDoBanco(linha.condominio)) + "</b>"
+      : guardado ? "<b>R$ " + esc(guardado) + "</b>" : "<b>—</b>";
+    var dica = linha ? "Vem do condomínio (" + esc(quartos) + " quartos): vale para todos os imóveis dele com esse tamanho."
+      : !escolhido ? "Escolha o condomínio acima: a taxa vem dele."
+      : !quartos ? "Informe os quartos: a taxa vem do condomínio, por número de quartos."
+      : "O condomínio ainda não tem a taxa de " + esc(quartos) + " quartos. Cadastre lá, e ela vem para cá.";
+    caixa.innerHTML = '<p class="ed__taxa-valor" style="margin:6px 0 4px;font-size:16px">' + valor + "</p>" + '<span class="ed__dica">' + dica + editar + "</span>";
   }
   function chips(lista) {
     return (lista || []).length ? '<div class="ed__cf-chips">' + lista.map(function (x) { return '<span class="ed__cf-chip">' + esc(x) + "</span>"; }).join("") + "</div>" : "";
@@ -497,6 +519,12 @@
     var rotulo = '<label for="' + id + '">' + esc(rotuloDe(nome)) + "</label>";
 
     if (tipo === "grupos") return gruposHtml(v);
+    // 469 (Pedro, 22/10): "não quero que o preço do condomínio fique dando para digitar no editar imóvel": a taxa é a
+    // do condomínio para aquele número de quartos. Só mostra; sem data-campo, o salvar não manda.
+    if (nome === "taxa_condominio") {
+      return '<div class="' + classes + '"' + envolve + '><span class="ed__rotulo-grupo">' + esc(rotuloDe(nome)) + "</span>" +
+        '<div class="ed__taxa-do-condo" id="ed-taxa-do-condo"></div></div>';
+    }
     if (nome === "condominio") {
       return '<div class="' + classes + '" data-envolve="condominio"><label for="ed-condominio">Condomínio</label>' +
         '<input class="entrada" type="text" id="ed-condominio" placeholder="Digite o nome e escolha na lista">' +
@@ -1146,6 +1174,7 @@
         $("ed-condo-dica").textContent = "Hoje está escrito \"" + item.condominio_nome + "\", sem ligação com o cadastro de condomínios — escolha na lista para ligar.";
       }
     }
+    mostrarTaxaDoCondominio();
     guardarInicial();
     atualizarBotao();
 
@@ -1187,6 +1216,7 @@
   }, true);
   form.addEventListener("input", atualizarBotao);
   form.addEventListener("input", function (e) { if (e.target && e.target.dataset && e.target.dataset.campo === "tipo") aplicarRegrasDoTipo(); });
+  form.addEventListener("input", function (e) { if (e.target && e.target.dataset && e.target.dataset.campo === "quartos") mostrarTaxaDoCondominio(); });
 
   // o que tem: tirar, passar para o outro grupo, acrescentar (Enter não envia o formulário)
   form.addEventListener("click", function (e) {
