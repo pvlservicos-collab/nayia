@@ -38,16 +38,24 @@ class QualGrupo(unittest.TestCase):
 
 
 class Mensagem(unittest.TestCase):
-    def test_o_molde_do_tel_arrumado(self):
-        t = b.mensagem_de_grupo([
-            {"finalidade": "venda", "tipo": "apartamento", "bairros": ["parque dez", "flores", "Aleixo"], "quartos": 3, "teto": 700000},
-            {"finalidade": "locacao", "tipo": "casa de condomínio", "bairros": ["parque dez"], "quartos": 3,
-             "aceita_menos_quartos": True, "teto": 4500, "mobilia": "mobiliado"}])
-        self.assertIn("*APARTAMENTO PARA VENDA*\n• Bairros: Parque Dez, Flores e Aleixo\n• Quartos: 3 quartos\n• Valor: até R$ 700.000", t)
-        self.assertIn("*CASA EM CONDOMÍNIO PARA LOCAÇÃO*\n• Bairros: Parque Dez\n• Quartos: 2 ou 3 quartos\n"
-                      "• Valor: até R$ 4.500/mês\n• Obs.: mobiliado", t)
-        self.assertTrue(t.startswith("🔎 *PROCURO PARA CLIENTE*"))
-        self.assertLessEqual(t.count("🔎") + t.count("✅"), 1)          # "sem muito emoji"
+    def test_o_molde_do_tel(self):
+        # Tel, 22/10: "✅PRECISO DE AP P/ VENDA - bairros: parque dez, flores, Aleixo - 3 quartos - até 700.000 - OBS:"
+        t = b.mensagem_de_grupo({"finalidade": "venda", "tipo": "apartamento", "bairros": ["parque dez", "flores", "Aleixo"],
+                                 "quartos": 3, "teto": 700000})
+        self.assertEqual(t, "✅ PRECISO DE AP P/ VENDA\n- bairros: parque dez, flores, Aleixo\n- 3 quartos\n- até 700.000\n\n"
+                            "Tem algum? Me chama no privado.")
+
+    def test_casa_em_condominio_com_obs(self):
+        t = b.mensagem_de_grupo({"finalidade": "locacao", "tipo": "casa_condominio", "bairros": ["parque dez", "flores", "Aleixo"],
+                                 "quartos": 3, "aceita_menos_quartos": True, "teto": 4500, "mobilia": "mobiliado"})
+        self.assertTrue(t.startswith("✅ PRECISO DE CS EM CONDOMÍNIO P/ LOCAÇÃO\n- bairros: parque dez, flores, Aleixo\n"
+                                     "- 2 ou 3 quartos\n- até 4.500\n- OBS: mobiliado"))
+
+    def test_sem_o_final_antigo(self):
+        t = b.mensagem_de_grupo({"finalidade": "venda", "tipo": "casa", "teto": 500000})
+        self.assertNotIn("com as fotos e o valor", t)
+        self.assertNotIn("Trabalhamos em parceria", t)
+        self.assertTrue(t.startswith("✅ PRECISO DE CASA P/ VENDA"))
 
     def test_nunca_leva_dado_do_cliente(self):
         t = b.bloco({"finalidade": "locacao", "tipo": "apartamento", "teto": 3000, "nome": "Michelle", "telefone": "92981585907"})

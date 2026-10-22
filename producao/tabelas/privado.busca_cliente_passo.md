@@ -1,4 +1,4 @@
-# privado.busca_cliente_passo  (tabela, ~0 linhas)
+# privado.busca_cliente_passo  (tabela, ~54 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('privado.busca_cliente_passo_id_seq'::regclass)

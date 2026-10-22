@@ -13,8 +13,8 @@ que faltar ... e completando tudo oferte ao cliente".
   2. BASE       a Nay do WhatsApp busca no nosso catálogo (whatsapp._buscar_e_mandar) e conta aqui o que achou
                 (resultado_da_base). Nada no perfil exato: a busca é ATIVADA e o cliente ouve que vamos continuar verificando.
   3. GRUPOS     a busca ativa é pedida nos grupos do número de captação, pela regra de cada grupo (privado.busca_grupo:
-                locação/venda e o valor mínimo do Alto Padrão). Um pedido por grupo; buscas juntas numa mensagem só; cada
-                grupo no máximo uma mensagem a cada `busca_grupos_intervalo_min`.
+                locação/venda e o valor mínimo do Alto Padrão), no molde do Tel ("✅ PRECISO DE AP P/ VENDA"). Uma busca
+                por mensagem, só busca com valor; cada grupo no máximo uma mensagem a cada `busca_grupos_intervalo_min`.
   4. OLX        os anúncios da nossa base de scrap que servem (busca_olx_candidatos: negócio, tipo, valor de -20% a +10%,
                 quartos, bairros) e têm telefone: perguntamos ao anunciante se está disponível e se aceita parceria.
   5. CORRETOR   quem responde (anunciante chamado, membro dos grupos) fala com a Nay dos corretores: ela vê se o imóvel
@@ -41,7 +41,6 @@ MANAUS = timezone(timedelta(hours=-4))
 A_CADA_S = 20
 OLX_DE_NOVO_H = 6              # a mesma busca olha a base da OLX de novo depois disto (a base cresce com o scrap)
 CONTATO_DE_NOVO_H = 24         # o mesmo anunciante não é chamado de novo antes disto, nem por outra busca
-MAX_BLOCOS = 4                 # buscas numa mensagem de grupo
 MEMBROS_A_CADA_S = 6 * 3600
 FOTOS_MINIMAS = 3
 ATIVAS = ("buscando",)
@@ -151,23 +150,42 @@ def obs_texto(f: dict) -> str:
     return "; ".join(partes)
 
 
+TIPO_DO_PEDIDO = (("lote", "LOTE EM CONDOMÍNIO"), ("condom", "CS EM CONDOMÍNIO"), ("cobertura", "COBERTURA"),
+                  ("apart", "AP"), ("flat", "FLAT"), ("kitnet", "KITNET"), ("casa", "CASA"), ("sala", "SALA"),
+                  ("terreno", "TERRENO"))
+
+
+def tipo_do_pedido(t: str | None) -> str:
+    t = (t or "").lower()
+    return next((v for k, v in TIPO_DO_PEDIDO if k in t), "IMÓVEL")
+
+
+def valor_curto(v) -> str:
+    try:
+        return f"{int(round(float(v))):,}".replace(",", ".")
+    except (TypeError, ValueError):
+        return ""
+
+
 def bloco(f: dict) -> str:
-    """Um pedido, no molde do Tel ("PRECISO DE AP P/ VENDA - bairros - 3 quartos - até 700.000 - OBS"), mais arrumado."""
+    """Um pedido no molde do Tel (22/10: "use essa headline mesmo, algo assim nessa estrutura"):
+    ✅ PRECISO DE AP P/ VENDA / - bairros: parque dez, flores, Aleixo / - 3 quartos / - até 700.000 / - OBS: (se tiver)."""
     fin = finalidade(f)
-    linhas = [f"*{tipo_rotulo(f.get('tipo'))} PARA {'LOCAÇÃO' if fin == 'locacao' else 'VENDA'}*",
-              f"• Bairros: {bairros_texto(f)}"]
+    bairros = [str(b).strip() for b in (f.get("bairros") or []) if str(b).strip()]
+    linhas = [f"✅ PRECISO DE {tipo_do_pedido(f.get('tipo'))} P/ {'LOCAÇÃO' if fin == 'locacao' else 'VENDA'}",
+              "- bairros: " + (", ".join(bairros) if bairros and f.get("qualquer_bairro") is not True else "qualquer bairro")]
     if quartos_texto(f):
-        linhas.append(f"• Quartos: {quartos_texto(f)}")
+        linhas.append(f"- {quartos_texto(f)}")
     if f.get("teto"):
-        linhas.append(f"• Valor: até {dinheiro(f['teto'])}" + ("/mês" if fin == "locacao" else ""))
+        linhas.append(f"- até {valor_curto(f['teto'])}")
     if obs_texto(f):
-        linhas.append(f"• Obs.: {obs_texto(f)}")
+        linhas.append(f"- OBS: {obs_texto(f)}")
     return "\n".join(linhas)
 
 
-def mensagem_de_grupo(filtros: list[dict]) -> str:
-    return ("🔎 *PROCURO PARA CLIENTE*\n\n" + "\n\n".join(bloco(f) for f in filtros) +
-            "\n\nTem algum? Me chama no privado com as fotos e o valor. Trabalhamos em parceria.")
+def mensagem_de_grupo(f: dict) -> str:
+    """Uma busca por mensagem (Tel, 22/10: "tem que ser sempre separado as buscas por mensagem individual")."""
+    return bloco(f) + "\n\nTem algum? Me chama no privado."
 
 
 def resumo(f: dict) -> str:
@@ -336,7 +354,8 @@ def grupos_volta(conn, c: dict) -> int:
         return 0
     buscas = banco.linhas(conn, """SELECT * FROM privado.busca_cliente WHERE estado = 'buscando'
                                     AND ativada_em < now() - make_interval(mins => %s) ORDER BY ativada_em""", (c["lote_min"],))
-    buscas = [b for b in buscas if pronto(b["filtros"])]
+    # 22/10 (Tel: "o de casa faltou o valor"): sem valor a busca não vai aos grupos (a Nay pergunta o valor primeiro)
+    buscas = [b for b in buscas if pronto(b["filtros"]) and b["filtros"].get("teto")]
     if not buscas:
         return 0
     feitas = 0
@@ -348,10 +367,12 @@ def grupos_volta(conn, c: dict) -> int:
         # o que foi em teste não conta quando o modo é sim (senão o grupo de verdade nunca receberia)
         bs = [b for b in buscas if grupo_aceita(g, b["filtros"])
               and g["grupo_id"] not in [x.get("grupo") for x in b["grupos"] or [] if teste or not x.get("teste")]]
-        bs = bs[:MAX_BLOCOS]
+        # Tel, 22/10: "tem que ser sempre separado as buscas por mensagem individual": uma busca por mensagem; a próxima
+        # do mesmo grupo espera `busca_grupos_intervalo_min`
+        bs = bs[:1]
         if not bs:
             continue
-        texto = mensagem_de_grupo([b["filtros"] for b in bs])
+        texto = mensagem_de_grupo(bs[0]["filtros"])
         if teste:
             if not c["teste"]:
                 continue
