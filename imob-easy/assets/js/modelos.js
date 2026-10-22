@@ -1,11 +1,14 @@
 /* ==========================================================================
    Imob Easy — Modelos de IA (22/10/2026, 470)
    Pedro: "uma conexão grande de nós, mostrando onde estão todos os modelos de IA e dando a opção de substituirmos esses
-   modelos por lá, e um contador de quanto estamos gastando em cada modelo, por nó de modelo ... navegável com o mouse
-   dentro, tipo eu clico com o botão direito e arrasto ... e uma sidebar na esquerda com os modelos como atalho e vista
-   rápida".
-   O DESENHO (quem fala com quem) mora aqui, em ECOSSISTEMA; os GASTOS vêm de /admin/api/modelos (site_ia_modelos):
-   por nó, por período. Trocar o modelo: /admin/api/modelos/trocar, só nos nós que leem o modelo do banco (trocavel).
+   modelos por lá, e um contador de quanto estamos gastando em cada modelo ... navegável com o mouse dentro ... uma
+   sidebar na esquerda com os modelos como atalho e vista rápida".
+   2ª versão, no mesmo dia: "está meio sem qualidade a borda e sem nitidez, e os modelos estão todos um em cima do outro
+   ... pode dividir por funil ... no card do modelo quero as funções dele em tags ... só os modelos que rodam hoje".
+   - O DESENHO mora aqui, em FUNIS: cada funil é uma faixa (canais -> serviço -> os modelos, lado a lado); um card por
+     modelo em cada funil, com as funções em tags. Só o que roda hoje (a Nay velha do n8n saiu).
+   - Os GASTOS vêm de /admin/api/modelos (site_ia_modelos), por função (o "nó" do banco); o card soma as suas funções.
+   - O zoom é o `zoom` do CSS na cena (redesenha no tamanho novo), não o scale do transform: assim nada borra.
    ========================================================================== */
 (function () {
   "use strict";
@@ -13,216 +16,220 @@
   function $(id) { return document.getElementById(id); }
   function esc(t) { return String(t == null ? "" : t).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
 
-  /* ---- os símbolos das empresas (só nos nós de modelo) ---- */
+  /* ---- os símbolos das empresas (só nos cards de modelo) ---- */
   var LOGO = {
     openai: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><g>' +
-      [0, 60, 120].map(function (a) { return '<ellipse cx="12" cy="12" rx="3.4" ry="8.4" transform="rotate(' + a + ' 12 12)"/>'; }).join("") +
-      '</g></svg>',
+      [0, 60, 120].map(function (a) { return '<ellipse cx="12" cy="12" rx="3.4" ry="8.4" transform="rotate(' + a + ' 12 12)"/>'; }).join("") + "</g></svg>",
     anthropic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">' +
-      [0, 45, 90, 135].map(function (a) { return '<path d="M12 3.5v17" transform="rotate(' + a + ' 12 12)"/>'; }).join("") + '</svg>',
+      [0, 45, 90, 135].map(function (a) { return '<path d="M12 3.5v17" transform="rotate(' + a + ' 12 12)"/>'; }).join("") + "</svg>",
     deepseek: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.5 13.2c1.6-4.6 6.6-6.9 11.3-5.6 1.9.5 3.4 1.8 4.9 1.6.8-.1 1.7-.6 2.8-1.6-.3 2.9-1.9 4.6-4.2 5-.7 3.2-3.9 5.7-8 5.3-3.4-.3-5.9-2.1-6.8-4.7Z"/><circle cx="8.3" cy="12.4" r="1" fill="#fff"/></svg>',
     typesafe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M14.5 4.5v10a4 4 0 0 1-7.5 2"/></svg>'
   };
+  var EMPRESA = { openai: "OpenAI", anthropic: "Anthropic", deepseek: "DeepSeek", typesafe: "Typesafe" };
   function logo(p) { return '<span class="md-logo md-logo-' + p + '" aria-hidden="true">' + (LOGO[p] || "") + "</span>"; }
 
-  /* ---- o ecossistema: colunas x; linhas y. Cada modelo é um nó próprio (o mesmo modelo em dois lugares = dois nós) ---- */
-  // duas faixas lado a lado (a Nay nova, a captação e a OLX | a Nay velha, o CRM e os agentes): o mapa fica largo, não alto
-  var X = { canal: 0, servico: 330, funcao: 680, modelo: 1040 }, FAIXA = [0, 1460];
-  var PASSO = 118, Y0 = 70;
-  function y(linha) { return Y0 + linha * PASSO; }
-  function x(col, f) { return X[col] + FAIXA[f || 0]; }
-
   var COMO_CORE = "Mora no núcleo da Nay nova (nay-core, config/modelos.yaml). A troca é um deploy do núcleo: peça no chat que eu faço.";
-  var COMO_N8N = "Mora no fluxo do n8n (Nay velha). A troca é import de fluxo, só de madrugada, pelo procedimento do espelho (scripts/madrugada/modelo_madrugada.sh).";
 
-  var MODELOS = [
-    { no: "core.classificador", modelo: "gpt-6-luna", prov: "openai", servico: "s.core", funcao: "Entender a mensagem do corretor", linha: 0,
-      faz: "Lê cada mensagem de corretor e diz a intenção, a finalidade, o tipo, o bairro, o valor e os códigos citados. É a primeira coisa que roda em todo turno da Nay nova.",
-      como: COMO_CORE },
-    { no: "core.reserva", modelo: "deepseek-v4.1-flash", prov: "deepseek", servico: "s.core", funcao: "Reserva quando a Luna falha", linha: 1, de: ["f.core.classificador", "f.core.duvida"],
-      faz: "Só entra quando a Luna cai ou passa do tempo (8 s): o mesmo prompt pela OpenRouter, raciocínio desligado. Se a reserva também cair, a regex classifica.",
-      como: COMO_CORE },
-    { no: "core.jev", modelo: "jev-1.13", prov: "typesafe", servico: "s.core", funcao: "Conferir se o imóvel bate (veto)", linha: 2,
-      faz: "O portão de coerência: antes de mandar um imóvel que não veio pelo código, pergunta se ele responde ao pedido do corretor. Abaixo do limiar vira \"É este imóvel?\".",
-      como: COMO_CORE },
-    { no: "core.duvida", modelo: "gpt-6-luna", prov: "openai", servico: "s.core", funcao: "Responder dúvida do imóvel", linha: 3,
-      faz: "Responde perguntas sobre o imóvel (taxa, IPTU, andar, pet...) só com o que a ficha diz; o que a ficha não tem vira pendência para o Tel.",
-      como: COMO_CORE },
-    { no: "core.instrucao", modelo: "gpt-6-luna", prov: "openai", servico: "s.core", funcao: "Ler a instrução do Tel (CRM)", linha: 4,
-      faz: "Traduz a instrução que a equipe escreve no CRM num plano: um pedido de imóvel, um recado na voz da Nay, ou só liberar a conversa.",
-      como: COMO_CORE },
-    { no: "core.transcricao", modelo: "gpt-4o-mini-transcribe", prov: "openai", servico: "s.core", funcao: "Transcrever áudio do corretor", linha: 5,
-      faz: "Transforma o áudio do corretor em texto antes do classificador (US$ 0,003 por minuto).",
-      como: COMO_CORE },
-    { no: "captacao.atender", modelo: "gpt-6-luna", prov: "openai", servico: "s.captacao", funcao: "Conversar com o proprietário", linha: 6.4, trocavel: true,
-      faz: "A Nay de captação no número oficial: conversa com o dono depois do disparo, atualiza a situação do imóvel, pergunta do contrato, cadastra o imóvel novo e a indicação." },
-    { no: "olx.chat", modelo: "gpt-6-luna", prov: "openai", servico: "s.olx", funcao: "Responder no chat da OLX", linha: 7.8, trocavel: true,
-      faz: "Responde quem escreve nos nossos anúncios da OLX e chama a pessoa para o WhatsApp." },
-    { no: "olx.whatsapp", modelo: "gpt-6-luna", prov: "openai", servico: "s.olx", funcao: "Atender o lead no WhatsApp", linha: 8.8, trocavel: true,
-      faz: "A Nay do WhatsApp dos leads (92 8595-6408): segue o roteiro (valor, bairros, quartos, mobília), manda os imóveis e marca a visita." },
-    { no: "olx.parceiro", modelo: "gpt-6-luna", prov: "openai", servico: "s.olx", funcao: "Ler a resposta do parceiro", linha: 9.8, trocavel: true,
-      faz: "Lê a resposta do corretor parceiro à pergunta \"o imóvel do seu anúncio ainda está disponível?\" (sim, não ou dúvida)." },
-    { no: "n8n.secretaria", modelo: "gpt-6-luna", prov: "openai", servico: "s.n8n", funcao: "Secretária (triagem do turno)", f: 1, linha: 0,
-      faz: "Na Nay velha, decide para qual agente vai o turno. Roda em todo turno que a Nay velha atende.", como: COMO_N8N, semMedicao: true },
-    { no: "n8n.corretor", modelo: "gpt-6-luna", prov: "openai", servico: "s.n8n", funcao: "Agente do corretor", f: 1, linha: 1,
-      faz: "O agente da Nay velha que atende o corretor (hoje a Nay nova atende quase tudo).", como: COMO_N8N, semMedicao: true },
-    { no: "n8n.proprietario", modelo: "gpt-6-luna", prov: "openai", servico: "s.n8n", funcao: "Agente do proprietário", f: 1, linha: 2,
-      faz: "O agente da Nay velha que fala com o proprietário na visita.", como: COMO_N8N, semMedicao: true },
-    { no: "n8n.fernando", modelo: "gpt-6-luna", prov: "openai", servico: "s.n8n", funcao: "Agente do acompanhante", f: 1, linha: 3,
-      faz: "O agente da Nay velha que fala com o acompanhante da visita (o nome no fluxo ainda é Fernando).", como: COMO_N8N, semMedicao: true },
-    { no: "n8n.imagem", modelo: "gpt-4o-mini", prov: "openai", servico: "s.n8n", funcao: "Ler imagem", f: 1, linha: 4,
-      faz: "Descreve a foto ou o print que chega na conversa (nó Detectar imagem do fluxo NAI).", como: COMO_N8N, semMedicao: true },
-    { no: "n8n.transcricao", modelo: "gpt-4o-mini-transcribe", prov: "openai", servico: "s.n8n", funcao: "Transcrever áudio", f: 1, linha: 5,
-      faz: "Transforma o áudio em texto na Nay velha.", como: COMO_N8N, semMedicao: true },
-    { no: "n8n.recebe", modelo: "gpt-6-luna", prov: "openai", servico: "s.n8n", funcao: "Agente do \"recebe mensagem\"", f: 1, linha: 6,
-      faz: "O AI Agent do fluxo \"Nay- recebe mensagem\".", como: COMO_N8N, semMedicao: true },
-    { no: "crm.transcricao", modelo: "gpt-4o-transcribe", prov: "openai", servico: "s.crm", funcao: "Transcrever áudio das conversas", f: 1, linha: 7.6,
-      faz: "Transcreve o áudio que chega no CRM (a conversa mostra o texto e a Nay de captação lê).",
-      como: "Mora no CRM (src/lib/transcricao.ts). A troca é um deploy do CRM: peça no chat.", semMedicao: true },
-    { no: "agentes.claude", modelo: "Claude Sonnet", prov: "anthropic", servico: "s.agentes", funcao: "Chats de projeto (Visitas, Métricas...)", f: 1, linha: 9,
-      faz: "Os chats de projeto do agentes.imobeasy.online: Visitas, Métricas, Estratégia, Financeiro, Respostas e a revisão da Nay. Leem o banco e o código das duas VPS.",
-      como: "Claude Code com a assinatura da conta: não há custo por token. Cada projeto escolhe o modelo no seu projeto.json.", assinatura: true }
+  /* ---- os funis: só o que roda hoje ---- */
+  var FUNIS = [
+    { id: "corretores", titulo: "Atendimento aos corretores", sub: "Nay nova",
+      canais: [["WhatsApp Parceria", "92 9445-3618"], ["Grupos de corretores", "pedidos e imóveis"], ["Instrução da equipe", "o que o Tel escreve no CRM"]],
+      servico: ["Nay nova", "nay-core"],
+      funcoes: [
+        { no: "core.classificador", nome: "Entender a mensagem", modelo: "gpt-6-luna", prov: "openai", como: COMO_CORE,
+          faz: "Lê cada mensagem do corretor: intenção, finalidade, tipo, bairro, valor e códigos citados. Roda em todo turno." },
+        { no: "core.duvida", nome: "Responder dúvida do imóvel", modelo: "gpt-6-luna", prov: "openai", como: COMO_CORE,
+          faz: "Responde taxa, IPTU, andar, pet... só com o que a ficha diz; o que falta vira pendência para o Tel." },
+        { no: "core.instrucao", nome: "Ler instrução do Tel", modelo: "gpt-6-luna", prov: "openai", como: COMO_CORE,
+          faz: "Traduz a instrução escrita no CRM num pedido de imóvel, num recado na voz da Nay ou em liberar a conversa." },
+        { no: "core.reserva", nome: "Reserva quando a Luna falha", modelo: "deepseek-v4.1-flash", prov: "deepseek", como: COMO_CORE,
+          faz: "Só entra quando a Luna cai ou passa de 8 s: o mesmo prompt pela OpenRouter. Serve ao classificador e à dúvida." },
+        { no: "core.jev", nome: "Veto de coerência", modelo: "jev-1.13", prov: "typesafe", como: COMO_CORE,
+          faz: "Antes de mandar um imóvel que não veio pelo código, confere se ele responde ao pedido; senão pergunta \"É este imóvel?\"." },
+        { no: "core.transcricao", nome: "Transcrever áudio", modelo: "gpt-4o-mini-transcribe", prov: "openai", como: COMO_CORE,
+          faz: "Transforma o áudio do corretor em texto antes do classificador (US$ 0,003 por minuto)." }
+      ] },
+    { id: "captacao", titulo: "Captação de proprietários", sub: "número oficial",
+      canais: [["WhatsApp oficial", "92 8456-0874 · Meta"]],
+      servico: ["Nay de captação", "nay-captacao"],
+      funcoes: [
+        { no: "captacao.atender", nome: "Conversar com o proprietário", modelo: "gpt-6-luna", prov: "openai", trocavel: true,
+          faz: "Depois do disparo: atualiza a situação do imóvel, pergunta do contrato, cadastra o imóvel novo e a indicação." }
+      ] },
+    { id: "olx", titulo: "Leads da OLX", sub: "chat da OLX e WhatsApp dos leads",
+      canais: [["Chat da OLX", "anúncios na OLX"], ["WhatsApp dos leads", "92 8595-6408"]],
+      servico: ["Nay da OLX", "nay-olx"],
+      funcoes: [
+        { no: "olx.chat", nome: "Responder no chat da OLX", modelo: "gpt-6-luna", prov: "openai", trocavel: true,
+          faz: "Responde quem escreve nos nossos anúncios da OLX e chama a pessoa para o WhatsApp." },
+        { no: "olx.whatsapp", nome: "Atender no WhatsApp", modelo: "gpt-6-luna", prov: "openai", trocavel: true,
+          faz: "Segue o roteiro (valor, bairros, quartos, mobília), manda os imóveis e marca a visita." },
+        { no: "olx.parceiro", nome: "Ler a resposta do parceiro", modelo: "gpt-6-luna", prov: "openai", trocavel: true,
+          faz: "Lê se o corretor parceiro disse que o imóvel do anúncio ainda está disponível." }
+      ] },
+    { id: "equipe", titulo: "Equipe no CRM", sub: "conversas da equipe",
+      canais: [["Áudios das conversas", "WhatsApp no CRM"]],
+      servico: ["CRM", "crm.imobeasy.online"],
+      funcoes: [
+        { no: "crm.transcricao", nome: "Transcrever áudio", modelo: "gpt-4o-transcribe", prov: "openai", semMedicao: true,
+          como: "Mora no CRM (src/lib/transcricao.ts). A troca é um deploy do CRM: peça no chat.",
+          faz: "Transcreve o áudio que chega no CRM: a conversa mostra o texto e a Nay de captação lê." }
+      ] },
+    { id: "gestao", titulo: "Gestão com agentes", sub: "agentes.imobeasy.online",
+      canais: [["Painel dos agentes", "agentes.imobeasy.online"]],
+      servico: ["Agente Claude", "VPS2"],
+      funcoes: ["Visitas", "Métricas", "Estratégia", "Financeiro", "Respostas", "Revisão da Nay"].map(function (n) {
+        return { no: "agentes.claude", nome: n, modelo: "Claude Sonnet", prov: "anthropic", assinatura: true,
+          como: "Claude Code com a assinatura da conta: não há custo por token. Cada projeto escolhe o modelo no seu projeto.json.",
+          faz: "Os chats de projeto: leem o banco e o código das duas VPS e respondem a equipe." };
+      }) }
   ];
-
-  var SERVICOS = [
-    { id: "s.core", rotulo: "Nay nova", sub: "nay-core · atende os corretores", linha: 2.5 },
-    { id: "s.captacao", rotulo: "Nay de captação", sub: "nay-captacao · número oficial", linha: 6.4 },
-    { id: "s.olx", rotulo: "Nay da OLX", sub: "nay-olx · chat e WhatsApp dos leads", linha: 8.8 },
-    { id: "s.n8n", rotulo: "Nay velha", sub: "n8n · NAI atendimento", f: 1, linha: 3 },
-    { id: "s.crm", rotulo: "CRM", sub: "crm.imobeasy.online", f: 1, linha: 7.6 },
-    { id: "s.agentes", rotulo: "Agente Claude", sub: "VPS2 · agentes.imobeasy.online", f: 1, linha: 9 }
-  ];
-  var CANAIS = [
-    { id: "c.parceria", rotulo: "WhatsApp Parceria", sub: "92 9445-3618 · Z-API", linha: 1.4, para: ["s.core"] },
-    { id: "c.instrucao", rotulo: "Instrução da equipe", sub: "o que o Tel escreve no CRM", linha: 4.4, para: ["s.core"] },
-    { id: "c.parceria2", rotulo: "WhatsApp Parceria", sub: "92 9445-3618 · conversas antigas", f: 1, linha: 3, para: ["s.n8n"] },
-    { id: "c.grupos", rotulo: "Grupos de corretores", sub: "pedidos e imóveis", linha: 3.4, para: ["s.core"] },
-    { id: "c.oficial", rotulo: "WhatsApp oficial", sub: "92 8456-0874 · Meta", linha: 6.4, para: ["s.captacao"] },
-    { id: "c.olx", rotulo: "Chat da OLX", sub: "anúncios na OLX", linha: 7.8, para: ["s.olx"] },
-    { id: "c.leads", rotulo: "WhatsApp dos leads", sub: "92 8595-6408 · Z-API", linha: 9.8, para: ["s.olx"] },
-    { id: "c.equipe", rotulo: "Equipe no CRM", sub: "Tel, Rayssa, Pedro", f: 1, linha: 7.6, para: ["s.crm"] },
-    { id: "c.painel", rotulo: "Painel dos agentes", sub: "agentes.imobeasy.online", f: 1, linha: 9, para: ["s.agentes"] }
-  ];
-  var DADOS = [
-    { id: "d.naydb", rotulo: "Banco naydb", sub: "imóveis, conversas, visitas, ia_uso", x: 1270, linha: 11.4,
-      de: ["s.core", "s.captacao", "s.olx", "s.n8n", "s.agentes", "s.crm"] },
-    { id: "d.crmdb", rotulo: "Banco crmdb", sub: "leads e mensagens do CRM", x: 2140, linha: 11.4, de: ["s.crm"] }
-  ];
-
-  /* ---- os nós montados ---- */
-  var NOS = {}, LIGACOES = [];
-  function no(id, tipo, x, yy, html, extra) { NOS[id] = Object.assign({ id: id, tipo: tipo, x: x, y: yy, html: html }, extra || {}); }
-  function liga(de, para, modelo) { LIGACOES.push({ de: de, para: para, modelo: !!modelo }); }
-  [0, 1].forEach(function (f) {
-    ["Canais", "Serviços", "Funções", "Modelos de IA"].forEach(function (t, i) {
-      no("col." + f + "." + i, "coluna", x(["canal", "servico", "funcao", "modelo"][i], f), 14, esc(t));
-    });
-  });
-  CANAIS.forEach(function (c) {
-    no(c.id, "comum", x("canal", c.f), y(c.linha), esc(c.rotulo) + "<small>" + esc(c.sub) + "</small>");
-    c.para.forEach(function (s) { liga(c.id, s); });
-  });
-  SERVICOS.forEach(function (s) { no(s.id, "comum", x("servico", s.f), y(s.linha), esc(s.rotulo) + "<small>" + esc(s.sub) + "</small>"); });
-  MODELOS.forEach(function (m) {
-    var f = "f." + m.no;
-    if (!m.de) {
-      no(f, "comum", x("funcao", m.f), y(m.linha), esc(m.funcao));
-      liga(m.servico, f);
-    }
-    no(m.no, "modelo", x("modelo", m.f), y(m.linha), "", { m: m });
-    (m.de || [f]).forEach(function (d) { liga(d, m.no, true); });
-  });
-  DADOS.forEach(function (d) {
-    no(d.id, "dado", d.x, y(d.linha), esc(d.rotulo) + "<small>" + esc(d.sub) + "</small>");
-    d.de.forEach(function (s) { liga(s, d.id); });
-  });
 
   /* ---- dados da API ---- */
   var dados = { nos: {}, totais: {}, escolhidos: {}, precos: {}, serie: [] };
   var PERIODOS = [["hoje", "Hoje"], ["ontem", "Ontem"], ["d7", "7 dias"], ["d30", "30 dias"], ["mes", "Este mês"]];
-  var periodo = "d7";
+  var periodo = "d7", selecionado = null;
   try { periodo = localStorage.getItem("md-periodo") || "d7"; } catch (e) { /* sem armazenamento */ }
-  var selecionado = null;
 
   function dinheiro(v) {
-    var n = Number(v || 0);
-    var casas = n === 0 ? 2 : n < 1 ? 4 : 2;
+    var n = Number(v || 0), casas = n === 0 ? 2 : n < 1 ? 4 : 2;
     return "US$ " + n.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
   }
   function inteiro(v) { return Number(v || 0).toLocaleString("pt-BR"); }
-  function doNo(id) { return dados.nos[id] || { gasto: {}, chamadas: {} }; }
-  function modeloAtual(m) { return (dados.escolhidos[m.no] && dados.escolhidos[m.no].modelo) || m.modelo; }
+  function doNo(no) { return dados.nos[no] || { gasto: {}, chamadas: {} }; }
+  function modeloDe(f) { return (dados.escolhidos[f.no] && dados.escolhidos[f.no].modelo) || f.modelo; }
   function nomePeriodo() { return (PERIODOS.filter(function (p) { return p[0] === periodo; })[0] || ["", ""])[1].toLowerCase(); }
 
-  function contador(m) {
-    var d = doNo(m.no), ch = (d.chamadas || {})[periodo] || 0;
-    if (m.assinatura) return '<div class="md-contador sem">assinatura<small>sem custo por token</small></div>';
-    if (m.semMedicao) return '<div class="md-contador sem">sem medição<small>' + inteiro(ch) + " chamada" + (ch === 1 ? "" : "s") + " · " + nomePeriodo() + "</small></div>";
-    return '<div class="md-contador">' + dinheiro((d.gasto || {})[periodo]) + "<small>" + inteiro(ch) + " chamada" + (ch === 1 ? "" : "s") + " · " + nomePeriodo() + "</small></div>";
+  /* os cards: as funções de cada funil agrupadas pelo modelo que usam agora */
+  function cards() {
+    var lista = [];
+    FUNIS.forEach(function (fu) {
+      var porModelo = {};
+      fu.funcoes.forEach(function (f) {
+        var m = modeloDe(f);
+        if (!porModelo[m]) { porModelo[m] = { id: fu.id + ":" + m, funil: fu, modelo: m, prov: f.prov, funcoes: [] }; lista.push(porModelo[m]); }
+        porModelo[m].funcoes.push(f);
+      });
+    });
+    return lista;
+  }
+  function nosDo(card) { var vistos = {}; return card.funcoes.map(function (f) { return f.no; }).filter(function (n) { return vistos[n] ? false : (vistos[n] = true); }); }
+  function soma(card, campo, p) { return nosDo(card).reduce(function (t, n) { return t + Number(((doNo(n)[campo] || {})[p]) || 0); }, 0); }
+  function tipoCard(card) { var f = card.funcoes[0]; return f.assinatura ? "assinatura" : f.semMedicao ? "sem" : "medido"; }
+
+  /* ---- o desenho: uma faixa por funil ---- */
+  // no máximo 2 cards por linha (a Nay nova vira 2x2): o mapa cabe na largura da tela
+  var L = { canalX: 26, servicoX: 286, cardX: 560, cardW: 250, cardPasso: 286, porLinha: 2, cardPassoY: 196, topoFaixa: 46,
+            espacoContador: 44, canalPasso: 62, gap: 30 };
+  var GEO = { faixas: [], nos: {}, ligacoes: [], w: 1200, h: 900 };
+  function montarGeometria(lista) {
+    GEO = { faixas: [], nos: {}, ligacoes: [] };
+    var y = 16, larguraMax = 0;
+    FUNIS.forEach(function (fu) {
+      var meus = lista.filter(function (c) { return c.funil === fu; });
+      var alturaCanais = fu.canais.length * L.canalPasso;
+      var colunas = Math.min(L.porLinha, Math.max(meus.length, 1)), filas = Math.ceil(meus.length / L.porLinha) || 1;
+      var alturaCards = L.espacoContador + (filas - 1) * L.cardPassoY + 140;
+      var miolo = Math.max(alturaCanais, alturaCards);
+      var h = L.topoFaixa + miolo + 18;
+      larguraMax = Math.max(larguraMax, L.cardX + colunas * L.cardPasso - (L.cardPasso - L.cardW) + 26);
+      GEO.faixas.push({ funil: fu, y: y, h: h });
+      var meio = y + L.topoFaixa + miolo / 2;
+      fu.canais.forEach(function (c, i) {
+        var id = "c." + fu.id + "." + i;
+        GEO.nos[id] = { tipo: "comum", x: L.canalX, y: Math.round(meio - alturaCanais / 2 + i * L.canalPasso + 6), html: esc(c[0]) + "<small>" + esc(c[1]) + "</small>" };
+        GEO.ligacoes.push({ de: id, para: "s." + fu.id });
+      });
+      GEO.nos["s." + fu.id] = { tipo: "comum", x: L.servicoX, y: Math.round(meio - 24), html: esc(fu.servico[0]) + "<small>" + esc(fu.servico[1]) + "</small>" };
+      var topoCards = Math.round(meio - alturaCards / 2 + L.espacoContador);
+      meus.forEach(function (c, i) {
+        var col = i % L.porLinha, fila = Math.floor(i / L.porLinha);
+        GEO.nos[c.id] = { tipo: "modelo", x: L.cardX + col * L.cardPasso, y: topoCards + fila * L.cardPassoY, card: c };
+        GEO.ligacoes.push({ de: "s." + fu.id, para: c.id, modelo: true, ordem: col });
+      });
+      y += h + L.gap;
+    });
+    GEO.w = larguraMax + 20; GEO.h = y;
   }
 
-  /* ---- desenho ---- */
-  var mundo = $("md-mundo"), camadaNos = $("md-nos"), linhas = $("md-linhas"), palco = $("md-palco");
+  var palco = $("md-palco"), mundo = $("md-mundo"), cena = $("md-cena");
+  var camadaFaixas = $("md-faixas"), camadaNos = $("md-nos"), linhas = $("md-linhas");
 
-  function desenharNos() {
-    camadaNos.innerHTML = Object.keys(NOS).map(function (id) {
-      var n = NOS[id], estilo = "left:" + n.x + "px;top:" + n.y + "px";
-      if (n.tipo === "modelo") {
-        var m = n.m, ch = (doNo(m.no).chamadas || {})[periodo] || 0;
-        return '<div class="md-no modelo' + (ch || m.assinatura ? "" : " parado") + (selecionado === m.no ? " ativo" : "") +
-          '" data-no="' + esc(id) + '" data-modelo="' + esc(m.no) + '" style="' + estilo + '" role="button" tabindex="0" aria-label="' +
-          esc(modeloAtual(m) + ", " + m.funcao) + '">' + contador(m) + logo(m.prov) +
-          '<span><span class="md-no-nome">' + esc(modeloAtual(m)) + '</span><span class="md-no-funcao">' + esc(m.funcao) + "</span></span></div>";
-      }
-      return '<div class="md-no ' + (n.tipo === "coluna" ? "coluna" : n.tipo === "dado" ? "dado" : "") + '" data-no="' + esc(id) + '" style="' + estilo + '">' + n.html + "</div>";
+  function contador(card) {
+    var t = tipoCard(card), ch = soma(card, "chamadas", periodo);
+    var rodape = "<small>" + inteiro(ch) + " chamada" + (ch === 1 ? "" : "s") + " · " + nomePeriodo() + "</small>";
+    if (t === "assinatura") return '<div class="md-contador sem">assinatura<small>sem custo por token</small></div>';
+    if (t === "sem") return '<div class="md-contador sem">sem medição' + rodape + "</div>";
+    return '<div class="md-contador">' + dinheiro(soma(card, "gasto", periodo)) + rodape + "</div>";
+  }
+  function tags(card, max) {
+    var nomes = card.funcoes.map(function (f) { return f.nome; });
+    var mostra = max ? nomes.slice(0, max) : nomes;
+    return mostra.map(function (n) { return '<span class="md-tag">' + esc(n) + "</span>"; }).join("") +
+      (max && nomes.length > max ? '<span class="md-tag md-tag-mais">+' + (nomes.length - max) + "</span>" : "");
+  }
+
+  function desenhar() {
+    var lista = cards();
+    montarGeometria(lista);
+    camadaFaixas.innerHTML = GEO.faixas.map(function (f) {
+      return '<div class="md-faixa" style="top:' + f.y + "px;width:" + GEO.w + "px;height:" + f.h + 'px">' +
+        '<p class="md-faixa-titulo">' + esc(f.funil.titulo) + " <span>· " + esc(f.funil.sub) + "</span></p></div>";
+    }).join("");
+    camadaNos.innerHTML = Object.keys(GEO.nos).map(function (id) {
+      var n = GEO.nos[id], estilo = "left:" + n.x + "px;top:" + n.y + "px";
+      if (n.tipo !== "modelo") return '<div class="md-no" data-no="' + esc(id) + '" style="' + estilo + '">' + n.html + "</div>";
+      var c = n.card, parado = tipoCard(c) !== "assinatura" && !soma(c, "chamadas", periodo);
+      return '<div class="md-no modelo' + (parado ? " parado" : "") + (selecionado === c.id ? " ativo" : "") + '" data-no="' + esc(id) +
+        '" style="' + estilo + '" role="button" tabindex="0" aria-label="' + esc(c.modelo + " em " + c.funil.titulo) + '">' + contador(c) +
+        '<div class="md-card-topo">' + logo(c.prov) + '<span><span class="md-no-nome">' + esc(c.modelo) + '</span><span class="md-no-empresa">' +
+        esc(EMPRESA[c.prov] || "") + "</span></span></div>" +
+        '<div class="md-tags">' + tags(c, 4) + "</div></div>";
     }).join("");
     desenharLinhas();
     acender();
   }
 
   function caixa(id) {
-    var el = camadaNos.querySelector('[data-no="' + id.replace(/"/g, "") + '"]');
-    var n = NOS[id];
-    return { x: n.x, y: n.y, w: el ? el.offsetWidth : 210, h: el ? el.offsetHeight : 40 };
+    var el = camadaNos.querySelector('[data-no="' + id.replace(/"/g, "") + '"]'), n = GEO.nos[id];
+    return { x: n.x, y: n.y, w: el ? el.offsetWidth : 200, h: el ? el.offsetHeight : 44 };
   }
   function desenharLinhas() {
-    var maxX = 0, maxY = 0;
-    var paths = LIGACOES.map(function (l, i) {
+    linhas.setAttribute("width", GEO.w); linhas.setAttribute("height", GEO.h);
+    linhas.innerHTML = GEO.ligacoes.map(function (l, i) {
       var a = caixa(l.de), b = caixa(l.para);
-      var x1 = a.x + a.w, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y + b.h / 2;
-      if (l.para.indexOf("d.") === 0) { x1 = a.x + a.w / 2; y1 = a.y + a.h; x2 = b.x + b.w / 2; y2 = b.y; }
-      maxX = Math.max(maxX, b.x + b.w, a.x + a.w); maxY = Math.max(maxY, b.y + b.h, a.y + a.h);
-      var d = l.para.indexOf("d.") === 0
-        ? "M" + x1 + "," + y1 + " C" + x1 + "," + (y1 + 80) + " " + x2 + "," + (y2 - 80) + " " + x2 + "," + y2
-        : "M" + x1 + "," + y1 + " C" + (x1 + 70) + "," + y1 + " " + (x2 - 70) + "," + y2 + " " + x2 + "," + y2;
+      var x1 = a.x + a.w, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y + b.h / 2, d;
+      if (l.modelo && l.ordem > 0) {
+        // os cards depois do primeiro: a linha sobe por cima do contador e desce no meio do card
+        var yAlto = b.y - 52;
+        d = "M" + x1 + "," + y1 + " C" + (x1 + 60) + "," + y1 + " " + (x1 + 60) + "," + yAlto + " " + (x1 + 120) + "," + yAlto +
+            " L" + (b.x + b.w / 2 - 40) + "," + yAlto + " Q" + (b.x + b.w / 2) + "," + yAlto + " " + (b.x + b.w / 2) + "," + (b.y - 40);
+      } else {
+        d = "M" + x1 + "," + y1 + " C" + (x1 + 60) + "," + y1 + " " + (x2 - 60) + "," + y2 + " " + x2 + "," + y2;
+      }
       return '<path data-l="' + i + '" class="' + (l.modelo ? "modelo" : "") + '" d="' + d + '"/>';
-    });
-    linhas.setAttribute("width", maxX + 40); linhas.setAttribute("height", maxY + 40);
-    linhas.innerHTML = paths.join("");
-    limites = { w: maxX + 40, h: maxY + 40 };
+    }).join("");
   }
 
-  /* o caminho do modelo escolhido: o canal, o serviço, a função e ele mesmo acendem; o resto esmaece */
-  function caminhoDe(idModelo) {
-    var aceso = {}, fila = [idModelo];
-    aceso[idModelo] = true;
+  function caminhoDe(id) {
+    var aceso = {}, fila = [id];
+    aceso[id] = true;
     while (fila.length) {
-      var atual = fila.shift();
-      LIGACOES.forEach(function (l) { if (l.para === atual && !aceso[l.de]) { aceso[l.de] = true; fila.push(l.de); } });
+      var at = fila.shift();
+      GEO.ligacoes.forEach(function (l) { if (l.para === at && !aceso[l.de]) { aceso[l.de] = true; fila.push(l.de); } });
     }
     return aceso;
   }
   function acender() {
-    var aceso = selecionado ? caminhoDe(selecionado) : null;
+    var aceso = selecionado && GEO.nos[selecionado] ? caminhoDe(selecionado) : null;
     camadaNos.querySelectorAll(".md-no").forEach(function (el) {
       var id = el.getAttribute("data-no");
-      if (NOS[id] && NOS[id].tipo === "coluna") return;
       el.classList.toggle("esmaecido", !!aceso && !aceso[id]);
-      el.classList.toggle("aceso", !!aceso && !!aceso[id] && NOS[id].tipo !== "modelo");
+      el.classList.toggle("aceso", !!(aceso && aceso[id]) && GEO.nos[id].tipo !== "modelo");
       el.classList.toggle("ativo", id === selecionado);
     });
     linhas.querySelectorAll("path").forEach(function (p) {
-      var l = LIGACOES[Number(p.getAttribute("data-l"))];
+      var l = GEO.ligacoes[Number(p.getAttribute("data-l"))];
       p.classList.toggle("acesa", !!(aceso && aceso[l.de] && aceso[l.para]));
     });
   }
@@ -234,112 +241,108 @@
         "<span>" + p[1] + "</span><b>" + dinheiro((dados.totais || {})[p[0]]) + "</b></button>";
     }).join("");
     var s = dados.serie || [], max = Math.max.apply(null, s.map(function (d) { return Number(d.custo) || 0; }).concat([0.000001]));
-    var w = 280, h = 46, passo = s.length > 1 ? w / (s.length - 1) : w;
+    var w = 240, h = 42, passo = s.length > 1 ? w / (s.length - 1) : w;
     var pts = s.map(function (d, i) { return (i * passo).toFixed(1) + "," + (h - 4 - (Number(d.custo) || 0) / max * (h - 10)).toFixed(1); });
     $("md-serie").innerHTML = s.length ? '<svg viewBox="0 0 ' + w + " " + h + '" preserveAspectRatio="none">' +
       '<polyline points="0,' + h + " " + pts.join(" ") + " " + w + "," + h + '" fill="#efe8fd" stroke="none"/>' +
       '<polyline points="' + pts.join(" ") + '" fill="none" stroke="#6d28d9" stroke-width="1.8" vector-effect="non-scaling-stroke"/></svg>' +
-      "<small>gasto por dia · últimos 30 dias</small>" : "";
-    $("md-atualizado").textContent = "Gasto medido em dólar (US$) · atualizado às " +
-      (dados.gerado_em ? dados.gerado_em.slice(11, 16) : "--:--") + " · a Nay velha, o CRM e os agentes não medem tokens";
+      "<small>gasto por dia · 30 dias</small>" : "";
+    $("md-atualizado").textContent = "Em dólar (US$) · atualizado às " + (dados.gerado_em ? dados.gerado_em.slice(11, 16) : "--:--");
   }
 
-  /* ---- a barra dos modelos (atalho e vista rápida) ---- */
-  var GRUPOS = [["s.core", "Nay nova"], ["s.captacao", "Nay de captação"], ["s.olx", "Nay da OLX"], ["s.n8n", "Nay velha (n8n)"], ["s.crm", "CRM"], ["s.agentes", "Agente Claude"]];
-  function valorCurto(m) {
-    var d = doNo(m.no);
-    if (m.assinatura) return "assinatura";
-    if (m.semMedicao) return inteiro((d.chamadas || {})[periodo]) + " cham.";
-    return dinheiro((d.gasto || {})[periodo]);
+  /* ---- a barra (atalho e vista rápida) ---- */
+  function valorCurto(c) {
+    var t = tipoCard(c);
+    return t === "assinatura" ? "assinatura" : t === "sem" ? inteiro(soma(c, "chamadas", periodo)) + " cham." : dinheiro(soma(c, "gasto", periodo));
   }
   function desenharLista() {
-    $("md-lista").innerHTML = GRUPOS.map(function (g) {
-      var itens = MODELOS.filter(function (m) { return m.servico === g[0]; });
-      return '<p class="md-grupo">' + esc(g[1]) + "</p>" + itens.map(function (m) {
-        return '<button type="button" class="md-item' + (selecionado === m.no ? " ativo" : "") + '" data-modelo="' + esc(m.no) + '">' + logo(m.prov) +
-          '<span><span class="md-item-nome">' + esc(modeloAtual(m)) + '</span><span class="md-item-onde">' + esc(m.funcao) + "</span></span>" +
-          '<span class="md-item-valor">' + esc(valorCurto(m)) + "</span></button>";
+    var lista = cards();
+    $("md-lista").innerHTML = FUNIS.map(function (fu) {
+      return '<p class="md-grupo">' + esc(fu.titulo) + "</p>" + lista.filter(function (c) { return c.funil === fu; }).map(function (c) {
+        return '<button type="button" class="md-item' + (selecionado === c.id ? " ativo" : "") + '" data-card="' + esc(c.id) + '">' + logo(c.prov) +
+          '<span class="md-item-texto"><span class="md-item-nome">' + esc(c.modelo) + '</span><span class="md-item-onde">' +
+          esc(c.funcoes.length + (c.funcoes.length === 1 ? " função" : " funções")) + "</span></span>" +
+          '<span class="md-item-valor">' + esc(valorCurto(c)) + "</span></button>";
       }).join("");
     }).join("");
   }
 
   function desenharDetalhe() {
-    var caixaDet = $("md-detalhe");
-    var m = MODELOS.filter(function (x) { return x.no === selecionado; })[0];
-    if (!m) { caixaDet.hidden = true; return; }
-    var d = doNo(m.no), s = SERVICOS.filter(function (x) { return x.id === m.servico; })[0];
-    var canais = CANAIS.filter(function (c) { return c.para.indexOf(m.servico) >= 0; }).map(function (c) { return c.rotulo; });
-    var preco = (dados.precos || {})[modeloAtual(m)];
-    var linhasTab = PERIODOS.map(function (p) {
-      var ch = (d.chamadas || {})[p[0]] || 0;
-      return '<tr class="' + (p[0] === periodo ? "sel" : "") + '"><td>' + p[1] + " · " + inteiro(ch) + " chamada" + (ch === 1 ? "" : "s") + "</td><td>" +
-        (m.assinatura ? "assinatura" : m.semMedicao ? "—" : dinheiro((d.gasto || {})[p[0]])) + "</td></tr>";
+    var caixaDet = $("md-detalhe"), c = cards().filter(function (x) { return x.id === selecionado; })[0];
+    if (!c) { caixaDet.hidden = true; return; }
+    var t = tipoCard(c), preco = (dados.precos || {})[c.modelo];
+    var linhasFn = c.funcoes.map(function (f) {
+      var d = doNo(f.no), ch = (d.chamadas || {})[periodo] || 0;
+      var valor = f.assinatura ? "" : f.semMedicao ? inteiro(ch) + " cham." : dinheiro((d.gasto || {})[periodo]);
+      return '<div class="md-fn"><div class="md-fn-topo"><span class="md-tag">' + esc(f.nome) + "</span><b>" + esc(valor) + "</b></div>" +
+        '<p class="md-det-texto">' + esc(f.faz) + "</p>" +
+        (f.trocavel
+          ? '<form class="md-trocar" data-trocar="' + esc(f.no) + '"><input name="modelo" list="md-sugestoes" value="' + esc(modeloDe(f)) +
+            '" aria-label="Modelo de ' + esc(f.nome) + '" autocomplete="off" spellcheck="false"><button type="submit">Trocar</button></form>'
+          : "") + "</div>";
     }).join("");
-    var escolhido = dados.escolhidos[m.no];
+    var tabela = PERIODOS.map(function (p) {
+      var ch = soma(c, "chamadas", p[0]);
+      return '<tr class="' + (p[0] === periodo ? "sel" : "") + '"><td>' + p[1] + " · " + inteiro(ch) + " chamada" + (ch === 1 ? "" : "s") + "</td><td>" +
+        (t === "assinatura" ? "assinatura" : t === "sem" ? "—" : dinheiro(soma(c, "gasto", p[0]))) + "</td></tr>";
+    }).join("");
+    var trocavel = !!c.funcoes[0].trocavel;
     caixaDet.innerHTML =
       '<button type="button" class="md-voltar" data-voltar>← Todos os modelos</button>' +
-      '<div class="md-det-topo">' + logo(m.prov) + "<div><h2>" + esc(modeloAtual(m)) + "</h2><p>" + esc(m.funcao) + "</p></div></div>" +
+      '<div class="md-det-topo">' + logo(c.prov) + "<div><h2>" + esc(c.modelo) + "</h2><p>" + esc((EMPRESA[c.prov] || "") + " · " + c.funil.titulo) + "</p></div></div>" +
       '<div class="md-det-sec"><h3>Onde ele está</h3><div class="md-caminho">' +
-        '<div class="md-passo"><i></i><div>' + esc(canais.join(" · ") || "—") + "<small>de onde chega a conversa</small></div></div>" +
-        '<div class="md-passo"><i></i><div>' + esc(s ? s.rotulo : "") + "<small>" + esc(s ? s.sub : "") + "</small></div></div>" +
-        '<div class="md-passo"><i></i><div>' + esc(m.funcao) + "<small>a função</small></div></div>" +
-        '<div class="md-passo"><i></i><div>' + esc(modeloAtual(m)) + "<small>o modelo de IA</small></div></div>" +
+        '<div class="md-passo"><i></i><div>' + esc(c.funil.canais.map(function (x) { return x[0]; }).join(" · ")) + "<small>de onde chega</small></div></div>" +
+        '<div class="md-passo"><i></i><div>' + esc(c.funil.servico[0]) + "<small>" + esc(c.funil.servico[1]) + "</small></div></div>" +
+        '<div class="md-passo"><i></i><div>' + esc(c.modelo) + "<small>" + esc(c.funcoes.length + (c.funcoes.length === 1 ? " função" : " funções")) + "</small></div></div>" +
       "</div></div>" +
-      '<div class="md-det-sec"><h3>O que ele faz</h3><p class="md-det-texto">' + esc(m.faz) + "</p></div>" +
-      '<div class="md-det-sec"><h3>Gastos</h3><table class="md-tabela">' + linhasTab + "</table>" +
-        (preco && preco.entrada != null ? '<p class="md-aviso">Preço por milhão de tokens: entrada ' + dinheiro(preco.entrada) + ", em cache " + dinheiro(preco.entrada_cache) +
-          ", saída " + dinheiro(preco.saida) + ".</p>" : preco && preco.por_minuto ? '<p class="md-aviso">Preço: ' + dinheiro(preco.por_minuto) + " por minuto de áudio.</p>" : "") +
-        (m.semMedicao ? '<p class="md-aviso">Aqui não há registro de tokens: as chamadas são contadas pelos turnos que passaram por este nó.</p>' : "") +
-        (!m.semMedicao && !m.assinatura && m.no.indexOf("core.") !== 0 ? '<p class="md-aviso">A medição deste nó começou em 22/10/2026.</p>' : "") +
+      '<div class="md-det-sec"><h3>Gastos</h3><table class="md-tabela">' + tabela + "</table>" +
+        (preco && preco.entrada != null ? '<p class="md-aviso">Por milhão de tokens: entrada ' + dinheiro(preco.entrada) + ", em cache " + dinheiro(preco.entrada_cache) + ", saída " + dinheiro(preco.saida) + ".</p>"
+          : preco && preco.por_minuto ? '<p class="md-aviso">' + dinheiro(preco.por_minuto) + " por minuto de áudio.</p>" : "") +
+        (t === "sem" ? '<p class="md-aviso">Este lugar não registra tokens: só as chamadas.</p>' : "") +
+        (t === "medido" && c.funil.id !== "corretores" ? '<p class="md-aviso">A medição aqui começou em 22/10/2026.</p>' : "") +
       "</div>" +
-      '<div class="md-det-sec"><h3>Trocar o modelo</h3>' +
-        (m.trocavel
-          ? '<form class="md-trocar" data-trocar="' + esc(m.no) + '"><input name="modelo" list="md-sugestoes" value="' + esc(modeloAtual(m)) +
-            '" aria-label="Nome do modelo" autocomplete="off" spellcheck="false"><button type="submit">Trocar</button></form>' +
-            '<datalist id="md-sugestoes"><option value="gpt-6-luna"><option value="gpt-6-sol"><option value="gpt-5.6-luna"><option value="gpt-5.6-sol"></datalist>' +
-            '<p class="md-aviso">Use o nome exato da API da OpenAI. O serviço usa o modelo novo na próxima chamada (até 1 minuto).' +
-            (escolhido && escolhido.por ? " Última troca: " + esc(escolhido.por) + " em " + esc(escolhido.em) + "." : "") + "</p>"
-          : '<p class="md-aviso">' + esc(m.como || "") + "</p>") +
+      '<div class="md-det-sec"><h3>Funções</h3>' + linhasFn +
+        '<datalist id="md-sugestoes"><option value="gpt-6-luna"><option value="gpt-6-sol"><option value="gpt-5.6-luna"><option value="gpt-5.6-sol"></datalist>' +
+        '<p class="md-aviso">' + (trocavel ? "Cada função troca sozinha: use o nome exato da API da OpenAI. Vale na próxima chamada (até 1 minuto)."
+          : esc(c.funcoes[0].como || "")) + "</p>" +
       "</div>";
     caixaDet.hidden = false;
   }
 
-  function selecionar(idModelo, centrar) {
-    selecionado = idModelo;
+  function selecionar(id, centrar) {
+    selecionado = id;
     desenharLista(); desenharDetalhe(); acender();
-    if (idModelo && centrar) focar(idModelo);
+    if (id && centrar) focar(id);
   }
 
-  /* ---- a câmera: arrastar (botão direito em qualquer lugar, esquerdo no fundo), rodinha, pinça ---- */
-  var cam = { x: 24, y: 44, k: 0.78 }, limites = { w: 1400, h: 2800 };
-  function aplicar(suave) {
-    mundo.style.transition = suave ? "transform .35s ease" : "none";
-    mundo.style.transform = "translate(" + cam.x + "px," + cam.y + "px) scale(" + cam.k + ")";
+  /* ---- a câmera: translate inteiro no mundo + zoom do CSS na cena (nítido em qualquer zoom) ---- */
+  var cam = { x: 16, y: 14, k: 0.92 };
+  function aplicar() {
+    mundo.style.transform = "translate(" + Math.round(cam.x) + "px," + Math.round(cam.y) + "px)";
+    cena.style.zoom = cam.k;
   }
   function zoomEm(px, py, fator) {
-    var k = Math.min(1.8, Math.max(0.25, cam.k * fator));
+    var k = Math.min(1.6, Math.max(0.35, cam.k * fator));
     cam.x = px - (px - cam.x) * (k / cam.k); cam.y = py - (py - cam.y) * (k / cam.k); cam.k = k;
-    aplicar(false);
+    aplicar();
   }
   function ajustar() {
     var r = palco.getBoundingClientRect();
-    var k = Math.min((r.width - 60) / limites.w, (r.height - 60) / limites.h, 1);
-    cam.k = Math.max(0.25, k); cam.x = (r.width - limites.w * cam.k) / 2; cam.y = 44;
-    aplicar(true);
+    cam.k = Math.max(0.35, Math.min((r.width - 32) / GEO.w, (r.height - 32) / GEO.h, 1.2));
+    cam.x = (r.width - GEO.w * cam.k) / 2; cam.y = 14;
+    aplicar();
   }
   function focar(id) {
     var r = palco.getBoundingClientRect(), c = caixa(id);
-    cam.k = Math.max(cam.k, 0.85);
+    cam.k = Math.max(cam.k, 0.9);
     cam.x = r.width / 2 - (c.x + c.w / 2) * cam.k; cam.y = r.height / 2 - (c.y + c.h / 2) * cam.k;
-    aplicar(true);
+    aplicar();
   }
 
   var arrasto = null, toques = {};
   palco.addEventListener("contextmenu", function (e) { e.preventDefault(); });
   palco.addEventListener("pointerdown", function (e) {
-    if (e.pointerType === "touch") {
-      toques[e.pointerId] = { x: e.clientX, y: e.clientY };
-    }
+    if (e.pointerType === "touch") toques[e.pointerId] = { x: e.clientX, y: e.clientY };
     var noFundo = !e.target.closest(".md-no.modelo") && !e.target.closest(".md-controles");
     if (e.button === 2 || (e.button === 0 && noFundo) || e.pointerType === "touch") {
       arrasto = { x: e.clientX, y: e.clientY, cx: cam.x, cy: cam.y, moveu: false };
@@ -352,10 +355,9 @@
       var antes = Object.keys(toques).map(function (k) { return toques[k]; });
       toques[e.pointerId] = { x: e.clientX, y: e.clientY };
       var ids = Object.keys(toques);
-      if (ids.length === 2 && antes.length === 2) {          // pinça
-        var a = toques[ids[0]], b = toques[ids[1]];
+      if (ids.length === 2 && antes.length === 2) {
+        var a = toques[ids[0]], b = toques[ids[1]], r = palco.getBoundingClientRect();
         var d0 = Math.hypot(antes[0].x - antes[1].x, antes[0].y - antes[1].y), d1 = Math.hypot(a.x - b.x, a.y - b.y);
-        var r = palco.getBoundingClientRect();
         if (d0 > 0) zoomEm((a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top, d1 / d0);
         return;
       }
@@ -364,7 +366,7 @@
     var dx = e.clientX - arrasto.x, dy = e.clientY - arrasto.y;
     if (Math.abs(dx) + Math.abs(dy) > 3) arrasto.moveu = true;
     cam.x = arrasto.cx + dx; cam.y = arrasto.cy + dy;
-    aplicar(false);
+    aplicar();
   });
   function soltar(e) {
     delete toques[e.pointerId];
@@ -372,33 +374,30 @@
     var moveu = arrasto.moveu;
     arrasto = null;
     palco.classList.remove("arrastando");
-    if (!moveu && e.button === 0) {                          // clique sem arrastar no fundo: limpa a seleção
-      if (!e.target.closest(".md-no.modelo")) selecionar(null);
-    }
+    if (!moveu && e.button === 0 && !e.target.closest(".md-no.modelo")) selecionar(null);
   }
   palco.addEventListener("pointerup", soltar);
   palco.addEventListener("pointercancel", soltar);
   palco.addEventListener("wheel", function (e) {
     e.preventDefault();
     var r = palco.getBoundingClientRect();
-    zoomEm(e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.12 : 1 / 1.12);
+    zoomEm(e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.1 : 1 / 1.1);
   }, { passive: false });
-  $("md-mais").addEventListener("click", function () { var r = palco.getBoundingClientRect(); zoomEm(r.width / 2, r.height / 2, 1.2); });
-  $("md-menos").addEventListener("click", function () { var r = palco.getBoundingClientRect(); zoomEm(r.width / 2, r.height / 2, 1 / 1.2); });
+  $("md-mais").addEventListener("click", function () { var r = palco.getBoundingClientRect(); zoomEm(r.width / 2, r.height / 2, 1.15); });
+  $("md-menos").addEventListener("click", function () { var r = palco.getBoundingClientRect(); zoomEm(r.width / 2, r.height / 2, 1 / 1.15); });
   $("md-ajustar").addEventListener("click", ajustar);
 
-  /* cliques: nó de modelo no mapa, item da barra, voltar, período, trocar */
   camadaNos.addEventListener("click", function (e) {
     var el = e.target.closest(".md-no.modelo");
-    if (el) selecionar(el.getAttribute("data-modelo"), false);
+    if (el) selecionar(el.getAttribute("data-no"), false);
   });
   camadaNos.addEventListener("keydown", function (e) {
     var el = e.target.closest(".md-no.modelo");
-    if (el && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); selecionar(el.getAttribute("data-modelo"), true); }
+    if (el && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); selecionar(el.getAttribute("data-no"), true); }
   });
   $("md-lista").addEventListener("click", function (e) {
     var b = e.target.closest(".md-item");
-    if (b) selecionar(b.getAttribute("data-modelo"), true);
+    if (b) selecionar(b.getAttribute("data-card"), true);
   });
   $("md-detalhe").addEventListener("click", function (e) { if (e.target.closest("[data-voltar]")) selecionar(null); });
   $("md-periodos").addEventListener("click", function (e) {
@@ -413,12 +412,13 @@
     if (!f) return;
     e.preventDefault();
     var no = f.getAttribute("data-trocar"), novo = f.modelo.value.trim(), botao = f.querySelector("button");
-    var m = MODELOS.filter(function (x) { return x.no === no; })[0];
-    if (!novo || novo === modeloAtual(m)) return;
-    if (!window.confirm("Trocar o modelo de \"" + m.funcao + "\" de " + modeloAtual(m) + " para " + novo + "?")) return;
+    var fn = null, funil = null;
+    FUNIS.forEach(function (fu) { fu.funcoes.forEach(function (x) { if (x.no === no) { fn = x; funil = fu; } }); });
+    if (!fn || !novo || novo === modeloDe(fn)) return;
+    if (!window.confirm("Trocar o modelo de \"" + fn.nome + "\" de " + modeloDe(fn) + " para " + novo + "?")) return;
     botao.disabled = true;
     pedir("api/modelos/trocar", { method: "POST", body: JSON.stringify({ no: no, modelo: novo }) })
-      .then(function (r) { toast("Trocado: " + r.antes + " → " + r.modelo + ". " + (r.aviso || "")); return carregar(); })
+      .then(function (r) { toast("Trocado: " + r.antes + " → " + r.modelo + ". " + (r.aviso || "")); selecionado = funil.id + ":" + novo; return carregar(); })
       .catch(function (er) { toast(er.message, true); })
       .then(function () { botao.disabled = false; });
   });
@@ -431,7 +431,7 @@
         if (!r.ok) throw new Error(j.erro || ("HTTP " + r.status)); return j; }); });
   }
   function toast(msg, erro) { var t = $("md-toast"); t.textContent = msg; t.classList.toggle("erro", !!erro); t.hidden = false; clearTimeout(t._t); t._t = setTimeout(function () { t.hidden = true; }, erro ? 6000 : 3200); }
-  function tudo() { desenharGastos(); desenharNos(); desenharLista(); desenharDetalhe(); }
+  function tudo() { desenharGastos(); desenhar(); desenharLista(); desenharDetalhe(); }
   function carregar() {
     return pedir("api/modelos").then(function (j) {
       dados = Object.assign({ nos: {}, totais: {}, escolhidos: {}, precos: {}, serie: [] }, j || {});
@@ -443,10 +443,17 @@
     if (area) document.querySelector(".md-conteudo").style.setProperty("--md-topo", Math.round(area.getBoundingClientRect().top + window.scrollY) + "px");
   }
 
+  function abrirNaLargura() {
+    var r = palco.getBoundingClientRect();
+    cam.k = Math.max(0.6, Math.min((r.width - 32) / GEO.w, 1));
+    cam.x = Math.max(16, (r.width - GEO.w * cam.k) / 2); cam.y = 14;
+    aplicar();
+  }
+
   medirTopo();
   tudo();
-  aplicar(false);            // abre legível, no canto de cima (a Nay nova); "Ver tudo" mostra o conjunto
+  abrirNaLargura();
   carregar().then(function () { requestAnimationFrame(function () { desenharLinhas(); acender(); }); });
   setInterval(carregar, 60000);
-  window.addEventListener("resize", function () { medirTopo(); });
+  window.addEventListener("resize", medirTopo);
 })();
