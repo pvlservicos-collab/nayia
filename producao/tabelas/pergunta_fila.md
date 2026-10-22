@@ -31,7 +31,7 @@ CREATE UNIQUE INDEX pergunta_fila_pkey ON public.pergunta_fila USING btree (id)
 CREATE UNIQUE INDEX pergunta_fila_uma_perguntada ON public.pergunta_fila USING btree ((true)) WHERE (estado = 'perguntada'::text)
 
 ## restrições
-pergunta_fila_estado_check: CHECK ((estado = ANY (ARRAY['fila'::text, 'perguntada'::text, 'respondida'::text, 'descartada'::text])))
+pergunta_fila_estado_check: CHECK ((estado = ANY (ARRAY['fila'::text, 'perguntada'::text, 'respondida'::text, 'descartada'::text, 'agente'::text])))
 pergunta_fila_linha_check: CHECK ((linha = ANY (ARRAY['parceria'::text, 'captacao'::text])))
 pergunta_fila_pkey: PRIMARY KEY (id)
 
@@ -40,7 +40,7 @@ nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 nay_leitura: SELECT
 
 ## funções que escrevem aqui
-pergunta_fila_entrar, pergunta_fila_perguntar_proxima, pergunta_fila_responder, pergunta_fila_tick
+pergunta_fila_agente_devolver, pergunta_fila_agente_responder, pergunta_fila_entrar, pergunta_fila_perguntar_proxima, pergunta_fila_responder, pergunta_fila_tick
 
 ## funções que citam
-pergunta_fila_entrar, pergunta_fila_ligada, pergunta_fila_perguntar_proxima, pergunta_fila_posicao, pergunta_fila_responder, pergunta_fila_resposta_valida, pergunta_fila_texto, pergunta_fila_tick, site_painel_metricas
+pergunta_fila_agente_devolver, pergunta_fila_agente_responder, pergunta_fila_entrar, pergunta_fila_ligada, pergunta_fila_perguntar_proxima, pergunta_fila_posicao, pergunta_fila_responder, pergunta_fila_resposta_valida, pergunta_fila_texto, pergunta_fila_tick, site_painel_metricas

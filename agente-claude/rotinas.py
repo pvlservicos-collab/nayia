@@ -437,6 +437,73 @@ def duvidas():
     return f"dúvidas: {len(ds)} enviada(s)"
 
 
+# ---------------------------------------------------------------- as dúvidas da Nay do WhatsApp da OLX (477)
+# Pedro, 22/10: "a Nay pergunta ao agente de correção dela" e "Dúvidas da OLX também ao agente". A dúvida entra na
+# pergunta_fila com estado 'agente' (não vai ao PV do Tel); a resposta volta pela pergunta_fila e o nay-olx entrega pelo 8595.
+SQL_DUVIDAS_OLX = """
+SELECT json_build_object('id', f.id, 'chave', f.chave, 'cliente', f.cliente, 'codigo', f.codigo, 'imovel', f.imovel,
+         'pergunta', f.pergunta, 'detalhe', f.detalhe,
+         'em', to_char(f.criada_em AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI'),
+         'dono', (SELECT json_build_object('nome', d.nome, 'telefone', d.telefone, 'motivo', d.motivo)
+                    FROM nai_proprietario_do_imovel(f.codigo) d WHERE f.codigo IS NOT NULL LIMIT 1))::text
+  FROM pergunta_fila f WHERE f.estado = 'agente' AND f.id > {cursor} ORDER BY f.id LIMIT 20;
+"""
+SQL_ULTIMA_DUVIDA_OLX = "SELECT json_build_object('id', coalesce(max(id), 0))::text FROM pergunta_fila;"
+DUVIDA_OLX_PROMPT = (
+    "A Nay do WhatsApp da OLX (cliente final, número 92 8595-6408) não soube responder. Procure a resposta como nas dúvidas "
+    "da Parceria (a ficha, o cadastro e o admin antigo, todos os WhatsApp, o que o Tel já respondeu). ACHOU: responda pela "
+    "fila, na vps1 (`psql -U nay -d naydb`): SELECT pergunta_fila_agente_responder(<id>, '<a resposta para o cliente, na "
+    "voz da Nay, curta>', 'agente'); o nay-olx entrega pelo 8595 sozinho. NÃO use o mandar.py: ele manda pela Parceria, "
+    "que é outro número. NÃO ACHOU: pergunte ao proprietário como nas dúvidas da Parceria (anote em "
+    "dados/duvidas/aguardando_dono.jsonl com \"fila\": <id>) e, quando ele responder, responda pela mesma função. Se "
+    "realmente não tem como saber: SELECT pergunta_fila_agente_devolver(<id>, '<por quê>'); aí vai ao PV do Tel.")
+
+
+def _linha_duvida_olx(d):
+    extra = [f"imóvel: #{d['codigo']} {d.get('imovel') or ''}".strip()] if d.get("codigo") else []
+    dono = d.get("dono") or {}
+    if dono.get("telefone"):
+        extra.append(f"proprietário: {dono.get('nome') or 'sem nome no cadastro'}, {dono['telefone']}")
+    if d.get("detalhe"):
+        extra.append(f"o que faltou: {d['detalhe']}")
+    extra.append(f"às {d.get('em')} (Manaus), fila #{d.get('id')}")
+    return (f"Cliente: {d.get('chave')}" + (f" ({d['cliente']})" if d.get("cliente") else "") +
+            f"\nDúvida: {d.get('pergunta')}\n(" + "; ".join(extra) + ")")
+
+
+def duvidas_olx():
+    """As dúvidas da Nay do WhatsApp da OLX que estão com o agente (pergunta_fila 'agente') vão ao projeto "nay"."""
+    con = banco()
+    con.execute("CREATE TABLE IF NOT EXISTS rotina_duvida_olx (id INTEGER PRIMARY KEY, dados TEXT NOT NULL, "
+                "entrou_em TEXT NOT NULL, enviado_em TEXT)")
+    cursor = _estado(con, "duvida_olx_fila")
+    if cursor is None:
+        _gravar(con, "duvida_olx_fila", str(fila_nay._naydb(SQL_ULTIMA_DUVIDA_OLX)[0]["id"]))
+        con.commit()
+        con.close()
+        return "dúvidas da OLX: marcador posto, começa a partir de agora"
+    novas = fila_nay._naydb(SQL_DUVIDAS_OLX.format(cursor=int(cursor)))
+    t = projetos.agora()
+    for d in novas:
+        con.execute("INSERT OR IGNORE INTO rotina_duvida_olx (id, dados, entrou_em) VALUES (?, ?, ?)",
+                    (d["id"], json.dumps(d, ensure_ascii=False), t))
+    if novas:
+        _gravar(con, "duvida_olx_fila", str(max(d["id"] for d in novas)))
+    con.commit()
+    pend = con.execute("SELECT id, dados FROM rotina_duvida_olx WHERE enviado_em IS NULL ORDER BY id").fetchall()
+    con.close()
+    if not pend:
+        return "dúvidas da OLX: nenhuma nova"
+    ds = [json.loads(p["dados"]) for p in pend]
+    if not _mandar("nay", DUVIDA_OLX_PROMPT + "\n\n" + "\n\n".join(_linha_duvida_olx(d) for d in ds)):
+        return f"dúvidas da OLX: agente ocupado, {len(ds)} na espera"
+    con = banco()
+    con.executemany("UPDATE rotina_duvida_olx SET enviado_em = ? WHERE id = ?", [(projetos.agora(), p["id"]) for p in pend])
+    con.commit()
+    con.close()
+    return f"dúvidas da OLX: {len(ds)} enviada(s)"
+
+
 def _aguardando_dono():
     """As perguntas que o agente fez a donos (dados/duvidas/aguardando_dono.jsonl, uma por linha, escritas por ele)."""
     caminho = os.path.join(projetos.pasta("nay"), "dados", "duvidas", "aguardando_dono.jsonl")
@@ -518,7 +585,7 @@ def laco():
                 # 462: as dúvidas da Nay Parceria e as respostas dos donos, de minuto em minuto
                 if ligada("duvidas") and time.monotonic() - ultima_duvida >= 60:
                     ultima_duvida = time.monotonic()
-                    for r in (duvidas(), donos()):
+                    for r in (duvidas(), duvidas_olx(), donos()):   # 477: as da OLX também
                         if "nenhuma" not in r and "nada novo" not in r:
                             print("rotinas:", r, flush=True)
                 hora_m = datetime.now(MANAUS).strftime("%H")
