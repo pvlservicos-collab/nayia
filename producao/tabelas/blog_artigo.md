@@ -23,6 +23,7 @@ criado_por  text
 criado_em  timestamp with time zone  NOT NULL  padrão now()
 atualizado_em  timestamp with time zone  NOT NULL  padrão now()
 agendado_para  timestamp with time zone
+capa_credito  jsonb   -- 471: o crédito da foto da capa ({autor, perfil, fonte, fonte_url, pagina, id}), mostrado embaixo dela. Unsplash: obrigatório.
 
 ## índices
 CREATE INDEX blog_artigo_agendado ON public.blog_artigo USING btree (agendado_para) WHERE ((NOT publicado) AND (agendado_para IS NOT NULL))
@@ -36,6 +37,9 @@ blog_artigo_codigo_fkey: FOREIGN KEY (codigo) REFERENCES imoveis(codigo)
 blog_artigo_pkey: PRIMARY KEY (id)
 blog_artigo_slug_key: UNIQUE (slug)
 blog_artigo_tipo_check: CHECK ((tipo = ANY (ARRAY['post'::text, 'imovel'::text])))
+
+## gatilhos
+CREATE TRIGGER blog_artigo_credito_da_capa BEFORE UPDATE OF capa_url ON public.blog_artigo FOR EACH ROW EXECUTE FUNCTION blog_artigo_credito_da_capa()
 
 ## permissões
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE

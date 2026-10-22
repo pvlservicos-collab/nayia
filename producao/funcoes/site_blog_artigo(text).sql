@@ -15,7 +15,7 @@ BEGIN
   RETURN jsonb_build_object(
     'id', a.id, 'slug', a.slug, 'titulo', a.titulo, 'resumo', a.resumo, 'categoria', a.categoria,
     'categoria_nome', blog_categoria_nome(a.categoria), 'tipo', a.tipo, 'codigo', a.codigo, 'bairro', v_bairro,
-    'corpo', a.corpo, 'capa_url', a.capa_url, 'capa_alt', a.capa_alt, 'autor', a.autor, 'palavra_chave', a.palavra_chave,
+    'corpo', a.corpo, 'capa_url', a.capa_url, 'capa_alt', a.capa_alt, 'capa_credito', a.capa_credito, 'autor', a.autor, 'palavra_chave', a.palavra_chave,
     'faq', a.faq, 'publicado_em', a.publicado_em, 'atualizado_em', a.atualizado_em,
     'leitura_min', greatest(1, round(array_length(regexp_split_to_array(a.corpo, '\s+'), 1) / 200.0)),
     'imovel', v_im,

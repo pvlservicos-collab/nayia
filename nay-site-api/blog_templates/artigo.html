@@ -28,9 +28,15 @@
   </header>
 
   {% if a.capa_url %}
-  <figure class="artigo__capa">
+  <figure class="artigo__capa"{% if a.capa_credito %} style="margin-bottom:8px"{% endif %}>
     <img src="{{ a.capa_url }}" alt="{{ a.capa_alt or a.titulo }}" fetchpriority="high" decoding="async">
   </figure>
+  {# 471: o crédito da foto (Unsplash: fotógrafo e Unsplash com link, junto da foto) #}
+  {% if a.capa_credito %}
+  <p class="artigo__credito" style="margin:0 0 30px;font-size:.85rem;color:#6b6478">Foto de
+    <a href="{{ a.capa_credito.perfil }}" target="_blank" rel="noopener" style="color:inherit;font-weight:600">{{ a.capa_credito.autor }}</a> no
+    <a href="{{ a.capa_credito.fonte_url }}" target="_blank" rel="noopener" style="color:inherit;font-weight:600">{{ a.capa_credito.fonte or "Unsplash" }}</a></p>
+  {% endif %}
   {% endif %}
 
   {% if a.imovel %}
