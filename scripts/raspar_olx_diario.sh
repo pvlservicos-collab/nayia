@@ -1,7 +1,8 @@
 #!/bin/bash
 # RASPAGEM DIÁRIA DA OLX (Pedro, 22/10/2026: "sim, raspe sozinho ... precisa pegar mais abrangência nas médias dos
-# imóveis que temos hoje"). Roda NESTE computador (a OLX barra navegador de servidor): agendada no Windows de madrugada
-# (tarefa "Nay - raspagem OLX").
+# imóveis que temos hoje"; depois: "pode ser de 3 em 3 dias às 00"). Roda NESTE computador (a OLX barra navegador de
+# servidor): tarefa do Windows "Nay - raspagem OLX", a cada 3 dias às 00:00 (Brasília)
+#
 #
 #   1. liga o Chrome escondido do Agente OLX (porta 9377), se estava desligado
 #   2. as 8 buscas da OLX, todas as faixas de preço, só profissionais (Arquivos/olx-scrape-diario/olx_scrape.js)
