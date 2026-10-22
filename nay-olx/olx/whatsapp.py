@@ -845,7 +845,7 @@ def abrir(conn, cfg: dict) -> int:
             # 394: o que ela já escreveu (ou o que já conversamos, se veio de outro anúncio) entra na abertura
             conversa = _conversa(conn, lead)
             ate = max([m["id"] for m in conversa if m.get("direcao") == "recebida"] or [_ultima_recebida(conn, lead)])
-            r = modelo.chamar(PROMPT, montar_turno(lead, ctx_olx, conversa))
+            r = modelo.chamar(PROMPT, montar_turno(lead, ctx_olx, conversa), no="olx.whatsapp")
             acoes = acoes_da(r)
             if not _baloes_do(r):
                 raise ValueError("o modelo não escreveu a abertura")
@@ -1001,12 +1001,12 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
         lead["fichas_citadas"] = _fichas_citadas(conn, conversa, lead)
     lead["imoveis_conhecidos"] = imoveis_da_conversa(conn, lead)
     turno = montar_turno(lead, ctx_olx, conversa)
-    r = modelo.chamar(PROMPT, turno)
+    r = modelo.chamar(PROMPT, turno, no="olx.whatsapp")
     aviso = pergunta_a_toa(r, conversa)
     if aviso:
         # 22/10: perguntou o que já se sabe (a finalidade pelo valor, os quartos que ela disse): uma segunda chamada, avisada
         log.info("lead %s: perguntou o que já se sabe; de novo (%s)", lead["id"], aviso[:120])
-        r = modelo.chamar(PROMPT, turno + "\n\n" + aviso)
+        r = modelo.chamar(PROMPT, turno + "\n\n" + aviso, no="olx.whatsapp")
     acoes = acoes_da(r)
     _falar(conn, lead, r, acoes, desde=inicio)
     if r.get("_equipe_no_meio"):

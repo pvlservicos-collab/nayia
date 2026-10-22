@@ -1,4 +1,4 @@
-# privado.taxa_imovel_antes_469  (tabela, ~0 linhas)
+# privado.taxa_imovel_antes_469  (tabela, ~5721 linhas)
 
 ## colunas
 codigo  integer  NOT NULL

@@ -34,19 +34,25 @@ def _chave() -> str:
     return ""
 
 
-def chamar(prompt: str, turno: str) -> dict:
-    """Manda o prompt e o turno; devolve o JSON que a Nay escreveu (ou levanta FalhaDoModelo)."""
+def chamar(prompt: str, turno: str, no: str = "olx.chat") -> dict:
+    """Manda o prompt e o turno; devolve o JSON que a Nay escreveu (ou levanta FalhaDoModelo).
+    470: `no` é o lugar na página admin › Modelos (olx.chat, olx.whatsapp, olx.parceiro): o modelo é o escolhido lá e o
+    uso de cada chamada fica registrado."""
     chave = _chave()
     if not chave:
         raise FalhaDoModelo("sem OPENAI_API_KEY")
-    corpo = {"model": MODELO, "input": [{"role": "system", "content": prompt}, {"role": "user", "content": turno}]}
+    from olx import ia
+    m = ia.modelo(no, MODELO)
+    corpo = {"model": m, "input": [{"role": "system", "content": prompt}, {"role": "user", "content": turno}]}
     ultimo = ""
     for tentativa in range(3):
         try:
             r = requests.post(URL, timeout=90, json=corpo,
                               headers={"Authorization": f"Bearer {chave}", "Content-Type": "application/json"})
             if r.status_code == 200:
-                return ler_json(texto_da(r.json()))
+                j = r.json()
+                ia.registrar(no, m, j)
+                return ler_json(texto_da(j))
             ultimo = f"HTTP {r.status_code} {r.text[:200]}"
             if r.status_code < 500 and r.status_code != 429:
                 break

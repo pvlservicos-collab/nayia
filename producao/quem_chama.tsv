@@ -169,6 +169,9 @@ crm_visitantes
 crm_visitas	
 crm_visitas_extra	
 crm_visitas_pessoas	
+ia_modelo_do_no	
+ia_no_do_core	site_ia_modelos
+ia_uso_registrar	
 imoveis_a_situacao_manda	
 imoveis_carimbar_taxa	
 imoveis_parceiro_pelo_captador	
@@ -756,6 +759,8 @@ site_grade_lista_previa
 site_grade_metricas	
 site_grade_opcoes	
 site_grade_salvar	
+site_ia_modelo_trocar	
+site_ia_modelos	
 site_imoveis_para_enviar	
 site_imovel_publico	olx_nay_contexto
 site_juntar_cadastro	

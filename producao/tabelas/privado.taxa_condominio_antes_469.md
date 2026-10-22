@@ -1,4 +1,4 @@
-# privado.taxa_condominio_antes_469  (tabela, ~0 linhas)
+# privado.taxa_condominio_antes_469  (tabela, ~468 linhas)
 
 ## colunas
 ficha  integer  NOT NULL

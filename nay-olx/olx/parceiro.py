@@ -293,7 +293,7 @@ def disponivel(texto: str) -> str:
     try:
         r = modelo.chamar('Leia a resposta de um corretor à pergunta "o imóvel do seu anúncio ainda está disponível?". '
                           'Devolva só JSON {"disponivel": "sim" | "nao" | "duvida"}. "duvida" = ele não respondeu a '
-                          "pergunta, impôs condição, ou fez outra pergunta.", texto[:1500])
+                          "pergunta, impôs condição, ou fez outra pergunta.", texto[:1500], no="olx.parceiro")
         v = str(r.get("disponivel") or "").lower()
         if v in ("sim", "nao", "duvida"):
             return v

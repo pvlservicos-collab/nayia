@@ -15,7 +15,9 @@ from typing import Callable
 
 import requests
 
-from captacao import config
+from captacao import config, ia
+
+NO = "captacao.atender"     # 470: o nó na página admin › Modelos
 
 URL = "https://api.openai.com/v1/responses"
 RODADAS = 8
@@ -230,8 +232,11 @@ def responder(prompt: str, historico: list[dict], turno: str, ferramentas: list[
               executar: Callable[[str, dict], str], chamar: Callable[[dict], dict] = _chamar) -> tuple[str, list[dict]]:
     """Devolve o texto final e o que as ferramentas fizeram (para o registro)."""
     feito: list[dict] = []
-    r = chamar({"model": config.MODELO, "tools": ferramentas,
+    # 470: o modelo é o escolhido na página admin › Modelos (nó captacao.atender); cada chamada fica registrada
+    m = ia.modelo(NO, config.MODELO)
+    r = chamar({"model": m, "tools": ferramentas,
                 "input": [{"role": "system", "content": prompt}, *historico, {"role": "user", "content": turno}]})
+    ia.registrar(NO, m, r)
     for _ in range(RODADAS):
         chamadas = [o for o in r.get("output") or [] if o.get("type") == "function_call"]
         if not chamadas:
@@ -246,5 +251,6 @@ def responder(prompt: str, historico: list[dict], turno: str, ferramentas: list[
             feito.append({"ferramenta": c["name"], "args": {k: v for k, v in args.items() if v not in ("", None)},
                           "saida": saida[:400]})
             saidas.append({"type": "function_call_output", "call_id": c["call_id"], "output": saida})
-        r = chamar({"model": config.MODELO, "tools": ferramentas, "previous_response_id": r["id"], "input": saidas})
+        r = chamar({"model": m, "tools": ferramentas, "previous_response_id": r["id"], "input": saidas})
+        ia.registrar(NO, m, r)
     raise FalhaDoModelo("passou de 8 rodadas de ferramenta sem responder")
