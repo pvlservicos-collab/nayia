@@ -45,7 +45,7 @@ export async function eventosDaVisita(id: number): Promise<EventoDaVisita[]> {
 
 /** Mexer na visita pela agenda (29/09): mudar a hora, marcar realizada, excluir. */
 export async function mexerNaVisita(
-  id: number, acao: 'horario' | 'realizada' | 'excluir' | 'editar', quando?: string,
+  id: number, acao: 'horario' | 'realizada' | 'excluir' | 'editar' | 'proprietario_ok', quando?: string,
   edicao?: { campo: string; valor: string | null },
 ): Promise<{ ok: boolean; mensagem: string }> {
   try {

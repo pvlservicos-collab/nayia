@@ -57,6 +57,34 @@ interface ActivityComposerProps {
   fireWebhook?: (key: ChatButtonKey) => Promise<boolean>
   organizationId?: string | null
   lead?: { title?: string | null; phone?: string | null }
+  /** A conversa do rascunho (o id do lead): o que foi digitado e não enviado volta ao abrir de novo, por 1 h. */
+  rascunhoId?: string
+}
+
+/* O RASCUNHO (Pedro, 22/10: "quando eu digito uma mensagem em um chat e mudo de conversa, aquilo que eu escrevi não
+   seja apagado, fique lá temporariamente 1 hr"). Fica no navegador, por conversa; 1 h desde a última tecla; some ao
+   enviar. Sem localStorage (janela anônima, bloqueado), o campo funciona como antes. */
+const RASCUNHO_MS = 60 * 60 * 1000
+const chaveDoRascunho = (id: string) => `crm:rascunho:${id}`
+
+function lerRascunho(id?: string): string {
+  if (!id) return ''
+  try {
+    const r = JSON.parse(localStorage.getItem(chaveDoRascunho(id)) || 'null') as { t?: string; em?: number } | null
+    if (r?.t && typeof r.em === 'number' && Date.now() - r.em < RASCUNHO_MS) return r.t
+    localStorage.removeItem(chaveDoRascunho(id))
+  } catch { /* sem armazenamento: sem rascunho */ }
+  return ''
+}
+
+function gravarRascunho(id: string | undefined, texto: string) {
+  if (!id) return
+  try {
+    if (!texto.trim()) { localStorage.removeItem(chaveDoRascunho(id)); return }
+    const r = JSON.parse(localStorage.getItem(chaveDoRascunho(id)) || 'null') as { t?: string } | null
+    if (r?.t === texto) return          // reabrir a conversa não renova a 1 h
+    localStorage.setItem(chaveDoRascunho(id), JSON.stringify({ t: texto, em: Date.now() }))
+  } catch { /* sem armazenamento: sem rascunho */ }
 }
 
 function formatDuration(ms: number): string {
@@ -87,8 +115,21 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
   fireWebhook,
   organizationId,
   lead,
+  rascunhoId,
 }, ref) {
   const [content, setContent] = useState('')
+  // de quem é o texto do campo agora: troca junto com a conversa e ANTES de gravar (senão o texto da conversa que
+  // acabou de fechar iria parar no rascunho da que abriu). A gravação vem declarada antes da leitura de propósito: na
+  // primeira passada ela ainda não sabe de quem é o campo e não apaga o rascunho guardado.
+  const rascunhoDe = useRef<string | undefined | null>(null)
+  useEffect(() => {
+    if (rascunhoDe.current !== null) gravarRascunho(rascunhoDe.current, content)
+  }, [content])
+  useEffect(() => {
+    if (rascunhoDe.current === rascunhoId) return
+    rascunhoDe.current = rascunhoId
+    setContent(lerRascunho(rascunhoId))
+  }, [rascunhoId])
   const [sending, setSending] = useState(false)
   const [uploadingMedia, setUploadingMedia] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)

@@ -189,7 +189,7 @@ export async function eventosDaVisita(id: number): Promise<EventoDaVisita[]> {
  * excluir (some da agenda, ninguém é avisado). Quem decide o que pode é o
  * banco da Nay; aqui só se repassa a resposta dele.
  */
-export type AcaoNaVisita = 'horario' | 'realizada' | 'excluir'
+export type AcaoNaVisita = 'horario' | 'realizada' | 'excluir' | 'proprietario_ok'
 
 export async function mexerNaVisita(
   id: number, acao: AcaoNaVisita, quem: string, quando?: Date,
@@ -198,7 +198,10 @@ export async function mexerNaVisita(
     ? await naydb().query('SELECT * FROM crm_visita_mudar_horario($1::bigint, $2::timestamptz, $3::text)', [id, quando!.toISOString(), quem])
     : acao === 'realizada'
       ? await naydb().query('SELECT * FROM crm_visita_realizada($1::bigint, $2::text)', [id, quem])
-      : await naydb().query('SELECT * FROM crm_visita_excluir($1::bigint, $2::text)', [id, quem])
+      : acao === 'proprietario_ok'
+        // 468 (22/10): o dono confirmou (por telefone, por exemplo): a Nay avisa o acompanhante
+        ? await naydb().query('SELECT * FROM crm_visita_proprietario_ok($1::bigint, $2::text)', [id, quem])
+        : await naydb().query('SELECT * FROM crm_visita_excluir($1::bigint, $2::text)', [id, quem])
   const l = r.rows[0]
   return { ok: !!l?.ok, mensagem: String(l?.mensagem || 'Sem resposta da Nay.') }
 }

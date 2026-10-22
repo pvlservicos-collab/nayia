@@ -7,6 +7,7 @@
  *   { acao: 'horario', quando: ISO }  muda a hora; ninguém é avisado
  *   { acao: 'realizada' }             a Nay pergunta ao corretor como foi
  *   { acao: 'excluir' }               some da agenda; ninguém é avisado
+ *   { acao: 'proprietario_ok' }       o dono confirmou: a Nay avisa o acompanhante (468, 22/10)
  *   { acao: 'editar', campo, valor }  o lápis: imóvel, visitante, proprietário, acesso
  * O nome de quem fez vai para o andamento da visita.
  */
@@ -37,7 +38,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 }
 
-const ACOES: AcaoNaVisita[] = ['horario', 'realizada', 'excluir']
+const ACOES: AcaoNaVisita[] = ['horario', 'realizada', 'excluir', 'proprietario_ok']
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {

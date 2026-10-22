@@ -140,7 +140,7 @@ function passos(v: VisitaNaTela) {
     { rotulo: 'Corretor confirmou', em: v.confirmadaCorretorEm },
     { rotulo: v.aprovadaPor ? `Aprovada (${v.aprovadaPor})` : 'Aprovada', em: v.aprovadaEm },
     { rotulo: 'Proprietário OK', em: v.propOkEm },
-    ...(precisaDoAndre ? [{ rotulo: 'André OK', em: v.motoOkEm }] : []),
+    ...(precisaDoAndre ? [{ rotulo: 'Acompanhante OK', em: v.motoOkEm }] : []),
     { rotulo: 'Confirmada', em: v.confirmadaEm },
   ].map((p) => ({ ...p, ruim: false }))
   return [...lista, final]
@@ -306,7 +306,7 @@ function CartaoDaVisita({ v, destacada, aoAbrirConversa, aoEscolher }: {
   )
 }
 
-type Acao = 'horario' | 'realizada' | 'excluir' | 'editar'
+type Acao = 'horario' | 'realizada' | 'excluir' | 'editar' | 'proprietario_ok'
 type Edicao = { campo: string; valor: string | null }
 
 /*
@@ -490,7 +490,7 @@ function PainelDaVisita({ v, aoFechar, aoAbrirConversa, aoMexer }: {
                 {andando ? <CircleNotch size={16} className="animate-spin" /> : <Clock size={16} />} Salvar o novo horário
               </button>
               <p className="mt-1.5 text-[12.5px] leading-[17px]" style={{ color: 'var(--wa-text-2)' }}>
-                Ninguém recebe mensagem: avise o corretor, o proprietário e o André se precisar. Os lembretes da Nay passam a
+                Ninguém recebe mensagem: avise o corretor, o proprietário e o acompanhante se precisar. Os lembretes da Nay passam a
                 seguir o horário novo. Dá também para arrastar a visita na agenda.
               </p>
             </>
@@ -526,6 +526,17 @@ function PainelDaVisita({ v, aoFechar, aoAbrirConversa, aoMexer }: {
                          opcoes={Object.entries(ACESSO)}
                          aoSalvar={(novo) => aoMexer(v.id, 'editar', undefined, { campo: 'acesso', valor: novo })} />
           {v.aberta && v.aguardando && <span style={{ color: cor }}>Esperando {AGUARDANDO[v.aguardando] || v.aguardando}.</span>}
+          {/* 468 (Pedro, 22/10): o acompanhante só recebe a visita depois do "sim" do proprietário. Pela resposta dele
+              a Nay vê sozinha; confirmou por telefone, é aqui. */}
+          {v.aberta && (v.propOkEm ? (
+            <span style={{ color: 'var(--wa-green)' }}>Proprietário confirmou em {dataHora(v.propOkEm)}.</span>
+          ) : (
+            <button type="button" disabled={andando} onClick={() => fazer('proprietario_ok')}
+                    className={`${botao} mt-2 w-full`} style={{ background: 'var(--wa-green)', color: 'var(--wa-green-ink)' }}
+                    title="A Nay avisa o acompanhante da visita">
+              {andando ? <CircleNotch size={16} className="animate-spin" /> : <CheckCircle size={16} />} Proprietário confirmou
+            </button>
+          ))}
           {!v.aberta && (v.resultado || v.motivo) && <span>{v.resultado || v.motivo}</span>}
         </section>
 

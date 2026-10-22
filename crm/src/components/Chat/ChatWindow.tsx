@@ -477,6 +477,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent, linha,
         onSendQuickReplySequence={handleSendQuickReplySequence}
         organizationId={organizationId}
         lead={{ title: lead.title, phone: lead.phone }}
+        rascunhoId={lead.id}
         replyContext={replyContext}
         onCancelReply={() => setReplyContext(null)}
         chatButtonSettings={chatButtonSettings}
