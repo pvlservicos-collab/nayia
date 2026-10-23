@@ -114,7 +114,8 @@ class OpcoesDaBase(unittest.TestCase):
     """Pedro, 23/10: "o ideal não é ter um imóvel enviado e sim 3 a 5 opções ... usar aquele mesmo algoritmo de
     julgamento de imóvel da aba captação ativa que dá notas"."""
     F = {"finalidade": "locacao", "tipo": "apartamento", "teto": 4000, "bairros": ["Flores"], "quartos": 2}
-    VIZ = {"flores": {"parque 10 de novembro": {"divisa": True, "km": 2.0}}}
+    VIZ = {"flores": {"parque 10 de novembro": {"divisa": True, "km": 1.2}, "aleixo": {"divisa": True, "km": 2.1},
+                      "chapada": {"divisa": False, "km": 1.0}}}
 
     def _rodar(self, imoveis, f=None, quantas=5, ofertavel=lambda conn, c, lead: True):
         from olx import busca_olx as bo
@@ -132,6 +133,13 @@ class OpcoesDaBase(unittest.TestCase):
         self.assertEqual([x["codigo"] for x in r][:1], [1])
         self.assertEqual(sorted(x["codigo"] for x in r), [1, 2, 3])       # 4: longe; 9: ela já recebeu
         self.assertTrue(all(x["nota"] >= 70 for x in r))
+
+    def test_so_o_vizinho_colado_e_so_na_faixa_de_valor(self):
+        """Tel, 23/10: a Edsandra recebeu o Life Flores (Flores-Parque 10: divisa a 2,1 km) e dois de R$ 500 mil para
+        teto de 750 mil."""
+        r, _ = self._rodar([_im(1, "Aleixo", 2, 3900), _im(2, "Chapada", 2, 3900), _im(3, "Parque 10 de Novembro", 2, 3900),
+                            _im(4, "Flores", 2, 3150), _im(5, "Flores", 2, 4450), _im(6, "Flores", 2, 3250)])
+        self.assertEqual(sorted(x["codigo"] for x in r), [3, 6])   # 1: divisa longe; 2: perto sem divisa; 4 e 5: fora da faixa
 
     def test_no_maximo_as_que_faltam_e_abaixo_de_70_nao_vai(self):
         r, _ = self._rodar([_im(c, "Flores", 2, 3900) for c in (11, 12, 13, 14)] + [_im(15, "Flores", 2, 1700)], quantas=2)

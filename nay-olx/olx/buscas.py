@@ -46,6 +46,11 @@ BASE_A_CADA_MIN = 30           # a busca aberta olha a nossa base de novo depois
 # Pedro, 23/10: "o ideal não é ter um imóvel enviado e sim 3 a 5 opções; ela não deve parar na hora de achar um imóvel"
 OPCOES_META = 3                # a busca só termina ('ofertado') quando a lead recebeu tantas opções
 OPCOES_MAX = 5                 # e nunca passa disto (a base manda de uma vez o que couber até aqui)
+# Tel, 23/10 (a Edsandra recebeu o Life Flores e dois de R$ 500 mil para teto de 750): "precisa subir a regra ... só vale
+# daqueles bairros perto segundo o mapa, mais pertos ainda, aperta essa busca". Vizinho só com divisa e centros a até
+# VIZINHO_ATE_KM (Flores-Parque 10 é 2,1 km); o valor na faixa firme da casa (225): 20% abaixo, 10% acima do teto.
+VIZINHO_ATE_KM = 1.5
+FAIXA_ABAIXO, FAIXA_ACIMA = 0.20, 0.10
 FOTOS_MINIMAS = 3
 ATIVAS = ("buscando",)
 _ULTIMO = {"membros": 0.0}
@@ -707,7 +712,8 @@ def opcoes_da_base(conn, lead: dict, f: dict, excluir: list[int], quantas: int) 
     """As melhores opções da nossa base pela NOTA da Captação ativa (Pedro, 23/10: "deve usar aquele mesmo algoritmo
     de julgamento de imóvel da aba captação ativa que dá notas, para achar mais opções"): o código de /root/nay-grupos
     (catálogo, resolvedor de lugares, pontuar e o config.json de lá), o mesmo que a busca na OLX já usa. Entra o bairro
-    pedido e o vizinho pela distância, nota a partir do corte amarelo (70); o melhor primeiro. Depois, a regra de quem
+    pedido e o vizinho colado (divisa, até VIZINHO_ATE_KM), na faixa de valor firme, nota a partir do corte amarelo (70);
+    o melhor primeiro. Depois, a regra de quem
     pode receber cada imóvel (olx_imovel_vai_ao_cliente: o parceiro só ao cliente final)."""
     from olx import busca_olx as bo
     regras, _ = bo.gregras.carregar(bo.REGRAS_DOS_GRUPOS)
@@ -720,6 +726,13 @@ def opcoes_da_base(conn, lead: dict, f: dict, excluir: list[int], quantas: int) 
         imoveis = [i for i in imoveis if "condom" in bo.normal(i.get("tipo_cadastro"))]
     fora = set(excluir)
     imoveis = [i for i in imoveis if int(i["codigo"]) not in fora]
+    teto = pedido.get("preco_max")
+    if teto:
+        valor = "valor_venda" if pedido.get("operacao") == "venda" else "valor_aluguel"
+        imoveis = [i for i in imoveis if i.get(valor) and teto * (1 - FAIXA_ABAIXO) <= i[valor] <= teto * (1 + FAIXA_ACIMA)]
+    # o mapa apertado: o par posto à mão na tabela de vizinhos (sem km) continua valendo
+    vizinhos = {a: {b: v for b, v in vs.items() if v.get("km") is None or (v.get("divisa") and v["km"] <= VIZINHO_ATE_KM)}
+                for a, vs in vizinhos.items()}
     regras = {**regras, "alternativas": max(0, quantas * 3 - 1)}         # sobra para os que não podem ir a ela
     limite = datetime.now(timezone.utc) - timedelta(days=regras["confirmado_dias"])
     r = bo.gpontuar.melhores(pedido, imoveis, regras, vizinhos, limite)
