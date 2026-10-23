@@ -160,6 +160,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .legenda textarea{width:100%;min-height:240px;border:1px solid var(--line-2);border-radius:10px;padding:12px;background:var(--surface);resize:vertical}
 
 /* Carrossel */
+.titulo-grupo{font-family:var(--font-display);font-size:14px;margin:4px 0 -2px}
 .opcoes-carrossel{display:flex;gap:18px;flex-wrap:wrap;padding:12px 16px}
 .trilho-slides{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,260px);gap:14px;overflow-x:auto;padding-bottom:10px;scroll-snap-type:x mandatory}
 .slide{padding:10px;display:grid;gap:8px;scroll-snap-align:start;align-content:start}
@@ -377,15 +378,19 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       <div class="barra-aba">
         <div>
           <h2>Carrossel</h2>
-          <p>Escolha o modelo. Capa, uma lâmina por foto, diferenciais e fechamento com valor e contato. Tamanho 1080 × 1350.</p>
+          <p>Escolha a capa e o modelo. Capa, as fotos (uma por lâmina, ou 4 na Grade 2×2), diferenciais, valor e contato e a lâmina "Gostou do imóvel?". Indicador 1/N no pé de cada lâmina. Tamanho 1080 × 1350.</p>
         </div>
         <div class="acoes"><button class="btn" data-acao="baixar-carrossel">Baixar carrossel (ZIP)</button></div>
       </div>
+      <h3 class="titulo-grupo">Capa (1ª lâmina): os mesmos modelos do post</h3>
+      <div class="modelos" id="capas-carrossel" role="radiogroup" aria-label="Capa do carrossel"></div>
+      <h3 class="titulo-grupo">Modelo das outras lâminas</h3>
       <div class="modelos" id="modelos-carrossel" role="radiogroup" aria-label="Modelo do carrossel"></div>
       <div class="cartao opcoes-carrossel">
         <label class="check"><input type="checkbox" id="k-fotos" data-bind="carrossel.incluirFotos"> Lâminas com as fotos</label>
         <label class="check"><input type="checkbox" id="k-dif" data-bind="carrossel.incluirDiferenciais"> Lâmina de diferenciais</label>
         <label class="check"><input type="checkbox" id="k-final" data-bind="carrossel.incluirFinal"> Lâmina final (valor e contato)</label>
+        <label class="check"><input type="checkbox" id="k-cta" data-bind="carrossel.incluirCta"> Lâmina CTA (Gostou do imóvel?)</label>
         <button class="btn-mini" data-acao="carrossel-restaurar" id="btn-restaurar-fotos" hidden></button>
       </div>
       <div class="trilho-slides" id="trilho-slides"></div>
@@ -524,6 +529,10 @@ const CONFIG = {
     { id: 'paisagem', nome: 'Paisagem',        proporcao: '1,91:1', largura: 1200, altura: 628,  uso: 'Facebook (link), LinkedIn, portais' },
   ],
   carrossel: { largura: 1080, altura: 1350 },
+  /** A empresa no pé da lâmina CTA do carrossel (o mesmo do rodapé do site). */
+  empresa: { cnpj: 'CNPJ 33.597.560/0001-24', creci: 'CRECI/PJ 482' },
+  /** Textos da lâmina CTA (a última do carrossel). */
+  cta: { titulo: 'Gostou do', tituloCursiva: 'imóvel?', subtitulo: 'Agende uma visita pelo número na bio', botao: 'Nos chame no WhatsApp' },
   /** Destinos do prompt de vídeo: muda só o parágrafo de abertura do texto. */
   destinosVideo: {
     ia_video: {
@@ -576,6 +585,7 @@ const ICONES = {
   foto:      { interno: true, d: 'M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM3 16l5-5 4 4 3-3 6 6M14 9a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0' },
   telefone:  { interno: true, d: 'M21 16.4v3a2 2 0 0 1-2.2 2A19.5 19.5 0 0 1 2.6 5.2 2 2 0 0 1 4.6 3h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.6a2 2 0 0 1-.5 2.1L8.6 10.6a16 16 0 0 0 4.8 4.8l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.6 2.6.7a2 2 0 0 1 1.7 2z' },
   seta:      { interno: true, d: 'M4 12h15M13 6l6 6-6 6' },
+  whatsapp:  { interno: true, d: 'M3.6 20.4l1.2-4.1A8.6 8.6 0 1 1 8 19.3zM9.3 8.3c.3-.6.9-.7 1.2-.3l.8 1.2c.2.3.1.7-.2 1l-.4.4c.4 1 1.3 1.9 2.3 2.3l.4-.4c.3-.3.7-.4 1-.2l1.2.8c.4.3.3.9-.3 1.2-.9.5-2 .5-3-.1a7.6 7.6 0 0 1-2.9-2.9c-.6-1-.6-2.1-.1-3z' },
 };
 
 /** Ícones só da interface (botões). Não vão para as artes. */
@@ -605,7 +615,8 @@ const ICONES_UI = {
  *              mostrarSelo, seloTitulo, seloTexto, seloFita, contatoRotulo, contato },
  *   fotos:   [{ id, src: dataURL, etiqueta, focoX: 0..1, focoY: 0..1, exemplo?: true }],
  *   post:    { modelo: chave de MODELOS_POST },
- *   carrossel: { modelo: chave de MODELOS_CARROSSEL, incluirFotos, incluirDiferenciais, incluirFinal, fotosExcluidas: [id] },
+ *   carrossel: { modelo: chave de MODELOS_CARROSSEL, capa: chave de MODELOS_POST | 'modelo',
+ *                incluirFotos, incluirDiferenciais, incluirFinal, incluirCta, fotosExcluidas: [id] },
  *   video:   { destino, formato, duracao, estilo, tom, publico, trilha, gancho, narracao,
  *              encerramento, regras, observacoes,
  *              cenas: [{ id, fotoId|null, imagemPropria: dataURL|null, rotuloImagem,
@@ -628,7 +639,7 @@ function estadoVazio() {
     },
     fotos: [],
     post: { modelo: CONFIG.modelosPadrao.post },
-    carrossel: { modelo: CONFIG.modelosPadrao.carrossel, incluirFotos: true, incluirDiferenciais: true, incluirFinal: true, fotosExcluidas: [] },
+    carrossel: { modelo: CONFIG.modelosPadrao.carrossel, capa: 'galeria', incluirFotos: true, incluirDiferenciais: true, incluirFinal: true, incluirCta: true, fotosExcluidas: [] },
     video: {
       destino: 'ia_video', formato: CONFIG.formatosVideo[0], duracao: 30,
       estilo: 'Tour imobiliário moderno e realista, luz natural, cores fiéis às fotos, movimentos de câmera lentos e suaves',
@@ -1944,27 +1955,142 @@ const carEtiqueta = {
   },
 };
 
+/* GRADE 2×2 (Pedro, 23/10/2026: "um modelo de carrossel que ao invés de ser 1 foto por vez é uma junção de 4, 2 em
+   cima 2 embaixo"): as lâminas de foto levam 4 fotos; o pé branco tem a logo à esquerda e o indicador no centro.
+   Capa, diferenciais e final são os do Faixa embaixo. */
+const carGrade4 = {
+  ...carFaixaBaixo,
+  porLamina: 4,
+  fotos(ctx, W, H, d, fotos) {
+    desenharFundo(ctx, W, H, d);
+    const p = 24, pe = 82;
+    desenharGradeFotos(ctx, d, fotos, { x: p, y: p, w: W - 2 * p, h: H - p - pe }, 2, 2, { gap: 12, raio: 16, tamEtiqueta: 20 });
+    pilha(ctx, d, { x: p + 8, y: H - 18 - 46, w: 230, h: 46 }, [{ tipo: 'logo', altura: 46 }]);
+  },
+};
+
 /**
  * Catálogo de modelos do carrossel. Cada modelo tem 4 tipos de lâmina:
  * capa(ctx,W,H,d), foto(ctx,W,H,d,foto), diferenciais(ctx,W,H,d), final(ctx,W,H,d).
+ * Com `porLamina` > 1 a lâmina de foto é `fotos(ctx,W,H,d,[fotos])`, com até `porLamina` fotos.
  */
 const MODELOS_CARROSSEL = {
   faixaBaixo: { nome: 'Faixa embaixo', descricao: 'Capa com faixa branca no pé da foto.', ...carFaixaBaixo },
   faixaLado:  { nome: 'Faixa lateral', descricao: 'Capa com faixa branca do lado esquerdo.', ...carFaixaLado },
   etiqueta:   { nome: 'Etiqueta',      descricao: 'Capa com uma etiqueta branca grande, cantos retos.', ...carEtiqueta },
+  grade4:     { nome: 'Grade 2×2',     descricao: '4 fotos por lâmina: 2 em cima e 2 embaixo.', ...carGrade4 },
 };
 
-/** Monta a lista de lâminas conforme o modelo e as opções do carrossel. */
-function montarSlidesCarrossel(modeloId = estado.carrossel.modelo) {
+/**
+ * A capa do carrossel (Pedro, 23/10: "a primeira imagem do carrossel deve estar com 4 fotos do imóvel assim como é o
+ * post, quero as mesmas opções de início que a aba post"): o post de feed (1080×1350, o mesmo tamanho da lâmina) no
+ * modelo escolhido, ou 'modelo' = a capa própria do modelo do carrossel.
+ */
+const CAPA_DO_MODELO = { nome: 'Do modelo', descricao: 'A capa própria do modelo do carrossel.' };
+/** O Clássico vai até o pé da arte (preço de 1186 a 1324): encolhe um pouco para o indicador não cobrir o preço. */
+const CAPA_ENCOLHIDA = { classico: true };
+
+function capaDoPost(ctx, W, H, d, modeloId) {
+  const f = CONFIG.formatosPost.find(x => x.id === 'feed');
+  const M = MODELOS_POST[modeloId];
+  if (!CAPA_ENCOLHIDA[modeloId]) return M.desenhar(ctx, W, H, d, f);
+  desenharFundo(ctx, W, H, d);
+  const s = (H - 70) / H;
+  ctx.save(); ctx.translate((W - W * s) / 2, 0); ctx.scale(s, s);
+  M.desenhar(ctx, W, H, d, f);
+  ctx.restore();
+}
+
+/**
+ * Indicador "1/22" (Pedro, 23/10: "um indicador embaixo 1/22 mostrando um caminho de que há mais fotos para ver do lado
+ * ... no centro embaixo quase colado na margem debaixo da foto"). Pílula roxa no centro, a 18 px do pé, com a seta
+ * enquanto houver lâmina depois.
+ */
+function indicadorCarrossel(ctx, d, W, H, i, n) {
+  const t = `${i}/${n}`, tam = 24, h = 46;
+  ctx.font = fonte(700, tam);
+  const wTxt = ctx.measureText(t).width, seta = i < n ? 34 : 0;
+  const w = wTxt + seta + 44, x = (W - w) / 2, y = H - 18 - h;
+  ctx.save();
+  ctx.shadowColor = 'rgba(20,0,30,.28)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 3;
+  caminhoArredondado(ctx, x, y, w, h, h / 2); ctx.fillStyle = hexParaRgba(d.cores.principal, 0.92); ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(t, x + 22, y + h / 2 + tam * 0.06);
+  if (seta) desenharIcone(ctx, 'seta', x + 22 + wTxt + 8 + 13, y + h / 2, 26, '#fff', 2.4);
+}
+
+/**
+ * A lâmina CTA, a última de todo carrossel (Pedro, 23/10): fundo branco; "Gostou do imóvel?" grande no mesmo título do
+ * card 1 (Poppins pesada roxa + cursiva rosa sublinhada); "Agende uma visita pelo número na bio" menor; o botão roxo
+ * "Nos chame no WhatsApp" com o ícone; e colados no pé, centralizados e sem caixa: a logo à esquerda e, à direita, o
+ * CNPJ em cima e o CRECI embaixo. O foco é a chamada.
+ */
+function laminaCta(ctx, W, H, d) {
+  const c = d.cores, m = RESPIRO.carrossel.margem, T = CONFIG.cta, L = W - 2 * m;
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+  // o pé: logo | CNPJ / CRECI, o grupo centralizado e colado embaixo
+  const img = imagemPronta(srcLogo()), lh = 78, lw = img ? img.width * lh / img.height : 0;
+  const t1 = CONFIG.empresa.cnpj, t2 = CONFIG.empresa.creci, tam = 23;
+  ctx.font = fonte(600, tam);
+  const wInfo = Math.max(ctx.measureText(t1).width, ctx.measureText(t2).width), sep = 28;
+  const wPe = lw + (lw ? sep * 2 + 2 : 0) + wInfo, xPe = (W - wPe) / 2, yPe = H - 44 - lh;
+  if (img) ctx.drawImage(img, xPe, yPe, lw, lh);
+  if (lw) { ctx.fillStyle = c.borda; ctx.fillRect(xPe + lw + sep, yPe + 8, 2, lh - 16); }
+  const xi = xPe + (lw ? lw + sep * 2 + 2 : 0);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.font = fonte(600, tam); ctx.fillStyle = c.principal; ctx.fillText(t1, xi, yPe + lh * 0.32);
+  ctx.font = fonte(500, tam); ctx.fillStyle = c.texto; ctx.fillText(t2, xi, yPe + lh * 0.72);
+  // o bloco da chamada, centralizado no espaço acima do pé
+  const hTit = 340, hSub = 60, hBot = 136, g1 = 40, g2 = 60;
+  const bloco = hTit + g1 + hSub + g2 + hBot;
+  let y = (yPe - 40 - bloco) / 2 + 20;
+  desenharTitulo(ctx, { ...d, im: { tipo: T.titulo, destaque: '', chamada: T.tituloCursiva } }, { x: m, y, w: L, h: hTit }, { alinhar: 'centro' });
+  y += hTit + g1;
+  const ts = ajustarFonte(ctx, T.subtitulo, L - 40, null, 46, 600);
+  ctx.font = fonte(600, ts); ctx.fillStyle = c.texto; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(T.subtitulo, W / 2, y + hSub / 2);
+  y += hSub + g2;
+  const wb = 780, xb = (W - wb) / 2;
+  ctx.save();
+  ctx.shadowColor = 'rgba(78,10,107,.30)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 10;
+  caminhoArredondado(ctx, xb, y, wb, hBot, 30);
+  const gr = ctx.createLinearGradient(xb, y, xb + wb, y + hBot); gr.addColorStop(0, c.principal); gr.addColorStop(1, c.secundaria);
+  ctx.fillStyle = gr; ctx.fill();
+  ctx.restore();
+  const ic = 62, tb = ajustarFonte(ctx, T.botao, wb - ic - 110, null, 46, 700);
+  ctx.font = fonte(700, tb);
+  const wg = ic + 22 + ctx.measureText(T.botao).width, xg = (W - wg) / 2;
+  desenharIcone(ctx, 'whatsapp', xg + ic / 2, y + hBot / 2, ic, '#fff', 2);
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(T.botao, xg + ic + 22, y + hBot / 2 + tb * 0.05);
+}
+
+/**
+ * Monta a lista de lâminas conforme o modelo e as opções do carrossel.
+ * `capaId`: chave de MODELOS_POST (a capa é o post de feed nesse modelo) ou 'modelo' (a capa do carrossel).
+ */
+function montarSlidesCarrossel(modeloId = estado.carrossel.modelo, capaId = estado.carrossel.capa) {
   const d = dadosDesenho(), c = estado.carrossel;
   const M = MODELOS_CARROSSEL[modeloId] || MODELOS_CARROSSEL[CONFIG.modelosPadrao.carrossel];
-  const s = [{ id: 'capa', nome: 'Capa', desenhar: (ctx, W, H) => M.capa(ctx, W, H, d) }];
-  if (c.incluirFotos) d.fotos.slice(1).forEach((f, k) => {
-    if (!c.fotosExcluidas.includes(f.id)) s.push({ id: 'foto-' + f.id, fotoId: f.id, nome: f.etiqueta || `Foto ${k + 2}`, desenhar: (ctx, W, H) => M.foto(ctx, W, H, d, f) });
-  });
+  const capa = MODELOS_POST[capaId] ? (ctx, W, H) => capaDoPost(ctx, W, H, d, capaId) : (ctx, W, H) => M.capa(ctx, W, H, d);
+  const s = [{ id: 'capa', nome: 'Capa', desenhar: capa }];
+  if (c.incluirFotos) {
+    const fotos = d.fotos.slice(1).filter(f => !c.fotosExcluidas.includes(f.id));
+    if (M.porLamina > 1) {
+      for (let k = 0; k < fotos.length; k += M.porLamina) {
+        const grupo = fotos.slice(k, k + M.porLamina);
+        s.push({ id: 'fotos-' + (k / M.porLamina + 1), nome: `Fotos ${k + 2} a ${k + 1 + grupo.length}`, desenhar: (ctx, W, H) => M.fotos(ctx, W, H, d, grupo) });
+      }
+    } else {
+      fotos.forEach(f => s.push({ id: 'foto-' + f.id, fotoId: f.id, nome: f.etiqueta || `Foto ${d.fotos.indexOf(f) + 1}`, desenhar: (ctx, W, H) => M.foto(ctx, W, H, d, f) }));
+    }
+  }
   if (c.incluirDiferenciais && d.caracts.length) s.push({ id: 'diferenciais', nome: 'Diferenciais', desenhar: (ctx, W, H) => M.diferenciais(ctx, W, H, d) });
   if (c.incluirFinal) s.push({ id: 'final', nome: 'Valor e contato', desenhar: (ctx, W, H) => M.final(ctx, W, H, d) });
-  return s;
+  if (c.incluirCta) s.push({ id: 'cta', nome: 'Gostou do imóvel?', semIndicador: true, desenhar: (ctx, W, H) => laminaCta(ctx, W, H, d) });
+  // o indicador 1/N em todas as lâminas, menos na CTA (o fim)
+  return s.map((x, i) => x.semIndicador ? x : { ...x, desenhar: (ctx, W, H) => { x.desenhar(ctx, W, H); indicadorCarrossel(ctx, d, W, H, i + 1, s.length); } });
 }
 
 /** Desenha a lâmina `indice` da lista `slides` dentro do canvas. `escala` < 1 gera miniaturas. */
@@ -2298,6 +2424,7 @@ function normalizarEstado(bruto) {
   if (!Array.isArray(e.carrossel.fotosExcluidas)) e.carrossel.fotosExcluidas = [];
   if (!MODELOS_POST[e.post.modelo]) e.post.modelo = CONFIG.modelosPadrao.post;
   if (!MODELOS_CARROSSEL[e.carrossel.modelo]) e.carrossel.modelo = CONFIG.modelosPadrao.carrossel;
+  if (!MODELOS_POST[e.carrossel.capa] && e.carrossel.capa !== 'modelo') e.carrossel.capa = 'galeria';
   return e;
 }
 
@@ -2502,8 +2629,31 @@ function renderizarModelos(tipo) {
   for (const id of Object.keys(catalogo)) {
     const c = $(`#mini-${tipo}-${id}`);
     if (tipo === 'post') desenharPostEm(c, 'feed', id, 0.3);
-    else desenharSlideEm(c, montarSlidesCarrossel(id), 0, 0.3);
+    else {
+      // a capa agora costuma ser o post: a miniatura mostra a capa própria do modelo (na Grade 2×2, a lâmina de 4 fotos)
+      const sl = montarSlidesCarrossel(id, 'modelo');
+      desenharSlideEm(c, sl, catalogo[id].porLamina > 1 && sl.length > 1 ? 1 : 0, 0.3);
+    }
     c.closest('.modelo').setAttribute('aria-checked', String(id === atual));
+  }
+}
+
+/** Cartões da capa do carrossel: os modelos do post e a capa do modelo, com a 1ª lâmina de verdade em miniatura. */
+function renderizarCapas() {
+  const box = $('#capas-carrossel');
+  const opcoes = [...Object.entries(MODELOS_POST), ['modelo', CAPA_DO_MODELO]];
+  if (!box.children.length) {
+    box.innerHTML = opcoes.map(([id, m]) => `
+      <button class="modelo" role="radio" aria-checked="false" data-acao="modelo-escolher" data-tipo="capa" data-modelo="${id}">
+        <canvas id="mini-capa-${id}" aria-hidden="true"></canvas>
+        <strong>${esc(m.nome)}</strong>
+        <span>${esc(m.descricao)}</span>
+      </button>`).join('');
+  }
+  for (const [id] of opcoes) {
+    const c = $(`#mini-capa-${id}`);
+    desenharSlideEm(c, montarSlidesCarrossel(estado.carrossel.modelo, id), 0, 0.3);
+    c.closest('.modelo').setAttribute('aria-checked', String(id === estado.carrossel.capa));
   }
 }
 
@@ -2522,6 +2672,7 @@ let _idsSlides = '';
 
 /** Redesenha as lâminas do carrossel (recria os cartões só se a lista mudou). */
 function renderizarCarrossel() {
+  renderizarCapas();
   renderizarModelos('carrossel');
   const slides = montarSlidesCarrossel();
   const ids = estado.carrossel.modelo + ':' + slides.map(s => s.id).join('|');
@@ -2738,6 +2889,7 @@ function ligarEventos() {
       case 'baixar-carrossel': avisar('Gerando lâminas...'); return salvarVarios(`${nomeBase()}-carrossel.zip`, await gerarArquivosCarrossel());
       case 'modelo-escolher':
         if (btn.dataset.tipo === 'post') estado.post.modelo = btn.dataset.modelo;
+        else if (btn.dataset.tipo === 'capa') estado.carrossel.capa = btn.dataset.modelo;
         else estado.carrossel.modelo = btn.dataset.modelo;
         return aoMudar();
       case 'slide-ocultar': estado.carrossel.fotosExcluidas.push(btn.dataset.foto); return aoMudar();
@@ -2804,13 +2956,14 @@ const GeradorImob = {
   modelos: {
     post: Object.entries(MODELOS_POST).map(([id, m]) => ({ id, nome: m.nome, descricao: m.descricao })),
     carrossel: Object.entries(MODELOS_CARROSSEL).map(([id, m]) => ({ id, nome: m.nome, descricao: m.descricao })),
+    capa: [...Object.entries(MODELOS_POST), ['modelo', CAPA_DO_MODELO]].map(([id, m]) => ({ id, nome: m.nome, descricao: m.descricao })),
   },
 
-  /** Escolhe o modelo. tipo: 'post' | 'carrossel'. Ex: definirModelo('post', 'vitrine'). */
+  /** Escolhe o modelo. tipo: 'post' | 'carrossel' | 'capa' (a 1ª lâmina do carrossel). Ex: definirModelo('capa', 'galeria'). */
   definirModelo(tipo, id) {
-    const cat = tipo === 'post' ? MODELOS_POST : MODELOS_CARROSSEL;
+    const cat = tipo === 'post' ? MODELOS_POST : tipo === 'capa' ? { ...MODELOS_POST, modelo: CAPA_DO_MODELO } : MODELOS_CARROSSEL;
     if (!cat[id]) throw new Error(`Modelo "${id}" não existe. Opções: ${Object.keys(cat).join(', ')}`);
-    if (tipo === 'post') estado.post.modelo = id; else estado.carrossel.modelo = id;
+    if (tipo === 'post') estado.post.modelo = id; else if (tipo === 'capa') estado.carrossel.capa = id; else estado.carrossel.modelo = id;
     aoMudar(); return id;
   },
 
