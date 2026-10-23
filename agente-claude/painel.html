@@ -133,6 +133,14 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 .modo-lista .caixa.aberta { display: flex; }
 .modo-lista .caixa .ampliar, .modo-lista .rodape-p { display: none; }
 .item-chat.novo { color: var(--texto-2); justify-content: center; margin-top: 6px; }
+
+/* a conta (Pedro, 23/10): assinatura ou API; na API, o gasto até agora e o limite, e para quando chega nele */
+.conta { display: flex; gap: 6px; align-items: center; }
+.conta .vistas button { font-size: 13px; padding: 4px 9px; }
+.conta .vistas button[data-conta="api"][aria-pressed="true"] { color: var(--azul-forte); font-weight: 600; }
+.conta .gasto { font-size: 12px; padding: 4px 8px; font-variant-numeric: tabular-nums; color: var(--texto-2); }
+.conta .gasto.parado { color: var(--erro); border-color: var(--erro); font-weight: 600; }
+@media (max-width: 720px) { header { flex-wrap: wrap; } .conta { order: 5; width: 100%; } }
 .item-chat { display: flex; gap: 10px; align-items: center; text-align: left; border: 0; background: transparent; border-radius: 8px; padding: 9px 10px; width: 100%; color: var(--texto); }
 .item-chat:hover { background: var(--fundo); }
 .item-chat[aria-current="true"] { background: var(--fundo); box-shadow: inset 3px 0 0 var(--cor, var(--azul)); }
@@ -158,6 +166,13 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
   <div class="vistas" id="vistas" role="group" aria-label="Visualização">
     <button type="button" data-vista="grade" title="Quadradinhos: os chats todos abertos" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg></button>
     <button type="button" data-vista="lista" title="Lista: os chats na esquerda, o aberto grande na direita" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/></svg></button>
+  </div>
+  <div class="conta" id="conta" hidden>
+    <div class="vistas" role="group" aria-label="Por qual conta o Claude roda">
+      <button type="button" data-conta="assinatura" aria-pressed="true" title="Roda pelo login da sua assinatura do Claude">Assinatura</button>
+      <button type="button" data-conta="api" aria-pressed="false" title="Roda pela sua chave da API, com o contador de gasto">API</button>
+    </div>
+    <button type="button" class="gasto" id="conta-gasto" title="Gasto da API até agora / limite. Clique para mudar o limite"></button>
   </div>
   <a href="https://imobeasy.online/admin/inicio.html">← Admin</a>
 </header>
@@ -782,6 +797,48 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
   });
 
   montar();
+})();
+</script>
+<script>
+/* a conta do Claude (23/10): o botão Assinatura | API e o contador de gasto da API, de 30 em 30 s */
+(function () {
+  "use strict";
+  var raiz = document.getElementById("conta"), gasto = document.getElementById("conta-gasto"), atual = null;
+  function usd(v) { return "US$ " + Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function api(metodo, corpo) {
+    return fetch("/api/conta", { method: metodo, credentials: "same-origin",
+      headers: corpo ? { "Content-Type": "application/json", "X-Agente": "1" } : {},
+      body: corpo ? JSON.stringify(corpo) : undefined
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(j.erro || ("erro " + r.status)); return j; });
+    });
+  }
+  function desenhar(e) {
+    atual = e; raiz.hidden = false;
+    [].forEach.call(raiz.querySelectorAll("[data-conta]"), function (b) { b.setAttribute("aria-pressed", b.dataset.conta === e.modo); });
+    gasto.textContent = (e.parado ? "API parada: " : "API: ") + usd(e.gasto_usd) + " de " + usd(e.limite_usd);
+    gasto.classList.toggle("parado", !!e.parado);
+    gasto.hidden = e.modo !== "api" && !e.gasto_usd;
+  }
+  function carregar() { api("GET").then(desenhar).catch(function () { /* sem rede: tenta de novo em 30 s */ }); }
+  [].forEach.call(raiz.querySelectorAll("[data-conta]"), function (b) {
+    b.addEventListener("click", function () {
+      if (!atual || b.dataset.conta === atual.modo) return;
+      var msg = b.dataset.conta === "api"
+        ? "Passar os agentes para a API? O gasto conta até " + usd(atual.limite_usd) + " e aí eles param."
+        : "Voltar os agentes para a assinatura (o login)?";
+      if (!confirm(msg)) return;
+      api("PUT", { modo: b.dataset.conta }).then(desenhar).catch(function (e) { alert(e.message); });
+    });
+  });
+  gasto.addEventListener("click", function () {
+    if (!atual) return;
+    var v = prompt("Limite de gasto da API, em dólares (gasto até agora: " + usd(atual.gasto_usd) + "):", atual.limite_usd);
+    if (v == null) return;
+    api("PUT", { limite_usd: Number(String(v).replace(",", ".")) }).then(desenhar).catch(function (e) { alert(e.message); });
+  });
+  carregar();
+  setInterval(function () { if (!document.hidden) carregar(); }, 30000);
 })();
 </script>
 </body>

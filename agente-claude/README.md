@@ -97,3 +97,15 @@ Cron, se quiser sem o Hermes: `0 8 * * * root /opt/agente-claude/agente disparar
 Desfazer: ver o cabeçalho dos dois scripts; o Traefik, apagar `agentes.yml` na VPS1.
 
 `US$ eq` nas métricas é o que a chamada custaria na API; na assinatura não é cobrado, mas conta no limite de uso.
+
+## Conta: assinatura ou API (23/10)
+Pedro: "hoje eles rodam logado, tem como eles rodarem pela minha api do claude? tenho 100 dólares lá ... uma
+alternância tipo um toggle, mas o de api tem um contador de gastos, quando ultrapassa aquilo para".
+
+- Botão **Assinatura | API** no topo do painel; ao lado, "API: US$ gasto de US$ limite" (clique muda o limite).
+- `conta.py` + `conta.json` ({"modo", "limite_usd"}, padrão assinatura e 100). Gasto = soma de `custo_usd` das linhas
+  `conta='api'` de `execucoes` e `mensagens` (metricas.db), desde sempre: pôs saldo, sobe o limite.
+- Na API, o `claude-agente` usa `ANTHROPIC_API_KEY` de `/etc/agente-claude/api.env` (nas duas VPS, 600, nunca
+  sobrescrito), tira o token da assinatura e passa `--max-budget-usd` com o que sobra.
+- Chegou no limite: regra grava o erro "API parada"; projeto recusa a mensagem (ValueError), e a fila da revisão e as
+  rotinas esperam e tentam de novo depois, sem perder nada.

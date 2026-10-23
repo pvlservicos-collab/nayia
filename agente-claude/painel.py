@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, urlparse
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 import agente  # noqa: E402
+import conta  # noqa: E402
 import projetos  # noqa: E402
 import fila_nay  # noqa: E402
 import rotinas  # noqa: E402
@@ -262,6 +263,9 @@ ROTAS = [
     ("GET", r"/", lambda p, q: (200, HTML)),
     ("GET", r"/api/estado", lambda p, q: (200, estado(int(q["dias"]) if q.get("dias", "").isdigit() else 7))),
     ("PUT", r"/api/regras", gravar_regras),
+    # 23/10: assinatura ou API, com o contador de gasto da API e o limite (conta.py)
+    ("GET", r"/api/conta", lambda p, q: (200, conta.estado())),
+    ("PUT", r"/api/conta", lambda p, q: (200, conta.salvar(p.corpo()))),
     ("POST", r"/api/disparar", disparar),
     ("GET", r"/api/projetos", lambda p, q: (200, {"projetos": projetos.listar()})),
     ("POST", r"/api/projetos", novo_projeto),

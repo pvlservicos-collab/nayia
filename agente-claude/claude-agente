@@ -14,12 +14,14 @@ Recebe no stdin {"mensagem", "modelo", "sistema"?, "esforco"?, "modo", "timeout_
   se poder ler depois o que ele fez (o id vai para metricas.db).
 
 Login: CLAUDE_CODE_OAUTH_TOKEN de /etc/agente-claude/claude.env (claude setup-token); sem ele, vale o /login feito
-no `claude` do root deste servidor.
+no `claude` do root deste servidor. Com "conta": "api" no pedido (23/10, o botão do painel, conta.py), roda pela
+ANTHROPIC_API_KEY de /etc/agente-claude/api.env, sem o token da assinatura, e com --max-budget-usd = "max_usd".
 """
 import json, os, socket, subprocess, sys
 
 CLAUDE = "/root/.local/bin/claude"
 LOGIN = "/etc/agente-claude/claude.env"
+CHAVE_API = "/etc/agente-claude/api.env"
 VAZIO = "/var/lib/agente-claude/vazio"
 PROJETOS = "/opt/agente-claude/projetos"
 FERRAMENTAS = "Bash,Edit,Write,Read,Glob,Grep,NotebookEdit,WebFetch,WebSearch,TodoWrite"
@@ -30,15 +32,24 @@ FERRAMENTAS_LEITURA = ",".join("mcp__leitura__" + f for f in ("consultar_banco",
 
 p = json.load(sys.stdin)
 env = {**os.environ, "HOME": "/root", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1", "DISABLE_AUTOUPDATER": "1"}
-if os.path.exists(LOGIN):
-    for l in open(LOGIN, encoding="utf-8"):
+api = p.get("conta") == "api"
+for k in ("ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"):
+    env.pop(k, None)
+arquivo = CHAVE_API if api else LOGIN
+if os.path.exists(arquivo):
+    for l in open(arquivo, encoding="utf-8"):
         if "=" in l and not l.lstrip().startswith("#"):
             k, v = l.strip().split("=", 1)
             if v.strip().strip('"'):
                 env[k] = v.strip().strip('"')
+if api and not env.get("ANTHROPIC_API_KEY"):
+    print(json.dumps({"is_error": True, "result": f"modo API sem ANTHROPIC_API_KEY em {CHAVE_API} neste servidor"}))
+    sys.exit(1)
 
 cmd = [CLAUDE, "-p", p["mensagem"], "--output-format", "json", "--model", p.get("modelo") or "sonnet",
        "--strict-mcp-config"]
+if api and p.get("max_usd") is not None:
+    cmd += ["--max-budget-usd", f"{max(0.01, float(p['max_usd'])):.2f}"]
 if p.get("esforco"):
     cmd += ["--effort", p["esforco"]]
 if p.get("modo") == "projeto":

@@ -15,6 +15,8 @@ import json, os, sqlite3, subprocess, sys, time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
+import conta
+
 BASE = os.path.dirname(os.path.abspath(__file__))
 REGRAS = os.path.join(BASE, "regras.json")
 DB = os.path.join(BASE, "metricas.db")
@@ -43,7 +45,7 @@ def banco():
         tokens_entrada INTEGER, tokens_saida INTEGER, cache_lido INTEGER, cache_criado INTEGER,
         custo_usd REAL, mensagem TEXT, resposta TEXT, erro TEXT, sessao TEXT)""")
     tem = {r[1] for r in con.execute("PRAGMA table_info(execucoes)")}
-    for col in ("servidor", "modo", "origem"):
+    for col in ("servidor", "modo", "origem", "conta"):
         if col not in tem:
             con.execute(f"ALTER TABLE execucoes ADD COLUMN {col} TEXT")
     con.execute("CREATE INDEX IF NOT EXISTS execucoes_regra_inicio ON execucoes(regra, inicio)")
@@ -59,6 +61,13 @@ def disparar(nome, r, origem):
     t0 = time.monotonic()
     linha = {"regra": nome, "inicio": inicio, "modelo": r["modelo"], "mensagem": r["mensagem"], "ok": 0,
              "servidor": r["servidor"], "modo": r["modo"], "origem": origem}
+    try:
+        # 23/10: assinatura ou API (conta.py); na API sem saldo a regra não roda
+        pedido.update(conta.para_o_pedido())
+    except ValueError as e:
+        linha.update(ms_total=0, erro=str(e))
+        return linha
+    linha["conta"] = pedido["conta"]
     try:
         if r["servidor"] not in SERVIDORES:
             raise OSError(f"servidor desconhecido: {r['servidor']}")

@@ -6,6 +6,7 @@
 # VPS1 (nay-srv1894338): /usr/local/sbin/claude-agente e a chave pública da VPS2 no authorized_keys do root,
 #   presa ao endereço Tailscale da VPS2 (from=). Nada da Nay é tocado.
 # Nas duas: /etc/agente-claude/claude.env (600) para o CLAUDE_CODE_OAUTH_TOKEN; nasce vazio, nunca é sobrescrito.
+# 23/10: e /etc/agente-claude/api.env (600) para a ANTHROPIC_API_KEY do modo API (conta.py); também nunca é sobrescrito.
 #
 # Desfazer: VPS2 `systemctl disable --now agente-claude-painel`; VPS1 apagar a linha "agente-claude-vps2" do
 #   /root/.ssh/authorized_keys; nas duas `rm /usr/local/sbin/claude-agente`.
@@ -15,7 +16,7 @@ VPS2=nay-srv1877774
 VPS1=nay-srv1894338
 VPS2_TS=100.113.222.11
 VPS1_TS=100.86.114.74
-ARQS="agente.py painel.py painel.html projetos.py importar_nay.py fila_nay.py rotinas.py mcp_agente.py mcp_leitura.py regras.exemplo.json claude-agente agente-claude-painel.service"
+ARQS="agente.py conta.py painel.py painel.html projetos.py importar_nay.py fila_nay.py rotinas.py mcp_agente.py mcp_leitura.py regras.exemplo.json claude-agente agente-claude-painel.service"
 # os projetos (20/10): a pasta vai junto, mas um projeto que já existe no servidor NÃO é sobrescrito (o contexto é
 # editado pela tela e os dados nascem lá); só o como-ler-os-dados.md, que é daqui, é atualizado.
 PROJS="projetos/*/projeto.json projetos/*/contexto.md projetos/*/como-ler-os-dados.md"
@@ -38,7 +39,7 @@ tar -c $ARQS $PROJS | ssh $VPS2 'set -e
     echo "VPS2: usuário agclaude removido"
   fi
   install -d -m 750 $D; chown -R root:root $D
-  install -m 750 agente.py painel.py projetos.py importar_nay.py fila_nay.py rotinas.py mcp_agente.py mcp_leitura.py $D/
+  install -m 750 agente.py conta.py painel.py projetos.py importar_nay.py fila_nay.py rotinas.py mcp_agente.py mcp_leitura.py $D/
   for p in projetos/*/; do
     p=${p%/}; alvo=$D/$p
     if [ ! -f $alvo/projeto.json ]; then

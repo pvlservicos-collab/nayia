@@ -21,6 +21,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 
 import agente
+import conta
 
 BASE = os.path.join(agente.BASE, "projetos")
 NOME_OK = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
@@ -56,8 +57,11 @@ def banco():
         id INTEGER PRIMARY KEY, conversa_id INTEGER NOT NULL, papel TEXT NOT NULL, texto TEXT, inicio TEXT NOT NULL,
         ok INTEGER, ms_total INTEGER, ms_api INTEGER, tokens_entrada INTEGER, tokens_saida INTEGER,
         cache_lido INTEGER, custo_usd REAL, erro TEXT)""")
-    if "origem" not in {r[1] for r in con.execute("PRAGMA table_info(mensagens)")}:
+    tem = {r[1] for r in con.execute("PRAGMA table_info(mensagens)")}
+    if "origem" not in tem:
         con.execute("ALTER TABLE mensagens ADD COLUMN origem TEXT")  # 'agenda' = mandada pelo horário marcado
+    if "conta" not in tem:
+        con.execute("ALTER TABLE mensagens ADD COLUMN conta TEXT")  # 'api' entra no contador de gasto (conta.py)
     con.execute("CREATE INDEX IF NOT EXISTS mensagens_conversa ON mensagens(conversa_id, id)")
     con.execute("CREATE INDEX IF NOT EXISTS conversas_projeto ON conversas(projeto, atualizada_em)")
     con.row_factory = lambda c, r: {d[0]: v for d, v in zip(c.description, r)}
@@ -287,6 +291,7 @@ def enviar(cid, texto, origem=None):
         raise ValueError("mensagem vazia")
     if origem in AUTOMATICAS and madrugada():
         raise ValueError("madrugada: os avisos automáticos voltam às 6h (Brasília)")
+    conta.para_o_pedido()   # 23/10: API sem saldo recusa aqui; a fila e as rotinas tentam de novo depois
     con = banco()
     conv = con.execute("SELECT * FROM conversas WHERE id = ?", (cid,)).fetchone()
     if not conv:
@@ -320,6 +325,8 @@ def _responder(cid, conv, texto, primeira):
         claude_md(pid)
         pedido = {"modo": "projeto", "mensagem": texto, "modelo": c["modelo"], "esforco": c.get("esforco") or None,
                   "pasta": pasta(pid), "sessao": conv["sessao"], "nova": primeira, "timeout_s": LIMITE_S}
+        pedido.update(conta.para_o_pedido())
+        linha["conta"] = pedido["conta"]
         p = subprocess.run([agente.EXECUTOR], input=json.dumps(pedido), capture_output=True, text=True,
                            timeout=LIMITE_S + 60)
         j = json.loads(p.stdout) if p.stdout.strip().startswith("{") else {"is_error": True,
