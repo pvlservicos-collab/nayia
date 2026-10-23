@@ -1,4 +1,4 @@
-# privado.ia_uso  (tabela, ~0 linhas)
+# privado.ia_uso  (tabela, ~57 linhas)
 470: uma linha por chamada de modelo dos serviços (captação, nay-olx): tokens e custo em US$.
 
 ## colunas

@@ -123,10 +123,10 @@ def _nova_ficha(conn, leva: Leva, saida: dict, fones: list[str]) -> None:
     ficha = achar_condominio(conn, ficha)
     ficha["_fotos"] = 0
     c = banco.uma(conn, """
-        INSERT INTO privado.cadastro_whats (grupo_id, mensagens, texto, fotos, contato_tel, contato_nome, papel, ficha)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING *""",
+        INSERT INTO privado.cadastro_whats (grupo_id, mensagens, texto, fotos, contato_tel, contato_nome, papel, ficha, canal)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *""",
         (config.GRUPO_ID, leva.ids, leva.texto, banco.json([m.midia_url for m in leva.fotos]), fone, nome, papel,
-         banco.json(ficha)))
+         banco.json(ficha), fluxo.canal_do_contato(conn, fone)))
     banco.linhas(conn, banco.MARCAR_LIDAS, {"ids": leva.ids, "cadastro": c["id"]})
     try:
         corpo = fichas.para_o_site(ficha)
@@ -188,7 +188,8 @@ def _contato_que_faltava(conn, leva: Leva, fones: list[str], saida: dict, citada
     except Exception as e:  # noqa: BLE001
         fluxo.avisar_erro(conn, c, "Não consegui gravar o contato", e)
         return
-    fluxo.gravar(conn, c["id"], contato_tel=fone, contato_nome=nome, papel=papel, estado="na_fila")
-    c = {**c, "contato_tel": fone, "contato_nome": nome, "papel": papel}
+    canal = fluxo.canal_do_contato(conn, fone)
+    fluxo.gravar(conn, c["id"], contato_tel=fone, contato_nome=nome, papel=papel, estado="na_fila", canal=canal)
+    c = {**c, "contato_tel": fone, "contato_nome": nome, "papel": papel, "canal": canal}
     envio.grupo(conn, f"Anotado: {fluxo.quem(c)} é o contato do imóvel {c['codigo']}. Vou perguntar o que falta.",
                 c["id"], citar=leva.ids[0])

@@ -132,13 +132,15 @@ def _unidade_preenchida(ficha: dict) -> bool:
 
 def _pergunta_andar(ficha: dict) -> str:
     """Tel, 20/10: "nunca se deve pedir o número do apartamento para o corretor, só o andar, e nos que têm escada
-    quantos lances de escada". O elevador vem do condomínio (`_elevador`, posto pelo serviço) ou da resposta dele."""
+    quantos lances de escada". O elevador vem do condomínio (`_elevador`, posto pelo serviço) ou da resposta dele.
+    Tel, 23/10: "tem corretor que não passa andar ... é andar baixo, médio ou alto ... não se pergunta qual andar, só
+    se é alto, médio ou baixo"."""
     elevador = ficha.get("_elevador") or ficha.get("c:elevador")
     if elevador == "sim":
-        return "Em qual andar ele fica?"
+        return "O andar é baixo, médio ou alto?"
     if elevador == "nao":
         return "Quantos lances de escada até ele?"
-    return "Em qual andar ele fica? E, se o prédio não tiver elevador, quantos lances de escada?"
+    return "O andar é baixo, médio ou alto? E, se o prédio não tiver elevador, quantos lances de escada?"
 
 
 def _andar_preenchido(ficha: dict) -> bool:

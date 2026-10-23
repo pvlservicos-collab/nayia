@@ -4,7 +4,8 @@ Uma ficha anda assim (privado.cadastro_whats.estado):
   juntando     -> a leva chegou e o imóvel está sendo criado no site (Rascunho) com as fotos
   sem_contato  -> não veio o número do corretor/proprietário: ela pede no grupo e espera
   na_fila      -> pronto para perguntar (fora do horário, ou a pessoa está respondendo outra ficha)
-  perguntando  -> uma pergunta por vez no privado; a resposta chega pela porta (nai_abrir_turno, bloco 428)
+  perguntando  -> uma pergunta por vez no privado; a resposta chega pela porta (nai_abrir_turno, bloco 428), ou pelo
+                  8595 (captacao_mensagens) quando canal = 'leads' (479)
   concluido    -> perguntou tudo: o imóvel fica Disponível (com tipo, bairro e valor) e o grupo sabe
   sem_resposta -> passou o prazo sem resposta: fica como está e o grupo sabe o que faltou
   erro         -> algo falhou (site, modelo): o grupo sabe e a equipe completa à mão
@@ -66,6 +67,20 @@ def com_elevador(conn, ficha: dict) -> dict:
     return {**ficha, "_elevador": valor} if valor else ficha
 
 
+def canal_do_contato(conn, fone: str | None) -> str:
+    """479: 'leads' quando ele escreveu para o 8595 nos últimos dias (a mesma Nay pergunta); senão 'parceria'."""
+    if not fone:
+        return "parceria"
+    return banco.uma(conn, banco.CANAL_DO_CONTATO, {"tel": fone, "segs": int(config.LEADS_DIAS * 86400)})["canal"]
+
+
+def gente_no_chat(conn, c: dict) -> bool:
+    """Alguém da equipe está com a conversa, no número por onde ela pergunta."""
+    if c.get("canal") == "leads":
+        return banco.uma(conn, banco.GENTE_NO_8595, {"tel": c["contato_tel"], "min": config.LEADS_GENTE_MIN})["sim"]
+    return banco.uma(conn, banco.TEL_COM_A_CONVERSA, (c["contato_tel"],))["sim"]
+
+
 def quem(c: dict) -> str:
     papel = {"corretor": "corretor", "proprietario": "proprietário"}.get(c.get("papel") or "", "")
     nome = c.get("contato_nome") or "o contato"
@@ -97,8 +112,7 @@ def proxima(conn, c: dict, primeira: bool = False) -> None:
     fecha com o que tem. `_so_esperar` na ficha faz o mesmo sem a pausa."""
     c = {**c, "ficha": com_elevador(conn, c["ficha"])}
     falta = campos.faltam(c["ficha"], contexto(conn, c))
-    gente = not primeira and (c["ficha"].get("_so_esperar")
-                              or banco.uma(conn, banco.TEL_COM_A_CONVERSA, (c["contato_tel"],))["sim"])
+    gente = not primeira and (c["ficha"].get("_so_esperar") or gente_no_chat(conn, c))
     if not falta or gente:
         concluir(conn, c, "concluido", despedir=not gente)
         return
@@ -108,8 +122,8 @@ def proxima(conn, c: dict, primeira: bool = False) -> None:
         baloes = [campos.abertura(c.get("contato_nome"), c["ficha"]), pergunta]
     else:
         baloes = [pergunta]
-    if not envio.privado(conn, c["contato_tel"], c.get("contato_nome"), baloes):
-        raise RuntimeError("a pergunta não entrou na caixa da Nay")
+    if not envio.privado(conn, c["contato_tel"], c.get("contato_nome"), baloes, c.get("canal") or "parceria"):
+        raise RuntimeError("a pergunta não saiu (caixa da Nay ou 8595)")
     gravar(conn, c["id"], estado="perguntando", pergunta=chave, pergunta_em=agora(), cobrada_em=None,
            perguntas_feitas=(c.get("perguntas_feitas") or 0) + 1)
 
@@ -134,7 +148,8 @@ def concluir(conn, c: dict, como: str, despedir: bool = True) -> None:
         extra["e_parceiro"] = True       # parceiro fica fora do site e nunca vai a corretor (regra de 27/09 e 400)
     salvar_no_site(c, extra)
     if despedir and como == "concluido" and c.get("contato_tel") and c.get("estado") == "perguntando":
-        envio.privado(conn, c["contato_tel"], c.get("contato_nome"), ["Pronto, cadastro concluído. Muito obrigada!"])
+        envio.privado(conn, c["contato_tel"], c.get("contato_nome"), ["Pronto, cadastro concluído. Muito obrigada!"],
+                      c.get("canal") or "parceria")
     gravar(conn, c["id"], estado=como, pergunta=None, concluido_em=agora())
     envio.grupo(conn, texto_do_fim(c, como, ctx, faltou_essencial), c["id"])
 

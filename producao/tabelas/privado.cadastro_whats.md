@@ -24,12 +24,14 @@ erro  text
 criado_em  timestamp with time zone  NOT NULL  padrão now()
 atualizado_em  timestamp with time zone  NOT NULL  padrão now()
 concluido_em  timestamp with time zone
+canal  text  NOT NULL  padrão 'parceria'::text   -- 479: por onde a Nay do cadastro pergunta: parceria (caixa da Nay, 3618) ou leads (Z-API da captação, 8595, quando o contato já conversava ali).
 
 ## índices
 CREATE INDEX cadastro_whats_aberto ON privado.cadastro_whats USING btree (estado, atualizado_em) WHERE (estado <> ALL (ARRAY['concluido'::text, 'cancelado'::text]))
 CREATE UNIQUE INDEX cadastro_whats_pkey ON privado.cadastro_whats USING btree (id)
 
 ## restrições
+cadastro_whats_canal_ok: CHECK ((canal = ANY (ARRAY['parceria'::text, 'leads'::text])))
 cadastro_whats_estado_check: CHECK ((estado = ANY (ARRAY['juntando'::text, 'sem_contato'::text, 'na_fila'::text, 'perguntando'::text, 'concluido'::text, 'sem_resposta'::text, 'cancelado'::text, 'erro'::text])))
 cadastro_whats_papel_check: CHECK ((papel = ANY (ARRAY['corretor'::text, 'proprietario'::text])))
 cadastro_whats_pkey: PRIMARY KEY (id)

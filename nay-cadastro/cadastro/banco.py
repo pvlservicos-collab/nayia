@@ -114,3 +114,42 @@ SELECT EXISTS (SELECT 1 FROM privado.cadastro_whats c
 TEL_COM_A_CONVERSA = """
 SELECT coalesce(bool_or(nai_tel_com_a_conversa(k.id)), false) AS sim FROM nai_contato k WHERE k.chave = nai_chave(%s)
 """
+
+# ── 479: o número de LEADS (8595, Z-API da captação), cuja conversa mora em captacao_mensagens ────────────────────
+# quem escreveu para o 8595 nos últimos dias (e não é dono da captação do número oficial) é perguntado por ele
+CANAL_DO_CONTATO = """
+SELECT CASE WHEN EXISTS (SELECT 1 FROM captacao_mensagens m
+                          WHERE m.direcao = 'recebida' AND nay_fone_chave(m.telefone) = nay_fone_chave(%(tel)s)
+                            AND m.criada_em > now() - make_interval(secs => %(segs)s))
+             AND NOT EXISTS (SELECT 1 FROM captacao_leads l
+                              WHERE l.telefone_chave = nay_fone_chave(%(tel)s) AND l.canal = 'oficial')
+            THEN 'leads' ELSE 'parceria' END AS canal
+"""
+# alguém da equipe escreveu para ele pelo 8595 há pouco: a conversa é dela
+GENTE_NO_8595 = """
+SELECT EXISTS (SELECT 1 FROM captacao_mensagens m
+                WHERE m.direcao = 'enviada' AND m.origem = 'humano' AND nay_fone_chave(m.telefone) = nay_fone_chave(%(tel)s)
+                  AND m.criada_em > now() - make_interval(mins => %(min)s)) AS sim
+"""
+# o que ele escreveu pelo 8595 depois da pergunta vira a resposta da ficha (só texto: a foto já veio no encaminhamento)
+DO_8595 = """
+WITH novas AS (
+  SELECT c.id AS cadastro_id, m.id, m.texto
+    FROM privado.cadastro_whats c
+    JOIN captacao_mensagens m ON nay_fone_chave(m.telefone) = nay_fone_chave(c.contato_tel)
+   WHERE c.canal = 'leads' AND c.estado = 'perguntando' AND c.pergunta_em IS NOT NULL
+     AND m.direcao = 'recebida' AND m.criada_em > c.pergunta_em AND nullif(btrim(m.texto), '') IS NOT NULL
+     AND NOT EXISTS (SELECT 1 FROM privado.cadastro_whats_entrada e WHERE e.fonte = 'captacao' AND m.id = ANY (e.ids))
+)
+INSERT INTO privado.cadastro_whats_entrada (cadastro_id, texto, ids, fonte)
+SELECT cadastro_id, string_agg(texto, E'\n' ORDER BY id), array_agg(id::bigint ORDER BY id), 'captacao'
+  FROM novas GROUP BY cadastro_id
+RETURNING cadastro_id
+"""
+# o que ele já disse pelo 8595 antes de a ficha existir (Tel, 23/10: a Ana disse "É andar alto / Oitavo" e foi perguntada)
+CONVERSA_NO_8595 = """
+SELECT string_agg(m.texto, E'\n' ORDER BY m.id) AS texto
+  FROM captacao_mensagens m
+ WHERE m.direcao = 'recebida' AND nay_fone_chave(m.telefone) = nay_fone_chave(%(tel)s)
+   AND m.criada_em > now() - interval '2 days' AND nullif(btrim(m.texto), '') IS NOT NULL
+"""

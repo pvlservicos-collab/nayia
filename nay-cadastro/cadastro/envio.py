@@ -1,4 +1,4 @@
-"""A saída pela PARCERIA (Z-API, 92 9445-3618).
+"""A saída pela PARCERIA (Z-API, 92 9445-3618) e, para quem já conversava lá, pelo número de LEADS (8595).
 
 - PRIVADO: pela caixa da Nay (nai_saida, papel 'entrega', turno do Tel), entregue pelo nay-enviador-manual. É o caminho
   da Nay proprietários da OLX (nay-captacao/captacao/envio.py): passa pelas paredes da caixa, sai a qualquer hora e o
@@ -6,12 +6,16 @@
 - GRUPO: não existe fila para grupo no banco (nai_chave não aceita id de grupo). Vai direto pela Z-API, como o publicador,
   com o id inteiro ("...-group", nunca só os dígitos), e o id da mensagem fica em saida_do_sistema e em
   privado.cadastro_whats_postada: o eco volta para o grupo e não pode ser lido como imóvel novo.
+- LEADS (479, Tel, 23/10): o corretor que respondeu à busca pelo 8595 é perguntado pelo 8595, pela Z-API da captação
+  (a do config do vigia, como o nay-olx). O texto fica em captacao_mensagens ('resposta'), que é a conversa do CRM.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
+import time
 
 import requests
 
@@ -37,8 +41,10 @@ def so_digitos(t: str | None) -> str:
     return re.sub(r"\D", "", t or "")
 
 
-def privado(conn, telefone: str, nome: str | None, textos: list[str]) -> bool:
-    """Os balões, na ordem, para a pessoa. True se todos entraram na fila."""
+def privado(conn, telefone: str, nome: str | None, textos: list[str], canal: str = "parceria") -> bool:
+    """Os balões, na ordem, para a pessoa. True se todos entraram na fila (ou saíram, pelo 8595)."""
+    if canal == "leads":
+        return leads(conn, telefone, textos)
     ok = True
     for ordem, texto in enumerate(textos, start=1):
         r = banco.uma(conn, PRIVADO, {"tel": so_digitos(telefone), "nome": nome or "", "texto": texto, "ordem": ordem})
@@ -50,6 +56,47 @@ def privado(conn, telefone: str, nome: str | None, textos: list[str]) -> bool:
                            "WHERE id = %s AND estado = 'pendente'", (2 * (ordem - 1), r["saida"]))
         banco.linhas(conn, "UPDATE nai_turno SET fechado_em = now() WHERE id = %s", (r["turno"],))
     return ok
+
+
+def _captacao() -> dict:
+    """A Z-API da captação (8595): base e client_token, do config do vigia (só root lê; nunca vai para o registro)."""
+    with open(config.CONF_DO_VIGIA, encoding="utf-8") as f:
+        inst = (json.load(f).get("instancias") or {}).get("captacao")
+    if not inst or not inst.get("base"):
+        raise RuntimeError("não achei a Z-API da captação no config do vigia")
+    return inst
+
+
+def leads(conn, telefone: str, textos: list[str]) -> bool:
+    """Pelo 8595, um balão de cada vez. True se todos saíram."""
+    inst = _captacao()
+    fone = so_digitos(telefone)
+    for i, texto in enumerate(textos):
+        if i:
+            time.sleep(2)
+        try:
+            r = requests.post(inst["base"] + "/send-text", json={"phone": fone, "message": texto},
+                              headers={"Client-Token": inst["client_token"]}, timeout=40)
+            j = r.json() if r.content else {}
+        except (requests.RequestException, ValueError) as e:
+            log.warning("o balão não saiu pelo 8595 para …%s: %s", fone[-4:], type(e).__name__)
+            return False
+        mid = j.get("messageId") or j.get("id") or j.get("zaapId")
+        if r.status_code >= 400 or not mid:
+            log.warning("o balão não saiu pelo 8595 para …%s: HTTP %s", fone[-4:], r.status_code)
+            return False
+        # a conversa do CRM é captacao_mensagens: se o eco da Z-API chegou antes, só vira 'resposta'
+        banco.linhas(conn, """
+            WITH ja AS (UPDATE captacao_mensagens SET origem = 'resposta' WHERE message_id = %(mid)s AND direcao = 'enviada'
+                        RETURNING 1)
+            INSERT INTO captacao_mensagens (telefone, direcao, origem, texto, status, message_id)
+            SELECT coalesce((SELECT m.telefone FROM captacao_mensagens m WHERE nay_fone_chave(m.telefone) = nay_fone_chave(%(tel)s)
+                              ORDER BY m.id DESC LIMIT 1), %(tel)s),
+                   'enviada', 'resposta', %(texto)s, 'Enviado', %(mid)s WHERE NOT EXISTS (SELECT 1 FROM ja)""",
+                     {"mid": str(mid), "tel": fone, "texto": texto})
+        banco.linhas(conn, "INSERT INTO saida_do_sistema (message_id, telefone, rota, quem) VALUES (%s, %s, 'nay-cadastro', "
+                           "'nay-cadastro') ON CONFLICT DO NOTHING", (str(mid), fone))
+    return True
 
 
 _credenciais: dict | None = None

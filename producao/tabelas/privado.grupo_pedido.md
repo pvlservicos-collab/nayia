@@ -1,4 +1,4 @@
-# privado.grupo_pedido  (tabela, ~2864 linhas)
+# privado.grupo_pedido  (tabela, ~2889 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('privado.grupo_pedido_id_seq'::regclass)

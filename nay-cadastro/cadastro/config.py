@@ -12,6 +12,12 @@ LINK_DO_EDITOR = "https://imobeasy.online/admin/imovel-editar.html?codigo={codig
 GRUPO_ID = os.environ.get("CADASTRO_GRUPO_ID", "120363414621414957-group")
 # a Z-API da Parceria (as mesmas credenciais do publicador), só para POSTAR no grupo: o privado vai pela caixa da Nay
 ZAPI_ENV = os.environ.get("CADASTRO_ZAPI_ENV", "/root/nay-publicador/.env")
+# 479 (Tel, 23/10: "tem que ser a mesma Nay Leads fazer as perguntas"): quem escreveu para o número de Leads (8595, a
+# Z-API da captação) nesses dias é perguntado por ele. A credencial está no config do vigia (o mesmo do nay-olx).
+CONF_DO_VIGIA = os.environ.get("CADASTRO_CONF_DO_VIGIA", "/root/vigia_whatsapp/config.json")
+LEADS_DIAS = float(os.environ.get("CADASTRO_LEADS_DIAS", "3"))
+# alguém da equipe escreveu pelo 8595 nesses minutos: a conversa é dela (o mesmo meio hora do Tel na Parceria)
+LEADS_GENTE_MIN = int(os.environ.get("CADASTRO_LEADS_GENTE_MIN", "30"))
 # segundos de silêncio que fecham uma leva no grupo (o encaminhamento chega em rajada)
 LEVA_SILENCIO_S = int(os.environ.get("CADASTRO_LEVA_SILENCIO_S", "90"))
 # segundos de silêncio antes de ler a resposta dele no privado (ele pode mandar em duas mensagens)

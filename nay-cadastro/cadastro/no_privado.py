@@ -22,18 +22,46 @@ def iniciar(conn) -> None:
     for c in banco.linhas(conn, "SELECT * FROM privado.cadastro_whats WHERE estado = 'na_fila' ORDER BY id"):
         if banco.uma(conn, banco.OCUPADO, {"id": c["id"], "tel": c["contato_tel"]})["sim"]:
             continue
-        if banco.uma(conn, banco.TEL_COM_A_CONVERSA, (c["contato_tel"],))["sim"]:
+        if fluxo.gente_no_chat(conn, c):
             continue
         try:
-            fluxo.proxima(conn, c, primeira=True)
+            fluxo.proxima(conn, o_que_ja_disse(conn, c), primeira=True)
         except Exception as e:  # noqa: BLE001
             fluxo.avisar_erro(conn, c, "Não consegui começar a conversa do cadastro", e)
 
 
 def do_chat_pausado(conn) -> None:
-    """A resposta que a porta deu ao Tel (chat pausado) entra na fila do cadastro; a próxima pergunta não sai (fluxo)."""
+    """A resposta que a porta deu ao Tel (chat pausado) entra na fila do cadastro; a próxima pergunta não sai (fluxo).
+    E (479) o que ele respondeu pelo 8595, nas fichas que perguntam por lá."""
     for r in banco.linhas(conn, banco.DO_CHAT_PAUSADO):
         log.info("ficha %s: resposta do chat pausado entrou na fila", r["cadastro_id"])
+    for r in banco.linhas(conn, banco.DO_8595):
+        log.info("ficha %s: resposta pelo 8595 entrou na fila", r["cadastro_id"])
+
+
+# o que a conversa de antes não decide: valor e taxa são do anúncio encaminhado ("2.000,00" solto pode ser o condomínio)
+NAO_DA_CONVERSA = ("valor_venda", "valor_aluguel", "taxa_condominio", "iptu", "descricao")
+
+
+def o_que_ja_disse(conn, c: dict) -> dict:
+    """479 (Tel, 23/10, a Ana: disse "É andar alto / Oitavo" pelo 8595 e a Parceria perguntou o andar): antes da primeira
+    pergunta, o que ele já disse pelo 8595 nos últimos 2 dias preenche o que falta na ficha. Só completa, nunca troca."""
+    if c.get("canal") != "leads":
+        return c
+    texto = (banco.uma(conn, banco.CONVERSA_NO_8595, {"tel": c["contato_tel"]}) or {}).get("texto")
+    if not texto:
+        return c
+    ficha = dict(c["ficha"])
+    novo = {k: v for k, v in fichas.do_modelo(modelo.ler_leva(texto, 0)).items()
+            if not k.startswith("_") and k not in NAO_DA_CONVERSA and not campos.tem(ficha, k)}
+    if not novo:
+        return c
+    ficha = fichas.juntar(ficha, novo)
+    fluxo.gravar(conn, c["id"], ficha=ficha)
+    c = {**c, "ficha": ficha}
+    fluxo.salvar_no_site(c)
+    log.info("ficha %s: da conversa do 8595 veio %s", c["id"], sorted(novo))
+    return c
 
 
 def responder(conn) -> bool:

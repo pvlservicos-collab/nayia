@@ -38,10 +38,13 @@ def test_ao_corretor_nunca_o_numero_do_apartamento():
 
 
 def test_andar_com_e_sem_elevador():
-    assert campos.POR_CHAVE["andar"].texto({"_elevador": "sim"}) == "Em qual andar ele fica?"
+    # Tel, 23/10: só a faixa ("é andar baixo, médio ou alto"), nunca "qual andar"
+    assert campos.POR_CHAVE["andar"].texto({"_elevador": "sim"}) == "O andar é baixo, médio ou alto?"
     assert campos.POR_CHAVE["andar"].texto({"_elevador": "nao"}) == "Quantos lances de escada até ele?"
     assert "lances de escada" in campos.POR_CHAVE["andar"].texto({})
     assert campos.POR_CHAVE["andar"].preenchida({"x:lances de escada": 2})
+    assert campos.POR_CHAVE["andar"].preenchida({"andar": "Andar alto"})
+    assert "Andar alto" in campos.resumo_do_que_tem({"andar": "Andar alto"})
 
 
 def test_abertura_do_tel():

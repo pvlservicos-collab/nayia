@@ -59,6 +59,10 @@ uma coisa de uma vez, e tudo o que disser sobre o imóvel vale.
   disser o NÚMERO DO APARTAMENTO em vez do andar, tire o andar dele: com 3 ou 4 dígitos, o andar são os dígitos antes
   dos dois últimos ("302" -> "3", "1104" -> "11"); com 2 dígitos, o primeiro ("52" -> "5"); com 1 dígito, andar null.
   Nesse caso preencha andar E unidade.
+  ANDAR EM FAIXA (Tel, 23/10: "tem corretor que não passa andar ... é andar baixo, médio ou alto ... ela tem que aceitar
+  isso"): "andar alto", "é alto", "andar médio", "meio do prédio", "andar baixo", "andar inferior", "primeiros andares"
+  -> andar = "Andar alto", "Andar médio" ou "Andar baixo". Isso RESPONDE a pergunta do andar (não é nao_sabe). Se ela
+  disser a faixa E o número ("é andar alto, oitavo"), andar = o número.
 - lances_escada: quantos lances de escada até o imóvel, quando o prédio não tem elevador ("2 lances" -> 2;
   "é no térreo, sem escada" -> 0).
 
