@@ -55,7 +55,8 @@ uma coisa de uma vez, e tudo o que disser sobre o imóvel vale.
 - Pergunta do elevador: condominio_elevador = "sim" ou "nao".
 - Pergunta "quartos e suítes": quartos e suites ("3 quartos sendo 1 suíte" -> quartos 3, suites 1).
 - Torre/bloco e apartamento: "bloco B, 302" -> bloco "B", unidade "302".
-- ANDAR: o número do andar como texto ("7º andar" -> "7"; "térreo" -> "Térreo"; "cobertura" -> "Cobertura"). Se ela
+- ANDAR: o número do andar como texto ("7º andar" -> "7"; "oitavo" -> "8"; "décimo segundo" -> "12"; "térreo" ->
+  "Térreo"; "cobertura" -> "Cobertura"). Andar por extenso vira SEMPRE o número. Se ela
   disser o NÚMERO DO APARTAMENTO em vez do andar, tire o andar dele: com 3 ou 4 dígitos, o andar são os dígitos antes
   dos dois últimos ("302" -> "3", "1104" -> "11"); com 2 dígitos, o primeiro ("52" -> "5"); com 1 dígito, andar null.
   Nesse caso preencha andar E unidade.

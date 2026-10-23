@@ -22,6 +22,11 @@ def iniciar(conn) -> None:
     for c in banco.linhas(conn, "SELECT * FROM privado.cadastro_whats WHERE estado = 'na_fila' ORDER BY id"):
         if banco.uma(conn, banco.OCUPADO, {"id": c["id"], "tel": c["contato_tel"]})["sim"]:
             continue
+        # o papel pode ter chegado depois da ficha: o canal é conferido de novo antes da primeira pergunta
+        canal = fluxo.canal_do_contato(conn, c["contato_tel"], c.get("papel"))
+        if canal != c.get("canal"):
+            fluxo.gravar(conn, c["id"], canal=canal)
+            c = {**c, "canal": canal}
         if fluxo.gente_no_chat(conn, c):
             continue
         try:
@@ -45,10 +50,9 @@ NAO_DA_CONVERSA = ("valor_venda", "valor_aluguel", "taxa_condominio", "iptu", "d
 
 def o_que_ja_disse(conn, c: dict) -> dict:
     """479 (Tel, 23/10, a Ana: disse "É andar alto / Oitavo" pelo 8595 e a Parceria perguntou o andar): antes da primeira
-    pergunta, o que ele já disse pelo 8595 nos últimos 2 dias preenche o que falta na ficha. Só completa, nunca troca."""
-    if c.get("canal") != "leads":
-        return c
-    texto = (banco.uma(conn, banco.CONVERSA_NO_8595, {"tel": c["contato_tel"]}) or {}).get("texto")
+    pergunta, o que ele disse de 3 h antes da ficha até agora (8595 e Parceria) preenche o que falta. Só completa."""
+    texto = (banco.uma(conn, banco.CONVERSA_RECENTE, {"tel": c["contato_tel"], "desde": c["criado_em"]})
+             or {}).get("texto")
     if not texto:
         return c
     ficha = dict(c["ficha"])
@@ -60,7 +64,7 @@ def o_que_ja_disse(conn, c: dict) -> dict:
     fluxo.gravar(conn, c["id"], ficha=ficha)
     c = {**c, "ficha": ficha}
     fluxo.salvar_no_site(c)
-    log.info("ficha %s: da conversa do 8595 veio %s", c["id"], sorted(novo))
+    log.info("ficha %s: da conversa em volta do encaminhamento veio %s", c["id"], sorted(novo))
     return c
 
 

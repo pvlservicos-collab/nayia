@@ -67,11 +67,13 @@ def com_elevador(conn, ficha: dict) -> dict:
     return {**ficha, "_elevador": valor} if valor else ficha
 
 
-def canal_do_contato(conn, fone: str | None) -> str:
-    """479: 'leads' quando ele escreveu para o 8595 nos últimos dias (a mesma Nay pergunta); senão 'parceria'."""
+def canal_do_contato(conn, fone: str | None, papel: str | None = None) -> str:
+    """479: 'leads' para o CORRETOR que escreveu para o 8595 nos últimos dias (a mesma Nay pergunta); o proprietário, e
+    quem não se sabe se é corretor, pela Parceria (Tel, 23/10)."""
     if not fone:
         return "parceria"
-    return banco.uma(conn, banco.CANAL_DO_CONTATO, {"tel": fone, "segs": int(config.LEADS_DIAS * 86400)})["canal"]
+    return banco.uma(conn, banco.CANAL_DO_CONTATO,
+                     {"tel": fone, "papel": papel, "segs": int(config.LEADS_DIAS * 86400)})["canal"]
 
 
 def gente_no_chat(conn, c: dict) -> bool:

@@ -116,13 +116,19 @@ SELECT coalesce(bool_or(nai_tel_com_a_conversa(k.id)), false) AS sim FROM nai_co
 """
 
 # ── 479: o número de LEADS (8595, Z-API da captação), cuja conversa mora em captacao_mensagens ────────────────────
-# quem escreveu para o 8595 nos últimos dias (e não é dono da captação do número oficial) é perguntado por ele
+# o CORRETOR que escreveu para o 8595 nos últimos dias é perguntado por ele; o PROPRIETÁRIO, sempre pela Parceria (Tel,
+# 23/10: "é para ter um check e falar com o proprietário pelo número parceria"). Corretor = disse que é, ou está no
+# cadastro de corretores/parceiros (nay_e_corretor_chave), ou nos grupos de corretores da busca (busca_grupo_membro).
 CANAL_DO_CONTATO = """
-SELECT CASE WHEN EXISTS (SELECT 1 FROM captacao_mensagens m
+SELECT CASE WHEN coalesce(%(papel)s, '') <> 'proprietario'
+             AND EXISTS (SELECT 1 FROM captacao_mensagens m
                           WHERE m.direcao = 'recebida' AND nay_fone_chave(m.telefone) = nay_fone_chave(%(tel)s)
                             AND m.criada_em > now() - make_interval(secs => %(segs)s))
              AND NOT EXISTS (SELECT 1 FROM captacao_leads l
                               WHERE l.telefone_chave = nay_fone_chave(%(tel)s) AND l.canal = 'oficial')
+             AND (coalesce(%(papel)s, '') = 'corretor' OR nay_e_corretor_chave(nay_fone_chave(%(tel)s))
+                  OR EXISTS (SELECT 1 FROM privado.busca_grupo_membro g
+                              WHERE g.telefone8 = right(regexp_replace(%(tel)s, '\\D', '', 'g'), 8)))
             THEN 'leads' ELSE 'parceria' END AS canal
 """
 # alguém da equipe escreveu para ele pelo 8595 há pouco: a conversa é dela
@@ -142,14 +148,21 @@ WITH novas AS (
      AND NOT EXISTS (SELECT 1 FROM privado.cadastro_whats_entrada e WHERE e.fonte = 'captacao' AND m.id = ANY (e.ids))
 )
 INSERT INTO privado.cadastro_whats_entrada (cadastro_id, texto, ids, fonte)
-SELECT cadastro_id, string_agg(texto, E'\n' ORDER BY id), array_agg(id::bigint ORDER BY id), 'captacao'
+SELECT cadastro_id, string_agg(texto, E'\\n' ORDER BY id), array_agg(id::bigint ORDER BY id), 'captacao'
   FROM novas GROUP BY cadastro_id
 RETURNING cadastro_id
 """
-# o que ele já disse pelo 8595 antes de a ficha existir (Tel, 23/10: a Ana disse "É andar alto / Oitavo" e foi perguntada)
-CONVERSA_NO_8595 = """
-SELECT string_agg(m.texto, E'\n' ORDER BY m.id) AS texto
-  FROM captacao_mensagens m
- WHERE m.direcao = 'recebida' AND nay_fone_chave(m.telefone) = nay_fone_chave(%(tel)s)
-   AND m.criada_em > now() - interval '2 days' AND nullif(btrim(m.texto), '') IS NOT NULL
+# o que ele disse, no 8595 E na Parceria, de 3 h antes da ficha até agora (Tel, 23/10: a Ana disse "É andar alto /
+# Oitavo" no 8595 às 12:25 e às 12:31 foi perguntada "Em qual andar ele fica?"). Corretor fala de vários imóveis: a
+# janela é a do encaminhamento, não a conversa toda.
+CONVERSA_RECENTE = """
+SELECT string_agg(x.texto, E'\\n' ORDER BY x.em) AS texto FROM (
+  SELECT m.texto, m.criada_em AS em FROM captacao_mensagens m
+   WHERE m.direcao = 'recebida' AND nay_fone_chave(m.telefone) = nay_fone_chave(%(tel)s)
+     AND m.criada_em > %(desde)s - interval '3 hours' AND nullif(btrim(m.texto), '') IS NOT NULL
+  UNION ALL
+  SELECT m.texto, m.criada_em FROM mensagens m
+   WHERE m.direcao = 'recebida' AND nai_chave(m.telefone) = nai_chave(%(tel)s)
+     AND m.criada_em > %(desde)s - interval '3 hours' AND nullif(btrim(m.texto), '') IS NOT NULL
+) x
 """
