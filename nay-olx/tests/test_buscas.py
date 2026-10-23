@@ -172,6 +172,16 @@ class OpcoesDaBase(unittest.TestCase):
             self.assertEqual(bo.pedido_dos_filtros({**self.F, "tipo": "sala"}, None, da_base=True)["tipo"], "sala")
             self.assertIsNone(bo.pedido_dos_filtros({**self.F, "tipo": "tanto_faz"}, None, da_base=True)["tipo"])
 
+    def test_abaixo_do_minimo_nao_busca(self):
+        """Pedro, 23/10: "não atendemos leads de imóveis abaixo de 200 mil ou abaixo de 2k de aluguel"."""
+        c = {"venda_min": 200000.0, "aluguel_min": 2000.0}
+        self.assertTrue(b.abaixo_do_minimo({"finalidade": "venda", "teto": 150000}, c))       # a busca 43
+        self.assertFalse(b.abaixo_do_minimo({"finalidade": "venda", "teto": 200000}, c))
+        self.assertTrue(b.abaixo_do_minimo({"finalidade": "locacao", "teto": "1800"}, c))
+        self.assertFalse(b.abaixo_do_minimo({"finalidade": "aluguel", "teto": 2000}, c))
+        self.assertFalse(b.abaixo_do_minimo({"finalidade": "venda"}, c))                       # sem valor: não se sabe
+        self.assertIn("R$ 200.000", b.texto_do_minimo(c))
+
     def test_a_busca_so_termina_com_3_opcoes(self):
         o = [{"codigo": 1, "estado": "cliente"}, {"codigo": 1, "estado": "cliente"}, {"codigo": 2, "estado": "cadastrando"},
              {"codigo": 3, "estado": "grupo"}]

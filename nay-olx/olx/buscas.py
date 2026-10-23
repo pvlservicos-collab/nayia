@@ -70,8 +70,40 @@ def _cfg(conn) -> dict:
     teste = [re.sub(r"\D", "", x) for x in re.split(r"[,;\s]+", c.get("whatsapp_teste") or "") if len(re.sub(r"\D", "", x)) >= 10]
     return {"fluxo": modo("busca_fluxo"), "grupos": modo("busca_grupos"), "olx": modo("busca_olx"),
             "corretor": modo("busca_corretor"), "intervalo_min": int(c.get("busca_grupos_intervalo_min") or 120),
-            "lote_min": int(c.get("busca_lote_min") or 10), "olx_por_busca": int(c.get("busca_olx_por_busca") or 3),
+            "olx_por_busca": int(c.get("busca_olx_por_busca") or 3),
+            # Pedro, 23/10: "não atendemos leads de imóveis abaixo de 200 mil ou abaixo de 2k de aluguel"
+            "venda_min": float(c.get("busca_venda_min") or 200000), "aluguel_min": float(c.get("busca_aluguel_min") or 2000),
             "de": de, "ate": ate, "teste": teste[0] if teste else None}
+
+
+def abaixo_do_minimo(f: dict, c: dict) -> bool:
+    """O valor que ela quer está abaixo do que a casa atende (venda < R$ 200 mil, aluguel < R$ 2 mil): sem busca fora.
+    Sem valor no perfil não se sabe: não é abaixo."""
+    try:
+        teto = float((f or {}).get("teto") or 0)
+    except (TypeError, ValueError):
+        return False
+    if not teto:
+        return False
+    fin = finalidade(f)
+    return (fin == "venda" and teto < c["venda_min"]) or (fin == "locacao" and teto < c["aluguel_min"])
+
+
+def texto_do_minimo(c: dict) -> str:
+    return f"abaixo do que atendemos (venda a partir de {dinheiro(c['venda_min'])}, aluguel a partir de {dinheiro(c['aluguel_min'])})"
+
+
+def encerrar_abaixo_do_minimo(conn, c: dict) -> int:
+    """A busca aberta cujo valor ficou abaixo do mínimo é encerrada (com o motivo na linha da tela)."""
+    n = 0
+    for b in banco.linhas(conn, "SELECT id, filtros FROM privado.busca_cliente WHERE estado IN ('buscando', 'perfil', 'nossa_base')"):
+        if not abaixo_do_minimo(b["filtros"], c):
+            continue
+        banco.um(conn, "UPDATE privado.busca_cliente SET estado = 'encerrada', motivo = %s WHERE id = %s", (texto_do_minimo(c), b["id"]))
+        passo(conn, b["id"], "perfil", f"Busca encerrada: {resumo(b['filtros'])}: {texto_do_minimo(c)}")
+        n += 1
+    conn.commit()
+    return n
 
 
 def no_horario(c: dict, agora: datetime | None = None) -> bool:
@@ -273,6 +305,12 @@ def garantir(conn, lead: dict, filtros: dict | None = None, c: dict | None = Non
         banco.um(conn, "UPDATE privado.busca_cliente SET filtros = %s::jsonb, atualizado_em = now() WHERE id = %s",
                  (json.dumps(f, ensure_ascii=False), b["id"]))
         passo(conn, b["id"], "perfil", f"Perfil atualizado ({origem}): {resumo(f)}", f)
+        # encerrada só pelo valor baixo e agora o valor serve: volta a ser uma busca como as outras
+        if b["estado"] == "encerrada" and str(b.get("motivo") or "").startswith("abaixo do que atendemos") \
+                and not abaixo_do_minimo(f, c):
+            banco.um(conn, "UPDATE privado.busca_cliente SET estado = 'perfil', motivo = NULL WHERE id = %s", (b["id"],))
+            passo(conn, b["id"], "perfil", "Busca reaberta: o valor agora está no que atendemos")
+            b = {**b, "estado": "perfil"}
         conn.commit()
         b = {**b, "filtros": f}
     return b
@@ -308,6 +346,13 @@ def resultado_da_base(conn, lead: dict, filtros: dict, quantos: int, exato: bool
             return False
         passo(conn, b["id"], "base", f"Nossa base: nada no perfil exato; foram {quantos} mais próxima(s)" if quantos
               else "Nossa base: nada para esse perfil")
+        if abaixo_do_minimo(b["filtros"], c):
+            if b["estado"] not in ("encerrada",):
+                banco.um(conn, "UPDATE privado.busca_cliente SET estado = 'encerrada', motivo = %s WHERE id = %s",
+                         (texto_do_minimo(c), b["id"]))
+                passo(conn, b["id"], "perfil", f"Busca não ativada: {texto_do_minimo(c)}")
+            conn.commit()
+            return False
         if c["fluxo"] == "nao" or b["estado"] in ("buscando", "pausada", "encerrada", "ofertado") or not pronto(b["filtros"]):
             conn.commit()
             return False
@@ -361,10 +406,11 @@ def _tel8(t: str | None) -> str:
 def grupos_volta(conn, c: dict) -> int:
     if c["grupos"] == "nao" or not no_horario(c):
         return 0
-    buscas = banco.linhas(conn, """SELECT * FROM privado.busca_cliente WHERE estado = 'buscando'
-                                    AND ativada_em < now() - make_interval(mins => %s) ORDER BY ativada_em""", (c["lote_min"],))
+    # Pedro, 23/10: "quando tiver o perfil ele vai executar as 2 buscas de grupos e base da OLX juntos depois da busca na
+    # base": sem a espera de `busca_lote_min` depois da ativação (a OLX já saía na hora e os grupos esperavam 10 min)
+    buscas = banco.linhas(conn, "SELECT * FROM privado.busca_cliente WHERE estado = 'buscando' ORDER BY ativada_em")
     # 22/10 (Tel: "o de casa faltou o valor"): sem valor a busca não vai aos grupos (a Nay pergunta o valor primeiro)
-    buscas = [b for b in buscas if pronto(b["filtros"]) and b["filtros"].get("teto")]
+    buscas = [b for b in buscas if pronto(b["filtros"]) and b["filtros"].get("teto") and not abaixo_do_minimo(b["filtros"], c)]
     if not buscas:
         return 0
     feitas = 0
@@ -461,11 +507,14 @@ def olx_volta(conn, c: dict) -> int:
     # 476c: os nossos números nunca são perguntados; o mesmo anunciante uma vez por volta (também em teste)
     nossos = set(banco.um(conn, "SELECT busca_nossos_numeros()") or [])
     nesta_volta: set[str] = set()
+    # 23/10: no modo sim, a busca que só foi perguntada em teste é refeita de verdade já (antes esperava OLX_DE_NOVO_H)
+    so_teste = "" if c["olx"] == "teste" else \
+        " OR (olx_em < now() - interval '10 minutes' AND NOT jsonb_path_exists(olx, '$[*] ? (@.teste == false)'))"
     for b in banco.linhas(conn, f"""SELECT * FROM privado.busca_cliente WHERE estado = 'buscando'
-                                     AND (olx_em IS NULL OR olx_em < now() - interval '{OLX_DE_NOVO_H} hours')
+                                     AND (olx_em IS NULL OR olx_em < now() - interval '{OLX_DE_NOVO_H} hours'{so_teste})
                                    ORDER BY olx_em NULLS FIRST, id LIMIT 4"""):
         # sem valor no perfil a base da OLX traria de tudo (no teste de 22/10, casas de R$ 1,6 a 2 mi): espera o valor
-        if not pronto(b["filtros"]) or not b["filtros"].get("teto"):
+        if not pronto(b["filtros"]) or not b["filtros"].get("teto") or abaixo_do_minimo(b["filtros"], c):
             continue
         teste = c["olx"] == "teste"
         tentados = [int(x["olx_id"]) for x in b["olx"] or [] if x.get("olx_id") and (teste or not x.get("teste"))]
@@ -901,7 +950,9 @@ def uma_volta(conn) -> dict:
     if c["fluxo"] == "nao":
         return {}
     r = {"registro": sincronizar(conn, c)}
-    for nome, f in (("membros", lambda: atualizar_membros(conn)), ("base", lambda: base_volta(conn, c)),
+    # a ordem de cada volta: o que está abaixo do mínimo sai; depois a nossa base e, juntos, grupos e OLX; os corretores
+    for nome, f in (("minimo", lambda: encerrar_abaixo_do_minimo(conn, c)),
+                    ("membros", lambda: atualizar_membros(conn)), ("base", lambda: base_volta(conn, c)),
                     ("grupos", lambda: grupos_volta(conn, c)),
                     ("olx", lambda: olx_volta(conn, c)), ("corretores", lambda: corretores_volta(conn, c))):
         try:
