@@ -33,8 +33,10 @@ SELECT i.codigo, i.tipo, i.bairro, i.condominio_nome, i.quartos, i.suites, i.vag
                       WHERE x.codigo = i.codigo AND x.encontrado ORDER BY x.lido_em DESC LIMIT 1) cc ON true
   LEFT JOIN LATERAL (SELECT max(x.aplicado_em) AS dono FROM captacao_aplicado x
                       WHERE x.codigo::text = i.codigo::text AND x.situacao = 'disponivel') a ON true
- WHERE coalesce(i.disponivel, true) AND i.status = 'Disponível'
-   AND NOT coalesce(i.e_parceiro, false) AND NOT coalesce(i.bloqueado, false)
+ WHERE coalesce(i.disponivel, true) AND i.status = 'Disponível' AND NOT coalesce(i.bloqueado, false)
+   -- 23/10: a busca do cliente final (nay-olx/olx/buscas.py) pede também o parceiro Disponível (400), fora o antigo (413)
+   AND (NOT coalesce(i.e_parceiro, false)
+        OR (%(com_parceiro)s AND coalesce(i.extras->>'parceiro_antigo', '') <> 'sim'))
 """
 
 # OS BAIRROS PRÓXIMOS, com o que se sabe de cada par: se fazem divisa e a distância entre os centros (km).
@@ -117,10 +119,11 @@ def andar_do(a: str | None) -> int | None:
     return 99 if "alto" in n else None
 
 
-def carregar(conn) -> tuple[list[dict], dict]:
-    """(os imóveis, {bairro: {vizinho: {"divisa": bool, "km": float | None}}}); nomes como chave (texto.normal)."""
+def carregar(conn, com_parceiro: bool = False) -> tuple[list[dict], dict]:
+    """(os imóveis, {bairro: {vizinho: {"divisa": bool, "km": float | None}}}); nomes como chave (texto.normal).
+    `com_parceiro`: só a busca do cliente final (o corretor dos grupos nunca recebe parceiro)."""
     with conn.cursor() as cur:
-        cur.execute(SQL)
+        cur.execute(SQL, {"com_parceiro": com_parceiro})
         colunas = [d[0] for d in cur.description]
         linhas = [dict(zip(colunas, l)) for l in cur.fetchall()]
         cur.execute(SQL_VIZINHOS)

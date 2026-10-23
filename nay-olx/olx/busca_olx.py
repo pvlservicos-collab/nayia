@@ -187,8 +187,11 @@ def para_imovel(a: dict, oper: str) -> dict:
     }
 
 
-def pedido_dos_filtros(filtros: dict, lugares) -> dict:
-    """Os filtros da Nay do WhatsApp no formato do pedido da aba Grupos (o lugar passa pelo mesmo resolvedor)."""
+def pedido_dos_filtros(filtros: dict, lugares, da_base: bool = False) -> dict:
+    """Os filtros da Nay do WhatsApp no formato do pedido da aba Grupos (o lugar passa pelo mesmo resolvedor).
+    `da_base` (23/10, a busca do cliente na NOSSA base, olx/buscas.py): o imóvel do cadastro tem condomínio, tipo e a
+    mobília certa, então o pedido leva o condomínio que ela disse, o tipo do cadastro (sala, cobertura) e o semi
+    separado do mobiliado (Pedro, 20/10: "se quer mobiliado é mobiliado, se quer semi é semi")."""
     q = _int(filtros.get("quartos"))
     if not q and _ate_5((filtros.get("olx") or {}).get("quartos") if isinstance(filtros.get("olx"), dict) else None):
         q = int(min(_ate_5(filtros["olx"]["quartos"])))     # o menor dos marcados é o que a nota pede
@@ -212,6 +215,14 @@ def pedido_dos_filtros(filtros: dict, lugares) -> dict:
         "elevador": True if escada in (False, "false") else None,
         "trecho": "",
     }
+    if da_base:
+        t = normal(filtros.get("tipo"))
+        ficha["condominio"] = str(filtros.get("condominio") or "").strip() or None
+        ficha["tipo"] = gcatalogo.tipo_do(t) if t and t != "tanto faz" else None
+        # mobília é coisa de locação (394)
+        ficha["mobiliado"] = (None if operacao(filtros) == "venda" else "semi" if mob.startswith("semi")
+                              else "mobiliado" if mob.startswith("mobil") else "sem" if mob.startswith(("nao", "sem", "vazio"))
+                              else None)
     pedido, _local, _duv = glugares.resolver(ficha, None, lugares)
     return pedido
 

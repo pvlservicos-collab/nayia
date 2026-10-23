@@ -43,6 +43,9 @@ OLX_DE_NOVO_H = 6              # a mesma busca olha a base da OLX de novo depois
 CONTATO_DE_NOVO_H = 24         # o mesmo anunciante não é chamado de novo antes disto, nem por outra busca
 MEMBROS_A_CADA_S = 6 * 3600
 BASE_A_CADA_MIN = 30           # a busca aberta olha a nossa base de novo depois disto (imóvel novo no perfil vai à lead)
+# Pedro, 23/10: "o ideal não é ter um imóvel enviado e sim 3 a 5 opções; ela não deve parar na hora de achar um imóvel"
+OPCOES_META = 3                # a busca só termina ('ofertado') quando a lead recebeu tantas opções
+OPCOES_MAX = 5                 # e nunca passa disto (a base manda de uma vez o que couber até aqui)
 FOTOS_MINIMAS = 3
 ATIVAS = ("buscando",)
 _ULTIMO = {"membros": 0.0}
@@ -664,67 +667,115 @@ def oferecer_ao_cliente(conn, b: dict, codigo: int, cor: dict, c: dict) -> str:
                         f"ofereceu o imóvel #{codigo}, já cadastrado como parceiro. A conversa do cliente está com a equipe: "
                         f"apresentem por lá.")
         return "grupo"
-    return _mandar_ao_cliente(conn, lead, codigo)
+    return _mandar_ao_cliente(conn, lead, [codigo])
 
 
-def _mandar_ao_cliente(conn, lead: dict, codigo: int) -> str:
-    whatsapp.mandar_texto(conn, lead, "Boa notícia! Encontrei uma opção que combina com o que você procura:")
-    time.sleep(whatsapp.ENTRE_ENVIOS_S)
-    whatsapp.mandar_imovel(conn, lead, codigo)
-    time.sleep(whatsapp.DEPOIS_DAS_FOTOS_S)
-    whatsapp.mandar_texto(conn, lead, "O que achou dessa? Se gostar, já vejo a visita para você.")
+def _mandar_ao_cliente(conn, lead: dict, codigos: list[int]) -> str:
+    """Os imóveis um de cada vez (card, fotos, espera as fotos, o próximo) e uma pergunta no fim."""
+    um = len(codigos) == 1
+    whatsapp.mandar_texto(conn, lead, "Boa notícia! Encontrei uma opção que combina com o que você procura:" if um else
+                          f"Boa notícia! Encontrei {len(codigos)} opções que combinam com o que você procura:")
     enviados = list(lead.get("enviados") or [])
-    if codigo not in enviados:
-        whatsapp._marcar(conn, lead["id"], enviados=enviados + [codigo])
+    for n, codigo in enumerate(codigos):
+        time.sleep(whatsapp.DEPOIS_DAS_FOTOS_S if n else whatsapp.ENTRE_ENVIOS_S)
+        whatsapp.mandar_imovel(conn, lead, codigo)
+        if codigo not in enviados:
+            enviados.append(codigo)
+            whatsapp._marcar(conn, lead["id"], enviados=enviados)
+    time.sleep(whatsapp.DEPOIS_DAS_FOTOS_S)
+    whatsapp.mandar_texto(conn, lead, "O que achou dessa? Se gostar, já vejo a visita para você." if um else
+                          "Alguma delas te agradou? Me diz qual e já vejo a visita para você.")
     conn.commit()
     return "cliente"
+
+
+def opcoes_enviadas(b: dict) -> int:
+    """Quantos imóveis diferentes a busca já pôs na frente dela (o da base e o do corretor)."""
+    return len({int(x["codigo"]) for x in b.get("ofertas") or [] if x.get("codigo") and x.get("estado") in ("cliente", "grupo")})
+
+
+def _fechar_se_completa(conn, b: dict, ofertas: list[dict]) -> bool:
+    """A busca termina quando ela recebeu OPCOES_META opções; antes disso grupos, OLX e base continuam."""
+    if opcoes_enviadas({"ofertas": ofertas}) < OPCOES_META:
+        return False
+    banco.um(conn, "UPDATE privado.busca_cliente SET estado = 'ofertado', ofertado_em = now() WHERE id = %s", (b["id"],))
+    passo(conn, b["id"], "oferta", f"Busca concluída: {opcoes_enviadas({'ofertas': ofertas})} opções enviadas ao cliente")
+    return True
+
+
+def opcoes_da_base(conn, lead: dict, f: dict, excluir: list[int], quantas: int) -> list[dict]:
+    """As melhores opções da nossa base pela NOTA da Captação ativa (Pedro, 23/10: "deve usar aquele mesmo algoritmo
+    de julgamento de imóvel da aba captação ativa que dá notas, para achar mais opções"): o código de /root/nay-grupos
+    (catálogo, resolvedor de lugares, pontuar e o config.json de lá), o mesmo que a busca na OLX já usa. Entra o bairro
+    pedido e o vizinho pela distância, nota a partir do corte amarelo (70); o melhor primeiro. Depois, a regra de quem
+    pode receber cada imóvel (olx_imovel_vai_ao_cliente: o parceiro só ao cliente final)."""
+    from olx import busca_olx as bo
+    regras, _ = bo.gregras.carregar(bo.REGRAS_DOS_GRUPOS)
+    imoveis, vizinhos = bo.gcatalogo.carregar(conn, com_parceiro=f.get("aceita_parceiro") == "true")
+    pedido = bo.pedido_dos_filtros(f, bo.glugares.Lugares(conn), da_base=True)
+    if not pedido.get("tipo"):
+        imoveis = [i for i in imoveis if i["tipo"] in ("apartamento", "casa")]   # sem tipo dito: só residencial (como a busca da Nay)
+    if "condom" in str(f.get("tipo") or "").lower():
+        # a nota junta casa e casa de condomínio em "casa"; quem pediu condomínio não recebe casa de rua (o Luiz Paulo, 23/10)
+        imoveis = [i for i in imoveis if "condom" in bo.normal(i.get("tipo_cadastro"))]
+    fora = set(excluir)
+    imoveis = [i for i in imoveis if int(i["codigo"]) not in fora]
+    regras = {**regras, "alternativas": max(0, quantas * 3 - 1)}         # sobra para os que não podem ir a ela
+    limite = datetime.now(timezone.utc) - timedelta(days=regras["confirmado_dias"])
+    r = bo.gpontuar.melhores(pedido, imoveis, regras, vizinhos, limite)
+    saida = []
+    for p in r["pares"]:
+        if p["nota"] < regras["cortes"]["amarelo"] or len(saida) >= quantas:
+            break
+        if whatsapp._ofertavel(conn, int(p["codigo"]), lead):
+            saida.append({"codigo": int(p["codigo"]), "nota": p["nota"]})
+    return saida
 
 
 def base_volta(conn, c: dict) -> int:
     """O imóvel que entrou na nossa base DEPOIS da busca (Pedro, 23/10: "esse novo imóvel cadastrado no grupo de
     cadastro não está aparecendo para a lead"). A base só era olhada quando a lead escrevia; a busca criada da conversa
     (a Edsandra, lead 45) nunca olhou, e tinha o 3841 e o 4020 no perfil. A cada BASE_A_CADA_MIN, a busca ATIVA (só
-    'buscando': as 'perfil' são dezenas de leads antigas) contra o catálogo, no perfil exato (sem afrouxar), fora o que
-    ela já recebeu ou já foi oferecido; um imóvel por vez, um por dia."""
+    'buscando': as 'perfil' são dezenas de leads antigas) contra o catálogo pela nota da Captação ativa (opcoes_da_base),
+    fora o que ela já recebeu ou já foi oferecido; de uma vez o que couber até OPCOES_MAX (a espera de um por dia saiu:
+    com ela, as opções que já estavam na base só chegavam nos dias seguintes).
+    A conversa com a equipe: nada sai (Pedro, 23/10: o aviso "apresentem por lá" no grupo "não precisa"); a busca
+    espera a conversa voltar para a Nay."""
     if not no_horario(c):
         return 0
     feitos = 0
     for b in banco.linhas(conn, f"""SELECT * FROM privado.busca_cliente WHERE estado = 'buscando'
                                      AND (base_em IS NULL OR base_em < now() - interval '{BASE_A_CADA_MIN} minutes')
                                    ORDER BY base_em NULLS FIRST, id LIMIT 6"""):
+        banco.um(conn, "UPDATE privado.busca_cliente SET base_em = now() WHERE id = %s", (b["id"],))
+        conn.commit()
         if not pronto(b["filtros"]):
             continue
         lead = whatsapp._lead(conn, b["lead"])
+        if not lead or lead.get("humano_em"):
+            continue
+        ofertas = list(b["ofertas"] or [])
+        if _fechar_se_completa(conn, b, ofertas):
+            conn.commit()
+            continue
         f = dict(b["filtros"])
         if whatsapp._aceita_parceiro(conn, lead):
             f["aceita_parceiro"] = "true"
-        # um da base por dia: o próximo espera ela ver o de antes
-        if any(x.get("de") == "base" and x.get("em", "") > (datetime.now(MANAUS) - timedelta(hours=24)).isoformat()
-               for x in b["ofertas"] or []):
-            continue
-        oferecidos = [int(x["codigo"]) for x in b["ofertas"] or [] if x.get("codigo")]
+        oferecidos = [int(x["codigo"]) for x in ofertas if x.get("codigo")]
         excluir = list(lead.get("enviados") or []) + ([lead["codigo"]] if lead.get("codigo") else []) + oferecidos
-        achados = banco.linhas(conn, "SELECT * FROM olx_cliente_buscar(%s::jsonb, %s::int[], 1)",
-                               (json.dumps(f, ensure_ascii=False), excluir))
-        banco.um(conn, "UPDATE privado.busca_cliente SET base_em = now() WHERE id = %s", (b["id"],))
-        conn.commit()
+        achados = opcoes_da_base(conn, lead, f, excluir, OPCOES_MAX - opcoes_enviadas(b))
         if not achados:
             continue
-        codigo = int(achados[0]["codigo"])
-        # sem o modo teste: o imóvel da nossa base é o que a Nay do WhatsApp manda quando ela escreve
-        teste = False
-        if lead.get("humano_em"):
-            whatsapp._grupo(f"Busca do cliente {whatsapp.quem(lead)}: o imóvel #{codigo} da nossa base serve no perfil dela. "
-                            f"A conversa do cliente está com a equipe: apresentem por lá.")
-            onde = "grupo"
-        else:
-            onde = _mandar_ao_cliente(conn, lead, codigo)
+        codigos = [a["codigo"] for a in achados]
+        onde = _mandar_ao_cliente(conn, lead, codigos)
+        em = datetime.now(MANAUS).isoformat(timespec="minutes")
+        novas = [{"codigo": a["codigo"], "de": "base", "nota": a["nota"], "em": em, "estado": onde, "teste": False}
+                 for a in achados]
         banco.um(conn, "UPDATE privado.busca_cliente SET ofertas = ofertas || %s::jsonb WHERE id = %s",
-                 (json.dumps([{"codigo": codigo, "de": "base", "em": datetime.now(MANAUS).isoformat(timespec="minutes"),
-                               "estado": onde, "teste": teste}], ensure_ascii=False), b["id"]))
-        passo(conn, b["id"], "oferta", {"cliente": f"Nossa base: o imóvel #{codigo} serve no perfil e foi oferecido ao cliente",
-                                        "grupo": f"Nossa base: o imóvel #{codigo} serve no perfil; o cliente está com a equipe: avisado no grupo",
-                                        "teste": f"Nossa base: o imóvel #{codigo} serve no perfil (teste: não foi ao cliente)"}[onde])
+                 (json.dumps(novas, ensure_ascii=False), b["id"]))
+        passo(conn, b["id"], "oferta", "Nossa base: " + ", ".join(f"#{a['codigo']} (nota {a['nota']:g})" for a in achados)
+              + f" pela nota da Captação ativa; {'enviado' if len(achados) == 1 else 'enviados'} ao cliente")
+        _fechar_se_completa(conn, b, ofertas + novas)
         conn.commit()
         feitos += 1
     return feitos
@@ -798,7 +849,14 @@ def corretores_volta(conn, c: dict) -> int:
             if not falta:
                 onde = oferecer_ao_cliente(conn, b, codigo, cor, c)
                 if onde in ("cliente", "grupo"):
-                    banco.um(conn, """UPDATE privado.busca_cliente SET estado = 'ofertado', ofertado_em = now() WHERE id = %s""", (b["id"],))
+                    # 23/10: um imóvel não fecha a busca; ela segue até OPCOES_META opções (_fechar_se_completa)
+                    ofertas = banco.um(conn, """
+                        UPDATE privado.busca_cliente SET ofertas = (
+                               SELECT coalesce(jsonb_agg(CASE WHEN o->>'codigo' = %s::text THEN o || jsonb_build_object('estado', %s::text)
+                                                              ELSE o END ORDER BY n), '[]'::jsonb)
+                                 FROM jsonb_array_elements(ofertas) WITH ORDINALITY AS x(o, n))
+                         WHERE id = %s RETURNING ofertas""", (codigo, onde, b["id"]))
+                    _fechar_se_completa(conn, b, ofertas or [])
                     banco.um(conn, "UPDATE privado.busca_corretor SET estado = 'ofertado' WHERE telefone8 = %s", (t8,))
                 passo(conn, b["id"], "oferta", {"cliente": f"Imóvel #{codigo} completo e oferecido ao cliente",
                                                 "grupo": f"Imóvel #{codigo} completo; o cliente está com a equipe: avisado no grupo",
