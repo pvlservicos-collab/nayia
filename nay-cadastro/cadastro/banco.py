@@ -116,20 +116,13 @@ SELECT coalesce(bool_or(nai_tel_com_a_conversa(k.id)), false) AS sim FROM nai_co
 """
 
 # ── 479: o número de LEADS (8595, Z-API da captação), cuja conversa mora em captacao_mensagens ────────────────────
-# o CORRETOR que escreveu para o 8595 nos últimos dias é perguntado por ele; o PROPRIETÁRIO, sempre pela Parceria (Tel,
-# 23/10: "é para ter um check e falar com o proprietário pelo número parceria"). Corretor = disse que é, ou está no
-# cadastro de corretores/parceiros (nay_e_corretor_chave), ou nos grupos de corretores da busca (busca_grupo_membro).
+# TODO contato (corretor, proprietário, quem não se sabe) é perguntado pelo 8595 (Pedro, 23/10: "quero tudo pelo número
+# de leads mesmo de captação, tinha pedido errado antes"; antes o proprietário ia pela Parceria). Só fica na Parceria o
+# dono que é lead da CAPTAÇÃO (oficial ou 8595): a resposta dele no 8595 cai na conversa da Nay de captação, que
+# responderia junto.
 CANAL_DO_CONTATO = """
-SELECT CASE WHEN coalesce(%(papel)s, '') <> 'proprietario'
-             AND EXISTS (SELECT 1 FROM captacao_mensagens m
-                          WHERE m.direcao = 'recebida' AND nay_fone_chave(m.telefone) = nay_fone_chave(%(tel)s)
-                            AND m.criada_em > now() - make_interval(secs => %(segs)s))
-             AND NOT EXISTS (SELECT 1 FROM captacao_leads l
-                              WHERE l.telefone_chave = nay_fone_chave(%(tel)s) AND l.canal = 'oficial')
-             AND (coalesce(%(papel)s, '') = 'corretor' OR nay_e_corretor_chave(nay_fone_chave(%(tel)s))
-                  OR EXISTS (SELECT 1 FROM privado.busca_grupo_membro g
-                              WHERE g.telefone8 = right(regexp_replace(%(tel)s, '\\D', '', 'g'), 8)))
-            THEN 'leads' ELSE 'parceria' END AS canal
+SELECT CASE WHEN EXISTS (SELECT 1 FROM captacao_leads l WHERE l.telefone_chave = nay_fone_chave(%(tel)s))
+            THEN 'parceria' ELSE 'leads' END AS canal
 """
 # alguém da equipe escreveu para ele pelo 8595 há pouco: a conversa é dela
 GENTE_NO_8595 = """

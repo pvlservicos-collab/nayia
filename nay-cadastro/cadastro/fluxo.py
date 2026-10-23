@@ -68,12 +68,11 @@ def com_elevador(conn, ficha: dict) -> dict:
 
 
 def canal_do_contato(conn, fone: str | None, papel: str | None = None) -> str:
-    """479: 'leads' para o CORRETOR que escreveu para o 8595 nos últimos dias (a mesma Nay pergunta); o proprietário, e
-    quem não se sabe se é corretor, pela Parceria (Tel, 23/10)."""
+    """'leads' (8595) para todo contato (Pedro, 23/10: "quero tudo pelo número de leads"); a Parceria só para o dono que é
+    lead da captação (a Nay de captação responderia junto). `papel` não decide mais (fica na assinatura de quem chama)."""
     if not fone:
         return "parceria"
-    return banco.uma(conn, banco.CANAL_DO_CONTATO,
-                     {"tel": fone, "papel": papel, "segs": int(config.LEADS_DIAS * 86400)})["canal"]
+    return banco.uma(conn, banco.CANAL_DO_CONTATO, {"tel": fone})["canal"]
 
 
 def gente_no_chat(conn, c: dict) -> bool:
