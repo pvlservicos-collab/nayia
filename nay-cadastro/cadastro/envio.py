@@ -117,13 +117,17 @@ def _zapi() -> dict:
     return _credenciais
 
 
-def grupo(conn, texto: str, cadastro_id: int | None = None, citar: str | None = None) -> str | None:
-    """Posta no grupo do cadastro. Devolve o id da mensagem (ou None se não saiu)."""
+def grupo(conn, texto: str, cadastro_id: int | None = None, citar: str | None = None,
+          mencionar: list[str] | None = None) -> str | None:
+    """Posta no grupo do cadastro. Devolve o id da mensagem (ou None se não saiu). `mencionar`: os telefones marcados
+    com @ (o texto leva "@<telefone>")."""
     c = _zapi()
     url = f"https://api.z-api.io/instances/{c['ZAPI_INSTANCIA']}/token/{c['ZAPI_TOKEN']}/send-text"
     corpo = {"phone": config.GRUPO_ID, "message": texto}
     if citar:
         corpo["messageId"] = citar
+    if mencionar:
+        corpo["mentioned"] = [so_digitos(t) for t in mencionar if so_digitos(t)]
     try:
         r = requests.post(url, json=corpo, headers={"Client-Token": c["ZAPI_CLIENT_TOKEN"]}, timeout=30)
         j = r.json() if r.content else {}

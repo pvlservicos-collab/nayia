@@ -34,7 +34,7 @@ LIGADO = "SELECT coalesce(nai_cfg('cadastro_whats', 'sim'), 'sim') <> 'nao' AS l
 
 # as mensagens do grupo que ainda não foram lidas: nem as nossas (postada), nem as já lidas
 NOVAS_DO_GRUPO = """
-SELECT g.message_id, g.enviada_em, g.tipo, g.texto, g.midia_url, g.remetente, g.citado_id
+SELECT g.message_id, g.enviada_em, g.tipo, g.texto, g.midia_url, g.remetente, g.remetente_nome, g.citado_id
   FROM privado.grupo_conversa g
  WHERE g.grupo_id = %(grupo)s AND g.enviada_em > now() - make_interval(secs => %(desde)s)
    AND NOT EXISTS (SELECT 1 FROM privado.cadastro_whats_lida l WHERE l.message_id = g.message_id)

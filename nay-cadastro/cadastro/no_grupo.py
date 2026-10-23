@@ -54,7 +54,7 @@ def tratar(conn, leva: Leva) -> None:
         fones.append(dito)
     if not leva.fotos and not levas.parece_anuncio(leva.texto, saida):
         # 23/10: o Tel decide no grupo se ela fala com o contato ("pode", "não", "espera", "para", "não pergunta X")
-        conversa = autorizacao.ficha_da_conversa(conn, citada) if leva.texto.strip() else None
+        conversa = autorizacao.ficha_da_conversa(conn, citada, leva.quem_mandou.get("tel")) if leva.texto.strip() else None
         if conversa and autorizacao.escutar(conn, conversa, leva.texto, leva.ids[0]):
             citada = citada or conversa["id"]
         if fones and not saida.get("e_imovel"):
@@ -126,6 +126,7 @@ def _nova_ficha(conn, leva: Leva, saida: dict, fones: list[str]) -> None:
     papel = papel_de(conn, fone, ficha.pop("_papel", None))
     ficha = achar_condominio(conn, ficha)
     ficha["_fotos"] = 0
+    ficha["_quem_mandou"] = leva.quem_mandou       # 23/10: é a quem ela pede a autorização (autorizacao.py)
     c = banco.uma(conn, """
         INSERT INTO privado.cadastro_whats (grupo_id, mensagens, texto, fotos, contato_tel, contato_nome, papel, ficha, canal)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *""",

@@ -13,9 +13,9 @@ concluído."
    428) ou do texto. O imóvel nasce no site como **Rascunho** pela mesma API da aba Editar imóvel, com o contato como
    proprietário (corretor = imóvel parceiro; dono = imóvel próprio) e as fotos baixadas da Z-API e subidas para o nosso
    servidor. Ela posta no grupo o checklist: o que já tem e as **dúvidas**. Sem telefone, pede o contato no grupo.
-1b. **Autorização do Tel** (`autorizacao.py`, Pedro 23/10). Numa mensagem separada: "🙋 Tel, posso falar com FULANO
+1b. **Autorização no grupo** (`autorizacao.py`, Pedro 23/10). Numa mensagem separada: "🙋 @quem mandou, posso falar com FULANO
    (corretor/proprietário, fone) pelo número de leads sobre o imóvel X? Vou perguntar: ...". Nada sai no privado antes do
-   "pode". Ela escuta o que o Tel escreve no grupo (marcando a mensagem dela, ou sobre a ficha que espera o pedido):
+   "pode". Ela escuta quem mandou o imóvel (e o Tel) no grupo, marcando a mensagem dela ou sobre a ficha que espera:
    pode / não (ele mesmo vê: a ficha fecha sem falar com ninguém) / espera / para / "não pergunta X" / "pergunta só Y"
    (`modelo.ler_decisao`); o dado do imóvel que ele disser entra no cadastro (complemento).
 2. **Privado** (`no_privado.py`). "Só para concluir o cadastro do imóvel, pode me confirmar umas informações por

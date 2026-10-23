@@ -28,6 +28,7 @@ class Mensagem:
     midia_url: str | None = None
     remetente: str | None = None
     citado_id: str | None = None
+    remetente_nome: str | None = None
 
 
 @dataclass
@@ -49,6 +50,12 @@ class Leva:
     @property
     def fotos(self) -> list[Mensagem]:
         return [m for m in self.mensagens if m.tipo == "imagem" and m.midia_url]
+
+    @property
+    def quem_mandou(self) -> dict:
+        """Quem mandou a primeira mensagem da leva (o telefone e o nome no WhatsApp)."""
+        m = self.mensagens[0]
+        return {k: v for k, v in (("tel", m.remetente), ("nome", m.remetente_nome)) if v}
 
     @property
     def citados(self) -> list[str]:

@@ -63,6 +63,25 @@ def test_sem_o_pode_do_tel_o_privado_nao_comeca():
         f.desligar()
 
 
+def test_o_pedido_marca_quem_mandou_e_so_ele_ou_o_tel_decidem():
+    """Pedro, 23/10: "é melhor ele perguntar do número que enviou as primeiras informações de imóvel e não fixar isso
+    no número do Tel"."""
+    from cadastro import banco
+    f = _Falso().ligar()
+    antes = banco.uma
+    banco.uma = lambda conn, sql, params=None: {"t": "559294717316"}           # nai_cfg('tel_telefone')
+    try:
+        c = _c(ficha={**FICHA, "_autorizacao": "pedida", "_quem_mandou": {"tel": "559285956408", "nome": "Imob Easy"}})
+        assert autorizacao.texto_do_pedido(None, c).startswith("🙋 @559285956408, posso falar com Ana")
+        assert autorizacao.pode_decidir(None, c, "559285956408")       # quem mandou (o 8595 da equipe)
+        assert autorizacao.pode_decidir(None, c, "5592994717316")      # o Tel, com o 9 a mais
+        assert not autorizacao.pode_decidir(None, c, "559281680503")   # outra pessoa no grupo
+        assert autorizacao.texto_do_pedido(None, _c()).startswith("🙋 Tel, posso")   # ficha antiga, sem quem mandou
+    finally:
+        banco.uma = antes
+        f.desligar()
+
+
 def test_pode_libera_e_ela_diz_o_que_vai_perguntar():
     f = _Falso().ligar()
     try:

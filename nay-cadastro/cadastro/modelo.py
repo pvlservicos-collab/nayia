@@ -71,19 +71,20 @@ uma coisa de uma vez, e tudo o que disser sobre o imóvel vale.
 
 
 PROMPT_DECISAO = """Você é a Nay, da Imob Easy, no grupo de cadastro de imóveis. Para completar o cadastro de um imóvel
-você precisa falar com o contato dele (o corretor ou o proprietário), e só fala com a autorização do Tel (o dono da
-imobiliária). Leia a mensagem que o Tel escreveu no grupo e diga o que ele decidiu sobre ESSE imóvel.
+você precisa falar com o contato dele (o corretor ou o proprietário), e só fala com a autorização de quem mandou o
+imóvel no grupo (alguém da equipe, ou o Tel, o dono da imobiliária). Leia a mensagem que essa pessoa escreveu no grupo e
+diga o que ela decidiu sobre ESSE imóvel.
 
 - decisao:
-  "autoriza": ele libera falar com o contato ("pode", "sim", "ok", "manda", "pergunta", "liberado", "pode falar", 👍).
-  "nao_autoriza": não quer que fale com o contato, ou ele mesmo vai ver ("não", "não precisa", "deixa que eu falo",
+  "autoriza": libera falar com o contato ("pode", "sim", "ok", "manda", "pergunta", "liberado", "pode falar", 👍).
+  "nao_autoriza": não quer que fale com o contato, ou a pessoa mesma vai ver ("não", "não precisa", "deixa que eu falo",
     "eu resolvo", "não manda nada").
   "esperar": pede para aguardar ("espera", "agora não", "depois eu libero").
-  "parar": você já está perguntando e ele manda parar ("para", "chega", "não pergunta mais nada").
+  "parar": você já está perguntando e a pessoa manda parar ("para", "chega", "não pergunta mais nada").
   "nenhuma": a mensagem não decide nada disso (só traz um dado do imóvel, como "4 banheiros", ou fala de outra coisa).
-- so_perguntar: se ele mandar perguntar SÓ algumas dúvidas, as chaves delas; senão lista vazia.
-- pular: as dúvidas que ele mandar NÃO perguntar, as chaves; senão lista vazia.
-Use só as chaves da lista DÚVIDAS. Na dúvida entre autorizar ou não, é "nenhuma": nunca libere o que ele não liberou."""
+- so_perguntar: se mandar perguntar SÓ algumas dúvidas, as chaves delas; senão lista vazia.
+- pular: as dúvidas que mandar NÃO perguntar, as chaves; senão lista vazia.
+Use só as chaves da lista DÚVIDAS. Na dúvida entre autorizar ou não, é "nenhuma": nunca libere o que não foi liberado."""
 
 
 class FalhaDoModelo(Exception):
@@ -147,9 +148,9 @@ def schema_decisao(chaves: list[str]) -> dict:
 
 def ler_decisao(situacao: str, duvidas: dict[str, str], mensagem: str,
                 chamar: Callable[[dict], dict] = _chamar) -> dict:
-    """O que o Tel decidiu no grupo. `duvidas` = {chave: rótulo} das perguntas que faltam."""
+    """O que quem mandou o imóvel decidiu no grupo. `duvidas` = {chave: rótulo} das perguntas que faltam."""
     entrada = (f"{situacao}\nDÚVIDAS (chave: o que é):\n" + "\n".join(f"- {k}: {v}" for k, v in duvidas.items())
-               + f"\nMENSAGEM DO TEL: {mensagem}")
+               + f"\nA MENSAGEM NO GRUPO: {mensagem}")
     d = pedir(PROMPT_DECISAO, entrada, schema_decisao(list(duvidas)), "decisao", chamar)
     validas = set(duvidas)
     return {"decisao": d.get("decisao") or "nenhuma",
