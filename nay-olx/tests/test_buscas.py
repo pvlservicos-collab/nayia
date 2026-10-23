@@ -80,5 +80,22 @@ class Corretor(unittest.TestCase):
                          {"bairro": "Flores", "quartos": 2, "valor": 3000})
 
 
+class PerguntaAoAnunciante(unittest.TestCase):
+    """Pedro, 23/10: sem o link do anúncio, só o nome do prédio."""
+    A = {"titulo": "Garden Club - 124m2 - 03 suítes - AP no Parque 10 - Vendo", "preco": 950000, "bairro": "Parque 10",
+         "url": "https://am.olx.com.br/regiao-de-manaus/imoveis/garden-club-1490357818"}
+
+    def test_com_o_predio_e_sem_o_link(self):
+        t = b.pergunta_ao_anunciante(self.A, "Garden Club Residencial")
+        self.assertIn("Vi o seu anúncio na OLX do *Garden Club Residencial* (", t)
+        self.assertNotIn("olx.com.br", t)
+        self.assertNotIn("124m2", t)
+
+    def test_sem_predio_vai_o_titulo_e_sem_o_link(self):
+        t = b.pergunta_ao_anunciante(self.A)
+        self.assertIn("*Garden Club - 124m2", t)
+        self.assertNotIn("olx.com.br", t)
+
+
 if __name__ == "__main__":
     unittest.main()

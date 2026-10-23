@@ -416,11 +416,26 @@ def atualizar_membros(conn) -> int:
 
 
 # ── 4. a OLX (a nossa base de scrap) ──
-def pergunta_ao_anunciante(a: dict) -> str:
+def pergunta_ao_anunciante(a: dict, predio: str | None = None) -> str:
+    """Pedro, 23/10: sem o link do anúncio, "só falar o nome do prédio". O prédio vem do título (o reconhecedor de
+    condomínios da Nay); sem prédio reconhecido, o título do anúncio."""
     onde = " · ".join(x for x in (a.get("preco_texto") or dinheiro(a.get("preco")), a.get("bairro")) if x)
-    return (f"Olá! Tudo bem? Aqui é a Nay, da Imob Easy. Vi o seu anúncio na OLX: *{a.get('titulo')}*"
+    qual = f"do *{predio}*" if predio else f"*{a.get('titulo')}*"
+    return (f"Olá! Tudo bem? Aqui é a Nay, da Imob Easy. Vi o seu anúncio na OLX {qual}"
             f"{' (' + onde + ')' if onde else ''}.\nTenho um cliente com esse perfil. Ele ainda está disponível? "
-            f"Você trabalha com parceria?\n{a.get('url')}")
+            f"Você trabalha com parceria?")
+
+
+def predio_do_anuncio(conn, a: dict) -> str | None:
+    """O condomínio que o título do anúncio cita (só o título: na descrição o reconhecedor erra, "Smart Tarumã" virava
+    "Nossa Senhora de Fátima")."""
+    try:
+        return banco.um(conn, "SELECT c.nome FROM condominios c WHERE c.id = nai_condominio_da_pergunta(%s)",
+                        (a.get("titulo") or "",))
+    except Exception:  # noqa: BLE001 -- sem o prédio, vai o título
+        conn.rollback()
+        log.exception("o prédio do anúncio %s não foi achado", a.get("olx_id"))
+        return None
 
 
 def _telefone_bom(t: str) -> str | None:
@@ -466,7 +481,7 @@ def olx_volta(conn, c: dict) -> int:
             if banco.um(conn, """SELECT EXISTS (SELECT 1 FROM privado.busca_contato WHERE telefone8 = %s
                                     AND em > now() - make_interval(hours => %s))""", (tel[-8:], CONTATO_DE_NOVO_H)):
                 continue
-            texto = pergunta_ao_anunciante(a)
+            texto = pergunta_ao_anunciante(a, predio_do_anuncio(conn, a))
             if teste:
                 if not c["teste"]:
                     break
