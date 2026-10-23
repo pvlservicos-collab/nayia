@@ -77,6 +77,9 @@ main.largo { max-width: 1680px; padding: 10px; gap: 10px; }
 .caixa > .msgs { flex: 1; min-height: 0; }
 .caixa.ampliada { position: fixed; inset: 64px 12px 12px; height: auto; z-index: 5; box-shadow: 0 10px 40px rgba(0,0,0,.35); }
 .caixa { border-top: 3px solid var(--cor, var(--borda)); }
+/* 23/10 (Pedro: "põe a borda branca pra identificar google"): o quadro que roda no Gemini */
+.caixa.google, .item-chat.google { border: 2px solid #fff; }
+.caixa.google { border-top-width: 3px; }
 .caixa-topo { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--borda); }
 .caixa-topo b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
 .robo { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--cor, var(--texto-3)); color: #fff; }
@@ -536,7 +539,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     var it = { robo: el("span", { class: "robo" }), nome: el("b", { texto: p.nome }), hora: el("time", {}),
                previa: el("small", { texto: p.descricao || "" }), ponto: el("span", { class: "ponto", title: "respondendo" }) };
     it.robo.innerHTML = ROBO;
-    it.raiz = el("button", { type: "button", class: "item-chat", style: p.cor ? "--cor:" + p.cor : null, title: p.descricao,
+    it.raiz = el("button", { type: "button", class: "item-chat" + (p.motor === "gemini" ? " google" : ""), style: p.cor ? "--cor:" + p.cor : null, title: p.descricao,
                              onclick: function () { abrir(p.id); } },
       [it.robo, el("span", { class: "txt" }, [el("span", { class: "linha1" }, [it.nome, it.hora]), it.previa]), it.ponto]);
     itens[p.id] = it;
@@ -586,7 +589,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
           .catch(function (e) { aviso(e.message); });
       } else { c.cid = parseInt(this.value, 10); guardar(p.id, c.cid); c.ultimoN = -1; carregarConversa(c); }
     } });
-    c.raiz = el("section", { class: "caixa", style: p.cor ? "--cor:" + p.cor : null });
+    c.raiz = el("section", { class: "caixa" + (p.motor === "gemini" ? " google" : ""), style: p.cor ? "--cor:" + p.cor : null });
     c.barra = el("div", { class: "barra-nay", hidden: !p.importador });
     c.msgs = el("div", { class: "msgs" });
     c.texto = el("textarea", { rows: 1, placeholder: "Pergunte ao " + p.nome + "… (Enter envia)" });
@@ -726,7 +729,10 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
   function abaContexto(c) {
     var d = c.detalhe, b = corpo();
     var nome = el("input", { value: d.nome }), desc = el("input", { value: d.descricao || "" });
-    var modelo = el("select", {}, [["haiku", "Haiku (rápido)"], ["sonnet", "Sonnet (padrão)"], ["claude-sonnet-5-5", "Sonnet 5.5 (fixo)"], ["opus", "Opus (mais profundo)"]].map(function (o) { return el("option", { value: o[0], selected: d.modelo === o[0] }, [o[1]]); }));
+    var opcoes = d.motor === "gemini"
+      ? [["gemini-flash-lite-latest", "Gemini Flash-Lite (o mais barato)"], ["gemini-flash-latest", "Gemini Flash (padrão)"], ["gemini-pro-latest", "Gemini Pro (mais profundo)"]]
+      : [["haiku", "Haiku (rápido)"], ["sonnet", "Sonnet (padrão)"], ["claude-sonnet-5-5", "Sonnet 5.5 (fixo)"], ["opus", "Opus (mais profundo)"]];
+    var modelo = el("select", {}, opcoes.map(function (o) { return el("option", { value: o[0], selected: d.modelo === o[0] }, [o[1]]); }));
     var esforco = el("select", {}, [["", "padrão"], ["low", "baixo"], ["medium", "médio"], ["high", "alto"]].map(function (o) { return el("option", { value: o[0], selected: (d.esforco || "") === o[0] }, [o[1]]); }));
     var ctx = el("textarea", { rows: 16 }, [d.contexto || ""]);
     var ok = el("span", { class: "pensando" });

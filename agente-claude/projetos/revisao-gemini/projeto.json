@@ -1,0 +1,8 @@
+{
+  "nome": "Revisão da Nay (Gemini)",
+  "descricao": "O Gemini lê as conversas da semana da Nay Parceria, separa só as com erro e gera o markdown conversa / erro para o Claude corrigir.",
+  "ordem": 4,
+  "modelo": "gemini-flash-latest",
+  "cor": "#4285f4",
+  "motor": "gemini"
+}

@@ -115,6 +115,62 @@ def config(pid):
     return {"modelo": "sonnet", "esforco": "", **json.loads(ler(os.path.join(pasta(pid), "projeto.json"), "{}"))}
 
 
+GEMINI_ENV = "/etc/agente-claude/gemini.env"
+GEMINI_HISTORICO = 30_000   # caracteres das últimas mensagens da conversa que vão junto (o Gemini não guarda sessão)
+GEMINI_RESERVA = "gemini-flash-lite-latest"
+
+
+def _responder_gemini(cid, pid, c, texto):
+    """O quadro do Gemini (23/10, Pedro: "cria logo o terminal lá, loga com minha api, dá o acesso a ele no que for
+    preciso"): o terminal do Gemini (gemini CLI, a chave em GEMINI_ENV) na pasta do projeto, em modo plan (só lê os
+    arquivos: as conversas exportadas e os relatórios em ./dados). O GEMINI.md da pasta é o contexto, refeito a cada
+    mensagem; as últimas mensagens da conversa vão junto, no stdin."""
+    p = pasta(pid)
+    m = datetime.now(MANAUS)
+    gravar(os.path.join(p, "GEMINI.md"),
+           f"# Projeto {c.get('nome', pid)} (painel Agente Claude da Imob Easy)\n\nAgora: {DIAS_SEMANA[m.weekday()]}, "
+           f"{m:%d/%m/%Y %H:%M} em Manaus.\nVocê só lê: os arquivos desta pasta (./dados/conversas, ./dados/semana/"
+           "<período>/conversas.md e erros.md). Não corrija nada nem mande mensagem a ninguém.\n\n"
+           + ler(os.path.join(p, "como-ler-os-dados.md")).strip() + "\n\n---\n\n" + ler(os.path.join(p, "contexto.md")))
+    env = dict(os.environ, HOME="/root", GEMINI_CLI_TRUST_WORKSPACE="true")
+    for l in ler(GEMINI_ENV).splitlines():
+        if "=" in l and not l.startswith("#"):
+            env[l.split("=", 1)[0].strip()] = l.split("=", 1)[1].strip()
+    con = banco()
+    antes = con.execute("SELECT papel, texto FROM mensagens WHERE conversa_id = ? AND texto IS NOT NULL ORDER BY id",
+                        (cid,)).fetchall()
+    con.close()
+    hist = "\n\n".join(f"[{'Equipe' if r['papel'] == 'voce' else 'Você'}] {r['texto']}" for r in antes[:-1])[-GEMINI_HISTORICO:]
+    entrada = (f"A CONVERSA ATÉ AQUI:\n{hist}\n\n" if hist else "")
+    modelo = c.get("modelo") or "gemini-flash-latest"
+
+    def rodar(m):
+        return subprocess.run(["gemini", "--skip-trust", "-m", m, "--approval-mode", "plan", "-o", "json",
+                               "-p", f"MENSAGEM NOVA DA EQUIPE: {texto}"],
+                              input=entrada, cwd=p, env=env, capture_output=True, text=True, timeout=LIMITE_S)
+    p_ = rodar(modelo)
+    aviso = ""
+    # a chave no plano gratuito do Google tem cota por dia e por modelo: acabou a do escolhido, vai o Flash-Lite
+    if p_.returncode and "quota" in (p_.stderr + p_.stdout).lower() and modelo != GEMINI_RESERVA:
+        p_ = rodar(GEMINI_RESERVA)
+        aviso = f"\n\n_(a cota de hoje do {modelo} acabou; respondi com o {GEMINI_RESERVA})_"
+    j = {}
+    i = p_.stdout.find("{")
+    if i >= 0:
+        try:
+            j = json.loads(p_.stdout[i:])
+        except json.JSONDecodeError:
+            j = {}
+    resposta = (j.get("response") or "").strip()
+    if p_.returncode or not resposta:
+        return {"ok": 0, "texto": None, "erro": ((j.get("error") or {}).get("message") if isinstance(j.get("error"), dict)
+                                                  else None) or (p_.stderr or p_.stdout or "o Gemini não respondeu")[-2000:]}
+    modelos = ((j.get("stats") or {}).get("models") or {}).values()
+    tok = [x.get("tokens") or {} for x in modelos]
+    return {"ok": 1, "texto": resposta + aviso, "tokens_entrada": sum(int(t.get("prompt") or 0) for t in tok) or None,
+            "tokens_saida": sum(int(t.get("candidates") or 0) for t in tok) or None, "conta": "gemini"}
+
+
 def listar():
     con = banco()
     saida = []
@@ -123,12 +179,15 @@ def listar():
             c = config(pid)
         except (KeyError, ValueError):
             continue
+        if c.get("oculto"):  # 23/10: o Financeiro deu lugar à revisão pelo Gemini; a pasta e as conversas ficam
+            continue
         r = con.execute("SELECT COUNT(*) n, MAX(atualizada_em) ultima FROM conversas WHERE projeto = ?", (pid,)).fetchone()
         ids = {x["id"] for x in con.execute("SELECT id FROM conversas WHERE projeto = ?", (pid,))}
         saida.append({"id": pid, "nome": c.get("nome", pid), "descricao": c.get("descricao", ""),
                       "modelo": c["modelo"], "ordem": c.get("ordem", 99), "importador": c.get("importador"),
                       "conversas": r["n"], "ultima": r["ultima"], "anexos": len(anexos(pid)),
-                      "agenda": c.get("agenda"), "cor": c.get("cor"), "pendente": any(k in ids for k in PENDENTES)})
+                      "agenda": c.get("agenda"), "cor": c.get("cor"), "motor": c.get("motor") or "claude",
+                      "pendente": any(k in ids for k in PENDENTES)})
     con.close()
     return sorted(saida, key=lambda p: (p["ordem"], p["nome"]))
 
@@ -322,6 +381,9 @@ def _responder(cid, conv, texto, primeira):
     try:
         pid = conv["projeto"]
         c = config(pid)
+        if c.get("motor") == "gemini":
+            linha.update(_responder_gemini(cid, pid, c, texto))
+            return
         claude_md(pid)
         pedido = {"modo": "projeto", "mensagem": texto, "modelo": c["modelo"], "esforco": c.get("esforco") or None,
                   "pasta": pasta(pid), "sessao": conv["sessao"], "nova": primeira, "timeout_s": LIMITE_S}
