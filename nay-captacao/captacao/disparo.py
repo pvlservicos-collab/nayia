@@ -51,6 +51,14 @@ SELECT telefone_chave, 'envio sem confirmação do CRM em ' || to_char(now() AT 
 ON CONFLICT (telefone_chave) DO NOTHING
 """
 
+# 478: o lead fica com a Nay (perfil) que estava ativa quando o modelo saiu; quem já tem perfil não muda
+CARIMBAR_PERFIL = """
+UPDATE captacao_leads
+   SET perfil_nay = coalesce(perfil_nay, (SELECT p.nome FROM captacao_nay_perfil p
+                                           WHERE p.nome = (SELECT valor FROM captacao_config WHERE chave = 'nay_perfil_ativo')))
+ WHERE id = %s
+"""
+
 
 def vocativo(tratamento: str | None, nome: str | None) -> str:
     n = primeiro_nome(nome)
@@ -115,6 +123,7 @@ def disparar(conn, lead_id: int, zerar: bool = False) -> str:
                                                            "texto": texto or f"[modelo {nome_modelo}]"})
     if not mid:
         return f"NÃO SAIU: {erro}. O lead ficou como '{gravado[0]['status'] if gravado else '?'}'."
+    banco.linhas(conn, CARIMBAR_PERFIL, (lead_id,))
     return f"modelo enviado para …{lead['telefone'][-4:]} ({quem}). Texto: {texto}"
 
 
@@ -144,6 +153,7 @@ def proximo(conn) -> str | None:
             # pode ter saído: este não volta sozinho para a fila (mandar duas vezes é pior que deixar um para conferir)
             banco.linhas(conn, NAO_REPETIR, (lead["lead_id"],))
         return f"NÃO SAIU para o lead {lead['lead_id']} (…{lead['telefone'][-4:]}): {erro}"
+    banco.linhas(conn, CARIMBAR_PERFIL, (lead["lead_id"],))
     return f"{nome_modelo} para o lead {lead['lead_id']} (…{lead['telefone'][-4:]}, {quem})"
 
 

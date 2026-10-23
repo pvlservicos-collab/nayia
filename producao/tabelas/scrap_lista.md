@@ -1,4 +1,4 @@
-# scrap_lista  (tabela, ~0 linhas)
+# scrap_lista  (tabela, ~19 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('scrap_lista_id_seq'::regclass)

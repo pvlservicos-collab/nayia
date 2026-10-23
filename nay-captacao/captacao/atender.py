@@ -52,6 +52,18 @@ class Feito:
 
 
 def _prompt(conn, t: turno.Turno) -> str:
+    """478 (Pedro, 23/10: "salva o estado dela como uma nay ligada à lista de proprietários ... quando eu for mudar de
+    lista só troca o modelo da nay"): o perfil do lead diz qual prompt vivo e qual roteiro do código valem."""
+    p = banco.linhas(conn, "SELECT * FROM captacao_nay_perfil_do_lead(%s)", (t.telefone,))
+    if not p or not p[0]["prompt"]:
+        raise RuntimeError(f"o perfil da Nay deste lead não tem prompt (captacao_nay_perfil_do_lead): {p}")
+    roteiro = ROTEIROS.get(p[0]["roteiro"])
+    if roteiro is None:
+        raise RuntimeError(f"o roteiro {p[0]['roteiro']!r} do perfil {p[0]['nome']!r} não existe no nay-captacao")
+    return roteiro(conn, t, p[0]["prompt"])
+
+
+def _roteiro_proprietarios(conn, t: turno.Turno, prompt: str) -> str:
     """O prompt vivo do banco, mais o que só vale no número oficial (o modelo que abriu a conversa e a indicação)."""
     r = banco.linhas(conn, """
         SELECT m.texto FROM captacao_mensagens m
@@ -75,13 +87,17 @@ def _prompt(conn, t: turno.Turno) -> str:
         imovel = " ".join(x for x in ((d["tipo_imovel"] or "").strip().lower(), onde) if x) or "o imovel do cadastro"
         base = (modelo.ACRESCIMO_OUTRO_VENDER.replace("{situacao_antiga}", modelo.SITUACAO_ANTIGA[d["campanha"]])
                 if d["campanha"] in modelo.SITUACAO_ANTIGA else modelo.ACRESCIMO_OUTRO_IMOVEL)
-        return (t.prompt + base.replace("{modelo}", abertura).replace("{imovel}", imovel)
+        return (prompt + base.replace("{modelo}", abertura).replace("{imovel}", imovel)
                 .replace("{indicacao}", r["f"]).replace("{honorarios}", honorarios))
-    return (t.prompt + modelo.ACRESCIMO.replace("{modelo}", abertura).replace("{indicacao}", r["f"])
+    return (prompt + modelo.ACRESCIMO.replace("{modelo}", abertura).replace("{indicacao}", r["f"])
             .replace("{honorarios}", honorarios)
             # o imóvel dele está no cadastro para VENDA: a pergunta do valor da locação não cabe (12/10, venda.py)
             + venda.secao(venda.do_cadastro(conn, banco, t.telefone), venda.sem_imovel(conn, banco, t.telefone)))
 
+
+
+# o roteiro de cada perfil (captacao_nay_perfil.roteiro). Perfil novo (a Nay dos corretores) = um roteiro novo aqui.
+ROTEIROS = {"proprietarios": _roteiro_proprietarios}
 
 def _historico(conn, t: turno.Turno) -> list[dict]:
     r = banco.linhas(conn, banco.HISTORICO, (t.telefone, min(t.ids), HISTORICO))

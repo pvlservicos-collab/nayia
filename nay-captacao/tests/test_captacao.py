@@ -375,3 +375,28 @@ class ExcluirContato(unittest.TestCase):
         from captacao import atender
         for t in ("Não tenho outro", "Tenho outro imóvel", "não quero excluir meu contato, só mudar o número", "", None):
             self.assertFalse(atender.pediu_excluir_contato(t), t)
+
+
+class PerfilDaNay(unittest.TestCase):
+    """478 (Pedro, 23/10): cada lista tem a sua Nay; o perfil do lead escolhe o prompt vivo e o roteiro do código."""
+
+    def _com_perfil(self, perfil):
+        from captacao import atender, banco
+        antes = banco.linhas
+        banco.linhas = lambda conn, sql, params=None: [perfil] if "captacao_nay_perfil_do_lead" in sql else []
+        self.addCleanup(setattr, banco, "linhas", antes)
+        return atender
+
+    def test_os_donos_sao_o_roteiro_de_hoje(self):
+        from captacao import atender
+        self.assertIs(atender.ROTEIROS["proprietarios"], atender._roteiro_proprietarios)
+
+    def test_roteiro_que_nao_existe_para_sem_responder(self):
+        atender = self._com_perfil({"nome": "corretores", "roteiro": "corretores", "prompt": "P", "prompt_papel": "corretor"})
+        with self.assertRaises(RuntimeError):
+            atender._prompt(None, turno.juntar([msg(1, "oi")]))
+
+    def test_perfil_sem_prompt_para_sem_responder(self):
+        atender = self._com_perfil({"nome": "proprietarios", "roteiro": "proprietarios", "prompt": None, "prompt_papel": "x"})
+        with self.assertRaises(RuntimeError):
+            atender._prompt(None, turno.juntar([msg(1, "oi")]))

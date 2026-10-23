@@ -24,4 +24,4 @@ nay_site_nai: SELECT
 nai_salvar_prompt
 
 ## funções que citam
-nai_prompt_de, nai_salvar_prompt, nai_tracar_cabecalho
+captacao_nay_perfil_salvar, captacao_nay_perfis, nai_prompt_de, nai_salvar_prompt, nai_tracar_cabecalho

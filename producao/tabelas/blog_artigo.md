@@ -1,4 +1,4 @@
-# blog_artigo  (tabela, ~2 linhas)
+# blog_artigo  (tabela, ~12 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('blog_artigo_id_seq'::regclass)
