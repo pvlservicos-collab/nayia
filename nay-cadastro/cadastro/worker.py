@@ -9,7 +9,7 @@ import logging
 import pathlib
 import time
 
-from cadastro import banco, config, fluxo, modelo, no_grupo, no_privado
+from cadastro import autorizacao, banco, config, fluxo, modelo, no_grupo, no_privado
 
 log = logging.getLogger("cadastro.worker")
 PAUSA_DO_MODELO_S = 60
@@ -56,6 +56,7 @@ def ciclo(conn, est: Estado) -> None:
         except modelo.FalhaDoModelo as e:
             log.warning("modelo fora ao ler a resposta: %s", e)
             est.modelo_ate = time.monotonic() + PAUSA_DO_MODELO_S
+    autorizacao.pedir(conn)           # o pedido ao Tel no grupo sai a qualquer hora; o privado, só no horário
     no_privado.iniciar(conn)
     if time.monotonic() - est.cobrado_em >= 60:
         est.cobrado_em = time.monotonic()

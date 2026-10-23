@@ -238,9 +238,12 @@ def que_cabem(ficha: dict, contexto: dict | None = None) -> list[Pergunta]:
 
 def faltam(ficha: dict, contexto: dict | None = None) -> list[str]:
     """As perguntas que ainda faltam, na ordem. A que já saiu não volta, respondida ou não (Tel: "não ficar pedindo
-    2 vezes a mesma coisa"): ela fica em `_feitas`, e a que ficou vazia entra no aviso do fim (`ficou_sem`)."""
-    feitas = set(ficha.get("_feitas") or ())
-    return [p.chave for p in que_cabem(ficha, contexto) if not p.preenchida(ficha) and p.chave not in feitas]
+    2 vezes a mesma coisa"): ela fica em `_feitas`, e a que ficou vazia entra no aviso do fim (`ficou_sem`).
+    O Tel, no grupo (23/10, autorizacao.py): `_pular` = as que ele mandou não perguntar; `_so_perguntar` = só essas."""
+    feitas = set(ficha.get("_feitas") or ()) | set(ficha.get("_pular") or ())
+    so = set(ficha.get("_so_perguntar") or ())
+    return [p.chave for p in que_cabem(ficha, contexto)
+            if not p.preenchida(ficha) and p.chave not in feitas and (not so or p.chave in so)]
 
 
 def ficou_sem(ficha: dict, contexto: dict | None = None) -> list[str]:

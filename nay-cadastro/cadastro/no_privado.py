@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 
-from cadastro import banco, campos, condominio, config, envio, fluxo, modelo, no_grupo, site
+from cadastro import autorizacao, banco, campos, condominio, config, envio, fluxo, modelo, no_grupo, site
 from cadastro import ficha as fichas
 
 log = logging.getLogger("cadastro.privado")
@@ -28,6 +28,10 @@ def iniciar(conn) -> None:
             fluxo.gravar(conn, c["id"], canal=canal)
             c = {**c, "canal": canal}
         if fluxo.gente_no_chat(conn, c):
+            continue
+        # 23/10 (Pedro): só fala com o corretor ou o proprietário depois do "pode" do Tel no grupo (antes de ler a
+        # conversa anterior, que chama o modelo: a ficha esperando o Tel passa por aqui a cada volta)
+        if autorizacao.precisa_autorizar(conn, c):
             continue
         try:
             fluxo.proxima(conn, o_que_ja_disse(conn, c), primeira=True)

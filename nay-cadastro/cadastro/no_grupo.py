@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 
-from cadastro import banco, campos, condominio, config, envio, fluxo, modelo, site
+from cadastro import autorizacao, banco, campos, condominio, config, envio, fluxo, modelo, site
 from cadastro import ficha as fichas
 from cadastro import leva as levas
 from cadastro.leva import Leva, Mensagem
@@ -53,6 +53,10 @@ def tratar(conn, leva: Leva) -> None:
     if dito and dito not in fones:
         fones.append(dito)
     if not leva.fotos and not levas.parece_anuncio(leva.texto, saida):
+        # 23/10: o Tel decide no grupo se ela fala com o contato ("pode", "não", "espera", "para", "não pergunta X")
+        conversa = autorizacao.ficha_da_conversa(conn, citada) if leva.texto.strip() else None
+        if conversa and autorizacao.escutar(conn, conversa, leva.texto, leva.ids[0]):
+            citada = citada or conversa["id"]
         if fones and not saida.get("e_imovel"):
             _contato_que_faltava(conn, leva, fones, saida, citada)
             banco.linhas(conn, banco.MARCAR_LIDAS, {"ids": leva.ids, "cadastro": citada})
@@ -165,10 +169,10 @@ def checklist(conn, c: dict, erros_de_foto: list[str] | None = None) -> str:
         linhas.append("📞 Não achei o número do corretor ou do proprietário. Me manda o contato aqui (pode marcar esta "
                       "mensagem) que eu pergunto o resto.")
         return "\n".join(linhas)
-    linhas.append(f"👤 Contato: {fluxo.quem(c)}" + ("" if c.get("papel") else " (vou perguntar se é dono ou corretor)"))
+    linhas.append(f"👤 Contato: {fluxo.quem(c)}" + ("" if c.get("papel") else " (não sei se é dono ou corretor)"))
     if falta:
-        quando = "" if fluxo.no_horario() else f" a partir das {config.HORA_INICIO}h"
-        linhas.append(f"❓ Vou perguntar no privado{quando}: " + ", ".join(campos.rotulos(falta)) + ".")
+        # 23/10 (Pedro): as dúvidas vêm primeiro no grupo; falar com o contato só com o "pode" do Tel (autorizacao.py)
+        linhas.append("❓ Dúvidas: " + ", ".join(campos.rotulos(falta)) + ".")
     return "\n".join(linhas)
 
 
@@ -189,7 +193,9 @@ def _contato_que_faltava(conn, leva: Leva, fones: list[str], saida: dict, citada
         fluxo.avisar_erro(conn, c, "Não consegui gravar o contato", e)
         return
     canal = fluxo.canal_do_contato(conn, fone, papel)
-    fluxo.gravar(conn, c["id"], contato_tel=fone, contato_nome=nome, papel=papel, estado="na_fila", canal=canal)
-    c = {**c, "contato_tel": fone, "contato_nome": nome, "papel": papel, "canal": canal}
-    envio.grupo(conn, f"Anotado: {fluxo.quem(c)} é o contato do imóvel {c['codigo']}. Vou perguntar o que falta.",
-                c["id"], citar=leva.ids[0])
+    ficha = dict(c["ficha"])
+    if ficha.get("_autorizacao") == "pedida":
+        ficha["_autorizacao"] = None          # o pedido era para falar com outra pessoa: pede de novo, com o nome novo
+    fluxo.gravar(conn, c["id"], contato_tel=fone, contato_nome=nome, papel=papel, estado="na_fila", canal=canal, ficha=ficha)
+    c = {**c, "contato_tel": fone, "contato_nome": nome, "papel": papel, "canal": canal, "ficha": ficha}
+    envio.grupo(conn, f"Anotado: {fluxo.quem(c)} é o contato do imóvel {c['codigo']}.", c["id"], citar=leva.ids[0])
