@@ -42,6 +42,7 @@ A_CADA_S = 20
 OLX_DE_NOVO_H = 6              # a mesma busca olha a base da OLX de novo depois disto (a base cresce com o scrap)
 CONTATO_DE_NOVO_H = 24         # o mesmo anunciante não é chamado de novo antes disto, nem por outra busca
 MEMBROS_A_CADA_S = 6 * 3600
+BASE_A_CADA_MIN = 30           # a busca aberta olha a nossa base de novo depois disto (imóvel novo no perfil vai à lead)
 FOTOS_MINIMAS = 3
 ATIVAS = ("buscando",)
 _ULTIMO = {"membros": 0.0}
@@ -663,6 +664,10 @@ def oferecer_ao_cliente(conn, b: dict, codigo: int, cor: dict, c: dict) -> str:
                         f"ofereceu o imóvel #{codigo}, já cadastrado como parceiro. A conversa do cliente está com a equipe: "
                         f"apresentem por lá.")
         return "grupo"
+    return _mandar_ao_cliente(conn, lead, codigo)
+
+
+def _mandar_ao_cliente(conn, lead: dict, codigo: int) -> str:
     whatsapp.mandar_texto(conn, lead, "Boa notícia! Encontrei uma opção que combina com o que você procura:")
     time.sleep(whatsapp.ENTRE_ENVIOS_S)
     whatsapp.mandar_imovel(conn, lead, codigo)
@@ -673,6 +678,56 @@ def oferecer_ao_cliente(conn, b: dict, codigo: int, cor: dict, c: dict) -> str:
         whatsapp._marcar(conn, lead["id"], enviados=enviados + [codigo])
     conn.commit()
     return "cliente"
+
+
+def base_volta(conn, c: dict) -> int:
+    """O imóvel que entrou na nossa base DEPOIS da busca (Pedro, 23/10: "esse novo imóvel cadastrado no grupo de
+    cadastro não está aparecendo para a lead"). A base só era olhada quando a lead escrevia; a busca criada da conversa
+    (a Edsandra, lead 45) nunca olhou, e tinha o 3841 e o 4020 no perfil. A cada BASE_A_CADA_MIN, a busca ATIVA (só
+    'buscando': as 'perfil' são dezenas de leads antigas) contra o catálogo, no perfil exato (sem afrouxar), fora o que
+    ela já recebeu ou já foi oferecido; um imóvel por vez, um por dia."""
+    if not no_horario(c):
+        return 0
+    feitos = 0
+    for b in banco.linhas(conn, f"""SELECT * FROM privado.busca_cliente WHERE estado = 'buscando'
+                                     AND (base_em IS NULL OR base_em < now() - interval '{BASE_A_CADA_MIN} minutes')
+                                   ORDER BY base_em NULLS FIRST, id LIMIT 6"""):
+        if not pronto(b["filtros"]):
+            continue
+        lead = whatsapp._lead(conn, b["lead"])
+        f = dict(b["filtros"])
+        if whatsapp._aceita_parceiro(conn, lead):
+            f["aceita_parceiro"] = "true"
+        # um da base por dia: o próximo espera ela ver o de antes
+        if any(x.get("de") == "base" and x.get("em", "") > (datetime.now(MANAUS) - timedelta(hours=24)).isoformat()
+               for x in b["ofertas"] or []):
+            continue
+        oferecidos = [int(x["codigo"]) for x in b["ofertas"] or [] if x.get("codigo")]
+        excluir = list(lead.get("enviados") or []) + ([lead["codigo"]] if lead.get("codigo") else []) + oferecidos
+        achados = banco.linhas(conn, "SELECT * FROM olx_cliente_buscar(%s::jsonb, %s::int[], 1)",
+                               (json.dumps(f, ensure_ascii=False), excluir))
+        banco.um(conn, "UPDATE privado.busca_cliente SET base_em = now() WHERE id = %s", (b["id"],))
+        conn.commit()
+        if not achados:
+            continue
+        codigo = int(achados[0]["codigo"])
+        # sem o modo teste: o imóvel da nossa base é o que a Nay do WhatsApp manda quando ela escreve
+        teste = False
+        if lead.get("humano_em"):
+            whatsapp._grupo(f"Busca do cliente {whatsapp.quem(lead)}: o imóvel #{codigo} da nossa base serve no perfil dela. "
+                            f"A conversa do cliente está com a equipe: apresentem por lá.")
+            onde = "grupo"
+        else:
+            onde = _mandar_ao_cliente(conn, lead, codigo)
+        banco.um(conn, "UPDATE privado.busca_cliente SET ofertas = ofertas || %s::jsonb WHERE id = %s",
+                 (json.dumps([{"codigo": codigo, "de": "base", "em": datetime.now(MANAUS).isoformat(timespec="minutes"),
+                               "estado": onde, "teste": teste}], ensure_ascii=False), b["id"]))
+        passo(conn, b["id"], "oferta", {"cliente": f"Nossa base: o imóvel #{codigo} serve no perfil e foi oferecido ao cliente",
+                                        "grupo": f"Nossa base: o imóvel #{codigo} serve no perfil; o cliente está com a equipe: avisado no grupo",
+                                        "teste": f"Nossa base: o imóvel #{codigo} serve no perfil (teste: não foi ao cliente)"}[onde])
+        conn.commit()
+        feitos += 1
+    return feitos
 
 
 def _pendentes_corretores(conn) -> list[dict]:
@@ -775,7 +830,8 @@ def uma_volta(conn) -> dict:
     if c["fluxo"] == "nao":
         return {}
     r = {"registro": sincronizar(conn, c)}
-    for nome, f in (("membros", lambda: atualizar_membros(conn)), ("grupos", lambda: grupos_volta(conn, c)),
+    for nome, f in (("membros", lambda: atualizar_membros(conn)), ("base", lambda: base_volta(conn, c)),
+                    ("grupos", lambda: grupos_volta(conn, c)),
                     ("olx", lambda: olx_volta(conn, c)), ("corretores", lambda: corretores_volta(conn, c))):
         try:
             r[nome] = f()
