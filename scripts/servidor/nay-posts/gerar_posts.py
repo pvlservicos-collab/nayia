@@ -12,7 +12,7 @@ com um ZIP de tudo. Imóvel de parceiro não sai (parceria nunca sai).
 
 Uso (na VPS):  /root/nay-posts/.venv/bin/python /root/nay-posts/gerar_posts.py 5739 [opções]
 Daqui:         ./scripts/nay posts 5739 [opções]
-Opções: --modelo galeria|classico|vitrine|mosaico   --carrossel faixaBaixo|faixaLado|etiqueta|nenhum
+Opções: --modelo galeria|classico|vitrine|mosaico   --carrossel faixaBaixo|faixaLado|etiqueta|grade4|nenhum (a capa é o post Galeria e a última lâmina é a CTA, 23/10)
         --formatos feed,quadrado,story,paisagem    --fotos 8   --video   --contato "92 9471-7316"
         --chamada "à venda!"  --destaque "Mobiliado"  --slogan "..."  --fita "Pode ser financiado!"  --json (só imprime o estado)
 """
