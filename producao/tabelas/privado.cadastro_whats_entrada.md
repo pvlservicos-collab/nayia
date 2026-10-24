@@ -1,4 +1,4 @@
-# privado.cadastro_whats_entrada  (tabela, ~0 linhas)
+# privado.cadastro_whats_entrada  (tabela, ~25 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('privado.cadastro_whats_entrada_id_seq'::regclass)

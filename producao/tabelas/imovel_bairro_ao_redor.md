@@ -1,4 +1,4 @@
-# imovel_bairro_ao_redor  (tabela, ~26013 linhas)
+# imovel_bairro_ao_redor  (tabela, ~26022 linhas)
 
 ## colunas
 codigo  integer  NOT NULL

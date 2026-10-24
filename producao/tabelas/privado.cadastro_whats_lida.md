@@ -1,4 +1,4 @@
-# privado.cadastro_whats_lida  (tabela, ~61 linhas)
+# privado.cadastro_whats_lida  (tabela, ~187 linhas)
 
 ## colunas
 message_id  text  NOT NULL
