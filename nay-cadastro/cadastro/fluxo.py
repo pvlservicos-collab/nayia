@@ -102,7 +102,8 @@ def avisar_erro(conn, c: dict | None, o_que: str, erro: Exception | str) -> None
     log.error(texto)
     if c:
         gravar(conn, c["id"], estado="erro", erro=str(erro)[:1000])
-    envio.grupo(conn, texto, c["id"] if c else None)
+    # 24/10 (Pedro): "os erros vão pra mim", pela linha da Parceria; o grupo da equipe não recebe mais o erro de sistema
+    envio.alerta_de_erro("[nay-cadastro] " + texto)
 
 
 def proxima(conn, c: dict, primeira: bool = False) -> None:

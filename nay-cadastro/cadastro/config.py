@@ -18,6 +18,8 @@ CONF_DO_VIGIA = os.environ.get("CADASTRO_CONF_DO_VIGIA", "/root/vigia_whatsapp/c
 LEADS_DIAS = float(os.environ.get("CADASTRO_LEADS_DIAS", "3"))
 # alguém da equipe escreveu pelo 8595 nesses minutos: a conversa é dela (o mesmo meio hora do Tel na Parceria)
 LEADS_GENTE_MIN = int(os.environ.get("CADASTRO_LEADS_GENTE_MIN", "30"))
+# 24/10 (Pedro: "os erros vão pra mim 96991712835", pela linha da Parceria): o alerta de erro do serviço vai a este número
+ERROS_TELEFONE = os.environ.get("CADASTRO_ERROS_TELEFONE", "5596991712835")
 # segundos de silêncio que fecham uma leva no grupo (o encaminhamento chega em rajada)
 LEVA_SILENCIO_S = int(os.environ.get("CADASTRO_LEVA_SILENCIO_S", "90"))
 # segundos de silêncio antes de ler a resposta dele no privado (ele pode mandar em duas mensagens)

@@ -8,6 +8,7 @@ Sem id de mensagem na volta, o envio NÃO aconteceu: quem chama grava 'Falhou', 
 """
 from __future__ import annotations
 
+import json
 import logging
 import re
 
@@ -50,6 +51,28 @@ def texto(telefone: str, mensagem: str) -> str | None:
         log.warning("a resposta não saiu para …%s: %s", so_digitos(telefone)[-4:], j.get("erro") or "sem id da mensagem")
         return None
     return str(j["messageId"])
+
+
+def grupo_da_equipe(mensagem: str) -> bool:
+    """Posta no grupo da equipe pela Z-API da captação (8595). Só se o número estiver conectado (desconectado, a Z-API
+    aceita e a mensagem fica presa). A URL leva o token: nunca vai para o registro."""
+    try:
+        with open(config.CONF_DO_VIGIA, encoding="utf-8") as f:
+            conf = json.load(f)
+        inst, grupo = (conf.get("instancias") or {}).get("captacao"), conf.get("grupo")
+        if not inst or not grupo:
+            raise ValueError("sem a instância de captação ou o grupo no config do vigia")
+        cab = {"Client-Token": inst["client_token"]}
+        st = requests.get(inst["base"] + "/status", headers=cab, timeout=15).json()
+        if not st.get("connected"):
+            log.warning("o aviso à equipe não saiu: o número de captação está desconectado")
+            return False
+        r = requests.post(inst["base"] + "/send-text", json={"phone": grupo, "message": mensagem}, headers=cab, timeout=30)
+        j = r.json() if r.content else {}
+        return r.status_code < 400 and bool(j.get("messageId") or j.get("id") or j.get("zaapId"))
+    except (OSError, ValueError, KeyError, requests.RequestException) as e:
+        log.warning("o aviso à equipe não saiu: %s", type(e).__name__)
+        return False
 
 
 def modelo(telefone: str, nome: str, idioma: str, valores: list[str]) -> tuple[str | None, str, str | None]:

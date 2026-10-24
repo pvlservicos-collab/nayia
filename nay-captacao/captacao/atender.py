@@ -105,7 +105,8 @@ def _historico(conn, t: turno.Turno) -> list[dict]:
 
 
 def _avisar_tel(conn, aviso: str, telefone: str = "") -> None:
-    """Manda o aviso ao Tel pela caixa da Nay (crm_avisar_tel). O telefone de TESTE nunca gera aviso."""
+    """O aviso de escalada, foto e mídia. Desde 24/10 (Pedro: "a escalada para o número de captação") vai ao GRUPO da equipe
+    pela linha de captação (8595), não ao PV do Tel (482). O telefone de TESTE nunca gera aviso."""
     de_teste = bool(telefone) and banco.linhas(conn, """
         SELECT nay_fone_chave(%s) = nay_fone_chave((SELECT valor FROM captacao_config WHERE chave = 'telefone_teste')) AS t""",
         (telefone,))[0]["t"]
@@ -114,9 +115,10 @@ def _avisar_tel(conn, aviso: str, telefone: str = "") -> None:
                  aviso.replace("\n", " ")[:160])
         return
     try:
-        banco.linhas(conn, "SELECT * FROM crm_avisar_tel(%s, 'captacao')", (aviso,))
+        if not envio.grupo_da_equipe("🔔 " + aviso):
+            log.warning("o aviso à equipe não saiu: %s", aviso.replace("\n", " ")[:160])
     except Exception as e:  # noqa: BLE001 -- perder o aviso é ruim; derrubar o turno do proprietário é pior
-        log.warning("não consegui avisar o Tel: %s", e)
+        log.warning("não consegui avisar a equipe: %s", e)
 
 
 def _encaminhar_indicacao(conn, texto: str, telefone: str) -> None:

@@ -117,6 +117,27 @@ def _zapi() -> dict:
     return _credenciais
 
 
+def alerta_de_erro(texto: str) -> bool:
+    """O erro do serviço vai para o Pedro (config.ERROS_TELEFONE) pela Z-API da Parceria (a instância "parceria" do config
+    do vigia). Só por número conectado. A URL leva o token: nunca vai para o registro."""
+    try:
+        with open(config.CONF_DO_VIGIA, encoding="utf-8") as f:
+            inst = (json.load(f).get("instancias") or {}).get("parceria")
+        if not inst or not config.ERROS_TELEFONE:
+            raise ValueError("sem a instância da Parceria ou o telefone dos erros")
+        cab = {"Client-Token": inst["client_token"]}
+        if not requests.get(inst["base"] + "/status", headers=cab, timeout=15).json().get("connected"):
+            log.warning("o alerta de erro não saiu: a Parceria está desconectada")
+            return False
+        r = requests.post(inst["base"] + "/send-text", json={"phone": config.ERROS_TELEFONE, "message": texto},
+                          headers=cab, timeout=30)
+        j = r.json() if r.content else {}
+        return r.status_code < 400 and bool(j.get("messageId") or j.get("id") or j.get("zaapId"))
+    except (OSError, ValueError, KeyError, requests.RequestException) as e:
+        log.warning("o alerta de erro não saiu: %s", type(e).__name__)
+        return False
+
+
 def grupo(conn, texto: str, cadastro_id: int | None = None, citar: str | None = None,
           mencionar: list[str] | None = None) -> str | None:
     """Posta no grupo do cadastro. Devolve o id da mensagem (ou None se não saiu). `mencionar`: os telefones marcados

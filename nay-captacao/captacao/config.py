@@ -15,6 +15,9 @@ IDIOMA_DO_MODELO = os.environ.get("CAPTACAO_MODELO_IDIOMA", "pt_BR")
 MODELOS_JSON = os.environ.get("CAPTACAO_MODELOS_JSON", "/docker/nay-site-web/public/admin/dados/modelos.json")
 # o Tel recebe o aviso de escalada e de foto pela caixa da Nay; "nao" desliga tudo. O telefone de teste nunca avisa.
 AVISAR_TEL = os.environ.get("CAPTACAO_AVISAR_TEL", "sim") == "sim"
+# 24/10 (Pedro: "a escalada para o número de captação", grupo da equipe): o aviso de escalada, de foto e de mídia vai ao GRUPO
+# da equipe pela Z-API da captação (8595), não mais ao PV do Tel. A credencial e o id do grupo estão no config do vigia.
+CONF_DO_VIGIA = os.environ.get("CAPTACAO_CONF_DO_VIGIA", "/root/vigia_whatsapp/config.json")
 # segundos de silêncio antes de responder (o "Janela de 20s" do fluxo)
 SILENCIO_S = int(os.environ.get("CAPTACAO_SILENCIO_S", "20"))
 BATIMENTO = os.environ.get("CAPTACAO_BATIMENTO", "/tmp/nay-captacao.batimento")
