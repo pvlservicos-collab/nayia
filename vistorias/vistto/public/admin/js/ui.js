@@ -35,7 +35,7 @@ export const fmtDate = (s, time = true) => { if (!s) return '—'; const d = new
 export const fmtBytes = (b) => (b > 1073741824 ? `${(b / 1073741824).toFixed(2)} GB` : b > 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.round((b || 0) / 1024)} KB`);
 export const STATUS = { rascunho: ['Em andamento', 'gray'], enviada: ['Recebida', 'blue'], em_revisao: ['Em revisão', 'amber'], aprovada: ['Aprovada', 'green'], em_assinatura: ['Em assinatura', 'purple'], assinada: ['Assinada', 'teal'], cancelada: ['Cancelada', 'red'] };
 export const TYPES = { entrada: 'Entrada', saida: 'Saída', temporada: 'Temporada', compra_venda: 'Compra e Venda', periodica: 'Periódica', recebimento: 'Recebimento' };
-export const CONDS = { novo: ['Novo', '#2563EB'], bom: ['Bom', '#16A34A'], regular: ['Regular', '#CA8A04'], mau: ['Mau', '#DC2626'] };
+export const CONDS = { novo: ['Novo', '#7725EB'], bom: ['Bom', '#16A34A'], regular: ['Regular', '#CA8A04'], mau: ['Mau', '#DC2626'] };
 export const Status = ({ s }) => { const [l, c] = STATUS[s] || [s, 'gray']; return html`<span class=${'pill ' + c}>${l}</span>`; };
 
 // ---------- componentes ----------

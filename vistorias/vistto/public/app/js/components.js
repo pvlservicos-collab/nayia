@@ -32,9 +32,12 @@ export function promptDialog({ title, value = '', placeholder = '', ok = 'Salvar
 }
 
 // ---------------- básicos ----------------
-export function Toggle({ on, onChange, label, sub, danger }) {
+export function Toggle({ on, onChange, label, sub, danger, left }) {
+  const sw = html`<button type="button" role="switch" aria-checked=${on} class=${'switch' + (on ? ' on' : '')} onClick=${() => onChange(!on)}><i></i></button>`;
+  // left (24/10): a chave na frente e o texto ao lado, sem caixa ("Existe alguma inconformidade?")
+  if (left) return html`<label class=${'toggle-left' + (on ? ' on' : '')}>${sw}<span>${label}</span></label>`;
   return html`<label class=${'toggle-row' + (on ? ' on' : '') + (danger ? ' danger' : '')}><span class="tg-txt"><b>${label}</b>${sub && html`<small>${sub}</small>`}</span>
-    <button type="button" role="switch" aria-checked=${on} class=${'switch' + (on ? ' on' : '')} onClick=${() => onChange(!on)}><i></i></button></label>`;
+    ${sw}</label>`;
 }
 export function Chips({ options, value, onChange, cls = '' }) {
   return html`<div class=${'chips ' + cls}>${options.map((o) => { const v = o.value ?? o; const l = o.label ?? o; return html`<button type="button" class=${'chip' + (value === v ? ' on' : '')} style=${o.color && value === v ? `--cc:${o.color}` : o.color ? `--cd:${o.color}` : ''} onClick=${() => onChange(value === v && o.toggle ? null : v)}>${o.icon && html`<${Icon} name=${o.icon} size=${15} />`}${o.dot && html`<i class="cdot" style=${`background:${o.color}`}></i>`}${l}</button>`; })}</div>`;

@@ -9,7 +9,7 @@ import { app, go, back } from './main.js';
 export function TopBar({ title, onBack, right, sub }) {
   return html`<header class="topbar">
     ${onBack ? html`<button class="icon-btn" onClick=${onBack} aria-label="Voltar"><${Icon} name="arrowLeft" size=${22} /></button>` : html`<span class="tb-sp"></span>`}
-    ${title ? html`<div class="tb-title"><b>${title}</b>${sub && html`<small>${sub}</small>`}</div>` : html`<div class="brand"><${Logo} size=${30} /><span><b>Vist</b><i>to</i></span></div>`}
+    ${title ? html`<div class="tb-title"><b>${title}</b>${sub && html`<small>${sub}</small>`}</div>` : html`<div class="brand"><${Logo} size=${30} /><span class="brand-sub">Vistorias</span></div>`}
     ${right || html`<button class="avatar" onClick=${() => go('/perfil')}>${((app.user && app.user.name) || 'U')[0].toUpperCase()}</button>`}
   </header>`;
 }
@@ -39,7 +39,7 @@ export function Onboarding() {
   return html`<div class="onb">
     <div class="onb-glow"></div>
     <div class="onb-body" key=${i}>
-      <div class="onb-logo"><${Logo} size=${64} dark /><span><b>Vist</b><i>to</i></span></div>
+      <div class="onb-logo"><${Logo} size=${58} dark /><span class="brand-sub">Vistorias</span></div>
       <h1>${s.t}</h1><p>${s.d}</p>
       <div class="onb-chips">${s.chips.map(([ic, l]) => html`<span><${Icon} name=${ic} size=${14} />${l}</span>`)}</div>
     </div>
@@ -71,9 +71,9 @@ export function Login() {
     setBusy(false);
   }
   return html`<div class="login">
-    <div class="login-hero"><div class="onb-glow"></div><${Logo} size=${56} dark /><h1>Bem-vindo de volta</h1><p>Entre para continuar suas vistorias</p></div>
+    <div class="login-hero"><div class="onb-glow"></div><${Logo} size=${50} dark /><h1>Bem-vindo de volta</h1><p>Entre para continuar suas vistorias</p></div>
     <form class="login-form slide-up" onSubmit=${submit}>
-      <${Field} icon="mail" label="E-mail"><input class="input" type="email" autocomplete="username" required value=${email} onInput=${(e) => setEmail(e.target.value)} placeholder="voce@empresa.com" /></${Field}>
+      <${Field} icon="mail" label="E-mail ou usuário"><input class="input" type="text" autocapitalize="none" autocomplete="username" required value=${email} onInput=${(e) => setEmail(e.target.value)} placeholder="voce@empresa.com" /></${Field}>
       <${Field} icon="key" label="Senha"><input class="input" type=${show ? 'text' : 'password'} autocomplete="current-password" required value=${pw} onInput=${(e) => setPw(e.target.value)} placeholder="Sua senha" /><button type="button" class="eye" onClick=${() => setShow(!show)}><${Icon} name="eye" size=${18} /></button></${Field}>
       <button class="btn dark xl" disabled=${busy}>${busy ? html`<span class="spin sm"></span>` : 'Entrar'}</button>
       <p class="muted center small">Acesso fornecido pela sua imobiliária. Depois do primeiro login o app funciona offline.</p>
@@ -101,7 +101,7 @@ export function Home() {
     <div class="content">
       <div class="hello fade-in"><h2>Olá, ${name || 'vistoriador'}! <span class="wave">👋</span></h2><p>O que vamos fazer hoje?</p></div>
       <button class="btn dark xl newbtn pop" onClick=${newInspection}><${Icon} name="plus" size=${20} stroke=${2.6} /> NOVA VISTORIA</button>
-      <div class="kpis">${[['EM REVISÃO', '#F59E0B'], ['FINALIZADAS', '#0F1827'], ['ASSINADAS', '#22C55E'], ['ANDAMENTO', '#94A3B8']].map(([l, c], k) => html`<div class="kpi" style=${`--k:${c}`}><b>${counts[k]}</b><span>${l}</span></div>`)}</div>
+      <div class="kpis">${[['EM REVISÃO', '#F59E0B'], ['FINALIZADAS', '#1B1B1E'], ['ASSINADAS', '#22C55E'], ['ANDAMENTO', '#A2A2AA']].map(([l, c], k) => html`<div class="kpi" style=${`--k:${c}`}><b>${counts[k]}</b><span>${l}</span></div>`)}</div>
       ${queued.length ? html`<div class="card sync-card pop" onClick=${() => go('/sync')}><span class="sc-ic"><${Icon} name="cloud" size=${22} /></span><div><b>${queued.length} vistoria(s) aguardando envio</b><small>${online() ? 'Enviando automaticamente…' : 'Serão enviadas quando houver internet'}</small></div><${Icon} name="right" size=${18} /></div>` : ''}
       <div class="card setup"><div class="ring"><b>${Math.min(100, (list.length ? 50 : 0) + (server.length ? 50 : 0))}%</b></div><div><b>Dica rápida</b><small>Toque em <b>Tirar fotos</b> (botão verde) em cada cômodo e marque as avarias com bolinhas.</small></div></div>
       <div class="sec-h"><b><${Icon} name="clipboard" size=${18} /> Últimas vistorias</b><a onClick=${() => go('/vistorias')}>Ver todas →</a></div>
@@ -213,7 +213,7 @@ export function Support() {
     <${TopBar} />
     <div class="content">
       <div class="help-hero fade-in"><span><${Icon} name="headset" size=${34} /></span><h2>Precisa de ajuda?</h2><p>Nossa equipe está pronta para te ajudar. Veja as dúvidas frequentes ou envie uma mensagem.</p></div>
-      <a class="card contact" href="mailto:${(app.boot && app.boot.support_email) || 'contato@vistto.app'}"><span class="ct-ic dark"><${Icon} name="mail" size=${20} /></span><div><b>E-mail de suporte</b><small>${(app.boot && app.boot.support_email) || 'contato@vistto.app'}</small></div></a>
+      <a class="card contact" href="mailto:${(app.boot && app.boot.support_email) || 'contato@imobeasy.com'}"><span class="ct-ic dark"><${Icon} name="mail" size=${20} /></span><div><b>E-mail de suporte</b><small>${(app.boot && app.boot.support_email) || 'contato@imobeasy.com'}</small></div></a>
       <a class="card contact" href="https://wa.me/" target="_blank"><span class="ct-ic green"><${Icon} name="whatsapp" size=${20} /></span><div><b>Suporte via WhatsApp</b><small>Fale com a equipe</small></div><${Icon} name="right" size=${18} /></a>
       <div class="sec-h"><b><${Icon} name="info" size=${18} /> Perguntas frequentes</b></div>
       <div class="faq">${FAQ.map(([q, a], k) => html`<div class=${'faq-i' + (open === k ? ' on' : '')}><button onClick=${() => setOpen(open === k ? -1 : k)}><b>${q}</b><${Icon} name="down" size=${18} /></button><div class="faq-a"><p>${a}</p></div></div>`)}</div>
@@ -245,7 +245,7 @@ export function Profile() {
         <button onClick=${() => go('/onboarding')}><${Icon} name="info" size=${20} /> Ver apresentação <${Icon} name="right" size=${16} /></button>
         <button class="danger" onClick=${logout}><${Icon} name="logout" size=${20} /> Sair</button>
       </div>
-      <p class="muted center small">${(app.boot && app.boot.app_name) || 'Vistto'} · ${(app.boot && app.boot.company && app.boot.company.name) || ''}</p>
+      <p class="muted center small">${(app.boot && app.boot.app_name) || 'Imob Easy Vistorias'} · ${(app.boot && app.boot.company && app.boot.company.name) || ''}</p>
     </div>
   </div>`;
 }

@@ -266,6 +266,13 @@ prompt: comece pelo `nay onde`.
   Dados em `/docker/vistoria/data` (banco) e `uploads/` (fotos): ainda fora do backup. `.env` só no servidor.
   Atualizar: copiar o código (sem node_modules/data/uploads/.env) e `docker compose up -d --build`.
   ClickSign, SMTP e IA desligados: assinatura em simulação, e-mails na Caixa de saída, contrato pelo extrator local.
+- 24/10: cores da Imob Easy no app e no painel (`public/shared/brand.css` + troca automática dos azuis; o laudo segue o
+  modelo rosa em `public/laudo/`), logo em `public/shared/logo-imobeasy*.svg` (componente `Logo` em `app/js/icons.js`).
+  Item: estado e funcionamento numa lista suspensa (`EstadoSelect`), vídeo em bloco próprio (`VideoBlock`, `videos` no
+  item/cômodo/inconformidade) e "Existe alguma inconformidade?" no cômodo e no item (`NcBlock`; a do cômodo vai em
+  `rooms[].ncs` pelo `api.js`). Usuário admin `tel`. Acesso direto: menu "Ir para vistoria" (`layout.js`) →
+  `/admin/api/vistoria/entrar` (app.py, confere a senha do /admin) → passe de 60 s → `/sso` da vistoria
+  (`server/index.js`); segredo `VISTORIA_SSO_SEGREDO` (.env + compose da API do site) = `SSO_SECRET` (.env da vistoria).
 
 ## CRM (crm.imobeasy.online, Next.js) — `crm/`
 - Nay no card do contato: `src/components/Chat/PainelContatoParceria.tsx` + `src/app/api/leads/[id]/nay/route.ts` + `src/lib/nayLeitura.ts`.

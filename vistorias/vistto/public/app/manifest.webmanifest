@@ -1,12 +1,12 @@
 {
-  "name": "Vistto — Vistorias de Imóveis",
-  "short_name": "Vistto",
+  "name": "Imob Easy — Vistorias de Imóveis",
+  "short_name": "Imob Vistorias",
   "start_url": "/app/",
   "scope": "/app/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0F1827",
-  "theme_color": "#0F1827",
+  "background_color": "#1C1C1F",
+  "theme_color": "#1C1C1F",
   "lang": "pt-BR",
   "icons": [
     { "src": "/app/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },

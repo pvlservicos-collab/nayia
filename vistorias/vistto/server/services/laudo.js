@@ -21,6 +21,10 @@ function fmtLong(iso) {
   return new Intl.DateTimeFormat('pt-BR', { timeZone: cfg.params().timezone || 'America/Sao_Paulo', day: '2-digit', month: 'long', year: 'numeric' }).format(d);
 }
 
+// 24/10: como no modelo, "ESTADO: AMAZONAS (AM)"
+const UF = { AC: 'ACRE', AL: 'ALAGOAS', AP: 'AMAPÁ', AM: 'AMAZONAS', BA: 'BAHIA', CE: 'CEARÁ', DF: 'DISTRITO FEDERAL', ES: 'ESPÍRITO SANTO', GO: 'GOIÁS', MA: 'MARANHÃO', MT: 'MATO GROSSO', MS: 'MATO GROSSO DO SUL', MG: 'MINAS GERAIS', PA: 'PARÁ', PB: 'PARAÍBA', PR: 'PARANÁ', PE: 'PERNAMBUCO', PI: 'PIAUÍ', RJ: 'RIO DE JANEIRO', RN: 'RIO GRANDE DO NORTE', RS: 'RIO GRANDE DO SUL', RO: 'RONDÔNIA', RR: 'RORAIMA', SC: 'SANTA CATARINA', SP: 'SÃO PAULO', SE: 'SERGIPE', TO: 'TOCANTINS' };
+const estadoPorExtenso = (uf) => { const k = String(uf || '').trim().toUpperCase(); return UF[k] ? `${UF[k]} (${k})` : k; };
+
 function markers(m) {
   return (m.markers || []).map((k, i) => `<span class="mk" style="left:${(k.x * 100).toFixed(2)}%;top:${(k.y * 100).toFixed(2)}%;width:${((k.r || 0.07) * 200).toFixed(2)}%"><b>${i + 1}</b></span>`).join('');
 }
@@ -140,7 +144,8 @@ async function renderLaudo(ins, { print = false, baseUrl = '' } = {}) {
     return `<div class="ncroom"><h3 class="gh">${ri + 1}. ${esc(r.name)} <small>${list.length} inconformidade(s)</small></h3>${list.map((x) => `<div class="av"><div class="avroom">${esc(r.name)}${x.item ? ` › ${esc(x.item)}` : ''}</div><div class="avt"><span class="dot red"></span>${esc(x.title)}</div>${x.description ? `<p>${nl(x.description)}</p>` : ''}${gallery(x.media)}</div>`).join('')}</div>`;
   }).join('') || '<p class="muted">Nenhuma inconformidade registrada.</p>';
 
-  const logo = c.logo ? `<img src="${esc(c.logo)}" alt="">` : `<span class="initials">${esc((c.name || 'V').split(/\s+/).map((w) => w[0]).slice(0, 2).join(''))}</span>`;
+  // 24/10: igual ao modelo, o símbolo branco da Imob Easy no cabeçalho rosa (a menos que a empresa suba outro logo)
+  const logo = `<img src="${esc(c.logo || '/shared/simbolo-imobeasy-branco.svg')}" alt="${esc(c.name)}">`;
 
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(type.title)} · ${esc(p.identification || '#' + ins.code)}</title>
@@ -161,14 +166,12 @@ async function renderLaudo(ins, { print = false, baseUrl = '' } = {}) {
       <div class="ct">${(c.phones || []).map((x) => `<span>☎ ${esc(x)}</span>`).join('')}${c.email ? `<span>✉ ${esc(c.email)}</span>` : ''}${c.site ? `<span>🔗 ${esc(c.site)}</span>` : ''}</div></div>
     <h1>${esc(type.title)}</h1>
   </header>
-  <div class="meta"><span>Laudo nº <b>${String(ins.code).padStart(4, '0')}</b></span><span>Vistoria realizada em <b>${esc(fmtLong(ins.inspected_at || ins.created_at))}</b></span>${ins.inspector ? `<span>Vistoriador: <b>${esc(ins.inspector.name)}</b></span>` : ''}<span>${ins.stats.rooms} ambientes · ${ins.stats.photos} fotos · ${ins.stats.ncs} inconformidades</span></div>
   ${print ? '' : `<nav class="tabs" id="tabs"><button data-tab="laudo" class="on">Laudo completo</button><button data-tab="fotos">Fotos <i>${visualCount}</i></button><button data-tab="inconf">Inconformidades <i class="r">${ncs.length}</i></button></nav>`}
 
   <main class="pane on" id="tab-laudo">
     ${H('build', 'Imóvel')}
-    <div class="kv"><div><b>IDENTIFICAÇÃO:</b> ${esc(p.identification || '—')}</div><div><b>CEP:</b> ${esc(p.cep || '—')}</div><div><b>ESTADO:</b> ${esc(p.state || '—')}</div><div><b>ENDEREÇO:</b> ${esc(addr || '—')}</div><div><b>FINALIDADE:</b> ${esc((p.purpose || '—').toUpperCase())}</div><div class="two"><span><b>METRAGEM:</b> ${esc(p.area ? `${p.area} M²` : '—')}</span><span><b>MOBILIADO:</b> ${esc((p.furnished || '—').toUpperCase())}</span></div>${p.iptu ? `<div><b>INSCRIÇÃO IPTU:</b> ${esc(p.iptu)}</div>` : ''}</div>
-    ${mapQ ? `<div class="map"><iframe loading="lazy" src="https://maps.google.com/maps?q=${mapQ}&z=15&output=embed" referrerpolicy="no-referrer-when-downgrade"></iframe></div>` : ''}
-    ${partiesHtml ? H('people', 'Partes envolvidas') + `<div class="parties">${partiesHtml}</div>` : ''}
+    <div class="kv"><div><b>IDENTIFICAÇÃO:</b> ${esc(p.identification || '—')}</div><div><b>CEP:</b> ${esc(p.cep || '—')}</div><div><b>ESTADO:</b> ${esc(estadoPorExtenso(p.state) || '—')}</div><div><b>ENDEREÇO:</b> ${esc(addr || '—')}</div><div><b>FINALIDADE:</b> ${esc((p.purpose || '—').toUpperCase())}</div><div class="two"><span><b>METRAGEM:</b> ${esc(p.area ? `${p.area} M²` : '—')}</span><span><b>MOBILIADO:</b> ${esc((p.furnished || '—').toUpperCase())}</span></div>${p.iptu ? `<div><b>INSCRIÇÃO IPTU:</b> ${esc(p.iptu)}</div>` : ''}</div>
+    ${mapQ ? `<div class="map"><iframe loading="${LAZY}" src="https://maps.google.com/maps?q=${mapQ}&z=15&output=embed" referrerpolicy="no-referrer-when-downgrade"></iframe></div>` : ''}
     ${H('note', 'Introdução')}
     <p class="just">${nl(t.intro)}</p>
     <h4>Parâmetros de Avaliação/Condição do Imóvel/Estado</h4>${paramList}
@@ -178,11 +181,8 @@ async function renderLaudo(ins, { print = false, baseUrl = '' } = {}) {
     ${meterRows || meterPhotos.length ? H('bolt', 'Leitura dos medidores') + (meterRows ? `<table class="tbl"><tr><th>Medidor</th><th>Nº / Matrícula</th><th>Leitura</th></tr>${meterRows}</table>` : '') + gallery(meterPhotos, (m) => m.caption || '') : ''}
     ${H('home', 'Ambientes')}
     ${roomsHtml || '<p class="muted">Nenhum ambiente registrado.</p>'}
-    ${H('alert', `Avarias e inconformidades (${ncs.length})`, 'avarias')}
-    <div class="avlist">${avariasHtml}</div>
     ${H('note', 'Observações')}
     <div class="just obsx">${obsTxt}${ins.general_notes ? `<p>${nl(ins.general_notes)}</p>` : ''}</div>
-    ${sigHtml ? H('pen', 'Assinaturas') + sigHtml : ''}
     <div class="qrs">
       <div class="qr"><div class="qrh">QRCODE PARA ACESSO ÀS MÍDIAS</div><div class="qrb"><img src="${qrMedia}" alt=""><a href="${esc(mediaLink)}">${esc(mediaLink.replace(/^https?:\/\//, ''))}</a></div></div>
       <div class="qr"><div class="qrh">QRCODE PARA REALIZAR CONTESTAÇÃO</div><div class="qrb"><img src="${qrContest}" alt=""><a href="${esc(contestLink)}">${esc(contestLink.replace(/^https?:\/\//, ''))}</a></div></div>
@@ -190,7 +190,6 @@ async function renderLaudo(ins, { print = false, baseUrl = '' } = {}) {
   </main>
   ${print ? '' : `<main class="pane" id="tab-fotos">${H('home', `Todas as fotos (${visualCount})`)}${photosTab || '<p class="muted">Sem fotos.</p>'}</main>
   <main class="pane" id="tab-inconf">${H('alert', `Inconformidades por cômodo (${ncs.length})`)}${ncTab}</main>`}
-  <footer class="ft">Documento gerado eletronicamente por ${esc(c.name)} · ${esc(cfg.APP_NAME)} · ${esc(fmtDate(new Date().toISOString()))}</footer>
 </div>
 ${print ? '' : `<div class="lb" id="lb"><button class="x" aria-label="Fechar">×</button><button class="pv" aria-label="Anterior">‹</button><div class="lbc"></div><button class="nx" aria-label="Próxima">›</button><div class="lbcap"></div></div><script src="/laudo/laudo.js" defer></script>`}
 </body></html>`;

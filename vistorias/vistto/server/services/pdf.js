@@ -35,6 +35,8 @@ async function renderLaudoPdf(publicToken, filename) {
   try {
     await page.goto(`http://127.0.0.1:${port}/v/${publicToken}?print=1&rt=${renderToken(publicToken)}`, { waitUntil: 'networkidle0', timeout: 120000 });
     await page.emulateMediaType('print');
+    // 24/10: o mapa do Google (iframe) termina de desenhar depois do networkidle; sem esta espera saía um quadro cinza
+    await new Promise((r) => setTimeout(r, 3000));
     const out = path.join(UPLOAD_DIR, filename);
     await page.pdf({ path: out, format: 'A4', printBackground: true, margin: { top: '12mm', bottom: '14mm', left: '10mm', right: '10mm' },
       displayHeaderFooter: true, headerTemplate: '<span></span>',

@@ -4,13 +4,13 @@ const iso = (m) => new Date(now - m * 60000).toISOString();
 
 export const DEMO_BOOT = {
   user: { id: 'demo', name: 'Pedro Henrique', email: 'vistoriador@vistto.app', role: 'vistoriador' },
-  app_name: 'Vistto',
+  app_name: 'Imob Easy Vistorias',
   company: { name: 'IMOB EASY', color: '#FF1F7D' },
   types: {
     entrada: { label: 'Aluguel - Entrada', short: 'Entrada' }, saida: { label: 'Aluguel - Saída', short: 'Saída' }, temporada: { label: 'Temporada', short: 'Temporada' },
     compra_venda: { label: 'Compra e Venda', short: 'Compra e Venda' }, periodica: { label: 'Vistoria Periódica', short: 'Periódica' }, recebimento: { label: 'Recebimento de Imóvel', short: 'Recebimento' },
   },
-  conditions: { novo: { label: 'Novo', color: '#2563EB' }, bom: { label: 'Bom', color: '#16A34A' }, regular: { label: 'Regular', color: '#EAB308' }, mau: { label: 'Mau', color: '#DC2626' } },
+  conditions: { novo: { label: 'Novo', color: '#7725EB' }, bom: { label: 'Bom', color: '#16A34A' }, regular: { label: 'Regular', color: '#EAB308' }, mau: { label: 'Mau', color: '#DC2626' } },
   functioning: { funcionando: 'Funcionando', nao_funcionando: 'Não funcionando', nao_testado: 'Não testado' },
   vocab: {
     rooms: ['Sala', 'Cozinha', 'Quarto', 'Suíte', 'Banheiro', 'Lavabo', 'Área de Serviço', 'Varanda', 'Garagem', 'Corredor', 'Quintal', 'Escritório', 'Chaves', 'Closet'],

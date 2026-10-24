@@ -72,6 +72,7 @@ export function Icon({ name, size = 20, stroke = 2, cls = '', fill = false }) {
   return html`<svg class=${'ic ' + cls} width=${size} height=${size} viewBox="0 0 24 24" fill=${fill ? 'currentColor' : 'none'} stroke="currentColor" stroke-width=${stroke} stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d.split('|').map((p) => html`<path d=${p} />`)}</svg>`;
 }
 
+// 24/10: o logo da Imob Easy em todo lugar (branco nos fundos escuros); size = altura em px
 export function Logo({ size = 34, dark = false }) {
-  return html`<svg width=${size} height=${size} viewBox="0 0 48 48" aria-hidden="true"><rect x="1" y="1" width="46" height="46" rx="13" fill=${dark ? '#0F1827' : '#fff'} stroke=${dark ? '#1E3A5F' : '#E2E8F0'} /><path d="M11 23l13-10 13 10" fill="none" stroke=${dark ? '#fff' : '#0F1827'} stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 21v13h18V21" fill="none" stroke=${dark ? '#fff' : '#0F1827'} stroke-width="3.4" stroke-linejoin="round"/><path d="M18.5 27.5l4 4 9-10" fill="none" stroke="#38D9E9" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  return html`<img class="logo-ie" src=${dark ? '/shared/logo-imobeasy-branco.svg' : '/shared/logo-imobeasy.svg'} alt="Imob Easy" style=${`height:${size}px;width:auto`} />`;
 }

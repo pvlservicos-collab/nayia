@@ -10,8 +10,9 @@ import { app, go, back } from './main.js';
 function scrollToEl(id, smooth) { const el = document.getElementById(id); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 90, behavior: smooth ? 'smooth' : 'auto' }); }
 const STEPS = ['Modalidade', 'Cômodos', 'Registro', 'Dados', 'Revisão'];
 const TYPE_ICONS = { entrada: 'door', saida: 'logout', temporada: 'star', compra_venda: 'house', periodica: 'calendar', recebimento: 'building' };
-const COND = [{ value: 'novo', label: 'Novo', color: '#2563EB', dot: true, toggle: true }, { value: 'bom', label: 'Bom', color: '#16A34A', dot: true, toggle: true }, { value: 'regular', label: 'Regular', color: '#CA8A04', dot: true, toggle: true }, { value: 'mau', label: 'Mau', color: '#DC2626', dot: true, toggle: true }];
-const FUNC = [{ value: 'funcionando', label: 'Funcionando', toggle: true, color: '#16A34A' }, { value: 'nao_funcionando', label: 'Não funciona', toggle: true, color: '#DC2626' }, { value: 'nao_testado', label: 'Não testado', toggle: true, color: '#64748B' }];
+const COND = [{ value: 'novo', label: 'Novo', color: '#6D28D9', dot: true, toggle: true }, { value: 'bom', label: 'Bom', color: '#16A34A', dot: true, toggle: true }, { value: 'regular', label: 'Regular', color: '#CA8A04', dot: true, toggle: true }, { value: 'mau', label: 'Mau', color: '#DC2626', dot: true, toggle: true }];
+const FUNC = [{ value: 'funcionando', label: 'Funcionando', toggle: true, color: '#16A34A' }, { value: 'nao_funcionando', label: 'Não funciona', toggle: true, color: '#DC2626' }, { value: 'nao_testado', label: 'Não testado', toggle: true, color: '#71717A' }];
+const novaNc = () => ({ id: uid(), title: '', description: '', media: [], audios: [], videos: [] });
 
 // Hook de edição com gravação automática no aparelho
 function useIns(id) {
@@ -35,7 +36,7 @@ const typeLabel = (t) => ((app.boot && app.boot.types) || {})[t] || { label: 'No
 
 function WizardHeader({ ins, step, saved, onGo }) {
   return html`<div class="wz-head">
-    <header class="topbar"><button class="icon-btn" onClick=${() => go('/home')}><${Icon} name="arrowLeft" size=${22} /></button><div class="brand"><${Logo} size=${28} /><span><b>Vist</b><i>to</i></span></div><button class="avatar" onClick=${() => go('/perfil')}>${((app.user && app.user.name) || 'U')[0]}</button></header>
+    <header class="topbar"><button class="icon-btn" onClick=${() => go('/home')}><${Icon} name="arrowLeft" size=${22} /></button><div class="brand"><${Logo} size=${30} /></div><button class="avatar" onClick=${() => go('/perfil')}>${((app.user && app.user.name) || 'U')[0]}</button></header>
     <div class="wz-title"><b>${ins.type ? typeLabel(ins.type).label : 'Nova Vistoria'}</b><${SavedChip} saved=${saved} /></div>
     <${Stepper} steps=${STEPS} current=${step} onGo=${onGo} />
   </div>`;
@@ -116,8 +117,9 @@ function StepRooms({ ins, update }) {
 function countKinds(r) {
   const ph = r.media.length + r.items.reduce((a, it) => a + it.media.length + (it.ncs || []).reduce((b, n) => b + n.media.length, 0), 0);
   const au = (r.audios || []).length + r.items.reduce((a, it) => a + (it.audios || []).length, 0);
-  const nc = r.items.reduce((a, it) => a + (it.has_nc ? (it.ncs || []).length : 0), 0);
-  return { ph, au, nc };
+  const rnc = r.has_nc ? r.ncs || [] : [];
+  const nc = rnc.length + r.items.reduce((a, it) => a + (it.has_nc ? (it.ncs || []).length : 0), 0);
+  return { ph: ph + rnc.reduce((a, n) => a + n.media.length, 0), au, nc };
 }
 function StepRegister({ ins, update, id }) {
   return html`<${Section} cls="pop">
@@ -209,6 +211,9 @@ export function RoomScreen({ id, roomId, q = {} }) {
         <small class="muted">${room.media.length} de ${limit} fotos</small>
         <${PhotoGrid} big ids=${room.media} onAdd=${() => camera('room', (ids) => upRoom((r) => r.media.push(...ids)))} onOpen=${(mid, i) => view(room.media, i, delFrom((r) => r.media))} onDelete=${delFrom((r) => r.media)} />
         <small class="hint"><${Icon} name="pin" size=${14} /> Fotografe paredes, piso, teto, janelas e pontos de atenção.</small>
+        <div class="lbl">VÍDEO DO CÔMODO</div>
+        <${VideoBlock} ids=${room.videos || []} onAdd=${() => video((ids) => upRoom((r) => (r.videos = [...(r.videos || []), ...ids])))} onOpen=${(mid, i) => view(room.videos, i, delFrom((r) => (r.videos = r.videos || [])))} onDelete=${delFrom((r) => (r.videos = r.videos || []))} />
+        <${NcBlock} owner=${room} set=${upRoom} camera=${camera} video=${video} view=${view} inspId=${id} />
       </${Section}>
 
       <${Section} tag="PASSO 2" title="Itens e móveis" icon="box" count=${room.items.length}>
@@ -228,17 +233,13 @@ export function RoomScreen({ id, roomId, q = {} }) {
           onDeleteAudio=${delFrom((r) => (r.audios = r.audios || []))} demoRec=${q.rec && !q.open} />
       </${Section}>
 
-      <${Section} tag="OPCIONAL" title="Vídeo do cômodo" icon="video" count=${room.media.filter((m) => false).length}>
-        <small class="muted">Grave um vídeo panorâmico do ambiente (fica salvo no aparelho até sincronizar).</small>
-        <button class="btn outline sm" onClick=${() => video((ids) => upRoom((r) => r.media.push(...ids)))}><${Icon} name="video" size=${17} /> Gravar vídeo</button>
-      </${Section}>
       <div style="height:150px"></div>
     </div>
     ${rec.rec && html`<div class="rec-float"><${RecordingBar} secs=${rec.secs} text=${rec.text} onCancel=${() => rec.stop(false)} onSave=${saveVoice} /></div>`}
     <div class="room-foot">
-      <div class="rf-btns"><button class="btn green photo-cta" onClick=${() => camera('room', (ids) => upRoom((r) => r.media.push(...ids)))}><${Icon} name="camera" size=${22} /> Tirar fotos</button>
-      <button class="btn dark" onClick=${async () => { try { await rec.start(); } catch (e) { toast('Microfone indisponível: ' + e.message, 'err'); } }}><${Icon} name="mic" size=${20} /> Gravar voz</button></div>
-      <button class="rf-done" onClick=${nextRoom}><${Icon} name="checkCircle" size=${18} /> Concluir cômodo</button>
+      <div class="rf-btns"><button class="btn photo-cta" onClick=${() => camera('room', (ids) => upRoom((r) => r.media.push(...ids)))}><${Icon} name="camera" size=${18} /> Tirar fotos</button>
+      <button class="btn dark" onClick=${async () => { try { await rec.start(); } catch (e) { toast('Microfone indisponível: ' + e.message, 'err'); } }}><${Icon} name="mic" size=${17} /> Gravar voz</button></div>
+      <button class="btn green rf-done" onClick=${nextRoom}><${Icon} name="checkCircle" size=${21} /> Concluir cômodo</button>
     </div>
   </div>`;
 }
@@ -254,14 +255,60 @@ function ItemPicker({ suggestions, custom, onPick, onClose }) {
   </${Sheet}>`;
 }
 
-function ItemCard({ it, idx, open, onToggle, set, remove, rename, camera, gallery, video, view, inspId, demoRec }) {
+// Estado e funcionamento numa lista suspensa só, dividida em ESTADO e FUNCIONAMENTO (Pedro, 24/10)
+function EstadoSelect({ it, set }) {
+  const [open, setOpen] = useState(false);
   const cond = COND.find((c) => c.value === it.condition);
-  const delMedia = (list) => (mid) => { set((x) => { const l = list(x); l.splice(l.indexOf(mid), 1); }); media.del(mid); };
-  const addNc = () => set((x) => { x.ncs = x.ncs || []; x.ncs.push({ id: uid(), title: '', description: '', media: [], audios: [] }); x.has_nc = true; });
+  const fn = FUNC.find((f) => f.value === it.functioning);
+  const pick = (k, v) => set((x) => (x[k] = x[k] === v ? null : v));
+  const opt = (k, o) => html`<button type="button" role="option" aria-selected=${it[k] === o.value} class=${'esel-o' + (it[k] === o.value ? ' on' : '')} onClick=${() => pick(k, o.value)}><i class="cdot" style=${`background:${o.color}`}></i><span>${o.label}</span>${it[k] === o.value ? html`<${Icon} name="check" size=${16} stroke=${2.6} cls="esel-ok" />` : ''}</button>`;
+  return html`<div class=${'esel' + (open ? ' open' : '')}>
+    <button type="button" class="esel-f" aria-expanded=${open} onClick=${() => setOpen(!open)}>
+      <span class="esel-v">${cond ? html`<i class="cdot" style=${`background:${cond.color}`}></i>${cond.label}` : html`<em>Selecione o estado</em>`}${fn ? html`<span class="esel-sep">·</span>${fn.label}` : ''}</span>
+      <${Icon} name="down" size=${18} cls="esel-chev" /></button>
+    ${open && html`<div class="esel-list slide-down" role="listbox">
+      <div class="esel-g">ESTADO</div>${COND.map((o) => opt('condition', o))}
+      <div class="esel-g">FUNCIONAMENTO <small>(se aplicável)</small></div>${FUNC.map((o) => opt('functioning', o))}
+      <button type="button" class="esel-pronto" onClick=${() => setOpen(false)}>Pronto</button>
+    </div>`}
+  </div>`;
+}
+
+// Vídeos num bloco próprio, mais fino que o das fotos; com vídeo, mostra os quadradinhos como as fotos (Pedro, 24/10)
+function VideoBlock({ ids = [], onAdd, onOpen, onDelete }) {
+  if (!ids.length) return html`<button type="button" class="vblock-add" onClick=${onAdd}><${Icon} name="video" size=${18} /><span>Adicionar vídeo</span></button>`;
+  return html`<div class="pgrid vgrid">${ids.map((mid, i) => html`<${Thumb} key=${mid} id=${mid} onClick=${() => onOpen && onOpen(mid, i)} onDelete=${onDelete && (() => onDelete(mid))} />`)}
+    <button type="button" class="thumb add vadd" onClick=${onAdd}><${Icon} name="video" size=${20} /><span>Outro vídeo</span></button></div>`;
+}
+
+// "Existe alguma inconformidade?" no cômodo e no item: ligado, abre o registro como um item novo (fotos, descrição e vídeo)
+function NcBlock({ owner, set, camera, video, view, inspId }) {
+  const ncs = owner.ncs || [];
+  const delMedia = (list) => (mid) => { set((x) => { const l = list(x); const k = l.indexOf(mid); if (k >= 0) l.splice(k, 1); }); media.del(mid); };
   const ncPhotos = (nid) => camera('item', async (ids) => {
     set((x) => x.ncs.find((n) => n.id === nid).media.push(...ids));
     openOverlay(html`<${MarkerEditor} id=${ids[0]} onClose=${() => { closeOverlay(); set(() => {}); }} />`);
   });
+  return html`<${Toggle} left on=${!!owner.has_nc} label="Existe alguma inconformidade?" onChange=${(v) => set((x) => { x.has_nc = v; x.ncs = x.ncs || []; if (v && !x.ncs.length) x.ncs.push(novaNc()); })} />
+    ${owner.has_nc && html`<div class="ncs slide-down">${ncs.map((n, ni) => html`<div class="nc-card" key=${n.id}>
+      <div class="nc-h"><span class="dot red"></span><b>Inconformidade ${ni + 1}</b><span class="sp"></span><button class="icon-btn sm danger" onClick=${() => set((x) => { x.ncs.splice(ni, 1); if (!x.ncs.length) x.has_nc = false; })}><${Icon} name="trash" size=${16} /></button></div>
+      <input class="input" placeholder="Título · ex.: Rodapé esfarelado na base" value=${n.title} onInput=${(e) => set((x) => (x.ncs[ni].title = e.target.value))} />
+      <div class="lbl">FOTOS DA INCONFORMIDADE</div>
+      <${PhotoGrid} ids=${n.media} addLabel="Foto da avaria" onAdd=${() => ncPhotos(n.id)} onOpen=${(mid, i) => view(n.media, i, delMedia((x) => x.ncs[ni].media))} onDelete=${delMedia((x) => x.ncs[ni].media)} />
+      ${n.media.length ? html`<small class="hint red"><${Icon} name="target" size=${14} /> Toque na foto → “Marcar avaria” para colocar as bolinhas vermelhas.</small>` : ''}
+      <div class="lbl">VÍDEO</div>
+      <${VideoBlock} ids=${n.videos || []} onAdd=${() => video((ids) => set((x) => (x.ncs[ni].videos = [...(x.ncs[ni].videos || []), ...ids])))} onOpen=${(mid, i) => view(n.videos, i, delMedia((x) => (x.ncs[ni].videos = x.ncs[ni].videos || [])))} onDelete=${delMedia((x) => (x.ncs[ni].videos = x.ncs[ni].videos || []))} />
+      <div class="lbl">DESCRIÇÃO</div>
+      <${CommentBox} value=${n.description} onChange=${(v) => set((x) => (x.ncs[ni].description = v))} placeholder="Descreva a avaria (ou grave um áudio)…" audios=${n.audios || []}
+        onAudio=${async (r) => { const mid = await saveMedia(inspId, { kind: 'audio', blob: r.blob, mime: r.mime, transcript: r.transcript }); set((x) => (x.ncs[ni].audios = [...(x.ncs[ni].audios || []), mid])); }}
+        onDeleteAudio=${delMedia((x) => (x.ncs[ni].audios = x.ncs[ni].audios || []))} />
+    </div>`)}
+    <button class="btn outline-red sm" onClick=${() => set((x) => { x.ncs = x.ncs || []; x.ncs.push(novaNc()); x.has_nc = true; })}><${Icon} name="plus" size=${16} /> Adicionar outra inconformidade</button></div>`}`;
+}
+
+function ItemCard({ it, idx, open, onToggle, set, remove, rename, camera, gallery, video, view, inspId, demoRec }) {
+  const cond = COND.find((c) => c.value === it.condition);
+  const delMedia = (list) => (mid) => { set((x) => { const l = list(x); l.splice(l.indexOf(mid), 1); }); media.del(mid); };
   const nPh = it.media.length + (it.ncs || []).reduce((a, n) => a + n.media.length, 0);
   return html`<div class=${'item-card' + (open ? ' open' : '') + (it.has_nc ? ' has-nc' : '')} id=${'it-' + it.id}>
     <div class="ic-head" onClick=${onToggle}>
@@ -271,29 +318,19 @@ function ItemCard({ it, idx, open, onToggle, set, remove, rename, camera, galler
       <${Icon} name="down" size=${18} cls="chev" />
     </div>
     <div class="itc-body"><div class="ic-inner">
-      <div class="lbl">ESTADO</div>
-      <${Chips} options=${COND} value=${it.condition} onChange=${(v) => set((x) => (x.condition = v))} cls="cond" />
-      <div class="ic-row">
-        <div class="ic-col"><div class="lbl">FUNCIONAMENTO <small>(se aplicável)</small></div><${Chips} options=${FUNC} value=${it.functioning} onChange=${(v) => set((x) => (x.functioning = v))} cls="sm" /></div>
-      </div>
+      <div class="lbl">ESTADO E FUNCIONAMENTO</div>
+      <${EstadoSelect} it=${it} set=${set} />
       <div class="ic-row qty"><div class="lbl">QUANTIDADE</div><div class="stepper-n"><button onClick=${() => set((x) => (x.quantity = Math.max(0, (x.quantity || 1) - 1) || null))}>−</button><b>${it.quantity || '—'}</b><button onClick=${() => set((x) => (x.quantity = (x.quantity || 0) + 1))}>+</button></div></div>
       <div class="lbl">FOTOS EXCLUSIVAS DO ITEM <span class="sp"></span><button class="link-btn" onClick=${() => gallery((ids) => set((x) => x.media.push(...ids)))}><${Icon} name="image" size=${15} /> Galeria</button></div>
       <${PhotoGrid} ids=${it.media} addLabel="Foto do item" onAdd=${() => camera('item', (ids) => set((x) => x.media.push(...ids)))} onOpen=${(mid, i) => view(it.media, i, delMedia((x) => x.media))} onDelete=${delMedia((x) => x.media)} />
+      <div class="lbl">VÍDEO DO ITEM</div>
+      <${VideoBlock} ids=${it.videos || []} onAdd=${() => video((ids) => set((x) => (x.videos = [...(x.videos || []), ...ids])))} onOpen=${(mid, i) => view(it.videos, i, delMedia((x) => (x.videos = x.videos || [])))} onDelete=${delMedia((x) => (x.videos = x.videos || []))} />
       <div class="lbl">OBSERVAÇÕES</div>
       <${CommentBox} value=${it.notes} onChange=${(v) => set((x) => (x.notes = v))} placeholder="Ex.: Rack em MDF carvalho, 2 portas, puxadores em alumínio…" audios=${it.audios || []}
         onAudio=${async (r) => { const mid = await saveMedia(inspId, { kind: 'audio', blob: r.blob, mime: r.mime, transcript: r.transcript }); set((x) => (x.audios = [...(x.audios || []), mid])); }}
-        onDeleteAudio=${delMedia((x) => (x.audios = x.audios || []))} onVideo=${() => video((ids) => set((x) => x.media.push(...ids)))} demoRec=${demoRec} />
+        onDeleteAudio=${delMedia((x) => (x.audios = x.audios || []))} demoRec=${demoRec} />
 
-      <${Toggle} danger on=${!!it.has_nc} label="Inconformidade" sub="Registrar avaria / defeito neste item" onChange=${(v) => set((x) => { x.has_nc = v; x.ncs = x.ncs || []; if (v && !x.ncs.length) x.ncs.push({ id: uid(), title: '', description: '', media: [], audios: [] }); })} />
-      ${it.has_nc && html`<div class="ncs slide-down">${(it.ncs || []).map((n, ni) => html`<div class="nc-card" key=${n.id}>
-        <div class="nc-h"><span class="dot red"></span><b>Inconformidade ${ni + 1}</b><span class="sp"></span><button class="icon-btn sm danger" onClick=${() => set((x) => { x.ncs.splice(ni, 1); if (!x.ncs.length) x.has_nc = false; })}><${Icon} name="trash" size=${16} /></button></div>
-        <input class="input" placeholder="Título · ex.: Rack esfarelado na base" value=${n.title} onInput=${(e) => set((x) => (x.ncs[ni].title = e.target.value))} />
-        <${CommentBox} rows=${2} value=${n.description} onChange=${(v) => set((x) => (x.ncs[ni].description = v))} placeholder="Descreva a avaria (ou grave um áudio)…" audios=${n.audios || []}
-          onAudio=${async (r) => { const mid = await saveMedia(inspId, { kind: 'audio', blob: r.blob, mime: r.mime, transcript: r.transcript }); set((x) => (x.ncs[ni].audios = [...(x.ncs[ni].audios || []), mid])); }} />
-        <${PhotoGrid} ids=${n.media} addLabel="Foto da avaria" onAdd=${() => ncPhotos(n.id)} onOpen=${(mid, i) => view(n.media, i, delMedia((x) => x.ncs[ni].media))} onDelete=${delMedia((x) => x.ncs[ni].media)} />
-        ${n.media.length ? html`<small class="hint red"><${Icon} name="target" size=${14} /> Toque na foto → “Marcar avaria” para colocar as bolinhas vermelhas.</small>` : ''}
-      </div>`)}
-      <button class="btn outline-red sm" onClick=${addNc}><${Icon} name="plus" size=${16} /> Adicionar outra inconformidade</button></div>`}
+      <${NcBlock} owner=${it} set=${set} camera=${camera} video=${video} view=${view} inspId=${inspId} />
       <div class="ic-actions"><button class="link-btn" onClick=${rename}><${Icon} name="edit" size=${15} /> Renomear</button><button class="link-btn danger" onClick=${remove}><${Icon} name="trash" size=${15} /> Remover item</button></div>
     </div></div>
   </div>`;

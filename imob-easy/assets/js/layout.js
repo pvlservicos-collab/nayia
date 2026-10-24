@@ -79,6 +79,9 @@
     /* 22/10/2026 (Pedro: "uma página nova no menu chamada Modelos ... onde estão todos os modelos de IA ... e quanto
        estamos gastando em cada modelo"): o mapa do ecossistema com os gastos por nó (modelos.html, 470). */
     { chave: "modelos",       rotulo: "Modelos",          href: "modelos.html" },
+    /* 24/10/2026 (Pedro: "poe um botão ir para vistoria la no menu da imobeasy que ja abre o dashboard admin logado"):
+       a API confere a senha do /admin e manda ao vistoria.imobeasy.online com um passe de 60 s (entra como "tel") */
+    { chave: "vistoria",      rotulo: "Ir para vistoria", href: "/admin/api/vistoria/entrar", novaAba: true },
     /* 06/10/2026 (Pedro: "vou reformular o site: pega o Locação e põe dentro de Captação"): Captação abre um
        menu com as páginas; nenhuma delas mudou. Oportunidades é a 4ª aba de captacao.html (11/10). */
     /* 18/10/2026 (Pedro: "o menu do site está bagunçado, tem abas dentro de abas que não aparecem no menu"): cada aba
@@ -211,7 +214,7 @@
       "</div>";
     }
     return (
-      '<a class="nav-principal__item" href="' + item.href + '"' + (ativo ? ' aria-current="page"' : "") + ">" +
+      '<a class="nav-principal__item" href="' + item.href + '"' + (ativo ? ' aria-current="page"' : "") + (item.novaAba ? ' target="_blank" rel="noopener"' : "") + ">" +
         '<span class="icone">' + (ICONE[item.chave] || ICONE.folha) + "</span>" + item.rotulo +
       "</a>"
     );

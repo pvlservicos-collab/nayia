@@ -28,10 +28,10 @@ function Login({ onDone }) {
     try { const r = await api('/auth/login', { body: { email, password: pw } }); if (r.user.role !== 'admin') throw new Error('Acesso restrito ao administrador. Vistoriadores usam o app em /app'); localStorage.setItem('vt_admin', r.token); session.user = r.user; onDone(); } catch (err) { toast(err.message, 'err'); }
     setBusy(false);
   }
-  return html`<div class="alogin"><div class="al-side"><div class="al-glow"></div><div class="al-brand"><${Logo} size=${54} dark /><span><b>Vist</b><i>to</i></span></div><h1>Vistorias de imóveis,<br /><em>do app ao laudo assinado.</em></h1>
+  return html`<div class="alogin"><div class="al-side"><div class="al-glow"></div><div class="al-brand"><${Logo} size=${54} dark /><span class="brand-sub">Vistorias</span></div><h1>Vistorias de imóveis,<br /><em>do app ao laudo assinado.</em></h1>
     <ul><li><${Icon} name="check" size=${18} /> App offline com fotos, áudio e vídeo</li><li><${Icon} name="check" size=${18} /> Avarias destacadas com bolinhas</li><li><${Icon} name="check" size=${18} /> IA que lê o contrato e completa o laudo</li><li><${Icon} name="check" size=${18} /> Assinatura ClickSign e link público</li></ul></div>
     <form class="al-form" onSubmit=${go}><h2>Entrar no painel</h2><p class="muted">Use sua conta de administrador.</p>
-      <label class="af"><span>E-mail</span><input type="email" required value=${email} onInput=${(e) => setEmail(e.target.value)} autocomplete="username" /></label>
+      <label class="af"><span>E-mail ou usuário</span><input type="text" autocapitalize="none" required value=${email} onInput=${(e) => setEmail(e.target.value)} autocomplete="username" /></label>
       <label class="af"><span>Senha</span><input type="password" required value=${pw} onInput=${(e) => setPw(e.target.value)} autocomplete="current-password" /></label>
       <button class="btn primary lg" disabled=${busy}>${busy ? html`<span class="spin sm light"></span>` : 'Entrar'}</button>
       <a class="muted small" href="/app/">Sou vistoriador → abrir o app</a></form></div>`;
@@ -52,12 +52,12 @@ function Shell() {
   const Page = typeof page === 'function' ? page : null;
   return html`<div class=${'shell' + (mob ? ' mob-open' : '')}>
     <aside class="side">
-      <div class="side-brand"><${Logo} size=${38} dark /><span><b>Vist</b><i>to</i></span></div>
+      <div class="side-brand"><${Logo} size=${34} dark /><span class="brand-sub">Vistorias</span></div>
       <nav>${MENU.map(([key, label, icon, extra, sub], i) => html`
         <a class=${'side-i' + (k === key ? ' on' : '')} href=${sub ? null : '#/' + key} onClick=${sub ? () => setOpenSub(!openSub) : null}><span class="si-n">${i + 1}.</span><${Icon} name=${icon} size=${18} /><span class="si-l">${label}</span>
           ${extra === 'badge' && counts.aprovacoes ? html`<em class="si-b">${counts.aprovacoes}</em>` : ''}${key === 'contestacoes' && counts.contestacoes ? html`<em class="si-b red">${counts.contestacoes}</em>` : ''}${extra === 'new' ? html`<em class="si-new">NOVO</em>` : ''}${sub ? html`<${Icon} name=${openSub ? 'up' : 'down'} size=${15} />` : ''}</a>
         ${sub && (openSub || k === 'config') && html`<div class="side-sub">${sub.map(([p, l], j) => html`<a class=${'side-s' + (r.join('/') === p || (p === 'config/parametros' && k === 'config' && !r[1]) ? ' on' : '')} href=${'#/' + p}>${i + 1}.${j + 1}. ${l}</a>`)}</div>`}`)}</nav>
-      <div class="side-foot"><a href="/app/" target="_blank" class="side-app"><${Icon} name="camera" size=${16} /> Abrir app do vistoriador</a><small>Pedro Victor Webdesign</small></div>
+      <div class="side-foot"><a href="/app/" target="_blank" class="side-app"><${Icon} name="camera" size=${16} /> Abrir app do vistoriador</a></div>
     </aside>
     <div class="main">
       <header class="topb"><button class="ib mob-only" onClick=${() => setMob(!mob)}><${Icon} name="menu" size=${22} /></button><span class="sp"></span>

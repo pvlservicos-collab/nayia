@@ -1,4 +1,4 @@
-/* Identidade visual — base comum (app e painel) */
+/* Identidade visual — base comum (app e painel). 24/10: cores da Imob Easy (sem azul: cinza escuro, degradês cinza e destaques no roxo do site) */
 @font-face{font-family:Poppins;font-weight:300;font-display:swap;src:url(/shared/fonts/poppins-latin-300-normal.woff2) format('woff2')}
 @font-face{font-family:Poppins;font-weight:400;font-display:swap;src:url(/shared/fonts/poppins-latin-400-normal.woff2) format('woff2')}
 @font-face{font-family:Poppins;font-weight:500;font-display:swap;src:url(/shared/fonts/poppins-latin-500-normal.woff2) format('woff2')}
@@ -7,13 +7,13 @@
 @font-face{font-family:Poppins;font-weight:400;font-display:swap;src:url(/shared/fonts/poppins-latin-ext-400-normal.woff2) format('woff2');unicode-range:U+0100-02AF,U+1E00-1EFF}
 @font-face{font-family:Poppins;font-weight:600;font-display:swap;src:url(/shared/fonts/poppins-latin-ext-600-normal.woff2) format('woff2');unicode-range:U+0100-02AF,U+1E00-1EFF}
 :root{
-  --navy:#0F1827;--navy-2:#152B4A;--navy-3:#1B3A63;--ink:#0B1220;
-  --cyan:#38D9E9;--cyan-d:#0EA5B7;--cyan-l:#E6FBFD;
+  --navy:#1B1B1E;--navy-2:#2F2F34;--navy-3:#3F3F45;--ink:#151518;
+  --cyan:#B98AE0;--cyan-d:#6D28D9;--cyan-l:#F3EDFF;
   --green:#22C55E;--green-d:#16A34A;--green-l:#DCFCE7;
   --red:#EF4444;--red-d:#DC2626;--red-l:#FEE2E2;
-  --amber:#F59E0B;--amber-l:#FEF3C7;--blue:#3B82F6;--blue-l:#DBEAFE;--purple:#A855F7;--purple-l:#F3E8FF;
-  --bg:#F3F5F9;--card:#FFFFFF;--line:#E6EAF0;--line-2:#D7DDE6;--text:#0F172A;--text-2:#334155;--muted:#64748B;--muted-2:#94A3B8;
-  --r:16px;--r-sm:12px;--sh:0 1px 2px rgba(15,24,39,.05),0 6px 20px rgba(15,24,39,.06);--sh-lg:0 18px 50px rgba(15,24,39,.18);
+  --amber:#F59E0B;--amber-l:#FEF3C7;--blue:#6D28D9;--blue-l:#F3EDFF;--purple:#A855F7;--purple-l:#F3E8FF;
+  --bg:#F4F4F5;--card:#FFFFFF;--line:#EAEAEC;--line-2:#DDDDE0;--text:#1C1C1F;--text-2:#44444B;--muted:#73737C;--muted-2:#A2A2AA;
+  --r:16px;--r-sm:12px;--sh:0 1px 2px rgba(27,27,30,.05),0 6px 20px rgba(27,27,30,.06);--sh-lg:0 18px 50px rgba(27,27,30,.18);
   --ease:cubic-bezier(.2,.8,.2,1);
   --font:Poppins,system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
 }
@@ -23,7 +23,7 @@ body{font-family:var(--font);color:var(--text);background:var(--bg);-webkit-font
 button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
 button{cursor:pointer}
 a{color:var(--cyan-d)}
-.spin{width:28px;height:28px;border:3px solid rgba(15,24,39,.15);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
+.spin{width:28px;height:28px;border:3px solid rgba(27,27,30,.15);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
 .spin.sm{width:16px;height:16px;border-width:2px;vertical-align:-3px}
 .spin.light{border-color:rgba(255,255,255,.25);border-top-color:#fff}
 @keyframes spin{to{transform:rotate(360deg)}}

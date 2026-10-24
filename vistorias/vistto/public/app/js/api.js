@@ -34,6 +34,8 @@ function structure(ins, mediaIds) {
     id: ins.id, type: ins.type, inspected_at: ins.created_at, property: ins.property || {}, parties: ins.parties || {}, meters: stripMeters(ins.meters),
     general_notes: ins.general_notes || '', source_inspection_id: ins.source_inspection_id || null, media_ids: mediaIds,
     rooms: (ins.rooms || []).map((r) => ({ id: r.id, name: r.name, notes: r.notes || '', done: !!r.done,
+      // 24/10: a inconformidade do cômodo (toggle "Existe alguma inconformidade?") só vai quando ligada
+      ncs: (r.has_nc ? r.ncs || [] : []).map((n) => ({ id: n.id, title: n.title || 'Avaria', description: n.description || '' })),
       items: (r.items || []).map((it) => ({ id: it.id, name: it.name, condition: it.condition || null, functioning: it.functioning || null, quantity: it.quantity || null, notes: it.notes || '', has_nc: !!it.has_nc,
         ncs: (it.ncs || []).map((n) => ({ id: n.id, title: n.title || 'Avaria', description: n.description || '' })) })) })),
   };
@@ -43,9 +45,10 @@ function stripMeters(m = {}) { const o = {}; for (const [k, v] of Object.entries
 // Onde cada mídia está pendurada (cômodo / item / inconformidade / medidor)
 export function mediaPlacement(ins) {
   const map = new Map();
-  const both = (o) => [...(o.media || []), ...(o.audios || [])];
+  const both = (o) => [...(o.media || []), ...(o.videos || []), ...(o.audios || [])];
   (ins.rooms || []).forEach((r) => {
     both(r).forEach((id, i) => map.set(id, { room_id: r.id, scope: 'room', position: i }));
+    (r.has_nc ? r.ncs || [] : []).forEach((n) => both(n).forEach((id, i) => map.set(id, { room_id: r.id, nc_id: n.id, scope: 'nc', position: i })));
     (r.items || []).forEach((it) => {
       both(it).forEach((id, i) => map.set(id, { room_id: r.id, item_id: it.id, scope: 'item', position: i }));
       (it.has_nc ? it.ncs || [] : []).forEach((n) => both(n).forEach((id, i) => map.set(id, { room_id: r.id, item_id: it.id, nc_id: n.id, scope: 'nc', position: i })));

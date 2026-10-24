@@ -5536,6 +5536,27 @@ def _captacao_grupos(sql, params=()):
 
 # 375: OS LEMBRETES DA EQUIPE no sininho do admin (Pedro, 15/10/2026: "um lembrete de aviso pra nós ... em um dia
 # específico e um texto que eu escrevo ... até eu ir lá e clicar em feito"). Quem guarda e decide é o banco.
+# VISTORIA (Pedro, 24/10: "um botão ir para vistoria la no menu da imobeasy que ja abre o dashboard admin logado"):
+# confere a senha do /admin (api.imobeasy.online não passa pelo basicauth do Traefik) e manda ao vistoria.imobeasy.online
+# com um passe assinado que vale 60 s (VISTORIA_SSO_SEGREDO = SSO_SECRET do .env da vistoria); lá entra como "tel".
+@app.route("/admin/api/vistoria/entrar")
+def admin_vistoria_entrar():
+    import base64
+    import hashlib
+    import hmac
+    import json
+    import time
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    segredo = os.environ.get("VISTORIA_SSO_SEGREDO", "")
+    if not segredo:
+        return jsonify({"erro": "VISTORIA_SSO_SEGREDO não configurado"}), 503
+    carga = base64.urlsafe_b64encode(json.dumps({"u": "tel", "exp": int(time.time()) + 60}).encode()).decode().rstrip("=")
+    assinatura = base64.urlsafe_b64encode(hmac.new(segredo.encode(), carga.encode(), hashlib.sha256).digest()).decode().rstrip("=")
+    return Response(status=302, headers={"Location": f"https://vistoria.imobeasy.online/sso?t={carga}.{assinatura}",
+                                         "Cache-Control": "no-store"})
+
+
 @app.route("/admin/api/lembretes", methods=["GET", "POST"])
 def admin_lembretes():
     if request.method == "GET":
