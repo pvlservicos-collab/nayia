@@ -13,6 +13,8 @@ estado  text  NOT NULL  padrão 'conversando'::text
 humano_em  timestamp with time zone
 criado_em  timestamp with time zone  NOT NULL  padrão now()
 atualizado_em  timestamp with time zone  NOT NULL  padrão now()
+origem  text   -- 488: como virou corretor da Nay Corretores: grupo | olx | parceria.
+classificado_em  timestamp with time zone
 
 ## índices
 CREATE UNIQUE INDEX busca_corretor_pkey ON privado.busca_corretor USING btree (telefone8)
@@ -20,6 +22,7 @@ CREATE UNIQUE INDEX busca_corretor_pkey ON privado.busca_corretor USING btree (t
 ## restrições
 busca_corretor_busca_fkey: FOREIGN KEY (busca) REFERENCES privado.busca_cliente(id) ON DELETE SET NULL
 busca_corretor_estado_check: CHECK ((estado = ANY (ARRAY['conversando'::text, 'cadastrando'::text, 'ofertado'::text, 'sem_match'::text, 'humano'::text])))
+busca_corretor_origem_check: CHECK (((origem IS NULL) OR (origem = ANY (ARRAY['grupo'::text, 'olx'::text, 'parceria'::text]))))
 busca_corretor_pkey: PRIMARY KEY (telefone8)
 
 ## permissões
@@ -29,4 +32,4 @@ busca_corretor_pkey: PRIMARY KEY (telefone8)
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-busca_corretor_e
+busca_corretor_e, olx_organicos_novos

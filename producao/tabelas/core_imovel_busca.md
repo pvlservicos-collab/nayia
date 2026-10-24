@@ -1,4 +1,4 @@
-# core_imovel_busca  (view materializada, ~5731 linhas)
+# core_imovel_busca  (view materializada, ~5732 linhas)
 nay-core: um imóvel por linha com tipo, finalidade, zona, mobília (4 níveis, 028), fino acabamento (029) e "ofertável" calculados uma vez. REFRESH CONCURRENTLY pelo worker (005).
 
 ## colunas

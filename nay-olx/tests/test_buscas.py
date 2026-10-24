@@ -191,6 +191,20 @@ class OpcoesDaBase(unittest.TestCase):
         self.assertFalse(b.abaixo_do_minimo({"finalidade": "venda"}, c))                       # sem valor: não se sabe
         self.assertIn("R$ 200.000", b.texto_do_minimo(c))
 
+    def test_quem_pede_parceria_e_corretor_e_cliente_nao(self):
+        """Pedro, 24/10: 'faz parceria no Kopenhagen?' e corretor; o cliente que fala 'o corretor me disse' nao."""
+        f = b.parece_corretor
+        for t in ("faz parceria no Kopenhagen?", "Boa tarde, sou corretor, tenho um apto no Flores", "Sou da imobiliária Casa Forte",
+                  "meu CRECI é 1234", "Tenho cliente, aceitam parceria?", "Sou corretora de imóveis"):
+            self.assertTrue(f(t), t)
+        for t in ("o corretor me disse que tem um apartamento", "oi, vi o anúncio do 9024", "quero alugar um 2 quartos", ""):
+            self.assertFalse(f(t), t)
+
+    def test_corretor_sem_busca_so_pede_o_que_falta_no_cadastro(self):
+        im = {"tipo": "apartamento", "finalidade": "locacao", "bairro": "Flores", "quartos": 3, "valor": 4000}
+        self.assertEqual(b.falta_no_imovel(im, 0), ["o condomínio", "a mobília", "as fotos"])
+        self.assertEqual(b.falta_no_imovel({**im, "condominio": "The Club", "mobilia": "mobiliado"}, 3), [])
+
     def test_a_busca_so_termina_com_3_opcoes(self):
         o = [{"codigo": 1, "estado": "cliente"}, {"codigo": 1, "estado": "cliente"}, {"codigo": 2, "estado": "cadastrando"},
              {"codigo": 3, "estado": "grupo"}]

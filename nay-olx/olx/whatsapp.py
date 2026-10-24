@@ -883,6 +883,19 @@ def descobrir_organicos(conn, cfg: dict, a_cada_s: float = 20.0) -> int:
     for o in banco.linhas(conn, "SELECT telefone, primeira FROM olx_organicos_novos(60)"):
         if not _pode(cfg, o["telefone"]):
             continue
+        # 488 (Pedro, 24/10: "faz parceria no Kopenhagen?"): quem pede parceria ou diz que é corretor não é cliente: a Nay
+        # Corretores (olx/buscas.py) atende, cadastra o imóvel dele e avisa as buscas
+        from olx import buscas
+        falas = " ".join((x["texto"] or "") for x in banco.linhas(conn, """
+            SELECT texto FROM captacao_mensagens WHERE id >= %s AND direcao = 'recebida'
+               AND right(regexp_replace(coalesce(telefone, ''), '[^0-9]', '', 'g'), 8) = right(%s, 8) ORDER BY id LIMIT 3""",
+                                                                  (int(o["primeira"]), o["telefone"])))
+        if buscas.parece_corretor(falas):
+            if banco.um(conn, """INSERT INTO privado.busca_corretor (telefone8, telefone, origem, classificado_em, ultima_lida)
+                                 VALUES (right(%s, 8), %s, 'parceria', now(), %s - 1) ON CONFLICT (telefone8) DO NOTHING RETURNING 1""",
+                        (o["telefone"], o["telefone"], int(o["primeira"]))):
+                log.info("corretor classificado (pediu parceria): %s", nay.telefone_bonito(o["telefone"]))
+            continue
         lid = banco.um(conn, """
             INSERT INTO privado.olx_lead_whatsapp (chat, telefone, origem, etapa, etapa_em, assumido_em, ultima_lida, perfil)
             SELECT NULL, %s, 'organico', 'filtrar', now(), now(), %s - 1, '{"procura": "escreveu direto no WhatsApp"}'::jsonb

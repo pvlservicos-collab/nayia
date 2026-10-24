@@ -27,5 +27,7 @@ AS $function$
      -- 475: o anunciante que chamamos por uma busca e o corretor dos grupos são da Nay dos corretores (olx/buscas.py)
      AND NOT EXISTS (SELECT 1 FROM privado.busca_contato bc WHERE bc.telefone8 = right(p.d, 8))
      AND NOT EXISTS (SELECT 1 FROM privado.busca_grupo_membro gm WHERE gm.telefone8 = right(p.d, 8))
+     -- 488: o corretor classificado pela Nay Corretores não vira lead
+     AND NOT EXISTS (SELECT 1 FROM privado.busca_corretor bc2 WHERE bc2.telefone8 = right(p.d, 8))
      AND position(right(p.d, 8) IN regexp_replace(cfg.nunca, '\D', '', 'g')) = 0
 $function$;

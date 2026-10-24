@@ -508,6 +508,16 @@ def predio_do_anuncio(conn, a: dict) -> str | None:
         return None
 
 
+# 488 (Pedro, 24/10: "faz parceria no Kopenhagen?"): quem escreve ao 8595 pedindo parceria, ou dizendo que é corretor, não é
+# cliente: vai para a Nay Corretores. "corretor" solto não vale (o cliente fala "o corretor me disse").
+CORRETOR_NO_TEXTO = re.compile(r"parceria|parceir[oa]s?\b|\bcreci\b|\bsou (?:a |o )?corretor|\bsou (?:da|do) imobili|"
+                               r"\bsomos (?:uma )?imobili|\btrabalho (?:com|na|no) imobili|\bcorretora? de im[oó]veis", re.I)
+
+
+def parece_corretor(texto: str | None) -> bool:
+    return bool(CORRETOR_NO_TEXTO.search(texto or ""))
+
+
 def _telefone_bom(t: str) -> str | None:
     d = re.sub(r"\D", "", t or "")
     if d.startswith("55") and len(d) in (12, 13):
@@ -582,21 +592,31 @@ def olx_volta(conn, c: dict) -> int:
 
 
 # ── 5. a Nay dos corretores ──
-PROMPT_CORRETOR = """Você é a Nay, da Imob Easy, imobiliária de Manaus. Você conversa pelo WhatsApp com um CORRETOR que
-respondeu um pedido nosso: o que pedimos nos grupos de corretores, ou a pergunta que fizemos no anúncio dele na OLX.
-O objetivo: ver se ele tem um imóvel que serve para uma das nossas BUSCAS ATIVAS, anotar os dados desse imóvel para o
-cadastro e, completo, apresentar ao cliente. Trabalhamos em parceria (se ele perguntar a divisão: meio a meio, 50%).
+# 488 (Pedro, 24/10): a NAY CORRETORES, agente próprio do corretor que escreve no número de leads (8595).
+PROMPT_CORRETOR = """Você é a Nay Corretores, da Imob Easy, imobiliária de Manaus. Você conversa pelo WhatsApp SÓ com CORRETORES.
+O corretor chegou de um destes jeitos (veja "COMO CHEGOU"): respondeu um pedido que fizemos nos grupos de corretores,
+respondeu a pergunta que fizemos no anúncio dele na OLX, ou escreveu pedindo parceria.
+O objetivo: cadastrar na nossa base o imóvel que ele tem (como imóvel de parceiro) e, se ele servir para uma das nossas
+BUSCAS ATIVAS, apresentar ao cliente. Trabalhamos em parceria (se ele perguntar a divisão: meio a meio, 50%).
+
+O roteiro:
+1. Ele ainda não mandou o imóvel: peça, curto: "Pode me mandar o imóvel que você tem?" (esta é a conversa de quem veio
+   do grupo). Se ele perguntou antes se fazemos parceria (ex.: "faz parceria no Kopenhagen?"), responda em UMA frase que
+   sim, trabalhamos em parceria com corretores (se "CONDOMÍNIO QUE ELE CITOU" mostrar imóveis nossos nele, pode dizer que
+   temos imóveis lá, sem inventar quais), e peça o imóvel na mesma mensagem.
+2. Ele mandou o imóvel (texto, áudio transcrito ou fotos): anote tudo no "imovel". Veja o que ainda falta para o cadastro
+   (em "JÁ ANOTADO") e pergunte SÓ o que falta, no máximo 2 coisas por vez. Fotos: peça que mande por aqui.
+3. Cadastro completo: agradeça e diga que já cadastrou e que, aparecendo cliente, a gente chama. Se o imóvel serve para
+   uma busca ativa, não diga nada do cliente.
 
 Regras:
 - Português do Brasil, curto e simpático, como gente. No máximo 2 balões. Pouco emoji.
 - Nunca diga o nome, o telefone ou qualquer dado do cliente.
 - Para o cadastro precisamos de: tipo, finalidade (aluguel ou venda), bairro, condomínio (se for apartamento ou casa em
-  condomínio), quartos, valor, taxa de condomínio (se houver), mobília (na locação) e pelo menos 3 fotos. Pergunte SÓ o
-  que ainda falta (veja "JÁ ANOTADO"), no máximo 2 coisas por vez. Fotos: peça que mande por aqui.
-- Se o imóvel claramente não serve para nenhuma busca (negócio, tipo, bairro ou valor muito fora), agradeça e diga que
-  no momento não bate com o que o cliente procura, mas que guardou o contato.
+  condomínio), quartos, valor, taxa de condomínio (se houver), mobília (na locação) e pelo menos 3 fotos.
+- O imóvel entra na nossa base MESMO que não sirva para nenhuma busca agora: "serve" é só sobre as buscas ativas.
 - Se ele perguntar algo do cliente que você não sabe (data de mudança, renda, documentos), diga que vai confirmar.
-- Se a conversa não é sobre imóvel para as nossas buscas (outro assunto, propaganda, corrente), não responda.
+- Se a conversa não é sobre imóvel nem parceria (outro assunto, propaganda, corrente), não responda.
 
 Devolva SÓ JSON:
 {"responder": true|false,
@@ -607,7 +627,8 @@ Devolva SÓ JSON:
             "vagas": 0, "area": 0, "valor": 0, "taxa_condominio": 0, "mobilia": "mobiliado|com modulados e ar|sem nada|",
             "andar": "", "observacao": ""},
  "baloes": ["..."]}
-No "imovel", ponha só o que ele disse (o resto vazio ou 0)."""
+"oferece_imovel" = true quando ele falou de um imóvel que TEM (mesmo que ainda incompleto). No "imovel", ponha só o que
+ele disse (o resto vazio ou 0)."""
 
 CAMPOS_DO_IMOVEL = ("tipo", "finalidade", "bairro", "condominio", "quartos", "suites", "vagas", "area", "valor",
                     "taxa_condominio", "mobilia", "andar", "observacao")
@@ -647,8 +668,33 @@ def _conversa_corretor(conn, tel8: str) -> list[dict]:
          ORDER BY id DESC LIMIT 30""", (tel8,))))
 
 
+COMO_CHEGOU = {"grupo": "respondeu um pedido que fizemos nos grupos de corretores",
+               "olx": "é o anunciante da OLX a quem perguntamos se o imóvel dele estava disponível e se aceita parceria",
+               "parceria": "escreveu pedindo parceria ou disse que é corretor"}
+
+
+def condominio_citado(conn, conversa: list[dict]) -> str:
+    """O condomínio que o corretor citou (o nome inteiro dentro do que ele escreveu) e quantos imóveis nossos há nele."""
+    texto = " ".join((m["texto"] or "") for m in conversa if m["direcao"] == "recebida")[-1500:]
+    if not texto.strip():
+        return ""
+    r = banco.linhas(conn, """
+        SELECT k.nome, (SELECT count(*) FROM imoveis i WHERE i.condominio_nome = k.nome AND i.status = 'Disponível'
+                           AND NOT coalesce(i.e_parceiro, false)) AS nossos,
+               (SELECT count(*) FROM imoveis i WHERE i.condominio_nome = k.nome AND i.status = 'Disponível'
+                   AND coalesce(i.e_parceiro, false)) AS de_parceiro
+          FROM condominios k
+         WHERE length(k.nome) >= 5 AND position(lower(unaccent(k.nome)) in lower(unaccent(%s))) > 0
+         ORDER BY length(k.nome) DESC LIMIT 1""", (texto,))
+    if not r:
+        return ""
+    return f"{r[0]['nome']}: {r[0]['nossos']} imóvel(is) nosso(s) e {r[0]['de_parceiro']} de parceiro, Disponíveis"
+
+
 def _turno_corretor(conn, cor: dict, conversa: list[dict], ativas: list[dict], fotos: int) -> str:
-    linhas = ["BUSCAS ATIVAS (id: o que o cliente procura):"]
+    linhas = [f"COMO CHEGOU: {COMO_CHEGOU.get(cor.get('origem') or '', 'escreveu para o nosso número')}.",
+              f"CONDOMÍNIO QUE ELE CITOU: {condominio_citado(conn, conversa) or 'nenhum que a gente tenha cadastrado'}", "",
+              "BUSCAS ATIVAS (id: o que o cliente procura):"]
     linhas += [f"- {b['id']}: {resumo(b['filtros'])}" for b in ativas] or ["- nenhuma"]
     linhas += ["", f"JÁ ANOTADO deste imóvel: {json.dumps(cor.get('imovel') or {}, ensure_ascii=False)}",
                f"Fotos recebidas até agora: {fotos}", f"Busca escolhida antes: {cor.get('busca') or 'nenhuma'}", "", "CONVERSA:"]
@@ -680,7 +726,7 @@ def _tipo_do_cadastro(t: str | None) -> str | None:
     return next((v for k, v in TIPO_DO_CADASTRO if k in t), None)
 
 
-def cadastrar(conn, cor: dict, b: dict, ativo: bool) -> int:
+def cadastrar(conn, cor: dict, b: dict | None, ativo: bool) -> int:
     """O imóvel do corretor no nosso cadastro, como imóvel de PARCEIRO. Rascunho enquanto falta dado; completo, Disponível
     (ativo=True). Devolve o código."""
     im = cor["imovel"] or {}
@@ -690,8 +736,10 @@ def cadastrar(conn, cor: dict, b: dict, ativo: bool) -> int:
         valor = float(im.get("valor") or 0) or None
     except (TypeError, ValueError):
         pass
-    extras = {"corretor_parceiro": cor.get("nome") or "", "corretor_telefone": cor["telefone"], "busca_cliente": str(b["id"]),
-              "cadastrado_pelo": "Nay dos corretores (busca do cliente)", "observacao_do_corretor": str(im.get("observacao") or "")}
+    extras = {"corretor_parceiro": cor.get("nome") or "", "corretor_telefone": cor["telefone"],
+              "busca_cliente": str(b["id"]) if b else "",
+              "cadastrado_pelo": "Nay Corretores" + (" (busca do cliente)" if b else f" ({cor.get('origem') or 'corretor'})"),
+              "observacao_do_corretor": str(im.get("observacao") or "")}
     extras = {k: v for k, v in extras.items() if v}
     campos = {"tipo": _tipo_do_cadastro(im.get("tipo")), "bairro": im.get("bairro") or None,
               "condominio_nome": im.get("condominio") or None, "quartos": im.get("quartos") or None,
@@ -881,19 +929,20 @@ def corretores_volta(conn, c: dict) -> int:
     feitos = 0
     for p in _pendentes_corretores(conn):
         t8 = p["t8"]
-        banco.um(conn, """INSERT INTO privado.busca_corretor (telefone8, telefone, nome) VALUES (%s, %s,
-                            (SELECT nome FROM corretores WHERE right(regexp_replace(telefone, '\\D', '', 'g'), 8) = %s LIMIT 1))
-                          ON CONFLICT (telefone8) DO NOTHING""", (t8, re.sub(r"\D", "", p["telefone"]), t8))
+        origem = banco.um(conn, """SELECT CASE WHEN EXISTS (SELECT 1 FROM privado.busca_contato c WHERE c.telefone8 = %s) THEN 'olx'
+                                      WHEN EXISTS (SELECT 1 FROM privado.busca_grupo_membro g WHERE g.telefone8 = %s) THEN 'grupo'
+                                      ELSE 'parceria' END""", (t8, t8))
+        banco.um(conn, """INSERT INTO privado.busca_corretor (telefone8, telefone, nome, origem, classificado_em) VALUES (%s, %s,
+                            (SELECT nome FROM corretores WHERE right(regexp_replace(telefone, '\\D', '', 'g'), 8) = %s LIMIT 1), %s, now())
+                          ON CONFLICT (telefone8) DO UPDATE SET origem = coalesce(busca_corretor.origem, EXCLUDED.origem),
+                              classificado_em = coalesce(busca_corretor.classificado_em, now())""",
+                 (t8, re.sub(r"\D", "", p["telefone"]), t8, origem))
         cor = banco.linhas(conn, "SELECT * FROM privado.busca_corretor WHERE telefone8 = %s", (t8,))[0]
         conversa = _conversa_corretor(conn, t8)
         # a equipe escreveu para ele pelo 8595 depois que a Nay começou: a conversa é dela
         if any(m["direcao"] == "enviada" and m["origem"] == "humano" and m["id"] > (cor["ultima_lida"] or 0) for m in conversa):
             banco.um(conn, "UPDATE privado.busca_corretor SET estado = 'humano', humano_em = now(), ultima_lida = %s WHERE telefone8 = %s",
                      (p["ate"], t8))
-            conn.commit()
-            continue
-        if not ativas:
-            banco.um(conn, "UPDATE privado.busca_corretor SET ultima_lida = %s WHERE telefone8 = %s", (p["ate"], t8))
             conn.commit()
             continue
         fotos = _qtd_fotos(conn, t8, cor.get("codigo"))
@@ -908,22 +957,31 @@ def corretores_volta(conn, c: dict) -> int:
         bid = r.get("busca_id") if r.get("busca_id") in ids else cor.get("busca")
         b = ids.get(bid) or (banco.linhas(conn, "SELECT * FROM privado.busca_cliente WHERE id = %s", (bid,)) or [None])[0] if bid else None
         baloes = [str(x).strip() for x in (r.get("baloes") or []) if str(x).strip()][:2]
-        if r.get("oferece_imovel") and b and r.get("serve") != "nao":
+        if r.get("oferece_imovel") and (not b or r.get("serve") != "nao"):
+            # 488: o imóvel do corretor entra na base mesmo sem busca que sirva ("serve" é só das buscas ativas)
             im = juntar_imovel(cor.get("imovel") or {}, r.get("imovel") or {})
             banco.um(conn, """UPDATE privado.busca_corretor SET imovel = %s::jsonb, busca = %s, estado = 'cadastrando'
-                               WHERE telefone8 = %s""", (json.dumps(im, ensure_ascii=False), b["id"], t8))
-            cor = {**cor, "imovel": im, "busca": b["id"]}
+                               WHERE telefone8 = %s""", (json.dumps(im, ensure_ascii=False), b["id"] if b else None, t8))
+            cor = {**cor, "imovel": im, "busca": b["id"] if b else None}
             primeira = not cor.get("codigo")
             falta = falta_no_imovel(im, fotos)
             completo = not falta and c["corretor"] == "sim"
             codigo = cadastrar(conn, cor, b, ativo=completo)
             banco.um(conn, "UPDATE privado.busca_corretor SET codigo = %s WHERE telefone8 = %s", (codigo, t8))
-            if primeira:
+            if primeira and b:
                 banco.um(conn, "UPDATE privado.busca_cliente SET ofertas = ofertas || %s::jsonb WHERE id = %s",
                          (json.dumps([{"tel": cor["telefone"], "nome": cor.get("nome"), "codigo": codigo,
                                        "em": datetime.now(MANAUS).isoformat(timespec="minutes"), "estado": "cadastrando"}], ensure_ascii=False), b["id"]))
                 passo(conn, b["id"], "corretor", f"Corretor {cor.get('nome') or ''} (…{t8[-4:]}) ofereceu um imóvel: pré-cadastro #{codigo}")
-            if not falta:
+            if not falta and not b:
+                # 488: cadastro completo e nenhuma busca em vista: a Nay dos leads recebe a opção nova (a nossa base é
+                # olhada de novo agora por todas as buscas abertas) e o corretor sabe que ficou cadastrado
+                banco.um(conn, "UPDATE privado.busca_corretor SET estado = 'ofertado' WHERE telefone8 = %s", (t8,))
+                banco.um(conn, "UPDATE privado.busca_cliente SET base_em = NULL WHERE estado = 'buscando'")
+                log.info("corretor …%s: imóvel #%s cadastrado; as buscas abertas olham a base de novo", t8[-4:], codigo)
+                if not baloes:
+                    baloes = ["Perfeito, já cadastrei aqui. Quando aparecer um cliente para ele eu te chamo!"]
+            elif not falta:
                 onde = oferecer_ao_cliente(conn, b, codigo, cor, c)
                 if onde in ("cliente", "grupo"):
                     # 23/10: um imóvel não fecha a busca; ela segue até OPCOES_META opções (_fechar_se_completa)
@@ -935,16 +993,14 @@ def corretores_volta(conn, c: dict) -> int:
                          WHERE id = %s RETURNING ofertas""", (codigo, onde, b["id"]))
                     _fechar_se_completa(conn, b, ofertas or [])
                     banco.um(conn, "UPDATE privado.busca_corretor SET estado = 'ofertado' WHERE telefone8 = %s", (t8,))
+                    banco.um(conn, "UPDATE privado.busca_cliente SET base_em = NULL WHERE estado = 'buscando' AND id <> %s", (b["id"],))
                 passo(conn, b["id"], "oferta", {"cliente": f"Imóvel #{codigo} completo e oferecido ao cliente",
                                                 "grupo": f"Imóvel #{codigo} completo; o cliente está com a equipe: avisado no grupo",
                                                 "teste": f"Imóvel #{codigo} completo (teste: não foi ao cliente)"}[onde])
                 if not baloes:
                     baloes = ["Perfeito, cadastrei aqui e já apresentei ao meu cliente. Assim que ele der retorno eu te chamo!"]
-            else:
+            elif b:
                 passo(conn, b["id"], "corretor", f"#{codigo}: falta {', '.join(falta)}")
-            conn.commit()
-        elif r.get("oferece_imovel") and r.get("serve") == "nao":
-            banco.um(conn, "UPDATE privado.busca_corretor SET estado = 'sem_match' WHERE telefone8 = %s", (t8,))
             conn.commit()
         if r.get("responder") and baloes:
             for n, t in enumerate(baloes):

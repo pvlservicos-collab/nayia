@@ -10,6 +10,8 @@ AS $function$
      AND NOT EXISTS (SELECT 1 FROM privado.olx_lead_whatsapp o WHERE right(o.telefone, 8) = t.t8)
      AND NOT EXISTS (SELECT 1 FROM captacao_leads l WHERE right(regexp_replace(coalesce(l.telefone, ''), '\D', '', 'g'), 8) = t.t8)
      AND (EXISTS (SELECT 1 FROM privado.busca_corretor b WHERE b.telefone8 = t.t8 AND b.estado IN ('cadastrando', 'ofertado'))
+          -- 488: o corretor já classificado (pediu parceria, veio da OLX ou do grupo) segue com a Nay Corretores
+          OR EXISTS (SELECT 1 FROM privado.busca_corretor b WHERE b.telefone8 = t.t8 AND b.origem IS NOT NULL AND b.estado <> 'humano')
           OR EXISTS (SELECT 1 FROM privado.busca_contato c WHERE c.telefone8 = t.t8 AND c.em > now() - interval '7 days')
           OR EXISTS (
             SELECT 1
