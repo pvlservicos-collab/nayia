@@ -481,12 +481,27 @@ def pergunta_ao_anunciante(a: dict, predio: str | None = None) -> str:
             f"Você trabalha com parceria?")
 
 
+def trecho_do_predio(titulo: str) -> str | None:
+    """O pedaço do título que nomeia o prédio: o que vem depois de "Cond", "Condomínio", "Resid", "Residencial",
+    "Edifício" ou "Ed" até a vírgula, o hífen ou o fim ("... Cond Resid The Club, Parque das Laranjeiras" -> "The Club")."""
+    m = re.search(r"\b(?:cond(?:om[ií]nio)?|resid(?:encial)?|edif[ií]cio|ed)\b\.?\s*(?:(?:cond(?:om[ií]nio)?|resid(?:encial)?)\b\.?\s*)*"
+                  r"([^,;|\n]+?)(?=\s*(?:[,;|\n]|\s-\s|$))", titulo or "", re.I)
+    t = (m.group(1) if m else "").strip(" .-")
+    return t if len(t) >= 3 else None
+
+
 def predio_do_anuncio(conn, a: dict) -> str | None:
     """O condomínio que o título do anúncio cita (só o título: na descrição o reconhecedor erra, "Smart Tarumã" virava
-    "Nossa Senhora de Fátima")."""
+    "Nossa Senhora de Fátima"). Pedro, 24/10: a Suzy respondeu "não tenho nenhum imóvel no Cond Laranjeiras" a um anúncio do
+    The Club, "Parque das Laranjeiras": o reconhecedor pegou o bairro do fim do título. Por isso primeiro o trecho que
+    nomeia o prédio ("The Club"); só sem achar nada vale o título inteiro."""
+    titulo = a.get("titulo") or ""
     try:
-        return banco.um(conn, "SELECT c.nome FROM condominios c WHERE c.id = nai_condominio_da_pergunta(%s)",
-                        (a.get("titulo") or "",))
+        for texto in [t for t in (trecho_do_predio(titulo), titulo) if t]:
+            nome = banco.um(conn, "SELECT c.nome FROM condominios c WHERE c.id = nai_condominio_da_pergunta(%s)", (texto,))
+            if nome:
+                return nome
+        return None
     except Exception:  # noqa: BLE001 -- sem o prédio, vai o título
         conn.rollback()
         log.exception("o prédio do anúncio %s não foi achado", a.get("olx_id"))

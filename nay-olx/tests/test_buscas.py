@@ -96,6 +96,15 @@ class PerguntaAoAnunciante(unittest.TestCase):
         self.assertNotIn("olx.com.br", t)
         self.assertNotIn("124m2", t)
 
+    def test_o_predio_vem_do_trecho_do_titulo_e_nao_do_bairro_do_fim(self):
+        """Pedro, 24/10: a Suzy (anuncio do The Club, Parque das Laranjeiras) ouviu 'Condominio Laranjeiras'."""
+        f = b.trecho_do_predio
+        self.assertEqual(f("ALUGO R$ 4.000, Apto 03 Quartos, Mobiliado, Cond Resid The Club, Parque das Laranjeiras"), "The Club")
+        self.assertEqual(f("Edifício Milano - 74m2 - 03 quartos - Apartamento"), "Milano")
+        self.assertEqual(f("Cond Shizen l - 260m2 - 03 suítes"), "Shizen l")
+        self.assertIsNone(f("VENDO IMÓVEL AMPLO NO PETROPOLIS"))
+        self.assertIsNone(f("Smart Tarumã - 2 quartos"))
+
     def test_sem_predio_vai_o_titulo_e_sem_o_link(self):
         t = b.pergunta_ao_anunciante(self.A)
         self.assertIn("*Garden Club - 124m2", t)
