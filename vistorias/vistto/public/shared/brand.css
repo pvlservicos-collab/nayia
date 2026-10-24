@@ -1,0 +1,38 @@
+/* Identidade visual — base comum (app e painel) */
+@font-face{font-family:Poppins;font-weight:300;font-display:swap;src:url(/shared/fonts/poppins-latin-300-normal.woff2) format('woff2')}
+@font-face{font-family:Poppins;font-weight:400;font-display:swap;src:url(/shared/fonts/poppins-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:Poppins;font-weight:500;font-display:swap;src:url(/shared/fonts/poppins-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:Poppins;font-weight:600;font-display:swap;src:url(/shared/fonts/poppins-latin-600-normal.woff2) format('woff2')}
+@font-face{font-family:Poppins;font-weight:700;font-display:swap;src:url(/shared/fonts/poppins-latin-700-normal.woff2) format('woff2')}
+@font-face{font-family:Poppins;font-weight:400;font-display:swap;src:url(/shared/fonts/poppins-latin-ext-400-normal.woff2) format('woff2');unicode-range:U+0100-02AF,U+1E00-1EFF}
+@font-face{font-family:Poppins;font-weight:600;font-display:swap;src:url(/shared/fonts/poppins-latin-ext-600-normal.woff2) format('woff2');unicode-range:U+0100-02AF,U+1E00-1EFF}
+:root{
+  --navy:#0F1827;--navy-2:#152B4A;--navy-3:#1B3A63;--ink:#0B1220;
+  --cyan:#38D9E9;--cyan-d:#0EA5B7;--cyan-l:#E6FBFD;
+  --green:#22C55E;--green-d:#16A34A;--green-l:#DCFCE7;
+  --red:#EF4444;--red-d:#DC2626;--red-l:#FEE2E2;
+  --amber:#F59E0B;--amber-l:#FEF3C7;--blue:#3B82F6;--blue-l:#DBEAFE;--purple:#A855F7;--purple-l:#F3E8FF;
+  --bg:#F3F5F9;--card:#FFFFFF;--line:#E6EAF0;--line-2:#D7DDE6;--text:#0F172A;--text-2:#334155;--muted:#64748B;--muted-2:#94A3B8;
+  --r:16px;--r-sm:12px;--sh:0 1px 2px rgba(15,24,39,.05),0 6px 20px rgba(15,24,39,.06);--sh-lg:0 18px 50px rgba(15,24,39,.18);
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --font:Poppins,system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:var(--font);color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--cyan-d)}
+.spin{width:28px;height:28px;border:3px solid rgba(15,24,39,.15);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
+.spin.sm{width:16px;height:16px;border-width:2px;vertical-align:-3px}
+.spin.light{border-color:rgba(255,255,255,.25);border-top-color:#fff}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes pop{from{opacity:0;transform:scale(.97) translateY(6px)}to{opacity:1;transform:none}}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.fade-in{animation:fadeIn .35s var(--ease) both}
+.pop{animation:pop .38s var(--ease) both}
+.slide-up{animation:slideUp .34s var(--ease) both}
+.slide-down{animation:slideDown .3s var(--ease) both}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}

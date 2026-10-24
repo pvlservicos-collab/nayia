@@ -1,0 +1,27 @@
+# Vistto na VPS1 (srv1894338) em vistoria.imobeasy.online (24/10/2026).
+# As portas 80/443 já são do Traefik: o Caddy do docker-compose.yml original fica de fora e o Traefik emite o HTTPS.
+# No servidor este arquivo é /docker/vistoria/docker-compose.yml; os dados ficam em /docker/vistoria/data e uploads.
+services:
+  app:
+    build: .
+    container_name: vistoria
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+    expose:
+      - "3000"
+    shm_size: "512mb"
+    mem_limit: 1g
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.vistoria.rule=Host(`vistoria.imobeasy.online`)
+      - traefik.http.routers.vistoria.entrypoints=websecure
+      - traefik.http.routers.vistoria.tls.certresolver=letsencrypt
+      - traefik.http.services.vistoria.loadbalancer.server.port=3000
+
+networks:
+  default:
+    name: n8n-viux_default
+    external: true

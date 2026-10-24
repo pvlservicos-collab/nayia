@@ -1,0 +1,28 @@
+{
+  "name": "vistto-vistorias",
+  "version": "1.0.0",
+  "description": "Sistema completo de vistoria de imóveis: app mobile offline (PWA), painel administrativo, fluxo de aprovação, IA de contrato, assinatura ClickSign e laudo público.",
+  "main": "server/index.js",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "start": "node --no-warnings server/index.js",
+    "dev": "node --no-warnings --watch server/index.js",
+    "seed": "node --no-warnings server/seed.js",
+    "reset": "node --no-warnings server/seed.js --reset"
+  },
+  "dependencies": {
+    "@fontsource/poppins": "^5.3.0",
+    "express": "^4.22.3",
+    "htm": "^3.1.1",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.10.1",
+    "pdfjs-dist": "^4.10.38",
+    "preact": "^10.29.8",
+    "puppeteer-core": "^23.11.1",
+    "qrcode": "^1.5.4"
+  }
+}

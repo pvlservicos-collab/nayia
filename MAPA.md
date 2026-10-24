@@ -259,6 +259,14 @@ prompt: comece pelo `nay onde`.
   Aba MÉTRICAS: `site_grade_metricas(de, ate)` (`/admin/api/grade/metricas`): vezes que cada mensagem saiu, posts, quem
   marcou o post no privado e quem escreveu o código em 6 h; por mensagem da grade e por imóvel. Lista só conta desde a 281.
 
+## Vistoria (vistoria.imobeasy.online, 24/10) — `vistorias/vistto/`
+- App Vistto (Node 22 + SQLite + Chromium para o PDF): painel `/admin/`, app do vistoriador `/app/` (PWA offline), laudo
+  público `/v/<código>`. VPS1 em `/docker/vistoria` (container `vistoria`, rede `n8n-viux_default`, HTTPS pelo Traefik;
+  o Caddy do compose original fica de fora: `deploy/docker-compose.imobeasy.yml` vira o `docker-compose.yml` de lá).
+  Dados em `/docker/vistoria/data` (banco) e `uploads/` (fotos): ainda fora do backup. `.env` só no servidor.
+  Atualizar: copiar o código (sem node_modules/data/uploads/.env) e `docker compose up -d --build`.
+  ClickSign, SMTP e IA desligados: assinatura em simulação, e-mails na Caixa de saída, contrato pelo extrator local.
+
 ## CRM (crm.imobeasy.online, Next.js) — `crm/`
 - Nay no card do contato: `src/components/Chat/PainelContatoParceria.tsx` + `src/app/api/leads/[id]/nay/route.ts` + `src/lib/nayLeitura.ts`.
 - Etapas/abas: `src/lib/etapaDaParceria.ts`, `LeadList.tsx`, `EtapaDoLead.tsx`. Deploy: `./scripts/nay crm src/...` (4 min, ~10 s fora do ar).
