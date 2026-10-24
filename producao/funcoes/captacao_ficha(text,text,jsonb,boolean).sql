@@ -10,6 +10,9 @@ DECLARE
   v_tipo   text;
   v_sem_comodos boolean;   -- 455: terreno, lote, galpão, sala, loja, chácara, sítio: sem cômodos nem mobília
   v_outra  text;
+  v_cn_nome   text;     -- 486: o condomínio que ele citou, do nosso banco
+  v_cn_bairro text;
+  v_cn_tipo   text;
   v_novos  jsonb;
   v_resp   jsonb;
   v_trat   text;
@@ -92,6 +95,26 @@ BEGIN
   END IF;
 
   d := c.dados || v_novos;
+
+  -- 486 (Pedro, 24/10, o Marcos: "1.5 M morada dos pássaros" e ela perguntou o tipo do imóvel e o bairro): o condomínio que
+  -- ele citou, no campo ou solto no texto (detalhes), é do nosso banco: o nome, o bairro e o tipo (o mais comum nesse
+  -- condomínio, se for pelo menos 60% dos imóveis dele) vêm de lá e a Nay não pergunta o que já sabemos.
+  IF v_tipo = 'novo' AND (d->>'tipo' IS NULL OR coalesce(d->>'bairro', '') = '') THEN
+    SELECT k.nome, nullif(btrim(split_part(k.bairro, ',', 1)), '') INTO v_cn_nome, v_cn_bairro
+      FROM nay_condominios_candidatos(coalesce(NULLIF(btrim(d->>'condominio'), ''), d->>'detalhes', '')) n
+      JOIN condominios k ON k.nome = n.nome
+     WHERE n.faixa IS NOT NULL AND n.faixa <= 2 ORDER BY n.faixa, k.id LIMIT 1;
+    IF v_cn_nome IS NOT NULL THEN
+      SELECT x.tipo INTO v_cn_tipo
+        FROM (SELECT i2.tipo, count(*) n, sum(count(*)) OVER () total FROM imoveis i2
+               WHERE i2.condominio_nome = v_cn_nome AND nullif(btrim(i2.tipo), '') IS NOT NULL GROUP BY i2.tipo) x
+       WHERE x.n >= 0.6 * x.total ORDER BY x.n DESC LIMIT 1;
+      d := d || jsonb_strip_nulls(jsonb_build_object(
+             'condominio', coalesce(NULLIF(btrim(d->>'condominio'), ''), v_cn_nome),
+             'bairro', CASE WHEN coalesce(d->>'bairro', '') = '' THEN v_cn_bairro END,
+             'tipo', CASE WHEN d->>'tipo' IS NULL THEN v_cn_tipo END));
+    END IF;
+  END IF;
   -- a pergunta que estava aberta conta como respondida (mesmo com "não sei"),
   -- desde que ele tenha dito ALGUMA coisa -- abrir a ficha não conta
   IF p_resposta AND v_novos <> '{}'::jsonb AND d ? '_perguntou' THEN
