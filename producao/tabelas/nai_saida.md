@@ -1,4 +1,4 @@
-# nai_saida  (tabela, ~21730 linhas)
+# nai_saida  (tabela, ~22801 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('nai_saida_id_seq'::regclass)
@@ -42,6 +42,7 @@ nai_saida_visita_id_fkey: FOREIGN KEY (visita_id) REFERENCES nai_visita(id)
 ## gatilhos
 CREATE TRIGGER nai_saida_imutavel BEFORE UPDATE ON public.nai_saida FOR EACH ROW EXECUTE FUNCTION nai_saida_imutavel()
 CREATE TRIGGER nai_saida_validar BEFORE INSERT ON public.nai_saida FOR EACH ROW EXECUTE FUNCTION nai_saida_validar()
+CREATE TRIGGER nai_saida_zzz_tel_so_perguntas BEFORE INSERT ON public.nai_saida FOR EACH ROW EXECUTE FUNCTION nai_saida_tel_so_perguntas()
 
 ## permissões
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE

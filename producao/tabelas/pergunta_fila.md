@@ -1,4 +1,4 @@
-# pergunta_fila  (tabela, ~199 linhas)
+# pergunta_fila  (tabela, ~208 linhas)
 391: a fila de perguntas que a Nay não sabe, feitas ao Tel no PV uma por vez (Pergunta k/N). linha: parceria | captacao
 
 ## colunas
@@ -43,4 +43,4 @@ nay_leitura: SELECT
 pergunta_fila_agente_devolver, pergunta_fila_agente_responder, pergunta_fila_entrar, pergunta_fila_perguntar_proxima, pergunta_fila_responder, pergunta_fila_tick
 
 ## funções que citam
-pergunta_fila_agente_devolver, pergunta_fila_agente_responder, pergunta_fila_entrar, pergunta_fila_ligada, pergunta_fila_perguntar_proxima, pergunta_fila_posicao, pergunta_fila_responder, pergunta_fila_resposta_valida, pergunta_fila_texto, pergunta_fila_tick, site_painel_metricas
+nai_saida_tel_so_perguntas, pergunta_fila_agente_devolver, pergunta_fila_agente_responder, pergunta_fila_entrar, pergunta_fila_ligada, pergunta_fila_perguntar_proxima, pergunta_fila_posicao, pergunta_fila_responder, pergunta_fila_resposta_valida, pergunta_fila_texto, pergunta_fila_tick, site_painel_metricas

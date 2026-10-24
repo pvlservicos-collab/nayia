@@ -89,6 +89,10 @@ def _avisar(texto: str) -> None:
 def _avisar_tel(conn, texto: str) -> None:
     """16/10: o recado no WhatsApp do Tel (o número dele é o do banco, nai_cfg('tel_telefone'))."""
     try:
+        # 24/10 (Pedro: "deixa só as perguntas"): este recado vai direto pela Z-API, sem passar pela caixa (482)
+        if banco.um(conn, "SELECT coalesce(nai_cfg('tel_so_perguntas', 'nao'), 'nao') = 'sim'"):
+            log.info("o recado ao Tel não saiu (o Tel só recebe perguntas, 482): %s", texto[:120])
+            return
         if not grupo.mandar_ao_tel(banco.um(conn, "SELECT nai_cfg('tel_telefone')"), texto):
             log.warning("o recado ao Tel não chegou: nenhum número conectado")
     except Exception:  # noqa: BLE001 -- o recado não pode derrubar o atendimento
