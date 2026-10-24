@@ -346,10 +346,14 @@ class OutroImovel(unittest.TestCase):
         self.assertEqual(modelo.ACRESCIMO, modelo.ABERTURA_SITUACAO + modelo.CONTRATO + modelo.FIM)
         a = modelo.ACRESCIMO_OUTRO_IMOVEL
         for marca in ("{modelo}", "{imovel}", "{indicacao}", "{honorarios}", "Tenho outro imóvel", "Não tenho outro",
-                      "demanda alta neste fim de ano", "trabalhar com ele novamente", "o contrato de locacao desse imovel vai",
+                      "trabalhamos juntos ha um tempo no imovel", "o contrato de locacao desse imovel vai",
                       "QUANDO COMECOU"):
             self.assertIn(marca, a)
         self.assertNotIn("Disponível, Alugado e Vendido", a)
+        # 24/10 (Pedro): a primeira resposta da lista 5 e curta, sem a demanda alta nem a rede de corretores
+        i = a.index("A SUA PRIMEIRA RESPOSTA"), a.index("Quando ele disser a data do contrato")
+        self.assertNotIn("demanda alta", a[i[0]:i[1]])
+        self.assertNotIn("rede de corretores", a[i[0]:i[1]])
 
     def test_a_abertura_das_listas_3_e_4_pergunta_imovel_para_vender(self):
         v = modelo.ACRESCIMO_OUTRO_VENDER

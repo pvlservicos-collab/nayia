@@ -121,11 +121,10 @@ def _parede_do_contrato(conn, telefone: str, motivo: str) -> str | None:
     if not r:
         return None
     imovel = " ".join(x for x in ((r[0]["tipo_imovel"] or "").strip().lower(), r[0]["onde"] or "") if x) or "o imóvel do cadastro"
-    return ("NAO encerrei: falta a sua primeira resposta desta conversa. Diga agora, em UMA mensagem: o imovel dele que "
-            f"esta com a gente ({imovel}), que ja trabalhamos juntos ha um tempo, que estamos perguntando porque estamos "
-            "com uma demanda alta neste fim de ano e que gostariamos de trabalhar com ele novamente; a frase \"Atuamos como uma rede de corretores: com as mesmas taxas comuns de mercado, aceleramos a locação e a venda compartilhando os imóveis com mais pessoas.\"; "
-            "e, no fim, a pergunta "
+    return ("NAO encerrei: falta a sua primeira resposta desta conversa. Diga agora, em UMA mensagem CURTA: o cumprimento com o "
+            f"nome dele, que ja trabalhamos juntos ha um tempo no imovel dele ({imovel}) e, no fim, a pergunta "
             '"Para eu deixar o cadastro certinho: o contrato de locação desse imóvel vai até quando?" (no tratamento dele). '
+            "Nada de demanda alta nem de rede de corretores. "
             "Se ele ja disse que NAO tem outro imovel: quando ele responder a data, chame guardar_situacao (alugado, prazo) "
             "e depois encerrar_conversa de novo, SEM perguntar de novo se ele tem outro imovel.")
 
