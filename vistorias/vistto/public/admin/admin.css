@@ -349,3 +349,11 @@ body{background:var(--bg);font-size:14px}
 .logo-ie{display:block;flex-shrink:0}
 .al-brand .brand-sub,.side-brand .brand-sub{font-size:14px;font-weight:600;letter-spacing:.4px;color:#C9C9CE;border-left:1.5px solid rgba(255,255,255,.25);padding-left:10px}
 .side-brand .brand-sub{font-size:12.5px}
+
+/* ---- 24/10: avaria com descrição, áudio e vídeo ---- */
+.nc-ed .af{margin-top:2px}
+.nc-ed .it-btns{display:flex;flex-wrap:wrap;gap:8px}
+.nc-rec{display:flex;align-items:center;gap:8px;font-size:13px;background:#FFF5F5;border:1px dashed #FCA5A5;border-radius:10px;padding:8px 10px}
+.nc-rec span:last-child{color:var(--muted);flex:1;min-width:0}
+.rec-dot{width:10px;height:10px;border-radius:50%;background:var(--red);animation:pisca 1s infinite alternate;flex-shrink:0}
+@keyframes pisca{to{opacity:.3}}

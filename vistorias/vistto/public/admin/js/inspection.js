@@ -2,6 +2,7 @@
 import { html, useState, useEffect, useRef } from '/shared/vendor/preact-htm.js';
 import { api, toast, modal, closeModal, confirmBox, Modal, Card, Inp, Sel, Switch, Empty, Loading, Status, TYPES, CONDS, fmtDate, Photo, MarkerModal, Icon } from './ui.js';
 import { nav } from './main.js';
+import { useRecorder } from '/app/js/components.js';
 
 const STAGES = [['Fotos e cômodos', 'camera'], ['Contrato (IA)', 'sparkles'], ['Dados do laudo', 'file'], ['Revisão do laudo', 'eye'], ['Aprovação', 'checkCircle'], ['Assinaturas', 'edit']];
 
@@ -56,9 +57,9 @@ async function upload(ins, files, extra) {
     await api('/media', { body: fd });
   }
 }
-function UploadBtn({ ins, extra, reload, label = 'Enviar fotos' }) {
+function UploadBtn({ ins, extra, reload, label = 'Enviar fotos', accept = 'image/*,video/*', icon = 'cameraPlus' }) {
   const ref = useRef(null); const [busy, setBusy] = useState(false);
-  return html`<button class="btn ghost sm" disabled=${busy} onClick=${() => ref.current.click()}>${busy ? html`<span class="spin sm"></span>` : html`<${Icon} name="cameraPlus" size=${15} />`} ${label}<input ref=${ref} type="file" multiple accept="image/*,video/*" hidden onChange=${async (e) => { setBusy(true); try { await upload(ins, [...e.target.files], extra); toast('Arquivos enviados'); reload(); } catch (er) { toast(er.message, 'err'); } setBusy(false); }} /></button>`;
+  return html`<button class="btn ghost sm" disabled=${busy} onClick=${() => ref.current.click()}>${busy ? html`<span class="spin sm"></span>` : html`<${Icon} name=${icon} size=${15} />`} ${label}<input ref=${ref} type="file" multiple accept=${accept} hidden onChange=${async (e) => { setBusy(true); try { await upload(ins, [...e.target.files], extra); toast('Arquivos enviados'); reload(); } catch (er) { toast(er.message, 'err'); } setBusy(false); }} /></button>`;
 }
 function openPhoto(m, reload, extraActions) {
   modal(html`<${Modal} width=${980} title=${`Mídia · ${fmtDate(m.taken_at)}`} onClose=${closeModal} footer=${html`
@@ -130,11 +131,40 @@ function ItemEditor({ it, idx, ins, room, reload }) {
     ${it.ncs.map((n) => html`<${NcEditor} key=${n.id} n=${n} ins=${ins} room=${room} item=${it} reload=${reload} />`)}
   </div>`;
 }
+// 24/10 (Pedro): a avaria com o campo de descrição igual aos outros, o botão de áudio (grava e transcreve para o texto)
+// e o de adicionar vídeo, além das fotos
 function NcEditor({ n, ins, room, item, reload }) {
   const patch = (b) => api(`/admin/ncs/${n.id}`, { method: 'PATCH', body: b }).then(() => toast('Avaria salva'));
+  const [desc, setDesc] = useState(n.description || '');
+  const [salvando, setSalvando] = useState(false);
+  const rec = useRecorder();
+  const extra = { room_id: room.id, item_id: item ? item.id : '', nc_id: n.id, scope: 'nc' };
+  async function audio() {
+    if (!rec.rec) { try { await rec.start(); } catch (e) { toast('Microfone indisponível: ' + (e.message || e), 'err'); } return; }
+    setSalvando(true);
+    try {
+      const r = await rec.stop(true);
+      if (r) {
+        const fd = new FormData();
+        fd.append('file', new File([r.blob], `audio-${Date.now()}.${r.mime.includes('mp4') ? 'm4a' : 'webm'}`, { type: r.mime }));
+        fd.append('inspection_id', ins.id);
+        for (const [k, v] of Object.entries(extra)) if (v) fd.append(k, v);
+        fd.append('kind', 'audio'); fd.append('taken_at', new Date().toISOString());
+        if (r.transcript) fd.append('transcript', r.transcript);
+        await api('/media', { body: fd });
+        if (r.transcript) { const novo = (desc ? desc + String.fromCharCode(10) : '') + r.transcript; setDesc(novo); await patch({ description: novo }); }
+        toast('Áudio salvo'); reload();
+      }
+    } catch (e) { toast(e.message, 'err'); }
+    setSalvando(false);
+  }
   return html`<div class="nc-ed"><div class="nc-ed-h"><span class="dot-r"></span><input value=${n.title} onChange=${(e) => patch({ title: e.target.value }).then(reload)} placeholder="Título da avaria" /><button class="ib" onClick=${async () => { await api(`/admin/ncs/${n.id}`, { method: 'DELETE' }); reload(); }}><${Icon} name="trash" size=${15} /></button></div>
-    <textarea rows="2" placeholder="Descrição da avaria" value=${n.description || ''} onChange=${(e) => patch({ description: e.target.value })}></textarea>
-    <${Gallery} list=${n.media} reload=${reload} /><${UploadBtn} ins=${ins} extra=${{ room_id: room.id, item_id: item ? item.id : '', nc_id: n.id, scope: 'nc' }} reload=${reload} label="Fotos da avaria" /></div>`;
+    <${Inp} cls="grow" area rows=${3} label="Descrição da avaria" placeholder="Descreva a avaria (ou grave um áudio)" value=${desc} onInput=${setDesc} onChange=${(e) => patch({ description: e.target.value })} />
+    ${rec.rec && html`<div class="nc-rec"><span class="rec-dot"></span><b>Gravando ${rec.secs}s</b><span>${rec.text ? `“${rec.text}”` : 'fale a descrição da avaria…'}</span></div>`}
+    <${Gallery} list=${n.media} reload=${reload} />
+    <div class="it-btns"><${UploadBtn} ins=${ins} extra=${extra} reload=${reload} label="Fotos da avaria" accept="image/*" />
+      <button class=${'btn sm ' + (rec.rec ? 'danger-soft' : 'ghost')} disabled=${salvando} onClick=${audio}>${salvando ? html`<span class="spin sm"></span>` : html`<${Icon} name="mic" size=${15} />`} ${rec.rec ? 'Parar e salvar áudio' : 'Gravar áudio'}</button>
+      <${UploadBtn} ins=${ins} extra=${extra} reload=${reload} label="Adicionar vídeo" accept="video/*" icon="video" /></div></div>`;
 }
 
 // ---------------- Etapa 2: contrato ----------------
