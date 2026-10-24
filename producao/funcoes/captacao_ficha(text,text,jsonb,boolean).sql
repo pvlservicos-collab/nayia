@@ -183,7 +183,11 @@ BEGIN
 
   v_prox := v_falta[1];
   v_frase := CASE v_prox
-    WHEN 'local'   THEN 'Que tipo de imóvel é (casa, apartamento, sala, prédio, terreno...) e em qual bairro ou condomínio fica?'
+    -- 487: só o que faltou (ele já mandou "uma casa" ou "no Aleixo": não pergunta os dois de novo)
+    WHEN 'local'   THEN CASE
+                          WHEN (d->>'tipo' IS NOT NULL OR v_sem_comodos) THEN 'Em qual bairro ou condomínio ele fica?'
+                          WHEN coalesce(d->>'bairro', d->>'condominio') IS NOT NULL THEN 'Que tipo de imóvel é (casa, apartamento, sala, prédio, terreno...)?'
+                          ELSE 'Que tipo de imóvel é (casa, apartamento, sala, prédio, terreno...) e em qual bairro ou condomínio fica?' END
     WHEN 'negocio' THEN v_pron_m || ' quer alugar ou vender esse imóvel?'
     WHEN 'comodos' THEN 'Quantos quartos (e quantas suítes), banheiros e vagas de garagem ele tem?'
     WHEN 'area'    THEN 'E a área, ' || v_pron || ' sabe mais ou menos quantos metros quadrados?'

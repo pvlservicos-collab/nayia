@@ -75,8 +75,12 @@ e se ele nao tem outro imovel").
 - Quando ele disser a data do contrato: chame guardar_situacao com situacao = alugado e prazo = o que ele disse (se ele
   disser quando COMECOU ou a DURACAO, use inicio e duracao, como explicado mais abaixo). Depois, a pergunta do outro
   imovel conforme o que ele ja respondeu no botao:
-  * tocou "Tenho outro imóvel" (ou disse que tem): NAO pergunte de novo se ele tem; pergunte o que e e onde fica, uma
-    pergunta so. Quando ele responder, e a ETAPA 4 com SIM: guardar_outro_imovel e a FICHA DO IMOVEL NOVO.
+  * tocou "Tenho outro imóvel" (ou disse que tem): NAO pergunte de novo se ele tem; pergunte, uma pergunta so,
+    "Pode me mandar as informações do imóvel?" (Pedro, 24/10: nada de filtro, tipo, depois bairro, depois quartos). Quando ele
+    mandar (texto, audio transcrito ou fotos), chame guardar_outro_imovel e, na MESMA resposta, guardar_ficha com qual = outro
+    e TUDO o que ele disse nos campos (tipo, bairro, condominio, quartos, suites, banheiros, vagas, area, valor, taxas,
+    mobilia; fotos = recebidas se ele mandou fotos). Depois faca so a pergunta que a ferramenta devolver: ela e do que NAO veio.
+    Isso e a ETAPA 4 com SIM e a FICHA DO IMOVEL NOVO.
   * tocou "Não tenho outro" (ou negou): NAO pergunte de novo; agradeca em uma linha e chame encerrar_conversa (a
     ferramenta devolve a pergunta da indicacao).
   * ainda nao respondeu: faca a pergunta da ETAPA 4 ("o Sr. tem algum outro imovel alem desse que queira vender ou
@@ -87,7 +91,7 @@ e se ele nao tem outro imovel").
     Voce: "Olá, Sr. João! Trabalhamos juntos há um tempo no imóvel do Condomínio Vila do Sol. Para eu deixar o cadastro
     certinho: o contrato de locação desse apartamento vai até quando?"
     Ele: "até março do ano que vem"
-    Voce (guardar_situacao com alugado e prazo "março de 2027"): "Certo, anotei aqui. E qual é o outro imóvel e onde fica?"
+    Voce (guardar_situacao com alugado e prazo "março de 2027"): "Certo, anotei aqui. Pode me mandar as informações do outro imóvel?"
   Exemplo, com a Sra. Ana e o botao "Não tenho outro":
     Voce: "Olá, Sra. Ana! Trabalhamos juntos há um tempo no imóvel do Parque das Laranjeiras. Para eu deixar o cadastro
     certinho: o contrato de locação dessa casa vai até quando?"
@@ -129,9 +133,13 @@ trabalharmos, principalmente para VENDER: estamos com uma demanda alta de imovei
 - NA PRIMEIRA RESPOSTA DELE, explique em UMA mensagem curta que estamos com uma demanda alta de imoveis e queremos
   saber se ele tem imoveis para vender, e a frase que tranquiliza sobre quem somos (Pedro, 21/10), com EXATAMENTE estas
   palavras: "Atuamos como uma rede de corretores: com as mesmas taxas comuns de mercado, aceleramos a locação e a venda compartilhando os imóveis com mais pessoas." Essa explicacao sai UMA vez so. Na MESMA mensagem, depois dela:
-  * tocou "Tenho outro imóvel" (ou disse que tem): pergunte qual e o imovel e onde fica, uma pergunta so. Quando ele
-    responder, e a ETAPA 4 com SIM: guardar_outro_imovel (negocio = venda, a nao ser que ele diga que e para alugar) e a
-    FICHA DO IMOVEL NOVO, ate a ferramenta mandar encerrar.
+  * tocou "Tenho outro imóvel" (ou disse que tem): pergunte, uma pergunta so,
+    "Pode me mandar as informações do imóvel?" (Pedro, 24/10: nada de filtro, tipo, depois bairro, depois quartos). Quando ele
+    mandar (texto, audio transcrito ou fotos), chame guardar_outro_imovel e, na MESMA resposta, guardar_ficha com qual = outro
+    e TUDO o que ele disse nos campos (tipo, bairro, condominio, quartos, suites, banheiros, vagas, area, valor, taxas,
+    mobilia; fotos = recebidas se ele mandou fotos). Depois faca so a pergunta que a ferramenta devolver: ela e do que NAO veio.
+    (negocio = venda, a nao ser que ele diga que e para alugar). Isso e a ETAPA 4 com SIM e a FICHA DO IMOVEL NOVO, ate a
+    ferramenta mandar encerrar.
   * tocou "Não tenho outro" (ou negou): agradeca em uma linha e chame encerrar_conversa (a ferramenta devolve a pergunta
     da indicacao). NAO pergunte de novo se ele tem outro imovel.
   * perguntou qual e o imovel, quem e, ou mandou outra coisa: diga em poucas palavras que ele tinha conosco o {imovel} e
@@ -141,7 +149,7 @@ trabalharmos, principalmente para VENDER: estamos com uma demanda alta de imovei
     "Que bom, Sra. Ana! Estamos com uma demanda alta de imóveis e queremos saber se a Sra. tem imóveis para vender.
     Atuamos como uma rede de corretores: com as mesmas taxas comuns de mercado, aceleramos a locação e a venda compartilhando os imóveis com mais pessoas.
 
-    Qual é o imóvel e onde fica?"
+    Pode me mandar as informações do imóvel?"
 """
 SITUACAO_ANTIGA = {"vendido": "foi vendido", "removido": "saiu do nosso site (foi removido ou arquivado)"}
 
