@@ -3,8 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Imob Easy — Imóveis em Manaus e parceria 50% para corretores</title>
-<meta name="description" content="Alugue, compre ou anuncie seu imóvel em Manaus com a Imob Easy. Corretor parceiro recebe 50% da comissão e atendimento na hora pela Nay, nossa assistente no WhatsApp.">
+<title>Imob Easy — Imobiliária em Manaus e SaaS imobiliário para corretores e imobiliárias</title>
+<meta name="description" content="A Imob Easy é imobiliária em Manaus e SaaS imobiliário: plataforma com cadastro de imóveis, CRM com WhatsApp, assistente de IA e agendamento e publicação de posts no Instagram para imobiliárias e corretores. Parceria de 50% para corretores.">
+<meta name="keywords" content="SaaS imobiliário, software para imobiliária, plataforma para corretores, CRM imobiliário, agendar posts no Instagram, publicar posts no Instagram, imobiliária em Manaus, imóveis em Manaus">
+<link rel="canonical" href="https://imobeasy.online/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Imob Easy">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:url" content="https://imobeasy.online/">
+<meta property="og:title" content="Imob Easy — imobiliária em Manaus e SaaS imobiliário">
+<meta property="og:description" content="Plataforma SaaS para imobiliárias e corretores: cadastro de imóveis, CRM com WhatsApp, assistente de IA e, em breve, agendamento e publicação de posts no Instagram. E uma imobiliária em Manaus desde 2019.">
+<meta property="og:image" content="https://imobeasy.online/assets/img/hero-casal.jpg">
+<meta property="og:image:alt" content="Imob Easy, imobiliária e plataforma SaaS imobiliária">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="assets/img/logo-simbolo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,30 +23,58 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="assets/css/tokens.css">
 <link rel="stylesheet" href="assets/css/site.css">
-<link rel="stylesheet" href="assets/css/home.css?v=20261018-blog">
+<link rel="stylesheet" href="assets/css/home.css?v=20261024-plataforma">
 <meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "RealEstateAgent",
-  "name": "Imob Easy",
-  "legalName": "T A SOBREIRA IMOBILIARIA",
-  "alternateName": "IMOB EASY",
-  "taxID": "33.597.560/0001-24",
-  "vatID": "33597560000124",
-  "foundingDate": "2019-05-13",
-  "url": "https://imobeasy.online",
-  "email": "imobeasy@gmail.com",
-  "telephone": "+55-92-9471-7316",
-  "areaServed": "Manaus, AM",
-  "address": {
-    "@type": "PostalAddress",
-    "streetAddress": "Av Jornalista Umberto Calderaro Filho, 7 - Cj Abilio Nery",
-    "addressLocality": "Manaus",
-    "addressRegion": "AM",
-    "postalCode": "69057-015",
-    "addressCountry": "BR"
-  }
+  "@graph": [
+    {
+      "@type": ["Organization", "RealEstateAgent"],
+      "@id": "https://imobeasy.online/#empresa",
+      "name": "Imob Easy",
+      "legalName": "T A SOBREIRA IMOBILIARIA",
+      "alternateName": "IMOB EASY",
+      "description": "Imobiliária em Manaus e SaaS imobiliário: plataforma para imobiliárias e corretores com cadastro de imóveis, CRM com WhatsApp, assistente de IA e agendamento e publicação de posts no Instagram.",
+      "taxID": "33.597.560/0001-24",
+      "vatID": "33597560000124",
+      "foundingDate": "2019-05-13",
+      "url": "https://imobeasy.online",
+      "logo": "https://imobeasy.online/assets/img/logo.svg",
+      "email": "imobeasy@gmail.com",
+      "telephone": "+55-92-9471-7316",
+      "areaServed": "Manaus, AM",
+      "knowsAbout": ["SaaS imobiliário", "Software para imobiliárias", "CRM imobiliário", "Gestão de redes sociais para imobiliárias", "Venda e locação de imóveis"],
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Av Jornalista Umberto Calderaro Filho, 7 - Cj Abilio Nery",
+        "addressLocality": "Manaus",
+        "addressRegion": "AM",
+        "postalCode": "69057-015",
+        "addressCountry": "BR"
+      }
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://imobeasy.online/#plataforma",
+      "name": "Imob Easy Plataforma",
+      "applicationCategory": "BusinessApplication",
+      "applicationSubCategory": "SaaS imobiliário",
+      "operatingSystem": "Web",
+      "url": "https://imobeasy.online/#plataforma",
+      "description": "Plataforma SaaS para imobiliárias e corretores: cadastro e catálogo de imóveis, CRM com WhatsApp, assistente de IA que atende pelo WhatsApp, gerador de posts de imóveis e agendamento e publicação de posts no Instagram pela API oficial da Meta.",
+      "featureList": ["Cadastro e catálogo de imóveis", "CRM com WhatsApp", "Assistente de IA no WhatsApp", "Gerador de posts de imóveis", "Agendamento de posts no Instagram (em construção)", "Publicação de posts no Instagram (em construção)"],
+      "provider": { "@id": "https://imobeasy.online/#empresa" }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://imobeasy.online/#site",
+      "url": "https://imobeasy.online/",
+      "name": "Imob Easy",
+      "inLanguage": "pt-BR",
+      "publisher": { "@id": "https://imobeasy.online/#empresa" }
+    }
+  ]
 }
 </script>
 </head>
@@ -49,6 +88,7 @@
       <img src="assets/img/logo.svg" alt="Imob Easy">
     </a>
     <nav class="topo__nav" id="nav-principal" aria-label="Seções do site">
+      <a href="#plataforma">Agendar posts</a>
       <a href="#o-que-e">O que é</a>
       <a href="#corretores">Para corretores</a>
       <a href="#por-que">Por que usar</a>
@@ -157,12 +197,66 @@
     </div>
   </section>
 
+  <!-- ================= Plataforma (24/10, Pedro): agendar e publicar posts do Instagram; botão em construção.
+       O texto deixa claro, para quem lê a página (a Meta inclusive), que além de imobiliária somos um SaaS imobiliário. ================= -->
+  <section class="secao plataforma" id="plataforma" aria-labelledby="titulo-plataforma">
+    <div class="plataforma__grade">
+      <div class="plataforma__texto">
+        <p class="secao__sobre">Imob Easy Plataforma · SaaS imobiliário</p>
+        <h2 class="secao__titulo" id="titulo-plataforma">Agende e publique os posts do Instagram da sua imobiliária pela nossa plataforma</h2>
+        <p class="secao__texto">Além de imobiliária, a Imob Easy é um <strong>SaaS imobiliário</strong>: o sistema que usamos todos os dias em Manaus para cadastrar imóveis, atender pelo WhatsApp e divulgar o catálogo está virando plataforma para imobiliárias e corretores de todo o Brasil. O próximo módulo é o Instagram: você cria o post do imóvel, escolhe o dia e a hora, e a plataforma publica na sua conta profissional.</p>
+        <div class="plataforma__acoes">
+          <button class="btn-roxo plataforma__botao" type="button" disabled aria-disabled="true">Agendar posts do Instagram <span>(em construção)</span></button>
+          <a class="plataforma__aviso" href="https://wa.me/559294717316?text=Ol%C3%A1%2C%20quero%20ser%20avisado%20quando%20o%20agendamento%20de%20posts%20do%20Instagram%20da%20Imob%20Easy%20estiver%20no%20ar" target="_blank" rel="noopener">Quero ser avisado quando estiver no ar</a>
+        </div>
+      </div>
+
+      <ol class="plataforma__passos" aria-label="Como vai funcionar">
+        <li>
+          <span class="plataforma__num">1</span>
+          <div>
+            <h3>Conecte a conta profissional do Instagram</h3>
+            <p>Pelo login do Facebook, com a sua autorização. A conta continua sua: você desconecta quando quiser.</p>
+          </div>
+        </li>
+        <li>
+          <span class="plataforma__num">2</span>
+          <div>
+            <h3>Crie o post a partir do imóvel</h3>
+            <p>Fotos, valor, bairro e legenda saem prontos do cadastro, no feed, no carrossel ou nos stories.</p>
+          </div>
+        </li>
+        <li>
+          <span class="plataforma__num">3</span>
+          <div>
+            <h3>Publique agora ou agende</h3>
+            <p>Escolha o dia e a hora no calendário. A plataforma publica no horário marcado e guarda o histórico de cada post.</p>
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="plataforma__modulos">
+      <p class="plataforma__modulos-titulo">O que a plataforma já faz para imobiliárias e corretores</p>
+      <ul>
+        <li>Cadastro e catálogo de imóveis com fotos e ficha completa</li>
+        <li>CRM com WhatsApp: conversas, etapas, agenda de visitas e follow-up</li>
+        <li>Nay, assistente de IA que atende pelo WhatsApp com os dados do cadastro</li>
+        <li>Divulgação do catálogo no site, nos portais e nos grupos de corretores</li>
+        <li>Gerador de posts de imóveis para redes sociais</li>
+        <li class="plataforma__novo">Agendamento e publicação no Instagram <span>em construção</span></li>
+      </ul>
+    </div>
+
+    <p class="plataforma__dados">A integração com o Instagram usa a API oficial da Meta. A plataforma só acessa a conta que você conectar, só publica o que você criar ou agendar e nunca publica sem a sua ação. Você pode desconectar a conta e pedir a exclusão dos seus dados a qualquer momento: veja a nossa página de <a href="exclusao-de-dados.html">Exclusão de Dados</a> e os <a href="termos-de-uso.html">Termos de Uso</a>.</p>
+  </section>
+
   <!-- ================= 2. O que é ================= -->
   <section class="secao o-que-e" id="o-que-e" aria-labelledby="titulo-o-que-e">
     <div class="secao__cabeca">
       <p class="secao__sobre">O que é a Imob Easy</p>
       <h2 class="secao__titulo" id="titulo-o-que-e">Uma imobiliária de Manaus feita para o corretor fechar mais, e para quem procura encontrar mais rápido</h2>
-      <p class="secao__texto">Desde 2019 trabalhamos com venda, locação e administração de imóveis. O que nos diferencia é o jeito: o catálogo inteiro aberto para a rede de corretores, resposta na hora pelo WhatsApp e metade da comissão para quem traz o cliente.</p>
+      <p class="secao__texto">Desde 2019 trabalhamos com venda, locação e administração de imóveis. O que nos diferencia é o jeito: o catálogo inteiro aberto para a rede de corretores, resposta na hora pelo WhatsApp e metade da comissão para quem traz o cliente. E a tecnologia que faz isso funcionar é nossa: a mesma plataforma que oferecemos como SaaS imobiliário.</p>
     </div>
     <div class="o-que-e__duas">
       <article class="o-que-e__cartao o-que-e__cartao--corretor">
@@ -380,9 +474,10 @@
     </div>
 
     <p class="site-rodape__sobre">
-      A Imob Easy é uma empresa consolidada no mercado imobiliário de Manaus. Trabalhando com
-      Vendas, locação e Administração de Imóveis, de uma forma nova e totalmente voltada para
-      facilitar a sua vida.
+      A Imob Easy é imobiliária e SaaS imobiliário. Em Manaus, trabalhamos com venda, locação e
+      administração de imóveis desde 2019; para imobiliárias e corretores, oferecemos a plataforma que
+      usamos no dia a dia: cadastro de imóveis, CRM com WhatsApp, assistente de IA e publicação de posts
+      no Instagram.
     </p>
 
     <div>
@@ -404,6 +499,7 @@
     <div>
       <p class="site-rodape__titulo">Páginas</p>
       <ul>
+        <li><a href="#plataforma">Plataforma (SaaS imobiliário)</a></li>
         <li><a href="comprar.html">Comprar</a></li>
         <li><a href="alugar.html">Alugar</a></li>
         <li><a href="imoveis.html">Mapa dos imóveis</a></li>

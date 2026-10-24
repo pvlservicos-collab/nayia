@@ -294,3 +294,39 @@ body.home { background: #fff; }
 .do-blog__titulo a { color: var(--texto); text-decoration: none; }
 .do-blog__titulo a:hover { color: var(--roxo); }
 .do-blog__resumo { margin: 0; color: var(--texto-medio); font-size: var(--fs-md); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ---- plataforma (24/10): agendar e publicar posts do Instagram; o SaaS imobiliário logo depois da 1ª dobra ---- */
+.plataforma__grade { display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; }
+.plataforma__texto .secao__titulo, .plataforma__texto .secao__sobre { text-align: left; }
+.plataforma__texto .secao__texto strong { color: var(--texto); }
+.plataforma__acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; margin-top: 26px; }
+.plataforma__botao { border-radius: var(--raio-pill); padding: 14px 24px; }
+.plataforma__botao:disabled { background: var(--roxo-suave); color: var(--marca-roxo); border: 1px dashed var(--roxo-borda); cursor: not-allowed; transform: none; }
+.plataforma__botao span { font-weight: 500; opacity: .8; }
+.plataforma__aviso { color: var(--roxo); font-weight: 700; }
+.plataforma__aviso::after { content: " →"; }
+.plataforma__passos { list-style: none; margin: 0; padding: 26px; display: grid; gap: 20px; background: linear-gradient(160deg, #f6f1ff 0%, #f7e6f5 100%); border: 1px solid var(--roxo-borda); border-radius: var(--raio-lg); }
+.plataforma__passos li { display: grid; grid-template-columns: 40px 1fr; gap: 14px; align-items: start; }
+.plataforma__num { width: 40px; height: 40px; border-radius: 50%; background: var(--marca-roxo); color: #fff; display: grid; place-items: center; font-family: var(--fonte-titulo); font-weight: 700; }
+.plataforma__passos h3 { font-family: var(--fonte-titulo); font-size: var(--fs-md); margin: 0 0 4px; color: var(--texto); }
+.plataforma__passos p { margin: 0; color: var(--texto-medio); line-height: 1.5; font-size: var(--fs-sm); }
+.plataforma__modulos { margin-top: 40px; padding: 24px 26px; background: var(--superficie-2); border: 1px solid var(--borda); border-radius: var(--raio-lg); }
+.plataforma__modulos-titulo { margin: 0 0 14px; font-family: var(--fonte-titulo); font-size: var(--fs-xs); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--marca-roxo); }
+.plataforma__modulos ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 22px; }
+.plataforma__modulos li { position: relative; padding-left: 22px; color: var(--texto-medio); line-height: 1.45; font-size: var(--fs-sm); }
+.plataforma__modulos li::before { content: ""; position: absolute; left: 0; top: .45em; width: 10px; height: 10px; border-radius: 50%; background: var(--verde); }
+.plataforma__modulos li.plataforma__novo::before { background: var(--roxo-borda); }
+.plataforma__novo span { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: var(--raio-pill); background: var(--roxo-suave); color: var(--marca-roxo); font-size: var(--fs-xs); font-weight: 600; }
+.plataforma__dados { margin: 18px 0 0; font-size: var(--fs-sm); line-height: 1.55; color: var(--texto-fraco); }
+.plataforma__dados a { color: var(--roxo); font-weight: 600; }
+@media (max-width: 980px) {
+  .plataforma__grade { grid-template-columns: 1fr; gap: 28px; }
+  .plataforma__modulos ul { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px) {
+  .plataforma__passos, .plataforma__modulos { padding: 20px 18px; }
+  .plataforma__modulos ul { grid-template-columns: 1fr; }
+  .plataforma__botao { width: 100%; }
+}
+/* com o "Agendar posts" no menu (24/10), entre 981 e 1100 px o link Equipe sai para o menu caber numa linha */
+@media (min-width: 981px) and (max-width: 1100px) { .topo__admin { display: none; } }

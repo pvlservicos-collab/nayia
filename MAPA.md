@@ -235,6 +235,13 @@ prompt: comece pelo `nay onde`.
   Quem aponta para a página: "Ver Imóvel" do site, a ficha da aba Imóveis do admin/CRM (`imoveis-ux.js`) e o popup do
   imóvel da mensagem no CRM (`ImovelCitado.tsx`).
 
+- SaaS IMOBILIÁRIO no site (24/10): seção `#plataforma` logo depois da 1ª dobra da home ("Agende e publique os posts do
+  Instagram", botão desabilitado "em construção", os módulos da plataforma e o uso dos dados da Meta), item "Agendar posts" no
+  menu; `<title>`, description, Open Graph e o `@graph` (Organization + RealEstateAgent, SoftwareApplication, WebSite) em
+  `index.html`; estilo `.plataforma*` no fim de `home.css`. O rodapé de todas as páginas e do blog (`blog_templates/base.html`)
+  diz "imobiliária e SaaS imobiliário"; Termos de Uso `#plataforma` e Exclusão de Dados `#instagram` explicam a conta
+  do Instagram conectada (o que a Meta lê na revisão do app).
+
 - admin › Grupos (`admin/grupos.html`, `assets/js/grupos-agenda.js`): a agenda das mensagens de imóvel nos grupos.
   É a GRADE do publicador (`vagas`), que `disparar_grade.sh` posta no minuto marcado; criar/editar/excluir por
   `site_grade_salvar`/`site_grade_excluir`, a semana e a métrica de 6 h por `site_grade_agenda` (rotas `/admin/api/grade*`). 279.
