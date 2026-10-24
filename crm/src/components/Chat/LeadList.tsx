@@ -892,6 +892,7 @@ export default function LeadList({
                   nay={ehParceria ? nay : undefined}
                   dono={donos[lead.id]}
                   etiquetasEmDestaque={usarAbasDeEtiquetas ? etiquetasEmDestaque : undefined}
+                  respondeu={linha === 'oficial' && !!lead.ultima_recebida}
                 />
               )
             })}

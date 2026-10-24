@@ -46,6 +46,8 @@ interface LeadListItemProps {
   nay?: EstadoDaNay | null
   /** WhatsApp Leads (20/10): as etiquetas que são aba (as etapas) aparecem antes das outras na linha */
   etiquetasEmDestaque?: string[]
+  /** Oficial (Pedro, 24/10): o contato já mandou mensagem (respondeu ao disparo); a linha ganha um verde leve da esquerda */
+  respondeu?: boolean
 }
 
 const RECEBIDO = ['lead']
@@ -112,7 +114,7 @@ function Avatar({ lead, robo }: { lead: LeadWithOwner; robo?: { parada: boolean;
   )
 }
 
-const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque }: LeadListItemProps) => {
+const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu }: LeadListItemProps) => {
   const robo = nay === undefined ? null : !nay ? { parada: true, texto: 'Lendo a Nay…' }
     : !nay.ligada ? { parada: true, texto: `Nay parada: ${nay.motivo || 'desligada'}` }
     : nayEmPausa(marca) ? { parada: true, texto: TEXTO_DA_PAUSA }
@@ -131,7 +133,7 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
       data-lead-id={lead.id}
       onClick={() => onClick(lead)}
       onContextMenu={(e) => onContextMenu(e, lead)}
-      className={`wa-linha ${isSelected ? 'wa-linha--sel' : ''}`}
+      className={`wa-linha ${isSelected ? 'wa-linha--sel' : ''} ${respondeu ? 'wa-linha--respondeu' : ''}`}
     >
       <Avatar lead={lead} robo={robo} />
       <div className="flex-1 min-w-0 py-[11px]">
@@ -228,6 +230,7 @@ export default memo(LeadListItem, (a, b) => (
   (a.lead.lead_tags || []).map((lt: any) => lt.tag_id).join() === (b.lead.lead_tags || []).map((lt: any) => lt.tag_id).join() &&
   (a.etiquetasEmDestaque || []).join() === (b.etiquetasEmDestaque || []).join() &&
   a.isSelected === b.isSelected &&
+  !!a.respondeu === !!b.respondeu &&
   a.atendente?.id === b.atendente?.id &&
   a.timeStr === b.timeStr &&
   a.query === b.query &&
