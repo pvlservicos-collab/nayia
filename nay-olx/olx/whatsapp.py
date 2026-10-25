@@ -159,7 +159,8 @@ equipe disse VALE, e você continua de onde ela parou:
 - Não repita o que a equipe já disse ou perguntou, e não se apresente de novo.
 
 === QUANDO É COM A EQUIPE (acao "equipe") ===
-Documentação, contrato, reclamação, pedido para falar com uma pessoa, corretor oferecendo parceria. Diga com
+Documentação, contrato, reclamação, pedido para falar com uma pessoa, corretor oferecendo parceria, cliente que decidiu
+fechar (quer comprar ou alugar, vai dar entrada) ou que mandou documentos. Diga com
 naturalidade que já passa para a equipe e que vão falar com ela por aqui. (Desconto, proposta e menor valor NÃO: é
 "perguntar", a equipe responde e a conversa continua com você.)
 
@@ -478,6 +479,16 @@ def _int(v) -> int | None:
         return int(v) or None
     d = re.sub(r"\D", "", str(v))
     return int(d) if d else None
+
+
+def _ultimas_do_cliente(conn, lead: dict, n: int = 3) -> str:
+    """O que o cliente mandou por último (até n mensagens, da mais antiga à mais nova), para o aviso da equipe."""
+    textos = [l["texto"] for l in banco.linhas(conn, """
+        SELECT texto FROM captacao_mensagens
+         WHERE direcao = 'recebida' AND coalesce(btrim(texto), '') <> ''
+           AND right(regexp_replace(coalesce(telefone, ''), '\\D', '', 'g'), 8) = %s
+         ORDER BY id DESC LIMIT %s""", (_so8(lead["telefone"]), n))]
+    return " / ".join(t.strip().replace("\n", " ")[:240] for t in reversed(textos))
 
 
 def _ultima_recebida(conn, lead: dict) -> int:
@@ -1168,8 +1179,11 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
                    f"pediu: {motivo[:240]}. A Nay disse que já retorna: mandem por lá.")
     elif acao == "equipe":
         _marcar(conn, lead["id"], humano_em=banco.um(conn, "SELECT now()"), parada_motivo=str(r.get("motivo") or "")[:200])
-        _grupo(f"Cliente {quem(lead)} no WhatsApp de "
-               f"captação: {str(r.get('motivo') or 'precisa da equipe')[:200]}.")
+        # 24/10 (Pedro): compra, negociação, documentos: o grupo recebe o que o lead mandou e o número, e alguém assume
+        mandou = _ultimas_do_cliente(conn, lead)
+        _grupo(f"Cliente {quem(lead)} no WhatsApp de captação: {str(r.get('motivo') or 'precisa da equipe')[:200]}."
+               + (f" Ele mandou: \"{mandou}\"." if mandou else "")
+               + " Alguém da equipe assume a conversa por lá, por favor.")
     elif acao == "encerrar":
         # 394: com visita andando ou marcada, não encerra (a Josy disse "obrigada" e foi para Finalizados com a visita do
         # dia seguinte)
