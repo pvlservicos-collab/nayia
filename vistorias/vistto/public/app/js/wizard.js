@@ -346,11 +346,33 @@ function PersonForm({ p, onChange, onRemove, title }) {
     <${Field} icon="whatsapp"><input class="input" placeholder="Telefone" inputmode="tel" value=${p.phone || ''} onInput=${(e) => f('phone', e.target.value)} /></${Field}>
     <${Field} icon="mail"><input class="input" placeholder="E-mail (recebe o laudo e a assinatura)" type="email" value=${p.email || ''} onInput=${(e) => f('email', e.target.value)} /></${Field}></div>`;
 }
+// Testemunhas salvas (Pedro, 24/10): as do servidor (bootstrap) e as das vistorias deste aparelho, ainda sem sincronizar
+const chaveDaPessoa = (w) => String(w.cpf || '').replace(/\D/g, '') || String(w.name || '').trim().toLowerCase();
+function useSavedWitnesses() {
+  const [local, setLocal] = useState([]);
+  useEffect(() => { inspections.all().then((l) => setLocal(l.flatMap((i) => (i.parties && i.parties.testemunhas) || []))).catch(() => {}); }, []);
+  const seen = new Map();
+  for (const w of [...local, ...((app.boot && app.boot.witnesses) || [])]) {
+    if (w && String(w.name || '').trim() && !seen.has(chaveDaPessoa(w))) seen.set(chaveDaPessoa(w), { name: w.name.trim(), cpf: w.cpf || '', phone: w.phone || '', email: w.email || '' });
+  }
+  return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+}
+function WitnessPicker({ list, update, k }) {
+  const ja = new Set(list.filter((p) => p && p.name).map(chaveDaPessoa));
+  const opts = useSavedWitnesses().filter((w) => !ja.has(chaveDaPessoa(w)));
+  if (!opts.length) return null;
+  return html`<select class="input" value="" onChange=${(e) => { const w = opts[+e.target.value]; e.target.value = ''; if (!w) return;
+      update((n) => { n.parties = n.parties || {}; const l = (n.parties[k] || []).filter((p) => p && (p.name || p.cpf || p.phone || p.email)); n.parties[k] = [...l, { ...w }]; }); }}>
+    <option value="">Escolher testemunha salva…</option>
+    ${opts.map((w, i) => html`<option value=${i}>${w.name}${w.cpf ? ` · ${w.cpf}` : ''}</option>`)}
+  </select>`;
+}
 function People({ ins, update, k, title, icon, addLabel, optional }) {
   const list = (ins.parties && ins.parties[k]) || [];
   return html`<${Section} title=${title} icon=${icon}>
     ${optional && html`<small class="muted">${optional}</small>`}
     ${list.map((p, i) => html`<${PersonForm} key=${i} p=${p} title=${`${i + 1}º ${title.toLowerCase().replace(/s$/, '').replace(/(e)s$/, '$1')}`} onChange=${(v) => update((n) => (n.parties[k][i] = v))} onRemove=${list.length > 1 || optional ? () => update((n) => n.parties[k].splice(i, 1)) : null} />`)}
+    ${k === 'testemunhas' && html`<${WitnessPicker} list=${list} update=${update} k=${k} />`}
     <button class="link-btn add" onClick=${() => update((n) => { n.parties = n.parties || {}; n.parties[k] = [...(n.parties[k] || []), {}]; })}><${Icon} name="plusCircle" size=${18} /> ${addLabel}</button>
   </${Section}>`;
 }

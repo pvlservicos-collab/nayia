@@ -189,4 +189,19 @@ function listInspections(where = '1=1', params = []) {
   });
 }
 
-module.exports = { loadInspection, stats, allNcs, completeness, syncFromApp, cloneForExit, listInspections, mediaRow, CONDITIONS };
+// Testemunhas já usadas em qualquer vistoria: a lista suspensa da etapa Dados (Pedro, 24/10). Cada testemunha nova
+// fica salva por estar na vistoria; a mesma pessoa (CPF ou nome) aparece uma vez, com os dados mais recentes.
+function savedWitnesses() {
+  const seen = new Map();
+  for (const r of all('SELECT parties FROM inspections ORDER BY updated_at DESC')) {
+    for (const w of J(r.parties).testemunhas || []) {
+      const name = String((w && w.name) || '').trim();
+      if (!name) continue;
+      const key = String(w.cpf || '').replace(/\D/g, '') || name.toLowerCase();
+      if (!seen.has(key)) seen.set(key, { name, cpf: w.cpf || '', phone: w.phone || '', email: w.email || '' });
+    }
+  }
+  return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+}
+
+module.exports = { loadInspection, stats, allNcs, completeness, syncFromApp, cloneForExit, listInspections, mediaRow, savedWitnesses, CONDITIONS };

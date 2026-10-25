@@ -55,6 +55,7 @@ r.get('/app/bootstrap', auth(), (req, res) => {
       customRooms: all("SELECT name FROM vocab WHERE kind='room' ORDER BY uses DESC, name").map((x) => x.name),
     },
     templates: all('SELECT id,name,type,rooms FROM templates WHERE active=1 ORDER BY name').map((t) => ({ ...t, rooms: J(t.rooms, []) })),
+    witnesses: M.savedWitnesses(),
     params: cfg.params(),
   });
 });
