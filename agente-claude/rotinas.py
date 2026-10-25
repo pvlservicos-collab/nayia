@@ -141,12 +141,19 @@ DUVIDA_PROMPT = (
     "como-ler-os-dados (procure em todos os WhatsApp antes, pergunte ao dono com o modelo e PREENCHA NO CADASTRO).")
 # a pergunta ao dono que o agente anotou: a resposta dele (linha da Parceria, tabela mensagens) volta ao agente
 DONO_ESPERA_H = 3
+# 493 (24/10): o dono responde pela linha em que foi perguntado: a Parceria (mensagens) ou o 8595 (captacao_mensagens)
 SQL_RESPOSTA_DO_DONO = """
-SELECT json_build_object('texto', string_agg(coalesce(nullif(btrim(m.texto), ''), '[' || m.origem || ']'), ' / ' ORDER BY m.id),
-                         'ultima', to_char(max(m.criada_em) AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI'))::text
-  FROM mensagens m
- WHERE m.direcao = 'recebida' AND right(regexp_replace(m.telefone, '\\D', '', 'g'), 8) = '{tel8}'
-   AND m.criada_em > '{desde}'::timestamptz
+SELECT json_build_object('texto', string_agg(x.t, ' / ' ORDER BY x.em),
+                         'ultima', to_char(max(x.em) AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI'))::text
+  FROM (SELECT m.criada_em AS em, coalesce(nullif(btrim(m.texto), ''), '[' || m.origem || ']') AS t
+          FROM mensagens m
+         WHERE m.direcao = 'recebida' AND right(regexp_replace(m.telefone, '\\D', '', 'g'), 8) = '{tel8}'
+           AND m.criada_em > '{desde}'::timestamptz
+        UNION ALL
+        SELECT c.criada_em, coalesce(nullif(btrim(c.texto), ''), '[' || coalesce(c.origem, 'mídia') || ']')
+          FROM captacao_mensagens c
+         WHERE c.direcao = 'recebida' AND right(regexp_replace(coalesce(c.telefone, ''), '\\D', '', 'g'), 8) = '{tel8}'
+           AND c.criada_em > '{desde}'::timestamptz) x
 HAVING count(*) > 0;
 """
 DIAS = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
@@ -450,12 +457,18 @@ SELECT json_build_object('id', f.id, 'chave', f.chave, 'cliente', f.cliente, 'co
 """
 SQL_ULTIMA_DUVIDA_OLX = "SELECT json_build_object('id', coalesce(max(id), 0))::text FROM pergunta_fila;"
 DUVIDA_OLX_PROMPT = (
-    "A Nay do WhatsApp da OLX (cliente final, número 92 8595-6408) não soube responder. Procure a resposta como nas dúvidas "
-    "da Parceria (a ficha, o cadastro e o admin antigo, todos os WhatsApp, o que o Tel já respondeu). ACHOU: responda pela "
-    "fila, na vps1 (`psql -U nay -d naydb`): SELECT pergunta_fila_agente_responder(<id>, '<a resposta para o cliente, na "
-    "voz da Nay, curta>', 'agente'); o nay-olx entrega pelo 8595 sozinho. NÃO use o mandar.py: ele manda pela Parceria, "
-    "que é outro número. NÃO ACHOU: pergunte ao proprietário como nas dúvidas da Parceria (anote em "
-    "dados/duvidas/aguardando_dono.jsonl com \"fila\": <id>) e, quando ele responder, responda pela mesma função. Se "
+    "A Nay do WhatsApp da OLX (cliente final, número 92 8595-6408) não soube responder. Procure a resposta NESTA ORDEM "
+    "(Pedro, 24/10): 1) a ficha do imóvel no site, o cadastro e o admin antigo, o que o Tel já respondeu; 2) as CONVERSAS "
+    "COM O PROPRIETÁRIO em TODOS os números, pelo telefone dele (8 últimos dígitos): Parceria (`mensagens`), oficial e "
+    "8595 (`captacao_mensagens`) e o CRM (crmdb, `lead_activities` + `leads`): ele pode já ter respondido isso (ex.: "
+    "aceita pet?). Vale para QUALQUER dúvida, não só taxa/IPTU/escada. ACHOU: responda pela fila, na vps1 (`psql -U nay "
+    "-d naydb`): SELECT pergunta_fila_agente_responder(<id>, '<a resposta para o cliente, na voz da Nay, curta>', "
+    "'agente'); o nay-olx entrega pelo 8595 sozinho. NÃO ACHOU: pergunte ao proprietário com SELECT "
+    "nay_leads_perguntar_ao_dono(<id da fila>, '<telefone do dono>', '<nome do dono>', '<a mensagem>') (493): o nay-olx "
+    "manda pelo número em que ele JÁ conversa conosco (Parceria, e a conversa fica roxa no CRM) ou, sem conversa lá, pelo "
+    "8595; NUNCA pelo oficial. NÃO use o mandar.py para isso. A mensagem segue o modelo das dúvidas da Parceria (nome do "
+    "cadastro, sem sigla; cumprimenta só se não conversaram hoje). Anote em dados/duvidas/aguardando_dono.jsonl com "
+    "\"fila\": <id>; a rotina traz a resposta dele (de qualquer dos dois números) e você responde pela mesma função. Se "
     "realmente não tem como saber: SELECT pergunta_fila_agente_devolver(<id>, '<por quê>'); aí vai ao PV do Tel.")
 
 
