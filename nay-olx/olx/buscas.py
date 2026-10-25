@@ -188,6 +188,8 @@ def obs_texto(f: dict) -> str:
         partes.append("pagamento à vista")
     if f.get("condominio"):
         partes.append(f"de preferência no {f['condominio']}")
+    if f.get("perto_de"):
+        partes.append(f"perto do {f['perto_de']}")
     return "; ".join(partes)
 
 
@@ -259,7 +261,7 @@ def grupo_aceita(g: dict, f: dict) -> bool:
 
 # ── 1. o registro ──
 CHAVES_DO_PERFIL = ("finalidade", "tipo", "teto", "bairros", "qualquer_bairro", "quartos", "aceita_menos_quartos",
-                    "mobilia", "financiamento", "condominio")
+                    "mobilia", "financiamento", "condominio", "perto_de", "perto_km", "pet", "exigencias")
 
 
 def limpo(f: dict) -> dict:
@@ -849,9 +851,13 @@ def opcoes_da_base(conn, lead: dict, f: dict, excluir: list[int], quantas: int) 
     limite = datetime.now(timezone.utc) - timedelta(days=regras["confirmado_dias"])
     r = bo.gpontuar.melhores(pedido, imoveis, regras, vizinhos, limite)
     saida = []
+    # 24/10: "perto de X" é do banco (distância do centro dos bairros), nunca da Nay
+    perto = {x["bairro"] for x in whatsapp.so_perto(conn, [{"bairro": p["imovel"].get("bairro")} for p in r["pares"]], f)}
     for p in r["pares"]:
         if p["nota"] < regras["cortes"]["amarelo"] or len(saida) >= quantas:
             break
+        if f.get("perto_de") and p["imovel"].get("bairro") not in perto:
+            continue
         if whatsapp._ofertavel(conn, int(p["codigo"]), lead):
             saida.append({"codigo": int(p["codigo"]), "nota": p["nota"]})
     return saida

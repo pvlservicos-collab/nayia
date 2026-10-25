@@ -208,10 +208,49 @@ class UmaConfirmacaoSo(unittest.TestCase):
              "mobilia": "mobiliado"}
         passos = w._afrouxar(f)
         self.assertEqual(passos[0], (f, False))
-        self.assertEqual(passos[1][0]["mobilia"], "")
-        self.assertTrue(passos[2][0]["aceita_menos_quartos"])
-        self.assertEqual(passos[3][0]["bairros"], [])
-        self.assertEqual(passos[4][0]["teto"], 1080000)
+        # 24/10 (a Esther): a mobília NÃO afrouxa; mobiliado é mobiliado em todos os passos
+        self.assertTrue(all(g["mobilia"] == "mobiliado" for g, _ in passos))
+        self.assertTrue(passos[1][0]["aceita_menos_quartos"])
+        self.assertEqual(passos[2][0]["bairros"], [])
+        self.assertEqual(passos[3][0]["teto"], 1080000)
+        self.assertEqual(len(passos), 4)
+
+    def test_a_necessidade_cresce_e_nao_se_perde(self):
+        # 24/10 (Pedro, a Esther): cada coisa nova entra e fica
+        f = w._filtros({"teto": 4000, "mobilia": "mobiliado", "exigencias": ["cozinha completa"]},
+                       {"perto_de": "Distrito Industrial", "pet": "2 gatas", "exigencias": ["lavanderia completa", "cozinha completa"]})
+        self.assertEqual(f["mobilia"], "mobiliado")
+        self.assertEqual(f["perto_de"], "Distrito Industrial")
+        self.assertEqual(f["pet"], "2 gatas")
+        self.assertEqual(f["exigencias"], ["cozinha completa", "lavanderia completa"])
+        # o modelo esquece de repetir: nada some
+        g = w._filtros(f, {"teto": 3900, "exigencias": [], "perto_de": ""})
+        self.assertEqual((g["teto"], g["perto_de"], g["pet"], g["exigencias"]), (3900, "Distrito Industrial", "2 gatas", f["exigencias"]))
+
+    def test_perto_e_distancia_do_banco(self):
+        from unittest import mock
+        achados = [{"bairro": "Aleixo", "codigo": 1}, {"bairro": "Ponta Negra", "codigo": 2}, {"bairro": "Sem Coordenada", "codigo": 3}]
+        km = {"Aleixo": 5.0, "Ponta Negra": 16.0}
+        with mock.patch.object(w, "distancias_km", return_value=km):
+            self.assertEqual([a["codigo"] for a in w.so_perto(None, achados, {"perto_de": "Distrito"})], [1])
+            self.assertEqual([a["codigo"] for a in w.so_perto(None, achados, {"perto_de": "Distrito", "perto_km": 20})], [1, 2])
+            self.assertEqual(len(w.so_perto(None, achados, {})), 3)                      # sem perto_de não filtra
+        with mock.patch.object(w, "distancias_km", return_value={}):                    # lugar que não é bairro: não filtra
+            self.assertEqual(len(w.so_perto(None, achados, {"perto_de": "Shopping"})), 3)
+
+    def test_resposta_do_revisor_curta(self):
+        # 24/10 (a Esther recebeu um balão enorme com sugestões e uma distância errada)
+        longa = ("Sra. Esther, conferi aqui: não tenho nenhum imóvel com aceitação de pet já confirmada, porque essa informação "
+                 "depende do proprietário. Das mobiliadas com condomínio incluso e até R$ 4.000 que ainda não te mostrei, a mais "
+                 "fora de Ponta Negra é o Ariranhas (código 5729), no bairro Da Paz. Não sei dizer a distância dele até o Distrito.")
+        self.assertEqual(w.resposta_curta("Fica tudo, sim.", lambda p, u: 1 / 0), "Fica tudo, sim.")      # curta: nem chama o modelo
+        self.assertEqual(w.resposta_curta(longa, lambda p, u: {"texto": w.SEM_INFORMACAO}), w.SEM_INFORMACAO)
+        self.assertEqual(w.texto_da_resposta({"codigo": 2944, "imovel": "Maison Rochelle", "resposta": "Fica tudo, sim."}),
+                         "Sobre o #2944 (Maison Rochelle): Fica tudo, sim.")
+        self.assertLessEqual(len(w.resposta_curta(longa, lambda p, u: 1 / 0)), 240)                      # sem modelo: 2 frases
+
+    def test_nao_achou_responde_curto(self):
+        self.assertEqual(w.CONTINUO_VERIFICANDO, "Entendi, por enquanto ainda procurando opções.")
 
     def test_fecho_das_mais_proximas(self):
         self.assertTrue(w.fecho({"nome": "Felipe", "trat": "Sr."}, 3, proximas=True)

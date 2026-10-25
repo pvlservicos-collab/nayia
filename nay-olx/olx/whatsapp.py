@@ -50,7 +50,11 @@ ENTRE_ENVIOS_S = 1.5
 DEPOIS_DAS_FOTOS_S = 8.0       # "espera carregar todas as fotos e vai para o próximo"
 LIMITE_DE_MENSAGENS = 60       # mensagens dela nesta conversa: depois disso, a equipe
 CAMPOS_DOS_FILTROS = ("finalidade", "tipo", "teto", "bairros", "qualquer_bairro", "quartos", "aceita_menos_quartos",
-                      "aceita_escada", "financiamento", "mobilia")
+                      "aceita_escada", "financiamento", "mobilia",
+                      # 24/10 (Pedro, a Esther: a necessidade vai crescendo na conversa e tem que ficar): o lugar de referência
+                      # ("perto do Distrito"), o pet e o que mais ela exige (cozinha e lavanderia completas...)
+                      "perto_de", "perto_km", "pet", "exigencias")
+PERTO_KM_PADRAO = 6.0      # "perto" de um lugar: até aqui (centro do bairro ao centro do bairro), se ela não disse quantos km
 
 
 class ErroDeEnvio(Exception):
@@ -188,7 +192,8 @@ Valor em reais assim: R$ 700.000 / R$ 2.500.
 === A SUA RESPOSTA: SÓ ESTE JSON, NADA MAIS ===
 {"baloes": ["..."], "acoes": [],
  "filtros": {"finalidade": "", "tipo": "", "teto": 0, "bairros": [], "qualquer_bairro": false, "quartos": 0,
-             "aceita_menos_quartos": null, "aceita_escada": null, "financiamento": "", "mobilia": "", "condominio": ""},
+             "aceita_menos_quartos": null, "aceita_escada": null, "financiamento": "", "mobilia": "", "condominio": "",
+             "perto_de": "", "perto_km": 0, "pet": "", "exigencias": []},
  "fotos": {"codigo": 0}, "depois_das_fotos": [], "card": {"codigos": []}, "visita": {"codigo": 0, "data": "", "hora": ""},
  "motivo": ""}
 - acoes: [] ou, na ordem, até duas de: "fotos" | "card" (manda de novo o card dos imóveis em card.codigos) | "buscar" |
@@ -203,6 +208,13 @@ Valor em reais assim: R$ 700.000 / R$ 2.500.
   condominio: o nome do condomínio que ela pediu ou disse que quer ("no Parque das Laranjeiras", "algo no Vision"),
   como ela escreveu; "" se não disse nenhum. A busca traz esse e os condomínios próximos dele primeiro.
   No orgânico, finalidade quando ela disser ou pelo valor (acima de R$ 100.000 "venda", até R$ 30.000 "locacao").
+  A NECESSIDADE CRESCE na conversa (Pedro, 24/10, a Esther): cada coisa nova que ela revelar entra nos filtros e fica;
+  nunca apague o que ela já disse. perto_de: o lugar de referência quando ela quer perto de algum ("acesso fácil ao
+  Distrito" = "Distrito Industrial"; um bairro ou lugar de Manaus); o SISTEMA calcula a distância de verdade e só traz o
+  que fica perto: NUNCA diga distância, "fica longe" ou "fica perto" por conta própria. perto_km: só se ela disse
+  quantos km. pet: o que ela disse do bicho ("2 gatas", "cachorro pequeno"). exigencias: o que ela quer e os outros
+  campos não cobrem ("cozinha e lavanderia completas", "elevador", "andar baixo"), um item curto cada.
+  Mobiliado é MOBILIADO: nunca ofereça nem aceite "modulados e ar" para quem pediu mobiliado.
 - visita: o código do imóvel (da lista do sistema, NUNCA perguntado a ela), a data (DD/MM) e a hora (HH:MM) que ela disse.
 - motivo: em poucas palavras, para a equipe (com "perguntar" ou "equipe"): o que ela pediu, com os códigos.
 """
@@ -677,6 +689,21 @@ def _filtros(antes: dict, novos) -> dict:
     f = dict(antes or {})
     for k in CAMPOS_DOS_FILTROS:
         v = (novos or {}).get(k) if isinstance(novos, dict) else None
+        if k == "exigencias":
+            # só acumula: o que ela já exigiu não some quando o modelo esquece de repetir
+            novas = [str(x).strip()[:120] for x in (v if isinstance(v, list) else []) if str(x).strip()]
+            f["exigencias"] = list(dict.fromkeys([*(f.get("exigencias") or []), *novas]))[:12]
+            if not f["exigencias"]:
+                f.pop("exigencias")
+            continue
+        if k == "perto_km":
+            try:
+                v = float(v or 0)
+            except (TypeError, ValueError):
+                v = 0
+            if v > 0:
+                f[k] = v
+            continue
         if v in (None, "", 0, [], False) and k not in ("aceita_menos_quartos", "aceita_escada"):
             continue
         if v is None:
@@ -1152,9 +1179,41 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
 
 ETAPAS_DA_BUSCA = ("nova", "filtrar", "feito_busca", "imoveis_enviados", "finalizado")
 # 475 (Pedro, 22/10: "se não tivermos avisamos a ele que vamos continuar verificando")
-CONTINUO_VERIFICANDO = ("Ainda não tenho uma opção com esse perfil exato aqui, mas já estou verificando com os nossos "
-                        "corretores parceiros e te aviso por aqui assim que aparecer.")
+# 24/10 (Pedro): "se ela não encontrou a busca ela responde 'Entendi, por enquanto ainda procurando opções'"
+CONTINUO_VERIFICANDO = "Entendi, por enquanto ainda procurando opções."
 CONTINUO_EXATO = "E continuo verificando com os nossos corretores parceiros uma com o perfil exato. Te aviso por aqui."
+
+
+def distancias_km(conn, bairros: list[str], lugar: str) -> dict[str, float]:
+    """24/10 (Pedro, a Esther: "é bem mais de 2 km do distrito, ela deve ser revisada nesse aspecto"): a distância é a do banco
+    (o centro de cada bairro, geo_bairro), nunca uma conta da Nay. Devolve {bairro: km até o lugar mais próximo que se chama
+    assim}; vazio quando o lugar não é um bairro conhecido."""
+    if not (lugar or "").strip() or not bairros:
+        return {}
+    r = banco.linhas(conn, """
+        WITH ref AS (SELECT lat, lon FROM geo_bairro WHERE lower(unaccent(bairro)) LIKE '%%' || lower(unaccent(%s)) || '%%'),
+             b AS (SELECT x AS nome, g.lat, g.lon FROM unnest(%s::text[]) x
+                     LEFT JOIN geo_bairro_nome n ON n.nome_cadastro = x
+                     JOIN geo_bairro g ON g.bairro = coalesce(n.bairro, x))
+        SELECT b.nome, min(6371 * 2 * asin(sqrt(power(sin(radians(r.lat - b.lat) / 2), 2)
+                          + cos(radians(b.lat)) * cos(radians(r.lat)) * power(sin(radians(r.lon - b.lon) / 2), 2)))) AS km
+          FROM b CROSS JOIN ref r GROUP BY b.nome""", (lugar.strip(), list(bairros)))
+    return {x["nome"]: float(x["km"]) for x in r}
+
+
+def so_perto(conn, achados: list[dict], f: dict) -> list[dict]:
+    """Com `perto_de` nos filtros, só o que fica até `perto_km` (padrão 6) do lugar. Lugar que não é bairro conhecido: não filtra."""
+    lugar = str((f or {}).get("perto_de") or "").strip()
+    if not lugar or not achados:
+        return achados
+    try:
+        km_max = float(f.get("perto_km") or PERTO_KM_PADRAO)
+    except (TypeError, ValueError):
+        km_max = PERTO_KM_PADRAO
+    d = distancias_km(conn, sorted({a["bairro"] for a in achados if a.get("bairro")}), lugar)
+    if not d:
+        return achados
+    return [a for a in achados if a.get("bairro") in d and d[a["bairro"]] <= km_max]
 
 
 def _afrouxar(f: dict) -> list[tuple[dict, bool]]:
@@ -1162,9 +1221,8 @@ def _afrouxar(f: dict) -> list[tuple[dict, bool]]:
     (sem mobília, com um quarto a menos, nos bairros vizinhos e em qualquer bairro, até 20% acima do valor)."""
     passos: list[tuple[dict, bool]] = [(f, False)]
     g = dict(f)
-    if g.get("mobilia"):
-        g = {**g, "mobilia": ""}
-        passos.append((g, True))
+    # 24/10 (Pedro, a Esther pediu mobiliado e recebeu "com modulados e ar"): a mobília NÃO afrouxa mais. Mobiliado é
+    # mobiliado (a mobília rígida de 20/10), e o "perto de X" também fica como ela pediu.
     if g.get("quartos") and not g.get("aceita_menos_quartos"):
         g = {**g, "aceita_menos_quartos": True}
         passos.append((g, True))
@@ -1187,7 +1245,9 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
     achados, proximas = [], False
     for tentativa, afrouxou in _afrouxar(f):
         achados = banco.linhas(conn, "SELECT * FROM olx_cliente_buscar(%s::jsonb, %s::int[], %s)",
-                               (json.dumps(tentativa, ensure_ascii=False), excluir, MAX_IMOVEIS))
+                               (json.dumps(tentativa, ensure_ascii=False), excluir,
+                                MAX_IMOVEIS * 4 if f.get("perto_de") else MAX_IMOVEIS))
+        achados = so_perto(conn, achados, tentativa)[:MAX_IMOVEIS]
         if achados:
             proximas = afrouxou
             break
@@ -1204,7 +1264,7 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
     if not achados and buscando:
         texto = CONTINUO_VERIFICANDO
         if any(parecida(texto, x) for x in ja_mandou(conn, lead)):
-            texto = "Continuo verificando com os nossos corretores parceiros e te aviso por aqui assim que aparecer."
+            texto = "Continuo procurando e te aviso por aqui assim que aparecer."
         if not ja_avisou:
             mandar_texto(conn, lead, texto)
             buscas.cliente_avisado(conn, lead, texto)
@@ -1367,9 +1427,36 @@ def _mesmo_assunto(a: str, b: str) -> bool:
     return len(pa & pb) / min(len(pa), len(pb)) >= 0.6
 
 
+SEM_INFORMACAO = "Entendi, por enquanto ainda procurando opções."
+PROMPT_CURTO = """Você é a Nay, da Imob Easy. Chegou a RESPOSTA RECEBIDA (do nosso time) a uma dúvida de um cliente. Escreva o que
+vai ao cliente: NO MÁXIMO duas frases curtas (até 220 caracteres), só com o que responde à dúvida dele.
+- Se a resposta NÃO traz a informação pedida (não achou, não sabe, depende de confirmar com o proprietário) ou só traz
+  sugestões que ele não pediu: responda EXATAMENTE "Entendi, por enquanto ainda procurando opções."
+- NUNCA cite distância, nem ofereça outros imóveis, bairros ou códigos que ele não pediu, nem diga "mais fora de".
+- Português do Brasil, de gente, sem emoji, sem link, sem telefone.
+Devolva SÓ JSON: {"texto": "..."}"""
+
+
+def resposta_curta(resposta: str, chamar=None) -> str:
+    """24/10 (Pedro, a Esther recebeu um balão enorme com sugestões e uma distância errada): a resposta do revisor passa por
+    aqui. Curta (até 160 caracteres) vai como está; maior, o modelo reescreve em duas frases ou diz "ainda procurando"."""
+    r = re.sub(r"\s+", " ", str(resposta or "")).strip()
+    if len(r) <= 160:
+        return r
+    try:
+        t = str((chamar or (lambda p, u: modelo.chamar(p, u, no="olx.whatsapp")))(PROMPT_CURTO, f"RESPOSTA RECEBIDA: {r}").get("texto") or "").strip()
+    except Exception:  # noqa: BLE001 -- sem o modelo, as duas primeiras frases, no máximo 220 letras
+        t = ""
+    if not t:
+        t = " ".join(re.split(r"(?<=[.!?])\s+", r)[:2])[:220].rstrip()
+    return t[:240]
+
+
 def texto_da_resposta(p: dict) -> str:
     """A resposta do Tel como ela chega ao cliente: "Sobre o #9026 (Turim Residencial): Fica tudo, sim."."""
-    r = re.sub(r"\s+", " ", str(p.get("resposta") or "")).strip()
+    r = resposta_curta(p.get("resposta"))
+    if r.rstrip(".").lower() == SEM_INFORMACAO.rstrip(".").lower():
+        return SEM_INFORMACAO
     r = r[:1].upper() + r[1:]
     if p.get("codigo"):
         sobre = f"o #{p['codigo']}" + (f" ({p['imovel']})" if (p.get("imovel") or "").strip() else "")
