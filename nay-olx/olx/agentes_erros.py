@@ -23,7 +23,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
-from olx import agentes, banco, modelo, whatsapp
+from olx import agentes, banco, modelo, paredes, whatsapp
 
 PASTA = Path(__file__).resolve().parent.parent / "replay"
 _TL = threading.local()
@@ -198,7 +198,17 @@ def rodar_conversa(c: dict) -> dict:
                 if plano["calar"]:
                     r = {"baloes": [], "acoes": []}
                 else:
-                    r = modelo.chamar(plano["prompt"], whatsapp.montar_turno(lead, None, ctx), no="olx.replay")
+                    turno = whatsapp.montar_turno(lead, None, ctx)
+                    r = modelo.chamar(plano["prompt"], turno, no="olx.replay")
+                    # as paredes de saída, como no _responder_um (olx/paredes.py)
+                    furos = paredes.conferir(whatsapp._baloes_do(r), turno, True)
+                    if furos:
+                        item["paredes"] = [f"{p}: {x}" for _i, p, x in furos]
+                        r = modelo.chamar(plano["prompt"], turno + "\n\n" + paredes.aviso(furos), no="olx.replay")
+                        sobra, ainda = paredes.cortar(whatsapp._baloes_do(r), turno, True)
+                        if ainda:
+                            item["paredes_cortou"] = [f"{p}: {x}" for _i, p, x in ainda]
+                            r["baloes"] = sobra
                 acoes = whatsapp.acoes_da(r)
                 lead["filtros"] = whatsapp._filtros(lead["filtros"], r.get("filtros"))
                 item.update({"baloes": [str(b).strip() for b in (r.get("baloes") or []) if str(b).strip()],

@@ -258,7 +258,8 @@ def decidir(contexto: dict, responder_duvida: Callable[[int, str], str | None] |
         return None
 
     # 24/10: a OLX não responde mais dúvida: o catálogo (`responder_duvida`) nem é consultado
-    r = chamar_modelo(PROMPT, montar_turno(ctx, None))
+    turno = montar_turno(ctx, None)
+    r = chamar_modelo(PROMPT, turno)
 
     # 16/10 (Pedro, o caso da Camila): "nunca deve dar uma negativa; se a pessoa disser que não quer ser chamada pelo
     # WhatsApp a Nay não responde nada e avisa o Tel: tal cliente não quer falar pelo WhatsApp". A conversa fica com a
@@ -271,6 +272,10 @@ def decidir(contexto: dict, responder_duvida: Callable[[int, str], str | None] |
                                  f"A Nay parou; a conversa está no CRM › Chat OLX para responder por lá.")
 
     baloes = [b for b in (limpar_balao(str(x)) for x in (r.get("baloes") or [])[:MAX_BALOES_POR_VEZ]) if b]
+    # 25/10 (as paredes da Parceria, olx/paredes.py): valor e código só do que o turno trouxe, nunca parceria, negativa
+    # nem bastidor. Aqui o balão que fura sai cortado (a Nay da OLX só pede o WhatsApp; não vale outra chamada)
+    from olx import paredes
+    baloes, _furos = paredes.cortar(baloes, turno, False)
 
     encaminhar = (r.get("encaminhar") or "").strip().lower() or None
     if encaminhar:

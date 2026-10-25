@@ -75,7 +75,11 @@
     { chave: "corretores",    rotulo: "Corretores",       href: "corretores.html" },
     /* 11/10/2026 (Pedro: "pega a aba Oportunidades e põe como uma tab dentro da aba Captação e troca lá por uma
        aba Agentes"): Agentes = um quadrado por agente da VPS, com o uso por dia (agentes.html). */
-    { chave: "agentes",       rotulo: "Agentes",          href: "agentes.html" },
+    /* 25/10/2026 (Pedro: "uma nova aba lá na aba inteligência ... um painel de estudos ... a biblioteca"): Inteligência é
+       uma página própria, filha de Agentes (inteligencia.html: regras, a análise da Parceria, a biblioteca, os estudos). */
+    { chave: "agentes",       rotulo: "Agentes",          href: "agentes.html",
+      filhos: [{ rotulo: "Agentes",      href: "agentes.html",      chave: "agentes" },
+               { rotulo: "Inteligência", href: "inteligencia.html", chave: "inteligencia" }] },
     /* 22/10/2026 (Pedro: "uma página nova no menu chamada Modelos ... onde estão todos os modelos de IA ... e quanto
        estamos gastando em cada modelo"): o mapa do ecossistema com os gastos por nó (modelos.html, 470). */
     { chave: "modelos",       rotulo: "Modelos",          href: "modelos.html" },

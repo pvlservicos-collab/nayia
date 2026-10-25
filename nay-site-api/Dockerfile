@@ -35,6 +35,8 @@ COPY chavesnamao_api.py .
 COPY modelos_api.py .
 # Inteligências gerais dos agentes (495, 25/10): a aba de baixo da página Agentes
 COPY inteligencias_api.py .
+# Biblioteca de conversas (498, 25/10): a aba Biblioteca da página Inteligência
+COPY biblioteca_api.py .
 
 RUN useradd -m site-api
 USER site-api

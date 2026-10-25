@@ -1,0 +1,454 @@
+{
+ "gerado_em": "2026-10-25",
+ "titulo": "Por que a Nay Parceria acerta mais",
+ "resumo": [
+  "A diferença não é o modelo (todas usam a Luna): é o que fica EM VOLTA dele. Na Parceria o modelo só LÊ a mensagem e diz a intenção; quem decide o que fazer é o código, e quem escreve é um texto pronto (template). Nas outras, o modelo lê e escreve tudo de uma vez, com um prompt grande.",
+  "Ela tem redundância (o mesmo erro é pego por duas ou três camadas): o filtro que o modelo esquece a memória do pedido recupera; o imóvel errado o portão de coerência barra e o Jev veta; o número inventado o validador corta antes de sair.",
+  "Ela foi lapidada por rodadas: 133 correções no nay-core em outubro, 62 regras escritas como dados (cada uma com o caso real que a prova), 619 testes, 94 textos prontos, 44 conversas marcadas pelo Pedro na tela de treino, uma nota automática por conversa e um agente revisando de 20 em 20 minutos.",
+  "O que já foi levado para as outras hoje: as paredes de saída (o validador) na Nay Leads e na Nay da OLX, o registro de fluxos (o rastro de cada etapa) na Nay Leads, o imóvel escolhido indo inteiro e o 'sem mobília'. O resto está na lista do fim, em ordem do que mais ajuda.",
+  "O teste: as 87 conversas com erro da semana (19 a 23/10) rodadas na Nay Leads com essas mudanças. Dos 108 erros apontados, 17 ainda se repetem (eram 27 antes das correções), 70 conversas ficaram sem nenhum dos erros e a nota média subiu de 68,5 para 77,6. As paredes dispararam 19 vezes; as que eram falso alarme (o valor dito por extenso, a parceria que a própria pessoa perguntou) foram ajustadas."
+ ],
+ "numeros": {
+  "colunas": [
+   "Parceria",
+   "Leads",
+   "Captação",
+   "Cadastro",
+   "Grupos"
+  ],
+  "linhas": [
+   [
+    "Correções (commits) em outubro",
+    "133",
+    "62",
+    "24",
+    "11",
+    "16"
+   ],
+   [
+    "Testes automáticos",
+    "619",
+    "172",
+    "47",
+    "36",
+    "61"
+   ],
+   [
+    "Textos prontos (templates)",
+    "94",
+    "poucos (fecho, aviso)",
+    "—",
+    "perguntas fixas",
+    "—"
+   ],
+   [
+    "Regras como dados, cada uma com teste",
+    "62",
+    "—",
+    "—",
+    "—",
+    "pesos no config.json"
+   ],
+   [
+    "Quem escreve a resposta",
+    "o código (template)",
+    "o modelo",
+    "o modelo",
+    "o código",
+    "não conversa"
+   ],
+   [
+    "Nota automática por conversa",
+    "sim (notas_nay.py)",
+    "não",
+    "não",
+    "não",
+    "nota do pedido"
+   ],
+   [
+    "Revisão contínua",
+    "agente de 20 em 20 min + Gemini semanal + o ERRO do Tel",
+    "replay quando muda",
+    "ensaio",
+    "ensaio",
+    "—"
+   ]
+  ]
+ },
+ "nays": [
+  {
+   "chave": "parceria",
+   "nome": "Parceria",
+   "onde": "nay-core (C:\\Users\\pedro\\nay-core; servidor /docker/nay-core)",
+   "quem": "corretores, número da parceria"
+  },
+  {
+   "chave": "leads",
+   "nome": "Leads",
+   "onde": "nay-olx/olx/whatsapp.py + agentes.py (servidor /root/nay-olx)",
+   "quem": "clientes da OLX e orgânicos, 8595"
+  },
+  {
+   "chave": "olx",
+   "nome": "OLX",
+   "onde": "nay-olx/olx/nay.py + chat.py",
+   "quem": "quem escreve no chat do anúncio da OLX"
+  },
+  {
+   "chave": "corretores",
+   "nome": "Corretores",
+   "onde": "nay-olx/olx/buscas.py",
+   "quem": "corretor que oferece imóvel no 8595"
+  },
+  {
+   "chave": "captacao",
+   "nome": "Captação",
+   "onde": "nay-captacao/captacao (servidor /root/nay-captacao)",
+   "quem": "proprietários, número oficial e OLX"
+  },
+  {
+   "chave": "cadastro",
+   "nome": "Cadastro",
+   "onde": "nay-cadastro/cadastro (servidor /root/nay-cadastro)",
+   "quem": "o Tel no grupo de cadastro e o corretor no privado"
+  }
+ ],
+ "camadas": [
+  {
+   "id": "rajada",
+   "nome": "1. Espera a pessoa terminar de escrever",
+   "explicacao": "Junta as mensagens que chegam em sequência (a rajada) e só responde depois de uns 20 s de silêncio, como gente faz. Evita responder pela metade.",
+   "onde": "nay-core entrada/ (dedupe e rajada de 20 s)",
+   "redundancia": "",
+   "nays": {
+    "parceria": "tem",
+    "leads": "tem",
+    "olx": "tem",
+    "corretores": "tem",
+    "captacao": "tem",
+    "cadastro": "tem"
+   }
+  },
+  {
+   "id": "porta",
+   "nome": "2. Sabe quem está falando",
+   "explicacao": "Antes de tudo: é corretor da lista? É o dono? É alguém da equipe? A equipe está na conversa agora? Cada um tem um caminho; quem não é atendido fica em silêncio e o Tel é avisado.",
+   "onde": "nay-core identidade/, pipeline._porta",
+   "redundancia": "",
+   "nays": {
+    "parceria": "tem",
+    "leads": "tem",
+    "olx": "parcial",
+    "corretores": "tem",
+    "captacao": "tem",
+    "cadastro": "tem"
+   }
+  },
+  {
+   "id": "atalhos",
+   "nome": "3. Atalhos sem modelo para o óbvio",
+   "explicacao": "Frases que se repetem são resolvidas por regra (regex: um padrão de texto), sem perguntar ao modelo: 'obrigado' (silêncio), código digitado, card colado, 'manda o que tem', 'o primeiro', 'os dois', o valor da lista. Mais rápido, de graça e nunca erra o que já conhece.",
+   "onde": "nay-core classificador/atalhos.py, frases.py, sinais.py (47 listas de frases)",
+   "redundancia": "Se o atalho não pega, o modelo pega; se o modelo cair, a regex de reserva pega o óbvio.",
+   "nays": {
+    "parceria": "tem",
+    "leads": "parcial",
+    "olx": "não",
+    "corretores": "não",
+    "captacao": "parcial",
+    "cadastro": "parcial"
+   }
+  },
+  {
+   "id": "le_nao_escreve",
+   "nome": "4. O modelo só lê; o código escreve",
+   "explicacao": "A Luna devolve um JSON (um formulário preenchido) com a intenção: pedir imóvel, dúvida, visita, recado... Quem responde é um texto pronto (template) com os dados certos. Assim ela não inventa frase, número nem promessa.",
+   "onde": "nay-core classificador/luna.py + schema.py; compositor/ + templates/ (94)",
+   "redundancia": "O texto pronto ainda passa pelo validador (camada 10).",
+   "nays": {
+    "parceria": "tem",
+    "leads": "não",
+    "olx": "não",
+    "corretores": "não",
+    "captacao": "não",
+    "cadastro": "tem"
+   }
+  },
+  {
+   "id": "reserva",
+   "nome": "5. Modelo de reserva",
+   "explicacao": "Se a Luna demora mais de 8 s ou cai, a mesma pergunta vai ao DeepSeek (outro provedor); se também cair, a regex classifica o óbvio. A conversa nunca para por queda de modelo.",
+   "onde": "nay-core classificador/luna.py, openrouter.py, reserva.py",
+   "redundancia": "Três caminhos para a mesma pergunta.",
+   "nays": {
+    "parceria": "tem",
+    "leads": "não",
+    "olx": "não",
+    "corretores": "não",
+    "captacao": "não",
+    "cadastro": "não"
+   }
+  },
+  {
+   "id": "memoria",
+   "nome": "6. Memória do pedido que não esquece",
+   "explicacao": "O que a pessoa já disse (finalidade, valor, bairro, tipo, mobília) fica gravado e é relido da conversa do dia a cada turno. Filtro dito nunca é perguntado de novo; 'outro cliente' zera; conversa parada 3 dias recomeça.",
+   "onde": "nay-core estado/memoria.py (ja_dito), filtros.py, pedido.py",
+   "redundancia": "O modelo extrai os filtros E a memória relê o histórico: se um esquece, o outro tem.",
+   "nays": {
+    "parceria": "tem",
+    "leads": "parcial",
+    "olx": "não",
+    "corretores": "parcial",
+    "captacao": "parcial",
+    "cadastro": "tem"
+   }
+  },
+  {
+   "id": "imovel_em_jogo",
+   "nome": "7. Sabe de qual imóvel se fala",
+   "explicacao": "Código digitado, mensagem marcada (citação), card colado, nome de condomínio escrito de ouvido, 'o de 1.900' da lista que acabou de sair (a lista na frente, com prazo de 2 h). Nunca pede o código.",
+   "onde": "nay-core contexto/resolver_imovel.py, pipeline._lista_na_frente, cerebro/apelidos.py",
+   "redundancia": "Cinco jeitos de achar o mesmo imóvel; se nenhum, pergunta 'É este imóvel?'.",
+   "nays": {
+    "parceria": "tem",
+    "leads": "parcial",
+    "olx": "tem",
+    "corretores": "parcial",
+    "captacao": "tem",
+    "cadastro": "não se aplica"
+   }
+  },
+  {
+   "id": "ficha_primeiro",
+   "nome": "8. Dúvida: a ficha responde primeiro",
+   "explicacao": "A pergunta sobre o imóvel é respondida pela ficha sem modelo (valor, quartos, andar, elevador, lazer...). O que a ficha não tem, a Luna responde só com a ficha na mão; o que ninguém sabe vira pendência para o Tel, e a conversa segue sem travar.",
+   "onde": "nay-core cerebro/ficha.py, acoes/duvida.py, responder_duvida.py",
+   "redundancia": "Ficha → modelo com a ficha → pendência: nunca inventa e nunca trava.",
+   "nays": {
+    "parceria": "tem",
+    "leads": "parcial",
+    "olx": "não",
+    "corretores": "parcial",
+    "captacao": "não se aplica",
+    "cadastro": "não se aplica"
+   }
+  },
+  {
+   "id": "portao",
+   "nome": "9. Antes do card: confere três vezes",
+   "explicacao": "Já mandei esse imóvel para essa pessoa? Ele bate com o pedido (finalidade, tipo, teto, bairro)? O Jev (um modelo que só responde sim/não) acha que serve? Se não bate, pergunta 'É este imóvel?' em vez de mandar errado.",
+   "onde": "nay-core acoes/ja_enviei.py, portao.py, validador/coerencia.py, classificador/jev.py",
+   "redundancia": "Já enviado + portão de coerência + veto do Jev.",
+   "nays": {
+    "parceria": "tem",
+    "leads": "parcial",
+    "olx": "não se aplica",
+    "corretores": "não",
+    "captacao": "não se aplica",
+    "cadastro": "não se aplica"
+   }
+  },
+  {
+   "id": "paredes",
+   "nome": "10. Paredes na saída (o validador)",
+   "explicacao": "Nenhum texto sai sem conferir: todo valor e código saiu de uma ferramenta deste turno? Não falou 'parceria'? Não negou imóvel que existe? Sem emoji, markdown, promessa. Se fura, refaz (regenera), troca por texto pronto, escala ou cala.",
+   "onde": "nay-core validador/validar.py + regras.yaml (13 paredes no validador)",
+   "redundancia": "Pega o que escapou de todas as camadas de cima.",
+   "nays": {
+    "parceria": "tem",
+    "leads": "tem (25/10)",
+    "olx": "tem (25/10)",
+    "corretores": "não",
+    "captacao": "parcial",
+    "cadastro": "não se aplica"
+   }
+  },
+  {
+   "id": "regras_dados",
+   "nome": "11. Regras como dados, cada uma com um teste",
+   "explicacao": "As regras do Tel moram num arquivo (regras.yaml), uma por linha: o que é, onde age (atalho, estado, ferramenta, validador, saída), se é parede de negócio ou caminho, e o caso de teste que a prova (muitos com o número da conversa real). Mudar regra é mudar uma linha, e o teste avisa se quebrou outra coisa.",
+   "onde": "nay-core validador/regras.yaml (62 regras: 33 paredes, 26 caminhos, 4 de forma)",
+   "redundancia": "",
+   "nays": {
+    "parceria": "tem",
+    "leads": "não",
+    "olx": "não",
+    "corretores": "não",
+    "captacao": "não",
+    "cadastro": "parcial"
+   }
+  },
+  {
+   "id": "rastro",
+   "nome": "12. Rastro de cada etapa (trace)",
+   "explicacao": "Cada turno grava por onde passou: o atalho, o modelo, o estado, a ferramenta, o validador, com tempo, tokens e custo. Quando erra, dá para ver ONDE errou.",
+   "onde": "nay-core trace/ (core_trace); Nay Leads: privado.agente_evento (489/490) e o Registro de fluxos do CRM",
+   "redundancia": "",
+   "nays": {
+    "parceria": "tem",
+    "leads": "tem (25/10)",
+    "olx": "parcial",
+    "corretores": "parcial",
+    "captacao": "parcial",
+    "cadastro": "parcial"
+   }
+  },
+  {
+   "id": "testes_replay",
+   "nome": "13. Testes com frases reais e replay das conversas",
+   "explicacao": "Todo erro vira um teste com a frase real da conversa, e o replay refaz as conversas de verdade com o código novo, sem enviar nada, para ver se ficou melhor antes de ir ao ar.",
+   "onde": "nay-core tests/ (619), scripts/replay_conversas.py, treino/ (a tela de treino); Nay Leads: olx/agentes_replay.py e olx/agentes_erros.py",
+   "redundancia": "O teste segura o erro antigo; o replay mostra o erro novo.",
+   "nays": {
+    "parceria": "tem",
+    "leads": "tem",
+    "olx": "parcial",
+    "corretores": "parcial",
+    "captacao": "parcial",
+    "cadastro": "parcial"
+   }
+  },
+  {
+   "id": "revisao",
+   "nome": "14. Nota automática e revisão contínua",
+   "explicacao": "Toda conversa ganha uma nota de 0 a 100 sem modelo (disse que não tinha e tinha? inventou hora de visita? repetiu? o corretor corrigiu?). Um agente revisa as conversas com imóvel de 20 em 20 minutos, o Gemini revisa a semana e o Tel escreve ERRO no WhatsApp. O que aparece vira correção.",
+   "onde": "scripts/notas_nay.py, agente-claude fila_nay.py (VPS2), gemini_revisao.py, nay-core saida/erro_do_tel.py",
+   "redundancia": "Quatro olhares sobre as mesmas conversas.",
+   "nays": {
+    "parceria": "tem",
+    "leads": "não",
+    "olx": "não",
+    "corretores": "não",
+    "captacao": "não",
+    "cadastro": "não"
+   }
+  }
+ ],
+ "ciclo": [
+  {
+   "passo": "1. A conversa real acontece",
+   "detalhe": "No número da parceria, com o código do dia."
+  },
+  {
+   "passo": "2. Alguém vê o erro",
+   "detalhe": "O Pedro na tela de treino (marcou 44 conversas em 06–07/10), o Tel com ERRO no WhatsApp, a nota automática, o agente de revisão (20 em 20 min), o Gemini (semana) ou o próprio corretor corrigindo a Nay."
+  },
+  {
+   "passo": "3. O erro vira regra e teste",
+   "detalhe": "Uma linha no regras.yaml (onde age, se é parede) e um teste com a frase REAL. Ex.: painel_0610_13868_manda_o_que_tem."
+  },
+  {
+   "passo": "4. Replay antes de subir",
+   "detalhe": "As conversas do dia refeitas pelo código novo, sem enviar nada: o que mudou, para melhor ou pior."
+  },
+  {
+   "passo": "5. Sobe e é medido de novo",
+   "detalhe": "Deploy, foto da produção, e a nota do dia seguinte diz se o erro voltou."
+  }
+ ],
+ "aplicado_agora": [
+  {
+   "o_que": "Paredes de saída na Nay Leads",
+   "detalhe": "Valor e código só do que o turno trouxe; nunca parceria, negativa, robô/ficha/catálogo; nunca OLX para quem veio direto. Furou: volta ao modelo uma vez com o aviso (o 'regenera' da Parceria); o que ainda furar é cortado. Fica no Registro de fluxos como passo 'parede'. No teste das 87 conversas com erro: 19 disparos (10 de valor, 5 de parceria, 3 de bastidor, 1 de OLX).",
+   "onde": "nay-olx/olx/paredes.py, whatsapp._responder_um",
+   "camada": "paredes",
+   "nays": [
+    "leads"
+   ]
+  },
+  {
+   "o_que": "Paredes de saída na Nay da OLX",
+   "detalhe": "As mesmas conferências; ali o balão que fura é cortado (ela só pede o WhatsApp).",
+   "onde": "nay-olx/olx/nay.py (decidir)",
+   "camada": "paredes",
+   "nays": [
+    "olx"
+   ]
+  },
+  {
+   "o_que": "Registro de fluxos (o rastro de cada etapa)",
+   "detalhe": "Cada turno da Nay Leads com os passos em ordem na aba Arquitetura do CRM (490).",
+   "onde": "nay-olx/olx/agentes.py (passo), crm RegistroDeFluxos.tsx",
+   "camada": "rastro",
+   "nays": [
+    "leads"
+   ]
+  },
+  {
+   "o_que": "O imóvel escolhido vai inteiro",
+   "detalhe": "'O de 1.900', 'manda as duas', 'o material': card e fotos de cada um (a 'lista na frente' da Parceria, pelo modelo).",
+   "onde": "nay-olx whatsapp.py (ação fotos com fotos.codigos)",
+   "camada": "imovel_em_jogo",
+   "nays": [
+    "leads"
+   ]
+  },
+  {
+   "o_que": "Teste das conversas com erro e replay",
+   "detalhe": "olx/agentes_erros.py roda as conversas marcadas como erro na Nay Leads e confere erro por erro.",
+   "onde": "nay-olx/olx/agentes_erros.py",
+   "camada": "testes_replay",
+   "nays": [
+    "leads"
+   ]
+  }
+ ],
+ "falta": [
+  {
+   "o_que": "Nota automática da Nay Leads (como o notas_nay.py)",
+   "por_que": "É o que mais acelerou a Parceria: toda conversa com nota, sem modelo, e o que cai abaixo de 90 entra na biblioteca e na correção.",
+   "para": [
+    "leads",
+    "olx",
+    "captacao"
+   ],
+   "esforco": "médio"
+  },
+  {
+   "o_que": "Atalhos sem modelo na Nay Leads",
+   "por_que": "Cortesia, escolha pelo valor ou nome na lista que acabou de sair, 'manda o que tem': hoje dependem do modelo acertar.",
+   "para": [
+    "leads"
+   ],
+   "esforco": "médio"
+  },
+  {
+   "o_que": "Modelo de reserva",
+   "por_que": "Se a Luna cair, a Leads e a Captação param (3 falhas e vai à equipe). Na Parceria a mesma pergunta vai ao DeepSeek.",
+   "para": [
+    "leads",
+    "captacao",
+    "olx",
+    "corretores"
+   ],
+   "esforco": "pequeno"
+  },
+  {
+   "o_que": "Dúvida pela ficha sem modelo",
+   "por_que": "Valor, quartos, andar, elevador saem da ficha palavra por palavra na Parceria; na Leads o modelo lê a ficha e pode escorregar.",
+   "para": [
+    "leads"
+   ],
+   "esforco": "médio"
+  },
+  {
+   "o_que": "Regras como dados com teste (um regras.yaml por Nay)",
+   "por_que": "Hoje as regras da Leads estão espalhadas no prompt; com dados + teste, dá para ver e mudar uma sem quebrar outra.",
+   "para": [
+    "leads",
+    "captacao"
+   ],
+   "esforco": "grande"
+  },
+  {
+   "o_que": "Paredes e registro de fluxos na Captação e na Nay Corretores",
+   "por_que": "As duas ainda confiam no modelo para não inventar valor e não falar o que não devem.",
+   "para": [
+    "captacao",
+    "corretores"
+   ],
+   "esforco": "pequeno"
+  }
+ ]
+}

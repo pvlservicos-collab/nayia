@@ -1,0 +1,150 @@
+/* A página Inteligência (25/10/2026): as abas, o fundo escuro, a análise da Parceria, a biblioteca de conversas e o
+   painel de estudos. O tema escuro troca só os tokens (tokens.css), nesta página. */
+
+html[data-tema="escuro"] {
+  --fundo: #15121c; --fundo-alt: #1a1622; --grad-fundo: #15121c;
+  --superficie: #1f1a2a; --superficie-solida: #1f1a2a; --superficie-2: #262035; --vidro: #1f1a2a; --vidro-forte: #1f1a2a;
+  --borda: #362e4a; --borda-forte: #4c4266;
+  --texto: #ece8f5; --texto-medio: #c9c1dc; --texto-fraco: #a59cbd;
+  --roxo-suave: #2a2140; --roxo-borda: #5b4a85; --azul-claro: #2a2140; --azul-borda: #5b4a85; --lilas: #3b2f57;
+  --verde-suave: #16302a; --laranja-suave: #33261b; --vermelho-suave: #351d26;
+  --sombra-1: 0 1px 2px rgba(0, 0, 0, .4); --sombra-2: 0 4px 14px rgba(0, 0, 0, .45);
+  color-scheme: dark;
+}
+html[data-tema="escuro"] body.admin { background: var(--fundo); color: var(--texto); }
+html[data-tema="escuro"] .in-regra { background: var(--superficie); }
+html[data-tema="escuro"] .in-form textarea, html[data-tema="escuro"] .in-form input[type=text],
+html[data-tema="escuro"] .ie-filtros select, html[data-tema="escuro"] .ie-filtros input,
+html[data-tema="escuro"] .ie-est-acoes input { background: var(--superficie-2); color: var(--texto); }
+html[data-tema="escuro"] .in-chip { color: #c4b5fd; }
+
+.ie-cabecalho { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.ie-tema { font: inherit; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  border: 1px solid var(--borda-forte); background: var(--superficie); color: var(--texto); border-radius: 999px; padding: 8px 16px; }
+.ie-tema[aria-pressed="true"] { background: var(--roxo); border-color: var(--roxo); color: #fff; }
+.ie-tema__icone { font-size: 16px; line-height: 1; }
+
+.ie-abas { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 18px; border-bottom: 1px solid var(--borda); }
+.ie-abas button { font: inherit; font-weight: 600; font-size: 14.5px; background: none; border: 0; color: var(--texto-medio);
+  padding: 10px 14px; border-bottom: 3px solid transparent; cursor: pointer; margin-bottom: -1px; }
+.ie-abas button[aria-selected="true"] { color: var(--roxo); border-bottom-color: var(--roxo); }
+html[data-tema="escuro"] .ie-abas button[aria-selected="true"] { color: #c4b5fd; border-bottom-color: #a78bfa; }
+.ie-painel[hidden] { display: none; }
+
+/* ---------- a análise ---------- */
+.ie-cartao { background: var(--superficie); border: 1px solid var(--borda); border-radius: 14px; padding: 16px 18px; margin-bottom: 14px; }
+.ie-cartao h2 { font-family: var(--fonte-titulo); font-size: 18px; margin: 0 0 10px; color: var(--texto); }
+.ie-cartao h3 { font-size: 15px; margin: 0 0 6px; color: var(--texto); }
+.ie-cartao p, .ie-cartao li { color: var(--texto); line-height: 1.55; font-size: 14.5px; }
+.ie-resumo li { margin-bottom: 6px; }
+.ie-tabela { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.ie-tabela th, .ie-tabela td { border-bottom: 1px solid var(--borda); padding: 7px 8px; text-align: left; vertical-align: top; color: var(--texto); }
+.ie-tabela th { color: var(--texto-medio); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em; }
+.ie-rolar { overflow-x: auto; }
+.ie-camada { border: 1px solid var(--borda); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; background: var(--superficie-2); }
+.ie-camada__onde { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; color: var(--texto-fraco); margin: 4px 0 0; }
+.ie-camada__red { font-size: 13px; color: var(--texto-medio); margin: 6px 0 0; }
+.ie-nays { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.ie-sel { font-size: 12px; font-weight: 600; border-radius: 999px; padding: 3px 10px; border: 1.5px solid var(--borda-forte); color: var(--texto-medio); }
+.ie-sel--tem { background: #15803d; border-color: #15803d; color: #fff; }
+.ie-sel--parcial { border-style: dashed; border-color: #d97706; color: #b45309; }
+html[data-tema="escuro"] .ie-sel--parcial { color: #fbbf24; }
+.ie-sel--nao { border-color: #dc2626; color: #b91c1c; }
+html[data-tema="escuro"] .ie-sel--nao { color: #fca5a5; }
+.ie-sel--na { opacity: .55; }
+.ie-ciclo { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.ie-ciclo div { border-left: 4px solid var(--roxo); background: var(--superficie-2); border-radius: 8px; padding: 9px 12px; font-size: 13.5px; color: var(--texto); }
+.ie-ciclo b { display: block; margin-bottom: 3px; }
+
+/* ---------- a biblioteca ---------- */
+.ie-bib-topo { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+.ie-num { background: var(--superficie); border: 1px solid var(--borda); border-radius: 12px; padding: 10px 14px; min-width: 130px; }
+.ie-num b { display: block; font-size: 20px; color: var(--texto); }
+.ie-num span { font-size: 12.5px; color: var(--texto-fraco); }
+.ie-filtros { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.ie-filtros select, .ie-filtros input { font: inherit; font-size: 13.5px; border: 1px solid var(--borda-forte); border-radius: 8px; padding: 7px 9px; background: #fff; color: var(--texto); }
+.ie-filtros input { min-width: 240px; flex: 1; }
+.ie-filtros button, .ie-est-acoes button { font: inherit; font-weight: 700; background: var(--roxo); color: #fff; border: 0; border-radius: 8px; padding: 7px 16px; cursor: pointer; }
+.ie-bib { display: grid; grid-template-columns: minmax(300px, 420px) 1fr; gap: 14px; align-items: start; }
+.ie-bib-lista { display: flex; flex-direction: column; gap: 6px; max-height: 76vh; overflow-y: auto; padding-right: 4px; }
+.ie-linha { text-align: left; font: inherit; cursor: pointer; background: var(--superficie); border: 1px solid var(--borda);
+  border-left: 5px solid var(--borda-forte); border-radius: 10px; padding: 9px 11px; color: var(--texto); }
+.ie-linha--certo { border-left-color: #16a34a; }
+.ie-linha--erro { border-left-color: #dc2626; }
+.ie-linha[aria-current="true"] { outline: 2px solid var(--roxo); }
+.ie-linha__cab { display: flex; gap: 8px; align-items: baseline; font-size: 12.5px; color: var(--texto-fraco); }
+.ie-linha__cab b { color: var(--texto); font-size: 13.5px; }
+.ie-linha__res { margin-left: auto; font-weight: 700; }
+.ie-linha--certo .ie-linha__res { color: #15803d; }
+.ie-linha--erro .ie-linha__res { color: #b91c1c; }
+html[data-tema="escuro"] .ie-linha--certo .ie-linha__res { color: #4ade80; }
+html[data-tema="escuro"] .ie-linha--erro .ie-linha__res { color: #f87171; }
+.ie-linha p { margin: 4px 0 0; font-size: 13px; line-height: 1.4; color: var(--texto-medio); }
+.ie-bib-ver { background: var(--superficie); border: 1px solid var(--borda); border-radius: 14px; padding: 14px 16px; position: sticky; top: 12px; max-height: 80vh; overflow-y: auto; }
+.ie-marca { border: 1px solid var(--borda); border-radius: 10px; padding: 9px 11px; margin-bottom: 8px; background: var(--superficie-2); font-size: 13.5px; color: var(--texto); }
+.ie-marca__quem { font-weight: 700; }
+.ie-marca__quem small { font-weight: 500; color: var(--texto-fraco); margin-left: 6px; }
+.ie-marca ul { margin: 6px 0 0; padding-left: 18px; }
+.ie-conversa { white-space: pre-wrap; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12.5px; line-height: 1.55;
+  background: var(--superficie-2); border-radius: 10px; padding: 12px; color: var(--texto); margin-top: 10px; }
+.ie-mais { font: inherit; margin-top: 8px; background: none; border: 1px solid var(--borda-forte); border-radius: 8px; padding: 6px 12px; cursor: pointer; color: var(--texto); }
+
+/* ---------- o painel de estudos ---------- */
+.ie-est-topo { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.ie-est-nays { display: flex; flex-wrap: wrap; gap: 6px; }
+.ie-est-nays button { font: inherit; font-weight: 600; font-size: 13.5px; cursor: pointer; border-radius: 999px; padding: 6px 14px;
+  border: 1px solid var(--borda-forte); background: var(--superficie); color: var(--texto); }
+.ie-est-nays button[aria-selected="true"] { background: var(--roxo); border-color: var(--roxo); color: #fff; }
+.ie-est-acoes { display: flex; gap: 8px; }
+.ie-est-acoes input { font: inherit; font-size: 13.5px; border: 1px solid var(--borda-forte); border-radius: 8px; padding: 7px 9px; min-width: 220px; }
+.ie-est-nay { margin-bottom: 14px; }
+.ie-indice { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
+.ie-indice a { font-size: 12.5px; border: 1px solid var(--borda); border-radius: 999px; padding: 3px 10px; color: var(--texto-medio); text-decoration: none; background: var(--superficie); }
+.ie-indice a:hover { border-color: var(--roxo); color: var(--roxo); }
+.ie-etapa { margin: 22px 0 8px; scroll-margin-top: 12px; }
+.ie-etapa__cab { display: flex; gap: 10px; align-items: baseline; border-bottom: 2px solid var(--roxo); padding-bottom: 6px; margin-bottom: 10px; }
+.ie-etapa__n { font-family: var(--fonte-titulo); font-weight: 700; color: #fff; background: var(--roxo); border-radius: 8px; padding: 1px 9px; font-size: 14px; }
+.ie-etapa__cab h3 { margin: 0; font-size: 17px; color: var(--texto); }
+.ie-etapa__exp { margin: 0 0 10px; color: var(--texto-medio); font-size: 14px; }
+.ie-lado { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(520px, 1fr); gap: 12px; overflow-x: auto; padding-bottom: 6px; }
+.ie-fn { background: var(--superficie); border: 1px solid var(--borda); border-radius: 14px; margin-bottom: 12px; overflow: hidden; }
+.ie-fn__cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--borda); background: var(--superficie-2); }
+.ie-fn__nome { font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 600; font-size: 14px; color: var(--roxo); }
+html[data-tema="escuro"] .ie-fn__nome { color: #c4b5fd; }
+.ie-fn__onde { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; color: var(--texto-fraco); }
+.ie-fn__corpo { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+.ie-lado .ie-fn__corpo { grid-template-columns: 1fr; }
+.ie-codigo { margin: 0; max-height: 520px; overflow: auto; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12.5px; line-height: 1.6;
+  background: #1b1726; color: #e6e1f2; padding: 10px 0; counter-reset: linha; }
+.ie-codigo .l { display: block; padding: 0 12px 0 0; white-space: pre; }
+.ie-codigo .l::before { counter-increment: linha; content: attr(data-n); display: inline-block; width: 46px; padding-right: 12px; text-align: right; color: #6f6789; user-select: none; }
+.ie-codigo .k { color: #c792ea; } .ie-codigo .s { color: #c3e88d; } .ie-codigo .c { color: #8b84a6; font-style: italic; }
+.ie-codigo .n { color: #f78c6c; } .ie-codigo .f { color: #82aaff; } .ie-codigo .d { color: #ffcb6b; }
+.ie-estudo { padding: 12px 16px; font-size: 14px; line-height: 1.55; color: var(--texto); border-left: 1px solid var(--borda); }
+.ie-lado .ie-estudo { border-left: 0; border-top: 1px solid var(--borda); }
+.ie-estudo h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--texto-fraco); margin: 12px 0 5px; }
+.ie-estudo h4:first-child { margin-top: 0; }
+.ie-estudo ol { margin: 0; padding-left: 20px; }
+.ie-estudo ol li { margin-bottom: 3px; }
+.ie-resumo-fn { font-weight: 600; margin: 0 0 6px; }
+.ie-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.ie-tag { font-size: 12px; font-weight: 600; border-radius: 999px; padding: 2px 9px; background: var(--roxo-suave); color: var(--roxo); border: 1px solid var(--roxo-borda); cursor: help; }
+html[data-tema="escuro"] .ie-tag { color: #ddd6fe; }
+.ie-jargao { border-bottom: 1.5px dotted var(--roxo); cursor: help; }
+.ie-jargoes { display: flex; flex-wrap: wrap; gap: 5px; }
+.ie-jargoes .ie-jargao { font-size: 12.5px; border: 1px dashed var(--roxo-borda); border-radius: 6px; padding: 1px 7px; }
+.ie-liga { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; color: var(--roxo); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; margin-right: 8px; }
+html[data-tema="escuro"] .ie-liga { color: #c4b5fd; }
+.ie-sem-exp { color: var(--texto-fraco); font-style: italic; }
+.ie-fn--achada { outline: 3px solid #f59e0b; }
+.ie-dica { position: fixed; z-index: 1000; max-width: 320px; background: #241d33; color: #fff; font-size: 13px; line-height: 1.45;
+  padding: 9px 12px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, .3); pointer-events: none; }
+.ie-dica b { display: block; margin-bottom: 2px; color: #ddd6fe; }
+
+@media (max-width: 980px) {
+  .ie-bib { grid-template-columns: 1fr; }
+  .ie-bib-ver { position: static; max-height: none; }
+  .ie-fn__corpo { grid-template-columns: 1fr; }
+  .ie-estudo { border-left: 0; border-top: 1px solid var(--borda); }
+  .ie-lado { grid-auto-columns: minmax(300px, 90%); }
+}

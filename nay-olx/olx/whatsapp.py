@@ -34,7 +34,7 @@ from difflib import SequenceMatcher
 import psycopg2
 import psycopg2.extras
 
-from olx import agentes, banco, config, grupo, modelo, nay, visita
+from olx import agentes, banco, config, grupo, modelo, nay, paredes, visita
 
 log = logging.getLogger("olx.whatsapp")
 try:
@@ -1109,6 +1109,18 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
         r = modelo.chamar(prompt, turno + "\n\n" + aviso, no="olx.whatsapp")
         u2 = modelo.ultimo_uso()
         uso = {**u2, **{k: (uso.get(k) or 0) + (u2.get(k) or 0) for k in ("ms", "tokens_entrada", "tokens_saida", "tokens_cache")}}
+    # 25/10 (as paredes do validador da Parceria, olx/paredes.py): valor e código só do que o turno trouxe, nunca
+    # "parceria", negativa, bastidor nem OLX para o orgânico. Furou: volta UMA vez com o aviso; o que ainda furar sai cortado.
+    furos = paredes.conferir(_baloes_do(r), turno, organico(lead))
+    if furos:
+        agentes.passo(lead, "parede", "; ".join(f"{p}: {x}" for _i, p, x in furos)[:180], furos=furos)
+        r = modelo.chamar(prompt, turno + "\n\n" + paredes.aviso(furos), no="olx.whatsapp")
+        u3 = modelo.ultimo_uso()
+        uso = {**u3, **{k: (uso.get(k) or 0) + (u3.get(k) or 0) for k in ("ms", "tokens_entrada", "tokens_saida", "tokens_cache")}}
+        sobra, ainda = paredes.cortar(_baloes_do(r), turno, organico(lead))
+        if ainda:
+            agentes.passo(lead, "parede_cortou", "; ".join(f"{p}: {x}" for _i, p, x in ainda)[:180], furos=ainda)
+            r["baloes"] = sobra
     acoes = acoes_da(r)
     agentes.atendimento(lead, plano, r, uso, uso.get("ms"), acoes)
     saiu = _falar(conn, lead, r, acoes, desde=inicio)

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inteligência — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<!-- o tema escuro vem antes de pintar a página (Pedro, 25/10: "um botão de deixar o fundo escuro para facilitar minha leitura") -->
+<script>try { if (localStorage.getItem("ie-tema") === "escuro") document.documentElement.setAttribute("data-tema", "escuro"); } catch (e) {}</script>
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/inteligencias.css?v=20261025a">
+<link rel="stylesheet" href="../assets/css/inteligencia.css?v=20261025a">
+</head>
+<body class="admin" data-pagina="inteligencia">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<!-- 25/10/2026 (Pedro): "quero uma nova aba lá na aba inteligência ... analise a infraestrutura [da Nay Parceria] de como
+     ela rodou e acertou ... e aplique nas outras salvando isso lá em inteligência ... um registro de conversas que deram
+     certo x conversas com erro ... um painel de estudos ... e um botão de deixar o fundo escuro". -->
+<main class="conteudo" id="conteudo">
+  <!-- data-estado-proprio: o layout.js inverte todo [aria-pressed] clicado, e o botão do tema cuida do próprio estado -->
+  <div class="pagina-cabecalho ie-cabecalho" data-estado-proprio>
+    <div>
+      <h1 class="pagina-titulo">Inteligência</h1>
+      <p class="pagina-subtitulo">O que faz uma Nay acertar, as conversas que deram certo e com erro, e o código de cada Nay explicado.</p>
+    </div>
+    <button type="button" class="ie-tema" id="ie-tema" aria-pressed="false">
+      <span class="ie-tema__icone" aria-hidden="true">◐</span> <span id="ie-tema-rotulo">Fundo escuro</span>
+    </button>
+  </div>
+
+  <nav class="ie-abas" role="tablist" aria-label="Abas da Inteligência">
+    <button type="button" role="tab" data-aba="regras" aria-selected="true">Inteligências gerais</button>
+    <button type="button" role="tab" data-aba="analise" aria-selected="false">Como a Parceria acerta</button>
+    <button type="button" role="tab" data-aba="biblioteca" aria-selected="false">Biblioteca de conversas</button>
+    <button type="button" role="tab" data-aba="estudos" aria-selected="false">Painel de estudos</button>
+  </nav>
+
+  <!-- 1. as regras (495): o mesmo da página Agentes, lido e gravado pelo inteligencias.js -->
+  <section class="ie-painel" data-painel="regras" role="tabpanel">
+    <p class="in-nota">As regras que fazem uma Nay atender melhor e podem valer para as outras. Cada regra mostra para quais Nays vale: o roxo cheio é "já aplicada", o tracejado é "falta aplicar" (clique para trocar).</p>
+    <form class="in-form" id="in-nova">
+      <textarea name="regra" rows="2" placeholder="Nova inteligência (ex.: Pet: perguntar o porte do animal antes de falar com o proprietário)"></textarea>
+      <input type="text" name="porque" placeholder="Por quê / de onde veio (opcional)">
+      <div class="in-linha">
+        <input type="text" name="assunto" placeholder="Assunto (filtros, dúvidas, lugar...)" style="max-width:240px">
+        <span>Vale para:</span>
+        <label><input type="checkbox" name="vale_parceria" checked> Parceria</label>
+        <label><input type="checkbox" name="vale_leads" checked> Leads</label>
+        <label><input type="checkbox" name="vale_captacao"> Captação</label>
+        <label><input type="checkbox" name="vale_olx"> OLX</label>
+      </div>
+      <button type="submit">Salvar inteligência</button>
+    </form>
+    <div id="ag-intel"><p class="ag-vazio">Lendo as inteligências…</p></div>
+  </section>
+
+  <!-- 2. a análise da Parceria (admin/dados/inteligencia/analise.json) -->
+  <section class="ie-painel" data-painel="analise" role="tabpanel" hidden>
+    <div id="ie-analise"><p class="ag-vazio">Lendo a análise…</p></div>
+  </section>
+
+  <!-- 3. a biblioteca de conversas (498: /admin/api/biblioteca) -->
+  <section class="ie-painel" data-painel="biblioteca" role="tabpanel" hidden>
+    <div class="ie-bib-topo" id="ie-bib-resumo"></div>
+    <form class="ie-filtros" id="ie-bib-filtros">
+      <select name="nay" aria-label="Nay"><option value="">Todas as Nays</option><option value="parceria">Parceria</option><option value="leads">Leads</option><option value="olx">OLX</option><option value="corretores">Corretores</option><option value="captacao">Captação</option></select>
+      <select name="resultado" aria-label="Resultado"><option value="">Certo e erro</option><option value="certo">Deu certo</option><option value="erro">Com erro</option></select>
+      <select name="confianca" aria-label="Quem julgou"><option value="">Quem julgou: todos</option><option value="humano">Pedro ou Tel</option><option value="revisão">Revisão (agente, Gemini, commit)</option><option value="nota automática">Nota automática</option></select>
+      <select name="tipo" aria-label="Tipo de erro" id="ie-bib-tipo"><option value="">Todo tipo de erro</option></select>
+      <input type="search" name="busca" placeholder="Telefone (4 dígitos), nome ou palavra" aria-label="Buscar">
+      <button type="submit">Filtrar</button>
+    </form>
+    <div class="ie-bib" id="ie-bib">
+      <div class="ie-bib-lista" id="ie-bib-lista"><p class="ag-vazio">Lendo a biblioteca…</p></div>
+      <div class="ie-bib-ver" id="ie-bib-ver"><p class="ag-vazio">Escolha uma conversa para ler.</p></div>
+    </div>
+  </section>
+
+  <!-- 4. o painel de estudos (admin/dados/inteligencia/estudo-<nay>.json) -->
+  <section class="ie-painel" data-painel="estudos" role="tabpanel" hidden>
+    <div class="ie-est-topo">
+      <div class="ie-est-nays" id="ie-est-nays" role="tablist" aria-label="Escolha a Nay"></div>
+      <div class="ie-est-acoes">
+        <input type="search" id="ie-est-busca" placeholder="Achar função ou palavra" aria-label="Achar função">
+        <button type="button" id="ie-est-exportar" title="Baixa um arquivo com todos os códigos e funções de cada Nay e onde estão">Exportar</button>
+      </div>
+    </div>
+    <div id="ie-estudo"><p class="ag-vazio">Escolha uma Nay.</p></div>
+  </section>
+</main>
+
+<div class="ie-dica" id="ie-dica" role="tooltip" hidden></div>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/inteligencias.js?v=20261025a"></script>
+<script src="../assets/js/inteligencia.js?v=20261025a"></script>
+<script src="../assets/js/inteligencia-estudos.js?v=20261025a"></script>
+</body>
+</html>
