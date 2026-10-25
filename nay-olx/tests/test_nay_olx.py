@@ -42,13 +42,17 @@ class Modelo:
 
 
 class Etapas(unittest.TestCase):
-    def test_duvida_responde_e_nao_encaminha(self):
-        m = Modelo({"baloes": ["Oi, Felipe! Aqui é a Nay, da Imob Easy. Aceita financiamento, sim.", "Quer conhecer pessoalmente?"],
+    def test_duvida_nao_e_respondida_pede_o_whatsapp(self):
+        # 24/10 (Pedro): a OLX não responde mais dúvida; sem número, ela pede o WhatsApp (e insiste)
+        m = Modelo({"baloes": ["Olá, boa tarde, claro! Irei direcionar você para nosso time comercial, só me passar seu WhatsApp e nome."],
                     "encaminhar": None})
         d = nay.decidir(ctx([dele("Aceita financiamento?")]), None, m)
-        self.assertEqual(len(d.baloes), 2)
+        self.assertEqual(len(d.baloes), 1)
+        self.assertIn("WhatsApp", d.baloes[0])
         self.assertIsNone(d.passar_para_gente)
         self.assertIsNone(d.aviso_grupo)
+        self.assertIn("NÃO responde a dúvida", m.prompt)
+        self.assertIn("INSISTA", m.prompt)
 
     def test_deu_o_whatsapp_vai_para_a_equipe_com_aviso_no_grupo(self):
         m = Modelo({"baloes": ["Perfeito, Felipe! A equipe te chama no WhatsApp para combinar o horário."],
@@ -56,6 +60,7 @@ class Etapas(unittest.TestCase):
         d = nay.decidir(ctx([dele("Quero visitar"), nosso("Me passa seu nome e WhatsApp?"), dele("Felipe 92 99154-0843")]), None, m)
         # no grupo, só nome e número (Pedro, 15/10); o detalhe fica no CRM
         self.assertEqual(d.aviso_grupo, "Lead Felipe solicitou visita pela OLX, número (92) 99154-0843.")
+        self.assertEqual(d.baloes, [nay.MENSAGEM_DO_WHATSAPP])     # a mensagem é a fixa, não a do modelo
         self.assertIn("sábado de manhã", d.passar_para_gente)
         self.assertIn("quer visitar", d.passar_para_gente)
 
@@ -78,6 +83,8 @@ class Etapas(unittest.TestCase):
         m = Modelo({"baloes": ["Tem piscina, sim. Vou te chamar no WhatsApp para mandar as informações."],
                     "encaminhar": "whatsapp", "whatsapp": "", "perfil": {"duvidas": "perguntou da piscina"}})
         d = nay.decidir(ctx([dele("tem piscina?")], telefone="92991540843"), None, m)
+        self.assertEqual(d.baloes, ["Vou te chamar no WhatsApp para confirmar esse detalhe, enviar mais informações e caso lhe "
+                                    "interesse podemos organizar uma visita."])
         self.assertEqual(d.lead["telefone"], "92991540843")
         self.assertIn("pela OLX, número (92) 99154-0843", d.aviso_grupo)
 
@@ -111,6 +118,15 @@ class Etapas(unittest.TestCase):
         self.assertIsNone(d.passar_para_gente)
         self.assertEqual(d.baloes, ["Me passa seu WhatsApp com DDD?"])
 
+    def test_o_numero_e_o_que_o_cliente_escreveu_nao_o_do_modelo(self):
+        # 24/10: o modelo devolveu 9298111222 para "92 98111-2222" (comeu um dígito)
+        m = Modelo({"baloes": [], "encaminhar": "whatsapp", "nome": "Carla", "whatsapp": "9298111222"})
+        d = nay.decidir(ctx([dele("Tem piscina?"), nosso("só me passar seu WhatsApp e nome."), dele("Carla 92 98111-2222")]), None, m)
+        self.assertEqual(d.lead["telefone"], "92981112222")
+        self.assertIn("(92) 98111-2222", d.aviso_grupo)
+        self.assertEqual(nay.numero_dito_pelo_cliente([dele("meu zap é +55 (92) 99154-0843")]), "92991540843")
+        self.assertIsNone(nay.numero_dito_pelo_cliente([dele("o condomínio é 350"), nosso("92 99999-0000")]))
+
     def test_nada_a_dizer_nao_responde(self):
         self.assertIsNone(nay.decidir(ctx([nosso("A equipe te chama."), dele("ok")]), None, Modelo({"baloes": []})))
 
@@ -121,11 +137,11 @@ class OQueVaiAoModelo(unittest.TestCase):
         nay.decidir(ctx([dele("oi")], negocio="locacao", telefone="92991540843"), lambda c, p: "Tem 4 quartos.", m)
         self.assertIn("ESTE ANÚNCIO: LOCAÇÃO", m.turno)
         self.assertIn("(92) 99154-0843", m.turno)
-        self.assertIn("Tem 4 quartos.", m.turno)                # a sugestão do catálogo
-        self.assertNotIn("aceita ap até", m.turno)              # a observação interna não vai
+        # 24/10: ela não responde dúvida: nem a ficha nem a sugestão do catálogo vão ao modelo
+        self.assertNotIn("Tem 4 quartos.", m.turno)
+        self.assertNotIn("Ficha do imóvel", m.turno)
+        self.assertNotIn("aceita ap até", m.turno)
         self.assertNotIn("https://x/1.jpg", m.turno)
-        self.assertIn("VENDA:", m.prompt)
-        self.assertIn("LOCAÇÃO:", m.prompt)
 
     def test_quem_falou(self):
         m = Modelo({"baloes": ["oi"]})
@@ -133,10 +149,11 @@ class OQueVaiAoModelo(unittest.TestCase):
         self.assertIn("NAY: Oi! Aqui é a Nay.", m.turno)
         self.assertIn("EQUIPE: pode me passar seu whatsapp?", m.turno)
 
-    def test_catalogo_estourando_nao_derruba(self):
+    def test_o_catalogo_nem_e_consultado(self):
         def explode(c, p):
-            raise RuntimeError("banco fora")
-        self.assertEqual(nay.decidir(ctx([dele("tem piscina?")]), explode, Modelo({"baloes": ["Tem, sim."]})).baloes, ["Tem, sim."])
+            raise AssertionError("a OLX não consulta o catálogo (24/10)")
+        self.assertEqual(nay.decidir(ctx([dele("tem piscina?")]), explode, Modelo({"baloes": ["Qual o seu WhatsApp?"]})).baloes,
+                         ["Qual o seu WhatsApp?"])
 
 
 class Paredes(unittest.TestCase):
