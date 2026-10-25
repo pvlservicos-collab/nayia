@@ -9,6 +9,7 @@ import { DIAS_CONVERSA_IMPORTADA } from '@/lib/conversas'
 import { useAuth, useTags, useOrganizationMembers } from '@/hooks'
 import { soRespondeNaCaptacao } from '@/lib/captacaoSoResponde'
 import { useParceriaMarcas } from '@/hooks/useParceriaMarcas'
+import { useNayLeadsComDono } from '@/hooks/useNayLeadsComDono'
 import { useCaptacaoDonos } from '@/hooks/useCaptacaoDonos'
 import { useOlxClientes, mudarEtapaOlx } from '@/hooks/useOlxClientes'
 import { useDonosDoCadastro } from '@/hooks/useDonosDoCadastro'
@@ -177,6 +178,8 @@ export default function LeadList({
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ visible: false, x: 0, y: 0, lead: null })
 
   const { marcas, nay } = useParceriaMarcas(ehParceria)
+  // 492 (Pedro, 24/10): o dono com quem a Nay Leads está conversando pela Parceria fica roxo
+  const nayLeadsComDono = useNayLeadsComDono(ehParceria)
   // o dono e o imóvel de cada conversa da captação (29/09)
   // 09/10: na Oficial também, porque a captação passou a falar por lá (Pedro: "quero que apareça o imóvel do cara")
   const donos = useCaptacaoDonos(linha === 'captacao' || linha === 'oficial')
@@ -890,6 +893,7 @@ export default function LeadList({
                   atendente={atendenteDoLead[lead.id] ?? atendenteDaConversa(lead.autores_manuais, atendentePorId)}
                   marca={ehParceria ? marcas[lead.id] : undefined}
                   nay={ehParceria ? nay : undefined}
+                  nayLeads={ehParceria ? nayLeadsComDono[fim8(lead.phone)] : undefined}
                   dono={donos[lead.id]}
                   etiquetasEmDestaque={usarAbasDeEtiquetas ? etiquetasEmDestaque : undefined}
                   respondeu={linha === 'oficial' && !!lead.ultima_recebida}

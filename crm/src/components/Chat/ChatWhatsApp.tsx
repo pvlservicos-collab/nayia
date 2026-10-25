@@ -14,6 +14,7 @@ import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 import AbasParceria, { type AbaDaParceria } from './AbasParceria'
 import ArquiteturaDosAgentes from './ArquiteturaDosAgentes'
 import VisitasAgendadas from './VisitasAgendadas'
+import PipelineDosLeads from './PipelineDosLeads'
 import FechamentoChecklists from './FechamentoChecklists'
 import BarraDeMetricas from './BarraDeMetricas'
 import BarraDaCaptacao from './BarraDaCaptacao'
@@ -413,7 +414,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
       {/* 18/10 (Pedro: "a agenda não está lá no número de captação ... todos os números compartilhando a mesma
           agenda"): Conversas e Visitas agendadas também aqui; a agenda é a mesma da Parceria */}
       <AbasParceria aba={aba} aoMudar={(k) => { setAba(k); if (k === 'conversas') setMobileView('list') }}
-                    naoLidas={naoLidas} visitasAbertas={0} abas={['conversas', 'visitas', 'arquitetura']}
+                    naoLidas={naoLidas} visitasAbertas={0} abas={['conversas', 'visitas', 'pipeline', 'arquitetura']}
                     rotuloConversas="As conversas do WhatsApp da Captação" />
       {/* quem só responde na captação vê o aviso sempre que abre esta tela (Pedro, 02/10) */}
       {aba === 'conversas' && soRespondeNaCaptacao(profileName || user?.name) && (
@@ -444,6 +445,8 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
         {!naConversa && abas}
         {aba === 'visitas' ? (
           <div className="flex-1 min-h-0 flex"><VisitasAgendadas aoAbrirConversa={abrirConversaPorId} destaque={visitaDestaque} /></div>
+        ) : aba === 'pipeline' ? (
+          <div className="flex-1 min-h-0 flex"><PipelineDosLeads leadsDoCrm={allLeads} aoAbrirConversa={abrirConversaPorId} /></div>
         ) : aba === 'arquitetura' ? (
           <div className="flex-1 min-h-0 flex"><ArquiteturaDosAgentes /></div>
         ) : ehParceria && aba === 'fechamento' ? (
@@ -465,6 +468,8 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
       <div className="flex flex-1 min-h-0">
         {aba === 'visitas' ? (
           <VisitasAgendadas aoAbrirConversa={abrirConversaPorId} destaque={visitaDestaque} />
+        ) : aba === 'pipeline' ? (
+          <PipelineDosLeads leadsDoCrm={allLeads} aoAbrirConversa={abrirConversaPorId} />
         ) : aba === 'arquitetura' ? (
           <ArquiteturaDosAgentes />
         ) : ehParceria && aba === 'fechamento' ? (

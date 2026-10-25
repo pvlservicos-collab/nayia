@@ -541,6 +541,8 @@ export async function processZapiMessage(orgId: string, body: any, opcoes: Opcoe
     // a mesma pessoa fala com os dois números
     channel: integration?.type || ZAPI_INTEGRATION_TYPE,
   }
+  // Mensagem nossa que NÃO saiu pela API: alguém escreveu no celular. As barrinhas ficam rosa (Pedro, 25/10).
+  if (isFromMe && body?.fromApi === false) metadata.do_celular = true
   if (ehGrupo) {
     metadata.is_group = true
     // Sem isto a conversa de grupo vira um monte de mensagem sem dono e não dá

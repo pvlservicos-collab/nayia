@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { ChatCircleText, CalendarCheck, ClipboardText, TreeStructure } from '@phosphor-icons/react'
+import { ChatCircleText, CalendarCheck, ClipboardText, TreeStructure, Kanban } from '@phosphor-icons/react'
 
 /**
  * As abas da Parceria, na faixa de cima da tela (Pedro, 29/09/2026: "quero que
@@ -14,7 +14,8 @@ import { ChatCircleText, CalendarCheck, ClipboardText, TreeStructure } from '@ph
  * fica à vista no chat e na agenda, não é aba (Pedro, 29/09).
  */
 /* 24/10 (Pedro): 'arquitetura', ao lado da agenda, só na linha WhatsApp Leads: o fluxograma dos agentes da Nay */
-export type AbaDaParceria = 'conversas' | 'visitas' | 'fechamento' | 'arquitetura'
+/* 24/10 (Pedro): 'pipeline', ao lado de Visitas na linha WhatsApp Leads: cada lead que chegou e até onde foi */
+export type AbaDaParceria = 'conversas' | 'visitas' | 'pipeline' | 'fechamento' | 'arquitetura'
 
 /* 18/10 (Pedro: "a agenda não está lá no número de captação; precisa estar, é claro, todos os números compartilhando a
    mesma agenda"): as outras linhas usam estas mesmas abas, só sem Fechamento (que é da Parceria). `abas` escolhe. */
@@ -53,6 +54,7 @@ export default function AbasParceria({ aba, aoMudar, naoLidas, visitasAbertas, c
       <div className="wa-abas__abas" role="tablist" aria-label="Abas da linha">
         {mostra('conversas') && aba_('conversas', 'Conversas', ChatCircleText, naoLidas, rotuloConversas || 'As conversas do WhatsApp da Parceria')}
         {mostra('visitas') && aba_('visitas', 'Visitas agendadas', CalendarCheck, visitasAbertas, 'A agenda de visitas: é uma só para todos os números')}
+        {abas?.includes('pipeline') && aba_('pipeline', 'Pipeline dos leads', Kanban, 0, 'Cada lead que chegou na aba Leads, com a data e até onde foi')}
         {mostra('fechamento') && aba_('fechamento', 'Fechamento', ClipboardText, 0, 'Os checklists de aluguel e venda para o contrato')}
         {abas?.includes('arquitetura') && aba_('arquitetura', 'Arquitetura', TreeStructure, 0, 'Os agentes da Nay Leads: cada etapa num fluxograma, com os números')}
       </div>

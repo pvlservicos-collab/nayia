@@ -413,14 +413,18 @@ function BarrasDeEntrega({ metadata, criadaEm }: { metadata: any; criadaEm: stri
   const antes = Number.isFinite(criada) && criada < INICIO_DO_ACOMPANHAMENTO
   const atrasada = saiu && !entregue && !antes && Date.now() - criada > DEZ_MINUTOS
   const hora = (iso?: string) => (iso ? formatTime(iso) : '')
+  // Pedro, 25/10: "naqueles 2 tracinhos pode ter uma cor diferente quando for humano, tipo rosa". Humano = mandada
+  // pelo CRM (source human) ou pelo celular (do_celular, a Z-API diz que não saiu pela API).
+  const humano = metadata?.source === 'human' || !!metadata?.do_celular
+  const verde = humano ? '#ec4899' : 'var(--wa-green, #22c55e)'
 
-  const titulo = falhou ? `Não foi enviada: ${metadata?.send_error || 'a linha recusou'}`
+  const titulo = (humano ? 'Mandada por uma pessoa da equipe. ' : '') + (falhou ? `Não foi enviada: ${metadata?.send_error || 'a linha recusou'}`
     : otimista ? 'Enviando…'
     : lida ? `Entregue${metadata?.whatsapp_entregue_em ? ` às ${hora(metadata.whatsapp_entregue_em)}` : ''} e lida${metadata?.whatsapp_lida_em ? ` às ${hora(metadata.whatsapp_lida_em)}` : ''}`
     : entregue ? `Entregue no celular da pessoa${metadata?.whatsapp_entregue_em ? ` às ${hora(metadata.whatsapp_entregue_em)}` : ''}`
     : antes ? 'Enviada. Mensagem de antes de 14/10: o CRM não acompanhava a entrega'
     : atrasada ? 'Enviada, mas o celular da pessoa ainda NÃO confirmou o recebimento'
-    : 'Enviada; esperando o celular da pessoa confirmar'
+    : 'Enviada; esperando o celular da pessoa confirmar')
 
   const barra = (cheia: number, cor: string, extra = '') => (
     <span className={`relative block h-[4px] flex-1 rounded-full overflow-hidden ${extra}`} style={{ background: 'rgba(127,127,127,.28)' }}>
@@ -429,8 +433,8 @@ function BarrasDeEntrega({ metadata, criadaEm }: { metadata: any; criadaEm: stri
   )
   return (
     <span className="flex items-center gap-1 w-[84px] mb-1" title={titulo} aria-label={titulo}>
-      {barra(falhou || saiu ? 100 : 55, falhou ? '#ef4444' : saiu ? 'var(--wa-green, #22c55e)' : 'var(--wa-text-2, #8696a0)', otimista ? 'animate-pulse' : '')}
-      {barra(entregue || atrasada ? 100 : 0, lida ? 'var(--wa-tick-read, #53bdeb)' : entregue ? 'var(--wa-green, #22c55e)' : '#f59e0b')}
+      {barra(falhou || saiu ? 100 : 55, falhou ? '#ef4444' : saiu ? verde : humano ? '#f9a8d4' : 'var(--wa-text-2, #8696a0)', otimista ? 'animate-pulse' : '')}
+      {barra(entregue || atrasada ? 100 : 0, lida ? 'var(--wa-tick-read, #53bdeb)' : entregue ? verde : '#f59e0b')}
     </span>
   )
 }

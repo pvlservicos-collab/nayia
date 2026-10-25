@@ -9,6 +9,7 @@ import type { EstadoDaNay } from '@/lib/tiposNay'
 import type { DonoNaLista, MarcaDaNay } from '@/lib/tiposNay'
 import { quandoCurtoEmManaus } from '@/lib/fusoDeManaus'
 import { nayEmPausa } from '@/lib/etapaDaParceria'
+import type { NayLeadsComDono } from '@/hooks/useNayLeadsComDono'
 
 /* 03/10: quem escreve à mão pausa a Nay por 30 min, e a conversa fica na aba dela */
 const TEXTO_DA_PAUSA = 'Nay em pausa: alguém escreveu à mão nesta conversa, e ela espera 30 minutos antes de voltar a responder'
@@ -48,6 +49,8 @@ interface LeadListItemProps {
   etiquetasEmDestaque?: string[]
   /** Oficial (Pedro, 24/10): o contato já mandou mensagem (respondeu ao disparo); a linha ganha um verde leve da esquerda */
   respondeu?: boolean
+  /** Parceria (492, Pedro 24/10): a Nay Leads está conversando com este proprietário por aqui; a linha fica roxa */
+  nayLeads?: NayLeadsComDono
 }
 
 const RECEBIDO = ['lead']
@@ -114,7 +117,7 @@ function Avatar({ lead, robo }: { lead: LeadWithOwner; robo?: { parada: boolean;
   )
 }
 
-const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu }: LeadListItemProps) => {
+const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads }: LeadListItemProps) => {
   const robo = nay === undefined ? null : !nay ? { parada: true, texto: 'Lendo a Nay…' }
     : !nay.ligada ? { parada: true, texto: `Nay parada: ${nay.motivo || 'desligada'}` }
     : nayEmPausa(marca) ? { parada: true, texto: TEXTO_DA_PAUSA }
@@ -134,6 +137,7 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
       onClick={() => onClick(lead)}
       onContextMenu={(e) => onContextMenu(e, lead)}
       className={`wa-linha ${isSelected ? 'wa-linha--sel' : ''} ${respondeu ? 'wa-linha--respondeu' : ''}`}
+      style={nayLeads ? { boxShadow: 'inset 4px 0 0 #7c3aed, inset 0 0 0 9999px rgba(124, 58, 237, 0.12)' } : undefined}
     >
       <Avatar lead={lead} robo={robo} />
       <div className="flex-1 min-w-0 py-[11px]">
@@ -160,6 +164,12 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
         </div>
 
         <div className="flex items-center gap-1.5 mt-[2px] min-w-0">
+          {nayLeads && (
+            <span className="wa-marca flex-shrink-0 rounded px-1" style={{ color: '#fff', background: '#7c3aed' }}
+                  title={nayLeads.motivo ? `A Nay Leads está conversando com o proprietário: ${nayLeads.motivo}` : 'A Nay Leads está conversando com o proprietário'}>
+              Nay olx(leads) conversando
+            </span>
+          )}
           {marca?.telAtendendo && (nayEmPausa(marca) ? (
             <span className="wa-marca" style={{ color: 'var(--wa-tag-prop)' }} title={TEXTO_DA_PAUSA}>Nay em pausa</span>
           ) : (
