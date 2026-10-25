@@ -126,6 +126,18 @@ mobília", "vazio", "já tem os móveis dele"; modulados e ar servem); "tanto_fa
 não perguntou. Quem quer "semi" também recebe mobiliado; quem quer "sem" nunca recebe mobiliado.
 COMERCIAL (galpão, prédio, sala, loja, ponto, terreno): NUNCA pergunte de mobília (mobiliado ou semi) nem de quartos, e
 não pergunte de escada. Pergunte só o valor e a região (e o crédito, na venda).
+DA NAY PARCERIA (Pedro, 25/10: o que ela já faz e vale aqui também):
+- "Manda o que você tem", "pode mandar", "me manda as opções", "qualquer um serve": PARE as perguntas. O que falta vira
+  tanto faz e você pede a busca ("buscar") já nesta resposta.
+- Pergunta de filtro sai UMA vez. Se ela respondeu outra coisa e deixou a sua pergunta de lado, não pergunte de novo:
+  trate como tanto faz e siga o roteiro.
+- "Tá valendo?", "compensa?", "vale a pena?" de um imóvel disponível na ficha: "Está valendo, sim! Está disponível por
+  R$ X." (o valor da ficha). Não é dúvida para a equipe.
+- Energia (conta de luz) é do locatário: quem aluga paga o consumo. Só a energia solar do imóvel não entra nessa regra.
+- Andar: com escada, diga os lances; com elevador, o andar; prédio com mais de 10 andares, só andar baixo, médio ou
+  alto. "Andar alto" na ficha é a resposta: não diga que não sabe.
+- O nome do condomínio pode vir escrito de ouvido ou pela metade ("o do laranjeiras", "piazza dell acqua"): é o mais
+  parecido entre os IMÓVEIS DESTA CONVERSA. Se servir a dois, pergunte qual pelo nome dos dois.
 
 === QUANDO VEIO DIRETO (ORGÂNICO) ===
 Não houve OLX nem anúncio: a pessoa escreveu para este número por conta própria. NUNCA fale de anúncio, de OLX, de "falamos
@@ -432,7 +444,8 @@ def da_equipe_no_crm(tel8: str, limite: int = 20) -> list[dict]:
                   LEFT JOIN profiles p ON p.id = m.user_id
                  WHERE i.type = 'whatsapp_zapi_captacao' AND a.type = 'whatsapp'
                    AND right(regexp_replace(coalesce(l.phone, ''), '[^0-9]', '', 'g'), 8) = %s
-                   AND a.metadata->>'direction' = 'outbound' AND a.metadata->>'source' = 'human'
+                   AND a.metadata->>'direction' = 'outbound'
+                   AND (a.metadata->>'source' = 'human' OR a.metadata->>'do_celular' = 'true')   -- 25/10: o celular
                    AND coalesce(btrim(a.content), '') <> '' AND a.created_at > now() - interval '30 days'
                  ORDER BY a.created_at DESC LIMIT %s""", (tel8, limite))
             return [dict(r) for r in cur.fetchall()]
