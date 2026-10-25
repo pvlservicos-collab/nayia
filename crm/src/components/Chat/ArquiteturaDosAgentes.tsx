@@ -12,6 +12,7 @@ import { ArrowDown, ArrowRight, ArrowsClockwise, ChatCircleText, CircleNotch, Pa
 import { FUSO_DE_MANAUS } from '@/lib/fusoDeManaus'
 import { ROTULO_DO_MODO, type AgenteNoPainel, type PainelDosAgentes } from '@/lib/agentes'
 import { Legenda } from './AgentesDoLead'
+import RegistroDeFluxos from './RegistroDeFluxos'
 
 const PERIODOS: [number, string][] = [[24, '24 horas'], [24 * 7, '7 dias'], [24 * 30, '30 dias']]
 const ROTULO_DO_CAMINHO: Record<string, string> = {
@@ -104,7 +105,8 @@ export default function ArquiteturaDosAgentes() {
   useEffect(() => { void ler(); const t = setInterval(() => { if (!document.hidden) void ler() }, 30000); return () => clearInterval(t) }, [ler])
 
   const ag = (k: string) => p?.agentes.find((a) => a.chave === k)
-  const conhecidos = new Set(['mestre', 'atendimento', 'imoveis', 'busca', 'visita', 'revisao', 'corretores', 'humano'])
+  // 'fluxo' (490) são as portas e as ferramentas do código: aparece no registro de fluxos, não como caixa
+  const conhecidos = new Set(['mestre', 'atendimento', 'imoveis', 'busca', 'visita', 'revisao', 'corretores', 'humano', 'fluxo'])
   const novos = (p?.agentes || []).filter((a) => !conhecidos.has(a.chave))
   const caminhos = Object.entries(p?.caminhos || {}).sort((a, b) => b[1] - a[1])
   const totalCaminhos = caminhos.reduce((s, [, n]) => s + n, 0)
@@ -212,6 +214,9 @@ export default function ArquiteturaDosAgentes() {
                 </div>
               )}
             </div>
+
+            {/* 490: o registro de fluxos (um log de traços por turno) */}
+            <RegistroDeFluxos />
           </>
         )}
       </div>

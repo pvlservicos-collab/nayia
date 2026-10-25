@@ -105,9 +105,14 @@ parte QUANDO VEIO DIRETO.
    "confirmou_visita" e diga que vai confirmar com o corretor e com o proprietário e já retorna. Se ela mudar o dia ou o
    horário, marque "visita" de novo com os dados novos. Enquanto a visita está sendo confirmada (o sistema diz em que
    pé está), não prometa nada: diga que está confirmando e avisa assim que tiver a resposta.
-5. FOTOS: ela pediu MAIS FOTOS de um imóvel, sem dizer de qual parte (o do anúncio ou um dos que você mandou): acao
-   "fotos" com o código. O sistema manda as fotos depois dos seus balões; o que você quer dizer DEPOIS das fotos vai em
-   "depois_das_fotos".
+5. FOTOS E O IMÓVEL ESCOLHIDO: ela escolheu um dos imóveis que já apareceram (pelo valor: "o de 1.900", "700 mil"; pelo
+   nome do condomínio; "esse", "o primeiro"), pediu "me manda", "me envia", "o material", "as informações e as fotos",
+   ou pediu MAIS FOTOS de um imóvel sem dizer de qual parte: acao "fotos" com "fotos": {"codigos": [...]} (o código de
+   cada imóvel que ela quer, da conversa; até 3). O sistema manda o card (se ela ainda não viu) e as fotos de cada um,
+   depois dos seus balões. "Os dois", "as duas opções", "todos": todos de uma vez, sem perguntar "qual deles?". Escolheu
+   e não há dúvida de qual é: mande, sem perguntar "certo?" de novo. O material do imóvel é o card e as fotos: não é com
+   a equipe. Se junto ela perguntou algo que a ficha não responde, mande o imóvel e marque também "perguntar". O que
+   você quer dizer DEPOIS das fotos vai em "depois_das_fotos".
 6. FOTO DE UMA PARTE (dos quartos, do roupeiro, do banheiro, da cozinha, da varanda, da vista, da fachada, da área de
    lazer...): você NÃO sabe qual foto é de qual cômodo. Não mande fotos e não prometa que manda: diga que vai separar
    essas fotos e já retorna, e marque acao "perguntar" com o pedido em "motivo" (ex.: "fotos dos quartos com roupeiros
@@ -116,8 +121,9 @@ Seja flexível: se ela pula etapas, acompanhe; se faz uma pergunta sobre um imó
 só ela pede as fotos E já diz o que procura (valor, região), faça as duas coisas: "acoes": ["fotos", "buscar"].
 BAIRROS: escreva bairros de Manaus. Avenida ou região vira os bairros por onde ela passa (ex.: "da Constantino Nery até
 a Ponta Negra" = Chapada, São Jorge, Dom Pedro, Planalto, Alvorada, Ponta Negra). Os bairros vizinhos o sistema já soma.
-MOBÍLIA (locação): "mobiliado" = com móveis; "semi" = modulados e/ou ar-condicionado; "tanto_faz" = ela disse que
-tanto faz (ou que pode ser sem nada); "" = ainda não perguntou. Quem quer "semi" também recebe mobiliado.
+MOBÍLIA (locação): "mobiliado" = com móveis; "semi" = modulados e/ou ar-condicionado; "sem" = NÃO quer mobiliado ("sem
+mobília", "vazio", "já tem os móveis dele"; modulados e ar servem); "tanto_faz" = ela disse que tanto faz; "" = ainda
+não perguntou. Quem quer "semi" também recebe mobiliado; quem quer "sem" nunca recebe mobiliado.
 COMERCIAL (galpão, prédio, sala, loja, ponto, terreno): NUNCA pergunte de mobília (mobiliado ou semi) nem de quartos, e
 não pergunte de escada. Pergunte só o valor e a região (e o crédito, na venda).
 
@@ -195,9 +201,10 @@ Valor em reais assim: R$ 700.000 / R$ 2.500.
  "filtros": {"finalidade": "", "tipo": "", "teto": 0, "bairros": [], "qualquer_bairro": false, "quartos": 0,
              "aceita_menos_quartos": null, "aceita_escada": null, "financiamento": "", "mobilia": "", "condominio": "",
              "perto_de": "", "perto_km": 0, "pet": "", "exigencias": []},
- "fotos": {"codigo": 0}, "depois_das_fotos": [], "card": {"codigos": []}, "visita": {"codigo": 0, "data": "", "hora": ""},
+ "fotos": {"codigos": []}, "depois_das_fotos": [], "card": {"codigos": []}, "visita": {"codigo": 0, "data": "", "hora": ""},
  "motivo": ""}
-- acoes: [] ou, na ordem, até duas de: "fotos" | "card" (manda de novo o card dos imóveis em card.codigos) | "buscar" |
+- acoes: [] ou, na ordem, até duas de: "fotos" (o card, se ela ainda não viu, e as fotos dos imóveis em fotos.codigos) |
+  "card" (só o card de novo dos imóveis em card.codigos, para ela apontar qual) | "buscar" |
   "visita" | "confirmou_visita" | "perguntar" (você precisa
   que a equipe responda ou mande algo, e a conversa continua com você) | "equipe" (a conversa passa para a equipe) |
   "encerrar" (ela agradeceu e não quer mais nada).
@@ -205,7 +212,7 @@ Valor em reais assim: R$ 700.000 / R$ 2.500.
   "venda" (sem ela dizer, é a do anúncio). tipo: "apartamento", "casa", "casa_condominio", "tanto_faz" ou, no
   comercial, "galpao", "predio", "sala", "loja", "terreno" ("comercial" quando ela não disser qual). teto: só o
   número em reais. quartos: o número que ela quer. financiamento: "aprovado", "simular", "a vista" ou "".
-  mobilia: "mobiliado", "semi" (modulados e/ou ar), "tanto_faz" ou "" (ainda não disse).
+  mobilia: "mobiliado", "semi" (modulados e/ou ar), "sem" (não quer mobiliado), "tanto_faz" ou "" (ainda não disse).
   condominio: o nome do condomínio que ela pediu ou disse que quer ("no Parque das Laranjeiras", "algo no Vision"),
   como ela escreveu; "" se não disse nenhum. A busca traz esse e os condomínios próximos dele primeiro.
   No orgânico, finalidade quando ela disser ou pelo valor (acima de R$ 100.000 "venda", até R$ 30.000 "locacao").
@@ -735,7 +742,7 @@ def _resumo_dos_filtros(f: dict) -> str:
               ", ".join(f.get("bairros") or []) or ("qualquer bairro" if f.get("qualquer_bairro") else ""),
               f"{f['quartos']} quartos" if f.get("quartos") else "",
               # 19/10: a mobília entra no resumo, senão a Nay pergunta de novo
-              {"mobiliado": "mobiliado", "semi": "modulados e ar", "tanto_faz": "mobília tanto faz"}.get(f.get("mobilia") or "", ""),
+              {"mobiliado": "mobiliado", "semi": "modulados e ar", "sem": "sem mobília", "tanto_faz": "mobília tanto faz"}.get(f.get("mobilia") or "", ""),
               f.get("financiamento") or "",
               # 20/10: o condomínio pedido (a busca traz ele e os próximos dele primeiro, olx_cliente_buscar 434)
               f"no {f['condominio']}" if f.get("condominio") else ""]
@@ -883,11 +890,17 @@ def abrir(conn, cfg: dict) -> int:
             # 394: o que ela já escreveu (ou o que já conversamos, se veio de outro anúncio) entra na abertura
             conversa = _conversa(conn, lead)
             ate = max([m["id"] for m in conversa if m.get("direcao") == "recebida"] or [_ultima_recebida(conn, lead)])
+            agentes.novo_turno(lead)
+            agentes.passo(lead, "abertura", "lead novo: a primeira mensagem da Nay")
             r = modelo.chamar(PROMPT, montar_turno(lead, ctx_olx, conversa), no="olx.whatsapp")
             acoes = acoes_da(r)
             if not _baloes_do(r):
                 raise ValueError("o modelo não escreveu a abertura")
+            uso = modelo.ultimo_uso()
+            agentes.atendimento(lead, {"rotas": [], "geral": True}, r, uso, uso.get("ms"), acoes)
             baloes = _falar(conn, lead, r, acoes)
+            agentes.passo(lead, "falou", f"{len(baloes)} balão(ões)" + (f"; ações: {', '.join(acoes)}" if acoes else ""),
+                          baloes=baloes)
             filtros = _filtros(lead.get("filtros"), r.get("filtros"))
             _marcar(conn, lead["id"], assumido_em_agora=True, etapa="filtrar", ultima_lida=ate, filtros=filtros)
             # 16/10: o que ela promete já na abertura (passar o desconto à equipe, confirmar a visita pedida na OLX...) tem
@@ -898,6 +911,7 @@ def abrir(conn, cfg: dict) -> int:
             log.info("lead %s aberto (%d balão/ões)", lead["id"], len(baloes))
             feitos += 1
         except Exception as e:  # noqa: BLE001 -- um cliente não para os outros
+            agentes.registrar(lead, "fluxo", "falhou", {"resumo": f"abertura: {type(e).__name__}: {e}"[:200]}, erro=str(e))
             _falhou(conn, lead, None, e)
             if _FALHAS.get(lead["id"]) is None:       # terceira falha: não abre mais sozinha
                 _marcar(conn, lead["id"], assumido_em_agora=True, humano_em=banco.um(conn, "SELECT now()"),
@@ -997,6 +1011,7 @@ def responder(conn, cfg: dict) -> int:
                 feitos += 1
             _deu_certo(lead["id"])
         except Exception as e:  # noqa: BLE001 -- um cliente não para os outros
+            agentes.registrar(lead, "fluxo", "falhou", {"resumo": f"{type(e).__name__}: {e}"[:200]}, erro=str(e))
             _falhou(conn, lead, ate, e)
     return feitos
 
@@ -1016,11 +1031,14 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
     except (TypeError, ValueError):
         gap = 30
     if gente and gente > banco.um(conn, "SELECT now() - make_interval(mins => %s)", (gap,)):
+        agentes.novo_turno(lead)
         agentes.humano(lead, gente)       # 489: o Humano na linha do tempo dos agentes
         return False                      # a equipe está na conversa: espera, e a mensagem dela continua não lida
+    agentes.novo_turno(lead)              # 490: daqui em diante cada porta e ferramenta é um passo deste turno
     if lead.get("humano_em"):
         # a equipe assumiu (Pedro, 16/10, na OLX: "a nay não deve mais responder"): ela não volta sozinha
         _marcar(conn, lead["id"], ultima_lida=ate)
+        agentes.passo(lead, "equipe_assumiu", "a equipe assumiu a conversa: a Nay não responde")
         return False
     conversa = _conversa(conn, lead)
     if gente and not novas_depois_da_equipe(conversa, lead.get("ultima_lida") or 0, gente):
@@ -1028,12 +1046,14 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
         # pessoa escreveu ANTES da última fala da equipe a equipe já respondeu. Só o que veio depois é com ela.
         _marcar(conn, lead["id"], ultima_lida=ate)
         log.info("lead %s: a equipe já respondeu o que ela escreveu; a Nay não responde", lead["id"])
+        agentes.passo(lead, "equipe_ja_respondeu", "a equipe já respondeu o que ela escreveu: a Nay não responde")
         return False
     if banco.um(conn, "SELECT count(*) FROM privado.olx_cliente_enviada WHERE lead = %s AND tipo = 'texto'",
                 (lead["id"],)) >= LIMITE_DE_MENSAGENS:
         _marcar(conn, lead["id"], humano_em=banco.um(conn, "SELECT now()"), ultima_lida=ate,
                 parada_motivo="a conversa foi longe demais para a Nay")
         _grupo(f"Cliente {quem(lead)}: a conversa no WhatsApp de captação foi longe; precisa de alguém.")
+        agentes.passo(lead, "limite_de_mensagens", f"passou de {LIMITE_DE_MENSAGENS} mensagens: vai para a equipe")
         return False
     if lead.get("etapa") == "finalizado":
         # 394: ela tinha encerrado e a pessoa voltou a escrever: a conversa reabre
@@ -1044,9 +1064,12 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
     novas = [m.get("texto") or "" for m in conversa if m.get("direcao") == "recebida" and m.get("id", 0) > (lead.get("ultima_lida") or 0)]
     nossas = [m for m in conversa if m.get("direcao") == "enviada" and (m.get("texto") or "").strip()]
     esperando_sim = (lead.get("visita_aberta") or {}).get("estado") == "confirmar_cliente"
+    agentes.passo(lead, "chegou", f"{len(novas)} mensagem(ns): " + " / ".join(n.strip() for n in novas if n.strip())[:160],
+                  etapa=lead.get("etapa"), visita=(lead.get("visita_aberta") or {}).get("estado"))
     if (so_agradeceu(novas) and nossas and not nossas[-1]["texto"].strip().endswith("?") and not esperando_sim):
         _marcar(conn, lead["id"], ultima_lida=ate)          # "obrigada": não é pedido; ela não repete a confirmação
         log.info("lead %s: só agradeceu; a Nay não responde", lead["id"])
+        agentes.passo(lead, "so_agradeceu", "só agradeceu, sem pergunta pendente: a Nay não responde")
         return False
     ctx_olx = banco.um(conn, "SELECT olx_nay_contexto(%s)", (lead["chat"],)) if lead.get("chat") else None
     if organico(lead):
@@ -1055,7 +1078,6 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
     turno = montar_turno(lead, ctx_olx, conversa)
     # 489 (Pedro, 24/10: os agentes da Nay Leads, olx/agentes.py): o MESTRE (JEV) lê as mensagens novas e escolhe o
     # caminho; o ATENDIMENTO (a Luna) recebe só as regras dele. Chave `agentes`: nao = como era; sombra = decide e grava.
-    agentes.novo_turno(lead)
     plano = agentes.planejar(PROMPT, lead, conversa, novas, organico(lead),
                              pode_calar=bool(nossas) and not nossas[-1]["texto"].strip().endswith("?") and not esperando_sim)
     if plano["calar"]:
@@ -1070,12 +1092,15 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
     if aviso:
         # 22/10: perguntou o que já se sabe (a finalidade pelo valor, os quartos que ela disse): uma segunda chamada, avisada
         log.info("lead %s: perguntou o que já se sabe; de novo (%s)", lead["id"], aviso[:120])
+        agentes.passo(lead, "chamou_de_novo", "perguntou o que já se sabe: " + aviso[10:130])
         r = modelo.chamar(prompt, turno + "\n\n" + aviso, no="olx.whatsapp")
         u2 = modelo.ultimo_uso()
         uso = {**u2, **{k: (uso.get(k) or 0) + (u2.get(k) or 0) for k in ("ms", "tokens_entrada", "tokens_saida", "tokens_cache")}}
     acoes = acoes_da(r)
     agentes.atendimento(lead, plano, r, uso, uso.get("ms"), acoes)
-    _falar(conn, lead, r, acoes, desde=inicio)
+    saiu = _falar(conn, lead, r, acoes, desde=inicio)
+    agentes.passo(lead, "falou", f"{len(saiu)} balão(ões)" + (" (a equipe entrou no meio: parou)" if r.get("_equipe_no_meio") else "")
+                  + (f"; ações: {', '.join(acoes)}" if acoes else ""), baloes=saiu)
     if r.get("_equipe_no_meio"):
         return False                      # a equipe entrou no meio: sem ações, e o que ela escreveu fica não lido
     filtros = _filtros(lead.get("filtros"), r.get("filtros"))
@@ -1125,16 +1150,24 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
     agentes.acao(lead, acao, r)                # 489: a ação vira evento do agente dono (busca, imóveis, visita...)
     if acao == "fotos":
         f = r.get("fotos") if isinstance(r.get("fotos"), dict) else {}
-        codigo = _int(f.get("codigo")) or lead.get("codigo")
-        if codigo and not _ofertavel(conn, codigo, lead):
-            _para_a_fila(conn, lead, codigo, f"Pediu fotos do #{codigo}, que é de parceria ou não está disponível: o que dizer?")
-            codigo = None
-        if codigo:
+        # 25/10 (as conversas com erro da semana: "1,900", "manda o de 630", "me manda as 2 opções", "material do
+        # imóvel"): o que ela escolheu ou pediu vai inteiro, até 3 imóveis, cada um com o card (se ainda não viu) e as fotos
+        codigos = [c for c in dict.fromkeys(_int(x) for x in [*(f.get("codigos") or []), f.get("codigo")]) if c][:3]
+        enviados = list(lead.get("enviados") or [])
+        for n, codigo in enumerate(codigos or [_int(lead.get("codigo"))]):
+            if not codigo:
+                continue
+            if not _ofertavel(conn, codigo, lead):
+                _para_a_fila(conn, lead, codigo, f"Pediu fotos do #{codigo}, que é de parceria ou não está disponível: o que dizer?")
+                continue
+            if n:
+                time.sleep(DEPOIS_DAS_FOTOS_S)   # as fotos do anterior carregam antes do próximo card
             # o imóvel do anúncio ou um que ela já recebeu: só as fotos (o card ela já viu)
-            ja_viu = codigo == lead.get("codigo") or codigo in (lead.get("enviados") or [])
+            ja_viu = codigo == lead.get("codigo") or codigo in enviados
             mandar_imovel(conn, lead, codigo, com_card=not ja_viu)
             if not ja_viu:
-                _marcar(conn, lead["id"], enviados=list(lead.get("enviados") or []) + [codigo])
+                enviados.append(codigo)
+                _marcar(conn, lead["id"], enviados=enviados)
             time.sleep(DEPOIS_DAS_FOTOS_S)
         depois = sem_repetir([b for b in (nay.limpar_balao(str(x)) for x in (r.get("depois_das_fotos") or [])[:MAX_BALOES]) if b],
                              ja_mandou(conn, lead))
@@ -1256,8 +1289,9 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
         f["finalidade"] = finalidade_sem_dizer(lead, f)
     if _aceita_parceiro(conn, lead):
         f["aceita_parceiro"] = "true"           # 400: o cliente final recebe também os de parceiro
-    achados, proximas = [], False
+    achados, proximas, tentativas, t0 = [], False, 0, time.monotonic()
     for tentativa, afrouxou in _afrouxar(f):
+        tentativas += 1
         achados = banco.linhas(conn, "SELECT * FROM olx_cliente_buscar(%s::jsonb, %s::int[], %s)",
                                (json.dumps(tentativa, ensure_ascii=False), excluir,
                                 MAX_IMOVEIS * 4 if f.get("perto_de") else MAX_IMOVEIS))
@@ -1265,6 +1299,9 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
         if achados:
             proximas = afrouxou
             break
+    agentes.passo(lead, "buscou_na_base", f"{len(achados)} imóvel(is)" + (" (os mais próximos: afrouxou)" if proximas else "")
+                  + f" · {_resumo_dos_filtros(f)}", filtros=f, tentativas=tentativas,
+                  achados=[int(a["codigo"]) for a in achados], ms=int((time.monotonic() - t0) * 1000))
     if achados and not proximas:
         # 489: o veto do JEV antes dos cards (só no perfil exato: os "mais próximos" já vão avisados como próximos)
         achados = agentes.filtrar_imoveis(lead, f, achados)
@@ -1276,6 +1313,7 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
     ativou = buscas.resultado_da_base(conn, lead, f, len(achados), bool(achados) and not proximas)
     buscando = ativou or banco.um(conn, "SELECT estado = 'buscando' FROM privado.busca_cliente WHERE lead = %s", (lead["id"],))
     if not achados and buscando:
+        agentes.passo(lead, "nada_na_base", "a busca de fora continua (grupos, OLX, corretores)" + (" · ativou agora" if ativou else ""))
         texto = CONTINUO_VERIFICANDO
         if any(parecida(texto, x) for x in ja_mandou(conn, lead)):
             texto = "Continuo procurando e te aviso por aqui assim que aparecer."
@@ -1286,9 +1324,11 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
     if not achados:
         # 416 (Pedro, 19/10): o catálogo não tem -> ordem de busca na OLX (olx/parceiro.py); ela "vai verificar"
         if abrir_busca_na_olx(conn, lead, f):
+            agentes.passo(lead, "nada_na_base", "abriu a ordem de busca na OLX")
             if not ja_avisou:
                 mandar_texto(conn, lead, "Vou verificar as opções que tenho aqui se estão disponíveis e já te retorno.")
             return
+        agentes.passo(lead, "nada_na_base", "nada nem perto: o perfil foi ao grupo da equipe")
         # nunca a negativa: ela diz que está separando e a equipe recebe o perfil (se já disse neste turno, não repete)
         if not ja_avisou:
             mandar_texto(conn, lead, "Estou separando as opções com a nossa equipe e já te retorno por aqui.")

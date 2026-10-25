@@ -178,7 +178,7 @@ def quartos_texto(f: dict) -> str:
 
 def obs_texto(f: dict) -> str:
     partes = []
-    mob = {"mobiliado": "mobiliado", "semi": "com modulados e ar"}.get(str(f.get("mobilia") or ""))
+    mob = {"mobiliado": "mobiliado", "semi": "com modulados e ar", "sem": "sem mobília"}.get(str(f.get("mobilia") or ""))
     if mob and finalidade(f) == "locacao":
         partes.append(mob)
     fin = str(f.get("financiamento") or "").lower()

@@ -155,6 +155,13 @@ def forcar_modo(m: str | None, registro: str | None = None, corte: bool | None =
     _LOCAL.corte = corte
 
 
+def passo(lead: dict | None, acao: str, resumo: str = "", **detalhe) -> None:
+    """490 (Pedro, 25/10: "um registro de fluxos, onde a nay passou e quais ferramentas passou, tipo um log de traços"):
+    uma porta ou ferramenta do código (a mensagem que chega, as travas, a busca, o envio) no agente 'fluxo', no turno de
+    agora. A aba Arquitetura mostra cada turno com os passos em ordem (crm_agentes_tracos)."""
+    registrar(lead, "fluxo", acao, {"resumo": resumo[:200], **detalhe})
+
+
 def novo_turno(lead: dict) -> str:
     _LOCAL.turno = uuid.uuid4().hex[:12]
     _LOCAL.lead = {"id": lead.get("id"), "telefone": lead.get("telefone")}

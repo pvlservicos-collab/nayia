@@ -97,7 +97,7 @@ export default function AgentesDoLead({ leadId }: { leadId: string }) {
         </button>
       </div>
 
-      {dados && <Legenda agentes={dados.agentes} />}
+      {dados && <Legenda agentes={dados.agentes.filter((a) => a.chave !== 'fluxo')} />}
 
       <p className="text-[12px] mt-3 mb-1.5" style={{ color: 'var(--wa-text-2)' }}>Histórico de atendimento</p>
       {!dados ? (
