@@ -581,7 +581,8 @@ def donos():
 # Pedro, 24-25/10: "revisar todas as conversas de proprietários para atualizar dúvidas extras na ficha" e "Sim, pelo agente
 # nay". De madrugada (Manaus), cada vez que o agente está livre, vai um lote dos donos que já conversaram conosco (em
 # qualquer número), na ordem do id do cadastro; o cursor fica em rotinas_estado ('revisao_donos'). Acabou: para sozinha.
-REVISAO_DONOS_HORAS = ["01", "02", "03", "04"]
+# 25/10 (Pedro: "começa logo os proprietários"): a qualquer hora; as dúvidas vêm antes na volta do laço
+REVISAO_DONOS_HORAS = None
 REVISAO_DONOS_LOTE = 20
 SQL_REVISAO_DONOS = """
 WITH falou AS (
@@ -612,7 +613,7 @@ REVISAO_DONOS_PROMPT = (
 
 def revisao_donos(hora_m):
     """Um lote por vez, nas horas da madrugada de Manaus. True quando não há o que fazer agora (ou saiu)."""
-    if hora_m not in REVISAO_DONOS_HORAS:
+    if REVISAO_DONOS_HORAS and hora_m not in REVISAO_DONOS_HORAS:
         return True
     con = banco()
     cursor = int(_estado(con, "revisao_donos") or 0)
