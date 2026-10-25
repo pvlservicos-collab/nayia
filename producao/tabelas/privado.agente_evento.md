@@ -1,4 +1,4 @@
-# privado.agente_evento  (tabela, ~0 linhas)
+# privado.agente_evento  (tabela, ~117 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('privado.agente_evento_id_seq'::regclass)
@@ -23,6 +23,7 @@ em  timestamp with time zone  NOT NULL  padrão now()
 ## índices
 CREATE INDEX agente_evento_agente_em ON privado.agente_evento USING btree (agente, em)
 CREATE INDEX agente_evento_chave8_em ON privado.agente_evento USING btree (chave8, em DESC)
+CREATE INDEX agente_evento_em ON privado.agente_evento USING btree (em DESC)
 CREATE INDEX agente_evento_modo_em ON privado.agente_evento USING btree (modo, em)
 CREATE INDEX agente_evento_turno ON privado.agente_evento USING btree (turno) WHERE (turno IS NOT NULL)
 CREATE UNIQUE INDEX agente_evento_pkey ON privado.agente_evento USING btree (id)
@@ -39,4 +40,4 @@ agente_evento_pkey: PRIMARY KEY (id)
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-crm_agentes_painel
+crm_agentes_painel, crm_agentes_tracos

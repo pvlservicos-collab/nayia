@@ -33,4 +33,4 @@ olx_visita_pkey: PRIMARY KEY (id)
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-crm_visitantes, site_painel_metricas, site_painel_visita_marcar, site_painel_visitas
+crm_leads_pipeline, crm_visitantes, site_painel_metricas, site_painel_visita_marcar, site_painel_visitas

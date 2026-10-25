@@ -34,7 +34,7 @@ nay_core: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 nay_leitura: SELECT
 
 ## funções que escrevem aqui
-(nenhuma função; quem escreve é o n8n, o site ou o CRM)
+nay_leads_mandar_pela_parceria
 
 ## funções que citam
-(nenhuma)
+nay_leads_mandar_pela_parceria

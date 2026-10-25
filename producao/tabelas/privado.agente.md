@@ -26,4 +26,4 @@ agente_tipo_check: CHECK ((tipo = ANY (ARRAY['ia'::text, 'codigo'::text, 'gente'
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-crm_agentes, crm_agentes_do_lead, crm_agentes_painel
+crm_agentes, crm_agentes_do_lead, crm_agentes_painel, crm_agentes_tracos

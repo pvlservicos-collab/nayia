@@ -73,5 +73,40 @@ class QuemChamar(unittest.TestCase):
         self.assertEqual(v.quem_chamar(self.CFG, False), [("Raquel", "92988285562"), ("Diego", "92982092845")])
 
 
+class OndeFalarComODono(unittest.TestCase):
+    """492 (Pedro, 24/10): pelo número em que o dono já conversa (Parceria); senão pelo 8595; nunca pelo oficial."""
+
+    def _mandar(self, linha_no_banco, parceria_aceita=True):
+        from unittest import mock
+        sqls, pelo_8595 = [], []
+
+        def um(conn, sql, args=()):
+            sqls.append(sql)
+            if "nay_leads_linha_do_dono" in sql:
+                return linha_no_banco
+            if "nay_leads_mandar_pela_parceria" in sql:
+                return 77 if parceria_aceita else None
+            return None
+        with mock.patch.object(v.banco, "um", um), mock.patch.object(v, "_mandar_para", lambda *a: pelo_8595.append(a)):
+            saiu = v.mandar_ao_dono(None, 5, "92991112222", "Ana", "Olá, Ana!", "visita #1")
+        return saiu, sqls, pelo_8595
+
+    def test_ja_conversa_na_parceria_vai_por_la(self):
+        saiu, sqls, pelo_8595 = self._mandar("parceria")
+        self.assertEqual(saiu, "parceria")
+        self.assertFalse(pelo_8595)
+
+    def test_sem_conversa_vai_pelo_8595(self):
+        saiu, sqls, pelo_8595 = self._mandar("captacao")
+        self.assertEqual(saiu, "captacao")
+        self.assertEqual(len(pelo_8595), 1)
+        self.assertFalse(any("mandar_pela_parceria" in s for s in sqls))
+
+    def test_a_parceria_recusou_cai_no_8595(self):
+        saiu, _, pelo_8595 = self._mandar("parceria", parceria_aceita=False)
+        self.assertEqual(saiu, "captacao")
+        self.assertEqual(len(pelo_8595), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

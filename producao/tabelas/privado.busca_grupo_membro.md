@@ -1,4 +1,4 @@
-# privado.busca_grupo_membro  (tabela, ~1171 linhas)
+# privado.busca_grupo_membro  (tabela, ~1172 linhas)
 
 ## colunas
 telefone8  text  NOT NULL

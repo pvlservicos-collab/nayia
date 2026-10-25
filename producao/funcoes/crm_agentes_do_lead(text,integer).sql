@@ -9,6 +9,7 @@ AS $function$
                                        right(regexp_replace(coalesce(p_telefone, ''), '\D', '', 'g'), 8)) t
     JOIN privado.agente a ON a.chave = t.agente
    WHERE length(right(regexp_replace(coalesce(p_telefone, ''), '\D', '', 'g'), 8)) = 8
+     AND t.agente <> 'fluxo'
    ORDER BY t.em DESC
    LIMIT greatest(1, least(coalesce(p_limite, 60), 300))
 $function$;

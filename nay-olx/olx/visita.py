@@ -179,7 +179,8 @@ def ha_trabalho(conn) -> bool:
                       AND quando < now())
         OR EXISTS (SELECT 1 FROM privado.olx_visita WHERE estado = 'confirmada'
                       AND ((lembrete_em IS NULL AND quando > now() AND quando < now() + interval '24 hours')
-                        OR (depois_em IS NULL AND quando < now() AND quando > now() - interval '2 days')))"""))
+                        OR (depois_em IS NULL AND quando < now() AND quando > now() - interval '2 days')))
+        OR EXISTS (SELECT 1 FROM privado.nay_leads_dono_pergunta WHERE estado = 'pendente')"""))   # 493
 
 
 def _onde(conn, codigo: int) -> str:
@@ -216,6 +217,63 @@ def _estado(conn, vid: int, estado: str, **campos) -> None:
 def _mandar_para(conn, lead_id: int, telefone: str, texto: str) -> None:
     """Uma mensagem pelo 8595-6408 a quem não é a pessoa (corretor, dono): fica na conversa do CRM e o eco não conta."""
     _w()._mandar(conn, {"id": lead_id, "telefone": telefone}, "/send-text", {"message": texto}, "texto", texto_no_crm=texto)
+
+
+# 492 (Pedro, 24/10): "antes de contatar o proprietário, checar se ele tem conversa conosco em outro número e usar esse
+# (ex.: Parceria); senão criar a conversa pelo número leads ... NUNCA mandar pelo número da API OFICIAL".
+def linha_do_dono(conn, fone: str) -> str:
+    """'parceria' se o dono já escreveu para a Parceria; senão 'captacao' (8595). O oficial nunca."""
+    return "parceria" if banco.um(conn, "SELECT nay_leads_linha_do_dono(%s)", (fone,)) == "parceria" else "captacao"
+
+
+def ultima_do_telefone(conn, fone: str, linha: str) -> int:
+    """O id da última mensagem desse telefone na linha (a resposta é o que vier depois)."""
+    if linha == "parceria":
+        return int(banco.um(conn, """SELECT coalesce(max(id), 0) FROM mensagens
+                                      WHERE direcao = 'recebida' AND nai_chave(telefone) = nai_chave(%s)""", (fone,)) or 0)
+    return int(banco.um(conn, """SELECT coalesce(max(id), 0) FROM captacao_mensagens
+                                  WHERE right(regexp_replace(coalesce(telefone, ''), '\\D', '', 'g'), 8) = %s""",
+                        (fone[-8:],)) or 0)
+
+
+def mandar_ao_dono(conn, lead_id: int, fone: str, nome: str | None, texto: str, motivo: str, linha: str | None = None) -> str:
+    """Pela Parceria (fila do núcleo, e a conversa fica roxa no CRM) quando ele já conversa lá; senão pelo 8595.
+    Devolve por qual linha saiu."""
+    if (linha or linha_do_dono(conn, fone)) == "parceria":
+        if banco.um(conn, "SELECT nay_leads_mandar_pela_parceria(%s, %s, %s, %s, %s)",
+                    (fone, texto, nome or None, motivo[:200], lead_id)):
+            return "parceria"
+        log.warning("dono %s: a Parceria não aceitou, vai pelo 8595", fone[-4:])
+    _mandar_para(conn, lead_id, fone, texto)
+    return "captacao"
+
+
+def perguntas_ao_dono(conn) -> int:
+    """493: a dúvida da Nay Leads que o agente não achou vai ao dono (nay_leads_perguntar_ao_dono), pela linha certa.
+    O lead da conversa é o cliente da dúvida (pergunta_fila.chave): é a ele que o envio fica ligado."""
+    feitas = 0
+    for p in banco.linhas(conn, """
+            SELECT p.*, (SELECT l.id FROM pergunta_fila f JOIN privado.olx_lead_whatsapp l
+                                        ON right(l.telefone, 8) = right(regexp_replace(f.chave, '[^0-9]', '', 'g'), 8)
+                          WHERE f.id = p.fila ORDER BY l.criado_em DESC LIMIT 1) AS lead
+              FROM privado.nay_leads_dono_pergunta p WHERE p.estado = 'pendente' ORDER BY p.id LIMIT 5"""):
+        linha = linha_do_dono(conn, p["telefone"])
+        if linha == "captacao" and not (p.get("lead") and _w().conectada()):
+            if not p.get("lead"):
+                banco.um(conn, """UPDATE privado.nay_leads_dono_pergunta SET estado = 'erro', erro = %s WHERE id = %s""",
+                         ("sem conversa na Parceria e sem o cliente da dúvida para ligar o envio pelo 8595", p["id"]))
+            continue                        # 8595 desconectado: tenta na próxima volta
+        try:
+            saiu = mandar_ao_dono(conn, p.get("lead"), p["telefone"], p.get("nome"), p["texto"],
+                                  f"dúvida da Nay Leads (fila #{p.get('fila')})", linha)
+            banco.um(conn, """UPDATE privado.nay_leads_dono_pergunta SET estado = 'enviada', linha = %s, enviado_em = now()
+                               WHERE id = %s""", (saiu, p["id"]))
+            log.info("pergunta %s ao dono ...%s: pela %s", p["id"], p["telefone"][-4:], saiu)
+            feitas += 1
+        except Exception as e:  # noqa: BLE001
+            banco.um(conn, "UPDATE privado.nay_leads_dono_pergunta SET estado = 'erro', erro = %s WHERE id = %s",
+                     (str(e)[:300], p["id"]))
+    return feitas
 
 
 def _lead(conn, lead_id: int) -> dict:
@@ -326,17 +384,21 @@ def _pedir_ao_dono(conn, v: dict, cfg: dict) -> None:
     trat = banco.um(conn, "SELECT nay_tratamento_por_nome(%s)", (nome,))
     primeiro = (nome.split() or [""])[0].capitalize()
     chamado = f"{trat} {primeiro}" if trat and primeiro else (primeiro or "")
-    ate = int(banco.um(conn, """SELECT coalesce(max(id), 0) FROM captacao_mensagens
-                                 WHERE right(regexp_replace(coalesce(telefone, ''), '\\D', '', 'g'), 8) = %s""", (fone[-8:],)) or 0)
-    banco.um(conn, """INSERT INTO privado.olx_visita_consulta (visita, papel, nome, telefone, ultima_lida)
-                      VALUES (%s, 'proprietario', %s, %s, %s)""", (v["id"], nome or None, fone, ate))
+    linha = linha_do_dono(conn, fone)
+    cid = banco.um(conn, """INSERT INTO privado.olx_visita_consulta (visita, papel, nome, telefone, ultima_lida, linha)
+                            VALUES (%s, 'proprietario', %s, %s, %s, %s) RETURNING id""",
+                   (v["id"], nome or None, fone, ultima_do_telefone(conn, fone, linha), linha))
     _estado(conn, v["id"], "pedindo_proprietario", proprietario_nome=nome or None, proprietario_telefone=fone)
     _w()._marcar(conn, v["lead"], etapa="proprietarios")
     onde = _onde(conn, v["codigo"])
-    _mandar_para(conn, v["lead"], fone,
-                 f"Olá{', ' + chamado if chamado else ''}! Aqui é a Nay, da Imob Easy. Temos um cliente interessado no seu "
-                 f"imóvel #{v['codigo']}{' (' + onde + ')' if onde else ''} e gostaríamos de agendar uma visita no dia "
-                 f"{dia(q)} às {hora(q)}, com o nosso corretor {v.get('corretor_nome') or ''}. Podemos confirmar?")
+    saiu = mandar_ao_dono(conn, v["lead"], fone, nome,
+                          f"Olá{', ' + chamado if chamado else ''}! Aqui é a Nay, da Imob Easy. Temos um cliente interessado no "
+                          f"seu imóvel #{v['codigo']}{' (' + onde + ')' if onde else ''} e gostaríamos de agendar uma visita no "
+                          f"dia {dia(q)} às {hora(q)}, com o nosso corretor {v.get('corretor_nome') or ''}. Podemos confirmar?",
+                          f"visita #{v['codigo']}", linha)
+    if saiu != linha:                     # a Parceria recusou e saiu pelo 8595: a resposta vem por lá
+        banco.um(conn, "UPDATE privado.olx_visita_consulta SET linha = %s, ultima_lida = %s WHERE id = %s",
+                 (saiu, ultima_do_telefone(conn, fone, saiu), cid))
     log.info("visita %s: perguntado ao proprietário", v["id"])
 
 
@@ -414,9 +476,10 @@ def _lembrar(conn, cfg: dict) -> int:
             trat = banco.um(conn, "SELECT nay_tratamento_por_nome(%s)", (nome,)) if nome else None
             primeiro = (nome.split() or [""])[0].capitalize()
             chamado = f"{trat} {primeiro}" if trat and primeiro else primeiro
-            _mandar_para(conn, v["lead"], v["proprietario_telefone"],
-                         f"Olá{', ' + chamado if chamado else ''}! Passando para lembrar da visita {quando_txt} no seu imóvel "
-                         f"#{v['codigo']}{' (' + onde + ')' if onde else ''}, com o nosso corretor {v.get('corretor_nome') or ''}.")
+            mandar_ao_dono(conn, v["lead"], v["proprietario_telefone"], nome,
+                           f"Olá{', ' + chamado if chamado else ''}! Passando para lembrar da visita {quando_txt} no seu imóvel "
+                           f"#{v['codigo']}{' (' + onde + ')' if onde else ''}, com o nosso corretor {v.get('corretor_nome') or ''}.",
+                           f"lembrete da visita #{v['codigo']}")
         if v.get("corretor_telefone"):
             _mandar_para(conn, v["lead"], v["corretor_telefone"],
                          f"Lembrete da visita {quando_txt} 🔑 #{v['codigo']}\n📍 {_endereco(conn, v['codigo']) or onde}\n"
@@ -458,18 +521,24 @@ def _depois(conn, cfg: dict) -> int:
 
 def atender(conn, cfg: dict) -> int:
     """As respostas (e o silêncio) de quem está sendo consultado, a visita que esperou, o lembrete e o depois."""
-    feitas = _retomar(conn, cfg) + _lembrar(conn, cfg) + _depois(conn, cfg)
+    feitas = _retomar(conn, cfg) + _lembrar(conn, cfg) + _depois(conn, cfg) + perguntas_ao_dono(conn)   # 493
     espera_c = max(1, int(cfg.get("visita_corretor_espera_min") or 30))
     espera_p = max(1, int(cfg.get("visita_proprietario_espera_min") or 180))
     for c in banco.linhas(conn, """
-            SELECT c.*, (SELECT max(m.id) FROM captacao_mensagens m
-                          WHERE m.direcao = 'recebida' AND m.id > c.ultima_lida AND m.criada_em > c.perguntado_em
-                            AND right(regexp_replace(coalesce(m.telefone, ''), '\\D', '', 'g'), 8) = right(c.telefone, 8)) AS ate,
-                   (SELECT string_agg(coalesce(m.texto, ''), ' / ' ORDER BY m.id) FROM captacao_mensagens m
-                     WHERE m.direcao = 'recebida' AND m.id > c.ultima_lida AND m.criada_em > c.perguntado_em
-                       AND right(regexp_replace(coalesce(m.telefone, ''), '\\D', '', 'g'), 8) = right(c.telefone, 8)) AS textos,
+            SELECT c.*, r.ate, r.textos,
                    now() - c.perguntado_em > make_interval(mins => CASE WHEN c.papel = 'corretor' THEN %s ELSE %s END) AS venceu
-              FROM privado.olx_visita_consulta c WHERE c.estado = 'esperando' ORDER BY c.id""", (espera_c, espera_p)):
+              FROM privado.olx_visita_consulta c
+              CROSS JOIN LATERAL (
+                SELECT max(m.id) AS ate, string_agg(coalesce(m.texto, ''), ' / ' ORDER BY m.id) AS textos
+                  FROM (SELECT id, texto FROM captacao_mensagens m
+                         WHERE c.linha = 'captacao' AND m.direcao = 'recebida' AND m.id > c.ultima_lida
+                           AND m.criada_em > c.perguntado_em
+                           AND right(regexp_replace(coalesce(m.telefone, ''), '\\D', '', 'g'), 8) = right(c.telefone, 8)
+                        UNION ALL
+                        SELECT id, texto FROM mensagens m      -- 492: o dono que respondeu pela Parceria
+                         WHERE c.linha = 'parceria' AND m.direcao = 'recebida' AND m.id > c.ultima_lida
+                           AND m.criada_em > c.perguntado_em AND nai_chave(m.telefone) = nai_chave(c.telefone)) m) r
+             WHERE c.estado = 'esperando' ORDER BY c.id""", (espera_c, espera_p)):
         v = _visita(conn, c["visita"])
         if not v or v["estado"] in ("cancelada", "confirmada"):
             banco.um(conn, "UPDATE privado.olx_visita_consulta SET estado = 'cancelada' WHERE id = %s", (c["id"],))

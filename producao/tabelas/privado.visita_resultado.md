@@ -22,4 +22,4 @@ visita_resultado_resultado_check: CHECK ((resultado = ANY (ARRAY['desistiu'::tex
 site_painel_visita_marcar
 
 ## funções que citam
-site_painel_metricas, site_painel_visita_marcar, site_painel_visitas
+crm_leads_pipeline, site_painel_metricas, site_painel_visita_marcar, site_painel_visitas
