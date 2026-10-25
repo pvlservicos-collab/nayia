@@ -450,6 +450,71 @@ def grupos_volta(conn, c: dict) -> int:
     return feitas
 
 
+def _alguem_ofereceu(conn, b: dict) -> bool:
+    """Algum corretor mandou um imóvel para esta busca (a oferta dele ficou na busca ou na tabela dos corretores)?"""
+    if any(o.get("tel") for o in (b.get("ofertas") or [])):
+        return True
+    return bool(banco.um(conn, "SELECT EXISTS (SELECT 1 FROM privado.busca_corretor WHERE busca = %s)", (b["id"],)))
+
+
+def grupos_repete(conn, c: dict) -> int:
+    """Pedro, 24/10: "quando fizermos uma pergunta da solicitação de um cliente no grupo, mas ninguém mandou mensagem
+    oferecendo, deve agendar uma cron para o começo do próximo dia para enviar novamente a mesma mensagem de busca".
+    A busca ainda aberta, cujo pedido foi a um grupo em um dia que já passou e a que nenhum corretor respondeu com imóvel,
+    sai de novo, a mesma mensagem, ao mesmo grupo, na primeira volta do dia dentro do horário (uma repetição por dia, no
+    máximo: o item do dia anterior fica marcado). Respeita o intervalo entre mensagens de cada grupo."""
+    if c["grupos"] == "nao" or not no_horario(c):
+        return 0
+    inicio_do_dia = datetime.now(MANAUS).replace(hour=0, minute=0, second=0, microsecond=0)
+    feitas = 0
+    for b in banco.linhas(conn, "SELECT * FROM privado.busca_cliente WHERE estado = 'buscando' ORDER BY ativada_em"):
+        if not pronto(b["filtros"]) or not b["filtros"].get("teto") or abaixo_do_minimo(b["filtros"], c):
+            continue
+        itens = list(b["grupos"] or [])
+        teste = c["grupos"] == "teste"
+        if not itens or _alguem_ofereceu(conn, b):
+            continue
+        # o último pedido de cada grupo (do modo atual) e se já foi repetido hoje
+        ultimo: dict[str, dict] = {}
+        for x in itens:
+            if bool(x.get("teste")) == teste and x.get("grupo"):
+                ultimo[x["grupo"]] = x
+        mudou = False
+        for gid, x in ultimo.items():
+            try:
+                quando = datetime.fromisoformat(x["em"]).astimezone(MANAUS)
+            except (KeyError, ValueError):
+                continue
+            if quando >= inicio_do_dia:
+                continue                         # o último pedido deste grupo foi hoje: a repetição é amanhã
+            g = (banco.linhas(conn, "SELECT * FROM privado.busca_grupo WHERE grupo_id = %s AND ativo", (gid,)) or [None])[0]
+            if not g:
+                continue
+            if c["grupos"] == "sim" and g["ultimo_envio_em"] and                     time.time() - g["ultimo_envio_em"].timestamp() < c["intervalo_min"] * 60:
+                continue
+            texto = mensagem_de_grupo(b["filtros"])
+            if teste:
+                if not c["teste"]:
+                    continue
+                mid = _enviar(c["teste"], f"[teste: repetiria no grupo {g['nome']}]\n\n{texto}")
+            else:
+                mid = _enviar(gid, texto)
+                banco.um(conn, "UPDATE privado.busca_grupo SET ultimo_envio_em = now() WHERE grupo_id = %s", (gid,))
+            itens.append({"grupo": gid, "nome": g["nome"], "em": datetime.now(MANAUS).isoformat(timespec="minutes"),
+                          "mid": mid, "teste": teste, "repeticao": True})
+            mudou = True
+            passo(conn, b["id"], "grupos", f"Ninguém ofereceu: o mesmo pedido saiu de novo no grupo {g['nome']}"
+                  + (" (teste: foi ao número de teste)" if teste else ""))
+            log.info("grupos: repetiu a busca %s no grupo %s%s", b["id"], g["nome"], " [teste]" if teste else "")
+            feitas += 1
+            time.sleep(3)
+        if mudou:
+            banco.um(conn, "UPDATE privado.busca_cliente SET grupos = %s::jsonb, grupos_em = now() WHERE id = %s",
+                     (json.dumps(itens, ensure_ascii=False), b["id"]))
+            conn.commit()
+    return feitas
+
+
 def atualizar_membros(conn) -> int:
     """Os participantes dos grupos (Z-API group-metadata): quem deles escrever no PV é corretor, nunca cliente orgânico."""
     if time.time() - _ULTIMO["membros"] < MEMBROS_A_CADA_S:
@@ -1030,7 +1095,7 @@ def uma_volta(conn) -> dict:
     # a ordem de cada volta: o que está abaixo do mínimo sai; depois a nossa base e, juntos, grupos e OLX; os corretores
     for nome, f in (("minimo", lambda: encerrar_abaixo_do_minimo(conn, c)),
                     ("membros", lambda: atualizar_membros(conn)), ("base", lambda: base_volta(conn, c)),
-                    ("grupos", lambda: grupos_volta(conn, c)),
+                    ("grupos", lambda: grupos_volta(conn, c)), ("grupos_repete", lambda: grupos_repete(conn, c)),
                     ("olx", lambda: olx_volta(conn, c)), ("corretores", lambda: corretores_volta(conn, c))):
         try:
             r[nome] = f()

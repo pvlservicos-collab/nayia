@@ -205,6 +205,31 @@ class OpcoesDaBase(unittest.TestCase):
         self.assertEqual(b.falta_no_imovel(im, 0), ["o condomínio", "a mobília", "as fotos"])
         self.assertEqual(b.falta_no_imovel({**im, "condominio": "The Club", "mobilia": "mobiliado"}, 3), [])
 
+    def test_repete_o_pedido_do_grupo_no_dia_seguinte_se_ninguem_ofereceu(self):
+        """Pedro, 24/10: ninguém ofereceu, o mesmo pedido sai de novo no começo do dia seguinte (uma vez por dia)."""
+        from datetime import datetime, timedelta
+        from unittest import mock
+        ontem = (datetime.now(b.MANAUS) - timedelta(days=1)).isoformat(timespec="minutes")
+        hoje = datetime.now(b.MANAUS).isoformat(timespec="minutes")
+        filtros = {"finalidade": "locacao", "tipo": "apartamento", "teto": 4000, "quartos": 3, "bairros": ["Flores"]}
+        busca = {"id": 7, "filtros": filtros, "ofertas": [], "ativada_em": ontem,
+                 "grupos": [{"grupo": "g1", "nome": "Grupo 1", "em": ontem, "teste": False}]}
+        grupo = {"grupo_id": "g1", "nome": "Grupo 1", "ultimo_envio_em": None}
+        c = {"grupos": "sim", "intervalo_min": 15, "teste": None, "de": 0, "ate": 24, "venda_min": 200000.0, "aluguel_min": 2000.0}
+        enviados = []
+        def linhas(conn, sql, params=None):
+            return [busca] if "FROM privado.busca_cliente" in sql else [grupo] if "FROM privado.busca_grupo" in sql else []
+        with mock.patch.object(b.banco, "linhas", side_effect=linhas), mock.patch.object(b.banco, "um", return_value=False),                 mock.patch.object(b, "_enviar", side_effect=lambda d, t: enviados.append((d, t)) or "m1"),                 mock.patch.object(b, "passo"), mock.patch.object(b.time, "sleep"):
+            self.assertEqual(b.grupos_repete(mock.Mock(), c), 1)
+            self.assertEqual(enviados[0][0], "g1")
+            self.assertIn("PRECISO DE AP P/ LOCAÇÃO", enviados[0][1])
+            # o pedido de hoje não se repete; quem recebeu imóvel de corretor também não
+            busca["grupos"][0]["em"] = hoje
+            self.assertEqual(b.grupos_repete(mock.Mock(), c), 0)
+            busca["grupos"][0]["em"] = ontem
+            busca["ofertas"] = [{"tel": "5592999990000", "codigo": 9}]
+            self.assertEqual(b.grupos_repete(mock.Mock(), c), 0)
+
     def test_a_busca_so_termina_com_3_opcoes(self):
         o = [{"codigo": 1, "estado": "cliente"}, {"codigo": 1, "estado": "cliente"}, {"codigo": 2, "estado": "cadastrando"},
              {"codigo": 3, "estado": "grupo"}]
