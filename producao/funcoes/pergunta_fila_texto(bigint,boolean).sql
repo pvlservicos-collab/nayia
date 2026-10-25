@@ -12,7 +12,8 @@ AS $function$
          || '👤 Cliente: ' || coalesce(nullif(btrim(f.cliente), '') || ' — ', '') || nai_fone_fmt(f.chave) || E'\n\n'
          || btrim(f.pergunta) || E'\n'
          || coalesce('_(a Nay não achou na ficha: ' || nullif(btrim(f.detalhe), '') || ')_' || E'\n', '') || E'\n'
-         || '_Responda aqui que eu mando ao cliente. PULAR deixa para depois; DESCARTAR tira da fila._'
+         || '_Responda aqui que eu mando ao cliente. PULAR deixa para depois; DESCARTAR tira da fila._' || E'\n'
+         || '_Quer que eu aprenda para as próximas? ADICIONAR INTELIGÊNCIA: e a regra._'
     FROM pergunta_fila f, pergunta_fila_posicao() p
    WHERE f.id = p_id
 $function$;

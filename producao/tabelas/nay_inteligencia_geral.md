@@ -25,7 +25,7 @@ nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 nay_leitura: SELECT
 
 ## funções que escrevem aqui
-site_inteligencia_salvar
+pergunta_fila_responder, site_inteligencia_salvar
 
 ## funções que citam
-site_inteligencia_salvar, site_inteligencias
+pergunta_fila_responder, site_inteligencia_salvar, site_inteligencias

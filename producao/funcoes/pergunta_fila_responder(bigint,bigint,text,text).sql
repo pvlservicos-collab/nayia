@@ -12,6 +12,7 @@ DECLARE
   v_msg  text;
   v_ass  text;
   v_quem text;
+  v_int  bigint;
 BEGIN
   IF NOT pergunta_fila_resposta_valida(p_contato, p_texto, p_citado) THEN RETURN NULL; END IF;
   SELECT * INTO f FROM pergunta_fila WHERE estado = 'perguntada' LIMIT 1 FOR UPDATE;
@@ -21,7 +22,20 @@ BEGIN
   a := lower(unaccent(s));
   v_quem := coalesce(nullif(btrim(f.cliente), '') || ' — ', '') || nai_fone_fmt(f.chave);
 
-  IF a ~ '^(pular|pula|pulo|depois|deixa (para|pra) depois)[\s.!]*$' THEN
+  -- 496 (Pedro, 24/10): "Adicionar inteligência: ..." grava a regra nas inteligências gerais (495, a aba da página
+  -- Agentes) para as próximas vezes, nas duas Nays; a pergunta continua esperando a resposta ao cliente.
+  IF a ~ '^adicionar? (uma )?intelig[eê]ncias?\s*[:\-]' OR a ~ '^intelig[eê]ncia\s*:' THEN
+    INSERT INTO nay_inteligencia_geral (regra, porque, origem, vale_para, assunto, criada_por)
+    VALUES (btrim(regexp_replace(s, '^\s*(adicionar?\s+(uma\s+)?)?intelig[eêÊ]ncias?\s*[:\-]\s*', '', 'i')),
+            'O Tel, respondendo à pergunta ' || pos.k || '/' || pos.n || ' (' || left(btrim(f.pergunta), 160) || ')',
+            'tel', ARRAY['parceria', 'leads'], 'do Tel', 'tel (fila de perguntas)')
+    RETURNING id INTO v_int;
+    v_msg := '🧠 Guardei a inteligência #' || v_int || ' para as próximas vezes (Nay Parceria e Nay Leads; fica na página '
+             || 'Agentes). A pergunta ' || pos.k || '/' || pos.n || ' continua aqui: responda o que digo ao cliente, '
+             || 'ou PULAR / DESCARTAR.';
+    PERFORM nai_enfileirar_texto(p_turno, NULL, p_contato, 'turno', v_msg, 'pergunta_fila_ok', 1);
+    RETURN v_msg;
+  ELSIF a ~ '^(pular|pula|pulo|depois|deixa (para|pra) depois)[\s.!]*$' THEN
     IF NOT EXISTS (SELECT 1 FROM pergunta_fila WHERE estado = 'fila') THEN
       v_msg := 'Essa é a única pergunta da fila: continua esperando a sua resposta (ou DESCARTAR).';
     ELSE
