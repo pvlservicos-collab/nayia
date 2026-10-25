@@ -94,6 +94,33 @@ class Nay(unittest.TestCase):
         self.assertIsNone(nay.decidir({"mensagens": []}))
 
 
+class RetiradaDoVendido(unittest.TestCase):
+    """24/10 (Pedro): vendeu ou alugou, sai da OLX na hora; a retirada nunca publica nem atualiza."""
+
+    def test_so_remove(self):
+        from types import SimpleNamespace
+        from unittest import mock
+        from olx import anuncios, api, banco
+        itens = [{"acao": "remover", "ad_id": "IE1V", "codigo": 1, "negocio": "venda", "motivo": "não está Disponível (Vendido)",
+                  "anuncio": {"id": "IE1V", "operation": "delete"}, "hash": None},
+                 {"acao": "atualizar", "ad_id": "IE2V", "codigo": 2, "negocio": "venda", "motivo": "o cadastro mudou",
+                  "anuncio": {"id": "IE2V"}, "hash": "h"}]
+        aceita = SimpleNamespace(permissao=None, aceita=True, ignorados=[], token="tk", mensagem="ok")
+        with mock.patch.object(anuncios, "plano", return_value=itens), mock.patch.object(banco, "token_da_conta", return_value="t"),                 mock.patch.object(api, "importar") as importar, mock.patch.object(api, "ler_importacao", return_value=aceita),                 mock.patch.object(banco, "um") as um:
+            r = anuncios.retirar_encerrados(None, {"publicar": "nao"})
+        importar.assert_called_once_with("t", [{"id": "IE1V", "operation": "delete"}])
+        self.assertEqual(r["retirados"], 1)
+        self.assertEqual(um.call_count, 1)
+        self.assertEqual(um.call_args[0][2][0], "IE1V")
+
+    def test_sem_nada_a_retirar_nao_fala_com_a_olx(self):
+        from unittest import mock
+        from olx import anuncios, api
+        with mock.patch.object(anuncios, "plano", return_value=[{"acao": "atualizar"}]), mock.patch.object(api, "importar") as importar:
+            self.assertEqual(anuncios.retirar_encerrados(None, {})["feito"], "nada a retirar")
+        importar.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
 

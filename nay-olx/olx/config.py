@@ -15,6 +15,8 @@ ESPERA_S = int(os.environ.get("OLX_ESPERA_S", "40"))
 # de quanto em quanto tempo: a rodada dos anúncios, a situação de cada um na OLX e a olhada no chat
 ANUNCIOS_A_CADA_S = int(os.environ.get("OLX_ANUNCIOS_A_CADA_S", "300"))
 SITUACAO_A_CADA_S = int(os.environ.get("OLX_SITUACAO_A_CADA_S", "3600"))
+# 24/10: o anúncio do imóvel vendido ou alugado sai da OLX em até este tempo
+RETIRADA_A_CADA_S = int(os.environ.get("OLX_RETIRADA_A_CADA_S", "60"))
 CHAT_A_CADA_S = int(os.environ.get("OLX_CHAT_A_CADA_S", "5"))
 # a OLX disse não (sem permissão, sem vaga, bloqueado): espera isto antes de perguntar de novo
 ESPERA_DEPOIS_DO_NAO_S = int(os.environ.get("OLX_ESPERA_DEPOIS_DO_NAO_S", str(6 * 3600)))

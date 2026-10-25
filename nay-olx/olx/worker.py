@@ -46,6 +46,8 @@ def main() -> None:
     proxima_rodada = 0.0        # a conferência do que foi mandado e a rodada, juntas, a cada 5 min
     espera_ate = 0.0            # a OLX disse não: até aqui a rodada não manda nada (a conferência continua)
     proxima_situacao = 0.0
+    proxima_retirada = 0.0      # 24/10: o vendido/alugado sai da OLX a cada minuto, com ou sem `publicar`
+    espera_retirada = 0.0
     ultimo_estado = ""
     while True:
         try:
@@ -80,6 +82,16 @@ def main() -> None:
                 log.exception("o checklist das visitas falhou")
 
             agora = time.time()
+            if agora >= proxima_retirada and agora >= espera_retirada:
+                proxima_retirada = agora + config.RETIRADA_A_CADA_S
+                try:
+                    if anuncios.retirar_encerrados(conn, cfg).get("nao"):
+                        espera_retirada = agora + 1800     # a OLX disse não: tenta de novo em meia hora
+                except api.ErroDaOlx as e:
+                    log.warning("retirada: %s", e)
+                except Exception:  # noqa: BLE001 -- a retirada não pode parar o chat
+                    conn.rollback()
+                    log.exception("a retirada dos anúncios falhou")
             if agora >= proxima_rodada:
                 proxima_rodada = agora + config.ANUNCIOS_A_CADA_S
                 try:

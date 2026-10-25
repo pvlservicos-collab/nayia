@@ -97,6 +97,31 @@ def rodada(conn, cfg: dict[str, str]) -> dict:
     return {"feito": r.mensagem, "nao": True}
 
 
+def retirar_encerrados(conn, cfg: dict[str, str]) -> dict:
+    """24/10 (Pedro: "quando tirar um apartamento, ou vender ou alugar, tem que ser retirado na hora da OLX"): SÓ remove o que
+    o cadastro já não tem Disponível (vendeu, alugou, bloqueou, virou parceiro), a cada minuto, sem depender de `publicar`
+    (os anúncios foram publicados à mão e `publicar = nao` deixava o vendido no ar). Nunca publica nem atualiza."""
+    itens = [p for p in plano(conn) if p["acao"] == "remover"]
+    if not itens:
+        return {"feito": "nada a retirar"}
+    conta = cfg.get("conta_que_publica") or "proprietarios"
+    token = banco.token_da_conta(conn, conta)
+    if not token:
+        return {"feito": f"a conta {conta} não está conectada à OLX"}
+    r = api.ler_importacao(api.importar(token, [p["anuncio"] for p in itens]))
+    if r.permissao:
+        banco.um(conn, "SELECT olx_permissao_gravar(%s, %s)", (r.permissao, f"{r.mensagem} (conta {conta})"))
+    if not r.aceita:
+        log.warning("retirada: a OLX não aceitou (%s)", r.mensagem)
+        return {"feito": r.mensagem, "nao": True}
+    for p in itens:
+        if p["ad_id"] not in r.ignorados:
+            banco.um(conn, "SELECT olx_anuncio_enviado(%s, %s, %s, %s, %s, %s::jsonb, %s, %s)",
+                     (p["ad_id"], p["codigo"], p["negocio"], conta, "delete", None, p["hash"], r.token))
+    log.info("retirada: %d anúncio(s) fora da OLX (%s)", len(itens), ", ".join(f"{p['ad_id']}: {p['motivo']}" for p in itens))
+    return {"feito": r.mensagem, "retirados": len(itens)}
+
+
 def publicar_lista(conn, cfg: dict[str, str], codigos: list[int], conta: str = "", lote: int = 5) -> dict:
     """Publica JÁ os imóveis pedidos à mão (Pedro, 14/10: "Dispara esses na olx", com a lista do Tel), venda e/ou
     locação conforme o cadastro. É uma ordem de gente: não olha `publicar` nem o teto. Cada imóvel fica registrado
