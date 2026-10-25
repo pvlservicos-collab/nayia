@@ -577,6 +577,76 @@ def donos():
     return f"donos: {len(avisos)} aviso(s) ao agente"
 
 
+# ---------------------------------------------------------------- a revisão das conversas dos donos (25/10)
+# Pedro, 24-25/10: "revisar todas as conversas de proprietários para atualizar dúvidas extras na ficha" e "Sim, pelo agente
+# nay". De madrugada (Manaus), cada vez que o agente está livre, vai um lote dos donos que já conversaram conosco (em
+# qualquer número), na ordem do id do cadastro; o cursor fica em rotinas_estado ('revisao_donos'). Acabou: para sozinha.
+REVISAO_DONOS_HORAS = ["01", "02", "03", "04"]
+REVISAO_DONOS_LOTE = 20
+SQL_REVISAO_DONOS = """
+WITH falou AS (
+  SELECT right(regexp_replace(coalesce(telefone, ''), '\\D', '', 'g'), 8) AS t8 FROM mensagens WHERE direcao = 'recebida'
+  UNION
+  SELECT right(regexp_replace(coalesce(telefone, ''), '\\D', '', 'g'), 8) FROM captacao_mensagens WHERE direcao = 'recebida'
+)
+SELECT json_build_object('id', p.id, 'nome', p.nome, 'telefone', p.telefone,
+         'codigos', array_agg(i.codigo ORDER BY i.codigo))::text
+  FROM proprietarios p JOIN imoveis i ON i.proprietario_id = p.id
+ WHERE p.id > {cursor} AND length(regexp_replace(coalesce(p.telefone, ''), '\\D', '', 'g')) >= 10
+   AND right(regexp_replace(p.telefone, '\\D', '', 'g'), 8) IN (SELECT t8 FROM falou)
+ GROUP BY p.id, p.nome, p.telefone ORDER BY p.id LIMIT {lote};
+"""
+REVISAO_DONOS_PROMPT = (
+    "REVISÃO DAS CONVERSAS DOS PROPRIETÁRIOS (Pedro, 25/10: 'revisar todas as conversas de proprietários para atualizar "
+    "dúvidas extras na ficha'). Para CADA proprietário abaixo: leia as conversas dele em TODOS os números, pelo telefone "
+    "(8 últimos dígitos): Parceria (`mensagens`), oficial e 8595 (`captacao_mensagens`) e o CRM (crmdb, `lead_activities` "
+    "+ `leads`). Procure o que ELE disse dos imóveis dele (os códigos estão na linha): aceita pet (e o porte), taxa de "
+    "condomínio e o que inclui, IPTU, andar e lances de escada, mobília (o que fica e o que sai), vaga, aceita "
+    "financiamento ou permuta, garantia do aluguel, disponibilidade, chave, horário de visita, o que mais um cliente "
+    "perguntaria. Grave cada fato na memória do imóvel, na vps1 (`psql -U nay -d naydb`): SELECT nay_gravar_conhecimento("
+    "'<código>', '<assunto curto, ex.: pet>', '<o que ele disse, curto>', 'revisão das conversas 25/10'); taxa, o que a taxa "
+    "inclui, IPTU e lances de escada vão também no cadastro, como o como-ler-os-dados diz. Só o que ele disse com clareza "
+    "e que vale hoje (o mais recente vence; não grave o que mudou depois). NÃO mande mensagem a ninguém. No fim, uma linha "
+    "por proprietário: o que gravou (ou 'nada novo').")
+
+
+def revisao_donos(hora_m):
+    """Um lote por vez, nas horas da madrugada de Manaus. True quando não há o que fazer agora (ou saiu)."""
+    if hora_m not in REVISAO_DONOS_HORAS:
+        return True
+    con = banco()
+    cursor = int(_estado(con, "revisao_donos") or 0)
+    pend = _estado(con, "revisao_donos_pendente")
+    con.close()
+    if cursor < 0:
+        return True                                   # acabou
+    if pend:
+        lote = json.loads(pend)
+    else:
+        lote = [json.loads(x["json_build_object"]) if "json_build_object" in x else x
+                for x in fila_nay._naydb(SQL_REVISAO_DONOS.format(cursor=cursor, lote=REVISAO_DONOS_LOTE))]
+        if not lote:
+            con = banco()
+            _gravar(con, "revisao_donos", "-1")
+            con.commit()
+            con.close()
+            return True
+    linhas = [f"- #{d['id']} {d.get('nome') or 'sem nome'}, {d.get('telefone')}: imóveis {', '.join(map(str, d.get('codigos') or []))}"
+              for d in lote]
+    con = banco()
+    if not _mandar("nay", REVISAO_DONOS_PROMPT + "\n\n" + "\n".join(linhas)):
+        _gravar(con, "revisao_donos_pendente", json.dumps(lote, ensure_ascii=False))   # agente ocupado: este lote espera
+        con.commit()
+        con.close()
+        return False
+    _gravar(con, "revisao_donos", str(max(int(d["id"]) for d in lote)))
+    _gravar(con, "revisao_donos_pendente", "")
+    con.commit()
+    con.close()
+    print(f"rotinas: revisão dos donos: lote até #{max(int(d['id']) for d in lote)}", flush=True)
+    return True
+
+
 # ---------------------------------------------------------------- o laço
 def laco():
     """A thread do painel: as visitas a cada 5 min; as rotinas de horário dentro da janela de cada uma."""
@@ -606,6 +676,8 @@ def laco():
                 hora_m = datetime.now(MANAUS).strftime("%H")
                 if ligada("conferencia") and hora_m in CONFERENCIA_HORAS and not conferencia(hora_m):
                     pass   # agente ocupado: tenta de novo até o fim daquela hora
+                if ligada("revisao_donos"):
+                    revisao_donos(hora_m)                 # 25/10: um lote cada vez que o agente está livre
         except Exception as e:  # noqa: BLE001 - uma rotina com erro não derruba o painel; tenta na próxima volta
             print("rotinas:", type(e).__name__, e, flush=True)
         time.sleep(20)
@@ -613,7 +685,7 @@ def laco():
 
 def estado():
     con = banco()
-    r = {"ligadas": {n: ligada(n) for n in ["visitas", *HORARIOS, "conferencia", "duvidas"]},
+    r = {"ligadas": {n: ligada(n) for n in ["visitas", *HORARIOS, "conferencia", "duvidas", "revisao_donos"]},
          "marcadores": {x["chave"]: x["valor"] for x in con.execute("SELECT chave, valor FROM rotinas_estado")},
          "visitas_na_espera": con.execute("SELECT count(*) n FROM rotina_visita WHERE enviado_em IS NULL").fetchone()["n"],
          "ultimas_visitas": con.execute("SELECT evento, visita, entrou_em, enviado_em FROM rotina_visita "
