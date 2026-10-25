@@ -131,6 +131,7 @@ SELECT json_build_object(
 """
 SQL_ULTIMA_DUVIDA = "SELECT json_build_object('id', coalesce(max(id), 0))::text FROM core_pendencia;"
 DUVIDA_PROMPT = (
+    "ANTES DE TUDO, leia as inteligências gerais (495/496: as regras que o Tel ensinou e as que valem para todas as Nays), na vps1: SELECT id, regra FROM nay_inteligencia_geral WHERE ativa ORDER BY id; e siga as que tocam esta dúvida. "
     "A Nay não soube responder. Veja a dúvida dela e responda lá para o cliente e depois reative ela "
     "(mandar.py --corretor <número> --devolver). Quando você não souber a resposta, NÃO pergunte ao Tel: pergunte "
     "DIRETAMENTE ao proprietário do imóvel, pelo número da Parceria, só sobre essa dúvida, chamando pelo nome dele "
@@ -457,6 +458,7 @@ SELECT json_build_object('id', f.id, 'chave', f.chave, 'cliente', f.cliente, 'co
 """
 SQL_ULTIMA_DUVIDA_OLX = "SELECT json_build_object('id', coalesce(max(id), 0))::text FROM pergunta_fila;"
 DUVIDA_OLX_PROMPT = (
+    "ANTES DE TUDO, leia as inteligências gerais (495/496: as regras que o Tel ensinou e as que valem para todas as Nays), na vps1: SELECT id, regra FROM nay_inteligencia_geral WHERE ativa ORDER BY id; e siga as que tocam esta dúvida. "
     "A Nay do WhatsApp da OLX (cliente final, número 92 8595-6408) não soube responder. Procure a resposta NESTA ORDEM "
     "(Pedro, 24/10): 1) a ficha do imóvel no site, o cadastro e o admin antigo, o que o Tel já respondeu; 2) as CONVERSAS "
     "COM O PROPRIETÁRIO em TODOS os números, pelo telefone dele (8 últimos dígitos): Parceria (`mensagens`), oficial e "
