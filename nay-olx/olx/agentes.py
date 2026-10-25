@@ -127,7 +127,14 @@ def modo() -> str:
     if forcado:
         return forcado
     valor = _chaves().get("agentes") or "nao"
-    return valor if valor in ("nao", "sombra", "sim") else "nao"
+    valor = valor if valor in ("nao", "sombra", "sim") else "nao"
+    if valor != _VISTO[0]:
+        log.info("agentes: modo %s (era %s)", valor, _VISTO[0])   # o que o serviço enxerga, a cada troca
+        _VISTO[0] = valor
+    return valor
+
+
+_VISTO: list = [None]
 
 
 def corte_ligado() -> bool:
@@ -345,6 +352,8 @@ def planejar(prompt: str, lead: dict, conversa: list[dict], novas: list[str], or
                                          "prompt_chars": len(texto), "prompt_inteiro_chars": len(prompt)},
               confianca=max(probs.values()) if probs else None, ms=uso.get("ms"), uso=uso, modelo=uso.get("modelo"),
               erro=erro)
+    log.info("lead %s: mestre (%s) -> %s em %s ms%s", lead.get("id"), m, resumo, uso.get("ms"),
+             f" [erro: {erro[:120]}]" if erro else "")
     if m == "sombra":
         return plano
     return {"prompt": texto, "rotas": rotas, "calar": calar, "geral": geral, "secoes": secoes}
