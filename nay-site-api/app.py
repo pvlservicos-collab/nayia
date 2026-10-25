@@ -5795,6 +5795,13 @@ try:
 except Exception as _e:  # noqa: BLE001
     app.logger.warning("modelos_api nao carregou: %s", _e)
 
+# INTELIGENCIAS GERAIS DOS AGENTES (495, 25/10): a aba de baixo da pagina admin > Agentes. Mesmo try/except.
+try:
+    from inteligencias_api import inteligencias_bp
+    app.register_blueprint(inteligencias_bp)
+except Exception as _e:  # noqa: BLE001
+    app.logger.warning("inteligencias_api nao carregou: %s", _e)
+
 # A CAPTACAO PEDE SENHA (28/09, Pedro: "com bastante seguranca para o numero nao
 # cair"). As rotas /api/captacao/* e /api/nai/captacao* respondiam sem senha
 # nenhuma: qualquer um na internet ligava o disparo (captacao_pausada), punha o

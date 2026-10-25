@@ -1,0 +1,25 @@
+/* Inteligências gerais dos agentes (495, 25/10): a aba de baixo da página Agentes */
+.in-nota { color: var(--texto-fraco); font-size: var(--fs-sm); margin: 0 0 12px; max-width: 900px; }
+.in-grupo { margin-bottom: 18px; }
+.in-assunto { font-family: "Barlow", sans-serif; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--texto-medio); margin: 0 0 8px; }
+.in-regra { background: #fff; border: 1px solid var(--borda); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; }
+.in-regra--off { opacity: .55; }
+.in-texto { margin: 0; color: var(--texto); font-size: 14.5px; line-height: 1.45; font-weight: 500; }
+.in-porque { margin: 4px 0 0; color: var(--texto-fraco); font-size: 12.5px; line-height: 1.4; }
+.in-pe { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 9px; }
+.in-origem { font-size: 11.5px; color: var(--texto-fraco); margin-right: 4px; }
+.in-chip { font: inherit; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 3px 10px; cursor: pointer;
+  border: 1.5px dashed var(--roxo-borda); background: transparent; color: var(--roxo); }
+.in-chip--ok { border-style: solid; border-color: var(--roxo); background: var(--roxo); color: #fff; }
+.in-chip:disabled { opacity: .5; cursor: wait; }
+.in-falta { font-size: 11.5px; color: #b45309; margin-left: auto; }
+.in-tudo { font-size: 11.5px; color: #15803d; margin-left: auto; }
+.in-form { background: var(--roxo-suave); border: 1px solid var(--roxo-borda); border-radius: 12px; padding: 12px 14px; margin: 0 0 16px;
+  display: grid; gap: 8px; max-width: 900px; }
+.in-form textarea, .in-form input[type=text] { font: inherit; font-size: 14px; border: 1px solid var(--borda-forte); border-radius: 8px;
+  padding: 8px 10px; width: 100%; box-sizing: border-box; }
+.in-form .in-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 13px; color: var(--texto-medio); }
+.in-form button { justify-self: start; font: inherit; font-weight: 700; background: var(--roxo); color: #fff; border: 0; border-radius: 8px;
+  padding: 8px 16px; cursor: pointer; }
+.in-form button:hover { background: var(--roxo-hover); }
+@media (max-width: 640px) { .in-falta, .in-tudo { margin-left: 0; width: 100%; } }

@@ -33,6 +33,8 @@ COPY whats_api.py .
 COPY chavesnamao_api.py .
 # Modelos (470, 22/10): os gastos por nó de modelo de IA e a troca do modelo
 COPY modelos_api.py .
+# Inteligências gerais dos agentes (495, 25/10): a aba de baixo da página Agentes
+COPY inteligencias_api.py .
 
 RUN useradd -m site-api
 USER site-api

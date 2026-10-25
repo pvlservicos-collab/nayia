@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="../assets/css/admin.css">
 <link rel="stylesheet" href="../assets/css/agentes.css?v=20261011f">
 <link rel="stylesheet" href="../assets/css/hermes-painel.css?v=20261013b">
+<link rel="stylesheet" href="../assets/css/inteligencias.css?v=20261025a">
 <meta name="facebook-domain-verification" content="xaq8qm93963to3xxpc459wh4vo301k" />
 </head>
 <body class="admin" data-pagina="agentes">
@@ -51,6 +52,25 @@
   <h2 class="ag-secao">VPS2</h2>
   <div class="ag-vps" id="ag-vps2"></div>
   <div class="ag-grade" id="ag-grade2"></div>
+
+  <!-- 25/10/2026 (Pedro): "comparar a Nay Parceria ... ver o que ela tem que as outras Nay não têm mas poderiam ... e
+       salvar em uma aba lá no site Agentes ... Inteligências gerais dos agentes". Os dados: /admin/api/inteligencias (495). -->
+  <h2 class="ag-secao">Inteligências gerais dos agentes</h2>
+  <p class="in-nota">As regras que fazem uma Nay atender melhor e podem valer para as outras. Cada regra mostra para quais Nays vale: o roxo cheio é "já aplicada", o tracejado é "falta aplicar" (clique para trocar).</p>
+  <form class="in-form" id="in-nova">
+    <textarea name="regra" rows="2" placeholder="Nova inteligência (ex.: Pet: perguntar o porte do animal antes de falar com o proprietário)"></textarea>
+    <input type="text" name="porque" placeholder="Por quê / de onde veio (opcional)">
+    <div class="in-linha">
+      <input type="text" name="assunto" placeholder="Assunto (filtros, dúvidas, lugar...)" style="max-width:240px">
+      <span>Vale para:</span>
+      <label><input type="checkbox" name="vale_parceria" checked> Parceria</label>
+      <label><input type="checkbox" name="vale_leads" checked> Leads</label>
+      <label><input type="checkbox" name="vale_captacao"> Captação</label>
+      <label><input type="checkbox" name="vale_olx"> OLX</label>
+    </div>
+    <button type="submit">Salvar inteligência</button>
+  </form>
+  <div id="ag-intel"><p class="ag-vazio">Lendo as inteligências…</p></div>
 </main>
 
 <div data-layout-rodape></div>
@@ -59,5 +79,6 @@
 <script src="../assets/js/layout.js"></script>
 <script src="../assets/js/agentes.js?v=20261013a"></script>
 <script src="../assets/js/hermes-painel.js?v=20261013c"></script>
+<script src="../assets/js/inteligencias.js?v=20261025a"></script>
 </body>
 </html>

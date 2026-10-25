@@ -30,7 +30,7 @@ CREATE UNIQUE INDEX core_saida_pkey ON public.core_saida USING btree (id)
 ## restrições
 core_saida_check: CHECK ((((tipo = 'texto'::text) AND (texto IS NOT NULL)) OR ((tipo = 'imagem'::text) AND (imagem_url IS NOT NULL) AND (codigo IS NOT NULL))))
 core_saida_estado_check: CHECK ((estado = ANY (ARRAY['simulado'::text, 'pendente'::text, 'enviando'::text, 'enviado'::text, 'bloqueado'::text, 'erro'::text])))
-core_saida_papel_destino_check: CHECK ((papel_destino = ANY (ARRAY['turno'::text, 'tel'::text])))
+core_saida_papel_destino_check: CHECK ((papel_destino = ANY (ARRAY['turno'::text, 'tel'::text, 'grupo'::text])))
 core_saida_pkey: PRIMARY KEY (id)
 core_saida_tipo_check: CHECK ((tipo = ANY (ARRAY['texto'::text, 'imagem'::text])))
 core_saida_turno_id_fkey: FOREIGN KEY (turno_id) REFERENCES core_turno(id)
