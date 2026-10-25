@@ -19,6 +19,29 @@ async function newInspection() {
   modal(html`<${Modal} title="Nova vistoria pelo painel" onClose=${closeModal} footer=${html`<button class="btn ghost" onClick=${closeModal}>Cancelar</button><button class="btn primary" onClick=${async () => { const r = await api('/admin/inspections', { body: { ...f, property: { identification: f.identification } } }); closeModal(); nav(`/vistorias/${r.id}`); }}>Criar</button>`}><p class="muted small">Normalmente as vistorias chegam pelo app. Use isto para montar um laudo manualmente ou enviar fotos pelo computador.</p><${Form} /></${Modal}>`);
 }
 
+// 24-25/10 (Pedro): "ao invés de iniciar vistoria do 0, eu subo uma de outro lugar e o nosso sistema entende"
+async function importInspection() {
+  const users = await api('/admin/users');
+  let f = { type: '', inspector_id: (users.find((u) => u.role === 'vistoriador') || users[0] || {}).id, url: '', file: null };
+  const Form = () => { const [s, set] = useState(f); f = s; const u = (k) => (v) => set({ ...s, [k]: v });
+    return html`<div class="grid2"><${Sel} label="Modalidade" value=${s.type} onChange=${u('type')} options=${[['', 'A do laudo'], ...Object.entries(TYPES)]} /><${Sel} label="Vistoriador" value=${s.inspector_id} onChange=${u('inspector_id')} options=${users.map((x) => [x.id, x.name])} /></div>
+      <label class="af" style="margin:10px 0"><span>PDF do laudo</span><input type="file" accept="application/pdf" onChange=${(e) => set({ ...s, file: e.target.files[0] || null })} /></label>
+      <${Inp} label="ou o link do laudo (PDF, Google Drive ou a página do laudo)" value=${s.url} onInput=${u('url')} />`; };
+  let indo = false;
+  const importar = async () => {
+    if (indo) return;
+    if (!f.file && !f.url.trim()) return toast('Escolha o PDF ou cole o link', 'err');
+    indo = true; toast('Lendo o laudo… pode levar até 1 minuto');
+    const fd = new FormData();
+    if (f.file) fd.append('file', f.file, f.file.name); else fd.append('url', f.url.trim());
+    if (f.type) fd.append('type', f.type);
+    fd.append('inspector_id', f.inspector_id || '');
+    try { const r = await api('/admin/inspections/import', { body: fd }); closeModal(); toast(`Importada: ${r.comodos} cômodo(s), ${r.itens} item(ns), ${r.avarias} avaria(s). Confira e complete.`); nav(`/vistorias/${r.id}`); }
+    catch (e) { toast(e.message, 'err'); indo = false; }
+  };
+  modal(html`<${Modal} title="Importar vistoria de outro lugar" onClose=${closeModal} footer=${html`<button class="btn ghost" onClick=${closeModal}>Cancelar</button><button class="btn primary" onClick=${importar}>Importar</button>`}><p class="muted small">Suba o laudo de outra empresa: o sistema lê os cômodos, os itens, o estado de cada um e as avarias, e monta um rascunho para o vistoriador conferir. As fotos do laudo de fora não vêm.</p><${Form} /></${Modal}>`);
+}
+
 // ================= DASHBOARD =================
 export function Dashboard() {
   const [d] = useLoad(() => api('/admin/dashboard'));
@@ -52,7 +75,7 @@ export function Inspections() {
   const [list, reload] = useLoad(() => api(`/admin/inspections?status=${status}&type=${type}`), [status, type]);
   const shown = (list || []).filter((i) => !q || JSON.stringify([i.code, i.address, i.property.identification, i.people, i.inspector_name]).toLowerCase().includes(q.toLowerCase()));
   return html`<div class="pg">
-    <${PageHead} title="Vistorias" icon="home" sub=${list ? `${list.length} vistoria(s)` : ''} right=${html`<button class="btn primary" onClick=${newInspection}><${Icon} name="plus" size=${18} /> Nova vistoria</button>`} />
+    <${PageHead} title="Vistorias" icon="home" sub=${list ? `${list.length} vistoria(s)` : ''} right=${html`<button class="btn ghost" onClick=${importInspection}><${Icon} name="file" size=${18} /> Importar vistoria</button> <button class="btn primary" onClick=${newInspection}><${Icon} name="plus" size=${18} /> Nova vistoria</button>`} />
     <div class="acard filters"><div class="search-a"><${Icon} name="search" size=${18} /><input placeholder="Pesquisar por código, endereço, pessoas, vistoriador…" value=${q} onInput=${(e) => setQ(e.target.value)} /></div>
       <${Sel} value=${status} onChange=${setStatus} options=${[['', 'Todos os status'], ...Object.entries(STATUS).map(([k, v]) => [k, v[0]])]} /><${Sel} value=${type} onChange=${setType} options=${[['', 'Todos os tipos'], ...Object.entries(TYPES)]} /></div>
     ${!list ? html`<${Loading} />` : shown.length ? html`<div class="acard"><table class="atable hover"><thead><tr><th>Código</th><th>Status</th><th>Imóvel</th><th>Tipo</th><th>Vistoriador</th><th>Pessoas</th><th>Mídias</th><th>Atualizado</th><th></th></tr></thead><tbody>

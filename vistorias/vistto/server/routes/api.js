@@ -229,6 +229,15 @@ r.post('/admin/inspections', (req, res) => {
   res.json({ id });
 });
 
+// 24-25/10 (Pedro): importar uma vistoria de outro lugar (PDF ou link): o Gemini lê e sai um rascunho (services/importar.js)
+r.post('/admin/inspections/import', upload.single('file'), wrap(async (req, res) => {
+  const b = req.body || {};
+  if (!req.file && !b.url) return res.status(400).json({ error: 'Mande o PDF ou o link do laudo' });
+  const r2 = await require('../services/importar').importar({ arquivo: req.file, url: b.url, type: b.type || null,
+    inspector_id: b.inspector_id || req.user.id, user_id: req.user.id });
+  res.json(r2);
+}));
+
 r.get('/admin/inspections/:id', (req, res) => {
   const ins = M.loadInspection(req.params.id);
   if (!ins) return res.status(404).json({ error: 'Não encontrada' });
