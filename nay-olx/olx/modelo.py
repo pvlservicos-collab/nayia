@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 
 import requests
@@ -18,6 +19,14 @@ ENV_DA_CAPTACAO = os.environ.get("OLX_ENV_DA_CAPTACAO", "/root/nay-captacao/.env
 
 class FalhaDoModelo(Exception):
     pass
+
+
+_ULTIMA = threading.local()
+
+
+def ultimo_uso() -> dict:
+    """489 (os agentes da Nay Leads): os tokens, o modelo e os ms da última chamada DESTA linha (thread)."""
+    return dict(getattr(_ULTIMA, "uso", None) or {})
 
 
 def _chave() -> str:
@@ -45,6 +54,7 @@ def chamar(prompt: str, turno: str, no: str = "olx.chat") -> dict:
     m = ia.modelo(no, MODELO)
     corpo = {"model": m, "input": [{"role": "system", "content": prompt}, {"role": "user", "content": turno}]}
     ultimo = ""
+    inicio = time.monotonic()
     for tentativa in range(3):
         try:
             r = requests.post(URL, timeout=90, json=corpo,
@@ -52,6 +62,10 @@ def chamar(prompt: str, turno: str, no: str = "olx.chat") -> dict:
             if r.status_code == 200:
                 j = r.json()
                 ia.registrar(no, m, j)
+                u = j.get("usage") or {}
+                _ULTIMA.uso = {"modelo": j.get("model") or m, "ms": int((time.monotonic() - inicio) * 1000),
+                               "tokens_entrada": u.get("input_tokens"), "tokens_saida": u.get("output_tokens"),
+                               "tokens_cache": (u.get("input_tokens_details") or {}).get("cached_tokens")}
                 return ler_json(texto_da(j))
             ultimo = f"HTTP {r.status_code} {r.text[:200]}"
             if r.status_code < 500 and r.status_code != 429:

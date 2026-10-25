@@ -85,6 +85,9 @@ condominio_taxa_aos_imoveis_tg
 core_saida_pergunta_na_fila	
 core_saida_tel_so_perguntas	
 core_saida_validar	
+crm_agentes	
+crm_agentes_do_lead	
+crm_agentes_painel	
 crm_anuncio_decidir	
 crm_anuncio_familia	crm_anuncio_decidir, crm_anuncio_mensagem, crm_imovel_candidatos
 crm_anuncio_id_do_link	crm_anuncio_decidir, crm_imovel_candidatos, crm_imovel_vincular_anuncio, crm_olx_bot_receber

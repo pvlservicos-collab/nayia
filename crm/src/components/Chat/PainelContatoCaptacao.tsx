@@ -24,6 +24,7 @@
  *   5. agendar follow-up (a mesma caixa da Parceria)
  *   6. a ficha que a conversa abriu e as fotos que ele mandou
  */
+import AgentesDoLead from './AgentesDoLead'
 import { useCallback, useEffect, useState } from 'react'
 import {
   X, User, House, ArrowClockwise, Copy, Check, Plus, PencilSimple, Images, CircleNotch, Robot,
@@ -296,6 +297,9 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
             ? <EtapaDaCaptacao leadId={lead.id} etapaManual={dono.etapaManual} abas={dono.abas} aoMudar={() => void ler()} />
             : !oficial && <EtapaDoClienteOlx telefone={lead.phone} leadId={lead.id} comOTel={!!c?.comOTel} aoMudar={() => void ler()} />}
         </div>
+
+        {/* 24/10 (Pedro): os agentes da Nay Leads -- a legenda de cores e o histórico de cada agente que ativou, em tags */}
+        {!oficial && <AgentesDoLead leadId={lead.id} />}
 
         {/* 17/10 (Pedro): as etiquetas da equipe também no card da Captação */}
         <Secao titulo="Etiquetas">

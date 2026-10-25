@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { ChatCircleText, CalendarCheck, ClipboardText } from '@phosphor-icons/react'
+import { ChatCircleText, CalendarCheck, ClipboardText, TreeStructure } from '@phosphor-icons/react'
 
 /**
  * As abas da Parceria, na faixa de cima da tela (Pedro, 29/09/2026: "quero que
@@ -13,7 +13,8 @@ import { ChatCircleText, CalendarCheck, ClipboardText } from '@phosphor-icons/re
  * Depois das abas, até o canto direito, vem a barra de métricas (`children`):
  * fica à vista no chat e na agenda, não é aba (Pedro, 29/09).
  */
-export type AbaDaParceria = 'conversas' | 'visitas' | 'fechamento'
+/* 24/10 (Pedro): 'arquitetura', ao lado da agenda, só na linha WhatsApp Leads: o fluxograma dos agentes da Nay */
+export type AbaDaParceria = 'conversas' | 'visitas' | 'fechamento' | 'arquitetura'
 
 /* 18/10 (Pedro: "a agenda não está lá no número de captação; precisa estar, é claro, todos os números compartilhando a
    mesma agenda"): as outras linhas usam estas mesmas abas, só sem Fechamento (que é da Parceria). `abas` escolhe. */
@@ -53,6 +54,7 @@ export default function AbasParceria({ aba, aoMudar, naoLidas, visitasAbertas, c
         {mostra('conversas') && aba_('conversas', 'Conversas', ChatCircleText, naoLidas, rotuloConversas || 'As conversas do WhatsApp da Parceria')}
         {mostra('visitas') && aba_('visitas', 'Visitas agendadas', CalendarCheck, visitasAbertas, 'A agenda de visitas: é uma só para todos os números')}
         {mostra('fechamento') && aba_('fechamento', 'Fechamento', ClipboardText, 0, 'Os checklists de aluguel e venda para o contrato')}
+        {abas?.includes('arquitetura') && aba_('arquitetura', 'Arquitetura', TreeStructure, 0, 'Os agentes da Nay Leads: cada etapa num fluxograma, com os números')}
       </div>
       {children}
     </div>

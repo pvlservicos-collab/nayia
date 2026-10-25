@@ -34,7 +34,7 @@ from difflib import SequenceMatcher
 import psycopg2
 import psycopg2.extras
 
-from olx import banco, config, grupo, modelo, nay, visita
+from olx import agentes, banco, config, grupo, modelo, nay, visita
 
 log = logging.getLogger("olx.whatsapp")
 try:
@@ -978,6 +978,7 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
     except (TypeError, ValueError):
         gap = 30
     if gente and gente > banco.um(conn, "SELECT now() - make_interval(mins => %s)", (gap,)):
+        agentes.humano(lead, gente)       # 489: o Humano na linha do tempo dos agentes
         return False                      # a equipe está na conversa: espera, e a mensagem dela continua não lida
     if lead.get("humano_em"):
         # a equipe assumiu (Pedro, 16/10, na OLX: "a nay não deve mais responder"): ela não volta sozinha
@@ -1014,13 +1015,28 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
         lead["fichas_citadas"] = _fichas_citadas(conn, conversa, lead)
     lead["imoveis_conhecidos"] = imoveis_da_conversa(conn, lead)
     turno = montar_turno(lead, ctx_olx, conversa)
-    r = modelo.chamar(PROMPT, turno, no="olx.whatsapp")
+    # 489 (Pedro, 24/10: os agentes da Nay Leads, olx/agentes.py): o MESTRE (JEV) lê as mensagens novas e escolhe o
+    # caminho; o ATENDIMENTO (a Luna) recebe só as regras dele. Chave `agentes`: nao = como era; sombra = decide e grava.
+    agentes.novo_turno(lead)
+    plano = agentes.planejar(PROMPT, lead, conversa, novas, organico(lead),
+                             pode_calar=bool(nossas) and not nossas[-1]["texto"].strip().endswith("?") and not esperando_sim)
+    if plano["calar"]:
+        _marcar(conn, lead["id"], ultima_lida=ate)            # o mestre leu só cortesia, com as mesmas travas de hoje
+        agentes.registrar(lead, "atendimento", "calou", {"resumo": "o mestre leu só cortesia: não responde"})
+        log.info("lead %s: o mestre leu só cortesia; a Nay não responde", lead["id"])
+        return False
+    prompt = plano["prompt"]
+    r = modelo.chamar(prompt, turno, no="olx.whatsapp")
+    uso = modelo.ultimo_uso()
     aviso = pergunta_a_toa(r, conversa)
     if aviso:
         # 22/10: perguntou o que já se sabe (a finalidade pelo valor, os quartos que ela disse): uma segunda chamada, avisada
         log.info("lead %s: perguntou o que já se sabe; de novo (%s)", lead["id"], aviso[:120])
-        r = modelo.chamar(PROMPT, turno + "\n\n" + aviso, no="olx.whatsapp")
+        r = modelo.chamar(prompt, turno + "\n\n" + aviso, no="olx.whatsapp")
+        u2 = modelo.ultimo_uso()
+        uso = {**u2, **{k: (uso.get(k) or 0) + (u2.get(k) or 0) for k in ("ms", "tokens_entrada", "tokens_saida", "tokens_cache")}}
     acoes = acoes_da(r)
+    agentes.atendimento(lead, plano, r, uso, uso.get("ms"), acoes)
     _falar(conn, lead, r, acoes, desde=inicio)
     if r.get("_equipe_no_meio"):
         return False                      # a equipe entrou no meio: sem ações, e o que ela escreveu fica não lido
@@ -1068,6 +1084,7 @@ def codigo_da_pergunta(lead: dict, motivo: str) -> int | None:
 
 
 def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None = None) -> None:
+    agentes.acao(lead, acao, r)                # 489: a ação vira evento do agente dono (busca, imóveis, visita...)
     if acao == "fotos":
         f = r.get("fotos") if isinstance(r.get("fotos"), dict) else {}
         codigo = _int(f.get("codigo")) or lead.get("codigo")
@@ -1174,6 +1191,9 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
         if achados:
             proximas = afrouxou
             break
+    if achados and not proximas:
+        # 489: o veto do JEV antes dos cards (só no perfil exato: os "mais próximos" já vão avisados como próximos)
+        achados = agentes.filtrar_imoveis(lead, f, achados)
     if lead.get("etapa") in ETAPAS_DA_BUSCA:
         _marcar(conn, lead["id"], etapa="feito_busca")
     # 475 (Pedro, 22/10): a busca do cliente conta o que a nossa base deu; nada no perfil exato ativa os grupos e a OLX
@@ -1206,6 +1226,8 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
         if n:
             time.sleep(DEPOIS_DAS_FOTOS_S)       # as fotos do anterior carregam antes do próximo card
         mandar_imovel(conn, lead, int(a["codigo"]))
+        agentes.registrar(lead, "imoveis", "enviou", {"codigo": int(a["codigo"]), "proximas": proximas,
+                                                      "resumo": f"#{a['codigo']} {a.get('condominio') or a.get('bairro') or ''}"})
         enviados.append(int(a["codigo"]))
         _marcar(conn, lead["id"], enviados=enviados)
     time.sleep(DEPOIS_DAS_FOTOS_S)
