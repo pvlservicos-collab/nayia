@@ -104,6 +104,8 @@ interface LeadListProps {
   /** abrir conversa pelo id: a busca da etapa Proprietários precisa (30/09) */
   aoAbrirPorId?: (leadId: string) => void
   onUpdateLead?: (leadId: string, updates: Partial<LeadWithOwner>) => void
+  /** 26/10: pôr e tirar etiqueta na própria linha da conversa (Oficial) */
+  onTagsChange?: (leadId: string, tagId: string, action: 'add' | 'remove', tagObj?: any) => void
   loading: boolean
   organizationId?: string | null
 }
@@ -158,6 +160,7 @@ export default function LeadList({
   onSelectLead,
   aoAbrirPorId,
   onUpdateLead,
+  onTagsChange,
   loading,
   organizationId,
 }: LeadListProps) {
@@ -897,6 +900,8 @@ export default function LeadList({
                   dono={donos[lead.id]}
                   etiquetasEmDestaque={usarAbasDeEtiquetas ? etiquetasEmDestaque : undefined}
                   respondeu={linha === 'oficial' && !!lead.ultima_recebida}
+                  etiquetasColoridas={linha === 'oficial'}
+                  onTagsChange={onTagsChange}
                 />
               )
             })}

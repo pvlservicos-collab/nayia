@@ -308,6 +308,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
       onSelectLead={handleSelectLead}
       aoAbrirPorId={abrirConversaPorId}
       onUpdateLead={handleUpdateLead}
+      onTagsChange={handleTagsChange}
       loading={false}
       organizationId={organizationId}
     />

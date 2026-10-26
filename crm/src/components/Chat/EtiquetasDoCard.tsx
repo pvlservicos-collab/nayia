@@ -9,10 +9,13 @@ import { useState } from 'react'
 import { Check, Plus, X } from '@phosphor-icons/react'
 import { CORES_DE_ETIQUETA, criarEtiqueta, marcarEtiqueta, useEtiquetas, type Etiqueta } from '@/lib/etiquetas'
 
-export default function EtiquetasDoCard({ lead, onTagsChange, alinhar = 'centro' }: {
+export default function EtiquetasDoCard({ lead, onTagsChange, alinhar = 'centro', compacto = false }: {
   lead: { id: string; lead_tags?: Array<{ tag_id: string; tag?: any }> | null }
   onTagsChange?: (leadId: string, tagId: string, action: 'add' | 'remove', tagObj?: any) => void
   alinhar?: 'centro' | 'esquerda'
+  /** 26/10 (Pedro: as tags coloridas na lista da API Oficial, onde aparecia o "2 filtrado"): na linha da conversa,
+   *  pequenas, até 3, e o "+" só com o ícone; o clique não abre a conversa */
+  compacto?: boolean
 }) {
   const etiquetas = useEtiquetas()
   const [aberto, setAberto] = useState(false)
@@ -40,6 +43,28 @@ export default function EtiquetasDoCard({ lead, onTagsChange, alinhar = 'centro'
     } catch (e: any) { setErro(e?.message || 'não consegui criar') }
   }
 
+  if (compacto) {
+    return (
+      <span className="relative inline-flex items-center gap-1 flex-shrink-0 max-w-[60%]"
+            onClick={(e) => e.stopPropagation()} onContextMenu={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}>
+        {doLead.slice(0, 3).map((t: any) => (
+          <span key={t.id} className="inline-flex items-center rounded-full px-1.5 h-[18px] text-[11px] font-semibold leading-none truncate max-w-[110px]"
+                style={{ color: '#fff', background: t.color?.startsWith('#') ? t.color : '#64748b' }} title={t.name}>
+            {t.name}
+          </span>
+        ))}
+        {doLead.length > 3 && <span className="text-[11px]" style={{ color: 'var(--wa-text-2)' }}>+{doLead.length - 3}</span>}
+        <button type="button" onClick={() => setAberto((m) => !m)} aria-expanded={aberto}
+                className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-full hover:bg-[var(--wa-row-hover)]"
+                style={{ color: 'var(--wa-text-2)', border: '1px dashed var(--wa-divider)' }} title="Pôr, tirar ou criar etiqueta" aria-label="Etiquetas">
+          <Plus size={10} weight="bold" />
+        </button>
+        {aberto && menu('left-0')}
+      </span>
+    )
+  }
+
   return (
     <div className={`flex flex-wrap items-center gap-1.5 relative ${alinhar === 'centro' ? 'justify-center' : 'justify-start'}`}>
       {doLead.map((t: any) => (
@@ -57,8 +82,14 @@ export default function EtiquetasDoCard({ lead, onTagsChange, alinhar = 'centro'
               aria-expanded={aberto} title="Pôr ou criar etiqueta">
         <Plus size={12} weight="bold" /> Etiqueta
       </button>
-      {aberto && (
-        <div className={`absolute top-full mt-1.5 z-30 w-[270px] max-h-[340px] overflow-y-auto wa-rolagem rounded-xl shadow-2xl p-1.5 text-left ${alinhar === 'centro' ? 'left-1/2 -translate-x-1/2' : 'left-0'}`}
+      {aberto && menu(alinhar === 'centro' ? 'left-1/2 -translate-x-1/2' : 'left-0')}
+    </div>
+  )
+
+  // o menu de pôr, tirar e criar (o mesmo no card e na linha da lista)
+  function menu(posicao: string) {
+    return (
+        <div className={`absolute top-full mt-1.5 z-30 w-[270px] max-h-[340px] overflow-y-auto wa-rolagem rounded-xl shadow-2xl p-1.5 text-left ${posicao}`}
              style={{ background: 'var(--wa-menu)', border: '1px solid var(--wa-divider)' }}>
           {!etiquetas.length && (
             <p className="px-2.5 py-2 text-[12.5px]" style={{ color: 'var(--wa-text-2)' }}>Nenhuma etiqueta ainda: crie a primeira aqui embaixo.</p>
@@ -92,7 +123,6 @@ export default function EtiquetasDoCard({ lead, onTagsChange, alinhar = 'centro'
           </form>
           <button type="button" onClick={() => setAberto(false)} className="w-full mt-1 text-[12.5px] py-1" style={{ color: 'var(--wa-text-2)' }}>Fechar</button>
         </div>
-      )}
-    </div>
-  )
+    )
+  }
 }

@@ -10,6 +10,7 @@ import type { DonoNaLista, MarcaDaNay } from '@/lib/tiposNay'
 import { quandoCurtoEmManaus } from '@/lib/fusoDeManaus'
 import { nayEmPausa } from '@/lib/etapaDaParceria'
 import type { NayLeadsComDono } from '@/hooks/useNayLeadsComDono'
+import EtiquetasDoCard from './EtiquetasDoCard'
 
 /* 03/10: quem escreve à mão pausa a Nay por 30 min, e a conversa fica na aba dela */
 const TEXTO_DA_PAUSA = 'Nay em pausa: alguém escreveu à mão nesta conversa, e ela espera 30 minutos antes de voltar a responder'
@@ -49,6 +50,10 @@ interface LeadListItemProps {
   etiquetasEmDestaque?: string[]
   /** Oficial (Pedro, 24/10): o contato já mandou mensagem (respondeu ao disparo); a linha ganha um verde leve da esquerda */
   respondeu?: boolean
+  /** Oficial (Pedro, 26/10: "as tags lá na API oficial, lá onde tem 2 filtrado ... substituir por tags personalizadas
+   *  coloridas"): as etiquetas coloridas na linha e o "+" que põe, tira e cria sem abrir o card */
+  etiquetasColoridas?: boolean
+  onTagsChange?: (leadId: string, tagId: string, action: 'add' | 'remove', tagObj?: any) => void
   /** Parceria (492, Pedro 24/10): a Nay Leads está conversando com este proprietário por aqui; a linha fica roxa */
   nayLeads?: NayLeadsComDono
 }
@@ -117,7 +122,7 @@ function Avatar({ lead, robo }: { lead: LeadWithOwner; robo?: { parada: boolean;
   )
 }
 
-const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads }: LeadListItemProps) => {
+const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, etiquetasColoridas, onTagsChange }: LeadListItemProps) => {
   const robo = nay === undefined ? null : !nay ? { parada: true, texto: 'Lendo a Nay…' }
     : !nay.ligada ? { parada: true, texto: `Nay parada: ${nay.motivo || 'desligada'}` }
     : nayEmPausa(marca) ? { parada: true, texto: TEXTO_DA_PAUSA }
@@ -194,7 +199,8 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
               Proprietário
             </span>
           )}
-          {!marca && emDestaquePrimeiro(lead.lead_tags || [], etiquetasEmDestaque).slice(0, 2).map((lt: any) => lt.tag && (
+          {etiquetasColoridas && <EtiquetasDoCard lead={lead as any} onTagsChange={onTagsChange} compacto />}
+          {!marca && !etiquetasColoridas && emDestaquePrimeiro(lead.lead_tags || [], etiquetasEmDestaque).slice(0, 2).map((lt: any) => lt.tag && (
             <span key={lt.tag_id} className="wa-marca" style={{ color: 'var(--wa-text-2)' }}>
               {lt.tag.name}
             </span>
@@ -241,6 +247,7 @@ export default memo(LeadListItem, (a, b) => (
   (a.etiquetasEmDestaque || []).join() === (b.etiquetasEmDestaque || []).join() &&
   a.isSelected === b.isSelected &&
   !!a.respondeu === !!b.respondeu &&
+  !!a.etiquetasColoridas === !!b.etiquetasColoridas &&
   a.atendente?.id === b.atendente?.id &&
   a.timeStr === b.timeStr &&
   a.query === b.query &&
