@@ -33,6 +33,7 @@ import EnviarImovelPelaCaptacao from './EnviarImovelPelaCaptacao'
 import CardDoImovelDoDono from './CardDoImovelDoDono'
 import EtiquetasDoCard from './EtiquetasDoCard'
 import { useOlxClientes, recarregarOlxClientes } from '@/hooks/useOlxClientes'
+import { marcarEtapaManual } from '@/hooks/useCaptacaoDonos'
 import { fim8 } from '@/lib/olxClientes'
 import type { LeadWithOwner } from '@/lib/types'
 import { formatPhone } from '@/lib/utils'
@@ -194,7 +195,7 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
       setAvisoDaNay({ ok: true, texto: acao === 'parar'
         ? 'Nay parada para esta pessoa. A conversa foi para a etapa Com o Tel.'
         : 'A Nay voltou a atender esta pessoa: responde na próxima mensagem dela.' })
-      await Promise.all([ler(), recarregarOlxClientes()])
+      await Promise.all([ler(), recarregarOlxClientes(), marcarEtapaManual(lead.id, acao === 'parar' ? 'com_o_tel' : 'todos')])
     } catch (e: any) {
       setAvisoDaNay({ ok: false, texto: e?.message || 'Não consegui.' })
     } finally {
@@ -294,7 +295,8 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
             campanha (cliente da OLX, orgânico) ganha a etapa do cliente da OLX, a mesma do botão direito da lista */}
         <div style={{ background: 'var(--wa-panel)' }}>
           {dono
-            ? <EtapaDaCaptacao leadId={lead.id} etapaManual={dono.etapaManual} abas={dono.abas} aoMudar={() => void ler()} />
+            ? <EtapaDaCaptacao leadId={lead.id} etapaManual={dono.etapaManual} abas={dono.abas}
+                               aoMudar={(etapa) => { void ler(); void marcarEtapaManual(lead.id, etapa) }} />
             : !oficial && <EtapaDoClienteOlx telefone={lead.phone} leadId={lead.id} comOTel={!!c?.comOTel} aoMudar={() => void ler()} />}
         </div>
 
