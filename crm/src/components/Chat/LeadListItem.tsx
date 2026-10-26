@@ -56,6 +56,8 @@ interface LeadListItemProps {
   onTagsChange?: (leadId: string, tagId: string, action: 'add' | 'remove', tagObj?: any) => void
   /** Parceria (492, Pedro 24/10): a Nay Leads está conversando com este proprietário por aqui; a linha fica roxa */
   nayLeads?: NayLeadsComDono
+  /** WhatsApp Leads (Pedro, 26/10): quem veio da OLX (é cliente, não dono) -- a linha fica azul e ganha a etiqueta Cliente */
+  clienteOlx?: boolean
 }
 
 const RECEBIDO = ['lead']
@@ -122,7 +124,7 @@ function Avatar({ lead, robo }: { lead: LeadWithOwner; robo?: { parada: boolean;
   )
 }
 
-const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, etiquetasColoridas, onTagsChange }: LeadListItemProps) => {
+const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, clienteOlx, etiquetasColoridas, onTagsChange }: LeadListItemProps) => {
   const robo = nay === undefined ? null : !nay ? { parada: true, texto: 'Lendo a Nay…' }
     : !nay.ligada ? { parada: true, texto: `Nay parada: ${nay.motivo || 'desligada'}` }
     : nayEmPausa(marca) ? { parada: true, texto: TEXTO_DA_PAUSA }
@@ -142,7 +144,9 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
       onClick={() => onClick(lead)}
       onContextMenu={(e) => onContextMenu(e, lead)}
       className={`wa-linha ${isSelected ? 'wa-linha--sel' : ''} ${respondeu ? 'wa-linha--respondeu' : ''}`}
-      style={nayLeads ? { boxShadow: 'inset 4px 0 0 #7c3aed, inset 0 0 0 9999px rgba(124, 58, 237, 0.12)' } : undefined}
+      style={nayLeads ? { boxShadow: 'inset 4px 0 0 #7c3aed, inset 0 0 0 9999px rgba(124, 58, 237, 0.12)' }
+        : clienteOlx ? { boxShadow: 'inset 4px 0 0 #2563eb, inset 0 0 0 9999px rgba(37, 99, 235, 0.1)' }
+        : undefined}
     >
       <Avatar lead={lead} robo={robo} />
       <div className="flex-1 min-w-0 py-[11px]">
@@ -173,6 +177,12 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
             <span className="wa-marca flex-shrink-0 rounded px-1" style={{ color: '#fff', background: '#7c3aed' }}
                   title={nayLeads.motivo ? `A Nay Leads está conversando com o proprietário: ${nayLeads.motivo}` : 'A Nay Leads está conversando com o proprietário'}>
               Nay olx(leads) conversando
+            </span>
+          )}
+          {clienteOlx && (
+            <span className="wa-marca flex-shrink-0 rounded px-1" style={{ color: '#fff', background: '#2563eb' }}
+                  title="Veio da OLX: é quem busca imóvel, não o proprietário">
+              Cliente
             </span>
           )}
           {marca?.telAtendendo && (nayEmPausa(marca) ? (
@@ -247,6 +257,7 @@ export default memo(LeadListItem, (a, b) => (
   (a.etiquetasEmDestaque || []).join() === (b.etiquetasEmDestaque || []).join() &&
   a.isSelected === b.isSelected &&
   !!a.respondeu === !!b.respondeu &&
+  !!a.clienteOlx === !!b.clienteOlx &&
   !!a.etiquetasColoridas === !!b.etiquetasColoridas &&
   a.atendente?.id === b.atendente?.id &&
   a.timeStr === b.timeStr &&
