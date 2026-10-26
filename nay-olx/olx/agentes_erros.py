@@ -184,8 +184,9 @@ def buscar_sem_mandar(conn, lead: dict, filtros: dict) -> dict:
     for tentativa, afrouxou in whatsapp._afrouxar(f):
         achados = banco.linhas(conn, "SELECT * FROM olx_cliente_buscar(%s::jsonb, %s::int[], %s)",
                                (json.dumps(tentativa, ensure_ascii=False), excluir,
-                                whatsapp.MAX_IMOVEIS * 4 if (f.get("perto_de") or nomes_recusados) else whatsapp.MAX_IMOVEIS))
-        achados = whatsapp.fora_os_recusados(whatsapp.so_perto(conn, achados, tentativa), nomes_recusados)[:whatsapp.MAX_IMOVEIS]
+                                whatsapp.MAX_IMOVEIS * 4 if (f.get("perto_de") or nomes_recusados or f.get("so_condominio")) else whatsapp.MAX_IMOVEIS))
+        achados = whatsapp.so_no_condominio(whatsapp.fora_os_recusados(whatsapp.so_perto(conn, achados, tentativa), nomes_recusados),
+                                            f)[:whatsapp.MAX_IMOVEIS]
         if achados:
             proximas = afrouxou
             break
@@ -327,19 +328,10 @@ def rodar_conversa(c: dict) -> dict:
                         if ainda:
                             item["paredes_cortou"] = [f"{p}: {x}" for _i, p, x in ainda]
                             r["baloes"] = sobra
-                acoes = whatsapp.acoes_da(r)
-                # o atalho do código sozinho, como no _responder_um
-                cod = whatsapp.codigo_sozinho(novas, nay_ate_aqui[-1]["texto"] if nay_ate_aqui else "")
-                if cod and not ({"fotos", "card", "visita", "buscar"} & set(acoes)) and whatsapp._ofertavel(conn, cod, lead):
-                    r["fotos"] = {"codigos": [cod]}
-                    acoes = ["fotos", *acoes][:2]
-                    item["atalho"] = f"código sozinho {cod}"
-                cod = whatsapp.escolha_pelo_valor(novas, nay_ate_aqui[-1]["texto"] if nay_ate_aqui else "",
-                                                  lead.get("imoveis_conhecidos") or [])
-                if cod and not ({"fotos", "card", "visita", "buscar"} & set(acoes)) and whatsapp._ofertavel(conn, cod, lead):
-                    r["fotos"] = {"codigos": [cod]}
-                    acoes = ["fotos", *acoes][:2]
-                    item["atalho"] = f"escolheu pelo valor: {cod}"
+                # as camadas sem modelo, a MESMA função do _responder_um
+                acoes, passos = whatsapp.depois_do_modelo(conn, lead, r, novas, nay_ate_aqui[-1]["texto"] if nay_ate_aqui else "")
+                if passos:
+                    item["atalho"] = "; ".join(f"{n}: {d}" for n, d in passos)
                 lead["filtros"] = whatsapp._filtros(lead["filtros"], r.get("filtros"))
                 item.update({"baloes": [str(b).strip() for b in (r.get("baloes") or []) if str(b).strip()],
                              "acoes": acoes, "filtros": lead["filtros"]})

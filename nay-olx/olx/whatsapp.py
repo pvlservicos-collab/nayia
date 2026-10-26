@@ -56,7 +56,9 @@ CAMPOS_DOS_FILTROS = ("finalidade", "tipo", "teto", "bairros", "qualquer_bairro"
                       "perto_de", "perto_km", "pet", "exigencias",
                       # 25/10 (as conversas com erro de outubro na Nay Leads: o Liverpool que a cliente recusou voltava na
                       # busca): os imóveis e condomínios que ela recusou, por código ou pelo nome
-                      "recusados")
+                      "recusados",
+                      # 26/10 (o lead 60: "só no Ponta Negra Village mesmo"): a busca fica só no condomínio que ela pediu
+                      "so_condominio")
 PERTO_KM_PADRAO = 6.0      # "perto" de um lugar: até aqui (centro do bairro ao centro do bairro), se ela não disse quantos km
 
 
@@ -92,6 +94,9 @@ parte QUANDO VEIO DIRETO.
    Respondidas as perguntas que cabem, feche como "Ok, muito grata, Sra. Claudia! Vou pegar as opções no meu sistema
    para lhe enviar." e peça a busca: acao "buscar". O sistema manda os imóveis, um por vez, logo depois. Não faça
    mais perguntas depois do fechamento.
+   Ela pediu as opções ("tem outras?", "quero ver opções", "manda o que tem") e você já sabe o tipo ou a finalidade, o
+   valor e o lugar: busque JÁ ("buscar"). O que faltar (quartos, mobília, crédito) vira tanto faz; não segure as opções
+   por mais uma pergunta.
 3. DEPOIS DAS OPÇÕES: se ela gostou de algum, ofereça a visita; se quer mais, refaça o roteiro só no que mudou e peça
    "buscar" de novo.
 4. VISITA: NUNCA peça o código do imóvel a ela (Pedro, 21/10: "os clientes não entendem e mandam até errado ou acabam
@@ -116,6 +121,12 @@ parte QUANDO VEIO DIRETO.
    e não há dúvida de qual é: mande, sem perguntar "certo?" de novo. O material do imóvel é o card e as fotos: não é com
    a equipe. Se junto ela perguntou algo que a ficha não responde, mande o imóvel e marque também "perguntar". O que
    você quer dizer DEPOIS das fotos vai em "depois_das_fotos".
+   O CARD RESPONDE (Pedro, 26/10): ela perguntou de um imóvel algo que o card mostra (valor, quartos, área, banheiros,
+   vagas, mobília, condomínio e o que está incluso, bairro, "onde fica", "mais informações") e ainda NÃO recebeu o card
+   dele por aqui: não responda por partes nem diga que vai confirmar. Mande o card e as fotos (acao "fotos") com uma frase
+   curta, ex.: "Vou te mandar o card com as informações e as fotos dele." O card já responde e mostra o resto. O que o card
+   não traz (pet, andar, portaria...) vai junto em "perguntar". Endereço ou localização: o bairro e o condomínio (nunca
+   rua nem número) e o card.
 6. FOTO DE UMA PARTE (dos quartos, do roupeiro, do banheiro, da cozinha, da varanda, da vista, da fachada, da área de
    lazer...): você NÃO sabe qual foto é de qual cômodo. Não mande fotos e não prometa que manda: diga que vai separar
    essas fotos e já retorna, e marque acao "perguntar" com o pedido em "motivo" (ex.: "fotos dos quartos com roupeiros
@@ -201,7 +212,8 @@ ainda não viu (acao "fotos") e pergunte o dia e o horário.
   mensagem; responda o que ela disse agora.
 - Dar negativa ("não consigo", "não dá", "não é possível", "não temos"). Se a busca não achar, o sistema avisa a equipe
   e diz a ela que você está separando as opções.
-- Inventar. O que não está na ficha você não sabe: diga que confirma e retorna.
+- Inventar. O que não está na ficha você não sabe: diga que confirma e retorna. Isso vale para CRECI, CNPJ e qualquer
+  número de documento: só o que o sistema deu; senão, "vou confirmar com a equipe".
 - Endereço exato, número da casa ou do apartamento, bloco, torre, nome do proprietário. Bairro e condomínio pode.
 - Link, telefone, e-mail, emoji.
 - Falar de Nay da OLX, de robô, de ficha, de catálogo. Para ela você é só a Nay, da Imob Easy.
@@ -217,7 +229,7 @@ Valor em reais assim: R$ 700.000 / R$ 2.500.
 {"baloes": ["..."], "acoes": [],
  "filtros": {"finalidade": "", "tipo": "", "teto": 0, "bairros": [], "qualquer_bairro": false, "quartos": 0,
              "aceita_menos_quartos": null, "aceita_escada": null, "financiamento": "", "mobilia": "", "condominio": "",
-             "perto_de": "", "perto_km": 0, "pet": "", "exigencias": [], "recusados": []},
+             "perto_de": "", "perto_km": 0, "pet": "", "exigencias": [], "recusados": [], "so_condominio": false},
  "fotos": {"codigos": []}, "depois_das_fotos": [], "card": {"codigos": []}, "visita": {"codigo": 0, "data": "", "hora": ""},
  "motivo": ""}
 - acoes: [] ou, na ordem, até duas de: "fotos" (o card, se ela ainda não viu, e as fotos dos imóveis em fotos.codigos) |
@@ -239,6 +251,8 @@ Valor em reais assim: R$ 700.000 / R$ 2.500.
   que fica perto: NUNCA diga distância, "fica longe" ou "fica perto" por conta própria. perto_km: só se ela disse
   quantos km. pet: o que ela disse do bicho ("2 gatas", "cachorro pequeno"). exigencias: o que ela quer e os outros
   campos não cobrem ("cozinha e lavanderia completas", "elevador", "andar baixo"), um item curto cada.
+  so_condominio: true quando ela quer SÓ no condomínio que disse ("só no Ponta Negra Village", "somente no Flex Parque
+  Dez"): a busca não traz outro lugar.
   recusados: o que ela recusou ou descartou, para NUNCA voltar na busca: o código do imóvel ("esse não serve" de um
   card que você mandou) ou o nome do condomínio que ela não quer ("já mora no Liverpool", "na Reserva Inglesa não").
   Mobiliado é MOBILIADO: nunca ofereça nem aceite "modulados e ar" para quem pediu mobiliado.
@@ -562,10 +576,30 @@ def codigos_citados(conversa: list[dict], ate: int = 2) -> list[int]:
     for m in reversed(conversa):
         if m.get("direcao") != "recebida":
             continue
-        for c in reversed(CODIGO_CITADO.findall(VALOR_EM_REAIS.sub(" ", m.get("texto") or ""))):
+        # 26/10: o número de dentro de um link ("...?gallery_id=1020") não é código; o link é lido por codigos_dos_links
+        sem_link = re.sub(r"https?://\S+|\S+\.com(\.br)?/\S*", " ", m.get("texto") or "")
+        for c in reversed(CODIGO_CITADO.findall(VALOR_EM_REAIS.sub(" ", sem_link))):
             if int(c) not in vistos:
                 vistos.append(int(c))
     return vistos[:ate]
+
+
+LINK_OLX = re.compile(r"olx\.com\.br/\S*?-(\d{9,11})(?=[?#/\s]|$)", re.I)
+
+
+def codigos_dos_links(conn, conversa: list[dict], ate: int = 2) -> list[int]:
+    """26/10 (o lead 25 colou o link do Kopenhagen e havia dois Kopenhagen disponíveis, 5360 e 5758): o link da OLX que ela
+    colou é um anúncio NOSSO (privado.olx_anuncio.list_id); o código dele vale mais que o nome do condomínio."""
+    ids: list[str] = []
+    for m in reversed(conversa):
+        if m.get("direcao") == "recebida":
+            ids += [i for i in reversed(LINK_OLX.findall(m.get("texto") or "")) if i not in ids]
+    if not ids:
+        return []
+    achados = {r["list_id"]: int(r["codigo"]) for r in banco.linhas(conn, """
+        SELECT DISTINCT ON (list_id) list_id, codigo FROM privado.olx_anuncio WHERE list_id = ANY(%s) ORDER BY list_id, id DESC""",
+                                                                    (ids,))}
+    return list(dict.fromkeys(achados[i] for i in ids if i in achados))[:ate]
 
 
 def _pelo_nome(conn, conversa: list[dict]) -> list[int]:
@@ -629,7 +663,7 @@ def imoveis_da_conversa(conn, lead: dict) -> list[str]:
 
 def _fichas_citadas(conn, conversa: list[dict], lead: dict | None = None) -> list[dict]:
     fichas = []
-    for c in codigos_citados(conversa) or _pelo_nome(conn, conversa):
+    for c in codigos_citados(conversa) or codigos_dos_links(conn, conversa) or _pelo_nome(conn, conversa):
         i = banco.um(conn, "SELECT site_imovel_publico(%s)", (c,))
         if isinstance(i, dict) and i:
             fichas.append({"codigo": c, **nay._ficha(i)})
@@ -890,6 +924,102 @@ def escolha_pelo_valor(novas: list[str], ultima_da_nay: str, conhecidos: list[st
         acha = {c for c, p in precos for v in candidatos if p and abs(p - v) <= 0.02 * p}
         return acha.pop() if len(acha) == 1 else None
     return None
+
+
+# 26/10 (Pedro: "às vezes o cliente vai pedir informações que poderíamos nem responder, e sim mandar o card do imóvel e as
+# fotos ... isso iria até acelerar, ele já ia ver as várias informações do card"): o que o card mostra
+CARD_RESPONDE = re.compile(r"\b(valor|pre[çc]o|quanto (custa|[ée]|fica|sai)|quartos?|su[ií]tes?|banheiros?|[áa]rea|metros|m2|m²|"
+                           r"vagas?|garagem|mobiliad\w*|modulad\w*|ar.?condicionado|climatizad\w*|condom[ií]nio|taxas?|inclus\w*|iptu|"
+                           r"onde fica|bairro|endere[çc]o|localiza\w*|fotos?|imagens?|dispon[ií]vel|ainda (tem|est[áa])|valendo|"
+                           r"informa[çc][õo]es|detalhes|material)\b", re.I)
+# o que o card não traz: isso continua indo à equipe ("perguntar"), junto do card
+FORA_DO_CARD = re.compile(r"\b(pets?|animal|animais|cachorr\w*|gat[oa]s?|andar|torre|portaria|porteiro|elevador|vizinh\w*|barulho|"
+                          r"piscina|academia|lazer|aceita (proposta|permuta)|desconto|cau[çc][ãa]o|fiador|contrato|documentos?|"
+                          r"vista|sol da|reforma)\b", re.I)
+PEDE_OPCOES = re.compile(r"\b(mais op[çc]\w*|outras op[çc]\w*|tem outr[ao]s?|outros im[óo]veis|op[çc][õo]es parecidas|"
+                         r"quero ver (as )?op[çc]\w*|me (manda|mostra|envia) (as )?op[çc]\w*|manda (o que|as op[çc]\w*)|pode mandar|"
+                         r"quero op[çc]\w*|quais (voc[êe]s )?t[êe]m)", re.I)
+# o card só responde PERGUNTA ("4 mil com condomínio incluso" é filtro, não pergunta: o lead 52)
+PERGUNTA = re.compile(r"\?|^\s*(qual|quais|quanto|quantos|quantas|onde|como|tem |aceita|inclui|ainda|me (manda|envia|passa)|"
+                      r"pode(ria)? (me )?(mandar|enviar|passar))", re.I | re.M)
+BALAO_SEM_RESPOSTA = {"perguntar": "Vou confirmar isso e já te retorno por aqui.",
+                      "equipe": "Já vou passar para a equipe, e eles falam com você por aqui."}
+
+
+def _imovel_da_pergunta(lead: dict) -> int | None:
+    """O imóvel de que ela fala, quando só há um na conversa (o do anúncio ou o único citado)."""
+    cods = list(dict.fromkeys(c for c in [_int(lead.get("codigo")), *[_int(f.get("codigo")) for f in lead.get("fichas_citadas") or []]] if c))
+    return cods[0] if len(cods) == 1 else None
+
+
+def _filtros_bastam(f: dict) -> bool:
+    """Dá para buscar: o tipo ou a finalidade, o valor e um lugar (bairros, qualquer bairro, condomínio ou perto de)."""
+    return bool((f.get("tipo") or f.get("finalidade")) and f.get("teto")
+                and (f.get("bairros") or f.get("qualquer_bairro") or f.get("condominio") or f.get("perto_de")))
+
+
+def depois_do_modelo(conn, lead: dict, r: dict, novas: list[str], ultima_da_nay: str) -> tuple[list[str], list[tuple[str, str]]]:
+    """As camadas SEM modelo depois da resposta (o jeito da Parceria: o óbvio não depende do modelo acertar). Mexe em `r`
+    (fotos, ações, balões) e devolve (as ações, os passos para o registro de fluxos). Usada pelo _responder_um e pelos testes
+    (olx/agentes_erros.py, olx/agentes_semana.py), para os três rodarem o mesmo caminho."""
+    acoes, passos = acoes_da(r), []
+    texto = " ".join(novas or [])
+
+    def mandar(cod: int, nome: str, detalhe: str) -> None:
+        nonlocal acoes
+        r["fotos"] = {"codigos": [cod]}
+        acoes = ["fotos", *[a for a in acoes if a != "fotos"]][:2]
+        passos.append((nome, detalhe))
+
+    livre = not ({"fotos", "card", "visita", "buscar"} & set(acoes))
+    # 1. só o código (a marcação do Pedro no treino, …1715: "quando ele manda código é para enviar a foto")
+    cod = codigo_sozinho(novas, ultima_da_nay) if livre else None
+    if cod and _ofertavel(conn, cod, lead):
+        mandar(cod, "atalho_codigo", f"mandou só o código {cod}: o imóvel vai inteiro")
+        livre = False
+    # 2. a escolha pelo valor ("700mil", "o de 1.900") de um imóvel que ela já viu
+    cod = escolha_pelo_valor(novas, ultima_da_nay, lead.get("imoveis_conhecidos") or []) if livre else None
+    if cod and _ofertavel(conn, cod, lead):
+        mandar(cod, "atalho_valor", f"escolheu pelo valor: o #{cod} vai inteiro")
+        livre = False
+    # 3. O CARD RESPONDE: perguntou o que o card mostra e ainda não recebeu o card dele -> card e fotos, não "vou confirmar"
+    cod = _imovel_da_pergunta(lead)
+    # "perguntar" (ou "equipe" sem motivo de equipe: o corretor do lead 32 pediu "fotos e informações para enviar a ela")
+    leva = [a for a in ("perguntar", "equipe") if a in acoes and (a == "perguntar" or not COISA_DE_EQUIPE.search(texto))]
+    if (cod and leva and livre and PERGUNTA.search(texto) and CARD_RESPONDE.search(texto)
+            and cod not in (lead.get("enviados") or []) and _ofertavel(conn, cod, lead)):
+        so_o_card = not FORA_DO_CARD.search(texto)
+        if so_o_card:
+            acoes = [a for a in acoes if a not in leva]
+            r["baloes"] = ["Vou te mandar o card com as informações e as fotos dele."]
+        mandar(cod, "card_responde", f"o card do #{cod} responde" + ("" if so_o_card else "; o resto vai à equipe"))
+        livre = False
+    # 4. pediu opções e já se sabe o bastante: busca já (o que falta vira tanto faz)
+    if livre and PEDE_OPCOES.search(texto) and "equipe" not in acoes and _filtros_bastam(_filtros(lead.get("filtros"), r.get("filtros"))):
+        acoes = [*[a for a in acoes if a != "perguntar"][:1], "buscar"]
+        baloes = _baloes_do(r)
+        if not baloes or baloes[-1].rstrip().endswith("?"):
+            r["baloes"] = ["Vou te mandar as opções que tenho com esse perfil."]
+        passos.append(("pediu_opcoes", "pediu opções e os filtros bastam: busca já"))
+    # 5. nunca leva a dúvida à equipe sem dizer nada a ela (o lead 60 ficou sem resposta)
+    if not _baloes_do(r):
+        for a in ("perguntar", "equipe"):
+            if a in acoes:
+                r["baloes"] = [BALAO_SEM_RESPOSTA[a]]
+                passos.append(("balao_sem_resposta", f"ação {a} sem balão: a frase padrão"))
+                break
+    r["acoes"] = acoes
+    return acoes, passos
+
+
+def so_no_condominio(achados: list[dict], f: dict) -> list[dict]:
+    """26/10 (o lead 60: "só no Ponta Negra Village mesmo", e a busca trazia o Tarumã e a Chapada): com
+    filtros.so_condominio, só o condomínio que ela pediu."""
+    if not (f.get("so_condominio") and f.get("condominio")):
+        return achados
+    alvo = _normal(str(f["condominio"]))
+    return [a for a in achados if alvo and (alvo in _normal(str(a.get("condominio") or "")) or
+                                            _normal(str(a.get("condominio") or "")) in alvo and a.get("condominio"))]
 
 
 def pergunta_a_toa(r: dict, conversa: list[dict]) -> str:
@@ -1173,20 +1303,11 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
         if ainda:
             agentes.passo(lead, "parede_cortou", "; ".join(f"{p}: {x}" for _i, p, x in ainda)[:180], furos=ainda)
             r["baloes"] = sobra
-    acoes = acoes_da(r)
-    # 25/10 (um atalho sem modelo, como na Parceria; a marcação do Pedro no treino, …1715: "quando ele manda código é para
-    # enviar a foto"): a mensagem é só o código de um imóvel nosso -> o imóvel vai inteiro, mesmo que o modelo não tenha pedido
-    cod = codigo_sozinho(novas, nossas[-1]["texto"] if nossas else "")
-    if cod and not ({"fotos", "card", "visita", "buscar"} & set(acoes)) and _ofertavel(conn, cod, lead):
-        r["fotos"] = {"codigos": [cod]}
-        acoes = ["fotos", *acoes][:2]
-        agentes.passo(lead, "atalho_codigo", f"mandou só o código {cod}: o imóvel vai inteiro")
-    # 25/10 ("700mil", "o de 1.900": a escolha pelo valor de um imóvel que ela já viu vai inteira, sem o "vou confirmar")
-    cod = escolha_pelo_valor(novas, nossas[-1]["texto"] if nossas else "", lead.get("imoveis_conhecidos") or [])
-    if cod and not ({"fotos", "card", "visita", "buscar"} & set(acoes)) and _ofertavel(conn, cod, lead):
-        r["fotos"] = {"codigos": [cod]}
-        acoes = ["fotos", *acoes][:2]
-        agentes.passo(lead, "atalho_valor", f"escolheu pelo valor: o #{cod} vai inteiro")
+    # 25-26/10: as camadas sem modelo (o código sozinho, a escolha pelo valor, o card que responde, pediu opções, nunca
+    # sem balão): depois_do_modelo, a mesma que os testes rodam
+    acoes, passos = depois_do_modelo(conn, lead, r, novas, nossas[-1]["texto"] if nossas else "")
+    for nome, detalhe in passos:
+        agentes.passo(lead, nome, detalhe)
     r["_novas"] = novas
     agentes.atendimento(lead, plano, r, uso, uso.get("ms"), acoes)
     saiu = _falar(conn, lead, r, acoes, desde=inicio)
@@ -1435,8 +1556,8 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
         tentativas += 1
         achados = banco.linhas(conn, "SELECT * FROM olx_cliente_buscar(%s::jsonb, %s::int[], %s)",
                                (json.dumps(tentativa, ensure_ascii=False), excluir,
-                                MAX_IMOVEIS * 4 if (f.get("perto_de") or nomes_recusados) else MAX_IMOVEIS))
-        achados = fora_os_recusados(so_perto(conn, achados, tentativa), nomes_recusados)[:MAX_IMOVEIS]
+                                MAX_IMOVEIS * 4 if (f.get("perto_de") or nomes_recusados or f.get("so_condominio")) else MAX_IMOVEIS))
+        achados = so_no_condominio(fora_os_recusados(so_perto(conn, achados, tentativa), nomes_recusados), f)[:MAX_IMOVEIS]
         if achados:
             proximas = afrouxou
             break

@@ -19,6 +19,13 @@ NEGATIVA = re.compile(r"\b(n[ãa]o temos|n[ãa]o tenho (nenhum|nenhuma|nada|op[�
                       r"n[ãa]o d[áa] (para|pra)|infelizmente,? n[ãa]o)\b", re.I)
 BASTIDOR = re.compile(r"\b(rob[ôo]|intelig[êe]ncia artificial|sou uma ia|ficha|cat[áa]logo|sistema interno|nay da olx)\b", re.I)
 OLX = re.compile(r"\b(olx|an[úu]ncio)\b", re.I)
+# 26/10 (o lead 20: "o CRECI da imobiliária é PJ 482", que não está em lugar nenhum): número de documento só do turno
+DOCUMENTO = re.compile(r"\b(CRECI|CNPJ|CPF|inscri[çc][ãa]o)\b[^\d\n]{0,30}((?:PJ|F)?\s*\d[\d./-]{1,18})", re.I)
+# 26/10 (os leads 25 e 51: "a equipe me informou que..." sem nenhuma resposta da equipe na conversa): o que a equipe ou o
+# dono disse só vale se a fala da equipe (EQUIPE:) ou a resposta da fila ("Sobre a sua pergunta") está no turno
+EQUIPE_DISSE = re.compile(r"\b(a equipe|o tel|o propriet[áa]rio|a propriet[áa]ria|o corretor|a corretora)\s+(me\s+|j[áa]\s+)?"
+                          r"(informou|confirmou|disse|respondeu|falou|passou|garantiu|avisou)\b", re.I)
+RESPOSTA_DA_EQUIPE = re.compile(r"^EQUIPE|Sobre a sua pergunta|Sobre o #\d+", re.M)
 
 AVISO = {
     "valor": "você escreveu {x}, que NÃO está na ficha nem na conversa: use só valores que o sistema deu",
@@ -27,6 +34,8 @@ AVISO = {
     "negativa": "você deu uma negativa (\"{x}\"): nunca diga que não tem ou que não dá; diga que vai separar/confirmar",
     "bastidor": "você falou de \"{x}\": para ela você é só a Nay, da Imob Easy (sem robô, ficha, catálogo, sistema)",
     "olx": "ela escreveu direto para este número: nunca fale de OLX nem de anúncio (\"{x}\")",
+    "documento": "você citou \"{x}\", que NÃO está na ficha nem na conversa: nunca invente CRECI, CNPJ ou documento; diga que confirma com a equipe",
+    "equipe_disse": "você escreveu \"{x}\", mas NENHUMA resposta da equipe está na conversa: nunca invente o que a equipe ou o dono disse; diga que vai confirmar",
 }
 
 
@@ -78,6 +87,8 @@ def conferir(baloes: list[str], turno: str, organico: bool) -> list[tuple[int, s
     furos = []
     nums = numeros_do_turno(turno)
     dela = _dela(turno)
+    # o documento só vale se o MESMO número aparece junto da palavra (CRECI, CNPJ...) no turno, não solto num preço ou área
+    docs = {re.sub(r"\D", "", m.group(2)) for m in DOCUMENTO.finditer(turno or "")}
     for i, b in enumerate(baloes or []):
         b = str(b or "")
         for m in VALOR.finditer(b):
@@ -88,6 +99,12 @@ def conferir(baloes: list[str], turno: str, organico: bool) -> list[tuple[int, s
         for m in CODIGO.finditer(b):
             if int(m.group(1)) not in nums:
                 furos.append((i, "codigo", m.group(1)))
+        for m in DOCUMENTO.finditer(b):
+            if re.sub(r"\D", "", m.group(2)) not in docs:
+                furos.append((i, "documento", m.group(0).strip()))
+        m = EQUIPE_DISSE.search(b)
+        if m and not RESPOSTA_DA_EQUIPE.search(turno or ""):
+            furos.append((i, "equipe_disse", m.group(0)))
         for parede, rx in (("parceria", PARCERIA), ("negativa", NEGATIVA), ("bastidor", BASTIDOR)):
             m = rx.search(b)
             if m and not (parede == "parceria" and rx.search(dela)):      # ela perguntou de parceria: responder não fura
