@@ -313,6 +313,11 @@ def rodar_conversa(c: dict) -> dict:
                 else:
                     turno = whatsapp.montar_turno(lead, None, ctx)
                     r = modelo.chamar(plano["prompt"], turno, no="olx.replay")
+                    # a segunda chamada avisada, como no _responder_um (perguntou o que já se sabe; equipe só por interesse)
+                    aviso = " ".join(x for x in (whatsapp.pergunta_a_toa(r, ctx), whatsapp.equipe_a_toa(r, novas)) if x)
+                    if aviso:
+                        item["chamou_de_novo"] = aviso[:160]
+                        r = modelo.chamar(plano["prompt"], turno + "\n\n" + aviso, no="olx.replay")
                     # as paredes de saída, como no _responder_um (olx/paredes.py)
                     furos = paredes.conferir(whatsapp._baloes_do(r), turno, True)
                     if furos:
@@ -329,6 +334,12 @@ def rodar_conversa(c: dict) -> dict:
                     r["fotos"] = {"codigos": [cod]}
                     acoes = ["fotos", *acoes][:2]
                     item["atalho"] = f"código sozinho {cod}"
+                cod = whatsapp.escolha_pelo_valor(novas, nay_ate_aqui[-1]["texto"] if nay_ate_aqui else "",
+                                                  lead.get("imoveis_conhecidos") or [])
+                if cod and not ({"fotos", "card", "visita", "buscar"} & set(acoes)) and whatsapp._ofertavel(conn, cod, lead):
+                    r["fotos"] = {"codigos": [cod]}
+                    acoes = ["fotos", *acoes][:2]
+                    item["atalho"] = f"escolheu pelo valor: {cod}"
                 lead["filtros"] = whatsapp._filtros(lead["filtros"], r.get("filtros"))
                 item.update({"baloes": [str(b).strip() for b in (r.get("baloes") or []) if str(b).strip()],
                              "acoes": acoes, "filtros": lead["filtros"]})

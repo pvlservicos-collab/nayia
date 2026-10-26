@@ -183,7 +183,9 @@ equipe disse VALE, e você continua de onde ela parou:
 Documentação, contrato, reclamação, pedido para falar com uma pessoa, corretor oferecendo parceria, cliente que decidiu
 fechar (quer comprar ou alugar, vai dar entrada) ou que mandou documentos. Diga com
 naturalidade que já passa para a equipe e que vão falar com ela por aqui. (Desconto, proposta e menor valor NÃO: é
-"perguntar", a equipe responde e a conversa continua com você.)
+"perguntar", a equipe responde e a conversa continua com você.) Interesse num imóvel ("tenho interesse", "gostei desse",
+"quero ver esse", "tenho um cliente interessado nesse") também NÃO é com a equipe: é a VISITA. Mande o imóvel se ela
+ainda não viu (acao "fotos") e pergunte o dia e o horário.
 
 === UMA CONFIRMAÇÃO SÓ ===
 - Cada pedido é confirmado UMA vez. Quando for buscar, é UM balão só, juntando nele o que for perguntar à equipe (ex.:
@@ -845,6 +847,51 @@ def quartos_que_ela_disse(r: dict, conversa: list[dict]) -> int | None:
     return q if any(re.search(rf"(?<!\d){q}(?!\d)", t) for t in dela) else None
 
 
+INTERESSE = re.compile(r"\b(tenho interesse|tem interesse|interessad[oa]s?|gostei d|gostou d|quero (esse|essa|ver|visitar|conhecer)|"
+                       r"me interessei|curti (esse|essa))", re.I)
+COISA_DE_EQUIPE = re.compile(r"\b(document|contrato|fechar|fechad|dar entrada|proposta|desconto|reclama|falar com (algu|uma pessoa|o corretor|gente)|"
+                             r"atendente|humano|cpf|rg\b|comprovante|parceria|sou corretor)", re.I)
+
+
+def equipe_a_toa(r: dict, novas: list[str]) -> str:
+    """25/10 (a marcação do Pedro no treino, …8345: "quando ele disser claramente que tem um cliente interessado ... mandar o
+    card e perguntar da visita"): o modelo passou para a equipe só porque ela mostrou interesse num imóvel. O aviso da
+    segunda chamada (vazio = está certo: há motivo de equipe, ou não foi interesse)."""
+    texto = " ".join(novas or [])
+    if "equipe" not in acoes_da(r) or not INTERESSE.search(texto) or COISA_DE_EQUIPE.search(texto):
+        return ""
+    return ("ATENÇÃO: ela mostrou INTERESSE num imóvel (não é documento, contrato, proposta nem pedido de falar com alguém): "
+            "NÃO passe para a equipe. Mande o imóvel se ela ainda não viu (acao \"fotos\") e pergunte o dia e o horário da visita.")
+
+
+VALOR_ESCOLHIDO = re.compile(r"^\s*(?:(?:quero|prefiro|manda|me manda|pode ser)\s+)?(?:o|a|esse|essa)?\s*(?:de|do|da)?\s*"
+                             r"(?:r\$\s*)?(\d{1,3}(?:[.,]\d{3})*|\d+)(?:[.,](\d{1,2}))?\s*(mil|k)?\s*(?:reais)?[\s.!?]*$", re.I)
+
+
+def escolha_pelo_valor(novas: list[str], ultima_da_nay: str, conhecidos: list[str]) -> int | None:
+    """25/10 ("700mil", "o de 1.900", "1,900" depois da lista): a mensagem é só um valor e ele bate com UM dos imóveis da
+    conversa (até 2% de diferença) -> o código desse imóvel. Não vale quando a última pergunta dela foi um número (aí é o
+    teto) nem quando o valor serve a dois imóveis."""
+    if PERGUNTA_DE_NUMERO.search(ultima_da_nay or ""):
+        return None
+    precos = []
+    for linha in conhecidos or []:
+        m = re.match(r"#(\d+)", linha)
+        if m:
+            precos += [(int(m.group(1)), int(v.replace(".", ""))) for v in re.findall(r"R\$ ([\d.]+)", linha)]
+    for t in reversed(novas or []):
+        m = VALOR_ESCOLHIDO.match(t or "")
+        if not m:
+            continue
+        base = int(re.sub(r"[.,]", "", m.group(1)))
+        candidatos = {base * 1000} if m.group(3) else {base, base * 1000}
+        if m.group(2) and not m.group(3):          # "1,9" ou "2.5" sem milhar: 1,9 mil
+            candidatos = {int(float(f"{base}.{m.group(2)}") * 1000)}
+        acha = {c for c, p in precos for v in candidatos if p and abs(p - v) <= 0.02 * p}
+        return acha.pop() if len(acha) == 1 else None
+    return None
+
+
 def pergunta_a_toa(r: dict, conversa: list[dict]) -> str:
     """O aviso para a segunda chamada quando o modelo perguntou o que já se sabe (vazio = nada a corrigir)."""
     avisos = []
@@ -1106,7 +1153,7 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
     prompt = plano["prompt"]
     r = modelo.chamar(prompt, turno, no="olx.whatsapp")
     uso = modelo.ultimo_uso()
-    aviso = pergunta_a_toa(r, conversa)
+    aviso = " ".join(x for x in (pergunta_a_toa(r, conversa), equipe_a_toa(r, novas)) if x)
     if aviso:
         # 22/10: perguntou o que já se sabe (a finalidade pelo valor, os quartos que ela disse): uma segunda chamada, avisada
         log.info("lead %s: perguntou o que já se sabe; de novo (%s)", lead["id"], aviso[:120])
@@ -1134,6 +1181,12 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
         r["fotos"] = {"codigos": [cod]}
         acoes = ["fotos", *acoes][:2]
         agentes.passo(lead, "atalho_codigo", f"mandou só o código {cod}: o imóvel vai inteiro")
+    # 25/10 ("700mil", "o de 1.900": a escolha pelo valor de um imóvel que ela já viu vai inteira, sem o "vou confirmar")
+    cod = escolha_pelo_valor(novas, nossas[-1]["texto"] if nossas else "", lead.get("imoveis_conhecidos") or [])
+    if cod and not ({"fotos", "card", "visita", "buscar"} & set(acoes)) and _ofertavel(conn, cod, lead):
+        r["fotos"] = {"codigos": [cod]}
+        acoes = ["fotos", *acoes][:2]
+        agentes.passo(lead, "atalho_valor", f"escolheu pelo valor: o #{cod} vai inteiro")
     r["_novas"] = novas
     agentes.atendimento(lead, plano, r, uso, uso.get("ms"), acoes)
     saiu = _falar(conn, lead, r, acoes, desde=inicio)

@@ -40,6 +40,35 @@ class CodigoSozinho(unittest.TestCase):
         self.assertIsNone(w.codigo_sozinho(["o 3078 aceita pet?"], ""))
 
 
+class EquipeATona(unittest.TestCase):
+    def test_interesse_nao_e_com_a_equipe(self):
+        r = {"baloes": ["Vou passar para a equipe."], "acoes": ["equipe"]}
+        self.assertTrue(w.equipe_a_toa(r, ["Tenho um cliente interessado nesse apartamento"]).startswith("ATENÇÃO"))
+        self.assertTrue(w.equipe_a_toa(r, ["gostei desse"]))
+
+    def test_com_motivo_de_equipe_vale(self):
+        r = {"baloes": ["Vou passar para a equipe."], "acoes": ["equipe"]}
+        self.assertEqual(w.equipe_a_toa(r, ["tenho interesse, quero fechar e mandar os documentos"]), "")
+        self.assertEqual(w.equipe_a_toa({"acoes": ["visita"]}, ["tenho interesse"]), "")
+
+
+class EscolhaPeloValor(unittest.TestCase):
+    CONHECIDOS = ["#2659 · Casa · Village Park, Aleixo · venda R$ 700.000 · 3 quartos",
+                  "#5711 · Casa · Village Park, Aleixo · venda R$ 800.000 · 4 quartos",
+                  "#5733 · Apartamento · Conquista Rio Negro, Ponta Negra · aluguel R$ 1.900 · 2 quartos"]
+
+    def test_o_valor_escolhe_o_imovel(self):
+        for t, cod in (("700mil", 2659), ("o de 800 mil", 5711), ("1,900", 5733), ("1.900", 5733), ("R$ 1.900", 5733), ("700", 2659)):
+            self.assertEqual(w.escolha_pelo_valor([t], "Qual deles você quer ver?", self.CONHECIDOS), cod, t)
+
+    def test_resposta_ao_valor_e_teto_nao_escolha(self):
+        self.assertIsNone(w.escolha_pelo_valor(["1.900"], "Até que valor você procura?", self.CONHECIDOS))
+
+    def test_valor_que_nao_bate_ou_frase(self):
+        self.assertIsNone(w.escolha_pelo_valor(["950 mil"], "", self.CONHECIDOS))
+        self.assertIsNone(w.escolha_pelo_valor(["tem algum de 700 mil com piscina?"], "", self.CONHECIDOS))
+
+
 class DeNovo(unittest.TestCase):
     def test_so_pedindo_de_novo(self):
         for t in ("manda as fotos de novo", "não chegaram as fotos", "reenvia por favor"):
