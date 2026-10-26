@@ -17,7 +17,7 @@ import { leads, profiles } from '@/lib/schema'
 import { escolherEtapaDaCaptacao } from '@/lib/nayLeitura'
 
 export const ETAPAS_DA_CAPTACAO = ['todos', 'em_andamento', 'followup', 'disponiveis', 'alugados',
-  'quer_vender', 'ja_vendeu', 'tem_outro_imovel', 'sem_resposta', 'com_o_tel'] as const
+  'quer_vender', 'ja_vendeu', 'tem_outro_imovel', 'sem_resposta', 'com_o_tel', 'rayssa'] as const
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'

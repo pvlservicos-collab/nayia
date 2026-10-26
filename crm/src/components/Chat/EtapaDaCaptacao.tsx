@@ -23,6 +23,8 @@ export const ETAPAS_DA_CAPTACAO: Array<{ chave: string; rotulo: string; titulo: 
   { chave: 'ja_vendeu', rotulo: 'Já vendeu', titulo: 'Ele já vendeu' },
   { chave: 'tem_outro_imovel', rotulo: 'Tem outro imóvel', titulo: 'Ele falou de outro imóvel' },
   { chave: 'com_o_tel', rotulo: 'Com o Tel', titulo: 'A Nay para de responder essa pessoa', pessoa: true },
+  // 501 (Pedro, 26/10): aba Rayssa do lado do Tel na captação -- mesmo efeito do Com o Tel (a Nay cala)
+  { chave: 'rayssa', rotulo: 'Rayssa', titulo: 'A Rayssa está com essa conversa; a Nay para de responder', pessoa: true },
 ]
 
 export const ROTULO_DA_ETAPA_DA_CAPTACAO: Record<string, string> =
@@ -81,7 +83,8 @@ export default function EtapaDaCaptacao({ leadId, etapaManual, abas, aoMudar }: 
       <div className="flex flex-wrap items-center gap-1.5">
         {ETAPAS_DA_CAPTACAO.map((e) => (
           <span key={e.chave} className="contents">
-            {e.pessoa && <span className="wa-fase__risco" aria-hidden="true" />}
+            {/* o risco só separa etapa de pessoa uma vez (antes do Tel, o primeiro dos dois) */}
+            {e.chave === 'com_o_tel' && <span className="wa-fase__risco" aria-hidden="true" />}
             <button type="button" onClick={() => { setEscolhido(e.chave); setRecado(null) }} disabled={salvando} title={e.titulo}
                     className={`wa-fase wa-fase--${e.pessoa ? 'pessoa' : 'etapa'}`
                       + `${e.chave !== 'todos' && !e.pessoa ? ' wa-fase--rosa' : ''}`

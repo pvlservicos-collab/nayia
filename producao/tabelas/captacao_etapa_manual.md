@@ -11,7 +11,7 @@ definido_em  timestamp with time zone  NOT NULL  padrão now()
 CREATE UNIQUE INDEX captacao_etapa_manual_pkey ON public.captacao_etapa_manual USING btree (telefone)
 
 ## restrições
-captacao_etapa_manual_ok: CHECK ((etapa = ANY (ARRAY['todos'::text, 'em_andamento'::text, 'followup'::text, 'disponiveis'::text, 'alugados'::text, 'quer_vender'::text, 'ja_vendeu'::text, 'tem_outro_imovel'::text, 'sem_resposta'::text, 'com_o_tel'::text])))
+captacao_etapa_manual_ok: CHECK ((etapa = ANY (ARRAY['todos'::text, 'em_andamento'::text, 'followup'::text, 'disponiveis'::text, 'alugados'::text, 'quer_vender'::text, 'ja_vendeu'::text, 'tem_outro_imovel'::text, 'sem_resposta'::text, 'com_o_tel'::text, 'rayssa'::text])))
 captacao_etapa_manual_pkey: PRIMARY KEY (telefone)
 
 ## permissões
