@@ -53,7 +53,10 @@ CAMPOS_DOS_FILTROS = ("finalidade", "tipo", "teto", "bairros", "qualquer_bairro"
                       "aceita_escada", "financiamento", "mobilia",
                       # 24/10 (Pedro, a Esther: a necessidade vai crescendo na conversa e tem que ficar): o lugar de referência
                       # ("perto do Distrito"), o pet e o que mais ela exige (cozinha e lavanderia completas...)
-                      "perto_de", "perto_km", "pet", "exigencias")
+                      "perto_de", "perto_km", "pet", "exigencias",
+                      # 25/10 (as conversas com erro de outubro na Nay Leads: o Liverpool que a cliente recusou voltava na
+                      # busca): os imóveis e condomínios que ela recusou, por código ou pelo nome
+                      "recusados")
 PERTO_KM_PADRAO = 6.0      # "perto" de um lugar: até aqui (centro do bairro ao centro do bairro), se ela não disse quantos km
 
 
@@ -212,7 +215,7 @@ Valor em reais assim: R$ 700.000 / R$ 2.500.
 {"baloes": ["..."], "acoes": [],
  "filtros": {"finalidade": "", "tipo": "", "teto": 0, "bairros": [], "qualquer_bairro": false, "quartos": 0,
              "aceita_menos_quartos": null, "aceita_escada": null, "financiamento": "", "mobilia": "", "condominio": "",
-             "perto_de": "", "perto_km": 0, "pet": "", "exigencias": []},
+             "perto_de": "", "perto_km": 0, "pet": "", "exigencias": [], "recusados": []},
  "fotos": {"codigos": []}, "depois_das_fotos": [], "card": {"codigos": []}, "visita": {"codigo": 0, "data": "", "hora": ""},
  "motivo": ""}
 - acoes: [] ou, na ordem, até duas de: "fotos" (o card, se ela ainda não viu, e as fotos dos imóveis em fotos.codigos) |
@@ -234,6 +237,8 @@ Valor em reais assim: R$ 700.000 / R$ 2.500.
   que fica perto: NUNCA diga distância, "fica longe" ou "fica perto" por conta própria. perto_km: só se ela disse
   quantos km. pet: o que ela disse do bicho ("2 gatas", "cachorro pequeno"). exigencias: o que ela quer e os outros
   campos não cobrem ("cozinha e lavanderia completas", "elevador", "andar baixo"), um item curto cada.
+  recusados: o que ela recusou ou descartou, para NUNCA voltar na busca: o código do imóvel ("esse não serve" de um
+  card que você mandou) ou o nome do condomínio que ela não quer ("já mora no Liverpool", "na Reserva Inglesa não").
   Mobiliado é MOBILIADO: nunca ofereça nem aceite "modulados e ar" para quem pediu mobiliado.
 - visita: o código do imóvel (da lista do sistema, NUNCA perguntado a ela), a data (DD/MM) e a hora (HH:MM) que ela disse.
 - motivo: em poucas palavras, para a equipe (com "perguntar" ou "equipe"): o que ela pediu, com os códigos.
@@ -720,12 +725,12 @@ def _filtros(antes: dict, novos) -> dict:
     f = dict(antes or {})
     for k in CAMPOS_DOS_FILTROS:
         v = (novos or {}).get(k) if isinstance(novos, dict) else None
-        if k == "exigencias":
-            # só acumula: o que ela já exigiu não some quando o modelo esquece de repetir
+        if k in ("exigencias", "recusados"):
+            # só acumula: o que ela já exigiu (ou recusou) não some quando o modelo esquece de repetir
             novas = [str(x).strip()[:120] for x in (v if isinstance(v, list) else []) if str(x).strip()]
-            f["exigencias"] = list(dict.fromkeys([*(f.get("exigencias") or []), *novas]))[:12]
-            if not f["exigencias"]:
-                f.pop("exigencias")
+            f[k] = list(dict.fromkeys([*(f.get(k) or []), *novas]))[:12 if k == "exigencias" else 20]
+            if not f[k]:
+                f.pop(k)
             continue
         if k == "perto_km":
             try:
@@ -1122,6 +1127,14 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
             agentes.passo(lead, "parede_cortou", "; ".join(f"{p}: {x}" for _i, p, x in ainda)[:180], furos=ainda)
             r["baloes"] = sobra
     acoes = acoes_da(r)
+    # 25/10 (um atalho sem modelo, como na Parceria; a marcação do Pedro no treino, …1715: "quando ele manda código é para
+    # enviar a foto"): a mensagem é só o código de um imóvel nosso -> o imóvel vai inteiro, mesmo que o modelo não tenha pedido
+    cod = codigo_sozinho(novas, nossas[-1]["texto"] if nossas else "")
+    if cod and not ({"fotos", "card", "visita", "buscar"} & set(acoes)) and _ofertavel(conn, cod, lead):
+        r["fotos"] = {"codigos": [cod]}
+        acoes = ["fotos", *acoes][:2]
+        agentes.passo(lead, "atalho_codigo", f"mandou só o código {cod}: o imóvel vai inteiro")
+    r["_novas"] = novas
     agentes.atendimento(lead, plano, r, uso, uso.get("ms"), acoes)
     saiu = _falar(conn, lead, r, acoes, desde=inicio)
     agentes.passo(lead, "falou", f"{len(saiu)} balão(ões)" + (" (a equipe entrou no meio: parou)" if r.get("_equipe_no_meio") else "")
@@ -1133,6 +1146,29 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
     for acao in acoes:
         _fazer(conn, _lead(conn, lead["id"]), r, acao, filtros, cfg)
     return True
+
+
+CODIGO_SOZINHO = re.compile(r"^\s*(?:c[óo]d(?:igo)?\.?\s*:?\s*|#)?(\d{3,5})\s*[.!?]?\s*$", re.I)
+PERGUNTA_DE_NUMERO = re.compile(r"\b(valor|quanto|r\$|or[çc]amento|quartos?|metros|m2|m²|andar|vagas?)\b", re.I)
+DE_NOVO = re.compile(r"\b(de novo|novamente|outra vez|n[ãa]o (chegou|chegaram|veio|vieram|abriu|abriram)|reenvi\w*|manda[r]? (as )?fotos? de novo)\b", re.I)
+
+
+def fotos_ja_foram(conn, lead: dict, codigo: int) -> bool:
+    """As fotos deste imóvel já saíram para esta pessoa (olx_cliente_enviada, tipo 'foto')."""
+    return bool(banco.um(conn, """SELECT EXISTS (SELECT 1 FROM privado.olx_cliente_enviada
+                                     WHERE lead = %s AND codigo = %s AND tipo = 'foto')""", (lead["id"], codigo)))
+
+
+def codigo_sozinho(novas: list[str], ultima_da_nay: str = "") -> int | None:
+    """A mensagem é só o código de um imóvel ("3078", "cód. 3078", "#3078"): é o pedido do imóvel. Não vale quando a
+    última pergunta dela foi um número (valor, quartos, andar): aí "3000" é a resposta, não um imóvel."""
+    if PERGUNTA_DE_NUMERO.search(ultima_da_nay or ""):
+        return None
+    for t in reversed(novas or []):
+        m = CODIGO_SOZINHO.match(t or "")
+        if m:
+            return int(m.group(1))
+    return None
 
 
 def acoes_da(r: dict) -> list[str]:
@@ -1189,6 +1225,13 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
                 time.sleep(DEPOIS_DAS_FOTOS_S)   # as fotos do anterior carregam antes do próximo card
             # o imóvel do anúncio ou um que ela já recebeu: só as fotos (o card ela já viu)
             ja_viu = codigo == lead.get("codigo") or codigo in enviados
+            # 25/10 (a marcação do Pedro no treino, …9640: "não reenviar o mesmo card, ela enviou várias vezes"): as fotos
+            # que já foram não vão de novo, a não ser que ela peça de novo ("de novo", "não chegaram")
+            if ja_viu and fotos_ja_foram(conn, lead, codigo) and not DE_NOVO.search(" ".join(r.get("_novas") or [])):
+                agentes.passo(lead, "fotos_ja_foram", f"as fotos do #{codigo} já foram: não reenvia")
+                if not any(_normal("Já te mandei as fotos") in _normal(x) for x in ja_mandou(conn, lead)):
+                    mandar_texto(conn, lead, "Já te mandei as fotos desse aqui em cima na conversa. Quer que eu mande de novo?")
+                continue
             mandar_imovel(conn, lead, codigo, com_card=not ja_viu)
             if not ja_viu:
                 enviados.append(codigo)
@@ -1307,8 +1350,28 @@ def _afrouxar(f: dict) -> list[tuple[dict, bool]]:
     return passos
 
 
+def recusados(f: dict) -> tuple[list[int], list[str]]:
+    """Os imóveis que ela recusou (filtros.recusados): os códigos e os nomes (do condomínio ou do lugar), normalizados."""
+    cods, nomes = [], []
+    for x in (f or {}).get("recusados") or []:
+        c = _int(re.sub(r"\D", "", str(x))) if re.fullmatch(r"\s*#?\d{3,5}\s*", str(x)) else None
+        if c:
+            cods.append(c)
+        elif len(_normal(str(x))) >= 4:
+            nomes.append(_normal(str(x)))
+    return cods, nomes
+
+
+def fora_os_recusados(achados: list[dict], nomes: list[str]) -> list[dict]:
+    """Tira da busca o condomínio que ela recusou pelo nome ("já mora no Liverpool", "Reserva Inglesa não")."""
+    if not nomes:
+        return achados
+    return [a for a in achados if not any(n in _normal(str(a.get("condominio") or "")) for n in nomes)]
+
+
 def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -> None:
-    excluir = list(lead.get("enviados") or []) + ([lead["codigo"]] if lead.get("codigo") else [])
+    cods_recusados, nomes_recusados = recusados(filtros)
+    excluir = list(lead.get("enviados") or []) + ([lead["codigo"]] if lead.get("codigo") else []) + cods_recusados
     f = dict(filtros)
     if not f.get("finalidade"):
         f["finalidade"] = finalidade_sem_dizer(lead, f)
@@ -1319,8 +1382,8 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
         tentativas += 1
         achados = banco.linhas(conn, "SELECT * FROM olx_cliente_buscar(%s::jsonb, %s::int[], %s)",
                                (json.dumps(tentativa, ensure_ascii=False), excluir,
-                                MAX_IMOVEIS * 4 if f.get("perto_de") else MAX_IMOVEIS))
-        achados = so_perto(conn, achados, tentativa)[:MAX_IMOVEIS]
+                                MAX_IMOVEIS * 4 if (f.get("perto_de") or nomes_recusados) else MAX_IMOVEIS))
+        achados = fora_os_recusados(so_perto(conn, achados, tentativa), nomes_recusados)[:MAX_IMOVEIS]
         if achados:
             proximas = afrouxou
             break

@@ -80,20 +80,62 @@ def conversas(md: str) -> list[dict]:
             erros.append({"gravidade": e.group(1), "tipo": e.group(2), "o_que_aconteceu": e.group(3).strip(),
                           "o_que_devia": e.group(4).strip(),
                           "trecho": "\n".join(x.strip().lstrip("> ") for x in e.group(5).splitlines())})
-        falas: list[dict] = []
-        for linha in texto.group(1).splitlines():
-            m = LINHA.match(linha)
-            if m:
-                h, mi, quem, t = m.groups()
-                falas.append({"hora": f"{h}:{mi}", "quem": quem, "texto": t})
-            elif falas and linha.startswith("      "):
-                falas[-1]["texto"] += "\n" + linha.strip()
-            elif not linha.strip() and falas:
-                continue
-        for f in falas:
-            f["texto"] = re.sub(r"\s*\{[a-z_]+\}\s*$", "", f["texto"]).strip()      # o {template} do fim
         saida.append({"id": (arq.group(1) if arq else f"{dia}/{final}"), "dia": dia, "final": final, "nota": int(nota),
-                      "erros": erros, "falas": falas})
+                      "erros": erros, "falas": falas_do_texto(texto.group(1))})
+    return saida
+
+
+def _texto_do_envio(bruto: str) -> str:
+    """'[{"tipo": "texto", "texto": "..."}, ...]' (o enviado_antes do treino) -> os textos, um por linha."""
+    try:
+        itens = json.loads(bruto)
+    except ValueError:
+        # o envio veio cortado (a biblioteca guarda 600 caracteres): os "texto" que couberem
+        achados = re.findall(r'"texto":\s*"((?:[^"\\]|\\.)*)"?', bruto)
+        return "\n".join(a.encode("utf-8").decode("unicode_escape", "ignore") if "\\u" in a else a.replace("\\n", "\n")
+                         for a in achados) or bruto
+    return "\n".join(str(i.get("texto") or "") for i in itens if isinstance(i, dict) and i.get("texto")) if isinstance(itens, list) else bruto
+
+
+def falas_do_texto(texto: str) -> list[dict]:
+    """As falas com hora de uma conversa no formato do importar_nay.py ('HH:MM Corretor: ...', 'HH:MM Nay: ...') ou do
+    treino da Parceria ('HH:MM Corretor: ...' e, embaixo, 'Nay (antes): [json]' e 'Nay (no treino): ...')."""
+    falas: list[dict] = []
+    for linha in (texto or "").splitlines():
+        m = LINHA.match(linha)
+        if m:
+            h, mi, quem, t = m.groups()
+            falas.append({"hora": f"{h}:{mi}", "quem": quem, "texto": t})
+        elif falas and linha.strip().startswith("Nay (antes):"):
+            falas.append({"hora": falas[-1]["hora"], "quem": "Nay", "texto": _texto_do_envio(linha.split(":", 1)[1].strip())})
+        elif falas and linha.strip().startswith("Nay (no treino):"):
+            continue                      # o que o código de 06/10 respondeu no treino não é a conversa real
+        elif falas and linha.startswith("      "):
+            falas[-1]["texto"] += "\n" + linha.strip()
+    for f in falas:
+        f["texto"] = re.sub(r"\s*\{[a-z_]+\}\s*$", "", f["texto"]).strip()      # o {template} do fim
+    return [f for f in falas if f["texto"]]
+
+
+def da_biblioteca(caminho: str) -> list[dict]:
+    """As conversas com erro da biblioteca (498), exportadas em JSON: [{ref, nay, dia, tel4, nota, marcas, texto}].
+    Os erros são os de todas as marcas que disseram erro (o Pedro, o agente, o Gemini, a nota automática...)."""
+    saida = []
+    for x in json.loads(Path(caminho).read_text(encoding="utf-8")):
+        erros = []
+        for m in x.get("marcas") or []:
+            if m.get("resultado") != "erro":
+                continue
+            for e in m.get("erros") or []:
+                if e.get("o_que_aconteceu") or e.get("o_que_devia"):
+                    erros.append({"gravidade": e.get("gravidade") or "media", "tipo": e.get("tipo") or "outro",
+                                  "o_que_aconteceu": e.get("o_que_aconteceu") or "", "o_que_devia": e.get("o_que_devia") or "",
+                                  "trecho": e.get("trecho") or "", "fonte": m.get("fonte")})
+        falas = falas_do_texto(x.get("texto") or "")
+        if not erros or not any(f["quem"] == "Corretor" for f in falas):
+            continue
+        saida.append({"id": x["ref"], "dia": str(x.get("dia") or "")[:10], "final": x.get("tel4") or "0000",
+                      "nota": x.get("nota") or 0, "erros": erros[:10], "falas": falas, "nay": x.get("nay")})
     return saida
 
 
@@ -133,7 +175,8 @@ def _conversa(falas: list[dict], dia: str) -> list[dict]:
 
 def buscar_sem_mandar(conn, lead: dict, filtros: dict) -> dict:
     """A busca de _buscar_e_mandar, só lendo: o que sairia (com o afrouxar e o veto) e nada mais."""
-    excluir = list(lead.get("enviados") or [])
+    cods_recusados, nomes_recusados = whatsapp.recusados(filtros)
+    excluir = list(lead.get("enviados") or []) + cods_recusados
     f = dict(filtros)
     if not f.get("finalidade"):
         f["finalidade"] = whatsapp.finalidade_sem_dizer(lead, f)
@@ -141,8 +184,8 @@ def buscar_sem_mandar(conn, lead: dict, filtros: dict) -> dict:
     for tentativa, afrouxou in whatsapp._afrouxar(f):
         achados = banco.linhas(conn, "SELECT * FROM olx_cliente_buscar(%s::jsonb, %s::int[], %s)",
                                (json.dumps(tentativa, ensure_ascii=False), excluir,
-                                whatsapp.MAX_IMOVEIS * 4 if f.get("perto_de") else whatsapp.MAX_IMOVEIS))
-        achados = whatsapp.so_perto(conn, achados, tentativa)[:whatsapp.MAX_IMOVEIS]
+                                whatsapp.MAX_IMOVEIS * 4 if (f.get("perto_de") or nomes_recusados) else whatsapp.MAX_IMOVEIS))
+        achados = whatsapp.fora_os_recusados(whatsapp.so_perto(conn, achados, tentativa), nomes_recusados)[:whatsapp.MAX_IMOVEIS]
         if achados:
             proximas = afrouxou
             break
@@ -159,6 +202,68 @@ def buscar_sem_mandar(conn, lead: dict, filtros: dict) -> dict:
             "veto_barrou": [c for c in antes if c not in {int(a["codigo"]) for a in achados}]}
 
 
+ECONOMIA = [True]            # 25/10 (Pedro: "dá uma filtrada nos testes para não gastar meus créditos"); --tudo desliga
+CUMPRIMENTO = re.compile(r"^\s*(bom dia|boa tarde|boa noite|oi+|ol[áa]|opa|e a[ií])[\s,!.]*(nay|nai|amiga|querida)?[\s,!.]*$", re.I)
+HORA = re.compile(r"\b([01]\d|2[0-3]):([0-5]\d)\b")
+
+
+def _minutos(h: str) -> int:
+    a, b = h.split(":")
+    return int(a) * 60 + int(b)
+
+
+def _pular(c: dict, hora: str, novas: list[str], anteriores: list[dict]) -> str | None:
+    """O motivo de não chamar o modelo neste turno (None = roda): mídia sem texto, só cortesia ou cumprimento, a mesma
+    mensagem de novo, ou longe do erro (quando os erros apontados dizem a hora, só roda a 10 min deles)."""
+    textos = [t.strip() for t in novas if (t or "").strip()]
+    if not textos:
+        return "mídia sem texto"
+    if whatsapp.so_agradeceu(textos) or all(CUMPRIMENTO.match(t) for t in textos):
+        return "só cortesia ou cumprimento"
+    if anteriores and [t.strip() for t in anteriores[-1]["ele"] if (t or "").strip()] == textos:
+        return "a mesma mensagem de novo"
+    return None
+
+
+def _normal(t: str) -> str:
+    return re.sub(r"\s+", " ", whatsapp._normal(t or "")).strip()
+
+
+def turnos_alvo(c: dict, conv: list[dict]) -> set[int] | None:
+    """Os turnos (o índice da 1ª fala da pessoa) que valem rodar: os da hora que o erro aponta (10 min para cada lado) e
+    os em que aparece um trecho citado no erro, com o turno de antes (o contexto do erro). None = rodar todos (o erro não
+    diz onde foi)."""
+    grupos, k = [], 0
+    while k < len(conv):
+        if conv[k]["direcao"] != "recebida":
+            k += 1
+            continue
+        fim = k
+        while fim + 1 < len(conv) and conv[fim + 1]["direcao"] == "recebida":
+            fim += 1
+        j = fim + 1
+        while j < len(conv) and conv[j]["direcao"] != "recebida":
+            j += 1
+        grupos.append((k, conv[fim]["criada_em"].strftime("%H:%M"), _normal(" ".join(m["texto"] for m in conv[k:j]))))
+        k = fim + 1
+    texto_erros = " ".join(str(e.get(x) or "") for e in c.get("erros") or [] for x in ("trecho", "o_que_aconteceu", "o_que_devia"))
+    horas = {_minutos(f"{a}:{b}") for a, b in HORA.findall(texto_erros)}
+    citados = [_normal(s)[:40] for s in re.findall(r"[“\"']([^”\"']{10,})[”\"']", texto_erros)]
+    citados += [_normal(re.sub(r"^\s*>?\s*\d{2}:\d{2}\s+[^:]{1,20}:\s*", "", l))[:40]
+                for e in c.get("erros") or [] for l in str(e.get("trecho") or "").splitlines() if len(l.strip()) > 14]
+    citados = [s for s in citados if len(s) >= 10]
+    if not horas and not citados:
+        return None
+    alvo = set()
+    for i, (k, hora, texto) in enumerate(grupos):
+        perto = horas and min(abs(_minutos(hora) - h) for h in horas) <= 10
+        if perto or any(s in texto for s in citados):
+            alvo.add(k)
+            if i:
+                alvo.add(grupos[i - 1][0])        # o turno de antes: o contexto em que o erro aconteceu
+    return alvo or None
+
+
 def rodar_conversa(c: dict) -> dict:
     conn = banco.conectar()
     agentes.forcar_modo("sim", "replay")
@@ -166,6 +271,7 @@ def rodar_conversa(c: dict) -> dict:
     lead = {"id": -int(c["final"]), "telefone": "559200" + c["final"].rjust(6, "0"), "origem": "organico",
             "etapa": "nova", "filtros": {}, "enviados": [], "chat": None, "nome": None, "perfil": {}}
     turnos, k = [], 0
+    alvo = turnos_alvo(c, conv) if ECONOMIA[0] else None
     try:
         while k < len(conv):
             if conv[k]["direcao"] != "recebida":
@@ -191,6 +297,13 @@ def rodar_conversa(c: dict) -> dict:
             novas = [m["texto"] for m in conv[k:fim + 1]]
             pode_calar = bool(nay_ate_aqui) and not nay_ate_aqui[-1]["texto"].strip().endswith("?")
             item = {"hora": ctx[-1]["criada_em"].strftime("%H:%M"), "ele": novas, "real": real}
+            pular = (_pular(c, item["hora"], novas, turnos) or
+                     ("longe do erro apontado" if alvo is not None and k not in alvo else None)) if ECONOMIA[0] else None
+            if pular:                     # o histórico seguinte é o real: pular este turno não muda os outros
+                item["pulado"] = pular
+                turnos.append(item)
+                k = fim + 1
+                continue
             try:
                 agentes.novo_turno(lead)
                 plano = agentes.planejar(whatsapp.PROMPT, lead, ctx, novas, True, pode_calar)
@@ -210,6 +323,12 @@ def rodar_conversa(c: dict) -> dict:
                             item["paredes_cortou"] = [f"{p}: {x}" for _i, p, x in ainda]
                             r["baloes"] = sobra
                 acoes = whatsapp.acoes_da(r)
+                # o atalho do código sozinho, como no _responder_um
+                cod = whatsapp.codigo_sozinho(novas, nay_ate_aqui[-1]["texto"] if nay_ate_aqui else "")
+                if cod and not ({"fotos", "card", "visita", "buscar"} & set(acoes)) and whatsapp._ofertavel(conn, cod, lead):
+                    r["fotos"] = {"codigos": [cod]}
+                    acoes = ["fotos", *acoes][:2]
+                    item["atalho"] = f"código sozinho {cod}"
                 lead["filtros"] = whatsapp._filtros(lead["filtros"], r.get("filtros"))
                 item.update({"baloes": [str(b).strip() for b in (r.get("baloes") or []) if str(b).strip()],
                              "acoes": acoes, "filtros": lead["filtros"]})
@@ -239,6 +358,9 @@ def _teste_em_texto(r: dict) -> str:
     for t in r["turnos"]:
         linhas.append(f"\n{t['hora']} PESSOA: " + " / ".join(x.replace("\n", " ") for x in t["ele"])[:700])
         linhas.append("   NAY DE VERDADE: " + (" / ".join(x.replace("\n", " ") for x in t["real"])[:500] or "(nada)"))
+        if t.get("pulado"):
+            linhas.append(f"   NAY LEADS: (não rodado no teste: {t['pulado']})")
+            continue
         if t.get("falha"):
             linhas.append(f"   NAY LEADS: (falhou: {t['falha']})")
             continue
@@ -283,7 +405,9 @@ def resumo(res: list[dict]) -> dict:
             "erro_novo": sum(1 for r in res if (r.get("julgamento") or {}).get("erro_novo")),
             "nota_media": round(sum(notas) / len(notas), 1) if notas else None,
             "turnos": sum(len(r["turnos"]) for r in res),
-            "turnos_com_falha": sum(1 for r in res for t in r["turnos"] if t.get("falha"))}
+            "turnos_com_falha": sum(1 for r in res for t in r["turnos"] if t.get("falha")),
+            "turnos_pulados": sum(1 for r in res for t in r["turnos"] if t.get("pulado")),
+            "julgamento_falhou": sum(1 for r in res if (r.get("julgamento") or {}).get("falha"))}
 
 
 def main() -> None:
@@ -291,10 +415,15 @@ def main() -> None:
     ap.add_argument("arquivo")
     ap.add_argument("--so", default="", help="os 4 finais das conversas, separados por vírgula")
     ap.add_argument("--paralelo", type=int, default=6)
+    ap.add_argument("--tudo", action="store_true", help="roda todos os turnos (sem a economia)")
     a = ap.parse_args()
-    lista = conversas(Path(a.arquivo).read_text(encoding="utf-8"))
+    ECONOMIA[0] = not a.tudo
+    if a.arquivo.endswith(".json"):    # a exportação da biblioteca de conversas (498)
+        lista = da_biblioteca(a.arquivo)
+    else:
+        lista = conversas(Path(a.arquivo).read_text(encoding="utf-8"))
     ao_lado = Path(a.arquivo).with_name("erros.json")
-    if ao_lado.exists():               # os erros do json (o mesmo id) valem mais que os tirados do texto
+    if ao_lado.exists() and not a.arquivo.endswith(".json"):   # os erros do json (o mesmo id) valem mais que os do texto
         por_id = {c["id"]: c["erros"] for c in json.loads(ao_lado.read_text(encoding="utf-8"))}
         for c in lista:
             c["erros"] = por_id.get(c["id"]) or c["erros"]
