@@ -17,7 +17,7 @@ export function useTagsSettings(organizationId: string | null | undefined) {
       const res = await fetch('/api/tags')
       if (!res.ok) throw new Error('Failed to fetch tags')
       const { data } = await res.json()
-      const formattedTags: TagWithStats[] = (data || []).map((tag: any) => ({ ...tag, activeLeadsCount: 0 }))
+      const formattedTags: TagWithStats[] = (data || []).map((tag: any) => ({ ...tag, activeLeadsCount: Number(tag.activeLeadsCount ?? 0) }))
       setTags(formattedTags)
     } catch (err: any) {
       console.error('Error fetching tags settings:', err)

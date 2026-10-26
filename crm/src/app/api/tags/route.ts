@@ -10,7 +10,15 @@ export async function GET(req: NextRequest) {
     const data = await db.select().from(tags)
       .where(eq(tags.organizationId, auth.organizationId))
       .orderBy(asc(tags.name))
-    return Response.json({ data })
+    /* QUANTAS PESSOAS TEM CADA TAG (Pedro, 26/10/2026): "coloca lá em todas as tags um número de pessoas que tem
+       nela". Conta em TODOS os números (lead_tags não distingue integração -- Captação, Oficial, Parceria entram
+       juntos), só tirando quem já foi apagado do CRM. */
+    const contagens = await db.execute(sql`
+      SELECT lt.tag_id, count(*)::int AS n FROM lead_tags lt JOIN leads l ON l.id = lt.lead_id
+       WHERE lt.organization_id = ${auth.organizationId} AND l.deleted_at IS NULL
+       GROUP BY lt.tag_id`)
+    const porTag = new Map(contagens.rows.map((r: any) => [String(r.tag_id), Number(r.n)]))
+    return Response.json({ data: data.map((t) => ({ ...t, activeLeadsCount: porTag.get(t.id) ?? 0 })) })
   } catch (err: any) { return apiError(err.status || 500, err.message || 'Erro interno.') }
 }
 

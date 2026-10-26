@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { PencilSimple, Trash, Check, X, SpinnerGap } from '@phosphor-icons/react'
+import { PencilSimple, Check, X, SpinnerGap } from '@phosphor-icons/react'
 import { TagWithStats } from '../useTagsSettings'
 
 const TAG_COLORS = [
@@ -117,7 +117,7 @@ export function TagCard({ tag, isEditing, onStartEdit, onCancelEdit, onSave, onD
     if (!tag) return null
 
     return (
-        <div className="flex items-center justify-between p-4 bg-panel border border-line rounded-2xl hover:border-accent-line hover:shadow-sm transition-all group">
+        <div className="flex items-center justify-between p-4 bg-panel border border-line rounded-2xl hover:border-accent-line hover:shadow-sm transition-all">
             <div className="flex flex-col gap-1.5 min-w-0">
                 <div className="flex items-center gap-2">
                     {/* Status Dot */}
@@ -138,13 +138,15 @@ export function TagCard({ tag, isEditing, onStartEdit, onCancelEdit, onSave, onD
                     </div>
                 </div>
 
-                {/* Active Leads Count */}
+                {/* QUANTAS PESSOAS TEM ESSA TAG (Pedro, 26/10) -- em todos os números, Oficial incluso */}
                 <div className="text-xs text-muted pl-4.5">
-                    {tag.activeLeadsCount} {tag.activeLeadsCount === 1 ? 'lead ativo' : 'leads ativos'}
+                    {tag.activeLeadsCount} {tag.activeLeadsCount === 1 ? 'pessoa' : 'pessoas'}
                 </div>
             </div>
 
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">
+            {/* O XZINHO DE APAGAR (Pedro, 26/10): sempre visível, não só no hover -- apaga a tag em todo mundo que a
+                tiver, em qualquer número (lead_tags não distingue integração). */}
+            <div className="flex items-center gap-1">
                 {onStartEdit && (
                     <button
                         onClick={onStartEdit}
@@ -158,9 +160,9 @@ export function TagCard({ tag, isEditing, onStartEdit, onCancelEdit, onSave, onD
                     <button
                         onClick={onDelete}
                         className="p-2 text-muted hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Excluir Tag"
+                        title="Excluir tag (em todos os números)"
                     >
-                        <Trash size={18} weight="bold" />
+                        <X size={18} weight="bold" />
                     </button>
                 )}
             </div>
