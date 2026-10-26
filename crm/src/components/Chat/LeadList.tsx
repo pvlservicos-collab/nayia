@@ -201,6 +201,14 @@ export default function LeadList({
     const c = olxClientes[fim8(l.phone)]
     return c && c.etapa !== 'nova' ? c.etapa : null
   }
+  /* 26/10 (Pedro: "não é porque eu respondi que o lead deve ser enviado para a etapa Tel lá na API oficial, eles ficam em
+     em andamento, Tel fica só quem eu puser lá manualmente"): na Oficial, "Com o Tel" é só a etapa escolhida à mão no
+     card; o "humano assumiu" (alguém da equipe respondeu) não muda mais a aba. */
+  const abasDoDono = (id: string): string[] => {
+    const d = donos[id]
+    const abas = d?.abas || []
+    return linha === 'oficial' && d?.etapaManual !== 'com_o_tel' ? abas.filter((a) => a !== 'com_o_tel') : abas
+  }
   /* 18/10 (Pedro: "precisa pôr a aba Tel lá" na Captação): a conversa está com o Tel quando a etapa manual é
      Com o Tel (242, dono da campanha), quando alguém da equipe escreveu e a Nay do WhatsApp saiu (`humano`, 385),
      ou quando o card foi posto em Tel à mão. */
@@ -527,7 +535,7 @@ export default function LeadList({
         if (p) soma(`periodo:${p}`)
       }
       // as abas da captação (migração 236)
-      if (comAbasDaCaptacao) for (const a of donos[l.id]?.abas || []) {
+      if (comAbasDaCaptacao) for (const a of abasDoDono(l.id)) {
         soma(`cap:${a}`)
         const semLer = Number(l.nao_lidas || 0)
         if (semLer) contagem[`semler:cap:${a}`] = (contagem[`semler:cap:${a}`] ?? 0) + semLer
@@ -658,7 +666,7 @@ export default function LeadList({
       return etapaDaParceria(l, marcas[l.id]) === (activeTab === 'all' ? 'todos' : activeTab)
     }
     if (activeTab === 'all') return true
-    if (activeTab.startsWith('cap:')) return (donos[l.id]?.abas || []).includes(activeTab.slice(4))
+    if (activeTab.startsWith('cap:')) return abasDoDono(l.id).includes(activeTab.slice(4))
     if (activeTab === 'olx:proprietarios') return etapaOlxDe(l) === 'proprietarios' || (!etapaOlxDe(l) && ehDono(l))
     if (activeTab.startsWith('olx:')) return etapaOlxDe(l) === activeTab.slice(4)
     if (activeTab === 'nao_lidas') return !!l.is_unread || l.id === selectedLeadId

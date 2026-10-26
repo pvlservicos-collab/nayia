@@ -185,4 +185,6 @@ export interface DonoNaLista {
   tipo: string | null; captacaoId: number; imoveis: number
   /** as abas da captação (migração 236): em_andamento, disponiveis, alugados... */
   abas?: string[]
+  /** a etapa escolhida à mão no card (captacao_etapa_manual, 242), ou null */
+  etapaManual?: string | null
 }
