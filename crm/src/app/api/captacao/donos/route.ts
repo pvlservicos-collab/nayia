@@ -19,6 +19,13 @@ export const dynamic = 'force-dynamic'
 
 const guardadas = new Map<string, { em: number; donos: Record<string, DonoNaLista> }>()
 
+/** 26/10: quem muda a etapa à mão (captacao-etapa) tira esta guarda na hora -- senão o GET
+ *  seguinte (a recarga do hook, no mesmo segundo) devolve a cópia de até 60s atrás e a escolha
+ *  parece não ter pegado: ela volta para a aba antiga até a guarda vencer sozinha. */
+export function invalidarDonosDaCaptacao(organizationId: string): void {
+  guardadas.delete(organizationId)
+}
+
 async function calcular(organizacao: string): Promise<Record<string, DonoNaLista>> {
   const [donos, conversas] = await Promise.all([
     donosDaCaptacao(),

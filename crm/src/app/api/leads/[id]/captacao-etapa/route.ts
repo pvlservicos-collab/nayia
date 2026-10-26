@@ -15,6 +15,7 @@ import { authenticateRequest, apiError } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { leads, profiles } from '@/lib/schema'
 import { escolherEtapaDaCaptacao } from '@/lib/nayLeitura'
+import { invalidarDonosDaCaptacao } from '@/app/api/captacao/donos/route'
 
 export const ETAPAS_DA_CAPTACAO = ['todos', 'em_andamento', 'followup', 'disponiveis', 'alugados',
   'quer_vender', 'ja_vendeu', 'tem_outro_imovel', 'sem_resposta', 'com_o_tel', 'rayssa'] as const
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const [perfil] = await db.select({ nome: profiles.fullName }).from(profiles).where(eq(profiles.id, auth.userId)).limit(1)
     const r = await escolherEtapaDaCaptacao(lead.telefone, etapa, perfil?.nome?.trim() || 'alguém no CRM')
+    if (r.ok) invalidarDonosDaCaptacao(auth.organizationId)
     return Response.json({ ...r, etapa }, { status: r.ok ? 200 : 409 })
   } catch (err: any) {
     console.error('[captacao-etapa]', err?.message || err)
