@@ -17,6 +17,9 @@ BEGIN
   UPDATE nai_visita SET estado = 'cancelada', aguardando = NULL, motivo = left(p_motivo, 300), senha = NULL,
                         encerrada_em = now(), atualizado_em = now() WHERE id = v.id;
   PERFORM nai_evento(v.id, 'cancelada_pelo_corretor', p_motivo);
+  -- 502: o que já estava na fila (lembrete de 1h, aviso ao motoboy etc.) não sai mais
+  UPDATE nai_saida SET estado = 'bloqueado', bloqueio = 'visita cancelada pelo corretor'
+   WHERE visita_id = v.id AND estado = 'pendente';
   IF v.proprietario_id IS NOT NULL AND v.ult_msg_prop_em IS NOT NULL THEN
     PERFORM nai_enfileirar_texto(p_turno, v.id, v.proprietario_id, 'proprietario',
       'Passando para avisar que a visita de ' || nai_quando_humano(v.quando) || ' foi cancelada pelo corretor. Obrigada, e desculpa o transtorno.',
