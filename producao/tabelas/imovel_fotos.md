@@ -1,4 +1,4 @@
-# imovel_fotos  (tabela, ~19165 linhas)
+# imovel_fotos  (tabela, ~19529 linhas)
 
 ## colunas
 id  integer  NOT NULL  padrão nextval('imovel_fotos_id_seq'::regclass)
@@ -9,12 +9,17 @@ arquivo  text
 e_capa  boolean  NOT NULL  padrão false
 e_fachada  boolean  NOT NULL  padrão false
 e_mosaico  boolean   -- A foto do anuncio ja e um mosaico/montagem. Fica fora do privado e da colagem dos grupos (Tel, 14/09). NULL = nao conferida.
+categoria  text   -- 500 (26/10): a Gemini escolheu esta foto para mostrar sala, quarto, área de lazer ou banheiro no post do imóvel. A capa continua em e_capa.
+etiqueta  text   -- 500: o texto curto que o post mostra sobre a foto (gerado pela Gemini).
+categoria_em  timestamp with time zone
 
 ## índices
 CREATE INDEX idx_fotos_imovel ON public.imovel_fotos USING btree (codigo, ordem)
+CREATE INDEX imovel_fotos_categoria ON public.imovel_fotos USING btree (codigo, categoria) WHERE (categoria IS NOT NULL)
 CREATE UNIQUE INDEX imovel_fotos_pkey ON public.imovel_fotos USING btree (id)
 
 ## restrições
+imovel_fotos_categoria_check: CHECK (((categoria IS NULL) OR (categoria = ANY (ARRAY['sala'::text, 'quarto'::text, 'area_lazer'::text, 'banheiro'::text]))))
 imovel_fotos_codigo_fkey: FOREIGN KEY (codigo) REFERENCES imoveis(codigo) ON DELETE CASCADE
 imovel_fotos_pkey: PRIMARY KEY (id)
 

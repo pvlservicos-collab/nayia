@@ -117,6 +117,30 @@ def montar_estado(i, a):
     }, negocio
 
 
+ORDEM_DOS_COMODOS = ("sala", "quarto", "area_lazer", "banheiro")   # 500 (26/10): a ordem em que os cômodos aparecem
+
+
+def categorias_do_imovel(codigo):
+    """{url: (categoria|None, etiqueta)} do que a classificar_fotos.py (Gemini) já marcou para este imóvel."""
+    bruto = banco("SELECT coalesce(jsonb_object_agg(url, jsonb_build_array(categoria, etiqueta)), '{}')::text "
+                 "FROM imovel_fotos WHERE codigo = %d AND (categoria IS NOT NULL OR e_capa)" % codigo)
+    return {u: (v[0], v[1] or "") for u, v in json.loads(bruto).items()}
+
+
+def ordenar_fotos(urls, mapa):
+    """Põe primeiro a capa (já é a 1ª: site_imovel_publico ordena e_capa antes) e, logo depois, os cômodos marcados
+    pela Gemini (sala, quarto, área de lazer, banheiro, nessa ordem) — mesmo que a ordem original os deixasse para
+    trás e o --fotos cortasse fora. O resto segue na ordem de sempre."""
+    por_categoria = {}   # 1 foto por categoria (a 1ª que achar na ordem de urls)
+    for u in urls:
+        c, _e = mapa.get(u, (None, ""))
+        if c and c not in por_categoria:
+            por_categoria[c] = u
+    primeiros = ([urls[0]] if urls else []) + [por_categoria[c] for c in ORDEM_DOS_COMODOS if c in por_categoria]
+    vistos = set(primeiros)
+    return primeiros + [u for u in urls if u not in vistos]
+
+
 def baixar_foto(url):
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) ImobEasy/posts"})
     with urllib.request.urlopen(req, timeout=30) as r:
@@ -153,16 +177,20 @@ def main():
 
     i = ler_imovel(a.codigo)
     imovel, negocio = montar_estado(i, a)
-    urls = [f for f in (i.get("fotos") or []) if isinstance(f, str)][: max(1, min(a.fotos, 12))]
+    todas = [f for f in (i.get("fotos") or []) if isinstance(f, str)]
+    mapa_comodos = categorias_do_imovel(a.codigo)        # 500: o que a Gemini já marcou (capa + até 4 cômodos)
+    urls = ordenar_fotos(todas, mapa_comodos)[: max(1, min(a.fotos, 12))]
     if a.json:
-        print(json.dumps({"imovel": imovel, "fotos": urls, "negocio": negocio}, ensure_ascii=False, indent=1))
+        print(json.dumps({"imovel": imovel, "fotos": urls, "negocio": negocio,
+                          "comodos": {u: c for u, (c, _e) in mapa_comodos.items() if c}}, ensure_ascii=False, indent=1))
         return
     if not urls:
         raise SystemExit("o imóvel %d não tem foto: sem post" % a.codigo)
     fotos = []
-    for u in urls:
+    for n, u in enumerate(urls):
         try:
-            fotos.append({"src": baixar_foto(u), "etiqueta": ""})
+            etiqueta = mapa_comodos.get(u, (None, ""))[1] if n > 0 else ""   # a capa (1ª) nunca mostra etiqueta
+            fotos.append({"src": baixar_foto(u), "etiqueta": etiqueta})
         except Exception as e:  # noqa: BLE001
             print("foto pulada: %s (%s)" % (u[:70], e), file=sys.stderr)
     if not fotos:

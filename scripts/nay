@@ -15,6 +15,7 @@
 #   ./scripts/nay site                           sobe nay-site-api + arquivos do imob-easy/ e confere /api/imoveis/opcoes
 #   ./scripts/nay crm arquivo1 arquivo2 ...      copia para /docker/crm/app e rebuild (~4 min)
 #   ./scripts/nay posts <código> [opções]       os posts do imóvel (post, carrossel, legenda) pelo gerador, na VPS
+#   ./scripts/nay fotos-classificar <código>|--todos [--limite N] [--pausa S]   a Gemini escolhe a capa + 4 cômodos (500)
 # Regras (CLAUDE.md): backup -> ensaio -> aplicar -> foto -> commit. Nunca reaplique .sql antigo.
 set -uo pipefail
 RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
@@ -152,11 +153,22 @@ case "$cmd" in
     fi
     [ $# -gt 0 ] || { echo "diga o código do imóvel"; exit 1; }
     ssh -o ConnectTimeout=20 $SRV "/root/nay-posts/.venv/bin/python /root/nay-posts/gerar_posts.py $*" ;;
+  fotos-classificar)
+    # A GEMINI ESCOLHE A CAPA E OS CÔMODOS (500, Pedro 26/10): manda até 18 fotos do imóvel numa chamada só, pede a
+    # melhor capa e, de sala/quarto/área de lazer/banheiro, a foto de cada uma (só as que achar com confiança). Grava
+    # em imovel_fotos (e_capa, categoria, etiqueta); o `nay posts` já usa isso sozinho. --atualizar sobe o script antes.
+    if [ "${1:-}" = "--atualizar" ]; then
+      shift
+      scp -q "$RAIZ/scripts/servidor/nay-posts/classificar_fotos.py" $SRV:/root/nay-posts/classificar_fotos.py
+      echo "classificar_fotos.py atualizado na VPS"
+    fi
+    [ $# -gt 0 ] || { echo "diga o código do imóvel, ou --todos"; exit 1; }
+    ssh -o ConnectTimeout=20 $SRV "/root/nay-posts/.venv/bin/python /root/nay-posts/classificar_fotos.py $*" ;;
   crm)
     # cria a pasta antes (rota nova mora em pasta nova) e PARA se a cópia falhar:
     # em 30/09 duas rotas novas não subiram e o scp -q engoliu o erro
     [ $# -eq 0 ] || conferir_servidor crm /docker/crm/app "$@"
     for f in "$@"; do subir crm /docker/crm/app "$f"; done
     ssh -o ConnectTimeout=20 $SRV 'cd /docker/crm && docker compose up -d --build 2>&1 | tail -2; docker ps --filter name=crm-imobeasy --format "{{.Names}} {{.Status}}"' ;;
-  *) sed -n 2,17p "$0" ;;
+  *) sed -n 2,18p "$0" ;;
 esac

@@ -742,6 +742,8 @@ scrap_telefone_normalizar	scrap_telefones_do_texto, site_scrap_anuncios, site_sc
 scrap_telefones_do_texto	scrap_contatos_rebuild
 site_aprovar_imoveis	
 site_aprovar_tirar	
+site_biblioteca	
+site_biblioteca_conversa	
 site_blog_admin_artigo	
 site_blog_admin_lista	
 site_blog_apagar	
