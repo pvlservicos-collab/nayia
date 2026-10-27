@@ -48,7 +48,7 @@ administrado  boolean  NOT NULL  padrão false
 proprietario_id  integer
 fotos_conferidas_em  timestamp with time zone
 taxa_condominio_em  timestamp with time zone   -- Quando o VALOR de taxa_condominio foi escrito pela última vez. Carimbado pelo trigger imoveis_carimbar_taxa, nunca à mão. NULL = não se sabe, e o card não mostra a taxa (regra do Tel, 03/10).
-observacao  text   -- 344: informação valiosa do imóvel (vista, negociação, o que falta); vai junto no card ao corretor.
+observacao  text   -- 344/504: o que vale o cliente saber (vista, o que fica, o que o aluguel inclui); vai no card. Negociação, comissão, valor líquido, nome do dono e aviso da equipe vão para Uso interno (privado.imovel_ficha.observacoes) -- o gatilho imoveis_sigilo_fora separa sozinho.
 cobertura  boolean   -- 344: só apartamento e sala; diz se é cobertura. O tipo (Linear/Duplex/Triplex) fica em extras.tipo de cobertura.
 
 ## índices
@@ -71,6 +71,7 @@ CREATE TRIGGER imoveis_aa_taxa_do_condominio BEFORE INSERT OR UPDATE OF condo_id
 CREATE TRIGGER imoveis_aviso_de_saida AFTER UPDATE OF disponivel ON public.imoveis FOR EACH ROW EXECUTE FUNCTION nay_enfileirar_aviso_de_saida()
 CREATE TRIGGER imoveis_carimbar_taxa BEFORE INSERT OR UPDATE OF taxa_condominio ON public.imoveis FOR EACH ROW EXECUTE FUNCTION imoveis_carimbar_taxa()
 CREATE TRIGGER imoveis_parceiro_pelo_captador BEFORE INSERT OR UPDATE ON public.imoveis FOR EACH ROW EXECUTE FUNCTION imoveis_parceiro_pelo_captador()
+CREATE TRIGGER imoveis_sigilo_fora BEFORE INSERT OR UPDATE OF observacao, descricao ON public.imoveis FOR EACH ROW EXECUTE FUNCTION imoveis_sigilo_fora()
 CREATE TRIGGER imovel_lugar_do_imovel AFTER INSERT OR UPDATE OF bairro, logradouro, condominio_nome ON public.imoveis FOR EACH ROW EXECUTE FUNCTION nai_imovel_lugar_gatilho()
 
 ## permissões

@@ -1,4 +1,4 @@
-# imovel_conhecimento  (tabela, ~2 linhas)
+# imovel_conhecimento  (tabela, ~253 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('imovel_conhecimento_id_seq'::regclass)
@@ -15,6 +15,9 @@ CREATE UNIQUE INDEX imovel_conhecimento_pkey ON public.imovel_conhecimento USING
 
 ## restrições
 imovel_conhecimento_pkey: PRIMARY KEY (id)
+
+## gatilhos
+CREATE TRIGGER imovel_conhecimento_sigilo_fora BEFORE INSERT OR UPDATE ON public.imovel_conhecimento FOR EACH ROW EXECUTE FUNCTION imovel_conhecimento_sigilo_fora()
 
 ## permissões
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE

@@ -197,7 +197,10 @@ ia_uso_registrar
 imoveis_a_situacao_manda	
 imoveis_carimbar_taxa	
 imoveis_parceiro_pelo_captador	
+imoveis_sigilo_fora	
 imoveis_taxa_do_condominio	
+imovel_conhecimento_sigilo_fora	
+imovel_ficha_sigilo_fora	
 imovel_mudanca_registrar	captacao_aplicar_ao_cadastro, captacao_aplicar_pendentes
 imovel_mudanca_trocar	
 imovel_parceiro_antigo	
@@ -612,6 +615,8 @@ nay_devolver_respostas
 nay_disponibilidade_no_condominio	
 nay_e_corretor_chave	captacao_py_fila_do_disparo, olx_pode_receber_parceiro, site_blog_newsletter_lista
 nay_e_da_equipe	nai_e_da_equipe_contato, nay_fora_da_regra_do_dia
+nay_e_registro_interno	imoveis_sigilo_fora, imovel_ficha_sigilo_fora, nay_separar_sigilo
+nay_e_sigilo	imoveis_sigilo_fora, imovel_conhecimento_sigilo_fora, imovel_ficha_sigilo_fora, nay_e_registro_interno, nay_separar_sigilo
 nay_endereco_sem_numero	nai_resposta_da_base
 nay_enfileirar_aviso_de_saida	
 nay_entregas_devidas	
@@ -687,6 +692,7 @@ nay_saida_rotulo_do_imovel	crm_mensagem_citada
 nay_saidas_a_avisar	
 nay_saidas_perguntar	nai_agenda_tick
 nay_sem_acento	cadastro_whats_condominio, captacao_olx_guardar, captacao_olx_perfil, captacao_olx_proxima, cnm_imovel_montar, cnm_norm, condominio_nome_nucleo, crm_anuncio_decidir, crm_anuncio_familia, crm_anuncio_mesma_unidade, crm_anuncio_nome_palavras, crm_condominio_pelo_texto, crm_imovel_candidatos, crm_olx_chats_anuncios, nai_cadastro_importar, nai_condominio_da_pergunta, nai_imovel_da_conversa, nay_tratamento_por_nome, olx_anuncio_montar, olx_corpo_do_anuncio, olx_tem, site_ficha_preparada, site_imoveis_para_enviar, site_imovel_publico
+nay_separar_sigilo	imoveis_sigilo_fora, imovel_ficha_sigilo_fora
 nay_sincronizar_nome	
 nay_tem_numero_de_unidade	nay_escalar, nay_responder_pendencia
 nay_tirar_valores	nay_codigos_citados

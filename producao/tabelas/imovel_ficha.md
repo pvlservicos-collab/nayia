@@ -1,4 +1,4 @@
-# imovel_ficha  (tabela, ~358 linhas)
+# imovel_ficha  (tabela, ~359 linhas)
 191: a ficha completa do anúncio (imobeasy.com/anuncios/<codigo>), lida por ficha_do_anuncio.py a cada 3 h. É a base que a Nay consulta para responder sobre o imóvel.
 
 ## colunas
@@ -21,6 +21,9 @@ CREATE UNIQUE INDEX imovel_ficha_pkey ON public.imovel_ficha USING btree (codigo
 
 ## restrições
 imovel_ficha_pkey: PRIMARY KEY (codigo)
+
+## gatilhos
+CREATE TRIGGER imovel_ficha_sigilo_fora BEFORE INSERT OR UPDATE ON public.imovel_ficha FOR EACH ROW EXECUTE FUNCTION imovel_ficha_sigilo_fora()
 
 ## permissões
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE

@@ -46,7 +46,6 @@ AS $function$
       'escadas', t.x ->> 'lances de escada',
       'cobertura', CASE WHEN t.cobertura THEN coalesce(t.x ->> 'tipo de cobertura', 'Sim') WHEN t.cobertura = false THEN NULL ELSE t.x ->> 'tipo de cobertura' END,
       'mobilia_nivel', nay_mobilia_nivel(t.mobilia)),
-    'obs', t.observacao,
     'condo', (SELECT ficha FROM condo),
     'tagscondo', to_jsonb((SELECT tags FROM condo)),
     'tagsimovel', to_jsonb(coalesce(
