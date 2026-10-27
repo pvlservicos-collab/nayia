@@ -5,7 +5,8 @@ CREATE OR REPLACE FUNCTION public.captacao_py_disparo_motivo()
 AS $function$
   SELECT CASE
     WHEN coalesce((SELECT valor FROM captacao_config WHERE chave = 'python_disparo'), 'nao') <> 'sim' THEN 'desligado'
-    WHEN NOT captacao_no_horario(now()) THEN 'fora do horário'
+    -- 503: com python_horarios, só nos horários e até o lote de cada um
+    WHEN NOT captacao_py_no_horario(now()) THEN 'fora do horário'
     WHEN extract(isodow FROM now() AT TIME ZONE 'America/Manaus')::int::text = ANY (string_to_array(
            regexp_replace(coalesce((SELECT valor FROM captacao_config WHERE chave = 'python_sem_disparo_dow'), ''), '\s', '', 'g'), ','))
       THEN 'dia sem disparo (485)'
@@ -13,8 +14,10 @@ AS $function$
          AND GREATEST(
                (SELECT count(*) FROM captacao_mensagens m WHERE m.direcao = 'enviada' AND m.origem = 'disparo' AND m.status <> 'Falhou'
                    AND m.criada_em >= date_trunc('day', now() AT TIME ZONE 'America/Manaus') AT TIME ZONE 'America/Manaus'),
+               -- 503: com python_horarios, as 24 h corridas seguravam o lote das 07:30 (o das 18:30 da véspera ainda contava)
+               CASE WHEN captacao_cfg('python_horarios', '') <> '' THEN 0 ELSE
                (SELECT count(*) FROM captacao_mensagens m WHERE m.direcao = 'enviada' AND m.origem = 'disparo' AND m.status <> 'Falhou'
-                   AND m.criada_em > now() - interval '24 hours'))
+                   AND m.criada_em > now() - interval '24 hours') END)
              >= (SELECT btrim(valor)::int FROM captacao_config WHERE chave = 'python_limite_dia')
       THEN 'limite do dia (485)'
     WHEN (SELECT count(*) FILTER (WHERE u.status = 'Falhou') FROM (

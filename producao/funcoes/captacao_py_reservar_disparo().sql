@@ -5,6 +5,7 @@ AS $function$
 #variable_conflict use_column
 DECLARE
   v_id bigint;
+  v_h record;
 BEGIN
   INSERT INTO captacao_config (chave, valor, nota)
   VALUES ('_py_disparo_em', to_char(now() AT TIME ZONE 'America/Manaus', 'YYYY-MM-DD HH24:MI:SS'),
@@ -16,7 +17,11 @@ BEGIN
    WHERE l.status = 'reservado' AND l.atualizado_em < now() - interval '30 minutes';
   IF captacao_py_disparo_motivo() IS NOT NULL THEN RETURN; END IF;
 
-  SELECT f.id INTO v_id FROM captacao_py_fila_do_disparo() AS f(id) LIMIT 1;
+  -- 503: cada horário de python_horarios leva a sua metade da fila (1º horário = id par, 2º = ímpar)
+  SELECT * INTO v_h FROM captacao_py_horario(now());
+  SELECT f.id INTO v_id FROM captacao_py_fila_do_disparo() AS f(id)
+   WHERE v_h.n IS NULL OR f.id % v_h.total = v_h.n - 1
+   LIMIT 1;
   IF v_id IS NULL THEN RETURN; END IF;
   PERFORM 1 FROM captacao_leads l WHERE l.id = v_id FOR UPDATE SKIP LOCKED;
   -- a parede da 308 mora neste UPDATE: corretor ou parceiro é marcado e a reserva não acontece.

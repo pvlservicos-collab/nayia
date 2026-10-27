@@ -57,11 +57,21 @@ AS $function$
   SELECT jsonb_build_object(
     'ligado', coalesce((SELECT valor FROM captacao_config WHERE chave = 'python_disparo'), 'nao') = 'sim',
     'motivo', (SELECT motivo FROM m),
-    -- fora do horário: o próximo minuto em que o disparo pode sair (almoço, noite, fim de semana)
-    'volta_em', CASE WHEN (SELECT motivo FROM m) = 'fora do horário' THEN
+    -- fora do horário: o próximo minuto em que o disparo pode sair (almoço, noite, fim de semana; 503: os horários do Python)
+    -- com python_horarios só os inícios dos horários são candidatos (minuto a minuto levava 5 s)
+    'volta_em', CASE WHEN (SELECT motivo FROM m) <> 'fora do horário' THEN NULL
+                     WHEN captacao_cfg('python_horarios', '') = '' THEN
                   (SELECT min(t) FROM generate_series(date_trunc('minute', now()) + interval '1 minute',
                                                       now() + interval '3 days', interval '1 minute') t
-                    WHERE captacao_no_horario(t)) END,
+                    WHERE captacao_no_horario(t))
+                     ELSE
+                  (SELECT min(t) FROM (
+                     SELECT (date_trunc('day', now() AT TIME ZONE 'America/Manaus') + make_interval(days => d) + h.hora::time)
+                              AT TIME ZONE 'America/Manaus' AS t
+                       FROM generate_series(0, 3) d,
+                            unnest(string_to_array(regexp_replace(captacao_cfg('python_horarios', ''), '\s', '', 'g'), ',')) h(hora)
+                      WHERE h.hora ~ '^\d{1,2}:\d{2}$') c
+                    WHERE c.t > now() AND captacao_py_no_horario(c.t)) END,
     'hoje', (SELECT ok FROM hoje), 'falharam_hoje', (SELECT falhou FROM hoje), 'ultimo_em', (SELECT ultimo FROM hoje),
     'seg_medio', (SELECT (menor + maior) / 2 FROM ritmo),
     'listas', (SELECT jsonb_agg(jsonb_build_object(
