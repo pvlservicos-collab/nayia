@@ -48,12 +48,16 @@ BEGIN
              CASE WHEN coalesce(i.andar, '') <> '' THEN 'andar ' || i.andar END,
              'lances de escada: ' || nai_ficha_valor(p_codigo, 'lances de escada'),
              'mobília: ' || nay_mobilia_rotulo(nay_mobilia_nivel(i.mobilia))));
+  -- 507: o que o cadastro diz que é do condomínio ("caracteristicas do condominio") não é do imóvel
+  x := nullif(btrim(i.extras->>'caracteristicas do condominio'), '');
   IF coalesce(array_length(f.caracteristicas_imovel, 1), 0) > 0 OR coalesce(array_length(i.caracteristicas, 1), 0) > 0 THEN
     v := v || ('CARACTERÍSTICAS DO IMÓVEL: ' || array_to_string(
-               ARRAY(SELECT DISTINCT c FROM unnest(coalesce(f.caracteristicas_imovel, '{}') || coalesce(i.caracteristicas, '{}')) c), ', '));
+               ARRAY(SELECT DISTINCT c FROM unnest(coalesce(f.caracteristicas_imovel, '{}') || coalesce(i.caracteristicas, '{}')) c
+                      WHERE c <> ALL (coalesce(regexp_split_to_array(x, '\s*,\s*'), '{}'))), ', '));
   END IF;
-  IF coalesce(array_length(f.caracteristicas_condominio, 1), 0) > 0 THEN
-    v := v || ('CARACTERÍSTICAS DO CONDOMÍNIO: ' || array_to_string(f.caracteristicas_condominio, ', '));
+  IF coalesce(array_length(f.caracteristicas_condominio, 1), 0) > 0 OR x IS NOT NULL THEN
+    v := v || ('CARACTERÍSTICAS DO CONDOMÍNIO: ' || array_to_string(ARRAY(SELECT DISTINCT c FROM unnest(
+               coalesce(f.caracteristicas_condominio, '{}') || coalesce(regexp_split_to_array(x, '\s*,\s*'), '{}')) c), ', '));
   END IF;
   x := nai_ficha_texto_livre(p_codigo);
   IF x IS NOT NULL THEN v := v || ('DESCRIÇÃO E OBSERVAÇÕES DO ANÚNCIO: ' || left(x, 2500)); END IF;
