@@ -124,8 +124,10 @@
     "x:fino acabamento": { rotulo: "Fino acabamento", tipo: "simnao", dica: "alto padrão: vai primeiro para quem pede" },
     /* 12/10 (Pedro): "a descrição é o texto de anúncio; a observação quem preenche somos nós, e quando preenchermos
        aí sim vai com o card". Nasce vazia: só o que a equipe escrever aqui sai com o card. */
-    observacao: { rotulo: "Observação da equipe (sai com o card quando preenchida)", largo: true, longo: true,
-      dica: "Só o que a equipe souber e valer a pena o corretor ler: \"falta só TV\", \"vista para o rio\", \"o dono negocia a mobília no aluguel\", \"aceita outro imóvel\". Vazio = o card vai como sempre." },
+    /* 504 (Pedro, 27/10): negociação, comissão e registro interno saíam no card. Daqui vai só o público; o resto o
+       servidor manda sozinho para Uso interno › Observações. */
+    observacao: { rotulo: "Observação (sai no card, para corretor e cliente)", largo: true, longo: true,
+      dica: "Só o que vale o cliente saber: \"falta só TV\", \"vista para o rio\", \"aceita outro imóvel\". Negociação, comissão, valor líquido, nome do dono e recado da equipe vão em Uso interno › Observações (se escrever aqui, o sistema já manda para lá). Vazio = o card vai como sempre." },
     // valores e negócio
     valor_aluguel: { rotulo: "Aluguel", prefixo: "R$", tipo: "dinheiro" }, valor_venda: { rotulo: "Venda", prefixo: "R$", tipo: "dinheiro" },
     taxa_condominio: { rotulo: "Condomínio", prefixo: "R$", tipo: "dinheiro" }, iptu: { rotulo: "IPTU", prefixo: "R$", tipo: "dinheiro" },
@@ -154,7 +156,8 @@
     "p:vencimento": { rotulo: "Vencimento do contrato", tipo: "data" },
     "p:observacao_aluguel": { rotulo: "Observação do aluguel", largo: true },
     // uso interno
-    "p:observacoes": { rotulo: "Observações", largo: true, longo: true },
+    "p:observacoes": { rotulo: "Observações internas (nunca saem no card)", largo: true, longo: true,
+      dica: "Negociação, comissão, valor líquido, contrato do inquilino, o que o dono contou. Só a equipe vê." },
     bloqueado: { rotulo: "Bloqueado para a Nay", dica: "ela não oferece, mesmo disponível e no site" },
     motivo_bloqueio: { rotulo: "Motivo do bloqueio", largo: true, lista: true }
   };
