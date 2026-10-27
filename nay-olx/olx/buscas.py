@@ -187,7 +187,8 @@ def obs_texto(f: dict) -> str:
     elif "vista" in fin:
         partes.append("pagamento à vista")
     if f.get("condominio"):
-        partes.append(f"de preferência no {f['condominio']}")
+        # 27/10: "só no Ponta Negra Village" (so_condominio) vai assim ao grupo, e não "de preferência"
+        partes.append(f"{'só' if f.get('so_condominio') else 'de preferência'} no {f['condominio']}")
     if f.get("perto_de"):
         partes.append(f"perto do {f['perto_de']}")
     return "; ".join(partes)
@@ -261,7 +262,7 @@ def grupo_aceita(g: dict, f: dict) -> bool:
 
 # ── 1. o registro ──
 CHAVES_DO_PERFIL = ("finalidade", "tipo", "teto", "bairros", "qualquer_bairro", "quartos", "aceita_menos_quartos",
-                    "mobilia", "financiamento", "condominio", "perto_de", "perto_km", "pet", "exigencias")
+                    "mobilia", "financiamento", "condominio", "so_condominio", "perto_de", "perto_km", "pet", "exigencias")
 
 
 def limpo(f: dict) -> dict:
@@ -617,6 +618,10 @@ def olx_volta(conn, c: dict) -> int:
             continue
         cands = banco.linhas(conn, "SELECT * FROM busca_olx_candidatos(%s::jsonb, %s::bigint[], %s)",
                              (json.dumps(b["filtros"], ensure_ascii=False), tentados, falta * 4))
+        if b["filtros"].get("so_condominio") and b["filtros"].get("condominio"):
+            # 27/10: só no condomínio que ela disse (o Sr. Karis, "só no Ponta Negra Village"): o título tem de citá-lo
+            alvo = re.sub(r"^(residencial|condominio|cond)\s+", "", whatsapp._normal(b["filtros"]["condominio"]))
+            cands = [a for a in cands if alvo and alvo in whatsapp._normal(a.get("titulo"))]
         if not cands:
             if not tentados and b["olx_em"] is None:
                 passo(conn, b["id"], "olx", "OLX (nossa base de scrap): nenhum anúncio com telefone nesse perfil, por enquanto")

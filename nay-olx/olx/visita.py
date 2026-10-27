@@ -314,6 +314,10 @@ def cliente_confirmou(conn, lead: dict, cfg: dict) -> None:
     v = aberta(conn, lead["id"])
     if not v or v["estado"] != "confirmar_cliente":
         return
+    # 27/10 (Pedro, o Sr. Eduardo): remarcou o mesmo imóvel para outro dia -> a visita confirmada de antes deixa de valer
+    banco.um(conn, """UPDATE privado.olx_visita SET estado = 'cancelada', atualizado_em = now()
+                       WHERE lead = %s AND codigo = %s AND id <> %s AND estado = 'confirmada'""",
+             (lead["id"], int(v["codigo"]), v["id"]))
     _estado(conn, v["id"], "buscando_corretor", cliente_confirmou_em="now()")
     _proximo_corretor(conn, _visita(conn, v["id"]), cfg)
 
@@ -454,6 +458,17 @@ def _retomar(conn, cfg: dict) -> int:
     return feitas
 
 
+def ainda_vale(conn, vid: int) -> bool:
+    """27/10 (Pedro: "ela nunca deve mandar lembrete ou feedback de visitas que não aconteceram e não constam lá em
+    visitas ... deve ter um check novamente"; o Sr. Eduardo remarcou o #5699 de segunda para sábado e recebeu o lembrete
+    e o "como foi?" da de segunda). Relido na hora de mandar: a visita continua confirmada e não há outra do mesmo cliente
+    para o mesmo imóvel pedida depois dela (remarcada, sendo confirmada ou já confirmada)."""
+    return bool(banco.um(conn, """
+        SELECT EXISTS (SELECT 1 FROM privado.olx_visita v WHERE v.id = %s AND v.estado = 'confirmada'
+                         AND NOT EXISTS (SELECT 1 FROM privado.olx_visita n WHERE n.lead = v.lead AND n.codigo = v.codigo
+                                           AND n.id > v.id AND n.estado NOT IN ('cancelada', 'expirada')))""", (vid,)))
+
+
 def _lembrar(conn, cfg: dict) -> int:
     """393: "pode sim, só me avisar antes" (o Cristian). `visita_lembrete_h` antes: o proprietário, quem acompanha e o
     cliente. Confirmada em cima da hora (menos de 30 min antes do lembrete) não ganha lembrete."""
@@ -466,6 +481,9 @@ def _lembrar(conn, cfg: dict) -> int:
                           (max(1, int(cfg.get("visita_lembrete_h") or 2)),)):
         banco.um(conn, "UPDATE privado.olx_visita SET lembrete_em = now() WHERE id = %s", (v["id"],))
         if v.get("confirmada_em") and v["confirmada_em"] > datetime.now(w.MANAUS) - timedelta(minutes=30):
+            continue
+        if not ainda_vale(conn, v["id"]):
+            log.info("visita %s: não vale mais (cancelada ou remarcada); sem lembrete", v["id"])
             continue
         lead = _lead(conn, v["lead"])
         q = v["quando"].astimezone(w.MANAUS)
@@ -506,6 +524,9 @@ def _depois(conn, cfg: dict) -> int:
                                      AND quando + make_interval(hours => %s) <= now() AND quando > now() - interval '2 days'""",
                           (max(1, int(cfg.get("visita_depois_h") or 2)),)):
         banco.um(conn, "UPDATE privado.olx_visita SET depois_em = now() WHERE id = %s", (v["id"],))
+        if not ainda_vale(conn, v["id"]):
+            log.info("visita %s: não vale mais (cancelada ou remarcada); sem o \"como foi?\"", v["id"])
+            continue
         lead = _lead(conn, v["lead"])
         if lead.get("humano_em"):
             continue

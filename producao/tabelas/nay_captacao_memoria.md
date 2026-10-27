@@ -1,4 +1,4 @@
-# nay_captacao_memoria  (tabela, ~7208 linhas)
+# nay_captacao_memoria  (tabela, ~8386 linhas)
 
 ## colunas
 id  integer  NOT NULL

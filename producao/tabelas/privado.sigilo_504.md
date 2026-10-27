@@ -1,4 +1,4 @@
-# privado.sigilo_504  (tabela, ~0 linhas)
+# privado.sigilo_504  (tabela, ~481 linhas)
 504 (27/10): cópia do que estava em imoveis.observacao/descricao, imovel_conhecimento e imovel_ficha.card antes da limpeza do sigilo.
 
 ## colunas

@@ -126,7 +126,12 @@ parte QUANDO VEIO DIRETO.
    dele por aqui: não responda por partes nem diga que vai confirmar. Mande o card e as fotos (acao "fotos") com uma frase
    curta, ex.: "Vou te mandar o card com as informações e as fotos dele." O card já responde e mostra o resto. O que o card
    não traz (pet, andar, portaria...) vai junto em "perguntar". Endereço ou localização: o bairro e o condomínio (nunca
-   rua nem número) e o card.
+   número) e o card.
+   RUA E AVENIDA SÃO A MESMA PERGUNTA (Pedro, 27/10): perguntou o nome da rua, da avenida ou a localização mais
+   aproximada, responda pelas avenidas da linha do imóvel em IMÓVEIS DESTA CONVERSA. "Avenidas do conjunto": "fica no
+   <conjunto>, entre a Av. X e a Av. Y". "Avenidas de referência do bairro": "fica no <bairro>, na região da Av. X e da
+   Av. Y". Perguntou rua e é avenida, responda a avenida (e o contrário). Sem avenida na linha: o bairro e o condomínio, e
+   "perguntar" para a equipe. Nunca o número nem uma rua que não esteja na linha.
 6. FOTO DE UMA PARTE (dos quartos, do roupeiro, do banheiro, da cozinha, da varanda, da vista, da fachada, da área de
    lazer...): você NÃO sabe qual foto é de qual cômodo. Não mande fotos e não prometa que manda: diga que vai separar
    essas fotos e já retorna, e marque acao "perguntar" com o pedido em "motivo" (ex.: "fotos dos quartos com roupeiros
@@ -214,7 +219,8 @@ ainda não viu (acao "fotos") e pergunte o dia e o horário.
   e diz a ela que você está separando as opções.
 - Inventar. O que não está na ficha você não sabe: diga que confirma e retorna. Isso vale para CRECI, CNPJ e qualquer
   número de documento: só o que o sistema deu; senão, "vou confirmar com a equipe".
-- Endereço exato, número da casa ou do apartamento, bloco, torre, nome do proprietário. Bairro e condomínio pode.
+- Endereço exato, número da casa ou do apartamento, bloco, torre, nome do proprietário. Bairro, condomínio e as avenidas
+  da linha do imóvel pode.
 - Link, telefone, e-mail, emoji.
 - Falar de Nay da OLX, de robô, de ficha, de catálogo. Para ela você é só a Nay, da Imob Easy.
 - Dizer que um imóvel é "de parceiro", "de parceria" ou "de outra imobiliária". Para ela todo imóvel é da Imob Easy.
@@ -641,9 +647,16 @@ def imoveis_da_conversa(conn, lead: dict) -> list[str]:
             cods.append(c)
     if not cods:
         return []
+    # 27/10 (Pedro: "temos uma planilha com os nomes das ruas de cada condomínio ... ela deve tratar rua e avenida como
+    # iguais"): a lista (condominioporruaseav.txt) é a nai_lugar_conjunto (206). As avenidas do conjunto do imóvel; sem
+    # conjunto reconhecido, as dos conjuntos do bairro dele.
     linhas = banco.linhas(conn, """
         SELECT i.codigo, i.tipo, nay_condominio_de_verdade(i.tipo, i.condominio_nome) AS condo, i.bairro, i.quartos,
-               i.valor_venda, i.valor_aluguel
+               i.valor_venda, i.valor_aluguel,
+               (SELECT string_agg(DISTINCT btrim(a), ', ') FROM nai_lugar_conjunto c, unnest(string_to_array(c.avenidas, '/')) a
+                 WHERE nai_lugar_normal(coalesce(i.condominio_nome, '') || ' ' || coalesce(i.logradouro, '')) ~ c.expressao) AS av_conjunto,
+               (SELECT string_agg(DISTINCT btrim(a), ', ') FROM nai_lugar_conjunto c, unnest(string_to_array(c.avenidas, '/')) a
+                 WHERE lower(unaccent(c.bairro)) = lower(unaccent(i.bairro))) AS av_bairro
           FROM imoveis i WHERE i.codigo = ANY(%s::int[])""", (cods,))
     por = {int(l["codigo"]): l for l in linhas}
     saida = []
@@ -655,8 +668,10 @@ def imoveis_da_conversa(conn, lead: dict) -> list[str]:
             f"venda R$ {int(l['valor_venda']):,}".replace(",", ".") if l.get("valor_venda") else "",
             f"aluguel R$ {int(l['valor_aluguel']):,}".replace(",", ".") if l.get("valor_aluguel") else "") if x)
         onde = ", ".join(x for x in (l.get("condo"), l.get("bairro")) if x)
+        avenidas = (f"avenidas do conjunto: {l['av_conjunto']}" if l.get("av_conjunto")
+                    else f"avenidas de referência do bairro: {l['av_bairro']}" if l.get("av_bairro") else "")
         saida.append(" · ".join(x for x in (f"#{c}", l.get("tipo") or "", onde, valores,
-                                            f"{l['quartos']} quartos" if l.get("quartos") else "",
+                                            f"{l['quartos']} quartos" if l.get("quartos") else "", avenidas,
                                             "o do anúncio" if c == lead.get("codigo") else "") if x))
     return saida
 
@@ -787,6 +802,19 @@ def _filtros(antes: dict, novos) -> dict:
         f[k] = v
     if f.get("qualquer_bairro") is True and (novos or {}).get("qualquer_bairro") is True:
         f["bairros"] = []                     # 394: "pode ser qualquer bairro" apaga os bairros ditos antes
+    return f
+
+
+def condominio_que_faltou(conn, f: dict, conversa: list[dict]) -> dict:
+    """27/10 (Pedro: "ela foi procurar opções para a 92 9 8181-9145 e não achou"): o Sr. Karis disse "só no Ponta Negra
+    Village"; o modelo marcou so_condominio sem o nome e a busca saiu como "Ponta Negra" inteiro. Sem o nome, ele vem do
+    que a pessoa escreveu (o reconhecedor de condomínios da Nay), da mensagem mais nova para a mais velha."""
+    if not f.get("so_condominio") or f.get("condominio"):
+        return f
+    for m in reversed([m for m in conversa if m.get("direcao") == "recebida" and (m.get("texto") or "").strip()][-10:]):
+        nome = banco.um(conn, "SELECT c.nome FROM condominios c WHERE c.id = nai_condominio_da_pergunta(%s)", (m["texto"],))
+        if nome:
+            return {**f, "condominio": nome}
     return f
 
 
@@ -1096,7 +1124,7 @@ def abrir(conn, cfg: dict) -> int:
             baloes = _falar(conn, lead, r, acoes)
             agentes.passo(lead, "falou", f"{len(baloes)} balão(ões)" + (f"; ações: {', '.join(acoes)}" if acoes else ""),
                           baloes=baloes)
-            filtros = _filtros(lead.get("filtros"), r.get("filtros"))
+            filtros = condominio_que_faltou(conn, _filtros(lead.get("filtros"), r.get("filtros")), conversa)
             _marcar(conn, lead["id"], assumido_em_agora=True, etapa="filtrar", ultima_lida=ate, filtros=filtros)
             # 16/10: o que ela promete já na abertura (passar o desconto à equipe, confirmar a visita pedida na OLX...) tem
             # de chegar à equipe: as ações da abertura valem como as de qualquer resposta
@@ -1315,7 +1343,7 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
                   + (f"; ações: {', '.join(acoes)}" if acoes else ""), baloes=saiu)
     if r.get("_equipe_no_meio"):
         return False                      # a equipe entrou no meio: sem ações, e o que ela escreveu fica não lido
-    filtros = _filtros(lead.get("filtros"), r.get("filtros"))
+    filtros = condominio_que_faltou(conn, _filtros(lead.get("filtros"), r.get("filtros")), conversa)
     _marcar(conn, lead["id"], ultima_lida=ate, filtros=filtros)
     for acao in acoes:
         _fazer(conn, _lead(conn, lead["id"]), r, acao, filtros, cfg)

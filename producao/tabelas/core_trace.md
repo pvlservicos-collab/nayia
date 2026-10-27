@@ -1,4 +1,4 @@
-# core_trace  (tabela, ~63037 linhas)
+# core_trace  (tabela, ~70208 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('core_trace_id_seq'::regclass)

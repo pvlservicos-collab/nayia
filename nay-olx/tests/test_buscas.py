@@ -73,6 +73,14 @@ class Mensagem(unittest.TestCase):
     def test_mobilia_so_na_locacao(self):
         self.assertNotIn("mobiliado", b.bloco({"finalidade": "venda", "tipo": "apartamento", "teto": 500000, "mobilia": "mobiliado"}))
 
+    def test_so_no_condominio_vai_assim_ao_grupo(self):
+        # 27/10, o Sr. Karis: "só no Ponta Negra Village"
+        f = b.limpo({"finalidade": "locacao", "tipo": "casa_condominio", "bairros": ["Ponta Negra"], "teto": 7000,
+                     "condominio": "Ponta Negra Village", "so_condominio": True})
+        self.assertTrue(f.get("so_condominio"))
+        self.assertIn("- OBS: só no Ponta Negra Village", b.bloco(f))
+        self.assertIn("de preferência no Ponta Negra Village", b.bloco({**f, "so_condominio": False}))
+
 
 class Corretor(unittest.TestCase):
     def test_o_que_falta_para_o_cadastro(self):

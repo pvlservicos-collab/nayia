@@ -1,4 +1,4 @@
-# privado.imovel_ficha  (tabela, ~593 linhas)
+# privado.imovel_ficha  (tabela, ~715 linhas)
 Dado interno do imóvel que o site antigo tinha: locatário atual e observações. Fora do public de propósito (157).
 
 ## colunas
