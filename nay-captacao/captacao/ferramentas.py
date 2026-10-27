@@ -206,8 +206,8 @@ def executar(conn, nome: str, args: dict, telefone: str, nome_do_dono: str = "",
                                                    "assunto": _texto(args.get("assunto")), "disse": _texto(args.get("disse"))})
             if not r:
                 return json.dumps([{"instrucao_para_voce": "Nao escalei: faltou o assunto. Chame de novo com o assunto."}])
-            if avisar:
-                avisar(aviso_da_escalada(r[0], telefone, nome_do_dono))
+            # 27/10 (Pedro: "retira essa escalada enviada no nosso grupo, deixa que nos vemos"): a escalada fica gravada
+            # e a Nay cala, mas o aviso "CAPTACAO -- escalada N" não vai mais ao grupo da equipe. A da OLX segue (olx.py).
             return json.dumps(r, ensure_ascii=False, default=str)
         if nome == "encerrar_conversa":
             # primeiro a indicação, por último os honorários (Pedro, 09/10: "mais uma pergunta no final, sempre")
