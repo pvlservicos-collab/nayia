@@ -108,5 +108,36 @@ class OndeFalarComODono(unittest.TestCase):
         self.assertEqual(len(pelo_8595), 1)
 
 
+class CardAoCorretor(unittest.TestCase):
+    """27/10 (Pedro, a Neila no #3841): com a "Visita confirmada" o corretor recebe o card do imóvel, só o card."""
+
+    def _mandar(self, card, falha=False):
+        from unittest import mock
+        enviados = []
+
+        def mandar(conn, lead, fone, texto):
+            if falha:
+                raise RuntimeError("Z-API fora")
+            enviados.append((lead, fone, texto))
+        with mock.patch.object(v.banco, "um", lambda conn, sql, args=(): card if "nai_card_do_imovel" in sql else None), \
+                mock.patch.object(v, "_mandar_para", mandar):
+            saiu = v.mandar_card_ao_corretor(None, {"id": 13, "lead": 5, "codigo": 3841, "corretor_telefone": "92984118226"})
+        return saiu, enviados
+
+    def test_o_card_vai_ao_telefone_do_corretor(self):
+        saiu, enviados = self._mandar("🏢 Mont Clair\nCódigo: 3841")
+        self.assertTrue(saiu)
+        self.assertEqual(enviados, [(5, "92984118226", "🏢 Mont Clair\nCódigo: 3841")])
+
+    def test_sem_card_nao_manda_nada(self):
+        saiu, enviados = self._mandar(None)
+        self.assertFalse(saiu)
+        self.assertFalse(enviados)
+
+    def test_o_card_que_falha_nao_derruba_a_confirmacao(self):
+        saiu, _ = self._mandar("card", falha=True)
+        self.assertFalse(saiu)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -406,6 +406,20 @@ def _pedir_ao_dono(conn, v: dict, cfg: dict) -> None:
     log.info("visita %s: perguntado ao proprietário", v["id"])
 
 
+def mandar_card_ao_corretor(conn, v: dict) -> bool:
+    """27/10 (Pedro, a Neila no #3841: "me envia as informações do apartamento" e não recebeu): junto da "Visita
+    confirmada" o corretor recebe o card do imóvel, só o card (sem fotos). Falhou o card, a confirmação já foi."""
+    card = banco.um(conn, "SELECT texto_pronto FROM nai_card_do_imovel(%s, true)", (int(v["codigo"]),))
+    if not card:
+        return False
+    try:
+        _mandar_para(conn, v["lead"], v["corretor_telefone"], card)
+    except Exception as e:  # noqa: BLE001
+        log.warning("visita %s: o card não saiu para o corretor: %s", v.get("id"), e)
+        return False
+    return True
+
+
 def _confirmar(conn, v: dict) -> None:
     w = _w()
     lead = _lead(conn, v["lead"])
@@ -427,6 +441,7 @@ def _confirmar(conn, v: dict) -> None:
                      f"📅 {dia(q)} às {hora(q)}\n👤 Cliente: {lead.get('nome') or ''} — {nay.telefone_bonito(lead['telefone'])}\n"
                      f"🏠 Proprietário: {v.get('proprietario_nome') or ''} — "
                      f"{nay.telefone_bonito(v['proprietario_telefone']) if v.get('proprietario_telefone') else ''}")
+        mandar_card_ao_corretor(conn, v)
     w._grupo(f"Visita confirmada: cliente {_quem(lead)}, imóvel #{v['codigo']}, {dia(q)} às {hora(q)}, corretor "
              f"{v.get('corretor_nome') or ''}, proprietário {v.get('proprietario_nome') or ''}.")
 
