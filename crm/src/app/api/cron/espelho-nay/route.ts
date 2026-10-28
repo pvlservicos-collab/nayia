@@ -24,6 +24,7 @@ import { conferirACaptacao, conferirComANay } from '@/lib/espelhoDaNay'
 import { refazerTranscricoesQueFalharam } from '@/lib/transcricao'
 import { realinharUltimaMensagem } from '@/lib/realinharUltimaMensagem'
 import { marcarOrganicos } from '@/lib/tagOrganico'
+import { levarAvisosDaNay } from '@/lib/avisosDaNay'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -97,6 +98,12 @@ export async function POST(req: NextRequest) {
       after(() => marcarOrganicos(parceria.org)
         .then((n) => { if (n) console.log('[orgânico] marcadas', n) })
         .catch((e) => console.error('[orgânico] falhou', e?.message || e)))
+    }
+    // 508 (28/10): os avisos da Nay que não são de visita vêm às Notificações, não ao grupo
+    if (!historico) {
+      after(() => levarAvisosDaNay(parceria.org)
+        .then((n) => { if (n) console.log('[avisos da Nay] levados', n) })
+        .catch((e) => console.error('[avisos da Nay] falhou', e?.message || e)))
     }
     if (captacao && (captacao.trazidas || captacao.erros)) console.log('[conferência da captação]', JSON.stringify(captacao))
     if (!resultado) return Response.json({ ocupado: true, captacao }, { status: 202 })

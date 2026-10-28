@@ -79,6 +79,10 @@ _lida_sem_resposta: dict[int, str] = {}
 
 
 def _avisar(texto: str) -> None:
+    """508 (Pedro, 28/10/2026): no grupo só "Lead X solicitou visita pela OLX"; o resto vai às Notificações do CRM."""
+    if "solicitou visita" not in texto:
+        grupo.ao_crm("lead", texto, titulo="Chat da OLX")
+        return
     try:
         if not grupo.mandar_ao_grupo(texto):
             log.warning("o aviso não chegou ao grupo: nenhum número conectado")

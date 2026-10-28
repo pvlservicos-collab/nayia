@@ -48,6 +48,9 @@ export function useNotifications(limit: number = 20) {
 
   useEffect(() => {
     fetchNotifications()
+    // 508 (28/10): os avisos da Nay chegam a qualquer hora; a cada 30 s a lista se atualiza sozinha
+    const t = setInterval(fetchNotifications, 30_000)
+    return () => clearInterval(t)
   }, [fetchNotifications])
 
   return { notifications, loading, unreadCount, markAsRead, markAllAsRead, refetch: fetchNotifications }

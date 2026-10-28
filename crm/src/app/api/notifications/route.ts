@@ -8,14 +8,14 @@ export async function GET(req: NextRequest) {
   try {
     const auth = await authenticateRequest(req)
     if (!auth.memberId) return apiError(403, 'Necessário sessão de usuário.')
+    // 508 (28/10): as lidas também vêm (a aba "Todas" e o relatório da IA relido); "Não lidas" filtra na tela
     const rows = await db.select().from(notifications)
       .where(and(
         eq(notifications.organizationId, auth.organizationId),
-        eq(notifications.recipientMemberId, auth.memberId),
-        eq(notifications.isRead, false)
+        eq(notifications.recipientMemberId, auth.memberId)
       ))
       .orderBy(desc(notifications.createdAt))
-      .limit(50)
+      .limit(100)
 
     const data = rows.map(n => ({
       id: n.id,

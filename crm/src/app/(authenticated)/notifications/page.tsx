@@ -104,6 +104,8 @@ function NotificationPageItem({
     const config = getConfig(notification.type || undefined)
     const Icon = config.icon
     const router = useRouter()
+    // 508 (28/10): o aviso da Nay e o relatório da IA são longos; o clique abre o texto inteiro
+    const [aberto, setAberto] = useState(false)
 
     const handleAction = () => {
         if (!notification.is_read) onMark(notification.id)
@@ -118,7 +120,7 @@ function NotificationPageItem({
     return (
         <div
             className={`flex items-start gap-4 px-6 py-4 transition-colors cursor-pointer hover:bg-void ${!notification.is_read ? 'bg-panel-2' : ''}`}
-            onClick={() => { if (!notification.is_read) onMark(notification.id) }}
+            onClick={() => { setAberto((a) => !a); if (!notification.is_read) onMark(notification.id) }}
         >
             {/* Icon */}
             <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${config.bg}`}>
@@ -131,7 +133,7 @@ function NotificationPageItem({
                     <span className="font-semibold text-ink">{notification.title || 'Notificação'}</span>
                 </p>
                 {notification.content && (
-                    <p className="text-sm text-muted mt-0.5 line-clamp-2">{notification.content}</p>
+                    <p className={`text-sm text-muted mt-0.5 ${aberto ? 'whitespace-pre-wrap break-words' : 'line-clamp-2'}`}>{notification.content}</p>
                 )}
                 {actionText && (
                     <button

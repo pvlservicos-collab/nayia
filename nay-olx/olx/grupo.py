@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -143,6 +144,32 @@ def mandar_ao_grupo(texto: str) -> str | None:
             return nome
         log.warning("o grupo recusou o aviso pelo número %s: %s", nome, (r or {}).get("_erro") or "sem id")
     return None
+
+
+FONE_NO_TEXTO = re.compile(r"\(\d{2}\) ?\d{4,5}-\d{4}|\b55\d{10,11}\b")
+
+
+def ao_crm(tipo: str, texto: str, titulo: str | None = None, telefone: str | None = None) -> bool:
+    """508 (Pedro, 28/10/2026: "as filas de dúvidas, e as mensagens de escala põe no painel notificações do crm, deixa
+    só as visitas e lembretes de visitas no grupo"): o aviso que não é de visita vai às Notificações do CRM. Grava pelo
+    nay_aviso_equipe(); o CRM leva em ~10 s, para o Tel e a Rayssa. Sem título, o começo do texto até os dois-pontos;
+    sem telefone, o primeiro do texto (é por ele que a notificação abre a conversa)."""
+    from olx import banco
+    if not titulo:
+        titulo = texto.split(":")[0] if 0 < texto.find(":") <= 120 else texto[:90]
+    if not telefone:
+        achou = FONE_NO_TEXTO.search(texto)
+        telefone = achou.group(0) if achou else None
+    try:
+        conn = banco.conectar()
+        try:
+            banco.um(conn, "SELECT nay_aviso_equipe('nay-olx', %s, %s, %s, %s)", (tipo, titulo, texto, telefone))
+        finally:
+            conn.close()
+        return True
+    except Exception:  # noqa: BLE001 -- o aviso não pode derrubar o atendimento
+        log.exception("o aviso não chegou às Notificações do CRM")
+        return False
 
 
 def mandar_ao_tel(telefone: str | None, texto: str) -> str | None:

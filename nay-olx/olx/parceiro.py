@@ -51,7 +51,7 @@ def _marcar(conn, bid: int, **campos) -> None:
 
 
 def _aviso(o: dict, texto: str) -> None:
-    whatsapp._grupo(("[teste] " if o["teste"] else "") + "Busca na OLX · " + texto)
+    whatsapp._ao_crm(("[teste] " if o["teste"] else "") + "Busca na OLX · " + texto)
 
 
 def _cliente(lead: dict) -> str:

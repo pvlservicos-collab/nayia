@@ -851,8 +851,8 @@ def _falhou(conn, lead: dict, ate: int | None, erro: Exception) -> None:
         _FALHAS.pop(lid, None)
         if ate:
             _marcar(conn, lid, ultima_lida=ate)
-        _grupo(f"Cliente {quem(lead)} no WhatsApp de captação: a Nay não conseguiu responder a última mensagem "
-               f"(três tentativas). Vejam por lá.")
+        _ao_crm(f"Cliente {quem(lead)} no WhatsApp de captação: a Nay não conseguiu responder a última mensagem "
+                f"(três tentativas). Vejam por lá.")
 
 
 def _deu_certo(lid: int) -> None:
@@ -1275,7 +1275,7 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
                 (lead["id"],)) >= LIMITE_DE_MENSAGENS:
         _marcar(conn, lead["id"], humano_em=banco.um(conn, "SELECT now()"), ultima_lida=ate,
                 parada_motivo="a conversa foi longe demais para a Nay")
-        _grupo(f"Cliente {quem(lead)}: a conversa no WhatsApp de captação foi longe; precisa de alguém.")
+        _ao_crm(f"Cliente {quem(lead)}: a conversa no WhatsApp de captação foi longe; precisa de alguém.")
         agentes.passo(lead, "limite_de_mensagens", f"passou de {LIMITE_DE_MENSAGENS} mensagens: vai para a equipe")
         return False
     if lead.get("etapa") == "finalizado":
@@ -1478,15 +1478,15 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
         # entregar_respostas e a conversa continua com ela. Sem a fila, ao grupo como antes.
         motivo = str(r.get("motivo") or "algo que a Nay não sabe")[:600]
         if not _para_a_fila(conn, lead, codigo_da_pergunta(lead, motivo), motivo):
-            _grupo(f"Cliente {quem(lead)} no WhatsApp de captação "
-                   f"pediu: {motivo[:240]}. A Nay disse que já retorna: mandem por lá.")
+            _ao_crm(f"Cliente {quem(lead)} no WhatsApp de captação "
+                    f"pediu: {motivo[:240]}. A Nay disse que já retorna: mandem por lá.")
     elif acao == "equipe":
         _marcar(conn, lead["id"], humano_em=banco.um(conn, "SELECT now()"), parada_motivo=str(r.get("motivo") or "")[:200])
         # 24/10 (Pedro): compra, negociação, documentos: o grupo recebe o que o lead mandou e o número, e alguém assume
         mandou = _ultimas_do_cliente(conn, lead)
-        _grupo(f"Cliente {quem(lead)} no WhatsApp de captação: {str(r.get('motivo') or 'precisa da equipe')[:200]}."
-               + (f" Ele mandou: \"{mandou}\"." if mandou else "")
-               + " Alguém da equipe assume a conversa por lá, por favor.")
+        _ao_crm(f"Cliente {quem(lead)} no WhatsApp de captação: {str(r.get('motivo') or 'precisa da equipe')[:200]}."
+                + (f" Ele mandou: \"{mandou}\"." if mandou else "")
+                + " Alguém da equipe assume a conversa por lá, por favor.")
     elif acao == "encerrar":
         # 394: com visita andando ou marcada, não encerra (a Josy disse "obrigada" e foi para Finalizados com a visita do
         # dia seguinte)
@@ -1622,8 +1622,8 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
         # nunca a negativa: ela diz que está separando e a equipe recebe o perfil (se já disse neste turno, não repete)
         if not ja_avisou:
             mandar_texto(conn, lead, "Estou separando as opções com a nossa equipe e já te retorno por aqui.")
-        _grupo(f"Cliente {quem(lead)} procura "
-               f"{_resumo_dos_filtros(f)} e a busca não achou nada nem perto: separar opções para ela.")
+        _ao_crm(f"Cliente {quem(lead)} procura "
+                f"{_resumo_dos_filtros(f)} e a busca não achou nada nem perto: separar opções para ela.")
         return
     enviados = list(lead.get("enviados") or [])
     for n, a in enumerate(achados):
@@ -1715,11 +1715,17 @@ def fecho(lead: dict, quantos: int = 2, de_novo: bool = False, proximas: bool = 
 
 
 def _grupo(texto: str) -> None:
+    """Só o aviso de VISITA vai ao grupo (visita.py); o resto vai às Notificações do CRM (_ao_crm, 508)."""
     try:
         if not grupo.mandar_ao_grupo(texto):
             log.warning("o aviso não chegou ao grupo")
     except Exception:  # noqa: BLE001
         log.exception("o aviso ao grupo falhou")
+
+
+def _ao_crm(texto: str) -> None:
+    """508 (Pedro, 28/10/2026): a escalada e a dúvida do cliente vão às Notificações do CRM, não ao grupo."""
+    grupo.ao_crm("lead", texto)
 
 
 def _ha_trabalho(conn, cfg: dict) -> bool:

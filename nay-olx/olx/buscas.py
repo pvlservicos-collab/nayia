@@ -852,9 +852,9 @@ def oferecer_ao_cliente(conn, b: dict, codigo: int, cor: dict, c: dict) -> str:
             _enviar(c["teste"], f"[teste: iria ao cliente {whatsapp.quem(lead)} o imóvel #{codigo} do corretor {cor.get('nome') or cor['telefone']}]")
         return "teste"
     if lead.get("humano_em"):
-        whatsapp._grupo(f"Busca do cliente {whatsapp.quem(lead)}: o corretor {cor.get('nome') or ''} ({grupo.telefone_bonito(cor['telefone'])}) "
-                        f"ofereceu o imóvel #{codigo}, já cadastrado como parceiro. A conversa do cliente está com a equipe: "
-                        f"apresentem por lá.")
+        whatsapp._ao_crm(f"Busca do cliente {whatsapp.quem(lead)}: o corretor {cor.get('nome') or ''} ({grupo.telefone_bonito(cor['telefone'])}) "
+                         f"ofereceu o imóvel #{codigo}, já cadastrado como parceiro. A conversa do cliente está com a equipe: "
+                         f"apresentem por lá.")
         return "grupo"
     return _mandar_ao_cliente(conn, lead, [codigo])
 
