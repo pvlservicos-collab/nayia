@@ -3212,16 +3212,23 @@ function renderizarNossos(forcar) {
       <div class="nossos-item" data-codigo="${x.codigo}">
         <div class="nossos-par">
           <button class="nossos-arte" data-codigo="${x.codigo}" data-formato="feed" aria-label="Ampliar a arte do feed do ${x.codigo}">
-            <img loading="lazy" alt="" src="${nEsc(x.imagem)}${v}"><small>Feed</small></button>
+            <img loading="lazy" alt="" src="${nEsc(x.mini || x.imagem)}${v}"><small>Feed</small></button>
           ${x.story ? `<button class="nossos-arte" data-codigo="${x.codigo}" data-formato="story" aria-label="Ampliar a arte de Stories do ${x.codigo}">
-            <img loading="lazy" alt="" src="${nEsc(x.story)}${v}"><small>Stories</small></button>`
+            <img loading="lazy" alt="" src="${nEsc(x.story_mini || x.story)}${v}"><small>Stories</small></button>`
                     : '<div class="nossos-sem-story">Stories ainda não gerado</div>'}
         </div>
         <div class="nossos-rodape"><span><b>${x.codigo}</b> · ${nEsc(x.titulo)}</span>
           <span class="nossos-nota" id="nota-${x.codigo}">conferindo...</span></div>
       </div>`;
     }).join('') : '<p class="nossos-vazio">Nenhuma arte gerada ainda.</p>';
-    NOSSOS.lista.forEach(x => nNota(x.codigo));
+    // a nota só é conferida quando o imóvel aparece na tela (com 240 imóveis seriam ~500 consultas de uma vez)
+    if (NOSSOS.olho) NOSSOS.olho.disconnect();
+    NOSSOS.olho = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(e => {
+      if (!e.isIntersecting) return;
+      NOSSOS.olho.unobserve(e.target);
+      nNota(Number(e.target.dataset.codigo));
+    }), { rootMargin: '300px' }) : null;
+    $$('.nossos-item').forEach(el => NOSSOS.olho ? NOSSOS.olho.observe(el) : nNota(Number(el.dataset.codigo)));
   }).catch(() => { grade.innerHTML = '<p class="nossos-vazio">Não consegui ler a lista das artes.</p>'; });
 }
 

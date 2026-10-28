@@ -18,7 +18,16 @@ Para cada imóvel:
 28/10, mais tarde: "faz uma versão ao lado dessas para stories também". A versão Stories (1080x1920) usa a mesma
 leitura de fotos; quem já tem ambientes.json não volta à Gemini (--reler força a leitura de novo).
 
+28/10, à noite: "começa a montar essas imagens para todos os imóveis disponíveis, e deixa de forma que a Nay possa
+puxar essa imagem futuramente". --todos roda os disponíveis com foto (o mais novo primeiro), grava o index.json a cada
+imóvel (a galeria enche enquanto roda) e é retomável (--faltando pula quem já tem as duas artes). O endereço de cada
+arte é FIXO por código, para a Nay (ou qualquer tela) montar sem consultar nada:
+  https://imobeasy.online/fotos-captacao/posts/nossos-imoveis/<codigo>/classico-feed.png   (1080x1350)
+  https://imobeasy.online/fotos-captacao/posts/nossos-imoveis/<codigo>/classico-story.png  (1080x1920)
+  (e classico-feed-mini.jpg / classico-story-mini.jpg, leves, para a galeria)
+
 Uso (na VPS):  /root/nay-posts/.venv/bin/python /root/nay-posts/nossos_imoveis.py --recentes 10
+               /root/nay-posts/.venv/bin/python /root/nay-posts/nossos_imoveis.py --todos [--faltando] [--pausa 6]
                /root/nay-posts/.venv/bin/python /root/nay-posts/nossos_imoveis.py 9073 9064 [--reler]
 Daqui:         ./scripts/nay nossos-imoveis --recentes 10
 """
@@ -26,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import io
 import json
 import os
 import sys
@@ -177,10 +187,15 @@ def gerar(codigo: int, chave: str, pg, reler: bool = False) -> dict:
     pg.evaluate("(fs) => GeradorImob.adicionarFotos(fs)", fotos)
     pg.evaluate("() => GeradorImob.definirModelo('post', 'classico')")
     os.makedirs(pasta, exist_ok=True)
+    from PIL import Image
     for formato in ("feed", "story"):
-        png = pg.evaluate("(f) => GeradorImob.exportarPost(f, 'classico')", formato)
+        png = base64.b64decode(pg.evaluate("(f) => GeradorImob.exportarPost(f, 'classico')", formato).split(",", 1)[1])
         with open(os.path.join(pasta, "classico-%s.png" % formato), "wb") as arq:
-            arq.write(base64.b64decode(png.split(",", 1)[1]))
+            arq.write(png)
+        # a miniatura da galeria (com 240 imóveis, os PNG de 1,5-1,9 MB pesariam centenas de MB na tela)
+        mini = Image.open(io.BytesIO(png)).convert("RGB")
+        mini.thumbnail((480, 860))
+        mini.save(os.path.join(pasta, "classico-%s-mini.jpg" % formato), "JPEG", quality=82)
     with open(os.path.join(pasta, "estado.json"), "w", encoding="utf-8") as arq:
         json.dump({"imovel": imovel, "negocio": negocio}, arq, ensure_ascii=False, indent=1)
     with open(os.path.join(pasta, "ambientes.json"), "w", encoding="utf-8") as arq:
@@ -189,53 +204,81 @@ def gerar(codigo: int, chave: str, pg, reler: bool = False) -> dict:
                   arq, ensure_ascii=False, indent=1)
     return {"codigo": codigo, "titulo": i.get("titulo") or "", "negocio": negocio,
             "imagem": "%s/%d/classico-feed.png" % (URL, codigo), "story": "%s/%d/classico-story.png" % (URL, codigo),
+            "mini": "%s/%d/classico-feed-mini.jpg" % (URL, codigo), "story_mini": "%s/%d/classico-story-mini.jpg" % (URL, codigo),
             "fotos": len(urls),
             "lidas": sum(1 for f in lista if f["ambiente"]), "tokens": (uso or {}).get("totalTokenCount")}
+
+
+def salvar_indice(arquivo: str, imoveis: dict) -> None:
+    lista = sorted(imoveis.values(), key=lambda x: -x["codigo"])
+    with open(arquivo + ".novo", "w", encoding="utf-8") as arq:
+        json.dump({"atualizado_em": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "imoveis": lista}, arq, ensure_ascii=False, indent=1)
+    os.replace(arquivo + ".novo", arquivo)
+
+
+def tem_as_duas(codigo: int) -> bool:
+    pasta = os.path.join(SAIDA, str(codigo))
+    return all(os.path.exists(os.path.join(pasta, n)) for n in
+               ("classico-feed.png", "classico-story.png", "classico-feed-mini.jpg", "classico-story-mini.jpg"))
 
 
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("codigos", type=int, nargs="*")
     p.add_argument("--recentes", type=int, default=0)
+    p.add_argument("--todos", action="store_true", help="todos os disponíveis com foto, o mais novo primeiro")
+    p.add_argument("--faltando", action="store_true", help="pula quem já tem as duas artes e as miniaturas")
+    p.add_argument("--pausa", type=float, default=6.0, help="segundos de espera depois de cada leitura da Gemini")
     p.add_argument("--reler", action="store_true", help="manda as fotos à Gemini de novo, mesmo com ambientes.json")
     a = p.parse_args()
-    codigos = a.codigos or recentes(a.recentes or 10)
+    codigos = a.codigos or recentes(100000 if a.todos else (a.recentes or 10))
+    if a.faltando:
+        codigos = [c for c in codigos if not tem_as_duas(c)]
+    print("%d imóvel(is) nesta rodada" % len(codigos), file=sys.stderr, flush=True)
     chave = cf.chave_gemini()
     os.makedirs(SAIDA, exist_ok=True)
     indice_arq = os.path.join(SAIDA, "index.json")
     try:
         with open(indice_arq, encoding="utf-8") as arq:
-            antigos = {x["codigo"]: x for x in json.load(arq).get("imoveis", [])}
+            imoveis = {x["codigo"]: x for x in json.load(arq).get("imoveis", [])}
     except (OSError, ValueError):
-        antigos = {}
+        imoveis = {}
 
     from playwright.sync_api import sync_playwright
-    feitos, erros = [], []
+    feitos, falhas, erros = 0, [], []
     with sync_playwright() as pw:
         nav = pw.chromium.launch()
         ctx = nav.new_context(viewport={"width": 1400, "height": 1000})
         ctx.add_init_script("try { localStorage.clear(); } catch (e) {}")
         pg = ctx.new_page()
         pg.on("pageerror", lambda e: erros.append(str(e)))
-        pg.goto("file://" + gp.GERADOR, wait_until="load")
-        pg.wait_for_function("window.GeradorImob && window.GeradorImob.versao", timeout=30000)
-        for codigo in codigos:
+
+        def abrir():
+            pg.goto("file://" + gp.GERADOR, wait_until="load")
+            pg.wait_for_function("window.GeradorImob && window.GeradorImob.versao", timeout=30000)
+
+        abrir()
+        for n, codigo in enumerate(codigos, 1):
+            if n % 25 == 0:
+                abrir()                                   # a página nova a cada 25: a memória do Chromium não cresce
             try:
                 r = gerar(codigo, chave, pg, a.reler)
                 r["gerado_em"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
-                antigos[codigo] = r
-                feitos.append(r)
-                print(json.dumps(r, ensure_ascii=False), flush=True)
+                imoveis[codigo] = r
+                feitos += 1
+                salvar_indice(indice_arq, imoveis)        # a galeria já mostra este, mesmo se a rodada parar depois
+                print("%d/%d %s" % (n, len(codigos), json.dumps(r, ensure_ascii=False)), flush=True)
+                if r.get("tokens"):
+                    time.sleep(a.pausa)
             except (Exception, SystemExit) as e:  # noqa: BLE001 -- um imóvel com erro não para os outros
-                print(json.dumps({"codigo": codigo, "ok": False, "erro": str(e)[:300]}, ensure_ascii=False), flush=True)
+                falhas.append(codigo)
+                print("%d/%d %s" % (n, len(codigos), json.dumps({"codigo": codigo, "ok": False, "erro": str(e)[:300]},
+                                                                 ensure_ascii=False)), flush=True)
         nav.close()
 
-    # os desta rodada na ordem pedida (o mais novo no cadastro primeiro), depois os de antes
-    lista = feitos + [x for c, x in antigos.items() if c not in {f["codigo"] for f in feitos}]
-    with open(indice_arq + ".novo", "w", encoding="utf-8") as arq:
-        json.dump({"atualizado_em": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "imoveis": lista}, arq, ensure_ascii=False, indent=1)
-    os.replace(indice_arq + ".novo", indice_arq)
-    print("feitos=%d de %d; erros da página: %s" % (len(feitos), len(codigos), erros[:3]), file=sys.stderr)
+    salvar_indice(indice_arq, imoveis)
+    print("feitos=%d de %d; falharam: %s; erros da página: %s" % (feitos, len(codigos), falhas, erros[:3]),
+          file=sys.stderr, flush=True)
 
 
 if __name__ == "__main__":
