@@ -25,6 +25,7 @@
  *   6. a ficha que a conversa abriu e as fotos que ele mandou
  */
 import AgentesDoLead from './AgentesDoLead'
+import BuscasDoLead from './BuscasDoLead'
 import { useCallback, useEffect, useState } from 'react'
 import {
   X, User, House, ArrowClockwise, Copy, Check, Plus, PencilSimple, Images, CircleNotch, Robot,
@@ -302,6 +303,9 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
 
         {/* 24/10 (Pedro): os agentes da Nay Leads -- a legenda de cores e o histórico de cada agente que ativou, em tags */}
         {!oficial && <AgentesDoLead leadId={lead.id} />}
+
+        {/* 28/10 (Pedro): as buscas do lead e os nossos imóveis que servem, com a nota (nayia 510) */}
+        {!oficial && <BuscasDoLead leadId={lead.id} />}
 
         {/* 17/10 (Pedro): as etiquetas da equipe também no card da Captação */}
         <Secao titulo="Etiquetas">
