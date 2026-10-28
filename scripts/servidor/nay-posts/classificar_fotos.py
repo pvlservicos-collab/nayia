@@ -107,11 +107,14 @@ def baixar_e_reduzir(url: str) -> bytes | None:
         return None
 
 
-def chamar_gemini(chave: str, imagens: list[bytes]) -> tuple[dict, dict]:
+def chamar_gemini(chave: str, imagens: list[bytes], prompt: str = PROMPT, esquema: dict | None = None,
+                  config: dict | None = None) -> tuple[dict, dict]:
+    """`prompt`, `esquema` e `config` (generationConfig a mais) trocáveis: o nossos_imoveis.py (28/10) usa a mesma chamada."""
     partes = [{"inline_data": {"mime_type": "image/jpeg", "data": base64.b64encode(b).decode()}} for b in imagens]
-    partes.append({"text": PROMPT % len(imagens)})
+    partes.append({"text": prompt % len(imagens)})
     corpo = {"contents": [{"role": "user", "parts": partes}],
-             "generationConfig": {"temperature": 0.1, "responseMimeType": "application/json", "responseSchema": ESQUEMA}}
+             "generationConfig": {"temperature": 0.1, "responseMimeType": "application/json",
+                                  "responseSchema": esquema or ESQUEMA, **(config or {})}}
     ultimo = ""
     for tentativa in range(4):
         modelo = MODELOS[tentativa % len(MODELOS)]

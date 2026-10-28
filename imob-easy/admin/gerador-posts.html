@@ -201,6 +201,37 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .imgs-numeradas img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;display:block}
 .imgs-numeradas figcaption{position:absolute;left:4px;top:4px;background:var(--accent);color:var(--accent-ink);font-size:11px;font-weight:700;border-radius:5px;padding:0 5px}
 
+/* ---------- Aba Nossos imóveis (28/10): galeria das artes Clássicas e o painel para conferir com o site ---------- */
+.app.so-conteudo{grid-template-columns:minmax(0,1fr)}
+.nossos-grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+.nossos-item{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:0;overflow:hidden;cursor:pointer;text-align:left;
+  display:grid;box-shadow:var(--shadow);font:inherit;color:inherit}
+.nossos-item:hover,.nossos-item[aria-current="true"]{border-color:var(--accent)}
+.nossos-item img{width:100%;aspect-ratio:4/5;object-fit:cover;display:block;background:var(--surface-2)}
+.nossos-item span{padding:8px 10px;font-size:13px;line-height:1.3}
+.nossos-item b{color:var(--accent)}
+.nossos-vazio{color:var(--muted)}
+#nossos-detalhe{position:fixed;top:0;right:0;bottom:0;width:min(460px,100vw);background:var(--surface);border-left:1px solid var(--line-2);
+  box-shadow:-8px 0 24px rgba(40,10,55,.12);z-index:40;overflow:auto;padding:18px 18px 40px}
+#nossos-detalhe[hidden]{display:none}
+.nd-cab{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.nd-cab h3{font-size:18px;margin:0}
+.nd-cab p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.nd-tabela{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px}
+.nd-tabela th,.nd-tabela td{border-bottom:1px solid var(--line);padding:7px 6px;text-align:left;vertical-align:top}
+.nd-tabela th{color:var(--muted);font-weight:600;white-space:nowrap}
+.nd-tabela td.ok{color:#1F7A3F;font-weight:700}
+.nd-tabela td.erro{color:var(--alerta);font-weight:700}
+.nd-tabela tr.diferente td{background:#FCEFF3}
+.nd-bloco{margin-top:16px}
+.nd-bloco h4{margin:0 0 6px;font-size:14px}
+.nd-bloco p{margin:0;font-size:13px}
+.nd-fotos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.nd-fotos figure{margin:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.nd-fotos figure.na-arte{border:2px solid var(--accent)}
+.nd-fotos img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+.nd-fotos figcaption{font-size:11px;padding:4px 6px;line-height:1.25}
+.nd-fotos figcaption b{display:block}
 /* Aviso (toast) */
 #aviso{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;
   background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;transition:.2s;z-index:50;max-width:calc(100vw - 32px)}
@@ -218,6 +249,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       <button role="tab" id="tab-post" data-aba="post" aria-selected="true">Post</button>
       <button role="tab" id="tab-carrossel" data-aba="carrossel" aria-selected="false">Carrossel</button>
       <button role="tab" id="tab-video" data-aba="video" aria-selected="false">Vídeo</button>
+      <button role="tab" id="tab-nossos" data-aba="nossos" aria-selected="false">Nossos imóveis</button>
     </nav>
     <div class="topo-acoes">
       <label class="btn btn-logo" title="A logo nova vai para todas as artes">Subir logo<input type="file" id="input-logo" accept="image/*" class="sr"></label>
@@ -465,8 +497,23 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
         </aside>
       </div>
     </div>
+
+    <!-- ===================== ABA NOSSOS IMÓVEIS (28/10) ===================== -->
+    <div class="aba" id="aba-nossos" role="tabpanel" aria-labelledby="tab-nossos" hidden>
+      <div class="barra-aba">
+        <div>
+          <h2>Nossos imóveis</h2>
+          <p>A arte Clássica de cada imóvel, feita com os dados do cadastro e as fotos organizadas pela Gemini. Clique numa arte para conferir com o que está no site.</p>
+        </div>
+        <div class="acoes"><button class="btn-sec" data-nossos="recarregar">Recarregar</button></div>
+      </div>
+      <p class="dica" id="nossos-info"></p>
+      <div class="nossos-grade" id="nossos-grade"><p class="nossos-vazio">Carregando...</p></div>
+    </div>
   </section>
 </main>
+
+<aside id="nossos-detalhe" aria-label="Dados reais do imóvel" hidden></aside>
 
 <div id="aviso" role="status" aria-live="polite"></div>
 <datalist id="lista-cameras"></datalist>
@@ -2465,15 +2512,20 @@ function agendarRender() { clearTimeout(_timerRender); _timerRender = setTimeout
 
 /** Redesenha só o que está visível. */
 function renderizarAbaAtiva() {
-  $('#faixa-exemplo').hidden = !estado.exemplo;
+  $('#faixa-exemplo').hidden = !estado.exemplo || abaAtiva === 'nossos';
   if (abaAtiva === 'post') renderizarPost();
   else if (abaAtiva === 'carrossel') renderizarCarrossel();
+  else if (abaAtiva === 'nossos') { if (typeof renderizarNossos === 'function') renderizarNossos(); }
   else renderizarSaidaVideo();
 }
 
 /** Troca de aba. */
 function mudarAba(aba) {
-  abaAtiva = ['post', 'carrossel', 'video'].includes(aba) ? aba : 'post';
+  abaAtiva = ['post', 'carrossel', 'video', 'nossos'].includes(aba) ? aba : 'post';
+  // a galeria não usa o formulário da esquerda: ela ocupa a largura toda
+  $('.painel').hidden = abaAtiva === 'nossos';
+  $('.app').classList.toggle('so-conteudo', abaAtiva === 'nossos');
+  if (abaAtiva !== 'nossos' && $('#nossos-detalhe')) $('#nossos-detalhe').hidden = true;
   $$('.abas [data-aba]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.aba === abaAtiva)));
   $$('.aba').forEach(el => { el.hidden = el.id !== 'aba-' + abaAtiva; });
   try { localStorage.setItem(CONFIG.chaveAba, abaAtiva); } catch (_) { /* opcional */ }
@@ -3097,4 +3149,114 @@ async function iniciar() {
   window.addEventListener('pagehide', salvarRascunho);
 }
 iniciar();
+</script>
+<script>
+'use strict';
+/* ABA NOSSOS IMÓVEIS (Pedro, 28/10/2026). As artes saem na VPS (/root/nay-posts/nossos_imoveis.py, `nay nossos-imoveis`)
+   em /fotos-captacao/posts/nossos-imoveis/: index.json, e por imóvel classico-feed.png, estado.json (o que foi escrito
+   na arte) e ambientes.json (as fotos na ordem da Gemini). O painel da direita lê o imóvel DE NOVO da rota pública do
+   site, para conferir a arte com o que está no ar agora. */
+const NOSSOS = { raiz: '/fotos-captacao/posts/nossos-imoveis', api: 'https://api.imobeasy.online/api/imovel-publico/', lista: null, aberto: null };
+
+function nEsc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function nDinheiro(v) { return v ? 'R$ ' + Math.round(Number(v)).toLocaleString('pt-BR') : ''; }
+function nNum(t) { const m = String(t || '').match(/[\d.,]+/); return m ? Number(m[0].replace(/\./g, '').replace(',', '.')) : null; }
+function nJson(u) { return fetch(u, { cache: 'no-store' }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }); }
+
+function renderizarNossos(forcar) {
+  const grade = $('#nossos-grade');
+  if (NOSSOS.lista && !forcar) return;
+  grade.innerHTML = '<p class="nossos-vazio">Carregando...</p>';
+  nJson(NOSSOS.raiz + '/index.json?v=' + Date.now()).then(d => {
+    NOSSOS.lista = (d.imoveis || []).slice().sort((a, b) => b.codigo - a.codigo);
+    $('#nossos-info').textContent = NOSSOS.lista.length + ' imóveis · gerado em ' + new Date(d.atualizado_em).toLocaleString('pt-BR');
+    grade.innerHTML = NOSSOS.lista.length ? NOSSOS.lista.map(x => `
+      <button class="nossos-item" data-codigo="${x.codigo}">
+        <img loading="lazy" alt="Arte do imóvel ${x.codigo}" src="${nEsc(x.imagem)}?v=${encodeURIComponent(x.gerado_em || '')}">
+        <span><b>${x.codigo}</b> · ${nEsc(x.titulo)}</span>
+      </button>`).join('') : '<p class="nossos-vazio">Nenhuma arte gerada ainda.</p>';
+  }).catch(() => { grade.innerHTML = '<p class="nossos-vazio">Não consegui ler a lista das artes.</p>'; });
+}
+
+/** Uma linha "na arte" x "no site": iguais = ✓, diferentes = ✗ e a linha pintada. */
+function nLinha(rotulo, arte, site, igual) {
+  const ok = igual === undefined ? String(arte || '') === String(site || '') : igual;
+  return `<tr class="${ok ? '' : 'diferente'}"><th>${rotulo}</th><td>${nEsc(arte || '—')}</td><td>${nEsc(site || '—')}</td>
+          <td class="${ok ? 'ok' : 'erro'}">${ok ? '✓' : '✗'}</td></tr>`;
+}
+
+function abrirNosso(codigo) {
+  const painel = $('#nossos-detalhe');
+  NOSSOS.aberto = codigo;
+  $$('.nossos-item').forEach(b => b.setAttribute('aria-current', String(Number(b.dataset.codigo) === codigo)));
+  painel.hidden = false;
+  painel.innerHTML = '<p class="nossos-vazio">Lendo o imóvel ' + codigo + ' no site...</p>';
+  const base = NOSSOS.raiz + '/' + codigo + '/';
+  Promise.all([nJson(NOSSOS.api + codigo), nJson(base + 'estado.json?v=' + Date.now()), nJson(base + 'ambientes.json?v=' + Date.now()).catch(() => null)])
+    .then(([s, e, amb]) => { if (NOSSOS.aberto === codigo) painel.innerHTML = nPainel(codigo, s, e.imovel || {}, e.negocio, amb); })
+    .catch(() => { painel.innerHTML = `<div class="nd-cab"><h3>${codigo}</h3><button class="btn-sec" data-nossos="fechar">Fechar</button></div>
+      <p class="nossos-vazio">Não achei esse imóvel no site agora (saiu do ar, ficou indisponível ou é parceiro).</p>`; });
+}
+
+function nPainel(codigo, s, a, negocio, amb) {
+  const c = s.carac || {}, v = s.valores || {}, l = s.local || {};
+  const icone = nome => (a.caracteristicas || []).find(x => x.icone === nome);
+  const txt = x => x ? (x.destaque + ' ' + (x.complemento || '')).trim() : '';
+  const valorSite = negocio === 'aluguel' ? v.aluguel : v.venda;
+  const mob = String(c.mobilia_nivel || c.mobilia || '').toLowerCase();
+  const mobSite = mob === 'mobiliado' ? 'Mobiliado' : mob.startsWith('semi') ? 'Semimobiliado' : '';
+  const fin = String(v.fin || '');
+  const fita = a.seloFita || '';
+  const finOk = /financ/i.test(fita) ? /^s/i.test(fin) : true;        // a fita do financiamento só com "Sim" no site
+  const quartos = icone('cama'), q = quartos ? nNum(quartos.destaque) : null, su = quartos ? nNum(quartos.complemento) : null;
+  const tags = (s.tagscondo || []).filter(t => typeof t === 'string');
+  const linhas = [
+    nLinha('Negócio', negocio === 'aluguel' ? 'Aluguel' : 'Venda', v.aluguel && v.venda ? 'Venda e aluguel' : v.aluguel ? 'Aluguel' : 'Venda',
+           negocio === 'aluguel' ? !!v.aluguel : !!v.venda),
+    nLinha('Valor', nDinheiro(a.valor), nDinheiro(valorSite), Number(a.valor) === Math.round(Number(valorSite))),
+    nLinha('Área útil', txt(icone('metragem')), c.areautil ? Math.round(c.areautil) + ' m²' : '',
+           (icone('metragem') ? nNum(icone('metragem').destaque) : null) === (c.areautil ? Math.round(c.areautil) : null)),
+    nLinha('Quartos', txt(quartos), (c.quartos || '') + (c.suites ? ' (' + c.suites + ' suíte' + (c.suites > 1 ? 's' : '') + ')' : ''),
+           q === (c.quartos || null) && (su || null) === (c.suites || null)),
+    nLinha('Banheiros', txt(icone('banheiro')), c.banheiros, (icone('banheiro') ? nNum(icone('banheiro').destaque) : null) === (c.banheiros || null)),
+    nLinha('Vagas', txt(icone('carro')), c.vagas, (icone('carro') ? nNum(icone('carro').destaque) : null) === (c.vagas || null)),
+    nLinha('Mobília', txt(icone('sofa')), mobSite || (mob || ''), (icone('sofa') ? icone('sofa').destaque : '') === mobSite),
+    nLinha('Financiamento', fita, fin ? 'Aceita: ' + fin : 'Não informado', finOk),
+    nLinha('Local', (a.localRotulo || '') + ': ' + (a.localNome || ''), l.condominio || l.bairro, a.localNome === (l.condominio || l.bairro)),
+  ];
+  if (icone('piscina')) linhas.push(nLinha('Piscina', txt(icone('piscina')), tags.filter(t => /piscina/i.test(t)).join(', '), tags.some(t => /piscina/i.test(t))));
+  if (icone('escudo')) linhas.push(nLinha('Portaria', txt(icone('escudo')), tags.filter(t => /portaria|guarita|seguran/i.test(t)).join(', '),
+                                          tags.some(t => /portaria|guarita|seguran/i.test(t) && /24/.test(t))));
+  if (icone('predio')) linhas.push(nLinha('Prédio', txt(icone('predio')), c.elevadores ? c.elevadores + ' elevador(es)' : c.andares ? c.andares + ' andares' : '', true));
+  if (icone('contrato')) linhas.push(nLinha('Incluso', txt(icone('contrato')), s.incluso, (icone('contrato').complemento || '') === (s.incluso || '')));
+  const erros = linhas.filter(x => x.includes('class="diferente"')).length;
+  const fotos = amb && amb.fotos ? amb.fotos : [];
+  const naArte = new Set(amb && amb.arte ? amb.arte : []);
+  return `
+    <div class="nd-cab">
+      <div><h3>${codigo} · ${nEsc(s.titulo)}</h3>
+        <p>${nEsc([l.bairro, l.cidade].filter(Boolean).join(', '))} · <a href="https://imobeasy.online/imovel/${codigo}" target="_blank" rel="noopener">ver no site</a></p></div>
+      <button class="btn-sec" data-nossos="fechar">Fechar</button>
+    </div>
+    <p class="dica" style="margin-top:10px">${erros ? '<b style="color:var(--alerta)">' + erros + ' diferença(s) entre a arte e o site.</b>' : 'Tudo o que está na arte bate com o site.'}</p>
+    <table class="nd-tabela"><thead><tr><th></th><th>Na arte</th><th>No site</th><th></th></tr></thead><tbody>${linhas.join('')}</tbody></table>
+    <div class="nd-bloco"><h4>Frase da arte</h4><p>${nEsc(a.slogan)}</p></div>
+    <div class="nd-bloco"><h4>Mais do site</h4>
+      <p>Condomínio: ${nEsc(nDinheiro(v.condo) || '—')} · IPTU: ${nEsc(nDinheiro(v.iptu) || '—')}${c.terreno ? ' · Terreno: ' + nEsc(c.terreno) : ''}${v.permuta ? ' · Permuta: ' + nEsc(v.permuta) : ''}</p>
+      <p style="margin-top:6px">${tags.length ? nEsc(tags.join(' · ')) : 'Sem itens do condomínio'}</p></div>
+    <div class="nd-bloco"><h4>Fotos organizadas pela Gemini (${fotos.length}) <small class="dica">· borda roxa = está na arte</small></h4>
+      <div class="nd-fotos">${fotos.map(f => `<figure class="${naArte.has(f.url) ? 'na-arte' : ''}"><img loading="lazy" alt="" src="${nEsc(f.url)}">
+        <figcaption><b>${nEsc(f.rotulo)}</b>${nEsc(f.etiqueta)}</figcaption></figure>`).join('')}</div></div>`;
+}
+
+document.addEventListener('click', ev => {
+  const item = ev.target.closest('.nossos-item');
+  if (item) { abrirNosso(Number(item.dataset.codigo)); return; }
+  const acao = ev.target.closest('[data-nossos]');
+  if (!acao) return;
+  if (acao.dataset.nossos === 'fechar') { $('#nossos-detalhe').hidden = true; NOSSOS.aberto = null; $$('.nossos-item').forEach(b => b.removeAttribute('aria-current')); }
+  if (acao.dataset.nossos === 'recarregar') renderizarNossos(true);
+});
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('#nossos-detalhe').hidden) $('#nossos-detalhe').hidden = true; });
+if (abaAtiva === 'nossos') renderizarNossos();
 </script>

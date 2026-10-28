@@ -153,6 +153,18 @@ case "$cmd" in
     fi
     [ $# -gt 0 ] || { echo "diga o código do imóvel"; exit 1; }
     ssh -o ConnectTimeout=20 $SRV "/root/nay-posts/.venv/bin/python /root/nay-posts/gerar_posts.py $*" ;;
+  nossos-imoveis)
+    # A ABA NOSSOS IMÓVEIS DO GERADOR (Pedro, 28/10): a arte Clássica de cada imóvel, com as fotos lidas pela Gemini
+    # (o ambiente de cada uma) e organizadas. ./scripts/nay nossos-imoveis --recentes 10 | 9073 9064. Nada no banco.
+    # Sai em imobeasy.online/fotos-captacao/posts/nossos-imoveis/. --atualizar sobe os três scripts antes.
+    if [ "${1:-}" = "--atualizar" ]; then
+      shift
+      for f in gerar_posts.py classificar_fotos.py nossos_imoveis.py; do
+        lf < "$RAIZ/scripts/servidor/nay-posts/$f" | ssh $SRV "cat > /root/nay-posts/$f.novo && mv /root/nay-posts/$f.novo /root/nay-posts/$f && chmod +x /root/nay-posts/$f"
+      done
+      echo "scripts dos posts atualizados na VPS"
+    fi
+    ssh -o ConnectTimeout=20 $SRV "/root/nay-posts/.venv/bin/python /root/nay-posts/nossos_imoveis.py ${*:---recentes 10}" ;;
   fotos-classificar)
     # A GEMINI ESCOLHE A CAPA E OS CÔMODOS (500, Pedro 26/10): manda até 18 fotos do imóvel numa chamada só, pede a
     # melhor capa e, de sala/quarto/área de lazer/banheiro, a foto de cada uma (só as que achar com confiança). Grava

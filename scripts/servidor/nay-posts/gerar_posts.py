@@ -89,10 +89,17 @@ def montar_estado(i, a):
     if c.get("andares") or c.get("elevadores"):
         caracts.append({"icone": "predio", "destaque": "Com elevador" if c.get("elevadores") else "%s andares" % c.get("andares"), "complemento": ""})
     tags = [t for t in (i.get("tagscondo") or []) if isinstance(t, str)]
-    if any("piscina" in t.lower() for t in tags):
-        caracts.append({"icone": "piscina", "destaque": "Piscina", "complemento": "no condomínio"})
-    if any(re.search(r"portaria|segurança|24", t.lower()) for t in tags):
-        caracts.append({"icone": "escudo", "destaque": "Portaria 24h", "complemento": ""})
+    piscinas = [t.lower() for t in tags if "piscina" in t.lower()]
+    if piscinas:
+        # 28/10 (9058): o Weekend Club só tem "Piscina infantil" e a arte dizia "Piscina no condomínio"
+        so_infantil = all("infantil" in t and "adulto" not in t for t in piscinas)
+        caracts.append({"icone": "piscina", "destaque": "Piscina infantil" if so_infantil else "Piscina",
+                        "complemento": "no condomínio"})
+    # 28/10 (Pedro: "extremo cuidado com as informações ... tudo que tem nos ícones"): antes qualquer etiqueta com
+    # "segurança" ou "24" virava "Portaria 24h". Agora só portaria/guarita 24 h diz portaria; segurança 24 h diz segurança.
+    portaria = next(("Portaria 24h" for t in tags if re.search(r"portaria|guarita", t.lower()) and "24" in t), None) or         next(("Segurança 24h" for t in tags if "segurança" in t.lower() and "24" in t), None)
+    if portaria:
+        caracts.append({"icone": "escudo", "destaque": portaria, "complemento": ""})
     if negocio == "aluguel" and i.get("incluso"):
         caracts.append({"icone": "contrato", "destaque": "Incluso no aluguel", "complemento": i["incluso"]})
     caracts = caracts[:6]
