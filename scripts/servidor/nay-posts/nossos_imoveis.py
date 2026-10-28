@@ -12,11 +12,14 @@ Para cada imóvel:
      ambiente e uma legenda curta de cada uma, e qual é a melhor capa;
   3. as fotos ficam na ordem de um anúncio (capa, fachada, sala, cozinha, varanda, quartos, banheiros, ...), e a arte
      Clássica (feed 1080x1350: a foto grande + 4 com legenda) usa a capa e os 4 cômodos mais variados;
-  4. sai em /fotos-captacao/posts/nossos-imoveis/<codigo>/ (classico-feed.png, estado.json, ambientes.json) e o
-     index.json da galeria. NADA é gravado no banco: a ordem das fotos do site e a capa do site não mudam.
+  4. sai em /fotos-captacao/posts/nossos-imoveis/<codigo>/ (classico-feed.png, classico-story.png, estado.json,
+     ambientes.json) e o index.json da galeria. NADA é gravado no banco: a ordem das fotos do site e a capa do site
+     não mudam.
+28/10, mais tarde: "faz uma versão ao lado dessas para stories também". A versão Stories (1080x1920) usa a mesma
+leitura de fotos; quem já tem ambientes.json não volta à Gemini (--reler força a leitura de novo).
 
 Uso (na VPS):  /root/nay-posts/.venv/bin/python /root/nay-posts/nossos_imoveis.py --recentes 10
-               /root/nay-posts/.venv/bin/python /root/nay-posts/nossos_imoveis.py 9073 9064
+               /root/nay-posts/.venv/bin/python /root/nay-posts/nossos_imoveis.py 9073 9064 [--reler]
 Daqui:         ./scripts/nay nossos-imoveis --recentes 10
 """
 from __future__ import annotations
@@ -137,28 +140,47 @@ def da_arte(organizadas: list[dict]) -> list[dict]:
     return [capa] + escolha[:4]
 
 
-def gerar(codigo: int, chave: str, pg) -> dict:
+def leitura_guardada(pasta: str, urls: list[str]) -> tuple[list[dict], list[dict]] | None:
+    """(organizadas, arte) do ambientes.json de antes, se as fotos do site ainda forem as mesmas."""
+    try:
+        with open(os.path.join(pasta, "ambientes.json"), encoding="utf-8") as arq:
+            g = json.load(arq)
+    except (OSError, ValueError):
+        return None
+    organizadas = [{k: f.get(k) for k in ("url", "ambiente", "etiqueta")} for f in g.get("fotos") or []]
+    if sorted(f["url"] for f in organizadas) != sorted(urls):
+        return None                                   # o cadastro ganhou ou perdeu foto: a Gemini lê de novo
+    por_url = {f["url"]: f for f in organizadas}
+    return organizadas, [por_url[u] for u in g.get("arte") or [] if u in por_url]
+
+
+def gerar(codigo: int, chave: str, pg, reler: bool = False) -> dict:
     i = gp.ler_imovel(codigo)
     sem_ajuste = argparse.Namespace(destaque=None, chamada=None, fita=None, slogan=None, contato=None)
     imovel, negocio = gp.montar_estado(i, sem_ajuste)
     urls = [f for f in (i.get("fotos") or []) if isinstance(f, str)]
     if not urls:
         raise RuntimeError("sem foto")
-    lista, capa, uso = ambientes(chave, urls)
-    organizadas = organizar(lista, capa)
-    arte = da_arte(organizadas)
+    pasta = os.path.join(SAIDA, str(codigo))
+    guardada = None if reler else leitura_guardada(pasta, urls)
+    if guardada and guardada[1]:
+        organizadas, arte = guardada
+        lista, uso = organizadas, {}
+    else:
+        lista, capa, uso = ambientes(chave, urls)
+        organizadas = organizar(lista, capa)
+        arte = da_arte(organizadas)
     fotos = [{"src": gp.baixar_foto(f["url"]), "etiqueta": f["etiqueta"] if n else ""} for n, f in enumerate(arte)]
 
     pg.evaluate("() => GeradorImob.novoImovel()")
     pg.evaluate("(im) => GeradorImob.definirImovel(im)", imovel)
     pg.evaluate("(fs) => GeradorImob.adicionarFotos(fs)", fotos)
     pg.evaluate("() => GeradorImob.definirModelo('post', 'classico')")
-    png = pg.evaluate("() => GeradorImob.exportarPost('feed', 'classico')")
-
-    pasta = os.path.join(SAIDA, str(codigo))
     os.makedirs(pasta, exist_ok=True)
-    with open(os.path.join(pasta, "classico-feed.png"), "wb") as arq:
-        arq.write(base64.b64decode(png.split(",", 1)[1]))
+    for formato in ("feed", "story"):
+        png = pg.evaluate("(f) => GeradorImob.exportarPost(f, 'classico')", formato)
+        with open(os.path.join(pasta, "classico-%s.png" % formato), "wb") as arq:
+            arq.write(base64.b64decode(png.split(",", 1)[1]))
     with open(os.path.join(pasta, "estado.json"), "w", encoding="utf-8") as arq:
         json.dump({"imovel": imovel, "negocio": negocio}, arq, ensure_ascii=False, indent=1)
     with open(os.path.join(pasta, "ambientes.json"), "w", encoding="utf-8") as arq:
@@ -166,7 +188,8 @@ def gerar(codigo: int, chave: str, pg) -> dict:
                    "fotos": [{**f, "rotulo": ROTULO.get(f["ambiente"] or "", "Sem leitura")} for f in organizadas]},
                   arq, ensure_ascii=False, indent=1)
     return {"codigo": codigo, "titulo": i.get("titulo") or "", "negocio": negocio,
-            "imagem": "%s/%d/classico-feed.png" % (URL, codigo), "fotos": len(urls),
+            "imagem": "%s/%d/classico-feed.png" % (URL, codigo), "story": "%s/%d/classico-story.png" % (URL, codigo),
+            "fotos": len(urls),
             "lidas": sum(1 for f in lista if f["ambiente"]), "tokens": (uso or {}).get("totalTokenCount")}
 
 
@@ -174,6 +197,7 @@ def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("codigos", type=int, nargs="*")
     p.add_argument("--recentes", type=int, default=0)
+    p.add_argument("--reler", action="store_true", help="manda as fotos à Gemini de novo, mesmo com ambientes.json")
     a = p.parse_args()
     codigos = a.codigos or recentes(a.recentes or 10)
     chave = cf.chave_gemini()
@@ -197,7 +221,7 @@ def main() -> None:
         pg.wait_for_function("window.GeradorImob && window.GeradorImob.versao", timeout=30000)
         for codigo in codigos:
             try:
-                r = gerar(codigo, chave, pg)
+                r = gerar(codigo, chave, pg, a.reler)
                 r["gerado_em"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
                 antigos[codigo] = r
                 feitos.append(r)

@@ -203,12 +203,27 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 
 /* ---------- Aba Nossos imóveis (28/10): galeria das artes Clássicas e o painel para conferir com o site ---------- */
 .app.so-conteudo{grid-template-columns:minmax(0,1fr)}
-.nossos-grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
-.nossos-item{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:0;overflow:hidden;cursor:pointer;text-align:left;
-  display:grid;box-shadow:var(--shadow);font:inherit;color:inherit}
+.nossos-grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr));gap:16px}
+.nossos-item{border:1px solid var(--line);border-radius:14px;background:var(--surface);overflow:hidden;display:grid;box-shadow:var(--shadow)}
 .nossos-item:hover,.nossos-item[aria-current="true"]{border-color:var(--accent)}
-.nossos-item img{width:100%;aspect-ratio:4/5;object-fit:cover;display:block;background:var(--surface-2)}
-.nossos-item span{padding:8px 10px;font-size:13px;line-height:1.3}
+/* as larguras seguem a proporção (4:5 e 9:16): as duas artes ficam da mesma altura */
+.nossos-par{display:grid;grid-template-columns:.8fr .5625fr;gap:8px;padding:8px 8px 0}
+.nossos-arte{border:0;padding:0;background:none;cursor:zoom-in;position:relative;border-radius:8px;overflow:hidden;font:inherit}
+.nossos-arte img{width:100%;display:block;object-fit:cover;background:var(--surface-2)}
+.nossos-arte[data-formato="feed"] img{aspect-ratio:4/5}
+.nossos-arte[data-formato="story"] img{aspect-ratio:9/16}
+.nossos-arte small{position:absolute;left:6px;top:6px;background:rgba(34,21,43,.78);color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px}
+.nossos-arte:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
+.nossos-sem-story{display:grid;place-items:center;aspect-ratio:9/16;background:var(--surface-2);color:var(--muted);font-size:12px;border-radius:8px;text-align:center;padding:8px}
+.nossos-rodape{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 10px 10px}
+.nossos-nota{flex:none;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.nossos-nota.fiel{background:#E3F4E8;color:#1F7A3F}
+.nossos-nota.falha{background:#FCE4EC;color:var(--alerta)}
+.nz-formatos{display:flex;gap:6px}
+.nz-formatos button{border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff;border-radius:9px;padding:7px 12px;font-weight:600;cursor:pointer}
+.nz-formatos button[aria-pressed="true"]{background:#fff;color:var(--accent)}
+.nz-direita{display:flex;gap:8px;align-items:center}
+.nossos-rodape span{font-size:13px;line-height:1.3;min-width:0}
 .nossos-item b{color:var(--accent)}
 .nossos-vazio{color:var(--muted)}
 #nossos-detalhe{position:fixed;top:0;right:0;bottom:0;width:min(460px,100vw);background:var(--surface);border-left:1px solid var(--line-2);
@@ -526,7 +541,12 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 </main>
 
 <div id="nossos-zoom" aria-label="Arte ampliada" hidden>
-  <div class="nz-acoes"><span id="nz-titulo"></span><a class="btn" id="nz-baixar" download>Baixar arte</a></div>
+  <div class="nz-acoes"><span id="nz-titulo"></span>
+    <div class="nz-direita">
+      <div class="nz-formatos" role="group" aria-label="Formato"><button data-nz-formato="feed" aria-pressed="true">Feed</button><button data-nz-formato="story" aria-pressed="false">Stories</button></div>
+      <a class="btn" id="nz-baixar" download>Baixar arte</a>
+    </div>
+  </div>
   <img id="nz-img" alt="">
 </div>
 <aside id="nossos-detalhe" aria-label="Dados reais do imóvel" hidden></aside>
@@ -3186,12 +3206,50 @@ function renderizarNossos(forcar) {
   nJson(NOSSOS.raiz + '/index.json?v=' + Date.now()).then(d => {
     NOSSOS.lista = (d.imoveis || []).slice().sort((a, b) => b.codigo - a.codigo);
     $('#nossos-info').textContent = NOSSOS.lista.length + ' imóveis · gerado em ' + new Date(d.atualizado_em).toLocaleString('pt-BR');
-    grade.innerHTML = NOSSOS.lista.length ? NOSSOS.lista.map(x => `
-      <button class="nossos-item" data-codigo="${x.codigo}">
-        <img loading="lazy" alt="Arte do imóvel ${x.codigo}" src="${nEsc(x.imagem)}?v=${encodeURIComponent(x.gerado_em || '')}">
-        <span><b>${x.codigo}</b> · ${nEsc(x.titulo)}</span>
-      </button>`).join('') : '<p class="nossos-vazio">Nenhuma arte gerada ainda.</p>';
+    grade.innerHTML = NOSSOS.lista.length ? NOSSOS.lista.map(x => {
+      const v = '?v=' + encodeURIComponent(x.gerado_em || '');
+      return `
+      <div class="nossos-item" data-codigo="${x.codigo}">
+        <div class="nossos-par">
+          <button class="nossos-arte" data-codigo="${x.codigo}" data-formato="feed" aria-label="Ampliar a arte do feed do ${x.codigo}">
+            <img loading="lazy" alt="" src="${nEsc(x.imagem)}${v}"><small>Feed</small></button>
+          ${x.story ? `<button class="nossos-arte" data-codigo="${x.codigo}" data-formato="story" aria-label="Ampliar a arte de Stories do ${x.codigo}">
+            <img loading="lazy" alt="" src="${nEsc(x.story)}${v}"><small>Stories</small></button>`
+                    : '<div class="nossos-sem-story">Stories ainda não gerado</div>'}
+        </div>
+        <div class="nossos-rodape"><span><b>${x.codigo}</b> · ${nEsc(x.titulo)}</span>
+          <span class="nossos-nota" id="nota-${x.codigo}">conferindo...</span></div>
+      </div>`;
+    }).join('') : '<p class="nossos-vazio">Nenhuma arte gerada ainda.</p>';
+    NOSSOS.lista.forEach(x => nNota(x.codigo));
   }).catch(() => { grade.innerHTML = '<p class="nossos-vazio">Não consegui ler a lista das artes.</p>'; });
+}
+
+/** A nota de fidelidade (28/10): das informações escritas na arte, quantas % batem com o imóvel no site agora. */
+function nNota(codigo) {
+  const el = $('#nota-' + codigo);
+  const base = NOSSOS.raiz + '/' + codigo + '/';
+  Promise.all([nJson(NOSSOS.api + codigo), nJson(base + 'estado.json?v=' + Date.now())]).then(([s, e]) => {
+    const r = nConferir(s, e.imovel || {}, e.negocio);
+    if (!el) return;
+    el.textContent = r.nota === 100 ? '100% fiel' : r.nota + '% · ' + r.erros + (r.erros === 1 ? ' diferença' : ' diferenças');
+    el.className = 'nossos-nota ' + (r.nota === 100 ? 'fiel' : 'falha');
+    el.title = r.linhas.length + ' informações conferidas com o site';
+  }).catch(() => { if (el) { el.textContent = 'fora do site'; el.className = 'nossos-nota falha'; el.title = 'O imóvel não está mais no ar: a arte não vale.'; } });
+}
+
+/** A arte na tela grande, no formato pedido, e o download dela. */
+function nMostrar(item, formato) {
+  const f = formato === 'story' && item.story ? 'story' : 'feed';
+  const src = (f === 'story' ? item.story : item.imagem) + '?v=' + encodeURIComponent(item.gerado_em || '');
+  $('#nz-img').src = src;
+  $('#nz-img').alt = 'Arte ' + (f === 'story' ? 'de Stories' : 'do feed') + ' do imóvel ' + item.codigo;
+  $('#nz-titulo').textContent = item.codigo + ' · ' + (item.titulo || '');
+  $('#nz-baixar').href = src;
+  $('#nz-baixar').setAttribute('download', 'arte-classica-' + item.codigo + '-' + (f === 'story' ? 'stories' : 'feed') + '.png');
+  $$('[data-nz-formato]').forEach(b => { b.setAttribute('aria-pressed', String(b.dataset.nzFormato === f)); b.hidden = b.dataset.nzFormato === 'story' && !item.story; });
+  NOSSOS.formato = f;
+  $('#nossos-zoom').hidden = false;
 }
 
 /** Uma linha "na arte" x "no site": iguais = ✓, diferentes = ✗ e a linha pintada. */
@@ -3201,22 +3259,14 @@ function nLinha(rotulo, arte, site, igual) {
           <td class="${ok ? 'ok' : 'erro'}">${ok ? '✓' : '✗'}</td></tr>`;
 }
 
-function abrirNosso(codigo) {
+function abrirNosso(codigo, formato) {
   const painel = $('#nossos-detalhe');
   NOSSOS.aberto = codigo;
   $$('.nossos-item').forEach(b => b.setAttribute('aria-current', String(Number(b.dataset.codigo) === codigo)));
   painel.hidden = false;
   painel.innerHTML = '<p class="nossos-vazio">Lendo o imóvel ' + codigo + ' no site...</p>';
   const item = (NOSSOS.lista || []).find(x => x.codigo === codigo);
-  if (item) {
-    const src = item.imagem + '?v=' + encodeURIComponent(item.gerado_em || '');
-    $('#nz-img').src = src;
-    $('#nz-img').alt = 'Arte do imóvel ' + codigo;
-    $('#nz-titulo').textContent = codigo + ' · ' + (item.titulo || '');
-    $('#nz-baixar').href = src;
-    $('#nz-baixar').setAttribute('download', 'arte-classica-' + codigo + '.png');
-    $('#nossos-zoom').hidden = false;
-  }
+  if (item) nMostrar(item, formato);
   const base = NOSSOS.raiz + '/' + codigo + '/';
   Promise.all([nJson(NOSSOS.api + codigo), nJson(base + 'estado.json?v=' + Date.now()), nJson(base + 'ambientes.json?v=' + Date.now()).catch(() => null)])
     .then(([s, e, amb]) => { if (NOSSOS.aberto === codigo) painel.innerHTML = nPainel(codigo, s, e.imovel || {}, e.negocio, amb); })
@@ -3224,7 +3274,8 @@ function abrirNosso(codigo) {
       <p class="nossos-vazio">Não achei esse imóvel no site agora (saiu do ar, ficou indisponível ou é parceiro).</p>`; });
 }
 
-function nPainel(codigo, s, a, negocio, amb) {
+/** Cada informação escrita na arte contra o site: as linhas da tabela, quantas diferem e a nota (% que bate). */
+function nConferir(s, a, negocio) {
   const c = s.carac || {}, v = s.valores || {}, l = s.local || {};
   const icone = nome => (a.caracteristicas || []).find(x => x.icone === nome);
   const txt = x => x ? (x.destaque + ' ' + (x.complemento || '')).trim() : '';
@@ -3256,6 +3307,13 @@ function nPainel(codigo, s, a, negocio, amb) {
   if (icone('predio')) linhas.push(nLinha('Prédio', txt(icone('predio')), c.elevadores ? c.elevadores + ' elevador(es)' : c.andares ? c.andares + ' andares' : '', true));
   if (icone('contrato')) linhas.push(nLinha('Incluso', txt(icone('contrato')), s.incluso, (icone('contrato').complemento || '') === (s.incluso || '')));
   const erros = linhas.filter(x => x.includes('class="diferente"')).length;
+  return { linhas, erros, nota: Math.round(100 * (linhas.length - erros) / linhas.length) };
+}
+
+function nPainel(codigo, s, a, negocio, amb) {
+  const c = s.carac || {}, v = s.valores || {}, l = s.local || {};
+  const tags = (s.tagscondo || []).filter(t => typeof t === 'string');
+  const { linhas, erros, nota } = nConferir(s, a, negocio);
   const fotos = amb && amb.fotos ? amb.fotos : [];
   const naArte = new Set(amb && amb.arte ? amb.arte : []);
   return `
@@ -3264,7 +3322,8 @@ function nPainel(codigo, s, a, negocio, amb) {
         <p>${nEsc([l.bairro, l.cidade].filter(Boolean).join(', '))} · <a href="https://imobeasy.online/imovel/${codigo}" target="_blank" rel="noopener">ver no site</a></p></div>
       <button class="btn-sec" data-nossos="fechar">Fechar</button>
     </div>
-    <p class="dica" style="margin-top:10px">${erros ? '<b style="color:var(--alerta)">' + erros + ' diferença(s) entre a arte e o site.</b>' : 'Tudo o que está na arte bate com o site.'}</p>
+    <p class="dica" style="margin-top:10px">Nota de fidelidade: <b style="color:${erros ? 'var(--alerta)' : '#1F7A3F'}">${nota}%</b> ·
+      ${erros ? erros + ' diferença(s) entre a arte e o site.' : 'tudo o que está na arte bate com o site.'} Vale para o feed e o Stories (os mesmos dados).</p>
     <table class="nd-tabela"><thead><tr><th></th><th>Na arte</th><th>No site</th><th></th></tr></thead><tbody>${linhas.join('')}</tbody></table>
     <div class="nd-bloco"><h4>Frase da arte</h4><p>${nEsc(a.slogan)}</p></div>
     <div class="nd-bloco"><h4>Mais do site</h4>
@@ -3276,8 +3335,10 @@ function nPainel(codigo, s, a, negocio, amb) {
 }
 
 document.addEventListener('click', ev => {
-  const item = ev.target.closest('.nossos-item');
-  if (item) { abrirNosso(Number(item.dataset.codigo)); return; }
+  const arte = ev.target.closest('.nossos-arte');
+  if (arte) { abrirNosso(Number(arte.dataset.codigo), arte.dataset.formato); return; }
+  const formato = ev.target.closest('[data-nz-formato]');
+  if (formato) { const it = (NOSSOS.lista || []).find(x => x.codigo === NOSSOS.aberto); if (it) nMostrar(it, formato.dataset.nzFormato); return; }
   const acao = ev.target.closest('[data-nossos]');
   if (!acao) return;
   if (acao.dataset.nossos === 'fechar') fecharNosso();
