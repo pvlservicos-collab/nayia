@@ -57,13 +57,74 @@
       caixa.innerHTML = partes.join(" · ");
     }).catch(function (e) { $("ap-estado").className = "ap-estado ap-estado--ruim"; $("ap-estado").textContent = e.message; });
   }
+  /* ---- os passos de um pedido (28/10, Pedro: "põe os processos que passou cada solicitação, se tá aguardando o
+     tactiq ou se já foi"). Entra a lista de ferramentas que o agente usou, na ordem: {nome, estado, texto}. No pedido
+     em curso o estado vem da ponte (rodando/ok/erro); no pedido antigo vem a resposta da ferramenta (texto). */
+  function salvar(nome) { return /salvar_transcricao$/.test(nome || ""); }
+  function passos(itens) {
+    var lista = [];
+    itens.forEach(function (it) {
+      var p;
+      if (salvar(it.nome)) {
+        var t = it.texto || "";
+        if (it.estado === "rodando") p = { cls: "vivo", txt: "Aguardando o tactiq gerar a transcrição; depois copia e salva" };
+        else if (/^Salvo/.test(t)) p = { cls: "ok", txt: t.replace(/^Salvo no computador do Pedro: /, "Salvo: ") };
+        else if (t) p = { cls: "erro", txt: t };
+        else p = it.estado === "erro" ? { cls: "erro", txt: "A ferramenta de salvar falhou" } : { cls: "ok", txt: "Transcrição copiada e salva" };
+      } else {
+        var rot = PASSO_FEITO[it.nome];
+        if (!rot) return;    // ferramentas internas do Hermes (tool_search etc.) não entram
+        p = { cls: it.estado === "rodando" ? "vivo" : it.estado === "erro" ? "erro" : "ok", txt: it.estado === "rodando" ? PASSO[it.nome] : rot };
+      }
+      var ult = lista[lista.length - 1];
+      if (ult && ult.txt === p.txt && ult.cls === p.cls) return;   // o mesmo passo repetido aparece uma vez
+      lista.push(p);
+    });
+    if (!lista.length) return '<p class="ap-vazio">Nenhum passo ainda.</p>';
+    return '<ol class="ap-passos">' + lista.map(function (p) {
+      return '<li class="ap-passo ap-passo--' + p.cls + '">' + esc(p.txt) + "</li>";
+    }).join("") + "</ol>";
+  }
+  var PASSO_FEITO = {
+    browser_navigate: "Abriu o tactiq", browser_type: "Colou o link", browser_click: "Clicou em Get Video Transcript",
+    browser_press: "Apertou uma tecla", browser_snapshot: "Leu a página", browser_vision: "Olhou a tela", browser_scroll: "Rolou a página"
+  };
+  // o resumo do pedido: quantos vídeos foram salvos dos que ele pediu
+  function selo(itens, links, vivo) {
+    if (vivo) return '<span class="ap-selo ap-selo--vivo">em andamento</span>';
+    var ok = itens.filter(function (it) { return salvar(it.nome) && /^Salvo/.test(it.texto || ""); }).length;
+    if (!ok) return '<span class="ap-selo ap-selo--erro">não salvou</span>';
+    return '<span class="ap-selo ap-selo--ok">' + (links > 1 ? ok + " de " + links + " salvos" : "salvo") + "</span>";
+  }
   function lerPedidos() {
     return api("sessoes").then(function (d) {
-      var s = (d.sessoes || []).slice(0, 15);
-      $("ap-pedidos").innerHTML = s.length ? s.map(function (x) {
-        return '<li><span class="ap-quando">' + esc(quando(x.ultima)) + "</span>" + esc(x.titulo) + "</li>";
-      }).join("") : '<li class="ap-vazio">Nenhum pedido ainda.</li>';
+      var s = (d.sessoes || []).slice(0, 12);
+      if (!s.length) { $("ap-pedidos").innerHTML = '<li class="ap-vazio">Nenhum pedido ainda.</li>'; return; }
+      return Promise.all(s.map(function (x) {
+        return api("sessoes/" + encodeURIComponent(x.id) + "/mensagens").then(function (m) { return m.mensagens || []; }).catch(function () { return []; });
+      })).then(function (todas) { est.pedidos = { s: s, todas: todas }; desenharPedidos(); });
     }).catch(function () { $("ap-pedidos").innerHTML = '<li class="ap-vazio">Não consegui ler os pedidos.</li>'; });
+  }
+  // redesenha a lista com o que já foi lido (o pedido em curso usa os passos ao vivo, sem chamar a ponte de novo)
+  function desenharPedidos() {
+    if (!est.pedidos) return;
+    var s = est.pedidos.s, todas = est.pedidos.todas;
+    var abertos = {};    // o que a pessoa abriu ou fechou continua assim depois de redesenhar
+    [].forEach.call(document.querySelectorAll("#ap-pedidos details[data-sessao]"), function (d) { abertos[d.getAttribute("data-sessao")] = d.open; });
+    $("ap-pedidos").innerHTML = s.map(function (x, i) {
+      var msgs = todas[i];
+      var pedido = (msgs.filter(function (m) { return m.papel === "voce"; })[0] || {}).texto || x.titulo;
+      var links = (pedido.match(LINK) || []).length || 1;
+      var itens = msgs.filter(function (m) { return m.papel === "ferramenta"; });
+      var vivo = !!(est.sessaoViva && est.sessaoViva === x.id);
+      var resposta = msgs.filter(function (m) { return m.papel === "agente" && m.texto; }).pop();
+      var aberto = x.id in abertos ? abertos[x.id] : i === 0;
+      return '<li><details data-sessao="' + esc(x.id) + '"' + (aberto ? " open" : "") + "><summary>" +
+        '<span class="ap-quando">' + esc(quando(x.ultima)) + "</span>" + selo(itens, links, vivo) +
+        '<span class="ap-titulo">' + esc(pedido.replace(/^Salve a(s)? transcriç(ão|ões) dest(e|es) (\d+ )?vídeos?:\s*/i, "")) + "</span></summary>" +
+        passos(vivo ? (est.linha || []).filter(function (it) { return it.t === "ferramenta"; }) : itens) +
+        (resposta && !vivo ? '<p class="ap-final">' + esc(resposta.texto) + "</p>" : "") + "</details></li>";
+    }).join("");
   }
 
   /* ---- o pedido em curso */
@@ -71,14 +132,12 @@
     var caixa = $("ap-andamento");
     caixa.hidden = false;
     if (run.linha) est.linha = run.linha;
+    if (run.sessao) est.sessaoViva = run.vivo ? run.sessao : null;
     var feitas = (est.linha || []).filter(function (it) { return it.t === "ferramenta"; });
-    var salvos = feitas.filter(function (it) { return /salvar_transcricao$/.test(it.nome || "") && it.estado !== "rodando"; }).length;
     var h = '<p class="ap-pedido">' + esc(run.pedido || "") + "</p>";
     if (run.vivo) {
-      var ultima = feitas[feitas.length - 1];
-      h += '<p class="ap-trab">' + (run.status === "waiting_for_approval" ? "esperando a sua permissão em Agentes"
-        : "trabalhando: " + esc(ultima ? (PASSO[ultima.nome] || (/salvar_transcricao$/.test(ultima.nome || "") ? PASSO.mcp_transcricao_salvar_transcricao : ultima.nome)) : "começando")) +
-        (salvos ? " · " + salvos + " salvo" + (salvos > 1 ? "s" : "") + " até agora" : "") + "</p>";
+      h += run.status === "waiting_for_approval" ? '<p class="ap-trab">esperando a sua permissão em Agentes</p>'
+        : (feitas.length ? passos(feitas) : '<p class="ap-trab">começando</p>');
     } else if (run.status === "failed") h += '<p class="ap-erro">Não deu certo: ' + esc(run.erro || "o agente falhou") + "</p>";
     else if (run.status === "cancelled") h += '<p class="ap-erro">Parado a seu pedido.</p>';
     else h += '<div class="ap-resposta">' + esc(run.saida || "Terminou.").replace(/\n/g, "<br>") + "</div>";
@@ -91,9 +150,11 @@
     api("pulso?" + (est.run ? "run=" + encodeURIComponent(est.run) + "&" : "") + "v=" + encodeURIComponent(est.v)).then(function (d) {
       var run = d.run;
       if (!run || (est.run && run.id !== est.run)) return;
-      if (!est.run) { if (!run.vivo) return; est.run = run.id; }   // a tela abriu com um pedido no meio: acompanha
+      var novo = !est.run;
+      if (novo) { if (!run.vivo) return; est.run = run.id; }   // a tela abriu com um pedido no meio: acompanha
       est.v = String(run.v);
       mostrar(run);
+      if (run.vivo) { if (novo) lerPedidos(); else desenharPedidos(); }   // a lista mostra o mesmo passo a passo do pedido em curso
       if (run.vivo) est.timer = setTimeout(pulso, 2500);
       else { est.run = null; est.v = ""; lerPedidos(); lerEstado(); }
     }).catch(function () { if (est.run) est.timer = setTimeout(pulso, 5000); });
