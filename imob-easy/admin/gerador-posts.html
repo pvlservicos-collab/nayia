@@ -214,6 +214,18 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 #nossos-detalhe{position:fixed;top:0;right:0;bottom:0;width:min(460px,100vw);background:var(--surface);border-left:1px solid var(--line-2);
   box-shadow:-8px 0 24px rgba(40,10,55,.12);z-index:40;overflow:auto;padding:18px 18px 40px}
 #nossos-detalhe[hidden]{display:none}
+#nossos-zoom{position:fixed;inset:0;right:min(460px,100vw);z-index:39;background:rgba(20,8,28,.86);display:flex;
+  align-items:center;justify-content:center;padding:56px 24px 24px;cursor:zoom-out}
+#nossos-zoom[hidden]{display:none}
+#nossos-zoom img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;border-radius:10px;
+  box-shadow:0 10px 40px rgba(0,0,0,.45);background:#fff;cursor:default}
+.nz-acoes{position:absolute;top:12px;left:16px;right:16px;display:flex;gap:8px;justify-content:space-between;align-items:center}
+.nz-acoes .btn{text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.nz-acoes span{color:#fff;font-weight:600;font-size:14px}
+@media (max-width:900px){
+  #nossos-zoom{right:0;bottom:auto;height:58vh;padding:52px 12px 12px}
+  #nossos-detalhe{top:58vh;width:100vw;border-left:0;border-top:1px solid var(--line-2);border-radius:16px 16px 0 0}
+}
 .nd-cab{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
 .nd-cab h3{font-size:18px;margin:0}
 .nd-cab p{margin:4px 0 0;color:var(--muted);font-size:13px}
@@ -513,6 +525,10 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   </section>
 </main>
 
+<div id="nossos-zoom" aria-label="Arte ampliada" hidden>
+  <div class="nz-acoes"><span id="nz-titulo"></span><a class="btn" id="nz-baixar" download>Baixar arte</a></div>
+  <img id="nz-img" alt="">
+</div>
 <aside id="nossos-detalhe" aria-label="Dados reais do imóvel" hidden></aside>
 
 <div id="aviso" role="status" aria-live="polite"></div>
@@ -2525,7 +2541,7 @@ function mudarAba(aba) {
   // a galeria não usa o formulário da esquerda: ela ocupa a largura toda
   $('.painel').hidden = abaAtiva === 'nossos';
   $('.app').classList.toggle('so-conteudo', abaAtiva === 'nossos');
-  if (abaAtiva !== 'nossos' && $('#nossos-detalhe')) $('#nossos-detalhe').hidden = true;
+  if (abaAtiva !== 'nossos' && typeof fecharNosso === 'function') fecharNosso();
   $$('.abas [data-aba]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.aba === abaAtiva)));
   $$('.aba').forEach(el => { el.hidden = el.id !== 'aba-' + abaAtiva; });
   try { localStorage.setItem(CONFIG.chaveAba, abaAtiva); } catch (_) { /* opcional */ }
@@ -3191,6 +3207,16 @@ function abrirNosso(codigo) {
   $$('.nossos-item').forEach(b => b.setAttribute('aria-current', String(Number(b.dataset.codigo) === codigo)));
   painel.hidden = false;
   painel.innerHTML = '<p class="nossos-vazio">Lendo o imóvel ' + codigo + ' no site...</p>';
+  const item = (NOSSOS.lista || []).find(x => x.codigo === codigo);
+  if (item) {
+    const src = item.imagem + '?v=' + encodeURIComponent(item.gerado_em || '');
+    $('#nz-img').src = src;
+    $('#nz-img').alt = 'Arte do imóvel ' + codigo;
+    $('#nz-titulo').textContent = codigo + ' · ' + (item.titulo || '');
+    $('#nz-baixar').href = src;
+    $('#nz-baixar').setAttribute('download', 'arte-classica-' + codigo + '.png');
+    $('#nossos-zoom').hidden = false;
+  }
   const base = NOSSOS.raiz + '/' + codigo + '/';
   Promise.all([nJson(NOSSOS.api + codigo), nJson(base + 'estado.json?v=' + Date.now()), nJson(base + 'ambientes.json?v=' + Date.now()).catch(() => null)])
     .then(([s, e, amb]) => { if (NOSSOS.aberto === codigo) painel.innerHTML = nPainel(codigo, s, e.imovel || {}, e.negocio, amb); })
@@ -3254,9 +3280,17 @@ document.addEventListener('click', ev => {
   if (item) { abrirNosso(Number(item.dataset.codigo)); return; }
   const acao = ev.target.closest('[data-nossos]');
   if (!acao) return;
-  if (acao.dataset.nossos === 'fechar') { $('#nossos-detalhe').hidden = true; NOSSOS.aberto = null; $$('.nossos-item').forEach(b => b.removeAttribute('aria-current')); }
+  if (acao.dataset.nossos === 'fechar') fecharNosso();
   if (acao.dataset.nossos === 'recarregar') renderizarNossos(true);
 });
-document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('#nossos-detalhe').hidden) $('#nossos-detalhe').hidden = true; });
+/** Fecha a arte ampliada e o painel juntos (botão Fechar, Esc, clique no fundo escuro). */
+function fecharNosso() {
+  $('#nossos-detalhe').hidden = true;
+  $('#nossos-zoom').hidden = true;
+  NOSSOS.aberto = null;
+  $$('.nossos-item').forEach(b => b.removeAttribute('aria-current'));
+}
+$('#nossos-zoom').addEventListener('click', ev => { if (ev.target.id === 'nossos-zoom') fecharNosso(); });
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('#nossos-detalhe').hidden) fecharNosso(); });
 if (abaAtiva === 'nossos') renderizarNossos();
 </script>
