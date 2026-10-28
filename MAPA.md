@@ -223,6 +223,12 @@ prompt: comece pelo `nay onde`.
   (`/api/imoveis-lista` filtros; `/api/imoveis/opcoes` listas; `/api/condominios*`).
   Papel de leitura `nay_site_leitura` (GRANT em migração). Deploy: `./scripts/nay site [arquivos do imob-easy]`.
 - Admin estático: `imob-easy/admin/*.html` + `imob-easy/assets/js/*.js` (Imóveis: `imoveis-ux.js`; condomínios: `condominios-aba.js`; cadastro pendente: `cadastro-pendente.js`).
+- Modo escuro do admin (28/10): `assets/js/tema-admin.js` no `<head>` de cada `admin/*.html` (botão "Modo escuro" na barra do topo;
+  padrão claro; escolha em localStorage `admin-tema`). Inverte a página e devolve a cor real de foto, vídeo, mapa e da arte do
+  gerador de posts; o Início (que já é escuro) só escurece o topo; dentro de iframe (CRM, popup) não faz nada. Página nova do
+  admin: pôr a mesma linha `<script src="../assets/js/tema-admin.js?v=...">` logo depois de `<head>`.
+- Aprendizado do YouTube → Obsidian (28/10): skill `.claude/skills/aprendizado-youtube`, `scripts/aprendizado.py` (pendentes, texto,
+  ideias); as ideias vão para `IMOBEASY/Estratégia/Ideias/` do vault, com o quadro do plugin `imobeasy-ideias`.
 - Cadastro rápido (`cadastro-rapido.js`): a fila vem em ordem de categoria (`palpite` em `/admin/api/imoveis/cadastro-pendente`),
   a lista suspensa entre as setas passa só por uma categoria, e "Ver conversa" abre o chat em popup
   (`/admin/api/imoveis/conversa` → CRM `/api/conversas/por-telefone`; sem o CRM, vai o texto de `captacao_mensagens`).
