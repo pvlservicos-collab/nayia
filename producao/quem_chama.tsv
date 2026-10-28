@@ -85,6 +85,7 @@ condominio_google_marcar
 condominio_nome_nucleo	cadastro_whats_condominio, site_ficha_preparada
 condominio_taxa_aos_imoveis	condominio_taxa_aos_imoveis_tg
 condominio_taxa_aos_imoveis_tg	
+core_saida_grupo_no_crm	
 core_saida_pergunta_na_fila	
 core_saida_tel_so_perguntas	
 core_saida_validar	
@@ -103,6 +104,7 @@ crm_anuncio_numero	crm_anuncio_decidir, crm_anuncio_mensagem, crm_anuncio_mesma_
 crm_anuncio_palavras	crm_anuncio_mesma_unidade, crm_imovel_candidatos
 crm_anuncio_resposta_de_teste	crm_anuncio_decidir
 crm_avisar_tel	
+crm_avisos_da_equipe	
 crm_busca_cliente_acao	
 crm_busca_cliente_lista	
 crm_busca_cliente_manual	
@@ -581,6 +583,7 @@ nay_anotar_interessado	nay_escalar
 nay_assunto_do_imovel	nay_guardar_do_imovel, nay_o_que_sei_do_imovel, nay_responder_pendencia, pergunta_fila_responder
 nay_avaliar_visita	
 nay_aviso_do_foco	
+nay_aviso_equipe	core_saida_grupo_no_crm
 nay_bairro_e_perto	
 nay_bairro_parecido	busca_olx_candidatos, nay_buscar_por_perfil, olx_cliente_buscar
 nay_bairros_proximos	nai_bairros_ao_redor, nay_bairro_e_perto, nay_buscar_por_perfil

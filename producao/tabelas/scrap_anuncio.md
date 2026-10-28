@@ -1,4 +1,4 @@
-# scrap_anuncio  (tabela, ~8566 linhas)
+# scrap_anuncio  (tabela, ~9064 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('scrap_anuncio_id_seq'::regclass)

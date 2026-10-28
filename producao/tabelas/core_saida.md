@@ -1,4 +1,4 @@
-# core_saida  (tabela, ~8303 linhas)
+# core_saida  (tabela, ~8589 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('core_saida_id_seq'::regclass)
@@ -39,6 +39,7 @@ core_saida_turno_id_fkey: FOREIGN KEY (turno_id) REFERENCES core_turno(id)
 CREATE TRIGGER core_saida_validar BEFORE INSERT OR UPDATE ON public.core_saida FOR EACH ROW EXECUTE FUNCTION core_saida_validar()
 CREATE TRIGGER core_saida_zz_pergunta_na_fila BEFORE INSERT ON public.core_saida FOR EACH ROW EXECUTE FUNCTION core_saida_pergunta_na_fila()
 CREATE TRIGGER core_saida_zzz_tel_so_perguntas BEFORE INSERT ON public.core_saida FOR EACH ROW EXECUTE FUNCTION core_saida_tel_so_perguntas()
+CREATE TRIGGER core_saida_zzzz_grupo_no_crm BEFORE INSERT ON public.core_saida FOR EACH ROW EXECUTE FUNCTION core_saida_grupo_no_crm()
 
 ## permissões
 nay_core: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE

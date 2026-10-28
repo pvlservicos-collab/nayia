@@ -1,1 +1,0 @@
-0 13 27 10 * root cd /root/nay-olx && set -a && . ./.env && set +a && TZ=America/Manaus .venv/bin/python resposta_2710.py >> /root/nay-olx/resposta_2710.log 2>&1; rm -f /etc/cron.d/nay-leads-resposta-2710

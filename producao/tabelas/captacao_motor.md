@@ -1,4 +1,4 @@
-# captacao_motor  (tabela, ~1783 linhas)
+# captacao_motor  (tabela, ~2012 linhas)
 317: leads da captação atendidos pela Nay em Python (entraram ao receber o modelo oficial). Apagar a linha devolve o lead ao fluxo do n8n.
 
 ## colunas
