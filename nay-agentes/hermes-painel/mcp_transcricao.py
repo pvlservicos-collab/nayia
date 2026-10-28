@@ -92,6 +92,8 @@ COPIAR = """(async () => {
     await new Promise(r => setTimeout(r, 1000))
   const botao = document.getElementById('copy')
   if (!botao || !document.querySelectorAll('ul li code').length) return {erro: 'a transcrição não apareceu'}
+  // a lista fica embaixo da página: rola até ela, para o Pedro ver na tela do agente
+  document.querySelector('ul li code').closest('ul').scrollIntoView({block: 'start'})
   const original = navigator.clipboard && navigator.clipboard.writeText
   let texto = null
   navigator.clipboard.writeText = t => { texto = String(t); return Promise.resolve() }
@@ -123,14 +125,25 @@ async def salvar(link):
         versao = chrome("/json/version")
     except Exception:  # noqa: BLE001
         return "O navegador do agente está desligado: ligue o navegador-olx.bat no computador do Pedro."
-    aba = next((a for a in abas if a.get("type") == "page" and "tactiq.io/tools/run/youtube_transcript" in a.get("url", "")
+    paginas = [a for a in abas if a.get("type") == "page"]
+    aba = next((a for a in paginas if "tactiq.io/tools/run/youtube_transcript" in a.get("url", "")
                 and vid in urllib.parse.unquote(a.get("url", ""))), None)
+    # 28/10, primeiro pedido de verdade: o link ficou certo no campo, mas o clique do agente em "Get Video Transcript"
+    # não saiu da página. Sem a página da transcrição aberta, a ferramenta mesma abre a aba do tactiq no endereço que o
+    # botão abre (o formulário é um GET para /tools/run/youtube_transcript?yt=<link>).
+    abrir = None
     if not aba:
-        return (f"Não achei a página do tactiq com o vídeo {vid}. Abra https://tactiq.io/tools/youtube-transcript, "
-                "cole o link, clique em Get Video Transcript e chame esta ferramenta de novo.")
+        aba = next((a for a in paginas if "tactiq.io" in a.get("url", "")), None)
+        if not aba:
+            return ("Não achei a aba do tactiq. Abra https://tactiq.io/tools/youtube-transcript e chame esta "
+                    "ferramenta de novo.")
+        abrir = "https://tactiq.io/tools/run/youtube_transcript?yt=" + urllib.parse.quote(link, safe="")
 
     async with websockets.connect(aba["webSocketDebuggerUrl"], max_size=None, open_timeout=8, ping_interval=None) as wp:
         pagina = Cdp(wp)
+        if abrir:
+            await pagina("Page.navigate", url=abrir)
+            await asyncio.sleep(4)
         r = await pagina.js(COPIAR % ESPERA_TRANSCRICAO)
         if r.get("erro"):
             return f"Não salvei: {r['erro']} (esperei {ESPERA_TRANSCRICAO} s). Vídeo sem legenda no YouTube não tem transcrição."

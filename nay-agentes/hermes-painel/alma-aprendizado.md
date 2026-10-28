@@ -4,7 +4,7 @@ COMO SALVAR A TRANSCRIÇÃO DE UM VÍDEO
 1. browser_navigate para https://tactiq.io/tools/youtube-transcript
 2. Leia a página (browser_snapshot), clique no campo "Enter YouTube URL" e digite o link do vídeo exatamente como o Pedro mandou (browser_type).
 3. Clique no botão "Get Video Transcript".
-4. Chame a ferramenta salvar_transcricao com o mesmo link. Ela espera a transcrição aparecer embaixo (até 3 minutos), clica em Copy e grava o .txt na pasta transcricoes do computador do Pedro. Não leia a transcrição com browser_snapshot: ela é longa demais; a ferramenta faz isso.
+4. Chame a ferramenta salvar_transcricao com o mesmo link, logo depois do clique, mesmo que a página pareça não ter mudado. Ela abre a página da transcrição se o clique não abriu, espera a transcrição aparecer (até 3 minutos), rola até ela, clica em Copy e grava o .txt na pasta transcricoes do computador do Pedro. Não leia a transcrição com browser_snapshot nem tente rolar até ela: é longa demais; a ferramenta faz isso.
 5. Responda numa linha com o que a ferramenta devolveu (nome do arquivo e tamanho).
 - Vários links numa mensagem: um vídeo de cada vez, do passo 1 ao 5, e no fim a lista dos arquivos salvos.
 - Se a ferramenta disser que a transcrição não apareceu, olhe a página uma vez (browser_vision) e diga ao Pedro o que o tactiq mostra (vídeo sem legenda, erro, verificação). Não insista mais de duas vezes no mesmo vídeo.
