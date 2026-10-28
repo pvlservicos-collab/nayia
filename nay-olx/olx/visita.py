@@ -180,6 +180,7 @@ def ha_trabalho(conn) -> bool:
         OR EXISTS (SELECT 1 FROM privado.olx_visita WHERE estado = 'confirmada'
                       AND ((lembrete_em IS NULL AND quando > now() AND quando < now() + interval '24 hours')
                         OR (depois_em IS NULL AND quando < now() AND quando > now() - interval '2 days')))
+        OR EXISTS (SELECT 1 FROM privado.olx_visita WHERE estado = 'realizada' AND depois_em IS NULL)   -- 510
         OR EXISTS (SELECT 1 FROM privado.nay_leads_dono_pergunta WHERE estado = 'pendente')"""))   # 493
 
 
@@ -555,9 +556,47 @@ def _depois(conn, cfg: dict) -> int:
     return feitas
 
 
+_TEM_O_PEDIDO: list[bool] = []
+
+
+def _feedback_pedido(conn) -> int:
+    """510 (Pedro, 28/10): o "como foi?" agora é MANUAL. A Rayssa abre a visita na agenda do CRM, clica em VISITA
+    REALIZADA e escolhe a quem perguntar (crm_visita_leads_realizada grava feedback_para); aqui ele sai, uma vez só."""
+    if not _TEM_O_PEDIDO:
+        _TEM_O_PEDIDO.append(bool(banco.um(conn, """SELECT EXISTS (SELECT 1 FROM information_schema.columns
+                                  WHERE table_schema = 'privado' AND table_name = 'olx_visita' AND column_name = 'feedback_para')""")))
+    if not _TEM_O_PEDIDO[0]:
+        return 0                                   # antes da 510 no banco: nada a fazer
+    feitas = 0
+    for v in banco.linhas(conn, """SELECT * FROM privado.olx_visita WHERE estado = 'realizada' AND feedback_para IS NOT NULL
+                                     AND depois_em IS NULL ORDER BY id"""):
+        banco.um(conn, "UPDATE privado.olx_visita SET depois_em = now() WHERE id = %s", (v["id"],))
+        lead = _lead(conn, v["lead"])
+        onde = _onde(conn, v["codigo"])
+        imovel = f"#{v['codigo']}{' (' + onde + ')' if onde else ''}"
+        if v["feedback_para"] == "corretor" and v.get("corretor_telefone"):
+            nome = ((v.get("corretor_nome") or "").split() or [""])[0].capitalize()
+            cliente = ((lead.get("nome") or "").split() or [""])[0].capitalize()
+            _mandar_para(conn, v["lead"], v["corretor_telefone"],
+                         f"Oi{', ' + nome if nome else ''}! Como foi a visita ao imóvel {imovel}"
+                         f"{' com o cliente ' + cliente if cliente else ''}? Ele gostou?")
+        else:
+            trat, pronome = _w().tratamento(lead)
+            gostou = {"a senhora": "A senhora gostou?", "o senhor": "O senhor gostou?"}.get(pronome, "Gostou?")
+            _w().mandar_texto(conn, lead, f"{trat + ', c' if trat else 'C'}omo foi a visita ao imóvel {imovel}? {gostou}")
+        log.info("visita %s: \"como foi?\" pedido no CRM, mandado ao %s", v["id"], v["feedback_para"])
+        feitas += 1
+    return feitas
+
+
 def atender(conn, cfg: dict) -> int:
-    """As respostas (e o silêncio) de quem está sendo consultado, a visita que esperou, o lembrete e o depois."""
-    feitas = _retomar(conn, cfg) + _lembrar(conn, cfg) + _depois(conn, cfg) + perguntas_ao_dono(conn)   # 493
+    """As respostas (e o silêncio) de quem está sendo consultado, a visita que esperou, o lembrete e o depois.
+    28/10 (Pedro: "desativa esses pedidos automáticos ... e desativa o lembrete para todos no automático, agora vai ser
+    manual em todos os números"): o lembrete e o "como foi?" automáticos só voltam com olx_config visita_lembrete_auto /
+    visita_depois_auto = sim. O "como foi?" sai pelo botão VISITA REALIZADA da agenda (_feedback_pedido)."""
+    lembrar = _lembrar(conn, cfg) if str(cfg.get("visita_lembrete_auto") or "nao") == "sim" else 0
+    depois = _depois(conn, cfg) if str(cfg.get("visita_depois_auto") or "nao") == "sim" else 0
+    feitas = _retomar(conn, cfg) + lembrar + depois + _feedback_pedido(conn) + perguntas_ao_dono(conn)   # 493
     espera_c = max(1, int(cfg.get("visita_corretor_espera_min") or 30))
     espera_p = max(1, int(cfg.get("visita_proprietario_espera_min") or 180))
     for c in banco.linhas(conn, """
