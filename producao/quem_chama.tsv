@@ -143,6 +143,7 @@ crm_imoveis_pontuacao
 crm_imovel_candidatos	crm_anuncio_decidir, crm_olx_bot_receber
 crm_imovel_para_cadastro	
 crm_imovel_vincular_anuncio	
+crm_lead_buscas	
 crm_leads_pipeline	
 crm_mensagem_citada	
 crm_mensagens_da_parceria	

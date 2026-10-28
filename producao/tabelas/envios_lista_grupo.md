@@ -1,4 +1,4 @@
-# envios_lista_grupo  (tabela, ~13425 linhas)
+# envios_lista_grupo  (tabela, ~14983 linhas)
 Cada imóvel de cada pedaço de lista que o publicador postou nos grupos, com o id da mensagem (281, 03/10/2026). Só a Nay nova lê: a citação de uma lista vira os códigos dela, na ordem.
 
 ## colunas
