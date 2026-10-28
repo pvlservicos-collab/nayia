@@ -4,7 +4,7 @@ A seção **Agentes de site** da página Agentes do admin (`admin/agentes.html`)
 conversar", a mesa dele — conversa, o navegador ao vivo (com clique e teclado), tarefas agendadas, skills e
 ferramentas, memória, logs e reiniciar/parar o serviço. Pedro, 13/10/2026.
 
-Hoje existe um agente: o **Agente OLX** (perfil `olx` do Hermes, na VPS2). Os três Hermes antigos (`telegram`,
+Agentes: o **Agente OLX** (perfil `olx` do Hermes, na VPS2). Os três Hermes antigos (`telegram`,
 `corretores`, `pessoal`) saíram da página na mesma noite; os serviços dos dois primeiros foram parados e tirados do
 boot (os perfis ficaram no disco; para voltar: `systemctl enable --now hermes-gateway-<perfil>`).
 
@@ -56,3 +56,14 @@ Desfazer na VPS2: `bash /root/hermes-painel-fonte/instalar.sh desfazer`.
 Agente novo para outro site: um perfil novo no `instalar.sh` (porta de API e de navegador livres), uma alma e uma
 entrada em `perfis.json`. Se o site não bloqueia servidor, o navegador pode morar na VPS2 (a cópia do Chrome está em
 `/opt/hermes-painel/chrome`; as unidades `hermes-chrome-<perfil>` estão no histórico do git, commit 8f375c7).
+
+## Agente de Aprendizado (28/10)
+
+Pedro: "um agente do hermes focado em aprendizado": ele abre https://tactiq.io/tools/youtube-transcript, cola o link do
+vídeo, espera a transcrição e salva em `transcricoes/` do nayia, no PC. Perfil `aprendizado`, serviço
+`hermes-gateway-aprendizado`, API 127.0.0.1:8646. Usa o MESMO Chrome do Agente OLX (porta 9303; o tactiq barra Chrome
+sem janela, o reCAPTCHA dele devolve 403). Ferramentas: as do olx + `salvar_transcricao` (`mcp_transcricao.py`): espera
+a lista, clica em Copy segurando o texto na própria página (a área de transferência do PC não muda) e faz o Chrome gravar
+o .txt direto na pasta do PC (`Browser.setDownloadBehavior`, que volta ao normal logo depois). O texto não passa pelo
+modelo. Publicar: `./nay-agentes/hermes-painel/publicar.sh aprendizado`. Teste sem o agente, na VPS2:
+`python /opt/hermes-painel/mcp_transcricao.py <link>` (com a página do tactiq já aberta no Chrome do agente).

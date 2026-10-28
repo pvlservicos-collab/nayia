@@ -11,6 +11,9 @@ eles rodam: o que está aqui é o que vale.
   lista de passos, agenda (cronjob), busca em conversas e a ferramenta `agente` (mcp_agente.py: listar e disparar as
   regras do painel agentes.imobeasy.online). Sem terminal: quem mexe nos servidores é o Claude, pela regra.
   Fuso de Brasília, o do Pedro.
+- aprendizado (Pedro, 28/10/2026: "agente do hermes focado em aprendizado"): as mesmas do olx, no mesmo Chrome do PC,
+  e a ferramenta `transcricao` (mcp_transcricao.py: salva a transcrição do tactiq em transcricoes/ do nayia, no PC).
+  Sem terminal e sem arquivo: o único arquivo que ele grava é esse.
 """
 import pathlib
 import sys
@@ -25,6 +28,13 @@ PERFIS = {
                "mcp": {"agente": {"command": "/usr/local/lib/hermes-agent/venv/bin/python",
                                   "args": ["/opt/agente-claude/mcp_agente.py"],
                                   "timeout": 3600}}},
+    "aprendizado": {"ferramentas": ["browser", "vision", "memory", "skills", "todo", "session_search", "transcricao"],
+                    "fuso": "America/Sao_Paulo",
+                    "mcp": {"transcricao": {"command": "/usr/local/lib/hermes-agent/venv/bin/python",
+                                            "args": ["/opt/hermes-painel/mcp_transcricao.py"],
+                                            "env": {"CDP_URL": "http://127.0.0.1:9303",
+                                                    "TRANSCRICOES_PASTA": r"C:\Users\pedro\Desktop\TEL SOBREIRA\Nay IA\transcricoes"},
+                                            "timeout": 600}}},
 }
 
 pasta = pathlib.Path(sys.argv[1])

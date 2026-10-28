@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aprendizado — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/aprendizado.css?v=20261028a">
+</head>
+<body class="admin" data-pagina="aprendizado">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<!-- 28/10/2026 (Pedro: "cria ele lá no menu do imobeasy dentro do menu Mais, Aprendizado, e no aprendizado abre a tela
+     para eu pôr o link para ele ir fazer isso"). Ele é o Agente de Aprendizado (Hermes perfil aprendizado na VPS2,
+     nay-agentes/hermes-painel/): abre o tactiq, cola o link, espera a transcrição, clica em Copy e grava o .txt em
+     transcricoes/ do nayia, no computador do Pedro. Esta tela só manda o pedido e acompanha, pela /admin/api/hermes. -->
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <div>
+      <h1 class="pagina-titulo">Aprendizado</h1>
+      <p class="pagina-subtitulo">Cole links de vídeos do YouTube: o Agente de Aprendizado gera a transcrição no tactiq e salva cada uma num arquivo de texto na pasta <b>transcricoes</b> do projeto, no seu computador.</p>
+    </div>
+  </div>
+
+  <div class="ap-estado" id="ap-estado">Chamando o agente…</div>
+
+  <form class="cartao ap-form" id="ap-form">
+    <label for="ap-links">Links do YouTube (um por linha)</label>
+    <textarea id="ap-links" rows="5" placeholder="https://www.youtube.com/watch?v=..."></textarea>
+    <div class="ap-linha">
+      <button type="submit" class="btn-azul">Salvar transcrições</button>
+      <button type="button" class="btn-neutro" id="ap-parar" hidden>Parar</button>
+      <a class="ap-mesa" href="agentes.html">Ver o navegador do agente ao vivo</a>
+    </div>
+  </form>
+
+  <div class="cartao ap-andamento" id="ap-andamento" hidden></div>
+
+  <h2 class="ap-secao">Últimos pedidos</h2>
+  <ul class="ap-pedidos" id="ap-pedidos"><li class="ap-vazio">Lendo…</li></ul>
+</main>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/aprendizado.js?v=20261028a"></script>
+</body>
+</html>

@@ -2,6 +2,7 @@
 # Publica o painel dos agentes de site (admin › Agentes). Uso (Git Bash, na raiz do nayia):
 #   ./nay-agentes/hermes-painel/publicar.sh        VPS2: instala/atualiza a ponte e o agente OLX (perfil, alma, config, serviço)
 #   ./nay-agentes/hermes-painel/publicar.sh claude VPS2: o Hermes do Claude (perfil claude), sem reiniciar o agente OLX
+#   ./nay-agentes/hermes-painel/publicar.sh aprendizado  VPS2: o Agente de Aprendizado (transcrições do tactiq), idem
 #   ./nay-agentes/hermes-painel/publicar.sh vps1   VPS1, só na primeira vez: põe no compose da API do site o endereço da
 #                                                  ponte e leva o segredo para o .env de lá (de servidor para servidor, sem imprimir)
 #   ./scripts/nay site admin/agentes.html assets/js/agentes.js assets/js/hermes-painel.js assets/css/hermes-painel.css
@@ -22,6 +23,11 @@ if [ "${1:-}" = vps1 ]; then
         if grep -q "^HERMES_PAINEL_TOKEN=" "$f"; then sed -i "s/^HERMES_PAINEL_TOKEN=.*/HERMES_PAINEL_TOKEN=$v/" "$f"; else printf "HERMES_PAINEL_TOKEN=%s\n" "$v" >> "$f"; fi
         echo "segredo gravado no .env da API do site ($(grep -c "^HERMES_PAINEL_TOKEN=" "$f") linha)"'
   echo "Falta reconstruir a API para ela ler as variáveis: ./scripts/nay site admin/agentes.html ..."
+  exit 0
+fi
+if [ "${1:-}" = aprendizado ]; then
+  # o Agente de Aprendizado (28/10): perfil aprendizado, a ferramenta de transcrição e o perfis.json; o agente OLX não reinicia
+  tar -cz perfis.json instalar-aprendizado.sh alma-aprendizado.md configurar_perfil.py mcp_transcricao.py | ssh -o ConnectTimeout=20 $VPS2 'rm -rf /root/hermes-aprendizado-fonte && mkdir -p /root/hermes-aprendizado-fonte && tar -xz -C /root/hermes-aprendizado-fonte && sed -i "s/\r$//" /root/hermes-aprendizado-fonte/* && bash /root/hermes-aprendizado-fonte/instalar-aprendizado.sh'
   exit 0
 fi
 if [ "${1:-}" = claude ]; then

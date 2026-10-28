@@ -11,5 +11,18 @@
       "Quantos anúncios ativos eu tenho?",
       "Abra o chat e me diga quantas conversas não lidas tem"
     ]
+  },
+  "aprendizado": {
+    "nome": "Agente de Aprendizado",
+    "faz": "Junta material de estudo: você cola links de vídeos do YouTube e ele salva a transcrição de cada um (pelo tactiq) na pasta transcricoes do nayia, no seu computador.",
+    "servico": "hermes-gateway-aprendizado",
+    "api_porta": 8646,
+    "cdp_porta": 9303,
+    "navegador": "seu-pc",
+    "exemplos": [
+      "Salve a transcrição deste vídeo: https://www.youtube.com/watch?v=EnAoHQwe4Tc",
+      "Salve as transcrições destes três vídeos: ...",
+      "Abra o tactiq e me diga o que aparece"
+    ]
   }
 }

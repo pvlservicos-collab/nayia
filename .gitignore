@@ -72,3 +72,7 @@ producao/.bruto/
 Arquivos/backups-locais/
 .servidor.tmp
 Arquivos/revisao-gemini/
+
+# transcrições do Agente de Aprendizado (28/10): só o LEIA vai para o git
+transcricoes/*
+!transcricoes/LEIA.md

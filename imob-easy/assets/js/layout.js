@@ -118,6 +118,9 @@
     /* 20/10/2026 (Pedro: "põe um item no menu do site lá em Mais"): o painel do Agente Claude, em subdomínio próprio
        na VPS2 (agente-claude/ no repo); pede a mesma senha do /admin */
     { rotulo: "Agente Claude",     href: "https://agentes.imobeasy.online/" },
+    /* 28/10/2026 (Pedro: "cria ele lá no menu do imobeasy dentro do menu Mais, Aprendizado"): links do YouTube →
+       Agente de Aprendizado (Hermes) → transcrição do tactiq em transcricoes/ do nayia, no PC */
+    { rotulo: "Aprendizado",       href: "aprendizado.html", chave: "aprendizado" },
     { rotulo: "Nova Nay",          href: "nova-nay.html",    chave: "nova-nay" },
     { rotulo: "Visão geral",       href: "visao-geral.html", chave: "visao-geral" },
     { rotulo: "Clientes",          href: "clientes.html",    chave: "clientes" },
