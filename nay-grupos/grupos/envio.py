@@ -13,6 +13,11 @@ PERGUNTA (`pergunta`, abaixo: o imóvel em uma linha, a mobília dele dita, "ser
 Parceria (nay-core) lê esse contexto antes de responder: "sim" manda o card e as fotos; "não" recusa o imóvel e a busca
 segue com o pedido do grupo (nada do pedido velho do corretor). O botão manual do painel continua mandando o card.
 
+Pedro, 27/10 (509), depois do Anderson (6935) ter de responder "Envia" e a Silvana (6117) dizer "manda por gentileza" e
+não receber nada: "ela deveria logo enviar card e fotos". Agora o imóvel que bate vai DIRETO: a `mensagem_automatica`
+(com o nome dele), o card e as fotos, pela `site_captacao_grupos_mandar`. A pergunta só fica para quando a mobília do
+imóvel não é a que ele pediu (`mobilia_diferente`, o caso do Júlio de 20/10).
+
 Este módulo não fala com a rede: escolhe os pedidos e chama a função do banco, que põe a pergunta na caixa de saída da
 Nay (número da Parceria) com as travas do botão "Enviar ao corretor" (339): janela de 48 h, um envio por card, o imóvel
 tem de ter casado com o pedido, e as paredes da caixa da Nay (imóvel de parceiro nunca sai para corretor).
@@ -137,6 +142,27 @@ def _o_que(tipo: str | None) -> tuple[str, str] | None:
     return None
 
 
+def _mobilias(d: dict) -> tuple[str | None, str | None]:
+    """(a mobília do imóvel, a que ele pediu)."""
+    ficha = d.get("ficha") or {}
+    comercial = tipo_do(d.get("tipo")) not in ("casa", "apartamento") and _o_que(d.get("tipo"))
+    return None if comercial else mobilia_do(d.get("mobilia")), mobilia_pedida(ficha.get("trecho") or d.get("texto"), ficha.get("mobiliado"))
+
+
+def mobilia_diferente(d: dict) -> bool:
+    """O imóvel não tem a mobília que ele pediu (20/10, Júlio): aí ela pergunta antes de mandar."""
+    tem, pediu = _mobilias(d)
+    return (tem == "mobiliado" and pediu not in (None, "mobiliado")) or            (tem in COMO_E and pediu not in (None, "sem") and tem != pediu)
+
+
+def abertura(d: dict, modelo: str) -> str:
+    """A mensagem que vai antes do card (27/10): a `mensagem_automatica` com o primeiro nome dele, se tiver."""
+    nome = _primeiro_nome(d.get("remetente_nome"))
+    if nome and modelo.startswith("Oi, "):
+        return f"Oi, {nome}! " + modelo[4:5].upper() + modelo[5:]
+    return modelo
+
+
 def pergunta(d: dict) -> str:
     """A pergunta da Nay Captação dos Grupos. Nunca leva "Código:": o card só sai quando ele disser que serve."""
     ficha = d.get("ficha") or {}
@@ -155,8 +181,7 @@ def pergunta(d: dict) -> str:
     if valor:
         partes.append(f"à venda por {_dinheiro(float(valor))}" if venda else f"{_dinheiro(float(valor))} de aluguel")
     linha = f"Tenho {o_que}" + (f" no {onde}" if onde else "") + (": " + ", ".join(partes) if partes else "") + "."
-    tem = None if outro else mobilia_do(d.get("mobilia"))
-    pediu = mobilia_pedida(ficha.get("trecho") or d.get("texto"), ficha.get("mobiliado"))
+    tem, pediu = _mobilias(d)
     if tem == "mobiliado" and pediu not in (None, "mobiliado"):
         serve = f"{ele} é {mob}. Serve {mob} para o seu cliente?"
     elif tem in COMO_E and pediu not in (None, "sem") and tem != pediu:
@@ -200,8 +225,12 @@ def automatico(conn, r: dict, linhas) -> int:
         if not dados:
             _RECUSADOS.add(c["id"])
             continue
-        res = linhas(conn, "SELECT site_captacao_grupos_perguntar(%s, %s, %s, %s) AS r",
-                     (c["id"], c["melhor_codigo"], pergunta(dados[0]), QUEM))[0]["r"] or {}
+        if mobilia_diferente(dados[0]):
+            res = linhas(conn, "SELECT site_captacao_grupos_perguntar(%s, %s, %s, %s) AS r",
+                         (c["id"], c["melhor_codigo"], pergunta(dados[0]), QUEM))[0]["r"] or {}
+        else:
+            res = linhas(conn, "SELECT site_captacao_grupos_mandar(%s, %s, %s, %s) AS r",
+                         (c["id"], c["melhor_codigo"], abertura(dados[0], r["mensagem_automatica"]), QUEM))[0]["r"] or {}
         conn.commit()
         if res.get("ok"):
             saiu += 1

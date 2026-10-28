@@ -453,6 +453,23 @@ class Envio(unittest.TestCase):
         self.assertIn("m.texto ~ ('C[oó]digo:", envio.CANDIDATOS)          # o que já saiu por outro caminho não volta
         self.assertIn("Ela é mobiliada. Serve mobiliada para o seu cliente?", casa)
 
+    def test_o_que_bate_vai_direto_e_so_a_mobilia_diferente_pergunta(self):
+        """27/10 (509, Anderson 6935): o imóvel que bate vai com card e fotos; o do Júlio (mobília diferente) pergunta."""
+        anderson = {"remetente_nome": "Anderson Silva - Creci: 5486", "texto": "Busco casa 2 quartos no Parque 10 até 300 mil",
+                    "ficha": {"operacao": "venda"}, "tipo": "Casa", "bairro": "Parque 10 de Novembro",
+                    "condominio_nome": "Sausalito", "quartos": 2, "mobilia": None, "valor_venda": 300000.0}
+        self.assertFalse(envio.mobilia_diferente(anderson))
+        self.assertFalse(envio.mobilia_diferente({**anderson, "mobilia": "Com modulados e ar"}))
+        self.assertEqual(envio.abertura(anderson, R["mensagem_automatica"]),
+                         "Oi, Anderson! Vi seu pedido lá no grupo! Veja se esse imóvel serve 😊")
+        self.assertEqual(envio.abertura({**anderson, "remetente_nome": "Corretora"}, R["mensagem_automatica"]),
+                         R["mensagem_automatica"])
+        julio = {**anderson, "texto": "Busco apartamento no Parque Dez, modulados e climatizado. LOCAÇÃO.", "mobilia": "Mobiliado"}
+        self.assertTrue(envio.mobilia_diferente(julio))
+        self.assertTrue(envio.mobilia_diferente({**anderson, "texto": "apto mobiliado", "mobilia": "Com modulados e ar"}))
+        with open(envio.__file__, encoding="utf-8") as f:
+            self.assertIn("site_captacao_grupos_mandar", f.read())
+
 
 
 class CondominiosProximos(unittest.TestCase):
