@@ -51,6 +51,13 @@ OPCOES_MAX = 5                 # e nunca passa disto (a base manda de uma vez o 
 # VIZINHO_ATE_KM (Flores-Parque 10 é 2,1 km); o valor na faixa firme da casa (225): 20% abaixo, 10% acima do teto.
 VIZINHO_ATE_KM = 1.5
 FAIXA_ABAIXO, FAIXA_ACIMA = 0.20, 0.10
+# Tel, 28/10 (a lead 63 veio pelo Prime Arena, de 2019, e recebeu o Amazonas Flat, antigo): "aquele imóvel que ela veio
+# tem 3 anos e o outro que a Nay enviou tem mais de 20 anos ... gente que vem por esses mais novos 80% de chance a mais de
+# querer fechar em um condomínio mais novo por área de lazer e a estrutura do condomínio ser mais nova". Quem veio de um
+# condomínio RECENTE (condominio_proximo: a planilha do Pedro + os lançados nos últimos 5 anos, 433/436) ou pediu
+# condomínio novo ganha o critério "padrão" na nota, com este peso sobre os 100 dos outros critérios: recente vale 100,
+# o resto 0 (um imóvel de nota 100 em condomínio antigo cai para 67, abaixo do corte amarelo).
+PESO_PADRAO = 50
 FOTOS_MINIMAS = 3
 ATIVAS = ("buscando",)
 _ULTIMO = {"membros": 0.0}
@@ -892,6 +899,63 @@ def _fechar_se_completa(conn, b: dict, ofertas: list[dict]) -> bool:
     return True
 
 
+def recentes(conn, codigos) -> dict[int, dict]:
+    """codigo -> {recente, ano, nome}: o condomínio do imóvel na lista de condomínios (condominio_proximo, pelo condo_id).
+    Fora da lista = não recente."""
+    cods = [int(c) for c in codigos if c]
+    if not cods:
+        return {}
+    return {int(r["codigo"]): r for r in banco.linhas(conn, """
+        SELECT i.codigo, coalesce(bool_or(p.recente), false) AS recente, max(p.ano) AS ano, max(i.condominio_nome) AS nome
+          FROM imoveis i LEFT JOIN condominio_proximo p ON p.condo_id = i.condo_id
+         WHERE i.codigo = ANY(%s) GROUP BY i.codigo""", (cods,))}
+
+
+def quer_recente(conn, lead: dict, f: dict) -> str | None:
+    """Por que esta pessoa quer condomínio novo, ou None (o padrão não entra na nota): pediu condomínio novo, veio pelo
+    anúncio de um condomínio recente (o da conversa da OLX, o link da OLX ou do site que colou) ou citou um recente."""
+    if str(f.get("condominio_novo")).lower() == "true":
+        return "pediu condomínio novo"
+    conversa = banco.linhas(conn, """SELECT direcao, texto FROM captacao_mensagens
+                                      WHERE right(regexp_replace(coalesce(telefone, ''), '\\D', '', 'g'), 8) = right(%s, 8)
+                                      ORDER BY criada_em""", (lead.get("telefone") or "",)) if lead.get("telefone") else []
+    refs = [lead.get("codigo")] + whatsapp.codigos_dos_links(conn, conversa, ate=10)
+    for m in conversa:
+        if m["direcao"] == "recebida":
+            refs += [int(c) for c in re.findall(r"imobeasy\.com/imoveis/(\d{3,5})", m["texto"] or "")]
+    for c in refs:
+        x = recentes(conn, [c]).get(int(c)) if c else None
+        if x and x["recente"]:
+            return f"veio pelo {x['nome']}" + (f" ({x['ano']})" if x.get("ano") else "")
+    citados = [whatsapp._normal(n) for n in [f.get("condominio")] + list(f.get("referencias") or []) if n]
+    if citados:
+        for r in banco.linhas(conn, "SELECT nome, ano FROM condominio_proximo WHERE recente"):
+            nome = whatsapp._normal(r["nome"])
+            if any(c and (c in nome or nome in c) for c in citados):
+                return f"citou o {r['nome']}" + (f" ({r['ano']})" if r.get("ano") else "")
+    return None
+
+
+def com_padrao(pares: list[dict], classe: dict[int, dict], motivo: str) -> list[dict]:
+    """Junta o critério "padrão do condomínio" à nota de cada par (peso PESO_PADRAO sobre os 100 dos outros) e reordena:
+    recente vale 100, o resto 0. Os pesos e pontos dos outros itens são reescalados para a soma continuar 100."""
+    total = 100 + PESO_PADRAO
+    saida = []
+    for p in pares:
+        x = classe.get(int(p["codigo"])) or {}
+        rend = 100.0 if x.get("recente") else 0.0
+        nome = x.get("nome") or "condomínio"
+        texto = (f"{nome} é recente" + (f" ({x['ano']})" if x.get("ano") else "") if rend
+                 else f"{nome} não é condomínio recente") + f"; ele {motivo}"
+        detalhe = [{**d, "peso": round((d.get("peso") or 0) * 100 / total, 1),
+                    "pontos": round((d.get("pontos") or 0) * 100 / total, 1)} for d in p.get("detalhe") or []]
+        detalhe.append({"criterio": "padrao", "rendimento": rend, "texto": texto,
+                        "peso": round(PESO_PADRAO * 100 / total, 1), "pontos": round(PESO_PADRAO * rend / total, 1)})
+        saida.append({**p, "nota": round((p["nota"] * 100 + PESO_PADRAO * rend) / total, 1), "detalhe": detalhe})
+    saida.sort(key=lambda p: -p["nota"])
+    return saida
+
+
 def opcoes_da_base(conn, lead: dict, f: dict, excluir: list[int], quantas: int) -> list[dict]:
     """As melhores opções da nossa base pela NOTA da Captação ativa (Pedro, 23/10: "deve usar aquele mesmo algoritmo
     de julgamento de imóvel da aba captação ativa que dá notas, para achar mais opções"): o código de /root/nay-grupos
@@ -917,9 +981,13 @@ def opcoes_da_base(conn, lead: dict, f: dict, excluir: list[int], quantas: int) 
     # o mapa apertado: o par posto à mão na tabela de vizinhos (sem km) continua valendo
     vizinhos = {a: {b: v for b, v in vs.items() if v.get("km") is None or (v.get("divisa") and v["km"] <= VIZINHO_ATE_KM)}
                 for a, vs in vizinhos.items()}
-    regras = {**regras, "alternativas": max(0, quantas * 3 - 1)}         # sobra para os que não podem ir a ela
+    padrao = quer_recente(conn, lead, f)
+    # com o padrão a ordem muda depois da nota: pede a lista inteira para o recente de nota menor não ficar de fora
+    regras = {**regras, "alternativas": 200 if padrao else max(0, quantas * 3 - 1)}   # sobra para os que não podem ir a ela
     limite = datetime.now(timezone.utc) - timedelta(days=regras["confirmado_dias"])
     r = bo.gpontuar.melhores(pedido, imoveis, regras, vizinhos, limite)
+    if padrao:
+        r["pares"] = com_padrao(r["pares"], recentes(conn, [p["codigo"] for p in r["pares"]]), padrao)
     saida = []
     # 24/10: "perto de X" é do banco (distância do centro dos bairros), nunca da Nay
     perto = {x["bairro"] for x in whatsapp.so_perto(conn, [{"bairro": p["imovel"].get("bairro")} for p in r["pares"]], f)}

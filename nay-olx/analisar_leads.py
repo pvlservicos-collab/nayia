@@ -95,7 +95,8 @@ PEDIDOS: dict[int, list[tuple[str, dict]]] = {
     41: [("Apartamento de 3 quartos no Adrianópolis até R$ 1 milhão, financiado (Vila de France, Singolare, "
           "Príncipe de Gales; perguntou do Saint Marie)",
           {"finalidade": "venda", "tipo": "apartamento", "teto": 1000000, "quartos": 3, "bairros": ["Adrianópolis"],
-           "financiamento": "simular"})],
+           "financiamento": "simular",
+           "referencias": ["Vila de France", "Singolare", "Príncipe de Gales", "Sainte Marie"]})],
     44: [("Apartamento de 3 quartos na Ponta Negra para a mãe, com urgência (5 dias para sair); veio pelo Acquarelle "
           "(R$ 630 mil), não quis o Ilhas Gregas, quer o Reserva das Praias",
           {"finalidade": "venda", "tipo": "apartamento", "teto": 650000, "quartos": 3, "bairros": ["Ponta Negra"]}),
@@ -221,9 +222,13 @@ def avaliar(conn, lead: dict, f: dict, fora: set[int], regras, catalogo, vizinho
         return [], "nenhum imóvel nosso no tipo e na faixa de valor (de 20% abaixo a 10% acima do teto) que ainda não foi"
     viz = {a: {b: v for b, v in vs.items() if v.get("km") is None or (v.get("divisa") and v["km"] <= buscas.VIZINHO_ATE_KM)}
            for a, vs in vizinhos.items()}
-    regras = {**regras, "alternativas": QUANTAS * 4}
+    # 28/10 (Tel): quem veio de condomínio recente pesa o padrão do condomínio na nota (buscas.com_padrao)
+    padrao = buscas.quer_recente(conn, lead, f)
+    regras = {**regras, "alternativas": 200 if padrao else QUANTAS * 4}
     limite = datetime.now(timezone.utc) - timedelta(days=regras["confirmado_dias"])
     r = bo.gpontuar.melhores(pedido, imoveis, regras, viz, limite)
+    if padrao:
+        r["pares"] = buscas.com_padrao(r["pares"], buscas.recentes(conn, [p["codigo"] for p in r["pares"]]), padrao)
     perto = {x["bairro"] for x in whatsapp.so_perto(conn, [{"bairro": p["imovel"].get("bairro")} for p in r["pares"]], f)}
     saida, melhor = [], None
     for p in r["pares"]:
