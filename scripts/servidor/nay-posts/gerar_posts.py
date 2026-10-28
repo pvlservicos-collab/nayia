@@ -13,7 +13,7 @@ com um ZIP de tudo. Imóvel de parceiro não sai (parceria nunca sai).
 Uso (na VPS):  /root/nay-posts/.venv/bin/python /root/nay-posts/gerar_posts.py 5739 [opções]
 Daqui:         ./scripts/nay posts 5739 [opções]
 Opções: --modelo galeria|classico|vitrine|mosaico   --carrossel faixaBaixo|faixaLado|etiqueta|grade4|nenhum (a capa é o post Galeria e a última lâmina é a CTA, 23/10)
-        --formatos feed,quadrado,story,paisagem    --fotos 8   --video   --contato "92 9471-7316"
+        --formatos feed,quadrado,story,paisagem    --fotos 8   --video   --contato "92 8595-6408"
         --chamada "à venda!"  --destaque "Mobiliado"  --slogan "..."  --fita "Pode ser financiado!"  --json (só imprime o estado)
 """
 import argparse
@@ -32,7 +32,8 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 GERADOR = os.path.join(AQUI, "gerador.html")
 SAIDA_RAIZ = "/docker/nay-site-web/public/fotos-captacao/posts"
 URL_RAIZ = "https://imobeasy.online/fotos-captacao/posts"
-CONTATO_PADRAO = "92 9471-7316"
+# 28/10 (Pedro): "esse é nosso número +55 92 8595-6408, e põe o Instagram junto @imobeasy"
+CONTATO_PADRAO = "92 8595-6408 | Instagram @imobeasy"
 MAX_LADO = 1800
 
 
