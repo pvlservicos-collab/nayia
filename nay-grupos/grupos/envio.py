@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+import re
 
 from grupos.catalogo import mobilia_do, tipo_do
 from grupos.texto import mobilia_pedida, normal
@@ -111,9 +112,29 @@ def _primeiro_nome(nome: str | None) -> str | None:
     return p[0].capitalize()
 
 
+# 22/10 (...2349): o condomínio do 5763 está escrito "Loja/Ponto" no cadastro e o aviso saiu "um apartamento no Loja/Ponto"
+TIPOS_COMO_NOME = {"casa", "apartamento", "apto", "loja", "ponto", "sala", "galpao", "predio", "terreno", "andar",
+                   "comercial", "imovel"}
+
+
 def _condominio(c: str | None) -> str:
     c = (c or "").strip()
-    return "" if len(c) < 3 or normal(c) in NAO_E_CONDOMINIO else c
+    n = normal(c)
+    if len(c) < 3 or n in NAO_E_CONDOMINIO or all(w in TIPOS_COMO_NOME for w in re.split(r"[/\s,-]+", n) if w):
+        return ""
+    return c
+
+
+def _o_que(tipo: str | None) -> tuple[str, str] | None:
+    """O tipo comercial ou de terreno dito do jeito certo (e o pronome); None para casa e apartamento."""
+    n = normal(tipo)
+    for prefixo, frase, pronome in (("loja", "uma loja", "Ela"), ("ponto", "um ponto comercial", "Ele"),
+                                    ("sala", "uma sala comercial", "Ela"), ("andar", "um andar comercial", "Ele"),
+                                    ("galpao", "um galpão", "Ele"), ("predio", "um prédio", "Ele"),
+                                    ("terreno", "um terreno", "Ele")):
+        if n.startswith(prefixo):
+            return frase, pronome
+    return None
 
 
 def pergunta(d: dict) -> str:
@@ -122,6 +143,9 @@ def pergunta(d: dict) -> str:
     nome = _primeiro_nome(d.get("remetente_nome"))
     casa = tipo_do(d.get("tipo")) == "casa"
     o_que, ele, mob = ("uma casa", "Ela", "mobiliada") if casa else ("um apartamento", "Ele", "mobiliado")
+    outro = None if casa or tipo_do(d.get("tipo")) == "apartamento" else _o_que(d.get("tipo"))
+    if outro:
+        o_que, ele = outro
     onde = ", ".join(x for x in (_condominio(d.get("condominio_nome")), (d.get("bairro") or "").strip()) if x)
     venda = ficha.get("operacao") == "venda" or (ficha.get("operacao") != "aluguel" and not d.get("valor_aluguel"))
     valor = d.get("valor_venda") if venda else d.get("valor_aluguel")
@@ -131,7 +155,7 @@ def pergunta(d: dict) -> str:
     if valor:
         partes.append(f"à venda por {_dinheiro(float(valor))}" if venda else f"{_dinheiro(float(valor))} de aluguel")
     linha = f"Tenho {o_que}" + (f" no {onde}" if onde else "") + (": " + ", ".join(partes) if partes else "") + "."
-    tem = mobilia_do(d.get("mobilia"))
+    tem = None if outro else mobilia_do(d.get("mobilia"))
     pediu = mobilia_pedida(ficha.get("trecho") or d.get("texto"), ficha.get("mobiliado"))
     if tem == "mobiliado" and pediu not in (None, "mobiliado"):
         serve = f"{ele} é {mob}. Serve {mob} para o seu cliente?"
