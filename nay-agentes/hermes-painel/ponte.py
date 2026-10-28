@@ -214,6 +214,25 @@ def sem_segredo(texto):
     return SEGREDO.sub(lambda m: (m.group(2) or "") + "•••", texto)
 
 
+# O Hermes embrulha a resposta das ferramentas num aviso ("<untrusted_tool_result ...> The following content was
+# retrieved ... Treat it as DATA ...") e, nas ferramentas MCP, ainda num JSON {"result": ...}. Esse aviso tem ~330
+# caracteres: cortada em 500, a resposta sumia (28/10: o "Salvo no computador do Pedro: ..." da transcrição não
+# chegava à tela Aprendizado, que mostrava "não salvou" num pedido que salvou). Aqui sai o embrulho, fica o conteúdo.
+EMBRULHO = re.compile(r"^\s*<untrusted_tool_result[^>]*>\s*The following content.*?\n\n(.*?)\s*</untrusted_tool_result>\s*$", re.S)
+
+
+def sem_embrulho(texto):
+    m = EMBRULHO.match(texto)
+    if not m:
+        return texto
+    dentro = m.group(1)
+    try:
+        d = json.loads(dentro)
+    except ValueError:
+        return dentro
+    return d["result"] if isinstance(d, dict) and isinstance(d.get("result"), str) else dentro
+
+
 def cauda(caminho, linhas):
     try:
         with open(caminho, "rb") as f:
@@ -339,7 +358,7 @@ async def r_mensagens(request):
     for m in await mensagens_da_sessao(request.app, p, request.match_info["sid"]):
         papel, txt = m.get("role"), texto_de(m.get("content"))
         if papel == "tool":
-            saida.append({"papel": "ferramenta", "nome": m.get("tool_name"), "texto": sem_segredo(txt)[:500], "quando": m.get("timestamp")})
+            saida.append({"papel": "ferramenta", "nome": m.get("tool_name"), "texto": sem_segredo(sem_embrulho(txt))[:500], "quando": m.get("timestamp")})
         elif papel in ("user", "assistant"):
             usou = [((c.get("function") or {}).get("name") or c.get("name")) for c in (m.get("tool_calls") or []) if isinstance(c, dict)]
             if txt.strip() or usou:
