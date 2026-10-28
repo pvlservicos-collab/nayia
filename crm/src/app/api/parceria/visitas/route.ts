@@ -14,7 +14,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { authenticateRequest, apiError } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { leads, profiles } from '@/lib/schema'
-import { agendarVisita, pessoasDasVisitas, visitasDaNay } from '@/lib/nayLeitura'
+import { agendarVisita, pessoasDasVisitas, visitasDaNay, visitasDosLeads } from '@/lib/nayLeitura'
 import { conversaPorChave, conversasDaParceria } from '@/lib/conversasDaParceria'
 import { abrirLeadDaLinha } from '@/lib/abrirLead'
 import { LEMBRETE_PADRAO_MIN, MODELO_DO_LEMBRETE, agendarLembreteDaVisita, preencherLembrete } from '@/lib/lembreteDaVisita'
@@ -29,9 +29,15 @@ export async function GET(req: NextRequest) {
     const auth = await authenticateRequest(req)
     const desde = req.nextUrl.searchParams.get('desde')
     const ate = req.nextUrl.searchParams.get('ate')
-    const [visitas, conversas] = await Promise.all([
-      visitasDaNay(desde && DATA.test(desde) ? desde : null, ate && DATA.test(ate) ? ate : null),
+    const janela: [string | null, string | null] = [desde && DATA.test(desde) ? desde : null, ate && DATA.test(ate) ? ate : null]
+    const [visitas, conversas, dosLeads] = await Promise.all([
+      visitasDaNay(...janela),
       conversasDaParceria(auth.organizationId),
+      // 513 (Pedro, 28/10): as visitas do número Leads na mesma agenda; se a leitura falhar, fica só a Parceria
+      visitasDosLeads(...janela).catch((e) => {
+        console.error('[parceria/visitas] leads', e?.message || e)
+        return []
+      }),
     ])
     const porChave = conversaPorChave(conversas)
     // 293: o número do corretor e o proprietário de cada visita; se a leitura falhar, a agenda segue sem eles
@@ -45,6 +51,7 @@ export async function GET(req: NextRequest) {
       const doDono = p?.donoChaves.map((ch) => porChave.get(ch)).find(Boolean) || null
       return {
         ...v,
+        linha: 'parceria' as const,
         conversa: conversa ? { leadId: conversa.id, titulo: conversa.titulo, avatar: conversa.avatar } : null,
         corretorTelefone: p?.corretorTelefone || conversa?.telefone || null,
         dono: p?.donoTelefone || v.proprietarioNome
@@ -52,7 +59,7 @@ export async function GET(req: NextRequest) {
           : null,
       }
     })
-    return Response.json({ visitas: saida, em: Date.now() })
+    return Response.json({ visitas: [...saida, ...dosLeads], em: Date.now() })
   } catch (err: any) {
     console.error('[parceria/visitas]', err?.message || err)
     return apiError(err?.status || 500, err?.message || 'Não consegui ler as visitas da Nay.')

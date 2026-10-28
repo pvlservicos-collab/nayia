@@ -35,7 +35,7 @@ import interactionPlugin from '@fullcalendar/interaction'
 import luxonPlugin from '@fullcalendar/luxon3'
 import ptBrLocale from '@fullcalendar/core/locales/pt-br'
 import type { EventContentArg, EventInput } from '@fullcalendar/core'
-import { ESTADO_DA_VISITA, type VisitaNaTela } from '@/lib/tiposNay'
+import { ESTADO_DA_VISITA, LINHA_DA_VISITA, type VisitaNaTela } from '@/lib/tiposNay'
 
 export const FUSO_DE_MANAUS = 'America/Manaus'
 
@@ -50,7 +50,7 @@ export const COR_DO_TOM: Record<string, string> = {
 
 const UMA_HORA = 60 * 60 * 1000
 
-export interface PessoaDaVisita { papel: 'Corretor' | 'Proprietário'; nome: string | null; telefone: string | null; avatar: string | null; leadId: string | null }
+export interface PessoaDaVisita { papel: 'Corretor' | 'Proprietário' | 'Cliente'; nome: string | null; telefone: string | null; avatar: string | null; leadId: string | null }
 
 /** "5592991234567" -> "(92) 99123-4567"; curto = "99123-4567", sem o DDD (cabe na coluna dos 5 dias). */
 export function numeroDaPessoa(telefone: string | null, curto = false): string {
@@ -61,6 +61,14 @@ export function numeroDaPessoa(telefone: string | null, curto = false): string {
 }
 
 export function pessoasDa(v: VisitaNaTela): PessoaDaVisita[] {
+  // 513: na visita do número Leads, quem importa na agenda é o cliente (a pessoa da conversa) e o corretor que acompanha
+  if (v.linha === 'leads') {
+    return [
+      { papel: 'Cliente', nome: v.clienteNome || null, telefone: v.clienteTelefone || null, avatar: null, leadId: null },
+      ...(v.corretorNome || v.corretorTelefone
+        ? [{ papel: 'Corretor' as const, nome: v.corretorNome, telefone: v.corretorTelefone || null, avatar: null, leadId: null }] : []),
+    ]
+  }
   const lista: PessoaDaVisita[] = [{
     papel: 'Corretor', nome: v.corretorNome || v.conversa?.titulo || null, telefone: v.corretorTelefone || null,
     avatar: v.conversa?.avatar || null, leadId: v.conversa?.leadId || null,
@@ -74,6 +82,7 @@ export function pessoasDa(v: VisitaNaTela): PessoaDaVisita[] {
 
 /** Dá para mudar o horário: aberta e ainda não realizada (a Nay decide de novo no banco). */
 export function podeMudarHorario(v: VisitaNaTela) {
+  if (v.linha === 'leads') return false             // 513: a visita do número Leads muda pela conversa
   return v.aberta && !['realizada', 'encerrada', 'cancelada', 'expirada'].includes(v.estado)
 }
 
@@ -100,9 +109,10 @@ function eventosDasVisitas(visitas: VisitaNaTela[], selecionada: number | null):
       classNames: [
         'agenda-evento',
         `agenda-evento--${tom}`,
+        `agenda-evento--${v.linha || 'parceria'}`,
         ...(selecionada === v.id ? ['agenda-evento--sel'] : []),
       ],
-      extendedProps: { visitaId: v.id, cor: COR_DO_TOM[tom], corretor: v.corretorNome || v.conversa?.titulo || null, estado: ESTADO_DA_VISITA[v.estado]?.rotulo || v.estado, sugerido: false, pessoas: pessoasDa(v) },
+      extendedProps: { visitaId: v.id, cor: COR_DO_TOM[tom], corretor: v.corretorNome || v.conversa?.titulo || null, estado: ESTADO_DA_VISITA[v.estado]?.rotulo || v.estado, sugerido: false, pessoas: pessoasDa(v), linha: v.linha || 'parceria' },
     })
     // o horário que alguém sugeriu e ainda não foi aceito
     if (v.aberta && v.quandoSugerido && v.quandoSugerido !== v.quando) {
@@ -131,17 +141,20 @@ function Pessoa({ p, curto }: { p: PessoaDaVisita; curto: boolean }) {
     <span className="agenda-pessoa" title={dica}>
       {p.avatar
         ? <img src={p.avatar} alt="" className="agenda-pessoa-foto" />
-        : <span className="agenda-pessoa-foto agenda-pessoa-inicial">{p.papel === 'Corretor' ? 'C' : 'P'}</span>}
+        : <span className="agenda-pessoa-foto agenda-pessoa-inicial">{p.papel === 'Corretor' ? 'C' : p.papel === 'Cliente' ? 'Cl' : 'P'}</span>}
       <span className="agenda-pessoa-num">{numeroDaPessoa(p.telefone, curto)}</span>
     </span>
   )
 }
 
 function ConteudoDoEvento(arg: EventContentArg) {
-  const p = arg.event.extendedProps as { cor: string; corretor: string | null; estado: string; sugerido: boolean; pessoas: PessoaDaVisita[] }
+  const p = arg.event.extendedProps as { cor: string; corretor: string | null; estado: string; sugerido: boolean; pessoas: PessoaDaVisita[]; linha?: 'parceria' | 'leads' }
+  // 513: de qual número veio (Parceria ou Leads), numa etiquetinha
+  const etiqueta = p.sugerido ? null : <span className={`agenda-numero agenda-numero--${p.linha || 'parceria'}`}>{LINHA_DA_VISITA[p.linha || 'parceria'].rotulo}</span>
   if (arg.view.type.startsWith('list')) {
     return (
       <span className="agenda-lista-linha">
+        {etiqueta}
         <span className="font-medium">{arg.event.title}</span>
         {p.corretor && <span className="agenda-lista-sub"> · {p.corretor}</span>}
         <span className="agenda-lista-sub"> · {p.estado}</span>
@@ -152,7 +165,7 @@ function ConteudoDoEvento(arg: EventContentArg) {
     return (
       <span className="agenda-mes-linha" title={`${arg.timeText} ${arg.event.title}${p.corretor ? ` · ${p.corretor}` : ''} · ${p.estado}`}>
         <span className="agenda-ponto" style={{ background: p.cor }} />
-        <b>{arg.timeText}</b> <span className="truncate">{arg.event.title}</span>
+        <b>{arg.timeText}</b> {etiqueta} <span className="truncate">{arg.event.title}</span>
       </span>
     )
   }
@@ -161,6 +174,7 @@ function ConteudoDoEvento(arg: EventContentArg) {
          title={`${arg.timeText} ${arg.event.title}${p.corretor ? `\nCorretor: ${p.corretor}` : ''}\n${p.estado}`}>
       <span className="agenda-bloco-linha">
         <span className="agenda-bloco-hora">{arg.timeText}</span>
+        {etiqueta}
         <span className="agenda-bloco-titulo">{arg.event.title}</span>
       </span>
       {p.pessoas?.length > 0 && (

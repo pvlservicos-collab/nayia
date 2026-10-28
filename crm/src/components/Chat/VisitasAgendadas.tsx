@@ -29,6 +29,8 @@
  * As regras são dele e moram no banco da Nay (migração 169):
  *   - mudar o horário: NINGUÉM é avisado ("a pessoa manualmente faz isso");
  *   - realizada: a Nay pergunta ao corretor como foi (o pós-visita de sempre);
+ *     28/10 (513): "VISITA REALIZADA ... aí ela vai perguntar, ou para o cliente ou para o corretor": na visita do
+ *     número Leads a Rayssa escolhe a quem; o "como foi?" deixou de ser automático em todos os números;
  *   - excluir: some da agenda e ninguém é avisado.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -43,7 +45,7 @@ import AgendarVisita from './AgendarVisita'
 import EscolherImovelDaVisita from './EscolherImovelDaVisita'
 import { useVisitasParceria, eventosDaVisita, mexerNaVisita } from '@/hooks/useVisitasParceria'
 import { numeroDaPessoa, type Arrasto } from './AgendaDeVisitas'
-import { ESTADO_DA_VISITA, EVENTO_DA_VISITA, type EventoDaVisita, type VisitaNaTela } from '@/lib/tiposNay'
+import { ESTADO_DA_VISITA, EVENTO_DA_VISITA, LINHA_DA_VISITA, type EventoDaVisita, type VisitaNaTela } from '@/lib/tiposNay'
 
 // a agenda só existe no navegador (o FullCalendar mede a tela)
 const AgendaDeVisitas = dynamic(() => import('./AgendaDeVisitas'), {
@@ -57,6 +59,7 @@ const OFFSET_DE_MANAUS = '-04:00'
 
 /** Mesma regra da agenda (e o banco confere de novo): aberta e não realizada. */
 function podeMudarHorario(v: VisitaNaTela) {
+  if (v.linha === 'leads') return false             // 513: a visita do número Leads muda pela conversa
   return v.aberta && !['realizada', 'encerrada', 'cancelada', 'expirada'].includes(v.estado)
 }
 
@@ -131,6 +134,16 @@ function nomeDoDia(iso: string | null): string {
 
 /** Os passos da visita, com a data de cada um. */
 function passos(v: VisitaNaTela) {
+  if (v.linha === 'leads') {
+    const ruim = ['cancelada', 'expirada', 'sem_corretor', 'proprietario_nao', 'sem_proprietario'].includes(v.estado)
+    return [
+      { rotulo: 'Pedida', em: v.criadoEm, ruim: false },
+      { rotulo: 'Cliente confirmou', em: v.clienteConfirmouEm || null, ruim: false },
+      { rotulo: 'Confirmada', em: v.confirmadaEm, ruim: false },
+      ruim ? { rotulo: ESTADO_DA_VISITA[v.estado]?.rotulo || v.estado, em: v.atualizadoEm, ruim: true }
+           : { rotulo: 'Realizada', em: v.realizadaEm || null, ruim: false },
+    ]
+  }
   const final = v.estado === 'cancelada' ? { rotulo: 'Cancelada', em: v.encerradaEm || v.atualizadoEm, ruim: true }
     : v.estado === 'expirada' ? { rotulo: 'Expirou', em: v.encerradaEm || v.atualizadoEm, ruim: true }
     : { rotulo: 'Realizada', em: v.estado === 'realizada' || v.estado === 'encerrada' ? (v.posVisitaEm || v.encerradaEm) : null, ruim: false }
@@ -250,6 +263,15 @@ function PassosCurtos({ v, cor }: { v: VisitaNaTela; cor: string }) {
   )
 }
 
+/** 513: de qual número veio a visita (Parceria ou Leads), com o azul de cada um. */
+function EtiquetaDoNumero({ v }: { v: VisitaNaTela }) {
+  const l = LINHA_DA_VISITA[v.linha || 'parceria']
+  return (
+    <span className="inline-flex items-center h-[18px] px-1.5 rounded text-[11px] font-bold flex-shrink-0"
+          style={{ background: l.cor, color: '#fff' }} title={`Visita do número ${l.rotulo}`}>{l.rotulo}</span>
+  )
+}
+
 function CartaoDaVisita({ v, destacada, aoAbrirConversa, aoEscolher }: {
   v: VisitaNaTela; destacada: boolean; aoAbrirConversa: (leadId: string) => void; aoEscolher: (id: number) => void
 }) {
@@ -266,7 +288,7 @@ function CartaoDaVisita({ v, destacada, aoAbrirConversa, aoEscolher }: {
              style={{ background: 'var(--wa-panel)', outline: destacada ? '2px solid var(--wa-green)' : 'none' }}>
       {/* 1. quando e o imóvel */}
       <div className="flex items-center gap-3 px-3.5 pt-3 pb-2.5">
-        <p className="text-[21px] leading-6 font-bold tabular-nums flex-shrink-0" style={{ color: '#2563eb' }}>{hora(v.quando)}</p>
+        <p className="text-[21px] leading-6 font-bold tabular-nums flex-shrink-0" style={{ color: LINHA_DA_VISITA[v.linha || 'parceria'].cor }}>{hora(v.quando)}</p>
         <div className="flex-1 min-w-0">
           <h3 className="text-[15px] leading-5 font-semibold truncate" style={{ color: 'var(--wa-text)', fontFamily: 'inherit' }}>
             {v.imovel || (v.codigo ? `Imóvel ${v.codigo}` : 'Imóvel')}
@@ -274,19 +296,24 @@ function CartaoDaVisita({ v, destacada, aoAbrirConversa, aoEscolher }: {
           {v.codigo && <p className="text-[12px] leading-4" style={{ color: 'var(--wa-text-2)' }}>código {v.codigo}</p>}
         </div>
         <span className="flex flex-col items-end gap-1 flex-shrink-0">
+          <EtiquetaDoNumero v={v} />
           <span className="wa-marca" style={{ color: cor }}>{estado.rotulo}</span>
           {v.urgente && <span className="wa-marca" style={{ color: 'var(--wa-tag-tel)' }}><Warning size={11} weight="bold" /> Urgente</span>}
         </span>
       </div>
       {/* 2. as pessoas */}
       <div className="px-3.5 py-2 flex flex-col gap-1" style={{ borderTop: '1px solid var(--wa-divider)' }}>
+        {v.linha === 'leads' && (
+          <LinhaDaPessoa icone={<Users size={15} />} papel="Cliente" nome={v.clienteNome || null}
+                         telefone={v.clienteTelefone} aoAbrirConversa={aoAbrirConversa} />
+        )}
         <LinhaDaPessoa icone={<User size={15} />} papel="Corretor" nome={v.corretorNome || v.conversa?.titulo || null}
                        telefone={v.corretorTelefone} leadId={v.conversa?.leadId} aoAbrirConversa={aoAbrirConversa} />
         {(v.proprietarioNome || v.dono) && (
           <LinhaDaPessoa icone={<Key size={15} />} papel="Proprietário" nome={v.proprietarioNome}
                          telefone={v.dono?.telefone} leadId={v.dono?.leadId} aoAbrirConversa={aoAbrirConversa} />
         )}
-        {v.visitanteNome && (
+        {v.visitanteNome && v.linha !== 'leads' && (
           <LinhaDaPessoa icone={<Users size={15} />} papel="Visitante" nome={v.visitanteNome} aoAbrirConversa={aoAbrirConversa} />
         )}
       </div>
@@ -438,13 +465,16 @@ function PainelDaVisita({ v, aoFechar, aoAbrirConversa, aoMexer }: {
   const estado = ESTADO_DA_VISITA[v.estado] || { rotulo: v.estado, tom: 'fim' as const }
   const cor = TOM[estado.tom]
   const mudavel = podeMudarHorario(v)
+  const dosLeads = v.linha === 'leads'
+  // 513: na Parceria, o VISITA REALIZADA vale para a visita ainda aberta; na do número Leads, para a confirmada
+  const podeRealizar = dosLeads ? v.estado === 'confirmada' : mudavel
   const jaAconteceu = !!v.quando && new Date(v.quando).getTime() <= Date.now()
   const novo = data && horaTxt ? `${data}T${horaTxt}:00${OFFSET_DE_MANAUS}` : ''
   const mudou = !!novo && !isNaN(new Date(novo).getTime()) && new Date(novo).getTime() !== new Date(v.quando || 0).getTime()
 
-  async function fazer(acao: Acao, quando?: string) {
+  async function fazer(acao: Acao, quando?: string, para?: 'cliente' | 'corretor') {
     setAndando(true)
-    await aoMexer(v.id, acao, quando)
+    await aoMexer(v.id, acao, quando, para ? { campo: 'para', valor: para } : undefined)
     setAndando(false)
     setConfirmar(null)
   }
@@ -456,7 +486,9 @@ function PainelDaVisita({ v, aoFechar, aoAbrirConversa, aoMexer }: {
            aria-label={`Visita ${v.id}`}>
       <div className="flex items-start gap-2 px-4 pt-3.5 pb-3" style={{ borderBottom: '1px solid var(--wa-divider)' }}>
         <div className="flex-1 min-w-0">
-          <p className="text-[12px]" style={{ color: 'var(--wa-text-2)' }}>Visita #{v.id}{v.codigo ? ` · código ${v.codigo}` : ''}</p>
+          <p className="text-[12px] flex items-center gap-1.5" style={{ color: 'var(--wa-text-2)' }}>
+            <EtiquetaDoNumero v={v} /> Visita #{Math.abs(v.id)}{v.codigo ? ` · código ${v.codigo}` : ''}
+          </p>
           <h2 className="text-[17px] leading-[22px] font-semibold" style={{ color: 'var(--wa-text)', fontFamily: 'inherit' }}>
             {v.imovel || (v.codigo ? `Imóvel ${v.codigo}` : 'Imóvel')}
           </h2>
@@ -470,7 +502,7 @@ function PainelDaVisita({ v, aoFechar, aoAbrirConversa, aoMexer }: {
 
       <div className="flex-1 overflow-y-auto wa-rolagem px-4 py-3 flex flex-col gap-4">
         {/* 20/10: os lembretes desta visita, com Excluir lembrete (a visita fica) */}
-        <section><LembretesDaVisita key={v.id} visita={v.id} /></section>
+        {!dosLeads && <section><LembretesDaVisita key={v.id} visita={v.id} /></section>}
         <section>
           <h3 className="text-[13px] font-semibold mb-1.5 flex items-center gap-1.5" style={{ color: 'var(--wa-text-2)', fontFamily: 'inherit' }}>
             <Clock size={15} /> Quando (horário de Manaus)
@@ -498,7 +530,9 @@ function PainelDaVisita({ v, aoFechar, aoAbrirConversa, aoMexer }: {
             <p className="text-[14px]" style={{ color: 'var(--wa-text)' }}>
               {dataHora(v.quando) || 'Sem data'}
               <span className="block text-[12.5px]" style={{ color: 'var(--wa-text-2)' }}>
-                {v.estado === 'realizada' ? 'Visita realizada' : 'Visita encerrada'}: o horário não muda mais.
+                {dosLeads && v.aberta
+                  ? 'Visita do número Leads: o horário muda pela conversa com o cliente.'
+                  : `${v.estado === 'realizada' ? 'Visita realizada' : 'Visita encerrada'}: o horário não muda mais.`}
               </span>
             </p>
           )}
@@ -507,6 +541,24 @@ function PainelDaVisita({ v, aoFechar, aoAbrirConversa, aoMexer }: {
           )}
         </section>
 
+        {dosLeads ? (
+          <section className="text-[13.5px] leading-5 flex flex-col gap-1" style={{ color: 'var(--wa-text-2)' }}>
+            <LinhaDaPessoa icone={<Users size={15} />} papel="Cliente" nome={v.clienteNome || null} telefone={v.clienteTelefone}
+                           aoAbrirConversa={aoAbrirConversa} />
+            <LinhaDaPessoa icone={<User size={15} />} papel="Corretor" nome={v.corretorNome} telefone={v.corretorTelefone}
+                           aoAbrirConversa={aoAbrirConversa} />
+            {(v.proprietarioNome || v.dono?.telefone) && (
+              <LinhaDaPessoa icone={<Key size={15} />} papel="Proprietário" nome={v.proprietarioNome} telefone={v.dono?.telefone}
+                             aoAbrirConversa={aoAbrirConversa} />
+            )}
+            {v.realizadaEm && (
+              <span style={{ color: 'var(--wa-green)' }}>
+                Realizada em {dataHora(v.realizadaEm)}{v.realizadaPor ? ` (${v.realizadaPor})` : ''}.
+                {v.feedbackPara && ` A Nay ${v.feedbackEm ? 'perguntou' : 'vai perguntar'} ao ${v.feedbackPara} como foi.`}
+              </span>
+            )}
+          </section>
+        ) : (
         <section className="text-[13.5px] leading-5 flex flex-col gap-0.5" style={{ color: 'var(--wa-text-2)' }}>
           <span>
             Corretor: <span style={{ color: 'var(--wa-text)' }}>{v.corretorNome || v.conversa?.titulo || 'não identificado'}</span>
@@ -539,20 +591,43 @@ function PainelDaVisita({ v, aoFechar, aoAbrirConversa, aoMexer }: {
           ))}
           {!v.aberta && (v.resultado || v.motivo) && <span>{v.resultado || v.motivo}</span>}
         </section>
+        )}
 
         <section>
           <Passos v={v} />
-          <h3 className="mt-4 text-[13px] font-semibold" style={{ color: 'var(--wa-text-2)', fontFamily: 'inherit' }}>Andamento</h3>
-          <Andamento id={v.id} />
+          {!dosLeads && (
+            <>
+              <h3 className="mt-4 text-[13px] font-semibold" style={{ color: 'var(--wa-text-2)', fontFamily: 'inherit' }}>Andamento</h3>
+              <Andamento id={v.id} />
+            </>
+          )}
         </section>
       </div>
 
       <div className="px-4 py-3" style={{ borderTop: '1px solid var(--wa-divider)' }}>
-        {confirmar ? (
+        {confirmar === 'realizada' && dosLeads ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-[13.5px] leading-[19px]" style={{ color: 'var(--wa-text)' }}>
+              Visita realizada? A Nay pergunta como foi, uma vez, pelo número Leads. A quem?
+            </p>
+            <div className="flex gap-2">
+              <button type="button" disabled={andando} onClick={() => fazer('realizada', undefined, 'cliente')}
+                      className={`${botao} flex-1`} style={{ background: 'var(--wa-green)', color: 'var(--wa-green-ink)' }}>
+                {andando ? <CircleNotch size={16} className="animate-spin" /> : <Users size={16} />} Ao cliente
+              </button>
+              <button type="button" disabled={andando || !v.corretorTelefone} onClick={() => fazer('realizada', undefined, 'corretor')}
+                      title={v.corretorTelefone ? '' : 'A visita não tem o número do corretor'}
+                      className={`${botao} flex-1`} style={{ background: 'var(--wa-green)', color: 'var(--wa-green-ink)' }}>
+                {andando ? <CircleNotch size={16} className="animate-spin" /> : <User size={16} />} Ao corretor
+              </button>
+            </div>
+            <button type="button" disabled={andando} onClick={() => setConfirmar(null)} className={`${botao} wa-chip`}>Voltar</button>
+          </div>
+        ) : confirmar ? (
           <div className="flex flex-col gap-2">
             <p className="text-[13.5px] leading-[19px]" style={{ color: 'var(--wa-text)' }}>
               {confirmar === 'realizada'
-                ? 'Marcar como realizada? A Nay vai perguntar ao corretor como foi a visita.'
+                ? 'Visita realizada? A Nay vai perguntar ao corretor como foi a visita.'
                 : 'Excluir esta visita? Ela some da agenda e ninguém é avisado.'}
             </p>
             <div className="flex gap-2">
@@ -562,25 +637,32 @@ function PainelDaVisita({ v, aoFechar, aoAbrirConversa, aoMexer }: {
                         ? { background: 'var(--wa-tag-tel)', color: '#fff' }
                         : { background: 'var(--wa-green)', color: 'var(--wa-green-ink)' }}>
                 {andando && <CircleNotch size={16} className="animate-spin" />}
-                {confirmar === 'excluir' ? 'Excluir' : 'Marcar realizada'}
+                {confirmar === 'excluir' ? 'Excluir' : 'Visita realizada'}
               </button>
               <button type="button" disabled={andando} onClick={() => setConfirmar(null)} className={`${botao} wa-chip`}>Voltar</button>
             </div>
           </div>
         ) : (
           <div className="flex gap-2">
-            {mudavel && (
+            {podeRealizar && (
               <button type="button" disabled={!jaAconteceu} onClick={() => setConfirmar('realizada')}
                       title={jaAconteceu ? '' : 'A visita ainda não aconteceu'}
                       className={`${botao} flex-1`} style={{ background: 'var(--wa-chip-on-bg)', color: 'var(--wa-chip-on-ink)' }}>
-                <CheckCircle size={17} /> Marcar como realizada
+                <CheckCircle size={17} /> Visita realizada
               </button>
             )}
-            <button type="button" onClick={() => setConfirmar('excluir')}
-                    className={`${botao} ${mudavel ? '' : 'flex-1'}`}
-                    style={{ color: 'var(--wa-tag-tel)', border: '1px solid color-mix(in srgb, var(--wa-tag-tel) 45%, transparent)' }}>
-              <Trash size={16} /> Excluir
-            </button>
+            {!dosLeads && (
+              <button type="button" onClick={() => setConfirmar('excluir')}
+                      className={`${botao} ${mudavel ? '' : 'flex-1'}`}
+                      style={{ color: 'var(--wa-tag-tel)', border: '1px solid color-mix(in srgb, var(--wa-tag-tel) 45%, transparent)' }}>
+                <Trash size={16} /> Excluir
+              </button>
+            )}
+            {dosLeads && !podeRealizar && (
+              <p className="text-[12.5px] leading-[17px]" style={{ color: 'var(--wa-text-2)' }}>
+                Visita do número Leads: quem cuida é a Nay Leads, pela conversa. VISITA REALIZADA aparece quando ela estiver confirmada.
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -871,6 +953,11 @@ function LegendaDaAgenda() {
         <span key={r} className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />{r}</span>
       ))}
       <span className="inline-flex items-center gap-1.5"><span className="w-3 h-2.5 rounded-sm border border-dashed" style={{ borderColor: TOM.atencao }} />Horário sugerido</span>
+      {(['parceria', 'leads'] as const).map((l) => (
+        <span key={l} className="inline-flex items-center gap-1.5">
+          <span className="w-3 h-2.5 rounded-sm" style={{ background: LINHA_DA_VISITA[l].cor }} />Número {LINHA_DA_VISITA[l].rotulo}
+        </span>
+      ))}
     </div>
   )
 }

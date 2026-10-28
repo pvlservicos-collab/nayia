@@ -82,6 +82,23 @@ export interface VisitaDaNay {
   corretorChaves: string[]
   proprietarioNome: string | null
   visitanteNome: string | null
+  /** 513 (Pedro, 28/10): de qual número veio a visita. A da Nay Leads (8595) chega com id NEGATIVO (-id da
+      privado.olx_visita), para não bater com o id da visita da Parceria. */
+  linha?: 'parceria' | 'leads'
+  clienteNome?: string | null
+  clienteTelefone?: string | null
+  clienteConfirmouEm?: string | null
+  realizadaEm?: string | null
+  realizadaPor?: string | null
+  /** a quem a Nay perguntou "como foi?" depois do VISITA REALIZADA, e quando saiu */
+  feedbackPara?: 'cliente' | 'corretor' | null
+  feedbackEm?: string | null
+}
+
+/** 513: as visitas de cada número com um azul próprio na agenda e a etiqueta de onde vieram. */
+export const LINHA_DA_VISITA: Record<'parceria' | 'leads', { rotulo: string; cor: string }> = {
+  parceria: { rotulo: 'Parceria', cor: '#2563eb' },
+  leads: { rotulo: 'Leads', cor: '#0891b2' },
 }
 
 /** A visita como a tela recebe: sem as chaves de telefone, com a conversa do corretor. */
@@ -133,6 +150,13 @@ export const ESTADO_DA_VISITA: Record<string, { rotulo: string; tom: 'andamento'
   encerrada: { rotulo: 'Encerrada', tom: 'fim' },
   cancelada: { rotulo: 'Cancelada', tom: 'ruim' },
   expirada: { rotulo: 'Expirou', tom: 'ruim' },
+  // 513: as situações da visita da Nay Leads (privado.olx_visita)
+  confirmar_cliente: { rotulo: 'Esperando o cliente confirmar', tom: 'andamento' },
+  buscando_corretor: { rotulo: 'Procurando o corretor', tom: 'andamento' },
+  pedindo_proprietario: { rotulo: 'Esperando o proprietário', tom: 'andamento' },
+  sem_corretor: { rotulo: 'Sem corretor', tom: 'ruim' },
+  proprietario_nao: { rotulo: 'O proprietário não pôde', tom: 'ruim' },
+  sem_proprietario: { rotulo: 'O proprietário não respondeu', tom: 'ruim' },
 }
 
 /** O que cada passo registrado pela Nay quer dizer (nai_visita_evento.tipo). */

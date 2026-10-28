@@ -37,6 +37,7 @@ export function useVisitasParceria(ativo = true) {
 }
 
 export async function eventosDaVisita(id: number): Promise<EventoDaVisita[]> {
+  if (id < 0) return []           // 513: a visita da Nay Leads não tem o andamento passo a passo da Parceria
   const r = await fetch(`/api/parceria/visitas/${id}`)
   const j = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`)
@@ -49,6 +50,17 @@ export async function mexerNaVisita(
   edicao?: { campo: string; valor: string | null },
 ): Promise<{ ok: boolean; mensagem: string }> {
   try {
+    // 513: a visita da Nay Leads (id negativo) só aceita o VISITA REALIZADA, com a quem perguntar (edicao.valor)
+    if (id < 0) {
+      if (acao !== 'realizada') return { ok: false, mensagem: 'A visita do número Leads muda pela conversa: aqui só VISITA REALIZADA.' }
+      const r = await fetch(`/api/leads/visitas/${-id}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ acao, para: edicao?.valor }),
+      })
+      const j = await r.json().catch(() => ({}))
+      return { ok: r.ok && !!j.ok, mensagem: j.mensagem || j.error || `Erro ${r.status}` }
+    }
     const r = await fetch(`/api/parceria/visitas/${id}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

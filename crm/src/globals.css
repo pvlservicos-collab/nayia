@@ -1294,6 +1294,21 @@ html {
 .agenda-pessoa-num { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 .agenda-bloco-titulo { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .agenda-bloco-sub { color: var(--wa-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 513 (Pedro, 28/10): "põe as visitas do número Leads e do número de Parceria diferentes lá na agenda, uma cor de azul
+   diferente e uma tagzinha de qual número veio". Parceria = o azul de sempre; Leads = azul-ciano. */
+.agenda-evento--leads .agenda-bloco {
+  background: color-mix(in srgb, #0891b2 24%, var(--wa-panel));
+  border-left-color: #0891b2;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #0891b2 32%, transparent);
+}
+.agenda-evento--leads .agenda-bloco-hora { color: #0891b2; }
+:root[data-theme="dark"] .agenda-evento--leads .agenda-bloco-hora, .dark .agenda-evento--leads .agenda-bloco-hora { color: #67e8f9; }
+.agenda-evento--leads .agenda-pessoa { border-color: color-mix(in srgb, #0891b2 40%, transparent); }
+.agenda-evento--leads .agenda-pessoa-inicial { background: #0891b2; }
+.agenda-numero { display: inline-flex; align-items: center; flex-shrink: 0; height: 15px; padding: 0 5px; border-radius: 4px;
+  font-size: 10px; font-weight: 700; line-height: 1; letter-spacing: .02em; color: #fff; background: #2563eb; vertical-align: middle; }
+.agenda-numero--leads { background: #0891b2; }
+.agenda-mes-linha .agenda-numero, .agenda-lista-linha .agenda-numero { margin-right: 4px; }
 .agenda-evento--ruim .agenda-bloco { opacity: .6; }
 .agenda-evento--ruim .agenda-bloco-titulo,
 .agenda-evento--ruim .agenda-mes-linha,

@@ -13,7 +13,7 @@
  */
 import { naydb } from './nayDisparo'
 
-import type { EstadoDaNay, EventoDaVisita, ImovelEnviado, ItemDoHistorico, MarcaDaNay, VisitaDaNay } from './tiposNay'
+import type { EstadoDaNay, EventoDaVisita, ImovelEnviado, ItemDoHistorico, MarcaDaNay, VisitaDaNay, VisitaNaTela } from './tiposNay'
 export type { EstadoDaNay, EventoDaVisita, ImovelEnviado, ItemDoHistorico, MarcaDaNay, VisitaDaNay } from './tiposNay'
 
 const iso = (v: unknown): string | null => (v instanceof Date ? v.toISOString() : v ? String(v) : null)
@@ -133,6 +133,63 @@ export async function visitasDaNay(desde?: string | null, ate?: string | null): 
     proprietarioNome: l.proprietario_nome ?? null,
     visitanteNome: l.visitante_nome ?? null,
   }))
+}
+
+/**
+ * 513 (Pedro, 28/10): AS VISITAS DA NAY LEADS (número 8595, privado.olx_visita) na mesma agenda. Chegam com id
+ * NEGATIVO (-id) e linha 'leads'; quem mexe nelas é a Nay Leads, então aqui só se lê. Sem a 513 no banco a função
+ * não existe: a agenda segue só com as da Parceria.
+ */
+export async function visitasDosLeads(desde?: string | null, ate?: string | null): Promise<VisitaNaTela[]> {
+  let r
+  try {
+    r = await naydb().query('SELECT * FROM crm_visitas_leads($1::date, $2::date)', [desde || null, ate || null])
+  } catch (e: any) {
+    if (e?.code === '42883') return []          // a função ainda não existe (antes da 513)
+    throw e
+  }
+  return r.rows.map((l: any) => ({
+    id: -Number(l.id),
+    linha: 'leads' as const,
+    codigo: l.codigo != null ? Number(l.codigo) : null,
+    imovel: l.imovel ?? null,
+    estado: String(l.estado),
+    aberta: l.aberta === true,
+    aguardando: null, urgente: false, acesso: null,
+    quando: iso(l.quando), quandoSugerido: null,
+    criadoEm: iso(l.criado_em),
+    confirmadaCorretorEm: null, aprovadaEm: null, aprovadaPor: null, propOkEm: null, motoOkEm: null,
+    confirmadaEm: iso(l.confirmada_em),
+    posVisitaEm: iso(l.realizada_em), encerradaEm: null,
+    atualizadoEm: iso(l.atualizado_em),
+    resultado: null, motivo: null,
+    corretorNome: l.corretor_nome ?? null,
+    proprietarioNome: l.proprietario_nome ?? null,
+    visitanteNome: l.cliente_nome ?? null,
+    clienteNome: l.cliente_nome ?? null,
+    clienteTelefone: l.cliente_telefone ?? null,
+    clienteConfirmouEm: iso(l.cliente_confirmou_em),
+    realizadaEm: iso(l.realizada_em),
+    realizadaPor: l.realizada_por ?? null,
+    feedbackPara: l.feedback_para ?? null,
+    feedbackEm: iso(l.feedback_em),
+    conversa: null,
+    corretorTelefone: l.corretor_telefone ?? null,
+    dono: l.proprietario_telefone || l.proprietario_nome
+      ? { telefone: l.proprietario_telefone ?? null, leadId: null, avatar: null } : null,
+  }))
+}
+
+/** 513: o VISITA REALIZADA de uma visita da Nay Leads; a Nay pergunta "como foi?" ao cliente ou ao corretor. */
+export async function visitaDosLeadsRealizada(id: number, para: 'cliente' | 'corretor', quem: string): Promise<{ ok: boolean; mensagem: string }> {
+  try {
+    const r = await naydb().query('SELECT * FROM crm_visita_leads_realizada($1::bigint, $2::text, $3::text)', [id, para, quem])
+    const l = r.rows[0]
+    return { ok: l?.ok === true, mensagem: l?.mensagem || 'Não consegui marcar a visita.' }
+  } catch (e: any) {
+    if (e?.code === '42883') return { ok: false, mensagem: 'O banco da Nay ainda não tem o VISITA REALIZADA dos Leads (migração 513).' }
+    throw e
+  }
 }
 
 /** 293: por visita, o telefone do corretor e o do proprietário (com as chaves dele, para achar a conversa). */
