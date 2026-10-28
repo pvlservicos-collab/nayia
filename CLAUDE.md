@@ -53,6 +53,11 @@ sessão direto no servidor: **"coloque uma regra de aviso e pergunta"**.
 - Vale igual para apagar, mover ou trocar arquivo, tabela, chave, cron ou configuração que você não criou nesta
   sessão: aviso com o que vai sumir, pergunta, e espera.
 
+## Memória do negócio: o vault do Obsidian
+Pedido estratégico (marketing, financeiro, equipe, rumo da empresa) começa pelo vault
+`C:\Users\pedro\Documents\Obsidian Vault`: leia primeiro a nota `OBSIDIAN MEMORIA.md` (as regras dele) e procure lá
+antes de perguntar ou supor. "Lembrar" algo do negócio = nota no vault. Nunca segredo no vault.
+
 ## O que mora onde
 - O núcleo novo da Nay: repositório próprio `pvlservicos-collab/nay-core`
   (`C:\Users\pedro\nay-core`), com a entrevista de produção em `docs/ENTREVISTA-2026-09-29.md`.
