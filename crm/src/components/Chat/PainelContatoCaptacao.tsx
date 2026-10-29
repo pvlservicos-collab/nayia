@@ -304,11 +304,12 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
             : !oficial && <EtapaDoClienteOlx telefone={lead.phone} leadId={lead.id} comOTel={!!c?.comOTel} aoMudar={() => void ler()} />}
         </div>
 
+        {/* 28/10 (Pedro): as buscas do lead e os nossos imóveis que servem, com a nota (nayia 510). 29/10: "em mais destaque
+            no card do lead": sobe para cá, logo depois da etapa, com a busca de agora e para quem a Nay perguntou (521) */}
+        {!oficial && <BuscasDoLead leadId={lead.id} />}
+
         {/* 24/10 (Pedro): os agentes da Nay Leads -- a legenda de cores e o histórico de cada agente que ativou, em tags */}
         {!oficial && <AgentesDoLead leadId={lead.id} />}
-
-        {/* 28/10 (Pedro): as buscas do lead e os nossos imóveis que servem, com a nota (nayia 510) */}
-        {!oficial && <BuscasDoLead leadId={lead.id} />}
 
         {/* 17/10 (Pedro): as etiquetas da equipe também no card da Captação */}
         <Secao titulo="Etiquetas">
