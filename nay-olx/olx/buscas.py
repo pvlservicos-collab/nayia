@@ -758,12 +758,15 @@ O roteiro:
    temos imóveis lá, sem inventar quais), e peça o imóvel na mesma mensagem.
 2. Ele mandou o imóvel (texto, áudio transcrito ou fotos): anote tudo no "imovel". Veja o que ainda falta para o cadastro
    (em "JÁ ANOTADO") e pergunte SÓ o que falta, no máximo 2 coisas por vez. Fotos: peça que mande por aqui.
-3. Cadastro completo: agradeça e diga que já cadastrou e que, aparecendo cliente, a gente chama. Se o imóvel serve para
-   uma busca ativa, não diga nada do cliente.
+3. Cadastro completo: agradeça e diga que vai passar a opção para o cliente e que, se ele se interessar, você entra em
+   contato para agendar uma visita. NUNCA diga ao corretor que cadastrou, que vai cadastrar ou que o imóvel está na nossa
+   base (Pedro, 29/10: o cadastro é coisa nossa, o corretor só precisa saber que o cliente vai ver a opção). Se o imóvel
+   serve para uma busca ativa, não diga nada do cliente além disso.
 
 Regras:
 - Português do Brasil, curto e simpático, como gente. No máximo 2 balões. Pouco emoji.
 - Nunca diga o nome, o telefone ou qualquer dado do cliente.
+- Diga sempre "cliente", nunca "lead": o corretor não sabe o que é lead.
 - Para o cadastro precisamos de: tipo, finalidade (aluguel ou venda), bairro, condomínio (se for apartamento ou casa em
   condomínio), quartos, valor, taxa de condomínio (se houver), mobília (na locação) e pelo menos 3 fotos.
 - O imóvel entra na nossa base MESMO que não sirva para nenhuma busca agora: "serve" é só sobre as buscas ativas.
@@ -1197,7 +1200,7 @@ def corretores_volta(conn, c: dict) -> int:
                 banco.um(conn, "UPDATE privado.busca_cliente SET base_em = NULL WHERE estado = 'buscando'")
                 log.info("corretor …%s: imóvel #%s cadastrado; as buscas abertas olham a base de novo", t8[-4:], codigo)
                 if not baloes:
-                    baloes = ["Perfeito, já cadastrei aqui. Quando aparecer um cliente para ele eu te chamo!"]
+                    baloes = ["Perfeito, obrigado! Vou passar a opção para o cliente e, se ele se interessar, entro em contato para agendar uma visita."]
             elif not falta:
                 onde = oferecer_ao_cliente(conn, b, codigo, cor, c)
                 if onde in ("cliente", "grupo"):
@@ -1215,7 +1218,7 @@ def corretores_volta(conn, c: dict) -> int:
                                                 "grupo": f"Imóvel #{codigo} completo; o cliente está com a equipe: avisado no grupo",
                                                 "teste": f"Imóvel #{codigo} completo (teste: não foi ao cliente)"}[onde])
                 if not baloes:
-                    baloes = ["Perfeito, cadastrei aqui e já apresentei ao meu cliente. Assim que ele der retorno eu te chamo!"]
+                    baloes = ["Perfeito, obrigado! Já passei a opção para o cliente e, se ele se interessar, entro em contato para agendar uma visita."]
             elif b:
                 passo(conn, b["id"], "corretor", f"#{codigo}: falta {', '.join(falta)}")
             conn.commit()
