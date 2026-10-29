@@ -39,4 +39,4 @@ busca_cliente_pkey: PRIMARY KEY (id)
 crm_busca_cliente_acao, crm_busca_cliente_manual
 
 ## funções que citam
-busca_corretor_e, crm_busca_cliente_acao, crm_busca_cliente_lista, crm_busca_cliente_manual, crm_mensagem_citada
+busca_corretor_e, crm_busca_cliente_acao, crm_busca_cliente_lista, crm_busca_cliente_manual, crm_lead_busca_ativa, crm_mensagem_citada

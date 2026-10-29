@@ -1,4 +1,4 @@
-# privado.lead_busca_imovel  (tabela, ~10 linhas)
+# privado.lead_busca_imovel  (tabela, ~20 linhas)
 
 ## colunas
 busca_id  bigint  NOT NULL

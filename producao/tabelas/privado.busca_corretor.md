@@ -32,4 +32,4 @@ busca_corretor_pkey: PRIMARY KEY (telefone8)
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-busca_corretor_e, olx_organicos_novos
+busca_corretor_e, crm_lead_busca_ativa, crm_leads_pipeline_outros, olx_organicos_novos

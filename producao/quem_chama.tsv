@@ -130,7 +130,7 @@ crm_cnm_painel
 crm_condominio_pelo_texto	nai_condominio_da_pergunta
 crm_contato_da_mensagem	
 crm_contato_historico	
-crm_contatos_relacionados	
+crm_contatos_relacionados	crm_leads_pipeline_outros
 crm_donos_do_cadastro	
 crm_etapa_da_nay	
 crm_etapa_manual	
@@ -145,8 +145,10 @@ crm_imoveis_pontuacao
 crm_imovel_candidatos	crm_anuncio_decidir, crm_olx_bot_receber
 crm_imovel_para_cadastro	
 crm_imovel_vincular_anuncio	
+crm_lead_busca_ativa	
 crm_lead_buscas	
 crm_leads_pipeline	
+crm_leads_pipeline_outros	
 crm_mensagem_citada	
 crm_mensagens_da_parceria	
 crm_nay_instruir	
