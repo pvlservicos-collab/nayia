@@ -975,8 +975,7 @@ export default function LeadList({
                   nayLeads={ehParceria ? nayLeadsComDono[fim8(lead.phone)] : undefined}
                   clienteOlx={linha === 'captacao' ? !!olxClientes[fim8(lead.phone)] : undefined}
                   origemDoCliente={linha === 'captacao' ? olxClientes[fim8(lead.phone)]?.origem : undefined}
-                  passoDaNay={linha === 'captacao' && olxClientes[fim8(lead.phone)]
-                    ? { passo: Number(olxClientes[fim8(lead.phone)].passo || 0), etapa: olxClientes[fim8(lead.phone)].etapa } : undefined}
+                  finalidadeDoCliente={linha === 'captacao' ? olxClientes[fim8(lead.phone)]?.finalidade : undefined}
                   dono={donos[lead.id]}
                   etiquetasEmDestaque={usarAbasDeEtiquetas ? etiquetasEmDestaque : undefined}
                   respondeu={linha === 'oficial' && !!lead.ultima_recebida}

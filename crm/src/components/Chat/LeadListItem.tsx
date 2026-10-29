@@ -11,7 +11,6 @@ import { quandoCurtoEmManaus } from '@/lib/fusoDeManaus'
 import { nayEmPausa } from '@/lib/etapaDaParceria'
 import type { NayLeadsComDono } from '@/hooks/useNayLeadsComDono'
 import EtiquetasDoCard from './EtiquetasDoCard'
-import { PASSOS_DA_NAY } from '@/lib/olxClientes'
 
 /* 03/10: quem escreve à mão pausa a Nay por 30 min, e a conversa fica na aba dela */
 const TEXTO_DA_PAUSA = 'Nay em pausa: alguém escreveu à mão nesta conversa, e ela espera 30 minutos antes de voltar a responder'
@@ -64,8 +63,8 @@ interface LeadListItemProps {
   aoAlternarRelacionados?: (leadId: string) => void
   /** 517: esta linha é um contato relacionado, aninhado embaixo do lead ("Relacionado · #9051") */
   relacao?: string
-  /** WhatsApp Leads (520, Pedro 29/10): o passo da Nay com este lead (1 a 5) e a etapa dela -- a barrinha embaixo */
-  passoDaNay?: { passo: number; etapa: string }
+  /** 29/10 (Pedro: "deixa só a tag OLX e se é venda ou locação embaixo do nome"): a finalidade que a Nay entendeu */
+  finalidadeDoCliente?: string | null
   /** 520: de onde veio o cliente da Nay Leads -- 'olx' mostra "OLX" no lugar do antigo "Cliente" */
   origemDoCliente?: string | null
 }
@@ -134,28 +133,14 @@ function Avatar({ lead, robo }: { lead: LeadWithOwner; robo?: { parada: boolean;
   )
 }
 
-/* A BARRINHA DA NAY (520, Pedro, 29/10/2026): os 5 passos do atendimento dela com o lead, embaixo das etiquetas. Ela
-   sobe quando a Nay avança e volta sozinha quando o pedido muda. Fechamento enche de roxo; finalizado, de cinza. */
-function BarrinhaDaNay({ passo, etapa }: { passo: number; etapa: string }) {
-  const fechou = etapa === 'fechamento' || etapa === 'finalizado'
-  const cor = etapa === 'fechamento' ? '#7c3aed' : etapa === 'finalizado' ? 'var(--wa-text-2)' : passo >= 5 ? 'var(--wa-green)' : '#0891b2'
-  const p = PASSOS_DA_NAY.find((x) => x.n === passo)
-  const titulo = fechou ? `Nay: ${etapa === 'fechamento' ? 'em fechamento' : 'atendimento finalizado'}`
-    : p ? `Nay: passo ${passo} de 5 — ${p.rotulo}. ${p.titulo}` : 'Nay: ainda não começou o atendimento'
-  return (
-    <div className="flex items-center gap-[3px] mt-[5px] mb-[1px]" title={titulo} aria-label={titulo} role="img">
-      {PASSOS_DA_NAY.map((x) => (
-        <span key={x.n} className="h-[3px] flex-1 rounded-full max-w-[34px]"
-              style={{ background: x.n <= passo ? cor : 'var(--wa-row-selected)', opacity: x.n <= passo ? 1 : 0.9 }} />
-      ))}
-      <span className="text-[10.5px] ml-1 leading-none whitespace-nowrap" style={{ color: 'var(--wa-text-2)' }}>
-        {fechou ? (etapa === 'fechamento' ? 'Fechamento' : 'Finalizado') : p ? `${passo} ${p.rotulo}` : 'Novo'}
-      </span>
-    </div>
-  )
+/* 29/10 (Pedro: "tira essa tag 2 filtrado, ou visita, deixa só a tag OLX e se é venda ou locação embaixo do nome"):
+   a barrinha dos 5 passos da Nay (520) saiu da linha; os passos continuam nas abas e no card do lead. */
+const FINALIDADE: Record<string, { rotulo: string; cor: string }> = {
+  locacao: { rotulo: 'Locação', cor: '#0891b2' },
+  venda: { rotulo: 'Venda', cor: '#d97706' },
 }
 
-const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, clienteOlx, etiquetasColoridas, onTagsChange, relacionados, aoAlternarRelacionados, relacao, passoDaNay, origemDoCliente }: LeadListItemProps) => {
+const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, clienteOlx, etiquetasColoridas, onTagsChange, relacionados, aoAlternarRelacionados, relacao, finalidadeDoCliente, origemDoCliente }: LeadListItemProps) => {
   const robo = nay === undefined ? null : !nay ? { parada: true, texto: 'Lendo a Nay…' }
     : !nay.ligada ? { parada: true, texto: `Nay parada: ${nay.motivo || 'desligada'}` }
     : nayEmPausa(marca) ? { parada: true, texto: TEXTO_DA_PAUSA }
@@ -183,13 +168,28 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
       }}
     >
       <Avatar lead={lead} robo={robo} />
+      {/* 517: a setinha abre os contatos relacionados embaixo (não abre a conversa). 29/10 (Pedro): roxa, embaixo, quase
+          tocando a borda de baixo da linha, alinhada à direita na direção do horário -- não do lado dele */}
+      {relacionados && (
+        <span role="button" tabIndex={0} data-relacionados={lead.id}
+              aria-label={relacionados.aberto ? 'Esconder os contatos relacionados' : `Ver ${relacionados.n} contato(s) relacionado(s)`}
+              title={relacionados.aberto ? 'Esconder os contatos relacionados' : `${relacionados.n} proprietário(s) que a Nay procurou por este lead`}
+              className="absolute right-3 bottom-[1px] inline-flex items-center justify-center w-6 h-4 rounded hover:bg-[var(--wa-row-selected)]"
+              style={{ color: '#7c3aed' }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); aoAlternarRelacionados?.(lead.id) }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); aoAlternarRelacionados?.(lead.id) } }}>
+          <CaretDown size={15} weight="bold" style={{ transform: relacionados.aberto ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }} />
+        </span>
+      )}
       {/* 517: a bolinha embaixo do lead -- há contatos relacionados (verde quando um deles tem mensagem sem ler) */}
       {relacionados && (
         <span aria-hidden className="absolute rounded-full" title={`${relacionados.n} contato(s) relacionado(s)`}
               style={{ width: 7, height: 7, left: '50%', bottom: 3, transform: 'translateX(-50%)',
                        background: relacionados.semLer ? 'var(--wa-unread)' : 'var(--wa-text-2)', opacity: relacionados.semLer ? 1 : 0.6 }} />
       )}
-      <div className="flex-1 min-w-0 py-[11px]">
+      {/* com relacionados, um respiro embaixo para a setinha do pé da linha não encostar no contador */}
+      <div className={`flex-1 min-w-0 ${relacionados ? 'pt-[11px] pb-[16px]' : 'py-[11px]'}`}>
         <div className="flex items-baseline justify-between gap-2">
           <span className="flex items-center gap-1.5 min-w-0">
             {dono ? (
@@ -211,19 +211,6 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
                   style={{ color: naoLida ? 'var(--wa-unread)' : 'var(--wa-text-2)', fontWeight: naoLida ? 600 : 400 }}>
               {timeStr}
             </span>
-            {/* 517: a setinha, alinhada à data, abre os contatos relacionados embaixo (não abre a conversa) */}
-            {relacionados && (
-              <span role="button" tabIndex={0} data-relacionados={lead.id}
-                    aria-label={relacionados.aberto ? 'Esconder os contatos relacionados' : `Ver ${relacionados.n} contato(s) relacionado(s)`}
-                    title={relacionados.aberto ? 'Esconder os contatos relacionados' : `${relacionados.n} contato(s) relacionado(s): quem a Nay procurou por este lead`}
-                    className="inline-flex items-center justify-center rounded-full w-5 h-5 hover:bg-[var(--wa-row-selected)]"
-                    style={{ color: relacionados.semLer ? 'var(--wa-unread)' : 'var(--wa-text-2)' }}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); aoAlternarRelacionados?.(lead.id) }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); aoAlternarRelacionados?.(lead.id) } }}>
-                <CaretDown size={14} weight="bold" style={{ transform: relacionados.aberto ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }} />
-              </span>
-            )}
           </span>
         </div>
 
@@ -245,6 +232,12 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
             <span className="wa-marca flex-shrink-0 rounded px-1" style={{ color: '#fff', background: '#2563eb' }}
                   title="Veio da OLX: é quem busca imóvel, não o proprietário">
               OLX
+            </span>
+          )}
+          {clienteOlx && finalidadeDoCliente && FINALIDADE[finalidadeDoCliente] && (
+            <span className="wa-marca flex-shrink-0 rounded px-1" style={{ color: '#fff', background: FINALIDADE[finalidadeDoCliente].cor }}
+                  title="O que o cliente procura, pelo que a Nay entendeu">
+              {FINALIDADE[finalidadeDoCliente].rotulo}
             </span>
           )}
           {marca?.telAtendendo && (nayEmPausa(marca) ? (
@@ -272,7 +265,7 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
             </span>
           )}
           {etiquetasColoridas && <EtiquetasDoCard lead={lead as any} onTagsChange={onTagsChange} compacto />}
-          {!marca && !etiquetasColoridas && emDestaquePrimeiro(lead.lead_tags || [], etiquetasEmDestaque).slice(0, 2).map((lt: any) => lt.tag && (
+          {!marca && !etiquetasColoridas && !clienteOlx && emDestaquePrimeiro(lead.lead_tags || [], etiquetasEmDestaque).slice(0, 2).map((lt: any) => lt.tag && (
             <span key={lt.tag_id} className="wa-marca" style={{ color: 'var(--wa-text-2)' }}>
               {lt.tag.name}
             </span>
@@ -293,8 +286,6 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
             )}
           </span>
         </div>
-
-        {passoDaNay && <BarrinhaDaNay {...passoDaNay} />}
 
         {hit?.matchType === 'message' && hit.snippet && (
           <div className="wa-previa text-[13px] italic mt-0.5 line-clamp-1">
@@ -327,8 +318,7 @@ export default memo(LeadListItem, (a, b) => (
   a.relacionados?.semLer === b.relacionados?.semLer &&
   a.aoAlternarRelacionados === b.aoAlternarRelacionados &&
   a.relacao === b.relacao &&
-  a.passoDaNay?.passo === b.passoDaNay?.passo &&
-  a.passoDaNay?.etapa === b.passoDaNay?.etapa &&
+  a.finalidadeDoCliente === b.finalidadeDoCliente &&
   a.origemDoCliente === b.origemDoCliente &&
   !!a.etiquetasColoridas === !!b.etiquetasColoridas &&
   a.atendente?.id === b.atendente?.id &&
