@@ -17,12 +17,21 @@ AS $function$
            coalesce(d.dono_perguntado_em, d.criada_em), 'duvida', d.codigo
       FROM privado.duvida d
      WHERE d.linha = 'captacao' AND d.dono_linha = 'captacao' AND d.dono_tel IS NOT NULL
+  ), juntos AS (
+    SELECT cliente, contato, max(em) AS em, string_agg(DISTINCT motivo, ',') AS motivos,
+           array_remove(array_agg(DISTINCT codigo), NULL) AS codigos
+      FROM pares
+     WHERE length(contato) = 8 AND contato <> cliente
+       -- quem também é cliente da Nay Leads é lead: fica na lista de cima
+       AND NOT EXISTS (SELECT 1 FROM privado.olx_lead_whatsapp o WHERE right(regexp_replace(o.telefone, '\D', '', 'g'), 8) = contato)
+     GROUP BY cliente, contato
   )
-  SELECT cliente, contato, max(em), string_agg(DISTINCT motivo, ','),
-         array_remove(array_agg(DISTINCT codigo), NULL)
-    FROM pares
-   WHERE length(contato) = 8 AND contato <> cliente
-     -- quem também é cliente da Nay Leads é lead: fica na lista de cima
-     AND NOT EXISTS (SELECT 1 FROM privado.olx_lead_whatsapp o WHERE right(regexp_replace(o.telefone, '\D', '', 'g'), 8) = contato)
-   GROUP BY cliente, contato
+  SELECT j.cliente, j.contato, j.em, j.motivos, j.codigos
+    FROM juntos j
+   -- 523: só o proprietário (corretor que acompanha a visita e o motoboy ficam na lista normal)
+   WHERE EXISTS (SELECT 1 FROM unnest(j.codigos) cod CROSS JOIN LATERAL nai_proprietario_do_imovel(cod) p
+                  WHERE right(regexp_replace(coalesce(p.telefone, ''), '\D', '', 'g'), 8) = j.contato)
+      OR EXISTS (SELECT 1 FROM privado.duvida d WHERE right(regexp_replace(coalesce(d.dono_tel, ''), '\D', '', 'g'), 8) = j.contato)
+      OR EXISTS (SELECT 1 FROM privado.olx_visita v
+                  WHERE right(regexp_replace(coalesce(v.proprietario_telefone, ''), '\D', '', 'g'), 8) = j.contato)
 $function$;
