@@ -1977,5 +1977,18 @@ html {
   50% { box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.18), 0 0 16px rgba(124, 58, 237, 0.55); }
 }
 .respostas-tel-brilho { box-shadow: 0 0 8px rgba(124, 58, 237, 0.25); }
+/* 29/10 (Pedro: "o botão respostas tel quero roxo, brilhante, degradê"): roxo degradê com reflexo que passa */
+.respostas-tel-roxo {
+  color: #fff !important; border-color: rgba(196, 160, 255, 0.55) !important; overflow: hidden;
+  background: linear-gradient(135deg, #a855f7 0%, #7c3aed 50%, #5b21b6 100%) !important;
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.respostas-tel-roxo::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: -60%; width: 40%; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: skewX(-20deg); animation: respostas-tel-reflexo 3.2s ease-in-out infinite;
+}
+@keyframes respostas-tel-reflexo { 0%, 55% { left: -60%; } 100% { left: 130%; } }
+@media (prefers-reduced-motion: reduce) { .respostas-tel-roxo::after { animation: none; } }
 .respostas-tel-brilho.respostas-tel-tem { animation: respostas-tel-brilho 1.8s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .respostas-tel-brilho.respostas-tel-tem { animation: none; } }

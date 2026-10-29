@@ -372,15 +372,15 @@ export default function Navbar() {
         <Link
           href="/respostas-tel"
           title="Respostas Tel: dúvidas da Nay esperando o Tel"
-          className={`respostas-tel-brilho relative app-tap-target flex items-center justify-center gap-1.5 h-9 px-2.5 lg:px-3 rounded-lg text-[13px] sm:text-sm font-semibold whitespace-nowrap border transition-colors ${pathname.startsWith('/respostas-tel')
-            ? 'bg-graphite-6 border-white/15 text-accent-2'
-            : 'border-accent/60 text-ink hover:border-accent'
+          className={`respostas-tel-brilho respostas-tel-roxo relative app-tap-target flex items-center justify-center gap-1.5 h-9 px-2.5 lg:px-3 rounded-lg text-[13px] sm:text-sm font-semibold whitespace-nowrap border transition-colors ${pathname.startsWith('/respostas-tel')
+            ? 'ring-2 ring-white/40'
+            : 'hover:brightness-110'
             } ${duvidasDoTel > 0 ? 'respostas-tel-tem' : ''}`}
         >
           <ChatTeardropText size={16} weight={duvidasDoTel > 0 || pathname.startsWith('/respostas-tel') ? 'fill' : 'regular'} />
           <span className="hidden sm:inline">Respostas Tel</span>
           {duvidasDoTel > 0 && (
-            <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-accent text-white text-[11px] leading-[18px] text-center">{duvidasDoTel}</span>
+            <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-white text-[#6d28d9] text-[11px] leading-[18px] text-center">{duvidasDoTel}</span>
           )}
         </Link>
 

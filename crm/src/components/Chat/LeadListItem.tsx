@@ -59,7 +59,7 @@ interface LeadListItemProps {
   /** WhatsApp Leads (Pedro, 26/10): quem veio da OLX (é cliente, não dono) -- a linha fica azul e ganha a etiqueta Cliente */
   clienteOlx?: boolean
   /** WhatsApp Leads (517, Pedro 29/10): este lead tem contatos relacionados embaixo (a bolinha e a setinha) */
-  relacionados?: { n: number; aberto: boolean; semLer: boolean }
+  relacionados?: { n: number; aberto: boolean; semLer: boolean; avatares: (string | null)[] }
   aoAlternarRelacionados?: (leadId: string) => void
   /** 517: esta linha é um contato relacionado, aninhado embaixo do lead ("Relacionado · #9051") */
   relacao?: string
@@ -112,7 +112,7 @@ function quandoCurto(iso: string | null): string {
  * pessoa, inferior esquerdo" -- verde a Nay atendendo, vermelho parada (a chave
  * geral da Nay, ou o Tel / alguém da equipe com a conversa). Só na Parceria.
  */
-function Avatar({ lead, robo }: { lead: LeadWithOwner; robo?: { parada: boolean; texto: string } | null }) {
+function Avatar({ lead, robo, outros }: { lead: LeadWithOwner; robo?: { parada: boolean; texto: string } | null; outros?: { n: number; avatares: (string | null)[] } }) {
   return (
     <div className="relative flex-shrink-0">
       <div className="wa-avatar rounded-full overflow-hidden flex items-center justify-center"
@@ -123,6 +123,24 @@ function Avatar({ lead, robo }: { lead: LeadWithOwner; robo?: { parada: boolean;
           <User size={28} weight="fill" style={{ color: 'var(--wa-text-2)', opacity: 0.55 }} />
         )}
       </div>
+      {/* 29/10 (Pedro): as fotos dos contatos relacionados em bolinhas no canto de baixo à direita da foto do lead,
+          sempre à mostra, para ver que há mais gente ali */}
+      {outros && (
+        <span className="absolute flex items-center" style={{ right: -6, bottom: -4, flexDirection: 'row-reverse' }}
+              title={`${outros.n} contato(s) relacionado(s)`}>
+          {outros.avatares.slice(0, 2).map((url, i) => (
+            <span key={i} className="rounded-full overflow-hidden flex items-center justify-center"
+                  style={{ width: 20, height: 20, marginLeft: -7, background: 'var(--wa-row-selected)', border: '2px solid var(--wa-bg, #fff)', zIndex: 2 - i }}>
+              {url ? <img src={url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                : <User size={11} weight="fill" style={{ color: 'var(--wa-text-2)', opacity: 0.6 }} />}
+            </span>
+          ))}
+          {outros.n > 2 && (
+            <span className="rounded-full flex items-center justify-center text-white"
+                  style={{ width: 20, height: 20, marginLeft: -7, fontSize: 9, fontWeight: 700, background: '#7c3aed', border: '2px solid var(--wa-bg, #fff)' }}>+{outros.n - 2}</span>
+          )}
+        </span>
+      )}
       {robo && (
         <span className="wa-robo-selo" style={{ ['--cor' as string]: robo.parada ? 'var(--wa-tag-tel)' : 'var(--wa-green)' }}
               title={robo.texto} aria-label={robo.texto} role="img">
@@ -169,15 +187,15 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
         ...(relacionados ? { position: 'relative' as const } : {}),
       }}
     >
-      <Avatar lead={lead} robo={robo} />
+      <Avatar lead={lead} robo={robo} outros={relacionados} />
       {/* 517: a setinha abre os contatos relacionados embaixo (não abre a conversa). 29/10 (Pedro): roxa, embaixo, quase
           tocando a borda de baixo da linha, alinhada à direita na direção do horário -- não do lado dele */}
       {relacionados && (
         <span role="button" tabIndex={0} data-relacionados={lead.id}
               aria-label={relacionados.aberto ? 'Esconder os contatos relacionados' : `Ver ${relacionados.n} contato(s) relacionado(s)`}
               title={relacionados.aberto ? 'Esconder os contatos relacionados' : `${relacionados.n} proprietário(s) que a Nay procurou por este lead`}
-              className="absolute right-3 bottom-[2px] z-[1] inline-flex items-center justify-center w-[18px] h-[18px] rounded-full"
-              style={{ color: '#7c3aed', background: '#fff', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.22)' }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-[1] inline-flex items-center justify-center w-[20px] h-[20px] rounded-full"
+              style={{ color: relacionados.semLer ? '#fff' : '#7c3aed', background: relacionados.semLer ? 'var(--wa-unread)' : '#fff', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.22)' }}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); e.preventDefault(); aoAlternarRelacionados?.(lead.id) }}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); aoAlternarRelacionados?.(lead.id) } }}>
@@ -188,16 +206,10 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
           contatos relacionados embaixo"; depois "ao invés da sombra embaixo põe uma sombra clara": um roxo bem claro */}
       {relacionados && (
         <span aria-hidden className="absolute left-0 right-0 bottom-0 h-[6px] pointer-events-none"
-              style={{ background: 'linear-gradient(to top, rgba(124, 58, 237, 0.07), rgba(124, 58, 237, 0))' }} />
-      )}
-      {/* 517: a bolinha embaixo do lead -- há contatos relacionados (verde quando um deles tem mensagem sem ler) */}
-      {relacionados && (
-        <span aria-hidden className="absolute rounded-full" title={`${relacionados.n} contato(s) relacionado(s)`}
-              style={{ width: 7, height: 7, left: '50%', bottom: 3, transform: 'translateX(-50%)',
-                       background: relacionados.semLer ? 'var(--wa-unread)' : 'var(--wa-text-2)', opacity: relacionados.semLer ? 1 : 0.6 }} />
+              style={{ background: 'linear-gradient(to top, rgba(124, 58, 237, 0.03), rgba(124, 58, 237, 0))' }} />
       )}
       {/* com relacionados, um respiro embaixo para a setinha do pé da linha não encostar no contador */}
-      <div className={`flex-1 min-w-0 ${relacionados ? 'pt-[11px] pb-[16px]' : 'py-[11px]'}`}>
+      <div className={`flex-1 min-w-0 ${relacionados ? 'py-[11px]' : 'py-[11px]'}`}>
         <div className="flex items-baseline justify-between gap-2">
           <span className="flex items-center gap-1.5 min-w-0">
             {dono ? (
@@ -324,6 +336,7 @@ export default memo(LeadListItem, (a, b) => (
   a.relacionados?.n === b.relacionados?.n &&
   a.relacionados?.aberto === b.relacionados?.aberto &&
   a.relacionados?.semLer === b.relacionados?.semLer &&
+  (a.relacionados?.avatares || []).join() === (b.relacionados?.avatares || []).join() &&
   a.aoAlternarRelacionados === b.aoAlternarRelacionados &&
   a.relacao === b.relacao &&
   a.finalidadeDoCliente === b.finalidadeDoCliente &&

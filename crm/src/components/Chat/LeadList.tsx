@@ -987,6 +987,7 @@ export default function LeadList({
                   relacionados={filhos.length ? {
                     n: filhos.length, aberto,
                     semLer: filhos.some((f) => Number(f.lead.nao_lidas || 0) > 0 || !!f.lead.is_unread),
+                    avatares: filhos.slice(0, 2).map((f) => f.lead.avatar_url || null),
                   } : undefined}
                   aoAlternarRelacionados={filhos.length ? alternarRelacionados : undefined}
                 />
