@@ -1,0 +1,8 @@
+# /etc/cron.d/nay-duvidas -- 512 (Pedro, 28/10/2026): as dúvidas dos leads acompanhadas até o fim (nay-olx olx/duvidas.py):
+# "um cron 2 vezes de manhã e 2 vezes à tarde e uma no fim do dia que checa tudo". Manaus 08:30 e 10:30, 13:30 e 16:00,
+# e 18:30 com o resumo às Notificações do CRM (o servidor está em UTC: +4 h). Desligar sem mexer aqui:
+# privado.olx_config.duvidas_rotina = 'nao' (ou 'teste': lê e decide, não manda).
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+30 12,14,17 * * * root cd /root/nay-olx && set -a && . ./.env && set +a && flock -n /run/nay-duvidas.lock .venv/bin/python -m olx.duvidas >> /var/log/nay-duvidas.log 2>&1
+0 20 * * * root cd /root/nay-olx && set -a && . ./.env && set +a && flock -n /run/nay-duvidas.lock .venv/bin/python -m olx.duvidas >> /var/log/nay-duvidas.log 2>&1
+30 22 * * * root cd /root/nay-olx && set -a && . ./.env && set +a && flock -n /run/nay-duvidas.lock .venv/bin/python -m olx.duvidas --fim-do-dia >> /var/log/nay-duvidas.log 2>&1

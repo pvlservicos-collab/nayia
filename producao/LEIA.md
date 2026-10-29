@@ -1,9 +1,9 @@
 # Foto da produção (gerada por scripts/foto_producao.sh; não edite à mão)
 
-Tirada em 28/10/2026 22:36. Segredos trocados por <REDIGIDO>; telefones só com os 4 últimos.
+Tirada em 29/10/2026 10:08. Segredos trocados por <REDIGIDO>; telefones só com os 4 últimos.
 
-- funcoes/: 851 funções vivas do schema public, uma por arquivo (nome e tipos dos argumentos)
-- tabelas/: 352 tabelas e views (public e privado): colunas, índices, restrições, gatilhos,
+- funcoes/: 858 funções vivas do schema public, uma por arquivo (nome e tipos dos argumentos)
+- tabelas/: 354 tabelas e views (public e privado): colunas, índices, restrições, gatilhos,
   permissões por papel e as funções que escrevem nelas e que as citam
 - quem_chama.tsv: para cada função, quem a chama
 - n8n/: os fluxos ativos (NAI atendimento locação, Nay - alarme de erro, Nay - escalar, Nay - responder pendencia, Nay- recebe mensagem), em JSON e ABERTOS em pasta: um arquivo por

@@ -21,6 +21,9 @@ CREATE UNIQUE INDEX grupo_pedido_oferta_pkey ON privado.grupo_pedido_oferta USIN
 grupo_pedido_oferta_pedido_id_codigo_key: UNIQUE (pedido_id, codigo)
 grupo_pedido_oferta_pkey: PRIMARY KEY (id)
 
+## gatilhos
+CREATE TRIGGER grupo_pedido_oferta_nota_tg AFTER INSERT ON privado.grupo_pedido_oferta FOR EACH ROW EXECUTE FUNCTION privado.grupo_pedido_oferta_nota()
+
 ## permissões
 (só o dono)
 

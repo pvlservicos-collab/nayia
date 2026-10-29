@@ -1,4 +1,5 @@
 funcao	chamada_por
+aprendizado_gravar	
 blog_artigo_credito_da_capa	
 blog_categoria_nome	site_blog_admin_artigo, site_blog_admin_lista, site_blog_artigo, site_blog_lista
 blog_newsletter_disparar	
@@ -9,7 +10,7 @@ busca_corretor_foto_guardar
 busca_nossos_numeros	busca_corretor_e
 busca_olx_candidatos	
 cadastro_whats_condominio	
-cadastro_whats_da_parceria	nai_abrir_turno, nai_followup_rodar, site_captacao_grupos_enviar, site_captacao_grupos_perguntar
+cadastro_whats_da_parceria	nai_abrir_turno, nai_followup_rodar, site_captacao_grupos_enviar, site_captacao_grupos_mandar, site_captacao_grupos_perguntar
 captacao_ainda_e_da_ia	
 captacao_aplicar_ao_cadastro	captacao_aplicar_pendentes
 captacao_aplicar_pendentes	
@@ -129,6 +130,7 @@ crm_cnm_painel
 crm_condominio_pelo_texto	nai_condominio_da_pergunta
 crm_contato_da_mensagem	
 crm_contato_historico	
+crm_contatos_relacionados	
 crm_donos_do_cadastro	
 crm_etapa_da_nay	
 crm_etapa_manual	
@@ -188,12 +190,14 @@ crm_visita_agendar
 crm_visita_editar	
 crm_visita_eventos	
 crm_visita_excluir	
+crm_visita_leads_realizada	
 crm_visita_mudar_horario	crm_visita_agendar
 crm_visita_proprietario_ok	
 crm_visita_realizada	
 crm_visitantes	
 crm_visitas	
 crm_visitas_extra	
+crm_visitas_leads	
 crm_visitas_pessoas	
 ia_modelo_do_no	
 ia_no_do_core	site_ia_modelos
@@ -484,7 +488,7 @@ nai_re_promessa	nai_conferir_resposta
 nai_re_promete_foto	nai_conferir_resposta
 nai_re_sugere_visita	nai_conferir_resposta
 nai_recusou	nai_followup_rodar
-nai_ref_imovel	crm_contato_historico, crm_imoveis_enviados, crm_visita_agendar, crm_visita_realizada, crm_visitantes, crm_visitas, nai_abrir_turno, nai_agenda_por_dia, nai_agenda_tick, nai_aprovar_visita, nai_cancelar_visita, nai_comando_tel, nai_confirmar_visita, nai_contexto, nai_contexto_corretor, nai_escalar, nai_escalar_calado, nai_guardar_dados_visita, nai_lista_visitas_corretor, nai_midia_para_o_tel, nai_minhas_visitas, nai_mudar_horario, nai_pedir_ao_proprietario, nai_pedir_visita, nai_prosseguir_acesso, nai_resposta_motoboy, nai_resposta_proprietario, nai_resultado_visita, nai_texto_motoboy_ok, nai_turno_dono_respondeu, nai_visitas_do_bloco_avisar, visita_card
+nai_ref_imovel	crm_contato_historico, crm_imoveis_enviados, crm_visita_agendar, crm_visita_realizada, crm_visitantes, crm_visitas, crm_visitas_leads, nai_abrir_turno, nai_agenda_por_dia, nai_agenda_tick, nai_aprovar_visita, nai_cancelar_visita, nai_comando_tel, nai_confirmar_visita, nai_contexto, nai_contexto_corretor, nai_escalar, nai_escalar_calado, nai_guardar_dados_visita, nai_lista_visitas_corretor, nai_midia_para_o_tel, nai_minhas_visitas, nai_mudar_horario, nai_pedir_ao_proprietario, nai_pedir_visita, nai_prosseguir_acesso, nai_resposta_motoboy, nai_resposta_proprietario, nai_resultado_visita, nai_texto_motoboy_ok, nai_turno_dono_respondeu, nai_visitas_do_bloco_avisar, visita_card
 nai_ref_imovel_prop	crm_visita_agendar, nai_comando_tel, nai_contexto, nai_pedir_ao_proprietario, nai_visita_para_a_rayssa
 nai_registrar_bloqueio	
 nai_registrar_saida_v2	nai_enfileirar_resposta_ferramentas
@@ -755,6 +759,8 @@ scrap_contatos_rebuild	site_scrap_importar
 scrap_telefone_formatar	site_scrap_anuncios, site_scrap_contato_salvar, site_scrap_contatos
 scrap_telefone_normalizar	scrap_telefones_do_texto, site_scrap_anuncios, site_scrap_contato_salvar, site_scrap_importar_contatos
 scrap_telefones_do_texto	scrap_contatos_rebuild
+site_aprendizado_ideia_nota	
+site_aprendizado_ideias	
 site_aprovar_imoveis	
 site_aprovar_tirar	
 site_biblioteca	
@@ -780,10 +786,11 @@ site_captacao_grupos_apelidos
 site_captacao_grupos_citacao	
 site_captacao_grupos_demanda	
 site_captacao_grupos_enviar	
-site_captacao_grupos_enviar_varios	
+site_captacao_grupos_enviar_varios	site_captacao_grupos_mandar
 site_captacao_grupos_estado	
 site_captacao_grupos_importar	
 site_captacao_grupos_julgar	
+site_captacao_grupos_mandar	
 site_captacao_grupos_mensagem	
 site_captacao_grupos_perguntar	
 site_captacao_grupos_testar	

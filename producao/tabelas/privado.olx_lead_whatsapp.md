@@ -44,4 +44,4 @@ olx_lead_whatsapp_pkey: PRIMARY KEY (id)
 crm_captacao_etapa_manual, crm_olx_busca_parceiro_abrir, crm_olx_cliente_etapa, olx_nay_lead_whatsapp
 
 ## funções que citam
-busca_corretor_e, captacao_mensagem_do_python, crm_agentes_tracos, crm_busca_cliente_lista, crm_captacao_etapa_manual, crm_leads_pipeline, crm_olx_busca_parceiro_abrir, crm_olx_buscas_parceiro, crm_olx_cliente_etapa, crm_olx_clientes_etapas, crm_visitantes, nay_agenda_de_visitas, olx_nay_lead_whatsapp, olx_organicos_novos, site_painel_metricas, site_painel_visitas
+busca_corretor_e, captacao_mensagem_do_python, crm_agentes_tracos, crm_busca_cliente_lista, crm_captacao_etapa_manual, crm_contatos_relacionados, crm_leads_pipeline, crm_olx_busca_parceiro_abrir, crm_olx_buscas_parceiro, crm_olx_cliente_etapa, crm_olx_clientes_etapas, crm_visitantes, crm_visitas_leads, nay_agenda_de_visitas, olx_nay_lead_whatsapp, olx_organicos_novos, site_painel_metricas, site_painel_visitas

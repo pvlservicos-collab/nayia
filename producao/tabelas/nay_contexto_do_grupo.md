@@ -26,7 +26,7 @@ nay_core: SELECT
 nay_leitura: SELECT
 
 ## funções que escrevem aqui
-site_captacao_grupos_enviar, site_captacao_grupos_perguntar
+site_captacao_grupos_enviar, site_captacao_grupos_mandar, site_captacao_grupos_perguntar
 
 ## funções que citam
-site_captacao_grupos_enviar, site_captacao_grupos_perguntar
+site_captacao_grupos_enviar, site_captacao_grupos_mandar, site_captacao_grupos_perguntar
