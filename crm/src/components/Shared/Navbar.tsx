@@ -286,8 +286,8 @@ export default function Navbar() {
                 {/* 29/10: o ícone só em tela larga; em notebook o espaço é do texto (o menu estourava e cortava a direita) */}
                 <Icon size={16} weight={isActive ? 'fill' : 'regular'} className="hidden min-[1800px]:block" />
                 {/* o nome curto ("Parceria") até telas bem largas: com a aba Grupos, o menu não cabia (03/10) */}
-                <span className="min-[1800px]:hidden">{item.curto ?? item.label}</span>
-                <span className="hidden min-[1800px]:inline">{item.label}</span>
+                <span className="min-[2200px]:hidden">{item.curto ?? item.label}</span>
+                <span className="hidden min-[2200px]:inline">{item.label}</span>
               </Link>
             )
           })}
@@ -379,7 +379,7 @@ export default function Navbar() {
             } ${duvidasDoTel > 0 ? 'respostas-tel-tem' : ''}`}
         >
           <ChatTeardropText size={16} weight={duvidasDoTel > 0 || pathname.startsWith('/respostas-tel') ? 'fill' : 'regular'} />
-          <span className="hidden min-[1800px]:inline">Respostas Tel</span>
+          <span className="hidden min-[2000px]:inline">Respostas Tel</span>
           {duvidasDoTel > 0 && (
             <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-white text-[#6d28d9] text-[11px] leading-[18px] text-center">{duvidasDoTel}</span>
           )}
@@ -417,8 +417,8 @@ export default function Navbar() {
                 <span className="text-purple-300 text-xs font-bold">{initials}</span>
               </div>
             )}
-            <span className="hidden min-[1800px]:inline text-sm font-medium text-ink truncate max-w-[120px]">{displayName}</span>
-            <CaretDown size={14} className={`hidden min-[1800px]:block text-muted transition-transform ${showUserDropdown ? 'rotate-180' : ''}`} />
+            <span className="hidden min-[2000px]:inline text-sm font-medium text-ink truncate max-w-[120px]">{displayName}</span>
+            <CaretDown size={14} className={`hidden min-[2000px]:block text-muted transition-transform ${showUserDropdown ? 'rotate-180' : ''}`} />
           </div>
 
           {/* User Menu Popup */}
