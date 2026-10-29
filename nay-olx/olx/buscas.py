@@ -1233,6 +1233,11 @@ def corretores_volta(conn, c: dict) -> int:
 
 
 # ── o laço ──
+def _card_do_lead(conn) -> int:
+    from olx import busca_do_lead              # aqui dentro: ele importa este módulo
+    return busca_do_lead.atualizar(conn)
+
+
 def uma_volta(conn) -> dict:
     c = _cfg(conn)
     if c["fluxo"] == "nao":
@@ -1242,7 +1247,9 @@ def uma_volta(conn) -> dict:
     for nome, f in (("minimo", lambda: encerrar_abaixo_do_minimo(conn, c)),
                     ("membros", lambda: atualizar_membros(conn)), ("base", lambda: base_volta(conn, c)),
                     ("grupos", lambda: grupos_volta(conn, c)), ("grupos_repete", lambda: grupos_repete(conn, c)),
-                    ("olx", lambda: olx_volta(conn, c)), ("corretores", lambda: corretores_volta(conn, c))):
+                    ("olx", lambda: olx_volta(conn, c)), ("corretores", lambda: corretores_volta(conn, c)),
+                    # 29/10: o card da busca no CRM acompanha o pedido de agora (de 15 em 15 min)
+                    ("card", lambda: _card_do_lead(conn))):
         try:
             r[nome] = f()
         except Exception:  # noqa: BLE001 -- uma parte não para as outras
