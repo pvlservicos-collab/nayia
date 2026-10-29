@@ -22,7 +22,7 @@ A_CADA_S = 15 * 60
 _ULTIMA = [0.0]
 
 PENDENTES = """
-SELECT b.lead, b.filtros
+SELECT b.lead, b.filtros, EXISTS (SELECT 1 FROM privado.lead_busca s WHERE s.lead_id = b.lead) AS tem_card
   FROM privado.busca_cliente b
  WHERE b.atualizado_em > now() - interval '10 days'
    AND NOT EXISTS (SELECT 1 FROM privado.lead_busca s
@@ -43,7 +43,10 @@ def atualizar(conn, forcar: bool = False) -> int:
     if not forcar and time.time() - _ULTIMA[0] < A_CADA_S:
         return 0
     _ULTIMA[0] = time.time()
-    pend = [p for p in banco.linhas(conn, PENDENTES) if buscas.pronto(p["filtros"] or {})]
+    # 29/10: o card da análise de 28/10 (pedido tirado à mão da conversa) só cede lugar a um pedido COM valor: os filtros
+    # que a Nay ainda não completou ("VENDA · Apartamento · 2 quartos", sem teto) diziam menos do que ele
+    pend = [p for p in banco.linhas(conn, PENDENTES)
+            if buscas.pronto(p["filtros"] or {}) and ((p["filtros"] or {}).get("teto") or not p["tem_card"])]
     if not pend:
         return 0
     import analisar_leads as al                 # na raiz do nay-olx (o serviço roda com -m olx.worker de lá)
