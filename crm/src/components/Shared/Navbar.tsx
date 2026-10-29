@@ -26,6 +26,7 @@ import {
   UsersThree,
   ChatsCircle,
   Graph,
+  ChatTeardropText,
 } from '@phosphor-icons/react'
 import { useAuth, usePipeline } from '@/hooks'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -113,6 +114,16 @@ export default function Navbar() {
   const [showMais, setShowMais] = useState(false)
 
   useEffect(() => { setShowMobileMenu(false); setShowMais(false) }, [pathname])
+
+  // RESPOSTAS TEL (527): quantas dúvidas da Nay esperam o Tel; o botão brilha enquanto houver alguma
+  const [duvidasDoTel, setDuvidasDoTel] = useState(0)
+  useEffect(() => {
+    let vivo = true
+    const ler = () => fetch('/api/respostas-tel?n=1').then((r) => r.json()).then((j) => { if (vivo) setDuvidasDoTel(j.n || 0) }).catch(() => undefined)
+    ler()
+    const t = setInterval(ler, 60000)
+    return () => { vivo = false; clearInterval(t) }
+  }, [pathname])
 
   const userDropdownRef = useRef<HTMLDivElement>(null) // Added
   const maisRef = useRef<HTMLDivElement>(null)
@@ -354,6 +365,23 @@ export default function Navbar() {
         >
           <PaperPlaneTilt size={16} weight={pathname.startsWith('/disparo') ? 'fill' : 'regular'} />
           <span>Enviar imóvel</span>
+        </Link>
+
+        {/* RESPOSTAS TEL (Pedro, 29/10/2026): "um botão brilhante do lado de enviar imóvel" com as dúvidas da Nay que
+            esperam o Tel; o número é quantas faltam. */}
+        <Link
+          href="/respostas-tel"
+          title="Respostas Tel: dúvidas da Nay esperando o Tel"
+          className={`respostas-tel-brilho relative app-tap-target flex items-center justify-center gap-1.5 h-9 px-2.5 lg:px-3 rounded-lg text-[13px] sm:text-sm font-semibold whitespace-nowrap border transition-colors ${pathname.startsWith('/respostas-tel')
+            ? 'bg-graphite-6 border-white/15 text-accent-2'
+            : 'border-accent/60 text-ink hover:border-accent'
+            } ${duvidasDoTel > 0 ? 'respostas-tel-tem' : ''}`}
+        >
+          <ChatTeardropText size={16} weight={duvidasDoTel > 0 || pathname.startsWith('/respostas-tel') ? 'fill' : 'regular'} />
+          <span className="hidden sm:inline">Respostas Tel</span>
+          {duvidasDoTel > 0 && (
+            <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-accent text-white text-[11px] leading-[18px] text-center">{duvidasDoTel}</span>
+          )}
         </Link>
 
         {/* Busca — input+dropdown no desktop, ícone que abre overlay de tela cheia no celular */}

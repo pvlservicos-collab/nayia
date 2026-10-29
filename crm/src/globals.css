@@ -1970,3 +1970,12 @@ html {
   box-shadow: inset 0 2px 3px rgba(0, 0, 0, .18);
 }
 .wa-periodo__n { font-size: 12px; font-weight: 700; opacity: .85; }
+
+/* RESPOSTAS TEL (527): o botão do alto brilha enquanto houver dúvida esperando o Tel */
+@keyframes respostas-tel-brilho {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.0), 0 0 6px rgba(124, 58, 237, 0.25); }
+  50% { box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.18), 0 0 16px rgba(124, 58, 237, 0.55); }
+}
+.respostas-tel-brilho { box-shadow: 0 0 8px rgba(124, 58, 237, 0.25); }
+.respostas-tel-brilho.respostas-tel-tem { animation: respostas-tel-brilho 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .respostas-tel-brilho.respostas-tel-tem { animation: none; } }

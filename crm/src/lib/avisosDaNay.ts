@@ -47,8 +47,9 @@ async function levar(organizacao: string): Promise<number> {
   if (!equipe.length) return 0
 
   for (const a of avisos) {
-    const leadId = await conversaDoAviso(organizacao, a)
-    const linkUrl = leadId ? `/chat?leadId=${leadId}` : null
+    // a dúvida nova para o Tel (527) abre o painel Respostas Tel, não a conversa
+    const leadId = a.fonte === 'respostas-tel' ? null : await conversaDoAviso(organizacao, a)
+    const linkUrl = a.fonte === 'respostas-tel' ? '/respostas-tel' : leadId ? `/chat?leadId=${leadId}` : null
     await db.execute(sql`
       INSERT INTO notifications (organization_id, recipient_member_id, type, title, body, metadata)
       SELECT ${organizacao}::uuid, m::uuid, ${ICONE[a.tipo] || 'info'}, ${a.titulo}, ${a.texto},
