@@ -2,7 +2,7 @@
 
 import { memo } from 'react'
 import { LeadWithOwner, SearchHit } from '@/lib/types'
-import { PushPin, Checks, User, Robot } from '@phosphor-icons/react'
+import { PushPin, Checks, User, Robot, CaretDown } from '@phosphor-icons/react'
 import { formatPhone, renderSnippet } from '@/lib/utils'
 import type { Atendente } from '@/lib/atendentes'
 import type { EstadoDaNay } from '@/lib/tiposNay'
@@ -58,6 +58,11 @@ interface LeadListItemProps {
   nayLeads?: NayLeadsComDono
   /** WhatsApp Leads (Pedro, 26/10): quem veio da OLX (é cliente, não dono) -- a linha fica azul e ganha a etiqueta Cliente */
   clienteOlx?: boolean
+  /** WhatsApp Leads (517, Pedro 29/10): este lead tem contatos relacionados embaixo (a bolinha e a setinha) */
+  relacionados?: { n: number; aberto: boolean; semLer: boolean }
+  aoAlternarRelacionados?: (leadId: string) => void
+  /** 517: esta linha é um contato relacionado, aninhado embaixo do lead ("Relacionado · #9051") */
+  relacao?: string
 }
 
 const RECEBIDO = ['lead']
@@ -124,7 +129,7 @@ function Avatar({ lead, robo }: { lead: LeadWithOwner; robo?: { parada: boolean;
   )
 }
 
-const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, clienteOlx, etiquetasColoridas, onTagsChange }: LeadListItemProps) => {
+const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, clienteOlx, etiquetasColoridas, onTagsChange, relacionados, aoAlternarRelacionados, relacao }: LeadListItemProps) => {
   const robo = nay === undefined ? null : !nay ? { parada: true, texto: 'Lendo a Nay…' }
     : !nay.ligada ? { parada: true, texto: `Nay parada: ${nay.motivo || 'desligada'}` }
     : nayEmPausa(marca) ? { parada: true, texto: TEXTO_DA_PAUSA }
@@ -144,11 +149,20 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
       onClick={() => onClick(lead)}
       onContextMenu={(e) => onContextMenu(e, lead)}
       className={`wa-linha ${isSelected ? 'wa-linha--sel' : ''} ${respondeu ? 'wa-linha--respondeu' : ''}`}
-      style={nayLeads ? { boxShadow: 'inset 4px 0 0 #7c3aed, inset 0 0 0 9999px rgba(124, 58, 237, 0.12)' }
-        : clienteOlx ? { boxShadow: 'inset 4px 0 0 #2563eb, inset 0 0 0 9999px rgba(37, 99, 235, 0.1)' }
-        : undefined}
+      style={{
+        ...(nayLeads ? { boxShadow: 'inset 4px 0 0 #7c3aed, inset 0 0 0 9999px rgba(124, 58, 237, 0.12)' }
+          : clienteOlx ? { boxShadow: 'inset 4px 0 0 #2563eb, inset 0 0 0 9999px rgba(37, 99, 235, 0.1)' }
+          : {}),
+        ...(relacionados ? { position: 'relative' as const } : {}),
+      }}
     >
       <Avatar lead={lead} robo={robo} />
+      {/* 517: a bolinha embaixo do lead -- há contatos relacionados (verde quando um deles tem mensagem sem ler) */}
+      {relacionados && (
+        <span aria-hidden className="absolute rounded-full" title={`${relacionados.n} contato(s) relacionado(s)`}
+              style={{ width: 7, height: 7, left: '50%', bottom: 3, transform: 'translateX(-50%)',
+                       background: relacionados.semLer ? 'var(--wa-unread)' : 'var(--wa-text-2)', opacity: relacionados.semLer ? 1 : 0.6 }} />
+      )}
       <div className="flex-1 min-w-0 py-[11px]">
         <div className="flex items-baseline justify-between gap-2">
           <span className="flex items-center gap-1.5 min-w-0">
@@ -166,13 +180,34 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
             {/* a etiqueta da etapa saiu (Pedro, 29/09: "retira as tags de recebeu
                 imóvel, não tá bacana"); a etapa virou a trilha do card do contato */}
           </span>
-          <span className="wa-lista-hora flex-shrink-0"
-                style={{ color: naoLida ? 'var(--wa-unread)' : 'var(--wa-text-2)', fontWeight: naoLida ? 600 : 400 }}>
-            {timeStr}
+          <span className="flex items-center gap-1 flex-shrink-0">
+            <span className="wa-lista-hora"
+                  style={{ color: naoLida ? 'var(--wa-unread)' : 'var(--wa-text-2)', fontWeight: naoLida ? 600 : 400 }}>
+              {timeStr}
+            </span>
+            {/* 517: a setinha, alinhada à data, abre os contatos relacionados embaixo (não abre a conversa) */}
+            {relacionados && (
+              <span role="button" tabIndex={0} data-relacionados={lead.id}
+                    aria-label={relacionados.aberto ? 'Esconder os contatos relacionados' : `Ver ${relacionados.n} contato(s) relacionado(s)`}
+                    title={relacionados.aberto ? 'Esconder os contatos relacionados' : `${relacionados.n} contato(s) relacionado(s): quem a Nay procurou por este lead`}
+                    className="inline-flex items-center justify-center rounded-full w-5 h-5 hover:bg-[var(--wa-row-selected)]"
+                    style={{ color: relacionados.semLer ? 'var(--wa-unread)' : 'var(--wa-text-2)' }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); aoAlternarRelacionados?.(lead.id) }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); aoAlternarRelacionados?.(lead.id) } }}>
+                <CaretDown size={14} weight="bold" style={{ transform: relacionados.aberto ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }} />
+              </span>
+            )}
           </span>
         </div>
 
         <div className="flex items-center gap-1.5 mt-[2px] min-w-0">
+          {relacao && (
+            <span className="wa-marca flex-shrink-0" style={{ color: 'var(--wa-text-2)' }}
+                  title="Contato relacionado: a Nay falou com ele por causa do lead de cima">
+              {relacao}
+            </span>
+          )}
           {nayLeads && (
             <span className="wa-marca flex-shrink-0 rounded px-1" style={{ color: '#fff', background: '#7c3aed' }}
                   title={nayLeads.motivo ? `A Nay Leads está conversando com o proprietário: ${nayLeads.motivo}` : 'A Nay Leads está conversando com o proprietário'}>
@@ -258,6 +293,11 @@ export default memo(LeadListItem, (a, b) => (
   a.isSelected === b.isSelected &&
   !!a.respondeu === !!b.respondeu &&
   !!a.clienteOlx === !!b.clienteOlx &&
+  a.relacionados?.n === b.relacionados?.n &&
+  a.relacionados?.aberto === b.relacionados?.aberto &&
+  a.relacionados?.semLer === b.relacionados?.semLer &&
+  a.aoAlternarRelacionados === b.aoAlternarRelacionados &&
+  a.relacao === b.relacao &&
   !!a.etiquetasColoridas === !!b.etiquetasColoridas &&
   a.atendente?.id === b.atendente?.id &&
   a.timeStr === b.timeStr &&

@@ -10,6 +10,7 @@ import { useAuth, useTags, useOrganizationMembers } from '@/hooks'
 import { soRespondeNaCaptacao } from '@/lib/captacaoSoResponde'
 import { useParceriaMarcas } from '@/hooks/useParceriaMarcas'
 import { useNayLeadsComDono } from '@/hooks/useNayLeadsComDono'
+import { useContatosRelacionados } from '@/hooks/useContatosRelacionados'
 import { useCaptacaoDonos } from '@/hooks/useCaptacaoDonos'
 import { useOlxClientes, mudarEtapaOlx } from '@/hooks/useOlxClientes'
 import { useDonosDoCadastro } from '@/hooks/useDonosDoCadastro'
@@ -183,6 +184,12 @@ export default function LeadList({
   const { marcas, nay } = useParceriaMarcas(ehParceria)
   // 492 (Pedro, 24/10): o dono com quem a Nay Leads está conversando pela Parceria fica roxo
   const nayLeadsComDono = useNayLeadsComDono(ehParceria)
+  // 517 (Pedro, 29/10): no WhatsApp Leads, quem a Nay procurou por causa de um lead fica embaixo dele
+  const relacionados = useContatosRelacionados(linha === 'captacao')
+  const [relacionadosAbertos, setRelacionadosAbertos] = useState<Record<string, boolean>>({})
+  const alternarRelacionados = useCallback((id: string) => {
+    setRelacionadosAbertos((a) => ({ ...a, [id]: !a[id] }))
+  }, [])
   // o dono e o imóvel de cada conversa da captação (29/09)
   // 09/10: na Oficial também, porque a captação passou a falar por lá (Pedro: "quero que apareça o imóvel do cara")
   const donos = useCaptacaoDonos(linha === 'captacao' || linha === 'oficial')
@@ -715,17 +722,44 @@ export default function LeadList({
     filtradas.sort((a, b) => Number(!!marcas[b.lead.id]?.acompanhante) - Number(!!marcas[a.lead.id]?.acompanhante))
   }
 
+  /* OS CONTATOS RELACIONADOS (517, Pedro, 29/10/2026: "o lead perguntou algo e a Nay foi em outro contato perguntar,
+     mas esse outro contato a gente não precisa pôr ele na mesma lista que os leads, ele deve ficar em uma aba embaixo
+     do contato de quem perguntou ... uma bolinha embaixo do lead ... uma setinha na direita alinhada à data da última
+     mensagem, e quando clicar vai aparecer embaixo, com uma margem na esquerda"). Só no WhatsApp Leads e fora da
+     busca (buscando, todo mundo aparece solto). O contato sai da lista de cima só quando um lead dele está nesta
+     lista; senão continua solto (não some). O grupo sobe com a mensagem mais nova de qualquer um dele, então a
+     resposta do dono não fica enterrada embaixo de um lead antigo. Um contato pode estar embaixo de vários leads. */
+  const aninhar = linha === 'captacao' && !buscando && !verArquivadas
+  const porFim8: Record<string, LeadWithOwner> = {}
+  if (aninhar) for (const h of daLinha) if (!h.lead.is_archived) porFim8[fim8(h.lead.phone)] = h.lead
+  const filhosDe = (l: LeadWithOwner) => (aninhar ? relacionados.doLead[fim8(l.phone)] || [] : [])
+    .map((r) => ({ lead: porFim8[r.contato], codigos: r.codigos }))
+    .filter((r): r is { lead: LeadWithOwner; codigos: number[] } => !!r.lead)
+  let listadas = filtradas
+  if (aninhar && Object.keys(relacionados.doLead).length) {
+    const pais = new Set(filtradas.filter((h) => filhosDe(h.lead).length).map((h) => fim8(h.lead.phone)))
+    listadas = filtradas.filter((h) => !(relacionados.doContato[fim8(h.lead.phone)] || []).some((p) => pais.has(p)))
+    const quando = (l: LeadWithOwner) => new Date(l.last_activity_at || l.created_at).getTime()
+    const doGrupo = (l: LeadWithOwner) => Math.max(quando(l), ...filhosDe(l).map((f) => quando(f.lead)))
+    listadas.sort((a, b) => {
+      if (!!a.lead.is_pinned !== !!b.lead.is_pinned) return a.lead.is_pinned ? -1 : 1
+      return doGrupo(b.lead) - doGrupo(a.lead)
+    })
+  }
+
   const emPaginas = linha === 'captacao' && activeTab === 'all' && !buscando && !verArquivadas && selectedTagIds.length === 0
-  const totalDePaginas = Math.max(1, Math.ceil(filtradas.length / POR_PAGINA))
+  const totalDePaginas = Math.max(1, Math.ceil(listadas.length / POR_PAGINA))
   const paginaAtual = Math.min(pagina, totalDePaginas)
   const visibleHits = emPaginas
-    ? filtradas.slice((paginaAtual - 1) * POR_PAGINA, paginaAtual * POR_PAGINA)
-    : filtradas.slice(0, displayLimit)
+    ? listadas.slice((paginaAtual - 1) * POR_PAGINA, paginaAtual * POR_PAGINA)
+    : listadas.slice(0, displayLimit)
   const irParaPagina = (n: number) => {
     setPagina(Math.min(Math.max(1, n), totalDePaginas))
     if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0
   }
   leadsNaTela.current = Object.fromEntries(visibleHits.map((hit) => [hit.lead.id, hit.lead]))
+  // os relacionados abertos também se clicam (a delegação acha a linha pelo data-lead-id)
+  for (const hit of visibleHits) if (relacionadosAbertos[hit.lead.id]) for (const f of filhosDe(hit.lead)) leadsNaTela.current[f.lead.id] = f.lead
 
   const leadDaLinha = (alvo: EventTarget | null): LeadWithOwner | undefined => {
     const el = (alvo as HTMLElement | null)?.closest?.('[data-lead-id]') as HTMLElement | null
@@ -907,9 +941,11 @@ export default function LeadList({
           >
             {visibleHits.map((hit) => {
               const lead = hit.lead
+              const filhos = filhosDe(lead)
+              const aberto = !!relacionadosAbertos[lead.id]
               return (
+                <div key={lead.id}>
                 <LeadListItem
-                  key={lead.id}
                   lead={lead}
                   isSelected={selectedLeadId === lead.id}
                   timeStr={formatRelativeTime(lead.last_activity_at || lead.created_at)}
@@ -927,11 +963,37 @@ export default function LeadList({
                   respondeu={linha === 'oficial' && !!lead.ultima_recebida}
                   etiquetasColoridas={linha === 'oficial'}
                   onTagsChange={onTagsChange}
+                  relacionados={filhos.length ? {
+                    n: filhos.length, aberto,
+                    semLer: filhos.some((f) => Number(f.lead.nao_lidas || 0) > 0 || !!f.lead.is_unread),
+                  } : undefined}
+                  aoAlternarRelacionados={filhos.length ? alternarRelacionados : undefined}
                 />
+                {/* 517: os contatos relacionados, um pouco mais para dentro, com o fio à esquerda */}
+                {aberto && filhos.length > 0 && (
+                  <div className="ml-7 mb-1" style={{ borderLeft: '2px solid var(--wa-divider)' }}>
+                    {filhos.map((f) => (
+                      <LeadListItem
+                        key={f.lead.id}
+                        lead={f.lead}
+                        isSelected={selectedLeadId === f.lead.id}
+                        timeStr={formatRelativeTime(f.lead.last_activity_at || f.lead.created_at)}
+                        onClick={handleLeadClick}
+                        onContextMenu={handleContextMenu}
+                        atendente={atendenteDaConversa(f.lead.autores_manuais, atendentePorId)}
+                        dono={donos[f.lead.id]}
+                        etiquetasEmDestaque={usarAbasDeEtiquetas ? etiquetasEmDestaque : undefined}
+                        onTagsChange={onTagsChange}
+                        relacao={'Relacionado' + (f.codigos.length ? ' · ' + f.codigos.slice(0, 3).map((c) => '#' + c).join(' ') : '')}
+                      />
+                    ))}
+                  </div>
+                )}
+                </div>
               )
             })}
             {emPaginas && totalDePaginas > 1 && (
-              <PaginasDaLista atual={paginaAtual} total={totalDePaginas} conversas={filtradas.length} aoIr={irParaPagina} />
+              <PaginasDaLista atual={paginaAtual} total={totalDePaginas} conversas={listadas.length} aoIr={irParaPagina} />
             )}
           </div>
         )}
