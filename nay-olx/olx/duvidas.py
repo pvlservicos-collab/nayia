@@ -493,7 +493,11 @@ def _completar(conn, d: dict) -> dict:
                 banco.um(conn, "UPDATE privado.duvida SET dono_perguntado_em = %s, dono_linha = %s WHERE id = %s",
                          (d["dono_perguntado_em"], d["dono_linha"], d["id"]))
     if d.get("codigo"):
-        d["imovel"] = banco.um(conn, "SELECT nullif(btrim(condominio_nome), '') FROM imoveis WHERE codigo = %s", (d["codigo"],))
+        # "Casa" ou "Apartamento" no lugar do condomínio não é nome (o mesmo corte da pergunta_fila_entrar)
+        d["imovel"] = banco.um(conn, """
+            SELECT CASE WHEN lower(nay_sem_acento(btrim(condominio_nome))) ~ '^(apartamento|predio|casa|cobertura|kitnet|terreno|condominio|residencial|sala|loja|galpao)([/ ].*)?$'
+                        THEN NULL ELSE nullif(btrim(condominio_nome), '') END
+              FROM imoveis WHERE codigo = %s""", (d["codigo"],))
     return d
 
 
