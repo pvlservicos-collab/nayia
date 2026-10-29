@@ -23,4 +23,4 @@ nay_leitura: SELECT
 nay_proprietario_bloqueio_atualizar
 
 ## funções que citam
-nai_e_proprietario_contato, nay_proprietario_bloqueio_atualizar
+crm_proprietarios_fone8, nai_e_proprietario_contato, nay_proprietario_bloqueio_atualizar

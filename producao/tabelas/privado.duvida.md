@@ -1,4 +1,4 @@
-# privado.duvida  (tabela, ~47 linhas)
+# privado.duvida  (tabela, ~54 linhas)
 512: a dúvida de um lead/corretor ligada a quem perguntamos (dono ou corretor) e ao andamento; nay-olx olx/duvidas.py, de cron
 
 ## colunas
@@ -55,7 +55,7 @@ duvida_pkey: PRIMARY KEY (id)
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 
 ## funções que escrevem aqui
-(nenhuma função; quem escreve é o n8n, o site ou o CRM)
+crm_tel_responder
 
 ## funções que citam
-crm_contatos_relacionados
+crm_contatos_relacionados, crm_tel_duvidas, crm_tel_responder

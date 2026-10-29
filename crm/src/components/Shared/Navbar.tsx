@@ -33,6 +33,7 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { signOut } from 'next-auth/react'
 import FilterButton from '@/components/Shared/FilterButton'
 import GlobalSearch from '@/components/Shared/GlobalSearch'
+import ContatoNovo from '@/components/Shared/ContatoNovo'
 import TamanhoDasConversas from '@/components/Shared/TamanhoDasConversas'
 import { usePipelineFilters } from '@/contexts/FilterContext'
 
@@ -384,6 +385,9 @@ export default function Navbar() {
             <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-white text-[#6d28d9] text-[11px] leading-[18px] text-center">{duvidasDoTel}</span>
           )}
         </Link>
+
+        {/* CONTATO NOVO (Pedro, 29/10/2026): o "Criar conversa" da lupa, aqui no alto */}
+        <ContatoNovo />
 
         {/* Busca — input+dropdown no desktop, ícone que abre overlay de tela cheia no celular */}
         <GlobalSearch />

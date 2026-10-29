@@ -29,4 +29,4 @@ grupo_conversa_pkey: PRIMARY KEY (message_id)
 nai_grupo_guardar
 
 ## funções que citam
-crm_grupo_mensagens, crm_grupos_conhecidos, nai_grupo_guardar, site_captacao_grupos, site_captacao_grupos_citacao
+crm_grupo_mensagens, crm_grupos_conhecidos, crm_grupos_da_parceria, nai_grupo_guardar, site_captacao_grupos, site_captacao_grupos_citacao

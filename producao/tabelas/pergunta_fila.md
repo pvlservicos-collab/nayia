@@ -1,4 +1,4 @@
-# pergunta_fila  (tabela, ~226 linhas)
+# pergunta_fila  (tabela, ~237 linhas)
 391: a fila de perguntas que a Nay não sabe, feitas ao Tel no PV uma por vez (Pergunta k/N). linha: parceria | captacao
 
 ## colunas
@@ -35,12 +35,16 @@ pergunta_fila_estado_check: CHECK ((estado = ANY (ARRAY['fila'::text, 'perguntad
 pergunta_fila_linha_check: CHECK ((linha = ANY (ARRAY['parceria'::text, 'captacao'::text])))
 pergunta_fila_pkey: PRIMARY KEY (id)
 
+## gatilhos
+CREATE TRIGGER pergunta_fila_avisar_no_crm AFTER INSERT ON public.pergunta_fila FOR EACH ROW WHEN ((new.estado = 'fila'::text)) EXECUTE FUNCTION pergunta_fila_avisar_no_crm()
+CREATE TRIGGER pergunta_fila_avisar_no_crm_volta AFTER UPDATE OF estado ON public.pergunta_fila FOR EACH ROW WHEN (((new.estado = 'fila'::text) AND (old.estado = 'agente'::text))) EXECUTE FUNCTION pergunta_fila_avisar_no_crm()
+
 ## permissões
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 nay_leitura: SELECT
 
 ## funções que escrevem aqui
-pergunta_fila_agente_devolver, pergunta_fila_agente_responder, pergunta_fila_entrar, pergunta_fila_perguntar_proxima, pergunta_fila_responder, pergunta_fila_tick
+crm_tel_responder, pergunta_fila_agente_devolver, pergunta_fila_agente_responder, pergunta_fila_entrar, pergunta_fila_perguntar_proxima, pergunta_fila_responder, pergunta_fila_tick
 
 ## funções que citam
-nai_saida_tel_so_perguntas, pergunta_fila_agente_devolver, pergunta_fila_agente_responder, pergunta_fila_entrar, pergunta_fila_ligada, pergunta_fila_perguntar_proxima, pergunta_fila_posicao, pergunta_fila_responder, pergunta_fila_resposta_valida, pergunta_fila_texto, pergunta_fila_tick, site_painel_metricas
+crm_tel_duvidas, crm_tel_responder, nai_saida_tel_so_perguntas, pergunta_fila_agente_devolver, pergunta_fila_agente_responder, pergunta_fila_entrar, pergunta_fila_ligada, pergunta_fila_perguntar_proxima, pergunta_fila_posicao, pergunta_fila_responder, pergunta_fila_resposta_valida, pergunta_fila_texto, pergunta_fila_tick, site_painel_metricas

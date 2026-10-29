@@ -1,4 +1,4 @@
-# privado.olx_lead_whatsapp  (tabela, ~66 linhas)
+# privado.olx_lead_whatsapp  (tabela, ~72 linhas)
 384: quem deu o WhatsApp no chat da OLX, com a leitura de perfil da Nay da OLX, para a Nay do WhatsApp continuar.
 
 ## colunas
@@ -44,4 +44,4 @@ olx_lead_whatsapp_pkey: PRIMARY KEY (id)
 crm_captacao_etapa_manual, crm_olx_busca_parceiro_abrir, crm_olx_cliente_etapa, olx_nay_lead_whatsapp
 
 ## funções que citam
-busca_corretor_e, captacao_mensagem_do_python, crm_agentes_tracos, crm_busca_cliente_lista, crm_captacao_etapa_manual, crm_contatos_relacionados, crm_lead_busca_ativa, crm_leads_pipeline, crm_leads_pipeline_outros, crm_olx_busca_parceiro_abrir, crm_olx_buscas_parceiro, crm_olx_cliente_etapa, crm_olx_clientes_etapas, crm_visitantes, crm_visitas_leads, nay_agenda_de_visitas, olx_nay_lead_whatsapp, olx_organicos_novos, site_painel_metricas, site_painel_visitas
+busca_corretor_e, captacao_mensagem_do_python, crm_agentes_tracos, crm_busca_cliente_lista, crm_captacao_corretores, crm_captacao_etapa_manual, crm_contatos_relacionados, crm_lead_busca_ativa, crm_leads_pipeline, crm_leads_pipeline_outros, crm_olx_busca_parceiro_abrir, crm_olx_buscas_parceiro, crm_olx_cliente_etapa, crm_olx_clientes_etapas, crm_proprietarios_fone8, crm_visitantes, crm_visitas_leads, nay_agenda_de_visitas, olx_nay_lead_whatsapp, olx_organicos_novos, site_painel_metricas, site_painel_visitas

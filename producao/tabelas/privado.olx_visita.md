@@ -37,4 +37,4 @@ olx_visita_pkey: PRIMARY KEY (id)
 crm_visita_leads_realizada
 
 ## funções que citam
-crm_contatos_relacionados, crm_leads_pipeline, crm_olx_clientes_etapas, crm_visita_leads_realizada, crm_visitantes, crm_visitas_leads, nay_agenda_de_visitas, site_painel_metricas, site_painel_visita_marcar, site_painel_visitas
+crm_captacao_corretores, crm_contatos_relacionados, crm_leads_pipeline, crm_olx_clientes_etapas, crm_visita_leads_realizada, crm_visitantes, crm_visitas_leads, nay_agenda_de_visitas, site_painel_metricas, site_painel_visita_marcar, site_painel_visitas
