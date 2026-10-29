@@ -12,6 +12,7 @@ import { sql } from 'drizzle-orm'
 import { authenticateRequest, apiError } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { donosDaCaptacao } from '@/lib/nayLeitura'
+import { naydb } from '@/lib/nayDisparo'
 import type { DonoNaLista } from '@/lib/tiposNay'
 
 export const runtime = 'nodejs'
@@ -26,15 +27,32 @@ export function invalidarDonosDaCaptacao(organizationId: string): void {
   guardadas.delete(organizationId)
 }
 
+/* 29/10 (Pedro: "tem gente apontada como proprietário lá no WhatsApp Lead que na verdade é corretor"; nayia 526): o
+   corretor que é o contato cadastrado do imóvel (Agnaldo da Idealize, Davi Izel, Moacy, Sarah, Thiago, Raquel...) e os
+   números nossos não levam "Prop" na linha do WhatsApp Leads. A conta leva uns segundos e muda pouco: 10 min de guarda. */
+let corretoresGuardados: { em: number; fins: Set<string> } | null = null
+async function corretoresDaCaptacao(): Promise<Set<string>> {
+  if (corretoresGuardados && Date.now() - corretoresGuardados.em < 10 * 60_000) return corretoresGuardados.fins
+  try {
+    const r = await naydb().query('SELECT fone8 FROM crm_captacao_corretores()')
+    corretoresGuardados = { em: Date.now(), fins: new Set((r.rows as Array<{ fone8: string }>).map((x) => x.fone8)) }
+  } catch (e: any) {
+    console.error('[captacao/donos] corretores', e?.message || e)   // sem a 526: ninguém sai, como antes
+    if (!corretoresGuardados) return new Set()
+  }
+  return corretoresGuardados!.fins
+}
+
 async function calcular(organizacao: string): Promise<Record<string, DonoNaLista>> {
-  const [donos, conversas] = await Promise.all([
+  const [donos, conversas, corretores] = await Promise.all([
     donosDaCaptacao(),
     db.execute(sql`
       SELECT l.id::text AS id, right(regexp_replace(coalesce(l.phone, ''), '[^0-9]', '', 'g'), 8) AS fim8,
-             coalesce(l.custom_attributes->>'chat_lid', '') AS lid
+             coalesce(l.custom_attributes->>'chat_lid', '') AS lid, i.type AS tipo
         FROM leads l JOIN integrations i ON i.id = l.integration_id
        WHERE l.organization_id = ${organizacao} AND l.deleted_at IS NULL
          AND i.type IN ('whatsapp_zapi_captacao', 'whatsapp_cloud_official') AND coalesce(l.is_group, false) = false`),
+    corretoresDaCaptacao(),
   ])
   const porFim = new Map<string, DonoNaLista>()
   const porLid = new Map<string, DonoNaLista>()
@@ -44,7 +62,8 @@ async function calcular(organizacao: string): Promise<Record<string, DonoNaLista
     if (lid) porLid.set(lid, resto)
   }
   const saida: Record<string, DonoNaLista> = {}
-  for (const c of conversas.rows as Array<{ id: string; fim8: string; lid: string }>) {
+  for (const c of conversas.rows as Array<{ id: string; fim8: string; lid: string; tipo: string }>) {
+    if (c.tipo === 'whatsapp_zapi_captacao' && corretores.has(c.fim8)) continue   // 526: corretor/equipe sem "Prop" na Leads
     const d = (c.fim8.length === 8 ? porFim.get(c.fim8) : undefined) || (c.lid ? porLid.get(c.lid) : undefined)
     if (d) saida[c.id] = d
   }

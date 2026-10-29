@@ -162,8 +162,9 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
       className={`wa-linha ${isSelected ? 'wa-linha--sel' : ''} ${respondeu ? 'wa-linha--respondeu' : ''}`}
       style={{
         ...(nayLeads ? { boxShadow: 'inset 4px 0 0 #7c3aed, inset 0 0 0 9999px rgba(124, 58, 237, 0.12)' }
-          // 29/10 (Pedro: "diminui o azul que destacava quem vem da OLX em 80%"): a faixa e o fundo com 20% do que eram
-          : clienteOlx ? { boxShadow: 'inset 4px 0 0 rgba(37, 99, 235, 0.2), inset 0 0 0 9999px rgba(37, 99, 235, 0.02)' }
+          // 29/10 (Pedro): "diminui o azul que destacava quem vem da OLX em 80%" e depois "troca o destaque azul por um
+          // leve destaque roxo": a faixa e o fundo em roxo claro
+          : clienteOlx ? { boxShadow: 'inset 4px 0 0 rgba(124, 58, 237, 0.28), inset 0 0 0 9999px rgba(124, 58, 237, 0.035)' }
           : {}),
         ...(relacionados ? { position: 'relative' as const } : {}),
       }}
@@ -184,10 +185,10 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
         </span>
       )}
       {/* 29/10 (Pedro): "uma sombra leve, pequena verticalmente, mas ocupando todo o espaço horizontal do contato que tem
-          contatos relacionados embaixo" */}
+          contatos relacionados embaixo"; depois "ao invés da sombra embaixo põe uma sombra clara": um roxo bem claro */}
       {relacionados && (
         <span aria-hidden className="absolute left-0 right-0 bottom-0 h-[6px] pointer-events-none"
-              style={{ background: 'linear-gradient(to top, rgba(0, 0, 0, 0.09), rgba(0, 0, 0, 0))' }} />
+              style={{ background: 'linear-gradient(to top, rgba(124, 58, 237, 0.07), rgba(124, 58, 237, 0))' }} />
       )}
       {/* 517: a bolinha embaixo do lead -- há contatos relacionados (verde quando um deles tem mensagem sem ler) */}
       {relacionados && (
