@@ -14,7 +14,6 @@ import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 import AbasParceria, { type AbaDaParceria } from './AbasParceria'
 import ArquiteturaDosAgentes from './ArquiteturaDosAgentes'
 import VisitasAgendadas from './VisitasAgendadas'
-import PipelineDosLeads from './PipelineDosLeads'
 import PipelineBoard from '@/components/Pipeline/PipelineBoard'
 import FechamentoChecklists from './FechamentoChecklists'
 import BarraDeMetricas from './BarraDeMetricas'
@@ -418,7 +417,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
           agenda"): Conversas e Visitas agendadas também aqui; a agenda é a mesma da Parceria */}
       <AbasParceria aba={aba} aoMudar={(k) => { setAba(k); if (k === 'conversas') setMobileView('list') }}
                     naoLidas={naoLidas} visitasAbertas={0} abas={['conversas', 'visitas', 'pipeline', 'arquitetura']}
-                    rotuloConversas="As conversas do WhatsApp da Captação" />
+                    rotuloConversas="As conversas do WhatsApp da Captação" rotuloPipeline="Pipeline" />
       {/* quem só responde na captação vê o aviso sempre que abre esta tela (Pedro, 02/10) */}
       {aba === 'conversas' && soRespondeNaCaptacao(profileName || user?.name) && (
         <div role="alert" className="px-4 py-2.5 text-[13.5px] font-medium leading-snug"
@@ -442,9 +441,11 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
 
   /* 29/10 (Pedro: "pôr cada pipeline do lado da agenda do número, só aparecendo o pipeline do número"): na Leads, o
      pipeline dos leads; na Parceria e na Oficial, o funil do CRM daquela linha, sem as abas dos outros números */
-  const pipelineDoNumero = linha === 'captacao'
-    ? <PipelineDosLeads leadsDoCrm={allLeads} aoAbrirConversa={abrirConversaPorId} />
-    : organizationId ? <PipelineBoard organizationId={organizationId} linha={ehParceria ? 'parceria' : 'oficial'} /> : null
+  /* 29/10, mais tarde (Pedro: "no Leads bugou, parece até que você refez o pipeline ao invés de pôr o pipeline de
+     captação (antigo nome do número Leads), quero todos iguais aos que já tem no Parceria"): a Leads também abre o
+     funil do CRM dela (WhatsApp Captação), não mais o PipelineDosLeads */
+  const linhaDoFunil = ehParceria ? 'parceria' : linha === 'captacao' ? 'captacao' : 'oficial'
+  const pipelineDoNumero = organizationId ? <PipelineBoard organizationId={organizationId} linha={linhaDoFunil} /> : null
 
   /* ── Celular: uma tela por vez; na Parceria as abas ficam em cima ── */
   if (isMobile) {
