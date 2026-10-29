@@ -53,7 +53,7 @@ MAX_FOTOS = 8
 NO = "olx.duvidas"
 ABERTAS = ("aberta", "esperando_dono", "com_o_tel")
 SITUACOES = ("nao_e_duvida", "cliente_ja_respondido", "cliente_desistiu", "dono_respondeu", "dono_vai_ver",
-             "dono_sem_resposta", "dono_nao_perguntado", "dono_nao_sabe")
+             "dono_sem_resposta", "dono_nao_perguntado", "dono_nao_sabe", "ficha_responde")
 
 PROMPT = """Você acompanha as DÚVIDAS que a Nay (Imob Easy, imobiliária em Manaus) não soube responder na hora. Uma dúvida liga
 três pessoas: o CLIENTE que perguntou (um lead do WhatsApp ou um corretor parceiro), o IMÓVEL e QUEM SABE a resposta (o
@@ -65,6 +65,11 @@ Situações (escolha UMA):
 - "cliente_ja_respondido": depois da dúvida, alguém da Imob Easy (a Nay, o Tel, a equipe) já respondeu ao cliente o que
   ele perguntou.
 - "cliente_desistiu": o cliente disse que não quer mais, fechou outro, ou a pergunta perdeu o sentido.
+- "ficha_responde": a FICHA DO IMÓVEL (abaixo) já diz com certeza o que o cliente perguntou: ninguém precisa ser
+  perguntado (Pedro, 29/10: a Nay perguntou ao dono do 5706 se era em condomínio, e o cadastro dizia casa em via pública).
+  Leia a ficha ANTES de escolher dono_nao_perguntado. "LOCALIZAÇÃO" da ficha diz se é casa/apartamento em VIA PÚBLICA ou
+  dentro de condomínio. Não vale para o que a ficha não traz (andar, torre, pet, proposta, desconto) nem para
+  disponibilidade de imóvel de parceiro: aí é com quem sabe.
 - "dono_respondeu": quem sabe já respondeu (texto ou fotos) e o cliente ainda não recebeu.
 - "dono_vai_ver": ele disse que vai ver, solicitar ou confirmar, e ainda não trouxe a resposta.
 - "dono_sem_resposta": perguntamos a ele e ele não respondeu nada.
@@ -73,7 +78,8 @@ Situações (escolha UMA):
 
 Escreva (vazio quando não se aplica):
 - "resposta": em dono_respondeu, o que vai ao cliente na voz da Nay: no máximo 2 frases, só o que responde, nada além do
-  que o dono disse. Se ele mandou fotos, uma frase dizendo que são as fotos (elas vão junto).
+  que o dono disse. Se ele mandou fotos, uma frase dizendo que são as fotos (elas vão junto). Em ficha_responde, só o que
+  a ficha diz, no mesmo tamanho.
 - "fotos": true se o dono mandou fotos que respondem à dúvida.
 - "aviso_ao_cliente": em dono_vai_ver ou dono_sem_resposta, uma frase curta ao cliente: ainda estamos aguardando o
   proprietário sobre <o assunto> e avisamos assim que tiver a resposta. Sem prazo. Use o tratamento indicado. Vazio
@@ -261,7 +267,42 @@ def _bloco(msgs: list[dict]) -> str:
     return "\n".join(f"[{_hora(m['em'])}] {m['quem']}: {str(m['texto']).strip()[:400]}" for m in msgs[-40:]) or "(nada)"
 
 
-def montar_turno(d: dict, cliente: list[dict], dono: list[dict], fotos: list[str], agora, tratamento: str) -> str:
+LOCALIZACAO = {
+    "casa_rua": "casa em VIA PÚBLICA (rua), fora de condomínio",
+    "apartamento_predio": "apartamento em prédio em VIA PÚBLICA, fora de condomínio",
+    "sala_rua": "sala/loja em VIA PÚBLICA, fora de condomínio",
+    "terreno_rua": "terreno em VIA PÚBLICA, fora de condomínio",
+    "casa_condominio": "casa DENTRO de condomínio",
+    "apartamento_condominio": "apartamento DENTRO de condomínio",
+    "sala_condominio": "sala/loja DENTRO de condomínio",
+    "terreno_condominio": "terreno DENTRO de condomínio",
+}
+
+
+def ficha_do_imovel(conn, codigo) -> str:
+    """O que o cadastro diz do imóvel, para o modelo ler ANTES de mandar perguntar ao dono. Pedro, 29/10: a Nay perguntou
+    ao proprietário do 5706 se era em condomínio; o cadastro tem condominio_nome = "Casa" (o jeito do cadastro de dizer
+    casa em via pública) e a ficha pública mostrava só isso. Vai a localização por extenso (nai_tipo_preciso) e a ficha
+    pública sem fotos nem observação interna. Imóvel de parceiro ou fora do site não tem ficha pública: só a localização."""
+    if not codigo:
+        return "(sem código: nada a conferir)"
+    partes = []
+    preciso = banco.um(conn, "SELECT nai_tipo_preciso(%s)", (int(codigo),))
+    if preciso in LOCALIZACAO:
+        partes.append(f"LOCALIZAÇÃO: {LOCALIZACAO[preciso]}")
+    ficha = banco.um(conn, "SELECT site_imovel_publico(%s)", (int(codigo),))
+    if isinstance(ficha, dict) and ficha:
+        ficha = whatsapp.nay._ficha(ficha)
+        for k in ("desc", "tagscondo", "tagsimovel", "geo", "condo"):
+            ficha.pop(k, None)
+        partes.append("FICHA: " + json.dumps(ficha, ensure_ascii=False))
+    else:
+        partes.append("FICHA: (sem ficha pública: imóvel de parceiro ou fora do site; só a localização vale)")
+    return "\n".join(partes)
+
+
+def montar_turno(d: dict, cliente: list[dict], dono: list[dict], fotos: list[str], agora, tratamento: str,
+                 ficha: str = "") -> str:
     quem_sabe = (f"{'o corretor dono do anúncio' if d.get('dono_papel') == 'corretor' else 'o proprietário'} "
                  f"{d.get('dono_nome') or '(sem nome no cadastro)'}") if d.get("dono_tel") else \
         f"sem contato ({d.get('dono_motivo') or 'sem cadastro'})"
@@ -279,6 +320,7 @@ def montar_turno(d: dict, cliente: list[dict], dono: list[dict], fotos: list[str
             f"({'lead do WhatsApp' if d['cliente_papel'] == 'lead' else 'corretor parceiro'}); tratamento: {tratamento}\n"
             f"IMÓVEL: {('#' + str(d['codigo']) + ' ' + (d.get('imovel') or '')).strip() if d.get('codigo') else '(sem código)'}\n"
             f"QUEM SABE: {quem_sabe}\nJÁ FEITO: {'; '.join(feito)}\n\n"
+            + (f"FICHA DO IMÓVEL (o que o cadastro diz hoje):\n{ficha}\n\n" if ficha else "") +
             f"CONVERSA COM O CLIENTE (desde a dúvida):\n{_bloco(cliente)}\n\n"
             f"CONVERSA COM QUEM SABE (desde a dúvida):\n{_bloco(dono)}")
 
@@ -290,6 +332,8 @@ def decidir(d: dict, r: dict, agora, equipe_agora: bool = False) -> list[str]:
         return ["encerrar"]
     if s == "dono_respondeu" and (str(r.get("resposta") or "").strip() or r.get("fotos")):
         return ["entregar"]
+    if s == "ficha_responde" and str(r.get("resposta") or "").strip():
+        return ["entregar"]                         # a ficha já responde: ninguém é perguntado
     if d.get("estado") == "com_o_tel" or d.get("com_o_tel_no_pv"):
         return []                                   # está com o Tel: aqui só se confere
     idade = _horas(agora, d["perguntada_em"])
@@ -397,6 +441,7 @@ class Rodada:
                           ("rotina das dúvidas (512): " + (r.get("situacao") or ""),))
                 feito.append("encerrada")
             elif a == "entregar":
+                da_ficha = r.get("situacao") == "ficha_responde"      # já está na ficha: não vira "conhecimento do dono"
                 texto = str(r.get("resposta") or "").strip() or "Seguem as fotos que o proprietário mandou."
                 if d.get("codigo") and d["linha"] == "captacao":
                     texto = whatsapp.texto_da_resposta({"resposta": texto, "codigo": d["codigo"], "imovel": d.get("imovel")})
@@ -408,11 +453,12 @@ class Rodada:
                     self.aviso(d, "duvida", f"A resposta da dúvida chegou, mas não mandei ({como}): {texto}")
                 muda.update(estado="respondida", resposta=texto[:2000], respondida_em=self.agora)
                 self.fila(d, """UPDATE pergunta_fila SET estado = 'respondida', resposta = %s, respondida_em = now(),
-                                 entregue_em = now(), detalhe = concat_ws(' · ', nullif(detalhe, ''), 'respondida pelo dono (512)')
-                                 WHERE id = ANY (%s) AND estado IN ('agente', 'fila', 'perguntada')""", (texto[:2000],))
+                                 entregue_em = now(), detalhe = concat_ws(' · ', nullif(detalhe, ''), %s)
+                                 WHERE id = ANY (%s) AND estado IN ('agente', 'fila', 'perguntada')""",
+                          (texto[:2000], "respondida pela ficha do imóvel (512)" if da_ficha else "respondida pelo dono (512)"))
                 if d.get("com_o_tel_no_pv") == "perguntada" and not self.ensaio:
                     banco.um(self.conn, "SELECT pergunta_fila_perguntar_proxima()")
-                if d.get("codigo") and str(r.get("resposta") or "").strip() and not self.ensaio:
+                if d.get("codigo") and str(r.get("resposta") or "").strip() and not self.ensaio and not da_ficha:
                     banco.um(self.conn, """SELECT nay_gravar_conhecimento(%s::text, coalesce(nay_assunto_do_imovel(%s),
                                              'pergunta: ' || left(lower(%s), 120)), %s, 'dono (rotina das dúvidas, 512)')""",
                              (d["codigo"], d["pergunta"], d["pergunta"], str(r["resposta"]).strip()))
@@ -523,7 +569,7 @@ def checar(conn, rodada: Rodada, d: dict, chamar=None) -> list[str]:
     if d.get("lead_id"):
         lead = whatsapp._lead(conn, d["lead_id"])
         trat = (whatsapp.tratamento(lead)[0] or "você") if lead else "você"
-    turno = montar_turno(d, cliente, dono, fotos, rodada.agora, trat)
+    turno = montar_turno(d, cliente, dono, fotos, rodada.agora, trat, ficha_do_imovel(conn, d.get("codigo")))
     try:
         r = (chamar or (lambda p, t: modelo.chamar(p, t, no=NO)))(PROMPT, turno)
     except Exception as e:  # noqa: BLE001 -- uma dúvida não para as outras

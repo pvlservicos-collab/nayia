@@ -22,6 +22,7 @@ const ICONE: Record<string, string> = {
 // a linha em que a conversa de cada fonte mora, para o "Ver conversa"
 const LINHA: Record<string, string> = {
   'nay-core': 'whatsapp_zapi', 'nay-captacao': 'whatsapp_zapi_captacao', 'nay-olx': 'whatsapp_zapi_captacao',
+  'nay-grupos': 'whatsapp_zapi',   // 516: o pedido original do corretor, na conversa da Parceria
 }
 
 let rodando: Promise<number> | null = null

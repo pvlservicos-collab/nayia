@@ -52,6 +52,12 @@ class Decidir(unittest.TestCase):
         self.assertEqual(dv.decidir(duvida(), r, AGORA), ["perguntar_dono"])
         self.assertEqual(dv.decidir(duvida(dono_tel=None, dono_motivo="dois_donos"), r, AGORA), ["ao_tel"])
 
+    def test_a_ficha_responde_entrega_sem_perguntar_ao_dono(self):
+        # 29/10: o 5706 (casa em via pública) foi perguntado ao dono se era em condomínio
+        r = {"situacao": "ficha_responde", "resposta": "É casa em via pública, não fica em condomínio."}
+        self.assertEqual(dv.decidir(duvida(), r, AGORA), ["entregar"])
+        self.assertEqual(dv.decidir(duvida(), {"situacao": "ficha_responde", "resposta": ""}, AGORA), [])
+
     def test_com_o_tel_so_confere(self):
         r = {"situacao": "dono_sem_resposta", "lembrete_ao_dono": "Oi!", "aviso_ao_cliente": "Ainda aguardando."}
         self.assertEqual(dv.decidir(duvida(com_o_tel_no_pv="fila"), r, AGORA), [])
@@ -74,3 +80,16 @@ class Turno(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FichaNoTurno(unittest.TestCase):
+    def test_o_turno_leva_a_ficha_e_a_localizacao_por_extenso(self):
+        d = duvida(pergunta="É em condomínio fechado?", cliente_papel="lead", perguntada_em=AGORA, codigo=5706, imovel=None)
+        t = dv.montar_turno(d, [], [], [], AGORA, "você", "LOCALIZAÇÃO: " + dv.LOCALIZACAO["casa_rua"])
+        self.assertIn("FICHA DO IMÓVEL", t)
+        self.assertIn("VIA PÚBLICA", t)
+        self.assertNotIn("FICHA DO IMÓVEL", dv.montar_turno(d, [], [], [], AGORA, "você"))
+
+    def test_toda_localizacao_do_banco_tem_texto(self):
+        for k in ("casa_rua", "apartamento_predio", "casa_condominio", "apartamento_condominio", "terreno_rua"):
+            self.assertIn(k, dv.LOCALIZACAO)
