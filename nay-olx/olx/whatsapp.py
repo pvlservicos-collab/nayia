@@ -818,6 +818,24 @@ def _filtros(antes: dict, novos) -> dict:
     return f
 
 
+def mudou_o_pedido(antes: dict | None, depois: dict | None) -> str:
+    """520 (Pedro, 29/10: "depois se ele mudar de solicitação ela volta a barrinha dele sozinha"): o pedido mudou de
+    verdade -- outra finalidade, outro tipo, outro condomínio, outro número de quartos, nenhum bairro em comum ou o teto
+    30% para cima ou para baixo. Só compara o que estava dito dos dois lados (dizer mais não é mudar). '' = não mudou."""
+    a, d = antes or {}, depois or {}
+    for k, nome in (("finalidade", "a finalidade"), ("tipo", "o tipo"), ("condominio", "o condomínio"), ("quartos", "os quartos")):
+        if a.get(k) and d.get(k) and _normal(str(a[k])) != _normal(str(d[k])):
+            return f"{nome}: {a[k]} -> {d[k]}"
+    ba = {_normal(str(x)) for x in a.get("bairros") or []}
+    bd = {_normal(str(x)) for x in d.get("bairros") or []}
+    if ba and bd and not ba & bd:
+        return f"os bairros: {', '.join(a['bairros'])} -> {', '.join(d['bairros'])}"
+    ta, td = _int(a.get("teto")), _int(d.get("teto"))
+    if ta and td and abs(td - ta) / ta > 0.3:
+        return f"o valor: {ta} -> {td}"
+    return ""
+
+
 def condominio_que_faltou(conn, f: dict, conversa: list[dict]) -> dict:
     """27/10 (Pedro: "ela foi procurar opções para a 92 9 8181-9145 e não achou"): o Sr. Karis disse "só no Ponta Negra
     Village"; o modelo marcou so_condominio sem o nome e a busca saiu como "Ponta Negra" inteiro. Sem o nome, ele vem do
@@ -1358,6 +1376,12 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
         return False                      # a equipe entrou no meio: sem ações, e o que ela escreveu fica não lido
     filtros = condominio_que_faltou(conn, _filtros(lead.get("filtros"), r.get("filtros")), conversa)
     _marcar(conn, lead["id"], ultima_lida=ate, filtros=filtros)
+    # 520: o pedido mudou -> a etapa (a barrinha do CRM) volta ao começo; a busca e o envio a levam de novo para a frente
+    mudou = mudou_o_pedido(lead.get("filtros"), filtros)
+    if mudou and lead.get("etapa") in ("feito_busca", "imoveis_enviados", "visita", "proprietarios") \
+            and not visita.ativa(conn, lead["id"]):
+        _marcar(conn, lead["id"], etapa="filtrar")
+        agentes.passo(lead, "pedido_mudou", f"o pedido mudou ({mudou}): a etapa voltou a Filtrar")
     for acao in acoes:
         _fazer(conn, _lead(conn, lead["id"]), r, acao, filtros, cfg)
     return True

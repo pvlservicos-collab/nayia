@@ -383,3 +383,19 @@ class QuartosQueElaDisse(unittest.TestCase):
         r = {"baloes": ["Serve 2 quartos também?"], "filtros": {"quartos": 3}}
         self.assertIsNone(w.quartos_que_ela_disse(r, conversa))
         self.assertEqual(w.pergunta_a_toa({"baloes": ["Quais bairros?"], "filtros": {"teto": 900000}}, conversa), "")
+
+
+class PedidoMudou(unittest.TestCase):
+    """520 (Pedro, 29/10): mudou de solicitação, a barrinha do CRM volta sozinha."""
+
+    def test_mudar_de_verdade(self):
+        antes = {"finalidade": "locacao", "tipo": "apartamento", "bairros": ["Flores"], "teto": 3000, "quartos": 2}
+        self.assertIn("finalidade", w.mudou_o_pedido(antes, {**antes, "finalidade": "venda"}))
+        self.assertIn("bairros", w.mudou_o_pedido(antes, {**antes, "bairros": ["Ponta Negra"]}))
+        self.assertIn("valor", w.mudou_o_pedido(antes, {**antes, "teto": 5000}))
+        self.assertIn("quartos", w.mudou_o_pedido(antes, {**antes, "quartos": 3}))
+
+    def test_dizer_mais_nao_e_mudar(self):
+        antes = {"finalidade": "locacao", "bairros": ["Flores"], "teto": 3000}
+        self.assertEqual(w.mudou_o_pedido(antes, {**antes, "bairros": ["Flores", "Parque 10"], "teto": 3200, "quartos": 2}), "")
+        self.assertEqual(w.mudou_o_pedido({}, {"finalidade": "venda"}), "")
