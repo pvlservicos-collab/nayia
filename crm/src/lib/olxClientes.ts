@@ -26,7 +26,29 @@ export interface ClienteOlx {
   quer_visita: boolean
   /** alguém da equipe escreveu para a pessoa: a Nay saiu da conversa */
   humano: boolean
+  /** 520: olx | organico | manual */
+  origem?: string | null
+  /** 520: o passo do atendimento da Nay, 0 a 5 (PASSOS_DA_NAY) */
+  passo?: number
+  /** 520: locacao | venda | null, o que a Nay entendeu do pedido */
+  finalidade?: string | null
 }
+
+/** OS 5 PASSOS DO ATENDIMENTO DA NAY LEADS (Pedro, 29/10/2026: "uma barrinha sendo preenchida que mostra da etapa 1 a 5
+ *  onde o lead tá, cada etapa ali em cima é uma etapa do atendimento da Nay, ela vai atender o lead e subir a barrinha
+ *  dele, e depois se ele mudar de solicitação ela volta a barrinha dele sozinha"). O passo vem do banco da Nay
+ *  (crm_olx_clientes_etapas, 520); a volta quando o pedido muda é do nay-olx (mudou_o_pedido). */
+export const PASSOS_DA_NAY = [
+  { n: 1, rotulo: 'Filtrar', titulo: 'A Nay está perguntando o perfil: valor, bairros, quartos, crédito' },
+  { n: 2, rotulo: 'Busca feita', titulo: 'A Nay já tem o perfil e buscou os imóveis' },
+  { n: 3, rotulo: 'Imóveis enviados', titulo: 'A Nay mandou os imóveis que servem' },
+  { n: 4, rotulo: 'Visita pedida', titulo: 'O lead quer visitar: a Nay está combinando com o corretor e o proprietário' },
+  { n: 5, rotulo: 'Visita confirmada', titulo: 'A visita está confirmada' },
+] as const
+
+/** O passo que conta para a aba: fechamento e finalizado enchem a barrinha, mas não são o passo 5 da Nay. */
+export const passoDaAba = (c?: ClienteOlx | null): number =>
+  c && c.etapa !== 'fechamento' && c.etapa !== 'finalizado' ? Number(c.passo || 0) : 0
 
 export const ehEtapaOlx = (v: unknown): v is EtapaOlx => ETAPAS_OLX.some((e) => e.chave === v)
 export const fim8 = (t?: string | null) => String(t || '').replace(/\D/g, '').slice(-8)

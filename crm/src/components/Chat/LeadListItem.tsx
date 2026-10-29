@@ -11,6 +11,7 @@ import { quandoCurtoEmManaus } from '@/lib/fusoDeManaus'
 import { nayEmPausa } from '@/lib/etapaDaParceria'
 import type { NayLeadsComDono } from '@/hooks/useNayLeadsComDono'
 import EtiquetasDoCard from './EtiquetasDoCard'
+import { PASSOS_DA_NAY } from '@/lib/olxClientes'
 
 /* 03/10: quem escreve à mão pausa a Nay por 30 min, e a conversa fica na aba dela */
 const TEXTO_DA_PAUSA = 'Nay em pausa: alguém escreveu à mão nesta conversa, e ela espera 30 minutos antes de voltar a responder'
@@ -63,6 +64,10 @@ interface LeadListItemProps {
   aoAlternarRelacionados?: (leadId: string) => void
   /** 517: esta linha é um contato relacionado, aninhado embaixo do lead ("Relacionado · #9051") */
   relacao?: string
+  /** WhatsApp Leads (520, Pedro 29/10): o passo da Nay com este lead (1 a 5) e a etapa dela -- a barrinha embaixo */
+  passoDaNay?: { passo: number; etapa: string }
+  /** 520: de onde veio o cliente da Nay Leads -- 'olx' mostra "OLX" no lugar do antigo "Cliente" */
+  origemDoCliente?: string | null
 }
 
 const RECEBIDO = ['lead']
@@ -129,7 +134,28 @@ function Avatar({ lead, robo }: { lead: LeadWithOwner; robo?: { parada: boolean;
   )
 }
 
-const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, clienteOlx, etiquetasColoridas, onTagsChange, relacionados, aoAlternarRelacionados, relacao }: LeadListItemProps) => {
+/* A BARRINHA DA NAY (520, Pedro, 29/10/2026): os 5 passos do atendimento dela com o lead, embaixo das etiquetas. Ela
+   sobe quando a Nay avança e volta sozinha quando o pedido muda. Fechamento enche de roxo; finalizado, de cinza. */
+function BarrinhaDaNay({ passo, etapa }: { passo: number; etapa: string }) {
+  const fechou = etapa === 'fechamento' || etapa === 'finalizado'
+  const cor = etapa === 'fechamento' ? '#7c3aed' : etapa === 'finalizado' ? 'var(--wa-text-2)' : passo >= 5 ? 'var(--wa-green)' : '#0891b2'
+  const p = PASSOS_DA_NAY.find((x) => x.n === passo)
+  const titulo = fechou ? `Nay: ${etapa === 'fechamento' ? 'em fechamento' : 'atendimento finalizado'}`
+    : p ? `Nay: passo ${passo} de 5 — ${p.rotulo}. ${p.titulo}` : 'Nay: ainda não começou o atendimento'
+  return (
+    <div className="flex items-center gap-[3px] mt-[5px] mb-[1px]" title={titulo} aria-label={titulo} role="img">
+      {PASSOS_DA_NAY.map((x) => (
+        <span key={x.n} className="h-[3px] flex-1 rounded-full max-w-[34px]"
+              style={{ background: x.n <= passo ? cor : 'var(--wa-row-selected)', opacity: x.n <= passo ? 1 : 0.9 }} />
+      ))}
+      <span className="text-[10.5px] ml-1 leading-none whitespace-nowrap" style={{ color: 'var(--wa-text-2)' }}>
+        {fechou ? (etapa === 'fechamento' ? 'Fechamento' : 'Finalizado') : p ? `${passo} ${p.rotulo}` : 'Novo'}
+      </span>
+    </div>
+  )
+}
+
+const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, clienteOlx, etiquetasColoridas, onTagsChange, relacionados, aoAlternarRelacionados, relacao, passoDaNay, origemDoCliente }: LeadListItemProps) => {
   const robo = nay === undefined ? null : !nay ? { parada: true, texto: 'Lendo a Nay…' }
     : !nay.ligada ? { parada: true, texto: `Nay parada: ${nay.motivo || 'desligada'}` }
     : nayEmPausa(marca) ? { parada: true, texto: TEXTO_DA_PAUSA }
@@ -214,10 +240,11 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
               Nay olx(leads) conversando
             </span>
           )}
-          {clienteOlx && (
+          {/* 520 (Pedro, 29/10: "a tag cliente por OLX"): só quem veio da OLX; o orgânico ganha a etiqueta Locação/Venda */}
+          {clienteOlx && origemDoCliente === 'olx' && (
             <span className="wa-marca flex-shrink-0 rounded px-1" style={{ color: '#fff', background: '#2563eb' }}
                   title="Veio da OLX: é quem busca imóvel, não o proprietário">
-              Cliente
+              OLX
             </span>
           )}
           {marca?.telAtendendo && (nayEmPausa(marca) ? (
@@ -267,6 +294,8 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
           </span>
         </div>
 
+        {passoDaNay && <BarrinhaDaNay {...passoDaNay} />}
+
         {hit?.matchType === 'message' && hit.snippet && (
           <div className="wa-previa text-[13px] italic mt-0.5 line-clamp-1">
             <span dangerouslySetInnerHTML={{ __html: renderSnippet(hit.snippet, query ?? '') }} />
@@ -298,6 +327,9 @@ export default memo(LeadListItem, (a, b) => (
   a.relacionados?.semLer === b.relacionados?.semLer &&
   a.aoAlternarRelacionados === b.aoAlternarRelacionados &&
   a.relacao === b.relacao &&
+  a.passoDaNay?.passo === b.passoDaNay?.passo &&
+  a.passoDaNay?.etapa === b.passoDaNay?.etapa &&
+  a.origemDoCliente === b.origemDoCliente &&
   !!a.etiquetasColoridas === !!b.etiquetasColoridas &&
   a.atendente?.id === b.atendente?.id &&
   a.timeStr === b.timeStr &&

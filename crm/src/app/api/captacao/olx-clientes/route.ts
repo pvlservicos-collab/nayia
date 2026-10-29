@@ -23,7 +23,9 @@ export async function GET(req: NextRequest) {
       const k = fim8(l.telefone)
       if (k.length !== 8) continue
       clientes[k] = { etapa: l.etapa, nome: l.nome || null, codigo: l.codigo == null ? null : Number(l.codigo),
-                      quer_visita: !!l.quer_visita, humano: !!l.humano }
+                      quer_visita: !!l.quer_visita, humano: !!l.humano,
+                      // 520: o passo da Nay (a barrinha) e a finalidade (a etiqueta Locação/Venda)
+                      origem: l.origem || null, passo: Number(l.passo || 0), finalidade: l.finalidade || null }
     }
     return Response.json({ clientes, em: Date.now() })
   } catch (err: any) {

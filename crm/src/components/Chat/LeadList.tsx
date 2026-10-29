@@ -14,7 +14,7 @@ import { useContatosRelacionados } from '@/hooks/useContatosRelacionados'
 import { useCaptacaoDonos } from '@/hooks/useCaptacaoDonos'
 import { useOlxClientes, mudarEtapaOlx } from '@/hooks/useOlxClientes'
 import { useDonosDoCadastro } from '@/hooks/useDonosDoCadastro'
-import { ETAPAS_OLX, fim8, type EtapaOlx } from '@/lib/olxClientes'
+import { ETAPAS_OLX, PASSOS_DA_NAY, fim8, passoDaAba, type EtapaOlx } from '@/lib/olxClientes'
 /* 18/10 (Pedro): as etapas em que a Nay ainda está atendendo não são abas; quem está nelas fica em Todos */
 const ETAPAS_OLX_FORA_DA_FILEIRA = new Set<string>(['filtrar', 'feito_busca', 'imoveis_enviados'])
 import { montarAtendentes, atendenteDaConversa, type Atendente } from '@/lib/atendentes'
@@ -557,6 +557,14 @@ export default function LeadList({
         const semLer = Number(l.nao_lidas || 0)
         if (semLer) contagem[`semler:olx:${etapaOlx}`] = (contagem[`semler:olx:${etapaOlx}`] ?? 0) + semLer
       }
+      // 520: os passos da Nay (as abas depois de Finalizados)
+      if (linha === 'captacao') {
+        const passo = passoDaAba(olxClientes[fim8(l.phone)])
+        if (passo) {
+          soma(`passo:${passo}`)
+          if (Number(l.nao_lidas || 0) > 0 || l.is_unread) contagem[`semler:passo:${passo}`] = (contagem[`semler:passo:${passo}`] ?? 0) + 1
+        }
+      }
       // 18/10: a aba Tel da Captação
       if (linha === 'captacao' && comOTelNaCaptacao(l)) {
         soma('tel')
@@ -671,6 +679,13 @@ export default function LeadList({
     { chave: 'all', rotulo: 'Todos', grupo: 'etapa' as const, contagem: contagem.all },
     ...abasDeEtiqueta.map((t) => ({ chave: `tag:${t.id}`, rotulo: t.name, cor: t.color, grupo: 'etapa' as const,
                                     contagem: contagem[`tag:${t.id}`], pessoas: contagem[`semler:tag:${t.id}`] })),
+    /* AS ETAPAS DA NAY DEPOIS DE FINALIZADOS (520, Pedro, 29/10/2026: "quero que vire etapas e fique depois de
+       finalizado no WhatsApp Leads, mas essas vão funcionar diferente"): não são etiquetas, é o passo em que a Nay
+       está com o lead (o mesmo da barrinha de cada conversa); quem põe é ela, e o filtro só lê. */
+    ...(usarAbasDeEtiquetas ? PASSOS_DA_NAY.map((p) => ({
+      chave: `passo:${p.n}`, rotulo: `${p.n} ${p.rotulo}`, cor: '#0891b2', grupo: 'etapa' as const, titulo: p.titulo,
+      contagem: contagem[`passo:${p.n}`], pessoas: contagem[`semler:passo:${p.n}`],
+    })) : []),
   ]
   const filtrosDeQuemAtende: FiltroDaLista[] = filtrosCaptacao.filter((f) => f.grupo === 'pessoa')
 
@@ -691,6 +706,7 @@ export default function LeadList({
     if (activeTab.startsWith('cap:')) return abasDoDono(l.id).includes(activeTab.slice(4))
     if (activeTab === 'olx:proprietarios') return etapaOlxDe(l) === 'proprietarios' || (!etapaOlxDe(l) && ehDono(l))
     if (activeTab.startsWith('olx:')) return etapaOlxDe(l) === activeTab.slice(4)
+    if (activeTab.startsWith('passo:')) return passoDaAba(olxClientes[fim8(l.phone)]) === Number(activeTab.slice(6))
     if (activeTab === 'nao_lidas') return !!l.is_unread || l.id === selectedLeadId
     if (activeTab === 'rayssa' && linha === 'captacao') return comRayssaNaCaptacao(l)
     if (activeTab === 'rayssa') return daRayssa(l, marcas[l.id], atendenteDoLead[l.id])
@@ -958,6 +974,9 @@ export default function LeadList({
                   nay={ehParceria ? nay : undefined}
                   nayLeads={ehParceria ? nayLeadsComDono[fim8(lead.phone)] : undefined}
                   clienteOlx={linha === 'captacao' ? !!olxClientes[fim8(lead.phone)] : undefined}
+                  origemDoCliente={linha === 'captacao' ? olxClientes[fim8(lead.phone)]?.origem : undefined}
+                  passoDaNay={linha === 'captacao' && olxClientes[fim8(lead.phone)]
+                    ? { passo: Number(olxClientes[fim8(lead.phone)].passo || 0), etapa: olxClientes[fim8(lead.phone)].etapa } : undefined}
                   dono={donos[lead.id]}
                   etiquetasEmDestaque={usarAbasDeEtiquetas ? etiquetasEmDestaque : undefined}
                   respondeu={linha === 'oficial' && !!lead.ultima_recebida}
