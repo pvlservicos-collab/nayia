@@ -79,20 +79,30 @@ export default function BuscaDaLista({ texto, aoMudar, achados, aoAbrir, placeho
 
   if (soBotao) {
     if (!ehNumero || achados > 0) return null
+    // 29/10 (Pedro: "na parte de Leads, para falar com um contato novo, um botão: quando alguém pesquisa um número lá em
+    // cima aparece 'Criar conversa'"): o botão grande abre a conversa NESTA linha; as outras linhas ficam como atalho.
+    const aqui = (linha === 'captacao' || linha === 'parceria') ? linha : 'parceria'
+    const aquiBarrada = aqui === 'captacao' && soResponde
+    const outras = ESCOLHAS.filter((e) => e.linha !== aqui)
     return (
       <div className="px-4 pb-2">
         <p className="text-[12.5px] mb-1.5" style={{ color: 'var(--wa-text-2)' }}>
-          Iniciar conversa com {texto.trim()} por qual WhatsApp?
+          Não há conversa com {texto.trim()}.
         </p>
-        <div className="flex flex-wrap gap-2">
-          {ESCOLHAS.map((e) => {
+        <button type="button" onClick={() => abrir(aqui)} disabled={!!abrindo || aquiBarrada}
+                title={aquiBarrada ? RECUSA_DA_CAPTACAO : 'Criar a conversa com este número nesta tela'}
+                className="flex items-center gap-2 text-sm font-medium wa-busca__abrir disabled:opacity-45 disabled:cursor-not-allowed">
+          <ChatCircleText size={16} />
+          {abrindo === aqui ? 'Abrindo…' : 'Criar conversa'}
+        </button>
+        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--wa-text-2)' }}>
+          {outras.map((e) => {
             const barrada = e.linha === 'captacao' && soResponde
             return (
               <button key={e.linha} type="button" onClick={() => abrir(e.linha)} disabled={!!abrindo || barrada}
                       title={barrada ? RECUSA_DA_CAPTACAO : `Abrir a conversa pelo WhatsApp da ${e.rotulo}`}
-                      className="flex items-center gap-2 text-sm font-medium wa-busca__abrir disabled:opacity-45 disabled:cursor-not-allowed">
-                <ChatCircleText size={16} />
-                {abrindo === e.linha ? 'Abrindo…' : e.rotulo}
+                      className="underline disabled:opacity-45 disabled:cursor-not-allowed">
+                {abrindo === e.linha ? 'Abrindo…' : `ou criar pela ${e.rotulo}`}
               </button>
             )
           })}
