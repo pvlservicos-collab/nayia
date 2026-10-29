@@ -230,8 +230,13 @@ prompt: comece pelo `nay onde`.
   padrão claro; escolha em localStorage `admin-tema`). Inverte a página e devolve a cor real de foto, vídeo, mapa e da arte do
   gerador de posts; o Início (que já é escuro) só escurece o topo; dentro de iframe (CRM, popup) não faz nada. Página nova do
   admin: pôr a mesma linha `<script src="../assets/js/tema-admin.js?v=...">` logo depois de `<head>`.
-- Aprendizado do YouTube → Obsidian (28/10): skill `.claude/skills/aprendizado-youtube`, `scripts/aprendizado.py` (pendentes, texto,
-  ideias); as ideias vão para `IMOBEASY/Estratégia/Ideias/` do vault, com o quadro do plugin `imobeasy-ideias`.
+- IDEIAS REFINADAS (514, 28-29/10): aba 2 de admin › Aprendizado (`aprendizado.html#ideias`, `assets/js/aprendizado-ideias.js`,
+  estilos em `aprendizado.css`): cada ideia de vídeo com sugestão, como é hoje, onde ajuda, prazo e a barrinha vertical da nota;
+  filtros Acima de 90 (90 em diante), Ainda não avaliadas, prazo, vídeo. Banco `aprendizado_video`, `aprendizado_ideia`,
+  `site_aprendizado_ideias()`, `site_aprendizado_ideia_nota(id, nota, quem)`; API `nay-site-api/aprendizado_api.py`
+  (`/admin/api/aprendizado/ideias`). A rotina da noite: skill `.claude/skills/aprendizado-youtube` + `scripts/aprendizado.py`
+  (pendentes, texto, ideias, gravar → `aprendizado_gravar(jsonb)`, que não mexe na nota que o Pedro deu). O vault do
+  Obsidian é só LIDO, como contexto (Pedro, 29/10).
 - Cadastro rápido (`cadastro-rapido.js`): a fila vem em ordem de categoria (`palpite` em `/admin/api/imoveis/cadastro-pendente`),
   a lista suspensa entre as setas passa só por uma categoria, e "Ver conversa" abre o chat em popup
   (`/admin/api/imoveis/conversa` → CRM `/api/conversas/por-telefone`; sem o CRM, vai o texto de `captacao_mensagens`).

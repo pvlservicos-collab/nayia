@@ -60,3 +60,76 @@
 @media (max-width: 600px) {
   .ap-mesa { margin-left: 0; }
 }
+
+/* IDEIAS REFINADAS (514, 28/10): a segunda aba. Cada ideia é um cartão com a barrinha vertical da nota à direita;
+   a borda diz o prazo (verde curto, âmbar médio, roxo longo). */
+.ap-abas { margin-bottom: var(--e-4); }
+[role="tabpanel"][hidden] { display: none; }
+.id-topo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-3); padding: var(--e-3) var(--e-4);
+  margin-bottom: var(--e-4); position: sticky; top: var(--e-2); z-index: 5; }
+.id-seg { display: inline-flex; border: 1px solid var(--borda-forte); border-radius: var(--raio-pill); overflow: hidden; }
+.id-seg button { padding: 7px 14px; border: 0; background: var(--superficie); color: var(--texto-medio); font: inherit;
+  font-size: .9rem; font-weight: 600; cursor: pointer; }
+.id-seg button + button { border-left: 1px solid var(--borda); }
+.id-seg button[aria-pressed="true"] { background: var(--roxo); color: #fff; }
+.id-seg button:focus-visible, .id-topo select:focus-visible { outline: none; box-shadow: var(--foco); }
+.id-topo select { padding: 7px 10px; border: 1px solid var(--borda-forte); border-radius: var(--raio);
+  background: var(--superficie); color: var(--texto); font: inherit; font-size: .9rem; max-width: 280px; }
+.id-conta { margin: 0 0 0 auto; color: var(--texto-fraco); font-size: .88rem; font-variant-numeric: tabular-nums; }
+
+.id-lista { display: grid; gap: var(--e-4); }
+.id-cartao { display: grid; grid-template-columns: 1fr 92px; gap: var(--e-4); padding: var(--e-4) var(--e-4) var(--e-4) var(--e-5, 20px);
+  background: var(--superficie); border: 1px solid var(--borda); border-left: 5px solid var(--borda-forte);
+  border-radius: var(--raio); }
+.id-cartao--curto { border-left-color: var(--verde); }
+.id-cartao--medio { border-left-color: #e0a63a; }
+.id-cartao--longo { border-left-color: var(--roxo); }
+.id-corpo { min-width: 0; }
+.id-selos { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2); margin: 0 0 var(--e-1); font-size: .8rem; }
+.id-num { font-weight: 700; color: var(--texto-fraco); }
+.id-selo { padding: 1px 10px; border-radius: var(--raio-pill); background: var(--superficie-2); border: 1px solid var(--borda);
+  color: var(--texto-medio); font-weight: 600; }
+.id-selo--curto { background: var(--verde-suave); border-color: transparent; color: #23744d; }
+.id-selo--medio { background: #fdf3df; border-color: transparent; color: #8a5a00; }
+.id-selo--longo { background: var(--roxo-suave); border-color: transparent; color: var(--roxo); }
+.id-fonte { color: var(--texto-fraco); }
+.id-titulo { margin: 0 0 var(--e-3); font-size: 1.12rem; line-height: 1.35; color: var(--texto); }
+.id-secoes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--e-4); }
+.id-cartao h4, .id-videos h4 { margin: 0 0 var(--e-1); font-size: .78rem; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--texto-fraco); }
+.id-cartao p, .id-cartao ul, .id-videos p, .id-videos ul { margin: 0 0 var(--e-2); font-size: .92rem; line-height: 1.5;
+  color: var(--texto-medio); }
+.id-cartao ul, .id-videos ul { padding-left: 1.2em; list-style: disc; }
+.id-cartao li, .id-videos li li { display: list-item; padding: 0; border: 0; }
+.id-cartao li + li { margin-top: 3px; }
+.id-cartao b { color: var(--texto); }
+.id-mais { margin-top: var(--e-2); }
+.id-mais summary { cursor: pointer; color: var(--roxo); font-size: .88rem; font-weight: 600; }
+.id-mais[open] summary { margin-bottom: var(--e-2); }
+
+/* a barrinha vertical: arrastar para cima sobe a nota */
+.id-nota { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: var(--e-2) 0;
+  border-left: 1px solid var(--borda); }
+.id-valor { font: 700 1.6rem/1 var(--fonte-titulo); color: var(--texto); font-variant-numeric: tabular-nums; }
+.id-nota--alta .id-valor { color: #23744d; }
+.id-barra { writing-mode: vertical-lr; direction: rtl; width: 28px; height: 170px; margin: 0; cursor: pointer;
+  accent-color: var(--roxo); }
+.id-nota--alta .id-barra { accent-color: var(--verde); }
+.id-barra:focus-visible { outline: none; box-shadow: var(--foco); border-radius: 6px; }
+.id-quem, .id-claude, .id-salvo { font-size: .74rem; color: var(--texto-fraco); text-align: center; line-height: 1.2; }
+.id-salvo { min-height: 1em; color: #23744d; font-weight: 600; }
+
+.id-videos summary { display: block; }
+.id-videos summary b { color: var(--texto); }
+.id-videos details > :not(summary) { margin-left: 1.4em; }
+
+@media (max-width: 900px) {
+  .id-secoes { grid-template-columns: 1fr; gap: var(--e-2); }
+}
+@media (max-width: 600px) {
+  .id-cartao { grid-template-columns: 1fr 64px; gap: var(--e-2); padding: var(--e-3); }
+  .id-barra { height: 140px; }
+  .id-conta { margin-left: 0; width: 100%; }
+  .id-topo { position: static; }
+  .id-seg button { padding: 7px 10px; }
+}

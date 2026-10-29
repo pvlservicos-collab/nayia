@@ -11,7 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css">
-<link rel="stylesheet" href="../assets/css/aprendizado.css?v=20261028b">
+<link rel="stylesheet" href="../assets/css/aprendizado.css?v=20261029">
 </head>
 <body class="admin" data-pagina="aprendizado">
 
@@ -27,10 +27,43 @@
   <div class="pagina-cabecalho">
     <div>
       <h1 class="pagina-titulo">Aprendizado</h1>
-      <p class="pagina-subtitulo">Cole links de vídeos do YouTube: o Agente de Aprendizado gera a transcrição no tactiq e salva cada uma num arquivo de texto na pasta <b>transcricoes</b> do projeto, no seu computador.</p>
+      <p class="pagina-subtitulo">Cole links de vídeos do YouTube: o Agente de Aprendizado gera a transcrição no tactiq e salva cada uma num arquivo de texto na pasta <b>transcricoes</b> do projeto, no seu computador. Depois o Claude estuda cada vídeo e as ideias que servem para nós aparecem em <b>Ideias refinadas</b>.</p>
     </div>
   </div>
 
+  <!-- 28/10 (514): a segunda aba, Ideias refinadas (assets/js/aprendizado-ideias.js). #ideias abre direto nela. -->
+  <div class="abas ap-abas" id="ap-abas" role="tablist" aria-label="Aprendizado">
+    <button class="abas__item" role="tab" type="button" data-aba="transcricoes" aria-controls="aba-transcricoes" aria-selected="true">Transcrições</button>
+    <button class="abas__item" role="tab" type="button" data-aba="ideias" aria-controls="aba-ideias" aria-selected="false">Ideias refinadas</button>
+  </div>
+
+  <div id="aba-ideias" role="tabpanel" hidden>
+    <div class="cartao id-topo">
+      <div class="id-seg" id="id-filtro" role="group" aria-label="Quais ideias">
+        <button type="button" data-v="todas" aria-pressed="true">Todas</button>
+        <button type="button" data-v="acima" aria-pressed="false">Acima de 90</button>
+        <button type="button" data-v="novas" aria-pressed="false">Ainda não avaliadas</button>
+      </div>
+      <div class="id-seg id-seg--prazo" id="id-prazo" role="group" aria-label="Prazo">
+        <button type="button" data-v="" aria-pressed="true">Todos os prazos</button>
+        <button type="button" data-v="curto" aria-pressed="false">Curto</button>
+        <button type="button" data-v="medio" aria-pressed="false">Médio</button>
+        <button type="button" data-v="longo" aria-pressed="false">Longo</button>
+      </div>
+      <select id="id-video" aria-label="Vídeo"><option value="">Todos os vídeos</option></select>
+      <select id="id-ordem" aria-label="Ordem">
+        <option value="nota">Maior nota primeiro</option>
+        <option value="numero">Pela ordem em que surgiram</option>
+      </select>
+      <button type="button" class="btn-neutro" id="id-atualizar">Atualizar</button>
+      <p class="id-conta" id="id-conta"></p>
+    </div>
+    <div class="id-lista" id="id-lista"></div>
+    <h2 class="ap-secao">Vídeos estudados</h2>
+    <ul class="ap-pedidos id-videos" id="id-videos"></ul>
+  </div>
+
+  <div id="aba-transcricoes" role="tabpanel">
   <div class="ap-estado" id="ap-estado">Chamando o agente…</div>
 
   <form class="cartao ap-form" id="ap-form">
@@ -47,6 +80,7 @@
 
   <h2 class="ap-secao">Pedidos e o que passou em cada um</h2>
   <ul class="ap-pedidos" id="ap-pedidos"><li class="ap-vazio">Lendo…</li></ul>
+  </div>
 </main>
 
 <div data-layout-rodape></div>
@@ -55,5 +89,6 @@
 <script src="../assets/js/layout.js"></script>
 <script src="../assets/js/admin.js"></script>
 <script src="../assets/js/aprendizado.js?v=20261028b"></script>
+<script src="../assets/js/aprendizado-ideias.js?v=20261029"></script>
 </body>
 </html>

@@ -5809,6 +5809,13 @@ try:
 except Exception as _e:  # noqa: BLE001
     app.logger.warning("biblioteca_api nao carregou: %s", _e)
 
+# IDEIAS REFINADAS (514, 28/10): a aba Ideias refinadas da pagina admin > Aprendizado. Mesmo try/except.
+try:
+    from aprendizado_api import aprendizado_bp
+    app.register_blueprint(aprendizado_bp)
+except Exception as _e:  # noqa: BLE001
+    app.logger.warning("aprendizado_api nao carregou: %s", _e)
+
 # A CAPTACAO PEDE SENHA (28/09, Pedro: "com bastante seguranca para o numero nao
 # cair"). As rotas /api/captacao/* e /api/nai/captacao* respondiam sem senha
 # nenhuma: qualquer um na internet ligava o disparo (captacao_pausada), punha o

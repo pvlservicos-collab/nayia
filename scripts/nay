@@ -133,8 +133,8 @@ case "$cmd" in
     for f in "$@"; do subir imob-easy /docker/nay-site-web/public "$f"; echo "subiu $f"; done ;;
   site)
     # 17/10: o blog entrou (blog_api.py, os modelos, o Dockerfile e o requirements sobem junto)
-    # 18/10: o Scrap (scrap_api.py) entrou; 21/10: o Chaves na Mão (chavesnamao_api.py); 22/10: os Modelos (modelos_api.py); 25/10: as Inteligências e a Biblioteca de conversas
-    API_ARQS="app.py olx_api.py blog_api.py scrap_api.py whats_api.py chavesnamao_api.py modelos_api.py inteligencias_api.py biblioteca_api.py Dockerfile requirements.txt $(cd "$RAIZ/nay-site-api" && ls blog_templates/*.html)"
+    # 18/10: o Scrap (scrap_api.py) entrou; 21/10: o Chaves na Mão (chavesnamao_api.py); 22/10: os Modelos (modelos_api.py); 25/10: as Inteligências e a Biblioteca de conversas; 28/10: as Ideias refinadas (aprendizado_api.py)
+    API_ARQS="app.py olx_api.py blog_api.py scrap_api.py whats_api.py chavesnamao_api.py modelos_api.py inteligencias_api.py biblioteca_api.py aprendizado_api.py Dockerfile requirements.txt $(cd "$RAIZ/nay-site-api" && ls blog_templates/*.html)"
     conferir_servidor nay-site-api /docker/nay-site-api $API_ARQS
     [ $# -eq 0 ] || conferir_servidor imob-easy /docker/nay-site-web/public "$@"
     for a in $API_ARQS; do subir nay-site-api /docker/nay-site-api "$a"; done

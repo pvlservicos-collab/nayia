@@ -37,6 +37,8 @@ COPY modelos_api.py .
 COPY inteligencias_api.py .
 # Biblioteca de conversas (498, 25/10): a aba Biblioteca da página Inteligência
 COPY biblioteca_api.py .
+# Ideias refinadas (514, 28/10): a aba de ideias da página Aprendizado
+COPY aprendizado_api.py .
 
 RUN useradd -m site-api
 USER site-api
