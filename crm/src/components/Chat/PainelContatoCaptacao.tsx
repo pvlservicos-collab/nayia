@@ -26,6 +26,7 @@
  */
 import AgentesDoLead from './AgentesDoLead'
 import BuscasDoLead from './BuscasDoLead'
+import PausaDaNay from './PausaDaNay'
 import { useCallback, useEffect, useState } from 'react'
 import {
   X, User, House, ArrowClockwise, Copy, Check, Plus, PencilSimple, Images, CircleNotch, Robot,
@@ -275,8 +276,8 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
                     style={naoResponde
                       ? { color: 'var(--wa-text-2)', border: '1px solid var(--wa-divider)' }
                       : { color: 'var(--wa-tag-tel)', border: '1px solid color-mix(in srgb, var(--wa-tag-tel) 50%, transparent)' }}
-                    title="A Nay de captação para de responder esta pessoa, e o disparo e o lembrete não chamam mais">
-              {mexendoNaNay === 'parar' ? <CircleNotch size={14} className="animate-spin" /> : <Robot size={14} weight="fill" />} Parar Nay
+                    title="A Nay para de responder esta pessoa de vez (não é a pausa de 30 min de quando a equipe escreve), e o disparo e o lembrete não chamam mais. Volta só com 'Nay voltar a atender'">
+              {mexendoNaNay === 'parar' ? <CircleNotch size={14} className="animate-spin" /> : <Robot size={14} weight="fill" />} Parar Nay sempre
             </button>
             <button type="button" onClick={() => void pararOuVoltar('voltar')} disabled={!!mexendoNaNay || !naoResponde}
                     className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-semibold disabled:opacity-50"
@@ -290,6 +291,8 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
           {avisoDaNay && (
             <p className="text-[12px] mt-2 leading-4" style={{ color: avisoDaNay.ok ? 'var(--wa-green)' : 'var(--wa-tag-tel)' }}>{avisoDaNay.texto}</p>
           )}
+          {/* 28/10 (Pedro): a equipe escreveu e a Nay Leads espera 30 min; só para quem a Nay Leads atende e não está parado */}
+          {!oficial && olxDele && !naoResponde && <PausaDaNay leadId={lead.id} mexeuEm={lead.last_activity_at} />}
         </div>
 
         {/* a etapa (242); 18/10 (Pedro: "as Etapas da captação não estão lá no número de captação"): quem não é dono da

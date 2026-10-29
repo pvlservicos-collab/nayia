@@ -421,7 +421,7 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
                       ? { color: 'var(--wa-text-2)', border: '1px solid var(--wa-divider)' }
                       : { color: 'var(--wa-tag-tel)', border: '1px solid color-mix(in srgb, var(--wa-tag-tel) 50%, transparent)' }}
                     title="A Nay para de responder esta pessoa até alguém soltar">
-              {mexendoNaNay === 'parar' ? <CircleNotch size={14} className="animate-spin" /> : <Robot size={14} weight="fill" />} Parar Nay
+              {mexendoNaNay === 'parar' ? <CircleNotch size={14} className="animate-spin" /> : <Robot size={14} weight="fill" />} Parar Nay sempre
             </button>
             <button type="button" onClick={() => void pararOuVoltar('voltar')} disabled={!!mexendoNaNay}
                     className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-semibold disabled:opacity-50"
