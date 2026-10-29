@@ -154,31 +154,45 @@ export async function GET(req: NextRequest) {
         AND coalesce(a.metadata->>'automated', 'false') <> 'true'
         AND coalesce(a.metadata->>'source', '') NOT IN ('funnel', 'ai', 'ai_agent', 'automation')
       )`
-      const linhas = await db.execute(sql`
-        SELECT a.lead_id,
-          -- Todos os autores, do mais recente pro mais antigo: quem é do time
-          -- de atendimento decide a tela (a conta de admin não vira etiqueta).
-          -- O × da etiqueta Tel/Rayssa (pessoa_solta_em) zera a conta: quem
-          -- escreveu pelo login ANTES dele não prende mais a conversa na aba.
-          array_agg(a.actor_member_id ORDER BY a.created_at DESC)
-            FILTER (WHERE a.actor_member_id IS NOT NULL AND ${manual}
-                      AND a.created_at > coalesce(nullif(ld.custom_attributes->>'pessoa_solta_em', '')::timestamptz,
-                                                  '-infinity'::timestamptz)) AS autores,
-          bool_or(${manual}) AS teve_manual,
-          min(a.created_at) FILTER (WHERE a.metadata->>'automated' = 'true' OR a.metadata->>'source' = 'funnel') AS primeira_automatica,
-          max(a.created_at) FILTER (WHERE a.metadata->>'direction' = 'inbound') AS ultima_do_lead,
-          max(a.created_at) FILTER (WHERE ${manual}) AS ultima_manual
-        FROM lead_activities a
-        LEFT JOIN leads ld ON ld.id = a.lead_id
-        WHERE a.organization_id = ${auth.organizationId}
-          AND a.lead_id = ANY(${sql.raw(`ARRAY['${leadIds.join("','")}']::uuid[]`)})
-          AND a.metadata->>'direction' IS NOT NULL
-        GROUP BY a.lead_id
-      `)
-      for (const l of linhas.rows as {
-        lead_id: string; autores: string[] | null; teve_manual: boolean | null
+      /* VELOCIDADE (Pedro, 29/10: "tá lento de carregar as conversas no CRM, dá uma otimizada sem bugar nada"): era uma
+         consulta só, com o array_agg ORDENADO sobre as ~75 mil mensagens -- o Postgres ordenava tudo (30 MB em disco,
+         ~3,8 s). Agora são duas, ao mesmo tempo: as contas por conversa (sem ordenar) e os autores, ordenados só nas
+         mensagens escritas por alguém do time. Mesma resposta: conferida linha a linha contra a de antes (0 diferenças). */
+      const ids = sql.raw(`ARRAY['${leadIds.join("','")}']::uuid[]`)
+      const [linhas, quem] = await Promise.all([
+        db.execute(sql`
+          SELECT a.lead_id,
+            bool_or(${manual}) AS teve_manual,
+            min(a.created_at) FILTER (WHERE a.metadata->>'automated' = 'true' OR a.metadata->>'source' = 'funnel') AS primeira_automatica,
+            max(a.created_at) FILTER (WHERE a.metadata->>'direction' = 'inbound') AS ultima_do_lead,
+            max(a.created_at) FILTER (WHERE ${manual}) AS ultima_manual
+          FROM lead_activities a
+          WHERE a.organization_id = ${auth.organizationId}
+            AND a.lead_id = ANY(${ids})
+            AND a.metadata->>'direction' IS NOT NULL
+          GROUP BY a.lead_id
+        `),
+        // Todos os autores, do mais recente pro mais antigo: quem é do time
+        // de atendimento decide a tela (a conta de admin não vira etiqueta).
+        // O × da etiqueta Tel/Rayssa (pessoa_solta_em) zera a conta: quem
+        // escreveu pelo login ANTES dele não prende mais a conversa na aba.
+        db.execute(sql`
+          SELECT a.lead_id, array_agg(a.actor_member_id ORDER BY a.created_at DESC) AS autores
+          FROM lead_activities a
+          LEFT JOIN leads ld ON ld.id = a.lead_id
+          WHERE a.organization_id = ${auth.organizationId}
+            AND a.lead_id = ANY(${ids})
+            AND a.actor_member_id IS NOT NULL AND ${manual}
+            AND a.created_at > coalesce(nullif(ld.custom_attributes->>'pessoa_solta_em', '')::timestamptz, '-infinity'::timestamptz)
+          GROUP BY a.lead_id
+        `),
+      ])
+      const autoresDe = new Map((quem.rows as { lead_id: string; autores: string[] | null }[]).map((q) => [q.lead_id, q.autores]))
+      for (const l0 of linhas.rows as {
+        lead_id: string; teve_manual: boolean | null
         primeira_automatica: string | null; ultima_do_lead: string | null; ultima_manual: string | null
       }[]) {
+        const l = { ...l0, autores: autoresDe.get(l0.lead_id) ?? null }
         // a última vez que GENTE falou na conversa: a pessoa ou alguém do time (disparo e Nay não contam)
         const deGente = Math.max(l.ultima_do_lead ? new Date(l.ultima_do_lead).getTime() : 0,
                                  l.ultima_manual ? new Date(l.ultima_manual).getTime() : 0)
@@ -203,16 +217,22 @@ export async function GET(req: NextRequest) {
     const naoLidas: Record<string, number> = {}
     const idsNaoLidos = rows.filter((r) => r.lead.isUnread).map((r) => r.lead.id)
     if (idsNaoLidos.length > 0) {
+      // 29/10 (velocidade): a "última resposta nossa" era procurada de novo para CADA mensagem recebida (1.315 vezes,
+      // ~7-9 s); agora sai uma vez por conversa e a conta é a mesma (conferida: 0 diferenças, ~0,25 s)
+      const naoIds = sql.raw(`ARRAY['${idsNaoLidos.join("','")}']::uuid[]`)
       const contagem = await db.execute(sql`
+        WITH ult AS (
+          SELECT a.lead_id, max(a.created_at) FILTER (WHERE a.metadata->>'direction' = 'outbound') AS nossa
+            FROM lead_activities a
+           WHERE a.lead_id = ANY(${naoIds})
+           GROUP BY a.lead_id)
         SELECT a.lead_id, count(*)::int AS n
           FROM lead_activities a
+          JOIN ult u ON u.lead_id = a.lead_id
          WHERE a.organization_id = ${auth.organizationId}
-           AND a.lead_id = ANY(${sql.raw(`ARRAY['${idsNaoLidos.join("','")}']::uuid[]`)})
+           AND a.lead_id = ANY(${naoIds})
            AND a.metadata->>'direction' = 'inbound'
-           AND a.created_at > coalesce((SELECT max(b.created_at) FROM lead_activities b
-                                         WHERE b.lead_id = a.lead_id
-                                           AND b.metadata->>'direction' = 'outbound'),
-                                       '-infinity'::timestamptz)
+           AND a.created_at > coalesce(u.nossa, '-infinity'::timestamptz)
          GROUP BY a.lead_id`)
       for (const l of contagem.rows as Array<{ lead_id: string; n: number }>) naoLidas[l.lead_id] = Number(l.n) || 0
     }
