@@ -136,7 +136,7 @@ def _o_que(tipo: str | None) -> tuple[str, str] | None:
     for prefixo, frase, pronome in (("loja", "uma loja", "Ela"), ("ponto", "um ponto comercial", "Ele"),
                                     ("sala", "uma sala comercial", "Ela"), ("andar", "um andar comercial", "Ele"),
                                     ("galpao", "um galpão", "Ele"), ("predio", "um prédio", "Ele"),
-                                    ("terreno", "um terreno", "Ele")):
+                                    ("terreno", "um terreno", "Ele"), ("lote", "um terreno", "Ele")):
         if n.startswith(prefixo):
             return frase, pronome
     return None
