@@ -44,7 +44,7 @@ const IDENTIDADE_DA_LINHA: Record<LinhaWhatsapp, { titulo: string; numero: strin
 function useTelaLarga(): boolean {
   const [larga, setLarga] = useState(true)
   useEffect(() => {
-    const mq = window.matchMedia('(min-width: 1280px)')
+    const mq = window.matchMedia('(min-width: 1366px)')
     const atualizar = () => setLarga(mq.matches)
     atualizar()
     mq.addEventListener('change', atualizar)

@@ -17,6 +17,15 @@ import { useEffect, useRef, useState } from 'react'
 export function usePuxador(chave: string, o: { min: number; max: number; padrao: number; lado: 'esquerda' | 'direita' }) {
   const [largura, setLargura] = useState<number>(o.padrao)
   const [arrastando, setArrastando] = useState(false)
+  /* 29/10 (Pedro: "está cortando em alguns notebooks"): a largura guardada vem de outro monitor (até 640 px); numa tela
+     menor dois painéis assim espremiam a conversa até sumir. Cada painel usa no máximo 34% da largura da janela. */
+  const [janela, setJanela] = useState<number>(typeof window === 'undefined' ? 1920 : window.innerWidth)
+  useEffect(() => {
+    const ler = () => setJanela(window.innerWidth)
+    ler()
+    window.addEventListener('resize', ler)
+    return () => window.removeEventListener('resize', ler)
+  }, [])
   useEffect(() => {
     try {
       const g = Number(localStorage.getItem(chave))
@@ -52,5 +61,6 @@ export function usePuxador(chave: string, o: { min: number; max: number; padrao:
     setLargura((l) => { try { localStorage.setItem(chave, String(l)) } catch { /* vale só até recarregar */ } return l })
   }
 
-  return { largura, arrastando, puxador }
+  const efetiva = Math.max(o.min, Math.min(largura, Math.round(janela * 0.34)))
+  return { largura: efetiva, arrastando, puxador }
 }

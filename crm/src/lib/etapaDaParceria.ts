@@ -6,9 +6,11 @@
  *
  *   todos         a Nay atende. É onde todo mundo começa e para onde volta.
  *   visitas       o corretor confirmou e a visita passou à Rayssa
- *                 (`visitaRayssa`, migração 197). É temporário: até a hora da
- *                 visita + 120 min, ou quando ela é cancelada/realizada -- aí
- *                 a conversa volta para Todos e a Nay volta a atender.
+ *                 (`visitaRayssa`, migração 197). Desde a 379 (Pedro, 16/10:
+ *                 "ninguém sai de Visitas sozinho") fica até ALGUÉM mudar a
+ *                 etapa, mesmo depois da hora da visita (antes: hora + 120
+ *                 min). Aí vale a regra da etapa nova: Todos, a Nay atende;
+ *                 Proprietários, não. A Nay não tira ninguém de Visitas.
  *                 ATENÇÃO: visita ABERTA não é Visitas. Enquanto a Nay ainda
  *                 coleta e confirma, ela continua atendendo.
  *   proprietarios é dono de imóvel. Nunca aparece em outra etapa.
@@ -71,12 +73,14 @@ export function etapaEscolhidaAMao(lead: { custom_attributes?: any } | null | un
   return v && (ETAPAS_DA_PARCERIA as readonly string[]).includes(v) ? (v as EtapaParceria) : null
 }
 
-/** A escolha do card dura 7 dias, como a da Nay. Depois ela não conta mais. */
+/** A escolha do card dura 7 dias, como a da Nay. Depois ela não conta mais. Visitas não vence (379). */
 export const VALIDADE_DA_ESCOLHA_MS = 7 * 24 * 3600_000
 
 function escolhaAindaValida(lead: { custom_attributes?: any } | null | undefined, agora = Date.now()): EtapaParceria | null {
   const etapa = etapaEscolhidaAMao(lead)
   if (!etapa) return null
+  // 379 (Pedro, 16/10): ninguém sai de Visitas sozinho; a Nay também deixou de vencer essa escolha
+  if (etapa === 'visitas') return etapa
   const em = Date.parse(String(lead?.custom_attributes?.etapa_parceria_em || ''))
   // escolha antiga sem data: conta (é de antes de guardarmos a data)
   if (!Number.isFinite(em)) return etapa
@@ -165,7 +169,7 @@ export interface ResultadoDaMudanca {
 
 const EFEITO_DA_ETAPA: Record<DestinoParceria, string> = {
   todos: 'A Nay volta a atender essa conversa. Se alguém escrever nela à mão (celular ou CRM), a Nay espera 30 minutos antes de responder; a conversa continua nesta aba.',
-  visitas: 'Quem atende é a Rayssa; a Nay não responde. Vale por 7 dias, ou até voltar para Todos.',
+  visitas: 'Quem atende é a Rayssa; a Nay não responde. Fica em Visitas até alguém mudar a etapa.',
   proprietarios: 'A Nay não responde essa conversa.',
   fechamento: 'Quem atende é a Rayssa, até ela concluir o fechamento.',
   tel: 'A Nay não responde até o Tel devolver a conversa.',
@@ -184,9 +188,9 @@ function oQueSegura(ficou: DestinoParceria, m: MarcaDaNay | undefined): string {
     if (m?.acompanhante) return 'é quem acompanha as visitas, e fica sempre em Visitas'
     if (m?.visitaRayssa) {
       return `tem visita confirmada com a Rayssa${m.visitaId ? ` (visita #${m.visitaId})` : ''}; `
-        + 'sai de Visitas sozinha quando a visita for realizada, cancelada ou excluída na agenda'
+        + 'fica em Visitas até alguém mudar a etapa (ou excluir a visita na agenda)'
     }
-    return 'alguém escolheu Visitas no card há menos de 7 dias'
+    return 'alguém escolheu Visitas no card, e fica até alguém mudar a etapa'
   }
   if (ficou === 'tel') return `a Nay marca que o Tel está com essa conversa${m?.telMotivo ? ` (${m.telMotivo})` : ''}`
   if (ficou === 'rayssa') return 'a Nay marca que a Rayssa está com essa conversa'

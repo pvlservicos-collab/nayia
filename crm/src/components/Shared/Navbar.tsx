@@ -205,20 +205,20 @@ export default function Navbar() {
 
   return (
     <>
-    <nav className="app-safe-top glass-soft rounded-none border-x-0 border-t-0 px-4 sm:px-6 h-14 flex items-center justify-between sticky top-0 z-50">
+    <nav className="app-safe-top glass-soft rounded-none border-x-0 border-t-0 px-4 md:px-3 xl:px-6 h-14 flex items-center justify-between gap-2 sticky top-0 z-50">
       {/* Left: Logo + Nav */}
       {/* gap menor ate 1280px: com a aba nova da Parceria sao seis itens,
           e em notebook eles espremiam a busca e o nome do usuario. */}
-      <div className="flex items-center gap-4 xl:gap-8">
+      <div className="flex items-center gap-3 xl:gap-6 min-[1800px]:gap-8 min-w-0">
         {/* Logo */}
         <Link href={PAGINA_INICIAL} className="flex items-center gap-2">
           <img src="/logos/imobeasy-simbolo.svg" alt="Imob Easy" className="h-7 w-7 object-contain" />
           {/* o nome escrito só em tela bem larga: o menu ganhou a aba Grupos (03/10) */}
-          <span className="font-display font-bold text-ink hidden 2xl:inline">ImobEasy CRM</span>
+          <span className="font-display font-bold text-ink hidden min-[1800px]:inline">ImobEasy CRM</span>
         </Link>
 
         {/* Nav Tabs (desktop) */}
-        <div className="hidden md:flex items-center gap-1">
+        <div className="hidden md:flex items-center gap-0.5 xl:gap-1 min-w-0">
           {NAV_ITEMS.filter(item => !item.mais && isItemVisible(item.label)).map((item) => {
             const isActive = item.href === hrefAtivo
             const Icon = item.icon
@@ -234,12 +234,12 @@ export default function Navbar() {
                 >
                   <Link
                     href={item.href}
-                    className={`flex items-center gap-1.5 px-2 xl:px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${isActive
+                    className={`flex items-center gap-1.5 px-1.5 lg:px-2 xl:px-3 py-1.5 rounded-lg text-[13px] xl:text-sm font-medium transition-colors border ${isActive
                       ? 'bg-graphite-6 border-white/15 text-accent-2'
                       : 'border-transparent text-muted hover:bg-white/[0.06] hover:text-ink'
                       }`}
                   >
-                    <Icon size={16} weight={isActive ? 'fill' : 'regular'} />
+                    <Icon size={16} weight={isActive ? 'fill' : 'regular'} className="hidden min-[1800px]:block" />
                     {item.label}
                     <CaretDown size={12} className="ml-1" />
                   </Link>
@@ -277,16 +277,17 @@ export default function Navbar() {
                 href={item.href}
                 target={item.externo ? '_blank' : undefined}
                 rel={item.externo ? 'noopener noreferrer' : undefined}
-                className={`flex items-center gap-1.5 px-2 xl:px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors border ${isActive
+                className={`flex items-center gap-1.5 px-1.5 lg:px-2 xl:px-3 py-1.5 rounded-lg text-[13px] xl:text-sm font-medium whitespace-nowrap transition-colors border ${isActive
                   ? 'bg-graphite-6 border-white/15 text-accent-2'
                   : 'border-transparent text-muted hover:bg-white/[0.06] hover:text-ink'
                   }`}
                 title={item.label}
               >
-                <Icon size={16} weight={isActive ? 'fill' : 'regular'} />
+                {/* 29/10: o ícone só em tela larga; em notebook o espaço é do texto (o menu estourava e cortava a direita) */}
+                <Icon size={16} weight={isActive ? 'fill' : 'regular'} className="hidden min-[1800px]:block" />
                 {/* o nome curto ("Parceria") até telas bem largas: com a aba Grupos, o menu não cabia (03/10) */}
-                <span className="2xl:hidden">{item.curto ?? item.label}</span>
-                <span className="hidden 2xl:inline">{item.label}</span>
+                <span className="min-[1800px]:hidden">{item.curto ?? item.label}</span>
+                <span className="hidden min-[1800px]:inline">{item.label}</span>
               </Link>
             )
           })}
@@ -303,7 +304,7 @@ export default function Navbar() {
                   onClick={() => setShowMais(v => !v)}
                   aria-haspopup="menu"
                   aria-expanded={showMais}
-                  className={`flex items-center gap-1.5 px-2 xl:px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors border ${aceso
+                  className={`flex items-center gap-1.5 px-1.5 lg:px-2 xl:px-3 py-1.5 rounded-lg text-[13px] xl:text-sm font-medium whitespace-nowrap transition-colors border ${aceso
                     ? 'bg-graphite-6 border-white/15 text-accent-2'
                     : 'border-transparent text-muted hover:bg-white/[0.06] hover:text-ink'
                     }`}
@@ -350,7 +351,7 @@ export default function Navbar() {
       </div>
 
       {/* Right: Search + Notifications + User + Button */}
-      <div className="flex items-center gap-2 sm:gap-4">
+      <div className="flex items-center gap-1.5 lg:gap-2 min-[1800px]:gap-4 flex-shrink-0">
         {/* ENVIAR IMOVEL (Tel, 28/09/2026): "coloca o enviar imovel do lado do n8n
             la em cima e no crm". Botao no alto, fora das abas -- a mesma tela do
             admin do site. No celular tambem vai escrito (Pedro, 29/09: "quero nao
@@ -378,7 +379,7 @@ export default function Navbar() {
             } ${duvidasDoTel > 0 ? 'respostas-tel-tem' : ''}`}
         >
           <ChatTeardropText size={16} weight={duvidasDoTel > 0 || pathname.startsWith('/respostas-tel') ? 'fill' : 'regular'} />
-          <span className="hidden sm:inline">Respostas Tel</span>
+          <span className="hidden min-[1800px]:inline">Respostas Tel</span>
           {duvidasDoTel > 0 && (
             <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-white text-[#6d28d9] text-[11px] leading-[18px] text-center">{duvidasDoTel}</span>
           )}
@@ -416,8 +417,8 @@ export default function Navbar() {
                 <span className="text-purple-300 text-xs font-bold">{initials}</span>
               </div>
             )}
-            <span className="hidden sm:inline text-sm font-medium text-ink truncate max-w-[120px]">{displayName}</span>
-            <CaretDown size={14} className={`hidden sm:block text-muted transition-transform ${showUserDropdown ? 'rotate-180' : ''}`} />
+            <span className="hidden min-[1800px]:inline text-sm font-medium text-ink truncate max-w-[120px]">{displayName}</span>
+            <CaretDown size={14} className={`hidden min-[1800px]:block text-muted transition-transform ${showUserDropdown ? 'rotate-180' : ''}`} />
           </div>
 
           {/* User Menu Popup */}

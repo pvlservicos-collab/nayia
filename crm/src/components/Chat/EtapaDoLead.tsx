@@ -11,7 +11,8 @@
  * A etapa é o FATO que a Nay sabe (visita passada à equipe, é dono, pediu o
  * checklist), e ele manda sempre -- escolher aqui NÃO prende (Pedro, 01/10:
  * "não quero isso de escolha à mão ganhar de nada, isso tudo é um estado
- * temporário"). A escolha só vale quando a Nay não sabe de nada, e por 7 dias.
+ * temporário"). A escolha só vale quando a Nay não sabe de nada, e por 7 dias
+ * (Visitas não vence desde a 379: ninguém sai de lá sozinho).
  * "Todos" não é "mover para Todos": é soltar -- do lado da Nay ele conclui o
  * fechamento aberto e tira a marca de humano, e a conversa volta por
  * consequência.
@@ -176,7 +177,7 @@ export default function EtapaDoLead({ lead, onUpdateLead, semExplicacao }: {
           {erro
             ? <span className="text-red-500">{erro}</span>
             : aMao
-              ? 'A Nay já sabe. Nada fica preso: se abrir visita, fechamento, ou o imóvel for dele, a conversa vai para a etapa do fato — e esta escolha vale 7 dias.'
+              ? 'A Nay já sabe. Se abrir visita, fechamento, ou o imóvel for dele, a conversa vai para a etapa do fato. Esta escolha vale 7 dias; Visitas fica até alguém mudar a etapa.'
               : 'A Nay está decidindo sozinha: visita passada à equipe, dono do imóvel ou checklist pedido.'}
         </p>
       )}
