@@ -162,7 +162,8 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
       className={`wa-linha ${isSelected ? 'wa-linha--sel' : ''} ${respondeu ? 'wa-linha--respondeu' : ''}`}
       style={{
         ...(nayLeads ? { boxShadow: 'inset 4px 0 0 #7c3aed, inset 0 0 0 9999px rgba(124, 58, 237, 0.12)' }
-          : clienteOlx ? { boxShadow: 'inset 4px 0 0 #2563eb, inset 0 0 0 9999px rgba(37, 99, 235, 0.1)' }
+          // 29/10 (Pedro: "diminui o azul que destacava quem vem da OLX em 80%"): a faixa e o fundo com 20% do que eram
+          : clienteOlx ? { boxShadow: 'inset 4px 0 0 rgba(37, 99, 235, 0.2), inset 0 0 0 9999px rgba(37, 99, 235, 0.02)' }
           : {}),
         ...(relacionados ? { position: 'relative' as const } : {}),
       }}
@@ -174,13 +175,19 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
         <span role="button" tabIndex={0} data-relacionados={lead.id}
               aria-label={relacionados.aberto ? 'Esconder os contatos relacionados' : `Ver ${relacionados.n} contato(s) relacionado(s)`}
               title={relacionados.aberto ? 'Esconder os contatos relacionados' : `${relacionados.n} proprietário(s) que a Nay procurou por este lead`}
-              className="absolute right-3 bottom-[1px] inline-flex items-center justify-center w-6 h-4 rounded hover:bg-[var(--wa-row-selected)]"
-              style={{ color: '#7c3aed' }}
+              className="absolute right-3 bottom-[2px] z-[1] inline-flex items-center justify-center w-[18px] h-[18px] rounded-full"
+              style={{ color: '#7c3aed', background: '#fff', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.22)' }}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); e.preventDefault(); aoAlternarRelacionados?.(lead.id) }}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); aoAlternarRelacionados?.(lead.id) } }}>
-          <CaretDown size={15} weight="bold" style={{ transform: relacionados.aberto ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }} />
+          <CaretDown size={12} weight="bold" style={{ transform: relacionados.aberto ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }} />
         </span>
+      )}
+      {/* 29/10 (Pedro): "uma sombra leve, pequena verticalmente, mas ocupando todo o espaço horizontal do contato que tem
+          contatos relacionados embaixo" */}
+      {relacionados && (
+        <span aria-hidden className="absolute left-0 right-0 bottom-0 h-[6px] pointer-events-none"
+              style={{ background: 'linear-gradient(to top, rgba(0, 0, 0, 0.09), rgba(0, 0, 0, 0))' }} />
       )}
       {/* 517: a bolinha embaixo do lead -- há contatos relacionados (verde quando um deles tem mensagem sem ler) */}
       {relacionados && (
