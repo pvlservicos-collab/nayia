@@ -444,9 +444,11 @@ def grupos_volta(conn, c: dict) -> int:
                 time.time() - g["ultimo_envio_em"].timestamp() < c["intervalo_min"] * 60:
             continue
         teste = c["grupos"] == "teste"
-        # o que foi em teste não conta quando o modo é sim (senão o grupo de verdade nunca receberia)
+        # o que foi em teste não conta quando o modo é sim (senão o grupo de verdade nunca receberia). 29/10: o pedido
+        # que MUDOU (outro valor, outro bairro) é pedido novo e vai de novo (mesmo_pedido)
         bs = [b for b in buscas if grupo_aceita(g, b["filtros"])
-              and g["grupo_id"] not in [x.get("grupo") for x in b["grupos"] or [] if teste or not x.get("teste")]]
+              and g["grupo_id"] not in [x.get("grupo") for x in b["grupos"] or []
+                                        if (teste or not x.get("teste")) and mesmo_pedido(x, mensagem_de_grupo(b["filtros"]))]]
         # Tel, 22/10: "tem que ser sempre separado as buscas por mensagem individual": uma busca por mensagem; a próxima
         # do mesmo grupo espera `busca_grupos_intervalo_min`
         bs = bs[:1]
@@ -482,15 +484,58 @@ def _alguem_ofereceu(conn, b: dict) -> bool:
     return bool(banco.um(conn, "SELECT EXISTS (SELECT 1 FROM privado.busca_corretor WHERE busca = %s)", (b["id"],)))
 
 
+REPETICOES = 2                 # Pedro, 29/10: "em mais 2 horários, na manhã do outro dia e na tarde do outro dia"
+TARDE_DESDE_H = 14             # a segunda repetição é a da tarde
+ENTRE_REPETICOES_H = 3         # e nunca colada na da manhã
+
+
+def _quando(x: dict) -> datetime | None:
+    try:
+        return datetime.fromisoformat(x["em"]).astimezone(MANAUS)
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def mesmo_pedido(x: dict, texto: str) -> bool:
+    """O item do grupo é deste pedido? O pedido que mudou (a lead disse outro valor, outro bairro) é pedido novo
+    (Pedro, 29/10: "cada mensagem do lead sobrescreve a antiga"). Item antigo, de antes de guardarmos o texto, conta."""
+    return x.get("texto") in (None, texto)
+
+
+def repeticao_do_grupo(itens: list[dict], agora: datetime) -> str | None:
+    """Pedro, 29/10: "se não recebemos imóveis pela busca que foi mandada no grupo, ele pede de novo em mais 2 horários,
+    na manhã do outro dia e na tarde do outro dia, antes de parar de mandar aquela busca". `itens` = os deste pedido neste
+    grupo (no modo atual), na ordem. Devolve 'repetir', 'encerrar' ou None (nada agora). Puro: os testes chamam direto."""
+    if any(x.get("encerrou") for x in itens):
+        return None
+    originais = [n for n, x in enumerate(itens) if not x.get("repeticao")]
+    if not originais:
+        return None
+    primeiro = _quando(itens[originais[-1]])
+    reps = [x for x in itens[originais[-1] + 1:] if x.get("repeticao")]
+    if primeiro is None:
+        return None
+    if len(reps) >= REPETICOES:
+        return "encerrar"
+    if agora.date() <= primeiro.date():
+        return None                              # o pedido foi hoje: a primeira repetição é amanhã de manhã
+    if not reps:
+        return "repetir"
+    ultima = _quando(reps[-1]) or primeiro
+    if agora.hour >= TARDE_DESDE_H and agora - ultima >= timedelta(hours=ENTRE_REPETICOES_H):
+        return "repetir"
+    return None
+
+
 def grupos_repete(conn, c: dict) -> int:
     """Pedro, 24/10: "quando fizermos uma pergunta da solicitação de um cliente no grupo, mas ninguém mandou mensagem
     oferecendo, deve agendar uma cron para o começo do próximo dia para enviar novamente a mesma mensagem de busca".
-    A busca ainda aberta, cujo pedido foi a um grupo em um dia que já passou e a que nenhum corretor respondeu com imóvel,
-    sai de novo, a mesma mensagem, ao mesmo grupo, na primeira volta do dia dentro do horário (uma repetição por dia, no
-    máximo: o item do dia anterior fica marcado). Respeita o intervalo entre mensagens de cada grupo."""
+    29/10: até repetia todo dia, sem parar (a busca 52 saiu 36 vezes em 9 grupos). Agora são 2 repetições por grupo, a
+    da manhã e a da tarde do dia seguinte (repeticao_do_grupo); sem imóvel de corretor depois delas, aquele grupo não
+    recebe mais esse pedido. Respeita o intervalo entre mensagens de cada grupo."""
     if c["grupos"] == "nao" or not no_horario(c):
         return 0
-    inicio_do_dia = datetime.now(MANAUS).replace(hour=0, minute=0, second=0, microsecond=0)
+    agora = datetime.now(MANAUS)
     feitas = 0
     for b in banco.linhas(conn, "SELECT * FROM privado.busca_cliente WHERE estado = 'buscando' ORDER BY ativada_em"):
         if not pronto(b["filtros"]) or not b["filtros"].get("teto") or abaixo_do_minimo(b["filtros"], c):
@@ -499,25 +544,31 @@ def grupos_repete(conn, c: dict) -> int:
         teste = c["grupos"] == "teste"
         if not itens or _alguem_ofereceu(conn, b):
             continue
-        # o último pedido de cada grupo (do modo atual) e se já foi repetido hoje
-        ultimo: dict[str, dict] = {}
+        texto = mensagem_de_grupo(b["filtros"])
+        # os itens deste pedido (o texto de agora) em cada grupo, no modo atual
+        por_grupo: dict[str, list[dict]] = {}
         for x in itens:
-            if bool(x.get("teste")) == teste and x.get("grupo"):
-                ultimo[x["grupo"]] = x
+            if bool(x.get("teste")) == teste and x.get("grupo") and mesmo_pedido(x, texto):
+                por_grupo.setdefault(x["grupo"], []).append(x)
         mudou = False
-        for gid, x in ultimo.items():
-            try:
-                quando = datetime.fromisoformat(x["em"]).astimezone(MANAUS)
-            except (KeyError, ValueError):
+        for gid, do_grupo in por_grupo.items():
+            vez = repeticao_do_grupo(do_grupo, agora)
+            if not vez:
                 continue
-            if quando >= inicio_do_dia:
-                continue                         # o último pedido deste grupo foi hoje: a repetição é amanhã
+            nome = do_grupo[-1].get("nome") or gid
+            if vez == "encerrar":
+                itens.append({"grupo": gid, "nome": nome, "em": agora.isoformat(timespec="minutes"), "teste": teste,
+                              "encerrou": True, "texto": texto})
+                mudou = True
+                passo(conn, b["id"], "grupos", f"Ninguém ofereceu imóvel depois de {REPETICOES + 1} pedidos no grupo {nome}: "
+                                               "esse pedido parou de ir a esse grupo")
+                continue
             g = (banco.linhas(conn, "SELECT * FROM privado.busca_grupo WHERE grupo_id = %s AND ativo", (gid,)) or [None])[0]
             if not g:
                 continue
-            if c["grupos"] == "sim" and g["ultimo_envio_em"] and                     time.time() - g["ultimo_envio_em"].timestamp() < c["intervalo_min"] * 60:
+            if c["grupos"] == "sim" and g["ultimo_envio_em"] and \
+                    time.time() - g["ultimo_envio_em"].timestamp() < c["intervalo_min"] * 60:
                 continue
-            texto = mensagem_de_grupo(b["filtros"])
             if teste:
                 if not c["teste"]:
                     continue

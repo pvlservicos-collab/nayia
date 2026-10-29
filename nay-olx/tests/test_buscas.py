@@ -251,6 +251,38 @@ class OpcoesDaBase(unittest.TestCase):
             busca["ofertas"] = [{"tel": "5592999990000", "codigo": 9}]
             self.assertEqual(b.grupos_repete(mock.Mock(), c), 0)
 
+    def test_repete_so_de_manha_e_de_tarde_do_dia_seguinte_e_para(self):
+        """Pedro, 29/10: 'pede de novo em mais 2 horários, na manhã do outro dia e na tarde do outro dia, antes de parar'.
+        A busca 52 tinha saído 36 vezes em 9 grupos (repetia todo dia)."""
+        from datetime import datetime
+        d = lambda dia, h, m=0: datetime(2026, 10, dia, h, m, tzinfo=b.MANAUS)
+        item = lambda quando, **x: {"em": quando.isoformat(timespec="minutes"), **x}
+        pedido = [item(d(28, 15))]
+        self.assertIsNone(b.repeticao_do_grupo(pedido, d(28, 18)))           # no mesmo dia, nada
+        self.assertEqual(b.repeticao_do_grupo(pedido, d(29, 8)), "repetir")   # a da manhã seguinte
+        manha = pedido + [item(d(29, 8), repeticao=True)]
+        self.assertIsNone(b.repeticao_do_grupo(manha, d(29, 11)))            # ainda de manhã
+        self.assertIsNone(b.repeticao_do_grupo(manha, d(29, 13, 59)))        # a da tarde é depois das 14h
+        self.assertEqual(b.repeticao_do_grupo(manha, d(29, 14)), "repetir")   # a da tarde
+        tarde = manha + [item(d(29, 14), repeticao=True)]
+        self.assertEqual(b.repeticao_do_grupo(tarde, d(29, 18)), "encerrar")  # 3 pedidos sem imóvel: para
+        self.assertIsNone(b.repeticao_do_grupo(tarde + [item(d(29, 18), encerrou=True)], d(30, 9)))
+        # a que repetia todo dia (36 vezes) para na hora
+        velho = [item(d(25, 10))] + [item(d(26 + n // 9, 8), repeticao=True) for n in range(36)]
+        self.assertEqual(b.repeticao_do_grupo(velho, d(29, 9)), "encerrar")
+        # a manhã perdida (fora do ar): a primeira repetição sai quando der, e a da tarde 3 h depois dela
+        self.assertEqual(b.repeticao_do_grupo(pedido, d(29, 15)), "repetir")
+        self.assertIsNone(b.repeticao_do_grupo(pedido + [item(d(29, 15), repeticao=True)], d(29, 17)))
+
+    def test_pedido_que_mudou_e_pedido_novo(self):
+        """Pedro, 29/10 (a Susi, 7640: veio por um de R$ 350 mil e depois disse até 450): o pedido novo vai de novo."""
+        f350 = {"finalidade": "venda", "tipo": "apartamento", "teto": 350000, "quartos": 2, "bairros": ["Chapada"]}
+        f450 = {**f350, "teto": 450000}
+        x = {"grupo": "g1", "texto": b.mensagem_de_grupo(f350)}
+        self.assertTrue(b.mesmo_pedido(x, b.mensagem_de_grupo(f350)))
+        self.assertFalse(b.mesmo_pedido(x, b.mensagem_de_grupo(f450)))
+        self.assertTrue(b.mesmo_pedido({"grupo": "g1"}, b.mensagem_de_grupo(f450)))   # item antigo, sem o texto
+
     def test_a_busca_so_termina_com_3_opcoes(self):
         o = [{"codigo": 1, "estado": "cliente"}, {"codigo": 1, "estado": "cliente"}, {"codigo": 2, "estado": "cadastrando"},
              {"codigo": 3, "estado": "grupo"}]
