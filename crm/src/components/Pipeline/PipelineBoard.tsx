@@ -117,6 +117,20 @@ export default function PipelineBoard({ organizationId, filters, linha }: Pipeli
   const [quando, setQuando] = useState<'' | 'hoje' | 'ontem' | 'semana' | 'mes' | 'dia'>('')
   const [diaSel, setDiaSel] = useState('')
   const donosDaCaptacao = useCaptacaoDonos(true)
+  /* OS PROPRIETÁRIOS À PARTE (525, Pedro, 29/10/2026: "retirar os proprietários de todas as pipelines e deixar um
+     quadrado que quando eu marco eles aparecem na guia deles de proprietário, e não misturado com as outras"). Quem está
+     na lista de proprietários da Nay (nay_proprietario_bloqueio) sai do quadro; a caixinha marcada mostra só eles. */
+  const [proprietarios, setProprietarios] = useState<Set<string>>(new Set())
+  const [soProprietarios, setSoProprietarios] = useState(false)
+  useEffect(() => {
+    let vivo = true
+    fetch('/api/pipeline/proprietarios').then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (vivo && Array.isArray(j?.fins)) setProprietarios(new Set(j.fins)) })
+      .catch(() => {})
+    return () => { vivo = false }
+  }, [])
+  const ehProprietario = useCallback((l: LeadWithOwner) =>
+    proprietarios.has(String(l.phone || '').replace(/\D/g, '').slice(-8)), [proprietarios])
 
   // Lead aceso pelo clique num minicard da coluna "Fonte:". Limpa sozinho depois
   // da animação (3 pulsos de 0,75s em globals.css) — senão clicar de novo no
@@ -269,9 +283,11 @@ export default function PipelineBoard({ organizationId, filters, linha }: Pipeli
     return !!diaSel && d === diaSel
   }, [quando, diaSel])  // eslint-disable-line react-hooks/exhaustive-deps
 
+  const quantosProprietarios = useMemo(() => pipelineLeads.filter(ehProprietario).length, [pipelineLeads, ehProprietario])
   const leadsFiltrados = useMemo(() => pipelineLeads.filter((l) =>
+    ehProprietario(l) === soProprietarios &&
     (!tagsSel.length || ((l as any).lead_tags || []).some((lt: any) => tagsSel.includes(lt.tag_id))) && passaNoQuando(l)
-  ), [pipelineLeads, tagsSel, passaNoQuando])
+  ), [pipelineLeads, tagsSel, passaNoQuando, ehProprietario, soProprietarios])
   const etapasVisiveis = useMemo(() => (etapasSel.length ? stages.filter((s2) => etapasSel.includes(s2.id)) : stages), [stages, etapasSel])
   const contaDaEtapa = (id: string) => leadsFiltrados.filter((l) => l.stage_id === id).length
 
@@ -523,6 +539,16 @@ export default function PipelineBoard({ organizationId, filters, linha }: Pipeli
 
       {/* 20/10: os filtros à vista -- etapas, etiquetas e quando */}
       <div className="px-4 pt-2 flex flex-col gap-1.5 flex-shrink-0 text-xs">
+        {/* 525: o quadrado dos proprietários -- desmarcado, eles ficam fora do quadro; marcado, só eles */}
+        <label className="inline-flex items-center gap-2 w-fit cursor-pointer select-none px-2.5 py-1 rounded-lg border"
+               style={soProprietarios ? { borderColor: '#d97706', background: 'color-mix(in srgb, #d97706 14%, transparent)' } : { borderColor: 'var(--line)' }}
+               title="Os proprietários (da lista que a Nay respeita) ficam fora do pipeline; marque para ver só eles">
+          <input type="checkbox" checked={soProprietarios} onChange={(e) => setSoProprietarios(e.target.checked)}
+                 className="w-4 h-4 accent-[#d97706]" />
+          <span className="font-semibold text-ink">Proprietários</span>
+          <span className="opacity-70">({quantosProprietarios})</span>
+          {soProprietarios && <span className="text-muted">mostrando só os proprietários</span>}
+        </label>
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
           <span className="text-muted font-semibold flex-shrink-0 w-[62px]">Etapas</span>
           <button type="button" onClick={() => setEtapasSel([])}
