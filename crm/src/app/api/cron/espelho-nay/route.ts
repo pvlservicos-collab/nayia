@@ -24,7 +24,7 @@ import { conferirACaptacao, conferirComANay } from '@/lib/espelhoDaNay'
 import { refazerTranscricoesQueFalharam } from '@/lib/transcricao'
 import { realinharUltimaMensagem } from '@/lib/realinharUltimaMensagem'
 import { marcarOrganicos } from '@/lib/tagOrganico'
-import { levarAvisosDaNay } from '@/lib/avisosDaNay'
+import { levarAvisosDaNay, levarNotasDaNay } from '@/lib/avisosDaNay'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -104,6 +104,10 @@ export async function POST(req: NextRequest) {
       after(() => levarAvisosDaNay(parceria.org)
         .then((n) => { if (n) console.log('[avisos da Nay] levados', n) })
         .catch((e) => console.error('[avisos da Nay] falhou', e?.message || e)))
+      // 511 (28/10): a nota da Nay (o link do anúncio da OLX) na conversa do telefone
+      after(() => levarNotasDaNay(parceria.org)
+        .then((n) => { if (n) console.log('[notas da Nay] gravadas', n) })
+        .catch((e) => console.error('[notas da Nay] falhou', e?.message || e)))
     }
     if (captacao && (captacao.trazidas || captacao.erros)) console.log('[conferência da captação]', JSON.stringify(captacao))
     if (!resultado) return Response.json({ ocupado: true, captacao }, { status: 202 })

@@ -1,4 +1,4 @@
-# privado.busca_corretor_foto  (tabela, ~60 linhas)
+# privado.busca_corretor_foto  (tabela, ~92 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('privado.busca_corretor_foto_id_seq'::regclass)

@@ -6,7 +6,7 @@ CREATE OR REPLACE FUNCTION public.crm_avisos_da_equipe(p_depois bigint)
 AS $function$
   SELECT a.id, a.fonte, a.tipo, a.titulo, a.texto, a.telefone, a.criado_em
     FROM privado.aviso_equipe a
-   WHERE a.id > coalesce(p_depois, 0)
+   WHERE a.id > coalesce(p_depois, 0) AND a.tipo <> 'nota'
    ORDER BY a.id
    LIMIT 200
 $function$;

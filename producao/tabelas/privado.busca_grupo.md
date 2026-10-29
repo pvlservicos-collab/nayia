@@ -1,4 +1,4 @@
-# privado.busca_grupo  (tabela, ~0 linhas)
+# privado.busca_grupo  (tabela, ~9 linhas)
 475: os grupos do número de captação (8595) onde a busca do cliente é pedida, com a regra do Pedro (22/10).
 
 ## colunas

@@ -15,7 +15,7 @@ CREATE UNIQUE INDEX aviso_equipe_pkey ON privado.aviso_equipe USING btree (id)
 
 ## restrições
 aviso_equipe_pkey: PRIMARY KEY (id)
-aviso_equipe_tipo_check: CHECK ((tipo = ANY (ARRAY['escalada'::text, 'duvida'::text, 'midia'::text, 'relatorio'::text, 'lead'::text, 'outro'::text])))
+aviso_equipe_tipo_check: CHECK ((tipo = ANY (ARRAY['escalada'::text, 'duvida'::text, 'midia'::text, 'relatorio'::text, 'lead'::text, 'outro'::text, 'nota'::text])))
 
 ## permissões
 (só o dono)
@@ -24,4 +24,4 @@ aviso_equipe_tipo_check: CHECK ((tipo = ANY (ARRAY['escalada'::text, 'duvida'::t
 nay_aviso_equipe
 
 ## funções que citam
-crm_avisos_da_equipe, nay_aviso_equipe
+crm_avisos_da_equipe, crm_notas_da_nay, nay_aviso_equipe

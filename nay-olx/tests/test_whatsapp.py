@@ -202,6 +202,22 @@ class UmaConfirmacaoSo(unittest.TestCase):
         self.assertEqual(w.codigo_da_pergunta(lead, "o 9026 aceita pet?"), 9026)
         self.assertIsNone(w.codigo_da_pergunta(lead, "fotos dos quartos do 9026, 9037 e 5724"))
         self.assertEqual(w.codigo_da_pergunta(lead, "a localização exata"), 3883)
+        # 28/10: o orgânico que colou o link de UM imóvel (o Gilson e o 4434) pergunta sobre ele
+        organico = {"codigo": None, "fichas_citadas": [{"codigo": 4434, "card": "..."}]}
+        self.assertEqual(w.codigo_da_pergunta(organico, "Confirmar disponibilidade do apartamento no Flex Parque Dez"), 4434)
+        dois = {"codigo": None, "fichas_citadas": [{"codigo": 4434}, {"codigo": 5360}]}
+        self.assertIsNone(w.codigo_da_pergunta(dois, "a localização"))
+
+    def test_oferta_sozinha_espera_o_filtro_e_a_pergunta_aberta(self):
+        # 28/10 (Susi, lead 63): só tipo e quartos do anúncio, sem valor nem região, e a torre prometida na fila
+        from unittest import mock
+        lead = {"telefone": "9282517640", "filtros": {"tipo": "apartamento", "quartos": 2, "finalidade": "venda"}}
+        with mock.patch.object(w.banco, "um", return_value=False):
+            self.assertIn("valor", w.oferta_sozinha_espera(None, lead))
+            self.assertIn("região", w.oferta_sozinha_espera(None, lead, {"teto": 400000}))
+            self.assertEqual(w.oferta_sozinha_espera(None, lead, {"teto": 400000, "qualquer_bairro": True}), "")
+        with mock.patch.object(w.banco, "um", return_value=True):
+            self.assertIn("pergunta", w.oferta_sozinha_espera(None, lead, {"teto": 400000, "bairros": ["Chapada"]}))
 
     def test_afrouxar(self):
         f = {"finalidade": "venda", "tipo": "casa_condominio", "teto": 900000, "bairros": ["Flores"], "quartos": 3,

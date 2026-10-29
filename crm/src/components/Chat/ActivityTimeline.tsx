@@ -792,7 +792,7 @@ export default function ActivityTimeline({
               <p className="text-[13px] font-semibold">📝 Nota interna</p>
               <p className="text-[14px] mt-1 whitespace-pre-wrap"><TextoComLinks texto={activity.content} /></p>
               <p className="text-[11px] mt-1.5 text-right opacity-70">
-                {activity.actor?.profiles?.full_name || 'Desconhecido'} · {formatTime(activity.created_at)}
+                {activity.actor?.profiles?.full_name || activity.metadata?.de || 'Desconhecido'} · {formatTime(activity.created_at)}
               </p>
             </div>
           </div>

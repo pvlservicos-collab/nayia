@@ -1,4 +1,4 @@
-# core_turno  (tabela, ~3999 linhas)
+# core_turno  (tabela, ~4449 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('core_turno_id_seq'::regclass)
@@ -34,7 +34,7 @@ nay_core: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 nay_leitura: SELECT
 
 ## funções que escrevem aqui
-nay_leads_mandar_pela_parceria
+nay_duvida_mandar_pela_parceria, nay_leads_mandar_pela_parceria
 
 ## funções que citam
-nay_leads_mandar_pela_parceria
+nay_duvida_mandar_pela_parceria, nay_leads_mandar_pela_parceria

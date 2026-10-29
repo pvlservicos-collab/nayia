@@ -53,6 +53,19 @@ BEGIN
       END IF;
     END IF;
 
+    -- 3b. 511: o PEDIDO DE BUSCA que a Nay Leads postou num grupo de corretores (Tel, 28/10: "não conseguimos ver a
+    --     mensagem que foi no grupo")
+    IF v_texto IS NULL THEN
+      SELECT b.id, g.item->>'nome' AS grupo_nome, g.item->>'em' AS em, g.item->>'texto' AS texto INTO r
+        FROM privado.busca_cliente b, jsonb_array_elements(b.grupos) AS g(item)
+       WHERE g.item->>'mid' = v_id LIMIT 1;
+      IF FOUND THEN
+        v_quem := 'Pedido de busca no grupo ' || coalesce(nullif(btrim(r.grupo_nome), ''), '(sem nome)')
+                  || coalesce(' · ' || to_char((r.em)::timestamptz AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI'), '');
+        v_texto := coalesce(nullif(btrim(r.texto), ''), '[o pedido da busca #' || r.id || ']');
+      END IF;
+    END IF;
+
     -- 4. o que a Nay mandou no privado (a velha, a nova e a antiga)
     IF v_texto IS NULL THEN
       SELECT 'Nay', coalesce(nullif(btrim(s.texto), ''), '[foto do imóvel ' || s.codigo || ']') INTO v_quem, v_texto

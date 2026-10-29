@@ -1,4 +1,4 @@
-# privado.lead_busca  (tabela, ~0 linhas)
+# privado.lead_busca  (tabela, ~41 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('privado.lead_busca_id_seq'::regclass)

@@ -49,6 +49,11 @@ def main() -> None:
             print(f"lead {lid}: não saiu — {FORA[lid]}")
             continue
         lead = whatsapp._lead(conn, lid)
+        # Tel, 28/10 (a Susi recebeu o Amazonas Flat com a torre prometida na fila e sem o filtro feito)
+        espera = whatsapp.oferta_sozinha_espera(conn, lead)
+        if espera:
+            print(f"lead {lid}: não saiu — {espera}")
+            continue
         equipe = banco.um(conn, """SELECT EXISTS (SELECT 1 FROM captacao_mensagens WHERE direcao = 'enviada'
                                       AND coalesce(origem, '') <> 'resposta' AND criada_em > now() - interval '30 minutes'
                                       AND right(regexp_replace(coalesce(telefone, ''), '\\D', '', 'g'), 8) = right(%s, 8))""",

@@ -23,15 +23,23 @@ BEGIN
     DELETE FROM captacao_etapa_manual WHERE telefone = v_dig;
     UPDATE captacao_leads SET humano_assumiu_em = NULL, humano_motivo = NULL
      WHERE right(telefone, 8) = right(v_dig, 8) AND humano_assumiu_em IS NOT NULL;
-    -- 398: a Nay do WhatsApp (OLX/orgânico) volta e responde a PRÓXIMA mensagem
+    -- 398: a Nay do WhatsApp (OLX/orgânico) volta a atender.
+    -- 511 (Tel, 28/10, a Ivy: "coloquei para atender e não enviou"): o que a pessoa escreveu DEPOIS da nossa última
+    -- mensagem, nas últimas 24 h, ficou sem resposta e continua por ler: a Nay responde já. O resto (o que já teve
+    -- resposta, ou é de mais de 24 h) fica lido, como era.
     UPDATE privado.olx_lead_whatsapp o
        SET humano_em = NULL, parada_motivo = NULL, assumido_em = now(), atualizado_em = now(),
-           ultima_lida = greatest(o.ultima_lida, (SELECT coalesce(max(m.id), 0) FROM captacao_mensagens m
-                                                    WHERE m.direcao = 'recebida'
-                                                      AND right(regexp_replace(coalesce(m.telefone, ''), '\D', '', 'g'), 8) = right(v_dig, 8)))
+           ultima_lida = greatest(o.ultima_lida, (
+             SELECT coalesce(max(m.id), 0) FROM captacao_mensagens m
+              WHERE m.direcao = 'recebida'
+                AND right(regexp_replace(coalesce(m.telefone, ''), '\D', '', 'g'), 8) = right(v_dig, 8)
+                AND (m.criada_em < now() - interval '24 hours'
+                     OR m.id < (SELECT coalesce(max(e.id), 0) FROM captacao_mensagens e
+                                 WHERE e.direcao = 'enviada'
+                                   AND right(regexp_replace(coalesce(e.telefone, ''), '\D', '', 'g'), 8) = right(v_dig, 8)))))
      WHERE right(o.telefone, 8) = right(v_dig, 8) AND o.humano_em IS NOT NULL;
     GET DIAGNOSTICS v_n = ROW_COUNT;
-    RETURN QUERY SELECT true, CASE WHEN v_n > 0 THEN 'Em Todos: a Nay volta a atender na próxima mensagem desta pessoa.'
+    RETURN QUERY SELECT true, CASE WHEN v_n > 0 THEN 'Em Todos: a Nay volta a atender e responde o que ficou sem resposta.'
                                    ELSE 'Em Todos: a etapa volta a ser a que a campanha diz.' END;
     RETURN;
   END IF;

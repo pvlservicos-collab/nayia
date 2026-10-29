@@ -234,6 +234,12 @@ def bloco(f: dict) -> str:
     return "\n".join(linhas)
 
 
+def nota_do_anuncio(a: dict, b: dict) -> str:
+    """A nota que só a equipe vê no CRM, ao lado da pergunta ao anunciante: o link do anúncio e o perfil do cliente."""
+    return (f"Anúncio da OLX que a Nay perguntou: {a.get('titulo') or '-'} ({dinheiro(a.get('preco'))}, "
+            f"{a.get('bairro') or '-'})\n{a.get('url') or '(sem link)'}\n\nPara a busca #{b['id']}: {resumo(b['filtros'])}")
+
+
 def mensagem_de_grupo(f: dict) -> str:
     """Uma busca por mensagem (Tel, 22/10: "tem que ser sempre separado as buscas por mensagem individual")."""
     return bloco(f) + "\n\nTem algum? Me chama no privado."
@@ -398,10 +404,19 @@ def _inst() -> dict:
     return inst
 
 
+def para_zapi(destino: str) -> str:
+    """O destino como a Z-API quer. O telefone do corretor vem do webhook com 12 dígitos, sem o 9 (559293500979): o
+    `[-11:]` fazia 5559293500979, que não existe, e a Z-API devolvia id mesmo assim. Tel, 28/10: "os parceiros que ela
+    está fazendo as buscas ela não retorna a mensagem" (nenhum dos 20 corretores da busca tinha recebido resposta)."""
+    if "-" in destino or "group" in destino:
+        return destino
+    d = re.sub(r"\D", "", destino)
+    return d if d.startswith("55") and len(d) in (12, 13) else "55" + d[-11:]
+
+
 def _enviar(destino: str, texto: str) -> str:
     """destino: o id do grupo ou o telefone. Devolve o id da mensagem."""
-    phone = destino if ("-" in destino or "group" in destino) else "55" + re.sub(r"\D", "", destino)[-11:]
-    r = grupo._zapi(_inst(), "POST", "/send-text", {"phone": phone, "message": texto}, timeout=40)
+    r = grupo._zapi(_inst(), "POST", "/send-text", {"phone": para_zapi(destino), "message": texto}, timeout=40)
     mid = str((r or {}).get("messageId") or (r or {}).get("id") or (r or {}).get("zaapId") or "") if isinstance(r, dict) else ""
     if not mid:
         raise RuntimeError((r or {}).get("_erro") if isinstance(r, dict) else "sem resposta da Z-API")
@@ -446,8 +461,10 @@ def grupos_volta(conn, c: dict) -> int:
             mid = _enviar(g["grupo_id"], texto)
             banco.um(conn, "UPDATE privado.busca_grupo SET ultimo_envio_em = now() WHERE grupo_id = %s", (g["grupo_id"],))
         for b in bs:
+            # o texto vai junto do id: o corretor que responde marcando a mensagem aparece no CRM com o pedido citado
+            # (Tel, 28/10: "não conseguimos ver a mensagem que foi no grupo"; crm_mensagem_citada, 511)
             item = {"grupo": g["grupo_id"], "nome": g["nome"], "em": datetime.now(MANAUS).isoformat(timespec="minutes"),
-                    "mid": mid, "teste": teste}
+                    "mid": mid, "teste": teste, "texto": texto}
             banco.um(conn, """UPDATE privado.busca_cliente SET grupos = grupos || %s::jsonb, grupos_em = now() WHERE id = %s""",
                      (json.dumps([item], ensure_ascii=False), b["id"]))
             passo(conn, b["id"], "grupos", f"Pedido no grupo {g['nome']}" + (" (teste: foi ao número de teste)" if teste else ""))
@@ -509,7 +526,7 @@ def grupos_repete(conn, c: dict) -> int:
                 mid = _enviar(gid, texto)
                 banco.um(conn, "UPDATE privado.busca_grupo SET ultimo_envio_em = now() WHERE grupo_id = %s", (gid,))
             itens.append({"grupo": gid, "nome": g["nome"], "em": datetime.now(MANAUS).isoformat(timespec="minutes"),
-                          "mid": mid, "teste": teste, "repeticao": True})
+                          "mid": mid, "teste": teste, "repeticao": True, "texto": texto})
             mudou = True
             passo(conn, b["id"], "grupos", f"Ninguém ofereceu: o mesmo pedido saiu de novo no grupo {g['nome']}"
                   + (" (teste: foi ao número de teste)" if teste else ""))
@@ -653,6 +670,11 @@ def olx_volta(conn, c: dict) -> int:
                 banco.um(conn, """INSERT INTO privado.busca_contato (telefone8, telefone, busca, de, olx_id, nome)
                                   VALUES (%s, %s, %s, 'anunciante_olx', %s, %s)""",
                          (tel[-8:], tel, b["id"], a["olx_id"], a.get("anunciante")))
+                # Tel, 28/10: "ela precisa enviar o link do imóvel para depois a gente clicar para saber se esse imóvel
+                # pelo perfil vai atender o cliente"; Pedro: só no CRM (ao anunciante continua sem link, 23/10). Vira
+                # nota interna na conversa do anunciante (511)
+                banco.um(conn, "SELECT nay_aviso_equipe('nay-olx', 'nota', 'Anúncio da OLX', %s, %s)",
+                         (nota_do_anuncio(a, b), tel))
             item = {"olx_id": a["olx_id"], "titulo": a["titulo"], "url": a["url"], "preco": float(a["preco"] or 0),
                     "bairro": a["bairro"], "tel": tel, "anunciante": a.get("anunciante"), "nota": a.get("nota"),
                     "em": datetime.now(MANAUS).isoformat(timespec="minutes"), "mid": mid, "teste": teste}
@@ -1021,7 +1043,7 @@ def base_volta(conn, c: dict) -> int:
         if not pronto(b["filtros"]):
             continue
         lead = whatsapp._lead(conn, b["lead"])
-        if not lead or lead.get("humano_em"):
+        if not lead or lead.get("humano_em") or whatsapp.oferta_sozinha_espera(conn, lead, b["filtros"]):
             continue
         ofertas = list(b["ofertas"] or [])
         if _fechar_se_completa(conn, b, ofertas):

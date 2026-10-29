@@ -157,6 +157,13 @@ DA NAY PARCERIA (Pedro, 25/10: o que ela já faz e vale aqui também):
   alto. "Andar alto" na ficha é a resposta: não diga que não sabe.
 - O nome do condomínio pode vir escrito de ouvido ou pela metade ("o do laranjeiras", "piazza dell acqua"): é o mais
   parecido entre os IMÓVEIS DESTA CONVERSA. Se servir a dois, pergunte qual pelo nome dos dois.
+DO TEL (28/10):
+- Financiamento: imóvel que aceita financiamento aceita QUALQUER banco que faz financiamento habitacional (Caixa, Banco
+  do Brasil, Itaú, Bradesco, Santander...). "Pode ser pela Caixa?" tem resposta: sim. Não é dúvida para a equipe. A
+  entrada e a parcela saem da simulação: não invente números; ofereça fazer a simulação com ela.
+- Disponibilidade: só diga "está disponível" de imóvel com ficha do nosso site. Ficha com "disponibilidade: NÃO
+  CONFIRMADA" (imóvel de parceiro, ou que ela trouxe do site antigo) você não confirma: diga que vai verificar e marque
+  "perguntar".
 
 === QUANDO VEIO DIRETO (ORGÂNICO) ===
 Não houve OLX nem anúncio: a pessoa escreveu para este número por conta própria. NUNCA fale de anúncio, de OLX, de "falamos
@@ -676,6 +683,10 @@ def imoveis_da_conversa(conn, lead: dict) -> list[str]:
     return saida
 
 
+DISPONIBILIDADE_DE_PARCEIRO = ("NÃO CONFIRMADA: não está no nosso site atual. Nunca diga que está disponível por esta "
+                               "ficha; diga que vai confirmar e marque \"perguntar\".")
+
+
 def _fichas_citadas(conn, conversa: list[dict], lead: dict | None = None) -> list[dict]:
     fichas = []
     for c in codigos_citados(conversa) or codigos_dos_links(conn, conversa) or _pelo_nome(conn, conversa):
@@ -686,7 +697,9 @@ def _fichas_citadas(conn, conversa: list[dict], lead: dict | None = None) -> lis
             # 400: o de parceiro não tem página pública; ela lê o card de cliente dele
             card = banco.um(conn, "SELECT texto_pronto FROM nai_card_do_imovel(%s, true)", (c,))
             if card:
-                fichas.append({"codigo": c, "card": card})
+                # 28/10 (Tel, o Gilson e o 4434): o status do cadastro é cópia do site antigo; de parceiro, só o
+                # parceiro confirma
+                fichas.append({"codigo": c, "card": card, "disponibilidade": DISPONIBILIDADE_DE_PARCEIRO})
     return fichas
 
 
@@ -1406,7 +1419,29 @@ def codigo_da_pergunta(lead: dict, motivo: str) -> int | None:
         return int(cods[0])
     if len(cods) > 1:
         return None
-    return lead.get("codigo")
+    if lead.get("codigo"):
+        return lead.get("codigo")
+    # 28/10 (o Gilson colou imobeasy.com/imoveis/4434 e a pergunta foi à fila sem código: quem respondeu não sabia que
+    # o 4434 é de parceiro): o orgânico que citou UM imóvel pergunta sobre ele
+    citados = list(dict.fromkeys(_int(f.get("codigo")) for f in lead.get("fichas_citadas") or [] if _int(f.get("codigo"))))
+    return citados[0] if len(citados) == 1 else None
+
+
+def oferta_sozinha_espera(conn, lead: dict, filtros: dict | None = None) -> str:
+    """Por que a oferta que ela manda SOZINHA (sem a pessoa ter escrito agora) espera; '' = pode ir. Tel, 28/10 (Susi): "a
+    Nay ficou de passar uma informação, e não retornou com essa dúvida da cliente, e logo após mandou uma opção, porém
+    ela não fez o filtro antes". Espera enquanto há pergunta dela na fila (a promessa vem antes da opção nova) e
+    enquanto o filtro não tem o valor e o lugar (o "tanto faz" do bairro vale)."""
+    f = filtros if filtros is not None else (lead.get("filtros") or {})
+    if not f.get("teto"):
+        return "o filtro ainda não tem o valor"
+    if not (f.get("bairros") or f.get("qualquer_bairro") or f.get("condominio") or f.get("perto_de")):
+        return "o filtro ainda não tem a região"
+    if lead.get("telefone") and banco.um(conn, """SELECT EXISTS (SELECT 1 FROM pergunta_fila WHERE linha = 'captacao'
+                                                     AND estado IN ('agente', 'fila', 'perguntada') AND right(chave, 8) = %s)""",
+                                         (_so8(lead["telefone"]),)):
+        return "há pergunta dela esperando resposta da equipe"
+    return ""
 
 
 def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None = None) -> None:

@@ -18,6 +18,18 @@ TODOS = {"grupo_id": "t", "nome": "FECHANDO PARCERIAS 1.0", "locacao": True, "ve
 ALTO = {"grupo_id": "a", "nome": "Alto Padrão", "locacao": True, "venda": True, "locacao_min": 7000, "venda_min": 800000}
 
 
+class NumeroDaZapi(unittest.TestCase):
+    def test_corretor_gravado_sem_o_9_vai_ao_numero_certo(self):
+        # 28/10: 559293500979 virava 5559293500979 (não existe) e nenhum corretor da busca recebia resposta
+        self.assertEqual(b.para_zapi("559293500979"), "559293500979")
+        self.assertEqual(b.para_zapi("5592993500979"), "5592993500979")
+
+    def test_sem_o_55_e_grupo(self):
+        self.assertEqual(b.para_zapi("92993500979"), "5592993500979")
+        self.assertEqual(b.para_zapi("55991583096"), "5555991583096")   # DDD 55, sem o código do país
+        self.assertEqual(b.para_zapi("120363012345678901-group"), "120363012345678901-group")
+
+
 class QualGrupo(unittest.TestCase):
     def test_venda_nunca_vai_ao_grupo_de_locacao(self):
         f = {"finalidade": "venda", "tipo": "apartamento", "teto": 700000}
