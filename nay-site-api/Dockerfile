@@ -45,4 +45,7 @@ USER site-api
 
 EXPOSE 8092
 # timeout 90 (era 30): o disparo pela API oficial manda card e fotos um a um (28/09).
-CMD ["python", "-m", "gunicorn", "--bind", "0.0.0.0:8092", "--workers", "2", "--timeout", "90", "app:app"]
+# threads 4 (29/10, a busca de Todos os Imóveis demorava): com 2 processos de um pedido cada, abrir a tela (a lista, as
+# 4 contas dos atalhos, as opções) ocupava os dois e a busca digitada esperava na fila. Quase todo o tempo de um
+# pedido é esperando o banco, então 4 linhas por processo atendem 8 pedidos de uma vez sem pesar mais na CPU.
+CMD ["python", "-m", "gunicorn", "--bind", "0.0.0.0:8092", "--workers", "2", "--threads", "4", "--timeout", "90", "app:app"]

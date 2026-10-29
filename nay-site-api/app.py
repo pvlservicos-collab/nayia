@@ -12,6 +12,8 @@ role, nao so em codigo.
 """
 import os
 import re
+import threading
+import time
 from datetime import datetime, date
 from decimal import Decimal
 from zoneinfo import ZoneInfo
@@ -2438,6 +2440,28 @@ FAIXAS_DO_CADASTRO = {
 }
 
 
+# 29/10 (Pedro: "quando entro em todos os imóveis e digito nomes de imóveis ou condomínios ele demora a aparecer"): a
+# pontuação (vw_imovel_pontuacao) custa ~0,5 s para o acervo inteiro e entrava em toda consulta da lista (a página
+# levava 1,2 s com ela e 0,08 s sem). A nota dos imóveis da página é lida na hora, só deles; a do acervo (as
+# contagens do filtro Cadastro e o próprio filtro) vem desta cópia, refeita a cada 5 min em cada processo.
+_PONTOS = {"em": 0.0, "pct": {}}
+_PONTOS_TRAVA = threading.Lock()
+PONTOS_VALEM_S = 300
+
+
+def _pontos_do_acervo():
+    with _PONTOS_TRAVA:
+        if time.monotonic() - _PONTOS["em"] > PONTOS_VALEM_S:
+            conn = conectar()
+            try:
+                _PONTOS["pct"] = {l["codigo"]: l["pct"] for l in todas_linhas(
+                    conn, "SELECT codigo, pct FROM vw_imovel_pontuacao")}
+            finally:
+                conn.close()
+            _PONTOS["em"] = time.monotonic()
+        return _PONTOS["pct"]
+
+
 def _na_faixa_do_cadastro(pct, faixa):
     if faixa not in FAIXAS_DO_CADASTRO:
         return True
@@ -2477,7 +2501,7 @@ def api_imoveis_lista():
     if faixa_cad in FAIXAS_DO_CADASTRO:
         de, ate = FAIXAS_DO_CADASTRO[faixa_cad]
         grupos.setdefault("cadastro", []).append(
-            ("v.codigo IN (SELECT codigo FROM vw_imovel_pontuacao WHERE pct BETWEEN %s AND %s)", [de, ate]))
+            ("v.codigo = ANY(%s)", [[c for c, p in _pontos_do_acervo().items() if de <= (p or 0) <= ate]]))
 
     q = str(a.get("q") or "").strip()[:80]
     if q:
@@ -2704,15 +2728,24 @@ def api_imoveis_lista():
     try:
         geo_col = (", g.lat, g.lon, g.precisao AS geo_precisao, g.bairro AS geo_bairro" if mapa else "")
         geo_join = (" LEFT JOIN imovel_geo g ON g.codigo = v.codigo " if mapa else " ")
-        # QUANTO O CADASTRO ESTÁ PREENCHIDO (244, Pedro 30/09): o pct e o que falta
+        # QUANTO O CADASTRO ESTÁ PREENCHIDO (244, Pedro 30/09): o pct e o que falta. 29/10: a pontuação só entra na
+        # consulta quando a ORDEM é por ela; senão vem depois, só dos imóveis desta página (ver _pontos_do_acervo)
+        pela_nota = a.get("ordem") in ("falta", "completo")
         linhas = todas_linhas(conn, "SELECT v.*" + geo_col +
-                              ", pt.pct AS cadastro_pct, pt.falta AS cadastro_falta"
+                              (", pt.pct AS cadastro_pct, pt.falta AS cadastro_falta" if pela_nota else "") +
                               # 413: parceiro do site antigo, status por atualizar: a Nay de captação não oferece
                               ", imovel_parceiro_antigo(v.codigo) AS parceiro_antigo"
-                              ", count(*) OVER () AS total FROM vw_imoveis_todos v" +
-                              geo_join + " LEFT JOIN vw_imovel_pontuacao pt ON pt.codigo = v.codigo " + where +
+                              ", count(*) OVER () AS total FROM vw_imoveis_todos v" + geo_join +
+                              (" LEFT JOIN vw_imovel_pontuacao pt ON pt.codigo = v.codigo " if pela_nota else " ") + where +
                               " ORDER BY " + ordem + " LIMIT %s OFFSET %s",
                               tuple(params + [per, (page - 1) * per]))
+        if linhas and not pela_nota:
+            nota = {p["codigo"]: p for p in todas_linhas(
+                conn, "SELECT codigo, pct, falta FROM vw_imovel_pontuacao WHERE codigo = ANY(%s)",
+                ([l["codigo"] for l in linhas],))}
+            for l in linhas:
+                p = nota.get(l["codigo"]) or {}
+                l["cadastro_pct"], l["cadastro_falta"] = p.get("pct"), p.get("falta")
         resumo = todas_linhas(conn, """
             SELECT count(*) FILTER (WHERE status = 'Disponível' AND coalesce(valor_aluguel, 0) > 0) AS aluguel,
                    count(*) FILTER (WHERE status = 'Disponível' AND coalesce(valor_venda, 0) > 0) AS venda,
@@ -2727,12 +2760,13 @@ def api_imoveis_lista():
             SELECT v.codigo, v.status, v.tipo, v.grupo_tipo, v.publicado_no_site, v.fotos, v.quartos, v.vagas,
                    v.e_parceiro, v.financia, v.precisa_confirmacao,
                    imovel_parceiro_antigo(v.codigo) AS parceiro_antigo,
-                   coalesce(pt.pct, 0) AS cadastro_pct,
                    coalesce(v.proprietario_nome, '') <> '' AS tem_dono,
                    (coalesce(v.valor_venda, 0) > 0 OR v.valor_texto ILIKE 'Venda%%') AS e_venda,
                    (coalesce(v.valor_aluguel, 0) > 0 OR v.valor_texto ILIKE 'Aluguel%%') AS e_aluguel
-              FROM vw_imoveis_todos v
-              LEFT JOIN vw_imovel_pontuacao pt ON pt.codigo = v.codigo """ + where_base, tuple(params_base))
+              FROM vw_imoveis_todos v """ + where_base, tuple(params_base))
+        pontos = _pontos_do_acervo()
+        for l in crus:
+            l["cadastro_pct"] = pontos.get(l["codigo"]) or 0
 
         # como cada grupo ja escolhido peneira a base, em Python
         PENEIRA = {
