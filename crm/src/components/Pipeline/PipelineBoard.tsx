@@ -52,9 +52,12 @@ const SOURCE_TAB_ID = '__source_rail__'
 interface PipelineBoardProps {
   organizationId: string
   filters?: FilterState
+  /** 29/10 (Pedro: "pôr cada pipeline do lado da agenda do número, só aparecendo o pipeline do número"): dentro da aba
+      Pipeline de um número, o quadro fica no funil daquela linha (settings.linha) e as abas dos outros funis somem */
+  linha?: 'parceria' | 'oficial' | 'captacao'
 }
 
-export default function PipelineBoard({ organizationId, filters }: PipelineBoardProps) {
+export default function PipelineBoard({ organizationId, filters, linha }: PipelineBoardProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const pipelineIdFromUrl = searchParams.get('pipelineId')
@@ -86,8 +89,14 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
 
   const activePipeline = pipelines.find(p => p.id === selectedPipelineId)
   // as abas: Oficial, Parceria, Captação (settings.linha, migração 0127) e o resto depois
-  const abasDosFunis = useMemo(() => [...pipelines].sort((a, b) =>
-    (ORDEM_DO_FUNIL[a.settings?.linha] ?? 9) - (ORDEM_DO_FUNIL[b.settings?.linha] ?? 9)), [pipelines])
+  const abasDosFunis = useMemo(() => [...pipelines].filter((p) => !linha || p.settings?.linha === linha).sort((a, b) =>
+    (ORDEM_DO_FUNIL[a.settings?.linha] ?? 9) - (ORDEM_DO_FUNIL[b.settings?.linha] ?? 9)), [pipelines, linha])
+  // na aba de um número: o funil daquela linha, sempre
+  useEffect(() => {
+    if (!linha) return
+    const doNumero = pipelines.find((p) => p.settings?.linha === linha)
+    if (doNumero && doNumero.id !== selectedPipelineId) selectPipeline(doNumero.id)
+  }, [linha, pipelines, selectedPipelineId, selectPipeline])
   const trocarDeFunil = useCallback((id: string) => {
     selectPipeline(id)
     router.replace(`/pipeline?pipelineId=${id}`)
@@ -133,10 +142,10 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
 
   // Sync URL pipelineId with selected pipeline
   useEffect(() => {
-    if (pipelineIdFromUrl && pipelineIdFromUrl !== selectedPipelineId) {
+    if (!linha && pipelineIdFromUrl && pipelineIdFromUrl !== selectedPipelineId) {
       selectPipeline(pipelineIdFromUrl)
     }
-  }, [pipelineIdFromUrl, selectedPipelineId, selectPipeline])
+  }, [linha, pipelineIdFromUrl, selectedPipelineId, selectPipeline])
 
   // Mobile: garante que sempre haja uma etapa selecionada pra mostrar (a primeira, por padrão)
   useEffect(() => {

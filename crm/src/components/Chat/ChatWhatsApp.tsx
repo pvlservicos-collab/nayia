@@ -15,6 +15,7 @@ import AbasParceria, { type AbaDaParceria } from './AbasParceria'
 import ArquiteturaDosAgentes from './ArquiteturaDosAgentes'
 import VisitasAgendadas from './VisitasAgendadas'
 import PipelineDosLeads from './PipelineDosLeads'
+import PipelineBoard from '@/components/Pipeline/PipelineBoard'
 import FechamentoChecklists from './FechamentoChecklists'
 import BarraDeMetricas from './BarraDeMetricas'
 import BarraDaCaptacao from './BarraDaCaptacao'
@@ -406,7 +407,8 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
 
   const abas = ehParceria ? (
     <AbasParceria aba={aba} aoMudar={(k) => { setAba(k); if (k === 'conversas') setMobileView('list') }}
-                  naoLidas={naoLidas} visitasAbertas={visitasAbertas}>
+                  naoLidas={naoLidas} visitasAbertas={visitasAbertas}
+                  abas={['conversas', 'visitas', 'pipeline', 'fechamento']} rotuloPipeline="Pipeline">
       <BarraDeMetricas leads={allLeads} marcas={marcas} nay={nay} aoAbrirConversa={abrirConversaPorId} />
     </AbasParceria>
   ) : linha === 'captacao' ? (
@@ -431,12 +433,18 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
     // disparo pela API oficial (Pedro, 09/10): qual lista está saindo e quanto falta
     <>
       <AbasParceria aba={aba} aoMudar={(k) => { setAba(k); if (k === 'conversas') setMobileView('list') }}
-                    naoLidas={naoLidas} visitasAbertas={0} abas={['conversas', 'visitas']}
-                    rotuloConversas="As conversas do número oficial (Meta)" />
+                    naoLidas={naoLidas} visitasAbertas={0} abas={['conversas', 'visitas', 'pipeline']}
+                    rotuloConversas="As conversas do número oficial (Meta)" rotuloPipeline="Pipeline" />
       {aba === 'conversas' && <BarraDoCustoOficial />}
       {aba === 'conversas' && <BarraDoDisparoOficial />}
     </>
   ) : null
+
+  /* 29/10 (Pedro: "pôr cada pipeline do lado da agenda do número, só aparecendo o pipeline do número"): na Leads, o
+     pipeline dos leads; na Parceria e na Oficial, o funil do CRM daquela linha, sem as abas dos outros números */
+  const pipelineDoNumero = linha === 'captacao'
+    ? <PipelineDosLeads leadsDoCrm={allLeads} aoAbrirConversa={abrirConversaPorId} />
+    : organizationId ? <PipelineBoard organizationId={organizationId} linha={ehParceria ? 'parceria' : 'oficial'} /> : null
 
   /* ── Celular: uma tela por vez; na Parceria as abas ficam em cima ── */
   if (isMobile) {
@@ -447,7 +455,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
         {aba === 'visitas' ? (
           <div className="flex-1 min-h-0 flex"><VisitasAgendadas aoAbrirConversa={abrirConversaPorId} destaque={visitaDestaque} /></div>
         ) : aba === 'pipeline' ? (
-          <div className="flex-1 min-h-0 flex"><PipelineDosLeads leadsDoCrm={allLeads} aoAbrirConversa={abrirConversaPorId} /></div>
+          <div className="flex-1 min-h-0 flex">{pipelineDoNumero}</div>
         ) : aba === 'arquitetura' ? (
           <div className="flex-1 min-h-0 flex"><ArquiteturaDosAgentes /></div>
         ) : ehParceria && aba === 'fechamento' ? (
@@ -470,7 +478,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
         {aba === 'visitas' ? (
           <VisitasAgendadas aoAbrirConversa={abrirConversaPorId} destaque={visitaDestaque} />
         ) : aba === 'pipeline' ? (
-          <PipelineDosLeads leadsDoCrm={allLeads} aoAbrirConversa={abrirConversaPorId} />
+          pipelineDoNumero
         ) : aba === 'arquitetura' ? (
           <ArquiteturaDosAgentes />
         ) : ehParceria && aba === 'fechamento' ? (

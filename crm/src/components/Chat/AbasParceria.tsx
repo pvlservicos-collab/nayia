@@ -19,7 +19,7 @@ export type AbaDaParceria = 'conversas' | 'visitas' | 'pipeline' | 'fechamento' 
 
 /* 18/10 (Pedro: "a agenda não está lá no número de captação; precisa estar, é claro, todos os números compartilhando a
    mesma agenda"): as outras linhas usam estas mesmas abas, só sem Fechamento (que é da Parceria). `abas` escolhe. */
-export default function AbasParceria({ aba, aoMudar, naoLidas, visitasAbertas, children, abas, rotuloConversas }: {
+export default function AbasParceria({ aba, aoMudar, naoLidas, visitasAbertas, children, abas, rotuloConversas, rotuloPipeline }: {
   aba: AbaDaParceria
   aoMudar: (aba: AbaDaParceria) => void
   naoLidas: number
@@ -29,6 +29,8 @@ export default function AbasParceria({ aba, aoMudar, naoLidas, visitasAbertas, c
   abas?: AbaDaParceria[]
   /** a dica da aba Conversas (o número da linha) */
   rotuloConversas?: string
+  /** 29/10: o nome da aba Pipeline (na Leads é o pipeline dos leads; nas outras, o funil do número) */
+  rotuloPipeline?: string
 }) {
   const mostra = (k: AbaDaParceria) => !abas || abas.includes(k)
   const aba_ = (chave: AbaDaParceria, rotulo: string, Icone: typeof ChatCircleText, contagem: number, titulo: string) => {
@@ -54,7 +56,8 @@ export default function AbasParceria({ aba, aoMudar, naoLidas, visitasAbertas, c
       <div className="wa-abas__abas" role="tablist" aria-label="Abas da linha">
         {mostra('conversas') && aba_('conversas', 'Conversas', ChatCircleText, naoLidas, rotuloConversas || 'As conversas do WhatsApp da Parceria')}
         {mostra('visitas') && aba_('visitas', 'Visitas agendadas', CalendarCheck, visitasAbertas, 'A agenda de visitas: é uma só para todos os números')}
-        {abas?.includes('pipeline') && aba_('pipeline', 'Pipeline dos leads', Kanban, 0, 'Cada lead que chegou na aba Leads, com a data e até onde foi')}
+        {abas?.includes('pipeline') && aba_('pipeline', rotuloPipeline || 'Pipeline dos leads', Kanban, 0,
+          rotuloPipeline ? 'O funil deste número, só com as conversas dele' : 'Cada lead que chegou na aba Leads, com a data e até onde foi')}
         {mostra('fechamento') && aba_('fechamento', 'Fechamento', ClipboardText, 0, 'Os checklists de aluguel e venda para o contrato')}
         {abas?.includes('arquitetura') && aba_('arquitetura', 'Arquitetura', TreeStructure, 0, 'Os agentes da Nay Leads: cada etapa num fluxograma, com os números')}
       </div>
