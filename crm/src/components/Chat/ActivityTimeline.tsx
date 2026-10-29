@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useEffect, useLayoutEffect, useState, useMemo, memo, useCallback } from 'react'
-import { Sparkle, X, Play, Pause, Microphone, ArrowBendUpLeft, Check, Checks, WarningCircle, Lightning, PushPin, Trash, Prohibit, FileText, DownloadSimple, CaretDown, CaretLeft, CaretRight } from '@phosphor-icons/react'
+import { Sparkle, X, Play, Pause, Microphone, ArrowBendUpLeft, ArrowBendUpRight, Check, Checks, WarningCircle, Lightning, PushPin, Trash, Prohibit, FileText, DownloadSimple, CaretDown, CaretLeft, CaretRight } from '@phosphor-icons/react'
 import { LeadActivityWithActor, LeadWithOwner } from '@/lib/types'
 import { formatTime } from '@/lib/utils'
 import ImovelCitado from './ImovelCitado'
@@ -29,6 +29,7 @@ interface ActivityTimelineProps {
   loading: boolean
   lead: LeadWithOwner
   onReply?: (activity: LeadActivityWithActor) => void
+  onForward?: (activity: LeadActivityWithActor) => void
   onTogglePin?: (activity: LeadActivityWithActor) => void
   onDelete?: (activity: LeadActivityWithActor, deleteForEveryone: boolean) => void | Promise<void>
   pinnedActivityIds?: Set<string>
@@ -448,6 +449,7 @@ const MessageBubble = memo(function MessageBubble({
   reactions,
   onImageClick,
   onReply,
+  onForward,
   onTogglePin,
   onRequestDelete,
   canDelete,
@@ -463,6 +465,7 @@ const MessageBubble = memo(function MessageBubble({
   reactions?: LeadActivityWithActor[]
   onImageClick?: (url: string) => void
   onReply?: (activity: LeadActivityWithActor) => void
+  onForward?: (activity: LeadActivityWithActor) => void
   onTogglePin?: (activity: LeadActivityWithActor) => void
   onRequestDelete?: (activity: LeadActivityWithActor) => void
   canDelete?: boolean
@@ -488,7 +491,7 @@ const MessageBubble = memo(function MessageBubble({
     : (showHeader && ehGrupo ? (m.sender_name || nomeDoLead) : null)
   const corDoRotulo = isAI ? '#7c6bff' : isAutomated ? 'var(--wa-green)' : 'var(--wa-quote-bar)'
 
-  const acoes = !isDeleted && (onTogglePin || onReply || (outgoing && onRequestDelete && canDelete)) && (
+  const acoes = !isDeleted && (onTogglePin || onReply || onForward || (outgoing && onRequestDelete && canDelete)) && (
     <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 z-20 transition-opacity
                      ${outgoing ? 'right-full pr-2' : 'left-full pl-2'} ${isSelected ? 'opacity-100' : 'opacity-0 group-hover/msg:opacity-100'}`}>
       {outgoing && onToggleSelect && canDelete && (
@@ -515,6 +518,12 @@ const MessageBubble = memo(function MessageBubble({
         <button onClick={() => onReply(activity)} title="Responder"
                 className="w-7 h-7 rounded-full shadow flex items-center justify-center" style={{ background: 'var(--wa-menu)', color: 'var(--wa-icon)' }}>
           <ArrowBendUpLeft size={14} weight="bold" />
+        </button>
+      )}
+      {onForward && (
+        <button onClick={() => onForward(activity)} title="Encaminhar"
+                className="w-7 h-7 rounded-full shadow flex items-center justify-center" style={{ background: 'var(--wa-menu)', color: 'var(--wa-icon)' }}>
+          <ArrowBendUpRight size={14} weight="bold" />
         </button>
       )}
     </div>
@@ -645,6 +654,7 @@ export default function ActivityTimeline({
   loading,
   lead,
   onReply,
+  onForward,
   onTogglePin,
   onDelete,
   pinnedActivityIds,
@@ -870,6 +880,7 @@ export default function ActivityTimeline({
             reactions={reactionsForThisMessage}
             onImageClick={setSelectedImage}
             onReply={onReply}
+            onForward={onForward}
             onTogglePin={onTogglePin}
             onRequestDelete={onDelete ? setDeleteTarget : undefined}
             canDelete={canDeleteActivity(activity)}
@@ -884,7 +895,7 @@ export default function ActivityTimeline({
 
     return out
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activities, nomeDoLead, pinnedActivityIds, selectedIds, onReply, onTogglePin, onDelete, isOrgAdminUser, currentOrganization?.id, mostrarTranscricao])
+  }, [activities, nomeDoLead, pinnedActivityIds, selectedIds, onReply, onForward, onTogglePin, onDelete, isOrgAdminUser, currentOrganization?.id, mostrarTranscricao])
 
   if (loading) {
     return (

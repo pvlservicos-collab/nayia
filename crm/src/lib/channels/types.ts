@@ -21,7 +21,7 @@ export interface ChannelAdapter {
    * organização (ex: Instagram). Adapters que hoje são singleton por org
    * (WhatsApp Cloud, Evolution) simplesmente ignoram o parâmetro.
    */
-  sendText(organizationId: string, integrationId: string | null, recipient: string, content: string, isGroup?: boolean): Promise<ChannelSendResult>
+  sendText(organizationId: string, integrationId: string | null, recipient: string, content: string, isGroup?: boolean, replyToMessageId?: string | null): Promise<ChannelSendResult>
   sendMedia(
     organizationId: string,
     integrationId: string | null,

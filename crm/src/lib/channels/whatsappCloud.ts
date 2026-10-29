@@ -5,8 +5,8 @@ export const whatsappCloudAdapter: ChannelAdapter = {
   metadataIdKey: 'whatsapp_message_id',
   supportsGroups: false,
 
-  async sendText(organizationId, _integrationId, recipient, content) {
-    const result = await sendWhatsAppMessage(organizationId, recipient, content)
+  async sendText(organizationId, _integrationId, recipient, content, _isGroup, replyToMessageId) {
+    const result = await sendWhatsAppMessage(organizationId, recipient, content, replyToMessageId)
     return { externalId: result?.messages?.[0]?.id, raw: result }
   },
 

@@ -29,6 +29,21 @@ const CHANNEL_LABELS: Record<string, string> = {
  * GET /api/leads/[id]/messages
  * Lista mensagens da conversa do lead (whatsapp, note, email, system)
  */
+// 29/10 (Pedro: "quando eu clico na mensagem ele não marca igual no whatsapp, só marca visualmente no crm"): a resposta
+// marcada vai ao canal com o id da mensagem NO WHATSAPP (zapi_message_id / whatsapp_message_id). Id interno do CRM (uuid)
+// ou o canal recusar o id: a mensagem sai sem a marcação, nunca se perde.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+async function enviarTextoComResposta(adapter: any, org: string, integracao: string | null, destino: string, texto: string, grupo: boolean, respondeA?: unknown) {
+  const id = typeof respondeA === 'string' && respondeA.trim() && !UUID.test(respondeA.trim()) ? respondeA.trim() : null
+  if (!id) return adapter.sendText(org, integracao, destino, texto, grupo)
+  try {
+    return await adapter.sendText(org, integracao, destino, texto, grupo, id)
+  } catch (err) {
+    console.warn('[resposta marcada] o canal recusou o id; mandei sem marcar', (err as any)?.message || err)
+    return adapter.sendText(org, integracao, destino, texto, grupo)
+  }
+}
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await authenticateRequest(req)
@@ -311,7 +326,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         const result = body.media_url
           ? await adapter.sendMedia(auth.organizationId, leadIntegrationId, recipient, body.media_type, body.media_url, mediaCaption, body.media_filename, lead?.isGroup ?? false)
-          : await adapter.sendText(auth.organizationId, leadIntegrationId, recipient, body.content, lead?.isGroup ?? false)
+          : await enviarTextoComResposta(adapter, auth.organizationId, leadIntegrationId, recipient, body.content, lead?.isGroup ?? false, body.reply_to_message_id)
 
         metadata.send_status = 'sent'
         if (result.externalId) metadata[adapter.metadataIdKey] = result.externalId

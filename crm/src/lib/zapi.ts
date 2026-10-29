@@ -243,14 +243,16 @@ export async function sendZapiMessage(
   organizationId: string,
   phone: string,
   text: string,
-  integrationId?: string | null
+  integrationId?: string | null,
+  replyToMessageId?: string | null
 ): Promise<EnvioZapi> {
   const creds = await getZapiCredentials(organizationId, integrationId)
   return comCorrecaoDeNumero(phone, (numero) =>
     chamar(
       creds,
       'send-text',
-      { body: { phone: destinatario(numero), message: text } },
+      // `messageId` é o que faz a Z-API responder MARCANDO a mensagem no WhatsApp (Pedro, 29/10)
+      { body: { phone: destinatario(numero), message: text, ...(replyToMessageId ? { messageId: replyToMessageId } : {}) } },
       'Falha ao enviar mensagem pela Z-API'
     )
   )

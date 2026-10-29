@@ -28,7 +28,7 @@ export async function getWhatsAppCredentials(organizationId: string) {
   }
 }
 
-export async function sendWhatsAppMessage(organizationId: string, phone: string, content: string) {
+export async function sendWhatsAppMessage(organizationId: string, phone: string, content: string, replyToMessageId?: string | null) {
   const { apiVersion, phoneNumberId, token } = await getWhatsAppCredentials(organizationId)
   const to = phone.replace(/\D/g, '')
 
@@ -43,6 +43,7 @@ export async function sendWhatsAppMessage(organizationId: string, phone: string,
       to,
       type: 'text',
       text: { body: content },
+      ...(replyToMessageId ? { context: { message_id: replyToMessageId } } : {}),
     }),
   })
 

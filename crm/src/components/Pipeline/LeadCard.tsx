@@ -1,6 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect, useRef } from 'react'
+import Link from 'next/link'
 
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -126,7 +127,10 @@ const LeadCard = ({ lead, isDragOverlay, stageColor, onClick, onInfoClick, isHig
                 Mandar para a aba errada seria mandar para uma lista que não
                 tem esse lead -- a conversa não abriria. */}
             {!isDragOverlay && (
-              <a
+              <Link
+                // 29/10 (Pedro: "melhorar o carregamento de quando clico no lead no pipeline e ele vai para a conversa"):
+                // era um <a href>, que recarregava o CRM inteiro; agora é navegação interna, sem pré-carregar cada card
+                prefetch={false}
                 href={`${CAMINHO_DA_LINHA[getLinhaWhatsapp(lead) ?? 'parceria']}`
                       + `?leadId=${lead.id}&abrir=${Date.now()}`}
                 onClick={(e) => e.stopPropagation()}
@@ -135,7 +139,7 @@ const LeadCard = ({ lead, isDragOverlay, stageColor, onClick, onInfoClick, isHig
                 className="flex-shrink-0 ml-1 p-1 rounded-md text-muted hover:text-accent hover:bg-white/[0.06] transition-colors"
               >
                 <ChatCircleDots size={15} weight="fill" />
-              </a>
+              </Link>
             )}
             {onInfoClick && !isDragOverlay && (
               <button

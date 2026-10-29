@@ -30,6 +30,7 @@ import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 import { LeadDetailsSidebar } from '@/components/Chat'
 import { X, Plus } from '@phosphor-icons/react'
 import { linkDaConversa } from '@/lib/links'
+import { CAMINHO_DA_LINHA, getLinhaWhatsapp } from '@/lib/leadChannel'
 import { diaEmManaus, diaEmManausMais } from '@/lib/fusoDeManaus'
 import { conversaEstaNaLinha } from '@/lib/leadChannel'
 import { useCaptacaoDonos } from '@/hooks/useCaptacaoDonos'
@@ -739,7 +740,7 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
               onClose={() => setDetailLead(null)}
               onGoToConversation={() => {
                 setDetailLead(null)
-                router.push(linkDaConversa(detailLead.id))
+                router.push(linkDaConversa(detailLead.id).replace('/chat?', `${CAMINHO_DA_LINHA[getLinhaWhatsapp(detailLead) ?? 'parceria']}?`))
               }}
               extra={conversaEstaNaLinha(detailLead, 'oficial') ? (
                 <div>

@@ -21,6 +21,7 @@ import { nayEmPausa } from '@/lib/etapaDaParceria'
 import type { DonoNaLista } from '@/lib/tiposNay'
 import { nomeDoDono, imovelDoDono } from './LeadListItem'
 import { useEtiquetas, marcarEtiqueta } from '@/lib/etiquetas'
+import EncaminharMensagem from './EncaminharMensagem'
 
 interface ChatWindowProps {
   lead: LeadWithOwner
@@ -191,6 +192,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent, linha,
   const { currentOrganization } = useAuth()
   const { settings: chatButtonSettings, fireWebhook } = useChatButtonSettings()
   const [replyContext, setReplyContext] = useState<ReplyContext | null>(null)
+  const [paraEncaminhar, setParaEncaminhar] = useState<LeadActivityWithActor | null>(null)   // 29/10: encaminhar mensagem
   const [sendError, setSendError] = useState<string | null>(null)
   const ehCelular = useIsMobile()
   const composerRef = useRef<ActivityComposerHandle>(null)
@@ -405,7 +407,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent, linha,
 
   const tituloDoLead = lead.title
   const handleReply = useCallback((activity: LeadActivityWithActor) => {
-    const messageId = activity.metadata?.message_id || activity.id
+    const messageId = activity.metadata?.zapi_message_id || activity.metadata?.whatsapp_message_id || activity.metadata?.evolution_message_id || activity.metadata?.message_id || activity.id
     const text = activity.content || ''
     const sender = activity.metadata?.sender_name || activity.actor?.profiles?.full_name || tituloDoLead || 'Lead'
     setReplyContext({ messageId, text, sender })
@@ -448,11 +450,14 @@ export default function ChatWindow({ lead, organizationId, onMessageSent, linha,
         </div>
       )}
 
+      {paraEncaminhar && <EncaminharMensagem activity={paraEncaminhar} onClose={() => setParaEncaminhar(null)} />}
+
       <ActivityTimeline
         activities={activities}
         loading={loading}
         lead={lead}
         onReply={handleReply}
+        onForward={setParaEncaminhar}
         onTogglePin={togglePin}
         onDelete={handleDeleteMessage}
         pinnedActivityIds={pinnedActivityIds}

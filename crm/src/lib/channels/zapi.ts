@@ -14,8 +14,8 @@ export const zapiAdapter: ChannelAdapter = {
   supportsGroups: true,
 
   // a linha da conversa (Parceria ou captação) decide por qual número sai
-  async sendText(organizationId, integrationId, recipient, content) {
-    const { data, telefone } = await sendZapiMessage(organizationId, recipient, content, integrationId)
+  async sendText(organizationId, integrationId, recipient, content, _isGroup, replyToMessageId) {
+    const { data, telefone } = await sendZapiMessage(organizationId, recipient, content, integrationId, replyToMessageId)
     return { externalId: data?.messageId || data?.id, raw: data, recipienteCorrigido: telefone }
   },
 
