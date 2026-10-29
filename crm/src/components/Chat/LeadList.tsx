@@ -976,7 +976,10 @@ export default function LeadList({
                   clienteOlx={linha === 'captacao' ? !!olxClientes[fim8(lead.phone)] : undefined}
                   origemDoCliente={linha === 'captacao' ? olxClientes[fim8(lead.phone)]?.origem : undefined}
                   finalidadeDoCliente={linha === 'captacao' ? olxClientes[fim8(lead.phone)]?.finalidade : undefined}
-                  dono={donos[lead.id]}
+                  /* 29/10 (a Joelma, cliente da OLX, aparecia "Prop"): quem só tem a etapa marcada à mão (o "Parar Nay"
+                     grava Com o Tel) e é cliente da Nay Leads não é dono -- o registro fica, para a aba Tel */
+                  dono={linha === 'captacao' && donos[lead.id] && !donos[lead.id].captacaoId && olxClientes[fim8(lead.phone)]
+                    ? undefined : donos[lead.id]}
                   etiquetasEmDestaque={usarAbasDeEtiquetas ? etiquetasEmDestaque : undefined}
                   respondeu={linha === 'oficial' && !!lead.ultima_recebida}
                   etiquetasColoridas={linha === 'oficial'}

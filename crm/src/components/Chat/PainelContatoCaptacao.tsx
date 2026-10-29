@@ -205,7 +205,10 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
     }
   }
 
-  const dono = d?.dono || null
+  /* 29/10 (Pedro: "como a Joelma veio da OLX perguntando de um ap e está com a tag Prop?"): o "Parar Nay" do cliente da
+     OLX grava a etapa Com o Tel à mão (242), e quem só tem essa escolha entra no cadastro dos donos (captação 0), para a
+     aba Tel. Cliente da Nay Leads que não está em nenhuma lista da captação não é dono: o card é o de cliente. */
+  const dono = d?.dono && (d.dono.captacaoId > 0 || !olxDele) ? d.dono : null
   const c = d?.campanha || null
   // a Nay da campanha parada (Com o Tel) ou a Nay do WhatsApp fora da conversa (398)
   const naoResponde = !!c?.comOTel || !!olxDele?.humano
