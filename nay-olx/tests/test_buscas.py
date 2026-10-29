@@ -283,11 +283,13 @@ class OpcoesDaBase(unittest.TestCase):
         self.assertFalse(b.mesmo_pedido(x, b.mensagem_de_grupo(f450)))
         self.assertTrue(b.mesmo_pedido({"grupo": "g1"}, b.mensagem_de_grupo(f450)))   # item antigo, sem o texto
 
-    def test_a_busca_so_termina_com_3_opcoes(self):
+    def test_a_busca_so_termina_com_a_meta_de_opcoes(self):
         o = [{"codigo": 1, "estado": "cliente"}, {"codigo": 1, "estado": "cliente"}, {"codigo": 2, "estado": "cadastrando"},
              {"codigo": 3, "estado": "grupo"}]
-        self.assertEqual(b.opcoes_enviadas({"ofertas": o}), 2)
-        self.assertEqual(b.opcoes_enviadas({"ofertas": o + [{"codigo": 4, "estado": "cliente"}]}), b.OPCOES_META)
+        self.assertEqual(b.opcoes_enviadas({"ofertas": o}), 2)         # repetido e "cadastrando" não contam
+        todas = o + [{"codigo": c, "estado": "cliente"} for c in range(4, 4 + b.OPCOES_META)]
+        self.assertEqual(b.opcoes_enviadas({"ofertas": todas}), 2 + b.OPCOES_META)
+        self.assertEqual(b.OPCOES_META, 5)
 
 
 if __name__ == "__main__":

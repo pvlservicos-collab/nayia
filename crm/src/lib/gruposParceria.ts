@@ -111,32 +111,64 @@ async function aos_poucos<T, R>(itens: T[], n: number, fn: (x: T) => Promise<R>)
   return saida
 }
 
-export async function listarGrupos(organizationId: string): Promise<{ grupos: GrupoNaLista[]; meuNumero: string }> {
-  const creds = await getZapiCredentials(organizationId)
-  const brutos: any[] = []
-  for (let pagina = 1; pagina <= 20; pagina++) {
-    const r = await chamar(creds, `groups?page=${pagina}&pageSize=100`, { method: 'GET' }, 'Não consegui listar os grupos')
-    if (!Array.isArray(r) || !r.length) break
-    brutos.push(...r)
-    if (r.length < 100) break
+/** Os grupos que o banco da Nay conhece (mensagens guardadas pelo webhook): completam a lista quando a Z-API não
+ *  devolve um grupo ou falha (528, Pedro 29/10: "os grupos do parceria não aparecem no crm"). */
+async function gruposDoBanco(): Promise<Array<{ id: string; nome: string | null; mensagens: number; ultima: string | null }>> {
+  try {
+    const r = await naydb().query('SELECT crm_grupos_da_parceria() AS j')
+    return Array.isArray(r.rows[0]?.j) ? r.rows[0].j : []
+  } catch (e) {
+    console.warn('[grupos] o banco da Nay não listou os grupos:', (e as Error)?.message)
+    return []
   }
-  const [eu, casa] = await Promise.all([numeroDaParceria(creds), casaDosGrupos()])
-  const metas = await aos_poucos(brutos, 6, (g) => metadados(creds, String(g.phone)).catch(() => null))
+}
+
+export async function listarGrupos(organizationId: string): Promise<{ grupos: GrupoNaLista[]; meuNumero: string }> {
+  const brutos: any[] = []
+  let creds: ZapiCredentials | null = null
+  let eu = ''
+  try {
+    creds = await getZapiCredentials(organizationId)
+    for (let pagina = 1; pagina <= 20; pagina++) {
+      const r = await chamar(creds, `groups?page=${pagina}&pageSize=100`, { method: 'GET' }, 'Não consegui listar os grupos')
+      if (!Array.isArray(r) || !r.length) break
+      brutos.push(...r)
+      if (r.length < 100) break
+    }
+    eu = await numeroDaParceria(creds)
+  } catch (e) {
+    // a lista continua pelo que o banco guardou; só não vem participantes nem "sou admin"
+    console.warn('[grupos] a Z-API não listou os grupos:', (e as Error)?.message)
+  }
+  const [casa, doBanco] = await Promise.all([casaDosGrupos(), gruposDoBanco()])
+  const metas = creds
+    ? await aos_poucos(brutos, 6, (g) => metadados(creds!, String(g.phone)).catch(() => null))
+    : brutos.map(() => null)
+  const nomeNoBanco = new Map(doBanco.map((g) => [g.id, g]))
   const grupos = brutos.map((g, k): GrupoNaLista => {
     const parts: any[] = metas[k]?.participants || []
     const id = String(g.phone)
     return {
       id,
-      nome: String(g.name || metas[k]?.subject || id),
+      nome: String(g.name || metas[k]?.subject || nomeNoBanco.get(id)?.nome || id),
       naoLidas: Number(g.messagesUnread || g.unread || 0) || 0,
       silenciado: sim(g.isMuted),
       arquivado: sim(g.archived),
-      ultimaEm: Number(g.lastMessageTime) || null,
+      ultimaEm: Number(g.lastMessageTime) || (nomeNoBanco.get(id)?.ultima ? Date.parse(String(nomeNoBanco.get(id)!.ultima)) : null),
       participantes: metas[k] ? parts.length : null,
       souAdmin: metas[k] ? parts.some((p) => mesmoNumero(String(p.phone || ''), eu) && (p.isAdmin || p.isSuperAdmin)) : null,
       casa: casa[id] || {},
     }
   })
+  // grupo com mensagens guardadas que a Z-API não trouxe: entra do mesmo jeito
+  const jaTem = new Set(grupos.map((g) => g.id))
+  for (const g of doBanco) {
+    if (jaTem.has(g.id)) continue
+    grupos.push({
+      id: g.id, nome: g.nome || g.id, naoLidas: 0, silenciado: false, arquivado: false,
+      ultimaEm: g.ultima ? Date.parse(String(g.ultima)) : null, participantes: null, souAdmin: null, casa: casa[g.id] || {},
+    })
+  }
   grupos.sort((a, b) => (b.ultimaEm || 0) - (a.ultimaEm || 0))
   return { grupos, meuNumero: eu }
 }

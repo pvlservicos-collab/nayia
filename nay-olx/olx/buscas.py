@@ -44,7 +44,7 @@ CONTATO_DE_NOVO_H = 24         # o mesmo anunciante não é chamado de novo ante
 MEMBROS_A_CADA_S = 6 * 3600
 BASE_A_CADA_MIN = 30           # a busca aberta olha a nossa base de novo depois disto (imóvel novo no perfil vai à lead)
 # Pedro, 23/10: "o ideal não é ter um imóvel enviado e sim 3 a 5 opções; ela não deve parar na hora de achar um imóvel"
-OPCOES_META = 3                # a busca só termina ('ofertado') quando a lead recebeu tantas opções
+OPCOES_META = 5                # a busca só termina ('ofertado') quando a lead recebeu tantas opções (Pedro, 29/10: mínimo 5 para cada lead)
 OPCOES_MAX = 5                 # e nunca passa disto (a base manda de uma vez o que couber até aqui)
 # Tel, 23/10 (a Edsandra recebeu o Life Flores e dois de R$ 500 mil para teto de 750): "precisa subir a regra ... só vale
 # daqueles bairros perto segundo o mapa, mais pertos ainda, aperta essa busca". Vizinho só com divisa e centros a até

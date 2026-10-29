@@ -29,13 +29,14 @@ interface Busca {
 interface PedidoNoGrupo { grupo: string; nome?: string; em?: string; teste?: boolean; repeticao?: boolean; encerrou?: boolean }
 interface Anunciante { anunciante?: string; titulo?: string; preco?: number; bairro?: string; em?: string; teste?: boolean }
 interface Corretor { nome: string | null; telefone: string; estado: string; codigo: number | null; origem: string | null; em: string }
-interface Oferta { nome?: string; tel?: string; codigo?: number; estado?: string; em?: string }
+interface Oferta { nome?: string; tel?: string; codigo?: number; estado?: string; em?: string; de?: string }
 interface Passo { em: string; lugar: string; texto: string }
 interface BuscaAtiva {
   id: number; estado: string; motivo: string | null; teste: boolean; ativada_em: string | null; atualizado_em: string
   grupos: PedidoNoGrupo[]; olx: Anunciante[]; ofertas: Oferta[]; corretores: Corretor[]; passos: Passo[]
 }
 
+const META_DE_OPCOES = 5   // Pedro, 29/10: no mínimo 5 opções para cada lead (nay-olx OPCOES_META)
 const VERDE = 90   // os cortes da nota da Captação ativa (nay-grupos/config.json)
 const COR = '#0891b2'
 
@@ -111,6 +112,69 @@ function Bloco({ titulo, n, children }: { titulo: string; n: number; children: R
       <p className="text-[11.5px] font-semibold uppercase tracking-wide" style={{ color: 'var(--wa-text-2)' }}>{titulo} ({n})</p>
       <ul className="mt-1 space-y-1 text-[12px] leading-4" style={{ color: 'var(--wa-text)' }}>{children}</ul>
     </div>
+  )
+}
+
+type PassoDoResumo = { rotulo: string; estado: 'feito' | 'andando' | 'espera'; texto: string; aviso?: string }
+
+/**
+ * O RESUMO EM ETAPAS (Pedro, 29/10/2026: "ta ruim de visualizar essas buscas, preciso no card de cada lead um resumo em
+ * etapas de onde esta a busca dele, quantos imoveis achamos de cada fonte, se a IA ja mandou msg nos grupos, ou para os
+ * corretores"). Uma linha por etapa, com a bolinha (feita, andando, esperando) e o número de cada fonte; no fim, quantas
+ * opções o cliente já recebeu da meta de cinco.
+ */
+function ResumoDaBusca({ buscas, a }: { buscas: Busca[]; a: BuscaAtiva | null }) {
+  const nossos = buscas.flatMap((b) => b.imoveis)
+  const codigosNossos = new Set(nossos.map((i) => i.codigo))
+  const enviadosDaBase = new Set(nossos.filter((i) => i.enviado).map((i) => i.codigo))
+  const msgsGrupos = (a?.grupos || []).filter((g) => !g.encerrou)
+  const gruposDistintos = new Set(msgsGrupos.map((g) => g.grupo)).size
+  const grupoTeste = msgsGrupos.some((g) => g.teste)
+  const olx = a?.olx || []
+  const corretores = a?.corretores || []
+  const comImovel = corretores.filter((c) => c.codigo).length
+  // o que o cliente já recebeu: os da base marcados como enviados + as ofertas que saíram para ele
+  const chegouAoCliente = new Set<number>(enviadosDaBase)
+  for (const o of a?.ofertas || []) if (o.codigo && (o.estado === 'cliente' || o.estado === 'grupo')) chegouAoCliente.add(o.codigo)
+  const recebidas = chegouAoCliente.size
+  const buscando = a?.estado === 'buscando'
+  const fora = !!a && a.estado !== 'perfil' && a.estado !== 'nossa_base'
+
+  const passos: PassoDoResumo[] = [
+    { rotulo: 'Pedido', estado: a && a.estado === 'perfil' ? 'andando' : 'feito',
+      texto: a?.estado === 'perfil' ? 'ainda montando o pedido' : 'pedido entendido' },
+    { rotulo: 'Nossa base', estado: nossos.length || fora ? 'feito' : 'espera',
+      texto: nossos.length ? `${nossos.length} imóve${nossos.length > 1 ? 'is' : 'l'} nosso${nossos.length > 1 ? 's' : ''} · ${enviadosDaBase.size} já enviado${enviadosDaBase.size === 1 ? '' : 's'}` : 'nenhum nosso no perfil' },
+    { rotulo: 'Grupos', estado: msgsGrupos.length ? 'feito' : buscando ? 'andando' : 'espera',
+      texto: msgsGrupos.length ? `a IA mandou ${msgsGrupos.length} mensagem${msgsGrupos.length > 1 ? 'ns' : ''} em ${gruposDistintos} grupo${gruposDistintos > 1 ? 's' : ''}${grupoTeste ? ' (teste)' : ''}`
+        : buscando ? 'a mandar' : 'ainda não mandou' },
+    { rotulo: 'OLX', estado: olx.length ? 'feito' : buscando ? 'andando' : 'espera',
+      texto: olx.length ? `${olx.length} anunciante${olx.length > 1 ? 's' : ''} perguntado${olx.length > 1 ? 's' : ''}` : buscando ? 'a procurar' : 'ainda não perguntou' },
+    { rotulo: 'Corretores', estado: corretores.length ? 'feito' : buscando ? 'andando' : 'espera',
+      texto: corretores.length ? `${corretores.length} respondeu${corretores.length > 1 ? 'ram' : ''} · ${comImovel} com imóvel` : 'ninguém respondeu ainda' },
+    { rotulo: 'Opções ao cliente', estado: recebidas >= META_DE_OPCOES ? 'feito' : recebidas ? 'andando' : 'espera',
+      texto: `${Math.min(recebidas, 99)} de ${META_DE_OPCOES}`,
+      aviso: recebidas >= META_DE_OPCOES ? undefined : `faltam ${META_DE_OPCOES - recebidas}` },
+  ]
+  const cor = (e: PassoDoResumo['estado']) => e === 'feito' ? 'var(--wa-green)' : e === 'andando' ? '#d97706' : 'var(--wa-divider)'
+  void codigosNossos
+  return (
+    <ol className="mb-3 space-y-0" aria-label="Etapas da busca">
+      {passos.map((p, n) => (
+        <li key={p.rotulo} className="flex gap-2.5">
+          <span className="flex flex-col items-center">
+            <span className="mt-[3px] w-[11px] h-[11px] rounded-full shrink-0"
+                  style={{ background: p.estado === 'espera' ? 'transparent' : cor(p.estado), border: `2px solid ${cor(p.estado)}` }} />
+            {n < passos.length - 1 && <span className="w-[2px] flex-1 min-h-[12px]" style={{ background: 'var(--wa-divider)' }} />}
+          </span>
+          <span className="pb-1.5 text-[12.5px] leading-4 min-w-0" style={{ color: 'var(--wa-text)' }}>
+            <b>{p.rotulo}</b>
+            <span style={{ color: p.estado === 'espera' ? 'var(--wa-text-2)' : 'var(--wa-text)' }}> · {p.texto}</span>
+            {p.aviso && <span className="ml-1 font-semibold" style={{ color: '#d97706' }}>({p.aviso})</span>}
+          </span>
+        </li>
+      ))}
+    </ol>
   )
 }
 
@@ -237,6 +301,7 @@ export default function BuscasDoLead({ leadId }: { leadId: string }) {
             {carregando ? <CircleNotch size={14} className="animate-spin" /> : <ArrowsClockwise size={14} />}
           </button>
         </div>
+        <ResumoDaBusca buscas={buscas || []} a={ativa} />
         <div className="space-y-3">
           {(buscas || []).map((b) => {
             const venda = b.titulo.startsWith('VENDA')
