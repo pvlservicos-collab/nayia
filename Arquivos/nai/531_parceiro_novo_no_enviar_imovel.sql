@@ -1,4 +1,17 @@
-CREATE OR REPLACE FUNCTION public.nai_disparo_buscar(p_finalidade text, p_vmin numeric, p_vmax numeric, p_bairros text[], p_mobilias text[], p_tipos text[], p_quartos integer[], p_limite integer DEFAULT 60)
+-- 531 (Pedro, 29/10/2026): "pode enviar o de parceiro, todos os novos que cadastrei nos últimos 2 meses são chamados
+-- parceiros novos, eles podem enviar e estão disponíveis, o que não é para enviar é o parceiro antigo que vinha do site
+-- antigo". O 9085 (Eldorado Park, importado da OLX hoje) não aparecia no Enviar imóvel do CRM: a tela só procurava
+-- imóvel que não é de parceiro.
+--
+-- A busca POR FAIXA do Enviar imóvel ganha p_parceiros_novos: com true, além dos nossos entram os de parceiro que não
+-- são antigos (extras.parceiro_antigo, 413), Disponível, com preço -- as mesmas condições de olx_imovel_vai_ao_cliente,
+-- que é quem o 8595 confere na hora de mandar. Padrão false: a Parceria (corretores) continua sem parceiro nenhum.
+-- O resto da função é o que está no banco (producao/funcoes/nai_disparo_buscar(...).sql).
+BEGIN;
+
+DROP FUNCTION public.nai_disparo_buscar(text, numeric, numeric, text[], text[], text[], integer[], integer);
+
+CREATE FUNCTION public.nai_disparo_buscar(p_finalidade text, p_vmin numeric, p_vmax numeric, p_bairros text[], p_mobilias text[], p_tipos text[], p_quartos integer[], p_limite integer DEFAULT 60, p_parceiros_novos boolean DEFAULT false)
  RETURNS TABLE(codigo integer, titulo text, tipo text, bairro text, quartos integer, mobilia text, valor_venda numeric, valor_aluguel numeric, fotos integer, capa text)
  LANGUAGE sql
  STABLE SECURITY DEFINER
@@ -19,9 +32,15 @@ AS $function$
          (SELECT x.url FROM imovel_fotos x WHERE x.codigo = i.codigo AND coalesce(x.url, '') <> ''
            ORDER BY x.e_capa DESC NULLS LAST, x.ordem NULLS LAST LIMIT 1)
     FROM imoveis i, f
-   WHERE nay_esta_no_mercado(i.disponivel, i.bloqueado, i.publicado_no_site)
-     AND NOT coalesce(i.e_parceiro, false)
-     AND nai_imovel_disponivel(i.codigo)
+   WHERE ((nay_esta_no_mercado(i.disponivel, i.bloqueado, i.publicado_no_site)
+           AND NOT coalesce(i.e_parceiro, false)
+           AND nai_imovel_disponivel(i.codigo))
+          -- 531: o parceiro NOVO (não o antigo do site antigo), só quando a tela pede (o Enviar imóvel do 8595)
+          OR (coalesce(p_parceiros_novos, false)
+              AND i.e_parceiro AND i.status = 'Disponível'
+              AND coalesce(i.disponivel, true) AND NOT coalesce(i.bloqueado, false)
+              AND (coalesce(i.valor_aluguel, 0) > 0 OR coalesce(i.valor_venda, 0) > 0)
+              AND coalesce(i.extras->>'parceiro_antigo', '') <> 'sim'))
      AND (f.fin IS NULL
           OR (f.fin = 'aluguel' AND coalesce(i.valor_aluguel, 0) > 0)
           OR (f.fin = 'venda' AND coalesce(i.valor_venda, 0) > 0))
@@ -59,3 +78,8 @@ AS $function$
             i.codigo DESC
    LIMIT least(greatest(coalesce(p_limite, 60), 1), 100);
 $function$;
+
+REVOKE ALL ON FUNCTION public.nai_disparo_buscar(text, numeric, numeric, text[], text[], text[], integer[], integer, boolean) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.nai_disparo_buscar(text, numeric, numeric, text[], text[], text[], integer[], integer, boolean) TO nay_disparo;
+
+COMMIT;
