@@ -163,7 +163,9 @@ function Quadrado({ i, naFila, aoFila, aoContactar, aoEnviar }: {
             </>
           ) : <span className="text-xs text-muted">sem telefone no scrap{i.telefone_mascarado ? ` (${i.telefone_mascarado})` : ''}</span>}
           <div className="flex items-center justify-between text-[11px] text-muted">
-            {i.url ? <a className="underline text-ink" href={i.url} target="_blank" rel="noopener noreferrer">Ver na OLX</a> : <span />}
+            {i.url ? (fones.length ? <a className="underline text-ink" href={i.url} target="_blank" rel="noopener noreferrer">Ver na OLX</a>
+              : <a className="rounded-md px-2.5 py-1 text-xs font-semibold text-white" style={{ background: 'linear-gradient(135deg, #ef4444, #b91c1c)' }}
+                   href={i.url} target="_blank" rel="noopener noreferrer" title="Sem telefone no scrap: abra o anúncio e chame pelo chat da OLX">Tem que chamar na OLX</a>) : <span />}
             <span title="Data do anúncio na OLX · coletado no scrap">{diaCurto(i.data_olx)}{i.coletado_em ? ` · coletado ${diaCurto(i.coletado_em)}` : ''}</span>
           </div>
         </div>
