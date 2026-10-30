@@ -63,6 +63,9 @@ def pedir(conn) -> None:
     """As fichas prontas para perguntar (com contato e com dúvida) pedem a autorização no grupo, uma vez."""
     for c in banco.linhas(conn, "SELECT * FROM privado.cadastro_whats WHERE estado = 'na_fila' AND codigo IS NOT NULL "
                                 "AND contato_tel IS NOT NULL ORDER BY id"):
+        # 30/10: o que o anúncio e a ficha anterior do mesmo imóvel já dizem entra antes (não vira pedido nem pergunta)
+        c = fluxo.com_o_que_ja_sabemos(conn, {**c, "ficha": fluxo.com_elevador(conn, c["ficha"] or {})})
+        c = fluxo.com_taxa_sabida(conn, c)
         f = c["ficha"] or {}
         if f.get("_autorizacao") or not campos.faltam(f, fluxo.contexto(conn, c)):
             continue

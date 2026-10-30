@@ -86,6 +86,79 @@ def com_taxa_sabida(conn, c: dict) -> dict:
     return c
 
 
+# O ANDAR QUE O ANÚNCIO JÁ DIZ (Pedro, 30/10: "ela fica fazendo as mesmas perguntas que já tem na conversa"): o Jean mandou
+# "▫️ Andar alto" no texto e ela perguntou "O andar é baixo, médio ou alto?" -- o modelo pôs "andar alto" só nas
+# características, e o andar da ficha ficou vazio.
+ANDAR_NO_TEXTO = re.compile(r"\bandar\s+(alto|m[eé]dio|baixo)\b|\b(\d{1,2})\s*[ºo°]?\s*andar\b|\b(t[eé]rreo)\b", re.I)
+
+# O MESMO IMÓVEL QUE JÁ PASSOU POR AQUI (Pedro, 30/10: "se o proprietário respondeu, isso deve ser adicionado ao cadastro
+# para as próximas vezes, e nunca perguntar duas vezes a mesma coisa"): o Estilo Ponta Negra do Jean voltou ao grupo
+# em 30/10 (ficha 20) com o mesmo texto de 23/10 (ficha 9, onde ele já tinha dito andar, banheiros e taxa). Mesmo
+# contato, mesmo condomínio, mesmos quartos e a mesma área (ou o mesmo valor): o que ele respondeu antes vale de novo.
+MESMO_IMOVEL_ANTES = """
+SELECT c.id, c.codigo, c.ficha FROM privado.cadastro_whats c
+ WHERE c.id <> %(id)s AND c.id < %(id)s AND c.ficha <> '{}'::jsonb
+   AND right(regexp_replace(coalesce(c.contato_tel, ''), '\\D', '', 'g'), 8) = %(tel8)s
+   AND (c.ficha->>'condo_id' = %(condo)s OR lower(btrim(c.ficha->>'condominio')) = lower(btrim(%(nome)s)))
+   AND (c.ficha->>'quartos') = %(quartos)s
+   AND (abs(coalesce((c.ficha->>'area_util')::numeric, -1) - %(area)s) <= 2
+        OR coalesce(c.ficha->>'valor_aluguel', c.ficha->>'valor_venda') = %(valor)s)
+ ORDER BY c.id DESC LIMIT 1
+"""
+# o que não passa de uma ficha para outra: o controle de cada conversa e o que é do anúncio novo
+NAO_HERDA = {"descricao"}
+
+
+def andar_do_anuncio(ficha: dict, texto: str | None = None) -> str | None:
+    for t in [texto or "", ficha.get("descricao") or ""] + [str(x) for x in ficha.get("caracteristicas") or []]:
+        m = ANDAR_NO_TEXTO.search(t)
+        if m:
+            if m.group(1):
+                return "Andar " + campos.sem_acento(m.group(1)).replace("medio", "médio")
+            return m.group(2) if m.group(2) else "Térreo"
+    return None
+
+
+def com_o_que_ja_sabemos(conn, c: dict) -> dict:
+    """Antes de qualquer pergunta: o andar escrito no anúncio e o que o mesmo contato já respondeu sobre o mesmo imóvel
+    numa ficha anterior vão para a ficha (e para o imóvel no site); a pergunta dessas coisas não sai."""
+    f = dict(c["ficha"] or {})
+    mudou = []
+    if not campos.tem(f, "andar"):
+        andar = andar_do_anuncio(f, c.get("texto"))
+        if andar:
+            f["andar"] = andar
+            mudou.append("andar (do anúncio)")
+    tel8 = re.sub(r"\D", "", c.get("contato_tel") or "")[-8:]
+    if tel8 and f.get("quartos") and (f.get("condo_id") or f.get("condominio")):
+        valor = f.get("valor_aluguel") or f.get("valor_venda")
+        antes = banco.uma(conn, MESMO_IMOVEL_ANTES, {
+            "id": c["id"], "tel8": tel8, "condo": str(f.get("condo_id") or ""), "nome": f.get("condominio") or "",
+            "quartos": str(f["quartos"]), "area": float(f.get("area_util") or -100),
+            "valor": str(valor) if valor else "-"})
+        if antes:
+            herdou = [k for k, v in (antes["ficha"] or {}).items()
+                      if not k.startswith("_") and k not in NAO_HERDA and v not in (None, "", [], {}) and not campos.tem(f, k)]
+            for k in herdou:
+                f[k] = antes["ficha"][k]
+            # e o que já foi perguntado a ele sobre este imóvel e ficou sem resposta (o Jean, 23/10: "vou ter que perguntar
+            # para o proprietário") também não volta: fica para a equipe completar (ficou_sem)
+            ja_feitas = [k for k in (antes["ficha"] or {}).get("_feitas") or [] if k not in (f.get("_feitas") or [])]
+            if ja_feitas:
+                f["_feitas"] = list(f.get("_feitas") or []) + ja_feitas
+            if herdou or ja_feitas:
+                f["_herdado_de"] = antes["codigo"]
+                mudou.append(f"{', '.join(herdou) or 'nada novo'} e perguntas já feitas {', '.join(ja_feitas) or '-'} "
+                             f"(da ficha {antes['id']}, imóvel {antes['codigo']})")
+    if not mudou:
+        return c
+    gravar(conn, c["id"], ficha=f)
+    c = {**c, "ficha": f}
+    salvar_no_site(c)
+    log.info("cadastro %s: já se sabia %s; essas perguntas não saem", c["id"], "; ".join(mudou))
+    return c
+
+
 def canal_do_contato(conn, fone: str | None, papel: str | None = None) -> str:
     """'leads' (8595) para todo contato (Pedro, 23/10: "quero tudo pelo número de leads"); a Parceria só para o dono que é
     lead da captação (a Nay de captação responderia junto). `papel` não decide mais (fica na assinatura de quem chama)."""
@@ -133,6 +206,7 @@ def proxima(conn, c: dict, primeira: bool = False) -> None:
     fecha com o que tem. `_so_esperar` na ficha faz o mesmo sem a pausa."""
     c = {**c, "ficha": com_elevador(conn, c["ficha"])}
     c = com_taxa_sabida(conn, c)
+    c = com_o_que_ja_sabemos(conn, c)
     falta = campos.faltam(c["ficha"], contexto(conn, c))
     gente = not primeira and (c["ficha"].get("_so_esperar") or gente_no_chat(conn, c))
     if not falta or gente:

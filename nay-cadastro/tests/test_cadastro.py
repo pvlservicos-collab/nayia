@@ -240,3 +240,14 @@ def test_anuncio_e_anuncio():
     assert leva.parece_anuncio(texto, {"valor_venda": 798000, "tipo": "Casa de condomínio"})
     assert leva.parece_anuncio("Apto 3 quartos no Weekend Club, venda R$ 450 mil, 2 vagas, 90m2",
                                {"valor_venda": 450000, "condominio": "Weekend Club", "quartos": 3})
+
+
+# ── o que já se sabe não vira pergunta (Pedro, 30/10: "nunca perguntar duas vezes a mesma coisa") ─────────────────
+def test_andar_escrito_no_anuncio_nao_vira_pergunta():
+    from cadastro import fluxo
+    assert fluxo.andar_do_anuncio({"caracteristicas": ["vista para o rio", "andar alto"]}) == "Andar alto"
+    assert fluxo.andar_do_anuncio({}, "▫️ 51 m² | ▫️ Andar médio | ▫️ Vista") == "Andar médio"
+    assert fluxo.andar_do_anuncio({"descricao": "Apartamento no 12º andar, nascente"}) == "12"
+    assert fluxo.andar_do_anuncio({"descricao": "Casa térrea"}) is None
+    assert fluxo.andar_do_anuncio({"descricao": "Apartamento térreo com garden"}) == "Térreo"
+    assert fluxo.andar_do_anuncio({"descricao": "3 quartos, vista rio"}) is None
