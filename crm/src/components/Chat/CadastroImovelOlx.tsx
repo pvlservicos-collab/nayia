@@ -33,16 +33,18 @@ const PASSOS: Array<[string, string]> = [
 ]
 
 // os campos que a barra deixa corrigir antes de publicar (os mesmos nomes do PUT /admin/api/imoveis/<cod>)
-const CAMPOS: Array<{ chave: string; rotulo: string; numero?: boolean; opcoes?: string[] }> = [
+const CAMPOS: Array<{ chave: string; rotulo: string; numero?: boolean; opcoes?: string[]; preco?: boolean; bairro?: boolean }> = [
   { chave: 'tipo', rotulo: 'Tipo' },
-  { chave: 'valor_venda', rotulo: 'Venda (R$)', numero: true },
-  { chave: 'valor_aluguel', rotulo: 'Aluguel (R$)', numero: true },
+  // 30/10 (Pedro: "no preço, quando ele for colocando 0 vá aparecendo o ponto, segundo o preço brasileiro")
+  { chave: 'valor_venda', rotulo: 'Venda (R$)', numero: true, preco: true },
+  { chave: 'valor_aluguel', rotulo: 'Aluguel (R$)', numero: true, preco: true },
   { chave: 'quartos', rotulo: 'Quartos', numero: true },
   { chave: 'suites', rotulo: 'Suítes', numero: true },
   { chave: 'banheiros', rotulo: 'Banheiros', numero: true },
   { chave: 'vagas', rotulo: 'Vagas', numero: true },
   { chave: 'area_util', rotulo: 'Área (m²)', numero: true },
-  { chave: 'bairro', rotulo: 'Bairro' },
+  // 30/10 (Pedro: "lista de seleções, ele digita e acha o bairro já cadastrado, pra não ter erros de digitação")
+  { chave: 'bairro', rotulo: 'Bairro', bairro: true },
   // 536 (Pedro, 30/10: "em mobília, uma lista selecionável com os 4 tipos do site e não para preencher"): os mesmos 4 do
   // editar do site (imovel-editar.js, 344)
   { chave: 'mobilia', rotulo: 'Mobília', opcoes: ['sem nada', 'só climatizado', 'com modulados e ar', 'mobiliado'] },
@@ -50,6 +52,23 @@ const CAMPOS: Array<{ chave: string; rotulo: string; numero?: boolean; opcoes?: 
 // o condomínio só muda escolhendo um da tabela (condo_id), no editar do imóvel: aqui ele só aparece
 
 const MAX_FOTOS = 30
+
+/** "410000" ou 410000.0 -> "410.000": o preço como se escreve no Brasil (só reais inteiros) */
+function comPontos(v: unknown): string {
+  if (v === null || v === undefined || v === '') return ''
+  const n = typeof v === 'number' ? Math.round(v) : Number(String(v).replace(/\D/g, ''))
+  return String(v).replace(/\D/g, '') === '' && typeof v !== 'number' ? '' : n.toLocaleString('pt-BR')
+}
+/** "Tarumã" acha digitando "taruma" */
+function semAcento(s: string) {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+}
+/** os preços do anúncio já entram com o ponto */
+function comPrecosFormatados(c: Record<string, any>) {
+  const x = { ...c }
+  for (const k of ['valor_venda', 'valor_aluguel']) if (x[k] !== null && x[k] !== undefined) x[k] = comPontos(x[k])
+  return x
+}
 
 async function lerJson(r: Response) {
   return r.json().catch(() => ({} as any))
@@ -77,6 +96,15 @@ export default function CadastroImovelOlx({ lead, modo, aoFechar }: {
   const [leads, setLeads] = useState<Array<{ nome: string | null; telefone: string }>>([])
   const vivo = useRef(true)
   useEffect(() => () => { vivo.current = false }, [])
+  // os bairros já cadastrados (a API do site), para escolher em vez de digitar
+  const [bairros, setBairros] = useState<string[]>([])
+  const [bairroAberto, setBairroAberto] = useState(false)
+  useEffect(() => {
+    void fetch('/api/imoveis-nay/bairros').then((r) => r.json())
+      .then((j) => { if (vivo.current && Array.isArray(j)) setBairros(j.map((b: any) => String(b.bairro || '')).filter(Boolean)) })
+      .catch(() => undefined)
+  }, [])
+  const bairroValido = (b: unknown) => !b || bairros.some((x) => semAcento(x) === semAcento(String(b)))
 
   function marcar(chave: string, e: Estado, detalhe?: string) {
     if (!vivo.current) return
@@ -129,7 +157,8 @@ export default function CadastroImovelOlx({ lead, modo, aoFechar }: {
       setCodigo(cod)
       marcar('cadastro', 'ok', j.novo ? `#${cod} criado como Rascunho` : `#${cod} já existia (${j.situacao}): abri o que existe, sem duplicar`)
       const c = j.campos || {}
-      setCampos(c); setOriginais(c)
+      const formatados = comPrecosFormatados(c)
+      setCampos(formatados); setOriginais(formatados)
 
       // 4. as fotos: o servidor baixa uma por vez
       const lista: string[] = (j.fotos || []).slice(0, MAX_FOTOS)
@@ -165,6 +194,10 @@ export default function CadastroImovelOlx({ lead, modo, aoFechar }: {
     setRodando(true)
     marcar('publicar', 'andando')
     try {
+      if (bairros.length && !bairroValido(campos.bairro)) {
+        marcar('publicar', 'erro', `o bairro "${campos.bairro}" não é um dos cadastrados: escolha na lista do campo Bairro`)
+        return
+      }
       const corpo: Record<string, any> = { status: 'Disponível', e_parceiro: true }
       for (const c of CAMPOS) {
         const v = campos[c.chave]
@@ -311,7 +344,25 @@ export default function CadastroImovelOlx({ lead, modo, aoFechar }: {
               {CAMPOS.map((c) => (
                 <label key={c.chave} className="block">
                   <span className="block text-[11px] mb-0.5" style={{ color: 'var(--wa-text-2)' }}>{c.rotulo}</span>
-                  {c.opcoes ? (
+                  {c.bairro ? (
+                    <div className="relative">
+                      <input value={campos.bairro ?? ''} placeholder="digite e escolha"
+                             onChange={(e) => { setCampos((x) => ({ ...x, bairro: e.target.value })); setBairroAberto(true) }}
+                             onFocus={() => setBairroAberto(true)} onBlur={() => setTimeout(() => setBairroAberto(false), 150)}
+                             className={entrada}
+                             style={{ ...estiloEntrada, ...(bairros.length && !bairroValido(campos.bairro) ? { borderColor: '#ef4444' } : {}) }} />
+                      {bairroAberto && (
+                        <div className="absolute z-30 left-0 right-0 mt-1 rounded-lg border shadow-xl max-h-[200px] overflow-y-auto"
+                             style={{ background: 'var(--wa-panel)', borderColor: 'var(--wa-divider)' }}>
+                          {bairros.filter((b) => semAcento(b).includes(semAcento(String(campos.bairro || '')))).slice(0, 40).map((b) => (
+                            <button key={b} type="button" onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => { setCampos((x) => ({ ...x, bairro: b })); setBairroAberto(false) }}
+                                    className="block w-full text-left px-2.5 py-1.5 text-[13px] hover:opacity-75">{b}</button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : c.opcoes ? (
                     <select value={c.opcoes.includes(campos[c.chave]) ? campos[c.chave] : ''}
                             onChange={(e) => setCampos((x) => ({ ...x, [c.chave]: e.target.value }))}
                             className={entrada} style={{ ...estiloEntrada, background: 'var(--wa-panel)' }}>
@@ -319,8 +370,8 @@ export default function CadastroImovelOlx({ lead, modo, aoFechar }: {
                       {c.opcoes.map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
                   ) : (
-                    <input value={campos[c.chave] ?? ''} inputMode={c.numero ? 'decimal' : undefined}
-                           onChange={(e) => setCampos((x) => ({ ...x, [c.chave]: e.target.value }))}
+                    <input value={campos[c.chave] ?? ''} inputMode={c.preco ? 'numeric' : c.numero ? 'decimal' : undefined}
+                           onChange={(e) => setCampos((x) => ({ ...x, [c.chave]: c.preco ? comPontos(e.target.value) : e.target.value }))}
                            className={entrada} style={estiloEntrada} />
                   )}
                 </label>
