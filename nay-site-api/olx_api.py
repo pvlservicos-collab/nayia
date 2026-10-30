@@ -340,8 +340,8 @@ def olx_do_link():
 
 @olx_bp.route("/admin/api/imoveis/olx/<int:codigo>/estado")
 def olx_estado(codigo):
-    """O que a barra de cadastro do CRM mostra depois de cada passo: situação, fotos, a pontuação do cadastro (o que
-    falta) e o card de cliente pronto para enviar."""
+    """O que a barra de cadastro do CRM mostra depois de cada passo: situação, fotos e a pontuação do cadastro (o que
+    falta)."""
     if not _admin_autenticado():
         return _sem_senha()
     conn = _conectar()
@@ -356,12 +356,9 @@ def olx_estado(codigo):
             linha = cur.fetchone()
             if not linha:
                 return jsonify({"erro": "imóvel não encontrado"}), 404
-            cur.execute("SELECT texto_pronto FROM nai_card_do_imovel(%s, true)", (codigo,))
-            card = (cur.fetchone() or {}).get("texto_pronto")
         conn.rollback()
-        r = {k: _simples(v) for k, v in linha.items()}
-        r["card"] = card
-        return jsonify(r)
+        # o card de cliente vem de /api/imovel-card/<cod>?cliente=1 (a conexão de leitura; esta não lê a ficha)
+        return jsonify({k: _simples(v) for k, v in linha.items()})
     finally:
         conn.close()
 
