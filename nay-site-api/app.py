@@ -449,9 +449,14 @@ def api_imoveis():
                        "(SELECT '%%' || nay_sem_acento(lower(x)) || '%%' FROM unnest(%s::text[]) x)")
         params.append(bairros)
     if condominios:
-        lugares.append("nay_sem_acento(lower(coalesce(condominio_nome, ''))) LIKE ANY "
-                       "(SELECT '%%' || nay_sem_acento(lower(x)) || '%%' FROM unnest(%s::text[]) x)")
-        params.append(condominios)
+        # 30/10 (Pedro: "pesquisou um no Conquista Tarumã e não apareceu"): a lista oferece o nome do cadastro do
+        # condomínio ("Condomínio Residencial Conquista Tarumã") e o imóvel ligado a ele pode ter outro texto
+        # ("Conquista Tarumã") -- vale também o imóvel cujo condo_id é um condomínio com esse nome
+        lugares.append("(nay_sem_acento(lower(coalesce(condominio_nome, ''))) LIKE ANY "
+                       "(SELECT '%%' || nay_sem_acento(lower(x)) || '%%' FROM unnest(%s::text[]) x)"
+                       " OR condo_id IN (SELECT c.id FROM condominios c WHERE nay_sem_acento(lower(c.nome)) LIKE ANY "
+                       "(SELECT '%%' || nay_sem_acento(lower(x)) || '%%' FROM unnest(%s::text[]) x)))")
+        params.extend([condominios, condominios])
     if lugares:
         condicoes.append("(" + " OR ".join(lugares) + ")")
     tipo = str(a.get("tipo") or "").strip()[:60]
