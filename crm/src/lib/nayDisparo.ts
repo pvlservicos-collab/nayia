@@ -97,11 +97,11 @@ export interface ImovelAchado {
  * bairro, mobília, tipo e quartos -- só o que a caixa de saída aceita mandar
  * (nosso, disponível, no mercado). Do mais barato para o mais caro.
  */
-export async function buscarNaNay(f: FiltroFaixa, limite = 60): Promise<ImovelAchado[]> {
+export async function buscarNaNay(f: FiltroFaixa, limite = 60, parceirosNovos = false): Promise<ImovelAchado[]> {
   const lista = <T,>(v: T[]) => (v.length ? v : null)
   const r = await naydb().query(
-    'SELECT * FROM nai_disparo_buscar($1, $2, $3, $4::text[], $5::text[], $6::text[], $7::int[], $8)',
-    [f.finalidade, f.vmin, f.vmax, lista(f.bairros), lista(f.mobilias), lista(f.tipos), lista(f.quartos), limite])
+    'SELECT * FROM nai_disparo_buscar($1, $2, $3, $4::text[], $5::text[], $6::text[], $7::int[], $8, $9)',
+    [f.finalidade, f.vmin, f.vmax, lista(f.bairros), lista(f.mobilias), lista(f.tipos), lista(f.quartos), limite, parceirosNovos])
   const n = (v: unknown) => (v === null || v === undefined ? null : Number(v))
   return r.rows.map((l: any) => ({
     codigo: Number(l.codigo), titulo: l.titulo, tipo: l.tipo, bairro: l.bairro,

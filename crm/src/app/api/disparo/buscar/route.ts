@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
     if (f.vmin !== null && f.vmax !== null && f.vmin > f.vmax) {
       return apiError(400, 'O valor mínimo está maior que o máximo.')
     }
-    const itens = await buscarNaNay(f)
+    const itens = await buscarNaNay(f, 60, q.get('parceiros_novos') === '1')
     return Response.json({ itens, total: itens.length, teto: TETO_POR_ENVIO })
   } catch (err: any) {
     return apiError(err.status || 500, err.message || 'Não consegui procurar os imóveis.')

@@ -198,6 +198,7 @@ export default function EscolherImoveis({ escolhidos, aoMudar, teto, opcoes, com
       filtro.tipos.forEach((v) => p.append('tipo', v))
       filtro.mobilias.forEach((v) => p.append('mobilia', v))
       filtro.quartos.forEach((v) => p.append('quartos', v))
+      if (comParceiro) p.set('parceiros_novos', '1')   // parceiro novo (cadastrado agora) sai ao cliente; o antigo do site velho nunca
       const res = await fetch(`/api/disparo/buscar?${p.toString()}`)
       const j = await res.json()
       if (!res.ok) throw new Error(j?.error || 'não consegui procurar')
@@ -228,7 +229,7 @@ export default function EscolherImoveis({ escolhidos, aoMudar, teto, opcoes, com
     const t = setTimeout(async () => {
       setProcurando(true)
       try {
-        const p = new URLSearchParams({ q, status: 'Disponível', per: '15', page: '1', ...(comParceiro ? {} : { parceiro: 'nao' }) })
+        const p = new URLSearchParams({ q, status: 'Disponível', per: '15', page: '1', parceiro: comParceiro ? 'sem_antigo' : 'nao' })
         const res = await fetch(`/api/imoveis-nay?${p.toString()}`)
         const j = await res.json()
         setResultados(res.ok ? (j.itens || []) : [])
@@ -260,7 +261,7 @@ export default function EscolherImoveis({ escolhidos, aoMudar, teto, opcoes, com
     setModo('um'); setAchados(null); setAvisoFaixa(null)
     ;(async () => {
       try {
-        const p = new URLSearchParams({ q: pedido.codigo, status: 'Disponível', per: '10', page: '1', ...(comParceiro ? {} : { parceiro: 'nao' }) })
+        const p = new URLSearchParams({ q: pedido.codigo, status: 'Disponível', per: '10', page: '1', parceiro: comParceiro ? 'sem_antigo' : 'nao' })
         const res = await fetch(`/api/imoveis-nay?${p.toString()}`)
         const j = await res.json()
         if (!vivo) return
