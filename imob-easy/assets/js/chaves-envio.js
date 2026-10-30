@@ -196,7 +196,7 @@
       '<td><input type="checkbox" data-dest="' + r.codigo + '"' + (de ? " checked" : "") + (r.ok ? "" : " disabled") + ' aria-label="Destacar o ' + r.codigo + '"></td>' +
       '<td><div class="ce-imovel">' + capa(r) + '<span><span class="ce-cod"><a href="' + esc(r.pagina) + '" target="_blank" rel="noopener">#' + r.codigo + "</a></span>" +
       '<span class="ce-sub">' + esc(r.tipo || "") + "</span></span></div></td>" +
-      "<td>" + onde(r) + "</td><td>" + esc(detalhes(r)) + '</td><td class="ce-dir">' + preco(r) + "</td>" +
+      "<td>" + onde(r) + '<span class="ce-sub">' + esc(detalhes(r)) + "</span></td>" + '<td class="ce-dir">' + preco(r) + "</td>" +
       num(r.enviados, "pessoas que receberam o imóvel pela Nay") + num(r.visitas, "visitas pedidas ou feitas") + num(r.buscados, "pessoas que pediram esse imóvel") +
       "<td>" + portal + "</td></tr>";
   }
@@ -206,7 +206,7 @@
     var total = lista.length, paginas = Math.max(1, Math.ceil(total / POR_PAGINA));
     pagina = Math.min(pagina, paginas);
     var fatia = lista.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
-    $("ce-corpo").innerHTML = fatia.length ? fatia.map(linha).join("") : '<tr><td colspan="10">Nenhum imóvel com esses filtros.</td></tr>';
+    $("ce-corpo").innerHTML = fatia.length ? fatia.map(linha).join("") : '<tr><td colspan="9">Nenhum imóvel com esses filtros.</td></tr>';
     $("ce-contagem").textContent = inteiro(total) + " imóve" + (total === 1 ? "l" : "is") + " (de " + inteiro(d.imoveis.length) + ")";
     $("ce-paginacao").innerHTML = paginas > 1 ?
       '<button type="button" class="btn-neutro" data-pag="-1"' + (pagina <= 1 ? " disabled" : "") + '>Anterior</button><span>' + pagina + " de " + paginas +
@@ -220,12 +220,12 @@
       if (parou || !r.ok) return;
       if (destacar) {
         if (escolha.dest[r.codigo]) return;
-        if (nCh(escolha.dest) >= lim.destaques) { parou = "O plano leva " + lim.destaques + " destaques; parei no " + feitos + "º."; return; }
-        if (!escolha.ar[r.codigo] && nCh(escolha.ar) >= lim.no_ar) { parou = "O plano leva " + lim.no_ar + " imóveis."; return; }
+        if (nCh(escolha.dest) >= lim.destaques) { parou = "Parei: o plano leva " + lim.destaques + " destaques."; return; }
+        if (!escolha.ar[r.codigo] && nCh(escolha.ar) >= lim.no_ar) { parou = "Parei: o plano leva " + lim.no_ar + " imóveis."; return; }
         escolha.ar[r.codigo] = true; escolha.dest[r.codigo] = true; feitos++;
       } else {
         if (escolha.ar[r.codigo]) return;
-        if (nCh(escolha.ar) >= lim.no_ar) { parou = "O plano leva " + lim.no_ar + " imóveis; parei no " + nCh(escolha.ar) + "."; return; }
+        if (nCh(escolha.ar) >= lim.no_ar) { parou = "Parei: o plano leva " + lim.no_ar + " imóveis."; return; }
         escolha.ar[r.codigo] = true; feitos++;
       }
     });
@@ -291,9 +291,13 @@
     html += '<h2 class="ce-titulo">O que os clientes procuram</h2><div class="ce-dois">' +
       barras("Aluguel × venda (pedidos dos clientes)", [{ nome: "Aluguel", n: dm.locacao || 0 }, { nome: "Venda", n: dm.venda || 0 }]) +
       barras("Aluguel × venda (imóveis buscados, por busca)", [{ nome: "Aluguel", n: s.buscas_aluguel }, { nome: "Venda", n: s.buscas_venda }, { nome: "Venda e aluguel", n: s.buscas_ambos }], "ce-trilho--b") +
-      barras("Condomínio recente × antigo (imóveis buscados, por busca)", [{ nome: "Condomínio recente", n: s.buscas_em_recentes }, { nome: "Condomínio antigo ou casa", n: s.buscas_em_antigos }], "ce-trilho--c") +
-      barras("Condomínio recente × antigo (pedidos que citam condomínio)", [{ nome: "Recente", n: dm.em_condominio_recente || 0 }, { nome: "Antigo", n: dm.em_condominio_antigo || 0 }], "ce-trilho--c") +
-      "</div>";
+      barras("Condomínio recente × antigo (imóveis buscados, por busca)", [{ nome: "Condomínio recente", n: s.buscas_em_recentes }, { nome: "Antigo ou sem condomínio", n: s.buscas_em_antigos }], "ce-trilho--c") +
+      ((dm.em_condominio_recente || 0) + (dm.em_condominio_antigo || 0) >= 5
+        ? barras("Condomínio recente × antigo (pedidos que citam condomínio)", [{ nome: "Recente", n: dm.em_condominio_recente || 0 }, { nome: "Antigo", n: dm.em_condominio_antigo || 0 }], "ce-trilho--c") : "") +
+      "</div>" +
+      ((dm.em_condominio_recente || 0) + (dm.em_condominio_antigo || 0) < 5
+        ? '<p class="ce-nota">Poucos pedidos citam um condomínio pelo nome (' + ((dm.em_condominio_recente || 0) + (dm.em_condominio_antigo || 0)) + " de " + inteiro(dm.pedidos) +
+          "): a maioria chega pelo anúncio do imóvel. Por isso o recente × antigo vale pelos imóveis buscados, no gráfico ao lado.</p>" : "");
 
     html += '<div class="ce-grade">' +
       card(reais(s.preco_medio_venda) || "—", "preço médio dos imóveis de venda buscados", "teto médio pedido: " + (reais(dm.teto_medio_venda) || "—")) +
@@ -310,7 +314,7 @@
     html += '<h2 class="ce-titulo">Todos os imóveis com movimento</h2><p class="ce-nota">Mesma lista do /imoveis, com os números do período. Buscas = pessoas que chegaram por esse imóvel, citaram o código ou o link ou pediram na página “me envia”. Clique no título de uma coluna para ordenar.</p>' +
       '<div class="ce-acoes"><input class="entrada" id="ce-m-q" type="search" placeholder="Filtrar por código, condomínio, bairro" value="' + esc(ordemMetricas.q) + '" style="max-width:340px"></div>' +
       '<div class="tabela-envolucro"><div class="tabela-rolagem"><table class="tabela ce-tabela"><thead><tr>' +
-      '<th>Enviar</th><th>Destaque</th><th>Imóvel</th><th>Onde</th><th>Detalhes</th>' +
+      '<th>Enviar</th><th>Destaque</th><th>Imóvel</th><th>Onde</th>' +
       cab("preco", "Preço") + cab("enviados", "Enviados") + cab("visitas", "Visitas") + cab("buscados", "Buscas") + "<th>Portal</th></tr></thead><tbody id=\"ce-m-corpo\"></tbody></table></div></div>";
     $("ce-metricas").innerHTML = html;
     corpoMetricas();
@@ -323,7 +327,7 @@
     var q = sem(ordemMetricas.q).trim(), c = ordemMetricas.campo, sg = ordemMetricas.sentido;
     var itens = d.imoveis.filter(function (r) { return (r.buscados + r.enviados + r.visitas + r.em_grupos > 0) && (!q || sem([r.codigo, r.condominio, r.bairro, r.tipo].join(" ")).indexOf(q) >= 0); })
       .sort(function (a, b) { return sg * ((a[c] || 0) - (b[c] || 0)) || a.codigo - b.codigo; });
-    $("ce-m-corpo").innerHTML = itens.length ? itens.map(linha).join("") : '<tr><td colspan="10">Nenhum imóvel.</td></tr>';
+    $("ce-m-corpo").innerHTML = itens.length ? itens.map(linha).join("") : '<tr><td colspan="9">Nenhum imóvel.</td></tr>';
   }
 
   /* ---------- as abas e os eventos ---------- */

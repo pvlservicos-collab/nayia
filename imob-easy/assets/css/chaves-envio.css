@@ -23,11 +23,14 @@
 .ce-topn { display: inline-flex; align-items: center; gap: var(--e-2); font-size: .9rem; color: var(--texto-medio); }
 .ce-topn .entrada { width: 4.5em; padding: 6px 8px; }
 
-.ce-tabela { min-width: 980px; }
+.ce-tabela { min-width: 860px; }
+.ce-tabela td:nth-child(4) { min-width: 170px; }
 .ce-tabela td, .ce-tabela th { vertical-align: middle; }
-.ce-dir { text-align: right; font-variant-numeric: tabular-nums; }
-.ce-imovel { display: flex; align-items: center; gap: var(--e-3); min-width: 220px; }
-.ce-capa { width: 64px; height: 48px; object-fit: cover; border-radius: 6px; background: var(--superficie-2); flex: none; }
+.ce-dir { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ce-tabela th:nth-child(1), .ce-tabela th:nth-child(2) { width: 1%; padding-left: 10px; padding-right: 10px; }
+.ce-tabela td:nth-child(1), .ce-tabela td:nth-child(2) { padding-left: 10px; padding-right: 10px; }
+.ce-imovel { display: flex; align-items: center; gap: var(--e-2); min-width: 130px; }
+.ce-capa { width: 56px; height: 42px; object-fit: cover; border-radius: 6px; background: var(--superficie-2); flex: none; }
 .ce-capa--vazia { display: inline-block; }
 .ce-cod { font-weight: 700; }
 .ce-cod a { color: inherit; }
@@ -52,8 +55,8 @@
 .ce-card__r { color: var(--texto-medio); font-size: .88rem; margin-top: 2px; }
 .ce-card__s { color: var(--texto-fraco); font-size: .78rem; margin-top: 4px; }
 .ce-titulo { margin: var(--e-6) 0 var(--e-3); font-size: 1.1rem; }
-.ce-dois { display: grid; gap: var(--e-4); grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); margin-bottom: var(--e-5); }
-.ce-barras { display: grid; gap: 6px; padding: var(--e-4); }
+.ce-dois { align-items: start; display: grid; gap: var(--e-4); grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); margin-bottom: var(--e-5); }
+.ce-barras { display: grid; gap: 6px; padding: var(--e-4); align-content: start; }
 .ce-barras h3 { margin: 0 0 var(--e-2); font-size: .95rem; }
 .ce-barra-linha { display: grid; grid-template-columns: minmax(110px, 36%) 1fr auto; gap: var(--e-2); align-items: center; font-size: .86rem; }
 .ce-barra-linha > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
