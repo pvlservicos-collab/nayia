@@ -32,6 +32,7 @@ COPY whats_api.py .
 # Chaves na Mão (458, 21/10): o XML dos imóveis e os leads do portal
 COPY chavesnamao_api.py .
 COPY chavesnamao_envio_api.py .
+COPY zap_api.py .
 # Modelos (470, 22/10): os gastos por nó de modelo de IA e a troca do modelo
 COPY modelos_api.py .
 # Inteligências gerais dos agentes (495, 25/10): a aba de baixo da página Agentes

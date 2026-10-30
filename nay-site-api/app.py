@@ -5854,6 +5854,13 @@ try:
 except Exception as _e:  # noqa: BLE001
     app.logger.warning("chavesnamao_envio_api nao carregou: %s", _e)
 
+# CANAL PRO / GRUPO OLX-ZAP (542, 30/10): o feed VRSync e os leads por webhook. Mesmo try/except.
+try:
+    from zap_api import zap_bp
+    app.register_blueprint(zap_bp)
+except Exception as _e:  # noqa: BLE001
+    app.logger.warning("zap_api nao carregou: %s", _e)
+
 # MODELOS (470, 22/10): a pagina admin > Modelos (gastos por no de modelo de IA e a troca do modelo). Mesmo try/except.
 try:
     from modelos_api import modelos_bp
