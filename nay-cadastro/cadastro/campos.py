@@ -143,6 +143,11 @@ def _pergunta_andar(ficha: dict) -> str:
     return "O andar é baixo, médio ou alto? E, se o prédio não tiver elevador, quantos lances de escada?"
 
 
+def tem_elevador(ficha: dict) -> bool:
+    """O prédio tem elevador: pelo condomínio cadastrado (`_elevador`) ou pela resposta do condomínio novo."""
+    return (ficha.get("_elevador") or ficha.get("c:elevador")) == "sim"
+
+
 def _andar_preenchido(ficha: dict) -> bool:
     return tem(ficha, "andar") or tem(ficha, "x:lances de escada")
 
@@ -207,7 +212,9 @@ PERGUNTAS: tuple[Pergunta, ...] = (
     # o número do apartamento/sala/casa NUNCA é perguntado ao corretor (Tel, 20/10): só ao proprietário
     Pergunta("unidade", "unidade (torre/bloco e número)", _pergunta_unidade, _unidade_preenchida,
              lambda f, c: c.get("papel") == "proprietario" and (em_condominio(f) or familia(f.get("tipo")) == "sala")),
-    Pergunta("andar", "andar (ou lances de escada)", _pergunta_andar, _andar_preenchido, _f("vertical", "sala")),
+    # Pedro, 30/10: "se é imóvel de elevador, não precisa perguntar andar nem lance de escada"
+    Pergunta("andar", "andar (ou lances de escada)", _pergunta_andar, _andar_preenchido,
+             lambda f, _c: familia(f.get("tipo")) in ("vertical", "sala") and not tem_elevador(f)),
     Pergunta("area", "área (m²)", _pergunta_area, _area_preenchida, _sempre, True),
     Pergunta("quartos", "quartos e suítes", _texto("Quantos quartos, e quantos deles são suítes?"),
              lambda f: tem(f, "quartos"), _f("vertical", "casa"), True),

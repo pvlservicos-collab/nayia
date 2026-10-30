@@ -47,6 +47,17 @@ def test_andar_com_e_sem_elevador():
     assert "Andar alto" in campos.resumo_do_que_tem({"andar": "Andar alto"})
 
 
+def test_com_elevador_nao_pergunta_andar_nem_lances():
+    # Pedro, 30/10: "se é imóvel de elevador, não precisa perguntar andar nem lance de escada"
+    base = {"tipo": "Apartamento", "condominio": "Life Parque Dez", "condo_id": 28, "bairro": "Parque 10",
+            "valor_aluguel": 3500, "_fotos": 5}
+    ctx = {"papel_conhecido": True, "taxa_no_condominio": True}
+    assert "andar" not in campos.faltam({**base, "_elevador": "sim"}, ctx)
+    assert "andar" not in campos.faltam({**base, "c:elevador": "sim"}, ctx)
+    assert "andar" in campos.faltam({**base, "_elevador": "nao"}, ctx)      # sem elevador: os lances
+    assert "andar" in campos.faltam(base, ctx)                              # não se sabe: pergunta
+
+
 def test_abertura_do_tel():
     f = {"tipo": "Apartamento", "condominio": "Reserva das Praias"}
     assert campos.abertura("Raquel Paiva", f) == ("Oi, Raquel! Estou fazendo o cadastro do seu imóvel por esse número, "

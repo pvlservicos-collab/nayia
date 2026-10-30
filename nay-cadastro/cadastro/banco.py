@@ -52,6 +52,23 @@ E_CORRETOR = "SELECT EXISTS (SELECT 1 FROM corretores WHERE nai_chave(telefone) 
 
 CONDOMINIO = "SELECT * FROM cadastro_whats_condominio(%s, %s)"
 # a taxa já está na ficha do condomínio para este número de quartos: não pergunta
+# Pedro, 30/10: "se tiver um imóvel nesse condomínio, nessa quantidade de quartos, ela já deve saber que a taxa de
+# condomínio é a mesma": a ficha do condomínio para esses quartos (469) e, sem ela, o outro imóvel do condomínio
+TAXA_JA_SABIDA = """
+SELECT valor, de FROM (
+  SELECT (t->>'condominio')::numeric AS valor, 'a ficha do condomínio' AS de, 1 AS ordem
+    FROM condominio_ficha f, jsonb_array_elements(f.taxas) t
+   WHERE f.condominio_id = %(id)s AND t->>'quartos' = %(quartos)s::text AND nullif(t->>'condominio', '') IS NOT NULL
+  UNION ALL
+  (SELECT i.taxa_condominio, 'o imóvel ' || i.codigo, 2
+     FROM imoveis i
+    WHERE (i.condo_id = %(id)s
+           OR (i.condo_id IS NULL AND lower(btrim(i.condominio_nome)) = (SELECT lower(btrim(nome)) FROM condominios WHERE id = %(id)s)))
+      AND i.quartos = %(quartos)s AND coalesce(i.taxa_condominio, 0) > 0 AND i.status <> 'Excluído'
+      AND i.codigo IS DISTINCT FROM %(codigo)s
+    ORDER BY i.taxa_condominio_em DESC NULLS LAST, i.codigo DESC LIMIT 1)
+) x ORDER BY ordem LIMIT 1
+"""
 TAXA_NO_CONDOMINIO = """
 SELECT EXISTS (SELECT 1 FROM condominio_ficha f, jsonb_array_elements(f.taxas) t
                 WHERE f.condominio_id = %(id)s AND nullif(t->>'condominio', '') IS NOT NULL

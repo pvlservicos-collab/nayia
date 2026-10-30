@@ -67,6 +67,25 @@ def com_elevador(conn, ficha: dict) -> dict:
     return {**ficha, "_elevador": valor} if valor else ficha
 
 
+def com_taxa_sabida(conn, c: dict) -> dict:
+    """A TAXA DE CONDOMÍNIO JÁ SABIDA (Pedro, 30/10: "a gente já sabe que é padrão; só perguntar se o imóvel tiver uma
+    quantidade de quartos diferente de qualquer outro imóvel desse condomínio"): com o condomínio cadastrado e os
+    quartos, a taxa vem da ficha do condomínio ou de outro imóvel dele com os mesmos quartos; vai para a ficha e para o
+    imóvel, e a pergunta da taxa não sai. Sem nenhum dos dois, ela pergunta."""
+    f = c["ficha"]
+    if campos.tem(f, "taxa_condominio") or not f.get("condo_id") or not f.get("quartos"):
+        return c
+    r = banco.uma(conn, banco.TAXA_JA_SABIDA, {"id": f["condo_id"], "quartos": int(f["quartos"]), "codigo": c.get("codigo")})
+    if not r or not r.get("valor"):
+        return c
+    ficha = {**f, "taxa_condominio": float(r["valor"]), "_taxa_de": r["de"]}
+    gravar(conn, c["id"], ficha=ficha)
+    c = {**c, "ficha": ficha}
+    salvar_no_site(c)
+    log.info("cadastro %s: taxa de condomínio %s pelo que já se sabe (%s)", c["id"], r["valor"], r["de"])
+    return c
+
+
 def canal_do_contato(conn, fone: str | None, papel: str | None = None) -> str:
     """'leads' (8595) para todo contato (Pedro, 23/10: "quero tudo pelo número de leads"); a Parceria só para o dono que é
     lead da captação (a Nay de captação responderia junto). `papel` não decide mais (fica na assinatura de quem chama)."""
@@ -113,6 +132,7 @@ def proxima(conn, c: dict, primeira: bool = False) -> None:
     equipe na conversa, ela não manda mais nada; a resposta que estava esperando ainda é lida (no_privado) e a ficha
     fecha com o que tem. `_so_esperar` na ficha faz o mesmo sem a pausa."""
     c = {**c, "ficha": com_elevador(conn, c["ficha"])}
+    c = com_taxa_sabida(conn, c)
     falta = campos.faltam(c["ficha"], contexto(conn, c))
     gente = not primeira and (c["ficha"].get("_so_esperar") or gente_no_chat(conn, c))
     if not falta or gente:
