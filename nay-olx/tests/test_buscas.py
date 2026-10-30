@@ -95,10 +95,21 @@ class Mensagem(unittest.TestCase):
 
 
 class Corretor(unittest.TestCase):
+    def test_acima_de_100_mil_e_venda(self):
+        # Pedro, 30/10: "acima de 100k é sempre venda"
+        self.assertEqual(b.venda_pelo_valor({"valor": 950000, "finalidade": "locacao"})["finalidade"], "venda")
+        self.assertEqual(b.venda_pelo_valor({"valor": 2500, "finalidade": "locacao"})["finalidade"], "locacao")
+        self.assertNotIn("finalidade", b.venda_pelo_valor({"valor": 3000}))
+
+    def test_o_link_da_olx_na_conversa(self):
+        t = "Faz parceria? https://am.olx.com.br/regiao-de-manaus/imoveis/apartamento-com-4-suites-ponta-ne-1515393241"
+        self.assertEqual(b.OLX_NO_LINK.findall(t), ["1515393241"])
+        self.assertEqual(b.OLX_NO_LINK.findall("me liga 92991920860"), [])
+
     def test_o_que_falta_para_o_cadastro(self):
         im = {"tipo": "apartamento", "finalidade": "locacao", "bairro": "Flores", "quartos": 2, "valor": 3000}
-        self.assertEqual(b.falta_no_imovel(im, 0), ["o condomínio", "a mobília", "as fotos"])
-        self.assertEqual(b.falta_no_imovel({**im, "condominio": "Smile", "mobilia": "mobiliado"}, 3), [])
+        self.assertEqual(b.falta_no_imovel(im, 0), ["a área (m²)", "o condomínio", "a mobília", "as fotos"])
+        self.assertEqual(b.falta_no_imovel({**im, "condominio": "Smile", "mobilia": "mobiliado", "area": 70}, 3), [])
 
     def test_o_novo_nao_apaga_o_que_ja_sabiamos(self):
         self.assertEqual(b.juntar_imovel({"bairro": "Flores", "quartos": 2}, {"bairro": "", "quartos": 0, "valor": 3000}),
@@ -223,8 +234,8 @@ class OpcoesDaBase(unittest.TestCase):
 
     def test_corretor_sem_busca_so_pede_o_que_falta_no_cadastro(self):
         im = {"tipo": "apartamento", "finalidade": "locacao", "bairro": "Flores", "quartos": 3, "valor": 4000}
-        self.assertEqual(b.falta_no_imovel(im, 0), ["o condomínio", "a mobília", "as fotos"])
-        self.assertEqual(b.falta_no_imovel({**im, "condominio": "The Club", "mobilia": "mobiliado"}, 3), [])
+        self.assertEqual(b.falta_no_imovel(im, 0), ["a área (m²)", "o condomínio", "a mobília", "as fotos"])
+        self.assertEqual(b.falta_no_imovel({**im, "condominio": "The Club", "mobilia": "mobiliado", "area": 70}, 3), [])
 
     def test_repete_o_pedido_do_grupo_no_dia_seguinte_se_ninguem_ofereceu(self):
         """Pedro, 24/10: ninguém ofereceu, o mesmo pedido sai de novo no começo do dia seguinte (uma vez por dia)."""

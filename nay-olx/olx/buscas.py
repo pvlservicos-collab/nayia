@@ -718,6 +718,7 @@ def olx_volta(conn, c: dict) -> int:
                 mid = _enviar(c["teste"], f"[teste: iria para {a.get('anunciante') or 'o anunciante'} {tel}]\n{texto}")
             else:
                 mid = _enviar(tel, texto)
+                _guardar_enviada(conn, tel, texto, mid)
                 banco.um(conn, """INSERT INTO privado.busca_contato (telefone8, telefone, busca, de, olx_id, nome)
                                   VALUES (%s, %s, %s, 'anunciante_olx', %s, %s)""",
                          (tel[-8:], tel, b["id"], a["olx_id"], a.get("anunciante")))
@@ -750,14 +751,21 @@ O corretor chegou de um destes jeitos (veja "COMO CHEGOU"): respondeu um pedido 
 respondeu a pergunta que fizemos no anúncio dele na OLX, ou escreveu pedindo parceria.
 O objetivo: cadastrar na nossa base o imóvel que ele tem (como imóvel de parceiro) e, se ele servir para uma das nossas
 BUSCAS ATIVAS, apresentar ao cliente. Trabalhamos em parceria (se ele perguntar a divisão: meio a meio, 50%).
+Aqui você está BUSCANDO imóvel para um cliente nosso: você não atende cliente nem marca visita com o corretor. Se ele
+falar de visita ou de horário, diga só que vai confirmar com o cliente e retorna (Pedro, 30/10).
+
+O QUE JÁ SABEMOS (Pedro, 30/10: "ela nunca deve perguntar coisas que já tem na OLX"): o "ANÚNCIO DA OLX" (quando há) e o
+"JÁ ANOTADO" já estão certos. NUNCA pergunte nada que esteja neles: nem o tipo, nem se é venda ou locação, nem o valor,
+o bairro, os quartos, a área, as vagas, a taxa ou o condomínio. Pergunte só o que faltar de verdade.
+Valor acima de R$ 100 mil é SEMPRE venda; nunca pergunte se é venda ou locação nesse caso.
 
 O roteiro:
 1. Ele ainda não mandou o imóvel: peça, curto: "Pode me mandar o imóvel que você tem?" (esta é a conversa de quem veio
    do grupo). Se ele perguntou antes se fazemos parceria (ex.: "faz parceria no Kopenhagen?"), responda em UMA frase que
    sim, trabalhamos em parceria com corretores (se "CONDOMÍNIO QUE ELE CITOU" mostrar imóveis nossos nele, pode dizer que
    temos imóveis lá, sem inventar quais), e peça o imóvel na mesma mensagem.
-2. Ele mandou o imóvel (texto, áudio transcrito ou fotos): anote tudo no "imovel". Veja o que ainda falta para o cadastro
-   (em "JÁ ANOTADO") e pergunte SÓ o que falta, no máximo 2 coisas por vez. Fotos: peça que mande por aqui.
+2. Ele mandou o imóvel (texto, áudio transcrito, fotos ou o link da OLX): anote tudo no "imovel". O que ainda falta para o
+   cadastro vem em "FALTA PARA O CARD": pergunte SÓ isso, no máximo 2 coisas por vez. Fotos: peça que mande por aqui.
 3. Cadastro completo: agradeça e diga que vai passar a opção para o cliente e que, se ele se interessar, você entra em
    contato para agendar uma visita. NUNCA diga ao corretor que cadastrou, que vai cadastrar ou que o imóvel está na nossa
    base (Pedro, 29/10: o cadastro é coisa nossa, o corretor só precisa saber que o cliente vai ver a opção). Se o imóvel
@@ -767,8 +775,9 @@ Regras:
 - Português do Brasil, curto e simpático, como gente. No máximo 2 balões. Pouco emoji.
 - Nunca diga o nome, o telefone ou qualquer dado do cliente.
 - Diga sempre "cliente", nunca "lead": o corretor não sabe o que é lead.
-- Para o cadastro precisamos de: tipo, finalidade (aluguel ou venda), bairro, condomínio (se for apartamento ou casa em
-  condomínio), quartos, valor, taxa de condomínio (se houver), mobília (na locação) e pelo menos 3 fotos.
+- Para o cadastro (o que vai no card ao cliente) precisamos de: tipo, finalidade (aluguel ou venda), bairro, condomínio
+  (se for apartamento ou casa em condomínio), quartos, área (m²), valor, mobília (na locação) e pelo menos 3 fotos; a
+  taxa de condomínio e as vagas, se ele souber.
 - O imóvel entra na nossa base MESMO que não sirva para nenhuma busca agora: "serve" é só sobre as buscas ativas.
 - Se ele perguntar algo do cliente que você não sabe (data de mudança, renda, documentos), diga que vai confirmar.
 - Se a conversa não é sobre imóvel nem parceria (outro assunto, propaganda, corrente), não responda.
@@ -799,10 +808,56 @@ def juntar_imovel(antes: dict, novo: dict) -> dict:
     return d
 
 
+VENDA_A_PARTIR_DE = 100_000      # Pedro, 30/10: "acima de 100k é sempre venda"
+OLX_NO_LINK = re.compile(r"olx\.com\.br/\S*?-(\d{9,11})(?!\d)")
+FOTOS_DO_ANUNCIO = 12
+
+
+def venda_pelo_valor(im: dict) -> dict:
+    """Valor acima de R$ 100 mil é venda, diga o que disser a leitura do modelo."""
+    try:
+        valor = float(im.get("valor") or 0)
+    except (TypeError, ValueError):
+        valor = 0
+    return {**im, "finalidade": "venda"} if valor > VENDA_A_PARTIR_DE else im
+
+
+def anuncio_da_conversa(conn, t8: str, textos: list[str]) -> dict | None:
+    """O anúncio da OLX de que se fala com este corretor: o link mais recente na conversa (dele, da equipe ou da Nay) ou o
+    que a Nay perguntou a ele pela busca. Lido da base de scrap. Pedro, 30/10: a Stela recebeu o link do Piazza Dell'Acqua
+    e a Nay perguntou tipo, venda ou locação, valor, bairro e taxa, tudo no anúncio."""
+    ids: list[int] = []
+    for t in textos:
+        ids += [int(x) for x in OLX_NO_LINK.findall(t or "")]
+    ids.reverse()   # o mais recente primeiro
+    ids += [int(r["olx_id"]) for r in banco.linhas(conn, """SELECT olx_id FROM privado.busca_contato WHERE telefone8 = %s
+                                                            AND olx_id IS NOT NULL ORDER BY em DESC""", (t8,))]
+    for olx_id in dict.fromkeys(ids):
+        a = banco.linhas(conn, """SELECT * FROM scrap_anuncio WHERE olx_id = %s ORDER BY coletado_em DESC LIMIT 1""", (olx_id,))
+        if a:
+            return a[0]
+    return None
+
+
+def imovel_do_anuncio(conn, a: dict) -> dict:
+    """O que o anúncio da OLX já diz, no formato do "imovel" da Nay Corretores."""
+    cat, sub, neg = (str(a.get(k) or "").lower() for k in ("categoria", "subtipo", "tipo_negocio"))
+    tipo = ("casa em condomínio" if "condom" in sub else "cobertura" if "cobertura" in sub
+            else "apartamento" if cat.startswith("apart") else "casa" if "casa" in cat else "")
+    fin = "venda" if neg.startswith("venda") else "locacao" if neg.startswith("aluguel") else ""
+    im = {"tipo": tipo, "finalidade": fin, "bairro": a.get("bairro") or "", "quartos": a.get("quartos") or 0,
+          "vagas": a.get("vagas") or 0, "area": float(a.get("area_m2") or 0), "valor": float(a.get("preco") or 0),
+          "taxa_condominio": float(a.get("condominio") or 0),
+          "condominio": predio_do_anuncio(conn, a) or trecho_do_predio(a.get("titulo") or "") or "",
+          "observacao": f"Anúncio da OLX: {a.get('url')}" if a.get("url") else ""}
+    return venda_pelo_valor({k: v for k, v in im.items() if v not in (None, "", 0, 0.0)})
+
+
 def falta_no_imovel(im: dict, fotos: int) -> list[str]:
     falta = []
+    # Pedro, 30/10: "precisa ter informações mínimas, como as informações que vão no card" (o m² é a 3ª linha do card)
     for k, nome in (("tipo", "o tipo"), ("finalidade", "se é aluguel ou venda"), ("bairro", "o bairro"),
-                    ("quartos", "os quartos"), ("valor", "o valor")):
+                    ("quartos", "os quartos"), ("area", "a área (m²)"), ("valor", "o valor")):
         if not im.get(k):
             falta.append(nome)
     t = str(im.get("tipo") or "").lower()
@@ -816,11 +871,28 @@ def falta_no_imovel(im: dict, fotos: int) -> list[str]:
 
 
 def _conversa_corretor(conn, tel8: str) -> list[dict]:
-    return list(reversed(banco.linhas(conn, """
-        SELECT id, direcao, origem, texto, to_char(criada_em AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI') AS hora
+    daqui = list(reversed(banco.linhas(conn, """
+        SELECT id, direcao, origem, texto, criada_em, to_char(criada_em AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI') AS hora
           FROM captacao_mensagens
          WHERE right(regexp_replace(coalesce(telefone, ''), '\\D', '', 'g'), 8) = %s
          ORDER BY id DESC LIMIT 30""", (tel8,))))
+    # 30/10: o que a equipe mandou pelo CRM ou pelo celular fica só no crmdb; sem isto a Nay não via o Tel na conversa
+    equipe = [{"id": 0, "direcao": "enviada", "origem": "equipe_crm", "texto": e["texto"], "criada_em": e["criada_em"],
+               "hora": e["criada_em"].astimezone(MANAUS).strftime("%d/%m %H:%M")}
+              for e in whatsapp.da_equipe_no_crm(tel8, 15)]
+    return sorted(daqui + equipe, key=lambda m: m["criada_em"])[-40:]
+
+
+EQUIPE_NA_CONVERSA_H = 12   # a equipe falou com o corretor há menos disto: a Nay não fala, só anota e cadastra
+
+
+def _guardar_enviada(conn, tel: str, texto: str, mid: str) -> None:
+    """O que a Nay manda ao corretor/anunciante entra na conversa dela (antes ela não via as próprias perguntas e
+    perguntava de novo). Origem 'resposta': para a Nay Leads não é gente escrevendo."""
+    d = re.sub(r"\D", "", tel or "")
+    banco.um(conn, """INSERT INTO captacao_mensagens (telefone, direcao, origem, texto, status, message_id)
+                      VALUES (%s, 'enviada', 'resposta', %s, 'Enviado', %s)""",
+             (d if d.startswith("55") else "55" + d, texto, mid or None))
 
 
 COMO_CHEGOU = {"grupo": "respondeu um pedido que fizemos nos grupos de corretores",
@@ -846,15 +918,22 @@ def condominio_citado(conn, conversa: list[dict]) -> str:
     return f"{r[0]['nome']}: {r[0]['nossos']} imóvel(is) nosso(s) e {r[0]['de_parceiro']} de parceiro, Disponíveis"
 
 
-def _turno_corretor(conn, cor: dict, conversa: list[dict], ativas: list[dict], fotos: int) -> str:
+def _turno_corretor(conn, cor: dict, conversa: list[dict], ativas: list[dict], fotos: int,
+                    anuncio: dict | None = None, ja: dict | None = None) -> str:
+    ja = ja if ja is not None else (cor.get("imovel") or {})
     linhas = [f"COMO CHEGOU: {COMO_CHEGOU.get(cor.get('origem') or '', 'escreveu para o nosso número')}.",
               f"CONDOMÍNIO QUE ELE CITOU: {condominio_citado(conn, conversa) or 'nenhum que a gente tenha cadastrado'}", "",
               "BUSCAS ATIVAS (id: o que o cliente procura):"]
     linhas += [f"- {b['id']}: {resumo(b['filtros'])}" for b in ativas] or ["- nenhuma"]
-    linhas += ["", f"JÁ ANOTADO deste imóvel: {json.dumps(cor.get('imovel') or {}, ensure_ascii=False)}",
+    if anuncio:
+        linhas += ["", f"ANÚNCIO DA OLX deste imóvel (já sabemos; NUNCA pergunte): {anuncio.get('titulo')} | "
+                       f"{json.dumps(imovel_do_anuncio(conn, anuncio), ensure_ascii=False)} | {len(anuncio.get('fotos') or [])} fotos"]
+    falta = falta_no_imovel(ja, fotos)
+    linhas += ["", f"JÁ ANOTADO deste imóvel: {json.dumps(ja, ensure_ascii=False)}",
+               f"FALTA PARA O CARD: {', '.join(falta) if falta else 'nada, está completo'}",
                f"Fotos recebidas até agora: {fotos}", f"Busca escolhida antes: {cor.get('busca') or 'nenhuma'}", "", "CONVERSA:"]
     for m in conversa:
-        quem = "CORRETOR" if m["direcao"] == "recebida" else "NAY/EQUIPE"
+        quem = "CORRETOR" if m["direcao"] == "recebida" else "EQUIPE" if m.get("origem") == "equipe_crm" else "NAY/EQUIPE"
         texto = (m["texto"] or "").strip() or f"[{m['origem'] or 'mídia'}]"
         if m["origem"] == "imagem":
             texto = "[foto] " + texto
@@ -881,7 +960,7 @@ def _tipo_do_cadastro(t: str | None) -> str | None:
     return next((v for k, v in TIPO_DO_CADASTRO if k in t), None)
 
 
-def cadastrar(conn, cor: dict, b: dict | None, ativo: bool) -> int:
+def cadastrar(conn, cor: dict, b: dict | None, ativo: bool, fotos_do_anuncio: list[str] | None = None) -> int:
     """O imóvel do corretor no nosso cadastro, como imóvel de PARCEIRO. Rascunho enquanto falta dado; completo, Disponível
     (ativo=True). Devolve o código."""
     im = cor["imovel"] or {}
@@ -921,6 +1000,11 @@ def cadastrar(conn, cor: dict, b: dict | None, ativo: bool) -> int:
         ordem += 1
         banco.um(conn, "INSERT INTO imovel_fotos (codigo, ordem, url, e_capa) VALUES (%s, %s, %s, %s)", (codigo, ordem, f["url"], ordem == 1))
         banco.um(conn, "UPDATE privado.busca_corretor_foto SET usada_em = now() WHERE id = %s", (f["id"],))
+    if fotos_do_anuncio and ordem < FOTOS_MINIMAS:
+        # as fotos do anúncio da OLX, como no pré-cadastro da OLX (parceiro.precadastrar)
+        for url in fotos_do_anuncio:
+            ordem += 1
+            banco.um(conn, "INSERT INTO imovel_fotos (codigo, ordem, url, e_capa) VALUES (%s, %s, %s, %s)", (codigo, ordem, url, ordem == 1))
     if ativo:
         banco.um(conn, "UPDATE imoveis SET status = 'Disponível', disponivel = true, publicado_no_site = true WHERE codigo = %s", (codigo,))
     conn.commit()
@@ -1166,8 +1250,16 @@ def corretores_volta(conn, c: dict) -> int:
             conn.commit()
             continue
         fotos = _qtd_fotos(conn, t8, cor.get("codigo"))
+        anuncio = anuncio_da_conversa(conn, t8, [m["texto"] or "" for m in conversa])
+        do_anuncio = imovel_do_anuncio(conn, anuncio) if anuncio else {}
+        fotos_anuncio = [u for u in (anuncio or {}).get("fotos") or [] if u][:FOTOS_DO_ANUNCIO]
+        if fotos < FOTOS_MINIMAS:
+            fotos += len(fotos_anuncio)
+        ja = venda_pelo_valor(juntar_imovel(do_anuncio, cor.get("imovel") or {}))
+        equipe_por_perto = any(m["origem"] == "equipe_crm" and m["criada_em"] > datetime.now(timezone.utc) - timedelta(hours=EQUIPE_NA_CONVERSA_H)
+                               for m in conversa)
         try:
-            r = modelo.chamar(PROMPT_CORRETOR, _turno_corretor(conn, cor, conversa, ativas, fotos), no="olx.corretor")
+            r = modelo.chamar(PROMPT_CORRETOR, _turno_corretor(conn, cor, conversa, ativas, fotos, anuncio, ja), no="olx.corretor")
         except Exception:  # noqa: BLE001
             log.exception("corretor …%s: o modelo falhou", t8[-4:])
             continue
@@ -1177,16 +1269,20 @@ def corretores_volta(conn, c: dict) -> int:
         bid = r.get("busca_id") if r.get("busca_id") in ids else cor.get("busca")
         b = ids.get(bid) or (banco.linhas(conn, "SELECT * FROM privado.busca_cliente WHERE id = %s", (bid,)) or [None])[0] if bid else None
         baloes = [str(x).strip() for x in (r.get("baloes") or []) if str(x).strip()][:2]
-        if r.get("oferece_imovel") and (not b or r.get("serve") != "nao"):
+        if equipe_por_perto and baloes:
+            # Pedro, 30/10: a equipe está falando com ele (a Stela, com o link da OLX); a Nay não fala por cima, só anota
+            log.info("corretor …%s: a equipe está na conversa; a Nay não responde", t8[-4:])
+            baloes = []
+        if (r.get("oferece_imovel") or anuncio) and (not b or r.get("serve") != "nao"):
             # 488: o imóvel do corretor entra na base mesmo sem busca que sirva ("serve" é só das buscas ativas)
-            im = juntar_imovel(cor.get("imovel") or {}, r.get("imovel") or {})
+            im = venda_pelo_valor(juntar_imovel(ja, r.get("imovel") or {}))
             banco.um(conn, """UPDATE privado.busca_corretor SET imovel = %s::jsonb, busca = %s, estado = 'cadastrando'
                                WHERE telefone8 = %s""", (json.dumps(im, ensure_ascii=False), b["id"] if b else None, t8))
             cor = {**cor, "imovel": im, "busca": b["id"] if b else None}
             primeira = not cor.get("codigo")
             falta = falta_no_imovel(im, fotos)
             completo = not falta and c["corretor"] == "sim"
-            codigo = cadastrar(conn, cor, b, ativo=completo)
+            codigo = cadastrar(conn, cor, b, ativo=completo, fotos_do_anuncio=fotos_anuncio)
             banco.um(conn, "UPDATE privado.busca_corretor SET codigo = %s WHERE telefone8 = %s", (codigo, t8))
             if primeira and b:
                 banco.um(conn, "UPDATE privado.busca_cliente SET ofertas = ofertas || %s::jsonb WHERE id = %s",
@@ -1230,7 +1326,8 @@ def corretores_volta(conn, c: dict) -> int:
                     if c["teste"]:
                         _enviar(c["teste"], f"[teste: iria para o corretor …{t8[-4:]}]\n{t}")
                 else:
-                    _enviar(cor["telefone"], t)
+                    _guardar_enviada(conn, cor["telefone"], t, _enviar(cor["telefone"], t))
+                    conn.commit()
         feitos += 1
     return feitos
 
