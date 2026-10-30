@@ -314,7 +314,9 @@ def olx_do_link():
     try:
         with conn.cursor() as cur:
             cur.execute("""SELECT olx_id, titulo, descricao, preco_texto, bairro, cep, fotos, dados, url, coletado_em
-                             FROM scrap_anuncio WHERE olx_id = %s ORDER BY coletado_em DESC LIMIT 1""", (int(olx_id),))
+                             FROM scrap_anuncio WHERE olx_id = %s
+                            ORDER BY (coalesce(descricao, '') <> '') DESC, coletado_em DESC LIMIT 1""", (int(olx_id),))
+            # (a lista dos recentes, de 30/10, vem sem a descrição: a de prospecção, quando tem o mesmo anúncio, tem)
             base = cur.fetchone()
             cur.execute("SELECT codigo, status FROM imoveis WHERE extras->>'olx_id' = %s ORDER BY codigo LIMIT 1", (olx_id,))
             ja = cur.fetchone()
