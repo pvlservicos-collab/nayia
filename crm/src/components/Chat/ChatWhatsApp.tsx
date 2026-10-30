@@ -17,7 +17,6 @@ import VisitasAgendadas from './VisitasAgendadas'
 import PipelineBoard from '@/components/Pipeline/PipelineBoard'
 import FechamentoChecklists from './FechamentoChecklists'
 import BarraDeMetricas from './BarraDeMetricas'
-import BarraDaCaptacao from './BarraDaCaptacao'
 import BarraDoDisparoOficial from './BarraDoDisparoOficial'
 import BarraDoCustoOficial from './BarraDoCustoOficial'
 import PainelContatoCaptacao from './PainelContatoCaptacao'
@@ -425,7 +424,8 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
           ⚠️ {AVISO_DA_CAPTACAO}
         </div>
       )}
-      {aba === 'conversas' && <BarraDaCaptacao leads={allLeads} />}
+      {/* 29/10 (Pedro: "não fazemos mais disparos pelo número de leads, pode retirar"): a faixa de disparos e as etapas da
+          campanha saíram daqui; cada contato ganhou uma etiqueta com o nome da etapa dele */}
     </>
   ) : linha === 'oficial' ? (
     // o contador da Meta no mês (Pedro, 16/10: "quanto já disparamos ... e quanto estamos gastando") e a barrinha do

@@ -9,6 +9,7 @@ import type { EstadoDaNay } from '@/lib/tiposNay'
 import type { DonoNaLista, MarcaDaNay } from '@/lib/tiposNay'
 import { quandoCurtoEmManaus } from '@/lib/fusoDeManaus'
 import { nayEmPausa } from '@/lib/etapaDaParceria'
+import { PASSOS_DA_NAY } from '@/lib/olxClientes'
 import type { NayLeadsComDono } from '@/hooks/useNayLeadsComDono'
 import EtiquetasDoCard from './EtiquetasDoCard'
 
@@ -63,6 +64,8 @@ interface LeadListItemProps {
   aoAlternarRelacionados?: (leadId: string) => void
   /** 517: esta linha é um contato relacionado, aninhado embaixo do lead ("Relacionado · #9051") */
   relacao?: string
+  /** WhatsApp Leads (520, Pedro 29/10): o passo da Nay com este lead (1 a 5) e a etapa dela -- a barrinha embaixo */
+  passoDaNay?: { passo: number; etapa: string }
   /** 29/10 (Pedro: "deixa só a tag OLX e se é venda ou locação embaixo do nome"): a finalidade que a Nay entendeu */
   finalidadeDoCliente?: string | null
   /** 520: de onde veio o cliente da Nay Leads -- 'olx' mostra "OLX" no lugar do antigo "Cliente" */
@@ -158,7 +161,25 @@ const FINALIDADE: Record<string, { rotulo: string; cor: string }> = {
   venda: { rotulo: 'Venda', cor: '#d97706' },
 }
 
-const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, clienteOlx, etiquetasColoridas, onTagsChange, relacionados, aoAlternarRelacionados, relacao, finalidadeDoCliente, origemDoCliente }: LeadListItemProps) => {
+/* A BARRINHA DA NAY (520, Pedro, 29/10/2026): os 5 passos do atendimento dela com o lead, embaixo das etiquetas. Ela
+   sobe quando a Nay avança e volta sozinha quando o pedido muda. Fechamento enche de roxo; finalizado, de cinza. */
+function BarrinhaDaNay({ passo, etapa }: { passo: number; etapa: string }) {
+  const fechou = etapa === 'fechamento' || etapa === 'finalizado'
+  const cor = etapa === 'fechamento' ? '#7c3aed' : etapa === 'finalizado' ? 'var(--wa-text-2)' : passo >= 5 ? 'var(--wa-green)' : '#0891b2'
+  const p = PASSOS_DA_NAY.find((x) => x.n === passo)
+  const titulo = fechou ? `Nay: ${etapa === 'fechamento' ? 'em fechamento' : 'atendimento finalizado'}`
+    : p ? `Nay: passo ${passo} de 5 — ${p.rotulo}. ${p.titulo}` : 'Nay: ainda não começou o atendimento'
+  return (
+    <div className="flex items-center gap-[3px] mt-[5px] mb-[1px]" title={titulo} aria-label={titulo} role="img">
+      {PASSOS_DA_NAY.map((x) => (
+        <span key={x.n} className="h-[3px] flex-1 rounded-full max-w-[34px]"
+              style={{ background: x.n <= passo ? cor : 'var(--wa-row-selected)', opacity: x.n <= passo ? 1 : 0.9 }} />
+      ))}
+    </div>
+  )
+}
+
+const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, clienteOlx, etiquetasColoridas, onTagsChange, relacionados, aoAlternarRelacionados, relacao, passoDaNay, finalidadeDoCliente, origemDoCliente }: LeadListItemProps) => {
   const robo = nay === undefined ? null : !nay ? { parada: true, texto: 'Lendo a Nay…' }
     : !nay.ligada ? { parada: true, texto: `Nay parada: ${nay.motivo || 'desligada'}` }
     : nayEmPausa(marca) ? { parada: true, texto: TEXTO_DA_PAUSA }
@@ -307,6 +328,8 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
           </span>
         </div>
 
+        {passoDaNay && <BarrinhaDaNay {...passoDaNay} />}
+
         {hit?.matchType === 'message' && hit.snippet && (
           <div className="wa-previa text-[13px] italic mt-0.5 line-clamp-1">
             <span dangerouslySetInnerHTML={{ __html: renderSnippet(hit.snippet, query ?? '') }} />
@@ -339,6 +362,8 @@ export default memo(LeadListItem, (a, b) => (
   (a.relacionados?.avatares || []).join() === (b.relacionados?.avatares || []).join() &&
   a.aoAlternarRelacionados === b.aoAlternarRelacionados &&
   a.relacao === b.relacao &&
+  a.passoDaNay?.passo === b.passoDaNay?.passo &&
+  a.passoDaNay?.etapa === b.passoDaNay?.etapa &&
   a.finalidadeDoCliente === b.finalidadeDoCliente &&
   a.origemDoCliente === b.origemDoCliente &&
   !!a.etiquetasColoridas === !!b.etiquetasColoridas &&

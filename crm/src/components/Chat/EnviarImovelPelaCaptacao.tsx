@@ -70,7 +70,7 @@ export default function EnviarImovelPelaCaptacao({ leadId, telefone, oficial }: 
 
   return (
     <>
-      <EscolherImoveis key={rodada} compacto escolhidos={escolhidos}
+      <EscolherImoveis key={rodada} compacto comParceiro escolhidos={escolhidos}
                        aoMudar={(l) => { setEscolhidos(l); if (!enviando) setEnvio(null) }}
                        teto={tetoDoDisparo} opcoes={opcoesDoDisparo}
                        aoAvisar={(texto) => setEnvio(texto ? { tipo: 'aviso', texto } : null)} />

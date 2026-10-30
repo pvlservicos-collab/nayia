@@ -26,6 +26,8 @@ export interface ImovelParaEnviar {
   fotos: number
   capa: string | null
   mobilia?: string | null
+  /** imóvel de parceiro (só aparece na lista quando `comParceiro`; para cliente final o servidor deixa sair) */
+  parceiro?: boolean
 }
 
 export interface OpcaoDoFiltro { valor: string; n?: number }
@@ -155,7 +157,7 @@ export function useOpcoesDoDisparo() {
   return dados
 }
 
-export default function EscolherImoveis({ escolhidos, aoMudar, teto, opcoes, compacto = false, aoAvisar, pedido }: {
+export default function EscolherImoveis({ escolhidos, aoMudar, teto, opcoes, compacto = false, aoAvisar, pedido, comParceiro = false }: {
   escolhidos: ImovelParaEnviar[]
   aoMudar: (lista: ImovelParaEnviar[]) => void
   teto: number
@@ -166,6 +168,9 @@ export default function EscolherImoveis({ escolhidos, aoMudar, teto, opcoes, com
   aoAvisar?: (texto: string | null) => void
   /** pôr um código de fora (o histórico do card): { codigo, vez } -- `vez` muda a cada clique */
   pedido?: { codigo: string; vez: number } | null
+  /** 29/10 (Pedro: 'não está aparecendo os imóveis novos cadastrados como parceiro na hora de enviar ao lead'): o envio ao
+   *  CLIENTE (Leads, pelo 8595) também lista os de parceiro; ao corretor (Parceria) eles nunca saem, então ali fica `nao` */
+  comParceiro?: boolean
 }) {
   const [modo, setModo] = useState<'um' | 'faixa'>('um')
   const [busca, setBusca] = useState('')
@@ -223,7 +228,7 @@ export default function EscolherImoveis({ escolhidos, aoMudar, teto, opcoes, com
     const t = setTimeout(async () => {
       setProcurando(true)
       try {
-        const p = new URLSearchParams({ q, status: 'Disponível', parceiro: 'nao', per: '15', page: '1' })
+        const p = new URLSearchParams({ q, status: 'Disponível', per: '15', page: '1', ...(comParceiro ? {} : { parceiro: 'nao' }) })
         const res = await fetch(`/api/imoveis-nay?${p.toString()}`)
         const j = await res.json()
         setResultados(res.ok ? (j.itens || []) : [])
@@ -255,7 +260,7 @@ export default function EscolherImoveis({ escolhidos, aoMudar, teto, opcoes, com
     setModo('um'); setAchados(null); setAvisoFaixa(null)
     ;(async () => {
       try {
-        const p = new URLSearchParams({ q: pedido.codigo, status: 'Disponível', parceiro: 'nao', per: '10', page: '1' })
+        const p = new URLSearchParams({ q: pedido.codigo, status: 'Disponível', per: '10', page: '1', ...(comParceiro ? {} : { parceiro: 'nao' }) })
         const res = await fetch(`/api/imoveis-nay?${p.toString()}`)
         const j = await res.json()
         if (!vivo) return
@@ -297,7 +302,7 @@ export default function EscolherImoveis({ escolhidos, aoMudar, teto, opcoes, com
         ? <img src={i.capa} alt="" loading="lazy" className="w-12 h-9 rounded object-cover flex-shrink-0" />
         : <span className="w-12 h-9 rounded bg-panel-2 grid place-items-center text-muted flex-shrink-0"><Camera size={14} /></span>}
       <span className="min-w-0 flex-1">
-        <span className="block text-sm text-ink truncate"><b>#{i.codigo}</b> · {i.condominio || i.tipo || 'Imóvel'}</span>
+        <span className="block text-sm text-ink truncate"><b>#{i.codigo}</b> · {i.condominio || i.tipo || 'Imóvel'}{i.parceiro ? <span className="ml-1.5 text-[11px] font-semibold rounded-full px-1.5 py-0.5 text-white" style={{ background: '#7c3aed' }}>Parceiro</span> : null}</span>
         <span className="block text-[11px] text-muted truncate">
           {(faixa
             ? [i.valor, i.bairro, i.quartos ? `${i.quartos} quartos` : null, i.mobilia || null, i.fotos ? `${i.fotos} fotos` : 'sem foto']

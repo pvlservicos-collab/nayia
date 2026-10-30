@@ -975,6 +975,8 @@ export default function LeadList({
                   nayLeads={ehParceria ? nayLeadsComDono[fim8(lead.phone)] : undefined}
                   clienteOlx={linha === 'captacao' ? !!olxClientes[fim8(lead.phone)] : undefined}
                   origemDoCliente={linha === 'captacao' ? olxClientes[fim8(lead.phone)]?.origem : undefined}
+                  passoDaNay={linha === 'captacao' && olxClientes[fim8(lead.phone)]
+                    ? { passo: Number(olxClientes[fim8(lead.phone)].passo || 0), etapa: olxClientes[fim8(lead.phone)].etapa } : undefined}
                   finalidadeDoCliente={linha === 'captacao' ? olxClientes[fim8(lead.phone)]?.finalidade : undefined}
                   /* 29/10 (a Joelma, cliente da OLX, aparecia "Prop"): quem só tem a etapa marcada à mão (o "Parar Nay"
                      grava Com o Tel) e é cliente da Nay Leads não é dono -- o registro fica, para a aba Tel */
