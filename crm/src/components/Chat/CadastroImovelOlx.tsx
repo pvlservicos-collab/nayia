@@ -33,7 +33,7 @@ const PASSOS: Array<[string, string]> = [
 ]
 
 // os campos que a barra deixa corrigir antes de publicar (os mesmos nomes do PUT /admin/api/imoveis/<cod>)
-const CAMPOS: Array<{ chave: string; rotulo: string; numero?: boolean }> = [
+const CAMPOS: Array<{ chave: string; rotulo: string; numero?: boolean; opcoes?: string[] }> = [
   { chave: 'tipo', rotulo: 'Tipo' },
   { chave: 'valor_venda', rotulo: 'Venda (R$)', numero: true },
   { chave: 'valor_aluguel', rotulo: 'Aluguel (R$)', numero: true },
@@ -43,7 +43,9 @@ const CAMPOS: Array<{ chave: string; rotulo: string; numero?: boolean }> = [
   { chave: 'vagas', rotulo: 'Vagas', numero: true },
   { chave: 'area_util', rotulo: 'Área (m²)', numero: true },
   { chave: 'bairro', rotulo: 'Bairro' },
-  { chave: 'mobilia', rotulo: 'Mobília' },
+  // 536 (Pedro, 30/10: "em mobília, uma lista selecionável com os 4 tipos do site e não para preencher"): os mesmos 4 do
+  // editar do site (imovel-editar.js, 344)
+  { chave: 'mobilia', rotulo: 'Mobília', opcoes: ['sem nada', 'só climatizado', 'com modulados e ar', 'mobiliado'] },
 ]
 // o condomínio só muda escolhendo um da tabela (condo_id), no editar do imóvel: aqui ele só aparece
 
@@ -309,9 +311,18 @@ export default function CadastroImovelOlx({ lead, modo, aoFechar }: {
               {CAMPOS.map((c) => (
                 <label key={c.chave} className="block">
                   <span className="block text-[11px] mb-0.5" style={{ color: 'var(--wa-text-2)' }}>{c.rotulo}</span>
-                  <input value={campos[c.chave] ?? ''} inputMode={c.numero ? 'decimal' : undefined}
-                         onChange={(e) => setCampos((x) => ({ ...x, [c.chave]: e.target.value }))}
-                         className={entrada} style={estiloEntrada} />
+                  {c.opcoes ? (
+                    <select value={c.opcoes.includes(campos[c.chave]) ? campos[c.chave] : ''}
+                            onChange={(e) => setCampos((x) => ({ ...x, [c.chave]: e.target.value }))}
+                            className={entrada} style={{ ...estiloEntrada, background: 'var(--wa-panel)' }}>
+                      <option value="">— escolha —</option>
+                      {c.opcoes.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  ) : (
+                    <input value={campos[c.chave] ?? ''} inputMode={c.numero ? 'decimal' : undefined}
+                           onChange={(e) => setCampos((x) => ({ ...x, [c.chave]: e.target.value }))}
+                           className={entrada} style={estiloEntrada} />
+                  )}
                 </label>
               ))}
             </div>
