@@ -13,6 +13,7 @@
  */
 import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import BuscaOlxManual from '@/components/Olx/BuscaOlxManual'
 
 type BuscaCliente = {
   id: number; lead: number; estado: string; motivo: string | null; teste: boolean; filtros: Record<string, any>
@@ -185,8 +186,27 @@ function resumo(f: Record<string, any>) {
     .filter(Boolean).join(' · ')
 }
 
+/* 29/10 (Pedro: "vai ficar no mesmo Busca OLX, com 2 abas: a Manual, que é a nova, e as da Nay de hoje vão para
+   AUTOMÁTICO (Nay)"). A Manual lê o banco de scrap da OLX em quadradinhos com filtros (BuscaOlxManual); o link com
+   ?telefone= (abrir a busca de um cliente) cai direto no Automático, onde o formulário abre. */
 export default function BuscarImovelOlxPage() {
-  return <Suspense fallback={null}><BuscarImovelOlx /></Suspense>
+  return <Suspense fallback={null}><AbasDaBuscaOlx /></Suspense>
+}
+
+function AbasDaBuscaOlx() {
+  const qs = useSearchParams()
+  const [aba, setAba] = useState<'manual' | 'auto'>(qs.get('telefone') || qs.get('aba') === 'auto' ? 'auto' : 'manual')
+  return (
+    <div className="max-w-6xl mx-auto px-4 pt-6">
+      <div className="flex items-center gap-2 border-b border-line pb-3">
+        {([['manual', 'Manual'], ['auto', 'Automático (Nay)']] as const).map(([k, r]) => (
+          <button key={k} type="button" onClick={() => setAba(k)}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold border ${aba === k ? 'bg-accent/15 border-accent text-accent' : 'border-line text-ink'}`}>{r}</button>
+        ))}
+      </div>
+      {aba === 'manual' ? <div className="py-5"><BuscaOlxManual /></div> : <BuscarImovelOlx />}
+    </div>
+  )
 }
 
 function BuscarImovelOlx() {
@@ -259,7 +279,7 @@ function BuscarImovelOlx() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
+    <div className="py-5">
       <div className="flex flex-wrap items-start justify-between gap-3 pb-1">
         <h1 className="text-2xl font-bold text-ink">Buscas dos clientes</h1>
         <div className="flex gap-2">
