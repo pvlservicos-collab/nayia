@@ -34,8 +34,21 @@ let corretoresGuardados: { em: number; fins: Set<string> } | null = null
 export async function corretoresDaCaptacao(): Promise<Set<string>> {
   if (corretoresGuardados && Date.now() - corretoresGuardados.em < 10 * 60_000) return corretoresGuardados.fins
   try {
-    const r = await naydb().query('SELECT fone8 FROM crm_captacao_corretores()')
-    corretoresGuardados = { em: Date.now(), fins: new Set((r.rows as Array<{ fone8: string }>).map((x) => x.fone8)) }
+    /* 30/10 (Pedro: "você colocou todos os corretores como proprietários ... se o cara tem corretor no nome, ou CRECI, ou
+       imobiliária, é corretor; se ele envia outro imóvel..."; nayia 541): a 526 só olhava quem também era dono de
+       campanha (11). crm_leads_corretores olha todo mundo do 8595 (nome, o que ele disse, outro imóvel, grupos e lista de
+       corretores, contato de imóvel de parceiro...) e aqui entra o título da conversa no CRM. */
+    const [r, nomes] = await Promise.all([
+      naydb().query('SELECT fone8 FROM crm_leads_corretores()').catch(() => naydb().query('SELECT fone8 FROM crm_captacao_corretores()')),
+      db.execute(sql`
+        SELECT DISTINCT right(regexp_replace(coalesce(l.phone, ''), '[^0-9]', '', 'g'), 8) AS fone8
+          FROM leads l JOIN integrations i ON i.id = l.integration_id
+         WHERE l.deleted_at IS NULL AND i.type = 'whatsapp_zapi_captacao'
+           AND l.title ~* '(corretor|creci|imobili)'`),
+    ])
+    const fins = new Set((r.rows as Array<{ fone8: string }>).map((x) => x.fone8))
+    for (const n of nomes.rows as Array<{ fone8: string }>) if (n.fone8?.length === 8) fins.add(n.fone8)
+    corretoresGuardados = { em: Date.now(), fins }
   } catch (e: any) {
     console.error('[captacao/donos] corretores', e?.message || e)   // sem a 526: ninguém sai, como antes
     if (!corretoresGuardados) return new Set()
