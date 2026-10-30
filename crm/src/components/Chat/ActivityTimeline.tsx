@@ -6,6 +6,7 @@ import { LeadActivityWithActor, LeadWithOwner } from '@/lib/types'
 import { formatTime } from '@/lib/utils'
 import ImovelCitado from './ImovelCitado'
 import TextoComLinks from './TextoComLinks'
+import ContatoCompartilhado from './ContatoCompartilhado'
 import DocumentoPdf, { ehPdf } from './VisualizadorPdf'
 import { useAuth } from '@/hooks'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
@@ -482,7 +483,9 @@ const MessageBubble = memo(function MessageBubble({
   const isAI = senderType === 'ai'
   const isAutomated = senderType === 'automated'
   const temMidia = !!m.media_url
-  const mostraTexto = !!activity.content && (!temMidia || !ROTULOS_DE_MIDIA.includes(activity.content))
+  // o cartão de contato da Leads já mostra o nome: o "👤 Contato compartilhado: ..." não se repete embaixo
+  const cartaoDeContato = !!m.contato_compartilhado && m.channel === 'whatsapp_zapi_captacao'
+  const mostraTexto = !!activity.content && !cartaoDeContato && (!temMidia || !ROTULOS_DE_MIDIA.includes(activity.content))
   const ehGrupo = m.is_group === true
 
   // o nome em cima, dentro do balão: da Nay/automação, ou de quem fala no grupo
@@ -578,6 +581,10 @@ const MessageBubble = memo(function MessageBubble({
                 atividadeId={activity.id}
                 leadId={activity.lead_id}
               />
+            )}
+            {/* CARTÃO DE CONTATO no WhatsApp Leads (Pedro, 30/10): o contato e o botão Criar contato */}
+            {cartaoDeContato && (
+              <ContatoCompartilhado contato={m.contato_compartilhado} />
             )}
             {mostraTexto && (
               <p className="whitespace-pre-wrap break-words">

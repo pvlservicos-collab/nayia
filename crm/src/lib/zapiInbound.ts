@@ -51,6 +51,25 @@ interface Extraido {
   audioSeconds?: number
   /** reação: o emoji fica em `text` (vazio = tirou a reação) e vai para cima desta mensagem */
   reacaoA?: string
+  /** cartão de contato do WhatsApp: o nome e os números, para o "Criar contato" da conversa */
+  contato?: { nome: string; telefones: string[] }
+}
+
+/**
+ * OS NÚMEROS DO CARTÃO DE CONTATO (Pedro, 30/10/2026: "aparecer o contato na hora que é enviado o card do contato,
+ * um cardzinho com a opção Criar contato"). A Z-API manda `phones` e o `vCard`; o vCard tem `waid=` (o número do
+ * WhatsApp) ou só o TEL formatado. Os dois juntos, sem repetir.
+ */
+function telefonesDoContato(c: any): string[] {
+  const achados: string[] = []
+  for (const p of Array.isArray(c?.phones) ? c.phones : []) achados.push(String(p))
+  const vcard = String(c?.vCard || '')
+  for (const m of vcard.matchAll(/waid=(\d{8,15})/gi)) achados.push(m[1])
+  for (const linha of vcard.split(/\r?\n/)) {
+    if (/^(item\d+\.)?TEL/i.test(linha) && !/waid=/i.test(linha)) achados.push(linha.split(':').slice(1).join(':'))
+  }
+  const limpos = achados.map((t) => t.replace(/\D/g, '')).filter((t) => t.length >= 10 && t.length <= 13)
+  return Array.from(new Set(limpos))
 }
 
 /**
@@ -104,8 +123,8 @@ function extrair(body: any): Extraido | null {
   }
 
   if (body?.contact) {
-    const nome = body.contact.displayName || body.contact.vCard?.split('FN:')[1]?.split('\n')[0] || 'contato'
-    return { text: `👤 Contato compartilhado: ${nome}` }
+    const nome = String(body.contact.displayName || body.contact.vCard?.split('FN:')[1]?.split('\n')[0] || 'contato').trim()
+    return { text: `👤 Contato compartilhado: ${nome}`, contato: { nome, telefones: telefonesDoContato(body.contact) } }
   }
   if (body?.location) {
     const { latitude, longitude, address } = body.location
@@ -587,6 +606,11 @@ export async function processZapiMessage(orgId: string, body: any, opcoes: Opcoe
   if (midiaMime) metadata.media_mimetype = midiaMime
   if (extraido.mediaFilename) metadata.media_filename = extraido.mediaFilename
   if (extraido.audioSeconds !== undefined) metadata.audio_seconds = extraido.audioSeconds
+  if (extraido.contato) {
+    metadata.contato_compartilhado = extraido.contato
+    // sem número achado, o cartão como veio fica guardado: é por ele que se descobre o porquê
+    if (!extraido.contato.telefones.length) metadata.contato_bruto = body.contact
+  }
 
   // `momment` vem em milissegundos. Preserva o horário real: webhook reenviado
   // com atraso não pode pular pro topo da conversa como se fosse de agora.
