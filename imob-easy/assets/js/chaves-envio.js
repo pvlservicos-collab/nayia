@@ -18,6 +18,7 @@
   var pagina = 1;
   var lista = [];                                // os filtrados, na ordem da tela
   var ordemMetricas = { campo: "buscados", sentido: -1, q: "" };
+  var publicado = null;                          // a escolha que está na URL: { ids, destaques, atualizado_em, url }
 
   function $(id) { return document.getElementById(id); }
   function esc(s) {
@@ -71,7 +72,47 @@
     escolha.dest[codigo] = true;
     return true;
   }
-  function mudou() { guardar(); contas(); renderLista(); if (!$("aba-metricas").hidden) renderMetricas(); }
+  function mudou() { guardar(); contas(); estadoDaUrl(); renderLista(); if (!$("aba-metricas").hidden) renderMetricas(); }
+
+  /* ---------- a URL de integração ---------- */
+  function ordenado(o) { return Object.keys(o).map(Number).sort(function (a, b) { return a - b; }).join(","); }
+  function ordenadoLista(l) { return (l || []).slice().sort(function (a, b) { return a - b; }).join(","); }
+  function estadoDaUrl() {
+    var e = $("ce-url-estado");
+    if (!publicado) { e.textContent = "Carregando…"; e.className = "ce-url__estado"; return; }
+    var pub = (publicado.ids || []).length;
+    if (!pub) { e.textContent = "Nada publicado: a URL ainda responde 404."; e.className = "ce-url__estado ce-url__estado--muda"; return; }
+    var igual = ordenado(escolha.ar) === ordenadoLista(publicado.ids) && ordenado(escolha.dest) === ordenadoLista(publicado.destaques);
+    var quando = publicado.atualizado_em ? " em " + new Date(publicado.atualizado_em).toLocaleString("pt-BR") : "";
+    e.textContent = "Publicado: " + pub + " imóveis, " + (publicado.destaques || []).length + " em destaque" + quando + (igual ? "" : " · a escolha desta tela é outra: falta publicar");
+    e.className = "ce-url__estado " + (igual ? "ce-url__estado--ok" : "ce-url__estado--muda");
+  }
+  function lerPublicado() {
+    return fetch("api/chavesnamao/selecao", { credentials: "same-origin", cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw new Error("A API respondeu " + r.status); return r.json(); })
+      .then(function (j) {
+        publicado = j; $("ce-url").value = j.url || "";
+        // primeira vez neste navegador: começa pelo que já está publicado
+        if (!nCh(escolha.ar) && (j.ids || []).length) {
+          (j.ids || []).forEach(function (c) { escolha.ar[c] = true; });
+          (j.destaques || []).forEach(function (c) { escolha.dest[c] = true; });
+          guardar(); contas(); if (d) renderLista();
+        }
+        estadoDaUrl();
+      })
+      .catch(function (e) { $("ce-url-estado").textContent = "Não li a escolha publicada: " + e.message; });
+  }
+  function publicar() {
+    var ids = Object.keys(escolha.ar).map(Number), dest = Object.keys(escolha.dest).map(Number);
+    if (!ids.length) { aviso("Escolha ao menos um imóvel antes de publicar.", true); return; }
+    if (publicado && (publicado.ids || []).length && !window.confirm("Trocar o que está na URL por esta escolha (" + ids.length + " imóveis, " + dest.length + " em destaque)? O Chaves na Mão passa a ver a nova lista na próxima leitura.")) return;
+    var b = $("ce-publicar"); b.disabled = true; aviso("Publicando…");
+    fetch("api/chavesnamao/publicar", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: ids, destaques: dest }) })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(j.erro || "A API respondeu " + r.status); return j; }); })
+      .then(function (j) { publicado = j; estadoDaUrl(); aviso("Publicado na URL: " + (j.ids || []).length + " imóveis, " + (j.destaques || []).length + " em destaque."); })
+      .catch(function (e) { aviso(e.message, true); })
+      .then(function () { b.disabled = false; });
+  }
 
   /* ---------- os dados ---------- */
   function porCodigo(c) { return (d && d.imoveis || []).filter(function (r) { return Number(r.codigo) === Number(c); })[0]; }
@@ -242,7 +283,7 @@
     aviso("Gerando o arquivo…");
     fetch("api/chavesnamao/exportar", {
       method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: ids, destaques: dest, formato: formato, fotos: $("ce-fotos-reais").checked ? "reais" : "pagina" }),
+      body: JSON.stringify({ ids: ids, destaques: dest, formato: formato, fotos: $("ce-fotos-pagina").checked ? "pagina" : "reais" }),
     }).then(function (r) {
       if (!r.ok) return r.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.erro || "A API respondeu " + r.status); });
       var nome = (/filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "") || [])[1] || "chaves-na-mao.xml";
@@ -350,6 +391,10 @@
     if (t.dataset.ar && t.matches("input, button")) { alternarAr(t.dataset.ar); mudou(); return; }
     if (t.dataset.dest && t.matches("input, button")) { alternarDest(t.dataset.dest); mudou(); return; }
     switch (t.id) {
+      case "ce-publicar": return publicar();
+      case "ce-url-copiar":
+        return (navigator.clipboard ? navigator.clipboard.writeText($("ce-url").value) : Promise.reject()).then(function () { aviso("URL copiada."); }, function () { $("ce-url").select(); aviso("Selecionei a URL: copie com Ctrl+C."); });
+      case "ce-url-abrir": return window.open($("ce-url").value, "_blank", "noopener");
       case "ce-gerar-xml": return gerar("xml");
       case "ce-gerar-planilha": return gerar("planilha");
       case "ce-limpar":
@@ -381,5 +426,5 @@
 
   ler();
   if (location.hash === "#metricas") aba("metricas");
-  carregar(60);
+  carregar(60).then(lerPublicado, lerPublicado);
 })();

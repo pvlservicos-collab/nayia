@@ -11,7 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css">
-<link rel="stylesheet" href="../assets/css/chaves-envio.css?v=20261030b">
+<link rel="stylesheet" href="../assets/css/chaves-envio.css?v=20261030c">
 </head>
 <body class="admin" data-pagina="envio-chaves">
 
@@ -40,15 +40,31 @@
 
   <!-- ===== ABA 1: ESCOLHER PARA ENVIO ===== -->
   <section id="aba-escolher" role="tabpanel">
+    <!-- 30/10 (Pedro): o Chaves na Mão lê UMA URL que aponta para o XML com os imóveis escolhidos e os links das fotos.
+         "Publicar" grava a escolha no servidor (cnm_envio_publicar, 538); a URL sai dela. -->
+    <div class="cartao ce-url">
+      <div class="ce-url__topo">
+        <h2 class="ce-url__titulo">URL de integração para o Chaves na Mão</h2>
+        <span class="ce-url__estado" id="ce-url-estado">Carregando…</span>
+      </div>
+      <div class="ce-url__linha">
+        <input class="entrada" id="ce-url" type="text" readonly aria-label="URL do XML">
+        <button type="button" class="btn-neutro" id="ce-url-copiar">Copiar</button>
+        <button type="button" class="btn-neutro" id="ce-url-abrir">Abrir</button>
+        <button type="button" class="btn-azul" id="ce-publicar">Publicar a escolha na URL</button>
+      </div>
+      <p class="ce-url__nota">O portal lê esta URL e importa os anúncios sozinho, com os links das fotos de cada imóvel dentro do XML. Ela só muda quando você clica em <b>Publicar</b>; dentro dela, preço, situação e fotos saem sempre atuais, e um imóvel que deixar de entrar no portal sai sozinho.</p>
+    </div>
+
     <div class="cartao ce-barra">
       <div class="ce-contas">
         <div class="ce-conta"><span class="ce-conta__n" id="ce-n-ar">0</span><span class="ce-conta__de">de <span class="ce-lim-ar">400</span></span><span class="ce-conta__r">no ar</span></div>
         <div class="ce-conta ce-conta--dest"><span class="ce-conta__n" id="ce-n-dest">0</span><span class="ce-conta__de">de <span class="ce-lim-dest">20</span></span><span class="ce-conta__r">em destaque</span></div>
       </div>
       <div class="ce-gerar">
-        <label class="ce-check"><input type="checkbox" id="ce-fotos-reais"> fotos de verdade (em vez da página do imóvel)</label>
-        <button type="button" class="btn-azul" id="ce-gerar-xml">Gerar XML do portal</button>
-        <button type="button" class="btn-neutro" id="ce-gerar-planilha" title="XML do Excel com as abas Imóveis e Destaques">Gerar planilha XML (abas Imóveis e Destaques)</button>
+        <label class="ce-check"><input type="checkbox" id="ce-fotos-pagina"> no arquivo baixado, a página do imóvel no lugar das fotos</label>
+        <button type="button" class="btn-neutro" id="ce-gerar-xml" title="O mesmo XML da URL, para conferir">Baixar o XML</button>
+        <button type="button" class="btn-neutro" id="ce-gerar-planilha" title="XML do Excel com as abas Imóveis e Destaques e a coluna com os links das imagens">Baixar planilha XML (abas Imóveis e Destaques)</button>
         <button type="button" class="btn-neutro" id="ce-limpar">Limpar escolha</button>
       </div>
     </div>
@@ -151,6 +167,6 @@
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/layout.js"></script>
 <script src="../assets/js/admin.js"></script>
-<script src="../assets/js/chaves-envio.js?v=20261030b"></script>
+<script src="../assets/js/chaves-envio.js?v=20261030c"></script>
 </body>
 </html>

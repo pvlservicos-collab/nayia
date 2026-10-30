@@ -2,6 +2,12 @@
 destaque), vê as métricas dos últimos 2 meses para decidir e gera o arquivo.
 
 AS ROTAS (atrás da senha do /admin, como as outras de /admin/api):
+  GET  /api/chavesnamao/envio.xml               A URL DE INTEGRAÇÃO (aberta, o portal lê): o XML só dos imóveis escolhidos e
+                                                publicados (privado.cnm_envio_selecao, migração 538), com os links das fotos.
+                                                Sai na hora do banco (preço, situação, fotos); quem deixou de entrar no portal
+                                                sai sozinho. Sem escolha publicada: 404 (o portal não apaga os anúncios).
+  GET  /admin/api/chavesnamao/selecao           a escolha que está publicada na URL
+  POST /admin/api/chavesnamao/publicar          {ids, destaques}: confere e grava a escolha na URL
   GET  /admin/api/chavesnamao/painel?dias=60    todos os imóveis com as métricas + o perfil da demanda (cache de 5 min)
   POST /admin/api/chavesnamao/exportar          {ids, destaques, formato: "xml" | "planilha", fotos: "pagina" | "reais"}
                                                 devolve o arquivo para baixar
@@ -31,6 +37,8 @@ from chavesnamao_api import TAGS, _imovel
 chaves_envio_bp = Blueprint("chaves_envio", __name__)
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
+WRITE_DATABASE_URL = os.environ.get("WRITE_DATABASE_URL")
+URL_DO_XML = "https://api.imobeasy.online/api/chavesnamao/envio.xml"
 SITE = "https://imobeasy.online"
 LIMITE_NO_AR = 400        # o plano: anúncios
 LIMITE_DESTAQUES = 20     # o plano: destaques
@@ -121,6 +129,79 @@ def _resumo(imoveis: list[dict]) -> dict:
     }
 
 
+# ── a URL de integração e a escolha publicada ──
+_xml_cache = {"em": 0.0, "xml": None}
+
+
+def _selecao() -> dict:
+    return _ler("SELECT cnm_envio_selecao() AS s")[0]["s"]
+
+
+def _xml_publicado():
+    with _trava:
+        if _xml_cache["xml"] and time.monotonic() - _xml_cache["em"] < CACHE_S:
+            return _xml_cache["xml"]
+    sel = _selecao()
+    ids, dest = sel.get("ids") or [], set(sel.get("destaques") or [])
+    if not ids:
+        return None
+    por = {r["codigo"]: r["imovel"] for r in _ler("SELECT codigo, imovel FROM cnm_imoveis() WHERE ok AND codigo = ANY(%s)", (ids,))}
+    # os destaques primeiro, depois o resto, cada grupo na ordem em que foi escolhido
+    ordem = [c for c in ids if c in dest] + [c for c in ids if c not in dest]
+    itens = []
+    for c in ordem:
+        if c not in por:
+            continue                      # deixou de entrar no portal (saiu do site, perdeu foto...): sai sozinho
+        m = dict(por[c])
+        m["destaque"] = 1 if c in dest else 0
+        itens.append(_imovel(m))
+    cabeca = '<?xml version="1.0" encoding="UTF-8"?>\n<Document>\n  <imoveis>\n'
+    pe = "\n  </imoveis>\n</Document>\n"
+    corpo = (cabeca + "\n".join(itens) + pe).encode("utf-8")
+    with _trava:
+        _xml_cache.update(em=time.monotonic(), xml=corpo)
+    return corpo
+
+
+@chaves_envio_bp.route("/api/chavesnamao/envio.xml")
+def envio_xml():
+    corpo = _xml_publicado()
+    if corpo is None:
+        return Response("Nenhuma escolha de imóveis foi publicada ainda.", status=404, mimetype="text/plain")
+    return Response(corpo, mimetype="application/xml", headers={"Cache-Control": "public, max-age=300"})
+
+
+@chaves_envio_bp.route("/admin/api/chavesnamao/selecao")
+def selecao():
+    sel = _selecao()
+    return jsonify({**sel, "url": URL_DO_XML})
+
+
+@chaves_envio_bp.route("/admin/api/chavesnamao/publicar", methods=["POST"])
+def publicar():
+    corpo = request.get_json(force=True, silent=True) or {}
+    try:
+        ids = [int(x) for x in corpo.get("ids") or []]
+        destaques = [int(x) for x in corpo.get("destaques") or []]
+    except (TypeError, ValueError):
+        return jsonify({"erro": "Os códigos têm de ser números."}), 400
+    ids = list(dict.fromkeys(ids))
+    erro = _conferir(ids, set(destaques))
+    if erro:
+        return jsonify(erro[0]), erro[1]
+    conn = psycopg2.connect(WRITE_DATABASE_URL, connect_timeout=5)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT cnm_envio_publicar(%s, %s, %s)", (ids, destaques, "admin do site"))
+            sel = cur.fetchone()[0]
+        conn.commit()
+    finally:
+        conn.close()
+    with _trava:
+        _xml_cache.update(em=0.0, xml=None)
+    return jsonify({**sel, "url": URL_DO_XML})
+
+
 @chaves_envio_bp.route("/admin/api/chavesnamao/painel")
 def painel():
     try:
@@ -192,6 +273,23 @@ def _planilha(escolhidos: list[dict], destaques: set[int], fotos: str) -> bytes:
     return xml.encode("utf-8")
 
 
+def _conferir(ids: list[int], destaques: set[int]):
+    """Os limites do plano e se cada imóvel entra no portal. Devolve (corpo do erro, status) ou None."""
+    if not ids:
+        return {"erro": "Escolha ao menos um imóvel."}, 400
+    if len(ids) > LIMITE_NO_AR:
+        return {"erro": f"O plano leva {LIMITE_NO_AR} imóveis; foram escolhidos {len(ids)}."}, 400
+    if not destaques <= set(ids):
+        return {"erro": "Todo destaque tem de estar entre os imóveis escolhidos."}, 400
+    if len(destaques) > LIMITE_DESTAQUES:
+        return {"erro": f"O plano leva {LIMITE_DESTAQUES} destaques; foram marcados {len(destaques)}."}, 400
+    por_codigo = {int(r["codigo"]): r for r in _painel(60)["imoveis"]}
+    fora = [c for c in ids if c not in por_codigo or not por_codigo[c]["ok"]]
+    if fora:
+        return {"erro": "Estes imóveis não entram no portal (incompletos ou fora do site): " + ", ".join(map(str, fora[:20])), "codigos": fora}, 400
+    return None
+
+
 @chaves_envio_bp.route("/admin/api/chavesnamao/exportar", methods=["POST"])
 def exportar():
     corpo = request.get_json(force=True, silent=True) or {}
@@ -201,21 +299,12 @@ def exportar():
     except (TypeError, ValueError):
         return jsonify({"erro": "Os códigos têm de ser números."}), 400
     formato = "planilha" if corpo.get("formato") == "planilha" else "xml"
-    fotos = "reais" if corpo.get("fotos") == "reais" else "pagina"
+    fotos = "pagina" if corpo.get("fotos") == "pagina" else "reais"
     ids = list(dict.fromkeys(ids))
-    if not ids:
-        return jsonify({"erro": "Escolha ao menos um imóvel."}), 400
-    if len(ids) > LIMITE_NO_AR:
-        return jsonify({"erro": f"O plano leva {LIMITE_NO_AR} imóveis; foram escolhidos {len(ids)}."}), 400
-    if not destaques <= set(ids):
-        return jsonify({"erro": "Todo destaque tem de estar entre os imóveis escolhidos."}), 400
-    if len(destaques) > LIMITE_DESTAQUES:
-        return jsonify({"erro": f"O plano leva {LIMITE_DESTAQUES} destaques; foram marcados {len(destaques)}."}), 400
+    erro = _conferir(ids, destaques)
+    if erro:
+        return jsonify(erro[0]), erro[1]
     por_codigo = {int(r["codigo"]): r for r in _painel(60)["imoveis"]}
-    fora = [c for c in ids if c not in por_codigo or not por_codigo[c]["ok"]]
-    if fora:
-        return jsonify({"erro": "Estes imóveis não entram no portal (incompletos ou fora do site): " + ", ".join(map(str, fora[:20])),
-                        "codigos": fora}), 400
     escolhidos = [por_codigo[c] for c in ids]
     quando = datetime.now().strftime("%Y%m%d-%H%M")
     if formato == "planilha":

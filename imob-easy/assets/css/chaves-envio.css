@@ -80,3 +80,14 @@
 .ce-vazio { color: var(--texto-fraco); }
 .ce-nota { font-size: .82rem; color: var(--texto-fraco); margin: var(--e-2) 0 var(--e-4); max-width: 90ch; }
 @media (max-width: 720px) { .ce-barra-linha { grid-template-columns: 1fr auto; } .ce-trilho { grid-column: 1 / -1; order: 3; } }
+
+/* a URL de integração (30/10) */
+.ce-url { padding: var(--e-4); margin-bottom: var(--e-4); border-left: 4px solid var(--roxo); }
+.ce-url__topo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--e-3); margin-bottom: var(--e-3); }
+.ce-url__titulo { margin: 0; font-size: 1.05rem; }
+.ce-url__estado { font-size: .9rem; font-weight: 700; color: var(--texto-medio); }
+.ce-url__estado--ok { color: #1d6b4a; }
+.ce-url__estado--muda { color: #c2410c; }
+.ce-url__linha { display: flex; flex-wrap: wrap; gap: var(--e-2); align-items: center; }
+.ce-url__linha .entrada { flex: 1 1 340px; min-width: 0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .88rem; }
+.ce-url__nota { margin: var(--e-3) 0 0; font-size: .85rem; color: var(--texto-fraco); max-width: 95ch; line-height: 1.5; }
