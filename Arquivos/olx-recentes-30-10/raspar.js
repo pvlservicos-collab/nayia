@@ -16,6 +16,12 @@ const dorme = ms => new Promise(r => setTimeout(r, ms))
 const BUSCAS = [
   { nome: 'aluguel_recentes', url: 'https://www.olx.com.br/imoveis/aluguel/estado-am/regiao-de-manaus/manaus?sf=1' },
   { nome: 'venda_recentes', url: 'https://www.olx.com.br/imoveis/venda/estado-am/regiao-de-manaus/manaus?sf=1' },
+  // a OLX só pagina até a página 100 (5.000 anúncios) por busca: a venda (~13.900) vai em faixas de preço (ps/pe)
+  ...[[0, 150000], [150001, 250000], [250001, 350000], [350001, 450000], [450001, 600000], [600001, 850000],
+      [850001, 1300000], [1300001, 0]].map(([de, ate]) => ({
+    nome: `venda_faixa_${de}_${ate || 'mais'}`,
+    url: `https://www.olx.com.br/imoveis/venda/estado-am/regiao-de-manaus/manaus?sf=1&ps=${de}${ate ? '&pe=' + ate : ''}`,
+  })),
 ]
 
 // ---- CDP mínimo
@@ -150,6 +156,7 @@ async function rasparBusca(b) {
     paginas.push({ pagina: n, url, anuncios: ads.length, novos, total })
     console.log(`  ${b.nome} p${n}/${Math.ceil(total / tamPag)}: ${ads.length} anúncios (${novos} novos), total ${total}`)
     if (ads.length === 0 || n >= Math.ceil(total / tamPag) || n >= MAX_PAG) break
+    if (novos === 0 && n > 1) { console.log(`  ${b.nome}: a OLX só repete daqui em diante, parando`); break }
     n++
     await dorme(1500 + Math.random() * 1500)
   }
@@ -201,7 +208,8 @@ function csv(linhas) {
   const versao = await fetch(`http://127.0.0.1:${PORTA}/json/version`).then(r => r.json()).catch(() => null)
   if (!versao) { console.log('o Chrome do Agente OLX (porta 9377) não está ligado'); process.exit(2) }
   const resumo = []; const todos = []; const detalhes = []
-  for (const b of BUSCAS) {
+  // 5º argumento: só a busca com esse nome (ex.: venda_recentes), para refazer uma que falhou
+  for (const b of BUSCAS.filter((x) => !process.argv[5] || x.nome.startsWith(process.argv[5]))) {
     console.log(`== ${b.nome}`)
     const r = await rasparBusca(b)
     fs.writeFileSync(path.join(pasta, b.nome + '.json'), JSON.stringify(r, null, 1))
