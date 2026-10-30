@@ -170,6 +170,9 @@ def _aba(nome: str, colunas: list[str], linhas: list[list]) -> str:
     return f'<Worksheet ss:Name="{escape(nome)}"><Table>{cab}{corpo}</Table></Worksheet>'
 
 
+COLUNAS = TAGS + ["pagina_do_imovel", "links_das_imagens"]
+
+
 def _planilha(escolhidos: list[dict], destaques: set[int], fotos: str) -> bytes:
     """O mesmo conteúdo do XML do portal em duas abas (Imóveis e Destaques), uma coluna por tag."""
     def linha(r):
@@ -177,13 +180,15 @@ def _planilha(escolhidos: list[dict], destaques: set[int], fotos: str) -> bytes:
         m["destaque"] = 1 if int(r["codigo"]) in destaques else 0
         m["link_cliente"] = r["pagina"]
         m["fotos_imovel"] = [r["pagina"]] if fotos != "reais" else (m.get("fotos") or [])
-        return [m.get(t) if t != "fotos_imovel" else m["fotos_imovel"] for t in TAGS]
+        # 30/10 (Pedro: "uma colunha de links de imagem separados por vírgula, o link de cada imagem do imóvel"): as colunas
+        # extras vão SEMPRE, qualquer que seja a escolha das fotos do XML do portal
+        return [m.get(t) if t != "fotos_imovel" else m["fotos_imovel"] for t in TAGS] + [r["pagina"], ", ".join(m.get("fotos") or [])]
     todas = [linha(r) for r in escolhidos]
     dest = [linha(r) for r in escolhidos if int(r["codigo"]) in destaques]
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n<?mso-application progid="Excel.Sheet"?>\n'
            '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'
            '<Styles><Style ss:ID="cab"><Font ss:Bold="1"/></Style></Styles>'
-           + _aba("Imóveis", TAGS, todas) + _aba("Destaques", TAGS, dest) + "</Workbook>")
+           + _aba("Imóveis", COLUNAS, todas) + _aba("Destaques", COLUNAS, dest) + "</Workbook>")
     return xml.encode("utf-8")
 
 
