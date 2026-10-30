@@ -19,8 +19,9 @@ import { useOlxClientes, mudarEtapaOlx } from '@/hooks/useOlxClientes'
 const DA_NAY = new Set<string>(['filtrar', 'feito_busca', 'imoveis_enviados'])
 const PESSOA = [
   { chave: 'com_o_tel', rotulo: 'Com o Tel', titulo: 'A Nay para de responder esta pessoa até voltar para Todos' },
-  // 27/10 (Pedro: "tá faltando a tag rayssa lá no leads"): a mesma do card da campanha (501), a Nay cala igual
-  { chave: 'rayssa', rotulo: 'Rayssa', titulo: 'A Rayssa está com essa conversa; a Nay para de responder até voltar para Todos' },
+  // 27/10 (Pedro: "tá faltando a tag rayssa lá no leads"): a mesma do card da campanha (501), a Nay cala igual.
+  // 30/10 (534, Pedro: "troca a tag Rayssa lá no Leads pela tag Lucas, ele vai ficar responsável pelo atendimento")
+  { chave: 'lucas', rotulo: 'Lucas', titulo: 'O Lucas está com essa conversa; a Nay para de responder até voltar para Todos' },
   { chave: 'todos', rotulo: 'Todos', titulo: 'Solta: a Nay volta a atender e a etapa é a dela' },
 ]
 
@@ -48,7 +49,7 @@ export default function EtapaDoClienteOlx({ telefone, leadId, comOTel, aoMudar }
     if (!mudou || salvando) return
     setSalvando(true); setErro(null)
     let e: string | null = null
-    if (escolhido === 'com_o_tel' || escolhido === 'rayssa' || escolhido === 'todos') {
+    if (escolhido === 'com_o_tel' || escolhido === 'lucas' || escolhido === 'todos') {
       try {
         const r = await fetch(`/api/leads/${leadId}/captacao-etapa`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ etapa: escolhido }),
@@ -67,7 +68,7 @@ export default function EtapaDoClienteOlx({ telefone, leadId, comOTel, aoMudar }
     }
     setSalvando(false)
     if (e) { setErro(e); setAviso({ tom: 'erro', titulo: `Não salvou: ${rotulo(escolhido)}`, texto: `${e}. Nada mudou; tente de novo.` }); return }
-    setAviso({ tom: 'ok', titulo: `Salvo: ${rotulo(escolhido)}`, texto: escolhido === 'com_o_tel' || escolhido === 'rayssa' ? 'A Nay parou para esta pessoa.' : escolhido === 'todos' ? 'A Nay volta a atender.' : 'A etapa mudou; a lista já mostra.' })
+    setAviso({ tom: 'ok', titulo: `Salvo: ${rotulo(escolhido)}`, texto: escolhido === 'com_o_tel' || escolhido === 'lucas' ? 'A Nay parou para esta pessoa.' : escolhido === 'todos' ? 'A Nay volta a atender.' : 'A etapa mudou; a lista já mostra.' })
     aoMudar?.(escolhido)
   }
 

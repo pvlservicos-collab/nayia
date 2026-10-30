@@ -25,13 +25,18 @@ export const ETAPAS_DA_CAPTACAO: Array<{ chave: string; rotulo: string; titulo: 
   { chave: 'com_o_tel', rotulo: 'Com o Tel', titulo: 'A Nay para de responder essa pessoa', pessoa: true },
   // 501 (Pedro, 26/10): aba Rayssa do lado do Tel na captação -- mesmo efeito do Com o Tel (a Nay cala)
   { chave: 'rayssa', rotulo: 'Rayssa', titulo: 'A Rayssa está com essa conversa; a Nay para de responder', pessoa: true },
+  // 534 (Pedro, 30/10: "troca a tag Rayssa lá no Leads pela tag Lucas, ele vai ficar responsável pelo atendimento no
+  // Leads"): no Leads o botão é o do Lucas; a Oficial continua com o da Rayssa
+  { chave: 'lucas', rotulo: 'Lucas', titulo: 'O Lucas está com essa conversa; a Nay para de responder', pessoa: true },
 ]
 
 export const ROTULO_DA_ETAPA_DA_CAPTACAO: Record<string, string> =
   Object.fromEntries(ETAPAS_DA_CAPTACAO.map((e) => [e.chave, e.rotulo]))
 
-export default function EtapaDaCaptacao({ leadId, etapaManual, abas, aoMudar }: {
+export default function EtapaDaCaptacao({ leadId, etapaManual, abas, aoMudar, oficial = false }: {
   leadId: string
+  /** a conversa é da linha Oficial (lá o botão de pessoa ainda é o da Rayssa; no Leads, o do Lucas) */
+  oficial?: boolean
   /** a etapa escolhida à mão, quando alguém escolheu (242) */
   etapaManual: string | null
   /** as abas que a campanha deduziu, quando ninguém escolheu (236) */
@@ -81,7 +86,7 @@ export default function EtapaDaCaptacao({ leadId, etapaManual, abas, aoMudar }: 
     <div className="px-4 py-3 border-b border-[var(--chat-border)]">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--chat-text-secondary)] mb-2">Etapa da captação</p>
       <div className="flex flex-wrap items-center gap-1.5">
-        {ETAPAS_DA_CAPTACAO.map((e) => (
+        {ETAPAS_DA_CAPTACAO.filter((e) => e.chave !== (oficial ? 'lucas' : 'rayssa') || ondeEsta === e.chave).map((e) => (
           <span key={e.chave} className="contents">
             {/* o risco só separa etapa de pessoa uma vez (antes do Tel, o primeiro dos dois) */}
             {e.chave === 'com_o_tel' && <span className="wa-fase__risco" aria-hidden="true" />}

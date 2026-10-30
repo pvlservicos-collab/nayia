@@ -197,6 +197,9 @@ export default function Navbar() {
       case 'WhatsApp Parceria': return !!permissions.settings?.view_chat
       case 'WhatsApp Leads': return !!permissions.settings?.view_chat
       case 'Chat OLX': return !!permissions.settings?.view_chat
+      // 30/10 (Pedro: "ele não tem acesso à parte da OLX no CRM dele, precisa ter, libera para ele e para a Rayssa"):
+      // a busca da OLX vale para quem atende o chat (o Lucas e a Rayssa são SDR); antes só o Admin via
+      case 'Buscar imóvel OLX': return !!permissions.settings?.view_chat
       case 'Grupos': return !!permissions.settings?.view_chat
       case 'DM Instagram': return !!permissions.settings?.view_chat
       case 'Funil de Mensagens': return !!permissions.settings?.view_funnels

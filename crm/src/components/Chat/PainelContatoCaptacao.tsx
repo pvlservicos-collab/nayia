@@ -302,7 +302,7 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
             campanha (cliente da OLX, orgânico) ganha a etapa do cliente da OLX, a mesma do botão direito da lista */}
         <div style={{ background: 'var(--wa-panel)' }}>
           {dono
-            ? <EtapaDaCaptacao leadId={lead.id} etapaManual={dono.etapaManual} abas={dono.abas}
+            ? <EtapaDaCaptacao leadId={lead.id} etapaManual={dono.etapaManual} abas={dono.abas} oficial={oficial}
                                aoMudar={(etapa) => { void ler(); void marcarEtapaManual(lead.id, etapa) }} />
             : !oficial && <EtapaDoClienteOlx telefone={lead.phone} leadId={lead.id} comOTel={!!c?.comOTel} aoMudar={() => void ler()} />}
         </div>

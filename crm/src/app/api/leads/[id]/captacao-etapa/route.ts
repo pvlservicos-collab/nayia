@@ -18,7 +18,7 @@ import { escolherEtapaDaCaptacao } from '@/lib/nayLeitura'
 import { invalidarDonosDaCaptacao } from '@/app/api/captacao/donos/route'
 
 export const ETAPAS_DA_CAPTACAO = ['todos', 'em_andamento', 'followup', 'disponiveis', 'alugados',
-  'quer_vender', 'ja_vendeu', 'tem_outro_imovel', 'sem_resposta', 'com_o_tel', 'rayssa'] as const
+  'quer_vender', 'ja_vendeu', 'tem_outro_imovel', 'sem_resposta', 'com_o_tel', 'rayssa', 'lucas'] as const
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'

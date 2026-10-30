@@ -222,8 +222,8 @@ export default function LeadList({
      (`humano`, 385) não põe mais ninguém em Tel sozinho -- mesma regra que já valia na Oficial (abasDoDono acima). */
   const comOTelNaCaptacao = (l: LeadWithOwner): boolean =>
     donos[l.id]?.etapaManual === 'com_o_tel' || escolhaAMao(l as any) === 'tel'
-  const comRayssaNaCaptacao = (l: LeadWithOwner): boolean =>
-    donos[l.id]?.etapaManual === 'rayssa' || escolhaAMao(l as any) === 'rayssa'
+  // 534 (Pedro, 30/10: "troca a tag Rayssa lá no Leads pela tag Lucas"): no Leads a pessoa ao lado do Tel é o Lucas
+  const comLucasNaCaptacao = (l: LeadWithOwner): boolean => donos[l.id]?.etapaManual === 'lucas'
 
   // Filtro por etiqueta — multi-seleção, combina com o filtro de cima.
   const { allTags } = useTags(organizationId)
@@ -571,11 +571,11 @@ export default function LeadList({
         const semLer = Number(l.nao_lidas || 0)
         if (semLer) contagem['semler:tel'] = (contagem['semler:tel'] ?? 0) + semLer
       }
-      // 501: a aba Rayssa do lado do Tel, na Captação
-      if (linha === 'captacao' && comRayssaNaCaptacao(l)) {
-        soma('rayssa')
+      // 501 -> 534: a aba do lado do Tel, na Captação (WhatsApp Leads), é a do Lucas
+      if (linha === 'captacao' && comLucasNaCaptacao(l)) {
+        soma('lucas')
         const semLer = Number(l.nao_lidas || 0)
-        if (semLer) contagem['semler:rayssa'] = (contagem['semler:rayssa'] ?? 0) + semLer
+        if (semLer) contagem['semler:lucas'] = (contagem['semler:lucas'] ?? 0) + semLer
       }
     }
   }
@@ -655,12 +655,10 @@ export default function LeadList({
                          contagem: contagem[`olx:${e.chave}`], naoLidas: contagem[`semler:olx:${e.chave}`] })),
         { chave: 'tel', rotulo: 'Tel', grupo: 'pessoa' as const, contagem: contagem['tel'], naoLidas: contagem['semler:tel'],
           titulo: 'O Tel está com a conversa: etapa Com o Tel, escolhida no card' },
-        // 501: Rayssa do lado do Tel, do mesmo jeito que na Parceria -- só aparece se ela estiver na organização
-        ...(rayssa
-          ? [{ chave: 'rayssa', rotulo: rayssa.nome, grupo: 'pessoa' as const, cor: rayssa.cor,
-               contagem: contagem['rayssa'], naoLidas: contagem['semler:rayssa'],
-               titulo: `${rayssa.nome} está com a conversa: etapa Rayssa, escolhida no card` }]
-          : []),
+        // 501 -> 534 (Pedro, 30/10): no lugar da Rayssa, o Lucas, que agora é o responsável pelo atendimento no Leads
+        { chave: 'lucas', rotulo: 'Lucas', grupo: 'pessoa' as const, cor: '#34D399',
+          contagem: contagem['lucas'], naoLidas: contagem['semler:lucas'],
+          titulo: 'O Lucas está com a conversa: etapa Lucas, escolhida no card' },
       ]
     : []
   /* AS ABAS SÃO ETIQUETAS (Tel, por Pedro, 20/10/2026: "troque as etapas que têm Todos, Visitas, pelas tags que têm
@@ -708,7 +706,7 @@ export default function LeadList({
     if (activeTab.startsWith('olx:')) return etapaOlxDe(l) === activeTab.slice(4)
     if (activeTab.startsWith('passo:')) return passoDaAba(olxClientes[fim8(l.phone)]) === Number(activeTab.slice(6))
     if (activeTab === 'nao_lidas') return !!l.is_unread || l.id === selectedLeadId
-    if (activeTab === 'rayssa' && linha === 'captacao') return comRayssaNaCaptacao(l)
+    if (activeTab === 'lucas' && linha === 'captacao') return comLucasNaCaptacao(l)
     if (activeTab === 'rayssa') return daRayssa(l, marcas[l.id], atendenteDoLead[l.id])
     if (activeTab === 'tel' && linha === 'captacao') return comOTelNaCaptacao(l)
     if (activeTab === 'tel') return doTel(l, marcas[l.id], atendenteDoLead[l.id])
