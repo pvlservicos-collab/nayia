@@ -428,6 +428,20 @@ export default function Navbar() {
           {/* User Menu Popup */}
           {showUserDropdown && (
             <div className="absolute right-0 top-full mt-2 w-48 glass-raised rounded-xl py-1 z-50 animate-in fade-in slide-in-from-top-2">
+              {/* 29/10 (Pedro: "clico no botão do meu nome para ver lá e não aparece as mensagens Tel"): abaixo de
+                  2000 px o botão roxo é só o ícone; aqui vai escrito, com quantas faltam */}
+              <Link
+                href="/respostas-tel"
+                onClick={() => setShowUserDropdown(false)}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-[#7c3aed] hover:bg-white/[0.06] transition-colors w-full text-left"
+              >
+                <ChatTeardropText size={16} weight="fill" />
+                <span>Respostas Tel</span>
+                {duvidasDoTel > 0 && (
+                  <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-[#7c3aed] text-white text-[11px] leading-[18px] text-center">{duvidasDoTel}</span>
+                )}
+              </Link>
+              <div className="h-px hairline-x my-1 mx-2"></div>
               <Link
                 href="/workspaces"
                 onClick={() => setShowUserDropdown(false)}
