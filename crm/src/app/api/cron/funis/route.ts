@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
   try {
     const r = await sincronizarFunis(linha.org)
     if (!r) return Response.json({ ocupado: true }, { status: 202 })
-    if (r.captacao.criados || r.captacao.movidos || r.parceria.movidos) console.log('[funis]', JSON.stringify(r))
+    if (r.captacao.movidos || r.parceria.movidos) console.log('[funis]', JSON.stringify(r))
     return Response.json(r)
   } catch (err: any) {
     console.error('[funis] falhou', err?.message || err)

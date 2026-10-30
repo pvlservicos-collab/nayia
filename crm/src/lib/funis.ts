@@ -4,11 +4,14 @@
  *
  * Um funil por número (crm/drizzle/0127). A cada minuto (/api/cron/funis):
  *
- *   CAPTAÇÃO -- todos que receberam o disparo da campanha (decisão dele). A
- *   etapa vem do banco da Nay (crm_captacao_funil, migração 172): Não respondeu
- *   > Respondeu > Disponível > Alugado > Vendido > Mandou os dados. Quem ainda
- *   não tem conversa no CRM ganha um card (sem mensagem, então não aparece na
- *   lista do chat -- ver ehConversaVisivel). A etiqueta de mesmo nome acompanha.
+ *   WHATSAPP LEADS (8595, funil "WhatsApp Captação") -- os CLIENTES da Nay Leads
+ *   (Pedro, 30/10/2026: "o pipeline não tá pegando os leads direitos"). Era o
+ *   funil dos donos da campanha de disparo (crm_captacao_funil, 172), que acabou;
+ *   as etapas foram renomeadas por ele em 29/10 para o caminho do lead. A etapa
+ *   vem de crm_leads_pipeline.foi_ate (o mesmo do PipelineDosLeads), sem quem
+ *   crm_leads_pipeline_outros tira (corretor, proprietário, empresa, consultado):
+ *   chegou > em atendimento, busca > filtrado, enviados > enviado opção,
+ *   visita/confirmada/visitou > visitas, fechou > fechamento. Não cria conversa.
  *
  *   PARCERIA -- a etapa da Nay (Identificação > Recebeu imóvel > Agendamento de
  *   visita) move o card SÓ enquanto ele está nessas etapas (ou fora do funil).
@@ -21,20 +24,25 @@
  */
 import { and, eq, isNull, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { integrations, leads, leadStageHistory } from '@/lib/schema'
+import { integrations, leadStageHistory } from '@/lib/schema'
 import { naydb } from '@/lib/nayDisparo'
 import { telefoneCanonico, telefoneVariantes } from '@/lib/leadSources'
 import { PIPELINE_DA_LINHA } from '@/lib/etapaDaLinha'
-import { isUniqueViolation } from '@/lib/db-helpers'
 import { publishEvent, channels, events } from '@/lib/realtime'
 
 const ETAPAS_DA_NAY = ['Identificação', 'Recebeu imóvel', 'Agendamento de visita']
 // 431: o cadastro de imóvel pelo WhatsApp (nay-cadastro), a última etapa do funil da Parceria
 const CADASTRANDO = 'Cadastrando'
-const ETAPAS_DA_CAPTACAO = ['Não respondeu', 'Respondeu', 'Disponível', 'Alugado', 'Vendido', 'Mandou os dados']
+// foi_ate (crm_leads_pipeline) -> etapa do funil da Leads, pelo nome que o Pedro deu em 29/10
+const ETAPA_DO_LEAD: Record<string, string> = {
+  chegou: 'em atendimento', busca: 'filtrado', enviados: 'enviado opção',
+  visita: 'visitas', confirmada: 'visitas', visitou: 'visitas', fechou: 'fechamento',
+}
+// os clientes que entram: os chegados nos últimos 90 dias
+const DIAS_DO_FUNIL_DA_LEADS = 90
 
 export interface ResultadoDosFunis {
-  captacao: { naNay: number; criados: number; movidos: number }
+  captacao: { naNay: number; movidos: number; semConversa: number }
   parceria: { naNay: number; movidos: number; semConversa: number; ficouNaEquipe: number }
 }
 
@@ -47,7 +55,7 @@ export async function sincronizarFunis(org: string): Promise<ResultadoDosFunis |
   rodando = true
   try {
     const r: ResultadoDosFunis = {
-      captacao: { naNay: 0, criados: 0, movidos: 0 },
+      captacao: { naNay: 0, movidos: 0, semConversa: 0 },
       parceria: { naNay: 0, movidos: 0, semConversa: 0, ficouNaEquipe: 0 },
     }
 
@@ -62,12 +70,10 @@ export async function sincronizarFunis(org: string): Promise<ResultadoDosFunis |
       return (doFunil.find((e) => e.name === nome) ?? doFunil.find((e) => e.nome_original === nome))?.id ?? null
     }
 
-    // as etiquetas de mesmo nome (a da captação acompanha o card)
-    const etiquetas = await db.execute(sql`SELECT id, name, nome_original FROM tags WHERE organization_id = ${org}`)
-    type Marca = { id: string; name: string; nome_original: string | null }
-    const etiquetaDe = (nome: string) =>
-      ((etiquetas.rows as Marca[]).find((t) => t.name === nome) ?? (etiquetas.rows as Marca[]).find((t) => t.nome_original === nome))?.id ?? null
-    const idsDaCaptacao = ETAPAS_DA_CAPTACAO.map(etiquetaDe).filter(Boolean) as string[]
+    // a etapa da Leads pelo nome que está na tela, sem caixa nem espaço sobrando ("filtrado " tem um espaço no fim)
+    const solto = (s: string | null) => String(s || '').trim().toLowerCase()
+    const etapaSolta = (pipeline: string, nome: string) =>
+      (etapas.rows as Etapa[]).find((e) => e.pipeline === pipeline && (solto(e.name) === solto(nome) || solto(e.nome_original) === solto(nome)))?.id ?? null
 
     const linhas = await db.select({ id: integrations.id, type: integrations.type }).from(integrations)
       .where(and(eq(integrations.organizationId, org), isNull(integrations.deletedAt)))
@@ -90,66 +96,61 @@ export async function sincronizarFunis(org: string): Promise<ResultadoDosFunis |
         UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) || jsonb_build_object('funil_auto', ${etapaCalculada}::text)
          WHERE id = ${lead.id}`)
     }
-    async function etiquetar(leadId: string, nome: string) {
-      const tag = etiquetaDe(nome)
-      if (!tag) return
-      await db.execute(sql`
-        DELETE FROM lead_tags WHERE lead_id = ${leadId} AND tag_id <> ${tag}
-           AND tag_id IN (SELECT (jsonb_array_elements_text(${JSON.stringify(idsDaCaptacao)}::jsonb))::uuid)`)
-      await db.execute(sql`
-        INSERT INTO lead_tags (lead_id, tag_id, organization_id) VALUES (${leadId}, ${tag}, ${org}) ON CONFLICT DO NOTHING`)
-    }
-
-    // ── Captação ──
+    // ── WhatsApp Leads (8595): os clientes da Nay Leads ──
     const linhaCaptacao = linhaDe('whatsapp_zapi_captacao')
     const funilCaptacao = PIPELINE_DA_LINHA.whatsapp_zapi_captacao
-    if (linhaCaptacao && etapaDe(funilCaptacao, ETAPAS_DA_CAPTACAO[0])) {
-      const { rows } = await naydb().query('SELECT * FROM crm_captacao_funil()')
-      r.captacao.naNay = rows.length
+    if (linhaCaptacao && etapaSolta(funilCaptacao, ETAPA_DO_LEAD.chegou)) {
+      const janela = `(now() AT TIME ZONE 'America/Manaus')::date - ${DIAS_DO_FUNIL_DA_LEADS}, (now() AT TIME ZONE 'America/Manaus')::date`
+      const [clientes, outros] = await Promise.all([
+        naydb().query(`SELECT telefone, foi_ate FROM crm_leads_pipeline(${janela})`),
+        naydb().query(`SELECT fone8 FROM crm_leads_pipeline_outros(${janela})`),
+      ])
+      const fim8 = (t: unknown) => String(t || '').replace(/\D/g, '').slice(-8)
+      const naoELead = new Set((outros.rows as Array<{ fone8: string | null }>).map((o) => fim8(o.fone8)).filter(Boolean))
       const doBanco = await db.execute(sql`
         SELECT id, phone, stage_id, custom_attributes FROM leads
          WHERE organization_id = ${org} AND integration_id = ${linhaCaptacao} AND deleted_at IS NULL AND NOT coalesce(is_group, false)`)
       const porTelefone = new Map<string, LeadDoFunil>()
       for (const l of doBanco.rows as LeadDoFunil[]) if (l.phone) porTelefone.set(l.phone, l)
 
-      for (const linha of rows as Array<{ telefone: string; nome: string | null; etapa: string }>) {
-        const etapa = etapaDe(funilCaptacao, linha.etapa)
-        if (!etapa) continue
-        const formas = telefoneVariantes(linha.telefone)
-        const lead = formas.map((f) => porTelefone.get(f)).find(Boolean)
-        if (!lead) {
-          const fone = telefoneCanonico(linha.telefone)
-          if (!fone) continue
-          try {
-            const [novo] = await db.insert(leads).values({
-              organizationId: org,
-              title: linha.nome || fone,
-              phone: fone,
-              isGroup: false,
-              integrationId: linhaCaptacao,
-              stageId: etapa,
-              customAttributes: { origem: 'captacao_campanha', funil_auto: linha.etapa },
-            }).returning({ id: leads.id })
-            await db.insert(leadStageHistory).values({
-              organizationId: org, leadId: novo.id, fromStageId: null, toStageId: etapa, movedByMemberId: null, movedAt: new Date(),
-            })
-            await etiquetar(novo.id, linha.etapa)
-            porTelefone.set(fone, { id: novo.id, phone: fone, stage_id: etapa, custom_attributes: { funil_auto: linha.etapa } })
-            r.captacao.criados++
-            mexeu = true
-          } catch (err) {
-            if (!isUniqueViolation(err)) throw err
-          }
-          continue
-        }
-        if (lead.custom_attributes?.funil_auto === linha.etapa) continue
+      const noFunil = new Set<string>()
+      const vistos = new Set<string>()
+      // a função vem do mais novo para o mais velho: o mesmo telefone duas vezes vale a conversa mais recente
+      for (const c of clientes.rows as Array<{ telefone: string; foi_ate: string }>) {
+        const f8 = fim8(c.telefone)
+        if (!f8 || vistos.has(f8) || naoELead.has(f8)) continue
+        vistos.add(f8)
+        const nome = ETAPA_DO_LEAD[c.foi_ate]
+        const etapa = nome ? etapaSolta(funilCaptacao, nome) : null
+        if (!nome || !etapa) continue
+        r.captacao.naNay++
+        const lead = telefoneVariantes(telefoneCanonico(c.telefone) || c.telefone).map((f) => porTelefone.get(f)).find(Boolean)
+        if (!lead) { r.captacao.semConversa++; continue }
+        noFunil.add(lead.id)
+        if (lead.custom_attributes?.funil_auto === nome) continue      // arrastado à mão fica até a etapa da Nay mudar
         if (lead.stage_id !== etapa) {
-          await mover(lead, etapa, linha.etapa)
+          await mover(lead, etapa, nome)
           r.captacao.movidos++
         } else {
-          await lembrar(lead, linha.etapa)
+          await lembrar(lead, nome)
         }
-        await etiquetar(lead.id, linha.etapa)
+      }
+
+      /* os donos da campanha de disparo antiga (funil_auto Não respondeu, Respondeu, Disponível, Alugado, Vendido,
+         Mandou os dados) saem do funil; a etapa em que estavam fica em custom_attributes.etapa_da_campanha */
+      const DA_CAMPANHA = new Set(['Não respondeu', 'Respondeu', 'Disponível', 'Alugado', 'Vendido', 'Mandou os dados'])
+      for (const lead of doBanco.rows as LeadDoFunil[]) {
+        if (!lead.stage_id || noFunil.has(lead.id) || !DA_CAMPANHA.has(String(lead.custom_attributes?.funil_auto || ''))) continue
+        await db.execute(sql`
+          UPDATE leads SET stage_id = NULL, updated_at = now(),
+                 custom_attributes = coalesce(custom_attributes, '{}'::jsonb)
+                   || jsonb_build_object('funil_auto', 'saiu_da_campanha', 'etapa_da_campanha', ${String(lead.custom_attributes?.funil_auto)}::text)
+           WHERE id = ${lead.id}`)
+        await db.insert(leadStageHistory).values({
+          organizationId: org, leadId: lead.id, fromStageId: lead.stage_id, toStageId: null, movedByMemberId: null, movedAt: new Date(),
+        })
+        r.captacao.movidos++
+        mexeu = true
       }
     }
 
