@@ -253,6 +253,12 @@ let rodandoCaptacao = false
 const ROTULO_DA_MIDIA: Record<string, string> = { audio: '🎵 Áudio', imagem: '📷 Imagem', documento: '📄 Documento', video: '🎥 Vídeo' }
 const TIPO_DA_MIDIA: Record<string, string> = { audio: 'audio', imagem: 'image', documento: 'document', video: 'video' }
 const TOLERANCIA_MS = 180_000
+/* O REGISTRO ANDA ATRÁS (Pedro, 30/10/2026: "algo bugando o chat"): o registro da Nay (captacao_mensagens) anota a
+   mensagem quando a fila dela PROCESSA, não quando chegou. No lote de fotos do Tel (30/10, 14:09-14:20) ela anotou uma
+   a cada 6-7 s até 15:07; a conferência procurava o par no CRM só 3 min para cada lado, não achava e trazia um
+   "📷 Imagem" falso -- 348 mídias e 29 textos em dobro em 2 dias. O par no CRM pode ter chegado até 2 h ANTES do
+   registro (nunca depois de mais que a tolerância). */
+const ATRASO_DO_REGISTRO_MS = 2 * 3600_000
 const REPETIDA_NO_REGISTRO_MS = 15_000
 const normalizado = (s: string | null | undefined) => String(s ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
 
@@ -296,7 +302,7 @@ export async function conferirACaptacao(
               OR l.integration_id IN (SELECT o.id FROM integrations o WHERE o.organization_id = ${organizacao}
                                          AND o.type = 'whatsapp_cloud_official' AND o.deleted_at IS NULL))
          AND a.metadata->>'direction' = 'inbound'
-         AND a.created_at >= ${new Date(desde.getTime() - TOLERANCIA_MS).toISOString()}::timestamptz
+         AND a.created_at >= ${new Date(desde.getTime() - ATRASO_DO_REGISTRO_MS).toISOString()}::timestamptz
          AND a.created_at < ${new Date(ate.getTime() + TOLERANCIA_MS).toISOString()}::timestamptz`)
     const jaNoCrm = (recebidasNoCrm.rows as Array<{ fim8: string; lid: string; content: string | null; tipo: string | null; created_at: string | Date }>)
       .map((x) => ({ fim8: x.fim8, lid: x.lid, texto: normalizado(x.content), tipo: x.tipo || '', em: new Date(x.created_at).getTime() }))
@@ -334,7 +340,7 @@ export async function conferirACaptacao(
         // mesma pessoa em 3 min são dois (29/09, 10:16:07 e 10:16:32 viravam um)
         const achou = jaNoCrm.findIndex((c) =>
           (c.fim8 === fim8 || c.lid === m.telefone)
-          && Math.abs(c.em - quando) < TOLERANCIA_MS
+          && c.em < quando + TOLERANCIA_MS && c.em > quando - ATRASO_DO_REGISTRO_MS
           && (tipo ? c.tipo === tipo : c.texto === alvo))
         if (achou >= 0) { jaNoCrm.splice(achou, 1); r.jaTinha++; continue }
       }
