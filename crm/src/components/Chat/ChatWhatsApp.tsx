@@ -20,6 +20,7 @@ import BarraDeMetricas from './BarraDeMetricas'
 import BarraDoDisparoOficial from './BarraDoDisparoOficial'
 import BarraDoCustoOficial from './BarraDoCustoOficial'
 import PainelContatoCaptacao from './PainelContatoCaptacao'
+import CadastroImovelOlx from './CadastroImovelOlx'
 import EnviarImovelPelaCaptacao from './EnviarImovelPelaCaptacao'
 import PainelContatoParceria from './PainelContatoParceria'
 import { usePuxador } from '@/hooks/usePuxador'
@@ -107,7 +108,9 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
       return novo
     })
   }, [telaLarga])
-
+  /* 535 (Pedro, 30/10: "uma segunda barra à direita, essa de cadastrar o imóvel desse contato"): a barra de cadastro
+     pelo link da OLX, só no WhatsApp Leads; é de uma conversa só (trocar de conversa fecha) */
+  const [cadastroDe, setCadastroDe] = useState<string | null>(null)
   /*
    * UMA fonte de verdade para a conversa aberta: o que a pessoa escolheu.
    * O endereço (`?leadId=`) é só ENTRADA (ver crm/CLAUDE.md).
@@ -327,6 +330,8 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
       aoAlternarPainel={alternarPainel}
       aoVoltar={voltar}
       onTagsChange={handleTagsChange}
+      aoCadastrarImovel={linha === 'captacao' ? () => setCadastroDe((x) => (x === displayedLead.id ? null : displayedLead.id)) : undefined}
+      cadastroAberto={cadastroDe === displayedLead.id}
     />
   ) : (
     <div className="wa-papel flex flex-col items-center justify-center h-full gap-2 px-8 text-center">
@@ -338,6 +343,11 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
       </span>
     </div>
   )
+
+  const cadastro = (modo: 'lateral' | 'gaveta') =>
+    displayedLead && linha === 'captacao' && cadastroDe === displayedLead.id
+      ? <CadastroImovelOlx key={displayedLead.id} lead={displayedLead} modo={modo} aoFechar={() => setCadastroDe(null)} />
+      : null
 
   const painel = (modo: 'lateral' | 'gaveta') => {
     if (!displayedLead || !painelAberto) return null
@@ -467,6 +477,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
           <div className="flex-1 min-h-0">{conversa(() => setMobileView('list'))}</div>
         )}
         {painelAberto && painel('gaveta')}
+        {cadastro('gaveta')}
       </div>
     )
   }
@@ -493,6 +504,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
             </div>
             <div className="flex-1 min-w-0 h-full min-h-0">{conversa()}</div>
             {painel(telaLarga ? 'lateral' : 'gaveta')}
+            {cadastro(telaLarga ? 'lateral' : 'gaveta')}
           </>
         )}
       </div>

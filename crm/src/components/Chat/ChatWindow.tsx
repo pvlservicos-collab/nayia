@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { codigoReferenciado } from '@/lib/imovelCodigo'
-import { Image as ImageIcon, ArrowLeft, User, SidebarSimple, Robot } from '@phosphor-icons/react'
+import { Image as ImageIcon, ArrowLeft, User, SidebarSimple, Robot, HouseLine } from '@phosphor-icons/react'
 import { useLeadActivities, useAuth, useChatButtonSettings, useIsMobile } from '@/hooks'
 import { usePinnedMessages } from '@/hooks/usePinnedMessages'
 import { uploadClientFile } from '@/lib/blobClient'
@@ -38,6 +38,9 @@ interface ChatWindowProps {
   aoVoltar?: () => void
   /** 19/10: a lista suspensa de etiquetas no cabeçalho (Captação) avisa a tela quando marca/desmarca */
   onTagsChange?: (leadId: string, tagId: string, action: 'add' | 'remove', tagObj?: any) => void
+  /** 535 (Pedro, 30/10): o botão Cadastrar imóvel no alto da conversa (WhatsApp Leads) abre a barra de cadastro */
+  aoCadastrarImovel?: () => void
+  cadastroAberto?: boolean
 }
 
 export interface ReplyContext {
@@ -124,7 +127,9 @@ function EtiquetasNoCabecalho({ lead, onTagsChange }: {
   )
 }
 
-function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlternarPainel, aoVoltar, dono, etiquetasRapidas, onTagsChange }: {
+function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlternarPainel, aoVoltar, dono, etiquetasRapidas, onTagsChange, aoCadastrarImovel, cadastroAberto }: {
+  aoCadastrarImovel?: () => void
+  cadastroAberto?: boolean
   /** 19/10: a lista suspensa de etiquetas ao lado do nome (Captação) */
   etiquetasRapidas?: boolean
   onTagsChange?: (leadId: string, tagId: string, action: 'add' | 'remove', tagObj?: any) => void
@@ -172,6 +177,15 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
           </span>
         </span>
       </button>
+      {aoCadastrarImovel && (
+        <button type="button" onClick={aoCadastrarImovel} aria-pressed={!!cadastroAberto}
+                title="Cadastrar o imóvel deste contato pelo link da OLX"
+                className={`flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-semibold flex-shrink-0 ${cadastroAberto ? 'wa-icone-btn--on' : ''}`}
+                style={{ border: '1px solid var(--wa-divider)', color: 'var(--wa-text)' }}>
+          <HouseLine size={17} weight={cadastroAberto ? 'fill' : 'regular'} />
+          <span className="hidden xl:inline">Cadastrar imóvel</span>
+        </button>
+      )}
       {etiquetasRapidas && <EtiquetasNoCabecalho lead={lead} onTagsChange={onTagsChange} />}
       {aoAlternarPainel && (
         <button type="button" onClick={aoAlternarPainel} className={`wa-icone-btn ${painelAberto ? 'wa-icone-btn--on' : ''}`}
@@ -183,7 +197,7 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
   )
 }
 
-export default function ChatWindow({ lead, organizationId, onMessageSent, linha, marca, dono, painelAberto, aoAlternarPainel, aoVoltar, onTagsChange }: ChatWindowProps) {
+export default function ChatWindow({ lead, organizationId, onMessageSent, linha, marca, dono, painelAberto, aoAlternarPainel, aoVoltar, onTagsChange, aoCadastrarImovel, cadastroAberto }: ChatWindowProps) {
   const {
     activities, loading, error: erroDasMensagens, refresh: recarregarMensagens, sendHumanMessage, sendMediaMessage, deleteMessage,
     temMais, carregandoAnteriores, carregarAnteriores,
@@ -427,7 +441,8 @@ export default function ChatWindow({ lead, organizationId, onMessageSent, linha,
       onDrop={handleDrop}
     >
       <CabecalhoConversa lead={lead} marca={marca} nay={nay} mostrarRobo={false} painelAberto={painelAberto} aoAlternarPainel={aoAlternarPainel} aoVoltar={aoVoltar} dono={dono}
-                         etiquetasRapidas={linha === 'captacao'} onTagsChange={onTagsChange} />
+                         etiquetasRapidas={linha === 'captacao'} onTagsChange={onTagsChange}
+                         aoCadastrarImovel={aoCadastrarImovel} cadastroAberto={cadastroAberto} />
 
       {/* Arrastar-e-soltar — cobre a conversa inteira, não só o clipe */}
       {isDraggingFile && (
