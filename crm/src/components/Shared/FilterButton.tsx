@@ -207,10 +207,12 @@ export default function FilterButton({ organizationId, onFilterChange }: FilterB
       <div className="flex items-center gap-3 flex-wrap">
         <button
           onClick={() => setIsOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-2 active:bg-accent-2 transition-all shadow-sm"
+          title="Filtrar"
+          className="flex items-center gap-1.5 px-2.5 min-[1800px]:px-3 py-1.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-2 active:bg-accent-2 transition-all shadow-sm"
         >
           <Funnel size={16} weight="fill" />
-          Filtrar
+          {/* 29/10: abaixo de 1800 px só o funil -- com o Contato novo na barra, "Filtrar" escrito subia por cima do Enviar imóvel */}
+          <span className="hidden min-[1800px]:inline">Filtrar</span>
         </button>
 
         {activeFilters.map((filter, idx) => (

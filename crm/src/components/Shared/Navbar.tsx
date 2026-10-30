@@ -27,6 +27,7 @@ import {
   ChatsCircle,
   Graph,
   ChatTeardropText,
+  BookOpenText,
 } from '@phosphor-icons/react'
 import { useAuth, usePipeline } from '@/hooks'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -79,6 +80,9 @@ const NAV_ITEMS = [
   // VISÃO GERAL (Pedro, 15/10/2026: "uma página nova, tanto no site como no CRM, chama Visão geral"): o mapa do projeto
   // nas duas VPS. É a página do site (/admin/visao-geral.html) servida aqui dentro, como a aba Imóveis.
   { label: 'Visão geral', href: '/visao-geral', icon: Graph, mais: true },
+  // TUTORIAIS (Pedro, 29/10/2026): "uma pasta no menu Mais, TUTORIAIS, tipo uma documentação" -- os passos de cada função
+  // com prints (lib/tutoriais.ts); a busca do alto também acha
+  { label: 'Tutoriais', href: '/tutoriais', icon: BookOpenText, mais: true },
   { label: 'Configurações', href: '/settings/organization', icon: Gear, mais: true },
 ]
 

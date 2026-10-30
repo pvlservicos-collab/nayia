@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { MagnifyingGlass, Phone, ChatText, User, SpinnerGap, X } from '@phosphor-icons/react'
+import { MagnifyingGlass, Phone, ChatText, User, SpinnerGap, X, BookOpenText } from '@phosphor-icons/react'
 import { linkDaConversa } from '@/lib/links'
+import { buscarTutoriais } from '@/lib/tutoriais'
 import { useAuth, useIsMobile } from '@/hooks'
 import { useRouter } from 'next/navigation'
 
@@ -59,7 +60,7 @@ export default function GlobalSearch() {
         leadId: lead.id,
       }))
       setResults(items)
-      setOpen(items.length > 0)
+      setOpen(items.length > 0 || buscarTutoriais(term, 4).length > 0)
     } catch (err) {
       console.error('Search error:', err)
     } finally {
@@ -71,7 +72,18 @@ export default function GlobalSearch() {
     setQuery(value)
     if (debounceRef.current) clearTimeout(debounceRef.current)
     if (value.trim().length < 2) { setResults([]); setOpen(false); return }
+    if (buscarTutoriais(value, 4).length > 0) setOpen(true)
     debounceRef.current = setTimeout(() => search(value), 300)
+  }
+
+  // TUTORIAIS (Pedro, 29/10/2026: "o cara pesquisa lá na barra de navegação no topo alguma função e aparece")
+  const tutoriais = query.trim().length >= 2 ? buscarTutoriais(query, 4) : []
+  const abrirTutorial = (id: string) => {
+    setQuery('')
+    setResults([])
+    setOpen(false)
+    setMobileOpen(false)
+    router.push(`/tutoriais?t=${id}`)
   }
 
   const handleSelect = (result: SearchResult) => {
@@ -87,6 +99,23 @@ export default function GlobalSearch() {
 
   const resultsList = (
     <>
+      {tutoriais.length > 0 && (
+        <div>
+          <p className="px-4 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">Tutoriais</p>
+          {tutoriais.map((t) => (
+            <button key={t.id} onClick={() => abrirTutorial(t.id)} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left">
+              <div className="w-8 h-8 rounded-full bg-violet-50 flex items-center justify-center flex-shrink-0">
+                <BookOpenText size={14} className="text-violet-600" weight="bold" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{t.titulo}</p>
+                <p className="text-xs text-gray-400 truncate">{t.resumo}</p>
+              </div>
+            </button>
+          ))}
+          {results.length > 0 && <div className="h-px bg-gray-100 mx-3" />}
+        </div>
+      )}
       {leadResults.length > 0 && (
         <div>
           <p className="px-4 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">Leads</p>
@@ -120,7 +149,7 @@ export default function GlobalSearch() {
           ))}
         </div>
       )}
-      {results.length === 0 && !loading && query.trim().length >= 2 && (
+      {results.length === 0 && tutoriais.length === 0 && !loading && query.trim().length >= 2 && (
         <div className="px-4 py-6 text-center text-sm text-gray-400">Nenhum resultado encontrado</div>
       )}
     </>
@@ -174,9 +203,9 @@ export default function GlobalSearch() {
         type="text"
         value={query}
         onChange={(e) => handleChange(e.target.value)}
-        onFocus={() => results.length > 0 && setOpen(true)}
+        onFocus={() => (results.length > 0 || tutoriais.length > 0) && setOpen(true)}
         placeholder="Buscar leads..."
-        className="w-28 lg:w-36 xl:w-44 min-[1800px]:w-56 pl-9 pr-8 py-1.5 bg-gray-100 border-none rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+        className="w-28 lg:w-36 min-[1536px]:w-44 min-[1800px]:w-56 pl-9 pr-8 py-1.5 bg-gray-100 border-none rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
       />
       {open && (
         <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-100 rounded-xl shadow-xl shadow-gray-200/60 z-50 max-h-[400px] overflow-y-auto animate-in fade-in slide-in-from-top-2">
