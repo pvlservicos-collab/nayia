@@ -55,8 +55,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const recusa = await recusaEscreverNaCaptacao(auth.organizationId, auth.memberId, lead.id)
     if (recusa) return apiError(403, recusa)
 
-    const imovel = await cardDoImovel(codigo)
-
     let tipo: string | null = null
     if (lead.integrationId) {
       const [integ] = await db.select({ type: integrations.type }).from(integrations)
@@ -66,6 +64,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // Mesma escolha da resposta manual: sem linha conhecida, sai pela Z-API --
     // é o número que o corretor já conhece, e a oficial exige template.
     if (!tipo) tipo = 'whatsapp_zapi'
+
+    /* 531 (Pedro, 29/10: "pode enviar o de parceiro, todos os novos ... o que não é para enviar é o parceiro antigo
+       que vinha do site antigo"): na Leads e na Oficial a conversa é com o cliente -- vai o card de cliente (o de
+       parceiro novo completo) e o parceiro antigo não sai. Na Parceria fica como era. */
+    const paraCliente = tipo !== 'whatsapp_zapi'
+    const imovel = await cardDoImovel(codigo, paraCliente)
+    if (paraCliente && imovel.parceiro_antigo) {
+      return apiError(400, `O ${codigo} é parceiro antigo (do site antigo): esse não é para enviar.`)
+    }
     const adapter = getChannelAdapter(tipo)
     const destino = lead.phone || lead.externalId || ''
 

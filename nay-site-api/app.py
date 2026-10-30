@@ -1280,7 +1280,7 @@ def api_imovel_detalhe(codigo):
         conn.close()
 
 
-def _card_do_imovel(conn, codigo):
+def _card_do_imovel(conn, codigo, cliente=False):
     """O card + as fotos de um imovel, do jeito que a Nay manda.
 
     Reusa `nai_card_do_imovel` e `nai_imagens_do_envio` -- as MESMAS funcoes do
@@ -1289,8 +1289,11 @@ def _card_do_imovel(conn, codigo):
 
     A COLAGEM FICA DE FORA. A metadinha de 4 fotos e so dos grupos desde 14/09
     (pedido do Tel); num envio de um para um vao as fotos soltas.
+
+    `cliente` (531, 30/10): o card de CLIENTE (o de parceiro sai completo, como o 8595 manda), para o /codigo nas
+    conversas da Leads e da Oficial; o de corretor do parceiro é só "é de parceria".
     """
-    linhas = todas_linhas(conn, "SELECT texto_pronto, qtd_fotos FROM nai_card_do_imovel(%s)", (codigo,))
+    linhas = todas_linhas(conn, "SELECT texto_pronto, qtd_fotos FROM nai_card_do_imovel(%s, %s)", (codigo, bool(cliente)))
     if not linhas or not linhas[0]["texto_pronto"]:
         return None
     card = linhas[0]
@@ -1323,6 +1326,8 @@ def _card_do_imovel(conn, codigo):
         # A parede do parceiro NAO bloqueia aqui: quem manda e uma pessoa, nao a
         # Nay. Mas a bandeira vai junto, em cima, para a tela avisar antes.
         "e_parceiro": bool(r.get("e_parceiro")),
+        # 531: o parceiro antigo (do site antigo) não é para enviar ao lead
+        "parceiro_antigo": bool(todas_linhas(conn, "SELECT imovel_parceiro_antigo(%s) AS a", (codigo,))[0]["a"]),
         "no_site": bool(r.get("publicado_no_site")),
     }
 
@@ -1337,7 +1342,7 @@ def api_imovel_card(codigo):
     """
     conn = conectar_tabelas()
     try:
-        d = _card_do_imovel(conn, codigo)
+        d = _card_do_imovel(conn, codigo, request.args.get("cliente") == "1")
         if not d:
             return jsonify({"erro": "imovel nao encontrado"}), 404
         return jsonify(d)

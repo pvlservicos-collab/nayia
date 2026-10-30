@@ -23,6 +23,8 @@ export interface ImovelCard {
   qtd_fotos: number
   fotos: string[]
   e_parceiro: boolean
+  /** 531: parceiro do site antigo -- não vai ao lead */
+  parceiro_antigo?: boolean
   no_site: boolean
   imovel: {
     codigo: number
@@ -75,8 +77,8 @@ export function listarBairros(): Promise<{ bairro: string; imoveis: number }[]> 
 }
 
 /** O card + as fotos de um imóvel, do jeito que a Nay manda. */
-export function cardDoImovel(codigo: number): Promise<ImovelCard> {
-  return pegar(`/api/imovel-card/${codigo}`)
+export function cardDoImovel(codigo: number, paraCliente = false): Promise<ImovelCard> {
+  return pegar(`/api/imovel-card/${codigo}${paraCliente ? '?cliente=1' : ''}`)
 }
 
 /** De qual imóvel fala a mensagem que a pessoa marcou no WhatsApp. */

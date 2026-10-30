@@ -122,7 +122,10 @@ export default function DisparoPage() {
 
       {/* ---- a busca ---- */}
       <div className="panel rounded-xl border border-line p-3 md:p-4 mb-4">
-        <EscolherImoveis key={rodada} escolhidos={escolhidos} aoMudar={(l) => { setEscolhidos(l); setResposta(null) }}
+        {/* 531 (Pedro, 29/10: "pode enviar o de parceiro ... o que não é para enviar é o parceiro antigo"): pelo 8595 a
+            lista traz os parceiros novos; trocar de linha refaz a busca */}
+        <EscolherImoveis key={`${rodada}-${linha?.tipo || ''}`} comParceiro={linha?.tipo === 'whatsapp_zapi_captacao'}
+                         escolhidos={escolhidos} aoMudar={(l) => { setEscolhidos(l); setResposta(null) }}
                          teto={teto} opcoes={opcoes}
                          aoAvisar={(texto) => setResposta(texto ? { ok: false, texto } : null)} />
 
