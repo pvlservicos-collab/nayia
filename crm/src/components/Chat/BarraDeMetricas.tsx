@@ -22,7 +22,7 @@ import type { LeadWithOwner } from '@/lib/types'
 import type { EstadoDaNay, MarcaDaNay } from '@/lib/tiposNay'
 import { formatPhone } from '@/lib/utils'
 import { pedeResposta, JANELA_DE_RESPOSTA } from '@/lib/esperaResposta'
-import { comAlguemPelaNay, escolhaAMao, etapaDaParceria, ROTULO_DA_ETAPA } from '@/lib/etapaDaParceria'
+import { escolhaAMao, etapaDaParceria, ROTULO_DA_ETAPA } from '@/lib/etapaDaParceria'
 
 type PainelDaNay = {
   respostasHoje: number; respostasOntem: number; respostas1h: number; ultimaResposta: string | null
@@ -38,8 +38,6 @@ const TOLERANCIA = 2 * MINUTO
 function ondeEsta(lead: LeadWithOwner, marca: MarcaDaNay | undefined): string {
   const aMao = escolhaAMao(lead as any)
   if (aMao === 'tel' || aMao === 'rayssa') return aMao
-  if (!aMao && (marca?.telMotivo || '').startsWith('Rayssa:')) return 'rayssa'
-  if (!aMao && comAlguemPelaNay(marca)) return 'tel'
   return etapaDaParceria(lead as any, marca)
 }
 

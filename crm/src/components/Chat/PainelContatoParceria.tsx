@@ -37,7 +37,7 @@ import HistoricoDeAtendimento from './HistoricoDeAtendimento'
 import ImoveisJaEnviados from './ImoveisJaEnviados'
 import EscolherImoveis, { useOpcoesDoDisparo, type ImovelParaEnviar } from '@/components/Disparo/EscolherImoveis'
 import EtapaDoLead from './EtapaDoLead'
-import { comAlguemPelaNay, escolhaAMao } from '@/lib/etapaDaParceria'
+import { escolhaAMao } from '@/lib/etapaDaParceria'
 import AgendarFollowup from './AgendarFollowup'
 import AgendarVisita from './AgendarVisita'
 import { FUSO_DE_MANAUS, dataHoraEmManaus, diasAteEmManaus, horaEmManaus } from '@/lib/fusoDeManaus'
@@ -116,12 +116,11 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
 }) {
   const { marca: marcaDoContato, historico, enviados, carregando, erro, recarregar } = useContatoNay(lead.id)
   const { marcas, nay } = useParceriaMarcas(true)
-  /* com quem está a conversa: a escolha do card manda; senão, a marca da Nay */
+  /* com quem está a conversa: só a escolha do card (30/10, Pedro: nada vai sozinho para Tel ou Rayssa) */
   const escolhaDoCard = escolhaAMao(lead as any)
-  const marcaDaPessoa = marcas[lead.id]
   const comQuem: 'tel' | 'rayssa' | null =
-    escolhaDoCard === 'rayssa' || (escolhaDoCard !== 'tel' && (marcaDaPessoa?.telMotivo || '').startsWith('Rayssa:')) ? 'rayssa'
-      : escolhaDoCard === 'tel' || comAlguemPelaNay(marcaDaPessoa) ? 'tel' : null
+    escolhaDoCard === 'rayssa' ? 'rayssa'
+      : escolhaDoCard === 'tel' ? 'tel' : null
   const [tirando, setTirando] = useState(false)
   async function tirarDaPessoa() {
     if (tirando) return

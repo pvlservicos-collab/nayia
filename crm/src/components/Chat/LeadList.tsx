@@ -22,7 +22,7 @@ import LeadListItem from './LeadListItem'
 import ChatFilterTabs, { type ChatTab, type FiltroDaLista } from './ChatFilterTabs'
 import BuscaDaLista, { casaNaBusca } from './BuscaDaLista'
 import { conversaEstaNaLinha, type LinhaWhatsapp } from '@/lib/leadChannel'
-import { comAlguemPelaNay, etapaDaParceria, escolhaAMao } from '@/lib/etapaDaParceria'
+import { etapaDaParceria, escolhaAMao } from '@/lib/etapaDaParceria'
 import PranchetaDeEtiquetas from './PranchetaDeEtiquetas'
 import { EditarAbas, abasQueValem, etiquetasDasEtapasDoLeads, useAbasDaLinha } from './AbasDeEtiquetas'
 import { useEtiquetas } from '@/lib/etiquetas'
@@ -259,17 +259,16 @@ export default function LeadList({
        mensagem pelo login dela": valia para sempre e vencia a etapa escolhida. Agora é
        dela quem foi MANDADO para ela (no card, ou a marca 'Rayssa:' da Nay) -- e
        qualquer etapa escolhida à mão (Todos, Visitas...) tira daqui. */
-    const aMao = escolhaAMao(l as any)
-    if (aMao === 'rayssa') return true
-    if (aMao) return false                // Todos, Visitas, Proprietários, Fechamento ou Tel: não é dela
-    return !!(m?.telMotivo || '').startsWith('Rayssa:')
+    /* 30/10 (Pedro: "não é para ir no automático para as tags de nomes, só se nós aqui definirmos; mesmo se nós
+       mandarmos mensagem por um usuário não é pra ir"): só a escolha À MÃO; a marca 'Rayssa:' da Nay não põe mais aqui */
+    return escolhaAMao(l as any) === 'rayssa'
   }
   const doTel = (l: LeadWithOwner, m: any, atendente?: { nome: string } | null) => {
-    const aMao = escolhaAMao(l as any)
-    if (aMao === 'tel') return true
-    if (aMao) return false                // etapa escolhida à mão (inclusive Todos) tira do Tel
-    // 03/10: a pausa de 30 min de quem escreveu à mão NÃO é "com o Tel" (a conversa fica na aba dela)
-    return comAlguemPelaNay(m) && !daRayssa(l, m, atendente)
+    /* 30/10 (Pedro: "tem muita gente lá na tag Tel; quando mandam mensagem pelo WhatsApp Web vai pra lá, mas não é para
+       ir"): na Parceria, escrever pelo celular ou pelo CRM fazia a Nay marcar "o Tel está com a conversa" e a conversa
+       pulava para o Tel. Agora é como no Leads e na Oficial (26/10): Tel é só a escolha À MÃO no card. A Nay continua
+       parada nessa conversa (o robozinho fica vermelho), mas ela fica na etapa dela. */
+    return escolhaAMao(l as any) === 'tel'
   }
   /* QUEM ESTÁ COM UMA PESSOA SAI DAS ETAPAS: a conversa não está mais no fluxo
      da Nay, então não faz sentido contá-la em Todos nem em Visitas. */
@@ -605,10 +604,10 @@ export default function LeadList({
           titulo: 'Quem a Nay sabe que é dono de imóvel. Só aparece aqui.' },
         { chave: 'fechamento', rosa: true, rotulo: 'Fechamento', grupo: 'etapa', pessoas: contagem['semler:fechamento'],
           titulo: 'Já pediu o checklist — está juntando a documentação. Entra aqui sozinho quando a Nay manda o checklist.' },
-        { chave: 'tel', rotulo: 'Tel', grupo: 'pessoa', pessoas: contagem['semler:tel'], titulo: 'O Tel está atendendo (a Nay parou por ele, ou ele mandou pelo login dele)' },
+        { chave: 'tel', rotulo: 'Tel', grupo: 'pessoa', pessoas: contagem['semler:tel'], titulo: 'Quem foi posto com o Tel à mão, no card da conversa' },
         ...(rayssa
           ? [{ chave: 'rayssa', rotulo: rayssa.nome, grupo: 'pessoa' as const, cor: rayssa.cor, pessoas: contagem['semler:rayssa'],
-               titulo: `${rayssa.nome} está atendendo (mandou a última mensagem da equipe, pelo login dela)` }]
+               titulo: `Quem foi posto com ${rayssa.nome} à mão, no card da conversa` }]
           : []),
       ]
     : comAbasDaCaptacao

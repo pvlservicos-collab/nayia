@@ -450,7 +450,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent, linha,
         </div>
       )}
 
-      {paraEncaminhar && <EncaminharMensagem activity={paraEncaminhar} onClose={() => setParaEncaminhar(null)} />}
+      {paraEncaminhar && <EncaminharMensagem activity={paraEncaminhar} onClose={() => setParaEncaminhar(null)} linha={linha} />}
 
       <ActivityTimeline
         activities={activities}

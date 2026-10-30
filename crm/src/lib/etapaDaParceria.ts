@@ -149,12 +149,9 @@ export function abaDaConversa(
   marca: MarcaDaNay | undefined,
   agora = Date.now(),
 ): DestinoParceria {
+  // 30/10 (Pedro): Tel e Rayssa só pela escolha À MÃO; a Nay parar porque alguém escreveu não muda a aba
   const aMao = escolhaAMao(lead)
   if (aMao === 'rayssa' || aMao === 'tel') return aMao
-  if (!aMao) {
-    if ((marca?.telMotivo || '').startsWith('Rayssa:')) return 'rayssa'
-    if (comAlguemPelaNay(marca)) return 'tel'
-  }
   return etapaDaParceria(lead, marca, agora)
 }
 

@@ -4,18 +4,26 @@
  * ENCAMINHAR MENSAGEM (Pedro, 29/10/2026: "fazer encaminhar mensagem no CRM"). Como no WhatsApp: o botão ao lado de
  * "Responder" abre esta janela, a pessoa escolhe um ou mais contatos e o texto (ou a mídia com a legenda) sai por cada
  * conversa, pela linha dela (a mesma rota de mensagens do CRM). Os destinos vêm da busca de leads, em todos os números.
+ *
+ * 30/10 (Pedro: "quando clico em encaminhar, mesmo pelo número Leads, ele tende a ir pelo número Parceria"): a mesma
+ * pessoa tem uma conversa em cada número, e a busca trazia a da Parceria. Agora a mensagem sai SEMPRE pelo número da
+ * conversa aberta: na hora de enviar, acha (ou abre) a conversa da pessoa nesse número (/api/leads/abrir).
  */
 import { useEffect, useRef, useState } from 'react'
 import { X, MagnifyingGlass, Check, CircleNotch, ArrowBendUpRight } from '@phosphor-icons/react'
 import type { LeadActivityWithActor, SearchHit } from '@/lib/types'
+import type { LinhaWhatsapp } from '@/lib/leadChannel'
+
+const NOME_DA_LINHA: Record<LinhaWhatsapp, string> = { oficial: 'API Oficial', parceria: 'WhatsApp Parceria', captacao: 'WhatsApp Leads' }
+const fim8 = (t: string | null | undefined) => String(t || '').replace(/\D/g, '').slice(-8)
 
 type Resultado = { ok: boolean; erro?: string }
 
-export default function EncaminharMensagem({ activity, onClose }: { activity: LeadActivityWithActor; onClose: () => void }) {
+export default function EncaminharMensagem({ activity, onClose, linha }: { activity: LeadActivityWithActor; onClose: () => void; linha?: LinhaWhatsapp }) {
   const [q, setQ] = useState('')
   const [achados, setAchados] = useState<SearchHit[]>([])
   const [buscando, setBuscando] = useState(false)
-  const [escolhidos, setEscolhidos] = useState<Record<string, { id: string; nome: string }>>({})
+  const [escolhidos, setEscolhidos] = useState<Record<string, { id: string; nome: string; telefone: string }>>({})
   const [enviando, setEnviando] = useState(false)
   const [resultados, setResultados] = useState<Record<string, Resultado>>({})
   const ctl = useRef<AbortController | null>(null)
@@ -39,14 +47,30 @@ export default function EncaminharMensagem({ activity, onClose }: { activity: Le
           body: JSON.stringify({ q: termo, limit: 20 }),
         })
         const j = await r.json().catch(() => ({}))
-        setAchados(Array.isArray(j?.results) ? j.results : Array.isArray(j?.hits) ? j.hits : Array.isArray(j) ? j : [])
+        const lista: SearchHit[] = Array.isArray(j?.results) ? j.results : Array.isArray(j?.hits) ? j.hits : Array.isArray(j) ? j : []
+        // a mesma pessoa aparece uma vez (uma conversa por número); quem sai é decidido no envio
+        const vistos = new Set<string>()
+        setAchados(lista.filter((h: any) => { const k = fim8(h.lead?.phone) || h.lead?.id; if (vistos.has(k)) return false; vistos.add(k); return true }))
       } catch { /* busca cancelada ou falhou: a lista fica como está */ } finally { setBuscando(false) }
     }, 250)
     return () => clearTimeout(t)
   }, [q])
 
-  const alternar = (id: string, nome: string) =>
-    setEscolhidos((e) => { const n = { ...e }; if (n[id]) delete n[id]; else n[id] = { id, nome }; return n })
+  const alternar = (id: string, nome: string, telefone: string) =>
+    setEscolhidos((e) => { const n = { ...e }; if (n[id]) delete n[id]; else n[id] = { id, nome, telefone }; return n })
+
+  /** A conversa desta pessoa NO NÚMERO da conversa aberta (acha ou abre). Sem linha conhecida, a do resultado. */
+  const conversaNaLinha = async (id: string): Promise<string> => {
+    const tel = escolhidos[id]?.telefone
+    if (!linha || !tel) return id
+    const r = await fetch('/api/leads/abrir', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ telefone: tel.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, ''), linha, nome: escolhidos[id]?.nome || '' }),
+    })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok || !j?.id) throw new Error(j?.error || 'não achei a conversa neste número')
+    return String(j.id)
+  }
 
   const enviar = async () => {
     const ids = Object.keys(escolhidos)
@@ -63,7 +87,8 @@ export default function EncaminharMensagem({ activity, onClose }: { activity: Le
           body.media_filename = m.media_filename
           body.caption = texto
         }
-        const r = await fetch(`/api/leads/${id}/messages`, {
+        const destino = await conversaNaLinha(id)
+        const r = await fetch(`/api/leads/${destino}/messages`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
         })
         if (!r.ok) {
@@ -88,6 +113,7 @@ export default function EncaminharMensagem({ activity, onClose }: { activity: Le
         <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: '1px solid var(--wa-divider, #ddd)' }}>
           <ArrowBendUpRight size={18} weight="bold" />
           <h3 className="flex-1 text-[15px] font-semibold">Encaminhar mensagem</h3>
+          {linha && <span className="text-[12px] opacity-70">sai pelo {NOME_DA_LINHA[linha]}</span>}
           <button onClick={onClose} title="Fechar"><X size={18} /></button>
         </div>
         <div className="px-4 py-2 text-[13px] opacity-80 truncate" title={previa}>“{previa.slice(0, 120)}”</div>
@@ -105,7 +131,7 @@ export default function EncaminharMensagem({ activity, onClose }: { activity: Le
             const marcado = !!escolhidos[l.id]
             const r = resultados[l.id]
             return (
-              <button key={l.id} onClick={() => alternar(l.id, l.title || l.phone)} disabled={enviando}
+              <button key={l.id} onClick={() => alternar(l.id, l.title || l.phone, l.phone || '')} disabled={enviando}
                       className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-black/5">
                 <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
                       style={{ background: marcado ? 'var(--wa-green, #25d366)' : 'transparent', border: '1px solid var(--wa-divider, #bbb)' }}>
