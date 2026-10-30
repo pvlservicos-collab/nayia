@@ -20,7 +20,7 @@ function formatar(t: string) {
   return t
 }
 
-export default function ContatoCompartilhado({ contato }: { contato: { nome?: string; telefones?: string[] } }) {
+export default function ContatoCompartilhado({ contato }: { contato: { nome?: string; telefones?: string[]; origem?: string } }) {
   const telefones = Array.isArray(contato?.telefones) ? contato.telefones : []
   const nome = String(contato?.nome || 'Contato')
   const [abrindo, setAbrindo] = useState<string | null>(null)
@@ -50,7 +50,13 @@ export default function ContatoCompartilhado({ contato }: { contato: { nome?: st
         <div className="min-w-0">
           <p className="text-[14px] font-semibold truncate">{nome}</p>
           {telefones.map((t) => <p key={t} className="text-[12px] opacity-80">{formatar(t)}</p>)}
-          {!telefones.length && <p className="text-[12px] opacity-70">o WhatsApp não mandou o número</p>}
+          {!telefones.length && (
+            <p className="text-[12px] opacity-70">o número deste cartão não ficou guardado: peça para mandar o contato de novo</p>
+          )}
+          {/* 30/10: os cartões de antes do conserto ganharam o número pelo nome de quem já conversa com a gente */}
+          {telefones.length > 0 && contato?.origem === 'nome' && (
+            <p className="text-[11px] opacity-60">número achado pelo nome no CRM</p>
+          )}
         </div>
       </div>
       {telefones.map((t) => (
