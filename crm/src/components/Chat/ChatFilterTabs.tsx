@@ -64,14 +64,17 @@ interface ChatFilterTabsProps {
   ativo: ChatTab
   aoMudar: (tab: ChatTab) => void
   filtros: FiltroDaLista[]
+  /** 30/10 (Pedro: "sem ter mais a parte de rolar para o lado, vai ter etapas nas 2 linhas"): quebra em linhas */
+  quebra?: boolean
 }
 
-function ChatFilterTabs({ ativo, aoMudar, filtros }: ChatFilterTabsProps) {
+function ChatFilterTabs({ ativo, aoMudar, filtros, quebra }: ChatFilterTabsProps) {
   return (
     /* rola de lado com a barrinha e com a rodinha do mouse (Pedro, 29/09:
        "põe uma barrinha para mexer para o lado as tags, porque não tem") */
-    <div className="flex items-center gap-2 px-4 pb-2 pt-0.5 overflow-x-auto wa-rolagem-x" role="tablist"
+    <div className={`flex items-center gap-2 px-4 pb-2 pt-0.5 ${quebra ? 'flex-wrap' : 'overflow-x-auto wa-rolagem-x'}`} role="tablist"
          onWheel={(e) => {
+           if (quebra) return
            const el = e.currentTarget
            if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
            el.scrollLeft += e.deltaY

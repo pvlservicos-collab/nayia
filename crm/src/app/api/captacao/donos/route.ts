@@ -31,7 +31,7 @@ export function invalidarDonosDaCaptacao(organizationId: string): void {
    corretor que é o contato cadastrado do imóvel (Agnaldo da Idealize, Davi Izel, Moacy, Sarah, Thiago, Raquel...) e os
    números nossos não levam "Prop" na linha do WhatsApp Leads. A conta leva uns segundos e muda pouco: 10 min de guarda. */
 let corretoresGuardados: { em: number; fins: Set<string> } | null = null
-async function corretoresDaCaptacao(): Promise<Set<string>> {
+export async function corretoresDaCaptacao(): Promise<Set<string>> {
   if (corretoresGuardados && Date.now() - corretoresGuardados.em < 10 * 60_000) return corretoresGuardados.fins
   try {
     const r = await naydb().query('SELECT fone8 FROM crm_captacao_corretores()')

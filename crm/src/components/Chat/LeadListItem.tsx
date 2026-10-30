@@ -70,6 +70,8 @@ interface LeadListItemProps {
   finalidadeDoCliente?: string | null
   /** 520: de onde veio o cliente da Nay Leads -- 'olx' mostra "OLX" no lugar do antigo "Cliente" */
   origemDoCliente?: string | null
+  /** 30/10 (Pedro): no "Proprietários e corretores" do Leads, a etiqueta de cada um (corretor a Nay atende; dono, não) */
+  papelNoLeads?: 'corretor' | 'proprietario' | null
 }
 
 const RECEBIDO = ['lead']
@@ -179,7 +181,7 @@ function BarrinhaDaNay({ passo, etapa }: { passo: number; etapa: string }) {
   )
 }
 
-const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, clienteOlx, etiquetasColoridas, onTagsChange, relacionados, aoAlternarRelacionados, relacao, passoDaNay, finalidadeDoCliente, origemDoCliente }: LeadListItemProps) => {
+const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, clienteOlx, etiquetasColoridas, onTagsChange, relacionados, aoAlternarRelacionados, relacao, passoDaNay, finalidadeDoCliente, origemDoCliente, papelNoLeads }: LeadListItemProps) => {
   const robo = nay === undefined ? null : !nay ? { parada: true, texto: 'Lendo a Nay…' }
     : !nay.ligada ? { parada: true, texto: `Nay parada: ${nay.motivo || 'desligada'}` }
     : nayEmPausa(marca) ? { parada: true, texto: TEXTO_DA_PAUSA }
@@ -260,6 +262,13 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
             <span className="wa-marca flex-shrink-0" style={{ color: 'var(--wa-text-2)' }}
                   title="Contato relacionado: a Nay falou com ele por causa do lead de cima">
               {relacao}
+            </span>
+          )}
+          {papelNoLeads && (
+            <span className="wa-marca flex-shrink-0 rounded px-1"
+                  style={{ color: '#fff', background: papelNoLeads === 'corretor' ? '#0d9488' : '#b45309' }}
+                  title={papelNoLeads === 'corretor' ? 'Corretor: a Nay atende' : 'Proprietário: a Nay não atende'}>
+              {papelNoLeads === 'corretor' ? 'Corretor · Nay atende' : 'Proprietário · Nay não atende'}
             </span>
           )}
           {nayLeads && (
@@ -366,6 +375,7 @@ export default memo(LeadListItem, (a, b) => (
   a.passoDaNay?.etapa === b.passoDaNay?.etapa &&
   a.finalidadeDoCliente === b.finalidadeDoCliente &&
   a.origemDoCliente === b.origemDoCliente &&
+  a.papelNoLeads === b.papelNoLeads &&
   !!a.etiquetasColoridas === !!b.etiquetasColoridas &&
   a.atendente?.id === b.atendente?.id &&
   a.timeStr === b.timeStr &&

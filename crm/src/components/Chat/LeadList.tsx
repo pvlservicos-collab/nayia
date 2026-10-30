@@ -21,6 +21,8 @@ import { montarAtendentes, atendenteDaConversa, type Atendente } from '@/lib/ate
 import LeadListItem from './LeadListItem'
 import ChatFilterTabs, { type ChatTab, type FiltroDaLista } from './ChatFilterTabs'
 import BuscaDaLista, { casaNaBusca } from './BuscaDaLista'
+import { useCorretoresDaCaptacao } from '@/hooks/useCorretoresDaCaptacao'
+import { usePipeline } from '@/hooks/usePipeline'
 import { conversaEstaNaLinha, type LinhaWhatsapp } from '@/lib/leadChannel'
 import { etapaDaParceria, escolhaAMao } from '@/lib/etapaDaParceria'
 import PranchetaDeEtiquetas from './PranchetaDeEtiquetas'
@@ -171,6 +173,11 @@ export default function LeadList({
   const [search, setSearch] = useState('')
   const [buscaAberta, setBuscaAberta] = useState(false)
   const [activeTab, setActiveTab] = useState<ChatTab>('all')
+  const { pipelines: pipelinesDaOrg } = usePipeline(linha === 'captacao' ? (organizationId || '') : '')
+  // 30/10: no Leads só existem Todos e as etapas do pipeline; uma aba antiga (Tel, Lucas, etiqueta, passo) volta a Todos
+  useEffect(() => {
+    if (linha === 'captacao' && activeTab !== 'all' && !activeTab.startsWith('stage:')) setActiveTab('all')
+  }, [linha, activeTab])
   // 19/10: Hoje / Essa semana na Parceria -- um toggle à parte da aba
   const [periodo, setPeriodo] = useState<Periodo>('')
   // 20/10 (Tel): as abas do WhatsApp Leads são etiquetas, editáveis (AbasDeEtiquetas.tsx); só no Leads
@@ -204,6 +211,18 @@ export default function LeadList({
      Parceria -- quem é dono de imóvel no cadastro entra, além do dono da campanha (migração 397) */
   const donosDoCadastro = useDonosDoCadastro(linha === 'captacao')
   const ehDono = (l: { id: string; phone?: string | null }) => !!donos[l.id] || donosDoCadastro.has(fim8(l.phone))
+  /* PROPRIETÁRIOS E CORRETORES (Pedro, 30/10/2026: "a etapa proprietários se torna Proprietários e corretores e vai para
+     o lado de Essa semana, e lá vai ter 2 tags: corretor a Nay atende, proprietário não"). Corretor = 526
+     (crm_captacao_corretores); proprietário = o dono de sempre (campanha ou cadastro), fora o cliente da OLX posto à mão. */
+  const corretoresDoLeads = useCorretoresDaCaptacao(linha === 'captacao')
+  const [donosECorretores, setDonosECorretores] = useState<'' | 'todos' | 'corretor' | 'proprietario'>('')
+  const papelNoLeads = (l: LeadWithOwner): 'corretor' | 'proprietario' | null => {
+    if (linha !== 'captacao') return null
+    if (corretoresDoLeads.has(fim8(l.phone))) return 'corretor'
+    const d = donos[l.id]
+    if (d && !(!d.captacaoId && olxClientes[fim8(l.phone)])) return 'proprietario'
+    return donosDoCadastro.has(fim8(l.phone)) && !olxClientes[fim8(l.phone)] ? 'proprietario' : null
+  }
   const etapaOlxDe = (l: LeadWithOwner): EtapaOlx | null => {
     const c = olxClientes[fim8(l.phone)]
     return c && c.etapa !== 'nova' ? c.etapa : null
@@ -540,6 +559,13 @@ export default function LeadList({
       if (atendente) soma(`atendente:${atendente.id}`)
       // 20/10: Hoje / Essa semana também no WhatsApp Leads
       if (linha === 'captacao') {
+        // 30/10: as etapas do pipeline e os proprietários / corretores
+        if (l.stage_id) {
+          soma(`stage:${l.stage_id}`)
+          if (Number(l.nao_lidas || 0) > 0 || l.is_unread) contagem[`semler:stage:${l.stage_id}`] = (contagem[`semler:stage:${l.stage_id}`] ?? 0) + 1
+        }
+        const papel = papelNoLeads(l)
+        if (papel) { soma(`papel:${papel}`); soma('papel:todos') }
         const p = periodoDaConversa(l, hoje, agora)
         if (p) soma(`periodo:${p}`)
       }
@@ -668,6 +694,20 @@ export default function LeadList({
      edição, as abas são as etiquetas das etapas (Visita, Proprietários, Fechamento, Finalizados; 426), e não as do
      disparo. */
   const usarAbasDeEtiquetas = linha === 'captacao'
+  /* 30/10 (Pedro: "quero que essas etapas do pipeline entrem no lugar das etapas lá do chat, sem ter mais a parte de
+     rolar para o lado ... a etapa Tel e Lucas saem"): no Leads, as abas são Todos + as etapas do pipeline do número
+     (a mesma coluna do Pipeline: leads.stage_id), em quantas linhas couberem. Saem as etiquetas, os passos e Tel/Lucas
+     (a escolha Com o Tel / Lucas continua no card e a Nay cala igual). */
+  const etapasDoPipeline = linha === 'captacao'
+    ? (((pipelinesDaOrg.find((p: any) => p.settings?.linha === 'captacao') as any)?.stages || []) as Array<{ id: string; name: string; color?: string; rank: any }>)
+        .slice().sort((a, b) => Number(a.rank) - Number(b.rank))
+    : []
+  const nomeDaEtapa = (n: string) => { const t = (n || '').trim(); return t.charAt(0).toUpperCase() + t.slice(1) }
+  const filtrosDoPipeline: FiltroDaLista[] = [
+    { chave: 'all', rotulo: 'Todos', grupo: 'etapa' as const, contagem: contagem.all },
+    ...etapasDoPipeline.map((e) => ({ chave: `stage:${e.id}`, rotulo: nomeDaEtapa(e.name), cor: e.color, grupo: 'etapa' as const,
+                                      contagem: contagem[`stage:${e.id}`], pessoas: contagem[`semler:stage:${e.id}`] })),
+  ]
   const etapasDoLeads = usarAbasDeEtiquetas ? etiquetasDasEtapasDoLeads(etiquetasDaEquipe) : []
   const abasDeEtiqueta = usarAbasDeEtiquetas ? abasQueValem(abasDaLinha.ids, etiquetasDaEquipe, contagem, etapasDoLeads) : []
   // na linha da conversa, a etiqueta da aba (a etapa) aparece antes das outras
@@ -704,6 +744,7 @@ export default function LeadList({
     if (activeTab === 'olx:proprietarios') return etapaOlxDe(l) === 'proprietarios' || (!etapaOlxDe(l) && ehDono(l))
     if (activeTab.startsWith('olx:')) return etapaOlxDe(l) === activeTab.slice(4)
     if (activeTab.startsWith('passo:')) return passoDaAba(olxClientes[fim8(l.phone)]) === Number(activeTab.slice(6))
+    if (activeTab.startsWith('stage:')) return l.stage_id === activeTab.slice(6)
     if (activeTab === 'nao_lidas') return !!l.is_unread || l.id === selectedLeadId
     if (activeTab === 'lucas' && linha === 'captacao') return comLucasNaCaptacao(l)
     if (activeTab === 'rayssa') return daRayssa(l, marcas[l.id], atendenteDoLead[l.id])
@@ -724,6 +765,9 @@ export default function LeadList({
     // 19/10: Hoje / Essa semana (Parceria) soma com a aba; com a lupa, não filtra
     .filter((hit) => buscando || !periodo || periodoDaConversa(hit.lead, hoje, agora) === periodo)
     .filter((hit) => buscando || !buscandoDono || casaNaBusca(buscaDono, hit.lead))
+    // 30/10: Proprietários e corretores (Leads)
+    .filter((hit) => buscando || !donosECorretores || linha !== 'captacao'
+      || (donosECorretores === 'todos' ? !!papelNoLeads(hit.lead) : papelNoLeads(hit.lead) === donosECorretores))
     .filter((hit) => buscando || selectedTagIds.length === 0 || hit.lead.lead_tags?.some((lt: any) => selectedTagIds.includes(lt.tag_id)))
 
   /* O ANDRÉ EM CIMA, EM VISITAS (Tel, 30/09): "o André vai ficar fixado em cima
@@ -879,6 +923,25 @@ export default function LeadList({
                         onClick={() => setPeriodo(periodo === 'semana' ? '' : 'semana')}>
                   Essa semana{!!contagem['periodo:semana'] && <span className="wa-periodo__n">{contagem['periodo:semana']}</span>}
                 </button>
+                {linha === 'captacao' && (
+                  <button type="button" aria-pressed={!!donosECorretores}
+                          className={`wa-periodo ${donosECorretores ? 'wa-periodo--on' : ''}`}
+                          title="Quem não é lead: os proprietários (a Nay não atende) e os corretores (a Nay atende). Clique de novo para voltar."
+                          onClick={() => { setDonosECorretores(donosECorretores ? '' : 'todos'); setActiveTab('all') }}>
+                    Proprietários e corretores{!!contagem['papel:todos'] && <span className="wa-periodo__n">{contagem['papel:todos']}</span>}
+                  </button>
+                )}
+              </div>
+            )}
+            {linha === 'captacao' && donosECorretores && (
+              <div className="flex flex-wrap items-center gap-2 px-4 pb-2" role="group" aria-label="Proprietários e corretores">
+                {([['corretor', 'Corretores · a Nay atende'], ['proprietario', 'Proprietários · a Nay não atende']] as const).map(([k, rotulo]) => (
+                  <button key={k} type="button" aria-pressed={donosECorretores === k}
+                          className={`wa-periodo ${donosECorretores === k ? 'wa-periodo--on' : ''}`}
+                          onClick={() => setDonosECorretores(donosECorretores === k ? 'todos' : k)}>
+                    {rotulo}{!!contagem[`papel:${k}`] && <span className="wa-periodo__n">{contagem[`papel:${k}`]}</span>}
+                  </button>
+                ))}
               </div>
             )}
             {filtrosDeFollowup.length > 0 && (
@@ -889,17 +952,7 @@ export default function LeadList({
               </div>
             )}
             {usarAbasDeEtiquetas ? (
-              <>
-                {filtrosDeQuemAtende.length > 0 && (
-                  <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtrosDeQuemAtende} />
-                )}
-                <div className="flex items-center gap-1 pr-2">
-                  <div className="flex-1 min-w-0">
-                    <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtrosDeEtiquetas} />
-                  </div>
-                  <EditarAbas linha={linha as string} atuais={abasDeEtiqueta} contagem={contagem} />
-                </div>
-              </>
+              !donosECorretores && <ChatFilterTabs quebra ativo={activeTab} aoMudar={setActiveTab} filtros={filtrosDoPipeline} />
             ) : comAbasDaCaptacao ? (
               <>
                 <ChatFilterTabs ativo={activeTab} aoMudar={setActiveTab} filtros={filtros.filter((f) => !NA_LINHA_2_DA_CAPTACAO.has(f.chave))} />
@@ -975,6 +1028,7 @@ export default function LeadList({
                   passoDaNay={linha === 'captacao' && olxClientes[fim8(lead.phone)]
                     ? { passo: Number(olxClientes[fim8(lead.phone)].passo || 0), etapa: olxClientes[fim8(lead.phone)].etapa } : undefined}
                   finalidadeDoCliente={linha === 'captacao' ? olxClientes[fim8(lead.phone)]?.finalidade : undefined}
+                  papelNoLeads={linha === 'captacao' && donosECorretores ? papelNoLeads(lead) : undefined}
                   /* 29/10 (a Joelma, cliente da OLX, aparecia "Prop"): quem só tem a etapa marcada à mão (o "Parar Nay"
                      grava Com o Tel) e é cliente da Nay Leads não é dono -- o registro fica, para a aba Tel */
                   dono={linha === 'captacao' && donos[lead.id] && !donos[lead.id].captacaoId && olxClientes[fim8(lead.phone)]
