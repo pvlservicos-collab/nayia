@@ -19,6 +19,7 @@
   var lista = [];                                // os filtrados, na ordem da tela
   var ordemMetricas = { campo: "buscados", sentido: -1, q: "" };
   var publicado = null;                          // a escolha que está na URL: { ids, destaques, atualizado_em, url }
+  var pubVisto = null;                           // a publicação que este navegador já viu (atualizado_em)
 
   function $(id) { return document.getElementById(id); }
   function esc(s) {
@@ -37,10 +38,11 @@
       var g = JSON.parse(localStorage.getItem(CHAVE) || "{}");
       (g.ar || []).forEach(function (c) { escolha.ar[c] = true; });
       (g.dest || []).forEach(function (c) { escolha.dest[c] = true; });
+      pubVisto = g.pub || null;
     } catch (e) { /* sem armazenamento: começa vazio */ }
   }
   function guardar() {
-    try { localStorage.setItem(CHAVE, JSON.stringify({ ar: Object.keys(escolha.ar).map(Number), dest: Object.keys(escolha.dest).map(Number) })); }
+    try { localStorage.setItem(CHAVE, JSON.stringify({ ar: Object.keys(escolha.ar).map(Number), dest: Object.keys(escolha.dest).map(Number), pub: pubVisto })); }
     catch (e) { /* vale até recarregar */ }
   }
 
@@ -92,10 +94,14 @@
       .then(function (r) { if (!r.ok) throw new Error("A API respondeu " + r.status); return r.json(); })
       .then(function (j) {
         publicado = j; $("ce-url").value = j.url || "";
-        // primeira vez neste navegador: começa pelo que já está publicado
-        if (!nCh(escolha.ar) && (j.ids || []).length) {
+        // primeira vez neste navegador, ou a URL foi publicada por outro lugar depois da última vez que ele viu (Pedro,
+        // 30/10: "subiu todos os imóveis mas não marcou lá na tela"): a tela passa a mostrar o que está publicado
+        var outraPublicacao = pubVisto !== (j.atualizado_em || null);
+        if ((!nCh(escolha.ar) || outraPublicacao) && (j.ids || []).length) {
+          escolha = { ar: {}, dest: {} };
           (j.ids || []).forEach(function (c) { escolha.ar[c] = true; });
           (j.destaques || []).forEach(function (c) { escolha.dest[c] = true; });
+          pubVisto = j.atualizado_em || null;
           guardar(); contas(); if (d) renderLista();
         }
         estadoDaUrl();
@@ -109,7 +115,7 @@
     var b = $("ce-publicar"); b.disabled = true; aviso("Publicando…");
     fetch("api/chavesnamao/publicar", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: ids, destaques: dest }) })
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(j.erro || "A API respondeu " + r.status); return j; }); })
-      .then(function (j) { publicado = j; estadoDaUrl(); aviso("Publicado na URL: " + (j.ids || []).length + " imóveis, " + (j.destaques || []).length + " em destaque."); })
+      .then(function (j) { publicado = j; pubVisto = j.atualizado_em || null; guardar(); estadoDaUrl(); aviso("Publicado na URL: " + (j.ids || []).length + " imóveis, " + (j.destaques || []).length + " em destaque."); })
       .catch(function (e) { aviso(e.message, true); })
       .then(function () { b.disabled = false; });
   }
