@@ -2629,6 +2629,10 @@ def api_imoveis_lista():
     elif a.get("parceiro") == "antigo":
         # 413: Situação > Parceiros antigos (do site antigo, status por atualizar)
         grupos.setdefault("parceiro", []).append(("imovel_parceiro_antigo(v.codigo)", []))
+    elif a.get("parceiro") == "sem_antigo":
+        # 531 (Pedro, 29/10: "pode enviar o de parceiro ... o que não é para enviar é o parceiro antigo"): o Enviar
+        # imóvel do CRM pelo 8595 lista os nossos e os parceiros novos
+        grupos.setdefault("parceiro", []).append(("NOT imovel_parceiro_antigo(v.codigo)", []))
 
     if a.get("sem_dono") == "1":
         grupos.setdefault("dono", []).append(("coalesce(v.proprietario_nome, '') = ''", []))
@@ -2778,6 +2782,7 @@ def api_imoveis_lista():
             "quartos": lambda l: l["quartos"] is None or l["quartos"] >= int(re.sub(r"[^\d]", "", a.get("quartos") or "0") or 0),
             "vagas": lambda l: l["vagas"] is None or l["vagas"] >= int(re.sub(r"[^\d]", "", a.get("vagas") or "0") or 0),
             "parceiro": lambda l: (l["parceiro_antigo"] if a.get("parceiro") == "antigo"
+                                   else not l["parceiro_antigo"] if a.get("parceiro") == "sem_antigo"
                                    else l["e_parceiro"] if a.get("parceiro") == "sim" else not l["e_parceiro"]),
             "dono": lambda l: (not l["tem_dono"]) if a.get("sem_dono") == "1" else l["tem_dono"],
             "anuncio": lambda l: l["publicado_no_site"] if a.get("anunciado") == "sim" else not l["publicado_no_site"],
