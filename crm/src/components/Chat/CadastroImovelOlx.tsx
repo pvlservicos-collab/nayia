@@ -63,6 +63,32 @@ function comPontos(v: unknown): string {
 function semAcento(s: string) {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 }
+/** quantas letras trocar para ir de um texto ao outro (para sugerir "Adrianópolis" a quem escreveu "adfrianopolis") */
+function distancia(a: string, b: string) {
+  const linha = Array.from({ length: b.length + 1 }, (_, j) => j)
+  for (let i = 1; i <= a.length; i++) {
+    let diag = linha[0]
+    linha[0] = i
+    for (let j = 1; j <= b.length; j++) {
+      const cima = linha[j]
+      linha[j] = Math.min(linha[j] + 1, linha[j - 1] + 1, diag + (a[i - 1] === b[j - 1] ? 0 : 1))
+      diag = cima
+    }
+  }
+  return linha[b.length]
+}
+/** os bairros da lista para o que está no campo: os que contêm o texto; senão, os mais parecidos (erro de digitação) */
+function sugestoesDeBairro(bairros: string[], texto: string) {
+  const t = semAcento(texto)
+  if (!t) return bairros.slice(0, 40)
+  const contem = bairros.filter((b) => semAcento(b).includes(t))
+  if (contem.length) return contem.slice(0, 40)
+  return bairros
+    .map((b) => ({ b, d: distancia(t, semAcento(b)) }))
+    .sort((x, y) => x.d - y.d)
+    .slice(0, 5)
+    .map((x) => x.b)
+}
 /** os preços do anúncio já entram com o ponto */
 function comPrecosFormatados(c: Record<string, any>) {
   const x = { ...c }
@@ -104,7 +130,8 @@ export default function CadastroImovelOlx({ lead, modo, aoFechar }: {
       .then((j) => { if (vivo.current && Array.isArray(j)) setBairros(j.map((b: any) => String(b.bairro || '')).filter(Boolean)) })
       .catch(() => undefined)
   }, [])
-  const bairroValido = (b: unknown) => !b || bairros.some((x) => semAcento(x) === semAcento(String(b)))
+  // 30/10 (Pedro: "fica um textinho vermelho Selecione o bairro ... ele clica e aí pode publicar"): obrigatório e da lista
+  const bairroValido = (b: unknown) => !!String(b || '').trim() && bairros.some((x) => x === String(b))
 
   function marcar(chave: string, e: Estado, detalhe?: string) {
     if (!vivo.current) return
@@ -195,7 +222,9 @@ export default function CadastroImovelOlx({ lead, modo, aoFechar }: {
     marcar('publicar', 'andando')
     try {
       if (bairros.length && !bairroValido(campos.bairro)) {
-        marcar('publicar', 'erro', `o bairro "${campos.bairro}" não é um dos cadastrados: escolha na lista do campo Bairro`)
+        marcar('publicar', 'erro', campos.bairro
+          ? `o bairro "${campos.bairro}" não é um dos cadastrados: clique no campo Bairro e escolha a sugestão`
+          : 'selecione o bairro: clique no campo Bairro e escolha na lista')
         return
       }
       const corpo: Record<string, any> = { status: 'Disponível', e_parceiro: true }
@@ -354,12 +383,15 @@ export default function CadastroImovelOlx({ lead, modo, aoFechar }: {
                       {bairroAberto && (
                         <div className="absolute z-30 left-0 right-0 mt-1 rounded-lg border shadow-xl max-h-[200px] overflow-y-auto"
                              style={{ background: 'var(--wa-panel)', borderColor: 'var(--wa-divider)' }}>
-                          {bairros.filter((b) => semAcento(b).includes(semAcento(String(campos.bairro || '')))).slice(0, 40).map((b) => (
+                          {sugestoesDeBairro(bairros, String(campos.bairro || '')).map((b) => (
                             <button key={b} type="button" onMouseDown={(e) => e.preventDefault()}
                                     onClick={() => { setCampos((x) => ({ ...x, bairro: b })); setBairroAberto(false) }}
                                     className="block w-full text-left px-2.5 py-1.5 text-[13px] hover:opacity-75">{b}</button>
                           ))}
                         </div>
+                      )}
+                      {bairros.length > 0 && !bairroValido(campos.bairro) && (
+                        <span className="block mt-0.5 text-[11px] text-red-500">Selecione o bairro</span>
                       )}
                     </div>
                   ) : c.opcoes ? (
