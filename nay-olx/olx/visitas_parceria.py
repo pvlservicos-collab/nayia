@@ -8,8 +8,9 @@ passa a avisar o motoboy (443) e o proprietário sem resposta em 1 hora vira avi
 A visita é a da Nay da Parceria (o corretor confirmou e ela passou à Rayssa: `nai_visita_para_a_rayssa`). O banco diz o
 que saiu e o que voltou (`privado.visitas_parceria_situacao`, 444); daqui sai, pelo mesmo caminho do aviso do grupo
 (olx/grupo.py):
-  - o CHECKLIST: o nome do imóvel, o dia e ✅/❌ para proprietário, corretor e motoboy. Sai quando a visita nasce e de
-    novo quando alguma coisa muda (o proprietário ou o motoboy respondeu);
+  - o CHECKLIST: o nome do imóvel e o dia, por qual número ela fala, com quem já falou, de quem espera resposta, com
+    quem falta falar e o que vem agora (30/10). Sai quando a visita nasce e de novo quando alguma coisa muda (o
+    proprietário ou o motoboy respondeu);
   - o AVISO quando ela não conseguiu falar com o proprietário (sem telefone, mensagem barrada), quando ele não responde
     em `visita_dono_sem_resposta_min` (60), e quando a Nay nova anotou a visita e ela não entrou no sistema.
 Chaves em privado.olx_config: `visitas_parceria_grupo` (sim | nao) e `visita_dono_sem_resposta_min`.
@@ -43,23 +44,63 @@ def _ok(estado: str) -> bool:
     return estado == "enviado"
 
 
-def _linha(rotulo: str, estado: str, respondeu: bool) -> str:
+# 30/10 (Pedro: "não tá claro esse envio no grupo em qual etapa ela tá; ela deveria pôr de qual número fala, e tipo
+# 'já falei com X', 'falta falar com: ...', e não mandar só uma lista"): tudo da visita sai pela caixa da Nay da
+# Parceria (nai_saida), então é por esse número que ela fala com os três
+NUMERO = "WhatsApp Parceria (92 9445-3618)"
+
+
+def _pessoa(papel: str, nome: str | None, extra: str = "") -> str:
+    """"Maria (proprietário, respondeu)"; sem nome, "o motoboy (ainda não avisei)" -- o nome na frente não erra o gênero."""
+    nome = (nome or "").strip().split(" ")[0]
+    if nome:
+        return f"{nome} ({papel}" + (f", {extra}" if extra else "") + ")"
+    return f"o {papel}" + (f" ({extra})" if extra else "")
+
+
+def _de(papel: str, nome: str | None) -> str:
+    nome = (nome or "").strip().split(" ")[0]
+    return f"de {nome} ({papel})" if nome else f"do {papel}"
+
+
+def _juntar(itens: list[str]) -> str:
+    return itens[0] if len(itens) == 1 else ", ".join(itens[:-1]) + " e " + itens[-1]
+
+
+def _situacao(estado: str, respondeu: bool) -> tuple[str, str]:
+    """('ja' | 'espera' | 'falta', o porquê) a partir do que saiu e do que voltou."""
     if _ok(estado):
-        return f"✅ {rotulo}" + (" (respondeu)" if respondeu else "")
+        return ("ja", "respondeu") if respondeu else ("espera", "")
     if estado == "pendente":
-        return f"⏳ {rotulo} (mensagem na fila)"
-    return f"❌ {rotulo}"
+        return "falta", "a mensagem está na fila para sair"
+    if estado == "sem: a Nay não avisou":
+        return "falta", "ainda não avisei"
+    return "falta", motivo_do_dono(estado)
 
 
 def checklist(s: dict) -> str:
-    """O checklist: só o nome do imóvel, o dia e a lista marcada."""
-    return "\n".join([
-        f"📋 Visita agendada: {s.get('imovel') or 'imóvel'}",
-        f"📅 {quando_texto(s.get('quando'))}",
-        _linha("Proprietário", s["dono"], bool(s.get("dono_respondeu"))),
-        "✅ Corretor",
-        _linha("Motoboy", s["moto"], bool(s.get("moto_respondeu"))),
-    ])
+    """Em que pé está a visita: por qual número ela fala, com quem já falou, de quem espera resposta, com quem falta
+    falar, e o que vem agora."""
+    grupos: dict[str, list[tuple[str, str | None, str]]] = {
+        "ja": [("corretor", s.get("corretor"), "confirmou a visita")], "espera": [], "falta": []}
+    for papel, nome, estado, respondeu in (("proprietário", s.get("dono_nome"), s["dono"], bool(s.get("dono_respondeu"))),
+                                           ("motoboy", s.get("moto_nome"), s["moto"], bool(s.get("moto_respondeu")))):
+        onde, porque = _situacao(estado, respondeu)
+        grupos[onde].append((papel, nome, porque))
+    linhas = [f"📋 Visita agendada: {s.get('imovel') or 'imóvel'}, {quando_texto(s.get('quando'))}",
+              f"📱 Estou falando pelo {NUMERO}",
+              "✅ Já falei com: " + _juntar([_pessoa(*g) for g in grupos["ja"]])]
+    if grupos["espera"]:
+        linhas.append("⏳ Mandei mensagem, esperando a resposta: " + _juntar([_pessoa(*g) for g in grupos["espera"]]))
+    if grupos["falta"]:
+        linhas.append("❌ Falta falar com: " + _juntar([_pessoa(*g) for g in grupos["falta"]]))
+        agora = "falar com " + _juntar([_pessoa(papel, nome) for papel, nome, _ in grupos["falta"]])
+    elif grupos["espera"]:
+        agora = "esperar a resposta " + _juntar([_de(papel, nome) for papel, nome, _ in grupos["espera"]])
+    else:
+        agora = "todos avisados, a visita está combinada"
+    linhas.append(f"👉 Agora: {agora}")
+    return "\n".join(linhas)
 
 
 def assinatura(s: dict) -> str:

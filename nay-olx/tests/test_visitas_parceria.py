@@ -15,16 +15,26 @@ S = {"visita_id": 1, "imovel": "Liverpool Reserva Inglesa", "quando": datetime(2
 
 
 class Checklist(unittest.TestCase):
-    def test_so_o_nome_do_imovel_e_a_lista_marcada(self):
-        t = vp.checklist(S)
-        self.assertEqual(t, "📋 Visita agendada: Liverpool Reserva Inglesa\n📅 22/10 (quinta) às 14h00\n"
-                            "✅ Proprietário (respondeu)\n✅ Corretor\n✅ Motoboy")
+    def test_em_que_pe_esta_e_por_qual_numero(self):
+        # Pedro, 30/10: "pôr de qual número fala, e tipo já falei com X, falta falar com ..., e não mandar só uma lista"
+        t = vp.checklist({**S, "moto_nome": "Diego"})
+        self.assertEqual(t, "📋 Visita agendada: Liverpool Reserva Inglesa, 22/10 (quinta) às 14h00\n"
+                            "📱 Estou falando pelo WhatsApp Parceria (92 9445-3618)\n"
+                            "✅ Já falei com: Sandersson (corretor, confirmou a visita) e Christian (proprietário, respondeu)\n"
+                            "⏳ Mandei mensagem, esperando a resposta: Diego (motoboy)\n"
+                            "👉 Agora: esperar a resposta de Diego (motoboy)")
         self.assertNotIn("#", t)
 
-    def test_quem_nao_foi_alcancado_fica_com_x(self):
+    def test_quem_falta_e_por_que(self):
         t = vp.checklist({**S, "dono": "bloqueado: tel_assumiu", "moto": "sem: a Nay não avisou"})
-        self.assertIn("❌ Proprietário", t)
-        self.assertIn("❌ Motoboy", t)
+        self.assertIn("❌ Falta falar com: Christian (proprietário, o Tel tinha assumido a conversa e a mensagem ficou "
+                      "parada) e o motoboy (ainda não avisei)", t)
+        self.assertIn("👉 Agora: falar com Christian (proprietário) e o motoboy", t)
+
+    def test_todos_avisados(self):
+        t = vp.checklist({**S, "moto_respondeu": True})
+        self.assertIn("👉 Agora: todos avisados, a visita está combinada", t)
+        self.assertNotIn("Falta", t)
 
     def test_a_assinatura_muda_quando_alguem_responde(self):
         self.assertNotEqual(vp.assinatura(S), vp.assinatura({**S, "moto_respondeu": True}))
