@@ -123,6 +123,18 @@
     return escolhidos.some(function (x) { return chave(x.tipo, x.nome) === k; });
   }
 
+  /* 30/10 (Pedro: "dizia que tinha 4 imóveis mas quando selecionei Turim não apareceu nenhum"): o número ao lado de
+     cada bairro e condomínio é o que a busca DESTA página acha -- no ar, de aluguel em Alugar e de venda em Comprar;
+     o que daria zero não aparece. Na home, tudo o que está no ar. */
+  var FIN = /alugar/i.test(window.location.pathname) ? "aluguel" : /comprar/i.test(window.location.pathname) ? "venda" : null;
+  function quantosNoCondominio(c) {
+    if (c.no_site === undefined) return c.disponiveis || 0;          // a API de antes
+    return (FIN === "aluguel" ? c.no_site_aluguel : FIN === "venda" ? c.no_site_venda : c.no_site) || 0;
+  }
+  function quantosNoBairro(b) {
+    return (FIN && b[FIN] !== undefined ? b[FIN] : b.imoveis) || 0;
+  }
+
   function carregar() {
     if (bairros.length || condominios.length || !window.API_BASE) return Promise.resolve();
     if (carregando) return carregando;
@@ -130,13 +142,13 @@
       .then(function (r) { return r.ok ? r.json() : []; })
       .then(function (dados) {
         condominios = (Array.isArray(dados) ? dados : [])
-          .filter(function (c) { return c.nome && c.disponiveis > 0; })
-          .sort(function (a, b) { return (b.disponiveis || 0) - (a.disponiveis || 0) || String(a.nome).localeCompare(b.nome, "pt-BR"); });
+          .filter(function (c) { return c.nome && quantosNoCondominio(c) > 0; })
+          .sort(function (a, b) { return quantosNoCondominio(b) - quantosNoCondominio(a) || String(a.nome).localeCompare(b.nome, "pt-BR"); });
       })
       .catch(function () { condominios = []; });      // sem os condomínios o campo segue só com os bairros
     carregando = fetch(window.API_BASE + "/api/bairros")
       .then(function (r) { return r.ok ? r.json() : []; })
-      .then(function (dados) { bairros = Array.isArray(dados) ? dados : []; })
+      .then(function (dados) { bairros = (Array.isArray(dados) ? dados : []).filter(function (b) { return quantosNoBairro(b) > 0; }); })
       .catch(function () { bairros = []; })   // API fora: campo de texto normal
       .then(function () { return osCondominios; });
     return carregando;
@@ -156,12 +168,12 @@
       return comeca.concat(palavra);
     }
     var osBairros = acha(bairros, function (b) { return b.bairro; }).map(function (b) {
-      return { tipo: "b", nome: b.bairro, quantos: b.imoveis };
+      return { tipo: "b", nome: b.bairro, quantos: quantosNoBairro(b) };
     });
     // os condomínios já descem com o campo vazio (os com mais imóveis); digitando, qualquer um
     var achados = acha(condominios, function (c) { return c.nome; });
     var osCondos = achados.slice(0, busca ? 60 : CONDOS_DE_INICIO).map(function (c) {
-      return { tipo: "c", nome: c.nome, quantos: c.disponiveis, onde: c.bairro };
+      return { tipo: "c", nome: c.nome, quantos: quantosNoCondominio(c), onde: c.bairro };
     });
     mostrados = osBairros.concat(osCondos);
     ativo = -1;

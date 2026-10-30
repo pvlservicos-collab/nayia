@@ -900,18 +900,25 @@ def api_condominios():
             cond = "WHERE nay_sem_acento(lower(c.nome || ' ' || coalesce(c.bairro, ''))) LIKE '%%' || nay_sem_acento(lower(%s)) || '%%'"
             params.append(q)
         linhas = todas_linhas(conn, """
-            WITH v AS (SELECT codigo, condo_id, status, lower(nay_sem_acento(condominio)) AS cn
+            WITH v AS (SELECT codigo, condo_id, status, lower(nay_sem_acento(condominio)) AS cn,
+                              -- 30/10: o que a busca do site acha (no ar), separado em aluguel e venda
+                              (status = 'Disponível' AND coalesce(publicado_no_site, false)) AS no_site,
+                              coalesce(valor_aluguel, 0) > 0 AS aluga, coalesce(valor_venda, 0) > 0 AS vende
                          FROM vw_imoveis_todos WHERE status <> 'Excluído'),
                  cn AS (SELECT id, lower(nay_sem_acento(nome)) AS nn FROM condominios),
-                 lig AS (SELECT cn.id, v.codigo, v.status FROM cn JOIN v ON v.condo_id = cn.id
+                 lig AS (SELECT cn.id, v.codigo, v.status, v.no_site, v.aluga, v.vende FROM cn JOIN v ON v.condo_id = cn.id
                          UNION
-                         SELECT cn.id, v.codigo, v.status FROM cn JOIN v ON v.condo_id IS NULL AND v.cn = cn.nn),
+                         SELECT cn.id, v.codigo, v.status, v.no_site, v.aluga, v.vende FROM cn JOIN v ON v.condo_id IS NULL AND v.cn = cn.nn),
                  cont AS (SELECT c.id,
                                  count(lig.codigo) AS imoveis,
-                                 count(lig.codigo) FILTER (WHERE lig.status = 'Disponível') AS disponiveis
+                                 count(lig.codigo) FILTER (WHERE lig.status = 'Disponível') AS disponiveis,
+                                 count(lig.codigo) FILTER (WHERE lig.no_site) AS no_site,
+                                 count(lig.codigo) FILTER (WHERE lig.no_site AND lig.aluga) AS no_site_aluguel,
+                                 count(lig.codigo) FILTER (WHERE lig.no_site AND lig.vende) AS no_site_venda
                             FROM condominios c LEFT JOIN lig ON lig.id = c.id
                            GROUP BY c.id)
-            SELECT c.id, c.nome, c.bairro, cont.imoveis, cont.disponiveis, count(*) OVER () AS total
+            SELECT c.id, c.nome, c.bairro, cont.imoveis, cont.disponiveis, cont.no_site, cont.no_site_aluguel,
+                   cont.no_site_venda, count(*) OVER () AS total
             FROM condominios c JOIN cont ON cont.id = c.id
             """ + cond + """
             ORDER BY c.nome
@@ -921,6 +928,9 @@ def api_condominios():
             "id": l["id"],
             "total": l["total"],
             "disponiveis": l["disponiveis"],
+            # 30/10 (Pedro: "dizia que tinha 4 imóveis mas quando selecionei Turim não apareceu nenhum"): a busca do
+            # site conta só o que ela acha -- no ar, e na página de alugar ou comprar
+            "no_site": l["no_site"], "no_site_aluguel": l["no_site_aluguel"], "no_site_venda": l["no_site_venda"],
             "bairro": l["bairro"],
             "nome": l["nome"],
             "endereco": l["bairro"] or "—",
