@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../assets/js/tema-admin.js?v=20261028"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Envio para Chaves na Mão — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/chaves-envio.css?v=20261030">
+</head>
+<body class="admin" data-pagina="envio-chaves">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<!-- 30/10/2026 (Pedro): "uma página no site imobeasy, Envio para Chaves na Mão, com 2 abas: Escolher para envio (seleciono
+     vários imóveis, filtros, exporto em XML com as abas Imóveis e Destaques) e Métricas de imóveis (dos últimos 2 meses:
+     mais buscados, mais mandados, mais visitados...). No meu plano posso enviar 400 e destacar 20."
+     Dados: /admin/api/chavesnamao/painel (nay-site-api/chavesnamao_envio_api.py, funções cnm_envio_* da migração 537). -->
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <div>
+      <h1 class="pagina-titulo">Envio para Chaves na Mão</h1>
+      <p class="pagina-subtitulo">Escolha os imóveis do plano (até <b id="ce-lim-ar">400</b> no ar e <b id="ce-lim-dest">20</b> em destaque) e gere o arquivo. As métricas dos últimos meses ajudam a decidir.</p>
+    </div>
+  </div>
+
+  <div class="abas ce-abas" id="ce-abas" role="tablist" aria-label="Envio para Chaves na Mão">
+    <button class="abas__item" role="tab" type="button" data-aba="escolher" aria-controls="aba-escolher" aria-selected="true">Escolher para envio</button>
+    <button class="abas__item" role="tab" type="button" data-aba="metricas" aria-controls="aba-metricas" aria-selected="false">Métricas de imóveis</button>
+  </div>
+
+  <p class="ce-aviso" id="ce-aviso" role="status" hidden></p>
+
+  <!-- ===== ABA 1: ESCOLHER PARA ENVIO ===== -->
+  <section id="aba-escolher" role="tabpanel">
+    <div class="cartao ce-barra">
+      <div class="ce-contas">
+        <div class="ce-conta"><span class="ce-conta__n" id="ce-n-ar">0</span><span class="ce-conta__de">de <span class="ce-lim-ar">400</span></span><span class="ce-conta__r">no ar</span></div>
+        <div class="ce-conta ce-conta--dest"><span class="ce-conta__n" id="ce-n-dest">0</span><span class="ce-conta__de">de <span class="ce-lim-dest">20</span></span><span class="ce-conta__r">em destaque</span></div>
+      </div>
+      <div class="ce-gerar">
+        <label class="ce-check"><input type="checkbox" id="ce-fotos-reais"> fotos de verdade (em vez da página do imóvel)</label>
+        <button type="button" class="btn-azul" id="ce-gerar-xml">Gerar XML do portal</button>
+        <button type="button" class="btn-neutro" id="ce-gerar-planilha" title="XML do Excel com as abas Imóveis e Destaques">Gerar planilha XML (abas Imóveis e Destaques)</button>
+        <button type="button" class="btn-neutro" id="ce-limpar">Limpar escolha</button>
+      </div>
+    </div>
+
+    <div class="layout-lateral">
+      <form class="lateral" id="ce-filtros" aria-label="Filtrar imóveis" autocomplete="off">
+        <div class="lateral__bloco">
+          <label class="lateral__rotulo" for="ce-q">Pesquisar</label>
+          <input class="entrada" id="ce-q" type="search" placeholder="Código, condomínio, bairro">
+        </div>
+        <div class="lateral__bloco">
+          <label class="lateral__rotulo" for="ce-fin">Negócio</label>
+          <select class="selecao" id="ce-fin"><option value="">Todos</option><option value="venda">Venda</option><option value="aluguel">Aluguel</option><option value="ambos">Venda e aluguel</option></select>
+        </div>
+        <div class="lateral__bloco">
+          <label class="lateral__rotulo" for="ce-tipo">Tipo</label>
+          <select class="selecao" id="ce-tipo"><option value="">Todos</option></select>
+        </div>
+        <div class="lateral__bloco">
+          <label class="lateral__rotulo" for="ce-bairro">Bairro</label>
+          <select class="selecao" id="ce-bairro"><option value="">Todos</option></select>
+        </div>
+        <div class="lateral__bloco">
+          <label class="lateral__rotulo" for="ce-quartos">Quartos</label>
+          <select class="selecao" id="ce-quartos"><option value="">Todos</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4 ou mais</option></select>
+        </div>
+        <div class="lateral__bloco">
+          <span class="lateral__rotulo">Preço (R$)</span>
+          <div class="ce-faixa"><input class="entrada" id="ce-pmin" inputmode="numeric" placeholder="de"><input class="entrada" id="ce-pmax" inputmode="numeric" placeholder="até"></div>
+        </div>
+        <div class="lateral__bloco">
+          <label class="lateral__rotulo" for="ce-recente">Condomínio</label>
+          <select class="selecao" id="ce-recente"><option value="">Todos</option><option value="sim">Recente</option><option value="nao">Antigo</option></select>
+        </div>
+        <div class="lateral__bloco">
+          <label class="lateral__rotulo" for="ce-mov">Movimento (últimos <span class="ce-dias">60</span> dias)</label>
+          <select class="selecao" id="ce-mov">
+            <option value="">Todos</option><option value="buscados">Com busca</option><option value="enviados">Já enviados a clientes</option>
+            <option value="visitas">Com visita</option><option value="nada">Sem movimento nenhum</option>
+          </select>
+        </div>
+        <div class="lateral__bloco">
+          <label class="lateral__rotulo" for="ce-escolha">Na minha escolha</label>
+          <select class="selecao" id="ce-escolha"><option value="">Todos</option><option value="no_ar">Só os escolhidos</option><option value="dest">Só os destaques</option><option value="fora">Só os não escolhidos</option></select>
+        </div>
+        <label class="ce-check"><input type="checkbox" id="ce-so-ok" checked> só os que entram no portal</label>
+        <div class="lateral__bloco">
+          <label class="lateral__rotulo" for="ce-ordem">Ordenar por</label>
+          <select class="selecao" id="ce-ordem">
+            <option value="codigo">Código</option><option value="buscados">Mais buscados</option><option value="enviados">Mais enviados</option>
+            <option value="visitas">Mais visitados</option><option value="preco_desc">Maior preço</option><option value="preco_asc">Menor preço</option>
+          </select>
+        </div>
+        <button class="btn-neutro btn-bloco" type="reset" id="ce-reset">Limpar filtros</button>
+      </form>
+
+      <div>
+        <div class="ce-acoes">
+          <p class="contagem-lista" id="ce-contagem">Carregando…</p>
+          <div class="ce-acoes__botoes">
+            <button type="button" class="btn-neutro" id="ce-marcar-filtrados">Escolher todos os filtrados</button>
+            <button type="button" class="btn-neutro" id="ce-desmarcar-filtrados">Tirar os filtrados</button>
+            <span class="ce-topn">Os <input class="entrada" id="ce-n-top" type="number" min="1" max="400" value="20"> primeiros da lista
+              <button type="button" class="btn-neutro" id="ce-top-escolher">escolher</button>
+              <button type="button" class="btn-neutro" id="ce-top-destacar">destacar</button></span>
+          </div>
+        </div>
+        <div class="tabela-envolucro">
+          <div class="tabela-rolagem">
+            <table class="tabela ce-tabela">
+              <thead><tr>
+                <th>Enviar</th><th>Destaque</th><th>Imóvel</th><th>Onde</th><th>Detalhes</th><th class="ce-dir">Preço</th>
+                <th class="ce-dir" title="Pessoas que receberam o imóvel (Nay)">Enviados</th>
+                <th class="ce-dir" title="Visitas pedidas ou feitas">Visitas</th>
+                <th class="ce-dir" title="Pessoas que pediram esse imóvel">Buscas</th><th>Portal</th>
+              </tr></thead>
+              <tbody id="ce-corpo"><tr><td colspan="10">Carregando…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="ce-paginacao" id="ce-paginacao"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ABA 2: MÉTRICAS DE IMÓVEIS ===== -->
+  <section id="aba-metricas" role="tabpanel" hidden>
+    <div class="cartao ce-barra">
+      <div class="ce-gerar">
+        <label class="lateral__rotulo" for="ce-janela">Período</label>
+        <select class="selecao ce-janela" id="ce-janela"><option value="30">Últimos 30 dias</option><option value="60" selected>Últimos 2 meses</option><option value="90">Últimos 3 meses</option></select>
+        <button type="button" class="btn-neutro" id="ce-atualizar">Atualizar</button>
+        <span class="ce-fonte" id="ce-gerado"></span>
+      </div>
+    </div>
+    <div id="ce-metricas"><p class="ce-vazio">Abra esta aba para carregar.</p></div>
+  </section>
+</main>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/chaves-envio.js?v=20261030"></script>
+</body>
+</html>

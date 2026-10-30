@@ -1,0 +1,79 @@
+/* Envio para Chaves na Mão (admin/envio-chaves-na-mao.html, 30/10/2026): escolher os imóveis do plano e ver as métricas */
+.ce-abas { margin-bottom: var(--e-4); }
+[role="tabpanel"][hidden] { display: none; }
+.ce-aviso { margin: 0 0 var(--e-4); padding: var(--e-3) var(--e-4); border-radius: var(--raio); background: var(--verde-suave); color: var(--texto); font-weight: 600; }
+.ce-aviso[hidden] { display: none; }
+.ce-aviso--ruim { background: var(--vermelho-suave); color: #a3263f; }
+
+.ce-barra { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--e-4); padding: var(--e-3) var(--e-4); margin-bottom: var(--e-4); }
+.ce-contas { display: flex; gap: var(--e-5); }
+.ce-conta { display: grid; grid-template-columns: auto auto; grid-template-rows: auto auto; column-gap: var(--e-2); align-items: baseline; }
+.ce-conta__n { grid-row: 1 / 3; font: 800 2.1rem/1 var(--fonte-titulo); color: var(--roxo); font-variant-numeric: tabular-nums; }
+.ce-conta--dest .ce-conta__n { color: #c2410c; }
+.ce-conta__de { font-size: .85rem; color: var(--texto-fraco); }
+.ce-conta__r { font-weight: 700; color: var(--texto-medio); font-size: .9rem; }
+.ce-conta--cheia .ce-conta__n { color: #a3263f; }
+.ce-gerar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-3); }
+.ce-check { display: inline-flex; align-items: center; gap: var(--e-2); font-size: .9rem; color: var(--texto-medio); cursor: pointer; }
+.ce-fonte { font-size: .85rem; color: var(--texto-fraco); }
+
+.ce-faixa { display: flex; gap: var(--e-2); }
+.ce-acoes { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--e-3); margin-bottom: var(--e-2); }
+.ce-acoes__botoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2); }
+.ce-topn { display: inline-flex; align-items: center; gap: var(--e-2); font-size: .9rem; color: var(--texto-medio); }
+.ce-topn .entrada { width: 4.5em; padding: 6px 8px; }
+
+.ce-tabela { min-width: 980px; }
+.ce-tabela td, .ce-tabela th { vertical-align: middle; }
+.ce-dir { text-align: right; font-variant-numeric: tabular-nums; }
+.ce-imovel { display: flex; align-items: center; gap: var(--e-3); min-width: 220px; }
+.ce-capa { width: 64px; height: 48px; object-fit: cover; border-radius: 6px; background: var(--superficie-2); flex: none; }
+.ce-capa--vazia { display: inline-block; }
+.ce-cod { font-weight: 700; }
+.ce-cod a { color: inherit; }
+.ce-sub { display: block; font-size: .8rem; color: var(--texto-fraco); }
+.ce-pilula { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: .75rem; font-weight: 700; background: var(--superficie-2); color: var(--texto-medio); border: 1px solid var(--borda); }
+.ce-pilula--novo { background: var(--roxo-suave); color: var(--roxo); border-color: var(--roxo-borda); }
+.ce-pilula--ruim { background: var(--vermelho-suave); color: #a3263f; border-color: transparent; }
+.ce-pilula--ok { background: var(--verde-suave); color: #1d6b4a; border-color: transparent; }
+.ce-escolhido td { background: color-mix(in srgb, var(--roxo) 6%, transparent); }
+.ce-destacado td { background: color-mix(in srgb, #ea580c 9%, transparent); }
+.ce-num { font-weight: 700; }
+.ce-num--zero { color: var(--texto-fraco); font-weight: 400; }
+.ce-tabela input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--roxo); }
+.ce-tabela input[type="checkbox"][disabled] { cursor: not-allowed; opacity: .4; }
+.ce-ordem { cursor: pointer; user-select: none; }
+.ce-paginacao { display: flex; align-items: center; justify-content: center; gap: var(--e-3); margin: var(--e-4) 0; color: var(--texto-medio); }
+
+/* métricas */
+.ce-grade { display: grid; gap: var(--e-4); grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin-bottom: var(--e-5); }
+.ce-card { padding: var(--e-4); }
+.ce-card__n { font: 800 1.9rem/1.1 var(--fonte-titulo); color: var(--texto); font-variant-numeric: tabular-nums; }
+.ce-card__r { color: var(--texto-medio); font-size: .88rem; margin-top: 2px; }
+.ce-card__s { color: var(--texto-fraco); font-size: .78rem; margin-top: 4px; }
+.ce-titulo { margin: var(--e-6) 0 var(--e-3); font-size: 1.1rem; }
+.ce-dois { display: grid; gap: var(--e-4); grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); margin-bottom: var(--e-5); }
+.ce-barras { display: grid; gap: 6px; padding: var(--e-4); }
+.ce-barras h3 { margin: 0 0 var(--e-2); font-size: .95rem; }
+.ce-barra-linha { display: grid; grid-template-columns: minmax(110px, 36%) 1fr auto; gap: var(--e-2); align-items: center; font-size: .86rem; }
+.ce-barra-linha > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ce-trilho { height: 10px; border-radius: 999px; background: var(--superficie-2); overflow: hidden; }
+.ce-trilho > i { display: block; height: 100%; border-radius: 999px; background: var(--roxo); }
+.ce-trilho--b > i { background: #c2410c; }
+.ce-trilho--c > i { background: #0e7490; }
+.ce-rankings { display: grid; gap: var(--e-4); grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); }
+.ce-rank { padding: var(--e-4); }
+.ce-rank h3 { margin: 0 0 var(--e-3); font-size: 1rem; }
+.ce-rank ol { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-2); }
+.ce-rank li { display: grid; grid-template-columns: 1.6em 48px 1fr auto; gap: var(--e-2); align-items: center; font-size: .86rem; }
+.ce-rank li .ce-capa { width: 48px; height: 36px; }
+.ce-rank__pos { font-weight: 800; color: var(--texto-fraco); }
+.ce-rank__n { font: 800 1.1rem/1 var(--fonte-titulo); color: var(--roxo); text-align: right; }
+.ce-rank__acoes { display: flex; gap: 4px; margin-top: 2px; }
+.ce-mini { padding: 1px 8px; font-size: .72rem; font-weight: 700; border-radius: 999px; border: 1px solid var(--borda-forte); background: var(--superficie); color: var(--texto-medio); cursor: pointer; }
+.ce-mini:hover { background: var(--roxo-suave); border-color: var(--roxo-borda); color: var(--roxo); }
+.ce-mini--on { background: var(--roxo); color: #fff; border-color: var(--roxo); }
+.ce-mini--dest.ce-mini--on { background: #c2410c; border-color: #c2410c; }
+.ce-vazio { color: var(--texto-fraco); }
+.ce-nota { font-size: .82rem; color: var(--texto-fraco); margin: var(--e-2) 0 var(--e-4); max-width: 90ch; }
+@media (max-width: 720px) { .ce-barra-linha { grid-template-columns: 1fr auto; } .ce-trilho { grid-column: 1 / -1; order: 3; } }

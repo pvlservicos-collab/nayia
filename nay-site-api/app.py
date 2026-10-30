@@ -5832,6 +5832,13 @@ try:
 except Exception as _e:  # noqa: BLE001
     app.logger.warning("chavesnamao_api nao carregou: %s", _e)
 
+# ENVIO PARA CHAVES NA MAO (537, 30/10): a tela do admin que escolhe os imoveis do plano e gera o XML. Mesmo try/except.
+try:
+    from chavesnamao_envio_api import chaves_envio_bp
+    app.register_blueprint(chaves_envio_bp)
+except Exception as _e:  # noqa: BLE001
+    app.logger.warning("chavesnamao_envio_api nao carregou: %s", _e)
+
 # MODELOS (470, 22/10): a pagina admin > Modelos (gastos por no de modelo de IA e a troca do modelo). Mesmo try/except.
 try:
     from modelos_api import modelos_bp

@@ -135,6 +135,8 @@
     { grupo: "" },
     { rotulo: "Condomínios",       href: "condominios.html", chave: "condominios" },
     { rotulo: "Anúncios",          href: "anuncios.html",    chave: "anuncios" },
+    /* 30/10/2026 (Pedro): escolher os imóveis do plano do Chaves na Mão (400 no ar, 20 em destaque), gerar o XML e ver as métricas */
+    { rotulo: "Envio Chaves na Mão", href: "envio-chaves-na-mao.html", chave: "envio-chaves" },
     { rotulo: "Listas",            href: "listas.html",      chave: "listas" },
     { rotulo: "Relatórios",        href: "relatorios.html", chave: "relatorios" },
     { rotulo: "Agenda de Visitas", href: "#" },
