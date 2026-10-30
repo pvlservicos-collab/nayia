@@ -201,6 +201,12 @@ export default function Navbar() {
       // a busca da OLX vale para quem atende o chat (o Lucas e a Rayssa são SDR); antes só o Admin via
       case 'Buscar imóvel OLX': return !!permissions.settings?.view_chat
       case 'Grupos': return !!permissions.settings?.view_chat
+      // 30/10 (Pedro: "libera esses aí para ele e para a Rayssa"): quem atende o chat (SDR) também vê estes cinco
+      case 'Imóveis':
+      case 'Chat Chaves na Mão':
+      case 'Visitantes':
+      case 'Corretores':
+      case 'Tutoriais': return !!permissions.settings?.view_chat
       case 'DM Instagram': return !!permissions.settings?.view_chat
       case 'Funil de Mensagens': return !!permissions.settings?.view_funnels
       case 'Logs': return !!permissions.settings?.view_logs
