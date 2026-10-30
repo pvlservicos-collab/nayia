@@ -182,7 +182,13 @@ def olx_importar():
     d = _dados_olx(corpo.get("anuncio"), url)
     if not d["olx_id"] or not (d["titulo"] or d["descricao"]):
         return jsonify({"erro": "não veio anúncio: abra a página do imóvel na OLX e clique no botão de novo"}), 400
+    resposta, status = _importar(d, url)
+    return jsonify(resposta), status
 
+
+def _importar(d, url, ensaio=False):
+    """O pré-cadastro (Rascunho) de um anúncio da OLX já lido -- pelo favorito do navegador (olx_importar) ou pela base
+    raspada (olx_do_link, 535). Devolve (resposta, status http). `ensaio`: traduz e responde, sem gravar nada."""
     campos = cc.traduzir(d)
     duvidas = cc.duvidas(d, campos)
     # O telefone do dono na descrição sai antes de gravar: no nosso anúncio ele
@@ -212,6 +218,9 @@ def olx_importar():
                         "aviso": "o texto diz que o aluguel inclui " + ", ".join(incluso) +
                                  " -- marquei no campo Incluso no aluguel; confira"})
 
+    if ensaio:
+        return {"ensaio": True, "titulo": d["titulo"], "url": url, "campos": {k: _simples(v) for k, v in campos.items()},
+                "falta": cc.o_que_falta(campos), "duvidas": duvidas, "fotos": d["fotos"]}, 200
     conn = _conectar()
     try:
         with conn.cursor() as cur:
@@ -249,11 +258,11 @@ def olx_importar():
         conn.commit()
     except Exception as exc:  # noqa: BLE001
         conn.rollback()
-        return jsonify({"erro": exc.__class__.__name__, "detalhe": str(exc)[:200]}), 500
+        return {"erro": exc.__class__.__name__, "detalhe": str(exc)[:200]}, 500
     finally:
         conn.close()
 
-    return jsonify({
+    return {
         "codigo": codigo, "novo": novo, "situacao": situacao,
         "titulo": d["titulo"], "url": url,
         "campos": {k: _simples(v) for k, v in campos.items()},
@@ -262,7 +271,99 @@ def olx_importar():
         # foto só se ainda não tem: reimportar não baixa de novo
         "fotos": d["fotos"] if fotos_ja == 0 else [],
         "fotos_ja": fotos_ja,
-    })
+    }, 200
+
+
+# CADASTRAR IMÓVEL PELO LINK, NO CRM (535, Pedro 30/10/2026): "um botão lá em cima do contato, Cadastrar imóvel; se
+# eu pegar o link da OLX da pessoa e colar lá, o nosso sistema já puxa todos os dados do imóvel, dá a pontuação ... e o
+# sistema já vai baixar as fotos no automático da OLX" e "o ideal é já termos as fotos da OLX sem usar meu PC".
+# O servidor NÃO abre a página do anúncio (a OLX responde 403 a ele), mas a base raspada (scrap_anuncio) tem o anúncio
+# inteiro -- título, texto, preço, campos e as fotos -- e as fotos o servidor baixa (img.olx.com.br responde a ele).
+# Anúncio fora da base: o favorito "Enviar para Imob Easy" no navegador grava pelo olx_importar e o link passa a achar.
+_ID_DO_LINK = re.compile(r"(?:-|/)(\d{8,})(?=$|[/?#])")
+
+
+def _anuncio_da_base(a):
+    """Uma linha de scrap_anuncio no formato do anúncio aberto (o que o favorito manda e _dados_olx lê)."""
+    dados = a.get("dados") or {}
+    campos = dados.get("campos") if isinstance(dados.get("campos"), dict) else {}
+    local = str(dados.get("local") or "")
+    municipio = local.split(",")[0].strip() if "," in local else (local.strip() or "Manaus")
+    return {
+        "listId": a["olx_id"], "subject": a.get("titulo"), "body": a.get("descricao"),
+        "priceValue": a.get("preco_texto"),
+        "properties": [{"name": k, "value": v} for k, v in campos.items()],
+        "location": {"neighbourhood": a.get("bairro"), "municipality": municipio, "uf": "AM", "zipcode": a.get("cep")},
+        "images": [u for u in (a.get("fotos") or []) if u],
+    }
+
+
+@olx_bp.route("/admin/api/imoveis/olx/do-link", methods=["POST"])
+def olx_do_link():
+    if not _admin_autenticado():
+        return _sem_senha()
+    corpo = request.get_json(silent=True) or {}
+    url = str(corpo.get("url") or "").strip()[:500]
+    if not re.match(r"^https://([a-z0-9-]+\.)*olx\.com\.br/", url):
+        return jsonify({"passo": "link", "erro": "esse link não é de um anúncio da OLX (começa com https:// e tem olx.com.br)"}), 400
+    achado = _ID_DO_LINK.search(url.split("?")[0].split("#")[0])
+    if not achado:
+        return jsonify({"passo": "link", "erro": "não achei o número do anúncio no link (o fim do link da OLX tem um número grande)"}), 400
+    olx_id = achado.group(1)
+    conn = _conectar()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT olx_id, titulo, descricao, preco_texto, bairro, cep, fotos, dados, url, coletado_em
+                             FROM scrap_anuncio WHERE olx_id = %s ORDER BY coletado_em DESC LIMIT 1""", (int(olx_id),))
+            base = cur.fetchone()
+            cur.execute("SELECT codigo, status FROM imoveis WHERE extras->>'olx_id' = %s ORDER BY codigo LIMIT 1", (olx_id,))
+            ja = cur.fetchone()
+    finally:
+        conn.close()
+    if not base:
+        if ja:
+            return jsonify({"codigo": ja["codigo"], "novo": False, "situacao": ja["status"], "url": url, "olx_id": olx_id,
+                            "fonte": "já cadastrado (sem o anúncio na base raspada)", "fotos": [], "falta": [], "duvidas": []})
+        return jsonify({"passo": "anuncio", "olx_id": olx_id,
+                        "erro": "esse anúncio não está na nossa base raspada da OLX (ela tem os anúncios das listas raspadas "
+                                "até a última coleta). O servidor não consegue abrir a OLX sozinho: abra o anúncio no "
+                                "navegador e clique no favorito \"Enviar para Imob Easy\"; depois cole o link aqui de novo."}), 404
+    d = _dados_olx(_anuncio_da_base(base), base.get("url") or url)
+    resposta, status = _importar(d, base.get("url") or url, ensaio=bool(corpo.get("ensaio")))
+    if status == 200:
+        resposta["olx_id"] = olx_id
+        resposta["fonte"] = "base raspada da OLX, coletado em " + base["coletado_em"].strftime("%d/%m/%Y")
+    else:
+        resposta["passo"] = "cadastro"
+    return jsonify(resposta), status
+
+
+@olx_bp.route("/admin/api/imoveis/olx/<int:codigo>/estado")
+def olx_estado(codigo):
+    """O que a barra de cadastro do CRM mostra depois de cada passo: situação, fotos, a pontuação do cadastro (o que
+    falta) e o card de cliente pronto para enviar."""
+    if not _admin_autenticado():
+        return _sem_senha()
+    conn = _conectar()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT i.codigo, i.status, i.disponivel, i.e_parceiro, i.publicado_no_site,
+                                  i.extras->>'olx_url' AS olx_url, i.extras->>'parceiro_antigo' AS parceiro_antigo,
+                                  (SELECT count(*) FROM imovel_fotos f WHERE f.codigo = i.codigo) AS fotos,
+                                  p.pct, p.falta
+                             FROM imoveis i LEFT JOIN vw_imovel_pontuacao p ON p.codigo = i.codigo
+                            WHERE i.codigo = %s""", (codigo,))
+            linha = cur.fetchone()
+            if not linha:
+                return jsonify({"erro": "imóvel não encontrado"}), 404
+            cur.execute("SELECT texto_pronto FROM nai_card_do_imovel(%s, true)", (codigo,))
+            card = (cur.fetchone() or {}).get("texto_pronto")
+        conn.rollback()
+        r = {k: _simples(v) for k, v in linha.items()}
+        r["card"] = card
+        return jsonify(r)
+    finally:
+        conn.close()
 
 
 def _extensao(conteudo):
