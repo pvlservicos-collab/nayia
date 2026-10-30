@@ -138,13 +138,14 @@ def _selecao() -> dict:
 
 
 def _xml_publicado():
-    with _trava:
-        if _xml_cache["xml"] and time.monotonic() - _xml_cache["em"] < CACHE_S:
-            return _xml_cache["xml"]
-    sel = _selecao()
+    sel = _selecao()        # leitura barata de uma linha: o cache só vale enquanto a escolha publicada for a mesma
     ids, dest = sel.get("ids") or [], set(sel.get("destaques") or [])
     if not ids:
         return None
+    marca = str(sel.get("atualizado_em"))
+    with _trava:
+        if _xml_cache["xml"] and _xml_cache.get("marca") == marca and time.monotonic() - _xml_cache["em"] < CACHE_S:
+            return _xml_cache["xml"]
     por = {r["codigo"]: r["imovel"] for r in _ler("SELECT codigo, imovel FROM cnm_imoveis() WHERE ok AND codigo = ANY(%s)", (ids,))}
     # os destaques primeiro, depois o resto, cada grupo na ordem em que foi escolhido
     ordem = [c for c in ids if c in dest] + [c for c in ids if c not in dest]
@@ -159,7 +160,7 @@ def _xml_publicado():
     pe = "\n  </imoveis>\n</Document>\n"
     corpo = (cabeca + "\n".join(itens) + pe).encode("utf-8")
     with _trava:
-        _xml_cache.update(em=time.monotonic(), xml=corpo)
+        _xml_cache.update(em=time.monotonic(), xml=corpo, marca=marca)
     return corpo
 
 
