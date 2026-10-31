@@ -323,6 +323,60 @@ def cliente_confirmou(conn, lead: dict, cfg: dict) -> None:
     _proximo_corretor(conn, _visita(conn, v["id"]), cfg)
 
 
+# 31/10 (Pedro, o Eduardo ...2424 desmarcou a visita do #5699 às 14:01 e ela seguiu "confirmada" para sábado, sem aviso à
+# corretora nem à dona): o cliente desmarcar cancela a visita e avisa quem já tinha sido chamado. Remarcar ("amanhã",
+# "outro dia", um horário) não é desmarcar: aí o modelo pergunta o dia novo, e a visita nova derruba a antiga.
+DESMARCA = re.compile(r"\bdesmarc|\bcancel|imprevisto|n[aã]o (vou|vamos|irei|iremos) (mais|poder|conseguir)|"
+                      r"n[aã]o vai (dar|rolar)|n[aã]o (tenho|temos) mais interesse|desisti", re.I)
+# um dia ou um horário novo DITO: aí é remarcação, e o modelo pergunta/confirma (a visita nova derruba a antiga)
+DIA_NOVO = re.compile(r"\bàs? \d|\d ?h\b|\d{1,2}:\d{2}|\bdia \d|\d{1,2}/\d{1,2}|segunda|ter[cç]a|quarta|quinta|sexta|"
+                      r"s[aá]bado|domingo|amanh[aã] (de|à|a) (manh|tard|noit)", re.I)
+QUER_REMARCAR = re.compile(r"remarc|\bmarca\w* (pra|para|outro|outra)|outro dia|outra (hora|data|semana)|pr[oó]xima semana|"
+                           r"semana que vem", re.I)
+
+
+def desmarcou(textos: list[str]) -> bool:
+    """O Eduardo, 30/10: "tive um imprevisto, amanhã meu sogro vai precisar operar ... podemos marcar pra próxima
+    semana?" desmarca (sem dia novo); "pode ser quinta às 18h?" é remarcação com dia, e fica com o modelo."""
+    t = " ".join(x for x in textos if x)
+    return bool(DESMARCA.search(t)) and not DIA_NOVO.search(t)
+
+
+def cliente_desmarcou(conn, lead: dict, textos: list[str] | None = None) -> bool:
+    """Cancela a visita aberta, avisa o corretor e o proprietário (se já tinham sido chamados), o grupo, e responde ao
+    cliente (pedindo o dia novo quando ele quer remarcar). False quando não há visita aberta."""
+    v = aberta(conn, lead["id"])
+    if not v:
+        return False
+    w = _w()
+    q = v["quando"].astimezone(w.MANAUS)
+    quando = f"{dia(q)} às {hora(q)}"
+    _estado(conn, v["id"], "cancelada")
+    banco.um(conn, "UPDATE privado.olx_visita_consulta SET estado = 'cancelada' WHERE visita = %s AND estado = 'esperando'",
+             (v["id"],))
+    avisados = []
+    if v.get("corretor_telefone") and v["estado"] in ("pedindo_proprietario", "confirmada"):
+        nome = (v.get("corretor_nome") or "").split(" ")[0]
+        _mandar_para(conn, v["lead"], v["corretor_telefone"],
+                     f"Oi{', ' + nome if nome else ''}! O cliente desmarcou a visita do imóvel #{v['codigo']} de {quando}. "
+                     f"Obrigada pela disponibilidade; se ele remarcar, te aviso.")
+        avisados.append(f"corretor {v.get('corretor_nome') or ''}".strip())
+    if v.get("proprietario_telefone") and v["estado"] in ("pedindo_proprietario", "confirmada"):
+        nome = (v.get("proprietario_nome") or "").split(" ")[0].capitalize()
+        mandar_ao_dono(conn, v["lead"], v["proprietario_telefone"], v.get("proprietario_nome"),
+                       f"Olá{', ' + nome if nome else ''}! A visita ao seu imóvel #{v['codigo']} marcada para {quando} foi "
+                       f"desmarcada pelo cliente. Obrigada! Se ele remarcar, eu te aviso.", f"visita #{v['codigo']} desmarcada")
+        avisados.append("proprietário")
+    remarcar = bool(QUER_REMARCAR.search(" ".join(textos or [])))
+    w.mandar_texto(conn, lead, f"Tudo bem, desmarquei a visita do imóvel #{v['codigo']} de {quando}. " +
+                   ("Me diz o dia e o horário que ficam bons que eu já vejo com o corretor." if remarcar
+                    else "Se quiser remarcar ou ver outras opções, é só me dizer."))
+    w._grupo(f"Visita DESMARCADA pelo cliente {_quem(lead)}: imóvel #{v['codigo']}, {quando}. "
+             + (f"Avisei: {', '.join(avisados)}." if avisados else "Ninguém tinha sido chamado ainda."))
+    log.info("visita %s: o cliente desmarcou (avisados: %s)", v["id"], ", ".join(avisados) or "ninguém")
+    return True
+
+
 def _proximo_corretor(conn, v: dict, cfg: dict) -> None:
     if not no_horario(cfg):
         return                            # 393: de noite a visita espera (_retomar chama de manhã)

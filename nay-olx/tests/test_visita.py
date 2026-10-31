@@ -141,3 +141,23 @@ class CardAoCorretor(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Desmarcou(unittest.TestCase):
+    """31/10 (Pedro, o Eduardo ...2424): o cliente desmarcar cancela a visita e avisa corretor e dono."""
+
+    def test_desmarcar_sem_dia_novo(self):
+        eduardo = ["boatarde tudo bem? tive um imprevisto, amanha meu sogro vai precisar operar e vamos ter que acompanhar "
+                   "ele na cirurgia, podemos marca pra proxima semana? a noite ou fds novamente?"]
+        self.assertTrue(v.desmarcou(eduardo))
+        self.assertTrue(v.QUER_REMARCAR.search(eduardo[0]))
+        self.assertTrue(v.desmarcou(["Vou ter que desmarcar a visita"]))
+        self.assertTrue(v.desmarcou(["não vou mais poder ir, desculpa"]))
+
+    def test_remarcar_com_dia_fica_com_o_modelo(self):
+        self.assertFalse(v.desmarcou(["tive um imprevisto, pode ser quinta às 18h?"]))
+        self.assertFalse(v.desmarcou(["não vou conseguir hoje, dá pra sábado de manhã?"]))
+
+    def test_nao_e_desmarcar(self):
+        self.assertFalse(v.desmarcou(["confirmado, estarei lá"]))
+        self.assertFalse(v.desmarcou(["qual o endereço?"]))

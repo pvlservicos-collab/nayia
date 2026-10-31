@@ -1325,6 +1325,11 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
         log.info("lead %s: só agradeceu; a Nay não responde", lead["id"])
         agentes.passo(lead, "so_agradeceu", "só agradeceu, sem pergunta pendente: a Nay não responde")
         return False
+    if lead.get("visita_aberta") and visita.desmarcou(novas) and visita.cliente_desmarcou(conn, lead, novas):
+        # 31/10 (Pedro, o Eduardo ...2424 desmarcou e a visita seguiu confirmada, sem aviso à corretora e à dona)
+        _marcar(conn, lead["id"], ultima_lida=ate)
+        agentes.passo(lead, "visita_desmarcada", "o cliente desmarcou: visita cancelada, corretor e dono avisados")
+        return True
     ctx_olx = banco.um(conn, "SELECT olx_nay_contexto(%s)", (lead["chat"],)) if lead.get("chat") else None
     if organico(lead):
         lead["fichas_citadas"] = _fichas_citadas(conn, conversa, lead)
