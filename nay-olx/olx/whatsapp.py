@@ -1465,6 +1465,16 @@ def oferta_sozinha_espera(conn, lead: dict, filtros: dict | None = None) -> str:
                                                      AND estado IN ('agente', 'fila', 'perguntada') AND right(chave, 8) = %s)""",
                                          (_so8(lead["telefone"]),)):
         return "há pergunta dela esperando resposta da equipe"
+    # 30/10 (revisão, o Eudes ...8856: o Tel mandou o #9089 às 08:55, escreveu às 09:07 e às 09:30 ela mandou sozinha
+    # outra opção): a espera de `gap_equipe_min` depois da equipe vale também para o que ela manda sozinha
+    if lead.get("telefone"):
+        try:
+            gap = max(0, int(banco.chaves(conn).get("gap_equipe_min") or 30))
+        except (TypeError, ValueError):
+            gap = 30
+        gente = _gente_escreveu(conn, lead, None)
+        if gente and gente > banco.um(conn, "SELECT now() - make_interval(mins => %s)", (gap,)):
+            return f"a equipe escreveu há menos de {gap} min"
     return ""
 
 
@@ -1517,8 +1527,11 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
                 enviados.append(c)
         _marcar(conn, lead["id"], enviados=enviados)
     elif acao == "buscar":
-        # ela já disse neste turno que vai pegar/separar as opções: a busca vazia não diz de novo
-        ja_avisou = any(re.search(r"op[cç][oõ]es", b, re.I) and re.search(r"separ|pegar|sistema|busc|procur", b, re.I)
+        # ela já disse neste turno que CONTINUA procurando: a busca vazia não diz de novo. 30/10 (revisão das conversas,
+        # a Karoline ...0222): "Vou pegar as opções no meu sistema para lhe enviar" é promessa de MANDAR, não aviso de que
+        # ainda está procurando -- contava como aviso, a busca deu vazio e ela ficou 5 h sem ouvir nada
+        ja_avisou = any(re.search(r"continu\w* (procurando|verificando|buscando)|ainda (estou )?(procurando|verificando)|"
+                                  r"verificando com|te aviso (por aqui )?assim que", b, re.I)
                         for b in (r.get("_baloes_que_sairam") or _baloes_do(r)))
         _buscar_e_mandar(conn, lead, filtros, ja_avisou=ja_avisou)
     elif acao == "visita":
@@ -1669,6 +1682,8 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
         if not ja_avisou:
             mandar_texto(conn, lead, texto)
             buscas.cliente_avisado(conn, lead, texto)
+        else:
+            buscas.cliente_avisado(conn, lead, "(o aviso de que continua procurando saiu na resposta do turno)")
         return
     if not achados:
         # 416 (Pedro, 19/10): o catálogo não tem -> ordem de busca na OLX (olx/parceiro.py); ela "vai verificar"

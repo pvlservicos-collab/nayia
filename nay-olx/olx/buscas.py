@@ -960,9 +960,14 @@ def _tipo_do_cadastro(t: str | None) -> str | None:
     return next((v for k, v in TIPO_DO_CADASTRO if k in t), None)
 
 
-def cadastrar(conn, cor: dict, b: dict | None, ativo: bool, fotos_do_anuncio: list[str] | None = None) -> int:
+def cadastrar(conn, cor: dict, b: dict | None, ativo: bool, fotos_do_anuncio: list[str] | None = None,
+              anuncio: dict | None = None) -> int:
     """O imóvel do corretor no nosso cadastro, como imóvel de PARCEIRO. Rascunho enquanto falta dado; completo, Disponível
-    (ativo=True). Devolve o código."""
+    (ativo=True). Devolve o código.
+
+    30/10 (revisão, o Eudes ...8856): o anúncio da OLX citado na conversa já cadastrado (pelo Tel, pelo link ou por outro
+    corretor) não vira outro imóvel -- o 9090 era o mesmo apartamento do 9089, e o cliente recebeu os dois. Acha pelo
+    número do anúncio (extras.olx_id) ou pelo link e devolve esse código, sem mexer nos dados dele."""
     im = cor["imovel"] or {}
     loc = str(im.get("finalidade") or "").startswith("loc")
     valor = None
@@ -974,7 +979,18 @@ def cadastrar(conn, cor: dict, b: dict | None, ativo: bool, fotos_do_anuncio: li
               "busca_cliente": str(b["id"]) if b else "",
               "cadastrado_pelo": "Nay Corretores" + (" (busca do cliente)" if b else f" ({cor.get('origem') or 'corretor'})"),
               "observacao_do_corretor": str(im.get("observacao") or "")}
+    olx_id = str((anuncio or {}).get("olx_id") or "")
+    olx_url = str((anuncio or {}).get("url") or "")
+    if olx_id:
+        extras.update({"olx_id": olx_id, "olx_url": olx_url})
     extras = {k: v for k, v in extras.items() if v}
+    if not cor.get("codigo") and olx_id:
+        ja = banco.um(conn, """SELECT codigo FROM imoveis WHERE status <> 'Excluído'
+                                AND (extras->>'olx_id' = %s OR (%s <> '' AND extras->>'olx_url' = %s)) ORDER BY codigo LIMIT 1""",
+                      (olx_id, olx_url, olx_url))
+        if ja:
+            log.info("corretor …%s: o anúncio %s já é o imóvel #%s; não cadastra de novo", _tel8(cor["telefone"])[-4:], olx_id, ja)
+            return int(ja)
     campos = {"tipo": _tipo_do_cadastro(im.get("tipo")), "bairro": im.get("bairro") or None,
               "condominio_nome": im.get("condominio") or None, "quartos": im.get("quartos") or None,
               "suites": im.get("suites") or None, "vagas": im.get("vagas") or None, "area_util": im.get("area") or None,
@@ -1023,6 +1039,10 @@ def oferecer_ao_cliente(conn, b: dict, codigo: int, cor: dict, c: dict) -> str:
                          f"ofereceu o imóvel #{codigo}, já cadastrado como parceiro. A conversa do cliente está com a equipe: "
                          f"apresentem por lá.")
         return "grupo"
+    # 30/10 (revisão, o Eudes ...8856): a oferta do corretor também espera quando a equipe acabou de escrever ou o filtro
+    # não está pronto (a mesma regra da revisita da base); fica em "cadastrando" e a revisita manda depois
+    if whatsapp.oferta_sozinha_espera(conn, lead, b.get("filtros")):
+        return "espera"
     return _mandar_ao_cliente(conn, lead, [codigo])
 
 
@@ -1190,7 +1210,9 @@ def base_volta(conn, c: dict) -> int:
         f = dict(b["filtros"])
         if whatsapp._aceita_parceiro(conn, lead):
             f["aceita_parceiro"] = "true"
-        oferecidos = [int(x["codigo"]) for x in ofertas if x.get("codigo")]
+        # 30/10 (revisão, o Eudes ...8856 e o #9084): só o que FOI ao cliente (ou ao grupo) sai da revisita; o que ficou em
+        # "cadastrando" (o cadastro do corretor no modo teste, ou que não terminou) é imóvel nosso e volta a servir
+        oferecidos = [int(x["codigo"]) for x in ofertas if x.get("codigo") and x.get("estado") in ("cliente", "grupo")]
         excluir = list(lead.get("enviados") or []) + ([lead["codigo"]] if lead.get("codigo") else []) + oferecidos
         achados = opcoes_da_base(conn, lead, f, excluir, OPCOES_MAX - opcoes_enviadas(b))
         if not achados:
@@ -1267,6 +1289,11 @@ def corretores_volta(conn, c: dict) -> int:
         conn.commit()
         ids = {b["id"]: b for b in ativas}
         bid = r.get("busca_id") if r.get("busca_id") in ids else cor.get("busca")
+        if not bid:
+            # 30/10 (revisão, o Augusto ...8279 e a busca 85 da Karoline): a busca que o chamou pela OLX está em
+            # busca_contato; sem ela o imóvel entrava solto e ele ouvia "vou passar ao cliente" de um imóvel que não servia
+            bid = banco.um(conn, """SELECT c.busca FROM privado.busca_contato c JOIN privado.busca_cliente b ON b.id = c.busca
+                                     WHERE c.telefone8 = %s AND b.estado = 'buscando' ORDER BY c.em DESC LIMIT 1""", (t8,))
         b = ids.get(bid) or (banco.linhas(conn, "SELECT * FROM privado.busca_cliente WHERE id = %s", (bid,)) or [None])[0] if bid else None
         baloes = [str(x).strip() for x in (r.get("baloes") or []) if str(x).strip()][:2]
         if equipe_por_perto and baloes:
@@ -1282,7 +1309,7 @@ def corretores_volta(conn, c: dict) -> int:
             primeira = not cor.get("codigo")
             falta = falta_no_imovel(im, fotos)
             completo = not falta and c["corretor"] == "sim"
-            codigo = cadastrar(conn, cor, b, ativo=completo, fotos_do_anuncio=fotos_anuncio)
+            codigo = cadastrar(conn, cor, b, ativo=completo, fotos_do_anuncio=fotos_anuncio, anuncio=anuncio)
             banco.um(conn, "UPDATE privado.busca_corretor SET codigo = %s WHERE telefone8 = %s", (codigo, t8))
             if primeira and b:
                 banco.um(conn, "UPDATE privado.busca_cliente SET ofertas = ofertas || %s::jsonb WHERE id = %s",
@@ -1312,9 +1339,13 @@ def corretores_volta(conn, c: dict) -> int:
                     banco.um(conn, "UPDATE privado.busca_cliente SET base_em = NULL WHERE estado = 'buscando' AND id <> %s", (b["id"],))
                 passo(conn, b["id"], "oferta", {"cliente": f"Imóvel #{codigo} completo e oferecido ao cliente",
                                                 "grupo": f"Imóvel #{codigo} completo; o cliente está com a equipe: avisado no grupo",
-                                                "teste": f"Imóvel #{codigo} completo (teste: não foi ao cliente)"}[onde])
+                                                "teste": f"Imóvel #{codigo} completo (teste: não foi ao cliente)",
+                                                "espera": f"Imóvel #{codigo} completo; vai ao cliente na revisita da base "
+                                                          f"({whatsapp.oferta_sozinha_espera(conn, whatsapp._lead(conn, b['lead']), b.get('filtros')) or 'agora pode ir'})"}[onde])
                 if not baloes:
-                    baloes = ["Perfeito, obrigado! Já passei a opção para o cliente e, se ele se interessar, entro em contato para agendar uma visita."]
+                    baloes = ["Perfeito, obrigado! Já passei a opção para o cliente e, se ele se interessar, entro em contato para agendar uma visita."
+                              if onde != "espera" else
+                              "Perfeito, obrigado! Vou passar a opção para o cliente e, se ele se interessar, entro em contato para agendar uma visita."]
             elif b:
                 passo(conn, b["id"], "corretor", f"#{codigo}: falta {', '.join(falta)}")
             conn.commit()

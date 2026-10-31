@@ -43,9 +43,13 @@ IMPORTA_DIAS = 5          # a dúvida mais velha que isso não entra
 VELHA_DIAS = 7            # aberta há mais que isso: encerra (vai no resumo do fim do dia)
 ESPERA_SEM_RESPOSTA_H = 3
 ESPERA_VAI_VER_H = 20
-AO_TEL_DEPOIS_H = 20      # depois dos lembretes, quanto mais esperamos antes de passar ao Tel
+# 30/10 (revisão: a dúvida do Felipe ...0843 e a da Esther ...5423 abertas há 2-3 dias, os 2 lembretes já dados, e o cliente
+# sem nada): depois dos lembretes, 4 h e vai ao Tel (eram 20 h)
+AO_TEL_DEPOIS_H = 4       # depois dos lembretes, quanto mais esperamos antes de passar ao Tel
 MAX_LEMBRETES = 2
 AVISO_AO_CLIENTE_H = 2    # o cliente sabe que estamos esperando depois de 2 h sem a resposta
+# quando o modelo deixa o aviso vazio (achou que a promessa do começo já valia), vai este: o cliente nunca fica sem notícia
+AVISO_FIXO = "Ainda estou aguardando o retorno do proprietário sobre isso e te aviso assim que tiver a resposta."
 PERGUNTA_AO_DONO_H = 1    # o agente da vps2 pergunta ao dono no primeiro minuto; passada 1 h sem isso, perguntamos
 EQUIPE_NA_CONVERSA_MIN = 30
 HORARIO_DE_MANDAR = (8, 19)   # Manaus
@@ -83,7 +87,8 @@ Escreva (vazio quando não se aplica):
 - "fotos": true se o dono mandou fotos que respondem à dúvida.
 - "aviso_ao_cliente": em dono_vai_ver ou dono_sem_resposta, uma frase curta ao cliente: ainda estamos aguardando o
   proprietário sobre <o assunto> e avisamos assim que tiver a resposta. Sem prazo. Use o tratamento indicado. Vazio
-  se alguém da Imob Easy já disse ao cliente, depois da dúvida, que está vendo ou esperando isso.
+  só se alguém da Imob Easy já disse ao cliente, mais de 2 horas depois da dúvida, que ainda está esperando isso (a
+  promessa do começo, "vou verificar", não conta).
 - "lembrete_ao_dono": em dono_vai_ver ou dono_sem_resposta, um lembrete curto e educado sobre a MESMA dúvida ("Oi,
   Yara! Conseguiu ver as fotos da parte de trás da casa? O cliente segue interessado."). Nome só o do cadastro, nunca
   sigla; sem nome, sem nome.
@@ -348,9 +353,8 @@ def decidir(d: dict, r: dict, agora, equipe_agora: bool = False) -> list[str]:
     if s not in ("dono_vai_ver", "dono_sem_resposta"):
         return []
     acoes = []
-    if (not d.get("cliente_avisado_em") and idade >= AVISO_AO_CLIENTE_H and not equipe_agora
-            and str(r.get("aviso_ao_cliente") or "").strip()):
-        acoes.append("avisar_cliente")
+    if not d.get("cliente_avisado_em") and idade >= AVISO_AO_CLIENTE_H and not equipe_agora:
+        acoes.append("avisar_cliente")             # sem o texto do modelo, vai o AVISO_FIXO
     marcos = [d.get("dono_cobrado_em"), d.get("dono_perguntado_em")]
     if s == "dono_vai_ver":
         marcos.append(d.get("ultima_do_dono"))
@@ -464,7 +468,7 @@ class Rodada:
                              (d["codigo"], d["pergunta"], d["pergunta"], str(r["resposta"]).strip()))
                 feito.append(f"entregue ({como}{', ' + str(len(manda)) + ' foto(s)' if manda else ''})")
             elif a == "avisar_cliente":
-                como = self.ao_cliente(d, str(r["aviso_ao_cliente"]).strip())
+                como = self.ao_cliente(d, str(r.get("aviso_ao_cliente") or "").strip() or AVISO_FIXO)
                 if como in ("mandado", "ensaio"):
                     muda["cliente_avisado_em"] = self.agora
                 feito.append(f"cliente avisado da espera ({como})")

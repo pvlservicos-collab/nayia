@@ -212,12 +212,26 @@ class UmaConfirmacaoSo(unittest.TestCase):
         # 28/10 (Susi, lead 63): só tipo e quartos do anúncio, sem valor nem região, e a torre prometida na fila
         from unittest import mock
         lead = {"telefone": "9282517640", "filtros": {"tipo": "apartamento", "quartos": 2, "finalidade": "venda"}}
-        with mock.patch.object(w.banco, "um", return_value=False):
+        with mock.patch.object(w.banco, "um", return_value=False), mock.patch.object(w.banco, "chaves", return_value={}), \
+                mock.patch.object(w, "_gente_escreveu", return_value=None):
             self.assertIn("valor", w.oferta_sozinha_espera(None, lead))
             self.assertIn("região", w.oferta_sozinha_espera(None, lead, {"teto": 400000}))
             self.assertEqual(w.oferta_sozinha_espera(None, lead, {"teto": 400000, "qualquer_bairro": True}), "")
         with mock.patch.object(w.banco, "um", return_value=True):
             self.assertIn("pergunta", w.oferta_sozinha_espera(None, lead, {"teto": 400000, "bairros": ["Chapada"]}))
+
+    def test_oferta_sozinha_espera_a_equipe(self):
+        # 30/10 (revisão, o Eudes ...8856): a equipe escreveu há pouco -> a oferta que ela manda sozinha espera o gap
+        from datetime import datetime, timedelta, timezone
+        from unittest import mock
+        lead = {"telefone": "9299998856", "filtros": {}}
+        agora = datetime.now(timezone.utc)
+        um = lambda _c, sql, *_a: (False if "pergunta_fila" in sql else agora - timedelta(minutes=30))  # noqa: E731
+        with mock.patch.object(w.banco, "um", side_effect=um), mock.patch.object(w.banco, "chaves", return_value={"gap_equipe_min": "30"}):
+            with mock.patch.object(w, "_gente_escreveu", return_value=agora - timedelta(minutes=23)):
+                self.assertIn("equipe", w.oferta_sozinha_espera(None, lead, {"teto": 900000, "bairros": ["Ponta Negra"]}))
+            with mock.patch.object(w, "_gente_escreveu", return_value=agora - timedelta(minutes=45)):
+                self.assertEqual(w.oferta_sozinha_espera(None, lead, {"teto": 900000, "bairros": ["Ponta Negra"]}), "")
 
     def test_afrouxar(self):
         f = {"finalidade": "venda", "tipo": "casa_condominio", "teto": 900000, "bairros": ["Flores"], "quartos": 3,
