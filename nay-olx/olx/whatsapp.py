@@ -1553,6 +1553,12 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
             _ao_crm(f"Cliente {quem(lead)} no WhatsApp de captação "
                     f"pediu: {motivo[:240]}. A Nay disse que já retorna: mandem por lá.")
     elif acao == "equipe":
+        contato = _contato_do_corretor_da_visita(conn, lead)
+        if contato:
+            # 31/10 (Pedro, sobre o Eduardo ...2424: "só pedir pra ela me chamar ou enviar contato dela" ficou 3 h sem
+            # resposta e ele desmarcou): com visita confirmada, o contato de quem acompanha vai na hora
+            mandar_texto(conn, lead, contato)
+            return
         _marcar(conn, lead["id"], humano_em=banco.um(conn, "SELECT now()"), parada_motivo=str(r.get("motivo") or "")[:200])
         # 24/10 (Pedro): compra, negociação, documentos: o grupo recebe o que o lead mandou e o número, e alguém assume
         mandou = _ultimas_do_cliente(conn, lead)
@@ -1564,6 +1570,25 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
         # dia seguinte)
         if not visita.ativa(conn, lead["id"]):
             _marcar(conn, lead["id"], etapa="finalizado")
+
+
+PEDIU_CONTATO = re.compile(r"\bcontato\b|\bn[uú]mero\b|\btelefone\b|\bwhats|\bzap\b|me (chamar|chama|ligar|liga)\b", re.I)
+
+
+def _contato_do_corretor_da_visita(conn, lead: dict) -> str | None:
+    """O lead pediu o contato (ou que o corretor o chame) e tem visita confirmada com corretor: a frase com o nome e o
+    número de quem acompanha. None quando não se aplica (aí a equipe assume, como antes)."""
+    if not PEDIU_CONTATO.search(_ultimas_do_cliente(conn, lead) or ""):
+        return None
+    v = banco.linhas(conn, """SELECT corretor_nome, corretor_telefone FROM privado.olx_visita
+                               WHERE lead = %s AND estado = 'confirmada' AND quando > now() - interval '3 hours'
+                                 AND coalesce(corretor_telefone, '') <> '' ORDER BY quando LIMIT 1""", (lead["id"],))
+    if not v:
+        return None
+    nome = (v[0]["corretor_nome"] or "").strip().split(" ")[0]
+    fone = grupo.telefone_bonito(v[0]["corretor_telefone"])
+    return (f"Claro! Quem vai te acompanhar na visita é {nome}, no {fone}. Pode chamar por lá também." if nome
+            else f"Claro! O contato de quem vai te acompanhar na visita é {fone}. Pode chamar por lá também.")
 
 
 ETAPAS_DA_BUSCA = ("nova", "filtrar", "feito_busca", "imoveis_enviados", "finalizado")

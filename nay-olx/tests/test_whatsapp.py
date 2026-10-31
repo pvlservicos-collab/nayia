@@ -220,6 +220,23 @@ class UmaConfirmacaoSo(unittest.TestCase):
         with mock.patch.object(w.banco, "um", return_value=True):
             self.assertIn("pergunta", w.oferta_sozinha_espera(None, lead, {"teto": 400000, "bairros": ["Chapada"]}))
 
+    def test_contato_do_corretor_da_visita(self):
+        # 31/10 (o Eduardo ...2424): "só pedir pra ela me chamar ou enviar contato dela" com visita confirmada
+        from unittest import mock
+        lead = {"id": 1, "telefone": "92999992424"}
+        visita_ok = [{"corretor_nome": "Neila Souza", "corretor_telefone": "5592981234567"}]
+        with mock.patch.object(w, "_ultimas_do_cliente", return_value="só pedir pra ela me chamar ou enviar contato dela"), \
+                mock.patch.object(w.banco, "linhas", return_value=visita_ok):
+            t = w._contato_do_corretor_da_visita(None, lead)
+            self.assertIn("Neila", t)
+            self.assertIn("8123-4567", t.replace(" ", ""))
+        with mock.patch.object(w, "_ultimas_do_cliente", return_value="quero negociar o valor"), \
+                mock.patch.object(w.banco, "linhas", return_value=visita_ok):
+            self.assertIsNone(w._contato_do_corretor_da_visita(None, lead))       # não pediu contato
+        with mock.patch.object(w, "_ultimas_do_cliente", return_value="me manda o contato"), \
+                mock.patch.object(w.banco, "linhas", return_value=[]):
+            self.assertIsNone(w._contato_do_corretor_da_visita(None, lead))       # sem visita confirmada
+
     def test_oferta_sozinha_espera_a_equipe(self):
         # 30/10 (revisão, o Eudes ...8856): a equipe escreveu há pouco -> a oferta que ela manda sozinha espera o gap
         from datetime import datetime, timedelta, timezone

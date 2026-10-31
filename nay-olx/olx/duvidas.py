@@ -50,6 +50,24 @@ MAX_LEMBRETES = 2
 AVISO_AO_CLIENTE_H = 2    # o cliente sabe que estamos esperando depois de 2 h sem a resposta
 # quando o modelo deixa o aviso vazio (achou que a promessa do começo já valia), vai este: o cliente nunca fica sem notícia
 AVISO_FIXO = "Ainda estou aguardando o retorno do proprietário sobre isso e te aviso assim que tiver a resposta."
+
+# 30/10 (revisão da Parceria: a Andreza ...3449 ouviu do 9064 "precisa vender com urgência, pois está há cinco meses sem
+# morar no imóvel e continua pagando as parcelas"): o que o dono conta da pressa, da situação dele ou da negociação é só
+# da equipe (SIGILO, 504). A frase que fala disso sai da resposta, venha do modelo ou não.
+SIGILO = re.compile(
+    r"urg[eê]ncia|com pressa|\bpressa\b|precisa (muito )?(vender|alugar|sair)|parcelas?\b|d[ií]vidas?\b|devendo|"
+    r"atrasad[oa]s?\b|separa[cç][aã]o|div[oó]rcio|heran[cç]a|invent[aá]rio|sem morar|"
+    r"aceita(ria)? (uma )?(proposta|desconto|negociar|contraproposta)|negoci[aá]vel|valor m[ií]nimo|menor valor|"
+    r"\bl[ií]quido\b|comiss[aã]o|corretagem", re.I)
+
+
+def sem_sigilo(texto: str) -> str:
+    """A resposta sem as frases de uso interno (pressa, situação do dono, negociação, comissão)."""
+    frases = re.split(r"(?<=[.!?])\s+", texto.strip())
+    fica = [f for f in frases if f and not SIGILO.search(f)]
+    if len(fica) < len(frases):
+        log.info("dúvida: tirei da resposta %d frase(s) de uso interno", len(frases) - len(fica))
+    return " ".join(fica).strip()
 PERGUNTA_AO_DONO_H = 1    # o agente da vps2 pergunta ao dono no primeiro minuto; passada 1 h sem isso, perguntamos
 EQUIPE_NA_CONVERSA_MIN = 30
 HORARIO_DE_MANDAR = (8, 19)   # Manaus
@@ -83,7 +101,8 @@ Situações (escolha UMA):
 Escreva (vazio quando não se aplica):
 - "resposta": em dono_respondeu, o que vai ao cliente na voz da Nay: no máximo 2 frases, só o que responde, nada além do
   que o dono disse. Se ele mandou fotos, uma frase dizendo que são as fotos (elas vão junto). Em ficha_responde, só o que
-  a ficha diz, no mesmo tamanho.
+  a ficha diz, no mesmo tamanho. NUNCA passe a pressa do dono, a situação dele (dívida, parcelas, mudança, separação,
+  herança), se aceita proposta/desconto, valor mínimo ou comissão: isso é só da equipe, mesmo que ele tenha dito.
 - "fotos": true se o dono mandou fotos que respondem à dúvida.
 - "aviso_ao_cliente": em dono_vai_ver ou dono_sem_resposta, uma frase curta ao cliente: ainda estamos aguardando o
   proprietário sobre <o assunto> e avisamos assim que tiver a resposta. Sem prazo. Use o tratamento indicado. Vazio
@@ -446,7 +465,7 @@ class Rodada:
                 feito.append("encerrada")
             elif a == "entregar":
                 da_ficha = r.get("situacao") == "ficha_responde"      # já está na ficha: não vira "conhecimento do dono"
-                texto = str(r.get("resposta") or "").strip() or "Seguem as fotos que o proprietário mandou."
+                texto = sem_sigilo(str(r.get("resposta") or "").strip()) or "Seguem as fotos que o proprietário mandou."
                 if d.get("codigo") and d["linha"] == "captacao":
                     texto = whatsapp.texto_da_resposta({"resposta": texto, "codigo": d["codigo"], "imovel": d.get("imovel")})
                 elif d.get("codigo"):
@@ -462,10 +481,11 @@ class Rodada:
                           (texto[:2000], "respondida pela ficha do imóvel (512)" if da_ficha else "respondida pelo dono (512)"))
                 if d.get("com_o_tel_no_pv") == "perguntada" and not self.ensaio:
                     banco.um(self.conn, "SELECT pergunta_fila_perguntar_proxima()")
-                if d.get("codigo") and str(r.get("resposta") or "").strip() and not self.ensaio and not da_ficha:
+                memoria = sem_sigilo(str(r.get("resposta") or "").strip())   # a memória da Nay também sem o uso interno
+                if d.get("codigo") and memoria and not self.ensaio and not da_ficha:
                     banco.um(self.conn, """SELECT nay_gravar_conhecimento(%s::text, coalesce(nay_assunto_do_imovel(%s),
                                              'pergunta: ' || left(lower(%s), 120)), %s, 'dono (rotina das dúvidas, 512)')""",
-                             (d["codigo"], d["pergunta"], d["pergunta"], str(r["resposta"]).strip()))
+                             (d["codigo"], d["pergunta"], d["pergunta"], memoria))
                 feito.append(f"entregue ({como}{', ' + str(len(manda)) + ' foto(s)' if manda else ''})")
             elif a == "avisar_cliente":
                 como = self.ao_cliente(d, str(r.get("aviso_ao_cliente") or "").strip() or AVISO_FIXO)
