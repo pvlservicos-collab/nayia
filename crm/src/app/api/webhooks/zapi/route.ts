@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
        Até 14/10 este aviso era descartado aqui (e nem estava configurado na instância): o CRM só sabia que a Z-API
        tinha aceitado o pedido. Ver src/lib/entregaDaMensagem.ts. */
     if (body.type === 'MessageStatusCallback') {
+      if (instancia) after(() => repassarStatus(orgId, instancia, body))
       const situacao = situacaoDaZapi(body.status)
       const ids = Array.isArray(body.ids) ? body.ids.map(String) : body.messageId ? [String(body.messageId)] : []
       if (!situacao || !ids.length || body.isGroup === true) return NextResponse.json({ ok: true, skipped: `status ${body.status}` })
@@ -109,6 +110,31 @@ export async function POST(req: NextRequest) {
     // 500 faz a Z-API reenviar, e o processamento é idempotente (dedupe por
     // messageId), então repetir é seguro e melhor que perder a mensagem.
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 })
+  }
+}
+
+/**
+ * O STATUS DO 8595 (Pedro, 31/10/2026: nenhuma das 1.188 mensagens enviadas pelo WhatsApp Leads tinha entregue/lida).
+ * A instância da captação mandava o aviso de status só para o fluxo dela no n8n da VPS2, que grava a entrega no
+ * registro da Nay (captacao_status_da_mensagem). Uma instância tem UMA URL de status: agora ela aponta para cá, e
+ * o mesmo corpo segue para o n8n, sem mudar nada lá. O endereço do n8n fica em `config.status_tambem_para` da
+ * integração (tem código no caminho: fora do git). Falhou o repasse: só o log; o CRM já gravou o dele.
+ */
+async function repassarStatus(orgId: string, instancia: string, body: unknown) {
+  try {
+    const r = await db.execute(sql`
+      SELECT config->>'status_tambem_para' AS url FROM integrations
+       WHERE organization_id = ${orgId} AND deleted_at IS NULL AND config->>'instance_id' = ${instancia}
+         AND coalesce(config->>'status_tambem_para', '') <> '' LIMIT 1`)
+    const url = (r.rows[0] as { url?: string } | undefined)?.url
+    if (!url) return
+    const resp = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (!resp.ok) console.error('[zapi webhook] repasse do status', resp.status)
+  } catch (err: any) {
+    console.error('[zapi webhook] repasse do status', err?.message || err)
   }
 }
 
