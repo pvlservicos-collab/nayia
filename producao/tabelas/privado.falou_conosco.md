@@ -1,4 +1,4 @@
-# privado.falou_conosco  (tabela, ~3608 linhas)
+# privado.falou_conosco  (tabela, ~3609 linhas)
 
 ## colunas
 chave  text  NOT NULL
