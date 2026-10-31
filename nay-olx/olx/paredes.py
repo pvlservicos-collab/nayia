@@ -19,6 +19,8 @@ NEGATIVA = re.compile(r"\b(n[ãa]o temos|n[ãa]o tenho (nenhum|nenhuma|nada|op[�
                       r"n[ãa]o d[áa] (para|pra)|infelizmente,? n[ãa]o)\b", re.I)
 BASTIDOR = re.compile(r"\b(rob[ôo]|intelig[êe]ncia artificial|sou uma ia|ficha|cat[áa]logo|sistema interno|nay da olx)\b", re.I)
 OLX = re.compile(r"\b(olx|an[úu]ncio)\b", re.I)
+SO_OLX = re.compile(r"\bolx\b", re.I)
+DO_CHAVES = "=== DE ONDE VEIO: O CHAVES NA MÃO ==="     # o título do turno do lead do portal (whatsapp.montar_turno)
 # 26/10 (o lead 20: "o CRECI da imobiliária é PJ 482", que não está em lugar nenhum): número de documento só do turno
 DOCUMENTO = re.compile(r"\b(CRECI|CNPJ|CPF|inscri[çc][ãa]o)\b[^\d\n]{0,30}((?:PJ|F)?\s*\d[\d./-]{1,18})", re.I)
 # 26/10 (os leads 25 e 51: "a equipe me informou que..." sem nenhuma resposta da equipe na conversa): o que a equipe ou o
@@ -34,6 +36,7 @@ AVISO = {
     "negativa": "você deu uma negativa (\"{x}\"): nunca diga que não tem ou que não dá; diga que vai separar/confirmar",
     "bastidor": "você falou de \"{x}\": para ela você é só a Nay, da Imob Easy (sem robô, ficha, catálogo, sistema)",
     "olx": "ela escreveu direto para este número: nunca fale de OLX nem de anúncio (\"{x}\")",
+    "olx_chaves": "ela veio do Chaves na Mão, não da OLX: nunca fale de OLX (\"{x}\")",
     "documento": "você citou \"{x}\", que NÃO está na ficha nem na conversa: nunca invente CRECI, CNPJ ou documento; diga que confirma com a equipe",
     "equipe_disse": "você escreveu \"{x}\", mas NENHUMA resposta da equipe está na conversa: nunca invente o que a equipe ou o dono disse; diga que vai confirmar",
 }
@@ -113,6 +116,11 @@ def conferir(baloes: list[str], turno: str, organico: bool) -> list[tuple[int, s
             m = OLX.search(b)
             if m and not OLX.search(dela):                                # ela mesma falou da OLX ou do anúncio
                 furos.append((i, "olx", m.group(0)))
+        elif DO_CHAVES in (turno or ""):
+            # 554 (Pedro, 31/10): o lead do Chaves na Mão; do anúncio ela pode falar, da OLX não
+            m = SO_OLX.search(b)
+            if m and not SO_OLX.search(dela):
+                furos.append((i, "olx_chaves", m.group(0)))
     return furos
 
 

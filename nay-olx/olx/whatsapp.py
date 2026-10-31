@@ -567,10 +567,16 @@ def organico(lead: dict) -> bool:
     return lead.get("origem") == "organico"
 
 
+def chaves(lead: dict) -> bool:
+    """554: o lead que o portal Chaves na Mão mandou (cnm_lead_para_a_nay)."""
+    return lead.get("origem") == "chavesnamao"
+
+
 def quem(lead: dict) -> str:
     """Para os avisos da equipe: 'Fulana (OLX, (92) 9...)' ou '(orgânico, ...)'."""
     # 422: o cliente posto à mão no CRM (Buscar imóvel OLX) aparece como "pelo CRM"
-    origem = {"organico": "orgânico", "manual": "pelo CRM"}.get(lead.get("origem") or "", "OLX")
+    origem = {"organico": "orgânico", "manual": "pelo CRM",
+              "chavesnamao": "Chaves na Mão"}.get(lead.get("origem") or "", "OLX")
     return (f"{lead.get('nome') or 'sem nome'} ({origem}, "
             f"{nay.telefone_bonito(lead['telefone'])})")
 
@@ -703,6 +709,20 @@ def _fichas_citadas(conn, conversa: list[dict], lead: dict | None = None) -> lis
     return fichas
 
 
+def _contexto(conn, lead: dict) -> dict | None:
+    """O que veio antes do WhatsApp: a conversa da OLX (chat) e, do Chaves na Mão (554), a ficha do imóvel do anúncio e o
+    que ela deixou no portal (lead['portal'], o mais antigo primeiro)."""
+    if chaves(lead):
+        i = banco.um(conn, "SELECT site_imovel_publico(%s)", (lead["codigo"],)) if lead.get("codigo") else None
+        lead["ficha_do_anuncio"] = nay._ficha(i) if isinstance(i, dict) else {}
+        lead["portal"] = banco.linhas(conn, """
+            SELECT to_char(coalesce(criado_no_portal, recebido_em) AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI') AS quando,
+                   codigo, anuncio_titulo, mensagem
+              FROM privado.cnm_lead WHERE right(telefone, 8) = right(%s, 8)
+             ORDER BY coalesce(criado_no_portal, recebido_em) LIMIT 10""", (lead["telefone"],))
+    return banco.um(conn, "SELECT olx_nay_contexto(%s)", (lead["chat"],)) if lead.get("chat") else None
+
+
 def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
     ctx_olx = ctx_olx or {}
     anuncio = ctx_olx.get("anuncio") or {}
@@ -727,6 +747,26 @@ def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
             linhas.append("Você ainda não falou com ela: esta é a sua primeira mensagem (a abertura do orgânico).")
         for f in lead.get("fichas_citadas") or []:
             linhas.append(f"Ficha do imóvel {f['codigo']} (o que ela citou): " + json.dumps(f, ensure_ascii=False))
+    elif chaves(lead):
+        # 554 (Pedro, 31/10: "põe a mesma Nay da OLX para responder lá com os mesmos objetivos"): o portal não tem chat;
+        # ela deixou o contato e quem abre a conversa é você, aqui. O caminho é o da OLX; muda só a abertura.
+        finalidade = {"locacao": "LOCAÇÃO", "venda": "VENDA"}.get(lead.get("negocio") or "", "finalidade não informada")
+        linhas += [
+            paredes.DO_CHAVES,
+            "Ela viu o nosso anúncio no portal Chaves na Mão e deixou o contato (nome, telefone e, às vezes, uma mensagem). "
+            "Não houve conversa antes do WhatsApp. Siga O CAMINHO como na OLX, com uma diferença na ABERTURA: diga que "
+            "recebeu o contato dela pelo Chaves na Mão sobre o imóvel (o condomínio ou o bairro), responda pela ficha o que a "
+            "mensagem dela perguntou e pergunte se ela quer agendar uma visita ou receber outras opções parecidas. Se a "
+            "mensagem já pede visita com dia e horário, marque \"visita\". NUNCA fale de OLX nem diga \"falamos antes\".",
+            "Ex.: \"Boa tarde, Sra. Maria! Aqui é a Nay, da Imob Easy. Recebi seu contato pelo Chaves na Mão sobre o "
+            "apartamento no Kopenhagen. A senhora quer agendar uma visita ou receber outras opções parecidas?\"",
+            f"{finalidade} | cód. {lead.get('codigo') or '-'}",
+            "Ficha do imóvel do anúncio: " + json.dumps(lead.get("ficha_do_anuncio") or {}, ensure_ascii=False),
+            "O que ela deixou no portal (o mais antigo primeiro):",
+        ]
+        for p in lead.get("portal") or []:
+            linhas.append(f"  {p['quando']} · {p.get('anuncio_titulo') or 'anúncio'} (cód. {p.get('codigo') or '-'}): "
+                          f"{(p.get('mensagem') or '').strip() or '(sem mensagem)'}")
     else:
         linhas += [
             "=== DE ONDE VEIO: O ANÚNCIO NA OLX ===",
@@ -1139,7 +1179,7 @@ def abrir(conn, cfg: dict) -> int:
                         parada_motivo="a equipe já tinha chamado por este número")
                 log.info("lead %s: a equipe já chamou; a Nay não abre", lead["id"])
                 continue
-            ctx_olx = banco.um(conn, "SELECT olx_nay_contexto(%s)", (lead["chat"],)) if lead.get("chat") else None
+            ctx_olx = _contexto(conn, lead)
             lead["visita_aberta"] = visita.para_o_modelo(conn, lead["id"])
             # 394: o que ela já escreveu (ou o que já conversamos, se veio de outro anúncio) entra na abertura
             conversa = _conversa(conn, lead)
@@ -1330,7 +1370,7 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
         _marcar(conn, lead["id"], ultima_lida=ate)
         agentes.passo(lead, "visita_desmarcada", "o cliente desmarcou: visita cancelada, corretor e dono avisados")
         return True
-    ctx_olx = banco.um(conn, "SELECT olx_nay_contexto(%s)", (lead["chat"],)) if lead.get("chat") else None
+    ctx_olx = _contexto(conn, lead)
     if organico(lead):
         lead["fichas_citadas"] = _fichas_citadas(conn, conversa, lead)
     lead["imoveis_conhecidos"] = imoveis_da_conversa(conn, lead)

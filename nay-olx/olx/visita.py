@@ -402,7 +402,7 @@ def _proximo_corretor(conn, v: dict, cfg: dict) -> None:
                      f"Oi, {nome}! Aqui é a Nay, da Imob Easy. Tem uma visita {'de locação ' if locacao else ''}"
                      f"para o imóvel #{v['codigo']}"
                      f"{' (' + onde + ')' if onde else ''} no dia {dia(q)} às {hora(q)}, com um cliente "
-                     f"{'que nos chamou no WhatsApp' if lead.get('origem') == 'organico' else 'que veio da OLX'}. "
+                     f"{ {'organico': 'que nos chamou no WhatsApp', 'chavesnamao': 'que veio do Chaves na Mão'}.get(lead.get('origem'), 'que veio da OLX')}. "
                      f"Você consegue ir nesse horário? Me responde com SIM ou NÃO, por favor.")
         log.info("visita %s: perguntado ao corretor %s", v["id"], nome)
         return
