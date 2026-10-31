@@ -345,7 +345,15 @@ BEGIN
   -- fica gravada e a Nay não responde (o mesmo "ok falso" do 186).
   IF v_papel IN ('corretor', 'proprietario') THEN
     v_rayssa := nai_com_a_rayssa(v_contato, v_papel);
+    -- 548 (Pedro, 31/10/2026, revisão de 30/10: "Tem apto proximo ao Distrito ate 1.800?" às 06:00 só teve resposta do
+    -- Tel às 09:53): com visita ou fechamento com a Rayssa, o pedido de imóvel NOVO segue para a Nay (o núcleo); o
+    -- resto continua com a Rayssa, e o que não é só "ok" vira notificação no CRM (nai_porta_avisar_equipe).
+    IF v_papel = 'corretor' AND v_rayssa IN ('visita_com_a_rayssa', 'visita_manual_com_a_rayssa', 'fechamento_com_a_rayssa')
+       AND nai_pede_imovel_novo(v_texto) THEN
+      v_rayssa := NULL;
+    END IF;
     IF v_rayssa IS NOT NULL THEN
+      PERFORM nai_porta_avisar_equipe(v_contato, v_papel, v_rayssa, v_texto);
       UPDATE nai_turno SET fechado_em = now() WHERE id = v_turno;
       RETURN jsonb_build_object('ok', false, 'motivo', v_rayssa, 'turno_id', v_turno,
                                 'contato_id', v_contato, 'papel', v_papel);

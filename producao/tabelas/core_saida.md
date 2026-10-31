@@ -36,6 +36,7 @@ core_saida_tipo_check: CHECK ((tipo = ANY (ARRAY['texto'::text, 'imagem'::text])
 core_saida_turno_id_fkey: FOREIGN KEY (turno_id) REFERENCES core_turno(id)
 
 ## gatilhos
+CREATE TRIGGER core_saida_promessa_do_agente AFTER INSERT ON public.core_saida FOR EACH ROW EXECUTE FUNCTION core_saida_promessa_do_agente()
 CREATE TRIGGER core_saida_validar BEFORE INSERT OR UPDATE ON public.core_saida FOR EACH ROW EXECUTE FUNCTION core_saida_validar()
 CREATE TRIGGER core_saida_zz_pergunta_na_fila BEFORE INSERT ON public.core_saida FOR EACH ROW EXECUTE FUNCTION core_saida_pergunta_na_fila()
 CREATE TRIGGER core_saida_zzz_tel_so_perguntas BEFORE INSERT ON public.core_saida FOR EACH ROW EXECUTE FUNCTION core_saida_tel_so_perguntas()

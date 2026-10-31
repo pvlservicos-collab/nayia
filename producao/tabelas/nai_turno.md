@@ -31,6 +31,7 @@ nai_turno_visita_id_fkey: FOREIGN KEY (visita_id) REFERENCES nai_visita(id)
 
 ## gatilhos
 CREATE TRIGGER nai_turno_dono_respondeu AFTER INSERT ON public.nai_turno FOR EACH ROW WHEN ((new.papel = 'proprietario'::text)) EXECUTE FUNCTION nai_turno_dono_respondeu()
+CREATE TRIGGER nai_turno_dono_saiu AFTER INSERT ON public.nai_turno FOR EACH ROW EXECUTE FUNCTION nai_turno_dono_saiu()
 CREATE TRIGGER nai_turno_pergunta_corretor AFTER INSERT ON public.nai_turno FOR EACH ROW WHEN ((new.porta = 'fora da lista: perguntou de imovel, perguntar ao Tel'::text)) EXECUTE FUNCTION nai_perguntar_se_e_corretor()
 
 ## permissões

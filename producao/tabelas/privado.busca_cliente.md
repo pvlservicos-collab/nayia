@@ -1,4 +1,4 @@
-# privado.busca_cliente  (tabela, ~89 linhas)
+# privado.busca_cliente  (tabela, ~93 linhas)
 475: a busca de cada lead da aba Leads (nay-olx olx/buscas.py): o perfil e até onde foi (base, grupos, OLX, corretores, oferta).
 
 ## colunas

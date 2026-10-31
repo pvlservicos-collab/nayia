@@ -25,7 +25,7 @@ nay_leitura: SELECT
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-(nenhuma)
+nai_turno_dono_saiu
 
 ## definição da view
  WITH base AS (

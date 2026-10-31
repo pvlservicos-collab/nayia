@@ -25,7 +25,7 @@ nay_core: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 nay_leitura: SELECT
 
 ## funções que escrevem aqui
-(nenhuma função; quem escreve é o n8n, o site ou o CRM)
+core_saida_promessa_do_agente
 
 ## funções que citam
-pergunta_fila_da_pendencia
+core_saida_promessa_do_agente, pergunta_fila_da_pendencia
