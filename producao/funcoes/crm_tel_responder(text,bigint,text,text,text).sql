@@ -59,7 +59,7 @@ BEGIN
           PERFORM nai_enfileirar_texto(v_turno, NULL, v_dest, 'entrega',
             'Sobre ' || CASE WHEN f.codigo IS NOT NULL
                              THEN 'o #' || f.codigo || coalesce(' (' || nullif(btrim(f.imovel), '') || ')', '')
-                             ELSE 'a sua pergunta' END || ': ' || nai_frase_maiuscula(s),
+                             ELSE 'a sua pergunta' END || ': ' || nai_frase_maiuscula(pergunta_fila_fala_do_tel(s)),
             'resposta_do_tel', 2);
           UPDATE nai_saida SET enviar_apos = now() + interval '2 seconds' WHERE turno_id = v_turno AND estado = 'pendente';
           UPDATE nai_turno SET fechado_em = now() WHERE id = v_turno;
@@ -98,7 +98,7 @@ BEGIN
       RETURN jsonb_build_object('ok', true, 'mensagem', 'Descartada.');
     END IF;
     PERFORM nay_duvida_mandar_pela_parceria(d.cliente_tel,
-      'Sobre ' || CASE WHEN d.codigo IS NOT NULL THEN 'o #' || d.codigo ELSE 'a sua pergunta' END || ': ' || nai_frase_maiuscula(s),
+      'Sobre ' || CASE WHEN d.codigo IS NOT NULL THEN 'o #' || d.codigo ELSE 'a sua pergunta' END || ': ' || nai_frase_maiuscula(pergunta_fila_fala_do_tel(s)),
       NULL, d.codigo);
     UPDATE privado.duvida SET estado = 'respondida', situacao = 'tel_respondeu', resposta = s, respondida_em = now(),
            atualizada_em = now(),

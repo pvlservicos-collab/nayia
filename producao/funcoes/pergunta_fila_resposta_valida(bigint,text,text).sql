@@ -40,6 +40,9 @@ BEGIN
     RETURN false;
   END IF;
   IF length(s) > 400 AND s ~* 'R\$\s*\d' THEN RETURN false; END IF;
+  -- 555: recado dele para a Nay ou para a equipe ("chegou", "ah sim", "ela passa a atender") não responde a
+  -- pergunta da fila: a pergunta continua esperando a resposta de verdade
+  IF pergunta_fila_e_recado(s) THEN RETURN false; END IF;
   RETURN true;
 END
 $function$;

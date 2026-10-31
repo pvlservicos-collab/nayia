@@ -63,7 +63,7 @@ BEGIN
         PERFORM nai_enfileirar_texto(p_turno, NULL, v_dest, 'entrega',
           'Sobre ' || CASE WHEN f.codigo IS NOT NULL
                            THEN 'o #' || f.codigo || coalesce(' (' || nullif(btrim(f.imovel), '') || ')', '')
-                           ELSE 'a sua pergunta' END || ': ' || nai_frase_maiuscula(s),
+                           ELSE 'a sua pergunta' END || ': ' || nai_frase_maiuscula(pergunta_fila_fala_do_tel(s)),
           'resposta_do_tel', 2);
         UPDATE pergunta_fila SET entregue_em = now() WHERE id = f.id;
         v_msg := '✅ Peguei a resposta da pergunta ' || pos.k || '/' || pos.n || ' e mandei para ' || v_quem || '.';
