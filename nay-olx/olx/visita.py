@@ -107,9 +107,10 @@ def corretores(cfg: dict, chave: str = "visita_corretores") -> list[tuple[str, s
 
 def quem_chamar(cfg: dict, locacao: bool) -> list[tuple[str, str]]:
     """392 (Pedro, 16/10): "quando for imóvel de locação não vai chamar corretor ... e sim o Diego direto, ela vai chamar
-    corretor só para venda ... se for locação pode falar com o Diego ou com o corretor para organizar agenda".
-    Locação: os de `visita_locacao` (o Diego) e depois os corretores; venda: só os corretores. Sem repetir telefone."""
-    lista = (corretores(cfg, "visita_locacao") if locacao else []) + corretores(cfg)
+    corretor só para venda". 31/10 (Pedro: "ele deve sempre enviar ao Diego locação, e venda sim a corretores"): a
+    locação é SÓ de `visita_locacao` (o Diego); antes, sem resposta dele em 30 min, ia aos corretores (#16, #13).
+    Venda: só os corretores. Sem repetir telefone."""
+    lista = corretores(cfg, "visita_locacao") if locacao else corretores(cfg)
     vistos, saida = set(), []
     for nome, fone in lista:
         if fone[-8:] not in vistos:
@@ -119,12 +120,15 @@ def quem_chamar(cfg: dict, locacao: bool) -> list[tuple[str, str]]:
 
 
 def _e_locacao(conn, v: dict, lead: dict) -> bool:
-    """A visita é de locação? O imóvel diz (só aluguel / só venda); se é dos dois, o que a pessoa procura."""
+    """A visita é de locação? O imóvel diz (só aluguel / só venda); se é dos dois, o que a pessoa procura; e se é dos
+    dois e não se sabe o que ela procura, locação (31/10: na dúvida o Diego, não os corretores)."""
     l = banco.linhas(conn, "SELECT de_locacao, de_venda FROM core_imovel_busca WHERE codigo = %s", (v["codigo"],))
     if l and bool(l[0].get("de_locacao")) != bool(l[0].get("de_venda")):
         return bool(l[0].get("de_locacao"))
     neg = (lead.get("negocio") or (lead.get("filtros") or {}).get("finalidade") or "").lower()
-    return neg.startswith("loca")
+    if neg.startswith("vend") or neg.startswith("compr"):
+        return False
+    return neg.startswith("loca") or bool(l and l[0].get("de_locacao"))
 
 
 def _so_ddd(t: str | None) -> str:
@@ -412,7 +416,7 @@ def _proximo_corretor(conn, v: dict, cfg: dict) -> None:
     if not lista:
         motivo = "nenhum corretor cadastrado para a Nay chamar"
     elif locacao:
-        motivo = "nem o Diego nem os corretores puderam no horário (ou não responderam)"
+        motivo = "o Diego não pôde no horário (ou não respondeu)"
     else:
         motivo = "nenhum dos corretores pôde no horário"
     _w()._grupo(f"Visita do cliente {_quem(lead)} ao imóvel #{v['codigo']} em {dia(q)} às {hora(q)}: o cliente confirmou e "

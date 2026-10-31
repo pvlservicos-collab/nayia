@@ -62,15 +62,37 @@ class Corretores(unittest.TestCase):
 
 
 class QuemChamar(unittest.TestCase):
-    """392: locação chama o Diego (e depois os corretores); venda, só os corretores."""
+    """392 + 31/10: locação chama SÓ o Diego (nunca os corretores); venda, só os corretores."""
     CFG = {"visita_locacao": "Diego:5592982092845", "visita_corretores": "Raquel:92988285562, Diego:92982092845"}
 
-    def test_locacao_diego_primeiro_sem_repetir(self):
-        self.assertEqual(v.quem_chamar(self.CFG, True), [("Diego", "92982092845"), ("Raquel", "92988285562")])
+    def test_locacao_so_o_diego(self):
+        self.assertEqual(v.quem_chamar(self.CFG, True), [("Diego", "92982092845")])
+        self.assertEqual(v.quem_chamar({"visita_corretores": "Raquel:92988285562"}, True), [])
 
     def test_venda_so_corretores(self):
         self.assertEqual(v.quem_chamar({"visita_locacao": "Diego:5592982092845"}, False), [])
         self.assertEqual(v.quem_chamar(self.CFG, False), [("Raquel", "92988285562"), ("Diego", "92982092845")])
+
+
+class ELocacao(unittest.TestCase):
+    """O imóvel decide quando é só de um; com os dois preços, o que a pessoa procura; sem saber, locação (o Diego)."""
+
+    def _e(self, loc, ven, lead):
+        from unittest import mock
+        with mock.patch.object(v.banco, "linhas", return_value=[{"de_locacao": loc, "de_venda": ven}]):
+            return v._e_locacao(None, {"codigo": 1}, lead)
+
+    def test_imovel_de_um_so(self):
+        self.assertTrue(self._e(True, False, {"negocio": "venda"}))
+        self.assertFalse(self._e(False, True, {"negocio": "locacao"}))
+
+    def test_dois_precos_pelo_que_ela_procura(self):
+        self.assertTrue(self._e(True, True, {"filtros": {"finalidade": "locacao"}}))
+        self.assertFalse(self._e(True, True, {"negocio": "venda"}))
+        self.assertFalse(self._e(True, True, {"filtros": {"finalidade": "comprar"}}))
+
+    def test_dois_precos_sem_saber_vai_ao_diego(self):
+        self.assertTrue(self._e(True, True, {}))
 
 
 class OndeFalarComODono(unittest.TestCase):
