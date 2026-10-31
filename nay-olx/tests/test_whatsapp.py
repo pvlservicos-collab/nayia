@@ -319,13 +319,42 @@ class UmaConfirmacaoSo(unittest.TestCase):
 class RespostaDaFila(unittest.TestCase):
     """391: a resposta do Tel na fila de perguntas, como chega ao cliente."""
 
+    SEM_MODELO = staticmethod(lambda p, u: 1 / 0)
+
     def test_com_codigo_e_imovel(self):
-        self.assertEqual(w.texto_da_resposta({"codigo": 9026, "imovel": "Turim Residencial", "resposta": "fica tudo,  sim"}),
+        self.assertEqual(w.texto_da_resposta({"codigo": 9026, "imovel": "Turim Residencial", "resposta": "fica tudo,  sim"},
+                                             self.SEM_MODELO),
                          "Sobre o #9026 (Turim Residencial): Fica tudo, sim")
 
     def test_sem_codigo(self):
-        self.assertEqual(w.texto_da_resposta({"codigo": None, "imovel": None, "resposta": "pode sim"}),
+        self.assertEqual(w.texto_da_resposta({"codigo": None, "imovel": None, "resposta": "pode sim"}, self.SEM_MODELO),
                          "Sobre a sua pergunta: Pode sim")
+
+    def test_recado_interno_nao_vai_ao_cliente(self):
+        # 31/10: as respostas cruas que chegaram a clientes do 8595 (pergunta_fila 241, 284, 293, 294, 307, 309)
+        for recado in ("ela passa a atender", "Ah sim", "chegou",
+                       "Então, 1.125 é o valor que ele vai pagar pra gente e 975 para o corretor. Essa é a nova cláusula "
+                       "de honorários, tá?",
+                       "Fala que a gente vai ver via WhatsApp, tá? Mas manda o WhatsApp dele aí, por favor."):
+            self.assertIsNone(w.texto_da_resposta({"codigo": None, "resposta": recado}, self.SEM_MODELO), recado)
+        # o modelo diz que não responde à pergunta ("Dele que se faz análise")
+        self.assertIsNone(w.texto_da_resposta({"pergunta": "informações do Piazza", "resposta": "Dele que se faz análise"},
+                                              lambda p, u: {"manda": False}))
+
+    def test_resposta_do_tel_reescrita_com_a_pergunta(self):
+        visto = {}
+
+        def modelo(p, u):
+            visto["u"] = u
+            return {"manda": True, "texto": "Ela não aceita pet, mas me diz o porte que eu tento com a proprietária."}
+        t = w.texto_da_resposta({"codigo": 2944, "imovel": "Maison Rochelle", "pergunta": "Aceita pet?",
+                                 "resposta": "ela não aceita pet, mas qual é o porte ? podemos tentar"}, modelo)
+        self.assertEqual(t, "Sobre o #2944 (Maison Rochelle): Ela não aceita pet, mas me diz o porte que eu tento com a "
+                            "proprietária.")
+        self.assertIn("PERGUNTA DO CLIENTE: Aceita pet?", visto["u"])
+        # resposta já escrita para o cliente, que cita o proprietário, passa
+        self.assertIsNotNone(w.texto_da_resposta({"codigo": 5699, "resposta": "O proprietário diz que aceita pet."},
+                                                 self.SEM_MODELO))
 
 
 

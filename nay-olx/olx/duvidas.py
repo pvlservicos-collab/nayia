@@ -467,7 +467,14 @@ class Rodada:
                 da_ficha = r.get("situacao") == "ficha_responde"      # já está na ficha: não vira "conhecimento do dono"
                 texto = sem_sigilo(str(r.get("resposta") or "").strip()) or "Seguem as fotos que o proprietário mandou."
                 if d.get("codigo") and d["linha"] == "captacao":
-                    texto = whatsapp.texto_da_resposta({"resposta": texto, "codigo": d["codigo"], "imovel": d.get("imovel")})
+                    pronto = whatsapp.texto_da_resposta({"resposta": texto, "codigo": d["codigo"],
+                                                         "imovel": d.get("imovel"), "pergunta": d.get("pergunta")})
+                    if pronto is None:      # 31/10: recado interno não vai ao cliente; a equipe responde pelo CRM
+                        self.aviso(d, "duvida", f"A resposta da dúvida parece recado interno e não foi ao cliente: {texto}")
+                        feito.append("não entregue (recado interno)")
+                        muda["estado"] = "encerrada"      # fica com a equipe: a rotina não tenta de novo a cada volta
+                        continue
+                    texto = pronto
                 elif d.get("codigo"):
                     texto = f"Sobre o #{d['codigo']}" + (f" ({d['imovel']})" if d.get("imovel") else "") + f": {texto}"
                 manda = fotos if r.get("fotos") else []

@@ -1959,9 +1959,52 @@ def resposta_curta(resposta: str, chamar=None) -> str:
     return t[:240]
 
 
-def texto_da_resposta(p: dict) -> str:
-    """A resposta do Tel como ela chega ao cliente: "Sobre o #9026 (Turim Residencial): Fica tudo, sim."."""
-    r = resposta_curta(p.get("resposta"))
+# 31/10 (leitura das conversas, CRM › Guia de atendimento): a resposta do Tel saía crua ao cliente. "Ela passa a
+# atender", "Ah sim", "Dele que se faz análise", "Fala que a gente vai ver via WhatsApp, mas manda o WhatsApp dele" e,
+# numa delas, a cláusula de honorários ("1.125 ... e 975 para o corretor"). O Tel escreve para a Nay, não para o cliente.
+INTERNO = re.compile(
+    r"honor[aá]rio|comiss[aã]o|corretagem|cl[aá]usula|pagar? (pra|para) (a )?gente|\d (para|pro|pra) o corretor"
+    r"|^\s*(fala|diz|avisa|responde|pergunta|explica)\b|\bmanda(r)? o (whats|zap|contato|n[uú]mero|telefone)"
+    r"|passa a atender|\b(ela|ele) nunca responde\b|^\s*(descartar|pular)\b", re.I)
+SO_RECADO = re.compile(r"^(ok|okay|ah sim|chegou|excelente|beleza|blz|certo|show|top|valeu|obrigad[oa]|entendi|"
+                       r"t[aá] bom|blz obrigado)[.!]*$", re.I)
+PROMPT_DA_RESPOSTA = """Você é a Nay, da Imob Easy, no WhatsApp com um CLIENTE final (quem quer alugar ou comprar). O Tel, do
+nosso time, respondeu POR DENTRO a uma dúvida dele: a RESPOSTA DO TEL foi escrita para você, não para o cliente.
+Decida se ela responde à PERGUNTA DO CLIENTE e escreva o que vai a ele.
+- Recado interno, instrução para você ou para a equipe, assunto de outra pessoa, ou algo que não responde à pergunta
+  ("ela passa a atender", "chegou", "ah sim", "manda o WhatsApp dele", "dele que se faz análise"): {"manda": false}.
+- NUNCA fale de honorários, comissão, divisão de valor, cláusula de contrato entre nós e corretor, nem de outro cliente.
+- Ordem para você ("fala que a gente vai ver") vira fala sua: "Vamos ver isso e te aviso por aqui."
+- Se a resposta diz que não achou, não sabe ou depende do proprietário: {"manda": true, "texto": "Entendi, por enquanto ainda procurando opções."}
+- Senão: no máximo duas frases curtas (até 220 caracteres), em primeira pessoa, sem "o Tel disse", sem emoji, sem link,
+  sem telefone, português do Brasil de gente.
+Devolva SÓ JSON: {"manda": true, "texto": "..."} ou {"manda": false}"""
+
+
+def resposta_ao_cliente(pergunta: str, resposta: str, chamar=None) -> str | None:
+    """A resposta do Tel reescrita para o cliente, ou None quando é recado interno (aí não sai nada ao cliente)."""
+    r = re.sub(r"\s+", " ", str(resposta or "")).strip()
+    if not r or INTERNO.search(r) or SO_RECADO.match(r):
+        return None
+    try:
+        j = (chamar or (lambda p, u: modelo.chamar(p, u, no="olx.whatsapp")))(
+            PROMPT_DA_RESPOSTA, f"PERGUNTA DO CLIENTE: {pergunta or '(não anotada)'}\nRESPOSTA DO TEL: {r}")
+        if j.get("manda") is False:
+            return None
+        t = re.sub(r"\s+", " ", str(j.get("texto") or "")).strip()
+        if t and not INTERNO.search(t):
+            return t[:240]
+    except Exception:  # noqa: BLE001 -- sem o modelo: a regra de antes (curta como está, comprida em duas frases)
+        log.warning("resposta ao cliente: o modelo falhou; vai a resposta curta")
+    return resposta_curta(r, lambda p, u: {})
+
+
+def texto_da_resposta(p: dict, chamar=None) -> str | None:
+    """A resposta do Tel como ela chega ao cliente: "Sobre o #9026 (Turim Residencial): Fica tudo, sim.". None = era
+    recado interno e não vai ao cliente (quem chama avisa a equipe)."""
+    r = resposta_ao_cliente(p.get("pergunta") or "", p.get("resposta"), chamar)
+    if r is None:
+        return None
     if r.rstrip(".").lower() == SEM_INFORMACAO.rstrip(".").lower():
         return SEM_INFORMACAO
     r = r[:1].upper() + r[1:]
@@ -1975,7 +2018,7 @@ def texto_da_resposta(p: dict) -> str:
 def entregar_respostas(conn) -> int:
     """391: o que o Tel respondeu na fila, para quem está no WhatsApp de captação, sai por aqui (é a Nay falando)."""
     feitas = 0
-    for p in banco.linhas(conn, """SELECT id, chave, codigo, imovel, resposta FROM pergunta_fila
+    for p in banco.linhas(conn, """SELECT id, chave, codigo, imovel, pergunta, resposta FROM pergunta_fila
                                     WHERE linha = 'captacao' AND estado = 'respondida' AND entregue_em IS NULL
                                       AND entrega_erro IS NULL ORDER BY respondida_em LIMIT 5"""):
         achado = banco.linhas(conn, """SELECT id FROM privado.olx_lead_whatsapp WHERE right(telefone, 8) = right(%s, 8)
@@ -1985,7 +2028,15 @@ def entregar_respostas(conn) -> int:
                      (p["id"],))
             continue
         lead = _lead(conn, achado[0]["id"])
-        mandar_texto(conn, lead, texto_da_resposta(p))
+        texto = texto_da_resposta(p)
+        if texto is None:      # recado do Tel para a Nay, não para o cliente: não sai; a equipe responde pelo CRM
+            banco.um(conn, "UPDATE pergunta_fila SET entrega_erro = 'recado interno do Tel: não foi ao cliente' "
+                           "WHERE id = %s", (p["id"],))
+            _ao_crm(f"Cliente {quem(lead)} no WhatsApp Leads: a resposta do Tel não foi ao cliente porque parece recado "
+                    f"interno (\"{str(p.get('resposta') or '')[:120]}\"). A pergunta era: {str(p.get('pergunta') or '')[:160]}. "
+                    "Responda pelo CRM.")
+            continue
+        mandar_texto(conn, lead, texto)
         banco.um(conn, "UPDATE pergunta_fila SET entregue_em = now() WHERE id = %s", (p["id"],))
         log.info("lead %s: a resposta do Tel (pergunta %s) entregue", lead["id"], p["id"])
         feitas += 1
