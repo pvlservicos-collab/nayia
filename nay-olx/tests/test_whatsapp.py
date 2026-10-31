@@ -430,3 +430,32 @@ class PedidoMudou(unittest.TestCase):
         antes = {"finalidade": "locacao", "bairros": ["Flores"], "teto": 3000}
         self.assertEqual(w.mudou_o_pedido(antes, {**antes, "bairros": ["Flores", "Parque 10"], "teto": 3200, "quartos": 2}), "")
         self.assertEqual(w.mudou_o_pedido({}, {"finalidade": "venda"}), "")
+
+
+class ChavesNaMao(unittest.TestCase):
+    """554 (Pedro, 31/10): o lead do Chaves na Mão com a mesma Nay e os mesmos objetivos; não fala de OLX."""
+    LEAD = {"id": 1, "origem": "chavesnamao", "nome": "Maria Souza", "trat": "Sra.", "telefone": "92900000002",
+            "codigo": 9045, "negocio": "locacao", "etapa": "nova",
+            "ficha_do_anuncio": {"codigo": 9045, "bairro": "Flores"},
+            "portal": [{"quando": "31/10 10:00", "codigo": 9045, "anuncio_titulo": "Apto no Flores",
+                        "mensagem": "Aceita pet?"}]}
+
+    def test_o_turno_diz_de_onde_veio(self):
+        t = w.montar_turno(self.LEAD, None, [])
+        self.assertIn("=== DE ONDE VEIO: O CHAVES NA MÃO ===", t)
+        self.assertIn("LOCAÇÃO | cód. 9045", t)
+        self.assertIn("Aceita pet?", t)
+        self.assertNotIn("A conversa na OLX", t)
+        self.assertEqual(w.quem(self.LEAD), "Maria Souza (Chaves na Mão, " + w.nay.telefone_bonito("92900000002") + ")")
+
+    def test_sem_o_imovel_abre_perguntando(self):
+        t = w.montar_turno({**self.LEAD, "codigo": None, "negocio": None, "ficha_do_anuncio": {}}, None, [])
+        self.assertIn("NÃO se sabe de qual imóvel", t)
+        self.assertNotIn("Ficha do imóvel do anúncio", t)
+
+    def test_olx_fura_e_anuncio_nao(self):
+        from olx import paredes
+        t = w.montar_turno(self.LEAD, None, [])
+        self.assertEqual([p for _i, p, _x in paredes.conferir(["Falamos pela OLX sobre o apartamento."], t, False)],
+                         ["olx_chaves"])
+        self.assertEqual(paredes.conferir(["Recebi seu contato pelo anúncio no Chaves na Mão."], t, False), [])

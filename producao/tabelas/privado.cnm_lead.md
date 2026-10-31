@@ -37,4 +37,4 @@ cnm_lead_pkey: PRIMARY KEY (lead_id)
 cnm_lead_receber, crm_cnm_ler
 
 ## funções que citam
-cnm_chave, cnm_lead_receber, crm_cnm_chats, crm_cnm_conversa, crm_cnm_ler, crm_cnm_painel
+cnm_chave, cnm_lead_para_a_nay, cnm_lead_receber, crm_cnm_chats, crm_cnm_conversa, crm_cnm_ler, crm_cnm_painel

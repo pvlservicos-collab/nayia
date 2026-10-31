@@ -15,7 +15,8 @@ DECLARE
   v_novo  boolean;
 BEGIN
   IF v_email IS NOT NULL AND v_token IS NOT NULL THEN
-    IF lower(btrim(coalesce(p_email, ''))) <> lower(v_email) OR coalesce(p_token, '') <> v_token THEN
+    IF lower(btrim(coalesce(p_email, ''))) <> lower(v_email)
+       OR coalesce(p_token, '') NOT IN (v_token, translate(encode(convert_to(v_email || ':' || v_token, 'UTF8'), 'base64'), E'\n', '')) THEN
       RETURN jsonb_build_object('status', 'negado');
     END IF;
     v_aut := true;
@@ -47,6 +48,14 @@ BEGIN
           nullif(p#>>'{ad,title}', ''), nullif(p#>>'{ad,purpose}', ''), v_valor, v_quando, p)
   ON CONFLICT (lead_id) DO UPDATE SET vezes = l.vezes + 1, ultimo_em = now()
   RETURNING (xmax = 0) INTO v_novo;
+
+  IF v_novo THEN
+    BEGIN
+      PERFORM cnm_lead_para_a_nay(v_id);
+    EXCEPTION WHEN others THEN
+      RAISE WARNING 'cnm_lead_para_a_nay(%): %', v_id, SQLERRM;
+    END;
+  END IF;
 
   RETURN jsonb_build_object('status', CASE WHEN v_novo THEN 'novo' ELSE 'repetido' END, 'autenticado', v_aut, 'id', v_id);
 END

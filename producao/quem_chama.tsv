@@ -83,6 +83,7 @@ cnm_envio_publicar
 cnm_envio_selecao	cnm_envio_publicar
 cnm_imoveis	crm_cnm_painel
 cnm_imovel_montar	cnm_envio_lista, cnm_imoveis
+cnm_lead_para_a_nay	cnm_lead_receber
 cnm_lead_receber	
 cnm_norm	cnm_areas
 condominio_aplicar_google	

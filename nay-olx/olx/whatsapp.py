@@ -754,16 +754,29 @@ def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
         linhas += [
             paredes.DO_CHAVES,
             "Ela viu o nosso anúncio no portal Chaves na Mão e deixou o contato (nome, telefone e, às vezes, uma mensagem). "
-            "Não houve conversa antes do WhatsApp. Siga O CAMINHO como na OLX, com uma diferença na ABERTURA: diga que "
-            "recebeu o contato dela pelo Chaves na Mão sobre o imóvel (o condomínio ou o bairro), responda pela ficha o que a "
-            "mensagem dela perguntou e pergunte se ela quer agendar uma visita ou receber outras opções parecidas. Se a "
-            "mensagem já pede visita com dia e horário, marque \"visita\". NUNCA fale de OLX nem diga \"falamos antes\".",
-            "Ex.: \"Boa tarde, Sra. Maria! Aqui é a Nay, da Imob Easy. Recebi seu contato pelo Chaves na Mão sobre o "
-            "apartamento no Kopenhagen. A senhora quer agendar uma visita ou receber outras opções parecidas?\"",
-            f"{finalidade} | cód. {lead.get('codigo') or '-'}",
-            "Ficha do imóvel do anúncio: " + json.dumps(lead.get("ficha_do_anuncio") or {}, ensure_ascii=False),
-            "O que ela deixou no portal (o mais antigo primeiro):",
+            "Não houve conversa antes do WhatsApp. NUNCA fale de OLX nem diga \"falamos antes\".",
         ]
+        if lead.get("ficha_do_anuncio"):
+            linhas += [
+                "Siga O CAMINHO como na OLX, com uma diferença na ABERTURA: diga que recebeu o contato dela pelo Chaves na "
+                "Mão sobre o imóvel (o condomínio ou o bairro), responda pela ficha o que a mensagem dela perguntou e "
+                "pergunte se ela quer agendar uma visita ou receber outras opções parecidas. Se a mensagem já pede visita "
+                "com dia e horário, marque \"visita\".",
+                "Ex.: \"Boa tarde, Sra. Maria! Aqui é a Nay, da Imob Easy. Recebi seu contato pelo Chaves na Mão sobre o "
+                "apartamento no Kopenhagen. A senhora quer agendar uma visita ou receber outras opções parecidas?\"",
+                f"{finalidade} | cód. {lead.get('codigo') or '-'}",
+                "Ficha do imóvel do anúncio: " + json.dumps(lead["ficha_do_anuncio"], ensure_ascii=False),
+            ]
+        else:
+            # 31/10 (Pedro: a Gleise, posta à mão, sem o anúncio): não se sabe o imóvel; abre como o orgânico
+            linhas += [
+                "NÃO se sabe de qual imóvel ela veio. ABERTURA: diga que recebeu o contato dela pelo Chaves na Mão e "
+                "pergunte se ela procura imóvel para alugar ou para comprar (não cite imóvel nenhum). Depois, o roteiro de "
+                "OUTRAS OPÇÕES, uma pergunta por vez, começando pelo tipo (apartamento, casa...).",
+                "Ex.: \"Boa tarde, Sra. Gleise! Aqui é a Nay, da Imob Easy. Recebi seu contato pelo Chaves na Mão. A "
+                "senhora está procurando imóvel para alugar ou para comprar?\"",
+            ]
+        linhas.append("O que ela deixou no portal (o mais antigo primeiro):")
         for p in lead.get("portal") or []:
             linhas.append(f"  {p['quando']} · {p.get('anuncio_titulo') or 'anúncio'} (cód. {p.get('codigo') or '-'}): "
                           f"{(p.get('mensagem') or '').strip() or '(sem mensagem)'}")
