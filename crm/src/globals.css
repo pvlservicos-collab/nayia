@@ -1774,6 +1774,18 @@ html {
   --olx-inicial-fundo: #2a2c2e;
   --olx-inicial-letra: #cfe3f0;
 }
+/* Chat Chaves na Mão (Pedro, 31/10: "põe as cores do chat Chaves na Mão do CRM vermelho"): a mesma tela do Chat OLX
+   com o vermelho do portal no lugar do roxo (abas, chips, não lidas, balão nosso). Só a página /chat/chavesnamao. */
+.chat-theme.olx-theme.cnm-theme {
+  --olx-roxo: #d7141a;
+  --olx-roxo-claro: #fde8e8;
+  --olx-balao-nos: #fde2e2;
+}
+.dark .chat-theme.olx-theme.cnm-theme {
+  --olx-roxo: #ff6b6b;
+  --olx-roxo-claro: rgba(255, 107, 107, 0.16);
+  --olx-balao-nos: #4a2426;
+}
 
 .olx-barra {
   display: flex; align-items: center; gap: 6px 14px; flex-wrap: wrap; min-height: 56px; padding: 6px 16px;
