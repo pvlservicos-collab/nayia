@@ -19,6 +19,11 @@
   var REAL = "img,video,picture,.leaflet-tile-pane,[style*='background-image']";
   var css =
     "html.admin-escuro{filter:invert(.92) hue-rotate(180deg);background:#fff}" +
+    // 31/10 (Pedro: "tá passando um filtro negativo nas minhas imagens quando eu vou olhar elas"): a janela aberta com
+    // showModal (o visor de fotos), a tela cheia e o popover são desenhados por cima da página, FORA da inversão do <html>;
+    // a foto lá dentro voltava de uma inversão que nunca houve e saía em negativo. Elas ganham a mesma inversão da página.
+    "html.admin-escuro :is(dialog:modal,:fullscreen,:popover-open){filter:invert(.92) hue-rotate(180deg)}" +
+    "html.admin-escuro.tema-ja-escuro :is(dialog:modal,:fullscreen,:popover-open){filter:none}" +
     "html.admin-escuro :is(" + REAL + "){filter:" + VOLTA + "}" +
     "html.admin-escuro.tema-arte :is(canvas,.preview,.nossos-arte,.slide){filter:" + VOLTA + "}" +
     // o que está dentro de algo que já voltou à cor real não volta de novo
