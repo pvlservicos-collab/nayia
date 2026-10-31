@@ -28,6 +28,7 @@ import {
   Graph,
   ChatTeardropText,
   BookOpenText,
+  Lightbulb,
 } from '@phosphor-icons/react'
 import { useAuth, usePipeline } from '@/hooks'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -83,6 +84,9 @@ const NAV_ITEMS = [
   // TUTORIAIS (Pedro, 29/10/2026): "uma pasta no menu Mais, TUTORIAIS, tipo uma documentação" -- os passos de cada função
   // com prints (lib/tutoriais.ts); a busca do alto também acha
   { label: 'Tutoriais', href: '/tutoriais', icon: BookOpenText, mais: true },
+  // GUIA DE ATENDIMENTO (Pedro, 31/10/2026): as regras do Tel e o que faz a conversa virar visita, lidas das conversas
+  // reais (lib/guiaDeAtendimento.ts)
+  { label: 'Guia de atendimento', curto: 'Guia', href: '/guia-de-atendimento', icon: Lightbulb, mais: true },
   { label: 'Configurações', href: '/settings/organization', icon: Gear, mais: true },
 ]
 
@@ -206,7 +210,8 @@ export default function Navbar() {
       case 'Chat Chaves na Mão':
       case 'Visitantes':
       case 'Corretores':
-      case 'Tutoriais': return !!permissions.settings?.view_chat
+      case 'Tutoriais':
+      case 'Guia de atendimento': return !!permissions.settings?.view_chat
       case 'DM Instagram': return !!permissions.settings?.view_chat
       case 'Funil de Mensagens': return !!permissions.settings?.view_funnels
       case 'Logs': return !!permissions.settings?.view_logs
