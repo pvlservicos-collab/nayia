@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION public.captacao_vigiar()
+CREATE OR REPLACE FUNCTION public.captacao_vigiar_rodar()
  RETURNS text
  LANGUAGE plpgsql
 AS $function$

@@ -21,7 +21,7 @@ nay_site_nai: SELECT
 nay_site_nai, só nestas colunas: UPDATE(valor)
 
 ## funções que escrevem aqui
-nai_agenda_tick, nai_comando_tel, nai_desligar_regra_publico, nai_ligar_regra_publico, nai_sincronizar_grupos, pergunta_fila_entrar
+nai_agenda_tick_rodar, nai_comando_tel, nai_desligar_regra_publico, nai_ligar_regra_publico, nai_sincronizar_grupos, pergunta_fila_entrar
 
 ## funções que citam
-nai_agenda_tick, nai_cfg, nai_checklist_texto, nai_comando_tel, nai_conferir_resposta, nai_desligar_regra_publico, nai_ligar_regra_publico, nai_sincronizar_grupos, nay_negocio_pedido, pergunta_fila_entrar, site_painel_internos
+nai_agenda_tick_rodar, nai_cfg, nai_checklist_texto, nai_comando_tel, nai_conferir_resposta, nai_desligar_regra_publico, nai_ligar_regra_publico, nai_sincronizar_grupos, nay_negocio_pedido, pergunta_fila_entrar, site_painel_internos

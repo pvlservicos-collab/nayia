@@ -1,4 +1,4 @@
-# captacao_config  (tabela, ~44 linhas)
+# captacao_config  (tabela, ~46 linhas)
 
 ## colunas
 chave  text  NOT NULL
@@ -23,7 +23,7 @@ nay_site_nai: SELECT
 nay_site_nai, só nestas colunas: UPDATE(valor)
 
 ## funções que escrevem aqui
-captacao_config_religou, captacao_desarmar, captacao_nay_perfil_trocar, captacao_py_reservar_disparo, captacao_relatorio_da_vez
+captacao_config_religou, captacao_desarmar, captacao_nay_perfil_trocar, captacao_py_reservar_disparo, captacao_relatorio_da_vez_rodar
 
 ## funções que citam
-captacao_aplicar_pendentes, captacao_cfg, captacao_config_religou, captacao_desarmar, captacao_desconectou, captacao_disparo_liberado, captacao_e_do_python, captacao_fora_da_campanha, captacao_nay_perfil_trocar, captacao_nay_perfis, captacao_py_disparo_motivo, captacao_py_fila_do_disparo, captacao_py_reservar_disparo, captacao_relatorio_da_vez, captacao_teto_hoje, captacao_vigiar, crm_captacao_disparo_oficial, crm_captacao_placar, crm_captacao_relatorio, site_painel_internos
+captacao_aplicar_pendentes, captacao_cfg, captacao_config_religou, captacao_desarmar, captacao_desconectou, captacao_disparo_liberado, captacao_e_do_python, captacao_fora_da_campanha, captacao_nay_perfil_trocar, captacao_nay_perfis, captacao_py_disparo_motivo, captacao_py_fila_do_disparo, captacao_py_reservar_disparo, captacao_relatorio_da_vez, captacao_relatorio_da_vez_rodar, captacao_teto_hoje, captacao_vigiar, captacao_vigiar_rodar, crm_captacao_disparo_oficial, crm_captacao_placar, crm_captacao_relatorio, site_painel_internos

@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION public.captacao_relatorio_da_vez()
+CREATE OR REPLACE FUNCTION public.captacao_relatorio_da_vez_rodar()
  RETURNS TABLE(phone text, message text, "delayMessage" integer)
  LANGUAGE plpgsql
 AS $function$

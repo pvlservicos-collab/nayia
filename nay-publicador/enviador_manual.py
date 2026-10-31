@@ -31,6 +31,7 @@ import os
 import re
 import signal
 import sys
+import threading
 import time
 from datetime import datetime
 
@@ -38,9 +39,10 @@ import psycopg2
 import psycopg2.extras
 import requests
 
+import agenda_nai
+
 INTERVALO_S = 3          # sem nada na fila, olha de novo a cada 3 s
 ENTRE_ENVIOS_S = 2       # o mesmo espaço do n8n (batchInterval 2000 ms) entre uma mensagem e a próxima
-TIMEOUT_ZAPI_S = 30
 SINAL_DE_VIDA = "/root/nay-publicador/logs/enviador_manual.vivo"
 
 parar = False
@@ -55,79 +57,15 @@ def fim4(fone):
     return "…" + d[-4:] if d else "?"
 
 
-# ---------------------------------------------------------------- o check duplo (porte do "Conferir cabeçalho")
-def chave(p):
-    """A chave do destino recalculada aqui, independente da do banco (nai_chave)."""
-    p = str(p or "")
-    if re.search(r"@lid$", p, re.I):
-        d = re.sub(r"\D", "", p)
-        return "lid:" + d if d else None
-    d = re.sub(r"\D", "", p)
-    if not d:
-        return None
-    if len(d) in (10, 11) and not d.startswith("55"):
-        d = "55" + d
-    if re.fullmatch(r"55\d{10,11}", d):
-        return d[:4] + d[-8:]
-    return d
-
-
-def motivo_para_nao_enviar(j):
-    """None = pode enviar; senão o motivo do bloqueio (os mesmos nomes do n8n)."""
-    corpo = j.get("corpo") or {}
-    if not j.get("id"):
-        return "sem_id"
-    if not corpo or str(corpo.get("phone")) != str(j.get("telefone")):
-        return "telefone_do_corpo_diferente"
-    if not j.get("chave_esperada") or chave(j.get("telefone")) != str(j.get("chave_esperada")):
-        return "chave_nao_confere_py"
-    if j.get("rota") not in ("send-text", "send-image"):
-        return "rota_invalida"
-    if j.get("rota") == "send-image":
-        cod = int(j.get("codigo") or 0)
-        img = str(corpo.get("image") or "")
-        foto_do_imovel = cod > 0 and (
-            re.match(r"^https://imobeasy\.com/system/pictures/", img)
-            or re.match(r"^https://imobeasy\.online/fotos(-captacao/[a-z]+)?/%d/" % cod, img)
-            or img == "https://imobeasy.online/colagens/%d.jpg" % cod)
-        if not foto_do_imovel:
-            return "foto_sem_codigo"
-    if j.get("rota") == "send-text" and not str(corpo.get("message") or "").strip():
-        return "texto_vazio"
-    return None
-
-
-# ---------------------------------------------------------------- Z-API
-def zapi_base():
-    inst, tok = os.environ["ZAPI_INSTANCIA"], os.environ["ZAPI_TOKEN"]
-    return "https://api.z-api.io/instances/%s/token/%s" % (inst, tok)
-
-
-def zapi_cabecalho():
-    return {"Client-Token": os.environ["ZAPI_CLIENT_TOKEN"], "Content-Type": "application/json"}
-
-
-def enviar_zapi(rota, corpo):
-    """Devolve o JSON da Z-API ou um {"error": ...} -- nai_confirmar_envio decide se tenta de novo."""
-    try:
-        r = requests.post(zapi_base() + "/" + rota, headers=zapi_cabecalho(), data=json.dumps(corpo), timeout=TIMEOUT_ZAPI_S)
-        try:
-            resp = r.json()
-        except ValueError:
-            resp = {"error": "%s %s" % (r.status_code, (r.text or "")[:200])}
-        if not isinstance(resp, dict):
-            resp = {"resposta": resp}
-        if r.status_code >= 400 and "error" not in resp:
-            resp["error"] = "%s %s" % (r.status_code, json.dumps(resp)[:200])
-        return resp
-    except requests.RequestException as e:
-        return {"error": "%s: %s" % (e.__class__.__name__, str(e)[:200])}
+# o check duplo (porte do "Conferir cabeçalho") e a Z-API moram em conferir.py (550): a agenda da Nay velha
+# (agenda_nai.py) usa os mesmos
+from conferir import TIMEOUT_ZAPI_S, chave, enviar_zapi, motivo_para_nao_enviar, zapi_base, zapi_cabecalho  # noqa: E402,F401
 
 
 # ---------------------------------------------------------------- o laço
-def conectar():
+def conectar(nome="nay-enviador-manual"):
     conn = psycopg2.connect(os.environ["DATABASE_URL"], connect_timeout=10,
-                            application_name="nay-enviador-manual")
+                            application_name=nome)
     conn.autocommit = False
     return conn
 
@@ -214,6 +152,9 @@ def rodar():
             log("falta a variável %s no ambiente; saindo" % k)
             sys.exit(2)
     log("enviador manual no ar (a cada %ss)" % INTERVALO_S)
+    # 550: a agenda e a saída da Nay velha, fora do n8n, numa linha própria (só age com nai_config em 'python')
+    threading.Thread(target=agenda_nai.rodar, name="agenda", daemon=True,
+                     args=(lambda: conectar("nay-agenda-nai"), lambda: parar)).start()
     conn = None
     espera_erro = 5
     while not parar:

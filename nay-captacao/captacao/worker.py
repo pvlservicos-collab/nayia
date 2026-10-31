@@ -21,7 +21,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from captacao import banco, cadastro, config, disparo, olx
+from captacao import banco, cadastro, config, disparo, olx, rotinas
 from captacao.atender import atender
 
 log = logging.getLogger("captacao.worker")
@@ -184,6 +184,8 @@ def main() -> None:
     parar = threading.Event()
     threading.Thread(target=disparador, args=(parar,), name="disparo", daemon=True).start()
     threading.Thread(target=atualizador, args=(parar,), name="cadastro", daemon=True).start()
+    # 550: o vigia do número e o relatório do dia, fora do n8n da VPS2 (só agem com captacao_config.rotinas_de = python)
+    threading.Thread(target=rotinas.rodar, args=(parar,), name="rotinas", daemon=True).start()
     conn = None
     with ThreadPoolExecutor(max_workers=AO_MESMO_TEMPO, thread_name_prefix="conversa") as turma:
         while True:

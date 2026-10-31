@@ -1,5 +1,6 @@
 chave	valor	atualizado_em
-_agenda_rodou_em	2026-10-31 09:11:15	2026-10-31T09:11
+agenda_de	n8n	2026-10-31T09:13
+_agenda_rodou_em	2026-10-31 09:20:15	2026-10-31T09:20
 agenda_sem_visita_da_nay_desde	2026-10-08 10:44:54.342893-04	2026-10-08T10:44
 antecedencia_minima_horas	3	2026-09-10T18:41
 apresentacao_proprietario	Oi! Esse é o número de visitas da Imob Easy.	2026-09-30T10:15
@@ -26,6 +27,7 @@ documentos_locacao	✅ INQUILINO (LOCATÁRIO) — de CADA pessoa que vai assinar
 documentos_venda	✅ VENDEDOR (PROPRIETÁRIO)  - RG e CPF ou CNH (e do cônjuge, se casado) - Certidão de casamento ou nascimento atualizada - Comprovante de residência - Matrícula atualizada do imóvel (Cartório de Registro de Imóveis) - Carnê do IPTU do ano ou certidão negativa de IPTU - Declaração de quitação do condomínio (se for condomínio) - Certidões negativas: débitos federais, trabalhistas, protestos e ações cíveis  ✅ COMPRADOR — de CADA pessoa que vai assinar  - RG e CPF ou CNH (frente e verso, legível) - Certidão de casamento ou nascimento - Nacionalidade, profissão, estado civil - Telefone/WhatsApp e e-mail - Comprovante de residência - Se for financiar: comprovante de renda (3 contracheques ou IR) e extrato do FGTS - Se PJ: contrato social, CNPJ e documentos dos sócios	2026-09-29T15:09
 duvida_olx_vai_ao_agente	sim	2026-10-22T19:18
 duvida_vai_ao_agente	sim	2026-10-22T09:58
+entrada	n8n	2026-10-31T09:13
 envio_simulado	nao	2026-09-22T13:47
 escalacao_expira_horas	2	2026-10-31T01:22
 escala_sem_parar	[telefone …2835],[telefone …7316]	2026-09-13T17:29

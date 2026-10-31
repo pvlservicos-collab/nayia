@@ -23,4 +23,4 @@ nay_leitura: SELECT
 nai_evento
 
 ## funções que citam
-crm_visita_eventos, nai_agenda_tick, nai_evento, nai_guardar_dados_visita, nai_visita_avisar_acompanhante
+crm_visita_eventos, nai_agenda_tick_rodar, nai_evento, nai_guardar_dados_visita, nai_visita_avisar_acompanhante

@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION public.nai_agenda_tick()
+CREATE OR REPLACE FUNCTION public.nai_agenda_tick_rodar()
  RETURNS integer
  LANGUAGE plpgsql
 AS $function$
