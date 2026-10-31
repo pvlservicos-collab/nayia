@@ -26,7 +26,7 @@ CREATE UNIQUE INDEX core_turno_exec_id ON public.core_turno USING btree (exec_id
 CREATE UNIQUE INDEX core_turno_pkey ON public.core_turno USING btree (id)
 
 ## restrições
-core_turno_caminho_check: CHECK ((caminho = ANY (ARRAY['pre_roteador'::text, 'classificador'::text, 'fallback'::text, 'fora_do_escopo'::text])))
+core_turno_caminho_check: CHECK ((caminho = ANY (ARRAY['pre_roteador'::text, 'classificador'::text, 'fallback'::text, 'fora_do_escopo'::text, 'followup'::text])))
 core_turno_pkey: PRIMARY KEY (id)
 
 ## permissões
