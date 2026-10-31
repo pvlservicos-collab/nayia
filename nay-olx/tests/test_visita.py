@@ -165,6 +165,29 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class DiegoSemPrazo(unittest.TestCase):
+    """31/10 ("tira isso de 30 min"): passou o prazo sem resposta, o Diego continua esperando; a corretora da venda, não."""
+
+    def _venceu(self, telefone):
+        from unittest import mock
+        consulta = {"id": 7, "visita": 3, "papel": "corretor", "nome": "x", "telefone": telefone, "ate": None, "venceu": True}
+        w = mock.Mock(MANAUS=MANAUS)
+        with mock.patch.object(v, "_retomar", return_value=0), mock.patch.object(v, "_feedback_pedido", return_value=0), \
+                mock.patch.object(v, "perguntas_ao_dono", return_value=0), mock.patch.object(v, "_w", return_value=w), \
+                mock.patch.object(v.banco, "linhas", return_value=[consulta]), mock.patch.object(v.banco, "um") as um, \
+                mock.patch.object(v, "_visita", return_value={"id": 3, "lead": 1, "codigo": 2462, "estado": "buscando_corretor",
+                                                               "quando": AGORA}), \
+                mock.patch.object(v, "_lead", return_value={}), mock.patch.object(v, "_proximo_corretor") as prox:
+            v.atender(None, {"visita_locacao": "Diego:5592982092845", "visita_corretores": "Neila:5592984118226"})
+        return um.call_count, prox.call_count
+
+    def test_diego_continua_esperando(self):
+        self.assertEqual(self._venceu("92982092845"), (0, 0))
+
+    def test_corretora_da_venda_passa_a_vez(self):
+        self.assertEqual(self._venceu("92984118226"), (1, 1))
+
+
 class Desmarcou(unittest.TestCase):
     """31/10 (Pedro, o Eduardo ...2424): o cliente desmarcar cancela a visita e avisa corretor e dono."""
 

@@ -7,7 +7,8 @@ confirmação de visita igual é a mensagem da nay parceria, e só vai atrás do
   1. a pessoa disse imóvel, dia e horário -> a confirmação no modelo da Parceria ("🏠 Só para confirmar a solicitação de
      visita ..."), e a visita fica em `confirmar_cliente`;
   2. ela disse sim -> `buscando_corretor`: um corretor de `visita_corretores` por vez ("Nome:telefone, ..."); "não", ou
-     sem resposta em `visita_corretor_espera_min`, chama o próximo; acabou a lista -> `sem_corretor`, a equipe no grupo;
+     sem resposta em `visita_corretor_espera_min`, chama o próximo; acabou a lista -> `sem_corretor`, a equipe no grupo
+     (31/10: na locação é só o Diego, e ele não tem prazo: espera até o horário da visita);
   3. um corretor disse sim -> `pedindo_proprietario`: o dono do imóvel (nai_proprietario_do_imovel), pelo 8595-6408;
   4. o dono disse sim -> `confirmada`: a pessoa e o corretor recebem a visita confirmada; não -> a pessoa escolhe outro
      horário e a equipe fica sabendo.
@@ -657,6 +658,9 @@ def atender(conn, cfg: dict) -> int:
     feitas = _retomar(conn, cfg) + lembrar + depois + _feedback_pedido(conn) + perguntas_ao_dono(conn)   # 493
     espera_c = max(1, int(cfg.get("visita_corretor_espera_min") or 30))
     espera_p = max(1, int(cfg.get("visita_proprietario_espera_min") or 180))
+    # 31/10 (Pedro: "tira isso de 30 min"): o Diego (locação) não tem prazo; espera a resposta dele até o horário da
+    # visita (_retomar a dá como expirada). Os 30 min ficam só para a venda, onde passam de uma corretora para outra.
+    sem_prazo = {f[-8:] for _, f in corretores(cfg, "visita_locacao")}
     for c in banco.linhas(conn, """
             SELECT c.*, r.ate, r.textos,
                    now() - c.perguntado_em > make_interval(mins => CASE WHEN c.papel = 'corretor' THEN %s ELSE %s END) AS venceu
@@ -711,7 +715,7 @@ def atender(conn, cfg: dict) -> int:
                 _w()._grupo(f"Visita do cliente {_quem(lead)} ao #{v['codigo']}: o proprietário não pode em {dia(q)} às "
                             f"{hora(q)} (\"{(c.get('textos') or '')[:120]}\"). A Nay pediu outro horário ao cliente.")
             feitas += 1
-        elif c.get("venceu"):
+        elif c.get("venceu") and not (c["papel"] == "corretor" and c["telefone"][-8:] in sem_prazo):
             banco.um(conn, "UPDATE privado.olx_visita_consulta SET estado = 'sem_resposta' WHERE id = %s", (c["id"],))
             if c["papel"] == "corretor":
                 _proximo_corretor(conn, v, cfg)
