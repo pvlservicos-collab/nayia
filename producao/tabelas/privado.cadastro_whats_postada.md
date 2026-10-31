@@ -1,4 +1,4 @@
-# privado.cadastro_whats_postada  (tabela, ~0 linhas)
+# privado.cadastro_whats_postada  (tabela, ~65 linhas)
 
 ## colunas
 message_id  text  NOT NULL

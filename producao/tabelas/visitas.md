@@ -28,4 +28,4 @@ nay_leitura: SELECT
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-crm_captacao_corretores, crm_etapa_da_nay, crm_etapa_manual, crm_mensagem_citada, nai_abrir_turno, nai_agenda_por_dia, nai_agenda_tick, nai_aprovar_visita, nai_com_a_rayssa, nai_comando_tel, nai_contexto, nai_contexto_corretor, nai_e_comando_agenda, nai_e_comando_tel, nai_liberar_saida, nai_pedir_visita, nai_visitas_do_bloco_avisar, nay_pede_visita, site_blog_metricas, site_painel_metricas, visita_card
+cnm_envio_lista, crm_captacao_corretores, crm_etapa_da_nay, crm_etapa_manual, crm_leads_corretores, crm_mensagem_citada, nai_abrir_turno, nai_agenda_por_dia, nai_agenda_tick, nai_aprovar_visita, nai_com_a_rayssa, nai_comando_tel, nai_contexto, nai_contexto_corretor, nai_e_comando_agenda, nai_e_comando_tel, nai_liberar_saida, nai_pedir_visita, nai_visitas_do_bloco_avisar, nay_pede_visita, site_blog_metricas, site_painel_metricas, visita_card

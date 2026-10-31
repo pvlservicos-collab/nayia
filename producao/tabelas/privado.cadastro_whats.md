@@ -1,4 +1,4 @@
-# privado.cadastro_whats  (tabela, ~11 linhas)
+# privado.cadastro_whats  (tabela, ~17 linhas)
 428: o imóvel que o Tel encaminhou no grupo CADASTRO DE IMÓVEL IMOBEASY, do texto até o cadastro concluído. ficha = o que já se sabe (chaves da API do site); faltam = as perguntas, na ordem; pergunta = a que está no ar no privado.
 
 ## colunas

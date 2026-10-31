@@ -1,4 +1,4 @@
-# core_envio_imovel  (tabela, ~375 linhas)
+# core_envio_imovel  (tabela, ~446 linhas)
 
 ## colunas
 chave  text  NOT NULL
@@ -22,4 +22,4 @@ nay_leitura: SELECT
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-(nenhuma)
+cnm_envio_lista

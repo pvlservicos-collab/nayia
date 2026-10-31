@@ -1,4 +1,4 @@
-# privado.olx_chat  (tabela, ~13 linhas)
+# privado.olx_chat  (tabela, ~31 linhas)
 314: cada conversa do chat da OLX (conta + chatId)
 
 ## colunas

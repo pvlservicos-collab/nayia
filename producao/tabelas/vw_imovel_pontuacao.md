@@ -13,6 +13,7 @@ oferecido  boolean
 ## permissões
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 nay_leitura: SELECT
+nay_site_escrita: SELECT
 nay_site_leitura: SELECT
 
 ## funções que escrevem aqui

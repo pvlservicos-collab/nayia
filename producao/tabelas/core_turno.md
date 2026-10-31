@@ -1,4 +1,4 @@
-# core_turno  (tabela, ~4449 linhas)
+# core_turno  (tabela, ~4944 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('core_turno_id_seq'::regclass)

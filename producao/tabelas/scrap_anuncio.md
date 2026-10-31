@@ -1,4 +1,4 @@
-# scrap_anuncio  (tabela, ~9064 linhas)
+# scrap_anuncio  (tabela, ~28202 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('scrap_anuncio_id_seq'::regclass)
@@ -48,9 +48,10 @@ scrap_anuncio_pkey: PRIMARY KEY (id)
 ## permissões
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 nay_leitura: SELECT
+nay_site_escrita: SELECT
 
 ## funções que escrevem aqui
 scrap_contatos_rebuild, site_scrap_importar
 
 ## funções que citam
-busca_olx_candidatos, scrap_contatos_rebuild, site_scrap_anuncios, site_scrap_importar, site_scrap_listas
+busca_olx_candidatos, crm_olx_scrap_busca, crm_olx_scrap_opcoes, scrap_contatos_rebuild, site_scrap_anuncios, site_scrap_importar, site_scrap_listas

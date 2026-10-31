@@ -9,15 +9,22 @@ AS $function$
   chave_da_pessoa AS MATERIALIZED (
     SELECT pe.telefone, unnest(pe.chaves) AS chave FROM pessoa pe
   ),
+  -- 543: os 8 últimos dígitos de cada chave -- o filtro barato que vem ANTES do nai_chave dos cadastros abaixo
+  fins AS MATERIALIZED (
+    SELECT array_agg(DISTINCT right(regexp_replace(cp.chave, '\D', '', 'g'), 8)) AS f FROM chave_da_pessoa cp
+  ),
   -- todo proprietário que o sistema conhece: o cadastro do site, o do admin
   -- antigo e quem a campanha de captação procurou
   donos AS MATERIALIZED (
     SELECT nai_chave(p.telefone) AS chave, p.nome, 'p'::text AS fonte, p.id::text AS ref
-      FROM proprietarios p WHERE coalesce(p.telefone, '') <> ''
+      FROM proprietarios p, fins WHERE coalesce(p.telefone, '') <> ''
+       AND right(regexp_replace(p.telefone, '\D', '', 'g'), 8) = ANY (fins.f)
     UNION ALL
-    SELECT nai_chave(a.telefone), a.nome, 'a', a.id::text FROM proprietarios_admin a WHERE coalesce(a.telefone, '') <> ''
+    SELECT nai_chave(a.telefone), a.nome, 'a', a.id::text FROM proprietarios_admin a, fins WHERE coalesce(a.telefone, '') <> ''
+       AND right(regexp_replace(a.telefone, '\D', '', 'g'), 8) = ANY (fins.f)
     UNION ALL
-    SELECT l.telefone_chave, l.nome, 'c', l.codigo FROM captacao_leads l WHERE coalesce(l.telefone_chave, '') <> ''
+    SELECT l.telefone_chave, l.nome, 'c', l.codigo FROM captacao_leads l, fins WHERE coalesce(l.telefone_chave, '') <> ''
+       AND right(regexp_replace(l.telefone_chave, '\D', '', 'g'), 8) = ANY (fins.f)
   ),
   dono AS MATERIALIZED (
     SELECT cp.telefone, d.nome, d.fonte, d.ref FROM chave_da_pessoa cp JOIN donos d ON d.chave = cp.chave
@@ -31,7 +38,8 @@ AS $function$
   corretor AS MATERIALIZED (
     SELECT DISTINCT ON (cp.telefone) cp.telefone, c.nome, c.creci
       FROM chave_da_pessoa cp
-      JOIN (SELECT nai_chave(c0.telefone) AS chave, c0.nome, c0.creci, c0.ativo FROM corretores c0) c ON c.chave = cp.chave
+      JOIN (SELECT nai_chave(c0.telefone) AS chave, c0.nome, c0.creci, c0.ativo FROM corretores c0, fins
+             WHERE right(regexp_replace(coalesce(c0.telefone, ''), '\D', '', 'g'), 8) = ANY (fins.f)) c ON c.chave = cp.chave
      ORDER BY cp.telefone, c.ativo DESC NULLS LAST
   ),
   -- O TEL COM A CONVERSA: quem decide é a Nay (`nai_tel_com_a_conversa`, a

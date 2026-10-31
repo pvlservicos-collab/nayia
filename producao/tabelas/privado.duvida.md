@@ -1,4 +1,4 @@
-# privado.duvida  (tabela, ~54 linhas)
+# privado.duvida  (tabela, ~67 linhas)
 512: a dúvida de um lead/corretor ligada a quem perguntamos (dono ou corretor) e ao andamento; nay-olx olx/duvidas.py, de cron
 
 ## colunas

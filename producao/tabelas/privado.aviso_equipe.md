@@ -1,4 +1,4 @@
-# privado.aviso_equipe  (tabela, ~113 linhas)
+# privado.aviso_equipe  (tabela, ~175 linhas)
 508 (28/10): o aviso à equipe que não é de visita; o CRM leva às Notificações (crm_avisos_da_equipe).
 
 ## colunas

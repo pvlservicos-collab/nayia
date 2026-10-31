@@ -40,6 +40,8 @@ AS $function$
     SELECT DISTINCT nay_normalizar_lugar(x, true) AS n
       FROM unnest(nai_bairros_ao_redor(ARRAY(SELECT n FROM pedidos))) x
      WHERE nay_normalizar_lugar(x, true) NOT IN (SELECT n FROM pedidos)
+  ), perto_im AS (  -- 545/546 (Pedro, 31/10: "precisão nos bairros"): o IMÓVEL a até 2 km da borda do bairro pedido
+    SELECT p.codigo FROM nay_imoveis_perto(ARRAY(SELECT n FROM pedidos)) p
   ), do_ref AS (    -- 434: o bairro do condomínio pedido, pela planilha ("Parque 10 Norte" = Parque 10), quando ela não disse bairro
     SELECT DISTINCT nay_normalizar_lugar(coalesce(nay_bairro_parecido(b), b), true) AS n
       FROM ref r CROSS JOIN LATERAL unnest(string_to_array(r.bairro, ', ')) x
@@ -47,6 +49,10 @@ AS $function$
      WHERE NOT EXISTS (SELECT 1 FROM pedidos)
   ), c AS (
     SELECT i.codigo, i.bairro, i.condominio_nome, i.tipo, i.quartos, nay_normalizar_lugar(i.bairro, true) AS bn,
+           -- ao redor: pela distância do imóvel; só o imóvel sem localização usa o bairro vizinho (o critério antigo)
+           (i.codigo IN (SELECT codigo FROM perto_im)
+            OR (NOT EXISTS (SELECT 1 FROM imovel_geo g WHERE g.codigo = i.codigo)
+                AND nay_normalizar_lugar(i.bairro, true) IN (SELECT n FROM perto))) AS ao_redor,
            (SELECT n.id FROM condominio_proximo_nomes n WHERE n.norma = lower(unaccent(i.condominio_nome)) LIMIT 1) AS pl,
            CASE WHEN f.fin = 'venda' THEN i.valor_venda ELSE i.valor_aluguel END AS p
       FROM core_imovel_busca i CROSS JOIN f
@@ -78,13 +84,13 @@ AS $function$
   )
   SELECT c.codigo, c.bairro, c.condominio_nome, c.tipo, c.quartos, c.p,
          (c.bn NOT IN (SELECT n FROM pedidos) AND c.bn NOT IN (SELECT n FROM do_ref)
-          AND (c.bn IN (SELECT n FROM perto) OR c.pl IN (SELECT para_id FROM prox)))
+          AND (c.ao_redor OR c.pl IN (SELECT para_id FROM prox)))
     FROM c CROSS JOIN f
    WHERE c.p > 0
      -- 394: a faixa firme da Parceria (225): 20% abaixo, 10% acima
      AND (f.teto IS NULL OR c.p BETWEEN f.teto * 0.80 AND f.teto * 1.10)
      AND ((NOT EXISTS (SELECT 1 FROM pedidos) AND NOT EXISTS (SELECT 1 FROM do_ref))
-          OR c.bn IN (SELECT n FROM pedidos) OR c.bn IN (SELECT n FROM perto) OR c.bn IN (SELECT n FROM do_ref)
+          OR c.bn IN (SELECT n FROM pedidos) OR c.ao_redor OR c.bn IN (SELECT n FROM do_ref)
           -- 434: o condomínio pedido e os próximos dele (planilha) valem mesmo fora dos bairros
           OR c.pl IN (SELECT id FROM ref) OR c.pl IN (SELECT para_id FROM prox))
    -- 434 (Pedro, 20/10): o condomínio pedido; os próximos da mesma classe (os do mesmo bairro antes); os da outra
@@ -96,6 +102,6 @@ AS $function$
             -- 438: entre os recentes, o lançamento mais novo primeiro (o ano da ficha do condomínio, 436)
             -coalesce((SELECT q.ano FROM condominio_proximo q WHERE q.id = c.pl AND q.recente
                         AND c.pl IN (SELECT para_id FROM prox)), 0),
-            (c.bn IN (SELECT n FROM perto)), abs(c.p - coalesce(f.teto, c.p)), c.codigo
+            (c.ao_redor), abs(c.p - coalesce(f.teto, c.p)), c.codigo
    LIMIT least(greatest(coalesce(p_limite, 5), 1), 10)
 $function$;
