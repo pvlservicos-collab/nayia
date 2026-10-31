@@ -1,0 +1,6 @@
+# /etc/cron.d/nay-cobrar-escaladas -- 547 (Pedro, 31/10/2026: "corrije o resto", a revisão da Parceria de 30/10): a
+# escalada do núcleo que ninguém respondeu é cobrada nas Notificações do CRM aos 30 min, e de novo quando o corretor
+# escreve mais (nay_cobrar_escaladas(), no máximo de 20 em 20 min por pessoa). Nada vai ao Telegram.
+# De 5 em 5 min. Desligar: apagar este arquivo.
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+*/5 * * * * root docker exec nay-postgres psql -U nay -d naydb -qAtc "SELECT nay_cobrar_escaladas()" >/dev/null 2>&1
