@@ -275,6 +275,22 @@ class UmaConfirmacaoSo(unittest.TestCase):
         self.assertTrue(w.fecho({"nome": "Ana", "trat": None}, 1, proximas=True, afrouxou=["com 3 quartos"])
                         .startswith("Essa é a opção mais próxima do que você procura: com 3 quartos."))
 
+    def test_o_que_o_tel_ja_respondeu_entra_no_turno(self):
+        # 01/11: a Nay Leads não lia o imovel_conhecimento; o que o Tel respondia voltava como pergunta
+        from unittest import mock
+        linhas =[{"codigo": "2944", "assunto": "pet", "texto": "ela não aceita pet, mas qual é o porte? podemos tentar"},
+                  {"codigo": "2944", "assunto": "mobilia", "texto": "proprietário só aluga todo mobiliado"}]
+        with mock.patch.object(w.banco, "linhas", return_value=linhas) as q:
+            saber = w.saber_dos_imoveis(None, {"codigo": 2944, "enviados": [2944, 5725]})
+        self.assertEqual(q.call_args[0][2], (["2944", "5725"],))
+        self.assertEqual(saber, ["#2944: pet: ela não aceita pet, mas qual é o porte? podemos tentar | "
+                                 "mobilia: proprietário só aluga todo mobiliado"])
+        self.assertEqual(w.saber_dos_imoveis(None, {"codigo": None, "enviados": []}), [])
+        turno = w.montar_turno({"id": 1, "nome": "Ana", "telefone": "5592999990000", "etapa": "filtrar",
+                                "saber_dos_imoveis": saber, "imoveis_conhecidos": ["#2944 · Apartamento"]}, None, [])
+        self.assertIn("O QUE O TEL E OS DONOS JÁ RESPONDERAM", turno)
+        self.assertIn("só aluga todo mobiliado", turno)
+
     def test_condominio_nas_exigencias_e_o_tipo(self):
         # 01/11 (lead 121: "casa ... que seja em condomínio" e recebeu uma casa de rua no Japiim)
         f = {"tipo": "casa", "quartos": 3, "exigencias": ["em condomínio"]}

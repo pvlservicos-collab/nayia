@@ -106,6 +106,7 @@ def lead_no_turno(conn, t: dict) -> dict:
     lead["etapa"] = "imoveis_enviados" if lead["enviados"] else ("filtrar" if tem_nay else "nova")
     lead["visita_aberta"] = None
     lead["imoveis_conhecidos"] = whatsapp.imoveis_da_conversa(conn, lead)
+    lead["saber_dos_imoveis"] = whatsapp.saber_dos_imoveis(conn, lead)
     if whatsapp.organico(lead):
         lead["fichas_citadas"] = whatsapp._fichas_citadas(conn, t["ctx"], lead)
     return lead

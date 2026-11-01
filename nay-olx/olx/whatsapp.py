@@ -45,6 +45,7 @@ except Exception:  # noqa: BLE001 -- sem a base de fusos (Windows): Manaus é -4
 
 MAX_BALOES = 3
 MAX_IMOVEIS = 5
+SABER_POR_IMOVEL = 8         # 01/11: o que o Tel já respondeu de cada imóvel, no turno (os mais recentes)
 MAX_FOTOS = 12
 ENTRE_ENVIOS_S = 1.5
 DEPOIS_DAS_FOTOS_S = 8.0       # "espera carregar todas as fotos e vai para o próximo"
@@ -689,6 +690,26 @@ def imoveis_da_conversa(conn, lead: dict) -> list[str]:
     return saida
 
 
+def saber_dos_imoveis(conn, lead: dict) -> list[str]:
+    """01/11 (Pedro: "atualiza nosso banco ... para que a Nay não pergunte novamente"): o que o Tel e os donos já
+    responderam sobre os imóveis desta conversa (imovel_conhecimento, a mesma memória que a Nay da Parceria lê). Até
+    01/11 a Nay Leads não lia: o que o Tel respondia a uma cliente voltava como pergunta para a próxima."""
+    cods = [c for c in (_int(x) for x in [lead.get("codigo"), *(lead.get("enviados") or []),
+                                          *[f.get("codigo") for f in lead.get("fichas_citadas") or []]]) if c]
+    if not cods:
+        return []
+    linhas = banco.linhas(conn, """
+        SELECT k.codigo, k.assunto, left(regexp_replace(k.texto, '\\s+', ' ', 'g'), 220) AS texto
+          FROM imovel_conhecimento k WHERE k.codigo = ANY(%s::text[])
+         ORDER BY k.codigo, k.atualizado_em DESC""", ([str(c) for c in dict.fromkeys(cods)],))
+    por: dict[str, list[str]] = {}
+    for l in linhas:
+        por.setdefault(l["codigo"], [])
+        if len(por[l["codigo"]]) < SABER_POR_IMOVEL:
+            por[l["codigo"]].append(f"{l['assunto']}: {l['texto']}")
+    return [f"#{c}: " + " | ".join(x) for c, x in por.items()]
+
+
 DISPONIBILIDADE_DE_PARCEIRO = ("NÃO CONFIRMADA: não está no nosso site atual. Nunca diga que está disponível por esta "
                                "ficha; diga que vai confirmar e marque \"perguntar\".")
 
@@ -799,6 +820,9 @@ def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
         "Imóveis já enviados (códigos): " + (", ".join(str(c) for c in lead.get("enviados") or []) or "nenhum"),
         "IMÓVEIS DESTA CONVERSA (é daqui que sai o código da visita; NUNCA peça o código a ela):",
         *[f"  {x}" for x in (lead.get("imoveis_conhecidos") or ["nenhum"])],
+        *(["O QUE O TEL E OS DONOS JÁ RESPONDERAM SOBRE ESSES IMÓVEIS (é verdade; responda por aqui e NÃO marque "
+           "\"perguntar\" o que já está aqui):"] + [f"  {x}" for x in lead["saber_dos_imoveis"]]
+          if lead.get("saber_dos_imoveis") else []),
         _linha_da_visita(lead.get("visita_aberta")),
         "",
         "=== A CONVERSA NO WHATSAPP (a mais antiga primeiro) ===",
@@ -1387,6 +1411,7 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
     if organico(lead):
         lead["fichas_citadas"] = _fichas_citadas(conn, conversa, lead)
     lead["imoveis_conhecidos"] = imoveis_da_conversa(conn, lead)
+    lead["saber_dos_imoveis"] = saber_dos_imoveis(conn, lead)
     turno = montar_turno(lead, ctx_olx, conversa)
     # 489 (Pedro, 24/10: os agentes da Nay Leads, olx/agentes.py): o MESTRE (JEV) lê as mensagens novas e escolhe o
     # caminho; o ATENDIMENTO (a Luna) recebe só as regras dele. Chave `agentes`: nao = como era; sombra = decide e grava.

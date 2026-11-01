@@ -294,6 +294,7 @@ def rodar_conversa(c: dict) -> dict:
             lead["etapa"] = "imoveis_enviados" if lead["enviados"] else ("filtrar" if nay_ate_aqui else "nova")
             lead["fichas_citadas"] = whatsapp._fichas_citadas(conn, ctx, lead)
             lead["imoveis_conhecidos"] = whatsapp.imoveis_da_conversa(conn, lead)
+            lead["saber_dos_imoveis"] = whatsapp.saber_dos_imoveis(conn, lead)
             lead["visita_aberta"] = None
             novas = [m["texto"] for m in conv[k:fim + 1]]
             pode_calar = bool(nay_ate_aqui) and not nay_ate_aqui[-1]["texto"].strip().endswith("?")
