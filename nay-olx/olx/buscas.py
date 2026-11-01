@@ -1171,7 +1171,12 @@ def opcoes_da_base(conn, lead: dict, f: dict, excluir: list[int], quantas: int) 
     saida = []
     # 24/10: "perto de X" é do banco (distância do centro dos bairros), nunca da Nay
     perto = {x["bairro"] for x in whatsapp.so_perto(conn, [{"bairro": p["imovel"].get("bairro")} for p in r["pares"]], f)}
+    # 01/11 (lead 39: o Piazza que ela já visitou voltou duas vezes, cadastrado como 9089 e 9090): o cadastro em dobro de
+    # um imóvel que ela já recebeu não sai
+    fora_gemeos = whatsapp.gemeos(conn, [int(p["codigo"]) for p in r["pares"]], list(excluir))
     for p in r["pares"]:
+        if int(p["codigo"]) in fora_gemeos:
+            continue
         if p["nota"] < regras["cortes"]["amarelo"] or len(saida) >= quantas:
             break
         if f.get("perto_de") and p["imovel"].get("bairro") not in perto:

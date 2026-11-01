@@ -1702,9 +1702,42 @@ def _afrouxar(f: dict) -> list[tuple[dict, bool]]:
         g = {**g, "bairros": [], "qualquer_bairro": True}
         passos.append((g, True))
     if g.get("teto"):
-        g = {**g, "teto": int(float(g["teto"]) * 1.2)}
+        # 01/11 (lead 119: até R$ 200 mil e recebeu duas de R$ 255 mil): a busca já põe +10% sobre o teto; o passo leva
+        # o total a +20% do que ela disse, não a +32%
+        g = {**g, "teto": int(float(g["teto"]) * 1.2 / 1.1)}
         passos.append((g, True))
     return passos
+
+
+def sem_os_gemeos(conn, achados: list[dict], ja: list[int]) -> list[dict]:
+    """01/11 (lead 39: já tinha visitado o Piazza, 3227, e recebeu o 9089 e o 9090, o mesmo apartamento cadastrado de novo):
+    tira o que tem o mesmo condomínio, os mesmos quartos e o mesmo preço de um imóvel que ela já recebeu."""
+    fora = gemeos(conn, [int(a["codigo"]) for a in achados], ja)
+    return [a for a in achados if int(a["codigo"]) not in fora] if fora else achados
+
+
+def gemeos(conn, codigos: list[int], ja: list[int]) -> set[int]:
+    """Dos `codigos`, os que repetem um de `ja` (mesmo condomínio, quartos, aluguel e venda): cadastro em dobro."""
+    if not codigos or not ja:
+        return set()
+    return {int(r["codigo"]) for r in banco.linhas(conn, """
+        SELECT a.codigo FROM imoveis a JOIN imoveis b
+            ON b.codigo = ANY(%s) AND b.codigo <> a.codigo
+           AND similarity(nay_chave_condominio(a.condominio_nome), nay_chave_condominio(b.condominio_nome)) >= 0.7
+           AND coalesce(btrim(a.condominio_nome), '') NOT IN ('', 'Casa')
+           AND a.quartos IS NOT DISTINCT FROM b.quartos
+           AND coalesce(a.valor_aluguel, 0) = coalesce(b.valor_aluguel, 0) AND coalesce(a.valor_venda, 0) = coalesce(b.valor_venda, 0)
+         WHERE a.codigo = ANY(%s)""", (list(ja), list(codigos)))}
+
+
+def tipo_pelas_exigencias(f: dict) -> dict:
+    """01/11 (lead 121: "casa ... que seja em condomínio", seis vezes): o modelo guardou o condomínio nas exigências e o tipo
+    ficou "casa", e foi uma casa de rua. Casa com "condomínio" nas exigências é casa de condomínio."""
+    ex = _normal(" ".join(str(x) for x in (f.get("exigencias") or [])))
+    if f.get("tipo") == "casa" and re.search(r"\bcondominio\b", ex) \
+            and not re.search(r"\b(sem|fora d[eo]|nao (seja )?(em )?)\s*condominio|\brua\b|via publica", ex):
+        return {**f, "tipo": "casa_condominio"}
+    return f
 
 
 def recusados(f: dict) -> tuple[list[int], list[str]]:
@@ -1729,20 +1762,21 @@ def fora_os_recusados(achados: list[dict], nomes: list[str]) -> list[dict]:
 def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -> None:
     cods_recusados, nomes_recusados = recusados(filtros)
     excluir = list(lead.get("enviados") or []) + ([lead["codigo"]] if lead.get("codigo") else []) + cods_recusados
-    f = dict(filtros)
+    f = tipo_pelas_exigencias(dict(filtros))
     if not f.get("finalidade"):
         f["finalidade"] = finalidade_sem_dizer(lead, f)
     if _aceita_parceiro(conn, lead):
         f["aceita_parceiro"] = "true"           # 400: o cliente final recebe também os de parceiro
-    achados, proximas, tentativas, t0 = [], False, 0, time.monotonic()
+    achados, proximas, tentativas, t0, usada = [], False, 0, time.monotonic(), f
     for tentativa, afrouxou in _afrouxar(f):
         tentativas += 1
         achados = banco.linhas(conn, "SELECT * FROM olx_cliente_buscar(%s::jsonb, %s::int[], %s)",
                                (json.dumps(tentativa, ensure_ascii=False), excluir,
                                 MAX_IMOVEIS * 4 if (f.get("perto_de") or nomes_recusados or f.get("so_condominio")) else MAX_IMOVEIS))
-        achados = so_no_condominio(fora_os_recusados(so_perto(conn, achados, tentativa), nomes_recusados), f)[:MAX_IMOVEIS]
+        achados = so_no_condominio(fora_os_recusados(so_perto(conn, achados, tentativa), nomes_recusados), f)
+        achados = sem_os_gemeos(conn, achados, excluir)[:MAX_IMOVEIS]
         if achados:
-            proximas = afrouxou
+            proximas, usada = afrouxou, tentativa
             break
     agentes.passo(lead, "buscou_na_base", f"{len(achados)} imóvel(is)" + (" (os mais próximos: afrouxou)" if proximas else "")
                   + f" · {_resumo_dos_filtros(f)}", filtros=f, tentativas=tentativas,
@@ -1792,7 +1826,7 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
         enviados.append(int(a["codigo"]))
         _marcar(conn, lead["id"], enviados=enviados)
     time.sleep(DEPOIS_DAS_FOTOS_S)
-    texto = fecho(lead, len(achados), proximas=proximas)
+    texto = fecho(lead, len(achados), proximas=proximas, afrouxou=o_que_afrouxou(f, usada) if proximas else None)
     if any(_normal(texto) == _normal(x) for x in ja_mandou(conn, lead)):
         texto = fecho(lead, len(achados), de_novo=True)        # a segunda busca não fecha com a mesma frase
     mandar_texto(conn, lead, texto)
@@ -1849,16 +1883,31 @@ def finalidade_sem_dizer(lead: dict, f: dict) -> str:
     return "locacao" if 0 < teto <= 30000 else "venda"
 
 
-def fecho(lead: dict, quantos: int = 2, de_novo: bool = False, proximas: bool = False) -> str:
+def o_que_afrouxou(f: dict, t: dict) -> list[str]:
+    """01/11 (lead 120: pediu 4 quartos, ouviu "casas com 4 quartos" e recebeu duas de 3; "Esse são 3 quartos né"): o
+    que a busca afrouxou para achar, dito ao cliente junto das mais próximas."""
+    o = []
+    if t.get("aceita_menos_quartos") and not f.get("aceita_menos_quartos") and _int(f.get("quartos")):
+        o.append(f"com {_int(f['quartos']) - 1} {'quarto' if _int(f['quartos']) == 2 else 'quartos'}")
+    if t.get("qualquer_bairro") and not f.get("qualquer_bairro") and f.get("bairros"):
+        o.append("em outros bairros")
+    if f.get("teto") and _int(t.get("teto")) != _int(f.get("teto")):
+        o.append("um pouco acima do valor")
+    return o
+
+
+def fecho(lead: dict, quantos: int = 2, de_novo: bool = False, proximas: bool = False,
+          afrouxou: list[str] | None = None) -> str:
     """A mensagem depois dos imóveis (fixa: o modelo não é chamado no meio do envio). `proximas`: a busca foi afrouxada
-    (o perfil exato não tinha): "as mais próximas do que procura", nunca a negativa."""
+    (o perfil exato não tinha): "as mais próximas do que procura", nunca a negativa; `afrouxou` diz no quê."""
     _, pronome = tratamento(lead)
     if proximas and not de_novo:
         procura = {"a senhora": "a senhora procura", "o senhor": "o senhor procura"}.get(pronome, "você procura")
         quem = {"a senhora": "chamou a atenção da senhora", "o senhor": "chamou a atenção do senhor"}.get(pronome, "te chamou a atenção")
+        em = (": " + (", ".join(afrouxou[:-1]) + " e " + afrouxou[-1] if len(afrouxou) > 1 else afrouxou[0])) if afrouxou else ""
         if quantos == 1:
-            return f"Essa é a opção mais próxima do que {procura}. Ela {quem}? Posso agendar uma visita ou procurar mais opções."
-        return (f"Essas são as opções mais próximas do que {procura}. Alguma {quem}? Posso agendar uma visita ou procurar "
+            return f"Essa é a opção mais próxima do que {procura}{em}. Ela {quem}? Posso agendar uma visita ou procurar mais opções."
+        return (f"Essas são as opções mais próximas do que {procura}{em}. Alguma {quem}? Posso agendar uma visita ou procurar "
                 f"mais opções.")
     if de_novo:
         quem = {"a senhora": "a senhora gostou", "o senhor": "o senhor gostou"}.get(pronome, "você gostou")

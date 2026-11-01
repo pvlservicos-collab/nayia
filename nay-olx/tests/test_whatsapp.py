@@ -259,8 +259,30 @@ class UmaConfirmacaoSo(unittest.TestCase):
         self.assertTrue(all(g["mobilia"] == "mobiliado" for g, _ in passos))
         self.assertTrue(passos[1][0]["aceita_menos_quartos"])
         self.assertEqual(passos[2][0]["bairros"], [])
-        self.assertEqual(passos[3][0]["teto"], 1080000)
+        # 01/11 (lead 119): o passo leva o total a +20% do teto (a busca já soma +10%), não a +32%
+        self.assertEqual(passos[3][0]["teto"], 981818)
+        self.assertLessEqual(passos[3][0]["teto"] * 1.10, 900000 * 1.2 + 1)
         self.assertEqual(len(passos), 4)
+
+    def test_o_que_afrouxou_vai_dito(self):
+        # 01/11 (lead 120: pediu 4 quartos, recebeu duas de 3 sem aviso: "Esse são 3 quartos né")
+        f = {"quartos": 4, "bairros": ["Ponta Negra"], "teto": 8000}
+        passos = w._afrouxar(f)
+        self.assertEqual(w.o_que_afrouxou(f, passos[1][0]), ["com 3 quartos"])
+        self.assertEqual(w.o_que_afrouxou(f, passos[3][0]), ["com 3 quartos", "em outros bairros", "um pouco acima do valor"])
+        t = w.fecho({"nome": "Ana", "trat": None}, 2, proximas=True, afrouxou=["com 3 quartos", "em outros bairros"])
+        self.assertTrue(t.startswith("Essas são as opções mais próximas do que você procura: com 3 quartos e em outros bairros."), t)
+        self.assertTrue(w.fecho({"nome": "Ana", "trat": None}, 1, proximas=True, afrouxou=["com 3 quartos"])
+                        .startswith("Essa é a opção mais próxima do que você procura: com 3 quartos."))
+
+    def test_condominio_nas_exigencias_e_o_tipo(self):
+        # 01/11 (lead 121: "casa ... que seja em condomínio" e recebeu uma casa de rua no Japiim)
+        f = {"tipo": "casa", "quartos": 3, "exigencias": ["em condomínio"]}
+        self.assertEqual(w.tipo_pelas_exigencias(f)["tipo"], "casa_condominio")
+        self.assertEqual(w.tipo_pelas_exigencias({**f, "exigencias": ["condomínio fechado"]})["tipo"], "casa_condominio")
+        for ex in (["sem condomínio"], ["casa de rua"], ["não seja em condomínio"], []):
+            self.assertEqual(w.tipo_pelas_exigencias({**f, "exigencias": ex})["tipo"], "casa", ex)
+        self.assertEqual(w.tipo_pelas_exigencias({"tipo": "apartamento", "exigencias": ["condomínio"]})["tipo"], "apartamento")
 
     def test_a_necessidade_cresce_e_nao_se_perde(self):
         # 24/10 (Pedro, a Esther): cada coisa nova entra e fica
