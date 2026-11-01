@@ -31,7 +31,7 @@ BEGIN
   IF cardinality(v_cods) <= 3 THEN
     WITH b AS (
       UPDATE imoveis SET bloqueado = true,
-             motivo_bloqueio = left('548: o dono disse que ' || CASE v_sit WHEN 'indisponivel' THEN 'não está mais disponível' ELSE 'foi ' || v_sit END
+             motivo_bloqueio = left('548: o dono disse que ' || CASE v_sit WHEN 'indisponivel' THEN 'não está mais disponível' WHEN 'ocupado' THEN 'só fica livre mais tarde' ELSE 'foi ' || v_sit END
                                     || ' (' || to_char(now() AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI') || '): "'
                                     || left(btrim(NEW.texto), 200) || '". Conferir e mudar a situação, ou desbloquear.', 500)
        WHERE codigo = ANY (v_cods) AND NOT bloqueado
@@ -39,11 +39,13 @@ BEGIN
     SELECT coalesce(array_agg(codigo ORDER BY codigo), '{}') INTO v_bloq FROM b;
   END IF;
   PERFORM nay_aviso_equipe('porta', 'escalada',
-    coalesce(v_nome, 'Proprietário') || ' disse que o imóvel ' || CASE v_sit WHEN 'indisponivel' THEN 'saiu' ELSE 'foi ' || v_sit END,
+    coalesce(v_nome, 'Proprietário') || ' disse que o imóvel ' || CASE v_sit WHEN 'indisponivel' THEN 'saiu' WHEN 'ocupado' THEN 'só fica livre mais tarde' ELSE 'foi ' || v_sit END,
     'O proprietário ' || coalesce(v_nome, '') || ' escreveu: "' || left(btrim(NEW.texto), 500) || '"' || E'\n'
     || CASE WHEN cardinality(v_bloq) > 0
-            THEN 'Tirei da oferta (bloqueado): ' || array_to_string(v_bloq, ', ') || '. Confira e mude a situação para '
-                 || CASE v_sit WHEN 'vendido' THEN 'Vendido' ELSE 'Alugado' END || ', ou desbloqueie se não for isso.'
+            THEN 'Tirei da oferta (bloqueado): ' || array_to_string(v_bloq, ', ') || '. '
+                 || CASE WHEN v_sit = 'ocupado' THEN 'Desbloqueie quando liberar (ou se não for isso).'
+                         ELSE 'Confira e mude a situação para ' || CASE v_sit WHEN 'vendido' THEN 'Vendido' ELSE 'Alugado' END
+                              || ', ou desbloqueie se não for isso.' END
             ELSE 'Ele tem ' || cardinality(v_cods) || ' imóveis Disponíveis (' || array_to_string(v_cods[1:10], ', ')
                  || '): não tirei nenhum da oferta. Confira qual foi.' END,
     v_tel);
