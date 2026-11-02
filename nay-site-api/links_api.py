@@ -24,6 +24,8 @@ links_bp = Blueprint("links", __name__)
 WRITE_DATABASE_URL = os.environ.get("WRITE_DATABASE_URL")
 NUMERO = "559285956408"            # o WhatsApp do 8595 (92 8595-6408), como a Z-API grava
 BASE_CURTA = "https://api.imobeasy.online/w/"
+# endereços bonitos do próprio site (páginas curtas que levam ao link curto): o do Instagram é /bio (Pedro, 02/11)
+ENDERECO_NO_SITE = {"instagram": "https://imobeasy.online/bio"}
 
 
 def _um(sql, params=()):
@@ -77,6 +79,7 @@ def listar():
             quote(l["utm_source"]), quote(l["utm_medium"]), quote(l["utm_campaign"]))
         l["link_curto"] = BASE_CURTA + l["codigo"] + "?" + utm
         l["link_direto"] = wa(l["mensagem"])
+        l["link_site"] = ENDERECO_NO_SITE.get(l["codigo"])
     return jsonify({"links": links, "numero": NUMERO})
 
 

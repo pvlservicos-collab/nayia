@@ -58,7 +58,7 @@
         '<div class="lo-num"><b>' + n(l.leads_7d) + "</b><span>leads 7d</span></div>" +
         '<div class="lo-num"><b>' + n(l.leads_30d) + "</b><span>leads 30d</span></div>" +
       "</div>" +
-      linha("Link com UTM", l.link_curto, "c" + i) + linha("Direto WhatsApp", l.link_direto, "d" + i) +
+      (l.link_site ? linha("Link da bio", l.link_site, "s" + i) : "") + linha("Link com UTM", l.link_curto, "c" + i) + linha("Direto WhatsApp", l.link_direto, "d" + i) +
       (ultimos ? '<details class="lo-leads"><summary>Últimos leads (' + n(l.leads) + " no total)</summary><ul>" + ultimos + "</ul></details>"
                : '<div class="lo-leads">Nenhum lead por este link ainda.</div>') +
       '<div class="lo-card__pe"><span>código <b>' + esc(l.codigo) + "</b> · utm " + esc(l.utm_source) + " / " + esc(l.utm_medium) + "</span>" +

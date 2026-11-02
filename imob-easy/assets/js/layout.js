@@ -101,10 +101,7 @@
       filhos: [{ rotulo: "Mensagens (modelos da Meta)", href: "whatsapp.html",        chave: "whatsapp" },
                { rotulo: "Grupos",                      href: "grupos.html",          chave: "grupos" },
                { rotulo: "Métricas dos grupos",         href: "grupos.html#metricas", chave: "grupos-metricas" },
-               { rotulo: "Captação ativa por grupos",   href: "grupos.html#captacao", chave: "grupos-captacao" },
-               /* 02/11/2026 (Pedro: "uma página ... chamada Links orgânicos ... links de WhatsApp com UTM para o 8595"):
-                  os links das redes, do blog e do site, com os cliques e os leads de cada um (559) */
-               { rotulo: "Links orgânicos",             href: "links-organicos.html", chave: "links-organicos" }] }
+               { rotulo: "Captação ativa por grupos",   href: "grupos.html#captacao", chave: "grupos-captacao" }] }
     /* Blog (406) e Nova Nay (06/10) foram para o "Mais" em 18/10 (Pedro: "Blog e nova nay põe para dentro do menu mais").
        Clientes e Vagas foram para o "Mais" (Tel, 28/09) */
   ];
@@ -113,6 +110,9 @@
     /* O SCRAP (407, 18/10/2026; Pedro: "crie um menu lá no menu que desce do site escrito Scrap ... essa aba scrap vai
        ser um grande gerenciador de listas"): listas de nome + telefone (raspagem da OLX, CSV, mão). */
     { rotulo: "Scrap",             href: "scrap.html",       chave: "scrap" },
+    /* 02/11/2026 (Pedro: "kd a página de links do menu dentro do Mais?"): os links de WhatsApp com UTM de cada rede, do blog
+       e do site, com os cliques e os leads (559) */
+    { rotulo: "Links orgânicos",   href: "links-organicos.html", chave: "links-organicos" },
     /* 18/10/2026 (Pedro: "Blog e nova nay põe para dentro do menu mais") */
     { rotulo: "Blog",              href: "blog.html",        chave: "blog" },
     /* 19/10/2026 (Pedro: "coloca o criador de post no menu lá dentro de Mais"): o gerador de posts de imóvel
