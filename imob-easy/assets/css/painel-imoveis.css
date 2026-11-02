@@ -1,0 +1,52 @@
+/* Aba "Imóveis" do painel do Início (563, Pedro 02/11/2026). Usa as variáveis do .pm (painel-metricas.css). */
+.pi-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 10px; }
+.pi-fraco { color: var(--pm-fraco); }
+.pi-chk { display: inline-flex; align-items: center; gap: 6px; color: var(--pm-texto); font-size: 12px; cursor: pointer; white-space: nowrap; }
+.pi-chk input { accent-color: #3d71d9; }
+
+.pi-filtros {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 10px; align-items: end;
+  background: var(--pm-painel); border: 1px solid var(--pm-borda); border-radius: 4px; padding: 10px 12px; margin-bottom: 8px;
+}
+.pi-f { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pi-f > span:first-child { font-size: 11px; color: var(--pm-fraco); }
+.pi-f select, .pi-f input[type="search"], .pi-f input[type="number"] {
+  width: 100%; height: 28px; padding: 0 8px; background: var(--pm-fundo); color: var(--pm-titulo);
+  border: 1px solid var(--pm-borda); border-radius: 3px; font: inherit; font-size: 12px;
+}
+.pi-f select:focus, .pi-f input:focus { outline: none; border-color: #3d71d9; }
+.pi-faixa { display: flex; gap: 4px; }
+.pi-f--busca { grid-column: span 2; }
+.pi-f--chk { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
+
+.pi-kpis { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.pi-kpi { min-height: 0; padding-bottom: 10px; }
+
+.pi-acoes { margin-left: auto; }
+.pm-painel__topo:has(.pi-acoes) { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.pi-tabela-caixa { overflow-x: auto; max-height: 640px; overflow-y: auto; }
+.pi-tabela { width: 100%; border-collapse: collapse; font-size: 12px; }
+.pi-tabela th, .pi-tabela td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--pm-borda); vertical-align: top; }
+.pi-tabela thead th {
+  position: sticky; top: 0; background: var(--pm-painel-2); color: var(--pm-titulo); font-weight: 500; font-size: 11px;
+  white-space: nowrap; z-index: 1;
+}
+.pi-th { cursor: pointer; user-select: none; }
+.pi-th:hover { color: #fff; }
+.pi-num { text-align: right !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pi-zero { color: var(--pm-fraco); }
+.pi-tabela tbody tr:hover { background: rgba(255, 255, 255, .03); }
+.pi-tabela small { display: block; color: var(--pm-fraco); font-size: 11px; }
+.pi-imovel { min-width: 200px; }
+.pi-imovel span { color: var(--pm-titulo); }
+.pi-tag { display: inline-block; margin: 2px 4px 0 0; padding: 0 5px; border-radius: 3px; font-style: normal; font-size: 10px;
+  background: var(--pm-painel-2); color: var(--pm-fraco); border: 1px solid var(--pm-borda); }
+.pi-tag--aviso { color: var(--pm-amarelo); }
+.pi-tag--ok { color: var(--pm-verde); }
+.pi-vazio { text-align: center !important; color: var(--pm-fraco); padding: 18px !important; }
+.pi-tabela--curta td:not(:first-child), .pi-tabela--curta th:not(:first-child) { text-align: right; }
+.pi-tabela--curta td:first-child { color: var(--pm-fraco); }
+.pi-paginas { display: flex; align-items: center; justify-content: center; gap: 12px; padding-top: 10px; color: var(--pm-fraco); }
+.pi-paginas .pm-botao[disabled] { opacity: .4; cursor: default; }
+@media (max-width: 700px) { .pi-f--busca { grid-column: span 1; } }

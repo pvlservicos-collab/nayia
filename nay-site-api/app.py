@@ -5544,6 +5544,28 @@ def admin_painel_visita_marcar(origem, vid):
         conn.close()
 
 
+# MÉTRICAS POR IMÓVEL (563, Pedro 02/11/2026): a aba "Imóveis" do painel do Início. Uma linha por imóvel com visitas,
+# cards enviados e leads no período; os filtros (tipo, bairro, venda/locação...) são feitos na tela. Só contagem.
+@app.route("/admin/api/painel/imoveis")
+def admin_painel_imoveis():
+    if not senha_do_admin_confere():
+        return _sem_senha()
+    de, ate = request.args.get("de") or "", request.args.get("ate") or ""
+    if not (re.match(r"^\d{4}-\d{2}-\d{2}$", de) and re.match(r"^\d{4}-\d{2}-\d{2}$", ate)):
+        return jsonify({"erro": "data inválida (use AAAA-MM-DD)"}), 400
+    parados = request.args.get("parados") == "1"
+    conn = conectar_escrita()
+    try:
+        linhas = todas_linhas(conn, "SELECT site_imoveis_metricas(%s::date, %s::date, %s) AS j", (de, ate, parados))
+        return jsonify((linhas[0]["j"] if linhas else None) or {"imoveis": []})
+    except Exception as exc:  # noqa: BLE001
+        conn.rollback()
+        app.logger.warning("painel/imoveis: %s", exc.__class__.__name__)
+        return jsonify({"erro": "Não consegui calcular as métricas dos imóveis agora."}), 500
+    finally:
+        conn.close()
+
+
 @app.route("/admin/api/grade", methods=["POST"])
 @app.route("/admin/api/grade/<int:vaga_id>", methods=["PUT", "DELETE"])
 def admin_grade_mudar(vaga_id=None):

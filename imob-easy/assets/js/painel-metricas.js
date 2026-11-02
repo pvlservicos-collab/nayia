@@ -305,7 +305,7 @@
   /* ---------------- AS ABAS (404, Pedro 17/10: "distribua as coisas por categoria ... cada gráfico por função") ----
      Cada aba tem os números grandes dela (com o ▲/▼ do período anterior) e no máximo um ou dois gráficos da função.
      Só a aba aberta é desenhada; as outras são desenhadas quando forem abertas (o Chart.js não mede canvas escondido). */
-  var ABAS = ["resumo", "corretores", "visitas", "donos", "olx", "catalogo", "fechamentos", "novidades"];
+  var ABAS = ["resumo", "corretores", "visitas", "donos", "olx", "catalogo", "imoveis", "fechamentos", "novidades"];
   var desenhadas = {};
   try { var abaGuardada = localStorage.getItem("painelMetricasAba"); if (ABAS.indexOf(abaGuardada) >= 0) est.aba = abaGuardada; } catch (e) { /* padrão */ }
   if (ABAS.indexOf(est.aba) < 0) est.aba = "resumo";
@@ -569,7 +569,8 @@
   }
 
   var RENDER = { resumo: renderResumo, corretores: renderCorretores, visitas: renderVisitasAba, donos: renderDonos,
-                 olx: renderOlx, catalogo: renderCatalogo, fechamentos: renderFechamentosAba, novidades: renderNovidades };
+                 olx: renderOlx, catalogo: renderCatalogo, fechamentos: renderFechamentosAba, novidades: renderNovidades,
+                 imoveis: function () { if (window.PainelImoveis) window.PainelImoveis.abrir(); } };   // 563: a aba Imóveis tem o próprio arquivo
   function mostrarAba(aba) {
     est.aba = aba;
     try { localStorage.setItem("painelMetricasAba", aba); } catch (e) { /* tanto faz */ }
@@ -579,7 +580,7 @@
   }
   function desenharAba() {
     var aba = est.aba;
-    if (aba !== "novidades" && !dados) return;
+    if (aba !== "novidades" && aba !== "imoveis" && !dados) return;
     if (desenhadas[aba]) return;
     desenhadas[aba] = true;
     RENDER[aba]();

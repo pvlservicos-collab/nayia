@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/admin.css">
 <link rel="stylesheet" href="../assets/css/painel-metricas.css?v=20261017-abas">
+<link rel="stylesheet" href="../assets/css/painel-imoveis.css?v=20261102a">
 <link rel="stylesheet" href="../assets/css/visao-geral.css?v=20261018a">
 <link rel="stylesheet" href="../assets/css/uso-recursos.css?v=20261021a">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
@@ -92,6 +93,7 @@
         <button type="button" role="tab" data-aba="donos" style="--cor:#fade2a"><i></i>Donos e disparos</button>
         <button type="button" role="tab" data-aba="olx" style="--cor:#ff9830"><i></i>Clientes OLX</button>
         <button type="button" role="tab" data-aba="catalogo" style="--cor:#e07bc4"><i></i>Catálogo</button>
+        <button type="button" role="tab" data-aba="imoveis" style="--cor:#4fc4cf"><i></i>Imóveis</button>
         <button type="button" role="tab" data-aba="fechamentos" style="--cor:#73bf69"><i></i>Fechamentos</button>
         <button type="button" role="tab" data-aba="novidades" style="--cor:#9aa0ac"><i></i>Novidades</button>
       </nav>
@@ -220,6 +222,9 @@
       </section>
 
       <!-- NOVIDADES DOS ÚLTIMOS 30 DIAS -->
+      <!-- IMÓVEIS (563): métricas por imóvel, com todos os filtros; o conteúdo é montado por painel-imoveis.js -->
+      <section class="pm-aba" data-aba="imoveis" role="tabpanel" hidden></section>
+
       <section class="pm-aba" data-aba="novidades" role="tabpanel" hidden>
         <p class="pm-aba__intro">O que entrou no ar nos últimos 30 dias, por área. <span id="pm-novidades-total"></span></p>
         <article class="pm-painel">
@@ -467,7 +472,8 @@ flowchart LR
 <script src="../assets/js/tabelas-banco.js"></script>
 <script src="../assets/js/proximos-passos.js"></script>
 <script src="../assets/js/painel-novidades.js?v=20261021a"></script>
-<script src="../assets/js/painel-metricas.js?v=20261017-abas"></script>
+<script src="../assets/js/painel-imoveis.js?v=20261102a"></script>
+<script src="../assets/js/painel-metricas.js?v=20261102a"></script>
 <script src="../assets/js/uso-recursos.js?v=20261021a"></script>
 <script>
   mermaid.initialize({
