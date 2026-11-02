@@ -746,6 +746,21 @@ def olx_volta(conn, c: dict) -> int:
 
 # ── 5. a Nay dos corretores ──
 # 488 (Pedro, 24/10): a NAY CORRETORES, agente próprio do corretor que escreve no número de leads (8595).
+# ONDE VAI CADA INFORMAÇÃO EXTRA DO CADASTRO (Pedro, 02/11/2026: "em observações deve estar negócio, se aceita pet, se aceita
+# pôr mais mobília, e não informações internas; se colocar armário fica mais X ... se não tem nada ela não marca nada").
+# A MESMA regra da Nay do grupo de cadastro (nay-cadastro/cadastro/modelo.py, REGRA_DOS_CAMPOS).
+REGRA_DOS_CAMPOS = """ONDE VAI CADA INFORMAÇÃO EXTRA DO IMÓVEL (três campos; nada se repete em dois deles):
+- observacao: SAI NO CARD, para o cliente. SÓ condição do NEGÓCIO: se aceita ou não pet; se o dono aceita pôr ou tirar
+  mobília ou ar ("com os armários fica R$ 300 a mais"); a partir de quando está disponível; se aceita permuta; outra
+  condição do aluguel ou da venda (duas cauções, só à vista). Frase curta. Se ele não disse nada disso, deixe VAZIO:
+  nunca ponha característica do imóvel aqui, nem invente.
+- descricao: NÃO sai no card; a Nay lê quando o cliente pergunta. Os detalhes do imóvel e do lugar que não têm campo
+  próprio: cômodos, acabamento, vista, nascente, armários, ar-condicionado, energia solar, edícula, rua fechada, perto de
+  quê, estado de conservação.
+- interno: SÓ a equipe vê. O que não é para o cliente: comissão, valor líquido, saldo devedor ou financiamento do dono,
+  nome do dono, situação da documentação, recado do corretor para nós, a disponibilidade que ainda vamos confirmar."""
+
+
 PROMPT_CORRETOR = """Você é a Nay Corretores, da Imob Easy, imobiliária de Manaus. Você conversa pelo WhatsApp SÓ com CORRETORES.
 O corretor chegou de um destes jeitos (veja "COMO CHEGOU"): respondeu um pedido que fizemos nos grupos de corretores,
 respondeu a pergunta que fizemos no anúncio dele na OLX, ou escreveu pedindo parceria.
@@ -789,13 +804,17 @@ Devolva SÓ JSON:
  "serve": "sim" | "nao" | "talvez",
  "imovel": {"tipo": "", "finalidade": "locacao|venda", "bairro": "", "condominio": "", "quartos": 0, "suites": 0,
             "vagas": 0, "area": 0, "valor": 0, "taxa_condominio": 0, "mobilia": "mobiliado|com modulados e ar|sem nada|",
-            "andar": "", "observacao": ""},
+            "andar": "", "observacao": "", "descricao": "", "interno": ""},
  "baloes": ["..."]}
 "oferece_imovel" = true quando ele falou de um imóvel que TEM (mesmo que ainda incompleto). No "imovel", ponha só o que
-ele disse (o resto vazio ou 0)."""
+ele disse (o resto vazio ou 0).
+
+""" + REGRA_DOS_CAMPOS
 
 CAMPOS_DO_IMOVEL = ("tipo", "finalidade", "bairro", "condominio", "quartos", "suites", "vagas", "area", "valor",
-                    "taxa_condominio", "mobilia", "andar", "observacao")
+                    "taxa_condominio", "mobilia", "andar", "observacao", "descricao", "interno")
+# os textos SOMAM de uma mensagem para a outra (o corretor conta aos poucos); os outros campos, o novo vale
+CAMPOS_DE_TEXTO = ("observacao", "descricao", "interno")
 
 
 def juntar_imovel(antes: dict, novo: dict) -> dict:
@@ -804,6 +823,8 @@ def juntar_imovel(antes: dict, novo: dict) -> dict:
         v = (novo or {}).get(k)
         if v in (None, "", 0, "0"):
             continue
+        if k in CAMPOS_DE_TEXTO and d.get(k) and str(v).strip() not in str(d[k]):
+            v = v if str(d[k]) in str(v) else f"{d[k]} {v}"   # o novo já traz o antigo: fica o novo
         d[k] = v
     return d
 
@@ -849,7 +870,8 @@ def imovel_do_anuncio(conn, a: dict) -> dict:
           "vagas": a.get("vagas") or 0, "area": float(a.get("area_m2") or 0), "valor": float(a.get("preco") or 0),
           "taxa_condominio": float(a.get("condominio") or 0),
           "condominio": predio_do_anuncio(conn, a) or trecho_do_predio(a.get("titulo") or "") or "",
-          "observacao": f"Anúncio da OLX: {a.get('url')}" if a.get("url") else ""}
+          # 02/11: o link é coisa nossa (Observações internas), não do card
+          "interno": f"Anúncio da OLX: {a.get('url')}" if a.get("url") else ""}
     return venda_pelo_valor({k: v for k, v in im.items() if v not in (None, "", 0, 0.0)})
 
 
@@ -977,8 +999,7 @@ def cadastrar(conn, cor: dict, b: dict | None, ativo: bool, fotos_do_anuncio: li
         pass
     extras = {"corretor_parceiro": cor.get("nome") or "", "corretor_telefone": cor["telefone"],
               "busca_cliente": str(b["id"]) if b else "",
-              "cadastrado_pelo": "Nay Corretores" + (" (busca do cliente)" if b else f" ({cor.get('origem') or 'corretor'})"),
-              "observacao_do_corretor": str(im.get("observacao") or "")}
+              "cadastrado_pelo": "Nay Corretores" + (" (busca do cliente)" if b else f" ({cor.get('origem') or 'corretor'})")}
     olx_id = str((anuncio or {}).get("olx_id") or "")
     olx_url = str((anuncio or {}).get("url") or "")
     if olx_id:
@@ -996,21 +1017,27 @@ def cadastrar(conn, cor: dict, b: dict | None, ativo: bool, fotos_do_anuncio: li
               "suites": im.get("suites") or None, "vagas": im.get("vagas") or None, "area_util": im.get("area") or None,
               "valor_aluguel": valor if loc else None, "valor_venda": None if loc else valor,
               "taxa_condominio": im.get("taxa_condominio") or None, "mobilia": im.get("mobilia") or None,
-              "andar": im.get("andar") or None}
+              "andar": im.get("andar") or None,
+              # 02/11 (REGRA_DOS_CAMPOS): o negócio no card, os detalhes na descrição; o interno vai abaixo
+              "observacao": str(im.get("observacao") or "").strip() or None,
+              "descricao": str(im.get("descricao") or "").strip() or None}
     if not cor.get("codigo"):
         codigo = banco.um(conn, """
             INSERT INTO imoveis (codigo, origem, status, disponivel, publicado_no_site, criado_em, captado_em, e_parceiro,
                                  tipo, bairro, condominio_nome, quartos, suites, vagas, area_util, valor_aluguel, valor_venda,
-                                 taxa_condominio, mobilia, andar, extras)
+                                 taxa_condominio, mobilia, andar, observacao, descricao, extras)
             VALUES (nextval('imoveis_crm_codigo_seq'), 'busca', 'Rascunho', false, false, now(), to_char(now(), 'DD/MM/YYYY'), true,
                     %(tipo)s, %(bairro)s, %(condominio_nome)s, %(quartos)s, %(suites)s, %(vagas)s, %(area_util)s, %(valor_aluguel)s,
-                    %(valor_venda)s, %(taxa_condominio)s, %(mobilia)s, %(andar)s, %(extras)s::jsonb)
+                    %(valor_venda)s, %(taxa_condominio)s, %(mobilia)s, %(andar)s, %(observacao)s, %(descricao)s, %(extras)s::jsonb)
             RETURNING codigo""", {**campos, "extras": json.dumps(extras, ensure_ascii=False)})
     else:
         codigo = cor["codigo"]
         sets = ", ".join(f"{k} = coalesce(%({k})s, {k})" for k in campos)
         banco.um(conn, f"UPDATE imoveis SET {sets}, extras = coalesce(extras, '{{}}'::jsonb) || %(extras)s::jsonb WHERE codigo = %(codigo)s",
                  {**campos, "extras": json.dumps(extras, ensure_ascii=False), "codigo": codigo})
+    if str(im.get("interno") or "").strip():
+        # Uso interno › Observações (privado.imovel_ficha); a função não repete o que já está lá
+        banco.um(conn, "SELECT privado.uso_interno_somar(%s, %s)", (codigo, str(im["interno"]).strip()[:2000]))
     ordem = int(banco.um(conn, "SELECT coalesce(max(ordem), 0) FROM imovel_fotos WHERE codigo = %s", (codigo,)) or 0)
     for f in _fotos_novas(conn, _tel8(cor["telefone"])):
         ordem += 1

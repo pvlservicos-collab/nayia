@@ -29,6 +29,21 @@ REGRAS_DE_VALOR = """REGRAS DOS VALORES
   condominio_seguranca.
 - NUNCA invente: o que não está escrito vem null (ou lista vazia)."""
 
+
+# ONDE VAI CADA INFORMAÇÃO EXTRA DO CADASTRO (Pedro, 02/11/2026: "em observações deve estar negócio, se aceita pet, se aceita
+# pôr mais mobília, e não informações internas; se colocar armário fica mais X ... se não tem nada ela não marca nada").
+# A MESMA regra da Nay dos corretores (nay-olx/olx/buscas.py, REGRA_DOS_CAMPOS).
+REGRA_DOS_CAMPOS = """ONDE VAI CADA INFORMAÇÃO EXTRA DO IMÓVEL (três campos; nada se repete em dois deles):
+- observacao: SAI NO CARD, para o cliente. SÓ condição do NEGÓCIO: se aceita ou não pet; se o dono aceita pôr ou tirar
+  mobília ou ar ("com os armários fica R$ 300 a mais"); a partir de quando está disponível; outra condição do aluguel ou
+  da venda (duas cauções, só à vista). Frase curta. Se não está escrito nada disso, null: nunca ponha característica do
+  imóvel aqui, nem invente. Financiamento e permuta têm campo próprio (aceita_financiamento, permuta).
+- descricao: NÃO sai no card; a Nay lê quando o cliente pergunta. Os detalhes do imóvel e do lugar que não têm campo
+  próprio (cômodos, acabamento, vista, nascente, armários, ar-condicionado, energia solar, edícula, perto de quê) ficam
+  no texto da descrição.
+- interno: SÓ a equipe vê. O que não é para o cliente: comissão, valor líquido, saldo devedor ou financiamento do dono,
+  nome do dono, situação da documentação, recado para a equipe. Senão null."""
+
 PROMPT_LEVA = """Você lê as mensagens que o Tel (dono da Imob Easy, imobiliária de Manaus) encaminhou no grupo de
 cadastro de imóveis. Quase sempre são o anúncio de UM imóvel (texto e fotos) e o contato do corretor ou do
 proprietário. Tire os dados do imóvel.
@@ -40,7 +55,7 @@ proprietário. Tire os dados do imóvel.
   cartão de contato que o Tel encaminhou).
 - descricao: o texto do anúncio, limpo (sem telefone, sem nome do corretor, sem CRECI), ou null.
 
-""" + REGRAS_DE_VALOR
+""" + REGRAS_DE_VALOR + "\n\n" + REGRA_DOS_CAMPOS
 
 PROMPT_RESPOSTA = """Você é a Nay, da Imob Easy, completando o cadastro de um imóvel pelo WhatsApp. Você fez UMA pergunta
 e a pessoa (o corretor ou o proprietário do imóvel) respondeu. Preencha o que a resposta diz; ela pode responder mais de
@@ -66,8 +81,10 @@ uma coisa de uma vez, e tudo o que disser sobre o imóvel vale.
   disser a faixa E o número ("é andar alto, oitavo"), andar = o número.
 - lances_escada: quantos lances de escada até o imóvel, quando o prédio não tem elevador ("2 lances" -> 2;
   "é no térreo, sem escada" -> 0).
+- observacao: só se a resposta trouxer condição do NEGÓCIO (pet, pôr ou tirar mobília, disponível a partir de...);
+  interno: só o que é para a equipe. O resto, null (ver a regra abaixo).
 
-""" + REGRAS_DE_VALOR
+""" + REGRAS_DE_VALOR + "\n\n" + REGRA_DOS_CAMPOS
 
 
 PROMPT_DECISAO = """Você é a Nay, da Imob Easy, no grupo de cadastro de imóveis. Para completar o cadastro de um imóvel

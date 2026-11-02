@@ -41,6 +41,8 @@ CAMPOS_DO_MODELO = {
     "condominio_lazer": _lista(), "condominio_seguranca": _lista(),
     "papel": _enum(("proprietario", "corretor")),
     "contato_nome": _n("string"),
+    # 02/11 (Pedro, REGRA_DOS_CAMPOS em modelo.py): o negócio vai no card; o interno, em Uso interno › Observações
+    "observacao": _n("string"), "interno": _n("string"),
 }
 
 
@@ -69,6 +71,7 @@ PARA_A_FICHA = {
     "permuta": "x:permuta", "condominio_logradouro": "c:logradouro", "condominio_numero": "c:numero",
     "condominio_elevador": "c:elevador", "condominio_lazer": "c:lazer", "condominio_seguranca": "c:seguranca",
     "papel": "_papel", "finalidade": "_finalidade", "contato_nome": "_contato_nome",
+    "interno": "_interno",     # só na criação (no_grupo): o PUT de depois trocaria a observação interna inteira
 }
 FORA_DA_FICHA = {"e_imovel", "contato_telefone", "respondeu", "nao_sabe", "fora_do_assunto"}
 
@@ -93,6 +96,9 @@ def juntar(ficha: dict, novo: dict) -> dict:
     for k, v in novo.items():
         if isinstance(v, list) and isinstance(saida.get(k), list):
             saida[k] = list(dict.fromkeys([*saida[k], *v]))
+        elif k == "observacao" and saida.get(k) and str(v).strip() not in str(saida[k]):
+            # 02/11: a observação do negócio soma ("aceita pet" + "com os armários fica R$ 300 a mais")
+            saida[k] = v if str(saida[k]) in str(v) else f"{saida[k]} {v}"
         else:
             saida[k] = v
     return saida
@@ -100,7 +106,7 @@ def juntar(ficha: dict, novo: dict) -> dict:
 
 COLUNAS = ("tipo", "bairro", "logradouro", "numero", "complemento", "area_util", "area_total", "quartos", "suites",
            "banheiros", "vagas", "vagas_cobertas", "andar", "valor_venda", "valor_aluguel", "taxa_condominio", "iptu",
-           "mobilia", "descricao", "caracteristicas", "condo_id")
+           "mobilia", "descricao", "caracteristicas", "condo_id", "observacao")
 
 
 def para_o_site(ficha: dict) -> dict:

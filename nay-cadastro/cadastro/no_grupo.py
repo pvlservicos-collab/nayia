@@ -137,6 +137,9 @@ def _nova_ficha(conn, leva: Leva, saida: dict, fones: list[str]) -> None:
         corpo = fichas.para_o_site(ficha)
         corpo.setdefault("privado", {})["observacoes"] = (
             f"Cadastrado pela Nay pelo grupo CADASTRO DE IMÓVEL IMOBEASY em {fluxo.agora():%d/%m/%Y} (ficha {c['id']}).")
+        if ficha.get("_interno"):
+            # 02/11 (REGRA_DOS_CAMPOS): o que é só da equipe vai junto, em Uso interno › Observações
+            corpo["privado"]["observacoes"] += "\n" + str(ficha["_interno"]).strip()
         if fone:
             corpo["proprietario"] = _dono(nome, fone)
         codigo = site.criar_imovel(corpo)
