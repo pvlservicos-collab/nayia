@@ -118,9 +118,11 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
   const { marcas, nay } = useParceriaMarcas(true)
   /* com quem está a conversa: só a escolha do card (30/10, Pedro: nada vai sozinho para Tel ou Rayssa) */
   const escolhaDoCard = escolhaAMao(lead as any)
-  const comQuem: 'tel' | 'rayssa' | null =
+  const comQuem: 'tel' | 'rayssa' | 'lucas' | null =
     escolhaDoCard === 'rayssa' ? 'rayssa'
+      : escolhaDoCard === 'lucas' ? 'lucas'
       : escolhaDoCard === 'tel' ? 'tel' : null
+  const nomeDeQuem = comQuem === 'rayssa' ? 'a Rayssa' : comQuem === 'lucas' ? 'o Lucas' : 'o Tel'
   const [tirando, setTirando] = useState(false)
   async function tirarDaPessoa() {
     if (tirando) return
@@ -133,7 +135,7 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
       if (!r.ok) throw new Error('não tirou')
       const resposta = await r.json().catch(() => ({} as any))
       const depois = { ...((lead as any).custom_attributes || {}) }
-      if (depois.etapa_parceria === 'tel' || depois.etapa_parceria === 'rayssa') delete depois.etapa_parceria
+      if (['tel', 'rayssa', 'lucas'].includes(depois.etapa_parceria)) delete depois.etapa_parceria
       // a etapa em que a Nay está (Visitas/Proprietários/Fechamento) volta para o card
       if (resposta?.etapa && !depois.etapa_parceria) depois.etapa_parceria = resposta.etapa
       depois.pessoa_solta_em = new Date().toISOString()
@@ -698,9 +700,9 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
                 etapa e o fechamento aberto ficam). */}
             {comQuem && (
               <span className="wa-marca !pr-1 inline-flex items-center gap-1" style={{ color: 'var(--wa-tag-tel)' }} title={marca?.telMotivo || ''}>
-                {comQuem === 'rayssa' ? 'Com a Rayssa' : 'Com o Tel'}
+                {`Com ${nomeDeQuem}`}
                 <button type="button" onClick={tirarDaPessoa} disabled={tirando}
-                        aria-label={`Tirar a etiqueta ${comQuem === 'rayssa' ? 'da Rayssa' : 'do Tel'}`}
+                        aria-label={`Tirar a etiqueta d${nomeDeQuem}`}
                         title="Tirar: a conversa sai da aba e volta para a Nay"
                         className="rounded-full px-1 leading-none hover:opacity-70">×</button>
               </span>

@@ -291,8 +291,10 @@ export default function LeadList({
   }
   /* QUEM ESTÁ COM UMA PESSOA SAI DAS ETAPAS: a conversa não está mais no fluxo
      da Nay, então não faz sentido contá-la em Todos nem em Visitas. */
+  // 02/11 (Pedro: "tira a tag Tel lá da Parceria e põe a tag Lucas"): na Parceria, a pessoa ao lado da Rayssa é o Lucas
+  const doLucas = (l: LeadWithOwner) => escolhaAMao(l as any) === 'lucas'
   const comAlguem = (l: LeadWithOwner, m: any, atendente?: { nome: string } | null) =>
-    doTel(l, m, atendente) || daRayssa(l, m, atendente)
+    doTel(l, m, atendente) || daRayssa(l, m, atendente) || doLucas(l)
 
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
 
@@ -548,6 +550,7 @@ export default function LeadList({
       if (daRayssa(l, m, atendente)) { soma('rayssa'); if (semLer) contagem['semler:rayssa'] = (contagem['semler:rayssa'] ?? 0) + semLer }
       // "Tel": a Nay diz que ele está com a conversa OU ele mandou pelo login dele
       if (doTel(l, m, atendente)) { soma('tel'); if (semLer) contagem['semler:tel'] = (contagem['semler:tel'] ?? 0) + semLer }
+      if (doLucas(l)) { soma('lucas'); if (semLer) contagem['semler:lucas'] = (contagem['semler:lucas'] ?? 0) + semLer }
       // 19/10: quantas conversas se mexeram hoje e quantas nos outros dias da semana
       const p = periodoDaConversa(l, hoje, agora)
       if (p) soma(`periodo:${p}`)
@@ -630,7 +633,8 @@ export default function LeadList({
           titulo: 'Quem a Nay sabe que é dono de imóvel. Só aparece aqui.' },
         { chave: 'fechamento', rosa: true, rotulo: 'Fechamento', grupo: 'etapa', pessoas: contagem['semler:fechamento'],
           titulo: 'Já pediu o checklist — está juntando a documentação. Entra aqui sozinho quando a Nay manda o checklist.' },
-        { chave: 'tel', rotulo: 'Tel', grupo: 'pessoa', pessoas: contagem['semler:tel'], titulo: 'Quem foi posto com o Tel à mão, no card da conversa' },
+        // 02/11 (Pedro): saiu a aba Tel, entrou a do Lucas
+        { chave: 'lucas', rotulo: 'Lucas', grupo: 'pessoa', cor: '#34D399', pessoas: contagem['semler:lucas'], titulo: 'Quem foi posto com o Lucas à mão, no card da conversa' },
         ...(rayssa
           ? [{ chave: 'rayssa', rotulo: rayssa.nome, grupo: 'pessoa' as const, cor: rayssa.cor, pessoas: contagem['semler:rayssa'],
                titulo: `Quem foi posto com ${rayssa.nome} à mão, no card da conversa` }]
@@ -747,6 +751,7 @@ export default function LeadList({
     if (activeTab.startsWith('stage:')) return l.stage_id === activeTab.slice(6)
     if (activeTab === 'nao_lidas') return !!l.is_unread || l.id === selectedLeadId
     if (activeTab === 'lucas' && linha === 'captacao') return comLucasNaCaptacao(l)
+    if (activeTab === 'lucas') return doLucas(l)
     if (activeTab === 'rayssa') return daRayssa(l, marcas[l.id], atendenteDoLead[l.id])
     if (activeTab === 'tel' && linha === 'captacao') return comOTelNaCaptacao(l)
     if (activeTab === 'tel') return doTel(l, marcas[l.id], atendenteDoLead[l.id])

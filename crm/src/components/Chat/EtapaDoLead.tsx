@@ -117,7 +117,7 @@ export default function EtapaDoLead({ lead, onUpdateLead, semExplicacao }: {
     <div className="px-4 py-3 border-b border-[var(--chat-border)]">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--chat-text-secondary)] mb-2">Etapa</p>
       <div className="flex flex-wrap items-center gap-1.5">
-        {DESTINOS_DA_PARCERIA.map((d, i) => (
+        {DESTINOS_DA_PARCERIA.filter((d) => d !== 'tel' || escolhido === 'tel').map((d, i) => (
           <span key={d} className="contents">
             {/* o mesmo risco do menu de cima, separando etapa de pessoa */}
             {d === 'tel' && <span className="wa-fase__risco" aria-hidden="true" />}
@@ -129,9 +129,10 @@ export default function EtapaDoLead({ lead, onUpdateLead, semExplicacao }: {
                 ? 'Solta a conversa: a Nay volta a decidir e a atender'
                 : d === 'tel' ? 'Manda para o Tel: a Nay se cala até o DEVOLVER'
                 : d === 'rayssa' ? 'Manda para a Rayssa: sai do fluxo da Nay'
+                : d === 'lucas' ? 'Manda para o Lucas: sai do fluxo da Nay'
                 : `Prende a conversa em ${ROTULO_DA_ETAPA[d]}`}
-              className={`wa-fase wa-fase--${d === 'tel' || d === 'rayssa' ? 'pessoa' : 'etapa'}`
-                + `${d !== 'todos' && d !== 'tel' && d !== 'rayssa' ? ' wa-fase--rosa' : ''}`
+              className={`wa-fase wa-fase--${d === 'tel' || d === 'rayssa' || d === 'lucas' ? 'pessoa' : 'etapa'}`
+                + `${d !== 'todos' && d !== 'tel' && d !== 'rayssa' && d !== 'lucas' ? ' wa-fase--rosa' : ''}`
                 + `${escolhido === d ? ' wa-fase--on' : ''}`}
             >
               {ROTULO_DA_ETAPA[d]}

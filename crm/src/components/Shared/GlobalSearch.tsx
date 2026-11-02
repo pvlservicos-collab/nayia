@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { MagnifyingGlass, Phone, ChatText, User, SpinnerGap, X, BookOpenText } from '@phosphor-icons/react'
 import { linkDaConversa } from '@/lib/links'
 import { buscarTutoriais } from '@/lib/tutoriais'
+import type { LinhaWhatsapp } from '@/lib/leadChannel'
 import { useAuth, useIsMobile } from '@/hooks'
 import { useRouter } from 'next/navigation'
 
@@ -13,6 +14,16 @@ interface SearchResult {
   title: string
   subtitle: string
   leadId: string
+  linha?: LinhaWhatsapp | null
+}
+
+/* EM QUAL WHATSAPP ESTÁ O NÚMERO (Pedro, 02/11/2026: "quando pesquiso um número lá em cima tem que aparecer em qual
+   WhatsApp está o número"). Cada conversa é de uma linha só; a mesma pessoa em dois números aparece duas vezes, cada
+   uma com a sua etiqueta. */
+const ETIQUETA_DA_LINHA: Record<LinhaWhatsapp, { rotulo: string; cor: string }> = {
+  parceria: { rotulo: 'WhatsApp Parceria', cor: '#7c3aed' },
+  captacao: { rotulo: 'WhatsApp Leads', cor: '#0891b2' },
+  oficial: { rotulo: 'WhatsApp Oficial', cor: '#16a34a' },
 }
 
 export default function GlobalSearch() {
@@ -58,6 +69,7 @@ export default function GlobalSearch() {
         title: lead.title || lead.phone || 'Sem nome',
         subtitle: lead.phone || lead.email || '',
         leadId: lead.id,
+        linha: (lead.linhas || [])[0] ?? null,
       }))
       setResults(items)
       setOpen(items.length > 0 || buscarTutoriais(term, 4).length > 0)
@@ -127,6 +139,12 @@ export default function GlobalSearch() {
               <div className="min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">{r.title}</p>
                 {r.subtitle && <p className="text-xs text-gray-400 truncate">{r.subtitle}</p>}
+                {r.linha && ETIQUETA_DA_LINHA[r.linha] && (
+                  <span className="inline-block mt-0.5 px-1.5 py-px rounded text-[10.5px] font-semibold"
+                        style={{ color: ETIQUETA_DA_LINHA[r.linha].cor, background: `color-mix(in srgb, ${ETIQUETA_DA_LINHA[r.linha].cor} 12%, transparent)` }}>
+                    {ETIQUETA_DA_LINHA[r.linha].rotulo}
+                  </span>
+                )}
               </div>
             </button>
           ))}

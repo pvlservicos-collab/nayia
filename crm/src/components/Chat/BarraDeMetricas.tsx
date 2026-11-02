@@ -37,7 +37,7 @@ const TOLERANCIA = 2 * MINUTO
 /** Onde a conversa está: a etapa, ou com quem (a mesma regra das abas). */
 function ondeEsta(lead: LeadWithOwner, marca: MarcaDaNay | undefined): string {
   const aMao = escolhaAMao(lead as any)
-  if (aMao === 'tel' || aMao === 'rayssa') return aMao
+  if (aMao === 'tel' || aMao === 'rayssa' || aMao === 'lucas') return aMao
   return etapaDaParceria(lead as any, marca)
 }
 

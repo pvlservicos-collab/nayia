@@ -49,7 +49,9 @@ export const ETAPAS_DA_PARCERIA = ['todos', 'visitas', 'proprietarios', 'fechame
    lead para eu mandar ele para alguma outra etapa, só copia esse menu"), então
    entram na mesma lista de destinos. Quem está com uma pessoa sai das etapas —
    não está mais no fluxo da Nay. */
-export const DESTINOS_DA_PARCERIA = [...ETAPAS_DA_PARCERIA, 'tel', 'rayssa'] as const
+/* 02/11 (Pedro: "tira a tag Tel lá da Parceria e põe a tag Lucas"): o card e a aba mostram o Lucas no lugar do Tel.
+   'tel' continua reconhecido (escolha antiga, e o Leads ainda tem o Tel), mas não é mais oferecido na Parceria. */
+export const DESTINOS_DA_PARCERIA = [...ETAPAS_DA_PARCERIA, 'tel', 'rayssa', 'lucas'] as const
 export type DestinoParceria = (typeof DESTINOS_DA_PARCERIA)[number]
 export type EtapaParceria = (typeof ETAPAS_DA_PARCERIA)[number]
 
@@ -60,6 +62,7 @@ export const ROTULO_DA_ETAPA: Record<DestinoParceria, string> = {
   fechamento: 'Fechamento',
   tel: 'Tel',
   rayssa: 'Rayssa',
+  lucas: 'Lucas',
 }
 
 export function escolhaAMao(lead: { custom_attributes?: any } | null | undefined): DestinoParceria | null {
@@ -151,7 +154,7 @@ export function abaDaConversa(
 ): DestinoParceria {
   // 30/10 (Pedro): Tel e Rayssa só pela escolha À MÃO; a Nay parar porque alguém escreveu não muda a aba
   const aMao = escolhaAMao(lead)
-  if (aMao === 'rayssa' || aMao === 'tel') return aMao
+  if (aMao === 'rayssa' || aMao === 'tel' || aMao === 'lucas') return aMao
   return etapaDaParceria(lead, marca, agora)
 }
 
@@ -171,6 +174,7 @@ const EFEITO_DA_ETAPA: Record<DestinoParceria, string> = {
   fechamento: 'Quem atende é a Rayssa, até ela concluir o fechamento.',
   tel: 'A Nay não responde até o Tel devolver a conversa.',
   rayssa: 'A Nay não responde até a conversa voltar para Todos.',
+  lucas: 'A Nay não responde até a conversa voltar para Todos.',
 }
 
 /** O fato que segura a conversa numa aba, em uma frase (sem ponto final). */
@@ -191,6 +195,7 @@ function oQueSegura(ficou: DestinoParceria, m: MarcaDaNay | undefined): string {
   }
   if (ficou === 'tel') return `a Nay marca que o Tel está com essa conversa${m?.telMotivo ? ` (${m.telMotivo})` : ''}`
   if (ficou === 'rayssa') return 'a Nay marca que a Rayssa está com essa conversa'
+  if (ficou === 'lucas') return 'a Nay marca que o Lucas está com essa conversa'
   return 'não há visita, fechamento, nem imóvel dele que a prenda em outra etapa'
 }
 

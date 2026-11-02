@@ -87,11 +87,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         // pessoa_solta_em: a lista deixa de contar quem escreveu pelo login ANTES do ×
         // (senão a conversa ficava para sempre na aba Rayssa/Tel)
         await db.execute(sql`UPDATE leads SET custom_attributes =
-                 (CASE WHEN custom_attributes->>'etapa_parceria' IN ('tel', 'rayssa')
+                 (CASE WHEN custom_attributes->>'etapa_parceria' IN ('tel', 'rayssa', 'lucas')
                        THEN coalesce(custom_attributes, '{}'::jsonb) - 'etapa_parceria'
                        ELSE coalesce(custom_attributes, '{}'::jsonb) END)
                  || jsonb_build_object('pessoa_solta_em', now()::text)
-                 || CASE WHEN ${etapaDaNay}::text IS NOT NULL AND coalesce(custom_attributes->>'etapa_parceria', 'tel') IN ('tel', 'rayssa')
+                 || CASE WHEN ${etapaDaNay}::text IS NOT NULL AND coalesce(custom_attributes->>'etapa_parceria', 'tel') IN ('tel', 'rayssa', 'lucas')
                          THEN jsonb_build_object('etapa_parceria', ${etapaDaNay}::text, 'etapa_parceria_em', now()::text)
                          ELSE '{}'::jsonb END,
                  updated_at = now() WHERE id = ${id}`)
@@ -100,7 +100,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
       // 'tel' não é etapa do CRM: quem mostra a aba Tel é a marca da Nay
       // (telAtendendo). Aqui ele só avisa a Nay e limpa a escolha manual.
-      const paraPessoa = etapa === 'tel' || etapa === 'rayssa'
+      const paraPessoa = etapa === 'tel' || etapa === 'rayssa' || etapa === 'lucas'
       if (!DESTINOS_DA_PARCERIA.includes(etapa as any)) return apiError(400, 'Etapa desconhecida.')
       /* E A NAY PRECISA SABER (migração 201): sem isto a escolha só arrumava a
          lista, e a Nay seguia respondendo quem estava preso em Fechamento.
