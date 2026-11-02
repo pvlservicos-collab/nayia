@@ -41,6 +41,8 @@ COPY inteligencias_api.py .
 COPY biblioteca_api.py .
 # Ideias refinadas (514, 28/10): a aba de ideias da página Aprendizado
 COPY aprendizado_api.py .
+# Links orgânicos (559, 02/11): o link curto /w/<código> e a página do admin
+COPY links_api.py .
 
 RUN useradd -m site-api
 USER site-api
