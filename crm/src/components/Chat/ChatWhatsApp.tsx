@@ -459,7 +459,13 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
      captação (antigo nome do número Leads), quero todos iguais aos que já tem no Parceria"): a Leads também abre o
      funil do CRM dela (WhatsApp Captação), não mais o PipelineDosLeads */
   const linhaDoFunil = ehParceria ? 'parceria' : linha === 'captacao' ? 'captacao' : 'oficial'
-  const pipelineDoNumero = organizationId ? <PipelineBoard organizationId={organizationId} linha={linhaDoFunil} /> : null
+  /* 02/11 (Pedro: "o pipeline tá bugado para quem usa cor branca no CRM, texto que continua branco some no fundo branco"):
+     .pipeline-no-chat troca as cores da paleta escura (ink, muted, line, panel) quando o tema é claro (globals.css) */
+  const pipelineDoNumero = organizationId ? (
+    <div className="pipeline-no-chat flex-1 min-w-0 min-h-0 flex flex-col">
+      <PipelineBoard organizationId={organizationId} linha={linhaDoFunil} />
+    </div>
+  ) : null
 
   /* ── Celular: uma tela por vez; na Parceria as abas ficam em cima ── */
   if (isMobile) {

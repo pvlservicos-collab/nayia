@@ -690,6 +690,24 @@ html {
   --glass-lift-lg: 0 1px 0 0 rgba(255, 255, 255, 0.7) inset, 0 20px 44px -26px rgba(0, 0, 0, 0.4);
 }
 
+:root:not(.dark) .pipeline-no-chat {
+  /* 02/11: o funil das conversas fica sobre o fundo claro do chat, mas usa os tokens da paleta escura (texto quase
+     branco). Aqui eles viram os claros, só dentro dele. */
+  --ink: #111b21;
+  --muted: #667781;
+  --line: rgba(0, 0, 0, 0.12);
+  --panel: #ffffff;
+  --panel-2: #f0f2f5;
+  --void: #f0f2f5;
+  --blue: #6d28d9;
+  --glass-edge: rgba(0, 0, 0, 0.1);
+  color: #111b21;
+}
+:root:not(.dark) .pipeline-no-chat .text-emerald-300 { color: #047857; }
+:root:not(.dark) .pipeline-no-chat .text-sky-300 { color: #0369a1; }
+:root:not(.dark) .pipeline-no-chat .text-amber-300 { color: #b45309; }
+:root:not(.dark) .pipeline-no-chat .hover\:bg-white\/\[0\.06\]:hover { background-color: rgba(0, 0, 0, 0.06); }
+
 /* Glow ambiente de fundo — os dois borrões que ficam atrás dos cards de vidro.
    Como pseudo-elemento do container, pra não poluir a marcação com duas divs
    decorativas em cada tela que quiser o efeito. */
