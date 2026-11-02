@@ -738,7 +738,7 @@ def _contexto(conn, lead: dict) -> dict | None:
         lead["ficha_do_anuncio"] = nay._ficha(i) if isinstance(i, dict) else {}
         lead["portal"] = banco.linhas(conn, """
             SELECT to_char(coalesce(criado_no_portal, recebido_em) AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI') AS quando,
-                   codigo, anuncio_titulo, mensagem
+                   codigo, anuncio_titulo, mensagem, tipo
               FROM privado.cnm_lead WHERE right(telefone, 8) = right(%s, 8)
              ORDER BY coalesce(criado_no_portal, recebido_em) LIMIT 10""", (lead["telefone"],))
     return banco.um(conn, "SELECT olx_nay_contexto(%s)", (lead["chat"],)) if lead.get("chat") else None
@@ -797,10 +797,25 @@ def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
                 "Ex.: \"Boa tarde, Sra. Gleise! Aqui é a Nay, da Imob Easy. Recebi seu contato pelo Chaves na Mão. A "
                 "senhora está procurando imóvel para alugar ou para comprar?\"",
             ]
+        tipos = " ".join((p.get("tipo") or "").lower() for p in lead.get("portal") or [])
+        if "financ" in tipos:
+            # 02/11 (Pedro, os leads de financiamento): quem simulou financiamento é perguntado disso na abertura
+            linhas.append(
+                "ELA SIMULOU UM FINANCIAMENTO no portal (os valores estão abaixo). A ABERTURA é sobre isso, curta e sem "
+                "citar banco, taxa nem parcela: pergunte se ela estava iniciando um financiamento pelo Chaves na Mão e se "
+                "quer que você mande mais informações do imóvel. Se simulou mais de um imóvel, fale do mais recente. "
+                "Ex.: \"Olá, Sr. Edmilson! Aqui é a Nay, da Imob Easy. O senhor estava iniciando um financiamento pelo "
+                "Chaves na Mão? Quer que eu te mande mais informações sobre o imóvel?\" Depois, siga O CAMINHO.")
+        elif tipos.strip() and not any((p.get("mensagem") or "").strip() and "visualizei" not in (p.get("mensagem") or "").lower()
+                                       for p in lead.get("portal") or []):
+            linhas.append(
+                "Ela só VIU O TELEFONE ou o WHATSAPP do anúncio (não escreveu nada): não diga que ela perguntou algo. "
+                "Diga que viu o interesse dela no imóvel pelo Chaves na Mão e pergunte se ainda procura e se quer agendar "
+                "uma visita ou ver outras opções. Seja leve: ela não pediu para ser chamada.")
         linhas.append("O que ela deixou no portal (o mais antigo primeiro):")
         for p in lead.get("portal") or []:
-            linhas.append(f"  {p['quando']} · {p.get('anuncio_titulo') or 'anúncio'} (cód. {p.get('codigo') or '-'}): "
-                          f"{(p.get('mensagem') or '').strip() or '(sem mensagem)'}")
+            linhas.append(f"  {p['quando']} · {p.get('tipo') or 'contato'} · {p.get('anuncio_titulo') or 'anúncio'} "
+                          f"(cód. {p.get('codigo') or '-'}): {(p.get('mensagem') or '').strip() or '(sem mensagem)'}")
     else:
         linhas += [
             "=== DE ONDE VEIO: O ANÚNCIO NA OLX ===",
