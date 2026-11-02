@@ -303,6 +303,23 @@ export async function visitasLeadsHoje(): Promise<number> {
   return Number(r.rows[0]?.n || 0)
 }
 
+/** 02/11 (Pedro: "troca o contador de visitas de por dia para semana: Parceria 10, Leads 5"): as visitas marcadas de segunda a
+ *  domingo da semana de agora, em Manaus, sem as que caíram (a mesma conta de "hoje"). */
+export async function visitasDaSemana(): Promise<{ parceria: number; leads: number }> {
+  const ini = `(date_trunc('week', now() AT TIME ZONE 'America/Manaus'))::date`
+  const [p, l] = await Promise.all([
+    naydb().query(
+      `SELECT count(*)::int AS n FROM nai_visita v
+        WHERE v.excluida_em IS NULL AND v.estado NOT IN ('cancelada', 'expirada', 'coletando')
+          AND (v.quando AT TIME ZONE 'America/Manaus')::date >= ${ini} AND (v.quando AT TIME ZONE 'America/Manaus')::date < ${ini} + 7`),
+    naydb().query(
+      `SELECT count(*)::int AS n FROM crm_visitas_leads(${ini} - 1, ${ini} + 8) v
+        WHERE (v.quando AT TIME ZONE 'America/Manaus')::date >= ${ini} AND (v.quando AT TIME ZONE 'America/Manaus')::date < ${ini} + 7
+          AND v.estado NOT IN ('cancelada', 'expirada', 'sem_corretor', 'sem_proprietario')`),
+  ])
+  return { parceria: Number(p.rows[0]?.n || 0), leads: Number(l.rows[0]?.n || 0) }
+}
+
 /** "Parar Nay" / "Nay voltar a atender" no card do contato (migração 176). */
 export async function pararOuDevolverANay(telefone: string, acao: 'parar' | 'voltar', quem: string): Promise<{ ok: boolean; mensagem: string }> {
   const fn = acao === 'parar' ? 'crm_nay_parar' : 'crm_nay_voltar'

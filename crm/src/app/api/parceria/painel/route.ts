@@ -6,19 +6,19 @@
  */
 import { NextRequest } from 'next/server'
 import { authenticateRequest, apiError } from '@/lib/api-auth'
-import { painelDaNay, nayLigada, visitasLeadsHoje, type PainelDaNay, type EstadoDaNay } from '@/lib/nayLeitura'
+import { painelDaNay, nayLigada, visitasLeadsHoje, visitasDaSemana, type PainelDaNay, type EstadoDaNay } from '@/lib/nayLeitura'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-let guardado: { em: number; painel: PainelDaNay; nay: EstadoDaNay; visitasLeadsHoje: number } | null = null
+let guardado: { em: number; painel: PainelDaNay; nay: EstadoDaNay; visitasLeadsHoje: number; visitasSemana: { parceria: number; leads: number } } | null = null
 
 export async function GET(req: NextRequest) {
   try {
     await authenticateRequest(req)
     if (!guardado || Date.now() - guardado.em > 20_000) {
-      const [painel, nay, leads] = await Promise.all([painelDaNay(), nayLigada(), visitasLeadsHoje()])
-      guardado = { em: Date.now(), painel, nay, visitasLeadsHoje: leads }
+      const [painel, nay, leads, semana] = await Promise.all([painelDaNay(), nayLigada(), visitasLeadsHoje(), visitasDaSemana()])
+      guardado = { em: Date.now(), painel, nay, visitasLeadsHoje: leads, visitasSemana: semana }
     }
     return Response.json(guardado)
   } catch (err: any) {

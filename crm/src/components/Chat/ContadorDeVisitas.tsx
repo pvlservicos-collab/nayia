@@ -5,13 +5,14 @@
  * Parceria, "um contador de visitas com uma barra: na Parceria 3 visitas por dia e no Leads 1 visita por dia", e o
  * slogan da empresa ao lado.
  *
- * A conta é a que a barra antiga já fazia (visitas marcadas para hoje que não caíram); só a meta é nova.
+ * 02/11 (Pedro: "troca de por dia para semana, Visitas da semana: Parceria 10, Leads 5"): a conta passou a ser a da semana
+ * (segunda a domingo, em Manaus); as que caíram continuam fora.
  * Os números vêm de /api/parceria/painel.
  */
 import { useEffect, useState } from 'react'
 import { CheckCircle } from '@phosphor-icons/react'
 
-export const META_DE_VISITAS = { parceria: 3, leads: 1 } as const
+export const META_DE_VISITAS = { parceria: 10, leads: 5 } as const   // por semana
 const SLOGAN = 'O máximo de opções de imóveis para você, se não temos agora, vamos encontrar'
 
 export default function ContadorDeVisitas({ linha }: { linha: 'parceria' | 'leads' }) {
@@ -24,7 +25,7 @@ export default function ContadorDeVisitas({ linha }: { linha: 'parceria' | 'lead
       try {
         const r = await fetch('/api/parceria/painel')
         const j = await r.json()
-        if (r.ok && vivo) setFeitas(linha === 'parceria' ? Number(j.painel?.visitasHoje ?? 0) : Number(j.visitasLeadsHoje ?? 0))
+        if (r.ok && vivo) setFeitas(Number(j.visitasSemana?.[linha] ?? 0))
       } catch { /* o contador espera a próxima leitura */ }
     }
     void ler()
@@ -37,14 +38,14 @@ export default function ContadorDeVisitas({ linha }: { linha: 'parceria' | 'lead
   const pct = Math.min(100, Math.round((n / meta) * 100))
 
   return (
-    <div className="barra-calma" aria-label="Contador de visitas do dia">
-      <div className="barra-calma__item contador-visitas" title={`Visitas marcadas para hoje: ${feitas ?? '…'} de ${meta}. Não contam as canceladas nem as que expiraram.`}>
-        <span className="barra-calma__rotulo">Visitas hoje</span>
+    <div className="barra-calma" aria-label="Contador de visitas da semana">
+      <div className="barra-calma__item contador-visitas" title={`Visitas marcadas de segunda a domingo desta semana: ${feitas ?? '…'} de ${meta}. Não contam as canceladas nem as que expiraram.`}>
+        <span className="barra-calma__rotulo">Visitas da semana</span>
         <span className="barra-calma__valor">{feitas === null ? '…' : n}<small className="opacity-60">/{meta}</small></span>
-        <span className="contador-visitas__trilho" role="progressbar" aria-valuemin={0} aria-valuemax={meta} aria-valuenow={n} aria-label="Meta de visitas do dia">
+        <span className="contador-visitas__trilho" role="progressbar" aria-valuemin={0} aria-valuemax={meta} aria-valuenow={n} aria-label="Meta de visitas da semana">
           <span className={`contador-visitas__cheio ${bateu ? 'contador-visitas__cheio--meta' : ''}`} style={{ width: `${pct}%` }} />
         </span>
-        {bateu && <CheckCircle size={16} weight="fill" className="contador-visitas__ok" aria-label="Meta do dia batida" />}
+        {bateu && <CheckCircle size={16} weight="fill" className="contador-visitas__ok" aria-label="Meta da semana batida" />}
       </div>
       <span className="barra-calma__fim barra-calma__slogan" title={SLOGAN}>{SLOGAN}</span>
     </div>
