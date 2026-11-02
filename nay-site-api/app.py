@@ -5840,6 +5840,14 @@ try:
 except Exception as _e:  # noqa: BLE001
     app.logger.warning("whats_api nao carregou: %s", _e)
 
+# LINKS ORGANICOS (559, 02/11): o link curto /w/<codigo> (clique com UTM -> WhatsApp do 8595 com a mensagem do link)
+# e a pagina do admin. Mesmo try/except.
+try:
+    from links_api import links_bp
+    app.register_blueprint(links_bp)
+except Exception as _e:  # noqa: BLE001
+    app.logger.warning("links_api nao carregou: %s", _e)
+
 # CHAVES NA MAO (458, 21/10): o XML dos imoveis que o portal le e os leads que ele manda. Mesmo try/except.
 try:
     from chavesnamao_api import chavesnamao_bp

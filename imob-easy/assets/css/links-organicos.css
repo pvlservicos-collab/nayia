@@ -1,0 +1,45 @@
+/* Links orgânicos (559, 02/11/2026): um card por link, com os dois links para copiar, a mensagem e a contagem. */
+.lo-cabecalho { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.lo-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 8px 0 16px; }
+.lo-resumo__item { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); padding: 12px 14px; }
+.lo-resumo__n { font-size: 26px; font-weight: 600; color: var(--texto); line-height: 1.1; }
+.lo-resumo__r { font-size: var(--fs-sm); color: var(--texto-medio); }
+.lo-ajuda { margin: 0 0 16px; font-size: var(--fs-sm); color: var(--texto-medio); }
+.lo-ajuda summary { cursor: pointer; color: var(--azul); font-weight: 600; }
+.lo-ajuda p { margin-top: 8px; line-height: 1.55; }
+.lo-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+.lo-card { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio-lg); padding: 14px 16px;
+           display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.lo-card--desligado { opacity: .6; }
+.lo-card__topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.lo-card__canal { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--azul); }
+.lo-card__nome { font-size: var(--fs-md); font-weight: 600; color: var(--texto); }
+.lo-card__msg { font-size: var(--fs-sm); color: var(--texto); background: var(--verde-suave); border-radius: 10px 10px 10px 2px;
+                padding: 8px 10px; line-height: 1.45; }
+.lo-card__msg b { font-weight: 700; }
+.lo-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; text-align: center; }
+.lo-num { background: var(--superficie-2); border-radius: var(--raio-sm); padding: 6px 4px; }
+.lo-num b { display: block; font-size: 18px; color: var(--texto); }
+.lo-num span { font-size: 11.5px; color: var(--texto-medio); }
+.lo-link { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.lo-link__rot { flex-shrink: 0; font-size: 11.5px; font-weight: 600; color: var(--texto-medio); width: 92px; }
+.lo-link input { flex: 1; min-width: 0; font-size: 12px; padding: 5px 8px; border: 1px solid var(--borda); border-radius: var(--raio-sm);
+                 background: var(--superficie-2); color: var(--texto); }
+.lo-link button { flex-shrink: 0; }
+.lo-leads { font-size: 12.5px; color: var(--texto-medio); }
+.lo-leads summary { cursor: pointer; font-weight: 600; color: var(--texto); }
+.lo-leads ul { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 3px; }
+.lo-card__pe { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11.5px; color: var(--texto-fraco); }
+.lo-vazio { color: var(--texto-medio); }
+.lo-form { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio-lg); padding: 16px; margin-bottom: 16px; }
+.lo-form__titulo { font-size: var(--fs-lg); margin: 0 0 10px; }
+.lo-form__grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.lo-form__grade label { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); color: var(--texto-medio); }
+.lo-form__largo { grid-column: 1 / -1; }
+.lo-form__check { flex-direction: row !important; align-items: center; }
+.lo-form__erro { color: var(--vermelho); font-size: var(--fs-sm); margin-top: 8px; }
+.lo-form__botoes { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.lo-toast { position: fixed; right: 20px; bottom: 20px; background: var(--texto); color: var(--fundo); padding: 10px 14px;
+            border-radius: var(--raio); font-size: var(--fs-sm); z-index: 60; }
+.lo-toast.erro { background: var(--vermelho); color: #fff; }
+@media (max-width: 520px) { .lo-grade { grid-template-columns: 1fr; } .lo-link__rot { width: 70px; } }

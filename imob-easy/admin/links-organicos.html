@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../assets/js/tema-admin.js?v=20261031"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Links orgânicos — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/links-organicos.css?v=20261102">
+</head>
+<body class="admin" data-pagina="links-organicos">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+<div data-layout-topo></div>
+
+<!-- 02/11/2026 (Pedro): "organize todos os leads que possam vir de nossas redes sociais ou blogs em uma página ... Links
+     orgânicos, são variações de links de WhatsApp com UTM para o número 92 8595-6408 para eu saber de onde está vindo o lead
+     baseado em uma mensagem automática também, ex.: Vim do blog, Vim do site". Os links e a contagem moram no banco (559);
+     o link curto é https://api.imobeasy.online/w/<código> (links_api.py). -->
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho lo-cabecalho">
+    <div>
+      <h1 class="pagina-titulo">Links orgânicos</h1>
+      <p class="pagina-subtitulo" style="margin-left:0">Um link de WhatsApp para cada rede, blog e site, todos para o 92 8595-6408.
+        A mensagem pronta diz de onde a pessoa veio ("Vim do blog da Imob Easy…") e o lead é contado no link certo.</p>
+    </div>
+    <div class="lo-acoes">
+      <button type="button" class="btn-azul" id="lo-novo">Novo link</button>
+    </div>
+  </div>
+
+  <div class="lo-resumo" id="lo-resumo"></div>
+
+  <details class="lo-ajuda">
+    <summary>Qual link usar</summary>
+    <p><b>Link com UTM</b> (o curto, <code>api.imobeasy.online/w/…</code>): use na bio, nos posts, no blog e no site. Ele conta o
+      clique e abre o WhatsApp com a mensagem pronta.<br>
+      <b>Link direto do WhatsApp</b> (<code>wa.me/…</code>): para onde só aceita link do WhatsApp (botão do Instagram, perfil
+      do Google). Não conta o clique, mas o lead continua sendo reconhecido pela mensagem.<br>
+      Se a pessoa apagar a mensagem pronta antes de enviar, o lead chega sem marca e não entra na conta.</p>
+  </details>
+
+  <form class="lo-form" id="lo-form" hidden>
+    <h2 class="lo-form__titulo" id="lo-form-titulo">Novo link</h2>
+    <div class="lo-form__grade">
+      <label>Código (vai no link)<input class="entrada" name="codigo" required pattern="[a-z0-9][a-z0-9-]{1,39}" placeholder="instagram-reels"></label>
+      <label>Canal<input class="entrada" name="canal" required placeholder="Instagram"></label>
+      <label class="lo-form__largo">Nome<input class="entrada" name="nome" required placeholder="Instagram: reels de imóveis"></label>
+      <label class="lo-form__largo">Mensagem pronta<textarea class="entrada" name="mensagem" rows="2" required
+        placeholder="Olá! Vim dos reels da Imob Easy e quero saber mais sobre imóveis."></textarea></label>
+      <label class="lo-form__largo">Marca (o pedaço da mensagem que identifica o link; vazio = a primeira frase)
+        <input class="entrada" name="marca" placeholder="Vim dos reels da Imob Easy"></label>
+      <label>utm_source<input class="entrada" name="utm_source" placeholder="instagram"></label>
+      <label>utm_medium<input class="entrada" name="utm_medium" placeholder="reels"></label>
+      <label>utm_campaign<input class="entrada" name="utm_campaign" placeholder="organico"></label>
+      <label class="lo-form__check"><input type="checkbox" name="ativo" checked> Ativo</label>
+    </div>
+    <p class="lo-form__erro" id="lo-erro" hidden></p>
+    <div class="lo-form__botoes">
+      <button type="button" class="btn-neutro" id="lo-cancelar">Cancelar</button>
+      <button type="submit" class="btn-azul">Salvar</button>
+    </div>
+  </form>
+
+  <div class="lo-grade" id="lo-grade"><p class="lo-vazio">Lendo os links…</p></div>
+</main>
+
+<div class="lo-toast" id="lo-toast" hidden></div>
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/links-organicos.js?v=20261102"></script>
+</body>
+</html>

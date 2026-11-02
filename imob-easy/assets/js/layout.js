@@ -101,7 +101,10 @@
       filhos: [{ rotulo: "Mensagens (modelos da Meta)", href: "whatsapp.html",        chave: "whatsapp" },
                { rotulo: "Grupos",                      href: "grupos.html",          chave: "grupos" },
                { rotulo: "Métricas dos grupos",         href: "grupos.html#metricas", chave: "grupos-metricas" },
-               { rotulo: "Captação ativa por grupos",   href: "grupos.html#captacao", chave: "grupos-captacao" }] }
+               { rotulo: "Captação ativa por grupos",   href: "grupos.html#captacao", chave: "grupos-captacao" },
+               /* 02/11/2026 (Pedro: "uma página ... chamada Links orgânicos ... links de WhatsApp com UTM para o 8595"):
+                  os links das redes, do blog e do site, com os cliques e os leads de cada um (559) */
+               { rotulo: "Links orgânicos",             href: "links-organicos.html", chave: "links-organicos" }] }
     /* Blog (406) e Nova Nay (06/10) foram para o "Mais" em 18/10 (Pedro: "Blog e nova nay põe para dentro do menu mais").
        Clientes e Vagas foram para o "Mais" (Tel, 28/09) */
   ];
