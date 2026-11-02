@@ -294,6 +294,15 @@ export async function painelDaNay(): Promise<PainelDaNay> {
   }
 }
 
+/** Visitas do WhatsApp Leads (8595) marcadas para hoje, em Manaus, sem as que caíram (a mesma conta da Parceria). */
+export async function visitasLeadsHoje(): Promise<number> {
+  const r = await naydb().query(
+    `SELECT count(*)::int AS n FROM crm_visitas_leads((now() AT TIME ZONE 'America/Manaus')::date - 1, (now() AT TIME ZONE 'America/Manaus')::date + 1) v
+      WHERE (v.quando AT TIME ZONE 'America/Manaus')::date = (now() AT TIME ZONE 'America/Manaus')::date
+        AND v.estado NOT IN ('cancelada', 'expirada', 'sem_corretor', 'sem_proprietario')`)
+  return Number(r.rows[0]?.n || 0)
+}
+
 /** "Parar Nay" / "Nay voltar a atender" no card do contato (migração 176). */
 export async function pararOuDevolverANay(telefone: string, acao: 'parar' | 'voltar', quem: string): Promise<{ ok: boolean; mensagem: string }> {
   const fn = acao === 'parar' ? 'crm_nay_parar' : 'crm_nay_voltar'

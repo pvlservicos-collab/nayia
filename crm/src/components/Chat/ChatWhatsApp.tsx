@@ -16,7 +16,7 @@ import ArquiteturaDosAgentes from './ArquiteturaDosAgentes'
 import VisitasAgendadas from './VisitasAgendadas'
 import PipelineBoard from '@/components/Pipeline/PipelineBoard'
 import FechamentoChecklists from './FechamentoChecklists'
-import BarraDeMetricas from './BarraDeMetricas'
+import ContadorDeVisitas from './ContadorDeVisitas'
 import BarraDoDisparoOficial from './BarraDoDisparoOficial'
 import BarraDoCustoOficial from './BarraDoCustoOficial'
 import PainelContatoCaptacao from './PainelContatoCaptacao'
@@ -87,7 +87,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
      faixa de cima -- "no lugar de Z-API (parceria) +55 92 9445-3618". */
   const [aba, setAba] = useState<AbaDaParceria>('conversas')
   const [visitaDestaque, setVisitaDestaque] = useState<number | null>(null)
-  const { marcas, nay } = useParceriaMarcas(ehParceria)
+  const { marcas } = useParceriaMarcas(ehParceria)
 
   /* O card do contato: ao lado em tela larga (lembrando se a pessoa fechou),
      por cima da conversa em tela menor -- aí começa fechado. */
@@ -417,7 +417,8 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
     <AbasParceria aba={aba} aoMudar={(k) => { setAba(k); if (k === 'conversas') setMobileView('list') }}
                   naoLidas={naoLidas} visitasAbertas={visitasAbertas}
                   abas={['conversas', 'visitas', 'pipeline', 'fechamento']} rotuloPipeline="Pipeline">
-      <BarraDeMetricas leads={allLeads} marcas={marcas} nay={nay} aoAbrirConversa={abrirConversaPorId} />
+      {/* 01/11 (Pedro): o contador de visitas, meta de 3 por dia, no lugar das métricas */}
+      <ContadorDeVisitas linha="parceria" />
     </AbasParceria>
   ) : linha === 'captacao' ? (
     // a barra da captação (Pedro, 29/09): hoje, as etapas e o relatório ao Tel
@@ -426,7 +427,10 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
           agenda"): Conversas e Visitas agendadas também aqui; a agenda é a mesma da Parceria */}
       <AbasParceria aba={aba} aoMudar={(k) => { setAba(k); if (k === 'conversas') setMobileView('list') }}
                     naoLidas={naoLidas} visitasAbertas={0} abas={['conversas', 'visitas', 'pipeline', 'arquitetura']}
-                    rotuloConversas="As conversas do WhatsApp da Captação" rotuloPipeline="Pipeline" />
+                    rotuloConversas="As conversas do WhatsApp da Captação" rotuloPipeline="Pipeline">
+        {/* 01/11 (Pedro): contador de visitas do Leads, meta de 1 por dia */}
+        <ContadorDeVisitas linha="leads" />
+      </AbasParceria>
       {/* quem só responde na captação vê o aviso sempre que abre esta tela (Pedro, 02/10) */}
       {aba === 'conversas' && soRespondeNaCaptacao(profileName || user?.name) && (
         <div role="alert" className="px-4 py-2.5 text-[13.5px] font-medium leading-snug"

@@ -1636,6 +1636,16 @@ html {
 .barra-calma .painel-barra__lista { top: 100%; }
 /* na Captação a barra é uma LINHA no topo da coluna: não estica para baixo (30/09) */
 .barra-calma--linha { flex: 0 0 auto; align-content: center; }
+/* o contador de visitas do dia (01/11, Pedro): barra de meta + slogan da empresa */
+.contador-visitas { align-items: center; }
+.contador-visitas__trilho { display: inline-block; width: 120px; height: 7px; border-radius: 999px; background: var(--wa-divider);
+  overflow: hidden; align-self: center; }
+.contador-visitas__cheio { display: block; height: 100%; border-radius: 999px; background: var(--wa-text-2); transition: width .3s; }
+.contador-visitas__cheio--meta { background: #16a34a; }
+.contador-visitas__ok { color: #16a34a; align-self: center; }
+.barra-calma__slogan { font-size: 12px; font-style: italic; color: var(--wa-text-2); min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; padding-right: 6px; }
+@media (max-width: 720px) { .barra-calma__slogan { display: none; } }
 /* a barrinha do disparo pela API oficial (09/10): o progresso da lista da vez */
 .barra-calma__luz--pausa { background: #d97706; }
 .barra-calma__luz--desligado { background: #9ca3af; }
