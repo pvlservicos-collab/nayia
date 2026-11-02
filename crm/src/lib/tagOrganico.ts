@@ -71,5 +71,19 @@ export async function marcarOrganicos(organizacao: string): Promise<number> {
          AND right(regexp_replace(coalesce(l.phone, ''), '[^0-9]', '', 'g'), 8) = ANY(${lista(por[k])})`)
     n += (poe.rowCount ?? 0) + (tira.rowCount ?? 0)
   }
+
+  // 02/11 (Pedro: "poe a tag Chaves vermelha nesses leads"): quem veio do portal Chaves na Mão (origem 'chavesnamao' na Nay)
+  const doPortal = await naydb().query(`SELECT telefone FROM crm_olx_clientes_etapas() WHERE origem = 'chavesnamao'`)
+  const chaves = (doPortal.rows as Array<{ telefone: string }>).map((l) => fim8(l.telefone)).filter((f) => /^\d{8}$/.test(f))
+  if (chaves.length) {
+    const idChaves = await tagDe(organizacao, 'Chaves', '#dc2626')
+    const poe = await db.execute(sql`
+      INSERT INTO lead_tags (lead_id, tag_id, organization_id)
+      SELECT l.id, ${idChaves}::uuid, ${organizacao}::uuid
+        FROM leads l JOIN integrations i ON i.id = l.integration_id
+       WHERE ${naCaptacao} AND right(regexp_replace(coalesce(l.phone, ''), '[^0-9]', '', 'g'), 8) = ANY(${lista(chaves)})
+      ON CONFLICT DO NOTHING`)
+    n += poe.rowCount ?? 0
+  }
   return n
 }
