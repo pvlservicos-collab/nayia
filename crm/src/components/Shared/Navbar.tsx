@@ -29,6 +29,7 @@ import {
   ChatTeardropText,
   BookOpenText,
   Lightbulb,
+  Queue,
 } from '@phosphor-icons/react'
 import { useAuth, usePipeline } from '@/hooks'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -87,6 +88,8 @@ const NAV_ITEMS = [
   // GUIA DE ATENDIMENTO (Pedro, 31/10/2026): as regras do Tel e o que faz a conversa virar visita, lidas das conversas
   // reais (lib/guiaDeAtendimento.ts)
   { label: 'Guia de atendimento', curto: 'Guia', href: '/guia-de-atendimento', icon: Lightbulb, mais: true },
+  // ESTEIRA DE FOLLOW-UP (Pedro, 02/11/2026): quem recebe follow-up em cada dia, manuais e automáticos de todas as Nays
+  { label: 'Esteira de follow-up', curto: 'Follow-up', href: '/esteira-followups', icon: Queue, mais: true },
   { label: 'Configurações', href: '/settings/organization', icon: Gear, mais: true },
 ]
 
@@ -211,6 +214,7 @@ export default function Navbar() {
       case 'Visitantes':
       case 'Corretores':
       case 'Tutoriais':
+      case 'Esteira de follow-up':
       case 'Guia de atendimento': return !!permissions.settings?.view_chat
       case 'DM Instagram': return !!permissions.settings?.view_chat
       case 'Funil de Mensagens': return !!permissions.settings?.view_funnels
