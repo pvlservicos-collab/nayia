@@ -7,9 +7,9 @@
  * o agente decidiu em sombra (não valeu).
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowsClockwise, CircleNotch } from '@phosphor-icons/react'
+import { CaretDown, CaretRight } from '@phosphor-icons/react'
 import { FUSO_DE_MANAUS as fusoDeManaus } from '@/lib/fusoDeManaus'
-import { ROTULO_DO_MODO, rotuloDaAcao, type Agente, type EventoDeAgente, type ModoDosAgentes } from '@/lib/agentes'
+import { rotuloDaAcao, type Agente, type EventoDeAgente, type ModoDosAgentes } from '@/lib/agentes'
 
 const MOSTRA = 24
 
@@ -53,20 +53,17 @@ export function EtiquetaDeAgente({ e }: { e: EventoDeAgente }) {
 
 export default function AgentesDoLead({ leadId }: { leadId: string }) {
   const [dados, setDados] = useState<{ modo: ModoDosAgentes; agentes: Agente[]; eventos: EventoDeAgente[] } | null>(null)
-  const [carregando, setCarregando] = useState(false)
   const [tudo, setTudo] = useState(false)
+  const [aberto, setAberto] = useState(false)
 
   const ler = useCallback(async () => {
-    setCarregando(true)
     try {
       const r = await fetch(`/api/leads/${leadId}/agentes`)
       if (r.ok) setDados(await r.json())
-    } finally {
-      setCarregando(false)
-    }
+    } catch { /* o histórico fica como estava */ }
   }, [leadId])
 
-  useEffect(() => { setDados(null); setTudo(false); void ler() }, [ler])
+  useEffect(() => { setDados(null); setTudo(false); setAberto(false); void ler() }, [ler])
 
   const porDia = useMemo(() => {
     const lista = (dados?.eventos || []).slice(0, tudo ? undefined : MOSTRA)
@@ -79,48 +76,38 @@ export default function AgentesDoLead({ leadId }: { leadId: string }) {
     return grupos
   }, [dados, tudo])
 
+  // 02/11 (Pedro: "retira isso Agentes da Nay ligado desse card lateral, eu já sei como funciona" e "diminui a Histórico de
+  // atendimento"): sem o título, o "ligado" e a legenda de cores; o histórico fica numa linha e abre ao clicar.
+  const total = dados?.eventos.length ?? 0
   return (
-    <section className="px-4 py-3.5" style={{ background: 'var(--wa-panel)' }}>
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <h3 className="text-[13px]" style={{ color: 'var(--wa-text-2)' }}>
-          Agentes da Nay
-          {dados && (
-            <span className="ml-1.5 text-[11px] px-1.5 py-[1px] rounded-full"
-                  style={{ background: dados.modo === 'sim' ? 'color-mix(in srgb, var(--wa-green) 18%, transparent)' : 'var(--wa-row-selected)' }}
-                  title={ROTULO_DO_MODO[dados.modo]}>
-              {dados.modo === 'sim' ? 'ligado' : dados.modo === 'sombra' ? 'sombra' : 'desligado'}
-            </span>
-          )}
-        </h3>
-        <button type="button" onClick={() => void ler()} className="p-1 rounded" title="Atualizar" style={{ color: 'var(--wa-text-2)' }}>
-          {carregando ? <CircleNotch size={15} className="animate-spin" /> : <ArrowsClockwise size={15} />}
-        </button>
-      </div>
-
-      {dados && <Legenda agentes={dados.agentes.filter((a) => a.chave !== 'fluxo')} />}
-
-      <p className="text-[12px] mt-3 mb-1.5" style={{ color: 'var(--wa-text-2)' }}>Histórico de atendimento</p>
-      {!dados ? (
-        <p className="text-[12px]" style={{ color: 'var(--wa-text-2)' }}>Carregando…</p>
+    <section className="px-4 py-2" style={{ background: 'var(--wa-panel)' }}>
+      <button type="button" onClick={() => setAberto((a) => !a)} aria-expanded={aberto}
+              className="w-full flex items-center gap-1.5 py-1 text-left text-[12px]" style={{ color: 'var(--wa-text-2)' }}>
+        {aberto ? <CaretDown size={12} /> : <CaretRight size={12} />}
+        <span className="flex-1">Histórico de atendimento</span>
+        {dados && <span className="rounded-full px-1.5 text-[11px]" style={{ background: 'var(--wa-row-selected)' }}>{total}</span>}
+      </button>
+      {aberto && (!dados ? (
+        <p className="text-[11.5px] mt-1" style={{ color: 'var(--wa-text-2)' }}>Carregando…</p>
       ) : !dados.eventos.length ? (
-        <p className="text-[12px]" style={{ color: 'var(--wa-text-2)' }}>Nenhum agente ativou nesta conversa ainda.</p>
+        <p className="text-[11.5px] mt-1" style={{ color: 'var(--wa-text-2)' }}>Nenhum agente ativou nesta conversa ainda.</p>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5 mt-1 max-h-[220px] overflow-y-auto wa-rolagem">
           {porDia.map((g) => (
             <div key={g.dia}>
-              <p className="text-[11px] mb-1" style={{ color: 'var(--wa-text-2)' }}>{g.dia}</p>
-              <div className="flex flex-wrap gap-1.5">
+              <p className="text-[10.5px] mb-0.5" style={{ color: 'var(--wa-text-2)' }}>{g.dia}</p>
+              <div className="flex flex-wrap gap-1">
                 {g.eventos.map((e, i) => <EtiquetaDeAgente key={`${e.em}-${e.agente}-${i}`} e={e} />)}
               </div>
             </div>
           ))}
           {dados.eventos.length > MOSTRA && (
-            <button type="button" onClick={() => setTudo(!tudo)} className="self-start text-[12px] font-semibold" style={{ color: 'var(--wa-green)' }}>
+            <button type="button" onClick={() => setTudo(!tudo)} className="self-start text-[11.5px] font-semibold" style={{ color: 'var(--wa-green)' }}>
               {tudo ? 'Mostrar menos' : `Ver todos (${dados.eventos.length})`}
             </button>
           )}
         </div>
-      )}
+      ))}
     </section>
   )
 }

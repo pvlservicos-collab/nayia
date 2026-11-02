@@ -109,28 +109,33 @@ function Imovel({ i, venda }: { i: ImovelDaBusca; venda: boolean }) {
   )
 }
 
-/** Um bloco de "para quem perguntou", com o título e a contagem. */
-function Bloco({ titulo, n, children }: { titulo: string; n: number; children: React.ReactNode }) {
-  if (!n) return null
+/** Uma seção que começa fechada: o título com a contagem abre e fecha (Pedro, 02/11: "coisas que não precisam estar abertas desde o começo"). */
+function Secao({ titulo, n, children, aberta = false }: { titulo: string; n: number | string; children: React.ReactNode; aberta?: boolean }) {
+  const [aberto, setAberto] = useState(aberta)
   return (
-    <div className="mt-2">
-      <p className="text-[11.5px] font-semibold uppercase tracking-wide" style={{ color: 'var(--wa-text-2)' }}>{titulo} ({n})</p>
-      <ul className="mt-1 space-y-1 text-[12px] leading-4" style={{ color: 'var(--wa-text)' }}>{children}</ul>
+    <div className="border-t first:border-t-0" style={{ borderColor: 'var(--wa-divider)' }}>
+      <button type="button" onClick={() => setAberto((a) => !a)} aria-expanded={aberto}
+              className="w-full flex items-center gap-1.5 py-2 text-left text-[12.5px] font-semibold" style={{ color: 'var(--wa-text)' }}>
+        {aberto ? <CaretDown size={13} /> : <CaretRight size={13} />}
+        <span className="flex-1">{titulo}</span>
+        <span className="rounded-full px-1.5 min-w-[22px] text-center text-[11px]"
+              style={{ background: 'var(--wa-row-selected)', color: 'var(--wa-text-2)' }}>{n}</span>
+      </button>
+      {aberto && <div className="pb-2.5">{children}</div>}
     </div>
   )
 }
 
-type PassoDoResumo = { rotulo: string; estado: 'feito' | 'andando' | 'espera'; texto: string; aviso?: string }
+type PassoDoResumo = { rotulo: string; estado: 'feito' | 'andando' | 'espera'; curto: string; texto: string }
 
 /**
  * O RESUMO EM ETAPAS (Pedro, 29/10/2026: "ta ruim de visualizar essas buscas, preciso no card de cada lead um resumo em
  * etapas de onde esta a busca dele, quantos imoveis achamos de cada fonte, se a IA ja mandou msg nos grupos, ou para os
- * corretores"). Uma linha por etapa, com a bolinha (feita, andando, esperando) e o número de cada fonte; no fim, quantas
- * opções o cliente já recebeu da meta de cinco.
+ * corretores"). 02/11: em quadradinhos, uma linha curta cada, com o texto inteiro ao passar o mouse; no fim, a barra das
+ * opções que o cliente já recebeu da meta de cinco.
  */
 function ResumoDaBusca({ buscas, a }: { buscas: Busca[]; a: BuscaAtiva | null }) {
   const nossos = buscas.flatMap((b) => b.imoveis)
-  const codigosNossos = new Set(nossos.map((i) => i.codigo))
   const enviadosDaBase = new Set(nossos.filter((i) => i.enviado).map((i) => i.codigo))
   const msgsGrupos = (a?.grupos || []).filter((g) => !g.encerrou)
   const gruposDistintos = new Set(msgsGrupos.map((g) => g.grupo)).size
@@ -146,129 +151,134 @@ function ResumoDaBusca({ buscas, a }: { buscas: Busca[]; a: BuscaAtiva | null })
   const fora = !!a && a.estado !== 'perfil' && a.estado !== 'nossa_base'
 
   const passos: PassoDoResumo[] = [
-    { rotulo: 'Pedido', estado: a && a.estado === 'perfil' ? 'andando' : 'feito',
-      texto: a?.estado === 'perfil' ? 'ainda montando o pedido' : 'pedido entendido' },
     { rotulo: 'Nossa base', estado: nossos.length || fora ? 'feito' : 'espera',
+      curto: nossos.length ? `${nossos.length}${enviadosDaBase.size ? ` · ${enviadosDaBase.size} enviado${enviadosDaBase.size > 1 ? 's' : ''}` : ''}` : 'nenhum',
       texto: nossos.length ? `${nossos.length} imóve${nossos.length > 1 ? 'is' : 'l'} nosso${nossos.length > 1 ? 's' : ''} · ${enviadosDaBase.size} já enviado${enviadosDaBase.size === 1 ? '' : 's'}` : 'nenhum nosso no perfil' },
     { rotulo: 'Grupos', estado: msgsGrupos.length ? 'feito' : buscando ? 'andando' : 'espera',
+      curto: msgsGrupos.length ? `${gruposDistintos} grupo${gruposDistintos > 1 ? 's' : ''}${grupoTeste ? ' (teste)' : ''}` : buscando ? 'a mandar' : 'não mandou',
       texto: msgsGrupos.length ? `a IA mandou ${msgsGrupos.length} mensagem${msgsGrupos.length > 1 ? 'ns' : ''} em ${gruposDistintos} grupo${gruposDistintos > 1 ? 's' : ''}${grupoTeste ? ' (teste)' : ''}`
         : buscando ? 'a mandar' : 'ainda não mandou' },
     { rotulo: 'OLX', estado: olx.length ? 'feito' : buscando ? 'andando' : 'espera',
+      curto: olx.length ? `${olx.length} perguntado${olx.length > 1 ? 's' : ''}` : buscando ? 'a procurar' : 'não perguntou',
       texto: olx.length ? `${olx.length} anunciante${olx.length > 1 ? 's' : ''} perguntado${olx.length > 1 ? 's' : ''}` : buscando ? 'a procurar' : 'ainda não perguntou' },
     { rotulo: 'Corretores', estado: corretores.length ? 'feito' : buscando ? 'andando' : 'espera',
+      curto: corretores.length ? `${corretores.length} · ${comImovel} c/ imóvel` : 'ninguém',
       texto: corretores.length ? `${corretores.length} respondeu${corretores.length > 1 ? 'ram' : ''} · ${comImovel} com imóvel` : 'ninguém respondeu ainda' },
-    { rotulo: 'Opções ao cliente', estado: recebidas >= META_DE_OPCOES ? 'feito' : recebidas ? 'andando' : 'espera',
-      texto: `${Math.min(recebidas, 99)} de ${META_DE_OPCOES}`,
-      aviso: recebidas >= META_DE_OPCOES ? undefined : `faltam ${META_DE_OPCOES - recebidas}` },
   ]
   const cor = (e: PassoDoResumo['estado']) => e === 'feito' ? 'var(--wa-green)' : e === 'andando' ? '#d97706' : 'var(--wa-divider)'
-  void codigosNossos
+  const meta = Math.min(100, Math.round((recebidas / META_DE_OPCOES) * 100))
+  const bateu = recebidas >= META_DE_OPCOES
   return (
-    <ol className="mb-3 space-y-0" aria-label="Etapas da busca">
-      {passos.map((p, n) => (
-        <li key={p.rotulo} className="flex gap-2.5">
-          <span className="flex flex-col items-center">
-            <span className="mt-[3px] w-[11px] h-[11px] rounded-full shrink-0"
-                  style={{ background: p.estado === 'espera' ? 'transparent' : cor(p.estado), border: `2px solid ${cor(p.estado)}` }} />
-            {n < passos.length - 1 && <span className="w-[2px] flex-1 min-h-[12px]" style={{ background: 'var(--wa-divider)' }} />}
+    <div className="mb-3" aria-label="Etapas da busca">
+      <ul className="grid grid-cols-2 gap-1.5">
+        {passos.map((p) => (
+          <li key={p.rotulo} title={p.texto} className="rounded-lg px-2 py-1.5 leading-4"
+              style={{ border: '1px solid var(--wa-divider)', background: 'var(--wa-panel)' }}>
+            <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--wa-text-2)' }}>
+              <span className="w-[9px] h-[9px] rounded-full shrink-0"
+                    style={{ background: p.estado === 'espera' ? 'transparent' : cor(p.estado), border: `2px solid ${cor(p.estado)}` }} />
+              {p.rotulo}
+            </span>
+            <span className="block text-[12.5px] font-semibold truncate" style={{ color: 'var(--wa-text)' }}>{p.curto}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-2" title={`Opções que o cliente já recebeu: ${recebidas} de ${META_DE_OPCOES}`}>
+        <div className="flex items-center justify-between text-[11.5px]" style={{ color: 'var(--wa-text-2)' }}>
+          <span>Opções ao cliente</span>
+          <span className="font-semibold" style={{ color: bateu ? 'var(--wa-green)' : '#d97706' }}>
+            {Math.min(recebidas, 99)} de {META_DE_OPCOES}{bateu ? '' : ` · faltam ${META_DE_OPCOES - recebidas}`}
           </span>
-          <span className="pb-1.5 text-[12.5px] leading-4 min-w-0" style={{ color: 'var(--wa-text)' }}>
-            <b>{p.rotulo}</b>
-            <span style={{ color: p.estado === 'espera' ? 'var(--wa-text-2)' : 'var(--wa-text)' }}> · {p.texto}</span>
-            {p.aviso && <span className="ml-1 font-semibold" style={{ color: '#d97706' }}>({p.aviso})</span>}
-          </span>
-        </li>
-      ))}
-    </ol>
+        </div>
+        <div className="mt-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--wa-divider)' }}>
+          <div className="h-full rounded-full" style={{ width: `${meta}%`, background: bateu ? 'var(--wa-green)' : '#d97706' }} />
+        </div>
+      </div>
+    </div>
   )
 }
 
-function Andamento({ a, depoisDosGrupos }: { a: BuscaAtiva; depoisDosGrupos?: React.ReactNode }) {
-  const [etapas, setEtapas] = useState(false)
-  const sit = SITUACAO[a.estado] || { rotulo: a.estado, cor: 'var(--wa-text-2)' }
+/** Os detalhes da busca ativa, cada um fechado até alguém abrir (02/11). O pedido nos grupos mora dentro de Grupos. */
+function Detalhes({ a, leadId, aoEnviar }: { a: BuscaAtiva | null; leadId: string; aoEnviar: () => void }) {
   // os pedidos de cada grupo: quantas vezes foi, o último e se parou (3 pedidos sem imóvel, 29/10)
   const grupos = useMemo(() => {
     const m = new Map<string, { nome: string; vezes: number; ultimo: string; parou: boolean; teste: boolean; mao: number }>()
-    for (const g of a.grupos || []) {
+    for (const g of a?.grupos || []) {
       const x = m.get(g.grupo) || { nome: g.nome || g.grupo, vezes: 0, ultimo: '', parou: false, teste: !!g.teste, mao: 0 }
       if (g.encerrou) x.parou = true
       else { x.vezes += 1; x.ultimo = g.em || x.ultimo; x.parou = false; if (g.manual) x.mao += 1 }
       m.set(g.grupo, x)
     }
     return [...m.values()].sort((p, q) => (q.ultimo || '').localeCompare(p.ultimo || ''))
-  }, [a.grupos])
+  }, [a?.grupos])
+  const lista = 'space-y-1 text-[12px] leading-4'
   return (
-    <div className="mt-3 pt-3" style={{ borderTop: '1px dashed var(--wa-divider)' }}>
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-[3px] text-[12px] font-semibold"
-              style={{ background: `color-mix(in srgb, ${sit.cor} 14%, transparent)`, color: sit.cor }}>
-          <span className="w-2 h-2 rounded-full" style={{ background: sit.cor }} />{sit.rotulo}
-        </span>
-        {a.teste && <span className="text-[11px]" style={{ color: 'var(--wa-text-2)' }}>em teste</span>}
-        {a.ativada_em && <span className="text-[11px]" style={{ color: 'var(--wa-text-2)' }}>ativada {quando(a.ativada_em)}</span>}
-      </div>
-      {a.estado === 'encerrada' && a.motivo && (
-        <p className="text-[12px] mt-1" style={{ color: 'var(--wa-tag-tel)' }}>{a.motivo}</p>
+    <div className="mt-3 rounded-lg px-2.5 max-h-[52vh] overflow-y-auto wa-rolagem"
+         style={{ border: '1px solid var(--wa-divider)', background: 'var(--wa-panel)' }}>
+      <Secao titulo="Grupos" n={grupos.length}>
+        {grupos.length > 0 && (
+          <ul className={lista} style={{ color: 'var(--wa-text)' }}>
+            {grupos.map((g) => (
+              <li key={g.nome}>
+                <span className="block truncate">{g.nome}</span>
+                <span className="block text-[11px]" style={{ color: 'var(--wa-text-2)' }}>
+                  {g.vezes}×{g.mao ? ` (${g.mao} à mão)` : ''} · {quando(g.ultimo)}{g.parou ? ' · parou' : ''}{g.teste ? ' · teste' : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <PedirNosGrupos leadId={leadId} aoEnviar={aoEnviar} />
+      </Secao>
+      {(a?.olx || []).length > 0 && (
+        <Secao titulo="Anunciantes da OLX" n={a!.olx.length}>
+          <ul className={lista} style={{ color: 'var(--wa-text)' }}>
+            {a!.olx.map((o, n) => (
+              <li key={n}>
+                <b>{o.anunciante || 'Anunciante'}</b> · {o.titulo ? o.titulo.slice(0, 60) : 'anúncio'}
+                <span style={{ color: 'var(--wa-text-2)' }}> · {[reais(o.preco), o.bairro, quando(o.em)].filter(Boolean).join(' · ')}</span>
+              </li>
+            ))}
+          </ul>
+        </Secao>
       )}
-
-      <Bloco titulo="Grupos" n={grupos.length}>
-        {grupos.map((g) => (
-          <li key={g.nome} className="flex items-center gap-1.5">
-            <span className="truncate flex-1">{g.nome}</span>
-            <span className="shrink-0 text-[11px]" style={{ color: 'var(--wa-text-2)' }}>
-              {g.vezes}×{g.mao ? ` (${g.mao} à mão)` : ''} · {quando(g.ultimo)}{g.parou ? ' · parou' : ''}{g.teste ? ' · teste' : ''}
-            </span>
-          </li>
-        ))}
-      </Bloco>
-      {depoisDosGrupos}
-      <Bloco titulo="Anunciantes da OLX" n={(a.olx || []).length}>
-        {(a.olx || []).map((o, n) => (
-          <li key={n}>
-            <b>{o.anunciante || 'Anunciante'}</b> · {o.titulo ? o.titulo.slice(0, 60) : 'anúncio'}
-            <span style={{ color: 'var(--wa-text-2)' }}> · {[reais(o.preco), o.bairro, quando(o.em)].filter(Boolean).join(' · ')}</span>
-          </li>
-        ))}
-      </Bloco>
-      <Bloco titulo="Corretores que responderam" n={(a.corretores || []).length}>
-        {(a.corretores || []).map((c, n) => (
-          <li key={n}>
-            <b>{c.nome || c.telefone}</b>
-            <span style={{ color: 'var(--wa-text-2)' }}> · {[c.estado, c.codigo ? `#${c.codigo}` : null, c.origem, quando(c.em)].filter(Boolean).join(' · ')}</span>
-          </li>
-        ))}
-      </Bloco>
-      <Bloco titulo="Ofertas" n={(a.ofertas || []).length}>
-        {(a.ofertas || []).map((o, n) => (
-          <li key={n}>
-            {o.codigo ? <b>#{o.codigo}</b> : null} {o.nome || ''}
-            <span style={{ color: 'var(--wa-text-2)' }}> · {[o.estado, quando(o.em)].filter(Boolean).join(' · ')}</span>
-          </li>
-        ))}
-      </Bloco>
-      {!grupos.length && !(a.olx || []).length && !(a.corretores || []).length && (
-        <p className="text-[12px] mt-2" style={{ color: 'var(--wa-text-2)' }}>Ainda não perguntou a ninguém de fora.</p>
+      {(a?.corretores || []).length > 0 && (
+        <Secao titulo="Corretores que responderam" n={a!.corretores.length}>
+          <ul className={lista} style={{ color: 'var(--wa-text)' }}>
+            {a!.corretores.map((c, n) => (
+              <li key={n}>
+                <b>{c.nome || c.telefone}</b>
+                <span style={{ color: 'var(--wa-text-2)' }}> · {[c.estado, c.codigo ? `#${c.codigo}` : null, c.origem, quando(c.em)].filter(Boolean).join(' · ')}</span>
+              </li>
+            ))}
+          </ul>
+        </Secao>
       )}
-
-      {(a.passos || []).length > 0 && (
-        <div className="mt-2">
-          <button type="button" onClick={() => setEtapas((e) => !e)}
-                  className="inline-flex items-center gap-1 text-[12px] font-semibold" style={{ color: COR }}>
-            {etapas ? <CaretDown size={13} /> : <CaretRight size={13} />} Etapas da busca ({a.passos.length})
-          </button>
-          {etapas && (
-            <ol className="mt-1.5 space-y-1 text-[11.5px] leading-4">
-              {a.passos.map((p, n) => (
-                <li key={n} className="flex gap-2">
-                  <span className="shrink-0 w-[74px] tabular-nums" style={{ color: 'var(--wa-text-2)' }}>{quando(p.em)}</span>
-                  <span style={{ color: 'var(--wa-text)' }}>
-                    <b style={{ color: COR }}>{LUGAR[p.lugar] || p.lugar}</b> · {p.texto}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
+      {(a?.ofertas || []).length > 0 && (
+        <Secao titulo="Ofertas" n={a!.ofertas.length}>
+          <ul className={lista} style={{ color: 'var(--wa-text)' }}>
+            {a!.ofertas.map((o, n) => (
+              <li key={n}>
+                {o.codigo ? <b>#{o.codigo}</b> : null} {o.nome || ''}
+                <span style={{ color: 'var(--wa-text-2)' }}> · {[o.estado, quando(o.em)].filter(Boolean).join(' · ')}</span>
+              </li>
+            ))}
+          </ul>
+        </Secao>
+      )}
+      {(a?.passos || []).length > 0 && (
+        <Secao titulo="Etapas da busca" n={a!.passos.length}>
+          <ol className="space-y-1 text-[11.5px] leading-4">
+            {a!.passos.map((p, n) => (
+              <li key={n} className="flex gap-2">
+                <span className="shrink-0 w-[74px] tabular-nums" style={{ color: 'var(--wa-text-2)' }}>{quando(p.em)}</span>
+                <span style={{ color: 'var(--wa-text)' }}>
+                  <b style={{ color: COR }}>{LUGAR[p.lugar] || p.lugar}</b> · {p.texto}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </Secao>
       )}
     </div>
   )
@@ -295,16 +305,12 @@ export default function BuscasDoLead({ leadId }: { leadId: string }) {
 
   useEffect(() => { setBuscas(null); setAtiva(null); void ler() }, [ler])
 
-  // 01/11 (Pedro): o pedido nos grupos pela Parceria e as opções nota 90+ ficam logo embaixo dos grupos da busca;
-  // sem busca ativa, no fim do card (que aparece mesmo sem busca nenhuma, para o pedido nos grupos)
+  // 02/11 (Pedro: "ta muito texto sem categoria e com coisa que nao precisa estar aberto desde o comeco"): o topo mostra o
+  // pedido, o resumo e as opções nota 90+; grupos, OLX, corretores, ofertas e etapas ficam fechados em seções com contagem.
+  // O pedido nos grupos (01/11) mora dentro de Grupos, que aparece mesmo sem busca ativa.
   const nossos = (buscas || []).flatMap((b) => b.imoveis)
-  const extra = (
-    <>
-      <PedirNosGrupos leadId={leadId} aoEnviar={() => void ler()} />
-      {(buscas || []).length > 0 && <OpcoesNota90 imoveis={nossos} />}
-    </>
-  )
   if (buscas === null && !ativa) return null
+  const sit = ativa ? (SITUACAO[ativa.estado] || { rotulo: ativa.estado, cor: 'var(--wa-text-2)' }) : null
   return (
     <section className="px-4 py-3.5" style={{ background: 'var(--wa-panel)' }}>
       <div className="rounded-xl p-3" style={{ border: `1.5px solid ${COR}`, background: `color-mix(in srgb, ${COR} 6%, var(--wa-panel))` }}>
@@ -316,7 +322,19 @@ export default function BuscasDoLead({ leadId }: { leadId: string }) {
             {carregando ? <CircleNotch size={14} className="animate-spin" /> : <ArrowsClockwise size={14} />}
           </button>
         </div>
-        {(buscas?.length || ativa) ? <ResumoDaBusca buscas={buscas || []} a={ativa} /> : null}
+        {ativa && sit && (
+          <div className="flex items-center gap-2 flex-wrap mb-2.5">
+            <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-[3px] text-[12px] font-semibold"
+                  style={{ background: `color-mix(in srgb, ${sit.cor} 14%, transparent)`, color: sit.cor }}>
+              <span className="w-2 h-2 rounded-full" style={{ background: sit.cor }} />{sit.rotulo}
+            </span>
+            {ativa.teste && <span className="text-[11px]" style={{ color: 'var(--wa-text-2)' }}>em teste</span>}
+            {ativa.ativada_em && <span className="text-[11px]" style={{ color: 'var(--wa-text-2)' }}>ativada {quando(ativa.ativada_em)}</span>}
+          </div>
+        )}
+        {ativa?.estado === 'encerrada' && ativa.motivo && (
+          <p className="text-[12px] mb-2" style={{ color: 'var(--wa-tag-tel)' }}>{ativa.motivo}</p>
+        )}
         <div className="space-y-3">
           {(buscas || []).map((b) => {
             const venda = b.titulo.startsWith('VENDA')
@@ -337,8 +355,10 @@ export default function BuscasDoLead({ leadId }: { leadId: string }) {
               </div>
             )
           })}
-          {ativa ? <Andamento a={ativa} depoisDosGrupos={extra} /> : extra}
         </div>
+        {(buscas?.length || ativa) ? <div className="mt-3"><ResumoDaBusca buscas={buscas || []} a={ativa} /></div> : null}
+        {(buscas || []).length > 0 && <OpcoesNota90 imoveis={nossos} />}
+        <Detalhes a={ativa} leadId={leadId} aoEnviar={() => void ler()} />
       </div>
     </section>
   )
