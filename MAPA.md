@@ -37,6 +37,7 @@ prompt: comece pelo `nay onde`.
 | quem responde: Nay, Tel, Rayssa, secretária | `nai_abrir_turno`, `nai_com_a_rayssa`, `nai_tel_com_a_conversa`, `nai_mente_registrar` | 197, 215 |
 | botões do CRM (Parar/Voltar, etapas) | `crm_nay_parar`, `crm_nay_voltar`, `crm_etapa_manual` | 212, 228 |
 | Parceria: aba e botão Lucas no lugar do Tel (02/11); a busca do alto (Buscar leads) mostra em qual WhatsApp está cada número | `crm_etapa_manual('lucas')`; CRM `src/lib/etapaDaParceria.ts`, `LeadList.tsx`, `EtapaDoLead.tsx`, `GlobalSearch.tsx` (`ETIQUETA_DA_LINHA`) | 564 |
+| imóvel de PARCEIRO cadastrado pela Nay dos corretores: o corretor vira o proprietário (os dois lugares) e as fotos do anúncio da OLX são baixadas para o nosso site (o link da OLX dava foto quebrada no site/CRM: a OLX recusa com 403) | gatilho `imoveis_zz_proprietario_do_parceiro` -> `nay_proprietario_do_parceiro(codigo)` (só corretor da tabela corretores; reaproveita o proprietário mais recente com o mesmo telefone); fotos: `nay-olx/olx/fotos_olx.py` (`guardar`), usado em `buscas.cadastrar` e `parceiro.precadastrar` | 565 |
 | conjuntos, avenidas, zonas → bairros | `nai_lugar_citado`, `nai_bairros_do_lugar`, `nai_bairros_do_conjunto`; tabelas `nai_lugar_conjunto`, `nai_lugar_avenida`, `bairro_zona`, `imovel_lugar` | 206, 229, 231 |
 | imóveis ao redor pelo mapa | `nai_bairros_ao_redor` | 219 |
 | card, lista bonita, ficha | `nai_card_do_imovel`, `nai_bloco_oferta`, `nai_ficha_imovel` | 222 |

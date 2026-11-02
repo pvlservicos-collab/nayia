@@ -22,7 +22,7 @@ nay_site_escrita: SELECT
 nay_site_escrita, só nestas colunas: INSERT(id, nome, telefone, email, tratamento, documento); UPDATE(nome, telefone, email, tratamento, documento)
 
 ## funções que escrevem aqui
-(nenhuma função; quem escreve é o n8n, o site ou o CRM)
+nay_proprietario_do_parceiro
 
 ## funções que citam
-captacao_nay_perfil_do_lead, captacao_nay_perfis, captacao_olx_novo, cnm_lead_para_a_nay, crm_anuncio_mesma_unidade, crm_captacao_cadastro_opcoes, crm_captacao_dono_cadastro, crm_donos_do_cadastro, crm_etapa_da_nay, crm_etapa_manual, crm_imovel_candidatos, crm_imovel_para_cadastro, crm_leads_corretores, crm_leads_pipeline, crm_olx_cliente_etapa, crm_olx_clientes_etapas, crm_olx_config_gravar, crm_olx_conta_preparar, crm_parceria_marcas, nai_cadastro_pendente, nai_com_a_rayssa, nai_e_proprietario_contato, nai_liberar_saida, nai_proprietario_do_imovel, nay_proprietario_bloqueio_atualizar, olx_nay_lead_whatsapp, olx_organicos_novos, scrap_blacklist_60d, site_aprovar_imoveis, site_olx_anuncio_pedir
+captacao_nay_perfil_do_lead, captacao_nay_perfis, captacao_olx_novo, cnm_lead_para_a_nay, crm_anuncio_mesma_unidade, crm_captacao_cadastro_opcoes, crm_captacao_dono_cadastro, crm_donos_do_cadastro, crm_etapa_da_nay, crm_etapa_manual, crm_imovel_candidatos, crm_imovel_para_cadastro, crm_leads_corretores, crm_leads_pipeline, crm_olx_cliente_etapa, crm_olx_clientes_etapas, crm_olx_config_gravar, crm_olx_conta_preparar, crm_parceria_marcas, nai_cadastro_pendente, nai_com_a_rayssa, nai_e_proprietario_contato, nai_liberar_saida, nai_proprietario_do_imovel, nay_proprietario_bloqueio_atualizar, nay_proprietario_do_parceiro, olx_nay_lead_whatsapp, olx_organicos_novos, scrap_blacklist_60d, site_aprovar_imoveis, site_olx_anuncio_pedir

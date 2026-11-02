@@ -23,7 +23,7 @@ import re
 import threading
 import time
 
-from olx import banco, busca_olx, cdp, grupo, modelo, whatsapp
+from olx import banco, busca_olx, cdp, fotos_olx, grupo, modelo, whatsapp
 
 log = logging.getLogger("nay-olx.parceiro")
 ABERTAS = ("pendente", "buscando", "sem_navegador", "perguntado", "aguardando_cadastro")
@@ -169,7 +169,9 @@ def precadastrar(conn, o: dict, a: dict, lead: dict) -> int:
                                im.get("quartos"), im.get("vagas"), im.get("area"), im.get("valor_aluguel"), im.get("valor_venda"),
                                (a.get("descricao") or "")[:4000] or None, banco.js(extras)))
     for n, url in enumerate((a.get("fotos") or [])[:12], start=1):
-        banco.um(conn, "INSERT INTO imovel_fotos (codigo, ordem, url, e_capa) VALUES (%s, %s, %s, %s)", (codigo, n, url, n == 1))
+        # 02/11 (o 9115): baixadas para o nosso site; o link da OLX dava foto quebrada no site e no CRM
+        banco.um(conn, "INSERT INTO imovel_fotos (codigo, ordem, url, e_capa) VALUES (%s, %s, %s, %s)",
+                 (codigo, n, fotos_olx.guardar(codigo, n, url), n == 1))
     conn.commit()
     return int(codigo)
 

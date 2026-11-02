@@ -34,7 +34,7 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 
-from olx import banco, grupo, modelo, whatsapp
+from olx import banco, fotos_olx, grupo, modelo, whatsapp
 
 log = logging.getLogger("nay-olx.buscas")
 MANAUS = timezone(timedelta(hours=-4))
@@ -1018,9 +1018,11 @@ def cadastrar(conn, cor: dict, b: dict | None, ativo: bool, fotos_do_anuncio: li
         banco.um(conn, "UPDATE privado.busca_corretor_foto SET usada_em = now() WHERE id = %s", (f["id"],))
     if fotos_do_anuncio and ordem < FOTOS_MINIMAS:
         # as fotos do anúncio da OLX, como no pré-cadastro da OLX (parceiro.precadastrar)
+        # 02/11 (o 9115): baixadas para o nosso site; o link da OLX dava foto quebrada no site e no CRM
         for url in fotos_do_anuncio:
             ordem += 1
-            banco.um(conn, "INSERT INTO imovel_fotos (codigo, ordem, url, e_capa) VALUES (%s, %s, %s, %s)", (codigo, ordem, url, ordem == 1))
+            banco.um(conn, "INSERT INTO imovel_fotos (codigo, ordem, url, e_capa) VALUES (%s, %s, %s, %s)",
+                     (codigo, ordem, fotos_olx.guardar(codigo, ordem, url), ordem == 1))
     if ativo:
         banco.um(conn, "UPDATE imoveis SET status = 'Disponível', disponivel = true, publicado_no_site = true WHERE codigo = %s", (codigo,))
     conn.commit()
