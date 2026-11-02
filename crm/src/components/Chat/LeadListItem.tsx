@@ -54,6 +54,9 @@ interface LeadListItemProps {
   /** Oficial (Pedro, 26/10: "as tags lá na API oficial, lá onde tem 2 filtrado ... substituir por tags personalizadas
    *  coloridas"): as etiquetas coloridas na linha e o "+" que põe, tira e cria sem abrir o card */
   etiquetasColoridas?: boolean
+  /** Parceria (Pedro, 02/11: "eu quero a tag, ex corretor, e as tags personalizadas do menu etiqueta, não essas etapas da Nay"):
+   *  embaixo do nome, as etiquetas da equipe com a cor delas, sem as etapas */
+  tagsDaEquipe?: boolean
   onTagsChange?: (leadId: string, tagId: string, action: 'add' | 'remove', tagObj?: any) => void
   /** Parceria (492, Pedro 24/10): a Nay Leads está conversando com este proprietário por aqui; a linha fica roxa */
   nayLeads?: NayLeadsComDono
@@ -99,6 +102,13 @@ export function imovelDoDono(dono: { condominio: string | null; codigo: string |
   if (!onde && !codigo) return ''
   return [onde, codigo ? `#${codigo}` : ''].filter(Boolean).join(' ') + (dono.imoveis > 1 ? ` +${dono.imoveis - 1}` : '')
 }
+
+/** As etiquetas que são ETAPA (do funil, da Nay ou da campanha): não são as personalizadas do menu Etiquetas. */
+const ETAPA_COMO_TAG = new Set(['recebeu mensagem', 'recebeu imóvel', 'em atendimento', 'em andamento', 'com o tel', 'sem resposta',
+  'não respondeu', 'respondeu', 'disponível', 'disponíveis', 'alugado', 'alugados', 'vendido', 'já vendeu', 'quer vender',
+  'tem outro imóvel', 'mandou os dados', 'atualizou cadastro do seu imóvel', 'sugeriu outro imóvel', 'follow up', 'visita',
+  'visitas', 'fechamento', 'cadastrando', 'finalizados', 'filtrado', 'enviado opção', 'enviado opções'])
+const ehEtapaComoTag = (nome: string) => /^nay:/i.test(nome) || /^\d+\s/.test(nome) || ETAPA_COMO_TAG.has(nome.trim().toLowerCase())
 
 /** As etiquetas da linha com as de destaque (a etapa, no WhatsApp Leads) na frente; o resto na ordem de sempre. */
 function emDestaquePrimeiro<T extends { tag_id: string }>(lista: T[], destaque?: string[]): T[] {
@@ -181,7 +191,7 @@ function BarrinhaDaNay({ passo, etapa }: { passo: number; etapa: string }) {
   )
 }
 
-const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, clienteOlx, etiquetasColoridas, onTagsChange, relacionados, aoAlternarRelacionados, relacao, passoDaNay, finalidadeDoCliente, origemDoCliente, papelNoLeads }: LeadListItemProps) => {
+const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, clienteOlx, etiquetasColoridas, tagsDaEquipe, onTagsChange, relacionados, aoAlternarRelacionados, relacao, passoDaNay, finalidadeDoCliente, origemDoCliente, papelNoLeads }: LeadListItemProps) => {
   const robo = nay === undefined ? null : !nay ? { parada: true, texto: 'Lendo a Nay…' }
     : !nay.ligada ? { parada: true, texto: `Nay parada: ${nay.motivo || 'desligada'}` }
     : nayEmPausa(marca) ? { parada: true, texto: TEXTO_DA_PAUSA }
@@ -318,13 +328,13 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
           {/* 02/11 (Pedro: "poe para aparecer as tags la no numero parceria embaixo do nome igual é no lead para a rayssa se
               organizar"): na Parceria as etiquetas aparecem embaixo do nome, com a cor delas. No Leads, quem a Nay atende
               como cliente (clienteOlx) não mostra as outras, mas a "Chaves" aparece (vermelha). */}
-          {(marca || clienteOlx) && (lead.lead_tags || []).filter((lt: any) => lt.tag && (marca || lt.tag.name === 'Chaves')).slice(0, 3).map((lt: any) => (
+          {(tagsDaEquipe || clienteOlx) && (lead.lead_tags || []).filter((lt: any) => lt.tag && (tagsDaEquipe ? !ehEtapaComoTag(lt.tag.name) : lt.tag.name === 'Chaves')).slice(0, 3).map((lt: any) => (
             <span key={lt.tag_id} className="wa-marca flex-shrink-0 rounded px-1 truncate max-w-[110px]"
                   style={{ background: (lt.tag.color || '#64748b') + '26', color: lt.tag.color || '#64748b' }} title={lt.tag.name}>
               {lt.tag.name}
             </span>
           ))}
-          {!marca && !etiquetasColoridas && !clienteOlx && emDestaquePrimeiro(lead.lead_tags || [], etiquetasEmDestaque).slice(0, 2).map((lt: any) => lt.tag && (
+          {!marca && !tagsDaEquipe && !etiquetasColoridas && !clienteOlx && emDestaquePrimeiro(lead.lead_tags || [], etiquetasEmDestaque).slice(0, 2).map((lt: any) => lt.tag && (
             <span key={lt.tag_id} className="wa-marca" style={{ color: 'var(--wa-text-2)' }}>
               {lt.tag.name}
             </span>
@@ -386,6 +396,7 @@ export default memo(LeadListItem, (a, b) => (
   a.origemDoCliente === b.origemDoCliente &&
   a.papelNoLeads === b.papelNoLeads &&
   !!a.etiquetasColoridas === !!b.etiquetasColoridas &&
+  !!a.tagsDaEquipe === !!b.tagsDaEquipe &&
   a.atendente?.id === b.atendente?.id &&
   a.timeStr === b.timeStr &&
   a.query === b.query &&

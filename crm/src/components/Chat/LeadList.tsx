@@ -1041,6 +1041,7 @@ export default function LeadList({
                   etiquetasEmDestaque={usarAbasDeEtiquetas ? etiquetasEmDestaque : undefined}
                   respondeu={linha === 'oficial' && !!lead.ultima_recebida}
                   etiquetasColoridas={linha === 'oficial'}
+                  tagsDaEquipe={ehParceria}
                   onTagsChange={onTagsChange}
                   relacionados={filhos.length ? {
                     n: filhos.length, aberto,
