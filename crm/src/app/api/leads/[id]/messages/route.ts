@@ -330,6 +330,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         metadata.send_status = 'sent'
         if (result.externalId) metadata[adapter.metadataIdKey] = result.externalId
+        // 02/11 (Pedro: o "Ola, boa tarde" do 92 99262-6460 constava entregue e não chegou): o número EXATO em que o canal aceitou
+        // o envio fica em cada mensagem, para comparar com o que a pessoa usa (o que ela escreve chega em captacao_mensagens.telefone)
+        if (result.recipienteCorrigido && /^\d{10,15}$/.test(result.recipienteCorrigido) && !lead?.isGroup) {
+          metadata.enviado_para = result.recipienteCorrigido
+        }
 
         // O canal pode ter descoberto que o número só funciona na outra forma
         // (celular brasileiro com e sem o nono dígito). Grava a que deu certo:
