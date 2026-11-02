@@ -36,6 +36,7 @@ prompt: comece pelo `nay onde`.
 | quem ela atende / porta / lista de corretores | `nai_deve_atender`, `nai_pode_falar`, `nai_decidir_corretor` | 228 |
 | quem responde: Nay, Tel, Rayssa, secretária | `nai_abrir_turno`, `nai_com_a_rayssa`, `nai_tel_com_a_conversa`, `nai_mente_registrar` | 197, 215 |
 | botões do CRM (Parar/Voltar, etapas) | `crm_nay_parar`, `crm_nay_voltar`, `crm_etapa_manual` | 212, 228 |
+| Parceria: aba e botão Lucas no lugar do Tel (02/11); a busca do alto (Buscar leads) mostra em qual WhatsApp está cada número | `crm_etapa_manual('lucas')`; CRM `src/lib/etapaDaParceria.ts`, `LeadList.tsx`, `EtapaDoLead.tsx`, `GlobalSearch.tsx` (`ETIQUETA_DA_LINHA`) | 564 |
 | conjuntos, avenidas, zonas → bairros | `nai_lugar_citado`, `nai_bairros_do_lugar`, `nai_bairros_do_conjunto`; tabelas `nai_lugar_conjunto`, `nai_lugar_avenida`, `bairro_zona`, `imovel_lugar` | 206, 229, 231 |
 | imóveis ao redor pelo mapa | `nai_bairros_ao_redor` | 219 |
 | card, lista bonita, ficha | `nai_card_do_imovel`, `nai_bloco_oferta`, `nai_ficha_imovel` | 222 |
