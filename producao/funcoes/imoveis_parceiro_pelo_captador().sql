@@ -15,7 +15,9 @@ BEGIN
   IF NOT coalesce(NEW.administrado, false)
      AND (v_manual = 'sim'
           OR nai_captador_e_parceiro(NEW.captado_por)
-          OR nai_captador_e_parceiro(coalesce(NEW.extras, '{}'::jsonb)->>'captado por')) THEN
+          OR nai_captador_e_parceiro(coalesce(NEW.extras, '{}'::jsonb)->>'captado por')
+          -- 560: no site antigo o parceiro pode estar só no "indicado por" ("Imob corretor parceiro", o 5180)
+          OR coalesce(NEW.extras, '{}'::jsonb)->>'indicado por' ~* 'parceir') THEN
     NEW.e_parceiro := true;
   END IF;
   RETURN NEW;
