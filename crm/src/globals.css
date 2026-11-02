@@ -2032,3 +2032,13 @@ html {
 @media (prefers-reduced-motion: reduce) { .respostas-tel-roxo::after { animation: none; } }
 .respostas-tel-brilho.respostas-tel-tem { animation: respostas-tel-brilho 1.8s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .respostas-tel-brilho.respostas-tel-tem { animation: none; } }
+
+/* ESTEIRA DE FOLLOW-UP (Pedro, 02/11/2026: "deixa só 3 dias aparecendo, mais largos, com uma barrinha de rolar embaixo"):
+   3 colunas por tela (uma no celular) e a barra de rolagem à vista, grossa o bastante para pegar com o mouse */
+.esteira-coluna { width: calc((100% - 24px) / 3); min-width: 300px; }
+@media (max-width: 767px) { .esteira-coluna { width: 88%; min-width: 0; } }
+.esteira-rolagem { scrollbar-width: auto; scrollbar-color: #94a3b8 color-mix(in srgb, #94a3b8 18%, transparent); }
+.esteira-rolagem::-webkit-scrollbar { width: 10px; height: 12px; }
+.esteira-rolagem::-webkit-scrollbar-track { background: color-mix(in srgb, #94a3b8 18%, transparent); border-radius: 999px; }
+.esteira-rolagem::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 999px; }
+.esteira-rolagem::-webkit-scrollbar-thumb:hover { background: #64748b; }

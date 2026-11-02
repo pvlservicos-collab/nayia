@@ -5,15 +5,20 @@
  * próximos dias, de todas as Nays e de todos os lugares ... se eu pôr no card uma lembrança de follow-up ele vai aparecer na
  * lista, e os follow-ups manuais e automáticos". Uma coluna por dia (hoje e os próximos); cada cartão diz quem recebe, por qual
  * Nay, se é manual (marcado no card) ou automático (a regra da Nay) e o que será mandado. Lê /api/esteira-followups.
+ *
+ * 02/11, mais tarde (Pedro: "ficou ruim de ver ... precisa de tags de qual número é e um quadrado Motivo explicando o porquê,
+ * e tem muitos dias lá, deixa só 3 dias aparecendo e mais largos, com uma barrinha de rolar embaixo"): cada cartão tem a
+ * etiqueta do número que manda e o quadro Motivo; cabem 3 dias na tela, e os outros vêm pela barra de baixo (ou pelas setas).
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowsClockwise, CircleNotch, Robot, UserCircle, Queue } from '@phosphor-icons/react'
+import { ArrowsClockwise, CaretLeft, CaretRight, CircleNotch, Robot, UserCircle, Queue } from '@phosphor-icons/react'
 import { linkDaConversa } from '@/lib/links'
 
 interface Item {
   dia: string | null; quando: string | null; janela?: string; nay: string; tipo: 'manual' | 'automatico'; origem: string
   titulo: string; nome: string | null; telefone: string | null; estado: string; detalhe?: string; leadId?: string; criadoPor?: string
+  motivo?: string
 }
 interface Resposta { hoje: string; dias: number; itens: Item[]; semData: Item[] }
 
@@ -22,6 +27,15 @@ const ESTADO: Record<string, { r: string; cor: string }> = {
   previsto: { r: 'previsto', cor: 'var(--blue)' }, enviado: { r: 'enviado', cor: '#16a34a' }, pulado: { r: 'pulado', cor: '#d97706' },
   desligado: { r: 'automático desligado', cor: '#dc2626' }, falhou: { r: 'falhou', cor: '#dc2626' }, erro: { r: 'erro', cor: '#dc2626' },
   fila: { r: 'na fila', cor: 'var(--muted)' },
+}
+/* o número que manda cada follow-up (a retomada da captação sai pelo oficial) */
+const NUMERO: Record<string, { r: string; cor: string }> = {
+  Parceria: { r: 'Parceria · 9445-3618', cor: '#7c3aed' },
+  Leads: { r: 'Leads · 8595-6408', cor: '#0891b2' },
+  Oficial: { r: 'Oficial · 8456-0874', cor: '#16a34a' },
+  'Captação': { r: 'Oficial · 8456-0874 (captação)', cor: '#16a34a' },
+  Todas: { r: 'Todos os números', cor: '#64748b' },
+  CRM: { r: 'Número da conversa', cor: '#64748b' },
 }
 
 function nomeDoDia(iso: string, hoje: string): string {
@@ -37,25 +51,55 @@ function hora(iso: string | null): string {
 
 function Cartao({ i }: { i: Item }) {
   const e = ESTADO[i.estado] || { r: i.estado, cor: 'var(--muted)' }
+  const n = NUMERO[i.nay] || NUMERO.CRM
   const corpo = (
-    <div className="rounded-lg border border-line bg-panel p-2.5 flex flex-col gap-1 hover:border-accent/60 transition">
-      <div className="flex items-center justify-between gap-2 text-[11px]">
-        <span className="inline-flex items-center gap-1 text-muted">
-          {i.tipo === 'manual' ? <UserCircle size={13} weight="fill" /> : <Robot size={13} weight="fill" />}
-          {i.nay} · {i.tipo === 'manual' ? 'manual' : 'automático'}
+    <div className="rounded-lg border border-line bg-panel p-3 flex flex-col gap-1.5 hover:border-accent/60 transition">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold"
+              style={{ color: n.cor, background: `color-mix(in srgb, ${n.cor} 14%, transparent)`, border: `1px solid color-mix(in srgb, ${n.cor} 35%, transparent)` }}>
+          {n.r}
         </span>
-        <span className="font-semibold" style={{ color: e.cor }}>{e.r}</span>
+        <span className="text-[11px] font-semibold" style={{ color: e.cor }}>{e.r}</span>
       </div>
-      <div className="text-[13px] font-semibold text-ink leading-4 truncate">{i.nome || i.telefone || '—'}</div>
-      <div className="text-[12px] text-ink leading-4">{i.titulo}</div>
-      {i.detalhe && <div className="text-[11.5px] text-muted leading-4 line-clamp-3">{i.detalhe}</div>}
-      <div className="text-[11px] text-muted flex items-center justify-between">
-        <span>{i.janela ? i.janela : hora(i.quando)}</span>
-        {i.criadoPor && <span>por {i.criadoPor}</span>}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[14px] font-semibold text-ink leading-5 truncate">{i.nome || i.telefone || '—'}</span>
+        <span className="text-[12px] text-muted shrink-0">{i.janela ? i.janela : hora(i.quando)}</span>
       </div>
+      <div className="text-[12.5px] text-ink leading-4 flex items-center gap-1">
+        <span className="text-muted inline-flex items-center gap-1 shrink-0">
+          {i.tipo === 'manual' ? <UserCircle size={13} weight="fill" /> : <Robot size={13} weight="fill" />}
+          {i.tipo === 'manual' ? 'Manual' : 'Automático'} ·
+        </span>
+        <span>{i.titulo}</span>
+      </div>
+      {i.motivo && (
+        <div className="rounded-md border border-line px-2.5 py-1.5" style={{ background: 'color-mix(in srgb, var(--blue, #3b82f6) 7%, transparent)' }}>
+          <div className="text-[10.5px] font-bold uppercase tracking-wide text-muted">Motivo</div>
+          <div className="text-[12px] text-ink leading-4">{i.motivo}</div>
+        </div>
+      )}
+      {i.detalhe && i.estado !== 'pulado' && (
+        <div className="text-[11.5px] text-muted leading-4 line-clamp-3">{i.tipo === 'manual' ? 'Mensagem: ' : ''}{i.detalhe}</div>
+      )}
+      {i.criadoPor && <div className="text-[11px] text-muted text-right">por {i.criadoPor}</div>}
     </div>
   )
   return i.leadId ? <Link href={linkDaConversa(i.leadId)} title="Abrir a conversa">{corpo}</Link> : corpo
+}
+
+function Coluna({ titulo, itens, vazio }: { titulo: string; itens: Item[]; vazio: string }) {
+  return (
+    <section className="esteira-coluna shrink-0 snap-start flex flex-col rounded-xl border border-line p-2.5"
+             style={{ background: 'color-mix(in srgb, var(--panel, #fff) 60%, transparent)' }}>
+      <h2 className="text-[14px] font-bold text-ink mb-2 px-0.5 flex items-center justify-between">
+        {titulo}<span className="text-muted font-semibold text-[12.5px]">{itens.length}</span>
+      </h2>
+      <div className="esteira-rolagem flex flex-col gap-2 overflow-y-auto pr-1" style={{ maxHeight: 'calc(100vh - 300px)' }}>
+        {itens.length ? itens.map((i, n) => <Cartao key={n} i={i} />)
+          : <p className="text-[12px] text-muted rounded-lg border border-dashed border-line p-3">{vazio}</p>}
+      </div>
+    </section>
+  )
 }
 
 export default function EsteiraDeFollowups() {
@@ -65,6 +109,7 @@ export default function EsteiraDeFollowups() {
   const [nay, setNay] = useState<(typeof NAYS)[number]>('Todas')
   const [tipo, setTipo] = useState<'todos' | 'manual' | 'automatico'>('todos')
   const [dias, setDias] = useState(7)
+  const trilho = useRef<HTMLDivElement>(null)
 
   const ler = useCallback(async () => {
     setCarregando(true)
@@ -87,6 +132,12 @@ export default function EsteiraDeFollowups() {
   }, [dados, passa])
   const semData = (dados?.semData || []).filter(passa)
   const total = colunas.reduce((s, c) => s + c.itens.filter((i) => i.estado !== 'enviado' && i.estado !== 'pulado').length, 0)
+  // as setas andam um dia (uma coluna) para cada lado
+  const andar = (lado: 1 | -1) => {
+    const t = trilho.current
+    const col = t?.querySelector<HTMLElement>('.esteira-coluna')
+    if (t && col) t.scrollBy({ left: lado * (col.offsetWidth + 12), behavior: 'smooth' })
+  }
 
   return (
     <div className="p-4 md:p-6">
@@ -96,9 +147,13 @@ export default function EsteiraDeFollowups() {
           <p className="text-sm text-muted mt-1">Quem vai receber follow-up, dia a dia, de todas as Nays: os que você marca no card e os automáticos de cada Nay.
             {dados && <> <b className="text-ink">{total}</b> pela frente nos próximos {dados.dias} dias.</>}</p>
         </div>
-        <button type="button" onClick={() => void ler()} className="h-9 px-3 rounded-lg border border-line text-sm text-ink flex items-center gap-1.5" title="Ler de novo">
-          {carregando ? <CircleNotch size={15} className="animate-spin" /> : <ArrowsClockwise size={15} />} Atualizar
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => andar(-1)} className="h-9 w-9 rounded-lg border border-line text-ink flex items-center justify-center" title="Dia anterior" aria-label="Dia anterior"><CaretLeft size={16} /></button>
+          <button type="button" onClick={() => andar(1)} className="h-9 w-9 rounded-lg border border-line text-ink flex items-center justify-center" title="Próximo dia" aria-label="Próximo dia"><CaretRight size={16} /></button>
+          <button type="button" onClick={() => void ler()} className="h-9 px-3 rounded-lg border border-line text-sm text-ink flex items-center gap-1.5" title="Ler de novo">
+            {carregando ? <CircleNotch size={15} className="animate-spin" /> : <ArrowsClockwise size={15} />} Atualizar
+          </button>
+        </div>
       </div>
 
       <div className="mt-4 flex items-center gap-2 flex-wrap text-sm">
@@ -120,27 +175,14 @@ export default function EsteiraDeFollowups() {
       {!dados && !erro && <p className="mt-6 text-sm text-muted">Lendo a esteira…</p>}
 
       {dados && (
-        <div className="mt-4 flex gap-3 overflow-x-auto pb-3">
-          {colunas.map((c) => (
-            <section key={c.dia} className="w-[280px] shrink-0">
-              <h2 className="text-[13px] font-bold text-ink mb-2 flex items-center justify-between">
-                {nomeDoDia(c.dia, dados.hoje)}<span className="text-muted font-semibold">{c.itens.length}</span>
-              </h2>
-              <div className="flex flex-col gap-2">
-                {c.itens.length ? c.itens.map((i, n) => <Cartao key={`${c.dia}-${n}`} i={i} />)
-                  : <p className="text-[12px] text-muted rounded-lg border border-dashed border-line p-3">Nada marcado para este dia.</p>}
-              </div>
-            </section>
-          ))}
-          <section className="w-[280px] shrink-0">
-            <h2 className="text-[13px] font-bold text-ink mb-2 flex items-center justify-between">Sem dia marcado<span className="text-muted font-semibold">{semData.length}</span></h2>
-            <div className="flex flex-col gap-2">{semData.map((i, n) => <Cartao key={`sd-${n}`} i={i} />)}</div>
-          </section>
+        <div ref={trilho} className="esteira-rolagem esteira-trilho mt-4 flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory">
+          {colunas.map((c) => <Coluna key={c.dia} titulo={nomeDoDia(c.dia, dados.hoje)} itens={c.itens} vazio="Nada marcado para este dia." />)}
+          <Coluna titulo="Sem dia marcado" itens={semData} vazio="Nada na fila." />
         </div>
       )}
       <p className="text-[11.5px] text-muted mt-2">
-        O follow-up marcado no card (manual) aparece aqui na hora e sai no horário pela linha da conversa. Os automáticos são previstos pelas
-        regras de cada Nay: o &quot;seu cliente tem interesse?&quot; do dia seguinte da Parceria só vale para quem recebeu imóvel e não conversou nem recusou antes.
+        Aparecem 3 dias por vez: para ver os outros, use a barra de rolagem embaixo ou as setas lá em cima. O follow-up marcado no card
+        (manual) aparece aqui na hora e sai no horário pela linha da conversa. Os automáticos são previstos pelas regras de cada Nay.
       </p>
     </div>
   )
