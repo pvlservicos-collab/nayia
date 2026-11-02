@@ -18,7 +18,7 @@ import { ETAPAS_OLX, PASSOS_DA_NAY, fim8, passoDaAba, type EtapaOlx } from '@/li
 /* 18/10 (Pedro): as etapas em que a Nay ainda está atendendo não são abas; quem está nelas fica em Todos */
 const ETAPAS_OLX_FORA_DA_FILEIRA = new Set<string>(['filtrar', 'feito_busca', 'imoveis_enviados'])
 import { montarAtendentes, atendenteDaConversa, type Atendente } from '@/lib/atendentes'
-import LeadListItem from './LeadListItem'
+import LeadListItem, { ehEtapaComoTag } from './LeadListItem'
 import ChatFilterTabs, { type ChatTab, type FiltroDaLista } from './ChatFilterTabs'
 import BuscaDaLista, { casaNaBusca } from './BuscaDaLista'
 import { useCorretoresDaCaptacao } from '@/hooks/useCorretoresDaCaptacao'
@@ -27,7 +27,7 @@ import { conversaEstaNaLinha, type LinhaWhatsapp } from '@/lib/leadChannel'
 import { etapaDaParceria, escolhaAMao } from '@/lib/etapaDaParceria'
 import PranchetaDeEtiquetas from './PranchetaDeEtiquetas'
 import { EditarAbas, abasQueValem, etiquetasDasEtapasDoLeads, useAbasDaLinha } from './AbasDeEtiquetas'
-import { useEtiquetas } from '@/lib/etiquetas'
+import { useEtiquetas, marcarEtiqueta, criarEtiqueta, CORES_DE_ETIQUETA } from '@/lib/etiquetas'
 
 /*
  * HOJE / ESSA SEMANA NA PARCERIA (Pedro, 19/10/2026): "tirar Sem resposta: Últimas 6h / 24h / Essa semana. Colocar no
@@ -1084,8 +1084,8 @@ export default function LeadList({
       {contextMenu.visible && (
         <div
           ref={menuRef}
-          className="fixed z-50 rounded-xl py-1.5 min-w-[200px] shadow-xl animate-in fade-in zoom-in-95 duration-150"
-          style={{ left: contextMenu.x, top: contextMenu.y, background: 'var(--wa-menu)', border: '1px solid var(--wa-divider)' }}
+          className="fixed z-50 rounded-xl py-1.5 min-w-[200px] max-h-[80vh] overflow-y-auto shadow-xl animate-in fade-in zoom-in-95 duration-150"
+          style={{ left: contextMenu.x, top: Math.max(8, Math.min(contextMenu.y, window.innerHeight - 420)), background: 'var(--wa-menu)', border: '1px solid var(--wa-divider)' }}
         >
           <button onClick={handleTogglePin} className="w-full text-left px-4 py-2.5 text-[14px] hover:bg-[var(--wa-row-hover)] flex items-center gap-3" style={{ color: 'var(--wa-text)' }}>
             <PushPin size={17} className={contextMenu.lead?.is_pinned ? '' : '-rotate-45'} style={{ color: 'var(--wa-icon)' }} />
@@ -1103,6 +1103,45 @@ export default function LeadList({
               : <Archive size={17} style={{ color: 'var(--wa-icon)' }} />}
             {contextMenu.lead?.is_archived ? 'Desarquivar conversa' : 'Arquivar conversa'}
           </button>
+          {/* 02/11 (Pedro: "botão direito na conversa e ter Adicionar tag, igual a tag Maluco"): as etiquetas personalizadas do
+              menu Etiquetas (sem as etapas): clicar põe, clicar de novo tira; e "Nova etiqueta" cria e já põe */}
+          {contextMenu.lead && (
+            <div className="mt-1 pt-1" style={{ borderTop: '1px solid var(--wa-divider)' }}>
+              <p className="px-4 py-1 text-[12px]" style={{ color: 'var(--wa-text-2)' }}>Adicionar tag</p>
+              {etiquetasDaEquipe.filter((t) => !ehEtapaComoTag(t.name)).map((t) => {
+                const tem = (contextMenu.lead!.lead_tags || []).some((lt: any) => lt.tag_id === t.id)
+                return (
+                  <button key={t.id} type="button"
+                          onClick={async () => {
+                            const lead = contextMenu.lead!
+                            setContextMenu((prev) => ({ ...prev, visible: false }))
+                            onTagsChange?.(lead.id, t.id, tem ? 'remove' : 'add', t)
+                            try { await marcarEtiqueta(lead.id, t.id, !tem) } catch { onTagsChange?.(lead.id, t.id, tem ? 'add' : 'remove', t) }
+                          }}
+                          className="w-full text-left px-4 py-2 text-[14px] hover:bg-[var(--wa-row-hover)] flex items-center gap-3" style={{ color: 'var(--wa-text)' }}>
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: t.color }} />
+                    <span className="flex-1">{t.name}</span>
+                    {tem && <Check size={15} style={{ color: 'var(--wa-green)' }} />}
+                  </button>
+                )
+              })}
+              <button type="button"
+                      onClick={async () => {
+                        const lead = contextMenu.lead!
+                        const nome = window.prompt('Nome da nova etiqueta:')
+                        setContextMenu((prev) => ({ ...prev, visible: false }))
+                        if (!nome?.trim()) return
+                        try {
+                          const t = await criarEtiqueta(nome, CORES_DE_ETIQUETA[5])
+                          onTagsChange?.(lead.id, t.id, 'add', t)
+                          await marcarEtiqueta(lead.id, t.id, true)
+                        } catch (e: any) { window.alert(e?.message || 'Não consegui criar a etiqueta.') }
+                      }}
+                      className="w-full text-left px-4 py-2 text-[14px] hover:bg-[var(--wa-row-hover)]" style={{ color: 'var(--wa-text-2)' }}>
+                + Nova etiqueta…
+              </button>
+            </div>
+          )}
           {/* 16/10: a etapa do cliente da OLX (Proprietários, Fechamento e Finalizados são da equipe) */}
           {linha === 'captacao' && contextMenu.lead && olxClientes[fim8(contextMenu.lead.phone)] && (
             <div className="mt-1 pt-1" style={{ borderTop: '1px solid var(--wa-divider)' }}>

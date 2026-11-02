@@ -108,7 +108,7 @@ const ETAPA_COMO_TAG = new Set(['recebeu mensagem', 'recebeu imóvel', 'em atend
   'não respondeu', 'respondeu', 'disponível', 'disponíveis', 'alugado', 'alugados', 'vendido', 'já vendeu', 'quer vender',
   'tem outro imóvel', 'mandou os dados', 'atualizou cadastro do seu imóvel', 'sugeriu outro imóvel', 'follow up', 'visita',
   'visitas', 'fechamento', 'cadastrando', 'finalizados', 'filtrado', 'enviado opção', 'enviado opções'])
-const ehEtapaComoTag = (nome: string) => /^nay:/i.test(nome) || /^\d+\s/.test(nome) || ETAPA_COMO_TAG.has(nome.trim().toLowerCase())
+export const ehEtapaComoTag = (nome: string) => /^nay:/i.test(nome) || /^\d+\s/.test(nome) || ETAPA_COMO_TAG.has(nome.trim().toLowerCase())
 
 /** As etiquetas da linha com as de destaque (a etapa, no WhatsApp Leads) na frente; o resto na ordem de sempre. */
 function emDestaquePrimeiro<T extends { tag_id: string }>(lista: T[], destaque?: string[]): T[] {
