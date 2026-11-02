@@ -61,6 +61,16 @@ export async function GET(req: NextRequest) {
     } catch (err: any) {
       console.error('[corretores] contratos', err?.message || err)
     }
+    // 02/11 (Pedro, 562): quantas vezes ele mesmo pediu imóvel pela página /imoveis (o "me envia", com o número dele)
+    const pediu = new Map<string, { pedidos: number; enviados: number; distintos: number; ultimo: string | null }>()
+    try {
+      const r = await naydb().query('SELECT * FROM crm_me_envia_por_telefone($1::text[], $2::timestamptz)',
+        [corretores.map((c) => c.telefone).filter(Boolean), desde.toISOString()])
+      for (const l of r.rows) pediu.set(l.telefone, { pedidos: Number(l.pedidos) || 0, enviados: Number(l.imoveis_enviados) || 0,
+        distintos: Number(l.imoveis_distintos) || 0, ultimo: l.ultimo ? new Date(l.ultimo).toISOString() : null })
+    } catch (err: any) {
+      console.error('[corretores] me-envia', err?.message || err)    // antes da 562 no banco: segue sem a contagem
+    }
     const porId = new Map<string, any>()
     for (const l of mensagens.rows as any[]) porId.set(l.id, l)
     const docs = new Map<string, number>((documentos.rows as any[]).map((l) => [l.id, Number(l.n)]))
@@ -101,6 +111,9 @@ export async function GET(req: NextRequest) {
         documentos: docs.get(c.id) || 0,
         contratosFechados: contratos.get(c.telefone!)?.fechados ?? 0,
         fechamentoEmAndamento: contratos.get(c.telefone!)?.andamento ?? 0,
+        pedidosNaPagina: pediu.get(c.telefone!)?.pedidos ?? 0,
+        imoveisPedidosNaPagina: pediu.get(c.telefone!)?.enviados ?? 0,
+        ultimoPedidoNaPagina: pediu.get(c.telefone!)?.ultimo ?? null,
       }
     })
     return Response.json({ corretores: saida, dias })

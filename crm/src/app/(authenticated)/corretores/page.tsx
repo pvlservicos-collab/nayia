@@ -40,6 +40,9 @@ type Corretor = {
   documentos: number
   contratosFechados: number
   fechamentoEmAndamento: number
+  pedidosNaPagina: number           // 562: vezes que ele pediu imóvel pela página /imoveis
+  imoveisPedidosNaPagina: number
+  ultimoPedidoNaPagina: string | null
 }
 
 type Ordem = 'melhores' | 'interacoes' | 'visitas' | 'contratos' | 'recentes' | 'nome'
@@ -242,6 +245,13 @@ export default function CorretoresPage() {
                          detalhe={`${c.visitasRealizadas} realizada${c.visitasRealizadas === 1 ? '' : 's'}`} />
                 <Metrica icone={Handshake} valor={c.contratosFechados} rotulo="Contratos"
                          detalhe={c.fechamentoEmAndamento ? `${c.fechamentoEmAndamento} em andamento` : 'fechados'} />
+              </div>
+              <div className="text-xs flex items-center justify-between rounded-md px-2 py-1 border border-line"
+                   title="Quantas vezes ele digitou o número na página /imoveis para se mandar imóvel">
+                <span className="text-muted">Pediu em /imoveis</span>
+                <span className={c.pedidosNaPagina ? 'text-ink font-semibold' : 'text-muted'}>
+                  {c.pedidosNaPagina}× {c.pedidosNaPagina ? `· ${c.imoveisPedidosNaPagina} imóve${c.imoveisPedidosNaPagina === 1 ? 'l' : 'is'}` : ''}
+                </span>
               </div>
               <div className="text-xs text-muted flex items-center justify-between">
                 <span>{quando(c.ultimaMensagem)}</span>
