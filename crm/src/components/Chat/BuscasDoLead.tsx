@@ -16,6 +16,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowsClockwise, CaretDown, CaretRight, CircleNotch, MagnifyingGlass } from '@phosphor-icons/react'
 import { FUSO_DE_MANAUS } from '@/lib/fusoDeManaus'
+import OpcoesNota90 from './OpcoesNota90'
+import PedirNosGrupos from './PedirNosGrupos'
 
 interface ItemDaNota { criterio: string; texto: string; peso: number | null; pontos: number | null }
 interface ImovelDaBusca {
@@ -26,7 +28,10 @@ interface Busca {
   id: number; titulo: string; disse: string | null; situacao: 'com_opcoes' | 'sem_opcoes' | 'abaixo_do_minimo'
   motivo: string | null; analisada_em: string; imoveis: ImovelDaBusca[]
 }
-interface PedidoNoGrupo { grupo: string; nome?: string; em?: string; teste?: boolean; repeticao?: boolean; encerrou?: boolean }
+interface PedidoNoGrupo {
+  grupo: string; nome?: string; em?: string; teste?: boolean; repeticao?: boolean; encerrou?: boolean
+  manual?: boolean; quem?: string     // 01/11 (558): pedido à mão no CRM, pelo número da Parceria
+}
 interface Anunciante { anunciante?: string; titulo?: string; preco?: number; bairro?: string; em?: string; teste?: boolean }
 interface Corretor { nome: string | null; telefone: string; estado: string; codigo: number | null; origem: string | null; em: string }
 interface Oferta { nome?: string; tel?: string; codigo?: number; estado?: string; em?: string; de?: string }
@@ -178,16 +183,16 @@ function ResumoDaBusca({ buscas, a }: { buscas: Busca[]; a: BuscaAtiva | null })
   )
 }
 
-function Andamento({ a }: { a: BuscaAtiva }) {
+function Andamento({ a, depoisDosGrupos }: { a: BuscaAtiva; depoisDosGrupos?: React.ReactNode }) {
   const [etapas, setEtapas] = useState(false)
   const sit = SITUACAO[a.estado] || { rotulo: a.estado, cor: 'var(--wa-text-2)' }
   // os pedidos de cada grupo: quantas vezes foi, o último e se parou (3 pedidos sem imóvel, 29/10)
   const grupos = useMemo(() => {
-    const m = new Map<string, { nome: string; vezes: number; ultimo: string; parou: boolean; teste: boolean }>()
+    const m = new Map<string, { nome: string; vezes: number; ultimo: string; parou: boolean; teste: boolean; mao: number }>()
     for (const g of a.grupos || []) {
-      const x = m.get(g.grupo) || { nome: g.nome || g.grupo, vezes: 0, ultimo: '', parou: false, teste: !!g.teste }
+      const x = m.get(g.grupo) || { nome: g.nome || g.grupo, vezes: 0, ultimo: '', parou: false, teste: !!g.teste, mao: 0 }
       if (g.encerrou) x.parou = true
-      else { x.vezes += 1; x.ultimo = g.em || x.ultimo; x.parou = false }
+      else { x.vezes += 1; x.ultimo = g.em || x.ultimo; x.parou = false; if (g.manual) x.mao += 1 }
       m.set(g.grupo, x)
     }
     return [...m.values()].sort((p, q) => (q.ultimo || '').localeCompare(p.ultimo || ''))
@@ -211,11 +216,12 @@ function Andamento({ a }: { a: BuscaAtiva }) {
           <li key={g.nome} className="flex items-center gap-1.5">
             <span className="truncate flex-1">{g.nome}</span>
             <span className="shrink-0 text-[11px]" style={{ color: 'var(--wa-text-2)' }}>
-              {g.vezes}× · {quando(g.ultimo)}{g.parou ? ' · parou' : ''}{g.teste ? ' · teste' : ''}
+              {g.vezes}×{g.mao ? ` (${g.mao} à mão)` : ''} · {quando(g.ultimo)}{g.parou ? ' · parou' : ''}{g.teste ? ' · teste' : ''}
             </span>
           </li>
         ))}
       </Bloco>
+      {depoisDosGrupos}
       <Bloco titulo="Anunciantes da OLX" n={(a.olx || []).length}>
         {(a.olx || []).map((o, n) => (
           <li key={n}>
@@ -289,7 +295,16 @@ export default function BuscasDoLead({ leadId }: { leadId: string }) {
 
   useEffect(() => { setBuscas(null); setAtiva(null); void ler() }, [ler])
 
-  if (!buscas?.length && !ativa) return null
+  // 01/11 (Pedro): o pedido nos grupos pela Parceria e as opções nota 90+ ficam logo embaixo dos grupos da busca;
+  // sem busca ativa, no fim do card (que aparece mesmo sem busca nenhuma, para o pedido nos grupos)
+  const nossos = (buscas || []).flatMap((b) => b.imoveis)
+  const extra = (
+    <>
+      <PedirNosGrupos leadId={leadId} aoEnviar={() => void ler()} />
+      {(buscas || []).length > 0 && <OpcoesNota90 imoveis={nossos} />}
+    </>
+  )
+  if (buscas === null && !ativa) return null
   return (
     <section className="px-4 py-3.5" style={{ background: 'var(--wa-panel)' }}>
       <div className="rounded-xl p-3" style={{ border: `1.5px solid ${COR}`, background: `color-mix(in srgb, ${COR} 6%, var(--wa-panel))` }}>
@@ -301,7 +316,7 @@ export default function BuscasDoLead({ leadId }: { leadId: string }) {
             {carregando ? <CircleNotch size={14} className="animate-spin" /> : <ArrowsClockwise size={14} />}
           </button>
         </div>
-        <ResumoDaBusca buscas={buscas || []} a={ativa} />
+        {(buscas?.length || ativa) ? <ResumoDaBusca buscas={buscas || []} a={ativa} /> : null}
         <div className="space-y-3">
           {(buscas || []).map((b) => {
             const venda = b.titulo.startsWith('VENDA')
@@ -322,7 +337,7 @@ export default function BuscasDoLead({ leadId }: { leadId: string }) {
               </div>
             )
           })}
-          {ativa && <Andamento a={ativa} />}
+          {ativa ? <Andamento a={ativa} depoisDosGrupos={extra} /> : extra}
         </div>
       </div>
     </section>
