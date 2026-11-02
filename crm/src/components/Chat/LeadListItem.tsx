@@ -315,6 +315,15 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
             </span>
           )}
           {etiquetasColoridas && <EtiquetasDoCard lead={lead as any} onTagsChange={onTagsChange} compacto />}
+          {/* 02/11 (Pedro: "poe para aparecer as tags la no numero parceria embaixo do nome igual é no lead para a rayssa se
+              organizar"): na Parceria as etiquetas aparecem embaixo do nome, com a cor delas. No Leads, quem a Nay atende
+              como cliente (clienteOlx) não mostra as outras, mas a "Chaves" aparece (vermelha). */}
+          {(marca || clienteOlx) && (lead.lead_tags || []).filter((lt: any) => lt.tag && (marca || lt.tag.name === 'Chaves')).slice(0, 3).map((lt: any) => (
+            <span key={lt.tag_id} className="wa-marca flex-shrink-0 rounded px-1 truncate max-w-[110px]"
+                  style={{ background: (lt.tag.color || '#64748b') + '26', color: lt.tag.color || '#64748b' }} title={lt.tag.name}>
+              {lt.tag.name}
+            </span>
+          ))}
           {!marca && !etiquetasColoridas && !clienteOlx && emDestaquePrimeiro(lead.lead_tags || [], etiquetasEmDestaque).slice(0, 2).map((lt: any) => lt.tag && (
             <span key={lt.tag_id} className="wa-marca" style={{ color: 'var(--wa-text-2)' }}>
               {lt.tag.name}
