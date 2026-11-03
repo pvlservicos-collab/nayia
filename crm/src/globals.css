@@ -787,6 +787,9 @@ html {
   --wa-divider: #e9edef;
   --wa-text: #111b21;
   --wa-text-2: #667781;
+  /* 03/11 (Pedro: "as tags do número Leads tira a cor delas, deixa todas cinzas, 40% mais fortes no tema claro") */
+  --wa-tag-cinza: #3d474e;
+  --wa-tag-cinza-fundo: rgba(84, 101, 111, 0.2);
   --wa-icon: #54656f;
   --wa-green: #1daa61;
   --wa-green-ink: #ffffff;
@@ -853,6 +856,9 @@ html {
   --wa-divider: rgba(255, 255, 255, 0.09);
   --wa-text: #fafafa;
   --wa-text-2: #a5a5a5;
+  /* 03/11: ... "e 10% mais fortes no tema escuro" */
+  --wa-tag-cinza: #c4c4c4;
+  --wa-tag-cinza-fundo: rgba(255, 255, 255, 0.13);
   --wa-icon: #a5a5a5;
   --wa-green: #21c063;
   --wa-green-ink: #0b141a;
@@ -1130,6 +1136,12 @@ html {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+/* 03/11: no WhatsApp Leads todas as etiquetas da linha da conversa são cinzas (a cor da conversa é a faixa do tipo) */
+.wa-tags-cinzas .wa-marca {
+  color: var(--wa-tag-cinza) !important;
+  background: var(--wa-tag-cinza-fundo) !important;
+  border-color: transparent !important;
 }
 .wa-marca {
   display: inline-flex;

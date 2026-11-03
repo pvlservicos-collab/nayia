@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useAuth, useStageHistory, useLeadPipelineStages, usePipeline, useIsMobile } from '@/hooks'
+import { useAuth, useStageHistory, useLeadPipelineStages, usePipeline, useIsMobile, useOrganizationMembers } from '@/hooks'
+import { montarAtendentes } from '@/lib/atendentes'
 import { useLeadsContext } from '@/contexts/LeadsContext'
 import { LeadList, ChatWindow, LeadDetailsSidebar } from '@/components/Chat'
 import { LeadWithOwner } from '@/lib/types'
@@ -64,6 +65,9 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
 
   const { organizationId, loading, permissions, isMaster, roleName, currentOrganization, user, profileName } = useAuth()
   const { leads: globalLeads, loading: leadsLoading, moveLeadToStage, setLeads } = useLeadsContext()
+  /* 03/11: a equipe que o administrador pode adicionar à conversa (Adicionar pessoa) */
+  const { members: membrosDaOrg } = useOrganizationMembers(organizationId || '')
+  const equipeDaConversa = montarAtendentes(membrosDaOrg || [])
 
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -357,6 +361,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
                              aoMudar={(o) => aplicarOrganizacao(displayedLead.id, o)} />
         : linha === 'captacao'
         ? <OrganizarConversa lead={displayedLead} tipoDeduzido={getLinhaWhatsapp(displayedLead) === 'parceria' ? 'corretor' : null}
+                             equipe={isAdmin ? equipeDaConversa : undefined}
                              aoMudar={(o) => aplicarOrganizacao(displayedLead.id, o)} />
         : undefined}
       marca={ehParceria ? marcas[displayedLead.id] : undefined}

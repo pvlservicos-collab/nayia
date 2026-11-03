@@ -11,6 +11,8 @@
  *   mudou_para          ENVIADA para a aba de outro número ("Enviar para Rayssa"; Pedro, 03/11: "quando enviar para o outro
  *                       número ele some da lista do Leads e aparece no outro número, lá em cima, como conversa nova"): some
  *                       da aba da própria linha e aparece só lá, até alguém devolver
+ *   pessoas             os membros da equipe ADICIONADOS à conversa ("Adicionar pessoa", Pedro, 03/11): no Leads, a conversa
+ *                       em Administração só aparece para quem não é administrador se ele estiver aqui, e aí fixada em cima
  *   dentro_de           os 8 últimos dígitos das conversas em que esta foi posta "dentro" (a setinha da 517), à mão
  * Os tipos ficam em integrations.config.tipos_de_contato da linha Leads (/api/linhas/tipos-de-contato).
  */
@@ -45,6 +47,11 @@ export function mostrarTambemEm(lead: { custom_attributes?: any } | null | undef
 export function mudouPara(lead: { custom_attributes?: any } | null | undefined): LinhaWhatsapp | null {
   const v = lead?.custom_attributes?.mudou_para
   return v === 'parceria' || v === 'captacao' || v === 'oficial' ? v : null
+}
+
+export function pessoasDe(lead: { custom_attributes?: any } | null | undefined): string[] {
+  const v = lead?.custom_attributes?.pessoas
+  return Array.isArray(v) ? v.map(String) : []
 }
 
 export function dentroDe(lead: { custom_attributes?: any } | null | undefined): string[] {

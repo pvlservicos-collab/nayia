@@ -6,6 +6,7 @@
  *   { dentroDe: { pai: '<lead id>', ligar: true } }      põe esta conversa dentro de outra (a setinha da lista)
  *   { rayssa: true }                                     "Enviar para Rayssa": a conversa SAI do Leads e vai para a aba Rayssa da
  *                                                        Parceria, no topo e não lida, como conversa nova (mudou_para)
+ *   { pessoas: ['<member id>', ...] }                    as pessoas adicionadas à conversa ("Adicionar pessoa")
  *   { devolver: true }                                   devolve a conversa enviada à aba do número dela
  *
  * Só mexe em custom_attributes da conversa; a linha (integration_id) nunca muda (crm/CLAUDE.md).
@@ -89,6 +90,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                  || jsonb_build_object('etapa_parceria', 'rayssa', 'etapa_parceria_em', now()::text,
                                        'mudou_para', 'parceria', 'mudou_em', now()::text),
                  last_activity_at = now(), is_unread = true, updated_at = now() WHERE id = ${id}`)
+    }
+    if (Array.isArray(corpo.pessoas)) {
+      const pessoas = [...new Set(corpo.pessoas.map(String).filter((x: string) => /^[0-9a-f-]{36}$/i.test(x)))].slice(0, 20)
+      await db.execute(sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb)
+                 || jsonb_build_object('pessoas', ${JSON.stringify(pessoas)}::jsonb, 'pessoas_em', now()::text),
+                 updated_at = now() WHERE id = ${id}`)
     }
     if (corpo.devolver === true) {
       await db.execute(sql`UPDATE leads SET custom_attributes = (coalesce(custom_attributes, '{}'::jsonb) - 'mudou_para' - 'mudou_em'

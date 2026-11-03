@@ -12,10 +12,10 @@
  *   Dentro de…      põe esta conversa dentro de outra (a setinha da lista), ou tira
  */
 import { useEffect, useRef, useState } from 'react'
-import { CircleNotch, FolderSimpleUser, MagnifyingGlass, PaperPlaneRight, Plus, Tag, Trash, TreeStructure, X } from '@phosphor-icons/react'
+import { Check, CircleNotch, FolderSimpleUser, MagnifyingGlass, PaperPlaneRight, Plus, Tag, Trash, TreeStructure, UserPlus, X } from '@phosphor-icons/react'
 import type { LeadWithOwner, SearchHit } from '@/lib/types'
 import { useTiposDeContato } from '@/hooks/useTiposDeContato'
-import { acharTipo, dentroDe, type TipoDeContato } from '@/lib/organizacaoDoLead'
+import { acharTipo, dentroDe, pessoasDe, type TipoDeContato } from '@/lib/organizacaoDoLead'
 
 const fim8 = (t: string | null | undefined) => String(t || '').replace(/\D/g, '').slice(-8)
 
@@ -37,11 +37,13 @@ interface Props {
   aoMudar: (o: Organizado) => void
   /** na aba para onde a conversa foi ENVIADA (mudou_para): só o botão de devolver */
   soDevolver?: string
+  /** 03/11 (Pedro): só o administrador (o Tel) adiciona pessoa à conversa; a lista é da equipe (lib/atendentes) */
+  equipe?: { id: string; nome: string; cor: string }[]
 }
 
-export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar, soDevolver }: Props) {
+export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar, soDevolver, equipe }: Props) {
   const { tipos, salvar } = useTiposDeContato()
-  const [menu, setMenu] = useState<'' | 'tipo' | 'dentro' | 'editar'>('')
+  const [menu, setMenu] = useState<'' | 'tipo' | 'dentro' | 'editar' | 'pessoas'>('')
   const [ocupado, setOcupado] = useState('')
   const [aviso, setAviso] = useState('')
   const caixa = useRef<HTMLDivElement>(null)
@@ -115,6 +117,13 @@ export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar, soDevol
         {ocupado === 'Enviado para a Administração' ? <CircleNotch size={16} className="animate-spin" /> : <FolderSimpleUser size={16} />}
         <span className="hidden xl:inline">Enviar para administração</span>
       </button>
+      {equipe && equipe.length > 0 && (
+        <button type="button" className={botao} style={borda} onClick={() => setMenu(menu === 'pessoas' ? '' : 'pessoas')}
+                title="Adicionar alguém da equipe a esta conversa: em Administração, ela só aparece (fixada) para quem for adicionado">
+          <UserPlus size={16} />
+          <span className="hidden xl:inline">Adicionar pessoa{pessoasDe(lead).length ? ` (${pessoasDe(lead).length})` : ''}</span>
+        </button>
+      )}
       <button type="button" className={botao} style={borda} onClick={() => setMenu(menu === 'dentro' ? '' : 'dentro')}
               title="Pôr esta conversa dentro de outra (aparece na setinha embaixo dela)">
         <TreeStructure size={16} />
@@ -152,6 +161,27 @@ export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar, soDevol
       )}
       {menu === 'editar' && <EditarTipos tipos={tipos} salvar={salvar} fechar={() => setMenu('')} />}
       {menu === 'dentro' && <DentroDe lead={lead} fazer={fazer} />}
+      {menu === 'pessoas' && equipe && (
+        <div className="absolute top-full right-0 mt-1 w-60 rounded-lg shadow-lg z-40 py-1"
+             style={{ background: 'var(--wa-panel, #fff)', border: '1px solid var(--wa-divider)', color: 'var(--wa-text)' }}>
+          <p className="px-3 py-1 text-[12px]" style={{ color: 'var(--wa-text-2)' }}>Quem vê esta conversa (fixada no Leads)</p>
+          {equipe.map((p) => {
+            const tem = pessoasDe(lead).includes(p.id)
+            return (
+              <button key={p.id} type="button" disabled={!!ocupado}
+                      onClick={() => {
+                        const novas = tem ? pessoasDe(lead).filter((x) => x !== p.id) : [...pessoasDe(lead), p.id]
+                        void fazer(tem ? `${p.nome} saiu da conversa` : `${p.nome} adicionado`, { pessoas: novas })
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-left hover:bg-black/5 dark:hover:bg-white/10">
+                <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: p.cor }} />
+                <span className="flex-1">{p.nome}</span>
+                {tem && <Check size={15} style={{ color: '#16a34a' }} />}
+              </button>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

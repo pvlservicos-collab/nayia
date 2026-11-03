@@ -80,6 +80,8 @@ interface LeadListItemProps {
   tipoDoContato?: { nome: string; cor: string } | null
   /** 03/11: a conversa é de outra linha e aparece nesta aba (misto): "Falando pelo número Parceria" em cima */
   faixaDaLinha?: string | null
+  /** 03/11 (Pedro: "as tags do número Leads tira a cor delas, deixa todas cinzas"): as etiquetas da linha em cinza */
+  cinzas?: boolean
 }
 
 const RECEBIDO = ['lead']
@@ -196,7 +198,7 @@ function BarrinhaDaNay({ passo, etapa }: { passo: number; etapa: string }) {
   )
 }
 
-const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, clienteOlx, etiquetasColoridas, tagsDaEquipe, onTagsChange, relacionados, aoAlternarRelacionados, relacao, passoDaNay, finalidadeDoCliente, origemDoCliente, papelNoLeads, tipoDoContato, faixaDaLinha }: LeadListItemProps) => {
+const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, clienteOlx, etiquetasColoridas, tagsDaEquipe, onTagsChange, relacionados, aoAlternarRelacionados, relacao, passoDaNay, finalidadeDoCliente, origemDoCliente, papelNoLeads, tipoDoContato, faixaDaLinha, cinzas }: LeadListItemProps) => {
   const robo = nay === undefined ? null : !nay ? { parada: true, texto: 'Lendo a Nay…' }
     : !nay.ligada ? { parada: true, texto: `Nay parada: ${nay.motivo || 'desligada'}` }
     : nayEmPausa(marca) ? { parada: true, texto: TEXTO_DA_PAUSA }
@@ -279,7 +281,7 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 mt-[2px] min-w-0">
+        <div className={`flex items-center gap-1.5 mt-[2px] min-w-0 ${cinzas ? 'wa-tags-cinzas' : ''}`}>
           {tipoDoContato && !papelNoLeads && (
             <span className="wa-marca flex-shrink-0 rounded px-1" style={{ color: '#fff', background: tipoDoContato.cor }}
                   title="Tipo de contato (muda no alto da conversa)">
@@ -416,6 +418,7 @@ export default memo(LeadListItem, (a, b) => (
   a.tipoDoContato?.nome === b.tipoDoContato?.nome &&
   a.tipoDoContato?.cor === b.tipoDoContato?.cor &&
   a.faixaDaLinha === b.faixaDaLinha &&
+  !!a.cinzas === !!b.cinzas &&
   !!a.etiquetasColoridas === !!b.etiquetasColoridas &&
   !!a.tagsDaEquipe === !!b.tagsDaEquipe &&
   a.atendente?.id === b.atendente?.id &&

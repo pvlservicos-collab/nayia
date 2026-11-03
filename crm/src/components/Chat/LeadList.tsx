@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { LeadWithOwner, SearchHit } from '@/lib/types'
-import { MagnifyingGlass, PushPin, Archive, ArrowCounterClockwise, ArrowLeft, Check, X, ChatCircleText, ChatCircleDots } from '@phosphor-icons/react'
+import { MagnifyingGlass, PushPin, Archive, ArrowCounterClockwise, ArrowLeft, Check, X, ChatCircleText, ChatCircleDots, Tag as TagIcon } from '@phosphor-icons/react'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 import { useLeadSearch } from '@/hooks/useLeadSearch'
 import { DIAS_CONVERSA_IMPORTADA } from '@/lib/conversas'
@@ -24,7 +24,7 @@ import BuscaDaLista, { casaNaBusca } from './BuscaDaLista'
 import { useCorretoresDaCaptacao } from '@/hooks/useCorretoresDaCaptacao'
 import { usePipeline } from '@/hooks/usePipeline'
 import { conversaEstaNaLinha, getLinhaWhatsapp, type LinhaWhatsapp } from '@/lib/leadChannel'
-import { acharTipo, dentroDe, faixaDeOutraLinha, LINHAS_MISTAS, mostrarTambemEm, mudouPara, tipoEscolhido } from '@/lib/organizacaoDoLead'
+import { acharTipo, dentroDe, faixaDeOutraLinha, LINHAS_MISTAS, mostrarTambemEm, mudouPara, pessoasDe, tipoEscolhido } from '@/lib/organizacaoDoLead'
 import { useTiposDeContato } from '@/hooks/useTiposDeContato'
 import { etapaDaParceria, escolhaAMao } from '@/lib/etapaDaParceria'
 import PranchetaDeEtiquetas from './PranchetaDeEtiquetas'
@@ -170,7 +170,10 @@ export default function LeadList({
   organizationId,
 }: LeadListProps) {
   const ehParceria = linha === 'parceria'
-  const { profileName, user } = useAuth()
+  const { profileName, user, isMaster, roleName, permissions, currentOrganization } = useAuth()
+  /* 03/11: o administrador (o Tel) vê Administração inteira; os outros só o que foram adicionados (Adicionar pessoa) */
+  const ehAdmin = !!(isMaster || roleName?.toLowerCase() === 'administrador' || roleName?.toLowerCase() === 'owner' || (permissions as any)?.['*'])
+  const meuId = currentOrganization?.id || ''
   const semLupa = soRespondeNaCaptacao(profileName || user?.name)
   const [search, setSearch] = useState('')
   const [buscaAberta, setBuscaAberta] = useState(false)
@@ -189,6 +192,8 @@ export default function LeadList({
   const [buscaDono, setBuscaDono] = useState('')
   const [verArquivadas, setVerArquivadas] = useState(false)
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ visible: false, x: 0, y: 0, lead: null })
+  const [menuDeTags, setMenuDeTags] = useState(false)
+  const [buscaDeTag, setBuscaDeTag] = useState('')
 
   const { marcas, nay } = useParceriaMarcas(ehParceria)
   // 492 (Pedro, 24/10): o dono com quem a Nay Leads está conversando pela Parceria fica roxo
@@ -411,6 +416,7 @@ export default function LeadList({
     e.preventDefault()
     e.stopPropagation()
     setContextMenu({ visible: true, x: e.clientX, y: e.clientY, lead })
+    setMenuDeTags(false)
   }, [])
 
   const handleTogglePin = useCallback(async () => {
@@ -478,7 +484,24 @@ export default function LeadList({
    * tem que ser aqui -- inclusive na busca do servidor.
    */
   // a conversa ENVIADA para outro número (mudou_para) sai daqui e fica só lá (a lupa ainda acha)
-  const naAba = (l: LeadWithOwner) => !!linha && (mudouPara(l)
+  /* 03/11: o tipo de contato de cada conversa (a cor dela): o escolhido à mão; sem escolha, o que a lista já sabe */
+  const tipoDe = (l: LeadWithOwner) => {
+    const escolhido = acharTipo(tiposDeContato, tipoEscolhido(l))
+    if (escolhido) return escolhido
+    if (getLinhaWhatsapp(l) === 'parceria') return acharTipo(tiposDeContato, marcas[l.id]?.proprietario ? 'proprietario' : 'corretor')
+    if (linha !== 'captacao') return null
+    return acharTipo(tiposDeContato, papelNoLeads(l) || (olxClientes[fim8(l.phone)] ? 'cliente' : null))
+  }
+  const idDaAdministracao = (allTags as any[]).find((t) => t.name === 'Administração' || (t.nome_original || t.name) === 'Fechamento')?.id as string | undefined
+  const emAdministracao = (l: LeadWithOwner) => tipoDe(l)?.chave === 'administracao'
+    || (!!idDaAdministracao && (l.lead_tags || []).some((lt: any) => lt.tag_id === idDaAdministracao))
+
+  /* 03/11 (Pedro: "a etapa Administração não vai aparecer para o Lucas, a não ser que o Tel adicione o Lucas ... e essa
+     conversa aparece fixada lá no número Leads"): no Leads, quem não é administrador não vê a conversa de Administração
+     (nem na lupa), a não ser que tenha sido adicionado a ela; a adicionada fica fixada em cima */
+  const escondidaDeMim = (l: LeadWithOwner) => linha === 'captacao' && !ehAdmin && emAdministracao(l) && !pessoasDe(l).includes(meuId)
+  const fixadaParaMim = (l: LeadWithOwner) => linha === 'captacao' && !!meuId && pessoasDe(l).includes(meuId)
+  const naAba = (l: LeadWithOwner) => !!linha && !escondidaDeMim(l) && (mudouPara(l)
     ? mudouPara(l) === linha
     : conversaEstaNaLinha(l, linha) || mostrarTambemEm(l).includes(linha))
   const daLinha: SearchHit[] = linha
@@ -505,8 +528,8 @@ export default function LeadList({
   const escreveuEm = (l: LeadWithOwner) => { const t = Date.parse(l.ultima_de_gente || ''); return Number.isFinite(t) ? t : 0 }
 
   const ordenados: SearchHit[] = [...daLinha].sort((a, b) => {
-    const ap = !!a.lead.is_pinned
-    const bp = !!b.lead.is_pinned
+    const ap = !!a.lead.is_pinned || fixadaParaMim(a.lead)
+    const bp = !!b.lead.is_pinned || fixadaParaMim(b.lead)
     if (ap !== bp) return ap ? -1 : 1
     const rank = (h: SearchHit) => (h.matchType === 'message' ? 1 : 0)
     if (rank(a) !== rank(b)) return rank(a) - rank(b)
@@ -743,18 +766,6 @@ export default function LeadList({
   ]
   const filtrosDeQuemAtende: FiltroDaLista[] = filtrosCaptacao.filter((f) => f.grupo === 'pessoa')
 
-  /* 03/11: o tipo de contato de cada conversa (a cor dela): o escolhido à mão; sem escolha, o que a lista já sabe */
-  const tipoDe = (l: LeadWithOwner) => {
-    const escolhido = acharTipo(tiposDeContato, tipoEscolhido(l))
-    if (escolhido) return escolhido
-    if (getLinhaWhatsapp(l) === 'parceria') return acharTipo(tiposDeContato, marcas[l.id]?.proprietario ? 'proprietario' : 'corretor')
-    if (linha !== 'captacao') return null
-    return acharTipo(tiposDeContato, papelNoLeads(l) || (olxClientes[fim8(l.phone)] ? 'cliente' : null))
-  }
-  const idDaAdministracao = (allTags as any[]).find((t) => t.name === 'Administração' || (t.nome_original || t.name) === 'Fechamento')?.id as string | undefined
-  const emAdministracao = (l: LeadWithOwner) => tipoDe(l)?.chave === 'administracao'
-    || (!!idDaAdministracao && (l.lead_tags || []).some((lt: any) => lt.tag_id === idDaAdministracao))
-
   const passaNoFiltro = (hit: SearchHit): boolean => {
     const l = hit.lead
     /* 03/11 (Pedro: "troca a etapa Fechamento pela etapa Administração, e sempre que mandar um lead para lá ele some de
@@ -762,7 +773,8 @@ export default function LeadList({
        nem em Todos. A lupa continua achando. */
     if (linha === 'captacao' && idDaAdministracao) {
       if (activeTab === `tag:${idDaAdministracao}`) return emAdministracao(l)
-      if (emAdministracao(l)) return false
+      // quem foi adicionado vê a conversa fixada em Todos (só ali, além de Administração)
+      if (emAdministracao(l)) return activeTab === 'all' && !ehAdmin && pessoasDe(l).includes(meuId)
     }
     // 20/10: no Leads, Todos é a linha inteira (como já era)
     if (usarAbasDeEtiquetas && activeTab === 'all') return true
@@ -1079,6 +1091,7 @@ export default function LeadList({
                   papelNoLeads={linha === 'captacao' && donosECorretores ? papelNoLeads(lead) : undefined}
                   tipoDoContato={linha === 'captacao' || getLinhaWhatsapp(lead) !== linha ? tipoDe(lead) : undefined}
                   faixaDaLinha={faixaDeOutraLinha(lead, linha)}
+                  cinzas={linha === 'captacao'}
                   /* 29/10 (a Joelma, cliente da OLX, aparecia "Prop"): quem só tem a etapa marcada à mão (o "Parar Nay"
                      grava Com o Tel) e é cliente da Nay Leads não é dono -- o registro fica, para a aba Tel */
                   dono={linha === 'captacao' && donos[lead.id] && !donos[lead.id].captacaoId && olxClientes[fim8(lead.phone)]
@@ -1112,6 +1125,7 @@ export default function LeadList({
                         onTagsChange={onTagsChange}
                         tipoDoContato={linha === 'captacao' ? tipoDe(f.lead) : undefined}
                         faixaDaLinha={faixaDeOutraLinha(f.lead, linha)}
+                        cinzas={linha === 'captacao'}
                         relacao={'Relacionado' + (f.codigos.length ? ' · ' + f.codigos.slice(0, 3).map((c) => '#' + c).join(' ') : '')}
                       />
                     ))}
@@ -1152,23 +1166,45 @@ export default function LeadList({
           </button>
           {/* 02/11 (Pedro: "botão direito na conversa e ter Adicionar tag, igual a tag Maluco"): as etiquetas personalizadas do
               menu Etiquetas (sem as etapas): clicar põe, clicar de novo tira; e "Nova etiqueta" cria e já põe */}
-          {contextMenu.lead && (
+          {/* 03/11 (Pedro: "ao clicar no botão direito o Lucas consiga editar as tags, remover ou pôr novas, e o adicionar tag é
+              uma opção que ao clicar abre as tags, porque hoje tem que rolar para baixo"): "Etiquetas" abre a lista no lugar do
+              menu, com busca; cada clique põe ou tira sem fechar, e "Voltar" ou clicar fora fecha */}
+          {contextMenu.lead && !menuDeTags && (
             <div className="mt-1 pt-1" style={{ borderTop: '1px solid var(--wa-divider)' }}>
-              <p className="px-4 py-1 text-[12px]" style={{ color: 'var(--wa-text-2)' }}>Adicionar tag</p>
-              {etiquetasDaEquipe.filter((t) => !ehEtapaComoTag(t.name)).map((t) => {
+              <button type="button" onClick={(e) => { e.stopPropagation(); setMenuDeTags(true); setBuscaDeTag('') }}
+                      className="w-full text-left px-4 py-2.5 text-[14px] hover:bg-[var(--wa-row-hover)] flex items-center gap-3" style={{ color: 'var(--wa-text)' }}>
+                <TagIcon size={17} style={{ color: 'var(--wa-icon)' }} />
+                <span className="flex-1">Etiquetas…</span>
+                <span className="text-[12px]" style={{ color: 'var(--wa-text-2)' }}>
+                  {(contextMenu.lead.lead_tags || []).filter((lt: any) => lt.tag && !ehEtapaComoTag(lt.tag.name)).length || ''}
+                </span>
+              </button>
+            </div>
+          )}
+          {contextMenu.lead && menuDeTags && (
+            <div className="mt-1 pt-1" style={{ borderTop: '1px solid var(--wa-divider)' }} onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2 px-3 pb-1">
+                <button type="button" onClick={() => setMenuDeTags(false)} className="text-[12px] px-1" style={{ color: 'var(--wa-text-2)' }}>‹ Voltar</button>
+                <input autoFocus value={buscaDeTag} onChange={(e) => setBuscaDeTag(e.target.value)} placeholder="Procurar etiqueta"
+                       className="flex-1 h-7 px-2 rounded text-[13px] bg-transparent outline-none" style={{ border: '1px solid var(--wa-divider)', color: 'var(--wa-text)' }} />
+              </div>
+              {etiquetasDaEquipe.filter((t) => !ehEtapaComoTag(t.name) && t.name.toLowerCase().includes(buscaDeTag.trim().toLowerCase())).map((t) => {
                 const tem = (contextMenu.lead!.lead_tags || []).some((lt: any) => lt.tag_id === t.id)
                 return (
                   <button key={t.id} type="button"
                           onClick={async () => {
                             const lead = contextMenu.lead!
-                            setContextMenu((prev) => ({ ...prev, visible: false }))
+                            const depois = tem
+                              ? (lead.lead_tags || []).filter((lt: any) => lt.tag_id !== t.id)
+                              : [...(lead.lead_tags || []), { tag_id: t.id, tag: t } as any]
+                            setContextMenu((prev) => ({ ...prev, lead: prev.lead ? { ...prev.lead, lead_tags: depois } : prev.lead }))
                             onTagsChange?.(lead.id, t.id, tem ? 'remove' : 'add', t)
                             try { await marcarEtiqueta(lead.id, t.id, !tem) } catch { onTagsChange?.(lead.id, t.id, tem ? 'add' : 'remove', t) }
                           }}
                           className="w-full text-left px-4 py-2 text-[14px] hover:bg-[var(--wa-row-hover)] flex items-center gap-3" style={{ color: 'var(--wa-text)' }}>
                     <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: t.color }} />
                     <span className="flex-1">{t.name}</span>
-                    {tem && <Check size={15} style={{ color: 'var(--wa-green)' }} />}
+                    {tem ? <Check size={15} style={{ color: 'var(--wa-green)' }} /> : <span className="text-[11px]" style={{ color: 'var(--wa-text-2)' }}>pôr</span>}
                   </button>
                 )
               })}
