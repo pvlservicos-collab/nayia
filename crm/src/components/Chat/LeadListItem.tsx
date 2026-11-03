@@ -77,7 +77,7 @@ interface LeadListItemProps {
   papelNoLeads?: 'corretor' | 'proprietario' | null
   /** 03/11 (Pedro: "uma cor para cada tipo de conversa"): o tipo de contato (Cliente, Corretor, Administração...) -- a faixa
    *  colorida à esquerda e o nome dele embaixo */
-  tipoDoContato?: { nome: string; cor: string } | null
+  tipoDoContato?: { chave?: string; nome: string; cor: string } | null
   /** 03/11: a conversa é de outra linha e aparece nesta aba (misto): "Falando pelo número Parceria" em cima */
   faixaDaLinha?: string | null
   /** 03/11 (Pedro: "as tags do número Leads tira a cor delas, deixa todas cinzas"): as etiquetas da linha em cinza */
@@ -282,7 +282,8 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
         </div>
 
         <div className={`flex items-center gap-1.5 mt-[2px] min-w-0 ${cinzas ? 'wa-tags-cinzas' : ''}`}>
-          {tipoDoContato && !papelNoLeads && (
+          {/* 03/11 (Pedro: "retira a tag cliente, já sei que é lead pela cor azul"): o cliente fica só com a faixa */}
+          {tipoDoContato && !papelNoLeads && tipoDoContato.chave !== 'cliente' && (
             <span className="wa-marca flex-shrink-0 rounded px-1" style={{ color: '#fff', background: tipoDoContato.cor }}
                   title="Tipo de contato (muda no alto da conversa)">
               {tipoDoContato.nome}
