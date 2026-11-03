@@ -31,6 +31,7 @@ import {
   Lightbulb,
   ClipboardText,
   Queue,
+  FolderSimpleUser,
 } from '@phosphor-icons/react'
 import { useAuth, usePipeline } from '@/hooks'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -57,6 +58,9 @@ const NAV_ITEMS = [
   { label: 'WhatsApp Parceria', curto: 'Parceria', href: '/chat/parceria', icon: WhatsappLogo },
   // 19/10 (Pedro: "lá em cima, de WhatsApp Captação para WhatsApp Leads"); a rota e a linha continuam 'captacao'
   { label: 'WhatsApp Leads', curto: 'Leads', href: '/chat/captacao', icon: WhatsappLogo },
+  // CHAT ADMINISTRAÇÃO (Pedro, 03/11/2026): quem está em Administração nos dois números (Leads e Parceria), só para o Tel
+  // (fora do switch de isItemVisible: quem não é administrador não vê)
+  { label: 'Administração', curto: 'Adm', href: '/chat/administracao', icon: FolderSimpleUser },
   // CHAT OLX (08/10, Pedro): "troca a página conversa por um redirect em outra aba para https://chat.olx.com.br/".
   // O item abre o chat da própria OLX numa aba nova do navegador (`externo`). A página de conversas do CRM
   // (/chat/olx: as duas contas e as consultas do bot) continua existindo, sem link no menu -- é para lá que a
@@ -195,7 +199,7 @@ export default function Navbar() {
     // padrão (POST /api/admin/create-workspace) usa permissions: {"*": true} — sem esse
     // check, contas Admin novas ficavam sem menu nenhum (só reconhecia roleName
     // "administrador"/"owner", que não é o valor real usado em lugar nenhum do app).
-    if (isMaster || roleName?.toLowerCase() === 'administrador' || roleName?.toLowerCase() === 'owner' || permissions?.['*']) return true
+    if (isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || permissions?.['*']) return true
 
     // TEMPORÁRIO: com o bypass de login (AuthGuard/middleware), não existe sessão
     // real então `permissions` nunca carrega — sem isso o menu só mostrava Início.

@@ -24,7 +24,7 @@ import PainelContatoCaptacao from './PainelContatoCaptacao'
 import CadastroImovelOlx from './CadastroImovelOlx'
 import EnviarImovelPelaCaptacao from './EnviarImovelPelaCaptacao'
 import PainelContatoParceria from './PainelContatoParceria'
-import OrganizarConversa, { organizar } from './OrganizarConversa'
+import OrganizarConversa, { organizar, EnviarParaAdministracaoParceria } from './OrganizarConversa'
 import { apareceNaAba, faixaDeOutraLinha, mostrarTambemEm, mudouPara, LINHAS_MISTAS, NOME_DA_LINHA } from '@/lib/organizacaoDoLead'
 import type { Organizado } from './OrganizarConversa'
 import { usePuxador } from '@/hooks/usePuxador'
@@ -360,6 +360,8 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
       organizar={mudouPara(displayedLead) === linha && getLinhaWhatsapp(displayedLead) !== linha
         ? <OrganizarConversa lead={displayedLead} soDevolver={NOME_DA_LINHA[getLinhaWhatsapp(displayedLead) || 'captacao']}
                              aoMudar={(o) => aplicarOrganizacao(displayedLead.id, o)} />
+        : linha === 'parceria' && getLinhaWhatsapp(displayedLead) === 'parceria'
+        ? <EnviarParaAdministracaoParceria lead={displayedLead} aoMudar={(o) => aplicarOrganizacao(displayedLead.id, o)} />
         : linha === 'captacao'
         ? <OrganizarConversa lead={displayedLead} tipoDeduzido={getLinhaWhatsapp(displayedLead) === 'parceria' ? 'corretor' : null}
                              equipe={isAdmin ? equipeDaConversa : undefined}

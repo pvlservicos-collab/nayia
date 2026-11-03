@@ -290,3 +290,38 @@ function TirarDeDentro({ final, lead, fazer }: { final: string; lead: LeadWithOw
     </div>
   )
 }
+
+/** 03/11 (Pedro: "no Parceria ter o botão Enviar para administração"): a etapa Administração da Parceria (a chave é
+ *  'fechamento', a mesma do card), pela rota do card (/api/leads/[id]/contato), que também avisa a Nay. */
+export function EnviarParaAdministracaoParceria({ lead, aoMudar }: { lead: LeadWithOwner; aoMudar: (o: Organizado) => void }) {
+  const [ocupado, setOcupado] = useState(false)
+  const [aviso, setAviso] = useState('')
+  const ja = lead.custom_attributes?.etapa_parceria === 'fechamento'
+  return (
+    <div className="relative">
+      <button type="button" disabled={ocupado || ja}
+              className="flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-[13px] font-semibold flex-shrink-0 disabled:opacity-60"
+              style={{ border: '1px solid var(--wa-divider)', color: 'var(--wa-text)' }}
+              title="A conversa vai para a etapa Administração (e aparece no Chat Administração do Tel)"
+              onClick={async () => {
+                setOcupado(true); setAviso('')
+                try {
+                  const r = await fetch(`/api/leads/${lead.id}/contato`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ etapa: 'fechamento' }),
+                  })
+                  const j = await r.json().catch(() => ({}))
+                  if (!r.ok) throw new Error(j.error || j.message || 'Não consegui mudar a etapa.')
+                  aoMudar({ custom_attributes: { ...(lead.custom_attributes || {}), etapa_parceria: 'fechamento', etapa_parceria_em: new Date().toISOString() } })
+                  setAviso('Enviado para a Administração')
+                } catch (e: any) { setAviso(e.message || 'Não consegui.') } finally { setOcupado(false); setTimeout(() => setAviso(''), 2500) }
+              }}>
+        {ocupado ? <CircleNotch size={16} className="animate-spin" /> : <FolderSimpleUser size={16} />}
+        <span className="hidden xl:inline">{ja ? 'Em Administração' : 'Enviar para administração'}</span>
+      </button>
+      {aviso && (
+        <span className="absolute top-full right-0 mt-1 text-[12px] px-2 py-1 rounded shadow z-40 whitespace-nowrap"
+              style={{ background: 'var(--wa-panel, #fff)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }}>{aviso}</span>
+      )}
+    </div>
+  )
+}

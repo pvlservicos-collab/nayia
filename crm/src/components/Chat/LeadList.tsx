@@ -700,7 +700,8 @@ export default function LeadList({
           titulo: 'Com visita aberta — quem atende é a Rayssa. Fechou a visita, volta para Todos e a Nay volta a atender.' },
         { chave: 'proprietarios', rosa: true, rotulo: 'Proprietários', grupo: 'etapa', pessoas: contagem['semler:proprietarios'],
           titulo: 'Quem a Nay sabe que é dono de imóvel. Só aparece aqui.' },
-        { chave: 'fechamento', rosa: true, rotulo: 'Fechamento', grupo: 'etapa', pessoas: contagem['semler:fechamento'],
+        // 03/11 (Pedro): Fechamento virou Administração (a chave continua 'fechamento': a Nay e o checklist)
+        { chave: 'fechamento', rosa: true, rotulo: 'Administração', grupo: 'etapa', pessoas: contagem['semler:fechamento'],
           titulo: 'Já pediu o checklist — está juntando a documentação. Entra aqui sozinho quando a Nay manda o checklist.' },
         // 02/11 (Pedro): saiu a aba Tel, entrou a do Lucas
         { chave: 'lucas', rotulo: 'Lucas', grupo: 'pessoa', cor: '#34D399', pessoas: contagem['semler:lucas'], titulo: 'Quem foi posto com o Lucas à mão, no card da conversa' },
