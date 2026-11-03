@@ -1188,6 +1188,22 @@ def depois_do_modelo(conn, lead: dict, r: dict, novas: list[str], ultima_da_nay:
         if not baloes or baloes[-1].rstrip().endswith("?"):
             r["baloes"] = ["Vou te mandar as opções que tenho com esse perfil."]
         passos.append(("pediu_opcoes", "pediu opções e os filtros bastam: busca já"))
+    # 5a. 03/11 (Pedro, a Sra. Maria …5999: "pediu visita e ela foi super ignorante"): ela perguntou "como faço pra visitar",
+    # o modelo pôs a ação fotos e o balão "vou te enviar as informações e as fotos", e a trava das fotos repetidas mandou
+    # "Já te mandei as fotos ... quer que eu mande de novo?". Sem ela pedir foto, foto que já foi não é ação: sai a ação e
+    # sai do balão a promessa de mandar fotos/informações
+    if "fotos" in acoes and not PEDIU_FOTO.search(texto) and not DE_NOVO.search(texto):
+        f = r.get("fotos") if isinstance(r.get("fotos"), dict) else {}
+        cods = [c for c in dict.fromkeys(_int(x) for x in [*(f.get("codigos") or []), f.get("codigo")]) if c] or [_int(lead.get("codigo"))]
+        if all(c and fotos_ja_foram(conn, lead, c) for c in cods):
+            acoes = [a for a in acoes if a != "fotos"]
+            baloes = []
+            for b in _baloes_do(r):
+                frases = [x for x in re.split(r"(?<=[.!?])\s+", b) if x.strip() and not PROMETE_FOTO.search(x)]
+                if frases:
+                    baloes.append(" ".join(frases))
+            r["baloes"] = baloes
+            passos.append(("fotos_sem_pedir", f"as fotos de {', '.join('#' + str(c) for c in cods)} já foram e ela não pediu foto: sem reenviar"))
     # 5. nunca leva a dúvida à equipe sem dizer nada a ela (o lead 60 ficou sem resposta)
     if not _baloes_do(r):
         for a in ("perguntar", "equipe"):
@@ -1523,6 +1539,9 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
 
 CODIGO_SOZINHO = re.compile(r"^\s*(?:c[óo]d(?:igo)?\.?\s*:?\s*|#)?(\d{3,5})\s*[.!?]?\s*$", re.I)
 PERGUNTA_DE_NUMERO = re.compile(r"\b(valor|quanto|r\$|or[çc]amento|quartos?|metros|m2|m²|andar|vagas?)\b", re.I)
+# 03/11: ela pediu foto (ou vídeo/material) nesta mensagem; e o balão que promete mandar fotos/informações
+PEDIU_FOTO = re.compile(r"\b(fotos?|imagens?|v[íi]deos?|material|tem foto|manda (as )?fotos?)\b", re.I)
+PROMETE_FOTO = re.compile(r"\b(vou|vamos|irei|j[áa] vou)\s+(te\s+|lhe\s+)?(enviar|mandar|passar|encaminhar)\b.{0,60}\b(fotos?|informa[çc][õo]es)\b", re.I)
 DE_NOVO = re.compile(r"\b(de novo|novamente|outra vez|n[ãa]o (chegou|chegaram|veio|vieram|abriu|abriram)|reenvi\w*|manda[r]? (as )?fotos? de novo)\b", re.I)
 
 
