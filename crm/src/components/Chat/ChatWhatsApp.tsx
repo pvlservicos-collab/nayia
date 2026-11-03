@@ -394,7 +394,11 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
 
   const painel = (modo: 'lateral' | 'gaveta') => {
     if (!displayedLead || !painelAberto) return null
-    if (ehParceria) {
+    /* 03/11 (Pedro: "a corretora marcada como falando pelo número Leads, quando eu enviar um imóvel, que saia pelo número
+       que já está falando e não crie uma nova conversa por outro número"): no misto, o card é o do NÚMERO DA CONVERSA, não
+       o da aba -- o "Enviar imóvel" da Parceria sai pela Parceria, o do Leads pelo 8595 */
+    const linhaDoLead = getLinhaWhatsapp(displayedLead) || linha
+    if (linhaDoLead === 'parceria') {
       return (
         <PainelContatoParceria
           key={displayedLead.id}
@@ -411,14 +415,14 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
        totalmente o card de proprietário lá do WhatsApp de captação, quero
        informações úteis lá no card". O card genérico do CRM (pedido, venda,
        agenda) não é desta linha: aqui só se fala com quem tem imóvel. */
-    if (linha === 'captacao' || (linha === 'oficial' && donosDaCaptacao[displayedLead.id])) {
+    if (linhaDoLead === 'captacao' || (linhaDoLead === 'oficial' && donosDaCaptacao[displayedLead.id])) {
       return (
         <PainelContatoCaptacao
           key={displayedLead.id}
           lead={displayedLead}
           modo={modo}
           aoFechar={alternarPainel}
-          oficial={linha === 'oficial'}
+          oficial={linhaDoLead === 'oficial'}
           onTagsChange={handleTagsChange}
         />
       )
