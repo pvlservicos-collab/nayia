@@ -1,0 +1,19 @@
+# A Nay das Dúvidas (Pedro, 03/11/2026): responde a equipe no grupo "Dúvidas Imobeasy" (número da Parceria), 5 s depois
+# de cada pessoa parar de escrever, com um conselho das regras do Tel. Código: olx/grupo_duvidas.py (migração 575).
+# Separada do nay-olx para a resposta não esperar a volta dos anúncios e da busca.
+# Instalar: cp nay-duvidas.service /etc/systemd/system/ && systemctl daemon-reload && systemctl enable --now nay-duvidas
+[Unit]
+Description=Nay das Duvidas (grupo Duvidas Imobeasy, Parceria)
+After=network-online.target docker.service
+Wants=network-online.target
+StartLimitIntervalSec=0
+[Service]
+Type=simple
+WorkingDirectory=/root/nay-olx
+EnvironmentFile=/root/nay-olx/.env
+Environment=TZ=America/Manaus PYTHONUNBUFFERED=1
+ExecStart=/root/nay-olx/.venv/bin/python -u -m olx.grupo_duvidas
+Restart=always
+RestartSec=5
+[Install]
+WantedBy=multi-user.target
