@@ -46,7 +46,10 @@ import { usePipelineFilters } from '@/contexts/FilterContext'
    A aba Início saiu (o endereço "/" leva à Parceria; o painel de números ficou em /inicio). Os itens com
    `mais: true` moram atrás do botão "+ Mais" na barra do computador; na gaveta do celular aparecem todos. */
 const NAV_ITEMS = [
-  { label: 'Pipeline', href: '/pipeline', icon: Kanban },
+  // PIPELINE GERAL (Pedro, 03/11/2026: "oculta o pipeline que fica no menu pq eu já coloquei em cada número, põe o pipeline
+  // do menu como pipeline geral dentro do menu mais"): cada número tem o seu na própria aba; o geral (todos os funis, com as
+  // abas de funil do PipelineBoard) foi para o "+ Mais". A barra de baixo do celular continua com ele (MOBILE_TAB_LABELS).
+  { label: 'Pipeline geral', curto: 'Pipeline', href: '/pipeline', icon: Kanban, mais: true },
   // TRES LINHAS DE WHATSAPP, uma aba cada (Tel, 28/09/2026): "São 3 WhatsApp,
   // cada um em uma tab lá no CRM... não misturando contatos". Mesma tela,
   // conversas separadas por linha. `curto` é o nome na barra do celular.
@@ -70,7 +73,11 @@ const NAV_ITEMS = [
   { label: 'Imóveis', href: '/imoveis', icon: Buildings },
   // CHAT CHAVES NA MÃO (Pedro, 21/10/2026: "no lugar de visitantes que vai pra dentro do menu, Chat Chaves na Mão igual o
   // olx mesmas coisas"): os leads do portal, os imóveis do XML e as informações da integração (458/459)
-  { label: 'Chat Chaves na Mão', curto: 'Chaves', href: '/chat/chavesnamao', icon: ChatsCircle },
+  // 03/11 (Pedro: "troca o chaves na mão por Chaves, para encurtar o tamanho lá no menu de cima tb"): só "Chaves", em toda largura
+  { label: 'Chaves', href: '/chat/chavesnamao', icon: ChatsCircle },
+  // CHAT ZAP (Pedro, 03/11/2026: "pessoal do zap ... cria lá um chat Zap no crm"): os leads do Canal Pro (ZAP Imóveis, Viva
+  // Real, OLX), os imóveis do XML deles e as informações da integração; a mesma tela do Chaves na Mão (542/574)
+  { label: 'Chat Zap', curto: 'Zap', href: '/chat/zap', icon: ChatsCircle },
   // VISITANTES (Pedro, 20/10/2026): quem já visitou com a gente (corretores e clientes), por dia, mês, trimestre e total.
   // 21/10: foi para dentro do "+ Mais" (o lugar dela ficou com o Chat Chaves na Mão)
   { label: 'Visitantes', href: '/visitantes', icon: Users, mais: true },
@@ -102,7 +109,7 @@ const PAGINA_INICIAL = '/chat/parceria'
 // Destinos mais usados — ficam sempre à mão na barra inferior do celular.
 // Os demais (Configurações, Funil de Mensagens, Métricas) ficam atrás do "Mais",
 // que abre a mesma gaveta lateral — só um sistema de navegação por vez no celular.
-const MOBILE_TAB_LABELS = ['WhatsApp Oficial', 'WhatsApp Parceria', 'WhatsApp Leads', 'Pipeline', 'Imóveis']
+const MOBILE_TAB_LABELS = ['WhatsApp Oficial', 'WhatsApp Parceria', 'WhatsApp Leads', 'Pipeline geral', 'Imóveis']
 
 export default function Navbar() {
   const pathname = usePathname()
@@ -202,7 +209,7 @@ export default function Navbar() {
     switch (label) {
       case 'Dashboard': return !!permissions.settings?.view_dashboard
       case 'Leads': return !!permissions.settings?.view_leads
-      case 'Pipeline': return !!permissions.settings?.view_pipeline
+      case 'Pipeline geral': return !!permissions.settings?.view_pipeline
       case 'WhatsApp Oficial': return !!permissions.settings?.view_chat
       case 'WhatsApp Parceria': return !!permissions.settings?.view_chat
       case 'WhatsApp Leads': return !!permissions.settings?.view_chat
@@ -213,7 +220,8 @@ export default function Navbar() {
       case 'Grupos': return !!permissions.settings?.view_chat
       // 30/10 (Pedro: "libera esses aí para ele e para a Rayssa"): quem atende o chat (SDR) também vê estes cinco
       case 'Imóveis':
-      case 'Chat Chaves na Mão':
+      case 'Chaves':
+      case 'Chat Zap':
       case 'Visitantes':
       case 'Corretores':
       case 'Tutoriais':
@@ -422,6 +430,9 @@ export default function Navbar() {
             para a Rayssa organizar a lista do jeito dela. As notificações
             continuam em /notifications. */}
         <TamanhoDasConversas />
+
+        {/* o botão do som de lead novo (SomNovoLead, no layout) aparece aqui (03/11: embaixo ele cobria o Enviar) */}
+        <span id="lugar-do-som" className="contents" />
 
         {/* Dark mode toggle */}
         <button

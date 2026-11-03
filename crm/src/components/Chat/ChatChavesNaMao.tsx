@@ -13,6 +13,10 @@
  * Anúncios = o que está no XML que o portal lê (uma vez por dia) e o que ficou de fora, com o motivo; Informações =
  * os dois endereços da integração e o estado dos leads (459: crm_cnm_chats, crm_cnm_conversa, crm_cnm_ler,
  * crm_cnm_painel).
+ *
+ * CHAT ZAP (Pedro, 03/11/2026: "pessoal do zap ... cria lá um chat Zap no crm"): a MESMA tela para o Canal Pro do Grupo
+ * OLX (ZAP Imóveis, Viva Real, OLX), que também não tem chat conosco: os leads chegam por POST (542, privado.zap_lead).
+ * O que muda entre os dois portais está em PORTAIS; a rota da API é /api/<portal> (574: crm_zap_*).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -23,6 +27,57 @@ import type { AnuncioNoXml, ChatCnmNaLista, LeadCnm, PainelCnm } from '@/lib/cha
 
 type Secao = 'chat' | 'anuncios' | 'info'
 type Filtro = 'todas' | 'naoLidas' | 'venda' | 'locacao'
+
+/** o que muda de um portal para o outro */
+interface Portal {
+  api: string
+  aba: string
+  nome: string
+  site: { url: string; rotulo: string }
+  semChat: string
+  vazio: string
+  anuncios: string
+  leitura: string
+  senha: { rotulo: string; sim: string; nao: string }
+  contato: string
+}
+export type PortalSemChat = 'chavesnamao' | 'zap'
+const PORTAIS: Record<PortalSemChat, Portal> = {
+  chavesnamao: {
+    api: '/api/chavesnamao',
+    aba: 'Chaves',
+    nome: 'Chaves na Mão',
+    site: { url: 'https://www.chavesnamao.com.br/', rotulo: 'Site do Chaves na Mão' },
+    semChat: 'O Chaves na Mão não tem chat',
+    vazio: 'Nenhum lead chegou ainda. Quando alguém pedir contato num anúncio nosso no Chaves na Mão, a conversa aparece aqui.',
+    anuncios: 'O portal lê o nosso XML uma vez por dia. Vai todo imóvel nosso Disponível e no site, com foto, bairro e tipo (a mesma regra da OLX). '
+      + 'Para tirar um imóvel do Chaves na Mão, tire-o do site ou mude a situação: ele sai na leitura seguinte.',
+    leitura: 'Uma vez por dia. O XML é feito na hora, com até 10 minutos de atraso.',
+    senha: {
+      rotulo: 'Senha da conta guardada',
+      sim: 'Sim: só entra lead com o e-mail e o token da Imob Easy',
+      nao: 'Ainda não: entra o lead que vem do portal, marcado "teste" (falta o e-mail e o Token Integração de leads, em Meus Dados no Chaves na Mão)',
+    },
+    contato: 'atendimento@chavesnamao.com.br · (41) 3092-1001',
+  },
+  zap: {
+    api: '/api/zap',
+    aba: 'Chat Zap',
+    nome: 'ZAP',
+    site: { url: 'https://canalpro.grupozap.com/', rotulo: 'Canal Pro' },
+    semChat: 'O ZAP não tem chat conosco',
+    vazio: 'Nenhum lead chegou ainda. Quando alguém pedir contato num anúncio nosso no ZAP Imóveis, Viva Real ou OLX (Canal Pro), a conversa aparece aqui.',
+    anuncios: 'O Canal Pro lê o nosso XML a cada 12 horas. Vai todo imóvel nosso Disponível e no site que tenha CEP, pelo menos 5 fotos JPG e '
+      + 'descrição de 50 a 3.000 caracteres (regras do Grupo OLX). Para tirar um imóvel do ZAP, tire-o do site ou mude a situação: ele sai na leitura seguinte.',
+    leitura: 'A cada 12 horas (o Canal Pro mostra o horário da próxima importação). O XML é feito na hora, com até 10 minutos de atraso.',
+    senha: {
+      rotulo: 'Chave da homologação guardada',
+      sim: 'Sim: só entra lead com a chave do Grupo OLX',
+      nao: 'Ainda não: entra todo lead que o Grupo OLX manda, marcado "teste" (a chave vem na homologação)',
+    },
+    contato: 'chamado.integracao@olxbr.com',
+  },
+}
 
 const FUSO = 'America/Manaus'
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
@@ -52,8 +107,8 @@ function primeiroNome(c: { nome: string | null }) {
   const p = (c.nome || '').trim().split(/\s+/)[0] || ''
   return p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : 'cliente'
 }
-const tituloDe = (a: ChatCnmNaLista['anuncio']) =>
-  a.titulo || (a.condominio ? `${a.condominio}${a.bairro ? `, ${a.bairro}` : ''}` : a.codigo ? `Imóvel ${a.codigo}` : 'Anúncio no Chaves na Mão')
+const tituloDe = (a: ChatCnmNaLista['anuncio'], p: Portal) =>
+  a.titulo || (a.condominio ? `${a.condominio}${a.bairro ? `, ${a.bairro}` : ''}` : a.codigo ? `Imóvel ${a.codigo}` : `Anúncio no ${p.nome}`)
 const telefoneBonito = (t: string | null) => {
   const d = (t || '').replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '')
   return d.length === 11 ? `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}` : d.length === 10 ? `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}` : t || ''
@@ -81,7 +136,7 @@ function Capa({ c, tamanho }: { c: ChatCnmNaLista; tamanho: 'p' | 'm' }) {
 }
 
 /* ── o chat: os leads como conversas ── */
-function ChatDosLeads({ busca, aoBuscar, aoContar }: { busca: string; aoBuscar: (t: string) => void; aoContar: (n: number) => void }) {
+function ChatDosLeads({ p, busca, aoBuscar, aoContar }: { p: Portal; busca: string; aoBuscar: (t: string) => void; aoContar: (n: number) => void }) {
   const [chats, setChats] = useState<ChatCnmNaLista[] | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [filtro, setFiltro] = useState<Filtro>('todas')
@@ -95,10 +150,10 @@ function ChatDosLeads({ busca, aoBuscar, aoContar }: { busca: string; aoBuscar: 
   const menuRef = useRef<HTMLDivElement>(null)
 
   const carregar = useCallback(() => {
-    pedir<{ chats: ChatCnmNaLista[] }>('/api/chavesnamao/chat')
+    pedir<{ chats: ChatCnmNaLista[] }>(`${p.api}/chat`)
       .then((d) => { setChats(d.chats); setErro(null) })
       .catch((e) => setErro(e.message))
-  }, [])
+  }, [p.api])
   useEffect(() => { carregar(); const t = setInterval(carregar, 20_000); return () => clearInterval(t) }, [carregar])
   useEffect(() => { aoContar((chats || []).reduce((n, c) => n + c.naoLidas, 0)) }, [chats, aoContar])
 
@@ -106,12 +161,12 @@ function ChatDosLeads({ busca, aoBuscar, aoContar }: { busca: string; aoBuscar: 
     setMsgs(null); setAviso(null); setMenuAberto(false); setCopiado(null)
     if (!selChave) return
     const ch = encodeURIComponent(selChave)
-    pedir<{ mensagens: LeadCnm[] }>(`/api/chavesnamao/chat/${ch}`)
+    pedir<{ mensagens: LeadCnm[] }>(`${p.api}/chat/${ch}`)
       .then((d) => setMsgs(d.mensagens))
       .catch((e) => setAviso({ texto: e.message, erro: true }))
     // abriu = leu: some o pontinho da lista
-    pedir(`/api/chavesnamao/chat/${ch}`, { method: 'POST' }).then(carregar).catch(() => { /* fica não lida; tenta na próxima */ })
-  }, [selChave, carregar])
+    pedir(`${p.api}/chat/${ch}`, { method: 'POST' }).then(carregar).catch(() => { /* fica não lida; tenta na próxima */ })
+  }, [selChave, carregar, p.api])
   const quantas = msgs?.length ?? 0
   useEffect(() => { fim.current?.scrollIntoView({ block: 'end' }) }, [quantas, selChave])
   useEffect(() => {
@@ -160,7 +215,7 @@ function ChatDosLeads({ busca, aoBuscar, aoContar }: { busca: string; aoBuscar: 
   const vazio = !chats ? null
     : q ? <>Nenhum lead com &quot;{q}&quot;.</>
     : filtro !== 'todas' && chats.length ? 'Nenhum lead neste filtro.'
-    : 'Nenhum lead chegou ainda. Quando alguém pedir contato num anúncio nosso no Chaves na Mão, a conversa aparece aqui.'
+    : p.vazio
 
   const lista = (
     <aside className={`olx-lado ${selChave ? 'hidden md:flex' : 'flex'}`}>
@@ -188,7 +243,7 @@ function ChatDosLeads({ busca, aoBuscar, aoContar }: { busca: string; aoBuscar: 
             {c.naoLidas > 0 && <span className="olx-linha__ponto" aria-label={`${c.naoLidas} não lido${c.naoLidas === 1 ? '' : 's'}`} />}
             <Capa key={c.anuncio.foto || c.chave} c={c} tamanho="p" />
             <span className="olx-linha__texto">
-              <span className="olx-linha__anuncio">{tituloDe(c.anuncio)}</span>
+              <span className="olx-linha__anuncio">{tituloDe(c.anuncio, p)}</span>
               <span className="olx-linha__nome">{nomeDe(c)}{c.leads > 1 ? ` · ${c.leads} pedidos` : ''}</span>
               <span className="olx-linha__ultima">
                 <span>{c.ultimaTexto || '—'}</span>
@@ -237,7 +292,7 @@ function ChatDosLeads({ busca, aoBuscar, aoContar }: { busca: string; aoBuscar: 
       <ChatsCircle size={56} style={{ color: 'var(--olx-roxo)' }} />
       <p className="text-[18px] font-bold mt-3">Selecione um lead</p>
       <p className="text-[14px] mt-1 max-w-md" style={{ color: 'var(--olx-texto-2)' }}>
-        O Chaves na Mão não tem chat: a resposta vai pelo WhatsApp Leads. O botão embaixo da conversa abre o WhatsApp da pessoa.
+        {p.semChat}: a resposta vai pelo WhatsApp Leads. O botão embaixo da conversa abre o WhatsApp da pessoa.
       </p>
     </section>
   ) : (
@@ -247,13 +302,13 @@ function ChatDosLeads({ busca, aoBuscar, aoContar }: { busca: string; aoBuscar: 
           <button type="button" className="olx-icone" onClick={() => setSelChave(null)} aria-label="Voltar"><ArrowLeft size={22} /></button>
         </span>
         {anuncioUrl
-          ? <a href={anuncioUrl} target="_blank" rel="noopener noreferrer" title="Abrir o anúncio no Chaves na Mão"><Capa key={sel.anuncio.foto || sel.chave} c={sel} tamanho="m" /></a>
+          ? <a href={anuncioUrl} target="_blank" rel="noopener noreferrer" title={`Abrir o anúncio no ${p.nome}`}><Capa key={sel.anuncio.foto || sel.chave} c={sel} tamanho="m" /></a>
           : <Capa key={sel.anuncio.foto || sel.chave} c={sel} tamanho="m" />}
         <div className="flex-1 min-w-0">
           <p className="olx-conv__anuncio">
             {anuncioUrl
-              ? <a href={anuncioUrl} target="_blank" rel="noopener noreferrer" title="Abrir o anúncio no Chaves na Mão">{tituloDe(sel.anuncio)}</a>
-              : <span className="truncate">{tituloDe(sel.anuncio)}</span>}
+              ? <a href={anuncioUrl} target="_blank" rel="noopener noreferrer" title={`Abrir o anúncio no ${p.nome}`}>{tituloDe(sel.anuncio, p)}</a>
+              : <span className="truncate">{tituloDe(sel.anuncio, p)}</span>}
             {sel.anuncio.preco != null && <><span className="olx-conv__sep">|</span><span className="olx-conv__preco">{dinheiro(sel.anuncio.preco)}</span></>}
           </p>
           <p className="olx-conv__nome">{nomeDe(sel)}</p>
@@ -272,7 +327,7 @@ function ChatDosLeads({ busca, aoBuscar, aoContar }: { busca: string; aoBuscar: 
           </button>
           {menuAberto && (
             <div className="olx-menu" role="menu">
-              {anuncioUrl && <a href={anuncioUrl} target="_blank" rel="noopener noreferrer" role="menuitem"><ArrowSquareOut size={18} /> Ver o anúncio no Chaves na Mão</a>}
+              {anuncioUrl && <a href={anuncioUrl} target="_blank" rel="noopener noreferrer" role="menuitem"><ArrowSquareOut size={18} /> Ver o anúncio no {p.nome}</a>}
               {sel.anuncio.codigo && (
                 <a href={`/${sel.anuncio.codigo}`} target="_blank" rel="noopener noreferrer" role="menuitem"><House size={18} /> Abrir o imóvel #{sel.anuncio.codigo}</a>
               )}
@@ -316,7 +371,7 @@ function ChatDosLeads({ busca, aoBuscar, aoContar }: { busca: string; aoBuscar: 
           {sel.email && (
             <a href={`mailto:${sel.email}`} className="olx-chip inline-flex items-center gap-1.5"><EnvelopeSimple size={17} /> E-mail</a>
           )}
-          <span className="text-[12px] ml-auto" style={{ color: 'var(--olx-texto-2)' }}>O Chaves na Mão não tem chat: a resposta vai pelo WhatsApp.</span>
+          <span className="text-[12px] ml-auto" style={{ color: 'var(--olx-texto-2)' }}>{p.semChat}: a resposta vai pelo WhatsApp.</span>
         </div>
       </footer>
     </section>
@@ -334,15 +389,15 @@ function ChatDosLeads({ busca, aoBuscar, aoContar }: { busca: string; aoBuscar: 
 }
 
 /* ── Anúncios: o que está no XML e o que ficou de fora ── */
-function AnunciosNoXml({ aoVerLeads }: { aoVerLeads: (codigo: number) => void }) {
+function AnunciosNoXml({ p, aoVerLeads }: { p: Portal; aoVerLeads: (codigo: number) => void }) {
   const [d, setD] = useState<PainelCnm | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [busca, setBusca] = useState('')
   const [deFora, setDeFora] = useState(false)
   const carregar = useCallback(() => {
     setErro(null)
-    pedir<PainelCnm>('/api/chavesnamao/painel').then(setD).catch((e) => setErro(e.message))
-  }, [])
+    pedir<PainelCnm>(`${p.api}/painel`).then(setD).catch((e) => setErro(e.message))
+  }, [p.api])
   useEffect(() => { carregar() }, [carregar])
   const lista = useMemo(() => {
     const q = sem(busca.trim())
@@ -395,10 +450,12 @@ function AnunciosNoXml({ aoVerLeads }: { aoVerLeads: (codigo: number) => void })
         <button type="button" className="wa-icone-btn ml-auto" onClick={carregar} title="Atualizar agora"><ArrowClockwise size={20} /></button>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto wa-rolagem px-4 py-3">
-        <p className="text-[12.5px] mb-3" style={{ color: 'var(--wa-text-2)' }}>
-          O portal lê o nosso XML uma vez por dia. Vai todo imóvel nosso Disponível e no site, com foto, bairro e tipo (a mesma regra da OLX).
-          Para tirar um imóvel do Chaves na Mão, tire-o do site ou mude a situação: ele sai na leitura seguinte.
-        </p>
+        <p className="text-[12.5px] mb-3" style={{ color: 'var(--wa-text-2)' }}>{p.anuncios}</p>
+        {d?.conferido === false && (
+          <p className="text-[12.5px] mb-3 flex items-start gap-1" style={{ color: '#B45309' }}>
+            <WarningCircle size={15} weight="fill" className="mt-0.5 flex-shrink-0" /> Não consegui conferir agora quem fica de fora do XML; a lista mostra todos. Atualize daqui a pouco.
+          </p>
+        )}
         {!d && !erro && <p className="text-center text-[14px] mt-10 flex items-center justify-center gap-2" style={{ color: 'var(--wa-text-2)' }}><CircleNotch size={18} className="animate-spin" /> Lendo os imóveis…</p>}
         {erro && <p className="text-center text-[14px] mt-10 text-red-500">{erro}</p>}
         {d && !lista.length && <p className="text-center text-[14px] mt-10" style={{ color: 'var(--wa-text-2)' }}>Nenhum imóvel assim.</p>}
@@ -411,14 +468,14 @@ function AnunciosNoXml({ aoVerLeads }: { aoVerLeads: (codigo: number) => void })
 }
 
 /* ── Informações: os endereços da integração e o estado dos leads ── */
-function Informacoes() {
+function Informacoes({ p }: { p: Portal }) {
   const [d, setD] = useState<PainelCnm | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [copiado, setCopiado] = useState<string | null>(null)
   const carregar = useCallback(() => {
     setErro(null)
-    pedir<PainelCnm>('/api/chavesnamao/painel').then(setD).catch((e) => setErro(e.message))
-  }, [])
+    pedir<PainelCnm>(`${p.api}/painel`).then(setD).catch((e) => setErro(e.message))
+  }, [p.api])
   useEffect(() => { carregar() }, [carregar])
   async function copiar(v: string) { try { await navigator.clipboard.writeText(v); setCopiado(v) } catch { setCopiado(null) } }
   const linha = (rotulo: string, valor: React.ReactNode) => (
@@ -449,13 +506,13 @@ function Informacoes() {
             <h3 className="text-[15px] font-semibold py-2" style={{ color: 'var(--wa-text)' }}>Imóveis (XML que o portal lê)</h3>
             {linha('Endereço do XML', endereco(d.xml, true))}
             {linha('Imóveis no XML', `${d.vao} (ficam de fora ${d.ficam}: veja em Anúncios)`)}
-            {linha('Leitura do portal', 'Uma vez por dia. O XML é feito na hora, com até 10 minutos de atraso.')}
+            {linha('Leitura do portal', p.leitura)}
           </section>
           <section className="rounded-xl px-4 py-2" style={{ background: 'var(--wa-panel)', border: '1px solid var(--wa-divider)' }}>
             <h3 className="text-[15px] font-semibold py-2" style={{ color: 'var(--wa-text)' }}>Leads (o portal manda para nós)</h3>
             {linha('Endereço dos leads', endereco(d.leadsUrl, false))}
-            {linha('Senha da conta guardada', sim(d.senhaGuardada, 'Sim: só entra lead com o e-mail e o token da Imob Easy',
-              'Ainda não: entra o lead que vem do portal, marcado "teste" (falta o e-mail e o Token Integração de leads, em Meus Dados no Chaves na Mão)'))}
+            {linha(p.senha.rotulo, sim(d.senhaGuardada, p.senha.sim, p.senha.nao))}
+            {d.naySim != null && linha('A Nay chama o lead', sim(d.naySim, 'Sim: a Nay do 8595 chama pelo WhatsApp Leads', 'Não: desligada (zap_config.nay_atende)'))}
             {linha('Leads recebidos', `${d.leads.total} (${d.leads.pessoas} pessoa${d.leads.pessoas === 1 ? '' : 's'}, ${d.leads.naoLidos} não lido${d.leads.naoLidos === 1 ? '' : 's'})`)}
             {linha('Último lead', d.leads.ultimoEm ? quandoInteiro(d.leads.ultimoEm) : '—')}
             <div className="flex flex-wrap gap-2 py-3">
@@ -465,7 +522,7 @@ function Informacoes() {
           <section className="rounded-xl px-4 py-2" style={{ background: 'var(--wa-panel)', border: '1px solid var(--wa-divider)' }}>
             <h3 className="text-[15px] font-semibold py-2" style={{ color: 'var(--wa-text)' }}>Contato técnico com o portal</h3>
             {linha('Imob Easy', 'Pedro Victor · (96) 99171-2835 · pvlservicos@gmail.com')}
-            {linha('Chaves na Mão', 'atendimento@chavesnamao.com.br · (41) 3092-1001')}
+            {linha(p.nome, p.contato)}
           </section>
         </div>
       )}
@@ -473,15 +530,16 @@ function Informacoes() {
   )
 }
 
-export default function ChatChavesNaMao() {
+export default function ChatChavesNaMao({ portal = 'chavesnamao' }: { portal?: PortalSemChat }) {
+  const p = PORTAIS[portal]
   const [secao, setSecao] = useState<Secao>('chat')
   const [naoLidas, setNaoLidas] = useState(0)
   const [busca, setBusca] = useState('')
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full">
       <div className="olx-barra">
-        <span className="olx-barra__nome">Chat Chaves na Mão</span>
-        <nav className="olx-abas" role="tablist" aria-label="Menu do Chaves na Mão">
+        <span className="olx-barra__nome">{p.aba}</span>
+        <nav className="olx-abas" role="tablist" aria-label={`Menu do ${p.nome}`}>
           {([['chat', 'Chat', ChatsCircle], ['anuncios', 'Anúncios', Megaphone], ['info', 'Informações', Info]] as const).map(([k, rotulo, Icone]) => (
             <button key={k} type="button" role="tab" aria-selected={secao === k} onClick={() => setSecao(k)} className={`olx-aba ${secao === k ? 'olx-aba--on' : ''}`}>
               <Icone size={17} /> {rotulo}
@@ -490,13 +548,13 @@ export default function ChatChavesNaMao() {
           ))}
         </nav>
         <span className="ml-auto flex items-center gap-2 flex-wrap">
-          <a href="https://www.chavesnamao.com.br/" target="_blank" rel="noopener noreferrer" className="olx-chip olx-chip--p"
-             title="Abre o site do Chaves na Mão em outra aba"><ArrowSquareOut size={15} /> <span className="hidden sm:inline">Site do Chaves na Mão</span></a>
+          <a href={p.site.url} target="_blank" rel="noopener noreferrer" className="olx-chip olx-chip--p"
+             title={`Abre o ${p.site.rotulo} em outra aba`}><ArrowSquareOut size={15} /> <span className="hidden sm:inline">{p.site.rotulo}</span></a>
         </span>
       </div>
-      {secao === 'chat' && <ChatDosLeads busca={busca} aoBuscar={setBusca} aoContar={setNaoLidas} />}
-      {secao === 'anuncios' && <AnunciosNoXml aoVerLeads={(codigo) => { setBusca(String(codigo)); setSecao('chat') }} />}
-      {secao === 'info' && <Informacoes />}
+      {secao === 'chat' && <ChatDosLeads p={p} busca={busca} aoBuscar={setBusca} aoContar={setNaoLidas} />}
+      {secao === 'anuncios' && <AnunciosNoXml p={p} aoVerLeads={(codigo) => { setBusca(String(codigo)); setSecao('chat') }} />}
+      {secao === 'info' && <Informacoes p={p} />}
     </div>
   )
 }

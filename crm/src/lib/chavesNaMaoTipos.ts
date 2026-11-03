@@ -64,4 +64,6 @@ export interface PainelCnm {
   anuncios: AnuncioNoXml[]
   leads: { total: number; pessoas: number; naoLidos: number; autenticados: number; ultimoEm: string | null }
   senhaGuardada: boolean
+  naySim?: boolean             // só no Chat Zap (574): a Nay do 8595 chama o lead (zap_config.nay_atende)
+  conferido?: boolean          // só no Chat Zap: false = a API do site não disse quem fica de fora do XML
 }

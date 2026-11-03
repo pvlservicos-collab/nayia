@@ -291,10 +291,14 @@ export default function PipelineBoard({ organizationId, filters, linha }: Pipeli
   const etapasVisiveis = useMemo(() => (etapasSel.length ? stages.filter((s2) => etapasSel.includes(s2.id)) : stages), [stages, etapasSel])
   const contaDaEtapa = (id: string) => leadsFiltrados.filter((l) => l.stage_id === id).length
 
+  /* 03/11 (Pedro: "quando chega uma mensagem do lead ... o lead suba para cima"): em cada coluna, quem tem mensagem nova não
+     lida vai para o alto, a mais nova primeiro; o resto fica na ordem de antes (o sort é estável) */
   const leadsByStage = useMemo(() => {
+    const quandoEscreveu = (l: LeadWithOwner) => new Date(l.ultima_recebida || l.last_activity_at || l.created_at).getTime()
     return stages.reduce(
       (acc, stage) => {
         acc[stage.id] = leadsFiltrados.filter((l) => l.stage_id === stage.id)
+          .sort((a, b) => (Number(!!b.is_unread) - Number(!!a.is_unread)) || (a.is_unread ? quandoEscreveu(b) - quandoEscreveu(a) : 0))
         return acc
       },
       {} as Record<string, LeadWithOwner[]>

@@ -18,6 +18,7 @@ transacao  text
 canal  text
 autenticado  boolean  NOT NULL  padrão false
 dados  jsonb  NOT NULL
+lido_em  timestamp with time zone   -- 574: quando alguém abriu a conversa no CRM (Chat Zap); NULL = não lida.
 
 ## índices
 CREATE UNIQUE INDEX zap_lead_pkey ON privado.zap_lead USING btree (id)
@@ -29,7 +30,7 @@ zap_lead_pkey: PRIMARY KEY (id)
 (só o dono)
 
 ## funções que escrevem aqui
-(nenhuma função; quem escreve é o n8n, o site ou o CRM)
+crm_zap_ler
 
 ## funções que citam
-zap_lead_para_a_nay
+crm_zap_chats, crm_zap_conversa, crm_zap_ler, crm_zap_painel, zap_chave, zap_lead_para_a_nay

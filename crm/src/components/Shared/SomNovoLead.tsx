@@ -20,6 +20,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react'
 import { useAuth } from '@/hooks'
 import { useAtualizacaoPeriodica } from '@/hooks/useAtualizacaoPeriodica'
@@ -205,14 +206,19 @@ export default function SomNovoLead() {
 
   if (!montado) return null
 
-  return (
+  /* 03/11 (Pedro: "o somzinho de desativar som do crm tá ficando em cima do botão enviar, tira de lá"): o botão mora na barra
+     de cima, ao lado do modo escuro (o lugar #lugar-do-som do Navbar); o som continua tocando daqui, do layout */
+  const lugar = document.getElementById('lugar-do-som')
+  if (!lugar) return null
+  return createPortal(
     <button
       onClick={alternar}
       title={ligado ? 'Som de lead novo ligado — clique para silenciar' : 'Som de lead novo silenciado'}
       aria-label={ligado ? 'Silenciar som de lead novo' : 'Ativar som de lead novo'}
-      className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:bottom-4 right-4 z-40 w-9 h-9 rounded-full glass-raised flex items-center justify-center text-muted hover:text-ink transition-colors"
+      className="app-tap-target btn-icon w-11 h-11"
     >
-      {ligado ? <SpeakerHigh size={15} weight="bold" /> : <SpeakerSlash size={15} weight="bold" />}
-    </button>
+      {ligado ? <SpeakerHigh size={18} /> : <SpeakerSlash size={18} />}
+    </button>,
+    lugar,
   )
 }

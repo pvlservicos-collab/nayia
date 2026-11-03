@@ -93,8 +93,15 @@ const LeadCard = ({ lead, isDragOverlay, stageColor, onClick, onInfoClick, isHig
         }
       `}
     >
+      {/* 03/11 (Pedro: "quando chega uma mensagem do lead quero que fique verdinho a borda do lado para notificar"): a conversa
+          não lida (o lead escreveu e ninguém abriu) tem a borda verde fixa; abriu no chat, some. Ela também sobe na coluna
+          (PipelineBoard, leadsByStage). */}
+      {!isDragOverlay && lead.is_unread && (
+        <div className="absolute left-0 top-0 bottom-0 w-1.5 z-20" style={{ background: '#22c55e' }}
+             title="Mensagem nova do lead" aria-label="Mensagem nova do lead" />
+      )}
       {/* Left colored border on hover - 4px width */}
-      {!isDragOverlay && stageColor && (
+      {!isDragOverlay && stageColor && !lead.is_unread && (
         <div
           className="absolute left-0 top-0 bottom-0 w-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
           style={{ background: `linear-gradient(180deg, ${stageColor}, ${stageColor}33)` }}
