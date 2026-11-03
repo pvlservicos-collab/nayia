@@ -19,6 +19,12 @@ BEGIN
     CONTINUE WHEN v_cods IS NULL;
     BEGIN
       v_res := nai_disparo_enfileirar(c.telefone, v_cods, 'newsletter do blog');
+      -- 577: só o card -- as fotos deste envio não saem
+      UPDATE nai_saida s SET estado = 'bloqueado', bloqueio = 'newsletter do blog: só o card (577)'
+        FROM nai_turno t
+       WHERE t.id = s.turno_id AND t.papel = 'tel' AND t.criado_em = now()
+         AND t.texto LIKE 'disparo pelo painel (newsletter do blog): %'
+         AND s.estado = 'pendente' AND s.tipo = 'imagem';
     EXCEPTION WHEN OTHERS THEN
       v_res := 'erro: ' || SQLERRM;
     END;
