@@ -220,6 +220,9 @@ ainda não viu (acao "fotos") e pergunte o dia e o horário.
 
 === NUNCA ===
 - Pedir o código do imóvel. O código é nosso, não dela: ele vem da conversa (anúncio, cards, nome do condomínio).
+- Falar de um imóvel só pelo código (Pedro, 03/11: "sempre que a Nay for responder sobre um imóvel, ter o nome do
+  condomínio para ficar claro e não gerar confusão"): diga o condomínio, e o código só junto ("o apartamento do Vila do
+  Sol Maior (#9120)"). Sem condomínio, o tipo e o bairro ("a casa no Parque 10 (#5733)").
 - Repetir uma pergunta ou uma frase que você já mandou nesta conversa. Perguntou e ela ainda não respondeu: espere a
   resposta dela (balões vazios é melhor que repetir). Já disse que vai confirmar com a equipe: não diga de novo a cada
   mensagem; responda o que ela disse agora.
@@ -320,9 +323,48 @@ def _mandar(conn, lead: dict, caminho: str, corpo: dict, tipo: str, codigo: int 
     return mid
 
 
+# 03/11 (Pedro: "sempre que a Nay for responder sobre um imóvel, ter o nome do condomínio para ficar claro e não gerar
+# confusão, e não só o código"): o "#9120" / "código 9120" de um texto ganha o condomínio ao lado (sem condomínio, o tipo
+# e o bairro), a não ser que o nome já esteja no texto. O card (📍 ...) já traz o nome.
+CODIGO_NO_TEXTO = re.compile(r"(?:#|\bc[óo]d(?:igo)?\.?\s*:?\s*)(\d{3,5})\b", re.I)
+SO_TIPO = {"casa", "apartamento", "apto", "ap", "loja", "ponto", "sala", "terreno", "predio", "galpao", "comercial",
+           "imovel", "condominio", "residencial", "edificio", "sem", "nao", "na", "outro", "outros", "de", "do", "da"}
+
+
+def com_condominio(conn, texto: str) -> str:
+    if not texto or "📍" in texto:
+        return texto
+    cods = list(dict.fromkeys(int(m.group(1)) for m in CODIGO_NO_TEXTO.finditer(texto)))
+    if not cods:
+        return texto
+    try:
+        linhas = banco.linhas(conn, "SELECT codigo, condominio_nome, bairro, tipo FROM imoveis WHERE codigo = ANY(%s)", (cods,))
+    except Exception:  # noqa: BLE001 -- sem o nome, o texto sai como veio
+        return texto
+    nomes: dict[int, str] = {}
+    for l in linhas:
+        c = (l.get("condominio_nome") or "").strip()
+        palavras = [w for w in _normal(c).split() if w]
+        if len(c) < 3 or not palavras or all(w in SO_TIPO for w in palavras):
+            c = ""
+        tipo = (l.get("tipo") or "").strip()
+        nome = c or (f"{tipo.split()[0].lower() if tipo else 'imóvel'} no {l['bairro'].strip()}" if (l.get("bairro") or "").strip() else "")
+        if nome:
+            nomes[int(l["codigo"])] = nome
+    ja = _normal(texto)
+
+    def troca(m: re.Match) -> str:
+        nome = nomes.get(int(m.group(1)))
+        if not nome or _normal(nome) in ja:
+            return m.group(0)
+        return f"{m.group(0)} ({nome})"
+    return CODIGO_NO_TEXTO.sub(troca, texto)
+
+
 def mandar_texto(conn, lead: dict, texto: str) -> str:
     """Um texto dela. O MESMO texto para a mesma pessoa nas últimas 6 h não sai de novo (Pedro, 16/10: "fez a mesma
     pergunta duas vezes para o lead ... precisa checar para ela nunca fazer isso"). Devolve '' quando segurou."""
+    texto = com_condominio(conn, texto)
     if any(_normal(texto) == _normal(x) for x in ja_mandou(conn, lead, horas=6)):
         log.info("lead %s: texto repetido segurado: %s", lead.get("id"), texto[:80])
         return ""
