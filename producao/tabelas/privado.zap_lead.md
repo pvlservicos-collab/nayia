@@ -32,4 +32,4 @@ zap_lead_pkey: PRIMARY KEY (id)
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-(nenhuma)
+zap_lead_para_a_nay

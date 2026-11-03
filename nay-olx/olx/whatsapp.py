@@ -573,11 +573,35 @@ def chaves(lead: dict) -> bool:
     return lead.get("origem") == "chavesnamao"
 
 
+def zap(lead: dict) -> bool:
+    """572: o lead que o Grupo ZAP mandou pelo Canal Pro (zap_lead_para_a_nay)."""
+    return lead.get("origem") == "zap"
+
+
+def portal(lead: dict) -> str | None:
+    """O nome do portal de onde o lead veio sem conversa antes (Chaves na Mão ou o Grupo ZAP), ou None."""
+    if chaves(lead):
+        return "Chaves na Mão"
+    if zap(lead):
+        return lead.get("portal_nome") or "ZAP Imóveis"
+    return None
+
+
+def nome_do_zap(origem: str | None) -> str:
+    """O leadOrigin do Grupo ZAP no nome que a pessoa conhece: o site onde ela viu o anúncio."""
+    o = (origem or "").lower()
+    if "viva" in o:
+        return "Viva Real"
+    if o.strip() == "olx":
+        return "OLX"
+    return "ZAP Imóveis"
+
+
 def quem(lead: dict) -> str:
     """Para os avisos da equipe: 'Fulana (OLX, (92) 9...)' ou '(orgânico, ...)'."""
     # 422: o cliente posto à mão no CRM (Buscar imóvel OLX) aparece como "pelo CRM"
     origem = {"organico": "orgânico", "manual": "pelo CRM",
-              "chavesnamao": "Chaves na Mão"}.get(lead.get("origem") or "", "OLX")
+              "chavesnamao": "Chaves na Mão", "zap": "ZAP"}.get(lead.get("origem") or "", "OLX")
     return (f"{lead.get('nome') or 'sem nome'} ({origem}, "
             f"{nay.telefone_bonito(lead['telefone'])})")
 
@@ -733,14 +757,23 @@ def _fichas_citadas(conn, conversa: list[dict], lead: dict | None = None) -> lis
 def _contexto(conn, lead: dict) -> dict | None:
     """O que veio antes do WhatsApp: a conversa da OLX (chat) e, do Chaves na Mão (554), a ficha do imóvel do anúncio e o
     que ela deixou no portal (lead['portal'], o mais antigo primeiro)."""
-    if chaves(lead):
+    if portal(lead):
         i = banco.um(conn, "SELECT site_imovel_publico(%s)", (lead["codigo"],)) if lead.get("codigo") else None
         lead["ficha_do_anuncio"] = nay._ficha(i) if isinstance(i, dict) else {}
+    if chaves(lead):
         lead["portal"] = banco.linhas(conn, """
             SELECT to_char(coalesce(criado_no_portal, recebido_em) AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI') AS quando,
                    codigo, anuncio_titulo, mensagem, tipo
               FROM privado.cnm_lead WHERE right(telefone, 8) = right(%s, 8)
              ORDER BY coalesce(criado_no_portal, recebido_em) LIMIT 10""", (lead["telefone"],))
+    elif zap(lead):
+        # 572: o que ela deixou no Grupo ZAP (privado.zap_lead), no mesmo formato do Chaves na Mão
+        lead["portal"] = banco.linhas(conn, """
+            SELECT to_char(coalesce(criado_em, recebido_em) AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI') AS quando,
+                   codigo, NULL AS anuncio_titulo, mensagem, canal AS tipo, origem
+              FROM privado.zap_lead WHERE right(telefone, 8) = right(%s, 8)
+             ORDER BY coalesce(criado_em, recebido_em) LIMIT 10""", (lead["telefone"],))
+        lead["portal_nome"] = nome_do_zap((lead["portal"][-1] if lead["portal"] else {}).get("origem"))
     return banco.um(conn, "SELECT olx_nay_contexto(%s)", (lead["chat"],)) if lead.get("chat") else None
 
 
@@ -768,22 +801,25 @@ def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
             linhas.append("Você ainda não falou com ela: esta é a sua primeira mensagem (a abertura do orgânico).")
         for f in lead.get("fichas_citadas") or []:
             linhas.append(f"Ficha do imóvel {f['codigo']} (o que ela citou): " + json.dumps(f, ensure_ascii=False))
-    elif chaves(lead):
+    elif portal(lead):
         # 554 (Pedro, 31/10: "põe a mesma Nay da OLX para responder lá com os mesmos objetivos"): o portal não tem chat;
         # ela deixou o contato e quem abre a conversa é você, aqui. O caminho é o da OLX; muda só a abertura.
+        # 572 (Pedro, 03/11: "liga a mesma Nay que atende OLX pedindo zap aí"): o Grupo ZAP pelo mesmo caminho.
+        nome = portal(lead)
         finalidade = {"locacao": "LOCAÇÃO", "venda": "VENDA"}.get(lead.get("negocio") or "", "finalidade não informada")
         linhas += [
-            paredes.DO_CHAVES,
-            "Ela viu o nosso anúncio no portal Chaves na Mão e deixou o contato (nome, telefone e, às vezes, uma mensagem). "
-            "Não houve conversa antes do WhatsApp. NUNCA fale de OLX nem diga \"falamos antes\".",
+            paredes.DO_CHAVES if chaves(lead) else paredes.DO_ZAP,
+            f"Ela viu o nosso anúncio no portal {nome} e deixou o contato (nome, telefone e, às vezes, uma mensagem). "
+            "Não houve conversa antes do WhatsApp. "
+            + ("Não diga \"falamos antes\"." if nome == "OLX" else "NUNCA fale de OLX nem diga \"falamos antes\"."),
         ]
         if lead.get("ficha_do_anuncio"):
             linhas += [
-                "Siga O CAMINHO como na OLX, com uma diferença na ABERTURA: diga que recebeu o contato dela pelo Chaves na "
-                "Mão sobre o imóvel (o condomínio ou o bairro), responda pela ficha o que a mensagem dela perguntou e "
+                f"Siga O CAMINHO como na OLX, com uma diferença na ABERTURA: diga que recebeu o contato dela pelo {nome} "
+                "sobre o imóvel (o condomínio ou o bairro), responda pela ficha o que a mensagem dela perguntou e "
                 "pergunte se ela quer agendar uma visita ou receber outras opções parecidas. Se a mensagem já pede visita "
                 "com dia e horário, marque \"visita\".",
-                "Ex.: \"Boa tarde, Sra. Maria! Aqui é a Nay, da Imob Easy. Recebi seu contato pelo Chaves na Mão sobre o "
+                f"Ex.: \"Boa tarde, Sra. Maria! Aqui é a Nay, da Imob Easy. Recebi seu contato pelo {nome} sobre o "
                 "apartamento no Kopenhagen. A senhora quer agendar uma visita ou receber outras opções parecidas?\"",
                 f"{finalidade} | cód. {lead.get('codigo') or '-'}",
                 "Ficha do imóvel do anúncio: " + json.dumps(lead["ficha_do_anuncio"], ensure_ascii=False),
@@ -791,10 +827,10 @@ def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
         else:
             # 31/10 (Pedro: a Gleise, posta à mão, sem o anúncio): não se sabe o imóvel; abre como o orgânico
             linhas += [
-                "NÃO se sabe de qual imóvel ela veio. ABERTURA: diga que recebeu o contato dela pelo Chaves na Mão e "
+                f"NÃO se sabe de qual imóvel ela veio. ABERTURA: diga que recebeu o contato dela pelo {nome} e "
                 "pergunte se ela procura imóvel para alugar ou para comprar (não cite imóvel nenhum). Depois, o roteiro de "
                 "OUTRAS OPÇÕES, uma pergunta por vez, começando pelo tipo (apartamento, casa...).",
-                "Ex.: \"Boa tarde, Sra. Gleise! Aqui é a Nay, da Imob Easy. Recebi seu contato pelo Chaves na Mão. A "
+                f"Ex.: \"Boa tarde, Sra. Gleise! Aqui é a Nay, da Imob Easy. Recebi seu contato pelo {nome}. A "
                 "senhora está procurando imóvel para alugar ou para comprar?\"",
             ]
         tipos = " ".join((p.get("tipo") or "").lower() for p in lead.get("portal") or [])
@@ -802,15 +838,15 @@ def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
             # 02/11 (Pedro, os leads de financiamento): quem simulou financiamento é perguntado disso na abertura
             linhas.append(
                 "ELA SIMULOU UM FINANCIAMENTO no portal (os valores estão abaixo). A ABERTURA é sobre isso, curta e sem "
-                "citar banco, taxa nem parcela: pergunte se ela estava iniciando um financiamento pelo Chaves na Mão e se "
+                f"citar banco, taxa nem parcela: pergunte se ela estava iniciando um financiamento pelo {nome} e se "
                 "quer que você mande mais informações do imóvel. Se simulou mais de um imóvel, fale do mais recente. "
                 "Ex.: \"Olá, Sr. Edmilson! Aqui é a Nay, da Imob Easy. O senhor estava iniciando um financiamento pelo "
-                "Chaves na Mão? Quer que eu te mande mais informações sobre o imóvel?\" Depois, siga O CAMINHO.")
+                f"{nome}? Quer que eu te mande mais informações sobre o imóvel?\" Depois, siga O CAMINHO.")
         elif tipos.strip() and not any((p.get("mensagem") or "").strip() and "visualizei" not in (p.get("mensagem") or "").lower()
                                        for p in lead.get("portal") or []):
             linhas.append(
                 "Ela só VIU O TELEFONE ou o WHATSAPP do anúncio (não escreveu nada): não diga que ela perguntou algo. "
-                "Diga que viu o interesse dela no imóvel pelo Chaves na Mão e pergunte se ainda procura e se quer agendar "
+                f"Diga que viu o interesse dela no imóvel pelo {nome} e pergunte se ainda procura e se quer agendar "
                 "uma visita ou ver outras opções. Seja leve: ela não pediu para ser chamada.")
         linhas.append("O que ela deixou no portal (o mais antigo primeiro):")
         for p in lead.get("portal") or []:

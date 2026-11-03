@@ -34,6 +34,14 @@ BEGIN
           v_chave IS NOT NULL, p)
   ON CONFLICT (id) DO UPDATE SET vezes = zap_lead.vezes + 1
   RETURNING (xmax = 0) INTO v_novo;
+  -- 572: o lead novo vai à Nay do 8595; falhar aqui não derruba o recebimento (o portal não reenviaria)
+  IF v_novo THEN
+    BEGIN
+      PERFORM zap_lead_para_a_nay(v_id);
+    EXCEPTION WHEN OTHERS THEN
+      RAISE WARNING 'zap_lead_para_a_nay(%): %', v_id, SQLERRM;
+    END;
+  END IF;
   RETURN jsonb_build_object('status', CASE WHEN v_novo THEN 'novo' ELSE 'repetido' END, 'id', v_id);
 END
 $function$;

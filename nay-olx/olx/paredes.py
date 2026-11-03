@@ -21,6 +21,7 @@ BASTIDOR = re.compile(r"\b(rob[ôo]|intelig[êe]ncia artificial|sou uma ia|ficha
 OLX = re.compile(r"\b(olx|an[úu]ncio)\b", re.I)
 SO_OLX = re.compile(r"\bolx\b", re.I)
 DO_CHAVES = "=== DE ONDE VEIO: O CHAVES NA MÃO ==="     # o título do turno do lead do portal (whatsapp.montar_turno)
+DO_ZAP = "=== DE ONDE VEIO: O GRUPO ZAP ==="              # 572: o lead do ZAP Imóveis / Viva Real (Canal Pro)
 # 26/10 (o lead 20: "o CRECI da imobiliária é PJ 482", que não está em lugar nenhum): número de documento só do turno
 DOCUMENTO = re.compile(r"\b(CRECI|CNPJ|CPF|inscri[çc][ãa]o)\b[^\d\n]{0,30}((?:PJ|F)?\s*\d[\d./-]{1,18})", re.I)
 # 26/10 (os leads 25 e 51: "a equipe me informou que..." sem nenhuma resposta da equipe na conversa): o que a equipe ou o

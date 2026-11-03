@@ -1,4 +1,4 @@
-# privado.olx_lead_whatsapp  (tabela, ~83 linhas)
+# privado.olx_lead_whatsapp  (tabela, ~113 linhas)
 384: quem deu o WhatsApp no chat da OLX, com a leitura de perfil da Nay da OLX, para a Nay do WhatsApp continuar.
 
 ## colunas
@@ -23,7 +23,7 @@ ultima_lida  bigint  NOT NULL  padrão 0
 humano_em  timestamp with time zone
 parada_motivo  text
 visita  jsonb
-origem  text  NOT NULL  padrão 'olx'::text   -- olx (deu o número no chat da OLX) · organico (escreveu direto) · manual (aberto pelo CRM) · chavesnamao (554: lead do portal Chaves na Mão)
+origem  text  NOT NULL  padrão 'olx'::text   -- olx (deu o número no chat da OLX) · organico (escreveu direto) · manual (aberto pelo CRM) · chavesnamao (554: lead do portal Chaves na Mão) · zap (572: lead do Grupo ZAP pelo Canal Pro)
 seguimento_em  timestamp with time zone
 
 ## índices
@@ -34,14 +34,14 @@ CREATE UNIQUE INDEX olx_lead_whatsapp_pkey ON privado.olx_lead_whatsapp USING bt
 ## restrições
 olx_lead_whatsapp_chat_telefone_key: UNIQUE (chat, telefone)
 olx_lead_whatsapp_etapa_check: CHECK ((etapa = ANY (ARRAY['nova'::text, 'filtrar'::text, 'feito_busca'::text, 'imoveis_enviados'::text, 'visita'::text, 'proprietarios'::text, 'fechamento'::text, 'finalizado'::text])))
-olx_lead_whatsapp_origem_check: CHECK ((origem = ANY (ARRAY['olx'::text, 'organico'::text, 'manual'::text, 'chavesnamao'::text])))
+olx_lead_whatsapp_origem_check: CHECK ((origem = ANY (ARRAY['olx'::text, 'organico'::text, 'manual'::text, 'chavesnamao'::text, 'zap'::text])))
 olx_lead_whatsapp_pkey: PRIMARY KEY (id)
 
 ## permissões
 (só o dono)
 
 ## funções que escrevem aqui
-cnm_lead_para_a_nay, crm_captacao_etapa_manual, crm_olx_busca_parceiro_abrir, crm_olx_cliente_etapa, olx_nay_lead_whatsapp
+cnm_lead_para_a_nay, crm_captacao_etapa_manual, crm_olx_busca_parceiro_abrir, crm_olx_cliente_etapa, olx_nay_lead_whatsapp, zap_lead_para_a_nay
 
 ## funções que citam
-busca_corretor_e, captacao_mensagem_do_python, cnm_lead_para_a_nay, crm_agentes_tracos, crm_busca_cliente_lista, crm_captacao_corretores, crm_captacao_etapa_manual, crm_contatos_relacionados, crm_lead_busca_ativa, crm_leads_pipeline, crm_leads_pipeline_outros, crm_olx_busca_parceiro_abrir, crm_olx_buscas_parceiro, crm_olx_cliente_etapa, crm_olx_clientes_etapas, crm_olx_scrap_leads, crm_proprietarios_fone8, crm_visitantes, crm_visitas_leads, nay_agenda_de_visitas, olx_nay_lead_whatsapp, olx_organicos_novos, site_painel_metricas, site_painel_visitas
+busca_corretor_e, captacao_mensagem_do_python, cnm_lead_para_a_nay, crm_agentes_tracos, crm_busca_cliente_lista, crm_captacao_corretores, crm_captacao_etapa_manual, crm_contatos_relacionados, crm_esteira_automatica, crm_lead_busca_ativa, crm_lead_pedido_nos_grupos, crm_leads_pipeline, crm_leads_pipeline_outros, crm_olx_busca_parceiro_abrir, crm_olx_buscas_parceiro, crm_olx_cliente_etapa, crm_olx_clientes_etapas, crm_olx_scrap_leads, crm_proprietarios_fone8, crm_visitantes, crm_visitas_leads, nay_agenda_de_visitas, olx_nay_lead_whatsapp, olx_organicos_novos, site_imoveis_metricas, site_links_organicos, site_painel_metricas, site_painel_visitas, zap_lead_para_a_nay

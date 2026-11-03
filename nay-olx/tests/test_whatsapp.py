@@ -526,3 +526,23 @@ class ChavesNaMao(unittest.TestCase):
         self.assertEqual([p for _i, p, _x in paredes.conferir(["Falamos pela OLX sobre o apartamento."], t, False)],
                          ["olx_chaves"])
         self.assertEqual(paredes.conferir(["Recebi seu contato pelo anúncio no Chaves na Mão."], t, False), [])
+
+
+class GrupoZap(unittest.TestCase):
+    """572 (Pedro, 03/11): o lead do Grupo ZAP (Canal Pro) com a mesma Nay; ela diz o portal certo e não fala do Chaves."""
+    LEAD = {**ChavesNaMao.LEAD, "origem": "zap", "portal_nome": "Viva Real"}
+
+    def test_o_turno_diz_o_portal(self):
+        t = w.montar_turno(self.LEAD, None, [])
+        self.assertIn("=== DE ONDE VEIO: O GRUPO ZAP ===", t)
+        self.assertIn("pelo Viva Real", t)
+        self.assertNotIn("Chaves na Mão", t)
+        self.assertNotIn("A conversa na OLX", t)
+        self.assertIn("NUNCA fale de OLX", t)
+        self.assertEqual(w.quem(self.LEAD), "Maria Souza (ZAP, " + w.nay.telefone_bonito("92900000002") + ")")
+
+    def test_o_nome_do_portal_pelo_lead_origin(self):
+        self.assertEqual([w.nome_do_zap(x) for x in ("VivaReal", "Zap", "OLX", None, "Grupo OLX")],
+                         ["Viva Real", "ZAP Imóveis", "OLX", "ZAP Imóveis", "ZAP Imóveis"])
+        self.assertEqual(w.portal({"origem": "zap"}), "ZAP Imóveis")
+        self.assertIsNone(w.portal({"origem": "olx"}))
