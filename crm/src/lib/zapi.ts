@@ -142,7 +142,8 @@ function erroZapi(data: any, texto: string, status: number, fallback: string): s
 export async function chamar(
   creds: ZapiCredentials,
   caminho: string,
-  init: { method?: string; body?: any } = {},
+  // timeoutMs (03/11, CRM › Grupos "fica carregando"): sem ele, uma Z-API que não responde prende a tela para sempre
+  init: { method?: string; body?: any; timeoutMs?: number } = {},
   fallbackErro = 'Falha na chamada à Z-API'
 ): Promise<any> {
   const res = await fetch(url(creds, caminho), {
@@ -155,6 +156,7 @@ export async function chamar(
       ...(creds.clientToken ? { 'Client-Token': creds.clientToken } : {}),
     },
     ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
+    ...(init.timeoutMs ? { signal: AbortSignal.timeout(init.timeoutMs) } : {}),
   })
 
   const texto = await res.text()

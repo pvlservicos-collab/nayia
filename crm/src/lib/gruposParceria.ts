@@ -70,7 +70,7 @@ const sim = (v: unknown) => v === true || v === 'true' || v === '1' || v === 1
 let meuNumero: { valor: string; em: number } | null = null
 async function numeroDaParceria(creds: ZapiCredentials): Promise<string> {
   if (meuNumero && Date.now() - meuNumero.em < 3_600_000) return meuNumero.valor
-  const d = await chamar(creds, 'device', { method: 'GET' }, 'Não consegui ler o número da Parceria')
+  const d = await chamar(creds, 'device', { method: 'GET', timeoutMs: 8_000 }, 'Não consegui ler o número da Parceria')
   meuNumero = { valor: String(d?.phone || '').replace(/\D/g, ''), em: Date.now() }
   return meuNumero.valor
 }
@@ -86,7 +86,7 @@ const cache = new Map<string, { em: number; meta: any }>()
 async function metadados(creds: ZapiCredentials, id: string, fresco = false): Promise<any> {
   const c = cache.get(id)
   if (!fresco && c && Date.now() - c.em < 180_000) return c.meta
-  const meta = await chamar(creds, `group-metadata/${encodeURIComponent(id)}`, { method: 'GET' }, 'Não consegui ler o grupo')
+  const meta = await chamar(creds, `group-metadata/${encodeURIComponent(id)}`, { method: 'GET', timeoutMs: 10_000 }, 'Não consegui ler o grupo')
   cache.set(id, { em: Date.now(), meta })
   return meta
 }
@@ -123,14 +123,22 @@ async function gruposDoBanco(): Promise<Array<{ id: string; nome: string | null;
   }
 }
 
-export async function listarGrupos(organizationId: string): Promise<{ grupos: GrupoNaLista[]; meuNumero: string }> {
+/* O TEMPO DA LISTA (Pedro, 03/11/2026: "por que não aparece os grupos lá em Grupos" -- a tela ficava em "Lendo os grupos
+   na Z-API..." para sempre). A Z-API do número da Parceria não respondia e nenhuma chamada tinha prazo. Agora: a lista
+   pede no máximo 12 s por página, os detalhes de cada grupo só enquanto couber em ~20 s, e o que não veio fica com "…";
+   sem a Z-API, a lista vem do que o banco guardou, com o aviso. */
+const PRAZO_DA_LISTA_MS = 20_000
+
+export async function listarGrupos(organizationId: string): Promise<{ grupos: GrupoNaLista[]; meuNumero: string; aviso?: string }> {
+  const inicio = Date.now()
   const brutos: any[] = []
   let creds: ZapiCredentials | null = null
   let eu = ''
+  let aviso: string | undefined
   try {
     creds = await getZapiCredentials(organizationId)
     for (let pagina = 1; pagina <= 20; pagina++) {
-      const r = await chamar(creds, `groups?page=${pagina}&pageSize=100`, { method: 'GET' }, 'Não consegui listar os grupos')
+      const r = await chamar(creds, `groups?page=${pagina}&pageSize=100`, { method: 'GET', timeoutMs: 12_000 }, 'Não consegui listar os grupos')
       if (!Array.isArray(r) || !r.length) break
       brutos.push(...r)
       if (r.length < 100) break
@@ -139,10 +147,13 @@ export async function listarGrupos(organizationId: string): Promise<{ grupos: Gr
   } catch (e) {
     // a lista continua pelo que o banco guardou; só não vem participantes nem "sou admin"
     console.warn('[grupos] a Z-API não listou os grupos:', (e as Error)?.message)
+    aviso = 'A Z-API do número da Parceria não respondeu: a lista veio do que o CRM guardou (sem participantes nem "admin").'
   }
   const [casa, doBanco] = await Promise.all([casaDosGrupos(), gruposDoBanco()])
   const metas = creds
-    ? await aos_poucos(brutos, 6, (g) => metadados(creds!, String(g.phone)).catch(() => null))
+    ? await aos_poucos(brutos, 6, (g) => Date.now() - inicio > PRAZO_DA_LISTA_MS
+        ? Promise.resolve(null)
+        : metadados(creds!, String(g.phone)).catch(() => null))
     : brutos.map(() => null)
   const nomeNoBanco = new Map(doBanco.map((g) => [g.id, g]))
   const grupos = brutos.map((g, k): GrupoNaLista => {
@@ -170,7 +181,7 @@ export async function listarGrupos(organizationId: string): Promise<{ grupos: Gr
     })
   }
   grupos.sort((a, b) => (b.ultimaEm || 0) - (a.ultimaEm || 0))
-  return { grupos, meuNumero: eu }
+  return { grupos, meuNumero: eu, ...(aviso ? { aviso } : {}) }
 }
 
 export async function dadosDoGrupo(organizationId: string, id: string, fresco = false): Promise<DadosDoGrupo> {

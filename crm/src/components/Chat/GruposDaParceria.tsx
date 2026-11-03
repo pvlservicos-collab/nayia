@@ -50,6 +50,7 @@ function Selo({ children, cor, titulo }: { children: ReactNode; cor: string; tit
 export default function GruposDaParceria() {
   const [lista, setLista] = useState<GrupoNaLista[] | null>(null)
   const [erroLista, setErroLista] = useState<string | null>(null)
+  const [avisoLista, setAvisoLista] = useState<string | null>(null)
   const [busca, setBusca] = useState('')
   const [filtro, setFiltro] = useState<Filtro>('todos')
   const [selId, setSelId] = useState<string | null>(null)
@@ -61,8 +62,8 @@ export default function GruposDaParceria() {
 
   const carregarLista = useCallback(() => {
     setErroLista(null)
-    pedir<{ grupos: GrupoNaLista[] }>('/api/parceria/grupos')
-      .then((d) => setLista(d.grupos))
+    pedir<{ grupos: GrupoNaLista[]; aviso?: string }>('/api/parceria/grupos')
+      .then((d) => { setLista(d.grupos); setAvisoLista(d.aviso || null) })
       .catch((e) => setErroLista(e.message))
   }, [])
   useEffect(() => { carregarLista() }, [carregarLista])
@@ -138,6 +139,7 @@ export default function GruposDaParceria() {
           </p>
         )}
         {erroLista && <p className="text-center text-[14px] mt-10 px-6 text-red-500">{erroLista}</p>}
+        {avisoLista && <p className="text-[12.5px] px-4 py-2" style={{ color: 'var(--wa-text-2)' }}>{avisoLista}</p>}
         {filtrados.map((g) => (
           <button key={g.id} type="button" onClick={() => { setSelId(g.id); setAba('mensagens') }}
                   className={`wa-linha w-full text-left ${selId === g.id ? 'wa-linha--sel' : ''}`}>
