@@ -40,9 +40,14 @@ class Texto(unittest.TestCase):
 
 
 class Saida(unittest.TestCase):
-    def test_resposta_com_conselho(self):
-        self.assertEqual(g.mensagem_final({"responder": True, "resposta": "Aceita, Lucas.", "conselho": "Pergunte o porte."}),
-                         "Aceita, Lucas.\n\n💡 Pergunte o porte.")
+    def test_resposta_com_o_nome_e_o_numero(self):
+        r = {"responder": True, "resposta": "Pedro, o 5725 aceita pet.", "conselho": "Pergunte o porte."}
+        self.assertEqual(g.mensagem_final(r, "Pedro Victor", 3),
+                         "Sobre a dúvida 3 do Pedro, o 5725 aceita pet.\n\n💡 Pergunte o porte.")
+        self.assertTrue(g.mensagem_final({**r, "resposta": "Sim, aceita."}, "Rayssa", 1).startswith(
+            "Sobre a dúvida 1 da Rayssa, sim, aceita."))
+        self.assertTrue(g.mensagem_final({**r, "resposta": "Aceita."}, "Fulana", 15).startswith("Sobre a dúvida 15 de Fulana, aceita."))
+        self.assertTrue(g.mensagem_final({**r, "resposta": "OLX não."}, None, 2).startswith("Sobre a dúvida 2, OLX não."))
 
     def test_nao_responde_ok(self):
         self.assertIsNone(g.mensagem_final({"responder": False, "resposta": "", "conselho": ""}))

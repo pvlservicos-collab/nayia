@@ -40,7 +40,9 @@ PROMPT = """Você é a Nay, da Imob Easy, imobiliária de Manaus, no grupo inter
 
 Responda a dúvida de quem perguntou usando SÓ os DADOS DO SISTEMA abaixo e as REGRAS DO TEL. É a equipe: pode dizer o que é
 interno (dono e telefone, observação interna, situação, parceiro).
-- Curto e direto: de 1 a 4 linhas, português de gente, chame pelo primeiro nome. Sempre com o código do imóvel.
+- Curto e direto: de 1 a 4 linhas, português de gente. Sempre com o código do imóvel. NÃO comece pelo nome nem por
+  saudação: o sistema já põe na frente "Sobre a dúvida N de Fulano,"; comece direto pela resposta, em letra minúscula
+  quando a frase continuar ("o 5725 aceita pet...").
 - Perguntou por opções: liste JÁ as que passam no que foi dito (no máximo 5), uma por linha:
   "cód. 1234 · Condomínio/bairro · 3 quartos · R$ 3.500 · mobiliado". NUNCA devolva pergunta de filtro ("prefere casa ou
   apartamento?"): os DADOS DO SISTEMA trazem os imóveis do lugar citado; escolha os que cabem e liste. Nenhum cabe? Diga
@@ -192,14 +194,45 @@ def montar_turno(nome: str | None, pergunta: str, fichas: list[dict], agora: dat
     ])
 
 
-def mensagem_final(r: dict) -> str | None:
+# 03/11 (Pedro: "seria bom ela falar o nome da pessoa: Sobre a dúvida 1 da Rayssa, (RESPOSTA); sobre a dúvida 15 do
+# Diego, (RESPOSTA); fica bem organizado"). O número é o da pessoa no grupo (a 1ª dúvida dela, a 15ª dele). O artigo vem da
+# equipe conhecida; nome que não está aqui fica com "de", que não erra ninguém.
+ARTIGO = {"rayssa": "da", "diego": "do", "lucas": "do", "pedro": "do", "tel": "do"}
+
+
+def primeiro_nome(nome: str | None) -> str | None:
+    p = re.sub(r"[^\wÀ-ÿ'-]+", " ", nome or "").split()
+    return p[0].capitalize() if p else None
+
+
+def cabeca(nome: str | None, numero: int) -> str:
+    n = primeiro_nome(nome)
+    if not n:
+        return f"Sobre a dúvida {numero},"
+    return f"Sobre a dúvida {numero} {ARTIGO.get(n.lower(), 'de')} {n},"
+
+
+def mensagem_final(r: dict, nome: str | None = None, numero: int = 1) -> str | None:
     if not r.get("responder"):
         return None
     resposta = str(r.get("resposta") or "").strip()
     if not resposta:
         return None
+    # o modelo às vezes ainda abre com o nome ("Pedro, o 5725..."): sai, porque a cabeça já diz
+    n = primeiro_nome(nome)
+    if n:
+        resposta = re.sub(rf"^\s*{re.escape(n)}\s*[,:!\-–—]\s*", "", resposta, flags=re.I)
+    resposta = resposta[:1].lower() + resposta[1:] if resposta[:2].istitle() and not resposta[:4].isupper() else resposta
     conselho = str(r.get("conselho") or "").strip()
-    return resposta + (f"\n\n💡 {conselho}" if conselho else "")
+    return f"{cabeca(nome, numero)} {resposta}" + (f"\n\n💡 {conselho}" if conselho else "")
+
+
+def numero_da_duvida(conn, gid: str, remetente: str | None) -> int:
+    """A dúvida N desta pessoa no grupo: as que ela já teve respondidas, mais esta."""
+    feitas = banco.um(conn, """SELECT count(*) FROM privado.duvida_grupo_resposta
+                                WHERE grupo_id = %s AND remetente IS NOT DISTINCT FROM %s AND resposta IS NOT NULL""",
+                      (gid, remetente))
+    return int(feitas or 0) + 1
 
 
 def enviar(gid: str, texto: str, citar: str | None) -> tuple[str | None, str | None]:
@@ -226,7 +259,7 @@ def responder(conn, gid: str, leva: list[dict]) -> None:
         if pergunta:
             fichas, codigos = sistema(conn, pergunta)
             r = modelo.chamar(PROMPT, montar_turno(nome, pergunta, fichas), no=NO)
-            resposta = mensagem_final(r)
+            resposta = mensagem_final(r, nome, numero_da_duvida(conn, gid, leva[-1].get("remetente")))
             if resposta:
                 mid, erro = enviar(gid, resposta, ids[-1])
     except Exception as e:  # noqa: BLE001 -- uma pergunta que falha não para o grupo
