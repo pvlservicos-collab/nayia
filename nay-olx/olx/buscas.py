@@ -772,7 +772,8 @@ falar de visita ou de horário, diga só que vai confirmar com o cliente e retor
 O QUE JÁ SABEMOS (Pedro, 30/10: "ela nunca deve perguntar coisas que já tem na OLX"): o "ANÚNCIO DA OLX" (quando há) e o
 "JÁ ANOTADO" já estão certos. NUNCA pergunte nada que esteja neles: nem o tipo, nem se é venda ou locação, nem o valor,
 o bairro, os quartos, a área, as vagas, a taxa ou o condomínio. Pergunte só o que faltar de verdade.
-Valor acima de R$ 100 mil é SEMPRE venda; nunca pergunte se é venda ou locação nesse caso.
+Valor acima de R$ 100 mil é SEMPRE venda; valor até R$ 30 mil é SEMPRE aluguel (R$ 3.200 é aluguel, mesmo que ele
+escreva "vendo ou alugo"). Com o valor dito, nunca pergunte se é venda ou aluguel (Pedro, 03/11).
 
 O roteiro:
 1. Ele ainda não mandou o imóvel: peça, curto: "Pode me mandar o imóvel que você tem?" (esta é a conversa de quem veio
@@ -830,17 +831,24 @@ def juntar_imovel(antes: dict, novo: dict) -> dict:
 
 
 VENDA_A_PARTIR_DE = 100_000      # Pedro, 30/10: "acima de 100k é sempre venda"
+# Pedro, 03/11 (a Tahina ...3600 disse "venda ou aluguel no valor de 3.200" e a Nay perguntou se era venda ou aluguel):
+# "quando já estiver o valor ela já entende que é aluguel esses valores de locação baixos"
+ALUGUEL_ATE = 30_000
 OLX_NO_LINK = re.compile(r"olx\.com\.br/\S*?-(\d{9,11})(?!\d)")
 FOTOS_DO_ANUNCIO = 12
 
 
 def venda_pelo_valor(im: dict) -> dict:
-    """Valor acima de R$ 100 mil é venda, diga o que disser a leitura do modelo."""
+    """Valor acima de R$ 100 mil é venda e até R$ 30 mil é aluguel, diga o que disser a leitura do modelo."""
     try:
         valor = float(im.get("valor") or 0)
     except (TypeError, ValueError):
         valor = 0
-    return {**im, "finalidade": "venda"} if valor > VENDA_A_PARTIR_DE else im
+    if valor > VENDA_A_PARTIR_DE:
+        return {**im, "finalidade": "venda"}
+    if 0 < valor <= ALUGUEL_ATE:
+        return {**im, "finalidade": "locacao"}
+    return im
 
 
 def anuncio_da_conversa(conn, t8: str, textos: list[str]) -> dict | None:

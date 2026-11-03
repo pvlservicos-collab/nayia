@@ -99,7 +99,11 @@ class Corretor(unittest.TestCase):
         # Pedro, 30/10: "acima de 100k é sempre venda"
         self.assertEqual(b.venda_pelo_valor({"valor": 950000, "finalidade": "locacao"})["finalidade"], "venda")
         self.assertEqual(b.venda_pelo_valor({"valor": 2500, "finalidade": "locacao"})["finalidade"], "locacao")
-        self.assertNotIn("finalidade", b.venda_pelo_valor({"valor": 3000}))
+        # 03/11: valor de aluguel (até R$ 30 mil) já diz que é aluguel; entre 30 e 100 mil, fica o que ele disse
+        self.assertEqual(b.venda_pelo_valor({"valor": 3200})["finalidade"], "locacao")
+        self.assertEqual(b.venda_pelo_valor({"valor": 3200, "finalidade": "venda"})["finalidade"], "locacao")
+        self.assertNotIn("finalidade", b.venda_pelo_valor({"valor": 60000}))
+        self.assertNotIn("finalidade", b.venda_pelo_valor({}))
 
     def test_o_link_da_olx_na_conversa(self):
         t = "Faz parceria? https://am.olx.com.br/regiao-de-manaus/imoveis/apartamento-com-4-suites-ponta-ne-1515393241"
