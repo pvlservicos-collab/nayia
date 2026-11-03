@@ -21,7 +21,7 @@ busca_grupo_pkey: PRIMARY KEY (grupo_id)
 (só o dono)
 
 ## funções que escrevem aqui
-(nenhuma função; quem escreve é o n8n, o site ou o CRM)
+crm_lead_pedido_nos_grupos
 
 ## funções que citam
-(nenhuma)
+crm_grupos_da_busca, crm_lead_pedido_nos_grupos

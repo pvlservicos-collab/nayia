@@ -74,14 +74,14 @@ captacao_teto_hoje	captacao_disparo_liberado, captacao_relatorio_da_vez_rodar, c
 captacao_valor_venda_num	captacao_aplicar_ao_cadastro
 captacao_vigiar	
 captacao_vigiar_rodar	captacao_vigiar
-cnm_anuncio_do_codigo	crm_cnm_chats
+cnm_anuncio_do_codigo	crm_cnm_chats, crm_zap_chats
 cnm_areas	cnm_imovel_montar
 cnm_chave	crm_cnm_chats, crm_cnm_conversa, crm_cnm_ler, crm_cnm_painel
 cnm_envio_demanda	
 cnm_envio_lista	
 cnm_envio_publicar	
 cnm_envio_selecao	cnm_envio_publicar
-cnm_imoveis	crm_cnm_painel
+cnm_imoveis	crm_cnm_painel, crm_zap_painel, site_imoveis_metricas
 cnm_imovel_montar	cnm_envio_lista, cnm_imoveis
 cnm_lead_para_a_nay	cnm_lead_receber
 cnm_lead_receber	
@@ -117,6 +117,7 @@ crm_avisos_da_equipe
 crm_busca_cliente_acao	
 crm_busca_cliente_lista	
 crm_busca_cliente_manual	
+crm_cadastros_incompletos	
 crm_captacao_cadastro_opcoes	
 crm_captacao_corretores	
 crm_captacao_disparo_oficial	
@@ -141,6 +142,7 @@ crm_contato_da_mensagem
 crm_contato_historico	
 crm_contatos_relacionados	crm_leads_pipeline_outros
 crm_donos_do_cadastro	
+crm_esteira_automatica	
 crm_etapa_da_nay	
 crm_etapa_manual	
 crm_fechamento_concluir	
@@ -149,6 +151,7 @@ crm_fechamentos_por_telefone
 crm_grupo_mensagens	
 crm_grupo_pessoas	
 crm_grupos_conhecidos	
+crm_grupos_da_busca	
 crm_grupos_da_parceria	
 crm_imoveis_enviados	
 crm_imoveis_pontuacao	
@@ -157,9 +160,11 @@ crm_imovel_para_cadastro
 crm_imovel_vincular_anuncio	
 crm_lead_busca_ativa	
 crm_lead_buscas	
+crm_lead_pedido_nos_grupos	
 crm_leads_corretores	
 crm_leads_pipeline	
 crm_leads_pipeline_outros	
+crm_me_envia_por_telefone	
 crm_mensagem_citada	
 crm_mensagens_da_parceria	
 crm_nay_instruir	
@@ -218,6 +223,10 @@ crm_visitas
 crm_visitas_extra	
 crm_visitas_leads	
 crm_visitas_pessoas	
+crm_zap_chats	
+crm_zap_conversa	
+crm_zap_ler	
+crm_zap_painel	
 geo_imovel_perto_gatilho	
 geo_imovel_perto_refazer	geo_imovel_perto_gatilho
 ia_modelo_do_no	
@@ -227,6 +236,7 @@ imoveis_a_situacao_manda
 imoveis_carimbar_taxa	
 imoveis_parceiro_antigo_fora_do_site	
 imoveis_parceiro_pelo_captador	
+imoveis_proprietario_do_parceiro	
 imoveis_sigilo_fora	
 imoveis_taxa_do_condominio	
 imovel_conhecimento_sigilo_fora	
@@ -234,6 +244,8 @@ imovel_ficha_sigilo_fora
 imovel_mudanca_registrar	captacao_aplicar_ao_cadastro, captacao_aplicar_pendentes
 imovel_mudanca_trocar	
 imovel_parceiro_antigo	
+link_organico_do_lead	
+link_organico_normal	link_organico_do_lead, site_link_organico_salvar
 mensagens_espera_a_rajada	
 mensagens_uma_vez_so	
 nai_abrir_turno	
@@ -272,9 +284,9 @@ nai_cancelar_visita
 nai_captador_e_parceiro	imoveis_parceiro_pelo_captador
 nai_card_do_banco	nai_card_do_imovel
 nai_card_do_imovel	crm_mensagem_citada, nai_buscar_por_perfil, nai_conferir_resposta, nai_disparo_conferir, nai_enfileirar_card, nai_enviar_imoveis_para, nai_fila_dos_outros_imoveis, nai_status_do_imovel, nay_disponibilidade_no_condominio, site_captacao_grupos_enviar_varios
-nai_cfg	core_saida_tel_so_perguntas, crm_nay_ligada, crm_parceria_followup_nay, crm_tel_responder, crm_visita_agendar, crm_visitas, nai_abrir_turno, nai_agenda_tick, nai_agenda_tick_rodar, nai_apresentacao_prop, nai_aprovador_contato, nai_aprovar_visita, nai_avisar_tel, nai_cfg_int, nai_chaves_de, nai_chaves_teste, nai_checklist_enfileirar, nai_com_a_rayssa, nai_conferir_imoveis_da_saida, nai_conferir_resposta, nai_conferir_texto_da_saida, nai_core_pode_seguir, nai_corrigir_nomes, nai_decidir_com_jev, nai_decidir_v2, nai_dentro_da_janela, nai_deve_atender, nai_disparo_enfileirar, nai_e_da_equipe_contato, nai_e_voz_do_tel, nai_enfileirar_resposta, nai_enviar_checklist_para, nai_escalar, nai_espacar_depois_das_fotos, nai_fala_e_dele, nai_followup_rodar, nai_inicio_periodo, nai_jev_decidiria, nai_jev_pedido, nai_liberar_saida, nai_ligar_regra_publico, nai_lista_governa, nai_mente_registrar, nai_na_lista_curta, nai_parar_chat, nai_passe_do_citado, nai_pode_comandar, nai_quem_atende, nai_resposta_aprovacao_valida, nai_saida_tel_so_perguntas, nai_saida_validar, nai_secretaria_ligada, nai_sincronizar_grupos, nai_tel_assumiu, nai_texto_corretor_confirmou, nai_tracar, nai_turno_dono_respondeu, nai_visita_avisar_acompanhante, nai_visita_corretor_confirmou, nai_visita_para_a_rayssa, nai_visitas_do_bloco_avisar, nay_fora_da_regra_do_dia, nay_saida_resposta_ler, nay_saidas_a_avisar, nay_saidas_perguntar, pergunta_fila_da_pendencia, pergunta_fila_entrar, pergunta_fila_ligada, pergunta_fila_posicao, pergunta_fila_resposta_valida, site_blog_newsletter_cadastrar, site_captacao_grupos_citacao, site_captacao_grupos_enviar, site_captacao_grupos_enviar_varios, site_captacao_grupos_mensagem, site_captacao_grupos_perguntar
+nai_cfg	core_saida_tel_so_perguntas, crm_esteira_automatica, crm_nay_ligada, crm_parceria_followup_nay, crm_tel_responder, crm_visita_agendar, crm_visitas, nai_abrir_turno, nai_agenda_tick, nai_agenda_tick_rodar, nai_apresentacao_prop, nai_aprovador_contato, nai_aprovar_visita, nai_avisar_tel, nai_cfg_int, nai_chaves_de, nai_chaves_teste, nai_checklist_enfileirar, nai_com_a_rayssa, nai_conferir_imoveis_da_saida, nai_conferir_resposta, nai_conferir_texto_da_saida, nai_core_pode_seguir, nai_corrigir_nomes, nai_decidir_com_jev, nai_decidir_v2, nai_dentro_da_janela, nai_deve_atender, nai_disparo_enfileirar, nai_e_da_equipe_contato, nai_e_voz_do_tel, nai_enfileirar_resposta, nai_enviar_checklist_para, nai_escalar, nai_espacar_depois_das_fotos, nai_fala_e_dele, nai_followup_rodar, nai_inicio_periodo, nai_jev_decidiria, nai_jev_pedido, nai_liberar_saida, nai_ligar_regra_publico, nai_lista_governa, nai_mente_registrar, nai_na_lista_curta, nai_parar_chat, nai_passe_do_citado, nai_pode_comandar, nai_quem_atende, nai_resposta_aprovacao_valida, nai_saida_tel_so_perguntas, nai_saida_validar, nai_secretaria_ligada, nai_sincronizar_grupos, nai_tel_assumiu, nai_texto_corretor_confirmou, nai_tracar, nai_turno_dono_respondeu, nai_visita_avisar_acompanhante, nai_visita_corretor_confirmou, nai_visita_para_a_rayssa, nai_visitas_do_bloco_avisar, nay_fora_da_regra_do_dia, nay_saida_resposta_ler, nay_saidas_a_avisar, nay_saidas_perguntar, pergunta_fila_da_pendencia, pergunta_fila_entrar, pergunta_fila_ligada, pergunta_fila_posicao, pergunta_fila_resposta_valida, site_blog_newsletter_cadastrar, site_captacao_grupos_citacao, site_captacao_grupos_enviar, site_captacao_grupos_enviar_varios, site_captacao_grupos_mensagem, site_captacao_grupos_perguntar
 nai_cfg_int	crm_avisar_tel, crm_parceria_marcas, crm_visita_mudar_horario, nai_agenda_tick_rodar, nai_aprovar_visita, nai_buscar_por_perfil, nai_comando_tel, nai_confirmar_visita, nai_deve_atender, nai_followup_rodar, nai_gente_escreveu_ha_pouco, nai_guardar_dados_visita, nai_janela_segundos, nai_linha_acesso_motoboy, nai_midia_para_o_tel, nai_mudar_horario, nai_oferta_serve, nai_pedir_visita, nai_tel_com_a_conversa, nai_texto_motoboy_ok, nai_trace_limpar, nai_visita_com_a_rayssa, nai_visita_corretor_confirmou, nai_visita_para_a_rayssa, nay_cobrar_escaladas, nay_negocio_pedido, nay_saida_responder, nay_saida_resposta_ler, nay_saidas_perguntar, pergunta_fila_perguntar_proxima, pergunta_fila_tick
-nai_chave	cadastro_whats_da_parceria, crm_anuncio_decidir, crm_contato_historico, crm_etapa_manual, crm_grupo_pessoas, crm_imoveis_enviados, crm_imovel_candidatos, crm_nay_voltar, crm_olx_bot_receber, crm_parceria_com_a_rayssa, crm_parceria_funil, crm_parceria_marcas, crm_pessoas, crm_tel_duvidas, crm_tel_responder, crm_visitantes, crm_visitas, crm_visitas_pessoas, nai_abrir_turno, nai_aprovador_contato, nai_aprovar_visita, nai_buscar_por_perfil, nai_chaves_de, nai_chaves_teste, nai_comando_tel, nai_contato_de, nai_contato_do_cadastro, nai_contato_irmaos, nai_dados_corretor, nai_decidir_corretor, nai_deve_atender, nai_disparo_conferir, nai_disparo_liberar, nai_e_da_equipe_contato, nai_e_motoboy, nai_e_proprietario_contato, nai_e_voz_do_tel, nai_enviar_checklist_para, nai_enviar_imoveis_para, nai_followup_rodar, nai_gente_escreveu_ha_pouco, nai_guardar_dados_visita, nai_janela_segundos, nai_liberar_saida, nai_lista_governa, nai_motoboy, nai_parar_chat, nai_pode_comandar, nai_pode_falar, nai_proprietario_do_imovel, nai_quem_atende, nai_resposta_aprovacao_valida, nai_resultado_visita, nai_saida_validar, nai_sincronizar_grupos, nai_tel_assumiu, nai_tel_com_a_conversa, nai_zerar_conversa, nay_agenda_de_visitas, nay_duvida_mandar_pela_parceria, nay_fora_da_regra_do_dia, nay_leads_linha_do_dono, nay_leads_mandar_pela_parceria, nay_leads_soltar_dono, nay_proprietario_bloqueio_atualizar, nay_qual_imovel, pergunta_fila_entrar, pergunta_fila_responder, pergunta_fila_resposta_valida, site_captacao_grupos_enviar, site_captacao_grupos_enviar_varios, site_captacao_grupos_mensagem, site_captacao_grupos_perguntar, site_grade_agenda, site_grade_metricas, site_me_envia, site_me_envia_ranking, visita_card
+nai_chave	cadastro_whats_da_parceria, crm_anuncio_decidir, crm_contato_historico, crm_etapa_manual, crm_grupo_pessoas, crm_imoveis_enviados, crm_imovel_candidatos, crm_me_envia_por_telefone, crm_nay_voltar, crm_olx_bot_receber, crm_parceria_com_a_rayssa, crm_parceria_funil, crm_parceria_marcas, crm_pessoas, crm_tel_duvidas, crm_tel_responder, crm_visitantes, crm_visitas, crm_visitas_pessoas, nai_abrir_turno, nai_aprovador_contato, nai_aprovar_visita, nai_buscar_por_perfil, nai_chaves_de, nai_chaves_teste, nai_comando_tel, nai_contato_de, nai_contato_do_cadastro, nai_contato_irmaos, nai_dados_corretor, nai_decidir_corretor, nai_deve_atender, nai_disparo_conferir, nai_disparo_liberar, nai_e_da_equipe_contato, nai_e_motoboy, nai_e_proprietario_contato, nai_e_voz_do_tel, nai_enviar_checklist_para, nai_enviar_imoveis_para, nai_followup_rodar, nai_gente_escreveu_ha_pouco, nai_guardar_dados_visita, nai_janela_segundos, nai_liberar_saida, nai_lista_governa, nai_motoboy, nai_parar_chat, nai_pode_comandar, nai_pode_falar, nai_proprietario_do_imovel, nai_quem_atende, nai_resposta_aprovacao_valida, nai_resultado_visita, nai_saida_validar, nai_sincronizar_grupos, nai_tel_assumiu, nai_tel_com_a_conversa, nai_zerar_conversa, nay_agenda_de_visitas, nay_duvida_mandar_pela_parceria, nay_fora_da_regra_do_dia, nay_leads_linha_do_dono, nay_leads_mandar_pela_parceria, nay_leads_soltar_dono, nay_proprietario_bloqueio_atualizar, nay_proprietario_do_parceiro, nay_qual_imovel, pergunta_fila_entrar, pergunta_fila_responder, pergunta_fila_resposta_valida, site_captacao_grupos_enviar, site_captacao_grupos_enviar_varios, site_captacao_grupos_mensagem, site_captacao_grupos_perguntar, site_grade_agenda, site_grade_metricas, site_me_envia, site_me_envia_ranking, visita_card
 nai_chave_som	nai_imovel_pelo_condominio, nai_pedacos_de_nome
 nai_chaves_de	nai_deve_atender, nai_e_da_equipe_contato, nai_na_lista_curta
 nai_chaves_teste	nai_abrir_turno, nai_deve_atender, nai_janela_segundos, nai_liberar_saida, nai_quem_atende, nai_treino_coletar, nay_fora_da_regra_do_dia, site_grade_agenda, site_grade_metricas
@@ -342,7 +354,7 @@ nai_e_da_equipe_contato	crm_captacao_corretores, crm_leads_corretores, crm_parce
 nai_e_link_de_produto	nai_conferir_resposta, nai_deve_atender, nai_pedido_do_turno, nai_rodar_casos
 nai_e_motoboy	nai_abrir_turno, nai_lista_governa, nai_saida_validar, nai_sincronizar_grupos
 nai_e_pedido_lembrete	nai_abrir_turno, nai_comando_tel, pergunta_fila_resposta_valida
-nai_e_proprietario_contato	crm_nay_voltar, nai_com_a_rayssa, nai_followup_rodar
+nai_e_proprietario_contato	crm_esteira_automatica, crm_nay_voltar, nai_com_a_rayssa, nai_followup_rodar
 nai_e_resposta_aprovacao	nai_resposta_aprovacao_valida
 nai_e_resposta_automatica	nai_abrir_turno, nai_rodar_casos
 nai_e_sim_curto	nai_conferir_resposta, nai_deve_mandar_fotos
@@ -667,7 +679,7 @@ nay_falou_conosco_crm_trocar
 nay_ficou_devendo	
 nay_fone_chave	captacao_aplicar_pendentes, captacao_e_do_python, captacao_encerrar, captacao_ficha, captacao_guardar_lid_do_eco, captacao_honorarios_frase, captacao_honorarios_guardar, captacao_honorarios_pendente, captacao_honorarios_valor, captacao_indicacao_frase, captacao_indicacao_guardar, captacao_indicacao_pendente, captacao_lead_por_contato, captacao_nay_perfil_do_lead, captacao_olx_da_parceria, captacao_olx_encerrar, captacao_olx_guardar, captacao_olx_novo, captacao_olx_proxima, captacao_py_fila_do_disparo, nay_e_corretor_chave, nay_falou_conosco_atualizar, olx_organicos_novos, olx_pode_receber_parceiro, scrap_chave, site_blog_newsletter_lista, site_publicos_disparo
 nay_fone_com_ddi	captacao_olx_novo, captacao_py_fila_do_disparo, nay_e_corretor_chave, nay_falou_conosco_atualizar, olx_pode_receber_parceiro, scrap_chave, site_publicos_disparo
-nay_fora_da_regra_do_dia	nai_followup_rodar, nay_imovel_ja_foi_24h, nay_reservar_imovel_do_dia
+nay_fora_da_regra_do_dia	crm_esteira_automatica, nai_followup_rodar, nay_imovel_ja_foi_24h, nay_reservar_imovel_do_dia
 nay_gravar_conhecimento	crm_tel_responder, nay_responder_pendencia, pergunta_fila_responder
 nay_guardar_como_funciona_visita	
 nay_guardar_do_imovel	
@@ -707,6 +719,7 @@ nay_pergunta_aberta_do_tel
 nay_pode_falar	nay_entregas_devidas, nay_lembretes_devidos, nay_respostas_a_entregar
 nay_primeiro_nome	captacao_ficha, captacao_honorarios_frase, captacao_indicacao_frase, nai_vocativo, nay_tratamento_por_nome
 nay_proprietario_bloqueio_atualizar	
+nay_proprietario_do_parceiro	imoveis_proprietario_do_parceiro
 nay_proximo_toque	
 nay_qual_imovel	nay_escalar, nay_imovel_marcado
 nay_quando_cobrar	nay_guardar_retorno
@@ -846,6 +859,7 @@ site_ia_cotacao
 site_ia_cotacao_salvar	
 site_ia_modelo_trocar	
 site_ia_modelos	
+site_imoveis_metricas	
 site_imoveis_para_enviar	
 site_imovel_publico	olx_nay_contexto
 site_inteligencia_salvar	
@@ -855,8 +869,14 @@ site_lembrete_apagar
 site_lembrete_criar	
 site_lembrete_feito	
 site_lembretes	
+site_link_organico_clique	
+site_link_organico_salvar	
+site_links_organicos	
 site_me_envia	
 site_me_envia_ranking	
+site_midia_excluir	
+site_midia_salvar	
+site_midias	
 site_mudanca_revisar	
 site_mudancas	
 site_nao_e_dono	site_publicos_disparo
@@ -864,7 +884,7 @@ site_olx_anuncio_pedido
 site_olx_anuncio_pedir	
 site_olx_anuncio_rascunho	
 site_origem_do_cadastro	
-site_painel_internos	site_painel_metricas
+site_painel_internos	site_imoveis_metricas, site_painel_metricas
 site_painel_metricas	
 site_painel_visita_marcar	
 site_painel_visitas	
@@ -883,4 +903,8 @@ site_whats_modelo_nota_salvar
 site_whats_modelos_notas	
 visita_card	visitas_cards
 visitas_cards	
+zap_chave	crm_zap_chats, crm_zap_conversa, crm_zap_ler, crm_zap_painel
+zap_lead_para_a_nay	crm_zap_painel, zap_lead_receber
 zap_lead_receber	
+zap_negocio	crm_zap_chats, crm_zap_conversa
+zap_portal	crm_zap_chats, crm_zap_conversa

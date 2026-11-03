@@ -1,4 +1,4 @@
-# privado.me_envia  (tabela, ~51 linhas)
+# privado.me_envia  (tabela, ~152 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('privado.me_envia_id_seq'::regclass)
@@ -26,4 +26,4 @@ me_envia_pkey: PRIMARY KEY (id)
 site_me_envia
 
 ## funções que citam
-site_me_envia, site_me_envia_ranking
+crm_me_envia_por_telefone, site_me_envia, site_me_envia_ranking

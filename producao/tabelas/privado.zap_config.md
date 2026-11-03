@@ -18,4 +18,4 @@ zap_config_pkey: PRIMARY KEY (chave)
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-zap_lead_para_a_nay
+crm_zap_painel, zap_lead_para_a_nay

@@ -27,4 +27,4 @@ nay_leitura: SELECT
 nai_followup_rodar
 
 ## funções que citam
-crm_parceria_followup_nay, nai_followup_rodar
+crm_esteira_automatica, crm_parceria_followup_nay, nai_followup_rodar

@@ -1,4 +1,4 @@
-# privado.busca_cliente_passo  (tabela, ~367 linhas)
+# privado.busca_cliente_passo  (tabela, ~559 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('privado.busca_cliente_passo_id_seq'::regclass)
@@ -21,7 +21,7 @@ busca_cliente_passo_pkey: PRIMARY KEY (id)
 (só o dono)
 
 ## funções que escrevem aqui
-crm_busca_cliente_acao, crm_busca_cliente_manual
+crm_busca_cliente_acao, crm_busca_cliente_manual, crm_lead_pedido_nos_grupos
 
 ## funções que citam
-crm_busca_cliente_acao, crm_busca_cliente_lista, crm_busca_cliente_manual, crm_lead_busca_ativa
+crm_busca_cliente_acao, crm_busca_cliente_lista, crm_busca_cliente_manual, crm_lead_busca_ativa, crm_lead_pedido_nos_grupos

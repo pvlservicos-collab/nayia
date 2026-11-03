@@ -1,4 +1,4 @@
-# privado.busca_cliente  (tabela, ~93 linhas)
+# privado.busca_cliente  (tabela, ~118 linhas)
 475: a busca de cada lead da aba Leads (nay-olx olx/buscas.py): o perfil e até onde foi (base, grupos, OLX, corretores, oferta).
 
 ## colunas
@@ -36,7 +36,7 @@ busca_cliente_pkey: PRIMARY KEY (id)
 (só o dono)
 
 ## funções que escrevem aqui
-crm_busca_cliente_acao, crm_busca_cliente_manual
+crm_busca_cliente_acao, crm_busca_cliente_manual, crm_lead_pedido_nos_grupos
 
 ## funções que citam
-busca_corretor_e, crm_busca_cliente_acao, crm_busca_cliente_lista, crm_busca_cliente_manual, crm_lead_busca_ativa, crm_mensagem_citada, crm_olx_scrap_leads
+busca_corretor_e, crm_busca_cliente_acao, crm_busca_cliente_lista, crm_busca_cliente_manual, crm_esteira_automatica, crm_lead_busca_ativa, crm_lead_pedido_nos_grupos, crm_mensagem_citada, crm_olx_scrap_leads

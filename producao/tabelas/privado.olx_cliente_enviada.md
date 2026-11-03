@@ -1,4 +1,4 @@
-# privado.olx_cliente_enviada  (tabela, ~2103 linhas)
+# privado.olx_cliente_enviada  (tabela, ~2674 linhas)
 385: o que a Nay do WhatsApp mandou pelo 8595-6408 (o eco da Z-API não cala a Nay).
 
 ## colunas
@@ -22,4 +22,4 @@ olx_cliente_enviada_pkey: PRIMARY KEY (message_id)
 (nenhuma função; quem escreve é o n8n, o site ou o CRM)
 
 ## funções que citam
-crm_contatos_relacionados, crm_lead_buscas, site_painel_metricas
+crm_contatos_relacionados, crm_lead_buscas, site_imoveis_metricas, site_painel_metricas

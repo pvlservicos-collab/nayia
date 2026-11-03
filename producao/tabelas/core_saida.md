@@ -1,4 +1,4 @@
-# core_saida  (tabela, ~10696 linhas)
+# core_saida  (tabela, ~12331 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('core_saida_id_seq'::regclass)
@@ -50,4 +50,4 @@ nay_leitura: SELECT
 nai_whatsapp_reenviado, nay_duvida_mandar_pela_parceria, nay_leads_mandar_pela_parceria
 
 ## funções que citam
-crm_imoveis_enviados, crm_mensagem_citada, crm_quem_mandou, nai_deve_atender, nai_imoveis_na_frente, nai_tel_assumiu, nai_whatsapp_reenviado, nay_duvida_mandar_pela_parceria, nay_falou_conosco_atualizar, nay_leads_mandar_pela_parceria, site_painel_metricas
+crm_imoveis_enviados, crm_mensagem_citada, crm_quem_mandou, nai_deve_atender, nai_imoveis_na_frente, nai_tel_assumiu, nai_whatsapp_reenviado, nay_duvida_mandar_pela_parceria, nay_falou_conosco_atualizar, nay_leads_mandar_pela_parceria, site_imoveis_metricas, site_painel_metricas

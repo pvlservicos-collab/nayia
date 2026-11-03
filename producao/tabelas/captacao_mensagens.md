@@ -1,4 +1,4 @@
-# captacao_mensagens  (tabela, ~18340 linhas)
+# captacao_mensagens  (tabela, ~19182 linhas)
 
 ## colunas
 id  bigint  NOT NULL
@@ -29,6 +29,7 @@ captacao_msg_direcao_ok: CHECK ((direcao = ANY (ARRAY['enviada'::text, 'recebida
 ## gatilhos
 CREATE TRIGGER captacao_mensagem_do_python BEFORE INSERT ON public.captacao_mensagens FOR EACH ROW EXECUTE FUNCTION captacao_mensagem_do_python()
 CREATE TRIGGER captacao_rede_da_situacao_tg AFTER INSERT ON public.captacao_mensagens FOR EACH ROW EXECUTE FUNCTION captacao_rede_da_situacao()
+CREATE TRIGGER link_organico_do_lead AFTER INSERT ON public.captacao_mensagens FOR EACH ROW EXECUTE FUNCTION link_organico_do_lead()
 
 ## permissões
 nay: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE

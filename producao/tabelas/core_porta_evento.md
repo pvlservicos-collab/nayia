@@ -1,4 +1,4 @@
-# core_porta_evento  (tabela, ~0 linhas)
+# core_porta_evento  (tabela, ~3619 linhas)
 551: o que chegou na porta Python do nay-core (nay/porta), por linha
 
 ## colunas

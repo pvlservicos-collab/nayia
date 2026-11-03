@@ -5919,6 +5919,13 @@ try:
 except Exception as _e:  # noqa: BLE001
     app.logger.warning("aprendizado_api nao carregou: %s", _e)
 
+# MIDIAS (579, 03/11): a aba admin > Midias (demandas por canal e o calendario de conteudo). Mesmo try/except.
+try:
+    from midias_api import midias_bp
+    app.register_blueprint(midias_bp)
+except Exception as _e:  # noqa: BLE001
+    app.logger.warning("midias_api nao carregou: %s", _e)
+
 # A CAPTACAO PEDE SENHA (28/09, Pedro: "com bastante seguranca para o numero nao
 # cair"). As rotas /api/captacao/* e /api/nai/captacao* respondiam sem senha
 # nenhuma: qualquer um na internet ligava o disparo (captacao_pausada), punha o

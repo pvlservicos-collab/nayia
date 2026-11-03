@@ -1,4 +1,4 @@
-# imovel_conhecimento  (tabela, ~222 linhas)
+# imovel_conhecimento  (tabela, ~258 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('imovel_conhecimento_id_seq'::regclass)

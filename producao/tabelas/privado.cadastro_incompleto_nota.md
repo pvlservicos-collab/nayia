@@ -1,4 +1,4 @@
-# privado.cadastro_incompleto_nota  (tabela, ~0 linhas)
+# privado.cadastro_incompleto_nota  (tabela, ~45 linhas)
 571: a nota do imóvel de cada cadastro incompleto (captacao_cadastro coletando) pela procura: pedidos dos grupos (30 dias, nota 90+ e 70+) e buscas de clientes nossos. Gravada por nay-grupos/scripts/nota_cadastros.py.
 
 ## colunas

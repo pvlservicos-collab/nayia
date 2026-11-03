@@ -1,4 +1,4 @@
-# identidade_lid  (tabela, ~1659 linhas)
+# identidade_lid  (tabela, ~1674 linhas)
 
 ## colunas
 lid  text  NOT NULL

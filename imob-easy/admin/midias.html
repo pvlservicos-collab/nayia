@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../assets/js/tema-admin.js?v=20261031"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mídias — Imob Easy</title>
+<link rel="icon" href="../assets/img/logo-simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/midias.css?v=20261103">
+</head>
+<body class="admin" data-pagina="midias">
+
+<a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div data-layout-topo></div>
+
+<!-- 03/11/2026 (579; Pedro: "trocar o menu lá gerador de post por uma aba Mídias lá dentro do site e organizar essas
+     demandas aqui criando essas coisas e criando um calendário de conteúdo bonitinho ... e lá em Mídias vai ter abas: uma
+     aba Insta, outra Face, outra YouTube, outra Google SEO e outra IA GEO"). O Gerador de posts continua, na última aba.
+     Dados: midia_item, pelas rotas /admin/api/midias (midias_api.py). #insta, #face... abrem direto na aba. -->
+<main class="conteudo" id="conteudo">
+  <div class="pagina-cabecalho">
+    <div>
+      <h1 class="pagina-titulo">Mídias</h1>
+      <p class="pagina-subtitulo">O calendário de conteúdo e a produção de cada canal: o que fazer, quem faz e em que pé está. Clique em qualquer peça ou demanda para editar.</p>
+    </div>
+  </div>
+
+  <div class="md-resumo" id="md-resumo" aria-live="polite"></div>
+
+  <div class="abas md-abas" id="md-abas" role="tablist" aria-label="Mídias">
+    <button class="abas__item" role="tab" type="button" data-aba="calendario" aria-selected="true">Calendário</button>
+    <button class="abas__item" role="tab" type="button" data-aba="insta" aria-selected="false"><i class="md-bola" data-canal="insta"></i>Insta</button>
+    <button class="abas__item" role="tab" type="button" data-aba="face" aria-selected="false"><i class="md-bola" data-canal="face"></i>Face</button>
+    <button class="abas__item" role="tab" type="button" data-aba="youtube" aria-selected="false"><i class="md-bola" data-canal="youtube"></i>YouTube</button>
+    <button class="abas__item" role="tab" type="button" data-aba="seo" aria-selected="false"><i class="md-bola" data-canal="seo"></i>Google SEO</button>
+    <button class="abas__item" role="tab" type="button" data-aba="geo" aria-selected="false"><i class="md-bola" data-canal="geo"></i>IA GEO</button>
+    <button class="abas__item" role="tab" type="button" data-aba="gerador" aria-selected="false">Gerador de posts</button>
+  </div>
+
+  <!-- o calendário -->
+  <section id="aba-calendario" class="md-painel" role="tabpanel">
+    <div class="cartao md-barra" data-estado-proprio>
+      <div class="md-mes">
+        <button type="button" class="md-seta" id="md-antes" aria-label="Mês anterior">‹</button>
+        <h2 class="md-mes__nome" id="md-mes-nome"></h2>
+        <button type="button" class="md-seta" id="md-depois" aria-label="Próximo mês">›</button>
+        <button type="button" class="btn-neutro md-hoje" id="md-hoje">Hoje</button>
+      </div>
+      <div class="md-legenda" id="md-legenda" role="group" aria-label="Canais no calendário"></div>
+      <button type="button" class="btn-azul" id="md-nova-peca">+ Nova peça</button>
+    </div>
+    <div class="md-grade" id="md-grade" aria-label="Calendário do mês"></div>
+    <h2 class="md-secao" id="md-semana-titulo">Esta semana</h2>
+    <div class="md-agenda" id="md-agenda"></div>
+  </section>
+
+  <!-- um painel por canal (preenchido pelo midias.js) -->
+  <section id="aba-insta" class="md-painel" role="tabpanel" hidden data-canal="insta"></section>
+  <section id="aba-face" class="md-painel" role="tabpanel" hidden data-canal="face"></section>
+  <section id="aba-youtube" class="md-painel" role="tabpanel" hidden data-canal="youtube"></section>
+  <section id="aba-seo" class="md-painel" role="tabpanel" hidden data-canal="seo"></section>
+  <section id="aba-geo" class="md-painel" role="tabpanel" hidden data-canal="geo"></section>
+
+  <!-- o gerador de posts de imóvel (o mesmo que o `nay posts` roda na VPS): carrega só quando a aba abre -->
+  <section id="aba-gerador" class="md-painel" role="tabpanel" hidden>
+    <div class="md-gerador-topo">
+      <p>O gerador de posts, carrossel, legenda e vídeo de cada imóvel. Os vídeos daqui também viram Shorts (aba YouTube).</p>
+      <a class="btn-neutro" href="gerador-posts.html" target="_blank" rel="noopener">Abrir em tela cheia</a>
+    </div>
+    <iframe class="md-gerador" id="md-gerador" title="Gerador de posts" loading="lazy"></iframe>
+  </section>
+</main>
+
+<dialog class="md-dialogo" id="md-dialogo" aria-labelledby="md-dialogo-titulo">
+  <form method="dialog" class="md-form" id="md-form">
+    <div class="md-form__topo">
+      <h2 id="md-dialogo-titulo">Editar</h2>
+      <button type="button" class="md-fechar" id="md-fechar" aria-label="Fechar">×</button>
+    </div>
+    <label class="md-campo md-campo--largo">Título<input name="titulo" required maxlength="200"></label>
+    <div class="md-linha">
+      <label class="md-campo">Canal
+        <select name="canal">
+          <option value="insta">Insta</option><option value="face">Face</option><option value="youtube">YouTube</option>
+          <option value="seo">Google SEO</option><option value="geo">IA GEO</option>
+        </select></label>
+      <label class="md-campo">É
+        <select name="tipo"><option value="conteudo">Peça do calendário</option><option value="demanda">Demanda</option></select></label>
+      <label class="md-campo">Status
+        <select name="status">
+          <option value="ideia">Ideia</option><option value="a_fazer">A fazer</option><option value="producao">Em produção</option>
+          <option value="pronto">Pronto</option><option value="publicado">Publicado</option><option value="pausado">Pausado</option>
+        </select></label>
+    </div>
+    <div class="md-linha">
+      <label class="md-campo">Dia / prazo<input type="date" name="data"></label>
+      <label class="md-campo">Quem faz<input name="quem" list="md-pessoas" maxlength="80"></label>
+      <label class="md-campo">Formato<input name="formato" list="md-formatos" maxlength="60"></label>
+      <label class="md-campo">Prioridade
+        <select name="prioridade"><option value="">—</option><option value="alta">Alta</option><option value="media">Média</option><option value="baixa">Baixa</option></select></label>
+    </div>
+    <label class="md-campo md-campo--largo">Faz parte de<select name="demanda_id"><option value="">(nenhuma demanda)</option></select></label>
+    <label class="md-campo md-campo--largo">O que fazer<textarea name="descricao" rows="5"></textarea></label>
+    <label class="md-campo md-campo--largo">Link (post publicado, roteiro, arquivo)<input name="link" type="url" maxlength="400"></label>
+    <p class="md-form__origem" id="md-origem"></p>
+    <p class="md-form__erro" id="md-erro" role="alert"></p>
+    <div class="md-form__botoes">
+      <button type="button" class="btn-neutro md-excluir" id="md-excluir">Excluir</button>
+      <span></span>
+      <button type="button" class="btn-neutro" id="md-cancelar">Cancelar</button>
+      <button type="submit" class="btn-azul" id="md-salvar">Salvar</button>
+    </div>
+  </form>
+</dialog>
+<datalist id="md-pessoas">
+  <option value="Tel"><option value="Pedro"><option value="Rayssa"><option value="Diego"><option value="Lucas">
+  <option value="Claude (automático)">
+</datalist>
+<datalist id="md-formatos">
+  <option value="Reels"><option value="Stories"><option value="Status"><option value="Carrossel"><option value="Post">
+  <option value="Short"><option value="Vídeo"><option value="Blog"><option value="Landing page"><option value="Anúncio">
+</datalist>
+
+<div data-layout-rodape></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/midias.js?v=20261103"></script>
+</body>
+</html>

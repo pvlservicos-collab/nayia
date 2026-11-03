@@ -1,4 +1,4 @@
-# aprendizado_ideia  (tabela, ~74 linhas)
+# aprendizado_ideia  (tabela, ~127 linhas)
 514: as ideias refinadas dos vídeos: sugestão, como é hoje, onde ajuda, prazo; nota do Pedro (barrinha) e nota_claude.
 
 ## colunas

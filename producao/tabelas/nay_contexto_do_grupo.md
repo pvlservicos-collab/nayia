@@ -1,4 +1,4 @@
-# nay_contexto_do_grupo  (tabela, ~191 linhas)
+# nay_contexto_do_grupo  (tabela, ~261 linhas)
 429: o que a Nay Captação dos Grupos passou à Nay da Parceria (nay-core lê antes do turno).
 
 ## colunas

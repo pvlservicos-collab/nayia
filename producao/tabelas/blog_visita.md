@@ -1,4 +1,4 @@
-# blog_visita  (tabela, ~0 linhas)
+# blog_visita  (tabela, ~89 linhas)
 
 ## colunas
 artigo_id  bigint  NOT NULL

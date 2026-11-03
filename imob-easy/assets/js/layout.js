@@ -116,8 +116,10 @@
     /* 18/10/2026 (Pedro: "Blog e nova nay põe para dentro do menu mais") */
     { rotulo: "Blog",              href: "blog.html",        chave: "blog" },
     /* 19/10/2026 (Pedro: "coloca o criador de post no menu lá dentro de Mais"): o gerador de posts de imóvel
-       (gerador-posts.html, o mesmo que o `nay posts` roda na VPS) -- página própria, sem o layout do admin */
-    { rotulo: "Gerador de posts",  href: "gerador-posts.html", chave: "gerador-posts" },
+       (gerador-posts.html, o mesmo que o `nay posts` roda na VPS) -- página própria, sem o layout do admin.
+       03/11/2026 (579; Pedro: "trocar o menu lá gerador de post por uma aba Mídias"): no lugar dele, Mídias (midias.html:
+       calendário de conteúdo, Insta, Face, YouTube, Google SEO, IA GEO); o gerador mora na última aba de lá (#gerador). */
+    { rotulo: "Mídias",            href: "midias.html",      chave: "midias" },
     /* 20/10/2026 (Pedro: "põe um item no menu do site lá em Mais"): o painel do Agente Claude, em subdomínio próprio
        na VPS2 (agente-claude/ no repo); pede a mesma senha do /admin */
     { rotulo: "Agente Claude",     href: "https://agentes.imobeasy.online/" },

@@ -1,4 +1,4 @@
-# mensagem_repetida  (tabela, ~996 linhas)
+# mensagem_repetida  (tabela, ~1160 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('mensagem_repetida_id_seq'::regclass)

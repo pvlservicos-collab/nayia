@@ -32,4 +32,4 @@ nay_site_escrita: INSERT, SELECT, UPDATE
 captacao_ficha, nai_cadastro_importar, site_juntar_cadastro
 
 ## funções que citam
-captacao_ficha, captacao_ficha_aviso, captacao_fotos_a_puxar, crm_captacao_ficha_do_dono, crm_captacao_funil, crm_captacao_placar, crm_captacao_relatorio, nai_cadastro_importar, nai_cadastro_pendente, site_aprovar_imoveis, site_ficha_preparada, site_juntar_cadastro, site_origem_do_cadastro
+captacao_ficha, captacao_ficha_aviso, captacao_fotos_a_puxar, crm_cadastros_incompletos, crm_captacao_ficha_do_dono, crm_captacao_funil, crm_captacao_placar, crm_captacao_relatorio, nai_cadastro_importar, nai_cadastro_pendente, site_aprovar_imoveis, site_ficha_preparada, site_juntar_cadastro, site_origem_do_cadastro

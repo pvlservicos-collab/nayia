@@ -1,4 +1,4 @@
-# privado.visita_parceria_grupo  (tabela, ~0 linhas)
+# privado.visita_parceria_grupo  (tabela, ~26 linhas)
 
 ## colunas
 visita_id  bigint  NOT NULL
