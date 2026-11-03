@@ -8,6 +8,9 @@
  *   mostrar_tambem_em   as OUTRAS abas onde a conversa também aparece ("misto de leads"): a conversa continua sendo da
  *                       linha dela (um lead por linha, crm/CLAUDE.md) e a resposta sai pelo número dela; a outra aba só a
  *                       mostra, com a faixa "Falando pelo número Parceria" / "Conversando pelo número Leads"
+ *   mudou_para          ENVIADA para a aba de outro número ("Enviar para Rayssa"; Pedro, 03/11: "quando enviar para o outro
+ *                       número ele some da lista do Leads e aparece no outro número, lá em cima, como conversa nova"): some
+ *                       da aba da própria linha e aparece só lá, até alguém devolver
  *   dentro_de           os 8 últimos dígitos das conversas em que esta foi posta "dentro" (a setinha da 517), à mão
  * Os tipos ficam em integrations.config.tipos_de_contato da linha Leads (/api/linhas/tipos-de-contato).
  */
@@ -39,6 +42,11 @@ export function mostrarTambemEm(lead: { custom_attributes?: any } | null | undef
   return Array.isArray(v) ? v.filter((x: unknown): x is LinhaWhatsapp => x === 'parceria' || x === 'captacao' || x === 'oficial') : []
 }
 
+export function mudouPara(lead: { custom_attributes?: any } | null | undefined): LinhaWhatsapp | null {
+  const v = lead?.custom_attributes?.mudou_para
+  return v === 'parceria' || v === 'captacao' || v === 'oficial' ? v : null
+}
+
 export function dentroDe(lead: { custom_attributes?: any } | null | undefined): string[] {
   const v = lead?.custom_attributes?.dentro_de
   return Array.isArray(v) ? v.map(String).filter((x) => /^\d{8}$/.test(x)) : []
@@ -46,6 +54,8 @@ export function dentroDe(lead: { custom_attributes?: any } | null | undefined): 
 
 /** A conversa aparece nesta aba: é da linha dela, ou foi posta também aqui (misto). */
 export function apareceNaAba(lead: LeadWithOwner, linha: LinhaWhatsapp): boolean {
+  const para = mudouPara(lead)
+  if (para) return para === linha
   return getLinhaWhatsapp(lead) === linha || mostrarTambemEm(lead).includes(linha)
 }
 

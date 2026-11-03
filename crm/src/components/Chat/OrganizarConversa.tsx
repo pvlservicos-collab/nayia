@@ -19,23 +19,27 @@ import { acharTipo, dentroDe, type TipoDeContato } from '@/lib/organizacaoDoLead
 
 const fim8 = (t: string | null | undefined) => String(t || '').replace(/\D/g, '').slice(-8)
 
-export async function organizar(leadId: string, corpo: Record<string, unknown>): Promise<Record<string, any>> {
+export interface Organizado { custom_attributes: Record<string, any>; last_activity_at?: string; is_unread?: boolean }
+
+export async function organizar(leadId: string, corpo: Record<string, unknown>): Promise<Organizado> {
   const r = await fetch(`/api/leads/${leadId}/organizar`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo),
   })
   const j = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(j.error || j.message || 'Não consegui salvar.')
-  return j.custom_attributes || {}
+  return { custom_attributes: j.custom_attributes || {}, last_activity_at: j.last_activity_at, is_unread: j.is_unread }
 }
 
 interface Props {
   lead: LeadWithOwner
   /** o tipo que a lista deduz quando ninguém escolheu (corretor, proprietário...) */
   tipoDeduzido?: string | null
-  aoMudar: (custom_attributes: Record<string, any>) => void
+  aoMudar: (o: Organizado) => void
+  /** na aba para onde a conversa foi ENVIADA (mudou_para): só o botão de devolver */
+  soDevolver?: string
 }
 
-export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar }: Props) {
+export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar, soDevolver }: Props) {
   const { tipos, salvar } = useTiposDeContato()
   const [menu, setMenu] = useState<'' | 'tipo' | 'dentro' | 'editar'>('')
   const [ocupado, setOcupado] = useState('')
@@ -55,9 +59,9 @@ export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar }: Props
   const fazer = async (rotulo: string, corpo: Record<string, unknown>, depois?: () => Promise<void>) => {
     setOcupado(rotulo); setAviso('')
     try {
-      const ca = await organizar(lead.id, corpo)
+      const o = await organizar(lead.id, corpo)
       if (depois) await depois()
-      aoMudar(ca)
+      aoMudar(o)
       setAviso(rotulo)
       setTimeout(() => setAviso(''), 2500)
     } catch (e: any) {
@@ -78,6 +82,22 @@ export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar }: Props
   const botao = 'flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-[13px] font-semibold flex-shrink-0'
   const borda = { border: '1px solid var(--wa-divider)', color: 'var(--wa-text)' }
 
+  if (soDevolver) {
+    return (
+      <button type="button" className={botao} style={borda} disabled={!!ocupado}
+              onClick={() => fazer('Devolvida', { devolver: true }, async () => {
+                // a Nay Leads volta a atender (a etapa manual 'rayssa' da captação sai)
+                await fetch(`/api/leads/${lead.id}/captacao-etapa`, {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ etapa: 'todos' }),
+                }).catch(() => undefined)
+              })}
+              title={`Tira a conversa daqui e ela volta para a aba ${soDevolver}`}>
+        {ocupado ? <CircleNotch size={16} className="animate-spin" /> : <PaperPlaneRight size={16} className="-scale-x-100" />}
+        <span className="hidden lg:inline">Devolver para o {soDevolver}</span>
+      </button>
+    )
+  }
+
   return (
     <div ref={caixa} className="relative flex items-center gap-1.5">
       <button type="button" className={botao} style={{ ...borda, ...(tipo ? { color: tipo.cor, borderColor: tipo.cor + '66' } : {}) }}
@@ -86,7 +106,7 @@ export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar }: Props
         <span className="hidden lg:inline">{tipo?.nome || 'Tipo'}</span>
       </button>
       <button type="button" className={botao} style={borda} onClick={enviarRayssa} disabled={!!ocupado}
-              title="A conversa aparece na aba Rayssa da Parceria (falando por este número) e a Nay para de responder aqui">
+              title="A conversa sai do Leads e vai para a aba Rayssa da Parceria, no topo (a resposta continua saindo por este número); a Nay para de responder">
         {ocupado === 'Enviado para a Rayssa' ? <CircleNotch size={16} className="animate-spin" /> : <PaperPlaneRight size={16} />}
         <span className="hidden xl:inline">Enviar para Rayssa</span>
       </button>

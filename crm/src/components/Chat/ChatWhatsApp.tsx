@@ -24,7 +24,8 @@ import CadastroImovelOlx from './CadastroImovelOlx'
 import EnviarImovelPelaCaptacao from './EnviarImovelPelaCaptacao'
 import PainelContatoParceria from './PainelContatoParceria'
 import OrganizarConversa, { organizar } from './OrganizarConversa'
-import { apareceNaAba, faixaDeOutraLinha, mostrarTambemEm, LINHAS_MISTAS } from '@/lib/organizacaoDoLead'
+import { apareceNaAba, faixaDeOutraLinha, mostrarTambemEm, mudouPara, LINHAS_MISTAS, NOME_DA_LINHA } from '@/lib/organizacaoDoLead'
+import type { Organizado } from './OrganizarConversa'
 import { usePuxador } from '@/hooks/usePuxador'
 import { useCaptacaoDonos } from '@/hooks/useCaptacaoDonos'
 
@@ -236,9 +237,14 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
   }, [setLeads, selectedLead])
 
   /* 03/11: o que a organização da conversa gravou (tipo, misto, dentro de) entra na lista na hora */
-  const aplicarOrganizacao = useCallback((leadId: string, ca: Record<string, any>) => {
-    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, custom_attributes: ca } : l)))
-    setSelectedLead((prev) => (prev && prev.id === leadId ? { ...prev, custom_attributes: ca } : prev))
+  const aplicarOrganizacao = useCallback((leadId: string, o: Organizado) => {
+    const junta = (l: LeadWithOwner): LeadWithOwner => ({
+      ...l, custom_attributes: o.custom_attributes,
+      ...(o.last_activity_at ? { last_activity_at: new Date(o.last_activity_at).toISOString() } : {}),
+      ...(typeof o.is_unread === 'boolean' ? { is_unread: o.is_unread } : {}),
+    })
+    setLeads((prev) => prev.map((l) => (l.id === leadId ? junta(l) : l)))
+    setSelectedLead((prev) => (prev && prev.id === leadId ? junta(prev) : prev))
   }, [setLeads])
 
   const handleChatMessageSent = useCallback((content: string) => {
@@ -270,7 +276,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
        linha deixa a conversa também nesta aba */
     if (displayedLead && leadId && getLinhaWhatsapp(displayedLead) !== linha && LINHAS_MISTAS.includes(linha)
         && !mostrarTambemEm(displayedLead).includes(linha)) {
-      organizar(leadId, { mostrarEm: { linha, ligar: true } }).then((ca) => aplicarOrganizacao(leadId, ca)).catch(() => undefined)
+      organizar(leadId, { mostrarEm: { linha, ligar: true } }).then((o) => aplicarOrganizacao(leadId, o)).catch(() => undefined)
     }
 
     if (leadId && memberId && !alreadyHasOwner) {
@@ -346,9 +352,12 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
       // a linha DA CONVERSA (no misto, a de outra aba): é por ela que a mensagem sai
       linha={getLinhaWhatsapp(displayedLead) || linha}
       faixaDaLinha={faixaDeOutraLinha(displayedLead, linha)}
-      organizar={linha === 'captacao'
+      organizar={mudouPara(displayedLead) === linha && getLinhaWhatsapp(displayedLead) !== linha
+        ? <OrganizarConversa lead={displayedLead} soDevolver={NOME_DA_LINHA[getLinhaWhatsapp(displayedLead) || 'captacao']}
+                             aoMudar={(o) => aplicarOrganizacao(displayedLead.id, o)} />
+        : linha === 'captacao'
         ? <OrganizarConversa lead={displayedLead} tipoDeduzido={getLinhaWhatsapp(displayedLead) === 'parceria' ? 'corretor' : null}
-                             aoMudar={(ca) => aplicarOrganizacao(displayedLead.id, ca)} />
+                             aoMudar={(o) => aplicarOrganizacao(displayedLead.id, o)} />
         : undefined}
       marca={ehParceria ? marcas[displayedLead.id] : undefined}
       dono={linha === 'oficial' ? donosDaCaptacao[displayedLead.id] : undefined}

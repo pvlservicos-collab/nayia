@@ -24,7 +24,7 @@ import BuscaDaLista, { casaNaBusca } from './BuscaDaLista'
 import { useCorretoresDaCaptacao } from '@/hooks/useCorretoresDaCaptacao'
 import { usePipeline } from '@/hooks/usePipeline'
 import { conversaEstaNaLinha, getLinhaWhatsapp, type LinhaWhatsapp } from '@/lib/leadChannel'
-import { acharTipo, dentroDe, faixaDeOutraLinha, LINHAS_MISTAS, mostrarTambemEm, tipoEscolhido } from '@/lib/organizacaoDoLead'
+import { acharTipo, dentroDe, faixaDeOutraLinha, LINHAS_MISTAS, mostrarTambemEm, mudouPara, tipoEscolhido } from '@/lib/organizacaoDoLead'
 import { useTiposDeContato } from '@/hooks/useTiposDeContato'
 import { etapaDaParceria, escolhaAMao } from '@/lib/etapaDaParceria'
 import PranchetaDeEtiquetas from './PranchetaDeEtiquetas'
@@ -477,7 +477,10 @@ export default function LeadList({
    * resultado da busca (que puxa a lista GLOBAL), então o filtro pela linha
    * tem que ser aqui -- inclusive na busca do servidor.
    */
-  const naAba = (l: LeadWithOwner) => !!linha && (conversaEstaNaLinha(l, linha) || mostrarTambemEm(l).includes(linha))
+  // a conversa ENVIADA para outro número (mudou_para) sai daqui e fica só lá (a lupa ainda acha)
+  const naAba = (l: LeadWithOwner) => !!linha && (mudouPara(l)
+    ? mudouPara(l) === linha
+    : conversaEstaNaLinha(l, linha) || mostrarTambemEm(l).includes(linha))
   const daLinha: SearchHit[] = linha
     ? searchResults.filter((hit) => naAba(hit.lead)
         || (misto && search.trim().length > 0 && LINHAS_MISTAS.some((x) => x !== linha && conversaEstaNaLinha(hit.lead, x))))
@@ -749,9 +752,18 @@ export default function LeadList({
     return acharTipo(tiposDeContato, papelNoLeads(l) || (olxClientes[fim8(l.phone)] ? 'cliente' : null))
   }
   const idDaAdministracao = (allTags as any[]).find((t) => t.name === 'Administração' || (t.nome_original || t.name) === 'Fechamento')?.id as string | undefined
+  const emAdministracao = (l: LeadWithOwner) => tipoDe(l)?.chave === 'administracao'
+    || (!!idDaAdministracao && (l.lead_tags || []).some((lt: any) => lt.tag_id === idDaAdministracao))
 
   const passaNoFiltro = (hit: SearchHit): boolean => {
     const l = hit.lead
+    /* 03/11 (Pedro: "troca a etapa Fechamento pela etapa Administração, e sempre que mandar um lead para lá ele some de
+       todas"): no Leads, quem está em Administração (a etiqueta, ou o tipo de contato Administração) aparece SÓ nela --
+       nem em Todos. A lupa continua achando. */
+    if (linha === 'captacao' && idDaAdministracao) {
+      if (activeTab === `tag:${idDaAdministracao}`) return emAdministracao(l)
+      if (emAdministracao(l)) return false
+    }
     // 20/10: no Leads, Todos é a linha inteira (como já era)
     if (usarAbasDeEtiquetas && activeTab === 'all') return true
     /* O PROPRIETÁRIO SÓ APARECE NA ETAPA DELE (Tel, 30/09): "os proprietários
@@ -776,8 +788,6 @@ export default function LeadList({
     if (activeTab === 'tel' && linha === 'captacao') return comOTelNaCaptacao(l)
     if (activeTab === 'tel') return doTel(l, marcas[l.id], atendenteDoLead[l.id])
     if (activeTab.startsWith('tag:')) return (l.lead_tags || []).some((lt: any) => `tag:${lt.tag_id}` === activeTab)
-      // 03/11 (Pedro): a aba Fechamento virou Administração; o contato do tipo Administração aparece nela
-      || (!!idDaAdministracao && activeTab === `tag:${idDaAdministracao}` && tipoDe(l)?.chave === 'administracao')
     if (activeTab.startsWith('atendente:')) return `atendente:${atendenteDoLead[l.id]?.id}` === activeTab
     return true
   }
