@@ -1137,8 +1137,8 @@ html {
   align-items: center;
   justify-content: center;
 }
-/* 03/11: no WhatsApp Leads todas as etiquetas da linha da conversa são cinzas (a cor da conversa é a faixa do tipo) */
-.wa-tags-cinzas .wa-marca {
+/* 03/11: no WhatsApp Leads as ETIQUETAS da conversa são cinzas (as marcas do lead e a faixa do tipo continuam coloridas) */
+.wa-marca--cinza {
   color: var(--wa-tag-cinza) !important;
   background: var(--wa-tag-cinza-fundo) !important;
   border-color: transparent !important;

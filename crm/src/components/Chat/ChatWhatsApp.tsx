@@ -307,7 +307,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
     setAba('visitas')
   }, [])
 
-  const isAdmin = isMaster || roleName?.toLowerCase() === 'administrador' || roleName?.toLowerCase() === 'owner' || permissions?.['*']
+  const isAdmin = isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || permissions?.['*']
   if (!loading && !isAdmin && permissions && !permissions.settings?.view_chat) return <NotAuthorized />
 
   if (loading || leadsLoading || (!isAdmin && !permissions)) {
@@ -341,6 +341,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
       aoAbrirPorId={abrirConversaPorId}
       onUpdateLead={handleUpdateLead}
       onTagsChange={handleTagsChange}
+      aoOrganizar={aplicarOrganizacao}
       loading={false}
       organizationId={organizationId}
     />

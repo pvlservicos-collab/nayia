@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { LeadWithOwner, SearchHit } from '@/lib/types'
-import { MagnifyingGlass, PushPin, Archive, ArrowCounterClockwise, ArrowLeft, Check, X, ChatCircleText, ChatCircleDots, Tag as TagIcon } from '@phosphor-icons/react'
+import { MagnifyingGlass, PushPin, Archive, ArrowCounterClockwise, ArrowLeft, Check, X, ChatCircleText, ChatCircleDots, Tag as TagIcon, TreeStructure } from '@phosphor-icons/react'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 import { useLeadSearch } from '@/hooks/useLeadSearch'
 import { DIAS_CONVERSA_IMPORTADA } from '@/lib/conversas'
@@ -30,6 +30,8 @@ import { etapaDaParceria, escolhaAMao } from '@/lib/etapaDaParceria'
 import PranchetaDeEtiquetas from './PranchetaDeEtiquetas'
 import { EditarAbas, abasQueValem, etiquetasDasEtapasDoLeads, useAbasDaLinha } from './AbasDeEtiquetas'
 import { useEtiquetas, marcarEtiqueta, criarEtiqueta, CORES_DE_ETIQUETA } from '@/lib/etiquetas'
+import { organizar, type Organizado } from './OrganizarConversa'
+import RelacionarA from './RelacionarA'
 
 /*
  * HOJE / ESSA SEMANA NA PARCERIA (Pedro, 19/10/2026): "tirar Sem resposta: Últimas 6h / 24h / Essa semana. Colocar no
@@ -111,6 +113,8 @@ interface LeadListProps {
   onUpdateLead?: (leadId: string, updates: Partial<LeadWithOwner>) => void
   /** 26/10: pôr e tirar etiqueta na própria linha da conversa (Oficial) */
   onTagsChange?: (leadId: string, tagId: string, action: 'add' | 'remove', tagObj?: any) => void
+  /** 03/11: o que o "Relacionar a" do botão direito gravou entra na lista na hora (o mesmo do "Dentro de…") */
+  aoOrganizar?: (leadId: string, o: Organizado) => void
   loading: boolean
   organizationId?: string | null
 }
@@ -166,13 +170,14 @@ export default function LeadList({
   aoAbrirPorId,
   onUpdateLead,
   onTagsChange,
+  aoOrganizar,
   loading,
   organizationId,
 }: LeadListProps) {
   const ehParceria = linha === 'parceria'
   const { profileName, user, isMaster, roleName, permissions, currentOrganization } = useAuth()
   /* 03/11: o administrador (o Tel) vê Administração inteira; os outros só o que foram adicionados (Adicionar pessoa) */
-  const ehAdmin = !!(isMaster || roleName?.toLowerCase() === 'administrador' || roleName?.toLowerCase() === 'owner' || (permissions as any)?.['*'])
+  const ehAdmin = !!(isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || (permissions as any)?.['*'])
   const meuId = currentOrganization?.id || ''
   const semLupa = soRespondeNaCaptacao(profileName || user?.name)
   const [search, setSearch] = useState('')
@@ -194,6 +199,15 @@ export default function LeadList({
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ visible: false, x: 0, y: 0, lead: null })
   const [menuDeTags, setMenuDeTags] = useState(false)
   const [buscaDeTag, setBuscaDeTag] = useState('')
+  /* RELACIONAR A (Pedro, 03/11: "Relacionar a, vai abrir tipo um overlay na tela e vai pedir para eu clicar em outro
+     contato; quando eu clicar no outro contato essa conversa vai ficar minimizada embaixo do outro"): enquanto há alguém
+     aqui, o clique numa conversa da lista não a abre, relaciona (RelacionarA.tsx é o overlay) */
+  const [relacionando, setRelacionando] = useState<LeadWithOwner | null>(null)
+  const [relOcupado, setRelOcupado] = useState(false)
+  const [relErro, setRelErro] = useState('')
+  const raizDaLista = useRef<HTMLDivElement>(null)
+  // o mesmo clique chega duas vezes (pointerdown e click): o segundo não pode abrir a conversa de fora
+  const engolirClique = useRef(0)
 
   const { marcas, nay } = useParceriaMarcas(ehParceria)
   // 492 (Pedro, 24/10): o dono com quem a Nay Leads está conversando pela Parceria fica roxo
@@ -473,7 +487,26 @@ export default function LeadList({
     )
   }
 
+  const relacionar = async (filho: LeadWithOwner, pai: LeadWithOwner) => {
+    setRelOcupado(true); setRelErro('')
+    try {
+      const o = await organizar(filho.id, { dentroDe: { pai: pai.id, ligar: true } })
+      aoOrganizar?.(filho.id, o)
+      setRelacionando(null)
+    } catch (e: any) {
+      setRelErro(e?.message || 'Não consegui relacionar.')
+    } finally {
+      setRelOcupado(false)
+    }
+  }
+
   const handleLeadClick = (lead: LeadWithOwner) => {
+    if (Date.now() < engolirClique.current) return
+    if (relacionando) {
+      engolirClique.current = Date.now() + 1500
+      if (lead.id !== relacionando.id && !relOcupado) void relacionar(relacionando, lead)
+      return
+    }
     onSelectLead(lead)
     markLeadAsRead(lead.id, true)
   }
@@ -906,7 +939,11 @@ export default function LeadList({
   }
 
   return (
-    <div className="flex flex-col h-full" style={{ background: 'var(--wa-panel)' }}>
+    <div ref={raizDaLista} className="flex flex-col h-full" style={{ background: 'var(--wa-panel)' }}>
+      {relacionando && (
+        <RelacionarA nome={relacionando.title || relacionando.phone || 'esta conversa'} alvo={raizDaLista} ocupado={relOcupado} erro={relErro}
+                     aoCancelar={() => { setRelacionando(null); setRelErro('') }} />
+      )}
       {/* O topo, como no WhatsApp: o nome da linha, a busca e os filtros */}
       <div className="flex-shrink-0 relative">
         <div className="wa-topo gap-2 !min-h-[56px]">
@@ -1179,6 +1216,19 @@ export default function LeadList({
                   {(contextMenu.lead.lead_tags || []).filter((lt: any) => lt.tag && !ehEtapaComoTag(lt.tag.name)).length || ''}
                 </span>
               </button>
+              {/* 03/11: só no Leads, a única lista que põe uma conversa embaixo da outra (aninhar) */}
+              {linha === 'captacao' && (
+                <button type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setRelacionando(contextMenu.lead); setRelErro('')
+                          setContextMenu((prev) => ({ ...prev, visible: false }))
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-[14px] hover:bg-[var(--wa-row-hover)] flex items-center gap-3" style={{ color: 'var(--wa-text)' }}>
+                  <TreeStructure size={17} style={{ color: 'var(--wa-icon)' }} />
+                  <span className="flex-1">Relacionar a…</span>
+                </button>
+              )}
             </div>
           )}
           {contextMenu.lead && menuDeTags && (

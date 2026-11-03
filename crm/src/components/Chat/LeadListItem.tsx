@@ -222,7 +222,7 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
         ...(nayLeads ? { boxShadow: 'inset 4px 0 0 #7c3aed, inset 0 0 0 9999px rgba(124, 58, 237, 0.12)' }
           // 29/10 (Pedro): "diminui o azul que destacava quem vem da OLX em 80%" e depois "troca o destaque azul por um
           // leve destaque roxo": a faixa e o fundo em roxo claro
-          : tipoDoContato ? { boxShadow: `inset 4px 0 0 ${tipoDoContato.cor}, inset 0 0 0 9999px ${tipoDoContato.cor}0d` }
+          : tipoDoContato ? { boxShadow: `inset 5px 0 0 ${tipoDoContato.cor}, inset 0 0 0 9999px ${tipoDoContato.cor}1a` }
           : clienteOlx ? { boxShadow: 'inset 4px 0 0 rgba(124, 58, 237, 0.28), inset 0 0 0 9999px rgba(124, 58, 237, 0.035)' }
           : {}),
         ...(relacionados ? { position: 'relative' as const } : {}),
@@ -281,7 +281,7 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
           </span>
         </div>
 
-        <div className={`flex items-center gap-1.5 mt-[2px] min-w-0 ${cinzas ? 'wa-tags-cinzas' : ''}`}>
+        <div className="flex items-center gap-1.5 mt-[2px] min-w-0">
           {/* 03/11 (Pedro: "retira a tag cliente, já sei que é lead pela cor azul"): o cliente fica só com a faixa */}
           {tipoDoContato && !papelNoLeads && tipoDoContato.chave !== 'cliente' && (
             <span className="wa-marca flex-shrink-0 rounded px-1" style={{ color: '#fff', background: tipoDoContato.cor }}
@@ -350,13 +350,13 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
               organizar"): na Parceria as etiquetas aparecem embaixo do nome, com a cor delas. No Leads, quem a Nay atende
               como cliente (clienteOlx) não mostra as outras, mas a "Chaves" aparece (vermelha). */}
           {(tagsDaEquipe || clienteOlx) && (lead.lead_tags || []).filter((lt: any) => lt.tag && (tagsDaEquipe ? !ehEtapaComoTag(lt.tag.name) : lt.tag.name === 'Chaves')).slice(0, 3).map((lt: any) => (
-            <span key={lt.tag_id} className="wa-marca flex-shrink-0 rounded px-1 truncate max-w-[110px]"
-                  style={{ background: (lt.tag.color || '#64748b') + '26', color: lt.tag.color || '#64748b' }} title={lt.tag.name}>
+            <span key={lt.tag_id} className={`wa-marca flex-shrink-0 rounded px-1 truncate max-w-[110px] ${cinzas ? 'wa-marca--cinza' : ''}`}
+                  style={cinzas ? undefined : { background: (lt.tag.color || '#64748b') + '26', color: lt.tag.color || '#64748b' }} title={lt.tag.name}>
               {lt.tag.name}
             </span>
           ))}
           {!marca && !tagsDaEquipe && !etiquetasColoridas && !clienteOlx && emDestaquePrimeiro(lead.lead_tags || [], etiquetasEmDestaque).slice(0, 2).map((lt: any) => lt.tag && (
-            <span key={lt.tag_id} className="wa-marca" style={{ color: 'var(--wa-text-2)' }}>
+            <span key={lt.tag_id} className={`wa-marca ${cinzas ? 'wa-marca--cinza' : ''}`} style={cinzas ? undefined : { color: 'var(--wa-text-2)' }}>
               {lt.tag.name}
             </span>
           ))}
