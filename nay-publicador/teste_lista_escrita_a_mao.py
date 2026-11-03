@@ -72,7 +72,9 @@ class CursorFake:
     def execute(self, sql, params=None):
         s = " ".join(sql.split())
         self.conn.sqls.append(s)
-        if "FROM imoveis i WHERE i.codigo = ANY" in s:
+        if "nay_condominio_de_verdade" in s:     # 03/11: a regra do grupo pelo imóvel de cada linha escrita
+            self.linhas = [{"codigo": c} for c in params[0] if c in self.conn.do_piso]
+        elif "FROM imoveis i WHERE i.codigo = ANY" in s:
             self.linhas = [{"codigo": c} for c in params[0] if c in self.conn.no_ar]
         elif "nay_codigos_da_lista" in s:        # os que passam na regra do grupo (piso, só condomínio)
             self.linhas = [{"codigo": c} for c in self.conn.do_piso]
@@ -158,6 +160,23 @@ try:
     checar("nada sai", enviados, [])
     checar("e o Tel fica sabendo o motivo", "escrita à mão" in resposta and "não mandei nada" in resposta, True)
     checar("sem reservar o disparo", any("nay_reservar_disparo_de_lista" in s for s in conn.sqls), False)
+
+    print("\n  03/11: a lista vai só aos grupos marcados na vaga (Top 5 mais pedidos)")
+    enviados.clear()
+    conn = ConnFake(no_ar={5724, 5757}, do_piso=[5757])
+    resposta = publicador._disparar_lista(dict(comando, grupos_ids=["g2"], vaga_id=99), conn, pausa=lambda s: None)
+    por_grupo = dict(enviados)
+    checar("o grupo comum, sem marcação, não recebe nada", "g1" in por_grupo, False)
+    checar("o marcado (Alto Padrão) recebe só a linha que passa na regra dele",
+           ["cod 5757" in por_grupo.get("g2", ""), "cod 5724" in por_grupo.get("g2", "")], [True, False])
+    checar("a regra veio do imóvel escrito, não da categoria da vaga",
+           any("nay_condominio_de_verdade" in s for s in conn.sqls), True)
+    checar("a reserva é da vaga", any("nay_reservar_disparo_de_lista" in s for s in conn.sqls), True)
+    enviados.clear()
+    conn = ConnFake(no_ar={5724, 5757})
+    resposta = publicador._disparar_lista(dict(comando, negocio="venda", grupos_ids=["g-que-nao-existe"], vaga_id=98),
+                                          conn, pausa=lambda s: None)
+    checar("marcado que não aceita o negócio: nada sai", (enviados, "não mandei nada" in resposta), ([], True))
 
     print("\n  a lista automática continua como era")
     enviados.clear()

@@ -1229,6 +1229,24 @@ def _codigos_no_ar(conn, codigos, negocio):
         return {int(l["codigo"]) for l in cur.fetchall()}
 
 
+def _escritos_na_regra(conn, escritos, negocio, piso=None, so_cond=False):
+    """Dos códigos ESCRITOS na lista, os que passam na regra de um grupo (o piso de valor e o "só condomínio").
+
+    03/11 (as listas Top 5 mais pedidos, Pedro): a lista escrita à mão mistura casa e apartamento, e a regra antiga
+    perguntava à categoria da vaga (`_codigos_da_lista`): o Alto Padrão perderia as casas de uma lista "apartamento".
+    Aqui vale o imóvel de cada linha, com a MESMA regra de condomínio da lista automática."""
+    if not escritos:
+        return set()
+    campo = "valor_venda" if negocio == "venda" else "valor_aluguel"
+    with conn.cursor() as cur:
+        cur.execute(
+            f"SELECT i.codigo FROM imoveis i WHERE i.codigo = ANY(%s) "
+            f"   AND coalesce(i.{campo}, 0) >= coalesce(%s, 0) "
+            f"   AND (NOT %s OR nay_condominio_de_verdade(i.tipo, i.condominio_nome) IS NOT NULL)",
+            (sorted(escritos), piso, bool(so_cond)))
+        return {int(l["codigo"]) for l in cur.fetchall()}
+
+
 def _lista_escrita_a_mao(texto, permitidos):
     """(texto, quantos) da lista que o Pedro escreveu no site, só com o que pode sair.
 
@@ -2392,7 +2410,16 @@ def _disparar_lista(comando, conn, pausa=time.sleep):
                     f"no momento -- não mandei nada {onde_txt}.")
 
     grupos = carregar_grupos_db(conn)
-    if destino == "easy":
+    # OS GRUPOS MARCADOS NA VAGA (03/11, as listas Top 5 mais pedidos): a lista vai só a eles, cada um com a regra
+    # dele (negócio, piso, só condomínio, só comercial). Sem marcação, o destino de sempre.
+    marcados = set(comando.get("grupos_ids") or [])
+    if marcados:
+        campo = "aceita_venda" if negocio == "venda" else "aceita_locacao"
+        destinos = [g for g in grupos if g["id_grupo"] in marcados and g.get(campo)]
+        if not destinos:
+            return (f"nenhum dos grupos marcados aceita {negocio_txt} -- "
+                    f"não mandei nada.")
+    elif destino == "easy":
         # SÓ O EASY, pelo apelido. `dispara lista ... no anunciar easy` nunca
         # pediu o grupo Alto Padrão, e mandar a lista inteira para lá seria
         # despejo num grupo que existe para receber imóvel escolhido a dedo.
@@ -2419,7 +2446,9 @@ def _disparar_lista(comando, conn, pausa=time.sleep):
     with conn.cursor() as cur:
         cur.execute(
             "SELECT id, ja_foi_em FROM nay_reservar_disparo_de_lista(%s,%s,%s,%s)",
-            (categoria, negocio, destino, bool(comando.get("de_novo"))))
+            # a vaga de grupos marcados tem a reserva dela: duas Top 5 no mesmo horário não se travam
+            (categoria, negocio, f"vaga {comando.get('vaga_id')}" if marcados else destino,
+             bool(comando.get("de_novo"))))
         reserva = cur.fetchone() or {}
     conn.commit()  # a reserva vale JÁ -- o envio abaixo leva dezenas de segundos
 
@@ -2452,8 +2481,9 @@ def _disparar_lista(comando, conn, pausa=time.sleep):
             return pedacos, quantos
         chave = (piso, so_cond)
         if chave not in por_regra and texto_fixo:
-            aceitos = {int(c) for c in _codigos_da_lista(conn, categoria, negocio,
-                                                         piso, so_cond)}
+            aceitos = (_escritos_na_regra(conn, escritos, negocio, piso, so_cond) if marcados
+                       else {int(c) for c in _codigos_da_lista(conn, categoria, negocio,
+                                                               piso, so_cond)})
             t, n = _lista_escrita_a_mao(texto, aceitos)
             por_regra[chave] = ((_pedacos_da_lista(t) if n else []), n)
         if chave not in por_regra:

@@ -117,7 +117,9 @@ def teste_vaga_de_lista_dispara_pelo_mesmo_caminho_do_comando():
     # corte por aceita_locacao e a quebra em pedaços. Montar a mensagem num
     # segundo lugar faria os dois divergirem.
     assert chamadas == [{"categoria": "apartamento", "negocio": "locacao",
-                         "destino": "parceiros", "texto_fixo": None}], chamadas
+                         "destino": "parceiros", "texto_fixo": None,
+                         # 03/11: os grupos marcados da vaga viajam junto (Top 5 mais pedidos)
+                         "grupos_ids": None, "vaga_id": 12}], chamadas
     assert not postar.called, "vaga de lista não posta imóvel"
 
     # A LISTA ESCRITA À MÃO NO SITE (03/10): o texto da vaga viaja no comando.

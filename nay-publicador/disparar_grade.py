@@ -108,7 +108,9 @@ def disparar_grade(conexao=None, agora=None, tel_whatsapp=None):
                     {"categoria": vaga["categoria"], "negocio": vaga["negocio"],
                      "destino": vaga["destino"],
                      # o texto escrito à mão no site (03/10): vazio = lista montada agora
-                     "texto_fixo": vaga.get("texto_fixo")}, conn)
+                     "texto_fixo": vaga.get("texto_fixo"),
+                     # 03/11 (as listas Top 5 mais pedidos): a lista vai SÓ aos grupos marcados na vaga
+                     "grupos_ids": vaga.get("grupos_ids"), "vaga_id": vaga.get("id")}, conn)
                 enviar_ao_tel(destino,
                               f"Vaga de {descrever_vaga(vaga)} "
                               f"({_descrever_lista(vaga)}): {resposta}",
