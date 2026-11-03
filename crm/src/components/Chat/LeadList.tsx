@@ -525,14 +525,15 @@ export default function LeadList({
     if (linha !== 'captacao') return null
     return acharTipo(tiposDeContato, papelNoLeads(l) || (olxClientes[fim8(l.phone)] ? 'cliente' : null))
   }
-  const idDaAdministracao = (allTags as any[]).find((t) => t.name === 'Administração' || (t.nome_original || t.name) === 'Fechamento')?.id as string | undefined
+  /* 03/11, à tarde (Pedro: "volte as etapas que estão Administração nos números para Fechamento ... os SDR podem ver a aba
+     Fechamento ... mas os marcados como Administração só quem pode ver é o Tel"): Administração é só o tipo de contato
+     Administração. A etiqueta e a etapa Fechamento voltaram ao nome de nascença e a equipe toda vê. */
   const emAdministracao = (l: LeadWithOwner) => tipoDe(l)?.chave === 'administracao'
-    || (!!idDaAdministracao && (l.lead_tags || []).some((lt: any) => lt.tag_id === idDaAdministracao))
 
   /* 03/11 (Pedro: "a etapa Administração não vai aparecer para o Lucas, a não ser que o Tel adicione o Lucas ... e essa
-     conversa aparece fixada lá no número Leads"): no Leads, quem não é administrador não vê a conversa de Administração
-     (nem na lupa), a não ser que tenha sido adicionado a ela; a adicionada fica fixada em cima */
-  const escondidaDeMim = (l: LeadWithOwner) => linha === 'captacao' && !ehAdmin && emAdministracao(l) && !pessoasDe(l).includes(meuId)
+     conversa aparece fixada lá no número Leads"): quem não é administrador não vê a conversa de Administração (nem na
+     lupa), a não ser que tenha sido adicionado a ela; a adicionada fica fixada em cima. Nos dois números (03/11, à tarde). */
+  const escondidaDeMim = (l: LeadWithOwner) => !ehAdmin && emAdministracao(l) && !pessoasDe(l).includes(meuId)
   const fixadaParaMim = (l: LeadWithOwner) => linha === 'captacao' && !!meuId && pessoasDe(l).includes(meuId)
   const naAba = (l: LeadWithOwner) => !!linha && !escondidaDeMim(l) && (mudouPara(l)
     ? mudouPara(l) === linha
@@ -700,8 +701,8 @@ export default function LeadList({
           titulo: 'Com visita aberta — quem atende é a Rayssa. Fechou a visita, volta para Todos e a Nay volta a atender.' },
         { chave: 'proprietarios', rosa: true, rotulo: 'Proprietários', grupo: 'etapa', pessoas: contagem['semler:proprietarios'],
           titulo: 'Quem a Nay sabe que é dono de imóvel. Só aparece aqui.' },
-        // 03/11 (Pedro): Fechamento virou Administração (a chave continua 'fechamento': a Nay e o checklist)
-        { chave: 'fechamento', rosa: true, rotulo: 'Administração', grupo: 'etapa', pessoas: contagem['semler:fechamento'],
+        // 03/11, à tarde (Pedro): voltou a Fechamento, e a equipe toda vê; Administração é o tipo de contato, só do Tel
+        { chave: 'fechamento', rosa: true, rotulo: 'Fechamento', grupo: 'etapa', pessoas: contagem['semler:fechamento'],
           titulo: 'Já pediu o checklist — está juntando a documentação. Entra aqui sozinho quando a Nay manda o checklist.' },
         // 02/11 (Pedro): saiu a aba Tel, entrou a do Lucas
         { chave: 'lucas', rotulo: 'Lucas', grupo: 'pessoa', cor: '#34D399', pessoas: contagem['semler:lucas'], titulo: 'Quem foi posto com o Lucas à mão, no card da conversa' },
@@ -802,14 +803,10 @@ export default function LeadList({
 
   const passaNoFiltro = (hit: SearchHit): boolean => {
     const l = hit.lead
-    /* 03/11 (Pedro: "troca a etapa Fechamento pela etapa Administração, e sempre que mandar um lead para lá ele some de
-       todas"): no Leads, quem está em Administração (a etiqueta, ou o tipo de contato Administração) aparece SÓ nela --
-       nem em Todos. A lupa continua achando. */
-    if (linha === 'captacao' && idDaAdministracao) {
-      if (activeTab === `tag:${idDaAdministracao}`) return emAdministracao(l)
-      // quem foi adicionado vê a conversa fixada em Todos (só ali, além de Administração)
-      if (emAdministracao(l)) return activeTab === 'all' && !ehAdmin && pessoasDe(l).includes(meuId)
-    }
+    /* 03/11 (Pedro: "sempre que mandar um lead para lá ele some de todas"): quem está em Administração (o tipo de contato)
+       não aparece em aba nenhuma do número -- mora no Chat Administração do Tel, e volta pelo botão direito de lá. A lupa
+       do Tel continua achando. Quem foi adicionado vê a conversa fixada em Todos. */
+    if (emAdministracao(l)) return activeTab === 'all' && !ehAdmin && pessoasDe(l).includes(meuId)
     // 20/10: no Leads, Todos é a linha inteira (como já era)
     if (usarAbasDeEtiquetas && activeTab === 'all') return true
     /* O PROPRIETÁRIO SÓ APARECE NA ETAPA DELE (Tel, 30/09): "os proprietários

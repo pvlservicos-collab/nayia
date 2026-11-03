@@ -1,7 +1,8 @@
 /**
  * POST /api/leads/{id}/organizar -- a organização da conversa (Pedro, 03/11/2026; ver src/lib/organizacaoDoLead.ts).
  *
- *   { tipo: 'administracao' | null }                     o tipo de contato (null = volta ao que a lista deduz)
+ *   { tipo: 'administracao' | null }                     o tipo de contato (null = volta ao que a lista deduz);
+ *                                                        'administracao' tira a conversa das abas do número (Chat Administração)
  *   { mostrarEm: { linha: 'parceria', ligar: true } }    a conversa aparece também na aba daquela linha (misto)
  *   { dentroDe: { pai: '<lead id>', ligar: true } }      põe esta conversa dentro de outra (a setinha da lista)
  *   { rayssa: true }                                     "Enviar para Rayssa": a conversa SAI do Leads e vai para a aba Rayssa da
@@ -40,20 +41,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         ? sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) || jsonb_build_object('tipo_contato', ${tipo}::text),
                  updated_at = now() WHERE id = ${id}`
         : sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) - 'tipo_contato', updated_at = now() WHERE id = ${id}`)
-      /* 03/11 ("troca a etapa Fechamento pela etapa Administração"): mandar para Administração é mudar de ETAPA no Leads --
-         a etiqueta Administração (nascida Fechamento) entra e as outras três etapas saem, como em api/leads/[id]/tags */
-      if (tipo === 'administracao') {
-        await db.execute(sql`
-          DELETE FROM lead_tags lt USING tags t
-           WHERE lt.lead_id = ${id} AND t.id = lt.tag_id AND t.organization_id = ${auth.organizationId}
-             AND coalesce(t.nome_original, t.name) IN ('Visita', 'Proprietários', 'Finalizados')`)
-        await db.execute(sql`
-          INSERT INTO lead_tags (lead_id, tag_id, organization_id)
-          SELECT ${id}::uuid, t.id, ${auth.organizationId}::uuid FROM tags t
-           WHERE t.organization_id = ${auth.organizationId} AND coalesce(t.nome_original, t.name) = 'Fechamento'
-             AND NOT EXISTS (SELECT 1 FROM lead_tags x WHERE x.lead_id = ${id} AND x.tag_id = t.id)
-           LIMIT 1`)
-      }
+      /* 03/11, à tarde (Pedro): Administração é só este tipo (só o Tel vê); a etiqueta Fechamento voltou a ser a etapa
+         Fechamento, que a equipe toda vê, e não entra mais junto */
     }
     if (corpo.mostrarEm) {
       const linha = String(corpo.mostrarEm.linha || '')

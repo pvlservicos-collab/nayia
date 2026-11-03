@@ -8,7 +8,7 @@
  *   Tipo            o tipo de contato (cor na lista); o lápis do menu edita a lista de tipos
  *   Rayssa          a conversa aparece na aba Rayssa da Parceria, com a faixa "Conversando pelo número Leads";
  *                   a Nay Leads cala (etapa 'rayssa' da captação)
- *   Administração   o tipo vira Administração: a conversa vai para a aba Administração (a antiga Fechamento)
+ *   Administração   o tipo vira Administração: a conversa sai das abas do número e vai para o Chat Administração (só o Tel)
  *   Dentro de…      põe esta conversa dentro de outra (a setinha da lista), ou tira
  */
 import { useEffect, useRef, useState } from 'react'
@@ -113,7 +113,7 @@ export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar, soDevol
         <span className="hidden xl:inline">Enviar para Rayssa</span>
       </button>
       <button type="button" className={botao} style={borda} onClick={enviarAdministracao} disabled={!!ocupado}
-              title="O contato vira Administração e vai para a aba Administração">
+              title="O contato vira Administração: sai das abas deste número e vai para o Chat Administração (só o Tel vê)">
         {ocupado === 'Enviado para a Administração' ? <CircleNotch size={16} className="animate-spin" /> : <FolderSimpleUser size={16} />}
         <span className="hidden xl:inline">Enviar para administração</span>
       </button>
@@ -291,27 +291,23 @@ function TirarDeDentro({ final, lead, fazer }: { final: string; lead: LeadWithOw
   )
 }
 
-/** 03/11 (Pedro: "no Parceria ter o botão Enviar para administração"): a etapa Administração da Parceria (a chave é
- *  'fechamento', a mesma do card), pela rota do card (/api/leads/[id]/contato), que também avisa a Nay. */
+/** 03/11 (Pedro: "no Parceria ter o botão Enviar para administração"). À tarde, a etapa voltou a ser Fechamento e
+ *  Administração ficou só o tipo de contato, igual ao Leads: a conversa sai das abas da Parceria e vai para o Chat
+ *  Administração (só o Tel vê). */
 export function EnviarParaAdministracaoParceria({ lead, aoMudar }: { lead: LeadWithOwner; aoMudar: (o: Organizado) => void }) {
   const [ocupado, setOcupado] = useState(false)
   const [aviso, setAviso] = useState('')
-  const ja = lead.custom_attributes?.etapa_parceria === 'fechamento'
+  const ja = lead.custom_attributes?.tipo_contato === 'administracao'
   return (
     <div className="relative">
       <button type="button" disabled={ocupado || ja}
               className="flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-[13px] font-semibold flex-shrink-0 disabled:opacity-60"
               style={{ border: '1px solid var(--wa-divider)', color: 'var(--wa-text)' }}
-              title="A conversa vai para a etapa Administração (e aparece no Chat Administração do Tel)"
+              title="A conversa sai das abas da Parceria e vai para o Chat Administração (só o Tel vê)"
               onClick={async () => {
                 setOcupado(true); setAviso('')
                 try {
-                  const r = await fetch(`/api/leads/${lead.id}/contato`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ etapa: 'fechamento' }),
-                  })
-                  const j = await r.json().catch(() => ({}))
-                  if (!r.ok) throw new Error(j.error || j.message || 'Não consegui mudar a etapa.')
-                  aoMudar({ custom_attributes: { ...(lead.custom_attributes || {}), etapa_parceria: 'fechamento', etapa_parceria_em: new Date().toISOString() } })
+                  aoMudar(await organizar(lead.id, { tipo: 'administracao' }))
                   setAviso('Enviado para a Administração')
                 } catch (e: any) { setAviso(e.message || 'Não consegui.') } finally { setOcupado(false); setTimeout(() => setAviso(''), 2500) }
               }}>

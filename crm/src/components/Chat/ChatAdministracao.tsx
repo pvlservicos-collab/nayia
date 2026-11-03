@@ -6,11 +6,18 @@
  * vai estar disponível para o usuário Tel; as etapas são só Todos e Não lidos; quando o Tel digitar vai sair pelo número,
  * como se fosse pelo chat do número; e põe tags lá também, mas outras tags, zeradas, que ele pode clicar".
  *
- * Quem entra:
- *   WhatsApp Leads     a etiqueta Administração (nascida Fechamento) ou o tipo de contato Administração
- *   WhatsApp Parceria  a etapa Administração (a antiga Fechamento: o fechamento aberto ou a escolha no card) ou o tipo
+ * Quem entra: o tipo de contato Administração, nos dois números (03/11, à tarde, Pedro: "volte as etapas que estão
+ * Administração nos números para Fechamento ... os marcados como Administração só quem pode ver é o Tel"). A etiqueta e a
+ * etapa Fechamento voltaram a ser Fechamento, que a equipe toda vê, e não trazem mais ninguém para cá.
  * Cada conversa continua sendo da linha dela (crm/CLAUDE.md): a faixa diz por qual número fala, e a resposta sai por ele.
  * As etiquetas desta tela (as abas depois de Todos e Não lidos) são escolhidas aqui e começam vazias; ficam neste navegador.
+ *
+ * O BOTÃO DIREITO (Pedro, 03/11: "uma opção de tirar o lead quando eu clicar com o botão direito e voltar ele ao contato
+ * como Todos, ou Proprietário, ou Fechamento"): o tipo Administração sai e a conversa volta às abas do número dela --
+ *   Todos         sem tipo escolhido (vale o que a lista deduz); na Parceria, a etapa Todos do card
+ *   Proprietário  o tipo Proprietário; na Parceria, a etapa Proprietários do card
+ *   Fechamento    no Leads, a etiqueta Fechamento (que move o card para a etapa fechamento); na Parceria, a etapa do card
+ * Na Parceria vai pela rota do card (/api/leads/[id]/contato), que também avisa a Nay, como quem escolhe no card.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CircleNotch, FolderSimpleUser, Plus, X } from '@phosphor-icons/react'
@@ -20,15 +27,19 @@ import { useParceriaMarcas } from '@/hooks/useParceriaMarcas'
 import { useTiposDeContato } from '@/hooks/useTiposDeContato'
 import type { LeadWithOwner } from '@/lib/types'
 import { getLinhaWhatsapp } from '@/lib/leadChannel'
-import { etapaDaParceria } from '@/lib/etapaDaParceria'
 import { acharTipo, tipoEscolhido } from '@/lib/organizacaoDoLead'
 import { CORES_DE_ETIQUETA, criarEtiqueta, useEtiquetas } from '@/lib/etiquetas'
 import NotAuthorized from '@/components/Shared/NotAuthorized'
 import LeadListItem, { ehEtapaComoTag } from './LeadListItem'
 import ChatWindow from './ChatWindow'
+import { organizar } from './OrganizarConversa'
 
 const CHAVE_ABAS = 'crm:abas-administracao'
 const NUMERO: Record<string, string> = { captacao: 'Pelo número Leads · 8595-6408', parceria: 'Pelo número Parceria · 9445-3618' }
+type Volta = 'todos' | 'proprietarios' | 'fechamento'
+const VOLTAS: { chave: Volta; rotulo: string }[] = [
+  { chave: 'todos', rotulo: 'Todos' }, { chave: 'proprietarios', rotulo: 'Proprietário' }, { chave: 'fechamento', rotulo: 'Fechamento' },
+]
 
 function hora(iso?: string) {
   if (!iso) return ''
@@ -46,23 +57,62 @@ export default function ChatAdministracao() {
   const { marcas } = useParceriaMarcas(true)
   const { tipos } = useTiposDeContato()
   const etiquetas = useEtiquetas()
-  const idAdm = etiquetas.find((t) => (t.nomeOriginal || t.name) === 'Fechamento' || t.name === 'Administração')?.id
+  const idFechamento = etiquetas.find((t) => (t.nomeOriginal || t.name) === 'Fechamento')?.id
 
   const [aba, setAba] = useState<string>('todos')
   const [selecionada, setSelecionada] = useState<string | null>(null)
   const [abas, setAbas] = useState<string[]>([])
   const [escolhendo, setEscolhendo] = useState(false)
+  const [menu, setMenu] = useState<{ x: number; y: number; lead: LeadWithOwner } | null>(null)
+  const [tirando, setTirando] = useState('')
+  useEffect(() => {
+    if (!menu) return
+    const fechar = () => setMenu(null)
+    const tecla = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenu(null) }
+    window.addEventListener('click', fechar)
+    window.addEventListener('scroll', fechar, true)
+    window.addEventListener('keydown', tecla)
+    return () => { window.removeEventListener('click', fechar); window.removeEventListener('scroll', fechar, true); window.removeEventListener('keydown', tecla) }
+  }, [menu])
   useEffect(() => { try { setAbas(JSON.parse(localStorage.getItem(CHAVE_ABAS) || '[]')) } catch {} }, [])
   const salvarAbas = (novas: string[]) => { setAbas(novas); try { localStorage.setItem(CHAVE_ABAS, JSON.stringify(novas)) } catch {} }
 
   const daAdministracao = useCallback((l: LeadWithOwner) => {
     if (l.is_group || l.is_archived) return false
     const linha = getLinhaWhatsapp(l)
-    if (acharTipo(tipos, tipoEscolhido(l))?.chave === 'administracao') return linha === 'captacao' || linha === 'parceria'
-    if (linha === 'captacao') return !!idAdm && (l.lead_tags || []).some((lt: any) => lt.tag_id === idAdm)
-    if (linha === 'parceria') return etapaDaParceria(l, marcas[l.id]) === 'fechamento'
-    return false
-  }, [tipos, idAdm, marcas])
+    return (linha === 'captacao' || linha === 'parceria') && acharTipo(tipos, tipoEscolhido(l))?.chave === 'administracao'
+  }, [tipos])
+
+  /** tira da Administração e devolve a conversa às abas do número dela (ver o cabeçalho) */
+  const tirar = async (l: LeadWithOwner, volta: Volta) => {
+    setMenu(null); setTirando(l.id)
+    try {
+      const linha = getLinhaWhatsapp(l)
+      if (linha === 'parceria') {
+        const r = await fetch(`/api/leads/${l.id}/contato`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ etapa: volta }),
+        })
+        const j = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error(j.error || j.message || 'Não consegui mudar a etapa.')
+      } else if (volta === 'fechamento') {
+        if (!idFechamento) throw new Error('Não achei a etiqueta Fechamento.')
+        const r = await fetch(`/api/leads/${l.id}/tags`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tag_id: idFechamento }),
+        })
+        if (!r.ok) throw new Error('Não consegui pôr a etiqueta Fechamento.')
+      }
+      // por último o tipo: a resposta traz o custom_attributes inteiro, já com a etapa da Parceria
+      const o = await organizar(l.id, { tipo: volta === 'proprietarios' ? 'proprietario' : null })
+      setLeads((p) => p.map((x) => x.id !== l.id ? x : {
+        ...x, custom_attributes: o.custom_attributes,
+        lead_tags: linha === 'captacao' && volta === 'fechamento' && idFechamento && !(x.lead_tags || []).some((lt: any) => lt.tag_id === idFechamento)
+          ? [...(x.lead_tags || []), { tag_id: idFechamento } as any] : x.lead_tags,
+      }))
+      if (selecionada === l.id) setSelecionada(null)
+    } catch (e: any) {
+      window.alert(e?.message || 'Não consegui tirar da Administração.')
+    } finally { setTirando('') }
+  }
 
   const todas = useMemo(() => leads.filter(daAdministracao)
     .sort((a, b) => new Date(b.last_activity_at || b.created_at).getTime() - new Date(a.last_activity_at || a.created_at).getTime()),
@@ -129,7 +179,7 @@ export default function ChatAdministracao() {
         {escolhendo && (
           <div className="mx-3 mb-2 p-2 rounded-lg flex flex-col gap-1 max-h-64 overflow-y-auto" style={{ border: '1px solid var(--wa-divider)', color: 'var(--wa-text)' }}>
             <span className="text-[12px]" style={{ color: 'var(--wa-text-2)' }}>As etiquetas que viram aba aqui (a contagem é só de quem está em Administração)</span>
-            {etiquetas.filter((t) => !ehEtapaComoTag(t.name) && t.id !== idAdm).map((t) => (
+            {etiquetas.filter((t) => !ehEtapaComoTag(t.name) && t.id !== idFechamento).map((t) => (
               <label key={t.id} className="flex items-center gap-2 text-[13px] cursor-pointer">
                 <input type="checkbox" checked={abas.includes(t.id)}
                        onChange={(e) => salvarAbas(e.target.checked ? [...abas, t.id] : abas.filter((x) => x !== t.id))} />
@@ -155,12 +205,36 @@ export default function ChatAdministracao() {
           )}
           {visiveis.map((l) => (
             <LeadListItem key={l.id} lead={l} isSelected={l.id === selecionada} timeStr={hora(l.last_activity_at || l.created_at)}
-                          onClick={abrir} onContextMenu={(e) => e.preventDefault()}
+                          onClick={abrir} onContextMenu={(e, lead) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, lead }) }}
                           faixaDaLinha={NUMERO[getLinhaWhatsapp(l) || ''] || null}
                           tipoDoContato={acharTipo(tipos, tipoEscolhido(l))} cinzas />
           ))}
         </div>
       </div>
+      {menu && (
+        <div className="fixed z-50 py-1 rounded-lg shadow-lg text-[14px] min-w-[220px]"
+             style={{ left: Math.min(menu.x, window.innerWidth - 240), top: Math.min(menu.y, window.innerHeight - 170),
+                      background: 'var(--wa-panel, #fff)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }}
+             onClick={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
+          <div className="px-3 py-1.5 text-[12px]" style={{ color: 'var(--wa-text-2)' }}>
+            Tirar da Administração e voltar para
+          </div>
+          {VOLTAS.map((v) => (
+            <button key={v.chave} type="button" disabled={!!tirando}
+                    className="w-full text-left px-3 py-2 hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-50"
+                    title={`A conversa sai daqui e volta para ${v.rotulo} no número ${getLinhaWhatsapp(menu.lead) === 'parceria' ? 'Parceria' : 'Leads'}`}
+                    onClick={() => tirar(menu.lead, v.chave)}>
+              {v.rotulo}
+            </button>
+          ))}
+        </div>
+      )}
+      {tirando && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-3 py-2 rounded-lg shadow text-[13px] flex items-center gap-2"
+             style={{ background: 'var(--wa-panel, #fff)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }}>
+          <CircleNotch size={14} className="animate-spin" /> Tirando da Administração…
+        </div>
+      )}
       <div className="flex-1 min-w-0 min-h-0">
         {aberta ? (
           <ChatWindow key={aberta.id} lead={aberta} organizationId={organizationId || ''} onMessageSent={aoEnviar}

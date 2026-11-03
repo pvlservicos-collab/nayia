@@ -13,8 +13,8 @@ export const ETAPAS_OLX = [
   { chave: 'imoveis_enviados', rotulo: 'Imóveis enviado', cor: '#16a34a', titulo: 'A Nay mandou os imóveis (card e fotos, um por vez)' },
   { chave: 'visita', rotulo: 'Visita', cor: '#be185d', titulo: 'Quer visitar: imóvel e horário anotados, a equipe combina com o proprietário e o corretor' },
   { chave: 'proprietarios', rotulo: 'Proprietários', cor: '#d97706', titulo: 'Combinando com o proprietário' },
-  // 03/11 (Pedro: "troca a etapa Fechamento pela etapa Administração"): a chave continua 'fechamento' (a Nay e o funil)
-  { chave: 'fechamento', rotulo: 'Administração', cor: '#7c3aed', titulo: 'Administração: negócio em fechamento e contatos da administração' },
+  // 03/11, à tarde (Pedro): volta a ser Fechamento; Administração agora é o tipo de contato, só do Tel (organizacaoDoLead.ts)
+  { chave: 'fechamento', rotulo: 'Fechamento', cor: '#7c3aed', titulo: 'Negócio em fechamento' },
   { chave: 'finalizado', rotulo: 'Finalizados', cor: '#6b7280', titulo: 'Atendimento encerrado' },
 ] as const
 

@@ -59,7 +59,7 @@ export const ROTULO_DA_ETAPA: Record<DestinoParceria, string> = {
   todos: 'Todos',
   visitas: 'Visitas',
   proprietarios: 'Proprietários',
-  fechamento: 'Administração',   // 03/11 (Pedro): "o Fechamento deve ser substituído por Administração no número Parceria também"
+  fechamento: 'Fechamento',   // 03/11, à tarde (Pedro): voltou a Fechamento; Administração é o tipo de contato, só do Tel
   tel: 'Tel',
   rayssa: 'Rayssa',
   lucas: 'Lucas',
