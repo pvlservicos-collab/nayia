@@ -189,6 +189,8 @@ def _ao_grupo_com_cadastro(conn, o: dict, lead: dict, a: dict, texto: str, motiv
 def entregar_do_cadastro(conn, o: dict, lead: dict) -> None:
     """O pré-cadastro ficou Disponível: o card vai ao cliente e a Nay volta a atender."""
     codigo = int(o["codigo"])
+    if whatsapp.card_ja_foi(conn, lead, codigo):      # 03/11: o mesmo imóvel não vai duas vezes
+        return
     whatsapp.mandar_texto(conn, lead, "Boa notícia! Consegui uma opção que combina com o que você procura:")
     time.sleep(whatsapp.ENTRE_ENVIOS_S)
     whatsapp.mandar_imovel(conn, lead, codigo)

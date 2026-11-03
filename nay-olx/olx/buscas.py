@@ -1077,6 +1077,10 @@ def oferecer_ao_cliente(conn, b: dict, codigo: int, cor: dict, c: dict) -> str:
 
 def _mandar_ao_cliente(conn, lead: dict, codigos: list[int]) -> str:
     """Os imóveis um de cada vez (card, fotos, espera as fotos, o próximo) e uma pergunta no fim."""
+    # 03/11 (Pedro: "enviando 2 vezes o mesmo imóvel"): o que já foi para ela nas últimas 24 h, por qualquer caminho, não vai
+    codigos = [c for c in codigos if not whatsapp.card_ja_foi(conn, lead, c)]
+    if not codigos:
+        return "cliente"
     um = len(codigos) == 1
     whatsapp.mandar_texto(conn, lead, "Boa notícia! Encontrei uma opção que combina com o que você procura:" if um else
                           f"Boa notícia! Encontrei {len(codigos)} opções que combinam com o que você procura:")

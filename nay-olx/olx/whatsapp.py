@@ -376,10 +376,30 @@ def sem_repetir(baloes: list[str], ja: list[str]) -> list[str]:
     return saida
 
 
-def mandar_imovel(conn, lead: dict, codigo: int, com_card: bool = True, com_fotos: bool = True) -> int:
+# 03/11 (Pedro: "a Nay Leads está enviando 2 vezes o mesmo imóvel"): a Aline (lead 58) recebeu o #9119 duas vezes e o #9120
+# três em 12 minutos -- a busca da base, a dos grupos e a revisita mandaram cada uma o seu card, e nenhuma olhava a conversa
+CARD_REPETIDO_H = 24
+
+
+def card_ja_foi(conn, lead: dict, codigo: int, horas: int = CARD_REPETIDO_H) -> bool:
+    """O card deste imóvel já foi para esta pessoa (por este número) nas últimas `horas`."""
+    tel8 = _so8(lead.get("telefone"))
+    if not tel8 or not codigo:
+        return False
+    return bool(banco.um(conn, """SELECT EXISTS (SELECT 1 FROM captacao_mensagens
+                                    WHERE direcao = 'enviada' AND criada_em > now() - make_interval(hours => %s)
+                                      AND right(regexp_replace(coalesce(telefone, ''), '\\D', '', 'g'), 8) = %s
+                                      AND texto ~ ('C[oó]digo:\\s*' || %s::text || '\\M'))""", (horas, tel8, str(int(codigo)))))
+
+
+def mandar_imovel(conn, lead: dict, codigo: int, com_card: bool = True, com_fotos: bool = True, repetir: bool = False) -> int:
     """O card e as fotos de UM imóvel (sem a colagem, que é só dos grupos). Devolve quantas fotos saíram.
     `com_card=False`: só as fotos ("gostaria de ver mais fotos" do imóvel que ela já conhece).
-    `com_fotos=False`: só o card (21/10: para ela dizer qual imóvel quer visitar, sem pedir o código)."""
+    `com_fotos=False`: só o card (21/10: para ela dizer qual imóvel quer visitar, sem pedir o código).
+    `repetir=True`: manda mesmo que o card já tenha ido nas últimas 24 h (ela pediu de novo, ou a equipe mandou à mão)."""
+    if com_card and not repetir and card_ja_foi(conn, lead, codigo):
+        agentes.passo(lead, "card_repetido", f"o card do #{codigo} já foi nas últimas {CARD_REPETIDO_H} h: não reenvia")
+        return 0
     # 400: o card de CLIENTE (o de parceiro sai completo); só chega aqui o que _ofertavel deixou
     card = banco.um(conn, "SELECT texto_pronto FROM nai_card_do_imovel(%s, true)", (codigo,)) if com_card else None
     if card:
@@ -1656,7 +1676,7 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
                 if not any(_normal("Já te mandei as fotos") in _normal(x) for x in ja_mandou(conn, lead)):
                     mandar_texto(conn, lead, "Já te mandei as fotos desse aqui em cima na conversa. Quer que eu mande de novo?")
                 continue
-            mandar_imovel(conn, lead, codigo, com_card=not ja_viu)
+            mandar_imovel(conn, lead, codigo, com_card=not ja_viu, repetir=bool(DE_NOVO.search(" ".join(r.get("_novas") or []))))
             if not ja_viu:
                 enviados.append(codigo)
                 _marcar(conn, lead["id"], enviados=enviados)
@@ -1879,6 +1899,13 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
     if achados and not proximas:
         # 489: o veto do JEV antes dos cards (só no perfil exato: os "mais próximos" já vão avisados como próximos)
         achados = agentes.filtrar_imoveis(lead, f, achados)
+    # 03/11: o que já foi para ela nas últimas 24 h sai da lista; se nada sobra, não repete a mensagem nem os cards
+    if achados:
+        novos_achados = [a for a in achados if not card_ja_foi(conn, lead, int(a["codigo"]))]
+        if not novos_achados:
+            agentes.passo(lead, "card_repetido", "tudo o que a busca achou já foi para ela nas últimas 24 h: não repete")
+            return
+        achados = novos_achados
     if lead.get("etapa") in ETAPAS_DA_BUSCA:
         _marcar(conn, lead["id"], etapa="feito_busca")
     # 475 (Pedro, 22/10): a busca do cliente conta o que a nossa base deu; nada no perfil exato ativa os grupos e a OLX
@@ -2218,7 +2245,7 @@ def enviar_pedidos(conn) -> int:
                     continue
                 if enviados:
                     time.sleep(DEPOIS_DAS_FOTOS_S)       # as fotos do anterior carregam antes do próximo card
-                mandar_imovel(conn, lead, int(codigo))
+                mandar_imovel(conn, lead, int(codigo), repetir=True)   # a equipe mandou à mão pelo CRM: vai
                 enviados.append(int(codigo))
                 banco.um(conn, "UPDATE privado.captacao_envio_pedido SET enviados = %s WHERE id = %s", (enviados, p["id"]))
             if lead.get("id") and enviados:
