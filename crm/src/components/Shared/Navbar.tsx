@@ -29,6 +29,7 @@ import {
   ChatTeardropText,
   BookOpenText,
   Lightbulb,
+  ClipboardText,
   Queue,
 } from '@phosphor-icons/react'
 import { useAuth, usePipeline } from '@/hooks'
@@ -90,6 +91,8 @@ const NAV_ITEMS = [
   { label: 'Guia de atendimento', curto: 'Guia', href: '/guia-de-atendimento', icon: Lightbulb, mais: true },
   // ESTEIRA DE FOLLOW-UP (Pedro, 02/11/2026): quem recebe follow-up em cada dia, manuais e automáticos de todas as Nays
   { label: 'Esteira de follow-up', curto: 'Follow-up', href: '/esteira-followups', icon: Queue, mais: true },
+  // CADASTROS INCOMPLETOS (Pedro, 03/11/2026): os donos com quem a conversa do cadastro do imóvel parou, com a nota pela procura
+  { label: 'Cadastros incompletos', curto: 'Cadastros', href: '/cadastros-incompletos', icon: ClipboardText, mais: true },
   { label: 'Configurações', href: '/settings/organization', icon: Gear, mais: true },
 ]
 
@@ -215,6 +218,7 @@ export default function Navbar() {
       case 'Corretores':
       case 'Tutoriais':
       case 'Esteira de follow-up':
+      case 'Cadastros incompletos':
       case 'Guia de atendimento': return !!permissions.settings?.view_chat
       case 'DM Instagram': return !!permissions.settings?.view_chat
       case 'Funil de Mensagens': return !!permissions.settings?.view_funnels
