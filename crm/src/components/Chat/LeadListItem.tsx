@@ -75,6 +75,11 @@ interface LeadListItemProps {
   origemDoCliente?: string | null
   /** 30/10 (Pedro): no "Proprietários e corretores" do Leads, a etiqueta de cada um (corretor a Nay atende; dono, não) */
   papelNoLeads?: 'corretor' | 'proprietario' | null
+  /** 03/11 (Pedro: "uma cor para cada tipo de conversa"): o tipo de contato (Cliente, Corretor, Administração...) -- a faixa
+   *  colorida à esquerda e o nome dele embaixo */
+  tipoDoContato?: { nome: string; cor: string } | null
+  /** 03/11: a conversa é de outra linha e aparece nesta aba (misto): "Falando pelo número Parceria" em cima */
+  faixaDaLinha?: string | null
 }
 
 const RECEBIDO = ['lead']
@@ -191,7 +196,7 @@ function BarrinhaDaNay({ passo, etapa }: { passo: number; etapa: string }) {
   )
 }
 
-const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, clienteOlx, etiquetasColoridas, tagsDaEquipe, onTagsChange, relacionados, aoAlternarRelacionados, relacao, passoDaNay, finalidadeDoCliente, origemDoCliente, papelNoLeads }: LeadListItemProps) => {
+const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, clienteOlx, etiquetasColoridas, tagsDaEquipe, onTagsChange, relacionados, aoAlternarRelacionados, relacao, passoDaNay, finalidadeDoCliente, origemDoCliente, papelNoLeads, tipoDoContato, faixaDaLinha }: LeadListItemProps) => {
   const robo = nay === undefined ? null : !nay ? { parada: true, texto: 'Lendo a Nay…' }
     : !nay.ligada ? { parada: true, texto: `Nay parada: ${nay.motivo || 'desligada'}` }
     : nayEmPausa(marca) ? { parada: true, texto: TEXTO_DA_PAUSA }
@@ -215,6 +220,7 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
         ...(nayLeads ? { boxShadow: 'inset 4px 0 0 #7c3aed, inset 0 0 0 9999px rgba(124, 58, 237, 0.12)' }
           // 29/10 (Pedro): "diminui o azul que destacava quem vem da OLX em 80%" e depois "troca o destaque azul por um
           // leve destaque roxo": a faixa e o fundo em roxo claro
+          : tipoDoContato ? { boxShadow: `inset 4px 0 0 ${tipoDoContato.cor}, inset 0 0 0 9999px ${tipoDoContato.cor}0d` }
           : clienteOlx ? { boxShadow: 'inset 4px 0 0 rgba(124, 58, 237, 0.28), inset 0 0 0 9999px rgba(124, 58, 237, 0.035)' }
           : {}),
         ...(relacionados ? { position: 'relative' as const } : {}),
@@ -243,6 +249,12 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
       )}
       {/* com relacionados, um respiro embaixo para a setinha do pé da linha não encostar no contador */}
       <div className={`flex-1 min-w-0 ${relacionados ? 'py-[11px]' : 'py-[11px]'}`}>
+        {faixaDaLinha && (
+          <div className="text-[11px] font-semibold leading-[14px] mb-[2px] truncate" style={{ color: '#b45309' }}
+               title="A conversa é de outro número; a resposta sai por ele">
+            {faixaDaLinha}
+          </div>
+        )}
         <div className="flex items-baseline justify-between gap-2">
           <span className="flex items-center gap-1.5 min-w-0">
             {dono ? (
@@ -268,6 +280,12 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
         </div>
 
         <div className="flex items-center gap-1.5 mt-[2px] min-w-0">
+          {tipoDoContato && !papelNoLeads && (
+            <span className="wa-marca flex-shrink-0 rounded px-1" style={{ color: '#fff', background: tipoDoContato.cor }}
+                  title="Tipo de contato (muda no alto da conversa)">
+              {tipoDoContato.nome}
+            </span>
+          )}
           {relacao && (
             <span className="wa-marca flex-shrink-0" style={{ color: 'var(--wa-text-2)' }}
                   title="Contato relacionado: a Nay falou com ele por causa do lead de cima">
@@ -395,6 +413,9 @@ export default memo(LeadListItem, (a, b) => (
   a.finalidadeDoCliente === b.finalidadeDoCliente &&
   a.origemDoCliente === b.origemDoCliente &&
   a.papelNoLeads === b.papelNoLeads &&
+  a.tipoDoContato?.nome === b.tipoDoContato?.nome &&
+  a.tipoDoContato?.cor === b.tipoDoContato?.cor &&
+  a.faixaDaLinha === b.faixaDaLinha &&
   !!a.etiquetasColoridas === !!b.etiquetasColoridas &&
   !!a.tagsDaEquipe === !!b.tagsDaEquipe &&
   a.atendente?.id === b.atendente?.id &&

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react'
 import { codigoReferenciado } from '@/lib/imovelCodigo'
 import { Image as ImageIcon, ArrowLeft, User, SidebarSimple, Robot, HouseLine } from '@phosphor-icons/react'
 import { useLeadActivities, useAuth, useChatButtonSettings, useIsMobile } from '@/hooks'
@@ -41,6 +41,10 @@ interface ChatWindowProps {
   /** 535 (Pedro, 30/10): o botão Cadastrar imóvel no alto da conversa (WhatsApp Leads) abre a barra de cadastro */
   aoCadastrarImovel?: () => void
   cadastroAberto?: boolean
+  /** 03/11 (Pedro): os botões Tipo / Enviar para Rayssa / Enviar para administração / Dentro de… (OrganizarConversa) */
+  organizar?: ReactNode
+  /** 03/11: a conversa é de OUTRA linha e aparece nesta aba (misto): "Falando pelo número Parceria" */
+  faixaDaLinha?: string | null
 }
 
 export interface ReplyContext {
@@ -127,7 +131,8 @@ function EtiquetasNoCabecalho({ lead, onTagsChange }: {
   )
 }
 
-function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlternarPainel, aoVoltar, dono, etiquetasRapidas, onTagsChange, aoCadastrarImovel, cadastroAberto }: {
+function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlternarPainel, aoVoltar, dono, etiquetasRapidas, onTagsChange, aoCadastrarImovel, cadastroAberto, organizar }: {
+  organizar?: ReactNode
   aoCadastrarImovel?: () => void
   cadastroAberto?: boolean
   /** 19/10: a lista suspensa de etiquetas ao lado do nome (Captação) */
@@ -186,6 +191,7 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
           <span className="hidden xl:inline">Cadastrar imóvel</span>
         </button>
       )}
+      {organizar}
       {etiquetasRapidas && <EtiquetasNoCabecalho lead={lead} onTagsChange={onTagsChange} />}
       {aoAlternarPainel && (
         <button type="button" onClick={aoAlternarPainel} className={`wa-icone-btn ${painelAberto ? 'wa-icone-btn--on' : ''}`}
@@ -197,7 +203,7 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
   )
 }
 
-export default function ChatWindow({ lead, organizationId, onMessageSent, linha, marca, dono, painelAberto, aoAlternarPainel, aoVoltar, onTagsChange, aoCadastrarImovel, cadastroAberto }: ChatWindowProps) {
+export default function ChatWindow({ lead, organizationId, onMessageSent, linha, marca, dono, painelAberto, aoAlternarPainel, aoVoltar, onTagsChange, aoCadastrarImovel, cadastroAberto, organizar, faixaDaLinha }: ChatWindowProps) {
   const {
     activities, loading, error: erroDasMensagens, refresh: recarregarMensagens, sendHumanMessage, sendMediaMessage, deleteMessage,
     temMais, carregandoAnteriores, carregarAnteriores,
@@ -442,7 +448,14 @@ export default function ChatWindow({ lead, organizationId, onMessageSent, linha,
     >
       <CabecalhoConversa lead={lead} marca={marca} nay={nay} mostrarRobo={false} painelAberto={painelAberto} aoAlternarPainel={aoAlternarPainel} aoVoltar={aoVoltar} dono={dono}
                          etiquetasRapidas={linha === 'captacao'} onTagsChange={onTagsChange}
-                         aoCadastrarImovel={aoCadastrarImovel} cadastroAberto={cadastroAberto} />
+                         aoCadastrarImovel={aoCadastrarImovel} cadastroAberto={cadastroAberto} organizar={organizar} />
+      {/* 03/11 (Pedro): a conversa é de outra linha e aparece aqui (misto); a resposta sai pelo número dela */}
+      {faixaDaLinha && (
+        <div className="flex-shrink-0 px-3 py-1 text-[12px] font-semibold text-center"
+             style={{ background: '#f59e0b22', color: '#b45309', borderBottom: '1px solid #f59e0b55' }}>
+          {faixaDaLinha} · a resposta sai por esse número
+        </div>
+      )}
 
       {/* Arrastar-e-soltar — cobre a conversa inteira, não só o clipe */}
       {isDraggingFile && (

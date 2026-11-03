@@ -1,0 +1,83 @@
+/**
+ * POST /api/leads/{id}/organizar -- a organização da conversa (Pedro, 03/11/2026; ver src/lib/organizacaoDoLead.ts).
+ *
+ *   { tipo: 'administracao' | null }                     o tipo de contato (null = volta ao que a lista deduz)
+ *   { mostrarEm: { linha: 'parceria', ligar: true } }    a conversa aparece também na aba daquela linha (misto)
+ *   { dentroDe: { pai: '<lead id>', ligar: true } }      põe esta conversa dentro de outra (a setinha da lista)
+ *   { rayssa: true }                                     "Enviar para Rayssa": aparece na aba Rayssa da Parceria
+ *
+ * Só mexe em custom_attributes da conversa; a linha (integration_id) nunca muda (crm/CLAUDE.md).
+ */
+import { NextRequest } from 'next/server'
+import { and, eq, isNull, sql } from 'drizzle-orm'
+import { authenticateRequest, apiError } from '@/lib/api-auth'
+import { db } from '@/lib/db'
+import { leads } from '@/lib/schema'
+import { publishEvent, channels, events } from '@/lib/realtime'
+
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
+const LINHAS = ['parceria', 'captacao', 'oficial']
+const fim8 = (t: string | null | undefined) => (t || '').replace(/\D/g, '').slice(-8)
+
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const auth = await authenticateRequest(req)
+    if (!auth.userId) return apiError(403, 'Só quem entra no CRM organiza as conversas.')
+    const { id } = await params
+    const corpo = await req.json().catch(() => ({} as any))
+    const [lead] = await db.select({ id: leads.id, phone: leads.phone }).from(leads)
+      .where(and(eq(leads.id, id), eq(leads.organizationId, auth.organizationId), isNull(leads.deletedAt))).limit(1)
+    if (!lead) return apiError(404, 'Conversa não encontrada.')
+
+    if ('tipo' in corpo) {
+      const tipo = corpo.tipo == null ? null : String(corpo.tipo).trim().slice(0, 40)
+      await db.execute(tipo
+        ? sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) || jsonb_build_object('tipo_contato', ${tipo}::text),
+                 updated_at = now() WHERE id = ${id}`
+        : sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) - 'tipo_contato', updated_at = now() WHERE id = ${id}`)
+    }
+    if (corpo.mostrarEm) {
+      const linha = String(corpo.mostrarEm.linha || '')
+      if (!LINHAS.includes(linha)) return apiError(400, 'Linha inválida.')
+      await db.execute(corpo.mostrarEm.ligar === false
+        ? sql`UPDATE leads SET custom_attributes = jsonb_set(coalesce(custom_attributes, '{}'::jsonb), '{mostrar_tambem_em}',
+                 coalesce((SELECT jsonb_agg(x) FROM jsonb_array_elements_text(custom_attributes->'mostrar_tambem_em') x WHERE x <> ${linha}), '[]'::jsonb)),
+                 updated_at = now() WHERE id = ${id}`
+        : sql`UPDATE leads SET custom_attributes = jsonb_set(coalesce(custom_attributes, '{}'::jsonb), '{mostrar_tambem_em}',
+                 (SELECT jsonb_agg(DISTINCT x) FROM (SELECT jsonb_array_elements_text(coalesce(custom_attributes->'mostrar_tambem_em', '[]'::jsonb)) AS x
+                                                    UNION SELECT ${linha}::text) y)),
+                 updated_at = now() WHERE id = ${id}`)
+    }
+    if (corpo.dentroDe) {
+      const [pai] = await db.select({ id: leads.id, phone: leads.phone }).from(leads)
+        .where(and(eq(leads.id, String(corpo.dentroDe.pai || '')), eq(leads.organizationId, auth.organizationId), isNull(leads.deletedAt))).limit(1)
+      const p8 = fim8(pai?.phone)
+      if (!pai || p8.length !== 8) return apiError(400, 'Não achei a conversa de fora.')
+      if (p8 === fim8(lead.phone)) return apiError(400, 'Uma conversa não entra dentro dela mesma.')
+      await db.execute(corpo.dentroDe.ligar === false
+        ? sql`UPDATE leads SET custom_attributes = jsonb_set(coalesce(custom_attributes, '{}'::jsonb), '{dentro_de}',
+                 coalesce((SELECT jsonb_agg(x) FROM jsonb_array_elements_text(custom_attributes->'dentro_de') x WHERE x <> ${p8}), '[]'::jsonb)),
+                 updated_at = now() WHERE id = ${id}`
+        : sql`UPDATE leads SET custom_attributes = jsonb_set(coalesce(custom_attributes, '{}'::jsonb), '{dentro_de}',
+                 (SELECT jsonb_agg(DISTINCT x) FROM (SELECT jsonb_array_elements_text(coalesce(custom_attributes->'dentro_de', '[]'::jsonb)) AS x
+                                                    UNION SELECT ${p8}::text) y)),
+                 updated_at = now() WHERE id = ${id}`)
+    }
+    if (corpo.rayssa === true) {
+      // a aba Rayssa da Parceria é a escolha à mão etapa_parceria = 'rayssa' (etapaDaParceria.ts); a conversa aparece lá
+      await db.execute(sql`UPDATE leads SET custom_attributes = jsonb_set(coalesce(custom_attributes, '{}'::jsonb)
+                 || jsonb_build_object('etapa_parceria', 'rayssa', 'etapa_parceria_em', now()::text), '{mostrar_tambem_em}',
+                 (SELECT jsonb_agg(DISTINCT x) FROM (SELECT jsonb_array_elements_text(coalesce(custom_attributes->'mostrar_tambem_em', '[]'::jsonb)) AS x
+                                                    UNION SELECT 'parceria'::text) y)),
+                 updated_at = now() WHERE id = ${id}`)
+    }
+    const [depois] = await db.select({ custom_attributes: leads.customAttributes }).from(leads).where(eq(leads.id, id)).limit(1)
+    await publishEvent(channels.orgLeads(auth.organizationId), events.LEAD_UPDATED, { id })
+    return Response.json({ ok: true, custom_attributes: depois?.custom_attributes || {} })
+  } catch (err: any) {
+    console.error('[leads/organizar]', err?.message || err)
+    return apiError(err?.status || 500, err?.message || 'Não consegui organizar a conversa.')
+  }
+}

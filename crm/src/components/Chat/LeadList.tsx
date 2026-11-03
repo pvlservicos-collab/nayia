@@ -23,7 +23,9 @@ import ChatFilterTabs, { type ChatTab, type FiltroDaLista } from './ChatFilterTa
 import BuscaDaLista, { casaNaBusca } from './BuscaDaLista'
 import { useCorretoresDaCaptacao } from '@/hooks/useCorretoresDaCaptacao'
 import { usePipeline } from '@/hooks/usePipeline'
-import { conversaEstaNaLinha, type LinhaWhatsapp } from '@/lib/leadChannel'
+import { conversaEstaNaLinha, getLinhaWhatsapp, type LinhaWhatsapp } from '@/lib/leadChannel'
+import { acharTipo, dentroDe, faixaDeOutraLinha, LINHAS_MISTAS, mostrarTambemEm, tipoEscolhido } from '@/lib/organizacaoDoLead'
+import { useTiposDeContato } from '@/hooks/useTiposDeContato'
 import { etapaDaParceria, escolhaAMao } from '@/lib/etapaDaParceria'
 import PranchetaDeEtiquetas from './PranchetaDeEtiquetas'
 import { EditarAbas, abasQueValem, etiquetasDasEtapasDoLeads, useAbasDaLinha } from './AbasDeEtiquetas'
@@ -337,7 +339,11 @@ export default function LeadList({
   const POR_PAGINA = 50
   const [pagina, setPagina] = useState(1)
 
-  const { results: searchResults, loading: searching } = useLeadSearch(search, linha)
+  /* 03/11 (misto de leads): no Leads e na Parceria a lupa acha nos DOIS números -- o Lucas acha o corretor da Parceria e a
+     Rayssa o contato do Leads, e a conversa abre aqui com a faixa do número dela */
+  const misto = !!linha && LINHAS_MISTAS.includes(linha)
+  const { results: searchResults, loading: searching } = useLeadSearch(search, misto ? null : linha)
+  const { tipos: tiposDeContato } = useTiposDeContato()
 
   // Rolagem infinita
   useEffect(() => {
@@ -471,7 +477,11 @@ export default function LeadList({
    * resultado da busca (que puxa a lista GLOBAL), então o filtro pela linha
    * tem que ser aqui -- inclusive na busca do servidor.
    */
-  const daLinha: SearchHit[] = linha ? searchResults.filter((hit) => conversaEstaNaLinha(hit.lead, linha)) : searchResults
+  const naAba = (l: LeadWithOwner) => !!linha && (conversaEstaNaLinha(l, linha) || mostrarTambemEm(l).includes(linha))
+  const daLinha: SearchHit[] = linha
+    ? searchResults.filter((hit) => naAba(hit.lead)
+        || (misto && search.trim().length > 0 && LINHAS_MISTAS.some((x) => x !== linha && conversaEstaNaLinha(hit.lead, x))))
+    : searchResults
 
   /* NA OFICIAL, QUEM ESCREVEU FICA EM CIMA (Pedro, 09/10/2026: "quando o [contato] manda msg nem sobe a mensagem dele
      para cima, precisa corrigir isso agora"). A conversa subia, sim -- e era enterrada logo depois: cada modelo que
@@ -730,6 +740,16 @@ export default function LeadList({
   ]
   const filtrosDeQuemAtende: FiltroDaLista[] = filtrosCaptacao.filter((f) => f.grupo === 'pessoa')
 
+  /* 03/11: o tipo de contato de cada conversa (a cor dela): o escolhido à mão; sem escolha, o que a lista já sabe */
+  const tipoDe = (l: LeadWithOwner) => {
+    const escolhido = acharTipo(tiposDeContato, tipoEscolhido(l))
+    if (escolhido) return escolhido
+    if (getLinhaWhatsapp(l) === 'parceria') return acharTipo(tiposDeContato, marcas[l.id]?.proprietario ? 'proprietario' : 'corretor')
+    if (linha !== 'captacao') return null
+    return acharTipo(tiposDeContato, papelNoLeads(l) || (olxClientes[fim8(l.phone)] ? 'cliente' : null))
+  }
+  const idDaAdministracao = (allTags as any[]).find((t) => t.name === 'Administração' || (t.nome_original || t.name) === 'Fechamento')?.id as string | undefined
+
   const passaNoFiltro = (hit: SearchHit): boolean => {
     const l = hit.lead
     // 20/10: no Leads, Todos é a linha inteira (como já era)
@@ -756,6 +776,8 @@ export default function LeadList({
     if (activeTab === 'tel' && linha === 'captacao') return comOTelNaCaptacao(l)
     if (activeTab === 'tel') return doTel(l, marcas[l.id], atendenteDoLead[l.id])
     if (activeTab.startsWith('tag:')) return (l.lead_tags || []).some((lt: any) => `tag:${lt.tag_id}` === activeTab)
+      // 03/11 (Pedro): a aba Fechamento virou Administração; o contato do tipo Administração aparece nela
+      || (!!idDaAdministracao && activeTab === `tag:${idDaAdministracao}` && tipoDe(l)?.chave === 'administracao')
     if (activeTab.startsWith('atendente:')) return `atendente:${atendenteDoLead[l.id]?.id}` === activeTab
     return true
   }
@@ -794,13 +816,24 @@ export default function LeadList({
   const aninhar = linha === 'captacao' && !buscando && !verArquivadas
   const porFim8: Record<string, LeadWithOwner> = {}
   if (aninhar) for (const h of daLinha) if (!h.lead.is_archived) porFim8[fim8(h.lead.phone)] = h.lead
-  const filhosDe = (l: LeadWithOwner) => (aninhar ? relacionados.doLead[fim8(l.phone)] || [] : [])
+  /* 03/11 (Pedro: "que o Lucas consiga fazer aquele relacionamento de conversa que coloca uma conversa dentro da outra"):
+     além dos pares da Nay (517), os postos à mão no alto da conversa ("Dentro de…", custom_attributes.dentro_de) */
+  const rel = { doLead: { ...relacionados.doLead }, doContato: { ...relacionados.doContato } }
+  if (aninhar) for (const h of daLinha) {
+    const c = fim8(h.lead.phone)
+    for (const pai of dentroDe(h.lead)) {
+      if ((rel.doLead[pai] || []).some((x) => x.contato === c)) continue
+      rel.doLead[pai] = [...(rel.doLead[pai] || []), { contato: c, motivos: 'posta à mão', codigos: [] }]
+      rel.doContato[c] = [...(rel.doContato[c] || []), pai]
+    }
+  }
+  const filhosDe = (l: LeadWithOwner) => (aninhar ? rel.doLead[fim8(l.phone)] || [] : [])
     .map((r) => ({ lead: porFim8[r.contato], codigos: r.codigos }))
     .filter((r): r is { lead: LeadWithOwner; codigos: number[] } => !!r.lead)
   let listadas = filtradas
-  if (aninhar && Object.keys(relacionados.doLead).length) {
+  if (aninhar && Object.keys(rel.doLead).length) {
     const pais = new Set(filtradas.filter((h) => filhosDe(h.lead).length).map((h) => fim8(h.lead.phone)))
-    listadas = filtradas.filter((h) => !(relacionados.doContato[fim8(h.lead.phone)] || []).some((p) => pais.has(p)))
+    listadas = filtradas.filter((h) => !(rel.doContato[fim8(h.lead.phone)] || []).some((p) => pais.has(p)))
     const quando = (l: LeadWithOwner) => new Date(l.last_activity_at || l.created_at).getTime()
     const doGrupo = (l: LeadWithOwner) => Math.max(quando(l), ...filhosDe(l).map((f) => quando(f.lead)))
     listadas.sort((a, b) => {
@@ -1034,6 +1067,8 @@ export default function LeadList({
                     ? { passo: Number(olxClientes[fim8(lead.phone)].passo || 0), etapa: olxClientes[fim8(lead.phone)].etapa } : undefined}
                   finalidadeDoCliente={linha === 'captacao' ? olxClientes[fim8(lead.phone)]?.finalidade : undefined}
                   papelNoLeads={linha === 'captacao' && donosECorretores ? papelNoLeads(lead) : undefined}
+                  tipoDoContato={linha === 'captacao' || getLinhaWhatsapp(lead) !== linha ? tipoDe(lead) : undefined}
+                  faixaDaLinha={faixaDeOutraLinha(lead, linha)}
                   /* 29/10 (a Joelma, cliente da OLX, aparecia "Prop"): quem só tem a etapa marcada à mão (o "Parar Nay"
                      grava Com o Tel) e é cliente da Nay Leads não é dono -- o registro fica, para a aba Tel */
                   dono={linha === 'captacao' && donos[lead.id] && !donos[lead.id].captacaoId && olxClientes[fim8(lead.phone)]
@@ -1065,6 +1100,8 @@ export default function LeadList({
                         dono={donos[f.lead.id]}
                         etiquetasEmDestaque={usarAbasDeEtiquetas ? etiquetasEmDestaque : undefined}
                         onTagsChange={onTagsChange}
+                        tipoDoContato={linha === 'captacao' ? tipoDe(f.lead) : undefined}
+                        faixaDaLinha={faixaDeOutraLinha(f.lead, linha)}
                         relacao={'Relacionado' + (f.codigos.length ? ' · ' + f.codigos.slice(0, 3).map((c) => '#' + c).join(' ') : '')}
                       />
                     ))}

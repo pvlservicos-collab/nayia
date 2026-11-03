@@ -23,6 +23,8 @@ import PainelContatoCaptacao from './PainelContatoCaptacao'
 import CadastroImovelOlx from './CadastroImovelOlx'
 import EnviarImovelPelaCaptacao from './EnviarImovelPelaCaptacao'
 import PainelContatoParceria from './PainelContatoParceria'
+import OrganizarConversa, { organizar } from './OrganizarConversa'
+import { apareceNaAba, faixaDeOutraLinha, mostrarTambemEm, LINHAS_MISTAS } from '@/lib/organizacaoDoLead'
 import { usePuxador } from '@/hooks/usePuxador'
 import { useCaptacaoDonos } from '@/hooks/useCaptacaoDonos'
 
@@ -71,7 +73,8 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
 
   // Cada aba mostra SÓ a sua linha de WhatsApp (Tel, 25/09).
   const allLeads = globalLeads.filter((l) => {
-    if (getLinhaWhatsapp(l) !== linha) return false
+    // 03/11 (Pedro): misto de leads -- a conversa de outra linha posta também nesta aba aparece aqui
+    if (!apareceNaAba(l, linha)) return false
     if (permissions?.leads?.view_own_only && currentOrganization?.id) {
       if (l.owner_member_id !== currentOrganization.id) return false
     }
@@ -117,11 +120,14 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
    */
   const ultimaUrlVista = useRef<string | null>(null)
 
+  /* 03/11: a aba em que a conversa foi escolhida -- a de outra linha, achada na lupa, abre AQUI (misto) */
+  const abaDaEscolha = useRef<LinhaWhatsapp | null>(null)
   const handleSelectLead = useCallback((lead: LeadWithOwner) => {
+    abaDaEscolha.current = linha
     setSelectedLead(lead)
     setMobileView('conversation')
     try { localStorage.setItem(chaveUltimaConversa, lead.id) } catch {}
-  }, [chaveUltimaConversa])
+  }, [chaveUltimaConversa, linha])
 
   useEffect(() => {
     if (!leadIdFromUrl) return
@@ -132,7 +138,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
     /* O LINK ABRE NA ABA DA LINHA DA CONVERSA (28/09). */
     const abrir = (alvo: LeadWithOwner) => {
       const linhaDoAlvo = getLinhaWhatsapp(alvo)
-      if (linhaDoAlvo && linhaDoAlvo !== linha) {
+      if (linhaDoAlvo && linhaDoAlvo !== linha && !apareceNaAba(alvo, linha)) {
         router.replace(`${CAMINHO_DA_LINHA[linhaDoAlvo]}?${searchParams.toString()}`)
         return
       }
@@ -171,7 +177,8 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
   const displayedLeadId = selectedLead?.id || conversaInicial.current
   /* O lead solto (fora do limite da lista) só vale se for desta linha: as
      três abas são o mesmo componente, e o React o reaproveita entre elas. */
-  const soltoDestaLinha = selectedLead && getLinhaWhatsapp(selectedLead) === linha ? selectedLead : null
+  const soltoDestaLinha = selectedLead && (apareceNaAba(selectedLead, linha)
+    || (abaDaEscolha.current === linha && LINHAS_MISTAS.includes(linha))) ? selectedLead : null
   const displayedLead = allLeads.find((l) => l.id === displayedLeadId) || soltoDestaLinha
 
   /* O funil (etapas, histórico de etapas, pipelines) só existe para o card
@@ -228,6 +235,12 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
     if (selectedLead?.id === targetLeadId) setSelectedLead((prev) => (prev ? mudar(prev) : prev))
   }, [setLeads, selectedLead])
 
+  /* 03/11: o que a organização da conversa gravou (tipo, misto, dentro de) entra na lista na hora */
+  const aplicarOrganizacao = useCallback((leadId: string, ca: Record<string, any>) => {
+    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, custom_attributes: ca } : l)))
+    setSelectedLead((prev) => (prev && prev.id === leadId ? { ...prev, custom_attributes: ca } : prev))
+  }, [setLeads])
+
   const handleChatMessageSent = useCallback((content: string) => {
     const memberId = currentOrganization?.id || ''
     const fullName = profileName || user?.name || user?.email || ''
@@ -252,6 +265,13 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
     }
     setLeads((prev) => prev.map((l) => (l.id === leadId ? atualizar(l) : l)))
     if (selectedLead && selectedLead.id === leadId) setSelectedLead((prev) => (prev ? atualizar(prev) : prev))
+    /* 03/11 (Pedro: "se o Lucas mandar mensagem para um corretor que já tem conversa lá no número Parceria, essa conversa
+       fica no número Leads, com a bordinha Falando pelo número Parceria"): quem escreve de uma aba numa conversa de outra
+       linha deixa a conversa também nesta aba */
+    if (displayedLead && leadId && getLinhaWhatsapp(displayedLead) !== linha && LINHAS_MISTAS.includes(linha)
+        && !mostrarTambemEm(displayedLead).includes(linha)) {
+      organizar(leadId, { mostrarEm: { linha, ligar: true } }).then((ca) => aplicarOrganizacao(leadId, ca)).catch(() => undefined)
+    }
 
     if (leadId && memberId && !alreadyHasOwner) {
       fetch(`/api/leads/${leadId}`, {
@@ -260,7 +280,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
         body: JSON.stringify({ owner_member_id: memberId }),
       }).catch((err) => console.error('Failed to auto-assign owner:', err))
     }
-  }, [displayedLead, selectedLead, setLeads, currentOrganization, user, profileName])
+  }, [displayedLead, selectedLead, setLeads, currentOrganization, user, profileName, linha, aplicarOrganizacao])
 
   const handleUpdateLead = useCallback((leadId: string, updates: Partial<LeadWithOwner>) => {
     setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, ...updates } : l)))
@@ -323,7 +343,13 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
       lead={displayedLead}
       organizationId={organizationId}
       onMessageSent={handleChatMessageSent}
-      linha={linha}
+      // a linha DA CONVERSA (no misto, a de outra aba): é por ela que a mensagem sai
+      linha={getLinhaWhatsapp(displayedLead) || linha}
+      faixaDaLinha={faixaDeOutraLinha(displayedLead, linha)}
+      organizar={linha === 'captacao'
+        ? <OrganizarConversa lead={displayedLead} tipoDeduzido={getLinhaWhatsapp(displayedLead) === 'parceria' ? 'corretor' : null}
+                             aoMudar={(ca) => aplicarOrganizacao(displayedLead.id, ca)} />
+        : undefined}
       marca={ehParceria ? marcas[displayedLead.id] : undefined}
       dono={linha === 'oficial' ? donosDaCaptacao[displayedLead.id] : undefined}
       painelAberto={painelAberto}
