@@ -56,6 +56,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                                                     UNION SELECT ${linha}::text) y)),
                  updated_at = now() WHERE id = ${id}`)
     }
+    // 03/11 (Pedro: "quando eu relaciono uma conversa a um número, eu posso remover o relacionamento"): solta de TODAS
+    if (corpo.soltar === true) {
+      await db.execute(sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) - 'dentro_de',
+                 updated_at = now() WHERE id = ${id}`)
+    }
     if (corpo.dentroDe) {
       const [pai] = await db.select({ id: leads.id, phone: leads.phone }).from(leads)
         .where(and(eq(leads.id, String(corpo.dentroDe.pai || '')), eq(leads.organizationId, auth.organizationId), isNull(leads.deletedAt))).limit(1)

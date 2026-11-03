@@ -1227,6 +1227,22 @@ export default function LeadList({
                   <span className="flex-1">Relacionar a…</span>
                 </button>
               )}
+              {/* 03/11 (Pedro: "quando eu relaciono uma conversa a um número, eu posso remover o relacionamento"): a conversa
+                  posta embaixo de outra (à mão: Relacionar a / Dentro de…) volta a ficar solta na lista */}
+              {linha === 'captacao' && dentroDe(contextMenu.lead).length > 0 && (
+                <button type="button"
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          const lead = contextMenu.lead!
+                          setContextMenu((prev) => ({ ...prev, visible: false }))
+                          try { aoOrganizar?.(lead.id, await organizar(lead.id, { soltar: true })) }
+                          catch (err: any) { window.alert(err?.message || 'Não consegui remover o relacionamento.') }
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-[14px] hover:bg-[var(--wa-row-hover)] flex items-center gap-3" style={{ color: 'var(--wa-text)' }}>
+                  <X size={17} style={{ color: 'var(--wa-icon)' }} />
+                  <span className="flex-1">Remover relacionamento</span>
+                </button>
+              )}
             </div>
           )}
           {contextMenu.lead && menuDeTags && (
