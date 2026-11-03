@@ -12,7 +12,7 @@ AS ROTAS (abertas, como as do Chaves na Mão):
                               revisam e reenviam; 500 erro nosso (eles tentam de novo, até 3 vezes). Repetido = 200.
 
 O formato (developers.grupozap.com/feeds/vrsync): <ListingDataFeed> com <Header>, <Listings><Listing> (ListingID,
-Title, TransactionType, PublicationType, DetailViewUrl, Media/Item, Details, Location) e <ContactInfo>.
+Title, TransactionType, PublicationType, DetailViewUrl, Media/Item, Details, Location, ContactInfo).
 """
 import base64
 import json
@@ -151,7 +151,15 @@ def _listing(m) -> str:
             f"      <Details>{''.join(d)}</Details>\n"
             # o endereço vai (o portal acha no mapa), mas só o bairro aparece -- como no Chaves na Mão
             f'      <Location displayAddress="Neighborhood">{"".join(loc)}</Location>\n'
+            # 03/11 (o Canal Pro recusou o XML): o ContactInfo é OBRIGATÓRIO dentro de CADA Listing, depois do Location;
+            # solto no fim do feed o validador deles (integrations-api-re-listings.olx.com.br/v1/sandbox/xml_validation)
+            # dizia "Há dados obrigatórios faltantes na estrutura 'Listing'" nos 164 e "ContactInfo não é esperado"
+            f"      <ContactInfo>{_CONTATO}</ContactInfo>\n"
             "    </Listing>")
+
+
+_CONTATO = (f"<Name>{EMPRESA['nome']}</Name><Email>{EMPRESA['email']}</Email><Website>{EMPRESA['site']}</Website>"
+            f"<OfficeName>{EMPRESA['nome']}</OfficeName><Telephone>{EMPRESA['telefone']}</Telephone>")
 
 
 def _montar():
@@ -168,14 +176,11 @@ def _montar():
             vao.append(_listing(m))
     cab = (f"<Provider>{EMPRESA['nome']}</Provider><Email>{EMPRESA['email']}</Email><ContactName>{EMPRESA['nome']}</ContactName>"
            f"<PublishDate>{datetime.now().strftime('%Y-%m-%dT%H:%M:%S')}</PublishDate><Telephone>{EMPRESA['telefone']}</Telephone>")
-    contato = (f"<Name>{EMPRESA['nome']}</Name><Email>{EMPRESA['email']}</Email><Website>{EMPRESA['site']}</Website>"
-               f"<OfficeName>{EMPRESA['nome']}</OfficeName><Telephone>{EMPRESA['telefone']}</Telephone>")
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
            '<ListingDataFeed xmlns="http://www.vivareal.com/schemas/1.0/VRSync" '
            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
            'xsi:schemaLocation="http://www.vivareal.com/schemas/1.0/VRSync http://xml.vivareal.com/vrsync.xsd">\n'
-           f"  <Header>{cab}</Header>\n  <Listings>\n" + "\n".join(vao) + "\n  </Listings>\n"
-           f"  <ContactInfo>{contato}</ContactInfo>\n</ListingDataFeed>\n")
+           f"  <Header>{cab}</Header>\n  <Listings>\n" + "\n".join(vao) + "\n  </Listings>\n</ListingDataFeed>\n")
     with _trava:
         _cache.update(em=time.monotonic(), xml=xml.encode("utf-8"), fora=fora, vao=len(vao))
     return _cache
