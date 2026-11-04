@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type MouseEvent as EventoDeMouse } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Archive, Check, CircleNotch, EnvelopeSimple, MagnifyingGlass, Plus, PushPin, Tag, TreeStructure, X } from '@phosphor-icons/react'
+import { Archive, Check, CircleNotch, EnvelopeSimple, MagnifyingGlass, Plus, PushPin, Tag, Trash, TreeStructure, X } from '@phosphor-icons/react'
 import { useAuth, useIsMobile } from '@/hooks'
 import { useLeadsContext } from '@/contexts/LeadsContext'
 import { useParceriaMarcas } from '@/hooks/useParceriaMarcas'
@@ -224,6 +224,17 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
     : (l.lead_tags || []).some((lt: any) => lt.tag_id === aba))
     .filter((l) => buscando || !filtroExtra || filtroExtra(l) || l.id === selecionada)
   const aberta = todas.find((l) => l.id === selecionada) || null
+
+  /* v2, aba Visita: os grupos (um por visita) calculados uma vez, para desenhar os cards e para o "Excluir da visita"
+     do botão direito saber, de qualquer lead, se ele pode sair e por qual card (05/11, Pedro: "quero poder clicar com
+     o botão direito no lead que faz parte da aba visita em todas as visitas e poder clicar em excluir da visita") */
+  const gruposNaTela = useMemo(() => grupos ? grupos(visiveis.filter((l) => !fixos?.ids.has(l.id))) : null,
+    [grupos, visiveis, fixos])
+  const removerDaVisitaPor = useMemo(() => {
+    const m = new Map<string, () => void>()
+    for (const g of gruposNaTela || []) for (const id of g.removiveis || []) m.set(id, () => g.aoRemover?.(id))
+    return m
+  }, [gruposNaTela])
 
   const filtros: FiltroDaLista[] = etapas ? etapas.map((e) => ({ chave: e.chave as any, rotulo: e.rotulo, contagem: todas.filter(e.casa).length })) : [
     ...(meus ? [{ chave: 'meus' as any, rotulo: 'Meus', contagem: todas.filter((l) => meus(l)).length }] : []),
@@ -436,7 +447,7 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
                   {visiveis.filter((l) => fixos.ids.has(l.id)).map((l) => <div key={l.id} className="v2-card">{linhaDaLista(l)}</div>)}
                 </div>
               )}
-              {grupos(visiveis.filter((l) => !fixos?.ids.has(l.id))).map((g) => (
+              {(gruposNaTela || []).map((g) => (
                 <div key={g.chave} className="rounded-xl" style={{ border: `2px solid ${g.cor || '#2563eb'}` }}>
                   <div className="px-3 py-2 text-[13px] rounded-t-[10px]" style={{ background: `color-mix(in srgb, ${g.cor || '#2563eb'} 12%, transparent)`, color: 'var(--wa-text)' }}>{g.topo}</div>
                   <div className="rounded-b-[10px] overflow-hidden">
@@ -566,6 +577,15 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
                       catch (e: any) { window.alert(e?.message || 'Não consegui remover o relacionamento.') }
                     }}>
               <X size={17} style={{ color: 'var(--wa-icon)' }} /> <span className="flex-1">Remover relacionamento</span>
+            </button>
+          )}
+          {/* 05/11 (Pedro: "quero poder clicar com o botão direito no lead que faz parte da aba visita em todas as
+              visitas e poder clicar em excluir da visita"): o mesmo x do card, aqui no botão direito -- vale só para
+              quem foi posto à mão nela (removerDaVisitaPor). */}
+          {removerDaVisitaPor.has(atual.id) && (
+            <button type="button" className={item} style={{ color: 'var(--wa-tag-tel)' }}
+                    onClick={() => { setMenuEm(null); removerDaVisitaPor.get(atual.id)!() }}>
+              <Trash size={17} style={{ color: 'var(--wa-tag-tel)' }} /> <span className="flex-1">Excluir da visita</span>
             </button>
           )}
           {menu && <div className="my-1" style={{ borderTop: '1px solid var(--wa-divider)' }} />}
