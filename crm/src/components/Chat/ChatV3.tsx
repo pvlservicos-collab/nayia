@@ -106,7 +106,10 @@ function CardV3({ l, hora, aberta, abrir, menu, cor, etapa, tipo, r }: {
   return (
     <button type="button" data-lead-id={l.id} onClick={abrir} onContextMenu={menu}
             className="w-full flex items-center gap-3 px-3 py-2.5 text-left"
-            style={{ background: aberta ? 'var(--wa-row-selected)' : undefined, borderBottom: '1px solid var(--wa-divider)' }}>
+            style={{
+              background: aberta ? 'var(--wa-row-selected)' : naoLida ? 'color-mix(in srgb, var(--wa-green) 11%, transparent)' : undefined,
+              borderBottom: '1px solid var(--wa-divider)',
+            }}>
       <span className="w-11 h-11 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center text-[14px] font-medium"
             style={{ background: 'var(--wa-row-selected)', color: 'var(--wa-text-2)', boxShadow: `0 0 0 2px ${cor}` }}>
         {l.avatar_url ? <img src={l.avatar_url} alt="" className="w-full h-full object-cover" /> : iniciais(nome)}
@@ -114,12 +117,17 @@ function CardV3({ l, hora, aberta, abrir, menu, cor, etapa, tipo, r }: {
       <span className="flex-1 min-w-0 flex flex-col gap-[3px]">
         <span className="flex items-center gap-2">
           <span className="flex-1 truncate text-[15px]" style={{ color: 'var(--wa-text)', fontWeight: naoLida ? 600 : 400 }}>{nome}</span>
-          <span className="text-[12px] flex-shrink-0" style={{ color: naoLida ? 'var(--wa-green)' : 'var(--wa-text-2)' }}>{hora}</span>
+          <span className="flex-shrink-0" style={{ color: naoLida ? 'var(--wa-green)' : 'var(--wa-text-2)', fontSize: naoLida ? 13 : 12, fontWeight: naoLida ? 600 : 400 }}>{hora}</span>
         </span>
         <span className="flex items-center gap-1.5">
           <span className="flex-1 truncate text-[13px]" style={{ color: 'var(--wa-text-2)' }}>{l.last_message_content || 'Sem mensagens'}</span>
           {l.is_pinned && <PushPin size={13} weight="fill" style={{ color: 'var(--wa-text-2)' }} aria-label="Fixada" />}
-          {naoLida && <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: 'var(--wa-green)' }} aria-label="Não lida" />}
+          {naoLida && (
+            <span className="flex-shrink-0 min-w-[24px] h-[24px] px-1.5 rounded-full flex items-center justify-center text-[13px] font-bold"
+                  style={{ background: 'var(--wa-green)', color: 'var(--wa-green-ink, #111b21)' }} aria-label={`${l.nao_lidas || 1} sem ler`}>
+              {(l.nao_lidas || 1) > 99 ? '99+' : (l.nao_lidas || 1)}
+            </span>
+          )}
         </span>
         <span className="flex items-center gap-2">
           {etapa && <BarrinhaCurta atual={etapa.i} />}
