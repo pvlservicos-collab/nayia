@@ -9,6 +9,7 @@
  *                                                        Parceria, no topo e não lida, como conversa nova (mudou_para)
  *   { pessoas: ['<member id>', ...] }                    as pessoas adicionadas à conversa ("Adicionar pessoa")
  *   { devolver: true }                                   devolve a conversa enviada à aba do número dela
+ *   { captacao: true | false }                           conversa de captação (Chat Captação e a etiqueta verde nas listas)
  *
  * Só mexe em custom_attributes da conversa; a linha (integration_id) nunca muda (crm/CLAUDE.md).
  */
@@ -55,6 +56,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                  (SELECT jsonb_agg(DISTINCT x) FROM (SELECT jsonb_array_elements_text(coalesce(custom_attributes->'mostrar_tambem_em', '[]'::jsonb)) AS x
                                                     UNION SELECT ${linha}::text) y)),
                  updated_at = now() WHERE id = ${id}`)
+    }
+    // 03/11 (Pedro: "essa conversa ficar no proprietário parceria e na aba captação, já que é uma conversa de captação")
+    if (typeof corpo.captacao === 'boolean') {
+      await db.execute(corpo.captacao
+        ? sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) || '{"conversa_captacao": true}'::jsonb,
+                 updated_at = now() WHERE id = ${id}`
+        : sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) - 'conversa_captacao', updated_at = now() WHERE id = ${id}`)
     }
     // 03/11 (Pedro: "quando eu relaciono uma conversa a um número, eu posso remover o relacionamento"): solta de TODAS
     if (corpo.soltar === true) {

@@ -6,13 +6,19 @@
  * ... e separa lá uma lista de contatos com um botão chamar no WhatsApp e outro chamar na OLX (o botão chamar no WhatsApp já
  * vem preenchido com a mensagem perguntando se o imóvel está disponível que nem a Nay manda hoje quando vai buscar para um lead)".
  *
- * Lê /api/imoveis-captar-olx (585). Cada cartão: o anúncio, a nota de dono (0-100) com os sinais, e os dois botões. O WhatsApp
- * abre a conversa no WhatsApp de quem clicou com a pergunta da Nay digitada (lib/perguntaAoAnunciante); a OLX abre o anúncio,
- * onde fica o "Chat". O clique fica anotado (quem e quando) e o cartão desce para "Já chamados".
+ * Lê /api/imoveis-captar-olx (585). Cada cartão: o anúncio, a nota de dono (0-100) com os sinais, e os dois botões. A OLX abre
+ * o anúncio, onde fica o "Chat". O clique fica anotado (quem e quando) e o cartão desce para "Já chamados".
+ * O WHATSAPP (Pedro, 03/11, noite: "quando eu clico ele tá indo para um link, mas não é assim, deve abrir uma conversa pelo
+ * número Parceria e essa conversa ficar no proprietário Parceria e na aba Captação"): acha ou cria a conversa na Parceria
+ * (/api/leads/abrir, o mesmo da busca manual), põe na etapa Proprietários (a Nay da Parceria fica sabendo), marca o tipo
+ * Proprietário e a conversa de captação, deixa a pergunta da Nay digitada (rascunho) e abre o Chat Captação nela.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowsClockwise, CircleNotch, HouseLine, WhatsappLogo, ArrowSquareOut, CaretDown, CaretUp, CheckCircle } from '@phosphor-icons/react'
 import { perguntaAoAnunciante } from '@/lib/perguntaAoAnunciante'
+import { abrirConversa, deixarRascunho } from '@/components/Olx/contatoDono'
+import { organizar } from '@/components/Chat/OrganizarConversa'
+import { comMarcaDeAbertura } from '@/lib/links'
 
 interface Item {
   olx_id: number; url: string; titulo: string | null; preco: number | null; preco_texto: string | null; tipo_negocio: string | null
@@ -25,17 +31,39 @@ function fone(v: string) {
   const d = (v || '').replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '')
   return d.length === 11 ? `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}` : d.length === 10 ? `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}` : v
 }
-const com55 = (v: string) => { const d = (v || '').replace(/\D/g, ''); return d.length === 10 || d.length === 11 ? '55' + d : d }
 const dia = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'America/Manaus', day: '2-digit', month: '2-digit', year: '2-digit' }) : '')
 const quando = (iso: string | null) => (iso ? new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Manaus', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '')
 const corDaNota = (n: number) => (n >= 90 ? '#16a34a' : n >= 80 ? '#65a30d' : '#d97706')
 const negocio = (i: Item) => (/aluguel/i.test(i.tipo_negocio || '') ? 'aluguel' : 'venda')
 const POR_PAGINA = 60
 
+/** a conversa na Parceria, como proprietário e de captação, com a pergunta digitada; devolve o id */
+async function conversaDeCaptacao(i: Item, texto: string): Promise<string> {
+  const id = await abrirConversa(i.telefone!, 'parceria', i.anunciante)
+  const r = await fetch(`/api/leads/${id}/contato`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ etapa: 'proprietarios' }),
+  })
+  if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || j.message || 'Não consegui pôr em Proprietários.') }
+  await organizar(id, { tipo: 'proprietario', captacao: true })
+  deixarRascunho(id, texto)
+  return id
+}
+
 function Cartao({ i, onChamar }: { i: Item; onChamar: (i: Item, como: 'whatsapp' | 'olx') => void }) {
   const [aberto, setAberto] = useState(false)
+  const [abrindo, setAbrindo] = useState(false)
   const texto = perguntaAoAnunciante(i)
-  const wa = i.telefone ? `https://wa.me/${com55(i.telefone)}?text=${encodeURIComponent(texto)}` : null
+  const chamarNoWhatsapp = async () => {
+    setAbrindo(true)
+    try {
+      const id = await conversaDeCaptacao(i, texto)
+      onChamar(i, 'whatsapp')
+      window.location.href = comMarcaDeAbertura(`/chat/captar?leadId=${id}`)
+    } catch (e: any) {
+      window.alert(e?.message || 'Não consegui abrir a conversa.')
+      setAbrindo(false)
+    }
+  }
   return (
     <div className={`rounded-lg border border-line bg-panel p-3 flex gap-3 ${i.chamado_em ? 'opacity-70' : ''}`}>
       {i.foto
@@ -68,11 +96,12 @@ function Cartao({ i, onChamar }: { i: Item; onChamar: (i: Item, como: 'whatsapp'
           </div>
         )}
         <div className="flex flex-wrap items-center gap-2 mt-0.5">
-          {wa ? (
-            <a href={wa} target="_blank" rel="noreferrer" onClick={() => onChamar(i, 'whatsapp')}
-               className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-white text-sm font-medium hover:opacity-90" style={{ background: '#25d366' }}>
-              <WhatsappLogo size={16} weight="bold" /> Chamar no WhatsApp
-            </a>
+          {i.telefone ? (
+            <button type="button" onClick={chamarNoWhatsapp} disabled={abrindo}
+                    title="Abre a conversa pelo WhatsApp Parceria (em Proprietários e no Chat Captação) com a pergunta da Nay digitada"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-white text-sm font-medium hover:opacity-90 disabled:opacity-60" style={{ background: '#25d366' }}>
+              {abrindo ? <CircleNotch size={16} className="animate-spin" /> : <WhatsappLogo size={16} weight="bold" />} Chamar no WhatsApp
+            </button>
           ) : (
             <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-line text-sm text-muted cursor-not-allowed" title="O anúncio não traz o telefone: chame pela OLX">
               <WhatsappLogo size={16} /> Sem telefone
@@ -154,7 +183,7 @@ export default function ImoveisCaptarOlxPage() {
       <p className="text-sm text-muted">
         Anúncios de particular da OLX em Manaus com cara de dono. Saíram os corretores e proprietários que já conhecemos, quem já falou com a gente
         por qualquer número ou já está no CRM, quem tem CRECI, imobiliária ou código de imobiliária no anúncio e quem tem 3 ou mais imóveis.
-        A nota diz a chance de ser o dono. O botão do WhatsApp abre a conversa com a pergunta da Nay já digitada; o da OLX abre o anúncio (o chat fica nele).
+        A nota diz a chance de ser o dono. O botão do WhatsApp abre a conversa pelo número Parceria (em Proprietários e no Chat Captação) com a pergunta da Nay já digitada; o da OLX abre o anúncio (o chat fica nele).
       </p>
       {dados && (
         <div className="text-xs text-muted">

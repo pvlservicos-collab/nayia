@@ -12,6 +12,7 @@ import { useParceriaMarcas } from '@/hooks/useParceriaMarcas'
 import { useNayLeadsComDono } from '@/hooks/useNayLeadsComDono'
 import { useContatosRelacionados } from '@/hooks/useContatosRelacionados'
 import { useCaptacaoDonos } from '@/hooks/useCaptacaoDonos'
+import { useConversasDeCaptacao, ehDeCaptacao } from '@/hooks/useConversasDeCaptacao'
 import { useOlxClientes, mudarEtapaOlx } from '@/hooks/useOlxClientes'
 import { useDonosDoCadastro } from '@/hooks/useDonosDoCadastro'
 import { ETAPAS_OLX, PASSOS_DA_NAY, fim8, passoDaAba, type EtapaOlx } from '@/lib/olxClientes'
@@ -221,6 +222,8 @@ export default function LeadList({
   // o dono e o imóvel de cada conversa da captação (29/09)
   // 09/10: na Oficial também, porque a captação passou a falar por lá (Pedro: "quero que apareça o imóvel do cara")
   const donos = useCaptacaoDonos(linha === 'captacao' || linha === 'oficial')
+  // 03/11 (Pedro): a etiqueta verde-escura Captação nas conversas que estão no Chat Captação
+  const deCaptacao = useConversasDeCaptacao()
   /* OS FILTROS DA CAPTAÇÃO NA OFICIAL TAMBÉM (Pedro, 09/10: "quero lá em cima das conversas da API oficial filtros
      igual os que tem na de captação"). A aba de cada conversa vem do dono (crm_captacao_donos), e o dono é o mesmo
      pelos dois números: na Oficial aparecem Todos, Em andamento, Sem resposta, Com o Tel, Disponíveis... */
@@ -1131,6 +1134,7 @@ export default function LeadList({
                   tipoDoContato={linha === 'captacao' || getLinhaWhatsapp(lead) !== linha ? tipoDe(lead) : undefined}
                   faixaDaLinha={faixaDeOutraLinha(lead, linha)}
                   cinzas={linha === 'captacao'}
+                  captacao={ehDeCaptacao(lead, deCaptacao)}
                   /* 29/10 (a Joelma, cliente da OLX, aparecia "Prop"): quem só tem a etapa marcada à mão (o "Parar Nay"
                      grava Com o Tel) e é cliente da Nay Leads não é dono -- o registro fica, para a aba Tel */
                   dono={linha === 'captacao' && donos[lead.id] && !donos[lead.id].captacaoId && olxClientes[fim8(lead.phone)]

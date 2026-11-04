@@ -82,6 +82,9 @@ interface LeadListItemProps {
   faixaDaLinha?: string | null
   /** 03/11 (Pedro: "as tags do número Leads tira a cor delas, deixa todas cinzas"): as etiquetas da linha em cinza */
   cinzas?: boolean
+  /** 03/11 (Pedro: "nos chats normais as conversas de captação ficam com uma tag de cor diferente, verde escuro, Captação"):
+   *  a conversa está no Chat Captação (cadastro incompleto ou aberta pela tela Imóveis captar OLX) */
+  captacao?: boolean
 }
 
 const RECEBIDO = ['lead']
@@ -198,7 +201,7 @@ function BarrinhaDaNay({ passo, etapa }: { passo: number; etapa: string }) {
   )
 }
 
-const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, clienteOlx, etiquetasColoridas, tagsDaEquipe, onTagsChange, relacionados, aoAlternarRelacionados, relacao, passoDaNay, finalidadeDoCliente, origemDoCliente, papelNoLeads, tipoDoContato, faixaDaLinha, cinzas }: LeadListItemProps) => {
+const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, atendente, marca, nay, dono, etiquetasEmDestaque, respondeu, nayLeads, clienteOlx, etiquetasColoridas, tagsDaEquipe, onTagsChange, relacionados, aoAlternarRelacionados, relacao, passoDaNay, finalidadeDoCliente, origemDoCliente, papelNoLeads, tipoDoContato, faixaDaLinha, cinzas, captacao }: LeadListItemProps) => {
   const robo = nay === undefined ? null : !nay ? { parada: true, texto: 'Lendo a Nay…' }
     : !nay.ligada ? { parada: true, texto: `Nay parada: ${nay.motivo || 'desligada'}` }
     : nayEmPausa(marca) ? { parada: true, texto: TEXTO_DA_PAUSA }
@@ -282,6 +285,12 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
         </div>
 
         <div className="flex items-center gap-1.5 mt-[2px] min-w-0">
+          {captacao && (
+            <span className="wa-marca flex-shrink-0 rounded px-1" style={{ color: '#fff', background: '#14532d' }}
+                  title="Conversa de captação: está também no Chat Captação">
+              Captação
+            </span>
+          )}
           {/* 03/11 (Pedro: "retira a tag cliente, já sei que é lead pela cor azul"): o cliente fica só com a faixa */}
           {tipoDoContato && !papelNoLeads && tipoDoContato.chave !== 'cliente' && (
             <span className="wa-marca flex-shrink-0 rounded px-1" style={{ color: '#fff', background: tipoDoContato.cor }}
@@ -420,6 +429,7 @@ export default memo(LeadListItem, (a, b) => (
   a.tipoDoContato?.cor === b.tipoDoContato?.cor &&
   a.faixaDaLinha === b.faixaDaLinha &&
   !!a.cinzas === !!b.cinzas &&
+  !!a.captacao === !!b.captacao &&
   !!a.etiquetasColoridas === !!b.etiquetasColoridas &&
   !!a.tagsDaEquipe === !!b.tagsDaEquipe &&
   a.atendente?.id === b.atendente?.id &&

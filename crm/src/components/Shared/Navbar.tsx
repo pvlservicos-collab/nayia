@@ -47,7 +47,10 @@ import { usePipelineFilters } from '@/contexts/FilterContext'
    e coloca grupos, corretores e configuração em um só menu + Mais e coloca uma nova aba chamada Chat OLX".
    A aba Início saiu (o endereço "/" leva à Parceria; o painel de números ficou em /inicio). Os itens com
    `mais: true` moram atrás do botão "+ Mais" na barra do computador; na gaveta do celular aparecem todos. */
-const NAV_ITEMS = [
+/* CHATS CANAIS (Pedro, 03/11/2026, noite: "pega os 3 chats lá, OLX, Zap e Chaves, e põe em um menu só, Chats canais, que ao
+   passar o mouse desce as opções dos 3"): os itens com `canal: true` saem da barra do computador e viram esse menu, no lugar
+   do primeiro deles; na gaveta do celular continuam um por um. */
+const NAV_ITEMS: Array<{ label: string; curto?: string; href: string; icon: typeof Kanban; mais?: boolean; externo?: boolean; canal?: boolean }> = [
   // PIPELINE GERAL (Pedro, 03/11/2026: "oculta o pipeline que fica no menu pq eu já coloquei em cada número, põe o pipeline
   // do menu como pipeline geral dentro do menu mais"): cada número tem o seu na própria aba; o geral (todos os funis, com as
   // abas de funil do PipelineBoard) foi para o "+ Mais". A barra de baixo do celular continua com ele (MOBILE_TAB_LABELS).
@@ -62,6 +65,9 @@ const NAV_ITEMS = [
   // CHAT ADMINISTRAÇÃO (Pedro, 03/11/2026): quem está em Administração nos dois números (Leads e Parceria), só para o Tel
   // (fora do switch de isItemVisible: quem não é administrador não vê)
   { label: 'Administração', curto: 'Adm', href: '/chat/administracao', icon: FolderSimpleUser },
+  // CHAT CAPTAÇÃO (Pedro, 03/11/2026, noite): as conversas dos Cadastros incompletos e dos donos chamados pela tela Imóveis
+  // captar OLX, de todos os números (components/Chat/ChatCaptacao.tsx); /chat/captacao é o WhatsApp Leads
+  { label: 'Captação', curto: 'Captação', href: '/chat/captar', icon: HouseLine },
   // CHAT OLX (08/10, Pedro): "troca a página conversa por um redirect em outra aba para https://chat.olx.com.br/".
   // O item abre o chat da própria OLX numa aba nova do navegador (`externo`). A página de conversas do CRM
   // (/chat/olx: as duas contas e as consultas do bot) continua existindo, sem link no menu -- é para lá que a
@@ -69,7 +75,7 @@ const NAV_ITEMS = [
   // 13/10 (Pedro: "quando clico em chat olx ainda me redireciona para a olx ao invés de abrir a tela com as funções que
   // pedi"): com o aplicativo homologado, o item volta a abrir a tela do CRM (chat, anúncios e informações de cada conta).
   // O chat da própria OLX ficou num botão dentro dela.
-  { label: 'Chat OLX', curto: 'OLX', href: '/chat/olx', icon: ChatsCircle, externo: false },
+  { label: 'Chat OLX', curto: 'OLX', href: '/chat/olx', icon: ChatsCircle, externo: false, canal: true },
   // OS GRUPOS DO NÚMERO DA PARCERIA (Pedro, 03/10/2026: "pode ficar do lado de captação, aba Grupos"):
   // mensagens guardadas, participantes, planilha, e editar onde o número é admin.
   { label: 'Grupos', curto: 'Grupos', href: '/chat/grupos', icon: UsersThree, mais: true },
@@ -79,10 +85,10 @@ const NAV_ITEMS = [
   // CHAT CHAVES NA MÃO (Pedro, 21/10/2026: "no lugar de visitantes que vai pra dentro do menu, Chat Chaves na Mão igual o
   // olx mesmas coisas"): os leads do portal, os imóveis do XML e as informações da integração (458/459)
   // 03/11 (Pedro: "troca o chaves na mão por Chaves, para encurtar o tamanho lá no menu de cima tb"): só "Chaves", em toda largura
-  { label: 'Chaves', href: '/chat/chavesnamao', icon: ChatsCircle },
+  { label: 'Chaves', href: '/chat/chavesnamao', icon: ChatsCircle, canal: true },
   // CHAT ZAP (Pedro, 03/11/2026: "pessoal do zap ... cria lá um chat Zap no crm"): os leads do Canal Pro (ZAP Imóveis, Viva
   // Real, OLX), os imóveis do XML deles e as informações da integração; a mesma tela do Chaves na Mão (542/574)
-  { label: 'Chat Zap', curto: 'Zap', href: '/chat/zap', icon: ChatsCircle },
+  { label: 'Chat Zap', curto: 'Zap', href: '/chat/zap', icon: ChatsCircle, canal: true },
   // VISITANTES (Pedro, 20/10/2026): quem já visitou com a gente (corretores e clientes), por dia, mês, trimestre e total.
   // 21/10: foi para dentro do "+ Mais" (o lugar dela ficou com o Chat Chaves na Mão)
   { label: 'Visitantes', href: '/visitantes', icon: Users, mais: true },
@@ -141,6 +147,7 @@ export default function Navbar() {
   const [showUserDropdown, setShowUserDropdown] = useState(false) // Added
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [showMais, setShowMais] = useState(false)
+  const [showCanais, setShowCanais] = useState(false)
 
   useEffect(() => { setShowMobileMenu(false); setShowMais(false) }, [pathname])
 
@@ -243,6 +250,7 @@ export default function Navbar() {
       case 'Esteira de follow-up':
       case 'Cadastros incompletos':
       case 'Imóveis captar OLX':
+      case 'Captação':
       case 'Guia de atendimento': return !!permissions.settings?.view_chat
       case 'DM Instagram': return !!permissions.settings?.view_chat
       case 'Funil de Mensagens': return !!permissions.settings?.view_funnels
@@ -314,6 +322,44 @@ export default function Navbar() {
                             {pipeline.name}
                           </button>
                         ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            }
+
+            /* Chats canais: o primeiro item de canal vira o menu; os outros não aparecem soltos */
+            if (item.canal) {
+              const canais = NAV_ITEMS.filter(c => c.canal && isItemVisible(c.label))
+              if (canais[0]?.href !== item.href) return null
+              const aceso = showCanais || canais.some(c => c.href === hrefAtivo)
+              return (
+                <div key="chats-canais" className="relative" onMouseEnter={() => setShowCanais(true)} onMouseLeave={() => setShowCanais(false)}>
+                  <button type="button" aria-haspopup="menu" aria-expanded={showCanais} onClick={() => setShowCanais(v => !v)}
+                          className={`flex items-center gap-1.5 px-1.5 lg:px-2 xl:px-3 py-1.5 rounded-lg text-[13px] xl:text-sm font-medium whitespace-nowrap transition-colors border ${aceso
+                            ? 'bg-graphite-6 border-white/15 text-accent-2'
+                            : 'border-transparent text-muted hover:bg-white/[0.06] hover:text-ink'
+                            }`}>
+                    <ChatsCircle size={16} weight={canais.some(c => c.href === hrefAtivo) ? 'fill' : 'regular'} className="hidden min-[1800px]:block" />
+                    Chats canais
+                    <CaretDown size={12} className={`transition-transform ${showCanais ? 'rotate-180' : ''}`} />
+                  </button>
+                  {showCanais && (
+                    <div className="absolute top-full left-0 pt-2 w-48 z-50">
+                      <div role="menu" className="glass-raised rounded-xl py-1">
+                        {canais.map((c) => {
+                          const Icon = c.icon
+                          const ativo = c.href === hrefAtivo
+                          return (
+                            <Link key={c.href} href={c.href} role="menuitem" onClick={() => setShowCanais(false)}
+                                  target={c.externo ? '_blank' : undefined} rel={c.externo ? 'noopener noreferrer' : undefined}
+                                  className={`flex items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-white/[0.06] ${ativo ? 'text-accent-2 font-semibold' : 'text-muted hover:text-ink'}`}>
+                              <Icon size={16} weight={ativo ? 'fill' : 'regular'} />
+                              {c.label}
+                            </Link>
+                          )
+                        })}
                       </div>
                     </div>
                   )}
