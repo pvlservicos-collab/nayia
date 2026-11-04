@@ -122,6 +122,56 @@ function Modelos() {
   )
 }
 
+/* ── DOCUMENTAÇÃO (v3, Pedro, 04/11: "troca o Fechamento por Documentação e põe lá os checklists para a pessoa copiar, e
+   esses forms que tem lá deixa como checklist também, sem campos para preencher, só esses checklists modelos") ──────────
+   Os mesmos itens dos checklists de aluguel e de venda (lib/checklistFechamento), cada um como um item de checklist, para
+   ler e copiar. Nada é preenchido nem guardado aqui. */
+function checklistParaCopiar(tipo: TipoChecklist): string {
+  const def = CHECKLISTS[tipo]
+  const linhas = [`*${def.titulo.toUpperCase()}*`]
+  for (const s of def.secoes) {
+    linhas.push('', `*${s.titulo}*`)
+    for (const c of s.campos) linhas.push(`☐ ${c.rotulo}`)
+  }
+  return linhas.join('\n')
+}
+
+export function DocumentacaoChecklists() {
+  const [copiado, setCopiado] = useState<TipoChecklist | null>(null)
+  return (
+    <div className="p-4 grid gap-4 md:grid-cols-2 items-start">
+      {(['locacao', 'venda'] as const).map((t) => {
+        const def = CHECKLISTS[t]
+        return (
+          <section key={t} className="rounded-xl p-4 flex flex-col gap-3" style={{ border: '1px solid var(--wa-divider)', background: 'var(--wa-panel)' }}>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-[15px] font-medium" style={{ color: 'var(--wa-text)' }}>{t === 'locacao' ? 'Checklist de aluguel' : 'Checklist de venda'}</h3>
+              <button type="button" className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium"
+                      style={{ background: 'var(--wa-green)', color: 'var(--wa-green-ink)' }}
+                      onClick={async () => { if (await copiarTexto(checklistParaCopiar(t))) { setCopiado(t); setTimeout(() => setCopiado(null), 2000) } }}>
+                <Copy size={14} /> {copiado === t ? 'Copiado!' : 'Copiar checklist'}
+              </button>
+            </div>
+            {def.secoes.map((s) => (
+              <div key={s.titulo}>
+                <p className="text-[12px] font-medium mb-1" style={{ color: 'var(--wa-text-2)' }}>{s.titulo}</p>
+                <ul className="flex flex-col gap-1">
+                  {s.campos.map((c) => (
+                    <li key={c.chave} className="flex items-start gap-2 text-[13px] leading-[18px]" style={{ color: 'var(--wa-text)' }}>
+                      <span className="mt-[3px] w-3 h-3 rounded-[3px] flex-shrink-0" style={{ border: '1.5px solid var(--wa-text-2)' }} />
+                      {c.rotulo}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </section>
+        )
+      })}
+    </div>
+  )
+}
+
 /* ── O preview: clicar no documento e conferir ali mesmo ──────────────────── */
 function Preview({ item, fechar }: { item: Item; fechar: () => void }) {
   const grande = (item.bytes ?? 0) > PREVIEW_MAXIMO

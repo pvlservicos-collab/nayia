@@ -19,7 +19,7 @@ export type AbaDaParceria = 'conversas' | 'visitas' | 'pipeline' | 'fechamento' 
 
 /* 18/10 (Pedro: "a agenda não está lá no número de captação; precisa estar, é claro, todos os números compartilhando a
    mesma agenda"): as outras linhas usam estas mesmas abas, só sem Fechamento (que é da Parceria). `abas` escolhe. */
-export default function AbasParceria({ aba, aoMudar, naoLidas, visitasAbertas, children, abas, rotuloConversas, rotuloPipeline }: {
+export default function AbasParceria({ aba, aoMudar, naoLidas, visitasAbertas, children, abas, rotuloConversas, rotuloPipeline, rotuloFechamento }: {
   aba: AbaDaParceria
   aoMudar: (aba: AbaDaParceria) => void
   naoLidas: number
@@ -31,6 +31,8 @@ export default function AbasParceria({ aba, aoMudar, naoLidas, visitasAbertas, c
   rotuloConversas?: string
   /** 29/10: o nome da aba Pipeline (na Leads é o pipeline dos leads; nas outras, o funil do número) */
   rotuloPipeline?: string
+  /** v3 (04/11): o nome da aba Fechamento (lá ela é Documentação, os checklists-modelo para copiar) */
+  rotuloFechamento?: string
 }) {
   const mostra = (k: AbaDaParceria) => !abas || abas.includes(k)
   const aba_ = (chave: AbaDaParceria, rotulo: string, Icone: typeof ChatCircleText, contagem: number, titulo: string) => {
@@ -58,7 +60,8 @@ export default function AbasParceria({ aba, aoMudar, naoLidas, visitasAbertas, c
         {mostra('visitas') && aba_('visitas', 'Visitas agendadas', CalendarCheck, visitasAbertas, 'A agenda de visitas: é uma só para todos os números')}
         {abas?.includes('pipeline') && aba_('pipeline', rotuloPipeline || 'Pipeline dos leads', Kanban, 0,
           rotuloPipeline ? 'O funil deste número, só com as conversas dele' : 'Cada lead que chegou na aba Leads, com a data e até onde foi')}
-        {mostra('fechamento') && aba_('fechamento', 'Fechamento', ClipboardText, 0, 'Os checklists de aluguel e venda para o contrato')}
+        {mostra('fechamento') && aba_('fechamento', rotuloFechamento || 'Fechamento', ClipboardText, 0,
+          rotuloFechamento ? 'Os checklists de aluguel e de venda para copiar e mandar' : 'Os checklists de aluguel e venda para o contrato')}
         {abas?.includes('arquitetura') && aba_('arquitetura', 'Arquitetura', TreeStructure, 0, 'Os agentes da Nay Leads: cada etapa num fluxograma, com os números')}
       </div>
       {children}

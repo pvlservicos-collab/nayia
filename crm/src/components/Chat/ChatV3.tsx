@@ -50,7 +50,7 @@ import NotAuthorized from '@/components/Shared/NotAuthorized'
 import ChatJuntado from './ChatJuntado'
 import AbasParceria, { type AbaDaParceria } from './AbasParceria'
 import VisitasAgendadas from './VisitasAgendadas'
-import FechamentoChecklists from './FechamentoChecklists'
+import { DocumentacaoChecklists } from './FechamentoChecklists'
 import ContadorDeVisitas from './ContadorDeVisitas'
 import PipelineBoard from '@/components/Pipeline/PipelineBoard'
 import { useEtiquetas } from '@/lib/etiquetas'
@@ -580,7 +580,7 @@ export default function ChatV3() {
         {/* 04/11 (Pedro: "coloca essa barra de volta no atendimento do v3"): a mesma barra do WhatsApp Parceria */}
         <AbasParceria aba={abaDeCima} aoMudar={setAbaDeCima} naoLidas={leads.filter((l) => daTela(l) && l.is_unread).length}
                       visitasAbertas={new Set(Object.values(marcas).filter((m) => m.visitaAberta && m.visitaId).map((m) => m.visitaId)).size}
-                      abas={['conversas', 'visitas', 'pipeline', 'fechamento']} rotuloConversas="As conversas do Leads e da Parceria" rotuloPipeline="Pipeline">
+                      abas={['conversas', 'visitas', 'pipeline', 'fechamento']} rotuloConversas="As conversas do Leads e da Parceria" rotuloPipeline="Pipeline" rotuloFechamento="Documentação">
           <ContadorDeVisitas linha="parceria" />
         </AbasParceria>
         {abaDeCima === 'visitas' ? (
@@ -588,7 +588,7 @@ export default function ChatV3() {
         ) : abaDeCima === 'pipeline' ? (
           <div className="pipeline-no-chat flex-1 min-w-0 min-h-0 flex flex-col">{organizationId && <PipelineBoard organizationId={organizationId} />}</div>
         ) : abaDeCima === 'fechamento' ? (
-          <div className="flex-1 min-h-0 overflow-y-auto"><FechamentoChecklists /></div>
+          <div className="flex-1 min-h-0 overflow-y-auto"><DocumentacaoChecklists /></div>
         ) : (
         <div className="flex-1 min-h-0">
         <ChatJuntado titulo="Atendimento" subtitulo="Leads e Parceria num lugar só · a resposta sai pelo número de cada conversa"
