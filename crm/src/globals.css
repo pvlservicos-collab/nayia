@@ -2054,3 +2054,9 @@ html {
 .esteira-rolagem::-webkit-scrollbar-track { background: color-mix(in srgb, #94a3b8 18%, transparent); border-radius: 999px; }
 .esteira-rolagem::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 999px; }
 .esteira-rolagem::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+/* CRM v2 (Pedro, 03/11, noite: "o quadrado onde tem o nome do imóvel: se o card tá preto o quadrado tá preto escuro, se o
+   card tá branco o quadrado tá branco gelo"; "cada contato um card único, com um espaço entre eles") */
+.v2-faixa { background: #eef2f7; color: var(--wa-text); }
+.dark .v2-faixa { background: #050606; color: var(--wa-text); }
+.v2-card { border: 1px solid var(--wa-divider); border-radius: 12px; overflow: hidden; background: var(--wa-panel); }

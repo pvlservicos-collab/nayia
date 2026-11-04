@@ -82,11 +82,15 @@ interface Props {
   enfeite?: (lead: LeadWithOwner) => { faixa?: string | null; borda?: QuemAtende | null } | null
   /** v2: a aba "Meus" (a padrão) para quem só vê os dele por padrão; "Todos" mostra o resto */
   meus?: (lead: LeadWithOwner) => boolean
-  /** v2, aba Visita: as conversas em cards, um por visita (o topo de cada card e quem entra nele) */
-  grupos?: (visiveis: LeadWithOwner[]) => Array<{ chave: string; topo: ReactNode; leads: LeadWithOwner[] }>
+  /** v2, aba Visita: as conversas em cards, um por visita (o topo de cada card, quem entra nele e a cor da borda) */
+  grupos?: (visiveis: LeadWithOwner[]) => Array<{ chave: string; topo: ReactNode; leads: LeadWithOwner[]; cor?: string }>
+  /** v2, aba Proprietários (Pedro, 03/11: "cada contato um card único ... um espaço entre eles") */
+  cards?: boolean
+  /** v2, aba Visita: o + do alto faz outra coisa (relacionar à visita), no lugar de escolher as etiquetas */
+  botaoMais?: { titulo: string; aoClicar: () => void }
 }
 
-export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos }: Props) {
+export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais }: Props) {
   const { organizationId, loading, isMaster, roleName, permissions } = useAuth()
   const ehAdmin = !!(isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || (permissions as any)?.['*'])
   const pode = soAdmin ? ehAdmin : ehAdmin || !!permissions?.settings?.view_chat
@@ -214,9 +218,9 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
                     tipoDoContato={acharTipo(tipos, tipoEscolhido(l))} cinzas />
     )
     const e = enfeite?.(l)
-    if (!e || (!e.faixa && !e.borda)) return <div key={l.id}>{item}</div>
+    if (!e || (!e.faixa && !e.borda)) return <div key={l.id} className={cards ? 'v2-card' : undefined}>{item}</div>
     return (
-      <div key={l.id} className="flex items-stretch">
+      <div key={l.id} className={`flex items-stretch${cards ? ' v2-card' : ''}`}>
         {e.borda && (
           <div className="w-[20px] flex-shrink-0 flex items-center justify-center" style={{ background: e.borda.cor }} title={`Quem atende: ${e.borda.nome}`}>
             <span className="text-[10px] font-bold text-white whitespace-nowrap tracking-wide" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
@@ -226,7 +230,7 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
         )}
         <div className="flex-1 min-w-0">
           {e.faixa && (
-            <div className="px-3 py-[3px] text-[11.5px] font-semibold truncate" style={{ background: 'var(--wa-text)', color: 'var(--wa-panel)' }} title={e.faixa}>
+            <div className="v2-faixa px-3 py-[4px] text-[11.5px] font-semibold truncate" title={e.faixa}>
               {e.faixa}
             </div>
           )}
@@ -249,10 +253,16 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
                     className={`wa-icone-btn ${buscaAberta || busca ? 'wa-icone-btn--on' : ''}`} title="Pesquisar conversa (nome ou número)">
               <MagnifyingGlass size={20} />
             </button>
-            <button type="button" onClick={() => setEscolhendo((v) => !v)} aria-expanded={escolhendo}
-                    className={`wa-icone-btn ${escolhendo ? 'wa-icone-btn--on' : ''}`} title="Escolher as etiquetas que viram aba aqui">
-              {escolhendo ? <X size={20} /> : <Plus size={20} />}
-            </button>
+            {botaoMais ? (
+              <button type="button" onClick={botaoMais.aoClicar} className="wa-icone-btn" title={botaoMais.titulo}>
+                <Plus size={20} />
+              </button>
+            ) : (
+              <button type="button" onClick={() => setEscolhendo((v) => !v)} aria-expanded={escolhendo}
+                      className={`wa-icone-btn ${escolhendo ? 'wa-icone-btn--on' : ''}`} title="Escolher as etiquetas que viram aba aqui">
+                {escolhendo ? <X size={20} /> : <Plus size={20} />}
+              </button>
+            )}
           </div>
         </div>
         {buscaAberta && (
@@ -306,12 +316,14 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
             /* um card por visita, com espaço entre um e outro (Pedro: "para ficar bem fácil de ver") */
             <div className="flex flex-col gap-4 p-2 pb-4">
               {grupos(visiveis).map((g) => (
-                <div key={g.chave} className="rounded-xl overflow-hidden" style={{ border: '2px solid #16a34a' }}>
-                  <div className="px-3 py-2 text-[13px]" style={{ background: 'color-mix(in srgb, #16a34a 12%, transparent)', color: 'var(--wa-text)' }}>{g.topo}</div>
-                  {g.leads.map(linhaDaLista)}
+                <div key={g.chave} className="rounded-xl" style={{ border: `2px solid ${g.cor || '#2563eb'}` }}>
+                  <div className="px-3 py-2 text-[13px] rounded-t-[10px]" style={{ background: `color-mix(in srgb, ${g.cor || '#2563eb'} 12%, transparent)`, color: 'var(--wa-text)' }}>{g.topo}</div>
+                  <div className="rounded-b-[10px] overflow-hidden">{g.leads.map(linhaDaLista)}</div>
                 </div>
               ))}
             </div>
+          ) : cards ? (
+            <div className="flex flex-col gap-2.5 p-2 pb-4">{visiveis.map(linhaDaLista)}</div>
           ) : (
             <div className="flex flex-col pb-2">{visiveis.map(linhaDaLista)}</div>
           )

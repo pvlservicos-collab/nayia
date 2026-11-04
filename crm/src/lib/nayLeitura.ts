@@ -181,6 +181,20 @@ export async function visitasDosLeads(desde?: string | null, ate?: string | null
 }
 
 /** 513: o VISITA REALIZADA de uma visita da Nay Leads; a Nay pergunta "como foi?" ao cliente ou ao corretor. */
+/** 587 (v2, aba Proprietários): o nome de cada imóvel (condomínio, ou tipo e bairro) pelo código. */
+export async function nomesDosImoveis(codigos: number[]): Promise<Record<number, string>> {
+  if (!codigos.length) return {}
+  const r = await naydb().query('SELECT codigo, nome FROM crm_imoveis_nomes($1::int[])', [codigos.slice(0, 500)])
+  return Object.fromEntries(r.rows.filter((x: any) => x.nome).map((x: any) => [Number(x.codigo), String(x.nome)]))
+}
+
+/** 587 (v2, aba Visita › Status da visita › Cancelada): a visita da Nay Leads deixa de valer; ninguém é avisado. */
+export async function visitaDosLeadsCancelar(id: number, quem: string): Promise<{ ok: boolean; mensagem: string }> {
+  const r = await naydb().query('SELECT * FROM crm_visita_leads_cancelar($1::bigint, $2::text)', [id, quem])
+  const l = r.rows[0]
+  return { ok: l?.ok === true, mensagem: l?.mensagem || 'Não consegui cancelar a visita.' }
+}
+
 export async function visitaDosLeadsRealizada(id: number, para: 'cliente' | 'corretor', quem: string): Promise<{ ok: boolean; mensagem: string }> {
   try {
     const r = await naydb().query('SELECT * FROM crm_visita_leads_realizada($1::bigint, $2::text, $3::text)', [id, para, quem])
