@@ -3,23 +3,27 @@
 /**
  * A V3 DO CRM (Pedro, 04/11/2026): "quero testar uma nova versão do CRM, parecida com a v2, só no cadastro Tel ... um número
  * de WhatsApp só juntando Leads e Parceria ... o lead é atendido, depois que confirma que quer uma visita vai para a aba
- * Visita ... nesse número vamos falar com corretores e leads ... as abas: Em atendimento, Leads, Corretores, Visitas,
- * Fechamento, Proprietários". O Captação e o WhatsApp Oficial continuam à parte (são outros propósitos).
+ * Visita ... nesse número vamos falar com corretores e leads ... as tags: Em atendimento, Leads, Corretores, Visitas,
+ * Fechamento, Proprietários". E, depois de ver a primeira versão: "cadê as etapas que eu pedi no chat da v3? tá tudo
+ * bagunçado, eu pedi as tags específicas": UMA lista só (a cara do WhatsApp Leads), e as seis etapas são os chips do alto
+ * dela, e só elas. O Captação e o WhatsApp Oficial continuam à parte (são outros propósitos).
  *
  * É só a TELA: cada conversa continua sendo da linha dela (crm/CLAUDE.md, um lead por pessoa em cada linha), e a resposta sai
  * pelo número dela. A Nay que atende segue a origem, como já é: quem veio do Leads (OLX e os outros canais) é a Nay Leads;
  * quem veio da Parceria é a Nay Parceria. Nada mudou no servidor.
  *
- * A conversa está em UMA aba só, na ordem do funil (a mais adiante vence): Fechamento > Proprietários > Visitas >
- * Em atendimento > Corretores > Leads. O mesmo telefone nos dois números aparece uma vez só, pela Parceria (a mesma regra
- * da v2). Visitas, Fechamento e Proprietários são as telas da v2 (ChatPorEtapa), sem mudança.
+ * A conversa está em UMA etapa só, na ordem do funil (a mais adiante vence): Fechamento > Proprietários > Visitas >
+ * Em atendimento > Corretores > Leads. O mesmo telefone nos dois números aparece uma vez só, pela Parceria (a regra da v2).
  *
  *   Em atendimento  a etapa "Em atendimento" do funil (a que o CRM põe quando alguém responde) -- dos dois números
  *   Corretores      tudo o que fala pela Parceria e os corretores do número Leads
  *   Leads           o resto do número Leads (OLX e os outros canais)
- * (Pedro: "testa aí, mas eu vou mudar": as regras de Em atendimento / Corretores / Leads ficam todas em `abaDe`.)
+ *   Visitas         quem está na etapa visita (Parceria: etapa Visitas; Leads: a etiqueta Visita)
+ *   Fechamento      só o Tel e quem ele incluiu (a mesma regra da v2)
+ *   Proprietários   os donos dos dois números
+ * (Pedro: "testa aí, mas eu vou mudar": as regras ficam todas em `etapaDe`.)
  */
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useAuth } from '@/hooks'
 import { useLeadsContext } from '@/contexts/LeadsContext'
 import { usePapelDoContato } from '@/hooks/usePapelDoContato'
@@ -31,19 +35,12 @@ import { primeiroNome, usePapelV2 } from '@/lib/versaoDoCrm'
 import type { LeadWithOwner } from '@/lib/types'
 import NotAuthorized from '@/components/Shared/NotAuthorized'
 import ChatJuntado from './ChatJuntado'
-import ChatPorEtapa from './ChatPorEtapa'
 
-type AbaV3 = 'atendimento' | 'leads' | 'corretores' | 'visitas' | 'fechamento' | 'proprietarios'
-const ABAS: Array<{ chave: AbaV3; rotulo: string }> = [
+type EtapaV3 = 'atendimento' | 'leads' | 'corretores' | 'visitas' | 'fechamento' | 'proprietarios'
+const ETAPAS: Array<{ chave: EtapaV3; rotulo: string }> = [
   { chave: 'atendimento', rotulo: 'Em atendimento' }, { chave: 'leads', rotulo: 'Leads' }, { chave: 'corretores', rotulo: 'Corretores' },
   { chave: 'visitas', rotulo: 'Visitas' }, { chave: 'fechamento', rotulo: 'Fechamento' }, { chave: 'proprietarios', rotulo: 'Proprietários' },
 ]
-const CHAVE = 'crm:v3:aba'
-const SUBTITULO: Record<'atendimento' | 'leads' | 'corretores', string> = {
-  atendimento: 'Quem está sendo atendido agora, dos dois números · a resposta sai pelo número de cada conversa',
-  leads: 'Quem chegou pelo número Leads (OLX e outros canais) · atende a Nay Leads',
-  corretores: 'Os corretores: Parceria e os do número Leads · na Parceria atende a Nay Parceria',
-}
 
 /** o login Tel (administrador de verdade): a v3 é só dele, por enquanto */
 export function useEhTel(): boolean {
@@ -61,59 +58,34 @@ export default function ChatV3() {
   const { ehProprietario, ehVisita } = usePapelDoContato(true, true)
   const { emFechamento, podeVer } = useFechamentoV2()
   const corretoresDoLeads = useCorretoresDaCaptacao(true)
-  const [aba, setAba] = useState<AbaV3>(() => {
-    try { const g = localStorage.getItem(CHAVE) as AbaV3 | null; if (g && ABAS.some((a) => a.chave === g)) return g } catch {}
-    return 'atendimento'
-  })
-  const escolher = (a: AbaV3) => { setAba(a); try { localStorage.setItem(CHAVE, a) } catch {} }
 
   // o telefone que já tem conversa na Parceria: o do Leads some (vale a Parceria)
   const pelaParceria = useMemo(() => new Set(leads.filter((l) => !l.is_group && getLinhaWhatsapp(l) === 'parceria').map((l) => fim8(l.phone)).filter(Boolean)), [leads])
 
-  /** em qual das três abas de conversa a conversa cai (ou null: é de outra aba, de outro número ou grupo) */
-  const abaDe = useCallback((l: LeadWithOwner): 'atendimento' | 'leads' | 'corretores' | null => {
+  /** em qual etapa a conversa está (ou null: é de outro número, grupo ou o Tel não a liberou) */
+  const etapaDe = useCallback((l: LeadWithOwner): EtapaV3 | null => {
     const linha = getLinhaWhatsapp(l)
     if (l.is_group || (linha !== 'captacao' && linha !== 'parceria')) return null
     if (linha === 'captacao' && pelaParceria.has(fim8(l.phone))) return null
-    if (emFechamento(l) || ehProprietario(l) || ehVisita(l)) return null   // essas têm aba própria
     if (!podeVer(l)) return null
+    if (emFechamento(l)) return 'fechamento'
+    if (ehProprietario(l)) return 'proprietarios'
+    if (ehVisita(l)) return 'visitas'
     if (emAtendimento(l)) return 'atendimento'
     if (linha === 'parceria' || corretoresDoLeads.has(fim8(l.phone))) return 'corretores'
     return 'leads'
   }, [pelaParceria, emFechamento, ehProprietario, ehVisita, podeVer, corretoresDoLeads])
 
-  const contagem = useMemo(() => {
-    const c = { atendimento: 0, leads: 0, corretores: 0 }
-    for (const l of leads) { const a = abaDe(l); if (a) c[a]++ }
-    return c
-  }, [leads, abaDe])
+  const etapas = useMemo(() => ETAPAS.map((e) => ({ ...e, casa: (l: LeadWithOwner) => etapaDe(l) === e.chave })), [etapaDe])
 
   if (loading) return null
   if (!ehTel) return <NotAuthorized />
 
   return (
-    <div className="chat-theme flex flex-col h-full min-h-0">
-      <div className="flex items-center gap-2 px-4 py-2 flex-shrink-0 overflow-x-auto" style={{ background: 'var(--wa-panel)', borderBottom: '1px solid var(--wa-divider)' }}>
-        <span className="text-[15px] font-semibold mr-2 flex-shrink-0" style={{ color: 'var(--wa-text)' }}>v3 · WhatsApp</span>
-        {ABAS.map((a) => (
-          <button key={a.chave} type="button" onClick={() => escolher(a.chave)} aria-pressed={aba === a.chave}
-                  className="px-3 h-8 rounded-full text-[13px] font-medium flex-shrink-0"
-                  style={aba === a.chave ? { background: 'var(--wa-green)', color: '#fff' } : { background: 'var(--wa-search)', color: 'var(--wa-text)' }}>
-            {a.rotulo}{a.chave in contagem ? ` · ${contagem[a.chave as keyof typeof contagem]}` : ''}
-          </button>
-        ))}
-        <span className="ml-auto text-[12px] flex-shrink-0" style={{ color: 'var(--wa-text-2)' }}>Teste: só o login Tel vê</span>
-      </div>
-      <div className="flex-1 min-h-0">
-        {aba === 'visitas' ? <ChatPorEtapa etapa="visita" />
-          : aba === 'fechamento' ? <ChatPorEtapa etapa="fechamento" />
-          : aba === 'proprietarios' ? <ChatPorEtapa etapa="proprietarios" />
-          : (
-            <ChatJuntado key={aba} titulo={ABAS.find((x) => x.chave === aba)!.rotulo} subtitulo={SUBTITULO[aba]}
-                         pertence={(l) => abaDe(l) === aba} chaveAbas={`crm:abas-v3-${aba}`}
-                         vazio={aba === 'atendimento' ? 'Ninguém em atendimento agora.' : aba === 'leads' ? 'Nenhum lead agora.' : 'Nenhum corretor agora.'} />
-          )}
-      </div>
+    <div className="chat-theme h-full min-h-0">
+      <ChatJuntado titulo="WhatsApp · v3" subtitulo="Leads e Parceria num lugar só · a resposta sai pelo número de cada conversa"
+                   pertence={(l) => etapaDe(l) !== null} etapas={etapas} chaveAbas="crm:abas-v3"
+                   vazio="Nenhuma conversa nesta etapa." />
     </div>
   )
 }

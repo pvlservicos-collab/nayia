@@ -103,9 +103,11 @@ interface Props {
   buscaExtra?: (texto: string) => ReactNode
   /** 04/11: o que vem logo embaixo do título e do subtítulo (no Chat Captação, o Criar contato) */
   abaixoDoTitulo?: ReactNode
+  /** v3 (Pedro, 04/11): os chips do alto são ESTAS etapas (e só elas), cada uma filtrando pela sua regra; a primeira abre */
+  etapas?: Array<{ chave: string; rotulo: string; casa: (lead: LeadWithOwner) => boolean }>
 }
 
-export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos, casaExtra, buscaExtra, etapaDoCard, abaixoDoTitulo }: Props) {
+export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos, casaExtra, buscaExtra, etapaDoCard, abaixoDoTitulo, etapas }: Props) {
   const { organizationId, loading, permissions } = useAuth()
   // 04/11: o Visualizar por do administrador vale aqui (usePapelV2)
   const papel = usePapelV2()
@@ -121,7 +123,7 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const [aba, setAba] = useState<string>(meus ? 'meus' : 'all')
+  const [aba, setAba] = useState<string>(etapas?.[0]?.chave ?? (meus ? 'meus' : 'all'))
   const [selecionada, setSelecionada] = useState<string | null>(null)
   const [verConversa, setVerConversa] = useState(false)
   const [abas, setAbas] = useState<string[]>([])
@@ -187,12 +189,13 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
   const contagem = (tagId: string) => todas.filter((l) => (l.lead_tags || []).some((lt: any) => lt.tag_id === tagId)).length
   const buscando = busca.trim().length > 0
   const visiveis = todas.filter((l) => buscando ? casaNaBusca(busca, l) || !!casaExtra?.(busca, l)
+    : etapas ? !!etapas.find((e) => e.chave === aba)?.casa(l) || l.id === selecionada
     : aba === 'all' ? true : aba === 'meus' ? !!meus?.(l) || l.id === selecionada
     : aba === 'nao_lidas' ? !!l.is_unread || l.id === selecionada
     : (l.lead_tags || []).some((lt: any) => lt.tag_id === aba))
   const aberta = todas.find((l) => l.id === selecionada) || null
 
-  const filtros: FiltroDaLista[] = [
+  const filtros: FiltroDaLista[] = etapas ? etapas.map((e) => ({ chave: e.chave as any, rotulo: e.rotulo, contagem: todas.filter(e.casa).length })) : [
     ...(meus ? [{ chave: 'meus' as any, rotulo: 'Meus', contagem: todas.filter((l) => meus(l)).length }] : []),
     { chave: 'all', rotulo: 'Todos', contagem: todas.length },
     { chave: 'nao_lidas' as any, rotulo: 'Não lidos', contagem: todas.filter((l) => l.is_unread).length },
@@ -305,7 +308,7 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
                     className={`wa-icone-btn ${buscaAberta || busca ? 'wa-icone-btn--on' : ''}`} title="Pesquisar conversa (nome ou número)">
               <MagnifyingGlass size={20} />
             </button>
-            {botaoMais ? (
+            {etapas ? null : botaoMais ? (
               <button type="button" onClick={botaoMais.aoClicar} className="wa-icone-btn" title={botaoMais.titulo}>
                 <Plus size={20} />
               </button>
