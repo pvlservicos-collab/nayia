@@ -15,7 +15,7 @@
  *   Dentro de…      põe esta conversa dentro de outra (a setinha da lista), ou tira
  */
 import { useEffect, useRef, useState } from 'react'
-import { Check, CircleNotch, FolderSimpleUser, HouseLine, MagnifyingGlass, PaperPlaneRight, Plus, Tag, Trash, TreeStructure, UserPlus, X } from '@phosphor-icons/react'
+import { Check, CircleNotch, MagnifyingGlass, PaperPlaneRight, Plus, Tag, Trash, TreeStructure, UserPlus, X } from '@phosphor-icons/react'
 import type { LeadWithOwner, SearchHit } from '@/lib/types'
 import { useTiposDeContato } from '@/hooks/useTiposDeContato'
 import { acharTipo, dentroDe, pessoasDe, type TipoDeContato } from '@/lib/organizacaoDoLead'
@@ -91,6 +91,20 @@ export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar, soDevol
     ? fazer('Tirado da locação', { locacao: false, ...(doDiego ? { responsavel: null } : {}) })
     : fazer('Enviado para o Diego', { locacao: true, responsavel: { nome: 'Diego' } }))
 
+  const jaNaCaptacao = lead.custom_attributes?.conversa_captacao === true
+  const jaNaAdministracao = escolhido === 'administracao'
+  // 04/11 (Pedro: "um botão que abre uma lista suspensa, seleciono onde e clico enviar, no lugar das várias opções de enviar")
+  const opcoesDeEnvio: OpcaoDeEnvio[] = [
+    { chave: 'rayssa', rotulo: 'Rayssa (Parceria)', acao: enviarRayssa,
+      dica: 'A conversa sai do Leads e vai para a aba Rayssa da Parceria, no topo (a resposta continua saindo por este número); a Nay para de responder' },
+    ...(naLocacao !== undefined ? [{ chave: 'diego', rotulo: naLocacao ? 'Tirar da locação (Diego)' : 'Diego (locação)', acao: enviarDiego,
+      dica: naLocacao ? 'Está na locação, com o Diego: tira e volta para o atendimento de vendas' : 'Manda este lead para a locação: ele aparece para o Diego' }] : []),
+    { chave: 'administracao', rotulo: jaNaAdministracao ? 'Administração (já está)' : 'Administração', desabilitada: jaNaAdministracao, acao: enviarAdministracao,
+      dica: 'O contato vira Administração: sai das abas deste número e vai para o Chat Administração (só o Tel vê)' },
+    { chave: 'captacao', rotulo: jaNaCaptacao ? 'Captação (já está)' : 'Captação', desabilitada: jaNaCaptacao,
+      acao: () => fazer('Enviado para a captação', { captacao: true }), dica: 'A conversa entra no Chat Captação (a aba do Lucas)' },
+  ]
+
   const botao = 'flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-[13px] font-semibold flex-shrink-0'
   const borda = { border: '1px solid var(--wa-divider)', color: 'var(--wa-text)' }
 
@@ -117,25 +131,7 @@ export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar, soDevol
         <Tag size={16} weight="fill" />
         <span className="hidden lg:inline">{tipo?.nome || 'Tipo'}</span>
       </button>
-      <button type="button" className={botao} style={borda} onClick={enviarRayssa} disabled={!!ocupado}
-              title="A conversa sai do Leads e vai para a aba Rayssa da Parceria, no topo (a resposta continua saindo por este número); a Nay para de responder">
-        {ocupado === 'Enviado para a Rayssa' ? <CircleNotch size={16} className="animate-spin" /> : <PaperPlaneRight size={16} />}
-        <span className="hidden xl:inline">Enviar para Rayssa</span>
-      </button>
-      {naLocacao !== undefined && (
-        <button type="button" className={botao} onClick={enviarDiego} disabled={!!ocupado}
-                style={naLocacao ? borda : { ...borda, background: '#38bdf8', borderColor: '#38bdf8', color: '#fff' }}
-                title={naLocacao ? 'Está na locação, com o Diego: tira e volta para o atendimento de vendas'
-                                 : 'Manda este lead para a locação: ele aparece para o Diego, com a bordinha dele'}>
-          {ocupado === 'Enviado para o Diego' || ocupado === 'Tirado da locação' ? <CircleNotch size={16} className="animate-spin" /> : <HouseLine size={16} />}
-          <span className="hidden xl:inline">{naLocacao ? 'Com o Diego · tirar' : 'Enviar para Diego'}</span>
-        </button>
-      )}
-      <button type="button" className={botao} style={borda} onClick={enviarAdministracao} disabled={!!ocupado}
-              title="O contato vira Administração: sai das abas deste número e vai para o Chat Administração (só o Tel vê)">
-        {ocupado === 'Enviado para a Administração' ? <CircleNotch size={16} className="animate-spin" /> : <FolderSimpleUser size={16} />}
-        <span className="hidden xl:inline">Enviar para administração</span>
-      </button>
+      <ListaEnviarPara ocupado={!!ocupado} opcoes={opcoesDeEnvio} />
       {equipe && equipe.length > 0 && (
         <button type="button" className={botao} style={borda} onClick={() => setMenu(menu === 'pessoas' ? '' : 'pessoas')}
                 title="Adicionar alguém da equipe a esta conversa: em Administração, ela só aparece (fixada) para quem for adicionado">
@@ -310,54 +306,58 @@ function TirarDeDentro({ final, lead, fazer }: { final: string; lead: LeadWithOw
   )
 }
 
-/** 03/11 (Pedro: "no Parceria ter o botão Enviar para administração"). À tarde, a etapa voltou a ser Fechamento e
- *  Administração ficou só o tipo de contato, igual ao Leads: a conversa sai das abas da Parceria e vai para o Chat
- *  Administração (só o Tel vê). */
-export function EnviarParaAdministracaoParceria({ lead, aoMudar }: { lead: LeadWithOwner; aoMudar: (o: Organizado) => void }) {
+export interface OpcaoDeEnvio { chave: string; rotulo: string; acao: () => Promise<void> | void; desabilitada?: boolean; dica?: string }
+
+/** 04/11 (Pedro: "um botão que abre uma lista suspensa, seleciono onde e clico enviar ... substituindo essas várias opções
+ *  de enviar diferentes"): uma lista de destinos e o botão Enviar, no lugar de um botão por destino. */
+export function ListaEnviarPara({ opcoes, ocupado }: { opcoes: OpcaoDeEnvio[]; ocupado: boolean }) {
+  const [escolha, setEscolha] = useState('')
+  const op = opcoes.find((o) => o.chave === escolha)
+  const cor = { background: 'var(--wa-panel, #fff)', color: 'var(--wa-text)' }
+  return (
+    <div className="flex items-center gap-1.5 flex-shrink-0">
+      <select value={escolha} onChange={(e) => setEscolha(e.target.value)} disabled={ocupado} aria-label="Enviar esta conversa para…"
+              title={op?.dica || 'Escolha para onde enviar esta conversa'}
+              className="h-9 px-2 rounded-lg text-[13px] font-semibold" style={{ border: '1px solid var(--wa-divider)', ...cor }}>
+        <option value="" style={cor}>Enviar para…</option>
+        {opcoes.map((o) => <option key={o.chave} value={o.chave} disabled={o.desabilitada} style={cor}>{o.rotulo}</option>)}
+      </select>
+      <button type="button" disabled={!op || ocupado}
+              onClick={async () => { if (!op) return; await op.acao(); setEscolha('') }}
+              className="flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-[13px] font-semibold flex-shrink-0 disabled:opacity-50"
+              style={{ border: '1px solid var(--wa-divider)', color: 'var(--wa-text)' }}>
+        {ocupado ? <CircleNotch size={16} className="animate-spin" /> : <PaperPlaneRight size={16} />}
+        <span className="hidden lg:inline">Enviar</span>
+      </button>
+    </div>
+  )
+}
+
+/** A mesma lista na Parceria: Administração (a conversa sai das abas e vai para o Chat Administração, só o Tel vê) e
+ *  Captação (a conversa entra no Chat Captação, a aba do Lucas). */
+export function EnviarParaDaParceria({ lead, aoMudar }: { lead: LeadWithOwner; aoMudar: (o: Organizado) => void }) {
   const [ocupado, setOcupado] = useState(false)
   const [aviso, setAviso] = useState('')
-  const ja = lead.custom_attributes?.tipo_contato === 'administracao'
+  const jaAdm = lead.custom_attributes?.tipo_contato === 'administracao'
+  const jaCap = lead.custom_attributes?.conversa_captacao === true
+  const ir = (rotulo: string, corpo: Record<string, unknown>) => async () => {
+    setOcupado(true); setAviso('')
+    try { aoMudar(await organizar(lead.id, corpo)); setAviso(rotulo) } catch (e: any) { setAviso(e?.message || 'Não consegui.') }
+    finally { setOcupado(false); setTimeout(() => setAviso(''), 2500) }
+  }
   return (
     <div className="relative">
-      <button type="button" disabled={ocupado || ja}
-              className="flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-[13px] font-semibold flex-shrink-0 disabled:opacity-60"
-              style={{ border: '1px solid var(--wa-divider)', color: 'var(--wa-text)' }}
-              title="A conversa sai das abas da Parceria e vai para o Chat Administração (só o Tel vê)"
-              onClick={async () => {
-                setOcupado(true); setAviso('')
-                try {
-                  aoMudar(await organizar(lead.id, { tipo: 'administracao' }))
-                  setAviso('Enviado para a Administração')
-                } catch (e: any) { setAviso(e.message || 'Não consegui.') } finally { setOcupado(false); setTimeout(() => setAviso(''), 2500) }
-              }}>
-        {ocupado ? <CircleNotch size={16} className="animate-spin" /> : <FolderSimpleUser size={16} />}
-        <span className="hidden xl:inline">{ja ? 'Em Administração' : 'Enviar para administração'}</span>
-      </button>
+      <ListaEnviarPara ocupado={ocupado} opcoes={[
+        { chave: 'administracao', rotulo: jaAdm ? 'Administração (já está)' : 'Administração', desabilitada: jaAdm,
+          acao: ir('Enviado para a Administração', { tipo: 'administracao' }),
+          dica: 'A conversa sai das abas da Parceria e vai para o Chat Administração (só o Tel vê)' },
+        { chave: 'captacao', rotulo: jaCap ? 'Captação (já está)' : 'Captação', desabilitada: jaCap,
+          acao: ir('Enviado para a captação', { captacao: true }), dica: 'A conversa entra no Chat Captação (a aba do Lucas)' },
+      ]} />
       {aviso && (
         <span className="absolute top-full right-0 mt-1 text-[12px] px-2 py-1 rounded shadow z-40 whitespace-nowrap"
               style={{ background: 'var(--wa-panel, #fff)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }}>{aviso}</span>
       )}
     </div>
-  )
-}
-
-/** 04/11 (Pedro: "preciso de um botão Enviar para captação", ao lado do Enviar para administração): a conversa ganha a
- *  marca da captação (organizar { captacao: true }) e entra no Chat Captação do Lucas, nos dois números. */
-export function EnviarParaCaptacao({ lead, aoMudar }: { lead: LeadWithOwner; aoMudar: (o: Organizado) => void }) {
-  const [ocupado, setOcupado] = useState(false)
-  const ja = lead.custom_attributes?.conversa_captacao === true
-  return (
-    <button type="button" disabled={ocupado || ja}
-            className="flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-[13px] font-semibold flex-shrink-0 disabled:opacity-60"
-            style={{ border: '1px solid var(--wa-divider)', color: 'var(--wa-text)' }}
-            title="A conversa entra no Chat Captação (a aba do Lucas)"
-            onClick={async () => {
-              setOcupado(true)
-              try { aoMudar(await organizar(lead.id, { captacao: true })) }
-              catch (e: any) { window.alert(e?.message || 'Não consegui enviar para a captação.') } finally { setOcupado(false) }
-            }}>
-      {ocupado ? <CircleNotch size={16} className="animate-spin" /> : <HouseLine size={16} />}
-      <span className="hidden xl:inline">{ja ? 'Na captação' : 'Enviar para captação'}</span>
-    </button>
   )
 }

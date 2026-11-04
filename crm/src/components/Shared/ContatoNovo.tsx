@@ -40,7 +40,9 @@ export default function ContatoNovo() {
   const digitos = numero.replace(/\D/g, '')
   const ehNumero = digitos.length >= 10 && digitos.length <= 13
   const daTela: LinhaWhatsapp = pathname.startsWith('/chat/parceria') ? 'parceria' : 'captacao'
-  const aqui: LinhaWhatsapp = daTela === 'captacao' && soResponde ? 'parceria' : daTela
+  // Pedro, 04/11/2026: "tira a opção de criar pelo número Leads, deixa sempre pelo Parceria quando o Lucas for criar"
+  // (a Nay abre conversa pelo Leads e atropelava quem já falava com a gente na Parceria)
+  const aqui: LinhaWhatsapp = ehLucas ? 'parceria' : daTela === 'captacao' && soResponde ? 'parceria' : daTela
 
   useEffect(() => { setAberto(false) }, [pathname])
   useEffect(() => {
@@ -103,7 +105,7 @@ export default function ContatoNovo() {
             className="w-full h-9 px-3 rounded-lg border border-line bg-transparent text-sm text-ink outline-none focus:border-accent/60"
           />
           {ehLucas ? (
-            <p className="mt-1.5 text-xs text-muted">Vai direto para a sua aba Captação.</p>
+            <p className="mt-1.5 text-xs text-muted">Sai pelo WhatsApp Parceria e vai para a sua aba Captação.</p>
           ) : (
             <label className="mt-1.5 flex items-center gap-2 text-xs text-ink cursor-pointer" title="A conversa entra no Chat Captação (a aba do Lucas)">
               <input type="checkbox" checked={paraCaptacao} onChange={(e) => setParaCaptacao(e.target.checked)} />
@@ -116,7 +118,7 @@ export default function ContatoNovo() {
             {abrindo === aqui ? 'Abrindo…' : `Criar conversa no ${ESCOLHAS.find((e) => e.linha === aqui)?.rotulo}`}
           </button>
           <div className="mt-1.5 text-xs text-muted">
-            {ESCOLHAS.filter((e) => e.linha !== aqui).map((e) => {
+            {ESCOLHAS.filter((e) => e.linha !== aqui && !ehLucas).map((e) => {
               const barrada = e.linha === 'captacao' && soResponde
               return (
                 <button key={e.linha} type="button" onClick={() => abrir(e.linha)} disabled={!!abrindo || barrada || !ehNumero}

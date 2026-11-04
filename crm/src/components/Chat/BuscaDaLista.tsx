@@ -32,6 +32,8 @@ import { CAMINHO_DA_LINHA, getLinhaWhatsapp, type LinhaWhatsapp } from '@/lib/le
 import { RECUSA_DA_CAPTACAO, soRespondeNaCaptacao } from '@/lib/captacaoSoResponde'
 import { NOME_DA_LINHA } from '@/lib/organizacaoDoLead'
 import { linkDaConversa } from '@/lib/links'
+import { primeiroNome } from '@/lib/versaoDoCrm'
+import { organizar } from './OrganizarConversa'
 
 export function casaNaBusca(texto: string, lead: { title?: string | null; phone?: string | null }): boolean {
   const t = texto.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -60,6 +62,8 @@ export default function BuscaDaLista({ texto, aoMudar, achados, aoAbrir, placeho
 }) {
   const { profileName, user } = useAuth()
   const soResponde = soRespondeNaCaptacao(profileName || user?.name)
+  // Pedro, 04/11/2026: o Lucas nunca cria conversa pelo Leads, só pela Parceria (a conversa vai para a aba Captação dele)
+  const ehLucas = primeiroNome(profileName || user?.name) === 'lucas'
   const [abrindo, setAbrindo] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const digitos = texto.replace(/\D/g, '')
@@ -81,6 +85,11 @@ export default function BuscaDaLista({ texto, aoMudar, achados, aoAbrir, placeho
       const j = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(j?.error || j?.message || 'Não consegui abrir a conversa.')
       aoMudar('')
+      if (ehLucas) {
+        await organizar(j.id, { captacao: true })
+        window.location.href = `/chat/captar?leadId=${j.id}`
+        return
+      }
       // conversa de outra linha mora em outra tela: vai para lá, já aberta
       const caminho = CAMINHO_DA_LINHA[escolhida as LinhaWhatsapp]
       if (escolhida !== (linha || 'parceria') && caminho) window.location.href = `${caminho}?leadId=${j.id}`
@@ -96,9 +105,9 @@ export default function BuscaDaLista({ texto, aoMudar, achados, aoAbrir, placeho
     if (!ehNumero || achados > 0) return null
     // 29/10 (Pedro: "na parte de Leads, para falar com um contato novo, um botão: quando alguém pesquisa um número lá em
     // cima aparece 'Criar conversa'"): o botão grande abre a conversa NESTA linha; as outras linhas ficam como atalho.
-    const aqui = (linha === 'captacao' || linha === 'parceria') ? linha : 'parceria'
+    const aqui = ehLucas ? 'parceria' : (linha === 'captacao' || linha === 'parceria') ? linha : 'parceria'
     const aquiBarrada = aqui === 'captacao' && soResponde
-    const outras = ESCOLHAS.filter((e) => e.linha !== aqui)
+    const outras = ESCOLHAS.filter((e) => e.linha !== aqui && !ehLucas)
     const f8 = digitos.slice(-8)
     const doDono = criarMesmo === digitos ? null : leads.find((l) => !l.is_group && String(l.phone || '').replace(/\D/g, '').slice(-8) === f8
       && !!getLinhaWhatsapp(l) && getLinhaWhatsapp(l) !== aqui && ehProprietario(l))
@@ -173,7 +182,7 @@ export default function BuscaDaLista({ texto, aoMudar, achados, aoAbrir, placeho
         )}
       </label>
       {ehNumero && achados === 0 && (
-        <button type="button" onClick={() => abrir(linha || 'parceria')} disabled={!!abrindo}
+        <button type="button" onClick={() => abrir(ehLucas ? 'parceria' : linha || 'parceria')} disabled={!!abrindo}
                 className="mt-2 flex items-center gap-2 text-sm font-medium wa-busca__abrir">
           <ChatCircleText size={16} />
           {abrindo ? 'Abrindo…' : `Abrir conversa com ${texto.trim()}`}

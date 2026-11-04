@@ -36,6 +36,7 @@ import {
   HouseLine,
   CalendarCheck,
   TreeStructure,
+  Flask,
 } from '@phosphor-icons/react'
 import { useAuth, usePipeline } from '@/hooks'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -45,7 +46,7 @@ import GlobalSearch from '@/components/Shared/GlobalSearch'
 import ContatoNovo from '@/components/Shared/ContatoNovo'
 import TamanhoDasConversas from '@/components/Shared/TamanhoDasConversas'
 import { usePipelineFilters } from '@/contexts/FilterContext'
-import { useVersaoDoCrm, trocarVersaoDoCrm, acessoV2, podeEntrar, CAMINHOS_DA_AREA, SDRS_V2, usePapelV2, useVerComo, temMenusDaFuncao, menuLiberado, caminhoLiberado, type AreaV2 } from '@/lib/versaoDoCrm'
+import { useVersaoDoCrm, trocarVersaoDoCrm, acessoV2, podeEntrar, CAMINHOS_DA_AREA, SDRS_V2, usePapelV2, useVerComo, temMenusDaFuncao, menuLiberado, caminhoLiberado, primeiroNome, type AreaV2 } from '@/lib/versaoDoCrm'
 
 /* O MENU (Pedro, 08/10/2026): "retire a aba início, deixe quando a pessoa logar já abre no whatsapp parceria,
    e coloca grupos, corretores e configuração em um só menu + Mais e coloca uma nova aba chamada Chat OLX".
@@ -174,13 +175,16 @@ export default function Navbar() {
   // 04/11 (Pedro: "deixa um número de 8 itens fora do menu; o que eu liberar para o Lucas fica fora do menu, lá na lista
   // em cima"): na barra até 8 itens; do 9º em diante vão para o "+ Mais"
   const NA_BARRA = 8
-  const ITENS: ItemDoMenu[] = v2
+  const ITENS_BASE: ItemDoMenu[] = v2
     ? [...ITENS_V2.filter((i) => i.area && acesso.areas.includes(i.area)),
        ...(menusDaFuncao ? NAV_ITEMS.filter((i) => !hrefsV2.has(i.href) && menuLiberado(papel.abas, i.href)).map((i) => ({ ...i, mais: false })) : []),
        // 04/11 (Pedro: "sobe de volta a aba Imóveis para fora do menu Mais, põe lá em cima"): só ela fica na barra
        ...(acesso.admin ? NAV_ITEMS.filter((i) => !hrefsV2.has(i.href)).map((i) => ({ ...i, mais: i.href !== '/imoveis' })) : [])]
         .map((i, n, todos) => (menusDaFuncao && !i.mais && todos.slice(0, n).filter((x) => !x.mais).length >= NA_BARRA ? { ...i, mais: true } : i))
     : NAV_ITEMS
+  // V3 (Pedro, 04/11/2026): um WhatsApp só juntando Leads e Parceria, em etapas; só o login Tel, por enquanto (ChatV3.tsx)
+  const ehTel = papel.adminDeVerdade && !papel.simulando && primeiroNome(profileName || user?.name) === 'tel'
+  const ITENS: ItemDoMenu[] = ehTel ? [...ITENS_BASE, { label: 'v3', href: '/chat/v3', icon: Flask }] : ITENS_BASE
   const [trocandoVersao, setTrocandoVersao] = useState(false)
   const trocarVersao = async () => {
     const nova = v2 ? 'v1' : 'v2'
