@@ -40,9 +40,14 @@ export function useAtualizacaoPeriodica(
       timer = null
     }
 
+    let ultimaVolta = 0
     const aoMudarVisibilidade = () => {
       if (visivel()) {
-        acaoRef.current() // voltou pra aba: atualiza já, sem esperar o próximo ciclo
+        // 04/11: visibilitychange e focus chegam juntos ao voltar para a aba; uma busca só (a lista tem 3,6 MB)
+        if (Date.now() - ultimaVolta > 2000) {
+          ultimaVolta = Date.now()
+          acaoRef.current() // voltou pra aba: atualiza já, sem esperar o próximo ciclo
+        }
         ligar()
       } else {
         desligar()

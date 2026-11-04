@@ -31,8 +31,16 @@ export function invalidarDonosDaCaptacao(organizationId: string): void {
    corretor que é o contato cadastrado do imóvel (Agnaldo da Idealize, Davi Izel, Moacy, Sarah, Thiago, Raquel...) e os
    números nossos não levam "Prop" na linha do WhatsApp Leads. A conta leva uns segundos e muda pouco: 10 min de guarda. */
 let corretoresGuardados: { em: number; fins: Set<string> } | null = null
+/* 04/11 (o CRM lento; em 03/11 às 10h a conta estourou os 20 s 23 vezes em 3 min): um cálculo por vez para todos os
+   pedidos, e a falha também fica guardada -- a próxima tentativa só 2 min depois, com a cópia anterior (ou ninguém) */
+let corretoresEmCurso: Promise<Set<string>> | null = null
 export async function corretoresDaCaptacao(): Promise<Set<string>> {
   if (corretoresGuardados && Date.now() - corretoresGuardados.em < 10 * 60_000) return corretoresGuardados.fins
+  if (!corretoresEmCurso) corretoresEmCurso = calcularCorretores().finally(() => { corretoresEmCurso = null })
+  return corretoresEmCurso
+}
+
+async function calcularCorretores(): Promise<Set<string>> {
   try {
     /* 30/10 (Pedro: "você colocou todos os corretores como proprietários ... se o cara tem corretor no nome, ou CRECI, ou
        imobiliária, é corretor; se ele envia outro imóvel..."; nayia 541): a 526 só olhava quem também era dono de
@@ -51,7 +59,7 @@ export async function corretoresDaCaptacao(): Promise<Set<string>> {
     corretoresGuardados = { em: Date.now(), fins }
   } catch (e: any) {
     console.error('[captacao/donos] corretores', e?.message || e)   // sem a 526: ninguém sai, como antes
-    if (!corretoresGuardados) return new Set()
+    corretoresGuardados = { em: Date.now() - 8 * 60_000, fins: corretoresGuardados?.fins || new Set() }
   }
   return corretoresGuardados!.fins
 }

@@ -7,7 +7,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { LeadActivityWithActor } from '@/lib/types'
-import { usePusherChannel } from './usePusher'
+import { usePusherChannel, usePusherConectado } from './usePusher'
 import { useAtualizacaoPeriodica } from './useAtualizacaoPeriodica'
 import { useNotification } from '@/contexts/NotificationContext'
 
@@ -168,7 +168,10 @@ export function useLeadActivities(organizationId: string, leadId: string) {
 
   // Mensagem que o lead manda aparece sozinha na conversa aberta, sem recarregar
   // (ver useAtualizacaoPeriodica — é o que substitui o Pusher, que está fora).
-  useAtualizacaoPeriodica(() => fetchActivities(false), 4000, { ativo: !!leadId })
+  // 04/11 (Pedro: "tá demorando a carregar"): eram 4 s sempre, 43% de todos os pedidos do CRM (~1 MB por minuto por
+  // conversa aberta). Com o Pusher de pé, o activity.created já busca na hora: a rede vira 30 s; caído, continua 4 s
+  const pusherDePe = usePusherConectado() && !!process.env.NEXT_PUBLIC_PUSHER_KEY
+  useAtualizacaoPeriodica(() => fetchActivities(false), pusherDePe ? 30000 : 4000, { ativo: !!leadId })
 
   // Realtime via Pusher
   usePusherChannel(`lead-${leadId}`, {

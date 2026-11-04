@@ -23,7 +23,10 @@ export function naydb(): Pool {
   if (!_pool) {
     const url = process.env.NAY_DISPARO_DATABASE_URL
     if (!url) throw { status: 500, message: 'NAY_DISPARO_DATABASE_URL não definida no CRM.' }
-    _pool = new Pool({ connectionString: url, max: 3, statement_timeout: 20000 })
+    /* 04/11 (Pedro: "otimizar o CRM, tá demorando a carregar"): com 3 conexões, as leituras de fundo pesadas (as marcas da
+       Parceria, os corretores, os cadastros incompletos: 2 a 17 s) ocupavam todas, e o clique no card esperava atrás delas.
+       O Postgres aceita 100 e usa ~25. */
+    _pool = new Pool({ connectionString: url, max: 8, statement_timeout: 20000 })
   }
   return _pool
 }

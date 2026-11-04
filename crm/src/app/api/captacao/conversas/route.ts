@@ -24,6 +24,8 @@ export const dynamic = 'force-dynamic'
 const TIPO_DA_LINHA: Record<string, string> = { oficial: 'whatsapp_cloud_official', zapi: 'whatsapp_zapi_captacao' }
 const so8 = (t: string | null) => (t || '').replace(/\D/g, '').slice(-8)
 
+let cadastrosGuardados: { em: number; lista: any[] } | null = null
+
 export async function GET(req: NextRequest) {
   try {
     const auth = await authenticateRequest(req)
@@ -43,8 +45,12 @@ export async function GET(req: NextRequest) {
       if (r.origem) contexto[r.id] = { fonte: 'olx', ...r.origem }
     }
 
-    const a = await naydb().query('SELECT crm_cadastros_incompletos(14) AS j')
-    const cadastros = (a.rows[0]?.j || []) as any[]
+    // 04/11 (o CRM lento): cada aba aberta pedia isto a cada 3 min e a função leva 4-5 s; guardado 90 s no servidor
+    if (!cadastrosGuardados || Date.now() - cadastrosGuardados.em > 90_000) {
+      const a = await naydb().query('SELECT crm_cadastros_incompletos(14) AS j')
+      cadastrosGuardados = { em: Date.now(), lista: (a.rows[0]?.j || []) as any[] }
+    }
+    const cadastros = cadastrosGuardados.lista
     const fones = Array.from(new Set(cadastros.map((c) => so8(c.telefone)).filter((f) => f.length === 8)))
     if (fones.length) {
       const l = await db.execute(sql`
