@@ -74,7 +74,9 @@ export async function trocarVersaoDoCrm(nova: VersaoDoCrm): Promise<void> {
 const FUNCAO_DO_SDR: Record<string, { areas: AreaV2[]; linhas: LinhaDoAtendimento[]; soLocacao?: boolean; soOsNumerosDela?: boolean }> = {
   lucas: { areas: ['captacao'], linhas: [] },
   diego: { areas: ['atendimento', 'visita', 'proprietarios', 'fechamento'], linhas: ['captacao'], soLocacao: true },
-  rayssa: { areas: ['atendimento', 'visita', 'proprietarios', 'fechamento'], linhas: ['parceria'], soOsNumerosDela: true },
+  // 04/11 (Pedro: "libera o WhatsApp Leads para a Rayssa, mas abre primeiro o de Parceria, e o de Leads à direita; só
+  // carrega se ela clicar, e quando ela sai, sai, para não pesar"): a Parceria é a primeira; o Leads só carrega aberto
+  rayssa: { areas: ['atendimento', 'visita', 'proprietarios', 'fechamento'], linhas: ['parceria', 'captacao'], soOsNumerosDela: true },
 }
 
 /* AS ABAS POR FUNÇÃO (Pedro, 04/11/2026: "lá nas Funções eu quero poder liberar aba por aba para cada SDR; o Lucas é

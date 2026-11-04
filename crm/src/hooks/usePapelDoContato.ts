@@ -23,12 +23,14 @@ import { useOlxClientes } from './useOlxClientes'
 import { useDonosDoCadastro } from './useDonosDoCadastro'
 import { useCorretoresDaCaptacao } from './useCorretoresDaCaptacao'
 
-export function usePapelDoContato(ativo = true) {
+/** `comLeads` (04/11): sem ele, as leituras do número Leads (donos, clientes da OLX, corretores) não rodam -- para quem
+ *  só usa a Parceria (a Rayssa), o Leads só pesa quando ela o abre. */
+export function usePapelDoContato(ativo = true, comLeads = true) {
   const { marcas } = useParceriaMarcas(ativo)
-  const donos = useCaptacaoDonos(ativo)
-  const olxClientes = useOlxClientes(ativo)
-  const donosDoCadastro = useDonosDoCadastro(ativo)
-  const corretores = useCorretoresDaCaptacao(ativo)
+  const donos = useCaptacaoDonos(ativo && comLeads)
+  const olxClientes = useOlxClientes(ativo && comLeads)
+  const donosDoCadastro = useDonosDoCadastro(ativo && comLeads)
+  const corretores = useCorretoresDaCaptacao(ativo && comLeads)
   const etiquetas = useEtiquetas()
   const idVisita = etiquetas.find((t) => (t.nomeOriginal || t.name) === 'Visita')?.id
 

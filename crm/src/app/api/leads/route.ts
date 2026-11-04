@@ -84,6 +84,12 @@ export async function GET(req: NextRequest) {
     if (stageId) conditions.push(eq(leads.stageId, stageId))
     if (excludeGroups) conditions.push(or(isNull(leads.isGroup), eq(leads.isGroup, false))!)
     if (searchParams.has('ids')) conditions.push(idsPedidos.length ? inArray(leads.id, idsPedidos) : sql`false`)
+    // 04/11 (Pedro: "o de Leads não quero que carregue para a Rayssa, só se ela clicar"): só as conversas da Parceria e as
+    // ENVIADAS para ela (Enviar para Rayssa, mudou_para), para quem só usa a Parceria
+    if (searchParams.get('linha') === 'parceria') {
+      conditions.push(sql`(${leads.integrationId} IN (SELECT id FROM integrations WHERE type = 'whatsapp_zapi')
+        OR ${leads.customAttributes}->>'mudou_para' = 'parceria')`)
+    }
 
     if (scope === 'funil') {
       conditions.push(sql`${leads.stageId} IS NOT NULL`)

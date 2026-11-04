@@ -44,15 +44,17 @@ export default function AtendimentoPage() {
   // 04/11: o Visualizar por do administrador vale aqui (usePapelV2)
   const papel = usePapelV2()
   const acesso = acessoV2(papel.admin, papel.nome, papel.abas)
-  const { ehProprietario, ehLocacao } = usePapelDoContato()
+  const [linha, setLinha] = useState<LinhaDoAtendimento | null>(null)
+  // 04/11: quem só usa a Parceria (a Rayssa) só carrega as leituras do Leads com o Leads aberto
+  const { ehProprietario, ehLocacao } = usePapelDoContato(true, !acesso.soOsNumerosDela || linha === 'captacao')
   // 04/11 (Pedro): o lead em fechamento é só do Tel e de quem ele incluir (hooks/useFechamentoV2.ts)
   const { podeVer } = useFechamentoV2()
-  const [linha, setLinha] = useState<LinhaDoAtendimento | null>(null)
 
   useEffect(() => {
     if (loading) return
     let guardada: string | null = null
-    try { guardada = localStorage.getItem(CHAVE) } catch {}
+    // 04/11: a Rayssa sempre abre na Parceria (a primeira); o Leads só quando ela clica
+    try { guardada = acesso.soOsNumerosDela ? null : localStorage.getItem(CHAVE) } catch {}
     setLinha(acesso.linhas.includes(guardada as any) ? (guardada as LinhaDoAtendimento) : acesso.linhas[0] || null)
   }, [loading, acesso.linhas.join()])
   const escolher = (l: LinhaDoAtendimento) => { setLinha(l); try { localStorage.setItem(CHAVE, l) } catch {} }

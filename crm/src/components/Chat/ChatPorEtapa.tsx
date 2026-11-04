@@ -44,7 +44,7 @@ import type { LeadWithOwner } from '@/lib/types'
 import type { VisitaNaTela } from '@/lib/tiposNay'
 import { getLinhaWhatsapp } from '@/lib/leadChannel'
 import { fim8 } from '@/lib/olxClientes'
-import { primeiroNome, responsavelV2, usePapelV2 } from '@/lib/versaoDoCrm'
+import { acessoV2, primeiroNome, responsavelV2, usePapelV2 } from '@/lib/versaoDoCrm'
 import { useEquipeV2 } from '@/hooks/useEquipeV2'
 import { useFechamentoV2 } from '@/hooks/useFechamentoV2'
 import { pessoasDe } from '@/lib/organizacaoDoLead'
@@ -326,7 +326,8 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
   const admin = papel.admin
   const eu = primeiroNome(papel.nome)
   const { leads, setLeads } = useLeadsContext()
-  const { ehProprietario } = usePapelDoContato()
+  // 04/11: quem só usa a Parceria (a Rayssa) não carrega as leituras do Leads aqui
+  const { ehProprietario } = usePapelDoContato(true, !acessoV2(papel.admin, papel.nome, papel.abas).soOsNumerosDela)
   const { marcas } = useParceriaMarcas(true)
   const donos = useCaptacaoDonos(etapa === 'proprietarios')
   const { visitas, recarregar } = useVisitasParceria(etapa === 'visita')

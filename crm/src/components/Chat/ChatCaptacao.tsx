@@ -49,7 +49,8 @@ function oQue(c: Extract<ContextoDaCaptacao, { fonte: 'cadastro' }>): string {
 
 function CriarContato() {
   const [numero, setNumero] = useState('')
-  const [linha, setLinha] = useState<'captacao' | 'parceria'>('captacao')
+  // 04/11 (Pedro: "tira a opção de criar pelo número Leads, deixa sempre pelo Parceria quando o Lucas for criar")
+  const linha = 'parceria' as const
   const [ocupado, setOcupado] = useState(false)
   const [erro, setErro] = useState('')
   const digitos = numero.replace(/\D/g, '')
@@ -71,13 +72,8 @@ function CriarContato() {
     <div className="px-3 pb-2">
       <div className="flex items-center gap-1.5">
         <input value={numero} onChange={(e) => { setNumero(e.target.value); setErro('') }} inputMode="tel"
-               onKeyDown={(e) => { if (e.key === 'Enter') void criar() }} placeholder="Criar contato: número com DDD"
+               onKeyDown={(e) => { if (e.key === 'Enter') void criar() }} placeholder="Criar contato (pela Parceria): número com DDD"
                className="flex-1 min-w-0 h-8 px-2.5 rounded-lg text-[13px] outline-none" style={campo} />
-        <select value={linha} onChange={(e) => setLinha(e.target.value as 'captacao' | 'parceria')} title="Por qual número a conversa fala"
-                className="h-8 px-1.5 rounded-lg text-[12px]" style={campo}>
-          <option value="captacao">Leads</option>
-          <option value="parceria">Parceria</option>
-        </select>
         <button type="button" onClick={() => void criar()} disabled={ocupado || !ok}
                 className="h-8 px-3 rounded-lg text-[13px] font-semibold text-white disabled:opacity-50" style={{ background: 'var(--wa-green)' }}>
           {ocupado ? <CircleNotch size={14} className="animate-spin" /> : 'Criar'}

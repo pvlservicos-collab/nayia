@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo, ReactNode } from 'react'
 import { LeadWithOwner } from '@/lib/types'
 import { useAuth } from '@/hooks'
+import { acessoV2, usePapelV2 } from '@/lib/versaoDoCrm'
 import { usePusherChannel, usePusherConectado } from '@/hooks/usePusher'
 import { useAtualizacaoPeriodica } from '@/hooks/useAtualizacaoPeriodica'
 
@@ -26,6 +27,9 @@ interface LeadsContextType {
    * atualiza esta lista sozinha, então quem grava avisa daqui.
    */
   refetch: () => Promise<void>
+  /** 04/11: a tela do Leads aberta pede a lista inteira (quem só usa a Parceria) e devolve ao sair */
+  abrirLeads?: () => void
+  fecharLeads?: () => void
 }
 
 const LeadsContext = createContext<LeadsContextType | undefined>(undefined)
@@ -40,6 +44,15 @@ export type EscopoLeads = 'conversas' | 'funil' | 'tudo'
 
 export function LeadsProvider({ children, escopo = 'tudo' }: { children: ReactNode; escopo?: EscopoLeads }) {
   const { currentOrganization, permissions } = useAuth()
+  /* 04/11 (Pedro: "o de Leads não quero que carregue para ela, só se ela clicar, e quando ela sair, sai, para não pesar"):
+     quem só usa a Parceria (a Rayssa) baixa só as conversas da Parceria e as ENVIADAS para ela (Enviar para Rayssa);
+     a tela do Leads aberta (ChatWhatsApp linha captacao) pede a lista inteira e, ao sair, devolve */
+  const papel = usePapelV2()
+  const soOsNumerosDela = !!acessoV2(papel.admin, papel.nome, papel.abas).soOsNumerosDela
+  const [leadsAbertos, setLeadsAbertos] = useState(0)
+  const soParceria = soOsNumerosDela && leadsAbertos === 0
+  const abrirLeads = useCallback(() => setLeadsAbertos((n) => n + 1), [])
+  const fecharLeads = useCallback(() => setLeadsAbertos((n) => Math.max(0, n - 1)), [])
   const [leads, setLeads] = useState<LeadWithOwner[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -85,6 +98,7 @@ export function LeadsProvider({ children, escopo = 'tudo' }: { children: ReactNo
     const params = new URLSearchParams({ returnAll: 'true' })
     if (escopo !== 'tudo') params.set('scope', escopo)
     if (viewOwnOnly && memberId) params.set('owner', memberId)
+    if (soParceria) params.set('linha', 'parceria')
     return params
   }
 
@@ -182,6 +196,13 @@ export function LeadsProvider({ children, escopo = 'tudo' }: { children: ReactNo
 
   useEffect(() => () => { if (relogioIds.current) clearTimeout(relogioIds.current) }, [])
 
+  // 04/11: abriu ou fechou o Leads (a Rayssa): a lista muda de tamanho
+  const primeiraVez = useRef(true)
+  useEffect(() => {
+    if (primeiraVez.current) { primeiraVez.current = false; return }
+    void fetchLeads(false)
+  }, [soParceria])  // eslint-disable-line react-hooks/exhaustive-deps
+
   // Grupo não conta pra estatística do Pipeline
   const stageStats = useMemo(() => {
     const stats: Record<string, StageStats> = {}
@@ -265,7 +286,7 @@ export function LeadsProvider({ children, escopo = 'tudo' }: { children: ReactNo
   )
 
   return (
-    <LeadsContext.Provider value={{ leads, setLeads, loading, error, stageStats, moveLeadToStage, refetch: () => fetchLeads(false) }}>
+    <LeadsContext.Provider value={{ leads, setLeads, loading, error, stageStats, moveLeadToStage, refetch: () => fetchLeads(false), abrirLeads, fecharLeads }}>
       {children}
     </LeadsContext.Provider>
   )

@@ -305,7 +305,7 @@ export default function Navbar() {
       case 'WhatsApp Parceria': return !!permissions.settings?.view_chat
       // 04/11 (Pedro: "para o cadastro da Rayssa não precisa pôr o número de Leads"): o que vem do Leads para ela chega
       // pela Parceria (Enviar para Rayssa, com a faixa do número Leads)
-      case 'WhatsApp Leads': return !!permissions.settings?.view_chat && !acesso.soOsNumerosDela
+      case 'WhatsApp Leads': return !!permissions.settings?.view_chat
       case 'Chat OLX': return !!permissions.settings?.view_chat
       // 30/10 (Pedro: "ele não tem acesso à parte da OLX no CRM dele, precisa ter, libera para ele e para a Rayssa"):
       // a busca da OLX vale para quem atende o chat (o Lucas e a Rayssa são SDR); antes só o Admin via

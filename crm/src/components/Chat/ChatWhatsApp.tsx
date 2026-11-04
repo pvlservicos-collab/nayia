@@ -71,7 +71,13 @@ export default function ChatWhatsApp({ linha, filtro, extraNoTopo }: {
   const ehParceria = linha === 'parceria'
 
   const { organizationId, loading, permissions, isMaster, roleName, currentOrganization, user, profileName } = useAuth()
-  const { leads: globalLeads, loading: leadsLoading, moveLeadToStage, setLeads } = useLeadsContext()
+  const { leads: globalLeads, loading: leadsLoading, moveLeadToStage, setLeads, abrirLeads, fecharLeads } = useLeadsContext()
+  // 04/11 (a Rayssa: o Leads só carrega enquanto ela está nele; LeadsContext)
+  useEffect(() => {
+    if (linha !== 'captacao') return
+    abrirLeads?.()
+    return () => fecharLeads?.()
+  }, [linha, abrirLeads, fecharLeads])
   /* 03/11: a equipe que o administrador pode adicionar à conversa (Adicionar pessoa) */
   const { members: membrosDaOrg } = useOrganizationMembers(organizationId || '')
   const equipeDaConversa = montarAtendentes(membrosDaOrg || [])
