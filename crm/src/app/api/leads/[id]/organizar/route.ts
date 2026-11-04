@@ -12,6 +12,7 @@
  *   { captacao: true | false }                           conversa de captação (Chat Captação e a etiqueta verde nas listas);
  *                                                        false fica gravado (o "mandar de volta" tira até o cadastro incompleto)
  *   { captacaoOrigem: { olx_id, titulo, url, ... } }     de onde veio a captação (a tela Imóveis captar OLX): o contexto do card
+ *   { locacao: true | false }                            v2 do CRM: o lead do Leads vai (ou sai) da locação, que é do Diego
  *
  * Só mexe em custom_attributes da conversa; a linha (integration_id) nunca muda (crm/CLAUDE.md).
  */
@@ -64,6 +65,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       // 03/11, noite: o false fica gravado ("mandar de volta para os proprietários" tira também quem é cadastro incompleto)
       await db.execute(sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb)
                  || jsonb_build_object('conversa_captacao', ${corpo.captacao}::boolean, 'conversa_captacao_em', now()::text),
+                 updated_at = now() WHERE id = ${id}`)
+    }
+    // v2 (Pedro, 03/11: "tem um botão lá em cima dos outros leads, mandar para locação"): vale mais que a finalidade da Nay
+    if (typeof corpo.locacao === 'boolean') {
+      await db.execute(sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb)
+                 || jsonb_build_object('atendimento_locacao', ${corpo.locacao}::boolean, 'atendimento_locacao_em', now()::text),
                  updated_at = now() WHERE id = ${id}`)
     }
     if (corpo.captacaoOrigem && typeof corpo.captacaoOrigem === 'object') {

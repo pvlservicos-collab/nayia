@@ -33,6 +33,7 @@ import {
   Queue,
   FolderSimpleUser,
   HouseLine,
+  CalendarCheck,
 } from '@phosphor-icons/react'
 import { useAuth, usePipeline } from '@/hooks'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -42,6 +43,7 @@ import GlobalSearch from '@/components/Shared/GlobalSearch'
 import ContatoNovo from '@/components/Shared/ContatoNovo'
 import TamanhoDasConversas from '@/components/Shared/TamanhoDasConversas'
 import { usePipelineFilters } from '@/contexts/FilterContext'
+import { useVersaoDoCrm, trocarVersaoDoCrm, acessoV2, podeEntrar, CAMINHOS_DA_AREA, type AreaV2 } from '@/lib/versaoDoCrm'
 
 /* O MENU (Pedro, 08/10/2026): "retire a aba início, deixe quando a pessoa logar já abre no whatsapp parceria,
    e coloca grupos, corretores e configuração em um só menu + Mais e coloca uma nova aba chamada Chat OLX".
@@ -50,7 +52,8 @@ import { usePipelineFilters } from '@/contexts/FilterContext'
 /* CHATS CANAIS (Pedro, 03/11/2026, noite: "pega os 3 chats lá, OLX, Zap e Chaves, e põe em um menu só, Chats canais, que ao
    passar o mouse desce as opções dos 3"): os itens com `canal: true` saem da barra do computador e viram esse menu, no lugar
    do primeiro deles; na gaveta do celular continuam um por um. */
-const NAV_ITEMS: Array<{ label: string; curto?: string; href: string; icon: typeof Kanban; mais?: boolean; externo?: boolean; canal?: boolean }> = [
+type ItemDoMenu = { label: string; curto?: string; href: string; icon: typeof Kanban; mais?: boolean; externo?: boolean; canal?: boolean; area?: AreaV2 }
+const NAV_ITEMS: ItemDoMenu[] = [
   // PIPELINE GERAL (Pedro, 03/11/2026: "oculta o pipeline que fica no menu pq eu já coloquei em cada número, põe o pipeline
   // do menu como pipeline geral dentro do menu mais"): cada número tem o seu na própria aba; o geral (todos os funis, com as
   // abas de funil do PipelineBoard) foi para o "+ Mais". A barra de baixo do celular continua com ele (MOBILE_TAB_LABELS).
@@ -116,6 +119,17 @@ const NAV_ITEMS: Array<{ label: string; curto?: string; href: string; icon: type
   { label: 'Configurações', href: '/settings/organization', icon: Gear, mais: true },
 ]
 
+/* A V2 DO CRM (Pedro, 03/11/2026: "quero testar uma nova organização do CRM ... a v2 vamos organizar por etapas"; ver
+   lib/versaoDoCrm.ts). Com a v2 ligada (só o Tel liga, e vale para todos), a barra é esta, cada SDR só com as áreas dele;
+   o Tel vê tudo e tem o resto da v1 no "+ Mais". O WhatsApp Oficial só para o Tel ("por enquanto"). */
+const ITENS_V2: ItemDoMenu[] = [
+  { label: 'Captação', href: '/chat/captar', icon: HouseLine, area: 'captacao' },
+  { label: 'Atendimento', href: '/chat/atendimento', icon: WhatsappLogo, area: 'atendimento' },
+  { label: 'Visita', href: '/chat/visita', icon: CalendarCheck, area: 'visita' },
+  { label: 'Proprietários', curto: 'Donos', href: '/chat/proprietarios', icon: IdentificationBadge, area: 'proprietarios' },
+  { label: 'WhatsApp Oficial', curto: 'Oficial', href: '/chat', icon: WhatsappLogo, area: 'oficial' },
+]
+
 /** Onde o CRM abre: depois do login, no logo e no endereço "/". */
 const PAGINA_INICIAL = '/chat/parceria'
 
@@ -137,7 +151,34 @@ export default function Navbar() {
   /* A aba acesa e a de caminho MAIS LONGO que casa com o endereco. Sem
      isto, /chat/parceria acenderia tambem a aba /chat (captacao), porque
      '/chat' e prefixo de '/chat/parceria'. */
-  const hrefAtivo = NAV_ITEMS
+  /* a versão da organização (v1 de sempre / v2 por etapas) e o que cada login vê nela */
+  const versao = useVersaoDoCrm()
+  const adminDoCrm = !!(isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || permissions?.['*'])
+  const v2 = versao === 'v2'
+  const acesso = acessoV2(adminDoCrm, profileName || user?.name)
+  const hrefsV2 = new Set(ITENS_V2.map((i) => i.href))
+  const ITENS: ItemDoMenu[] = v2
+    ? [...ITENS_V2.filter((i) => i.area && acesso.areas.includes(i.area)),
+       ...(acesso.admin ? NAV_ITEMS.filter((i) => !hrefsV2.has(i.href)).map((i) => ({ ...i, mais: true })) : [])]
+    : NAV_ITEMS
+  const [trocandoVersao, setTrocandoVersao] = useState(false)
+  const trocarVersao = async () => {
+    const nova = v2 ? 'v1' : 'v2'
+    if (!window.confirm(`Trocar a organização do CRM de TODOS para a ${nova}?`)) return
+    setTrocandoVersao(true)
+    try {
+      await trocarVersaoDoCrm(nova)
+      router.push(nova === 'v2' ? CAMINHOS_DA_AREA.captacao[0] : PAGINA_INICIAL)
+    } catch (e: any) { window.alert(e?.message || 'Não consegui trocar a versão.') } finally { setTrocandoVersao(false) }
+  }
+  /* na v2, o SDR só entra nas áreas dele: outro endereço leva à primeira delas */
+  useEffect(() => {
+    if (!v2 || acesso.admin || authLoading || !acesso.areas.length) return
+    if (pathname === '/settings/profile' || podeEntrar(acesso, pathname)) return
+    router.replace(CAMINHOS_DA_AREA[acesso.areas[0]][0])
+  }, [v2, acesso.admin, acesso.areas.join(), authLoading, pathname, router])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const hrefAtivo = ITENS
     .map((i) => i.href)
     .filter((h) => pathname === h || (h !== '/' && pathname.startsWith(h)))
     .sort((a, b) => b.length - a.length)[0]
@@ -206,6 +247,9 @@ export default function Navbar() {
   }
   const initials = getInitials(displayName)
   const avatarUrl = user?.image
+
+  /* na v2, os itens da v2 já vêm filtrados pelas áreas de quem entrou */
+  const visivel = (item: ItemDoMenu): boolean => (v2 && item.area ? true : isItemVisible(item.label))
 
   const isItemVisible = (label: string): boolean => {
     // Painel /admin (plataforma inteira) — só profiles.isSuperadmin de verdade, nunca
@@ -278,7 +322,7 @@ export default function Navbar() {
 
         {/* Nav Tabs (desktop) */}
         <div className="hidden md:flex items-center gap-0.5 xl:gap-1 min-w-0">
-          {NAV_ITEMS.filter(item => !item.mais && isItemVisible(item.label)).map((item) => {
+          {ITENS.filter(item => !item.mais && visivel(item)).map((item) => {
             const isActive = item.href === hrefAtivo
             const Icon = item.icon
 
@@ -331,7 +375,7 @@ export default function Navbar() {
 
             /* Chats canais: o primeiro item de canal vira o menu; os outros não aparecem soltos */
             if (item.canal) {
-              const canais = NAV_ITEMS.filter(c => c.canal && isItemVisible(c.label))
+              const canais = ITENS.filter(c => c.canal && !c.mais && visivel(c))
               if (canais[0]?.href !== item.href) return null
               const aceso = showCanais || canais.some(c => c.href === hrefAtivo)
               return (
@@ -391,7 +435,7 @@ export default function Navbar() {
 
           {/* "+ Mais" (08/10): Grupos, Corretores e Configurações num menu só */}
           {(() => {
-            const itensMais = NAV_ITEMS.filter(item => item.mais && isItemVisible(item.label))
+            const itensMais = ITENS.filter(item => item.mais && visivel(item))
             if (!itensMais.length) return null
             const aceso = showMais || itensMais.some(item => item.href === hrefAtivo)
             return (
@@ -496,6 +540,16 @@ export default function Navbar() {
         {/* o botão do som de lead novo (SomNovoLead, no layout) aparece aqui (03/11: embaixo ele cobria o Enviar) */}
         <span id="lugar-do-som" className="contents" />
 
+        {/* v1 / v2 da organização do CRM: só o administrador vê, e a troca vale para todos (Pedro, 03/11) */}
+        {adminDoCrm && versao && (
+          <button type="button" onClick={trocarVersao} disabled={trocandoVersao}
+                  title={`Organização do CRM: ${versao} (vale para todos). Clique para trocar para a ${v2 ? 'v1' : 'v2'}.`}
+                  className="flex items-center rounded-full border border-line text-[11px] font-bold overflow-hidden h-7 disabled:opacity-60">
+            <span className={`px-2 h-full flex items-center ${!v2 ? 'bg-accent text-white' : 'text-muted'}`}>v1</span>
+            <span className={`px-2 h-full flex items-center ${v2 ? 'bg-accent text-white' : 'text-muted'}`}>v2</span>
+          </button>
+        )}
+
         {/* Dark mode toggle */}
         <button
           onClick={toggleTheme}
@@ -594,7 +648,7 @@ export default function Navbar() {
             <div className="absolute bottom-0 left-0 right-0 h-px hairline-x" />
           </div>
           <div className="flex-1 overflow-y-auto p-2">
-            {NAV_ITEMS.filter(item => isItemVisible(item.label)).map(item => {
+            {ITENS.filter(item => visivel(item)).map(item => {
               const isActive = item.href === hrefAtivo
               const Icon = item.icon
               return (
@@ -623,7 +677,7 @@ export default function Navbar() {
         sem precisar abrir o menu. Padrão de app nativo (Instagram, WhatsApp etc). */}
     <div className="app-safe-bottom md:hidden fixed bottom-0 left-0 right-0 z-50 glass-raised rounded-none border-x-0 border-b-0">
       <div className="h-16 flex items-stretch">
-        {NAV_ITEMS.filter(item => MOBILE_TAB_LABELS.includes(item.label) && isItemVisible(item.label)).map(item => {
+        {ITENS.filter(item => (v2 ? !item.mais : MOBILE_TAB_LABELS.includes(item.label)) && visivel(item)).slice(0, 5).map(item => {
           // A mesma regra da barra de cima: sem ela, /chat/captacao acenderia
           // também a aba /chat (a oficial), que é prefixo do endereço.
           const isActive = item.href === hrefAtivo

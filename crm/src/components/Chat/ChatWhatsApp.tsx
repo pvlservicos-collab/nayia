@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth, useStageHistory, useLeadPipelineStages, usePipeline, useIsMobile, useOrganizationMembers } from '@/hooks'
 import { montarAtendentes } from '@/lib/atendentes'
@@ -57,7 +57,14 @@ function useTelaLarga(): boolean {
   return larga
 }
 
-export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
+/* 03/11 (Pedro, a v2 do CRM, lib/versaoDoCrm.ts): a aba Atendimento usa esta mesma tela com um FILTRO a mais (sem os
+   proprietários; no Leads do Diego, só a locação) e um botão a mais no alto da conversa ("Mandar para locação"). Sem os
+   dois (a v1), nada muda. */
+export default function ChatWhatsApp({ linha, filtro, extraNoTopo }: {
+  linha: LinhaWhatsapp
+  filtro?: (l: LeadWithOwner) => boolean
+  extraNoTopo?: (l: LeadWithOwner) => ReactNode
+}) {
   /* A chave é POR LINHA: sem isso, abrir a aba da parceria reabriria a
      última conversa da captação. */
   const chaveUltimaConversa = `${CHAVE_ULTIMA_CONVERSA}:${linha}`
@@ -80,6 +87,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
   const allLeads = globalLeads.filter((l) => {
     // 03/11 (Pedro): misto de leads -- a conversa de outra linha posta também nesta aba aparece aqui
     if (!apareceNaAba(l, linha)) return false
+    if (filtro && !filtro(l)) return false
     if (permissions?.leads?.view_own_only && currentOrganization?.id) {
       if (l.owner_member_id !== currentOrganization.id) return false
     }
@@ -357,7 +365,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
       // a linha DA CONVERSA (no misto, a de outra aba): é por ela que a mensagem sai
       linha={getLinhaWhatsapp(displayedLead) || linha}
       faixaDaLinha={faixaDeOutraLinha(displayedLead, linha)}
-      organizar={mudouPara(displayedLead) === linha && getLinhaWhatsapp(displayedLead) !== linha
+      organizar={<>{mudouPara(displayedLead) === linha && getLinhaWhatsapp(displayedLead) !== linha
         ? <OrganizarConversa lead={displayedLead} soDevolver={NOME_DA_LINHA[getLinhaWhatsapp(displayedLead) || 'captacao']}
                              aoMudar={(o) => aplicarOrganizacao(displayedLead.id, o)} />
         : linha === 'parceria' && getLinhaWhatsapp(displayedLead) === 'parceria'
@@ -366,7 +374,7 @@ export default function ChatWhatsApp({ linha }: { linha: LinhaWhatsapp }) {
         ? <OrganizarConversa lead={displayedLead} tipoDeduzido={getLinhaWhatsapp(displayedLead) === 'parceria' ? 'corretor' : null}
                              equipe={isAdmin ? equipeDaConversa : undefined}
                              aoMudar={(o) => aplicarOrganizacao(displayedLead.id, o)} />
-        : undefined}
+        : undefined}{extraNoTopo?.(displayedLead)}</>}
       marca={ehParceria ? marcas[displayedLead.id] : undefined}
       dono={linha === 'oficial' ? donosDaCaptacao[displayedLead.id] : undefined}
       painelAberto={painelAberto}
