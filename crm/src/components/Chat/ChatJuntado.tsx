@@ -154,13 +154,13 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
   const [solto, setSolto] = useState<LeadWithOwner | null>(null)
   const todas = useMemo(() => {
     // 04/11: quem só vê os números dele (a Rayssa: a Parceria) não vê o Leads aqui, a não ser o que foi enviado a ela
-    const acesso = acessoV2(ehAdmin, papel.nome)
+    const acesso = acessoV2(ehAdmin, papel.nome, papel.abas)
     const doNumeroDele = (l: LeadWithOwner) => !acesso.soOsNumerosDela
       || acesso.linhas.includes(getLinhaWhatsapp(l) as any) || acesso.linhas.includes(mudouPara(l) as any)
     const base = leads.filter((l) => !l.is_group && !l.is_archived && pertence(l) && doNumeroDele(l))
     if (solto && pertence(solto) && !base.some((l) => l.id === solto.id)) base.push(solto)
     return base.sort((a, b) => new Date(b.last_activity_at || b.created_at).getTime() - new Date(a.last_activity_at || a.created_at).getTime())
-  }, [leads, pertence, solto, ehAdmin, papel.nome])
+  }, [leads, pertence, solto, ehAdmin, papel.nome, papel.abas])
 
   /* o endereço é só ENTRADA (crm/CLAUDE.md): ?leadId= abre aquela conversa uma vez */
   const pedidoVisto = useRef<string | null>(null)

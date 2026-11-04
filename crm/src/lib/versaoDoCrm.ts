@@ -77,13 +77,26 @@ const FUNCAO_DO_SDR: Record<string, { areas: AreaV2[]; linhas: LinhaDoAtendiment
   rayssa: { areas: ['atendimento', 'visita', 'proprietarios', 'fechamento'], linhas: ['parceria'], soOsNumerosDela: true },
 }
 
+/* AS ABAS POR FUNÇÃO (Pedro, 04/11/2026: "lá nas Funções eu quero poder liberar aba por aba para cada SDR; o Lucas é
+   uma função nova chamada Captador"): em Configurações › Membros e Permissões, cada função tem "Abas do CRM (v2)"
+   (permissions.abas). Quando a função tem essa lista, ela manda nas áreas; sem ela, vale a regra por nome de antes
+   (FUNCAO_DO_SDR). O número de cada um no Atendimento continua por nome (Diego Leads/locação, Rayssa Parceria). */
+export const AREAS_V2: Array<{ chave: AreaV2; rotulo: string }> = [
+  { chave: 'captacao', rotulo: 'Captação' }, { chave: 'atendimento', rotulo: 'Atendimento' }, { chave: 'visita', rotulo: 'Visita' },
+  { chave: 'proprietarios', rotulo: 'Proprietários' }, { chave: 'fechamento', rotulo: 'Fechamento' },
+  { chave: 'administracao', rotulo: 'Administração' }, { chave: 'oficial', rotulo: 'WhatsApp Oficial' },
+]
+export type AbasDaFuncao = Partial<Record<AreaV2, boolean>> | null | undefined
+
 export interface AcessoV2 { areas: AreaV2[]; linhas: LinhaDoAtendimento[]; soLocacao: boolean; admin: boolean; soOsNumerosDela?: boolean }
 
-export function acessoV2(admin: boolean, nome: string | null | undefined): AcessoV2 {
+export function acessoV2(admin: boolean, nome: string | null | undefined, abas?: AbasDaFuncao): AcessoV2 {
   if (admin) return { areas: ['captacao', 'atendimento', 'visita', 'proprietarios', 'fechamento', 'administracao', 'oficial'], linhas: ['captacao', 'parceria'], soLocacao: false, admin: true }
   const primeiro = String(nome || '').trim().split(/\s+/)[0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
   const f = FUNCAO_DO_SDR[primeiro]
-  return { areas: f?.areas || [], linhas: f?.linhas || [], soLocacao: !!f?.soLocacao, admin: false, soOsNumerosDela: !!f?.soOsNumerosDela }
+  const daFuncao = abas && Object.keys(abas).length ? AREAS_V2.map((a) => a.chave).filter((a) => abas[a]) : null
+  const linhas = f?.linhas?.length ? f.linhas : (daFuncao?.includes('atendimento') ? (['captacao', 'parceria'] as LinhaDoAtendimento[]) : [])
+  return { areas: daFuncao || f?.areas || [], linhas, soLocacao: !!f?.soLocacao, admin: false, soOsNumerosDela: !!f?.soOsNumerosDela }
 }
 
 export function primeiroNome(nome: string | null | undefined): string {
@@ -173,12 +186,36 @@ export function useVerComo(): [string | null, (v: string | null) => void] {
 }
 
 /** Quem a tela da v2 considera: o login de verdade, ou o SDR escolhido no Visualizar por (só para o administrador). */
-export function usePapelV2(): { admin: boolean; adminDeVerdade: boolean; nome: string; simulando: string | null } {
+/** as abas da função de cada SDR (pelo primeiro nome), para o Visualizar por: uma leitura por carga da página */
+let abasPorNome: Record<string, AbasDaFuncao> | null = null
+let lendoAbas: Promise<void> | null = null
+function lerAbasPorNome(): Promise<void> {
+  if (lendoAbas) return lendoAbas
+  lendoAbas = (async () => {
+    try {
+      const [u, r] = await Promise.all([fetch('/api/users').then((x) => x.json()), fetch('/api/roles').then((x) => x.json())])
+      const daFuncao = new Map<string, AbasDaFuncao>(((r?.data || []) as any[]).map((x) => [String(x.id), x.permissions?.abas || null]))
+      const m: Record<string, AbasDaFuncao> = {}
+      for (const x of (u?.data || []) as any[]) {
+        const p = primeiroNome(x?.profiles?.full_name)
+        if (p && !(p in m)) m[p] = daFuncao.get(String(x.role_id)) || null
+      }
+      abasPorNome = m
+    } catch { abasPorNome = abasPorNome || {} }
+  })()
+  return lendoAbas
+}
+
+export function usePapelV2(): { admin: boolean; adminDeVerdade: boolean; nome: string; simulando: string | null; abas: AbasDaFuncao } {
   const { isMaster, roleName, permissions, profileName, user } = useAuth()
   const adminDeVerdade = !!(isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || (permissions as any)?.['*'])
   const [ver] = useVerComo()
   const simulando = adminDeVerdade && ver ? ver : null
+  const [, setLido] = useState(0)
+  useEffect(() => {
+    if (simulando && !abasPorNome) void lerAbasPorNome().then(() => setLido((n) => n + 1))
+  }, [simulando])
   return simulando
-    ? { admin: false, adminDeVerdade, nome: simulando, simulando }
-    : { admin: adminDeVerdade, adminDeVerdade, nome: profileName || user?.name || '', simulando: null }
+    ? { admin: false, adminDeVerdade, nome: simulando, simulando, abas: abasPorNome?.[simulando] ?? null }
+    : { admin: adminDeVerdade, adminDeVerdade, nome: profileName || user?.name || '', simulando: null, abas: (permissions as any)?.abas ?? null }
 }

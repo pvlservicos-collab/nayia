@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { UsersThree, Kanban, GearSix, SpinnerGap } from '@phosphor-icons/react'
+import { UsersThree, Kanban, GearSix, SpinnerGap, SquaresFour } from '@phosphor-icons/react'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
+import { AREAS_V2 } from '@/lib/versaoDoCrm'
 
 interface RolePermissionsPanelProps {
   organizationId: string
@@ -24,9 +25,12 @@ interface PermissionsSchema {
     view_metrics: boolean
     manage_quick_replies: boolean
   }
+  /** 04/11 (Pedro: "liberar aba por aba para cada SDR"): as abas da v2 que a função vê (lib/versaoDoCrm.ts, AREAS_V2) */
+  abas: Record<string, boolean>
 }
 
 const defaultPermissions: PermissionsSchema = {
+  abas: {},
   leads: { view_own_only: true, create_edit: false, export: false },
   pipeline: { manage_deals: false, configure_funnels: false },
   settings: {
@@ -93,6 +97,7 @@ export default function RolePermissionsPanel({ organizationId, selectedRoleId }:
         leads: { ...defaultPermissions.leads, ...(data.permissions?.leads || {}) },
         pipeline: { ...defaultPermissions.pipeline, ...(data.permissions?.pipeline || {}) },
         settings: { ...defaultPermissions.settings, ...(data.permissions?.settings || {}) },
+        abas: { ...(data.permissions?.abas || {}) },
       }
       setPermissions(mergedPermissions as PermissionsSchema)
     } catch (err) {
@@ -120,6 +125,8 @@ export default function RolePermissionsPanel({ organizationId, selectedRoleId }:
       const next = { ...prev }
       // @ts-ignore
       next[module] = { ...prev[module], [action]: !prev[module][action] }
+      // as abas: ligar a primeira já grava a lista inteira, para a função passar a mandar nas áreas (e não o nome)
+      if (module === 'abas') next.abas = Object.fromEntries(AREAS_V2.map((a) => [a.chave, a.chave === action ? !prev.abas[action] : !!prev.abas[a.chave]]))
       return next
     })
     setHasChanges(true)
@@ -170,6 +177,20 @@ export default function RolePermissionsPanel({ organizationId, selectedRoleId }:
       </div>
 
       <div className="space-y-6">
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-gray-50 px-6 py-4 flex items-center gap-2 border-b border-gray-200">
+            <SquaresFour weight="bold" className="text-gray-400 w-5 h-5" />
+            <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Abas do CRM (v2)</h4>
+          </div>
+          <div className="px-6">
+            {AREAS_V2.map((a) => (
+              <PermissionRow key={a.chave} title={a.rotulo} description={`Quem tem esta função vê a aba ${a.rotulo} na v2 do CRM.`}
+                             module="abas" action={a.chave} permissions={{ ...permissions, abas: { [a.chave]: !!permissions.abas[a.chave] } }}
+                             isAdmin={isAdmin} handleToggle={handleToggle} />
+            ))}
+          </div>
+        </div>
+
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           <div className="bg-gray-50 px-6 py-4 flex items-center gap-2 border-b border-gray-200">
             <UsersThree weight="bold" className="text-gray-400 w-5 h-5" />

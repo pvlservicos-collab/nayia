@@ -43,7 +43,7 @@ export default function AtendimentoPage() {
   const { loading } = useAuth()
   // 04/11: o Visualizar por do administrador vale aqui (usePapelV2)
   const papel = usePapelV2()
-  const acesso = acessoV2(papel.admin, papel.nome)
+  const acesso = acessoV2(papel.admin, papel.nome, papel.abas)
   const { ehProprietario, ehLocacao } = usePapelDoContato()
   // 04/11 (Pedro): o lead em fechamento é só do Tel e de quem ele incluir (hooks/useFechamentoV2.ts)
   const { podeVer } = useFechamentoV2()

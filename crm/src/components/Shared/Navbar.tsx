@@ -166,7 +166,7 @@ export default function Navbar() {
   // 04/11 (Pedro: "Visualizar por ... para eu visualizar como um dos SDR"): o menu e a guarda são os do SDR escolhido
   const papel = usePapelV2()
   const [, trocarVerComo] = useVerComo()
-  const acesso = acessoV2(papel.admin, papel.nome)
+  const acesso = acessoV2(papel.admin, papel.nome, papel.abas)
   const hrefsV2 = new Set(ITENS_V2.map((i) => i.href))
   const ITENS: ItemDoMenu[] = v2
     ? [...ITENS_V2.filter((i) => i.area && acesso.areas.includes(i.area)),
