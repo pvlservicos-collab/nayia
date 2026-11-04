@@ -396,6 +396,16 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
   [visitas, marcadas, realizada])
   const abertas = useMemo(() => naTela.filter((v) => !realizada(v)), [naTela, realizada])
 
+  /** as visitas em que cada conversa foi posta à mão (custom_attributes.visitas_v2): só estas podem sair pelo x do card */
+  const aMaoPorVisita = useMemo(() => {
+    const m = new Map<number, Set<string>>()
+    for (const l of leads) for (const vid of visitasAMao(l)) {
+      if (!m.has(vid)) m.set(vid, new Set())
+      m.get(vid)!.add(l.id)
+    }
+    return m
+  }, [leads])
+
   /** as conversas de cada visita: a do corretor (ou do cliente), a do dono, na Nay Leads o cliente e o corretor pelo número,
    *  e as postas à mão */
   const conversasDaVisita = useMemo(() => {
@@ -406,16 +416,26 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
       const parceria = doTel.find((l) => getLinhaWhatsapp(l) === 'parceria')
       return parceria ? [parceria.id] : doTel.map((l) => l.id).slice(0, 1)
     }
-    const aMao = new Map<number, string[]>()
-    for (const l of leads) for (const vid of visitasAMao(l)) aMao.set(vid, [...(aMao.get(vid) || []), l.id])
     const m = new Map<number, string[]>()
     for (const v of naTela) {
       const ids = [v.conversa?.leadId, ...porTelefone(v.clienteTelefone), ...porTelefone(v.corretorTelefone), v.dono?.leadId,
-                   ...porTelefone(v.dono?.telefone), ...(aMao.get(v.id) || [])]
+                   ...porTelefone(v.dono?.telefone), ...Array.from(aMaoPorVisita.get(v.id) || [])]
       m.set(v.id, Array.from(new Set(ids.filter(Boolean) as string[])))
     }
     return m
-  }, [naTela, leads])
+  }, [naTela, leads, aMaoPorVisita])
+
+  /* O X DE CADA PESSOA NO CARD (Pedro, 04/11: "ve la para na aba visita eu poder remover uma pessoa da visita com um
+     x"): só quem foi posto à mão (Adicionar pessoa / Relacionar à visita) sai assim -- o corretor, o cliente e o dono
+     vêm da própria visita (não dá para "remover" sem cancelar a visita). É a mesma chamada do checkbox desmarcado em
+     RelacionarAVisita (organizar visita.ligar: false). */
+  const removerDaVisita = async (leadId: string, visitaId: number) => {
+    try {
+      const o = await organizar(leadId, { visita: { id: visitaId, ligar: false } })
+      setLeads((p) => p.map((x) => (x.id === leadId ? { ...x, custom_attributes: o.custom_attributes } : x)))
+    } catch (e: any) { window.alert(e?.message || 'Não consegui remover esta pessoa da visita.') }
+  }
+
   /* 04/11 (Pedro: "o Diego, da equipe, fica fixado fora dos cards de visita ... ele não fica relacionado, fica no topo, antes
      de começar os cards"): quem acompanha as visitas (a marca acompanhante da Parceria, a mesma que fixa no topo de Visitas
      na v1) fica em cima, fora dos cards */
@@ -518,6 +538,8 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
                          topo: <TopoDaVisita v={v} realizada={realizada(v)} ocupado={mexendo === v.id}
                                              aoAdicionar={() => setPopup({ visita: v.id })} aoStatus={(s) => void mudarStatus(v, s)} />,
                          leads: (conversasDaVisita.get(v.id) || []).filter((id) => ids.has(id)).map((id) => visiveis.find((l) => l.id === id)!),
+                         removiveis: aMaoPorVisita.get(v.id),
+                         aoRemover: (leadId: string) => void removerDaVisita(leadId, v.id),
                        })).filter((g) => g.leads.length > 0)
                      }} />
         )}

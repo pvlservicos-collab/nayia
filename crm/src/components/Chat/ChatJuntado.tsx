@@ -86,8 +86,12 @@ interface Props {
   enfeite?: (lead: LeadWithOwner) => { faixa?: string | null; borda?: QuemAtende | null } | null
   /** v2: a aba "Meus" (a padrão) para quem só vê os dele por padrão; "Todos" mostra o resto */
   meus?: (lead: LeadWithOwner) => boolean
-  /** v2, aba Visita: as conversas em cards, um por visita (o topo de cada card, quem entra nele e a cor da borda) */
-  grupos?: (visiveis: LeadWithOwner[]) => Array<{ chave: string; topo: ReactNode; leads: LeadWithOwner[]; cor?: string }>
+  /** v2, aba Visita: as conversas em cards, um por visita (o topo de cada card, quem entra nele e a cor da borda).
+   *  `removiveis` são os ids de quem pode sair do card pelo x (quem foi posto à mão); `aoRemover` tira. */
+  grupos?: (visiveis: LeadWithOwner[]) => Array<{
+    chave: string; topo: ReactNode; leads: LeadWithOwner[]; cor?: string
+    removiveis?: Set<string>; aoRemover?: (leadId: string) => void
+  }>
   /** v2, aba Proprietários (Pedro, 03/11: "cada contato um card único ... um espaço entre eles") */
   cards?: boolean
   /** v2, aba Visita: o + do alto faz outra coisa (relacionar à visita), no lugar de escolher as etiquetas */
@@ -435,7 +439,21 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
               {grupos(visiveis.filter((l) => !fixos?.ids.has(l.id))).map((g) => (
                 <div key={g.chave} className="rounded-xl" style={{ border: `2px solid ${g.cor || '#2563eb'}` }}>
                   <div className="px-3 py-2 text-[13px] rounded-t-[10px]" style={{ background: `color-mix(in srgb, ${g.cor || '#2563eb'} 12%, transparent)`, color: 'var(--wa-text)' }}>{g.topo}</div>
-                  <div className="rounded-b-[10px] overflow-hidden">{g.leads.map(linhaDaLista)}</div>
+                  <div className="rounded-b-[10px] overflow-hidden">
+                    {g.leads.map((l) => (
+                      <div key={l.id} className="relative">
+                        {linhaDaLista(l)}
+                        {g.removiveis?.has(l.id) && (
+                          <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); g.aoRemover?.(l.id) }}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 z-[1] wa-icone-btn !w-6 !h-6"
+                                  style={{ background: 'var(--wa-panel)', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.22)' }}
+                                  title="Remover esta pessoa da visita" aria-label="Remover esta pessoa da visita">
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>

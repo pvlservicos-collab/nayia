@@ -13,9 +13,9 @@
  *   Administração (04/11: "tá faltando a aba administração") o Chat Administração, só do login Tel
  *   Oficial       o WhatsApp API, só para o Tel ("por enquanto")
  * Quem vê o quê, só na v2 ("o nosso login Tel vê tudo, mas o login dos SDR só tem liberado o chat da função deles"):
- *   Tel (administrador) tudo; Lucas Captação; Diego Atendimento › Leads (locação); Rayssa Atendimento › Parceria.
+ *   Tel (administrador) tudo; Lucas Captação e Visita (04/11); Diego Atendimento › Leads (locação); Rayssa Atendimento › Parceria.
  *   Visita e Proprietários valem para quem atende ("o pessoal do atendimento tem acesso caso tenha que tirar uma dúvida");
- *   o Lucas não ("o Lucas não vai falar com proprietários, ele é só da etapa captação").
+ *   Proprietários o Lucas não tem ("o Lucas não vai falar com proprietários, ele é só da etapa captação").
  * QUEM ATENDE (03/11, noite): cada pessoa tem uma cor (Rayssa rosa, Diego azul-claro, Lucas laranja; Tel roxo; a Nay Leads
  * verde e a Nay Parceria anil). O responsável por um proprietário: ver responsavelV2 (04/11).
  * A versão é uma só para todos (/api/linhas/versao); só o administrador troca, no botão do alto.
@@ -72,7 +72,9 @@ export async function trocarVersaoDoCrm(nova: VersaoDoCrm): Promise<void> {
    Parceria, com o aviso embaixo falando pelo número de Leads"): nas telas que juntam os dois números (Visita,
    Proprietários, Fechamento) ela só vê as conversas dos números dela e as que foram ENVIADAS para eles (mudou_para) */
 const FUNCAO_DO_SDR: Record<string, { areas: AreaV2[]; linhas: LinhaDoAtendimento[]; soLocacao?: boolean; soOsNumerosDela?: boolean }> = {
-  lucas: { areas: ['captacao'], linhas: [] },
+  // 04/11, mais tarde (Pedro: "libera a aba Visita para o Lucas também"): ele passa a ver a agenda de visitas dos dois
+  // números, além da Captação
+  lucas: { areas: ['captacao', 'visita'], linhas: [] },
   diego: { areas: ['atendimento', 'visita', 'proprietarios', 'fechamento'], linhas: ['captacao'], soLocacao: true },
   // 04/11 (Pedro: "libera o WhatsApp Leads para a Rayssa, mas abre primeiro o de Parceria, e o de Leads à direita; só
   // carrega se ela clicar, e quando ela sai, sai, para não pesar"): a Parceria é a primeira; o Leads só carrega aberto

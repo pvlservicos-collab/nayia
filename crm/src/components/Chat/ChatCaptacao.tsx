@@ -24,8 +24,13 @@
  * 04/11 (Pedro: "para o Lucas tira o criar contato lá de cima e deixa embaixo do 'Cadastros incompletos e donos chamados
  * pela OLX', para ele criar contato por lá e já aparecer na lista dele"): o Criar contato daqui abre a conversa no número
  * escolhido, já com a marca da captação, e a abre aqui.
+ *
+ * A ABA AGENDAS (Pedro, 04/11, mais tarde: "na aba captação poe a aba agendas tb para aparecer la encima"): as mesmas
+ * abas Conversas / Visitas agendadas que o WhatsApp Parceria e o Leads já têm, com a mesma agenda (é uma só para todos
+ * os números) -- ver AbasParceria.tsx e VisitasAgendadas.tsx.
  */
 import { useCallback, useState, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 import { tipoEscolhido } from '@/lib/organizacaoDoLead'
 import { ArrowUUpLeft, ArrowSquareOut, CircleNotch } from '@phosphor-icons/react'
 import { useLeadsContext } from '@/contexts/LeadsContext'
@@ -33,6 +38,9 @@ import { useConversasDeCaptacao, useContextoDaCaptacao, ehDeCaptacao, recarregar
 import type { LeadWithOwner } from '@/lib/types'
 import { getLinhaWhatsapp } from '@/lib/leadChannel'
 import ChatJuntado from './ChatJuntado'
+import AbasParceria, { type AbaDaParceria } from './AbasParceria'
+import VisitasAgendadas from './VisitasAgendadas'
+import { comMarcaDeAbertura } from '@/lib/links'
 import { organizar } from './OrganizarConversa'
 
 const dia = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Manaus' }) : '')
@@ -155,11 +163,21 @@ function Contexto({ c, ocupado, aoDevolver, aoDevolverCorretor }: { c: ContextoD
 }
 
 export default function ChatCaptacao() {
-  const { setLeads } = useLeadsContext()
+  const router = useRouter()
+  const { leads, setLeads } = useLeadsContext()
   const ids = useConversasDeCaptacao()
   const contexto = useContextoDaCaptacao()
   const [devolvendo, setDevolvendo] = useState('')
   const pertence = useCallback((l: LeadWithOwner) => ehDeCaptacao(l, ids), [ids])
+
+  /* AS ABAS (04/11): Conversas (a tela de sempre) e Visitas agendadas, a mesma agenda dos outros números. */
+  const [aba, setAba] = useState<AbaDaParceria>('conversas')
+  const [visitaDestaque, setVisitaDestaque] = useState<number | null>(null)
+  const naoLidas = leads.filter((l) => pertence(l) && l.is_unread && !l.is_archived).length
+  const abrirDaAgenda = useCallback((leadId: string) => {
+    setAba('conversas')
+    router.push(comMarcaDeAbertura(`/chat/captar?leadId=${leadId}`))
+  }, [router])
 
   const devolver = async (l: LeadWithOwner, para: 'proprietario' | 'corretor' = 'proprietario') => {
     setDevolvendo(l.id)
@@ -180,29 +198,39 @@ export default function ChatCaptacao() {
   }
 
   return (
-    <ChatJuntado titulo="Captação" subtitulo="Cadastros incompletos e donos chamados pela OLX · cada conversa responde pelo número dela"
-                 pertence={pertence} chaveAbas="crm:abas-captacao" vazio="Nenhuma conversa de captação agora."
-                 abaixoDoTitulo={<CriarContato />}
-                 cadastrar={(l) => {
-                   const c = contexto[l.id]
-                   return { linkInicial: c?.fonte === 'olx' ? c.url : undefined }
-                 }}
-                 topoDoCard={(l) => <Contexto c={contexto[l.id]} ocupado={devolvendo === l.id} aoDevolver={() => void devolver(l)}
-                                              aoDevolverCorretor={() => void devolver(l, 'corretor')} />}
-                 etapaDoCard={(l) => <TipoDoContato lead={l} aoMudar={(custom) => setLeads((p) => p.map((x) => (x.id === l.id ? { ...x, custom_attributes: custom } : x)))} />}
-                 menu={(lead, fechar) => (
-                   <>
-                     <button type="button" className="w-full text-left px-4 py-2.5 text-[14px] hover:bg-[var(--wa-row-hover)] flex items-center gap-3"
-                             title="Depois de finalizar o cadastro: a conversa sai da Captação e volta para Proprietários no número dela"
-                             onClick={() => { fechar(); void devolver(lead) }}>
-                       <ArrowUUpLeft size={17} style={{ color: 'var(--wa-icon)' }} /> Mandar de volta para Proprietários
-                     </button>
-                     <button type="button" className="w-full text-left px-4 py-2.5 text-[14px] hover:bg-[var(--wa-row-hover)] flex items-center gap-3"
-                             title="É corretor: a conversa sai da Captação e volta para o número dela como Corretor"
-                             onClick={() => { fechar(); void devolver(lead, 'corretor') }}>
-                       <ArrowUUpLeft size={17} style={{ color: 'var(--wa-icon)' }} /> Mandar de volta para Corretor
-                     </button>
-                   </>
-                 )} />
+    <div className="chat-theme flex flex-col h-full min-h-0">
+      <AbasParceria aba={aba} aoMudar={setAba} naoLidas={naoLidas} visitasAbertas={0}
+                    abas={['conversas', 'visitas']} rotuloConversas="Cadastros incompletos e donos chamados pela OLX" />
+      <div className="flex-1 min-h-0">
+        {aba === 'visitas' ? (
+          <div className="h-full flex"><VisitasAgendadas aoAbrirConversa={abrirDaAgenda} destaque={visitaDestaque} /></div>
+        ) : (
+          <ChatJuntado titulo="Captação" subtitulo="Cadastros incompletos e donos chamados pela OLX · cada conversa responde pelo número dela"
+                       pertence={pertence} chaveAbas="crm:abas-captacao" vazio="Nenhuma conversa de captação agora."
+                       abaixoDoTitulo={<CriarContato />}
+                       cadastrar={(l) => {
+                         const c = contexto[l.id]
+                         return { linkInicial: c?.fonte === 'olx' ? c.url : undefined }
+                       }}
+                       topoDoCard={(l) => <Contexto c={contexto[l.id]} ocupado={devolvendo === l.id} aoDevolver={() => void devolver(l)}
+                                                    aoDevolverCorretor={() => void devolver(l, 'corretor')} />}
+                       etapaDoCard={(l) => <TipoDoContato lead={l} aoMudar={(custom) => setLeads((p) => p.map((x) => (x.id === l.id ? { ...x, custom_attributes: custom } : x)))} />}
+                       menu={(lead, fechar) => (
+                         <>
+                           <button type="button" className="w-full text-left px-4 py-2.5 text-[14px] hover:bg-[var(--wa-row-hover)] flex items-center gap-3"
+                                   title="Depois de finalizar o cadastro: a conversa sai da Captação e volta para Proprietários no número dela"
+                                   onClick={() => { fechar(); void devolver(lead) }}>
+                             <ArrowUUpLeft size={17} style={{ color: 'var(--wa-icon)' }} /> Mandar de volta para Proprietários
+                           </button>
+                           <button type="button" className="w-full text-left px-4 py-2.5 text-[14px] hover:bg-[var(--wa-row-hover)] flex items-center gap-3"
+                                   title="É corretor: a conversa sai da Captação e volta para o número dela como Corretor"
+                                   onClick={() => { fechar(); void devolver(lead, 'corretor') }}>
+                             <ArrowUUpLeft size={17} style={{ color: 'var(--wa-icon)' }} /> Mandar de volta para Corretor
+                           </button>
+                         </>
+                       )} />
+        )}
+      </div>
+    </div>
   )
 }
