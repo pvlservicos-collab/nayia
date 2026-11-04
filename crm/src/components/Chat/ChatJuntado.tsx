@@ -31,7 +31,8 @@ import { casaNaBusca } from './BuscaDaLista'
 import PainelContatoParceria from './PainelContatoParceria'
 import PainelContatoCaptacao from './PainelContatoCaptacao'
 import CadastroImovelOlx from './CadastroImovelOlx'
-import type { QuemAtende } from '@/lib/versaoDoCrm'
+import { acessoV2, type QuemAtende } from '@/lib/versaoDoCrm'
+import { mudouPara } from '@/lib/organizacaoDoLead'
 
 export const NUMERO_DA_CONVERSA: Record<string, string> = {
   captacao: 'Pelo número Leads · 8595-6408', parceria: 'Pelo número Parceria · 9445-3618', oficial: 'Pelo número Oficial · 8456-0874',
@@ -94,7 +95,7 @@ interface Props {
 }
 
 export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos }: Props) {
-  const { organizationId, loading, isMaster, roleName, permissions } = useAuth()
+  const { organizationId, loading, isMaster, roleName, permissions, profileName, user } = useAuth()
   const ehAdmin = !!(isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || (permissions as any)?.['*'])
   const pode = soAdmin ? ehAdmin : ehAdmin || !!permissions?.settings?.view_chat
   const { leads, setLeads, loading: leadsLoading } = useLeadsContext()
@@ -146,10 +147,14 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
   /* a conversa que veio pelo endereço e ainda não está na lista (recém-aberta, sem mensagem): busca uma vez */
   const [solto, setSolto] = useState<LeadWithOwner | null>(null)
   const todas = useMemo(() => {
-    const base = leads.filter((l) => !l.is_group && !l.is_archived && pertence(l))
+    // 04/11: quem só vê os números dele (a Rayssa: a Parceria) não vê o Leads aqui, a não ser o que foi enviado a ela
+    const acesso = acessoV2(ehAdmin, profileName || user?.name)
+    const doNumeroDele = (l: LeadWithOwner) => !acesso.soOsNumerosDela
+      || acesso.linhas.includes(getLinhaWhatsapp(l) as any) || acesso.linhas.includes(mudouPara(l) as any)
+    const base = leads.filter((l) => !l.is_group && !l.is_archived && pertence(l) && doNumeroDele(l))
     if (solto && pertence(solto) && !base.some((l) => l.id === solto.id)) base.push(solto)
     return base.sort((a, b) => new Date(b.last_activity_at || b.created_at).getTime() - new Date(a.last_activity_at || a.created_at).getTime())
-  }, [leads, pertence, solto])
+  }, [leads, pertence, solto, ehAdmin, profileName, user?.name])
 
   /* o endereço é só ENTRADA (crm/CLAUDE.md): ?leadId= abre aquela conversa uma vez */
   const pedidoVisto = useRef<string | null>(null)

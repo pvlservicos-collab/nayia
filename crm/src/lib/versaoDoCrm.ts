@@ -66,19 +66,23 @@ export async function trocarVersaoDoCrm(nova: VersaoDoCrm): Promise<void> {
 }
 
 /** a função de cada SDR pelo primeiro nome do login */
-const FUNCAO_DO_SDR: Record<string, { areas: AreaV2[]; linhas: LinhaDoAtendimento[]; soLocacao?: boolean }> = {
+/* soOsNumerosDela (Pedro, 04/11: "para o cadastro da Rayssa não precisa pôr o número de Leads, deixa só o número de
+   Parceria aparecendo; mas o corretor do Leads que alguém mandou com Enviar para Rayssa aparece para ela no chat da
+   Parceria, com o aviso embaixo falando pelo número de Leads"): nas telas que juntam os dois números (Visita,
+   Proprietários, Fechamento) ela só vê as conversas dos números dela e as que foram ENVIADAS para eles (mudou_para) */
+const FUNCAO_DO_SDR: Record<string, { areas: AreaV2[]; linhas: LinhaDoAtendimento[]; soLocacao?: boolean; soOsNumerosDela?: boolean }> = {
   lucas: { areas: ['captacao'], linhas: [] },
   diego: { areas: ['atendimento', 'visita', 'proprietarios', 'fechamento'], linhas: ['captacao'], soLocacao: true },
-  rayssa: { areas: ['atendimento', 'visita', 'proprietarios', 'fechamento'], linhas: ['parceria'] },
+  rayssa: { areas: ['atendimento', 'visita', 'proprietarios', 'fechamento'], linhas: ['parceria'], soOsNumerosDela: true },
 }
 
-export interface AcessoV2 { areas: AreaV2[]; linhas: LinhaDoAtendimento[]; soLocacao: boolean; admin: boolean }
+export interface AcessoV2 { areas: AreaV2[]; linhas: LinhaDoAtendimento[]; soLocacao: boolean; admin: boolean; soOsNumerosDela?: boolean }
 
 export function acessoV2(admin: boolean, nome: string | null | undefined): AcessoV2 {
   if (admin) return { areas: ['captacao', 'atendimento', 'visita', 'proprietarios', 'fechamento', 'administracao', 'oficial'], linhas: ['captacao', 'parceria'], soLocacao: false, admin: true }
   const primeiro = String(nome || '').trim().split(/\s+/)[0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
   const f = FUNCAO_DO_SDR[primeiro]
-  return { areas: f?.areas || [], linhas: f?.linhas || [], soLocacao: !!f?.soLocacao, admin: false }
+  return { areas: f?.areas || [], linhas: f?.linhas || [], soLocacao: !!f?.soLocacao, admin: false, soOsNumerosDela: !!f?.soOsNumerosDela }
 }
 
 export function primeiroNome(nome: string | null | undefined): string {
