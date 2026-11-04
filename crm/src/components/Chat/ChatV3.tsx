@@ -39,7 +39,7 @@ import { useEquipeV2 } from '@/hooks/useEquipeV2'
 import { getLinhaWhatsapp } from '@/lib/leadChannel'
 import { fim8 } from '@/lib/olxClientes'
 import { etapaDaParceria } from '@/lib/etapaDaParceria'
-import { tipoEscolhido } from '@/lib/organizacaoDoLead'
+import { tipoEscolhido, tipoDoLead, TIPOS_DO_LEAD, CORPO_DO_TIPO, type TipoDoLead } from '@/lib/organizacaoDoLead'
 import { montarAtendentes } from '@/lib/atendentes'
 import { primeiroNome, responsavelV2, usePapelV2 } from '@/lib/versaoDoCrm'
 import { ModoV3, FILAS_V3, ETAPAS_V3, CLASSE_DO_AUTOR, type FilaV3 } from '@/lib/modoV3'
@@ -67,9 +67,10 @@ const reais = (v: number) => v >= 1e6 ? `R$ ${(v / 1e6).toLocaleString('pt-BR', 
 /** a barrinha curta das etapas (card) */
 function BarrinhaCurta({ atual }: { atual: number }) {
   return (
-    <span className="flex items-center gap-[2px] w-[60px] flex-shrink-0">
+    <span className="flex items-center gap-[2px] w-[60px] flex-shrink-0 py-[3px]">
       {ETAPAS_V3.map((e, i) => (
-        <span key={e.curto} className="h-[4px] flex-1 rounded-full" style={{ background: i <= atual ? e.cor : 'var(--wa-row-selected)' }} />
+        <span key={e.curto} title={e.rotulo} className="h-[6px] flex-1 rounded-full cursor-default"
+              style={{ background: i <= atual ? e.cor : 'var(--wa-row-selected)' }} />
       ))}
     </span>
   )
@@ -114,6 +115,30 @@ function CardV3({ l, hora, aberta, abrir, menu, cor, etapa, r }: {
         </span>
       </span>
     </button>
+  )
+}
+
+/** O TIPO DO LEAD, no alto da conversa (Pedro, 04/11: "em cima tem Tipo do lead, uma lista para selecionar e colocar como
+ *  proprietário, corretor, lead locação ou lead venda, ou administração"). Grava como a lista do card do pipeline. */
+function TipoDoLeadV3({ l, atual, cor, aoMudar }: { l: LeadWithOwner; atual: TipoDoLead; cor: string; aoMudar: (o: Organizado) => void }) {
+  const [salvando, setSalvando] = useState(false)
+  const mudar = async (novo: TipoDoLead) => {
+    if (!novo || novo === atual) return
+    setSalvando(true)
+    try { aoMudar(await organizar(l.id, CORPO_DO_TIPO[novo])) }
+    catch (e: any) { window.alert(e?.message || 'Não consegui mudar o tipo.') } finally { setSalvando(false) }
+  }
+  return (
+    <span className="flex items-center gap-1 flex-shrink-0 text-[11.5px]" style={{ color: 'var(--wa-text-2)' }}>
+      Tipo do lead
+      <select value={atual} disabled={salvando} onChange={(e) => void mudar(e.target.value as TipoDoLead)}
+              title="Tipo do lead: muda a fila da conversa (proprietário, corretor, lead locação, lead venda ou administração)"
+              className="rounded-full px-2 h-[22px] text-[11.5px] font-medium disabled:opacity-60 cursor-pointer"
+              style={{ color: cor, background: `${cor}22`, border: `1px solid ${cor}66`, colorScheme: 'light dark' }}>
+        {!atual && <option value="">Escolher…</option>}
+        {TIPOS_DO_LEAD.map((t) => <option key={t.chave} value={t.chave}>{t.nome}</option>)}
+      </select>
+    </span>
   )
 }
 
@@ -226,6 +251,17 @@ export default function ChatV3() {
   const equipe = useMemo(() => montarAtendentes(members || []), [members])
   // o que Assumir / Devolver acabou de fazer (até a próxima leitura das marcas e dos clientes confirmar)
   const [mudado, setMudado] = useState<Record<string, Responde>>({})
+  // 04/11 (Pedro: "no número dele quem está respondendo é a equipe e na v3 tá IA"): quem mandou a ÚLTIMA mensagem nossa;
+  // gente (pelo CRM ou pelo celular) vale como a pessoa respondendo, mesmo que a Nay não esteja pausada
+  const [humanos, setHumanos] = useState<Record<string, { nome: string; celular: boolean }>>({})
+  useEffect(() => {
+    if (!ehTel) return
+    let vivo = true
+    const ler = () => fetch('/api/linhas/quem-responde').then((r) => (r.ok ? r.json() : null)).then((j) => { if (vivo && j?.humanos) setHumanos(j.humanos) }).catch(() => undefined)
+    void ler()
+    const t = setInterval(() => { if (document.visibilityState === 'visible') void ler() }, 30_000)
+    return () => { vivo = false; clearInterval(t) }
+  }, [ehTel])
 
   const pelaParceria = useMemo(() => new Set(leads.filter((l) => !l.is_group && getLinhaWhatsapp(l) === 'parceria').map((l) => fim8(l.phone)).filter(Boolean)), [leads])
 
@@ -236,13 +272,24 @@ export default function ChatV3() {
     return podeVer(l)
   }, [pelaParceria, podeVer])
 
-  /** a fila: Locação, Venda ou Corretores (proprietário e fechamento ficam só em Todas, com o anel cinza) */
+  /** o tipo de agora: o escolhido à mão; senão o que a lista deduz (corretor na Parceria, dono, locação ou venda) */
+  const tipoDe = useCallback((l: LeadWithOwner): TipoDoLead => {
+    const t = tipoDoLead(l, getLinhaWhatsapp(l) === 'captacao', (f) => olx[f]?.finalidade)
+    if (t && tipoEscolhido(l)) return t
+    if (ehProprietario(l)) return 'proprietario'
+    if (getLinhaWhatsapp(l) === 'parceria' || corretoresDoLeads.has(fim8(l.phone))) return 'corretor'
+    return ehLocacao(l) ? 'locacao' : 'vendas'
+  }, [olx, ehProprietario, corretoresDoLeads, ehLocacao])
+
+  /** a fila pelo tipo (04/11, Pedro: o Evandro é proprietário, não corretor): Administração fica só em Todas, com o anel cinza */
   const filaDe = useCallback((l: LeadWithOwner): FilaV3 | null => {
     if (!daTela(l)) return null
-    if (getLinhaWhatsapp(l) === 'parceria' || tipoEscolhido(l) === 'corretor' || corretoresDoLeads.has(fim8(l.phone))) return 'corretores'
-    if (ehProprietario(l) || emFechamento(l)) return null
-    return ehLocacao(l) ? 'locacao' : 'venda'
-  }, [daTela, corretoresDoLeads, ehProprietario, emFechamento, ehLocacao])
+    const t = tipoDe(l)
+    if (t === 'proprietario') return 'proprietarios'
+    if (t === 'corretor') return 'corretores'
+    if (t === 'administracao') return null
+    return t === 'locacao' ? 'locacao' : 'venda'
+  }, [daTela, tipoDe])
 
   const etapaManual = (l: LeadWithOwner): number | null => {
     const n = (l.custom_attributes as any)?.etapa_v3?.n
@@ -263,11 +310,11 @@ export default function ChatV3() {
     if (mudado[l.id]) return mudado[l.id]
     const marca = marcas[l.id]
     const parada = getLinhaWhatsapp(l) === 'parceria' ? !!marca?.telAtendendo : !!olx[fim8(l.phone)]?.humano
-    if (!parada) return { tipo: 'ia', nome: 'IA' }
+    if (!parada) return humanos[l.id] ? { tipo: 'humano', nome: humanos[l.id].nome || 'Equipe' } : { tipo: 'ia', nome: 'IA' }
     const r = responsavelV2(l as any, equipeV2)
     const doMotivo = /^(\p{L}+):/u.exec(String(marca?.telMotivo || ''))?.[1]
     return { tipo: 'humano', nome: r && !r.nay ? r.nome : doMotivo || 'Equipe' }
-  }, [mudado, marcas, olx, equipeV2])
+  }, [mudado, marcas, olx, equipeV2, humanos])
 
   const aplicar = useCallback((leadId: string, o: Organizado) => {
     setLeads((p) => p.map((x) => (x.id === leadId ? {
@@ -301,10 +348,10 @@ export default function ChatV3() {
                        anel: corDe,
                        pilula: (l) => {
                          const f = filaDe(l)
-                         return f ? { texto: FILAS_V3[f].tipo, cor: FILAS_V3[f].cor }
-                           : { texto: ehProprietario(l) ? 'Proprietário' : 'Fechamento', cor: CINZA }
+                         const cor = f ? FILAS_V3[f].cor : CINZA
+                         return { texto: '', cor, no: <TipoDoLeadV3 l={l} atual={tipoDe(l)} cor={cor} aoMudar={(o) => aplicar(l.id, o)} /> }
                        },
-                       subtitulo: (l) => <SubtituloV3 l={l} ehLead={getLinhaWhatsapp(l) === 'captacao' && filaDe(l) !== 'corretores'}
+                       subtitulo: (l) => <SubtituloV3 l={l} ehLead={getLinhaWhatsapp(l) === 'captacao' && (filaDe(l) === 'locacao' || filaDe(l) === 'venda')}
                                                       creci={marcas[l.id]?.creci || null} />,
                        abaixoDoTopo: (l) => <BarraDasEtapas l={l} atual={etapaDe(l)} manual={etapaManual(l) !== null}
                                                             aoMudar={(o) => aplicar(l.id, o)} />,
@@ -312,7 +359,7 @@ export default function ChatV3() {
                                                     aoMudar={(r, o) => { setMudado((m) => ({ ...m, [l.id]: r })); if (o) aplicar(l.id, o) }} />,
                        organizar: (l) => getLinhaWhatsapp(l) === 'parceria'
                          ? <EnviarParaDaParceria lead={l} aoMudar={(o) => aplicar(l.id, o)} />
-                         : <OrganizarConversa lead={l} tipoDeduzido={null} equipe={equipe} naLocacao={ehLocacao(l)}
+                         : <OrganizarConversa lead={l} tipoDeduzido={null} equipe={equipe} naLocacao={ehLocacao(l)} semTipo
                                               aoMudar={(o) => aplicar(l.id, o)} />,
                      }} />
       </div>

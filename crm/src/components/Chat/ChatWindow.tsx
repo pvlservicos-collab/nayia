@@ -56,7 +56,7 @@ interface ChatWindowProps {
   rodapeDoChat?: ReactNode
   /** v3: o anel de 2px no avatar (a cor da fila) e a pílula do tipo ao lado do nome */
   anelDoAvatar?: string
-  pilulaDoTopo?: { texto: string; cor: string }
+  pilulaDoTopo?: { texto: string; cor: string; no?: ReactNode }
 }
 
 export interface ReplyContext {
@@ -146,7 +146,7 @@ function EtiquetasNoCabecalho({ lead, onTagsChange }: {
 function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlternarPainel, aoVoltar, dono, etiquetasRapidas, onTagsChange, aoCadastrarImovel, cadastroAberto, organizar, falando, subtituloDoTopo, anelDoAvatar, pilulaDoTopo }: {
   subtituloDoTopo?: ReactNode
   anelDoAvatar?: string
-  pilulaDoTopo?: { texto: string; cor: string }
+  pilulaDoTopo?: { texto: string; cor: string; no?: ReactNode }
   /** v2 do CRM (Pedro, 03/11: "onde tem o pontinho rosa de humano vai aparecer o nome de quem está falando pelo login") */
   falando?: QuemAtende | null
   organizar?: ReactNode
@@ -197,7 +197,8 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
         <span className="min-w-0">
           <span className="flex items-center gap-2 min-w-0">
             <span className="block text-[16px] leading-[21px] truncate" style={{ color: 'var(--wa-text)' }}>{nomeDono || formatPhone(lead.title)}</span>
-            {pilulaDoTopo && (
+            {pilulaDoTopo?.no}
+            {pilulaDoTopo && !pilulaDoTopo.no && (
               <span className="flex-shrink-0 rounded-full px-2 text-[11.5px] font-medium leading-[18px]"
                     style={{ color: pilulaDoTopo.cor, background: `${pilulaDoTopo.cor}22`, border: `1px solid ${pilulaDoTopo.cor}66` }}>{pilulaDoTopo.texto}</span>
             )}

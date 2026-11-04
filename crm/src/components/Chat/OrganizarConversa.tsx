@@ -44,9 +44,11 @@ interface Props {
   equipe?: { id: string; nome: string; cor: string }[]
   /** 04/11: a conversa do Leads já está na locação (do Diego); sem o valor, o botão do Diego não aparece */
   naLocacao?: boolean
+  /** v3 (04/11): o tipo do lead vive numa lista no alto da conversa; aqui o botão Tipo não aparece */
+  semTipo?: boolean
 }
 
-export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar, soDevolver, equipe, naLocacao }: Props) {
+export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar, soDevolver, equipe, naLocacao, semTipo }: Props) {
   const { tipos, salvar } = useTiposDeContato()
   const [menu, setMenu] = useState<'' | 'tipo' | 'dentro' | 'editar' | 'pessoas'>('')
   const [ocupado, setOcupado] = useState('')
@@ -126,11 +128,13 @@ export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar, soDevol
 
   return (
     <div ref={caixa} className="relative flex items-center gap-1.5">
-      <button type="button" className={botao} style={{ ...borda, ...(tipo ? { color: tipo.cor, borderColor: tipo.cor + '66' } : {}) }}
-              onClick={() => setMenu(menu === 'tipo' ? '' : 'tipo')} title="Tipo de contato (a cor da conversa na lista)">
-        <Tag size={16} weight="fill" />
-        <span className="hidden lg:inline">{tipo?.nome || 'Tipo'}</span>
-      </button>
+      {!semTipo && (
+        <button type="button" className={botao} style={{ ...borda, ...(tipo ? { color: tipo.cor, borderColor: tipo.cor + '66' } : {}) }}
+                onClick={() => setMenu(menu === 'tipo' ? '' : 'tipo')} title="Tipo de contato (a cor da conversa na lista)">
+          <Tag size={16} weight="fill" />
+          <span className="hidden lg:inline">{tipo?.nome || 'Tipo'}</span>
+        </button>
+      )}
       <ListaEnviarPara ocupado={!!ocupado} opcoes={opcoesDeEnvio} />
       {equipe && equipe.length > 0 && (
         <button type="button" className={botao} style={borda} onClick={() => setMenu(menu === 'pessoas' ? '' : 'pessoas')}

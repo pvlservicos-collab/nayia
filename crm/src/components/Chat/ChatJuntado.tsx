@@ -116,7 +116,7 @@ interface Props {
     abaixoDoTopo?: (lead: LeadWithOwner) => ReactNode
     rodape?: (lead: LeadWithOwner) => ReactNode
     anel?: (lead: LeadWithOwner) => string | undefined
-    pilula?: (lead: LeadWithOwner) => { texto: string; cor: string } | undefined
+    pilula?: (lead: LeadWithOwner) => { texto: string; cor: string; no?: ReactNode } | undefined
   }
   /** v3: o card da lista é este (no lugar do LeadListItem); recebe a hora, se está aberta, abrir e o botão direito */
   itemDaLista?: (lead: LeadWithOwner, x: { hora: string; aberta: boolean; abrir: () => void; menu: (e: EventoDeMouse) => void }) => ReactNode

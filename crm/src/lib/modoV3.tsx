@@ -13,11 +13,12 @@ import { createContext, useContext } from 'react'
 export const ModoV3 = createContext(false)
 export const useModoV3 = () => useContext(ModoV3)
 
-export type FilaV3 = 'locacao' | 'venda' | 'corretores'
+export type FilaV3 = 'locacao' | 'venda' | 'corretores' | 'proprietarios'
 export const FILAS_V3: Record<FilaV3, { rotulo: string; tipo: string; quem: string; cor: string }> = {
   locacao: { rotulo: 'Locação', tipo: 'Lead locação', quem: 'Diego', cor: '#1D9E75' },
   venda: { rotulo: 'Venda', tipo: 'Lead venda', quem: 'Rayssa', cor: '#D85A30' },
   corretores: { rotulo: 'Corretores', tipo: 'Corretor', quem: 'Nay', cor: '#D4537E' },
+  proprietarios: { rotulo: 'Proprietários', tipo: 'Proprietário', quem: 'Equipe', cor: '#D97706' },
 }
 
 export const ETAPAS_V3 = [
