@@ -21,13 +21,26 @@ export const FILAS_V3: Record<FilaV3, { rotulo: string; tipo: string; quem: stri
   proprietarios: { rotulo: 'Proprietários', tipo: 'Proprietário', quem: 'Equipe', cor: '#D97706' },
 }
 
+/* AS ETAPAS DO LEAD = as etapas reais da Nay Leads (Pedro, 04/11: "uma única fonte de verdade para as etapas"; "Nomes da
+   Nay"). Mudar na barra muda a etapa dela (/api/captacao/olx-clientes, crm_olx_cliente_etapa), a mesma do card antigo.
+   Proprietários, Fechamento e Finalizados da Nay vêm depois da visita: a barra fica cheia até Visita e o nome é o dela. */
 export const ETAPAS_V3 = [
-  { curto: 'Começar', rotulo: 'Começar', cor: '#888780' },
-  { curto: 'Filtrado', rotulo: 'Filtrado', cor: '#378ADD' },
-  { curto: 'Em atend.', rotulo: 'Em atendimento', cor: '#7F77DD' },
-  { curto: 'Enviado opção', rotulo: 'Enviado opção', cor: '#639922' },
-  { curto: 'Visitas', rotulo: 'Visitas', cor: '#EF9F27' },
+  { chave: 'filtrar', curto: 'Filtrar', rotulo: 'Filtrar', cor: '#378ADD' },
+  { chave: 'feito_busca', curto: 'Feito busca', rotulo: 'Feito busca', cor: '#7F77DD' },
+  { chave: 'imoveis_enviados', curto: 'Imóveis enviados', rotulo: 'Imóveis enviados', cor: '#639922' },
+  { chave: 'visita', curto: 'Visita', rotulo: 'Visita', cor: '#EF9F27' },
 ] as const
+export type EtapaDaNay = 'nova' | 'filtrar' | 'feito_busca' | 'imoveis_enviados' | 'visita' | 'proprietarios' | 'fechamento' | 'finalizado'
+/** até onde a barra enche (-1: a Nay ainda não começou) */
+export function indiceDaEtapa(e: string | null | undefined): number {
+  const i = ETAPAS_V3.findIndex((x) => x.chave === e)
+  if (i >= 0) return i
+  return e === 'proprietarios' || e === 'fechamento' || e === 'finalizado' ? 3 : -1
+}
+export const NOME_DA_ETAPA: Record<string, string> = {
+  nova: 'Chegou agora', filtrar: 'Filtrar', feito_busca: 'Feito busca', imoveis_enviados: 'Imóveis enviados', visita: 'Visita',
+  proprietarios: 'Com o proprietário', fechamento: 'Fechamento', finalizado: 'Finalizado',
+}
 
 /** o selo de quem responde: IA (roxo) ou a pessoa (verde); o claro e o escuro estão no globals.css (.v3-selo-*) */
 export const CLASSE_DO_AUTOR = { ia: 'v3-ia', humano: 'v3-humano' } as const

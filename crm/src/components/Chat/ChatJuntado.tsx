@@ -32,7 +32,7 @@ import ChatWindow from './ChatWindow'
 import ChatFilterTabs, { type FiltroDaLista } from './ChatFilterTabs'
 import { casaNaBusca } from './BuscaDaLista'
 import PainelContatoParceria from './PainelContatoParceria'
-import PainelContatoCaptacao from './PainelContatoCaptacao'
+import PainelContatoCaptacao, { type PainelV3 } from './PainelContatoCaptacao'
 import CadastroImovelOlx from './CadastroImovelOlx'
 import { acessoV2, usePapelV2, type QuemAtende } from '@/lib/versaoDoCrm'
 import { mudouPara } from '@/lib/organizacaoDoLead'
@@ -120,11 +120,13 @@ interface Props {
   }
   /** v3: o card da lista é este (no lugar do LeadListItem); recebe a hora, se está aberta, abrir e o botão direito */
   itemDaLista?: (lead: LeadWithOwner, x: { hora: string; aberta: boolean; abrir: () => void; menu: (e: EventoDeMouse) => void }) => ReactNode
+  /** v3 (Pedro, 04/11: o painel do lead no visual novo): o que o painel do lead do Leads ganha (anel, tipo, número, quem responde, etapa) */
+  painelV3?: (lead: LeadWithOwner) => PainelV3
   /** v3: sem a faixa laranja "Pelo número ..." (a saída vai embaixo, em cima da caixa de mensagem) */
   semFaixaDaLinha?: boolean
 }
 
-export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos, casaExtra, buscaExtra, etapaDoCard, abaixoDoTitulo, etapas, etapasEmLista, rodapeDoItem, naConversa, semFaixaDaLinha, itemDaLista }: Props) {
+export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos, casaExtra, buscaExtra, etapaDoCard, abaixoDoTitulo, etapas, etapasEmLista, rodapeDoItem, naConversa, semFaixaDaLinha, itemDaLista, painelV3 }: Props) {
   const { organizationId, loading, permissions } = useAuth()
   // 04/11: o Visualizar por do administrador vale aqui (usePapelV2)
   const papel = usePapelV2()
@@ -461,6 +463,7 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
                                     aoVerVisita={() => router.push('/chat/parceria')} onTagsChange={aoMudarEtiqueta} onUpdateLead={aoMudarLead} />
     }
     return <PainelContatoCaptacao key={aberta.id} lead={aberta} modo={modo} aoFechar={alternarPainel} topo={topoDoCard?.(aberta)} trocaDaEtapa={etapaDoCard?.(aberta)}
+                                  v3={painelV3?.(aberta)}
                                   oficial={linhaDe(aberta) === 'oficial'} onTagsChange={aoMudarEtiqueta} />
   }
   const cadastro = (modo: 'lateral' | 'gaveta') => aberta && cadastrar && cadastroDe === aberta.id

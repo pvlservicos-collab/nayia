@@ -27,26 +27,27 @@
  * Visitas ou Em atendimento.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CircleNotch, PushPin, Robot, User } from '@phosphor-icons/react'
+import { CaretDown, Check, CircleNotch, LockSimple, PushPin, Robot, User, WhatsappLogo } from '@phosphor-icons/react'
 import { useAuth, useOrganizationMembers } from '@/hooks'
 import { useLeadsContext } from '@/contexts/LeadsContext'
 import { usePapelDoContato } from '@/hooks/usePapelDoContato'
 import { useFechamentoV2 } from '@/hooks/useFechamentoV2'
 import { useCorretoresDaCaptacao } from '@/hooks/useCorretoresDaCaptacao'
-import { useOlxClientes } from '@/hooks/useOlxClientes'
+import { useOlxClientes, mudarEtapaOlx } from '@/hooks/useOlxClientes'
 import { useParceriaMarcas } from '@/hooks/useParceriaMarcas'
 import { useEquipeV2 } from '@/hooks/useEquipeV2'
 import { getLinhaWhatsapp } from '@/lib/leadChannel'
 import { fim8 } from '@/lib/olxClientes'
 import { etapaDaParceria } from '@/lib/etapaDaParceria'
-import { tipoEscolhido, tipoDoLead, TIPOS_DO_LEAD, CORPO_DO_TIPO, type TipoDoLead } from '@/lib/organizacaoDoLead'
+import { tipoEscolhido, tipoDoLead, TIPOS_DO_LEAD, CORPO_DO_TIPO, NOME_DA_LINHA, type TipoDoLead } from '@/lib/organizacaoDoLead'
 import { montarAtendentes } from '@/lib/atendentes'
 import { primeiroNome, responsavelV2, usePapelV2 } from '@/lib/versaoDoCrm'
-import { ModoV3, FILAS_V3, ETAPAS_V3, CLASSE_DO_AUTOR, type FilaV3 } from '@/lib/modoV3'
+import { ModoV3, FILAS_V3, ETAPAS_V3, CLASSE_DO_AUTOR, indiceDaEtapa, NOME_DA_ETAPA, type FilaV3 } from '@/lib/modoV3'
 import { formatPhone } from '@/lib/utils'
 import type { LeadWithOwner } from '@/lib/types'
 import NotAuthorized from '@/components/Shared/NotAuthorized'
 import ChatJuntado from './ChatJuntado'
+import type { PainelV3 } from './PainelContatoCaptacao'
 import OrganizarConversa, { EnviarParaDaParceria, organizar, type Organizado } from './OrganizarConversa'
 
 const CINZA = '#888780'
@@ -64,12 +65,12 @@ const iniciais = (t: string) => t.trim().split(/\s+/).slice(0, 2).map((p) => p.c
 const reais = (v: number) => v >= 1e6 ? `R$ ${(v / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mi`
   : v >= 1000 ? `R$ ${(v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil` : `R$ ${v}`
 
-/** a barrinha curta das etapas (card) */
+/** a barrinha curta das etapas da Nay (card): até a etapa de agora com a cor de cada uma, o resto cinza */
 function BarrinhaCurta({ atual }: { atual: number }) {
   return (
     <span className="flex items-center gap-[2px] w-[60px] flex-shrink-0 py-[3px]">
       {ETAPAS_V3.map((e, i) => (
-        <span key={e.curto} title={e.rotulo} className="h-[6px] flex-1 rounded-full cursor-default"
+        <span key={e.chave} title={e.rotulo} className="h-[6px] flex-1 rounded-full cursor-default"
               style={{ background: i <= atual ? e.cor : 'var(--wa-row-selected)' }} />
       ))}
     </span>
@@ -84,9 +85,10 @@ function Selo({ r }: { r: Responde }) {
 }
 
 /** o card da lista: exatamente 3 linhas */
-function CardV3({ l, hora, aberta, abrir, menu, cor, etapa, r }: {
+function CardV3({ l, hora, aberta, abrir, menu, cor, etapa, tipo, r }: {
   l: LeadWithOwner; hora: string; aberta: boolean; abrir: () => void; menu: (e: React.MouseEvent) => void
-  cor: string; etapa: number; r: Responde
+  /** só lead tem etapa (a da Nay); corretor e proprietário mostram o tipo no lugar da barrinha */
+  cor: string; etapa: { i: number; nome: string } | null; tipo: string; r: Responde
 }) {
   const nome = (l.title || '').trim() || formatPhone(l.phone || '') || 'Sem nome'
   const naoLida = !!l.is_unread
@@ -109,8 +111,8 @@ function CardV3({ l, hora, aberta, abrir, menu, cor, etapa, r }: {
           {naoLida && <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: 'var(--wa-green)' }} aria-label="Não lida" />}
         </span>
         <span className="flex items-center gap-2">
-          <BarrinhaCurta atual={etapa} />
-          <span className="flex-1 truncate text-[12px]" style={{ color: 'var(--wa-text-2)' }}>{ETAPAS_V3[etapa].rotulo}</span>
+          {etapa && <BarrinhaCurta atual={etapa.i} />}
+          <span className="flex-1 truncate text-[12px]" style={{ color: 'var(--wa-text-2)' }}>{etapa ? etapa.nome : tipo}</span>
           <Selo r={r} />
         </span>
       </span>
@@ -118,51 +120,129 @@ function CardV3({ l, hora, aberta, abrir, menu, cor, etapa, r }: {
   )
 }
 
-/** O TIPO DO LEAD, no alto da conversa (Pedro, 04/11: "em cima tem Tipo do lead, uma lista para selecionar e colocar como
- *  proprietário, corretor, lead locação ou lead venda, ou administração"). Grava como a lista do card do pipeline. */
-function TipoDoLeadV3({ l, atual, cor, aoMudar }: { l: LeadWithOwner; atual: TipoDoLead; cor: string; aoMudar: (o: Organizado) => void }) {
-  const [salvando, setSalvando] = useState(false)
-  const mudar = async (novo: TipoDoLead) => {
-    if (!novo || novo === atual) return
-    setSalvando(true)
-    try { aoMudar(await organizar(l.id, CORPO_DO_TIPO[novo])) }
-    catch (e: any) { window.alert(e?.message || 'Não consegui mudar o tipo.') } finally { setSalvando(false) }
-  }
+/** O NÚMERO DA CONVERSA (Pedro, 04/11: "ao lado do nome, de forma discreta, por qual número essa conversa acontece"):
+ *  o ícone do WhatsApp e o nome do número, 11 px, cor secundária, sem fundo */
+export function NumeroDaConversa({ l }: { l: LeadWithOwner }) {
+  const linha = getLinhaWhatsapp(l)
+  if (!linha) return null
   return (
-    <span className="flex items-center gap-1 flex-shrink-0 text-[11.5px]" style={{ color: 'var(--wa-text-2)' }}>
-      Tipo do lead
-      <select value={atual} disabled={salvando} onChange={(e) => void mudar(e.target.value as TipoDoLead)}
-              title="Tipo do lead: muda a fila da conversa (proprietário, corretor, lead locação, lead venda ou administração)"
-              className="rounded-full px-2 h-[22px] text-[11.5px] font-medium disabled:opacity-60 cursor-pointer"
-              style={{ color: cor, background: `${cor}22`, border: `1px solid ${cor}66`, colorScheme: 'light dark' }}>
-        {!atual && <option value="">Escolher…</option>}
-        {TIPOS_DO_LEAD.map((t) => <option key={t.chave} value={t.chave}>{t.nome}</option>)}
-      </select>
+    <span className="inline-flex items-center gap-[3px] text-[11px] font-normal flex-shrink-0" style={{ color: 'var(--wa-text-2)' }}
+          title={`Esta conversa é pelo número ${NOME_DA_LINHA[linha]}`}>
+      <WhatsappLogo size={12} />{NOME_DA_LINHA[linha]}
     </span>
   )
 }
 
-/** a barra das 5 etapas embaixo do cabeçalho; cada uma é clicável (a escolhida à mão, clicada de novo, volta ao automático) */
-function BarraDasEtapas({ l, atual, manual, aoMudar }: { l: LeadWithOwner; atual: number; manual: boolean; aoMudar: (o: Organizado) => void }) {
-  const [salvando, setSalvando] = useState<number | null>(null)
-  const escolher = async (i: number) => {
-    setSalvando(i)
-    try { aoMudar(await organizar(l.id, { etapaV3: manual && i === atual ? null : i })) }
-    catch (e: any) { window.alert(e?.message || 'Não consegui mudar a etapa.') } finally { setSalvando(null) }
+export type Avisar = (texto: string, desfazer?: () => Promise<void>) => void
+
+/** A PÍLULA DO TIPO (Pedro, 04/11): clica e troca (Lead locação, Lead venda, Corretor, Proprietário, Administração). A troca
+ *  é manual e fica travada: só outra troca manual muda (o cadeado mostra quem e quando). Depois, "Tipo alterado · Desfazer". */
+export function PilulaDoTipo({ l, atual, cor, aoMudar, avisar }: {
+  l: LeadWithOwner; atual: TipoDoLead; cor: string; aoMudar: (o: Organizado) => void; avisar: Avisar
+}) {
+  const [aberto, setAberto] = useState(false)
+  const [salvando, setSalvando] = useState(false)
+  const ca = (l.custom_attributes || {}) as any
+  const manual = !!tipoEscolhido(l)
+  const nome = (t: TipoDoLead) => (t === 'locacao' ? 'Lead locação' : t === 'vendas' ? 'Lead venda' : TIPOS_DO_LEAD.find((x) => x.chave === t)?.nome || 'Escolher tipo')
+  const quando = ca.tipo_contato_em
+    ? new Date(ca.tipo_contato_em).toLocaleString('pt-BR', { timeZone: 'America/Manaus', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : null
+  const dica = `Definido manualmente${ca.tipo_contato_por ? ` por ${String(ca.tipo_contato_por).split(' ')[0]}` : ''}${quando ? ` em ${quando}` : ''}`
+  const mudar = async (novo: Exclude<TipoDoLead, ''>) => {
+    setAberto(false)
+    if (novo === atual) return
+    const antes: Record<string, unknown> = manual && atual ? CORPO_DO_TIPO[atual as Exclude<TipoDoLead, ''>] : { tipo: null }
+    setSalvando(true)
+    try {
+      // virou corretor: sai de quem atendia o lead (Diego/Rayssa) e volta à regra do número (a fila Corretores)
+      aoMudar(await organizar(l.id, { ...CORPO_DO_TIPO[novo], ...(novo === 'corretor' ? { responsavel: null } : {}) }))
+      avisar(`Tipo alterado para ${nome(novo)}`, async () => { aoMudar(await organizar(l.id, antes)) })
+    } catch (e: any) { window.alert(e?.message || 'Não consegui mudar o tipo.') } finally { setSalvando(false) }
   }
   return (
-    <div className="flex-shrink-0 grid grid-cols-5 gap-1.5 px-3 pt-2 pb-1.5" style={{ borderBottom: '1px solid var(--wa-divider)' }}>
+    <span className="relative inline-flex items-center gap-1 flex-shrink-0">
+      <button type="button" onClick={() => setAberto((x) => !x)} disabled={salvando} aria-expanded={aberto}
+              title="Tipo do contato: clique para trocar"
+              className="inline-flex items-center gap-1 rounded-full px-2 h-[20px] text-[11.5px] font-medium disabled:opacity-60"
+              style={{ color: cor, background: `${cor}22`, border: `1px solid ${cor}66` }}>
+        {salvando && <CircleNotch size={11} className="animate-spin" />}{nome(atual)}<CaretDown size={10} weight="bold" />
+      </button>
+      {manual && (
+        <span title={dica} aria-label={dica} className="inline-flex" style={{ color: 'var(--wa-text-2)' }}><LockSimple size={12} weight="fill" /></span>
+      )}
+      {aberto && (
+        <span className="absolute left-0 top-full mt-1 z-50 min-w-[170px] rounded-lg py-1 shadow-xl flex flex-col"
+              style={{ background: 'var(--wa-menu, var(--wa-panel))', border: '1px solid var(--wa-divider)' }}>
+          {TIPOS_DO_LEAD.map((t) => (
+            <button key={t.chave} type="button" onClick={() => void mudar(t.chave)}
+                    className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-left hover:bg-[var(--wa-row-hover)]" style={{ color: 'var(--wa-text)' }}>
+              <span className="flex-1">{nome(t.chave)}</span>{t.chave === atual && <Check size={13} weight="bold" />}
+            </button>
+          ))}
+        </span>
+      )}
+    </span>
+  )
+}
+
+/** A BARRA DAS ETAPAS DO LEAD = as etapas reais da Nay Leads (uma fonte só). Clicar muda a etapa dela na hora (a mesma
+ *  gravação do card antigo; quem estava com a equipe e ganha uma etapa volta para a Nay, como no Salvar de antes) e aparece
+ *  "Etapa alterada · Desfazer". */
+export function BarraDasEtapas({ l, etapa, comAEquipe, avisar }: { l: LeadWithOwner; etapa: string; comAEquipe: boolean; avisar: Avisar }) {
+  const [salvando, setSalvando] = useState<string | null>(null)
+  const atual = indiceDaEtapa(etapa)
+  const soltarANay = () => fetch(`/api/leads/${l.id}/captacao-etapa`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ etapa: 'todos' }),
+  }).catch(() => undefined)
+  const escolher = async (chave: string) => {
+    if (chave === etapa || salvando) return
+    setSalvando(chave)
+    const erro = await mudarEtapaOlx(l.phone || '', chave as any)
+    if (!erro && comAEquipe) await soltarANay()
+    setSalvando(null)
+    if (erro) { window.alert(`Não mudou a etapa: ${erro}`); return }
+    // 'nova' (a Nay ainda não começou) não é uma etapa que se grava: aí não há o que desfazer
+    const voltaPara = etapa && etapa !== 'nova' ? etapa : null
+    avisar(`Etapa alterada para ${NOME_DA_ETAPA[chave] || chave}`, voltaPara
+      ? async () => { const e = await mudarEtapaOlx(l.phone || '', voltaPara as any); if (e) throw new Error(e) }
+      : undefined)
+  }
+  return (
+    <div className="flex-shrink-0 grid grid-cols-4 gap-1.5 px-3 pt-2 pb-1.5">
       {ETAPAS_V3.map((e, i) => (
-        <button key={e.curto} type="button" onClick={() => void escolher(i)} disabled={salvando !== null}
-                title={manual && i === atual ? 'Etapa escolhida à mão: clique para voltar ao automático' : `Mudar a etapa para ${e.rotulo}`}
-                className="flex flex-col items-center gap-1 min-w-0 disabled:opacity-60">
+        <button key={e.chave} type="button" onClick={() => void escolher(e.chave)} disabled={salvando !== null}
+                title={`Mudar a etapa da Nay para ${e.rotulo}`} className="flex flex-col items-center gap-1 min-w-0 disabled:opacity-60">
           <span className="h-[5px] w-full rounded-full" style={{ background: e.cor, opacity: i <= atual ? 1 : 0.3 }} />
           <span className="text-[12px] truncate flex items-center gap-1"
                 style={{ color: i === atual ? 'var(--wa-text)' : 'var(--wa-text-2)', fontWeight: i === atual ? 500 : 400 }}>
-            {salvando === i && <CircleNotch size={11} className="animate-spin" />}{e.curto}{manual && i === atual ? ' · à mão' : ''}
+            {salvando === e.chave && <CircleNotch size={11} className="animate-spin" />}{e.curto}
           </span>
         </button>
       ))}
+    </div>
+  )
+}
+
+/** o aviso de baixo, com Desfazer (some sozinho em 7 s) */
+function AvisoComDesfazer({ aviso, fechar }: { aviso: { texto: string; desfazer?: () => Promise<void> } | null; fechar: () => void }) {
+  const [desfazendo, setDesfazendo] = useState(false)
+  useEffect(() => { if (!aviso) return; const t = setTimeout(fechar, 7000); return () => clearTimeout(t) }, [aviso, fechar])
+  if (!aviso) return null
+  return (
+    <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-3 px-4 h-10 rounded-lg shadow-xl text-[13px]"
+         style={{ background: 'var(--wa-text)', color: 'var(--wa-panel)' }} role="status">
+      {aviso.texto}
+      {aviso.desfazer && (
+        <button type="button" disabled={desfazendo} className="font-semibold underline disabled:opacity-60"
+                onClick={async () => {
+                  setDesfazendo(true)
+                  try { await aviso.desfazer!() } catch (e: any) { window.alert(e?.message || 'Não consegui desfazer.') }
+                  finally { setDesfazendo(false); fechar() }
+                }}>
+          {desfazendo ? 'Desfazendo…' : 'Desfazer'}
+        </button>
+      )}
     </div>
   )
 }
@@ -188,7 +268,7 @@ function SubtituloV3({ l, ehLead, creci }: { l: LeadWithOwner; ehLead: boolean; 
 }
 
 /** a barra de quem responde, em cima da caixa de mensagem: IA (roxo) com Assumir, ou a pessoa (verde) com Devolver à IA */
-function QuemResponde({ l, r, aoMudar }: { l: LeadWithOwner; r: Responde; aoMudar: (r: Responde, o?: Organizado) => void }) {
+function QuemResponde({ l, r, aoMudar, noPainel }: { l: LeadWithOwner; r: Responde; aoMudar: (r: Responde, o?: Organizado) => void; noPainel?: boolean }) {
   const { profileName, user } = useAuth()
   const [ocupado, setOcupado] = useState(false)
   const [pausa, setPausa] = useState<{ quem: string } | null>(null)
@@ -223,7 +303,7 @@ function QuemResponde({ l, r, aoMudar }: { l: LeadWithOwner; r: Responde; aoMuda
     } catch (e: any) { window.alert(e?.message || 'Não consegui devolver à IA.') } finally { setOcupado(false) }
   }
   return (
-    <div className={`${CLASSE_DO_AUTOR[agora.tipo]} v3-selo relative z-10 flex-shrink-0 mx-3 sm:mx-5 mt-1.5 px-3 h-9 rounded-lg flex items-center gap-2 text-[13px]`}>
+    <div className={`${CLASSE_DO_AUTOR[agora.tipo]} v3-selo relative z-10 flex-shrink-0 ${noPainel ? '' : 'mx-3 sm:mx-5 mt-1.5'} px-3 h-9 rounded-lg flex items-center gap-2 text-[13px]`}>
       {agora.tipo === 'ia' ? <Robot size={16} weight="fill" /> : <User size={16} weight="fill" />}
       <span className="flex-1 truncate">
         {agora.tipo === 'ia' ? 'IA respondendo' : `${agora.nome} está respondendo`} · sai pelo {NUMERO[linha] || linha}
@@ -251,6 +331,9 @@ export default function ChatV3() {
   const equipe = useMemo(() => montarAtendentes(members || []), [members])
   // o que Assumir / Devolver acabou de fazer (até a próxima leitura das marcas e dos clientes confirmar)
   const [mudado, setMudado] = useState<Record<string, Responde>>({})
+  const [aviso, setAviso] = useState<{ texto: string; desfazer?: () => Promise<void> } | null>(null)
+  const avisar: Avisar = useCallback((texto, desfazer) => setAviso({ texto, desfazer }), [])
+  const fecharAviso = useCallback(() => setAviso(null), [])
   // 04/11 (Pedro: "no número dele quem está respondendo é a equipe e na v3 tá IA"): quem mandou a ÚLTIMA mensagem nossa;
   // gente (pelo CRM ou pelo celular) vale como a pessoa respondendo, mesmo que a Nay não esteja pausada
   const [humanos, setHumanos] = useState<Record<string, { nome: string; celular: boolean }>>({})
@@ -265,12 +348,16 @@ export default function ChatV3() {
 
   const pelaParceria = useMemo(() => new Set(leads.filter((l) => !l.is_group && getLinhaWhatsapp(l) === 'parceria').map((l) => fim8(l.phone)).filter(Boolean)), [leads])
 
+  /* AS ABAS SÃO EXCLUSIVAS (Pedro, 04/11: "se ele está em fechamento não é para estar em atendimento; as únicas abas que não
+     são exclusivas é Proprietários, o resto ele só pode estar lá até ser mandado de volta"): quem está em Fechamento, em
+     Visita ou é Administração fica só na aba dele (as da barra de cima) e sai do Atendimento */
   const daTela = useCallback((l: LeadWithOwner): boolean => {
     const linha = getLinhaWhatsapp(l)
     if (l.is_group || (linha !== 'captacao' && linha !== 'parceria')) return false
     if (linha === 'captacao' && pelaParceria.has(fim8(l.phone))) return false
-    return podeVer(l)
-  }, [pelaParceria, podeVer])
+    if (!podeVer(l) || emFechamento(l) || ehVisita(l) || tipoEscolhido(l) === 'administracao') return false
+    return true
+  }, [pelaParceria, podeVer, emFechamento, ehVisita])
 
   /** o tipo de agora: o escolhido à mão; senão o que a lista deduz (corretor na Parceria, dono, locação ou venda) */
   const tipoDe = useCallback((l: LeadWithOwner): TipoDoLead => {
@@ -291,19 +378,12 @@ export default function ChatV3() {
     return t === 'locacao' ? 'locacao' : 'venda'
   }, [daTela, tipoDe])
 
-  const etapaManual = (l: LeadWithOwner): number | null => {
-    const n = (l.custom_attributes as any)?.etapa_v3?.n
-    return Number.isInteger(n) && n >= 0 && n <= 4 ? n : null
-  }
-  /** a etapa de agora, 0 a 4: a escolhida à mão; senão a da Nay */
-  const etapaDe = useCallback((l: LeadWithOwner): number => {
-    const m = etapaManual(l)
-    if (m !== null) return m
-    if (getLinhaWhatsapp(l) === 'parceria') return etapaDaParceria(l as any, marcas[l.id]) === 'visitas' ? 4 : 2
-    const passo = Number(olx[fim8(l.phone)]?.passo || 0)
-    if (ehVisita(l) || passo >= 5) return 4
-    return passo === 4 ? 3 : passo === 3 ? 2 : passo === 2 ? 1 : 0
-  }, [marcas, olx, ehVisita])
+  /** a etapa da Nay Leads, só para lead (locação ou venda); corretor e proprietário não entram no funil de lead */
+  const etapaNay = useCallback((l: LeadWithOwner): string | null => {
+    const f = filaDe(l)
+    if (f !== 'locacao' && f !== 'venda') return null
+    return String(olx[fim8(l.phone)]?.etapa || 'nova')
+  }, [filaDe, olx])
 
   /** quem responde agora: a pessoa quando a Nay está parada nesta conversa; senão a IA */
   const respondeDe = useCallback((l: LeadWithOwner): Responde => {
@@ -334,6 +414,7 @@ export default function ChatV3() {
   if (loading) return null
   if (!ehTel) return <NotAuthorized />
 
+  const rotuloDoTipo = (l: LeadWithOwner) => { const f = filaDe(l); return f ? FILAS_V3[f].tipo : 'Administração' }
   const corDe = (l: LeadWithOwner) => { const f = filaDe(l); return f ? FILAS_V3[f].cor : CINZA }
   return (
     <ModoV3.Provider value={true}>
@@ -342,19 +423,33 @@ export default function ChatV3() {
                      pertence={daTela} etapas={etapas} etapasEmLista semFaixaDaLinha chaveAbas="crm:abas-v3"
                      vazio="Nenhuma conversa aqui."
                      cadastrar={() => ({})}
+                     painelV3={(l): PainelV3 => {
+                       const cor = corDe(l)
+                       return {
+                         anel: cor,
+                         numero: <NumeroDaConversa l={l} />,
+                         pilula: <PilulaDoTipo l={l} atual={tipoDe(l)} cor={cor} aoMudar={(o) => aplicar(l.id, o)} avisar={avisar} />,
+                         quemResponde: <QuemResponde key={`painel-${l.id}`} l={l} r={respondeDe(l)} noPainel
+                                                     aoMudar={(x, o) => { setMudado((m) => ({ ...m, [l.id]: x })); if (o) aplicar(l.id, o) }} />,
+                         etapa: etapaNay(l) ? <BarraDasEtapas l={l} etapa={etapaNay(l)!} comAEquipe={!!olx[fim8(l.phone)]?.humano} avisar={avisar} /> : null,
+                         ehLead: !!etapaNay(l),
+                       }
+                     }}
                      itemDaLista={(l, x) => <CardV3 l={l} hora={x.hora} aberta={x.aberta} abrir={x.abrir} menu={x.menu}
-                                                    cor={corDe(l)} etapa={etapaDe(l)} r={respondeDe(l)} />}
+                                                    cor={corDe(l)} r={respondeDe(l)} tipo={rotuloDoTipo(l)}
+                                                    etapa={etapaNay(l) ? { i: indiceDaEtapa(etapaNay(l)), nome: NOME_DA_ETAPA[etapaNay(l)!] || etapaNay(l)! } : null} />}
                      naConversa={{
                        anel: corDe,
                        pilula: (l) => {
                          const f = filaDe(l)
                          const cor = f ? FILAS_V3[f].cor : CINZA
-                         return { texto: '', cor, no: <TipoDoLeadV3 l={l} atual={tipoDe(l)} cor={cor} aoMudar={(o) => aplicar(l.id, o)} /> }
+                         return { texto: '', cor, no: <><NumeroDaConversa l={l} /><PilulaDoTipo l={l} atual={tipoDe(l)} cor={cor} aoMudar={(o) => aplicar(l.id, o)} avisar={avisar} /></> }
                        },
                        subtitulo: (l) => <SubtituloV3 l={l} ehLead={getLinhaWhatsapp(l) === 'captacao' && (filaDe(l) === 'locacao' || filaDe(l) === 'venda')}
                                                       creci={marcas[l.id]?.creci || null} />,
-                       abaixoDoTopo: (l) => <BarraDasEtapas l={l} atual={etapaDe(l)} manual={etapaManual(l) !== null}
-                                                            aoMudar={(o) => aplicar(l.id, o)} />,
+                       abaixoDoTopo: (l) => etapaNay(l)
+                         ? <BarraDasEtapas l={l} etapa={etapaNay(l)!} comAEquipe={!!olx[fim8(l.phone)]?.humano} avisar={avisar} />
+                         : null,
                        rodape: (l) => <QuemResponde key={l.id} l={l} r={respondeDe(l)}
                                                     aoMudar={(r, o) => { setMudado((m) => ({ ...m, [l.id]: r })); if (o) aplicar(l.id, o) }} />,
                        organizar: (l) => getLinhaWhatsapp(l) === 'parceria'
@@ -363,6 +458,7 @@ export default function ChatV3() {
                                               aoMudar={(o) => aplicar(l.id, o)} />,
                      }} />
       </div>
+      <AvisoComDesfazer aviso={aviso} fechar={fecharAviso} />
     </ModoV3.Provider>
   )
 }

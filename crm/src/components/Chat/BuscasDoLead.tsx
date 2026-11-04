@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowsClockwise, CaretDown, CaretRight, CircleNotch, MagnifyingGlass } from '@phosphor-icons/react'
 import { FUSO_DE_MANAUS } from '@/lib/fusoDeManaus'
+import { useModoV3 } from '@/lib/modoV3'
 import OpcoesNota90 from './OpcoesNota90'
 import PedirNosGrupos from './PedirNosGrupos'
 
@@ -165,6 +166,7 @@ function ResumoDaBusca({ buscas, a }: { buscas: Busca[]; a: BuscaAtiva | null })
       curto: corretores.length ? `${corretores.length} · ${comImovel} c/ imóvel` : 'ninguém',
       texto: corretores.length ? `${corretores.length} respondeu${corretores.length > 1 ? 'ram' : ''} · ${comImovel} com imóvel` : 'ninguém respondeu ainda' },
   ]
+  const v3 = useModoV3()
   const cor = (e: PassoDoResumo['estado']) => e === 'feito' ? 'var(--wa-green)' : e === 'andando' ? '#d97706' : 'var(--wa-divider)'
   const meta = Math.min(100, Math.round((recebidas / META_DE_OPCOES) * 100))
   const bateu = recebidas >= META_DE_OPCOES
@@ -175,7 +177,7 @@ function ResumoDaBusca({ buscas, a }: { buscas: Busca[]; a: BuscaAtiva | null })
           <li key={p.rotulo} title={p.texto} className="rounded-lg px-2 py-1.5 leading-4"
               style={{ border: '1px solid var(--wa-divider)', background: 'var(--wa-panel)' }}>
             <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--wa-text-2)' }}>
-              <span className="w-[9px] h-[9px] rounded-full shrink-0"
+              <span className={v3 ? 'w-[7px] h-[7px] rounded-full shrink-0' : 'w-[9px] h-[9px] rounded-full shrink-0'}
                     style={{ background: p.estado === 'espera' ? 'transparent' : cor(p.estado), border: `2px solid ${cor(p.estado)}` }} />
               {p.rotulo}
             </span>
@@ -190,8 +192,8 @@ function ResumoDaBusca({ buscas, a }: { buscas: Busca[]; a: BuscaAtiva | null })
             {Math.min(recebidas, 99)} de {META_DE_OPCOES}{bateu ? '' : ` · faltam ${META_DE_OPCOES - recebidas}`}
           </span>
         </div>
-        <div className="mt-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--wa-divider)' }}>
-          <div className="h-full rounded-full" style={{ width: `${meta}%`, background: bateu ? 'var(--wa-green)' : '#d97706' }} />
+        <div className={`mt-1 ${v3 ? 'h-1' : 'h-1.5'} rounded-full overflow-hidden`} style={{ background: 'var(--wa-divider)' }}>
+          <div className="h-full rounded-full" style={{ width: `${meta}%`, background: v3 || bateu ? 'var(--wa-green)' : '#d97706' }} />
         </div>
       </div>
     </div>
@@ -304,6 +306,7 @@ export default function BuscasDoLead({ leadId }: { leadId: string }) {
   }, [leadId])
 
   useEffect(() => { setBuscas(null); setAtiva(null); void ler() }, [ler])
+  const v3 = useModoV3()
 
   // 02/11 (Pedro: "ta muito texto sem categoria e com coisa que nao precisa estar aberto desde o comeco"): o topo mostra o
   // pedido, o resumo e as opções nota 90+; grupos, OLX, corretores, ofertas e etapas ficam fechados em seções com contagem.
@@ -313,10 +316,10 @@ export default function BuscasDoLead({ leadId }: { leadId: string }) {
   const sit = ativa ? (SITUACAO[ativa.estado] || { rotulo: ativa.estado, cor: 'var(--wa-text-2)' }) : null
   return (
     <section className="px-4 py-3.5" style={{ background: 'var(--wa-panel)' }}>
-      <div className="rounded-xl p-3" style={{ border: `1.5px solid ${COR}`, background: `color-mix(in srgb, ${COR} 6%, var(--wa-panel))` }}>
+      <div className={v3 ? '' : 'rounded-xl p-3'} style={v3 ? undefined : { border: `1.5px solid ${COR}`, background: `color-mix(in srgb, ${COR} 6%, var(--wa-panel))` }}>
         <div className="flex items-center justify-between gap-2 mb-2">
-          <h3 className="text-[15px] font-bold flex items-center gap-1.5" style={{ color: 'var(--wa-text)', fontFamily: 'inherit' }}>
-            <MagnifyingGlass size={17} weight="bold" style={{ color: COR }} /> Busca do lead
+          <h3 className={v3 ? 'text-[13px] font-medium flex items-center gap-1.5' : 'text-[15px] font-bold flex items-center gap-1.5'} style={{ color: 'var(--wa-text)', fontFamily: 'inherit' }}>
+            <MagnifyingGlass size={v3 ? 14 : 17} weight="bold" style={{ color: v3 ? 'var(--wa-text-2)' : COR }} /> Busca do lead
           </h3>
           <button type="button" onClick={() => void ler()} className="wa-icone-btn !w-7 !h-7" title="Ler de novo" aria-label="Ler de novo">
             {carregando ? <CircleNotch size={14} className="animate-spin" /> : <ArrowsClockwise size={14} />}
@@ -324,9 +327,9 @@ export default function BuscasDoLead({ leadId }: { leadId: string }) {
         </div>
         {ativa && sit && (
           <div className="flex items-center gap-2 flex-wrap mb-2.5">
-            <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-[3px] text-[12px] font-semibold"
-                  style={{ background: `color-mix(in srgb, ${sit.cor} 14%, transparent)`, color: sit.cor }}>
-              <span className="w-2 h-2 rounded-full" style={{ background: sit.cor }} />{sit.rotulo}
+            <span className={v3 ? 'inline-flex items-center gap-1.5 text-[12px]' : 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-[3px] text-[12px] font-semibold'}
+                  style={v3 ? { color: 'var(--wa-text)' } : { background: `color-mix(in srgb, ${sit.cor} 14%, transparent)`, color: sit.cor }}>
+              <span className={v3 ? 'w-1.5 h-1.5 rounded-full' : 'w-2 h-2 rounded-full'} style={{ background: sit.cor }} />{sit.rotulo}
             </span>
             {ativa.teste && <span className="text-[11px]" style={{ color: 'var(--wa-text-2)' }}>em teste</span>}
             {ativa.ativada_em && <span className="text-[11px]" style={{ color: 'var(--wa-text-2)' }}>ativada {quando(ativa.ativada_em)}</span>}

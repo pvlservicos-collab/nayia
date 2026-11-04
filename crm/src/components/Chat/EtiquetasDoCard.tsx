@@ -6,6 +6,8 @@
  * a lista é a mesma da prancheta da lista de conversas (src/lib/etiquetas.ts).
  */
 import { useState } from 'react'
+import { useModoV3 } from '@/lib/modoV3'
+import { ehEtapaComoTag } from './LeadListItem'
 import { Check, Plus, X } from '@phosphor-icons/react'
 import { CORES_DE_ETIQUETA, criarEtiqueta, marcarEtiqueta, useEtiquetas, type Etiqueta } from '@/lib/etiquetas'
 
@@ -18,6 +20,7 @@ export default function EtiquetasDoCard({ lead, onTagsChange, alinhar = 'centro'
   compacto?: boolean
 }) {
   const etiquetas = useEtiquetas()
+  const v3 = useModoV3()
   const [aberto, setAberto] = useState(false)
   const [nova, setNova] = useState('')
   const [cor, setCor] = useState(CORES_DE_ETIQUETA[5])
@@ -27,6 +30,8 @@ export default function EtiquetasDoCard({ lead, onTagsChange, alinhar = 'centro'
   const doLead = (lead.lead_tags || [])
     .map((lt: any) => etiquetas.find((t) => t.id === lt.tag_id) || lt.tag)
     .filter((t: any) => t && !String(t.name).startsWith('Nay:'))
+    // v3 (Pedro, 04/11): a etiqueta que repete a etapa não aparece (a barra das etapas já mostra)
+    .filter((t: any) => !v3 || !ehEtapaComoTag(String(t.name)))
 
   const alternar = async (t: Etiqueta) => {
     const ja = tem(t.id)

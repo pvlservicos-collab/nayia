@@ -51,6 +51,34 @@ import { usePuxador } from '@/hooks/usePuxador'
 import { AVISO_DAS_24_HORAS } from './AgendarNoCardOficial'
 import TagParceiro from '@/components/TagParceiro'
 
+/** v3 (Pedro, 04/11, o painel do lead no visual novo): o que vem da tela da v3 (as mesmas peças do card e do chat) */
+export interface PainelV3 {
+  anel: string
+  numero: ReactNode
+  pilula: ReactNode
+  quemResponde: ReactNode
+  /** a barra das etapas da Nay (só lead); null para corretor e proprietário */
+  etapa: ReactNode | null
+  ehLead: boolean
+}
+
+/** v3: a seção recolhível (aberta de início), com as superfícies do sistema novo */
+function SecaoV3({ titulo, children, fechada }: { titulo: string; children: React.ReactNode; fechada?: boolean }) {
+  return (
+    <details open={!fechada} className="group px-4 py-3" style={{ background: 'var(--wa-panel)' }}>
+      <summary className="flex items-center justify-between cursor-pointer list-none select-none text-[13px] font-medium" style={{ color: 'var(--wa-text)' }}>
+        {titulo}
+        <span className="text-[11px] transition-transform group-open:rotate-180" style={{ color: 'var(--wa-text-2)' }}>▾</span>
+      </summary>
+      <div className="mt-2.5">{children}</div>
+    </details>
+  )
+}
+
+/** v3: um botão primário por seção (a cor de destaque) e os secundários com contorno */
+const PRIMARIO_V3 = { background: 'var(--wa-green)', color: 'var(--wa-green-ink)' }
+const SECUNDARIO_V3 = { color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }
+
 interface ImovelDoCard {
   codigo: number; condominio: string | null; tipo: string | null; bairro: string | null; status: string | null
   disponivel: boolean | null; parceiro: boolean; aluguel: number | null; venda: number | null
@@ -74,6 +102,11 @@ const dia = (v: string | null | undefined) => {
   const d = new Date(v)
   return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
 }
+
+/** 04/11: sem foto nenhuma saía "0 fotos que ele mandou..." (o "O fotos") */
+const textoDasFotos = (n: number) => n
+  ? `As ${n} foto${n === 1 ? '' : 's'} que ele mandou aqui entram no cadastro; você escolhe quais.`
+  : 'As fotos que ele mandar aqui entram no cadastro; você escolhe quais.'
 
 const SITUACAO: Record<string, string> = {
   disponivel: 'disponível', alugado: 'alugado', vendido: 'vendido', indisponivel: 'indisponível',
@@ -125,7 +158,7 @@ function Barra({ pct, falta }: { pct: number; falta: string[] }) {
   )
 }
 
-export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, onTagsChange, topo, trocaDaEtapa }: {
+export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, onTagsChange, topo, trocaDaEtapa, v3 }: {
   lead: LeadWithOwner
   modo: 'lateral' | 'gaveta'
   aoFechar: () => void
@@ -136,6 +169,8 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
   topo?: ReactNode
   /** 04/11 (Pedro): no lugar das etapas -- no Chat Captação, a lista do tipo do contato (Lead, Corretor, Proprietário) */
   trocaDaEtapa?: ReactNode
+  /** v3: o painel no visual novo (ordem e estilo); as funções são as mesmas */
+  v3?: PainelV3
 }) {
   const [d, setD] = useState<Dados | null>(null)
   /* 20/10 (Pedro: "adicione no card do lead que abre na direita uma forma de editar o nome do contato"): o lápis ao lado
@@ -410,7 +445,7 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
             <Plus size={15} weight="bold" /> Cadastrar imóvel
           </button>
           <p className="text-[11px] mt-1" style={{ color: 'var(--wa-text-2)' }}>
-            {fotos.length} foto{fotos.length === 1 ? '' : 's'} que ele mandou aqui entram no cadastro, você escolhe quais.
+            {textoDasFotos(fotos.length)}
           </p>
         </Secao>
 
@@ -498,18 +533,289 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
     </div>
   )
 
+  /* O PAINEL NA V3 (Pedro, 04/11: "rebranding desse painel ... não remova nenhuma funcionalidade, só reorganize e
+     reestilize"). A ordem: 1 topo, 2 quem está respondendo (com Parar / Voltar a Nay e o Responsável), 3 a etapa, 4 as ações
+     rápidas recolhíveis, 5 a busca do lead, 6 imóveis, etiquetas e histórico; depois o que a campanha sabe, a ficha e as fotos */
+  const responsavel = dono?.etapaManual === 'lucas' ? 'lucas' : naoResponde ? 'com_o_tel' : 'todos'
+  const [mudandoResp, setMudandoResp] = useState(false)
+  async function escolherResponsavel(etapa: string) {
+    if (etapa === responsavel || mudandoResp) return
+    setMudandoResp(true); setAvisoDaNay(null)
+    try {
+      const r = await fetch(`/api/leads/${lead.id}/captacao-etapa`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ etapa }),
+      })
+      const j = await r.json().catch(() => ({} as any))
+      if (!r.ok || j?.ok === false) throw new Error(j?.mensagem || j?.error || 'Não consegui.')
+      setAvisoDaNay({ ok: true, texto: j?.mensagem || 'Responsável trocado.' })
+      await Promise.all([ler(), recarregarOlxClientes(), marcarEtapaManual(lead.id, etapa)])
+    } catch (e: any) {
+      setAvisoDaNay({ ok: false, texto: e?.message || 'Não consegui.' })
+    } finally { setMudandoResp(false) }
+  }
+  const corpoV3 = v3 && (
+    <div className="flex flex-col h-full min-h-0" style={{ background: 'var(--wa-app)' }}>
+      <div className="wa-topo gap-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--wa-divider)' }}>
+        <button type="button" className="wa-icone-btn -ml-2" onClick={aoFechar} aria-label="Fechar os dados do contato"><X size={22} /></button>
+        <h2 className="text-[16px] font-normal" style={{ color: 'var(--wa-text)', fontFamily: 'inherit' }}>Contato</h2>
+        <button type="button" className="wa-icone-btn ml-auto" onClick={() => void ler()} title="Atualizar">
+          {carregando ? <CircleNotch size={18} className="animate-spin" /> : <ArrowClockwise size={18} />}
+        </button>
+      </div>
+      {topo}
+
+      <div className="flex-1 overflow-y-auto wa-rolagem flex flex-col gap-px" style={{ background: 'var(--wa-divider)' }}>
+        {/* 1. topo */}
+        <div className="flex flex-col items-center text-center px-6 pt-5 pb-4" style={{ background: 'var(--wa-panel)' }}>
+          <div className="w-[84px] h-[84px] rounded-full overflow-hidden flex items-center justify-center mb-2.5"
+               style={{ backgroundColor: 'var(--wa-row-selected)', boxShadow: `0 0 0 2px ${v3.anel}` }}>
+            {lead.avatar_url
+              ? <img src={lead.avatar_url} alt="" className="w-full h-full object-cover" />
+              : <User size={48} weight="fill" style={{ color: 'var(--wa-text-2)', opacity: 0.5 }} />}
+          </div>
+          {editandoNome ? (
+            <form className="flex items-center gap-1.5 w-full max-w-[300px]" onSubmit={(e) => { e.preventDefault(); void salvarNome() }}>
+              <input value={nomeNovo} onChange={(e) => setNomeNovo(e.target.value)} autoFocus maxLength={120} aria-label="Nome do contato"
+                     className="flex-1 min-w-0 h-9 px-3 rounded-lg text-[16px] text-center"
+                     style={{ background: 'var(--wa-app)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }} />
+              <button type="submit" className="wa-icone-btn !w-8 !h-8" title="Salvar o nome" aria-label="Salvar o nome">
+                <Check size={17} weight="bold" style={{ color: 'var(--wa-green)' }} />
+              </button>
+              <button type="button" className="wa-icone-btn !w-8 !h-8" onClick={() => setEditandoNome(false)} aria-label="Cancelar"><X size={16} /></button>
+            </form>
+          ) : (
+            <p className="text-[17px] leading-6 break-words flex items-center justify-center gap-1.5 flex-wrap" style={{ color: 'var(--wa-text)' }}>
+              {apelido || dono?.nome || c?.nome || formatPhone(lead.title)}
+              <button type="button" className="wa-icone-btn !w-7 !h-7 opacity-70 hover:opacity-100" title="Editar o nome do contato"
+                      aria-label="Editar o nome do contato"
+                      onClick={() => { setNomeNovo(apelido || dono?.nome || c?.nome || lead.title || ''); setEditandoNome(true) }}>
+                <PencilSimple size={15} />
+              </button>
+              {v3.numero}
+            </p>
+          )}
+          {numero && (
+            <p className="text-[13.5px] mt-0.5 flex items-center justify-center gap-1" style={{ color: 'var(--wa-text-2)' }}>
+              <span className="select-all">{numero}</span>
+              <button type="button" onClick={() => void copiar()} className="wa-icone-btn !w-7 !h-7"
+                      title={copiado ? 'Copiado!' : 'Copiar o número (sem o 55)'} aria-label="Copiar o número">
+                {copiado ? <Check size={15} weight="bold" style={{ color: 'var(--wa-green)' }} /> : <Copy size={15} />}
+              </button>
+            </p>
+          )}
+          <div className="mt-1.5">{v3.pilula}</div>
+        </div>
+
+        {/* 2. quem está respondendo: a mesma barra do chat; Parar / Voltar a Nay e o Responsável como secundários */}
+        <div className="px-4 py-3 flex flex-col gap-2" style={{ background: 'var(--wa-panel)' }}>
+          <p className="text-[13px] font-medium" style={{ color: 'var(--wa-text)' }}>Quem está respondendo</p>
+          {v3.quemResponde}
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => void pararOuVoltar('parar')} disabled={!!mexendoNaNay || naoResponde}
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12.5px] font-medium disabled:opacity-45" style={SECUNDARIO_V3}
+                    title="A Nay para de responder esta pessoa de vez (não é a pausa de 30 min de quando a equipe escreve), e o disparo e o lembrete não chamam mais. Volta só com 'Nay voltar a atender'">
+              {mexendoNaNay === 'parar' ? <CircleNotch size={13} className="animate-spin" /> : <Robot size={13} weight="fill" />} Parar Nay sempre
+            </button>
+            <button type="button" onClick={() => void pararOuVoltar('voltar')} disabled={!!mexendoNaNay || !naoResponde}
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12.5px] font-medium disabled:opacity-45" style={SECUNDARIO_V3}
+                    title="A Nay volta a responder esta pessoa na próxima mensagem dela">
+              {mexendoNaNay === 'voltar' ? <CircleNotch size={13} className="animate-spin" /> : <Robot size={13} weight="fill" />} Nay voltar a atender
+            </button>
+            {/* 04/11: Com o Tel, Lucas e Todos são de responsável, não de etapa (saíram da barra das etapas) */}
+            <label className="inline-flex items-center gap-1.5 text-[12.5px]" style={{ color: 'var(--wa-text-2)' }}>
+              Responsável
+              <select value={responsavel} disabled={mudandoResp} onChange={(e) => void escolherResponsavel(e.target.value)}
+                      className="h-8 px-2 rounded-lg text-[12.5px] disabled:opacity-60"
+                      style={{ ...SECUNDARIO_V3, background: 'var(--wa-panel)', colorScheme: 'light dark' }}
+                      title="Todos: a Nay atende. Com o Tel ou Lucas: a Nay para até voltar para Todos">
+                <option value="todos">Todos (a Nay)</option>
+                <option value="com_o_tel">Com o Tel</option>
+                <option value="lucas">Lucas</option>
+              </select>
+            </label>
+          </div>
+          {avisoDaNay && (
+            <p className="text-[12px] leading-4" style={{ color: avisoDaNay.ok ? 'var(--wa-text-2)' : 'var(--wa-tag-tel)' }}>{avisoDaNay.texto}</p>
+          )}
+          {!oficial && olxDele && !naoResponde && <PausaDaNay leadId={lead.id} mexeuEm={lead.last_activity_at} />}
+        </div>
+
+        {/* 3. a etapa: a barra das etapas da Nay (lead). O dono da campanha tem o funil da captação, que é outro de
+            propósito; corretor não entra em funil de lead */}
+        {(v3.etapa || (dono && !v3.ehLead)) && (
+          <div className="py-2" style={{ background: 'var(--wa-panel)' }}>
+            <p className="px-4 pt-1 text-[13px] font-medium" style={{ color: 'var(--wa-text)' }}>Etapa</p>
+            {v3.etapa ?? (dono && (
+              <EtapaDaCaptacao leadId={lead.id} etapaManual={dono.etapaManual} abas={dono.abas} oficial={oficial}
+                               aoMudar={(etapa) => { void ler(); void marcarEtapaManual(lead.id, etapa) }} />
+            ))}
+          </div>
+        )}
+
+        {/* 4. ações rápidas */}
+        <SecaoV3 titulo="Agendar visita">
+          {visitaAberta ? (
+            dono && imoveis.length
+              ? <AgendarVisita key={lead.id} imoveis={imoveis.map((i) => String(i.codigo))} proprietarioLeadId={lead.id}
+                               aoCancelar={() => setVisitaAberta(false)} aoAgendar={() => setVisitaAberta(false)} />
+              : <AgendarVisita key={lead.id} aoCancelar={() => setVisitaAberta(false)} aoAgendar={() => setVisitaAberta(false)} />
+          ) : (
+            <button type="button" onClick={() => setVisitaAberta(true)} style={PRIMARIO_V3}
+                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-medium"
+                    title="Agendar uma visita à mão: corretor, imóvel, dia, duração e lembrete">
+              <CalendarPlus size={14} weight="fill" /> Agendar visita
+            </button>
+          )}
+        </SecaoV3>
+        <SecaoV3 titulo="Enviar imóvel">
+          <EnviarImovelPelaCaptacao leadId={lead.id} telefone={lead.phone} oficial={oficial} />
+        </SecaoV3>
+        <SecaoV3 titulo="Agendar follow-up">
+          <div className="-mx-4 -my-3"><AgendarFollowup leadId={lead.id} /></div>
+          {oficial && <p className="pt-2 text-[11px] leading-4" style={{ color: 'var(--wa-text-2)' }}>{AVISO_DAS_24_HORAS}</p>}
+        </SecaoV3>
+        <SecaoV3 titulo="Cadastrar imóvel">
+          <button type="button" onClick={() => setAlvo({ codigo: null, titulo: 'Cadastrar imóvel novo' })} style={PRIMARIO_V3}
+                  className="w-full flex items-center justify-center gap-1.5 text-[13px] font-medium h-9 rounded-lg">
+            <Plus size={15} weight="bold" /> Cadastrar imóvel
+          </button>
+          <p className="text-[11px] mt-1.5 font-normal" style={{ color: 'var(--wa-text-2)' }}>{textoDasFotos(fotos.length)}</p>
+        </SecaoV3>
+
+        {/* 5. a busca do lead (o desenho novo fica dentro dela, no modo v3) */}
+        {!oficial && <BuscasDoLead leadId={lead.id} />}
+
+        {/* 6. imóveis, etiquetas e histórico */}
+        {(dono || c) && (imoveis.length > 0 || c?.codigo) && (
+          <SecaoV3 titulo={imoveis.length > 1 ? `Imóveis do proprietário (${imoveis.length})` : 'Imóvel do proprietário'}>
+            <div className="space-y-3">
+              {(imoveis.length
+                ? [...imoveis].sort((a, b) => Number(!!b.daCampanha) - Number(!!a.daCampanha))
+                : [{ codigo: c!.codigo, daCampanha: true }]
+              ).map((i: any) => <CardDoImovelDoDono key={i.codigo} codigo={Number(i.codigo)} daCampanha={!!i.daCampanha} />)}
+            </div>
+          </SecaoV3>
+        )}
+        <SecaoV3 titulo={`Imóveis dele (${imoveis.length})`}>
+          {!imoveis.length && (
+            <p className="text-[12.5px]" style={{ color: 'var(--wa-text-2)' }}>
+              Nenhum imóvel dele no catálogo{c?.codigo ? ` (a campanha fala do #${c.codigo})` : ''}.
+            </p>
+          )}
+          <div className="space-y-2.5">
+            {imoveis.map((i) => {
+              const p = d?.pontuacao?.[String(i.codigo)]
+              return (
+                <div key={i.codigo} className="flex gap-2 items-start">
+                  <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center" style={{ background: 'var(--wa-row-selected)' }}>
+                    {i.capa ? <img src={i.capa} alt="" className="w-full h-full object-cover" loading="lazy" />
+                            : <House size={20} style={{ color: 'var(--wa-text-2)' }} />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] truncate" style={{ color: 'var(--wa-text)' }} title={i.condominio || i.tipo || ''}>
+                      {i.condominio || i.tipo || `Imóvel ${i.codigo}`}
+                    </p>
+                    <p className="text-[11.5px] truncate" style={{ color: 'var(--wa-text-2)' }}>
+                      #{i.codigo}{i.status ? ` · ${i.status}` : ''}{reais(i.aluguel) ? ` · ${reais(i.aluguel)}` : reais(i.venda) ? ` · ${reais(i.venda)} venda` : ''} · {i.fotos} foto{i.fotos === 1 ? '' : 's'}
+                      {i.parceiro ? <> <TagParceiro /></> : null}{i.daCampanha ? ' · da campanha' : ''}
+                    </p>
+                    {p && <Barra pct={p.pct} falta={p.falta} />}
+                    <button type="button" onClick={() => setAlvo({ codigo: i.codigo, titulo: `Imóvel #${i.codigo}` })} style={SECUNDARIO_V3}
+                            className="mt-1.5 inline-flex items-center gap-1 text-[12px] font-medium px-2.5 h-7 rounded-lg">
+                      <PencilSimple size={13} /> Editar dados
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </SecaoV3>
+        <SecaoV3 titulo="Etiquetas">
+          <EtiquetasDoCard lead={lead as any} onTagsChange={onTagsChange} alinhar="esquerda" />
+        </SecaoV3>
+        {!oficial && <AgentesDoLead leadId={lead.id} />}
+
+        {c && (
+          <SecaoV3 titulo="O que a campanha sabe" fechada>
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[12.5px]">
+              {[
+                ['Imóvel dele', [c.tipo, c.condominio || c.bairro].filter(Boolean).join(' · ') || c.imovelDesc || null],
+                ['Situação', c.situacao ? SITUACAO[c.situacao] || c.situacao : null],
+                ['Aluguel pedido', reais(c.valorLocacao)],
+                ['Venda pedida', reais(c.valorVenda)],
+                ['Quer vender', c.querVender ? 'sim' : null],
+                ['Tem outro imóvel', c.temOutroImovel ? 'sim' : null],
+                ['Respondeu', dia(c.respondeuEm)],
+                ['Último disparo', dia(c.ultimoEnvioEm)],
+                ['Contrato até', c.contratoAte ? dia(c.contratoAte) : null],
+                ['Saiu da campanha', c.optOut ? 'sim' : null],
+              ].filter(([, v]) => v).map(([k, v]) => (
+                <div key={String(k)} className="min-w-0">
+                  <dt className="text-[11px]" style={{ color: 'var(--wa-text-2)' }}>{k}</dt>
+                  <dd className="truncate" style={{ color: 'var(--wa-text)' }} title={String(v)}>{String(v)}</dd>
+                </div>
+              ))}
+            </dl>
+            {c.perguntaPendente && (
+              <p className="text-[12px] mt-2 leading-4" style={{ color: 'var(--wa-text-2)' }}>
+                Esperando resposta de: “{String(c.perguntaPendente).slice(0, 180)}”
+              </p>
+            )}
+          </SecaoV3>
+        )}
+        {d?.ficha && (
+          <SecaoV3 titulo={`Ficha da conversa${d.ficha.tipo === 'novo' ? ' (imóvel novo)' : d.ficha.codigo ? ` (#${d.ficha.codigo})` : ''}`} fechada>
+            <p className="text-[12.5px] leading-4" style={{ color: 'var(--wa-text)' }}>{resumoDaFicha(d.ficha.dados) || 'ainda vazia'}</p>
+            <p className="text-[11px] mt-1" style={{ color: 'var(--wa-text-2)' }}>O que ele contou nesta conversa; entra no cadastro onde o campo está vazio.</p>
+          </SecaoV3>
+        )}
+        {!!fotos.length && (
+          <SecaoV3 titulo={`Fotos que ele mandou (${fotos.length})`} fechada>
+            <div className="grid grid-cols-4 gap-1.5">
+              {fotos.slice(0, 12).map((f) => (
+                <a key={f.id} href={f.url} target="_blank" rel="noreferrer" className="aspect-square rounded-lg overflow-hidden">
+                  <img src={f.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                </a>
+              ))}
+            </div>
+            <p className="text-[11px] mt-1.5 flex items-center gap-1" style={{ color: 'var(--wa-text-2)' }}>
+              <Images size={13} /> no cadastro elas já vêm marcadas; você desmarca o que não serve.
+            </p>
+          </SecaoV3>
+        )}
+        {erro && <p className="px-4 py-3 text-[12.5px]" style={{ color: 'var(--wa-tag-tel)', background: 'var(--wa-panel)' }}>{erro}</p>}
+        <div className="flex-1 min-h-4" style={{ background: 'var(--wa-app)' }} />
+      </div>
+
+      {alvo && (
+        <CadastroDeImovel
+          leadId={lead.id}
+          donoNome={dono?.nome || c?.nome || null}
+          temProprietario={!!c?.temProprietario}
+          alvo={alvo}
+          fotos={fotos}
+          condominiosCitados={d?.condominiosCitados || []}
+          aoFechar={() => setAlvo(null)}
+          aoPronto={() => void ler()}
+        />
+      )}
+    </div>
+  )
+
+  const conteudo = v3 ? corpoV3 : corpo
+
   if (modo === 'gaveta') {
     return (
       <div className="fixed inset-0 z-50 flex justify-end" onClick={aoFechar}>
         <div className="absolute inset-0 bg-black/40" />
-        <aside className="relative h-full w-[min(420px,92vw)] shadow-2xl" onClick={(e) => e.stopPropagation()}>{corpo}</aside>
+        <aside className="relative h-full w-[min(420px,92vw)] shadow-2xl" onClick={(e) => e.stopPropagation()}>{conteudo}</aside>
       </div>
     )
   }
   return (
     <aside className="relative h-full flex-shrink-0" style={{ width: borda.largura, borderLeft: '1px solid var(--wa-divider)' }}>
       <div {...borda.puxador} />
-      {corpo}
+      {conteudo}
     </aside>
   )
 }

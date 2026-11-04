@@ -14,7 +14,7 @@
  *   { captacaoOrigem: { olx_id, titulo, url, ... } }     de onde veio a captação (a tela Imóveis captar OLX): o contexto do card
  *   { locacao: true | false }                            v2 do CRM: o lead do Leads vai (ou sai) da locação, que é do Diego
  *   { responsavel: { nome } | { nay: true } | null }     v2 do CRM: quem assumiu o proprietário (null volta à regra do número)
- *   { etapaV3: 0..4 | null }                             v3: a etapa escolhida à mão na barra (custom_attributes.etapa_v3); null volta ao automático
+ *   { tipo: '<chave>' | null }                           o tipo do contato; grava também tipo_contato_origem 'manual', _por e _em
  *   { visita: { id: <id da visita>, ligar: true } }      v2, aba Visita: a conversa entra (ou sai) do card daquela visita à mão
  *                                                        (custom_attributes.visitas_v2; o id da Nay Leads é negativo, como na agenda)
  *
@@ -24,7 +24,7 @@ import { NextRequest } from 'next/server'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 import { authenticateRequest, apiError } from '@/lib/api-auth'
 import { db } from '@/lib/db'
-import { leads } from '@/lib/schema'
+import { leads, profiles } from '@/lib/schema'
 import { publishEvent, channels, events } from '@/lib/realtime'
 
 export const runtime = 'nodejs'
@@ -45,10 +45,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if ('tipo' in corpo) {
       const tipo = corpo.tipo == null ? null : String(corpo.tipo).trim().slice(0, 40)
+      /* v3 (Pedro, 04/11: "ao trocar manualmente, gravar tipo, tipo_origem = manual, quem alterou e quando; só outra troca
+         manual muda"): esta rota é a única que grava o tipo, e só a pedido de alguém na tela. Junto vai quem e quando */
+      const [perfil] = await db.select({ nome: profiles.fullName }).from(profiles).where(eq(profiles.id, auth.userId)).limit(1)
+      const quem = String(perfil?.nome || '').trim().slice(0, 60) || 'Equipe'
       await db.execute(tipo
-        ? sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) || jsonb_build_object('tipo_contato', ${tipo}::text),
+        ? sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) || jsonb_build_object('tipo_contato', ${tipo}::text,
+                 'tipo_contato_origem', 'manual', 'tipo_contato_por', ${quem}::text, 'tipo_contato_em', now()::text),
                  updated_at = now() WHERE id = ${id}`
-        : sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) - 'tipo_contato', updated_at = now() WHERE id = ${id}`)
+        : sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) - 'tipo_contato' - 'tipo_contato_origem'
+                 - 'tipo_contato_por' - 'tipo_contato_em', updated_at = now() WHERE id = ${id}`)
       /* 03/11, à tarde (Pedro): Administração é só este tipo (só o Tel vê); a etiqueta Fechamento voltou a ser a etapa
          Fechamento, que a equipe toda vê, e não entra mais junto */
     }
@@ -87,14 +93,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         ? sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb)
                  || jsonb_build_object('responsavel_v2', ${JSON.stringify(v)}::jsonb), updated_at = now() WHERE id = ${id}`
         : sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) - 'responsavel_v2', updated_at = now() WHERE id = ${id}`)
-    }
-    // v3 (Pedro, 04/11: "cada segmento é clicável para mudar a etapa manualmente"): 0 Começar .. 4 Visitas; null volta ao automático
-    if ('etapaV3' in corpo) {
-      const n = corpo.etapaV3 == null ? null : Math.trunc(Number(corpo.etapaV3))
-      await db.execute(n !== null && n >= 0 && n <= 4
-        ? sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb)
-                 || jsonb_build_object('etapa_v3', jsonb_build_object('n', ${n}::int, 'em', now()::text)), updated_at = now() WHERE id = ${id}`
-        : sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) - 'etapa_v3', updated_at = now() WHERE id = ${id}`)
     }
     if (corpo.captacaoOrigem && typeof corpo.captacaoOrigem === 'object') {
       const c = corpo.captacaoOrigem as Record<string, unknown>

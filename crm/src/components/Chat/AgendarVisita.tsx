@@ -44,6 +44,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarPlus, CircleNotch, Clock, CalendarBlank, BellRinging, X } from '@phosphor-icons/react'
 import { MODELO_DO_LEMBRETE } from '@/lib/lembreteDaVisitaTexto'
+import { useModoV3 } from '@/lib/modoV3'
 import LembretesDaVisita from './LembretesDaVisita'
 import { diaEmManaus, diaEmManausMais, horaEmManaus, instanteEmManaus } from '@/lib/fusoDeManaus'
 import EscolherImovelDaVisita from './EscolherImovelDaVisita'
@@ -173,18 +174,22 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, corretorIni
     } finally { setSalvando(false) }
   }
 
+  // v3 (Pedro, 04/11: "um único botão primário por seção, com a mesma cor de destaque; unifique"): o azul vira o destaque
+  const v3 = useModoV3()
+  const DESTAQUE = v3 ? 'var(--wa-green)' : AZUL
+  const TINTA = v3 ? 'var(--wa-green-ink)' : '#fff'
   const campo = { background: 'var(--wa-app)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }
   const chip = (ligado: boolean) => (ligado
-    ? { background: AZUL, color: '#fff' }
+    ? { background: DESTAQUE, color: TINTA }
     : { color: 'var(--wa-text-2)', border: '1px solid var(--wa-divider)' })
   const classeChip = 'inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[12.5px] font-medium'
   const rotulo = 'text-[12px] block mb-1'
 
   return (
-    <div className="w-full text-left rounded-xl p-3" style={{ border: `1px solid ${AZUL}`, background: AZUL_SUAVE }}>
+    <div className="w-full text-left rounded-xl p-3" style={v3 ? { border: '1px solid var(--wa-divider)' } : { border: `1px solid ${AZUL}`, background: AZUL_SUAVE }}>
       <div className="flex items-center gap-1.5 mb-2">
-        <CalendarPlus size={17} weight="fill" style={{ color: AZUL }} />
-        <b className="text-[14px]" style={{ color: AZUL }}>Agendar visita</b>
+        <CalendarPlus size={17} weight="fill" style={{ color: v3 ? 'var(--wa-text-2)' : AZUL }} />
+        <b className="text-[14px]" style={{ color: v3 ? 'var(--wa-text)' : AZUL }}>Agendar visita</b>
         {aoCancelar && (
           <button type="button" onClick={aoCancelar} className="ml-auto wa-icone-btn !w-7 !h-7" aria-label="Fechar"><X size={15} /></button>
         )}
@@ -288,7 +293,7 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, corretorIni
 
       <button type="button" onClick={() => void agendar()} disabled={salvando}
               className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-semibold disabled:opacity-50"
-              style={{ background: AZUL, color: '#fff' }}>
+              style={{ background: DESTAQUE, color: TINTA }}>
         {salvando ? <CircleNotch size={14} className="animate-spin" /> : <CalendarPlus size={14} weight="fill" />} Agendar visita
       </button>
       {aviso && <p className="text-[12.5px] mt-1.5 leading-4" style={{ color: aviso.ok ? AZUL : 'var(--wa-tag-tel)' }}>{aviso.texto}</p>}
