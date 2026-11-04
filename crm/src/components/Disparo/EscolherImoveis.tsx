@@ -15,6 +15,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { Camera, Check, Funnel, MagnifyingGlass, X } from '@phosphor-icons/react'
+import BarraDeCarregamento from '@/components/Shared/BarraDeCarregamento'
 
 export interface ImovelParaEnviar {
   codigo: string
@@ -316,6 +317,8 @@ export default function EscolherImoveis({ escolhidos, aoMudar, teto, opcoes, com
 
   return (
     <div>
+      {/* 04/11 (Pedro: "lento para aparecer o imóvel ... uma barrinha de carregamento") */}
+      {(procurando || buscandoFaixa) && <div className="mb-2"><BarraDeCarregamento rotulo="Buscando imóveis…" /></div>}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         {!compacto && <span className="text-xs text-muted">Imóveis</span>}
         <div className={`inline-flex rounded-lg border border-line p-0.5 text-xs ${compacto ? 'w-full' : ''}`} role="tablist">

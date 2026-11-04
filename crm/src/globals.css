@@ -2110,3 +2110,9 @@ html {
 .v3-parada { --v3-fundo: #EDEDEC; --v3-texto: #5F5E5A; }
 .dark .v3-parada { --v3-fundo: #2C2C2A; --v3-texto: #D3D1C7; }
 .v3-selo { background: var(--v3-fundo); color: var(--v3-texto); }
+
+/* A BARRA DE CARREGAMENTO (04/11, Enviar imóvel): components/Shared/BarraDeCarregamento.tsx */
+.barra-carregando { position: relative; height: 4px; border-radius: 999px; overflow: hidden; background: var(--wa-row-selected, rgba(127,127,127,.25)); }
+.barra-carregando > span { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 999px; background: var(--wa-green, #22c55e); transition: width .5s ease-out; }
+.barra-carregando--indeterminada > span { width: 35%; animation: barra-carregando-vai 1.1s ease-in-out infinite; }
+@keyframes barra-carregando-vai { 0% { left: -35%; } 100% { left: 100%; } }

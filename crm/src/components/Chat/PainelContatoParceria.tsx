@@ -36,6 +36,7 @@ import TrilhaDaNay from './TrilhaDaNay'
 import HistoricoDeAtendimento from './HistoricoDeAtendimento'
 import ImoveisJaEnviados from './ImoveisJaEnviados'
 import EscolherImoveis, { useOpcoesDoDisparo, type ImovelParaEnviar } from '@/components/Disparo/EscolherImoveis'
+import BarraDeCarregamento from '@/components/Shared/BarraDeCarregamento'
 import EtapaDoLead from './EtapaDoLead'
 import { escolhaAMao } from '@/lib/etapaDaParceria'
 import AgendarFollowup from './AgendarFollowup'
@@ -548,6 +549,8 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
             {enviando ? <CircleNotch size={16} className="animate-spin" /> : <PaperPlaneRight size={16} weight="fill" />}
             {escolhidos.length ? `Enviar ${escolhidos.length} imóve${escolhidos.length === 1 ? 'l' : 'is'}` : 'Enviar'}
           </button>
+          {/* 04/11 (Pedro): a barrinha enquanto o envio é pedido */}
+          {enviando && <div className="mt-2"><BarraDeCarregamento rotulo="Enviando…" /></div>}
           {resultado && (
             <p className="text-[13px] mt-2 flex items-start gap-1.5 whitespace-pre-wrap"
                style={{ color: resultado.tipo === 'ok' ? 'var(--wa-green)' : resultado.tipo === 'aviso' ? 'var(--wa-tag-prop)' : 'var(--wa-tag-tel)' }}>

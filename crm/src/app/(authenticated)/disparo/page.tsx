@@ -22,6 +22,7 @@
 import { useEffect, useState } from 'react'
 import { PaperPlaneTilt } from '@phosphor-icons/react'
 import EscolherImoveis, { type ImovelParaEnviar, type OpcaoDoFiltro } from '@/components/Disparo/EscolherImoveis'
+import BarraDeCarregamento, { useAcompanharPedidoDaCaptacao } from '@/components/Shared/BarraDeCarregamento'
 
 interface Linha { id: string; nome: string; tipo: string; padrao: boolean; aviso: string | null }
 
@@ -44,6 +45,8 @@ export default function DisparoPage() {
   const [opcoes, setOpcoes] = useState<{ bairros: OpcaoDoFiltro[]; tipos: OpcaoDoFiltro[] }>({ bairros: [], tipos: [] })
   // um envio que deu certo limpa a escolha (a chave remonta o componente)
   const [rodada, setRodada] = useState(0)
+  // 04/11 (Pedro: "uma barrinha de carregamento até enviar a mensagem"): no Leads, acompanha o pedido até sair
+  const pedido = useAcompanharPedidoDaCaptacao()
 
   useEffect(() => {
     fetch('/api/disparo').then((r) => r.json()).then((j) => {
@@ -71,6 +74,7 @@ export default function DisparoPage() {
       const j = await res.json()
       if (!res.ok) throw new Error(j?.error || 'não consegui enviar')
       setResposta({ ok: true, texto: j.resumo || 'Enviado.', canal: j.canal })
+      if (j.canal === 'captacao' && Number(j.pedido) > 0) pedido.iniciar(Number(j.pedido))
       setEscolhidos([])
       setRodada((r) => r + 1)
     } catch (err: any) {
@@ -142,6 +146,12 @@ export default function DisparoPage() {
               ? `Enviar ${escolhidos.length} imóve${escolhidos.length === 1 ? 'l' : 'is'}${digitos.length >= 10 ? ` para ${formatarTelefone(telefone)}` : ''}`
               : 'Enviar'}
         </button>
+        {(enviando || pedido.andando) && (
+          <div className="mt-3"><BarraDeCarregamento rotulo={enviando ? 'Enviando…' : pedido.texto} progresso={enviando ? null : pedido.progresso} /></div>
+        )}
+        {!enviando && !pedido.andando && pedido.fim && pedido.texto && (
+          <p className={`mt-2 text-xs ${pedido.fim === 'falhou' ? 'text-red-400' : 'text-muted'}`}>{pedido.texto}</p>
+        )}
       </div>
 
       {resposta && (

@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { CheckCircle, CircleNotch, PaperPlaneRight, WarningCircle } from '@phosphor-icons/react'
 import EscolherImoveis, { useOpcoesDoDisparo, type ImovelParaEnviar } from '@/components/Disparo/EscolherImoveis'
+import BarraDeCarregamento from '@/components/Shared/BarraDeCarregamento'
 
 type Envio = { tipo: 'ok' | 'erro' | 'aviso' | 'vai'; texto: string }
 
@@ -24,6 +25,7 @@ export default function EnviarImovelPelaCaptacao({ leadId, telefone, oficial }: 
   const [rodada, setRodada] = useState(0)
   const [enviando, setEnviando] = useState(false)
   const [envio, setEnvio] = useState<Envio | null>(null)
+  const [progresso, setProgresso] = useState<number | null>(null)
   const vigia = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (vigia.current) clearTimeout(vigia.current) }, [])
   useEffect(() => { setEscolhidos([]); setEnvio(null) }, [leadId])
@@ -40,6 +42,7 @@ export default function EnviarImovelPelaCaptacao({ leadId, telefone, oficial }: 
         }
         const feitos = Array.isArray(e?.enviados) ? e.enviados.length : 0
         const total = Array.isArray(e?.codigos) ? e.codigos.length : 0
+        setProgresso(total ? feitos / total : null)
         setEnvio({ tipo: 'vai', texto: `Enviando pelo 8595… ${feitos} de ${total}` })
       } catch { /* sem rede: tenta de novo */ }
       if (Date.now() - desde < 15 * 60_000) acompanhar(id, desde)
@@ -50,6 +53,7 @@ export default function EnviarImovelPelaCaptacao({ leadId, telefone, oficial }: 
   async function enviar() {
     if (!escolhidos.length || enviando) return
     setEnviando(true)
+    setProgresso(null)
     setEnvio({ tipo: 'vai', texto: 'Pedindo o envio…' })
     try {
       const r = await fetch('/api/captacao/enviar-imoveis', {
@@ -80,6 +84,8 @@ export default function EnviarImovelPelaCaptacao({ leadId, telefone, oficial }: 
         {enviando ? <CircleNotch size={16} className="animate-spin" /> : <PaperPlaneRight size={16} weight="fill" />}
         {escolhidos.length ? `Enviar ${escolhidos.length} imóve${escolhidos.length === 1 ? 'l' : 'is'}` : 'Enviar'}
       </button>
+      {/* 04/11 (Pedro): a barrinha até a última mensagem sair */}
+      {enviando && <div className="mt-2"><BarraDeCarregamento progresso={progresso} /></div>}
       {envio && (
         <p className="text-[13px] mt-2 flex items-start gap-1.5 whitespace-pre-wrap"
            style={{ color: envio.tipo === 'ok' ? 'var(--wa-green)' : envio.tipo === 'erro' ? 'var(--wa-tag-tel)'
