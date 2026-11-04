@@ -481,8 +481,9 @@ export default function ChatWhatsApp({ linha, filtro, extraNoTopo }: {
       {/* 18/10 (Pedro: "a agenda não está lá no número de captação ... todos os números compartilhando a mesma
           agenda"): Conversas e Visitas agendadas também aqui; a agenda é a mesma da Parceria */}
       <AbasParceria aba={aba} aoMudar={(k) => { setAba(k); if (k === 'conversas') setMobileView('list') }}
-                    naoLidas={naoLidas} visitasAbertas={0} abas={['conversas', 'visitas', 'pipeline', 'arquitetura']}
+                    naoLidas={naoLidas} visitasAbertas={0} abas={['conversas', 'visitas', 'pipeline']}
                     rotuloConversas="As conversas do WhatsApp da Captação" rotuloPipeline="Pipeline">
+        {/* 03/11 (Pedro: "Arquitetura vem pra dentro do menu Mais"): a aba saiu daqui; é a página /arquitetura */}
         {/* 01/11 (Pedro): contador de visitas do Leads, meta de 1 por dia */}
         <ContadorDeVisitas linha="leads" />
       </AbasParceria>

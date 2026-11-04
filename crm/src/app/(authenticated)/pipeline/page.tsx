@@ -32,9 +32,10 @@ export default function PipelinePage() {
     )
   }
 
+  // 03/11 (Pedro: "no tema branco ele fica branco também"): a paleta clara do funil (globals.css, .pipeline-no-chat)
   return (
-    <>
+    <div className="pipeline-no-chat pipeline-geral flex flex-col h-full min-h-0">
       <PipelineBoard organizationId={organizationId} filters={filters} />
-    </>
+    </div>
   )
 }

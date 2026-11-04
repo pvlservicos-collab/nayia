@@ -692,7 +692,10 @@ html {
 
 :root:not(.dark) .pipeline-no-chat {
   /* 02/11: o funil das conversas fica sobre o fundo claro do chat, mas usa os tokens da paleta escura (texto quase
-     branco). Aqui eles viram os claros, só dentro dele. */
+     branco). Aqui eles viram os claros, só dentro dele.
+     03/11 (Pedro: "deixar clean o pipeline, no tema branco ele fica branco também, hoje está bugado texto branco com fundo
+     branco"): TODA a paleta vira clara aqui dentro -- a rampa de cinzas, os degradês e o vidro também (o vidro só ficava
+     claro dentro do .chat-theme) -- e o Pipeline geral (/pipeline) também usa esta classe. */
   --ink: #111b21;
   --muted: #667781;
   --line: rgba(0, 0, 0, 0.12);
@@ -701,8 +704,31 @@ html {
   --void: #f0f2f5;
   --blue: #6d28d9;
   --glass-edge: rgba(0, 0, 0, 0.1);
+  --glass-edge-strong: rgba(0, 0, 0, 0.16);
+  --g-0: #ffffff; --g-1: #fafafa; --g-2: #f5f5f5; --g-3: #f0f0f0; --g-4: #e8e8e8;
+  --g-5: #e0e0e0; --g-6: #d6d6d6; --g-7: #c4c4c4; --g-8: #9a9a9a; --g-9: #6b6b6b;
+  --grad-app: #f0f2f5;
+  --grad-panel: linear-gradient(168deg, #ffffff 0%, #fbfbfb 100%);
+  --grad-raised: linear-gradient(168deg, #ffffff 0%, #f7f7f7 100%);
+  --grad-sunken: linear-gradient(180deg, #f3f4f6 0%, #eef0f2 100%);
+  --grad-rail: linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%);
+  --glass-bg: rgba(255, 255, 255, 0.92);
+  --glass-bg-soft: rgba(255, 255, 255, 0.8);
+  --glass-bg-raised: rgba(255, 255, 255, 0.98);
+  --glass-bg-sunken: rgba(0, 0, 0, 0.035);
+  --glass-veil: linear-gradient(158deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.15) 100%);
+  --glass-veil-soft: linear-gradient(158deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.1) 100%);
+  --glass-veil-strong: linear-gradient(158deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.3) 100%);
+  --glass-sheen: rgba(255, 255, 255, 0.8);
+  --glass-lift: 0 1px 0 0 rgba(255, 255, 255, 0.6) inset, 0 6px 18px -14px rgba(0, 0, 0, 0.3);
+  --glass-lift-lg: 0 1px 0 0 rgba(255, 255, 255, 0.7) inset, 0 20px 44px -26px rgba(0, 0, 0, 0.35);
   color: #111b21;
 }
+:root:not(.dark) .pipeline-geral { background: #f0f2f5; }
+:root:not(.dark) .pipeline-no-chat .bg-white\/\[0\.03\] { background-color: rgba(0, 0, 0, 0.03); }
+:root:not(.dark) .pipeline-no-chat .bg-white\/\[0\.02\] { background-color: rgba(0, 0, 0, 0.02); }
+:root:not(.dark) .pipeline-no-chat .border-white\/\[0\.07\] { border-color: rgba(0, 0, 0, 0.08); }
+:root:not(.dark) .pipeline-no-chat .bg-black\/40 { background-color: rgba(0, 0, 0, 0.08); }
 :root:not(.dark) .pipeline-no-chat .text-emerald-300 { color: #047857; }
 :root:not(.dark) .pipeline-no-chat .text-sky-300 { color: #0369a1; }
 :root:not(.dark) .pipeline-no-chat .text-amber-300 { color: #b45309; }

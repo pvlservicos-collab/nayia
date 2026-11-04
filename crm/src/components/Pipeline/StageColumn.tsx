@@ -20,6 +20,8 @@ interface StageColumnProps {
   onLeadInfoClick?: (lead: LeadWithOwner) => void
   /** Lead a destacar — o card dele pisca. Vem do clique num minicard da coluna "Fonte:". */
   highlightedLeadId?: string | null
+  /** 03/11: o botão de conversa do card abre o popup da conversa (ConversaNoPipeline) */
+  onLeadConversar?: (lead: LeadWithOwner) => void
 }
 
 const INITIAL_DISPLAY = 30
@@ -35,6 +37,7 @@ export default function StageColumn({
   onLeadClick,
   onLeadInfoClick,
   highlightedLeadId,
+  onLeadConversar,
 }: StageColumnProps) {
   const { setNodeRef } = useDroppable({ id: stage.id })
   const fallbackColor = getStageColor(stage.rank)
@@ -151,6 +154,7 @@ export default function StageColumn({
                 isHighlighted={highlightedLeadId === lead.id}
                 onClick={onLeadClick ? () => onLeadClick(lead) : undefined}
                 onInfoClick={onLeadInfoClick ? () => onLeadInfoClick(lead) : undefined}
+                onConversar={onLeadConversar ? () => onLeadConversar(lead) : undefined}
               />
             ))
           )}

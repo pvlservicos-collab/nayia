@@ -24,9 +24,12 @@ interface LeadCardProps {
   onInfoClick?: () => void
   /** Pisca o card — usado ao clicar no minicard deste lead na coluna "Fonte:". */
   isHighlighted?: boolean
+  /** 03/11 (Pedro: "ao clicar em abrir conversa com o lead abrir um popup que eu posso conversar com o lead pelo
+   *  pipeline"): com isto, o botão de conversa abre o popup (ConversaNoPipeline) em vez de ir para a aba do número */
+  onConversar?: () => void
 }
 
-const LeadCard = ({ lead, isDragOverlay, stageColor, onClick, onInfoClick, isHighlighted }: LeadCardProps) => {
+const LeadCard = ({ lead, isDragOverlay, stageColor, onClick, onInfoClick, isHighlighted, onConversar }: LeadCardProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: lead.id,
   })
@@ -100,6 +103,13 @@ const LeadCard = ({ lead, isDragOverlay, stageColor, onClick, onInfoClick, isHig
         <div className="absolute left-0 top-0 bottom-0 w-1.5 z-20" style={{ background: '#22c55e' }}
              title="Mensagem nova do lead" aria-label="Mensagem nova do lead" />
       )}
+      {/* 03/11 (Pedro: "aparecer o 1zinho redondo de notificação quando tiver msg daquele lead no pipeline"): quantas sem ler */}
+      {!isDragOverlay && lead.is_unread && (
+        <span className="absolute top-1.5 right-1.5 z-20 min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold leading-5 text-center text-white"
+              style={{ background: '#22c55e' }} title="Mensagens novas do lead">
+          {Number(lead.nao_lidas || 0) > 99 ? '99+' : Math.max(1, Number(lead.nao_lidas || 0))}
+        </span>
+      )}
       {/* Left colored border on hover - 4px width */}
       {!isDragOverlay && stageColor && !lead.is_unread && (
         <div
@@ -133,7 +143,16 @@ const LeadCard = ({ lead, isDragOverlay, stageColor, onClick, onInfoClick, isHig
                 Parceria em /chat/parceria, captação em /chat/captacao.
                 Mandar para a aba errada seria mandar para uma lista que não
                 tem esse lead -- a conversa não abriria. */}
-            {!isDragOverlay && (
+            {!isDragOverlay && onConversar && (
+              <button type="button"
+                      onClick={(e) => { e.stopPropagation(); onConversar() }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      title="Conversar com este lead (abre aqui, por cima do pipeline)"
+                      className="flex-shrink-0 ml-1 mr-5 p-1 rounded-md text-muted hover:text-accent hover:bg-white/[0.06] transition-colors">
+                <ChatCircleDots size={15} weight="fill" />
+              </button>
+            )}
+            {!isDragOverlay && !onConversar && (
               <Link
                 // 29/10 (Pedro: "melhorar o carregamento de quando clico no lead no pipeline e ele vai para a conversa"):
                 // era um <a href>, que recarregava o CRM inteiro; agora é navegação interna, sem pré-carregar cada card
@@ -230,6 +249,10 @@ export default memo(LeadCard, (prevProps, nextProps) => {
     prevProps.isDragOverlay === nextProps.isDragOverlay &&
     prevProps.isHighlighted === nextProps.isHighlighted &&
     prevProps.stageColor === nextProps.stageColor &&
-    prevProps.lead.stage_id === nextProps.lead.stage_id
+    prevProps.lead.stage_id === nextProps.lead.stage_id &&
+    // 03/11: a borda verde e o número de não lidas mudam sem mudar o updated_at
+    !!prevProps.lead.is_unread === !!nextProps.lead.is_unread &&
+    (prevProps.lead.nao_lidas || 0) === (nextProps.lead.nao_lidas || 0) &&
+    !!prevProps.onConversar === !!nextProps.onConversar
   )
 })

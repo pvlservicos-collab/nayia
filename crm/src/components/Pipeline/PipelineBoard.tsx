@@ -37,6 +37,7 @@ import { useCaptacaoDonos } from '@/hooks/useCaptacaoDonos'
 import PainelContatoParceria from '@/components/Chat/PainelContatoParceria'
 import PainelContatoCaptacao from '@/components/Chat/PainelContatoCaptacao'
 import EnviarImovelPelaCaptacao from '@/components/Chat/EnviarImovelPelaCaptacao'
+import ConversaNoPipeline from './ConversaNoPipeline'
 
 const ORDEM_DO_FUNIL: Record<string, number> = { oficial: 0, parceria: 1, captacao: 2 }
 function rotuloDoFunil(p: { name: string; settings?: any }) {
@@ -109,6 +110,15 @@ export default function PipelineBoard({ organizationId, filters, linha }: Pipeli
   const [activeMobileStageId, setActiveMobileStageId] = useState<string | null>(null)
   const [movingLead, setMovingLead] = useState<LeadWithOwner | null>(null)
   const [detailLead, setDetailLead] = useState<LeadWithOwner | null>(null)
+  /* 03/11 (Pedro): a conversa do lead num popup, por cima do funil (ConversaNoPipeline); abrir marca como lida */
+  const [conversaId, setConversaId] = useState<string | null>(null)
+  const abrirConversa = useCallback((l: LeadWithOwner) => {
+    setConversaId(l.id)
+    if (l.is_unread) {
+      setLeads((p) => p.map((x) => (x.id === l.id ? { ...x, is_unread: false, nao_lidas: 0 } : x)))
+      fetch(`/api/leads/${l.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_unread: false }) }).catch(() => {})
+    }
+  }, [setLeads])
   /* OS FILTROS À VISTA (Pedro, 20/10/2026: "na pipeline quero todas as etapas e tags por lá filtrando, e também filtrar
      por tempo, dia"). Etapas e etiquetas: várias marcadas = qualquer uma. Quando: pela última movimentação do lead
      (ou a criação), no dia de Manaus. Somam com o filtro do botão. */
@@ -504,8 +514,14 @@ export default function PipelineBoard({ organizationId, filters, linha }: Pipeli
     )
   }
 
+  const conversaAberta = conversaId ? globalLeads.find((l) => l.id === conversaId) || null : null
   return (
     <div className="flex-1 flex flex-col h-full min-h-0">
+      {conversaAberta && organizationId && (
+        <ConversaNoPipeline lead={conversaAberta} organizationId={organizationId} aoFechar={() => setConversaId(null)}
+                            aoEnviar={(conteudo) => setLeads((p) => p.map((x) => (x.id === conversaAberta.id
+                              ? { ...x, last_message_content: conteudo, last_message_sender_type: 'human' as const, last_activity_at: new Date().toISOString() } : x)))} />
+      )}
       {/* Kanban Board — largura rola no desktop (várias colunas lado a lado), altura
           é travada aqui e repassada pra baixo; quem rola de verdade é a lista de cards
           dentro de cada StageColumn, não essa página inteira. */}
@@ -672,6 +688,7 @@ export default function PipelineBoard({ organizationId, filters, linha }: Pipeli
                     highlightedLeadId={highlightedLeadId}
                     onLeadClick={setMovingLead}
                     onLeadInfoClick={setDetailLead}
+                    onLeadConversar={abrirConversa}
                   />
                 ))}
               </div>
@@ -695,6 +712,7 @@ export default function PipelineBoard({ organizationId, filters, linha }: Pipeli
                   highlightedLeadId={highlightedLeadId}
                   onLeadClick={setDetailLead}
                   onLeadInfoClick={setDetailLead}
+                  onLeadConversar={abrirConversa}
                 />
               ))}
             </div>

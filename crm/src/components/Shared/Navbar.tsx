@@ -34,6 +34,7 @@ import {
   FolderSimpleUser,
   HouseLine,
   CalendarCheck,
+  TreeStructure,
 } from '@phosphor-icons/react'
 import { useAuth, usePipeline } from '@/hooks'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -116,6 +117,9 @@ const NAV_ITEMS: ItemDoMenu[] = [
   { label: 'Cadastros incompletos', curto: 'Cadastros', href: '/cadastros-incompletos', icon: ClipboardText, mais: true },
   // IMÓVEIS CAPTAR OLX (Pedro, 03/11/2026): os anúncios de particular da OLX com cara de dono, sem quem já conhecemos (585)
   { label: 'Imóveis captar OLX', curto: 'Captar OLX', href: '/imoveis-captar-olx', icon: HouseLine, mais: true },
+  // ARQUITETURA (Pedro, 03/11/2026: "Arquitetura vem pra dentro do menu Mais"): o fluxograma dos agentes da Nay Leads, que era
+  // uma aba do WhatsApp Leads
+  { label: 'Arquitetura', href: '/arquitetura', icon: TreeStructure, mais: true },
   { label: 'Configurações', href: '/settings/organization', icon: Gear, mais: true },
 ]
 
@@ -294,6 +298,7 @@ export default function Navbar() {
       case 'Esteira de follow-up':
       case 'Cadastros incompletos':
       case 'Imóveis captar OLX':
+      case 'Arquitetura':
       case 'Captação':
       case 'Guia de atendimento': return !!permissions.settings?.view_chat
       case 'DM Instagram': return !!permissions.settings?.view_chat
