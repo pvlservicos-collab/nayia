@@ -192,18 +192,16 @@ export default function Navbar() {
   /* A BARRA DA V3 (Pedro, 04/11: "o captação e o api oficial continuam lá ... um número só com as etapas"): Captação,
      Atendimento (o WhatsApp juntado, Leads + Parceria, com as etiquetas Em atendimento / Leads / Corretores / Visitas /
      Fechamento / Proprietários) e o WhatsApp Oficial. O resto do CRM fica no "+ Mais" (só Imóveis na barra, como na v2). */
-  const ITENS_V3: ItemDoMenu[] = [
-    { label: 'Captação', href: '/chat/captar', icon: HouseLine },
-    { label: 'Atendimento', curto: 'WhatsApp', href: '/chat/v3', icon: WhatsappLogo },
-    { label: 'WhatsApp Oficial', curto: 'Oficial', href: '/chat', icon: WhatsappLogo },
-  ]
-  const hrefsV3 = new Set([...ITENS_V3.map((i) => i.href), '/chat/parceria', '/chat/captacao'])
+  // (Pedro, 04/11, depois: "no v3 Visita, Proprietários, Fechamento e Administração ficam lá em cima no menu, igual tem
+  // na v2"): a mesma barra da v2, só que o Atendimento é o da v3
+  const ITENS_V3: ItemDoMenu[] = ITENS_V2.map(({ area, ...i }) => (area === 'atendimento' ? { ...i, href: '/chat/v3' } : i))
+  const hrefsV3 = new Set([...ITENS_V3.map((i) => i.href), '/chat/parceria', '/chat/captacao', '/chat/atendimento'])
   const ITENS: ItemDoMenu[] = naV3
     ? [...ITENS_V3, ...NAV_ITEMS.filter((i) => !hrefsV3.has(i.href)).map((i) => ({ ...i, mais: i.href !== '/imoveis' }))]
     : ITENS_BASE
   useEffect(() => {
     if (!ehTel || !modoV3) return
-    if (['/chat/atendimento', '/chat/parceria', '/chat/captacao', '/chat/proprietarios', '/chat/visita', '/chat/fechamento'].some((h) => pathname === h || pathname.startsWith(h + '/'))
+    if (['/chat/atendimento', '/chat/parceria', '/chat/captacao'].some((h) => pathname === h || pathname.startsWith(h + '/'))
         && !searchParams.get('leadId')) router.replace('/chat/v3')
   }, [ehTel, modoV3, pathname, router, searchParams])
   const [trocandoVersao, setTrocandoVersao] = useState(false)
