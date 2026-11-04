@@ -5,6 +5,10 @@
  * "Criar conversa" da lupa do WhatsApp Leads (BuscaDaLista), no alto do CRM, ao lado de Respostas Tel.
  * Digita o número, escolhe o WhatsApp (o da tela em que está; fora das conversas, o Leads) e abre a conversa
  * já pronta para escrever. Quem só responde na captação vê o Leads apagado.
+ *
+ * PARA A CAPTAÇÃO (Pedro, 04/11/2026: "pelo login do Lucas, sempre que ele criar um contato esse contato já vai para a aba
+ * Captação dele; e se nós criarmos tem uma opção Enviar para captação, do lado do número"): a conversa criada ganha a marca
+ * da captação (organizar { captacao: true }) e abre no Chat Captação (/chat/captar).
  */
 import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
@@ -12,6 +16,8 @@ import { UserPlus, ChatCircleText } from '@phosphor-icons/react'
 import { useAuth } from '@/hooks'
 import { CAMINHO_DA_LINHA, type LinhaWhatsapp } from '@/lib/leadChannel'
 import { RECUSA_DA_CAPTACAO, soRespondeNaCaptacao } from '@/lib/captacaoSoResponde'
+import { primeiroNome } from '@/lib/versaoDoCrm'
+import { organizar } from '@/components/Chat/OrganizarConversa'
 
 const ESCOLHAS: Array<{ linha: LinhaWhatsapp; rotulo: string }> = [
   { linha: 'captacao', rotulo: 'WhatsApp Leads' },
@@ -26,6 +32,9 @@ export default function ContatoNovo() {
   const [numero, setNumero] = useState('')
   const [abrindo, setAbrindo] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
+  // o Lucas é a captação: o contato que ele cria vai sempre para lá; os outros escolhem
+  const ehLucas = primeiroNome(profileName || user?.name) === 'lucas'
+  const [paraCaptacao, setParaCaptacao] = useState(false)
   const caixa = useRef<HTMLDivElement>(null)
 
   const digitos = numero.replace(/\D/g, '')
@@ -52,6 +61,11 @@ export default function ContatoNovo() {
       })
       const j = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(j?.error || j?.message || 'Não consegui abrir a conversa.')
+      if (ehLucas || paraCaptacao) {
+        await organizar(j.id, { captacao: true })
+        window.location.href = `/chat/captar?leadId=${j.id}`
+        return
+      }
       window.location.href = `${CAMINHO_DA_LINHA[linha]}?leadId=${j.id}`
     } catch (e: any) {
       setErro(e?.message || 'Não consegui abrir a conversa.')
@@ -88,6 +102,14 @@ export default function ContatoNovo() {
             aria-label="Número do contato novo"
             className="w-full h-9 px-3 rounded-lg border border-line bg-transparent text-sm text-ink outline-none focus:border-accent/60"
           />
+          {ehLucas ? (
+            <p className="mt-1.5 text-xs text-muted">Vai direto para a sua aba Captação.</p>
+          ) : (
+            <label className="mt-1.5 flex items-center gap-2 text-xs text-ink cursor-pointer" title="A conversa entra no Chat Captação (a aba do Lucas)">
+              <input type="checkbox" checked={paraCaptacao} onChange={(e) => setParaCaptacao(e.target.checked)} />
+              Enviar para captação
+            </label>
+          )}
           <button type="button" onClick={() => abrir(aqui)} disabled={!!abrindo || !ehNumero}
                   className="mt-2 w-full flex items-center justify-center gap-2 h-9 rounded-lg bg-accent text-white text-sm font-semibold disabled:opacity-45 disabled:cursor-not-allowed">
             <ChatCircleText size={16} />

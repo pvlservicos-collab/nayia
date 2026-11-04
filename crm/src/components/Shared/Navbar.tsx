@@ -45,7 +45,7 @@ import GlobalSearch from '@/components/Shared/GlobalSearch'
 import ContatoNovo from '@/components/Shared/ContatoNovo'
 import TamanhoDasConversas from '@/components/Shared/TamanhoDasConversas'
 import { usePipelineFilters } from '@/contexts/FilterContext'
-import { useVersaoDoCrm, trocarVersaoDoCrm, acessoV2, podeEntrar, CAMINHOS_DA_AREA, type AreaV2 } from '@/lib/versaoDoCrm'
+import { useVersaoDoCrm, trocarVersaoDoCrm, acessoV2, podeEntrar, CAMINHOS_DA_AREA, SDRS_V2, usePapelV2, useVerComo, type AreaV2 } from '@/lib/versaoDoCrm'
 
 /* O MENU (Pedro, 08/10/2026): "retire a aba início, deixe quando a pessoa logar já abre no whatsapp parceria,
    e coloca grupos, corretores e configuração em um só menu + Mais e coloca uma nova aba chamada Chat OLX".
@@ -163,7 +163,10 @@ export default function Navbar() {
   const versao = useVersaoDoCrm()
   const adminDoCrm = !!(isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || permissions?.['*'])
   const v2 = versao === 'v2'
-  const acesso = acessoV2(adminDoCrm, profileName || user?.name)
+  // 04/11 (Pedro: "Visualizar por ... para eu visualizar como um dos SDR"): o menu e a guarda são os do SDR escolhido
+  const papel = usePapelV2()
+  const [, trocarVerComo] = useVerComo()
+  const acesso = acessoV2(papel.admin, papel.nome)
   const hrefsV2 = new Set(ITENS_V2.map((i) => i.href))
   const ITENS: ItemDoMenu[] = v2
     ? [...ITENS_V2.filter((i) => i.area && acesso.areas.includes(i.area)),
@@ -321,6 +324,14 @@ export default function Navbar() {
   return (
     <>
     <nav className="app-safe-top glass-soft rounded-none border-x-0 border-t-0 px-4 md:px-3 xl:px-6 h-14 flex items-center justify-between gap-2 sticky top-0 z-50">
+      {/* 04/11: enquanto o administrador vê o CRM como um SDR, a faixa diz quem e volta ao padrão num clique */}
+      {papel.simulando && (
+        <button type="button" onClick={() => trocarVerComo(null)}
+                className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 rounded-full px-3 py-1 text-[12px] font-semibold shadow-lg"
+                style={{ background: '#d97706', color: '#fff' }}>
+          Visualizando como {papel.simulando.charAt(0).toUpperCase() + papel.simulando.slice(1)} · voltar ao padrão
+        </button>
+      )}
       {/* Left: Logo + Nav */}
       {/* gap menor ate 1280px: com a aba nova da Parceria sao seis itens,
           e em notebook eles espremiam a busca e o nome do usuario. */}
@@ -553,6 +564,18 @@ export default function Navbar() {
 
         {/* o botão do som de lead novo (SomNovoLead, no layout) aparece aqui (03/11: embaixo ele cobria o Enviar) */}
         <span id="lugar-do-som" className="contents" />
+
+        {/* VISUALIZAR POR (Pedro, 04/11): só o login do administrador; ver o CRM como um dos SDR, neste navegador */}
+        {papel.adminDeVerdade && (
+          <label className="flex flex-col items-start text-[9.5px] leading-[10px] font-semibold text-muted" title="Ver o CRM como um dos SDR vê (só neste navegador; nada muda para eles)">
+            Visualizar por
+            <select value={papel.simulando || ''} onChange={(e) => trocarVerComo(e.target.value || null)}
+                    className={`mt-0.5 h-6 rounded-md border px-1 text-[11px] font-semibold bg-transparent ${papel.simulando ? 'border-amber-500 text-amber-500' : 'border-line text-ink'}`}>
+              <option value="">Padrão</option>
+              {SDRS_V2.map((s) => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+            </select>
+          </label>
+        )}
 
         {/* v1 / v2 da organização do CRM: só o administrador vê, e a troca vale para todos (Pedro, 03/11) */}
         {adminDoCrm && versao && (

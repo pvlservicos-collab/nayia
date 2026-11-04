@@ -44,7 +44,7 @@ import type { LeadWithOwner } from '@/lib/types'
 import type { VisitaNaTela } from '@/lib/tiposNay'
 import { getLinhaWhatsapp } from '@/lib/leadChannel'
 import { fim8 } from '@/lib/olxClientes'
-import { primeiroNome, responsavelV2 } from '@/lib/versaoDoCrm'
+import { primeiroNome, responsavelV2, usePapelV2 } from '@/lib/versaoDoCrm'
 import { useEquipeV2 } from '@/hooks/useEquipeV2'
 import { useFechamentoV2 } from '@/hooks/useFechamentoV2'
 import { pessoasDe } from '@/lib/organizacaoDoLead'
@@ -320,9 +320,11 @@ function CartaoDoDono({ texto, leads, aoAchar }: { texto: string; leads: LeadWit
 }
 
 export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietarios' | 'fechamento' }) {
-  const { isMaster, roleName, permissions, profileName, user } = useAuth()
-  const admin = !!(isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || (permissions as any)?.['*'])
-  const eu = primeiroNome(profileName || user?.name)
+  const { profileName, user } = useAuth()
+  // 04/11: o Visualizar por do administrador vale aqui (usePapelV2)
+  const papel = usePapelV2()
+  const admin = papel.admin
+  const eu = primeiroNome(papel.nome)
   const { leads, setLeads } = useLeadsContext()
   const { ehProprietario } = usePapelDoContato()
   const { marcas } = useParceriaMarcas(true)

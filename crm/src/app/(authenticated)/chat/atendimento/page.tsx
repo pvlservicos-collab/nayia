@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks'
 import { useLeadsContext } from '@/contexts/LeadsContext'
 import { usePapelDoContato } from '@/hooks/usePapelDoContato'
 import { useFechamentoV2 } from '@/hooks/useFechamentoV2'
-import { acessoV2, type LinhaDoAtendimento } from '@/lib/versaoDoCrm'
+import { acessoV2, usePapelV2, type LinhaDoAtendimento } from '@/lib/versaoDoCrm'
 import ChatWhatsApp from '@/components/Chat/ChatWhatsApp'
 import { organizar } from '@/components/Chat/OrganizarConversa'
 import NotAuthorized from '@/components/Shared/NotAuthorized'
@@ -40,9 +40,10 @@ function BotaoLocacao({ lead, ehLocacao }: { lead: LeadWithOwner; ehLocacao: boo
 }
 
 export default function AtendimentoPage() {
-  const { isMaster, roleName, permissions, profileName, user, loading } = useAuth()
-  const admin = !!(isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || (permissions as any)?.['*'])
-  const acesso = acessoV2(admin, profileName || user?.name)
+  const { loading } = useAuth()
+  // 04/11: o Visualizar por do administrador vale aqui (usePapelV2)
+  const papel = usePapelV2()
+  const acesso = acessoV2(papel.admin, papel.nome)
   const { ehProprietario, ehLocacao } = usePapelDoContato()
   // 04/11 (Pedro): o lead em fechamento é só do Tel e de quem ele incluir (hooks/useFechamentoV2.ts)
   const { podeVer } = useFechamentoV2()

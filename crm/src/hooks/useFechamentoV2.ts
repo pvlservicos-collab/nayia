@@ -19,11 +19,16 @@ import { getLinhaWhatsapp } from '@/lib/leadChannel'
 import { etapaDaParceria } from '@/lib/etapaDaParceria'
 import { pessoasDe } from '@/lib/organizacaoDoLead'
 import { useEtiquetas } from '@/lib/etiquetas'
+import { usePapelV2 } from '@/lib/versaoDoCrm'
+import { useEquipeV2 } from './useEquipeV2'
 
 export function useFechamentoV2() {
-  const { organizationId, currentOrganization, isMaster, roleName, permissions } = useAuth()
-  const admin = !!(isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || (permissions as any)?.['*'])
-  const meuId = currentOrganization?.id || ''
+  const { organizationId, currentOrganization } = useAuth()
+  // 04/11: o Visualizar por do administrador vale aqui: quem conta é o SDR escolhido (o id dele na equipe)
+  const papel = usePapelV2()
+  const admin = papel.admin
+  const equipe = useEquipeV2(!!papel.simulando)
+  const meuId = papel.simulando ? (Object.entries(equipe).find(([, p]) => p.chave === papel.simulando)?.[0] || '') : currentOrganization?.id || ''
   const { marcas } = useParceriaMarcas(true)
   const etiquetas = useEtiquetas()
   const { pipelines } = usePipeline(organizationId || '')

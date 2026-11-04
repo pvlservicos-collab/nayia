@@ -21,6 +21,7 @@
  * A versão é uma só para todos (/api/linhas/versao); só o administrador troca, no botão do alto.
  */
 import { useEffect, useState } from 'react'
+import { useAuth } from '@/hooks'
 
 export type VersaoDoCrm = 'v1' | 'v2'
 export type AreaV2 = 'captacao' | 'atendimento' | 'visita' | 'proprietarios' | 'fechamento' | 'administracao' | 'oficial'
@@ -142,4 +143,42 @@ export const CAMINHOS_DA_AREA: Record<AreaV2, string[]> = {
 export function podeEntrar(acesso: AcessoV2, caminho: string): boolean {
   if (acesso.admin) return true
   return acesso.areas.some((a) => CAMINHOS_DA_AREA[a].some((c) => (c === '/chat' ? caminho === '/chat' : caminho === c || caminho.startsWith(c + '/'))))
+}
+
+/* VISUALIZAR POR (Pedro, 04/11/2026: "uma listinha de visualização do CRM lá em cima; começa Padrão e só tem no login
+   Tel: Visualizar por, uma lista suspensa, eu clico e aparece uma lista para eu visualizar como um dos SDR"). Só o
+   administrador escolhe; o CRM passa a mostrar o que aquele SDR vê na v2 (as áreas do menu, os números, a aba Meus, o
+   Fechamento em que ele foi incluído). Nada muda no banco nem para os outros: fica neste navegador. */
+const CHAVE_VER_COMO = 'crm:visualizar-por'
+export const SDRS_V2 = Object.keys(FUNCAO_DO_SDR)
+let verComo: string | null | undefined
+const ouvintesVerComo = new Set<(v: string | null) => void>()
+
+export function useVerComo(): [string | null, (v: string | null) => void] {
+  const [v, setV] = useState<string | null>(verComo ?? null)
+  useEffect(() => {
+    if (verComo === undefined) {
+      try { const x = localStorage.getItem(CHAVE_VER_COMO); verComo = x && SDRS_V2.includes(x) ? x : null } catch { verComo = null }
+    }
+    setV(verComo ?? null)
+    ouvintesVerComo.add(setV)
+    return () => { ouvintesVerComo.delete(setV) }
+  }, [])
+  const trocar = (novo: string | null) => {
+    verComo = novo && SDRS_V2.includes(novo) ? novo : null
+    try { if (verComo) localStorage.setItem(CHAVE_VER_COMO, verComo); else localStorage.removeItem(CHAVE_VER_COMO) } catch {}
+    for (const o of ouvintesVerComo) o(verComo)
+  }
+  return [v, trocar]
+}
+
+/** Quem a tela da v2 considera: o login de verdade, ou o SDR escolhido no Visualizar por (só para o administrador). */
+export function usePapelV2(): { admin: boolean; adminDeVerdade: boolean; nome: string; simulando: string | null } {
+  const { isMaster, roleName, permissions, profileName, user } = useAuth()
+  const adminDeVerdade = !!(isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || (permissions as any)?.['*'])
+  const [ver] = useVerComo()
+  const simulando = adminDeVerdade && ver ? ver : null
+  return simulando
+    ? { admin: false, adminDeVerdade, nome: simulando, simulando }
+    : { admin: adminDeVerdade, adminDeVerdade, nome: profileName || user?.name || '', simulando: null }
 }
