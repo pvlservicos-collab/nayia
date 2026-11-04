@@ -36,7 +36,6 @@ import {
   HouseLine,
   CalendarCheck,
   TreeStructure,
-  Flask,
 } from '@phosphor-icons/react'
 import { useAuth, usePipeline } from '@/hooks'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -184,10 +183,12 @@ export default function Navbar() {
     : NAV_ITEMS
   // V3 (Pedro, 04/11/2026): um WhatsApp só juntando Leads e Parceria, em etapas; só o login Tel, por enquanto (ChatV3.tsx)
   const ehTel = papel.adminDeVerdade && !papel.simulando && primeiroNome(profileName || user?.name) === 'tel'
-  const ITENS: ItemDoMenu[] = ehTel ? [...ITENS_BASE, { label: 'v3', href: '/chat/v3', icon: Flask }] : ITENS_BASE
+  const ITENS: ItemDoMenu[] = ITENS_BASE
+  const naV3 = pathname.startsWith('/chat/v3')
   const [trocandoVersao, setTrocandoVersao] = useState(false)
-  const trocarVersao = async () => {
-    const nova = v2 ? 'v1' : 'v2'
+  const trocarVersao = async (alvo?: 'v1' | 'v2') => {
+    const nova = alvo || (v2 ? 'v1' : 'v2')
+    if (nova === (v2 ? 'v2' : 'v1')) { if (pathname.startsWith('/chat/v3')) router.push(nova === 'v2' ? CAMINHOS_DA_AREA.captacao[0] : PAGINA_INICIAL); return }
     if (!window.confirm(`Trocar a organização do CRM de TODOS para a ${nova}?`)) return
     setTrocandoVersao(true)
     try {
@@ -597,12 +598,17 @@ export default function Navbar() {
 
         {/* v1 / v2 da organização do CRM: só o administrador vê, e a troca vale para todos (Pedro, 03/11) */}
         {adminDoCrm && versao && (
-          <button type="button" onClick={trocarVersao} disabled={trocandoVersao}
-                  title={`Organização do CRM: ${versao} (vale para todos). Clique para trocar para a ${v2 ? 'v1' : 'v2'}.`}
-                  className="flex items-center rounded-full border border-line text-[10px] font-bold overflow-hidden h-6 disabled:opacity-60">
-            <span className={`px-1.5 h-full flex items-center ${!v2 ? 'bg-accent text-white' : 'text-muted'}`}>v1</span>
-            <span className={`px-1.5 h-full flex items-center ${v2 ? 'bg-accent text-white' : 'text-muted'}`}>v2</span>
-          </button>
+          <div role="group" aria-label="Organização do CRM" title={`Organização do CRM: ${versao} (v1 e v2 valem para todos). A v3 é só do login Tel.`}
+               className="flex items-center rounded-full border border-line text-[10px] font-bold overflow-hidden h-6">
+            {([['v1', !v2 && !naV3], ['v2', v2 && !naV3]] as const).map(([v, ativo]) => (
+              <button key={v} type="button" onClick={() => trocarVersao(v)} disabled={trocandoVersao}
+                      className={`px-1.5 h-full flex items-center disabled:opacity-60 ${ativo ? 'bg-accent text-white' : 'text-muted'}`}>{v}</button>
+            ))}
+            {ehTel && (
+              <button type="button" onClick={() => router.push('/chat/v3')} title="v3 (teste, só o login Tel): um WhatsApp juntando Leads e Parceria, em etapas"
+                      className={`px-1.5 h-full flex items-center ${naV3 ? 'bg-accent text-white' : 'text-muted'}`}>v3</button>
+            )}
+          </div>
         )}
 
         {/* Dark mode toggle */}
