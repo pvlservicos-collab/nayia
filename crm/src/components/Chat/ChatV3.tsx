@@ -12,10 +12,11 @@
  * pelo número dela. A Nay que atende segue a origem, como já é: quem veio do Leads (OLX e os outros canais) é a Nay Leads;
  * quem veio da Parceria é a Nay Parceria. Nada mudou no servidor.
  *
- * A conversa está em UMA etapa só, na ordem do funil (a mais adiante vence): Fechamento > Proprietários > Visitas >
- * Em atendimento > Corretores > Leads. O mesmo telefone nos dois números aparece uma vez só, pela Parceria (a regra da v2).
+ * Fora do Em atendimento, a conversa está em UMA etapa só, na ordem do funil (a mais adiante vence): Fechamento >
+ * Proprietários > Visitas > Corretores > Leads. O mesmo telefone nos dois números aparece uma vez só, pela Parceria (a regra da v2).
  *
- *   Em atendimento  a etapa "Em atendimento" do funil (a que o CRM põe quando alguém responde) -- dos dois números
+ *   Em atendimento  TODAS as conversas dos dois números (Pedro, 04/11: "na tag atendimento é todas as conversas"); as outras
+ *                   etapas são recortes dela
  *   Corretores      tudo o que fala pela Parceria e os corretores do número Leads
  *   Leads           o resto do número Leads (OLX e os outros canais)
  *   Visitas         quem está na etapa visita (Parceria: etapa Visitas; Leads: a etiqueta Visita)
@@ -36,9 +37,9 @@ import type { LeadWithOwner } from '@/lib/types'
 import NotAuthorized from '@/components/Shared/NotAuthorized'
 import ChatJuntado from './ChatJuntado'
 
-type EtapaV3 = 'atendimento' | 'leads' | 'corretores' | 'visitas' | 'fechamento' | 'proprietarios'
+type EtapaV3 = 'leads' | 'corretores' | 'visitas' | 'fechamento' | 'proprietarios'
 const ETAPAS: Array<{ chave: EtapaV3; rotulo: string }> = [
-  { chave: 'atendimento', rotulo: 'Em atendimento' }, { chave: 'leads', rotulo: 'Leads' }, { chave: 'corretores', rotulo: 'Corretores' },
+  { chave: 'leads', rotulo: 'Leads' }, { chave: 'corretores', rotulo: 'Corretores' },
   { chave: 'visitas', rotulo: 'Visitas' }, { chave: 'fechamento', rotulo: 'Fechamento' }, { chave: 'proprietarios', rotulo: 'Proprietários' },
 ]
 
@@ -48,8 +49,6 @@ export function useEhTel(): boolean {
   const papel = usePapelV2()
   return papel.adminDeVerdade && primeiroNome(profileName || user?.name) === 'tel'
 }
-
-const emAtendimento = (l: LeadWithOwner) => /atendimento/i.test(String((l as any).stage?.name || ''))
 
 export default function ChatV3() {
   const { loading } = useAuth()
@@ -71,12 +70,14 @@ export default function ChatV3() {
     if (emFechamento(l)) return 'fechamento'
     if (ehProprietario(l)) return 'proprietarios'
     if (ehVisita(l)) return 'visitas'
-    if (emAtendimento(l)) return 'atendimento'
     if (linha === 'parceria' || corretoresDoLeads.has(fim8(l.phone))) return 'corretores'
     return 'leads'
   }, [pelaParceria, emFechamento, ehProprietario, ehVisita, podeVer, corretoresDoLeads])
 
-  const etapas = useMemo(() => ETAPAS.map((e) => ({ ...e, casa: (l: LeadWithOwner) => etapaDe(l) === e.chave })), [etapaDe])
+  const etapas = useMemo(() => [
+    { chave: 'atendimento', rotulo: 'Em atendimento', casa: (l: LeadWithOwner) => etapaDe(l) !== null },   // todas as conversas
+    ...ETAPAS.map((e) => ({ ...e, casa: (l: LeadWithOwner) => etapaDe(l) === e.chave })),
+  ], [etapaDe])
 
   if (loading) return null
   if (!ehTel) return <NotAuthorized />

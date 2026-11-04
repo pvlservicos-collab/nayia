@@ -218,7 +218,8 @@ export default function Navbar() {
     router.replace(CAMINHOS_DA_AREA[acesso.areas[0]][0])
   }, [v2, acesso.admin, acesso.areas.join(), authLoading, pathname, router, searchParams])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  const hrefAtivo = ITENS
+  // 04/11 (Pedro: "clico no v3 e redireciona para oficial"): /chat/v3 começa com /chat e acendia o WhatsApp Oficial; na v3 nenhum item da barra acende
+  const hrefAtivo = pathname.startsWith('/chat/v3') ? undefined : ITENS
     .map((i) => i.href)
     .filter((h) => pathname === h || (h !== '/' && pathname.startsWith(h)))
     .sort((a, b) => b.length - a.length)[0]
