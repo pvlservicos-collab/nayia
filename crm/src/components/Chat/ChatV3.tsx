@@ -278,6 +278,72 @@ function SubtituloV3({ l, ehLead, creci }: { l: LeadWithOwner; ehLead: boolean; 
   return <>{[formatPhone(l.phone || ''), extra].filter(Boolean).join(' · ')}</>
 }
 
+/** O TIPO DO LEAD NA FICHA (Pedro, 04/11: "essas etapas aqui não existem no modelo v3, aqui deve estar locação, vendas,
+ *  corretores, proprietários, e o tipo do lead ... muda o design para não parecer as etapas antigas"): no lugar das etapas
+ *  antigas, os tipos em cartões com a bolinha da cor da fila; um clique troca (sem Salvar), a troca é manual e travada (o
+ *  cadeado diz quem e quando) e vem o "Tipo alterado · Desfazer". Administração fica embaixo, separada (sai do Atendimento). */
+function TipoDoLeadNaFicha({ l, atual, corDe, aoMudar, avisar }: {
+  l: LeadWithOwner; atual: TipoDoLead; corDe: (t: Exclude<TipoDoLead, ''>) => string; aoMudar: (o: Organizado) => void; avisar: Avisar
+}) {
+  const [salvando, setSalvando] = useState<string | null>(null)
+  const ca = (l.custom_attributes || {}) as any
+  const manual = !!tipoEscolhido(l)
+  const quando = ca.tipo_contato_em
+    ? new Date(ca.tipo_contato_em).toLocaleString('pt-BR', { timeZone: 'America/Manaus', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : null
+  const OPCOES: Array<{ chave: Exclude<TipoDoLead, ''>; nome: string; dica: string }> = [
+    { chave: 'locacao', nome: 'Locação', dica: 'Lead que quer alugar (fila do Diego)' },
+    { chave: 'vendas', nome: 'Vendas', dica: 'Lead que quer comprar (fila da Rayssa)' },
+    { chave: 'corretor', nome: 'Corretor', dica: 'Sai do funil de leads e vai para a fila Corretores' },
+    { chave: 'proprietario', nome: 'Proprietário', dica: 'Dono de imóvel: fila Proprietários, fora do funil de leads' },
+  ]
+  const nomeDe = (t: TipoDoLead) => (t === 'administracao' ? 'Administração' : OPCOES.find((o) => o.chave === t)?.nome || t)
+  const mudar = async (novo: Exclude<TipoDoLead, ''>) => {
+    if (novo === atual || salvando) return
+    const antes: Record<string, unknown> = manual && atual ? CORPO_DO_TIPO[atual as Exclude<TipoDoLead, ''>] : { tipo: null }
+    setSalvando(novo)
+    try {
+      aoMudar(await organizar(l.id, { ...CORPO_DO_TIPO[novo], ...(novo === 'corretor' ? { responsavel: null } : {}) }))
+      avisar(`Tipo alterado para ${nomeDe(novo)}`, async () => { aoMudar(await organizar(l.id, antes)) })
+    } catch (e: any) { window.alert(e?.message || 'Não consegui mudar o tipo.') } finally { setSalvando(null) }
+  }
+  return (
+    <div className="px-4 py-3">
+      <p className="flex items-center gap-1.5 text-[13px] font-medium mb-2" style={{ color: 'var(--wa-text)' }}>
+        Tipo do lead
+        {manual && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-normal" style={{ color: 'var(--wa-text-2)' }}
+                title={`Definido manualmente${ca.tipo_contato_por ? ` por ${String(ca.tipo_contato_por).split(' ')[0]}` : ''}${quando ? ` em ${quando}` : ''}`}>
+            <LockSimple size={11} weight="fill" />manual{ca.tipo_contato_por ? ` · ${String(ca.tipo_contato_por).split(' ')[0]}` : ''}{quando ? ` · ${quando}` : ''}
+          </span>
+        )}
+      </p>
+      <div className="grid grid-cols-2 gap-1.5">
+        {OPCOES.map((o) => {
+          const on = atual === o.chave
+          const cor = corDe(o.chave)
+          return (
+            <button key={o.chave} type="button" onClick={() => void mudar(o.chave)} disabled={!!salvando} aria-pressed={on} title={o.dica}
+                    className="flex items-center gap-2 h-10 px-3 rounded-lg text-[13px] text-left disabled:opacity-60"
+                    style={on
+                      ? { border: `1.5px solid ${cor}`, background: `${cor}1f`, color: 'var(--wa-text)', fontWeight: 500 }
+                      : { border: '1px solid var(--wa-divider)', color: 'var(--wa-text-2)' }}>
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: cor }} />
+              <span className="flex-1 truncate">{o.nome}</span>
+              {salvando === o.chave ? <CircleNotch size={13} className="animate-spin" /> : on ? <Check size={14} weight="bold" style={{ color: cor }} /> : null}
+            </button>
+          )
+        })}
+      </div>
+      <button type="button" onClick={() => void mudar('administracao')} disabled={!!salvando || atual === 'administracao'}
+              className="mt-2 text-[12px] disabled:opacity-60" style={{ color: 'var(--wa-text-2)' }}
+              title="O contato vira Administração: sai do Atendimento e vai para o Chat Administração">
+        {atual === 'administracao' ? 'Em Administração' : 'Mandar para Administração'}
+      </button>
+    </div>
+  )
+}
+
 /** a barra de quem responde, em cima da caixa de mensagem: IA (roxo) com Assumir, ou a pessoa (verde) com Devolver à IA */
 function QuemResponde({ l, r, aoMudar, noPainel }: { l: LeadWithOwner; r: Responde; aoMudar: (r: Responde, o?: Organizado) => void; noPainel?: boolean }) {
   const { profileName, user } = useAuth()
@@ -535,6 +601,8 @@ export default function ChatV3() {
                                style={{ border: '1px solid var(--wa-divider)', color: 'var(--wa-text)' }}>Limpar filtros</button></span>}
                      vazio="Nenhuma conversa aqui."
                      cadastrar={() => ({})}
+                     etapaDoCard={(l) => <TipoDoLeadNaFicha l={l} atual={tipoDe(l)} aoMudar={(o) => aplicar(l.id, o)} avisar={avisar}
+                                                            corDe={(t) => corDaFila(t === 'locacao' ? 'locacao' : t === 'vendas' ? 'venda' : t === 'corretor' ? 'corretores' : 'proprietarios')} />}
                      painelV3={(l): PainelV3 => {
                        const cor = corDe(l)
                        return {

@@ -603,8 +603,10 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
               </button>
             </p>
           )}
-          <div className="mt-1.5">{v3.pilula}</div>
         </div>
+
+        {/* o tipo do lead, no lugar das etapas antigas (o seletor vem da v3: trocaDaEtapa) */}
+        {trocaDaEtapa && <div style={{ background: 'var(--wa-panel)' }}>{trocaDaEtapa}</div>}
 
         {/* 2. quem está respondendo: a mesma barra do chat; Parar / Voltar a Nay e o Responsável como secundários */}
         <div className="px-4 py-3 flex flex-col gap-2" style={{ background: 'var(--wa-panel)' }}>
