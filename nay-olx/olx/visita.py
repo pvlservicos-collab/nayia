@@ -273,6 +273,15 @@ def ultima_do_telefone(conn, fone: str, linha: str) -> int:
                         (fone[-8:],)) or 0)
 
 
+def _avisar_visita(texto: str) -> None:
+    """04/11 (Pedro: "diminui os avisos de visita no grupo para uma lista de visitas no dia e um aviso 1 hora antes da
+    visita somente, lá no grupo Altarquia"): o aviso de cada passo da visita vai às Notificações do CRM (508); no grupo
+    ficam só a lista do dia e o aviso de 1 hora antes (visitas_parceria.py). Sem o CRM, vai ao grupo para não se perder."""
+    from olx import grupo
+    if not grupo.ao_crm("outro", texto, "Visita"):
+        _w()._grupo(texto)
+
+
 def mandar_ao_dono(conn, lead_id: int, fone: str, nome: str | None, texto: str, motivo: str, linha: str | None = None) -> str:
     """Pela Parceria (fila do núcleo, e a conversa fica roxa no CRM) quando ele já conversa lá; senão pelo 8595.
     Devolve por qual linha saiu."""
@@ -411,7 +420,7 @@ def cliente_desmarcou(conn, lead: dict, textos: list[str] | None = None) -> bool
     w.mandar_texto(conn, lead, f"Tudo bem, desmarquei a visita do imóvel #{v['codigo']} de {quando}. " +
                    ("Me diz o dia e o horário que ficam bons que eu já vejo com o corretor." if remarcar
                     else "Se quiser remarcar ou ver outras opções, é só me dizer."))
-    w._grupo(f"Visita DESMARCADA pelo cliente {_quem(lead)}: imóvel #{v['codigo']}, {quando}. "
+    _avisar_visita(f"Visita DESMARCADA pelo cliente {_quem(lead)}: imóvel #{v['codigo']}, {quando}. "
              + (f"Avisei: {', '.join(avisados)}." if avisados else "Ninguém tinha sido chamado ainda."))
     log.info("visita %s: o cliente desmarcou (avisados: %s)", v["id"], ", ".join(avisados) or "ninguém")
     return True
@@ -457,7 +466,7 @@ def _proximo_corretor(conn, v: dict, cfg: dict) -> None:
         motivo = "o Diego não pôde no horário (ou não respondeu)"
     else:
         motivo = "nenhum dos corretores pôde no horário"
-    _w()._grupo(f"Visita do cliente {_quem(lead)} ao imóvel #{v['codigo']} em {dia(q)} às {hora(q)}: o cliente confirmou e "
+    _avisar_visita(f"Visita do cliente {_quem(lead)} ao imóvel #{v['codigo']} em {dia(q)} às {hora(q)}: o cliente confirmou e "
                 f"{motivo}. Combinem um corretor e o proprietário e confirmem com ele por lá.")
 
 
@@ -470,7 +479,7 @@ def _pedir_ao_dono(conn, v: dict, cfg: dict) -> None:
     # escreve para ele; a equipe combina com o parceiro e confirma com o cliente
     if banco.um(conn, "SELECT coalesce(e_parceiro, false) FROM imoveis WHERE codigo = %s", (v["codigo"],)):
         _estado(conn, v["id"], "sem_proprietario")
-        _w()._grupo(f"Visita do cliente {_quem(lead)} ao imóvel #{v['codigo']} (DE PARCEIRO) em {dia(q)} às {hora(q)}: o "
+        _avisar_visita(f"Visita do cliente {_quem(lead)} ao imóvel #{v['codigo']} (DE PARCEIRO) em {dia(q)} às {hora(q)}: o "
                     f"corretor {v.get('corretor_nome') or ''} confirmou. Combinem com o parceiro e confirmem com o cliente por lá.")
         return
     d = banco.linhas(conn, "SELECT * FROM nai_proprietario_do_imovel(%s)", (v["codigo"],))
@@ -478,7 +487,7 @@ def _pedir_ao_dono(conn, v: dict, cfg: dict) -> None:
     fone = _so_ddd(d[0].get("telefone") if d else None)
     if len(fone) not in (10, 11):
         _estado(conn, v["id"], "sem_proprietario")
-        _w()._grupo(f"Visita do cliente {_quem(lead)} ao imóvel #{v['codigo']} em {dia(q)} às {hora(q)}: o corretor "
+        _avisar_visita(f"Visita do cliente {_quem(lead)} ao imóvel #{v['codigo']} em {dia(q)} às {hora(q)}: o corretor "
                     f"{v.get('corretor_nome') or ''} confirmou, mas o imóvel não tem o telefone do proprietário no cadastro. "
                     f"Confirmem com o dono e avisem o cliente por lá.")
         return
@@ -529,7 +538,7 @@ def _confirmar(conn, v: dict) -> None:
     trat, pronome = w.tratamento(lead)
     onde = _onde(conn, v["codigo"])
     if lead.get("humano_em"):
-        w._grupo(f"Visita confirmada (o cliente {_quem(lead)} está com a equipe: avisem ele): imóvel #{v['codigo']}, "
+        _avisar_visita(f"Visita confirmada (o cliente {_quem(lead)} está com a equipe: avisem ele): imóvel #{v['codigo']}, "
                  f"{dia(q)} às {hora(q)}, com {v.get('corretor_nome') or ''}, proprietário {v.get('proprietario_nome') or ''}.")
         return
     w.mandar_texto(conn, lead, f"Visita confirmada{', ' + trat if trat else ''}! ✅\n\n🔑 Imóvel: #{v['codigo']}"
@@ -542,7 +551,7 @@ def _confirmar(conn, v: dict) -> None:
                      f"🏠 Proprietário: {v.get('proprietario_nome') or ''} — "
                      f"{nay.telefone_bonito(v['proprietario_telefone']) if v.get('proprietario_telefone') else ''}")
         mandar_card_ao_corretor(conn, v)
-    w._grupo(f"Visita confirmada: cliente {_quem(lead)}, imóvel #{v['codigo']}, {dia(q)} às {hora(q)}, corretor "
+    _avisar_visita(f"Visita confirmada: cliente {_quem(lead)}, imóvel #{v['codigo']}, {dia(q)} às {hora(q)}, corretor "
              f"{v.get('corretor_nome') or ''}, proprietário {v.get('proprietario_nome') or ''}.")
 
 
@@ -557,7 +566,7 @@ def _retomar(conn, cfg: dict) -> int:
                  (v["id"],))
         if v["estado"] != "confirmar_cliente":
             q = v["quando"].astimezone(_w().MANAUS)
-            _w()._grupo(f"A visita do cliente {_quem(_lead(conn, v['lead']))} ao #{v['codigo']} ({dia(q)} às {hora(q)}) passou "
+            _avisar_visita(f"A visita do cliente {_quem(_lead(conn, v['lead']))} ao #{v['codigo']} ({dia(q)} às {hora(q)}) passou "
                         f"do horário sem fechar com o corretor ou o proprietário.")
         feitas += 1
     if not no_horario(cfg):
@@ -727,7 +736,7 @@ def atender(conn, cfg: dict) -> int:
             if r == "outro":
                 banco.um(conn, """UPDATE privado.olx_visita_consulta SET ultima_lida = %s, estado = 'duvida', resposta = %s,
                                          respondido_em = now() WHERE id = %s""", (c["ate"], (c.get("textos") or "")[:500], c["id"]))
-                _w()._grupo(f"Sobre a visita do cliente {_quem(lead)} ao #{v['codigo']} ({dia(q)} às {hora(q)}), o "
+                _avisar_visita(f"Sobre a visita do cliente {_quem(lead)} ao #{v['codigo']} ({dia(q)} às {hora(q)}), o "
                             f"{'corretor' if c['papel'] == 'corretor' else 'proprietário'} {c.get('nome') or ''} respondeu: "
                             f"\"{(c.get('textos') or '')[:200]}\". A Nay não entendeu se é sim ou não: vejam por lá.")
                 feitas += 1
@@ -736,7 +745,7 @@ def atender(conn, cfg: dict) -> int:
                                      ultima_lida = %s WHERE id = %s""", (r, (c.get("textos") or "")[:500], c["ate"], c["id"]))
             if c["papel"] == "corretor":
                 if r == "sim" and "?" in (c.get("textos") or ""):
-                    _w()._grupo(f"Visita do #{v['codigo']} ({dia(q)} às {hora(q)}): {c.get('nome') or 'o corretor'} disse sim e "
+                    _avisar_visita(f"Visita do #{v['codigo']} ({dia(q)} às {hora(q)}): {c.get('nome') or 'o corretor'} disse sim e "
                                 f"perguntou: \"{(c.get('textos') or '')[:200]}\". Respondam a ele por lá.")
                 if r == "sim":
                     _estado(conn, v["id"], "buscando_corretor", corretor_nome=c.get("nome"), corretor_telefone=c["telefone"])
@@ -752,7 +761,7 @@ def atender(conn, cfg: dict) -> int:
                     _w().mandar_texto(conn, lead, f"{trat + ', o' if trat else 'O'} proprietário não consegue em {dia(q)} às "
                                                   f"{hora(q)}. Que outro dia e horário ficam bons para {pronome}?")
                 _w()._marcar(conn, lead["id"], etapa="visita")
-                _w()._grupo(f"Visita do cliente {_quem(lead)} ao #{v['codigo']}: o proprietário não pode em {dia(q)} às "
+                _avisar_visita(f"Visita do cliente {_quem(lead)} ao #{v['codigo']}: o proprietário não pode em {dia(q)} às "
                             f"{hora(q)} (\"{(c.get('textos') or '')[:120]}\"). A Nay pediu outro horário ao cliente.")
             feitas += 1
         elif c.get("venceu") and not (c["papel"] == "corretor" and c["telefone"][-8:] in sem_prazo):
@@ -761,7 +770,7 @@ def atender(conn, cfg: dict) -> int:
                 _proximo_corretor(conn, v, cfg)
             else:
                 _estado(conn, v["id"], "sem_proprietario")
-                _w()._grupo(f"Visita do cliente {_quem(lead)} ao #{v['codigo']} em {dia(q)} às {hora(q)}: o proprietário "
+                _avisar_visita(f"Visita do cliente {_quem(lead)} ao #{v['codigo']} em {dia(q)} às {hora(q)}: o proprietário "
                             f"{c.get('nome') or ''} não respondeu. Liguem para ele e confirmem com o cliente por lá.")
             feitas += 1
     return feitas

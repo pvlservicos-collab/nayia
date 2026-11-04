@@ -14,6 +14,11 @@ que saiu e o que voltou (`privado.visitas_parceria_situacao`, 444); daqui sai, p
   - o AVISO quando ela não conseguiu falar com o proprietário (sem telefone, mensagem barrada), quando ele não responde
     em `visita_dono_sem_resposta_min` (60), e quando a Nay nova anotou a visita e ela não entrou no sistema.
 Chaves em privado.olx_config: `visitas_parceria_grupo` (sim | nao) e `visita_dono_sem_resposta_min`.
+
+04/11 (Pedro: "diminui os avisos de visita no grupo para uma lista de visitas no dia, e um aviso 1 hora antes da visita
+somente, lá no grupo Altarquia"): com `visitas_grupo_so_lista` (sim, o padrão) o checklist e os avisos acima vão às
+Notificações do CRM; no grupo saem só a LISTA DO DIA (uma vez, a partir de `visitas_lista_do_dia_hora`, 07:30) e o
+AVISO DE 1 HORA ANTES, das visitas da Parceria e das da Nay Leads.
 """
 from __future__ import annotations
 
@@ -130,6 +135,39 @@ def aviso_sem_visita(p: dict) -> str:
             f"não entrou no sistema: o proprietário não foi chamado. Falem com ele, por favor.")
 
 
+def _avisar(cfg: dict, texto: str, titulo: str = "Visita") -> bool:
+    """No grupo só a lista e o aviso de 1 hora (04/11); o resto vai às Notificações do CRM."""
+    if cfg.get("visitas_grupo_so_lista", "sim") == "nao":
+        return grupo.mandar_ao_grupo(texto)
+    return grupo.ao_crm("outro", texto, titulo) or grupo.mandar_ao_grupo(texto)
+
+
+def _hora(q: datetime) -> str:
+    q = q.astimezone(MANAUS)
+    return f"{q:%H}h{q:%M}"
+
+
+def lista_do_dia(visitas: list[dict], hoje: datetime) -> str:
+    """A lista das visitas de hoje, dos dois números, pela hora."""
+    linhas = []
+    for v in sorted(visitas, key=lambda x: x["quando"]):
+        ok = v.get("confirmada_em") or v.get("estado") == "confirmada"
+        quem = v.get("corretor_nome") or v.get("visitante_nome") or v.get("cliente_nome") or ""
+        imovel = f"#{v['codigo']}" + (f" {v['imovel']}" if v.get("imovel") else "")
+        linhas.append(f"• {_hora(v['quando'])} · {imovel}" + (f" · {quem}" if quem else "")
+                      + f" · {v['numero']}" + (" · ✅ confirmada" if ok else " · ⏳ falta confirmar"))
+    h = hoje.astimezone(MANAUS)
+    return f"📅 *Visitas de hoje ({DIAS[h.weekday()]}, {h:%d/%m})*\n\n" + "\n".join(linhas)
+
+
+def _visitas_de_hoje(conn, hoje: datetime) -> list[dict]:
+    d = hoje.astimezone(MANAUS).date()
+    fora = ("cancelada", "expirada", "encerrada", "realizada")
+    vs = [{**v, "numero": "Parceria"} for v in banco.linhas(conn, "SELECT * FROM crm_visitas(%s, %s)", (d, d))]
+    vs += [{**v, "numero": "Leads"} for v in banco.linhas(conn, "SELECT * FROM crm_visitas_leads(%s, %s)", (d, d))]
+    return [v for v in vs if v.get("quando") and v["quando"].astimezone(MANAUS).date() == d and v.get("estado") not in fora]
+
+
 def _marcar(conn, vid: int, **campos) -> None:
     cols = ", ".join(campos)
     sets = ", ".join(f"{k} = EXCLUDED.{k}" for k in campos)
@@ -155,21 +193,21 @@ def atender(conn, cfg: dict, agora: datetime | None = None) -> int:
         na_fila = "pendente" in (s["dono"], s["moto"])
         velha = s.get("criada_em") and s["criada_em"] < agora - timedelta(minutes=FILA_MAX_MIN)
         if (not na_fila or velha) and assinatura(s) != s.get("assinatura"):
-            if grupo.mandar_ao_grupo(checklist(s)):
+            if _avisar(cfg, checklist(s)):
                 _marcar(conn, s["visita_id"], assinatura=assinatura(s), checklist_em=agora)
                 feitas += 1
         if s["dono"].startswith(("sem", "bloqueado")) and not s.get("alerta_dono_em"):
-            if grupo.mandar_ao_grupo(aviso_sem_dono(s)):
+            if _avisar(cfg, aviso_sem_dono(s)):
                 _marcar(conn, s["visita_id"], alerta_dono_em=agora)
                 feitas += 1
         elif (_ok(s["dono"]) and not s.get("dono_respondeu") and not s.get("alerta_sem_resposta_em")
               and s.get("dono_enviado_em") and s["dono_enviado_em"] < agora - timedelta(minutes=minutos)):
-            if grupo.mandar_ao_grupo(aviso_sem_resposta(s, minutos)):
+            if _avisar(cfg, aviso_sem_resposta(s, minutos)):
                 _marcar(conn, s["visita_id"], alerta_sem_resposta_em=agora)
                 feitas += 1
         conn.commit()
     for p in banco.linhas(conn, "SELECT * FROM privado.visitas_parceria_sem_visita()"):
-        if grupo.mandar_ao_grupo(aviso_sem_visita(p)):
+        if _avisar(cfg, aviso_sem_visita(p)):
             banco.um(conn, "INSERT INTO privado.visita_ponte_aviso (core_saida_id) VALUES (%s) ON CONFLICT DO NOTHING",
                      (p["core_saida_id"],))
             feitas += 1
@@ -186,6 +224,34 @@ def atender(conn, cfg: dict, agora: datetime | None = None) -> int:
                 banco.um(conn, "INSERT INTO privado.visita_lembrete_grupo (visita_id) VALUES (%s) ON CONFLICT DO NOTHING",
                          (v["id"],))
                 feitas += 1
+            conn.commit()
+    # 04/11: o aviso de 1 hora antes também para as visitas da Nay Leads (o id negativo na mesma marca)
+    if cfg.get("visitas_lembrete_1h", "sim") != "nao":
+        for v in banco.linhas(conn, """
+                SELECT v.* FROM crm_visitas_leads(current_date, current_date + 1) v
+                 WHERE v.estado = 'confirmada' AND v.quando BETWEEN now() + interval '50 minutes' AND now() + interval '70 minutes'
+                   AND NOT EXISTS (SELECT 1 FROM privado.visita_lembrete_grupo l WHERE l.visita_id = -v.id)"""):
+            texto = (f"⏰ *Daqui a 1 hora*\n\nVisita (número Leads) ao imóvel #{v['codigo']}" + (f" {v['imovel']}" if v.get("imovel") else "")
+                     + f", às {_hora(v['quando'])}" + (f"\nCliente: {v['cliente_nome']}" if v.get("cliente_nome") else "")
+                     + (f"\nCorretor: {v['corretor_nome']}" if v.get("corretor_nome") else "")
+                     + (f"\nProprietário: {v['proprietario_nome']}" if v.get("proprietario_nome") else ""))
+            if grupo.mandar_ao_grupo(texto):
+                banco.um(conn, "INSERT INTO privado.visita_lembrete_grupo (visita_id) VALUES (%s) ON CONFLICT DO NOTHING", (-v["id"],))
+                feitas += 1
+            conn.commit()
+    # 04/11: a lista das visitas do dia, uma vez por dia, a partir da hora da chave
+    if cfg.get("visitas_grupo_so_lista", "sim") != "nao":
+        h, m = (str(cfg.get("visitas_lista_do_dia_hora") or "07:30").split(":") + ["0"])[:2]
+        local = agora.astimezone(MANAUS)
+        hoje = f"{local:%Y-%m-%d}"
+        if (local.hour, local.minute) >= (int(h), int(m)) and cfg.get("visitas_lista_do_dia_em") != hoje:
+            vs = _visitas_de_hoje(conn, agora)
+            if not vs or grupo.mandar_ao_grupo(lista_do_dia(vs, agora)):
+                banco.um(conn, """INSERT INTO privado.olx_config (chave, valor, descricao) VALUES ('visitas_lista_do_dia_em', %s,
+                                  '04/11: o dia em que a lista das visitas já saiu no grupo') ON CONFLICT (chave) DO UPDATE
+                                  SET valor = EXCLUDED.valor, atualizado_em = now()""", (hoje,))
+                cfg["visitas_lista_do_dia_em"] = hoje
+                feitas += 1 if vs else 0
             conn.commit()
     if feitas:
         log.info("visitas da Parceria: %d mensagem(ns) no grupo", feitas)
