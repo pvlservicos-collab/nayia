@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from 'react'
-import { pessoaV2, primeiroNome, usePapelV2, type QuemAtende } from '@/lib/versaoDoCrm'
+import { primeiroNome, responsavelV2, usePapelV2, type QuemAtende } from '@/lib/versaoDoCrm'
+import { useEquipeV2 } from '@/hooks/useEquipeV2'
 import { LeadWithOwner, SearchHit } from '@/lib/types'
 import { MagnifyingGlass, PushPin, Archive, ArrowCounterClockwise, ArrowLeft, Check, X, ChatCircleText, ChatCircleDots, Tag as TagIcon, TreeStructure } from '@phosphor-icons/react'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
@@ -248,12 +249,15 @@ export default function LeadList({
   /* OS CLIENTES DA OLX (Pedro, 16/10/2026: "novas etapas na aba captação baseada nas etapas da nay que está atendendo").
      A etapa vem da Nay do WhatsApp dos clientes da OLX (src/lib/olxClientes.ts); só na aba Captação, que é o número dela. */
   const olxClientes = useOlxClientes(linha === 'captacao')
-  // 04/11: a locação do Leads é do Diego; quem não é ele vê a bordinha (a marca à mão vale; sem ela, a finalidade da Nay)
+  /* 04/11 (Pedro: "os leads de locação aparecem, mas vão ser dele só os que ele mandar mensagem pelo login dele"): a
+     bordinha é de quem atende DE VERDADE (responsavelV2: mandaram para ele, ou ele escreveu pelo login dele), não de toda
+     locação; quem é a pessoa não vê a própria */
   const euNaV2 = primeiroNome(usePapelV2().nome)
+  const equipeV2 = useEquipeV2(linha === 'captacao')
   const bordaDaLocacao = (l: LeadWithOwner): QuemAtende | null => {
-    if (linha !== 'captacao' || euNaV2 === 'diego' || getLinhaWhatsapp(l) !== 'captacao') return null
-    const m = (l.custom_attributes as any)?.atendimento_locacao
-    return m === true || (m !== false && olxClientes[fim8(l.phone)]?.finalidade === 'locacao') ? pessoaV2('diego') : null
+    if (linha !== 'captacao' || getLinhaWhatsapp(l) !== 'captacao') return null
+    const q = responsavelV2(l as any, equipeV2)
+    return q && q.chave !== euNaV2 ? q : null
   }
   /* 16/10 (Pedro: "no CRM número captação pôr a aba proprietário também"): Proprietários da Captação vale como o da
      Parceria -- quem é dono de imóvel no cadastro entra, além do dono da campanha (migração 397) */

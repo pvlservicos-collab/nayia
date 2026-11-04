@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useCallback, useEffect, useRef } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 
 import { useSortable } from '@dnd-kit/sortable'
@@ -11,6 +11,12 @@ import { formatPhone } from '@/lib/utils'
 import Avatar from '@/components/Shared/Avatar'
 import IntegrationBadge from '@/components/Shared/IntegrationBadge'
 import { CAMINHO_DA_LINHA, getLinhaWhatsapp } from '@/lib/leadChannel'
+import { useLeadsContext } from '@/contexts/LeadsContext'
+import { organizar } from '@/components/Chat/OrganizarConversa'
+import { useOlxClientes } from '@/hooks/useOlxClientes'
+import { useEquipeV2 } from '@/hooks/useEquipeV2'
+import { responsavelV2 } from '@/lib/versaoDoCrm'
+import { CORPO_DO_TIPO, TIPOS_DO_LEAD, tipoDoLead, type TipoDoLead } from '@/lib/organizacaoDoLead'
 
 interface LeadCardProps {
   lead: LeadWithOwner
@@ -66,6 +72,25 @@ const LeadCard = ({ lead, isDragOverlay, stageColor, onClick, onInfoClick, isHig
 
   // Format phone if it falls back to it
   const formattedPhone = lead.phone ? formatPhone(lead.phone) : ''
+
+  /* 04/11 (Pedro): a lista do tipo embaixo do número -- muda e o lead já se organiza (Proprietários, Nay Corretores, a
+     locação do Diego, o Chat Administração); e quem atende de verdade (o Diego só nos que ele mandou mensagem pelo login
+     dele ou que mandaram para ele: responsavelV2) */
+  const { setLeads } = useLeadsContext()
+  const doLeads = getLinhaWhatsapp(lead) === 'captacao'
+  const clientesDaOlx = useOlxClientes(doLeads && !isDragOverlay)
+  const equipe = useEquipeV2(!isDragOverlay)
+  const tipo = tipoDoLead(lead, doLeads, (f) => clientesDaOlx[f]?.finalidade)
+  const quem = responsavelV2(lead as any, equipe)
+  const [mudandoTipo, setMudandoTipo] = useState(false)
+  const mudarTipo = async (novo: TipoDoLead) => {
+    if (!novo || novo === tipo) return
+    setMudandoTipo(true)
+    try {
+      const o = await organizar(lead.id, CORPO_DO_TIPO[novo])
+      setLeads((p) => p.map((x) => (x.id === lead.id ? { ...x, custom_attributes: o.custom_attributes } : x)))
+    } catch (e: any) { window.alert(e?.message || 'Não consegui mudar o tipo.') } finally { setMudandoTipo(false) }
+  }
   const description = lead.last_message_content || lead.ai_next_action_short || lead.email || formattedPhone || ''
 
 
@@ -183,6 +208,23 @@ const LeadCard = ({ lead, isDragOverlay, stageColor, onClick, onInfoClick, isHig
             )}
           </div>
 
+          {/* 04/11: o tipo do contato, embaixo do número; e quem atende */}
+          {!isDragOverlay && (
+            <div className="flex items-center gap-1.5 mb-1" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+              <select value={tipo} disabled={mudandoTipo} onChange={(e) => void mudarTipo(e.target.value as TipoDoLead)}
+                      title="O tipo do contato: muda e ele já vai para o lugar certo"
+                      className="h-6 px-1 rounded-md text-[11px] font-semibold border border-line bg-transparent text-ink max-w-[150px] disabled:opacity-60"
+                      style={{ colorScheme: 'light dark' }}>
+                {!tipo && <option value="">Tipo do contato…</option>}
+                {TIPOS_DO_LEAD.map((t) => <option key={t.chave} value={t.chave}>{t.nome}</option>)}
+              </select>
+              {quem && (
+                <span className="px-1.5 h-5 leading-5 rounded text-[10.5px] font-bold text-white" style={{ background: quem.cor }}
+                      title={`Quem atende: ${quem.nome}`}>{quem.nome}</span>
+              )}
+            </div>
+          )}
+
           {/* @usuário do Instagram — só quando o lead veio de lá (ver custom_attributes
               em src/app/api/webhooks/facebook/route.ts) */}
           {lead.custom_attributes?.instagram_username && (
@@ -199,7 +241,7 @@ const LeadCard = ({ lead, isDragOverlay, stageColor, onClick, onInfoClick, isHig
 
           {/* Etiquetas: produto comprado primeiro (sinal mais forte do card),
               depois as tags manuais. Verde e o icone separam uma da outra. */}
-          {(boughtProducts.length > 0 || (lead.lead_tags && lead.lead_tags.length > 0)) && (
+          {boughtProducts.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-auto">
               {boughtProducts.map((name) => (
                 <span
@@ -211,7 +253,9 @@ const LeadCard = ({ lead, isDragOverlay, stageColor, onClick, onInfoClick, isHig
                   <span className="truncate">{name}</span>
                 </span>
               ))}
-              {lead.lead_tags?.slice(0, 3).map((lt) => (
+              {/* 04/11 (Pedro: "pode retirar a tag Chaves ou OLX, deixa essa informação dentro do card do lead só se
+                  quisermos ver depois"): as etiquetas não aparecem mais aqui; estão no detalhe do lead (o i) */}
+              {([] as NonNullable<typeof lead.lead_tags>).map((lt) => (
                 <span
                   key={lt.tag_id}
                   className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide"
@@ -223,7 +267,7 @@ const LeadCard = ({ lead, isDragOverlay, stageColor, onClick, onInfoClick, isHig
                   {lt.tag.name}
                 </span>
               ))}
-              {(lead.lead_tags?.length ?? 0) > 3 && (
+              {false && (
                 <span className="text-[10px] text-muted self-center">
                   +{(lead.lead_tags?.length ?? 0) - 3}
                 </span>
@@ -253,6 +297,9 @@ export default memo(LeadCard, (prevProps, nextProps) => {
     // 03/11: a borda verde e o número de não lidas mudam sem mudar o updated_at
     !!prevProps.lead.is_unread === !!nextProps.lead.is_unread &&
     (prevProps.lead.nao_lidas || 0) === (nextProps.lead.nao_lidas || 0) &&
-    !!prevProps.onConversar === !!nextProps.onConversar
+    !!prevProps.onConversar === !!nextProps.onConversar &&
+    // 04/11: o tipo e quem atende mudam sem mudar o updated_at
+    prevProps.lead.custom_attributes === nextProps.lead.custom_attributes &&
+    prevProps.lead.autores_manuais === nextProps.lead.autores_manuais
   )
 })

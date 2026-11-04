@@ -76,3 +76,36 @@ export function faixaDeOutraLinha(lead: LeadWithOwner, aba: LinhaWhatsapp | null
 export function acharTipo(tipos: TipoDeContato[], chave: string | null | undefined): TipoDeContato | null {
   return (chave && tipos.find((t) => t.chave === chave)) || null
 }
+
+/* O TIPO DO LEAD NO PIPELINE (Pedro, 04/11/2026: "embaixo do número do cara uma lista suspensa para mudar o tipo do
+   contato, para proprietário ou para corretor, ou para lead de locação ou para lead de vendas, ou para Administração, e
+   ele já se organiza com base nisso"). Locação x vendas: a marca à mão (atendimento_locacao, a do Enviar para Diego) vale;
+   sem ela, a finalidade que a Nay Leads entendeu (a mesma regra de usePapelDoContato.ehLocacao). */
+export type TipoDoLead = '' | 'proprietario' | 'corretor' | 'locacao' | 'vendas' | 'administracao'
+export const TIPOS_DO_LEAD: Array<{ chave: Exclude<TipoDoLead, ''>; nome: string }> = [
+  { chave: 'locacao', nome: 'Lead de locação' }, { chave: 'vendas', nome: 'Lead de vendas' },
+  { chave: 'proprietario', nome: 'Proprietário' }, { chave: 'corretor', nome: 'Corretor' },
+  { chave: 'administracao', nome: 'Administração' },
+]
+/** o que gravar (POST /api/leads/[id]/organizar) para cada escolha */
+export const CORPO_DO_TIPO: Record<Exclude<TipoDoLead, ''>, Record<string, unknown>> = {
+  locacao: { tipo: 'cliente', locacao: true },
+  vendas: { tipo: 'cliente', locacao: false },
+  proprietario: { tipo: 'proprietario' },
+  corretor: { tipo: 'corretor' },
+  administracao: { tipo: 'administracao' },
+}
+export function ehDeLocacao(lead: { custom_attributes?: any; phone?: string | null },
+                            finalidadeDaNay: (fim8: string) => string | null | undefined): boolean {
+  const m = lead.custom_attributes?.atendimento_locacao
+  if (m === true || m === false) return m
+  return finalidadeDaNay(String(lead.phone || '').replace(/\D/g, '').slice(-8)) === 'locacao'
+}
+/** o tipo de agora: o escolhido à mão; um cliente (ou a conversa do Leads sem tipo) é locação ou vendas */
+export function tipoDoLead(lead: { custom_attributes?: any; phone?: string | null }, doLeads: boolean,
+                           finalidadeDaNay: (fim8: string) => string | null | undefined): TipoDoLead {
+  const t = lead.custom_attributes?.tipo_contato
+  if (t === 'proprietario' || t === 'corretor' || t === 'administracao') return t
+  if (t === 'cliente' || (!t && doLeads)) return ehDeLocacao(lead, finalidadeDaNay) ? 'locacao' : 'vendas'
+  return ''
+}

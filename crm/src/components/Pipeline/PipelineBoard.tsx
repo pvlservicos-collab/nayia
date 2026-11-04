@@ -38,6 +38,8 @@ import PainelContatoParceria from '@/components/Chat/PainelContatoParceria'
 import PainelContatoCaptacao from '@/components/Chat/PainelContatoCaptacao'
 import EnviarImovelPelaCaptacao from '@/components/Chat/EnviarImovelPelaCaptacao'
 import ConversaNoPipeline from './ConversaNoPipeline'
+import { useOlxClientes } from '@/hooks/useOlxClientes'
+import { tipoDoLead } from '@/lib/organizacaoDoLead'
 
 const ORDEM_DO_FUNIL: Record<string, number> = { oficial: 0, parceria: 1, captacao: 2 }
 function rotuloDoFunil(p: { name: string; settings?: any }) {
@@ -139,8 +141,12 @@ export default function PipelineBoard({ organizationId, filters, linha }: Pipeli
       .catch(() => {})
     return () => { vivo = false }
   }, [])
-  const ehProprietario = useCallback((l: LeadWithOwner) =>
-    proprietarios.has(String(l.phone || '').replace(/\D/g, '').slice(-8)), [proprietarios])
+  // 04/11: o tipo escolhido à mão (a lista do card) vence a lista da Nay
+  const ehProprietario = useCallback((l: LeadWithOwner) => {
+    const t = (l.custom_attributes as any)?.tipo_contato
+    if (t) return t === 'proprietario'
+    return proprietarios.has(String(l.phone || '').replace(/\D/g, '').slice(-8))
+  }, [proprietarios])
 
   // Lead aceso pelo clique num minicard da coluna "Fonte:". Limpa sozinho depois
   // da animação (3 pulsos de 0,75s em globals.css) — senão clicar de novo no
@@ -293,13 +299,41 @@ export default function PipelineBoard({ organizationId, filters, linha }: Pipeli
     return !!diaSel && d === diaSel
   }, [quando, diaSel])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  const quantosProprietarios = useMemo(() => pipelineLeads.filter(ehProprietario).length, [pipelineLeads, ehProprietario])
-  const leadsFiltrados = useMemo(() => pipelineLeads.filter((l) =>
-    ehProprietario(l) === soProprietarios &&
-    (!tagsSel.length || ((l as any).lead_tags || []).some((lt: any) => tagsSel.includes(lt.tag_id))) && passaNoQuando(l)
-  ), [pipelineLeads, tagsSel, passaNoQuando, ehProprietario, soProprietarios])
+  /* 04/11 (Pedro: "no pipeline, quando clico em Proprietário, tem 0 contatos, tá bugado"): o funil só tinha os leads com
+     etapa, e os donos do Leads não têm etapa (no do Leads eram 0 de 96). Agora os proprietários são os do NÚMERO do funil,
+     com etapa ou sem; os sem etapa aparecem na primeira coluna. */
+  const linhaDoFunil = pipelines.find((p) => p.id === selectedPipelineId)?.settings?.linha as string | undefined
+  const donosDoNumero = useMemo(() => {
+    const comEtapa = new Set(pipelineLeads.map((l) => l.id))
+    const semEtapa = linhaDoFunil
+      ? leads.filter((l) => !comEtapa.has(l.id) && !l.is_group && getLinhaWhatsapp(l) === linhaDoFunil && ehProprietario(l))
+      : []
+    return [...pipelineLeads.filter(ehProprietario), ...semEtapa]
+  }, [pipelineLeads, leads, linhaDoFunil, ehProprietario])
+  const quantosProprietarios = donosDoNumero.length
+  /* 04/11 (Pedro: "no filtro do pipeline Leads, retira aquelas tags antigas e deixa só Locação / Vendas"): no funil do
+     Leads, o filtro é o tipo do lead (a lista do card); a Administração sai do funil (vai para o Chat Administração) */
+  const ehFunilDoLeads = linhaDoFunil === 'captacao'
+  const clientesDaOlx = useOlxClientes(ehFunilDoLeads)
+  const [finalidadeSel, setFinalidadeSel] = useState<'' | 'locacao' | 'vendas'>('')
+  const tipoDe = useCallback((l: LeadWithOwner) => tipoDoLead(l, getLinhaWhatsapp(l) === 'captacao', (f) => clientesDaOlx[f]?.finalidade),
+    [clientesDaOlx])
+  const semDonos = useMemo(() => pipelineLeads.filter((l) => !ehProprietario(l) && (l.custom_attributes as any)?.tipo_contato !== 'administracao'),
+    [pipelineLeads, ehProprietario])
+  const quantosDaFinalidade = useMemo(() => ({
+    locacao: semDonos.filter((l) => tipoDe(l) === 'locacao').length,
+    vendas: semDonos.filter((l) => tipoDe(l) === 'vendas').length,
+  }), [semDonos, tipoDe])
+  const leadsFiltrados = useMemo(() => (soProprietarios ? donosDoNumero : semDonos).filter((l) =>
+    (ehFunilDoLeads || !tagsSel.length || ((l as any).lead_tags || []).some((lt: any) => tagsSel.includes(lt.tag_id)))
+    && (!ehFunilDoLeads || soProprietarios || !finalidadeSel || tipoDe(l) === finalidadeSel)
+    && passaNoQuando(l)
+  ), [soProprietarios, donosDoNumero, semDonos, ehFunilDoLeads, tagsSel, finalidadeSel, tipoDe, passaNoQuando])
+  // a coluna de cada lead (o dono sem etapa fica na primeira)
+  const etapaDoLead = useCallback((l: LeadWithOwner) => (l.stage_id && stageIds.has(l.stage_id) ? l.stage_id : stages[0]?.id),
+    [stageIds, stages])
   const etapasVisiveis = useMemo(() => (etapasSel.length ? stages.filter((s2) => etapasSel.includes(s2.id)) : stages), [stages, etapasSel])
-  const contaDaEtapa = (id: string) => leadsFiltrados.filter((l) => l.stage_id === id).length
+  const contaDaEtapa = (id: string) => leadsFiltrados.filter((l) => etapaDoLead(l) === id).length
 
   /* 03/11 (Pedro: "quando chega uma mensagem do lead ... o lead suba para cima"): em cada coluna, quem tem mensagem nova não
      lida vai para o alto, a mais nova primeiro; o resto fica na ordem de antes (o sort é estável) */
@@ -307,13 +341,13 @@ export default function PipelineBoard({ organizationId, filters, linha }: Pipeli
     const quandoEscreveu = (l: LeadWithOwner) => new Date(l.ultima_recebida || l.last_activity_at || l.created_at).getTime()
     return stages.reduce(
       (acc, stage) => {
-        acc[stage.id] = leadsFiltrados.filter((l) => l.stage_id === stage.id)
+        acc[stage.id] = leadsFiltrados.filter((l) => etapaDoLead(l) === stage.id)
           .sort((a, b) => (Number(!!b.is_unread) - Number(!!a.is_unread)) || (a.is_unread ? quandoEscreveu(b) - quandoEscreveu(a) : 0))
         return acc
       },
       {} as Record<string, LeadWithOwner[]>
     )
-  }, [stages, leadsFiltrados])
+  }, [stages, leadsFiltrados, etapaDoLead])
 
   // Nome e cor de cada etapa, pro minicard da coluna "Fonte:" conseguir mostrar
   // em que status o lead está sem ter que carregar as etapas por conta própria.
@@ -586,7 +620,20 @@ export default function PipelineBoard({ organizationId, filters, linha }: Pipeli
             )
           })}
         </div>
-        {etiquetasDoFunil.length > 0 && (
+        {/* 04/11: no funil do Leads, só Locação / Vendas no lugar das etiquetas */}
+        {ehFunilDoLeads && !soProprietarios && (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+            <span className="text-muted font-semibold flex-shrink-0 w-[62px]">Tipo</span>
+            {([['', 'Todos', semDonos.length], ['locacao', 'Locação', quantosDaFinalidade.locacao],
+               ['vendas', 'Vendas', quantosDaFinalidade.vendas]] as const).map(([k, r, n]) => (
+              <button key={k || 'todos'} type="button" aria-pressed={finalidadeSel === k} onClick={() => setFinalidadeSel(k)}
+                      className={`flex-shrink-0 px-2.5 py-1 rounded-full border ${finalidadeSel === k ? 'bg-accent/15 border-accent/40 text-accent' : 'border-line text-ink'}`}>
+                {r} <span className="opacity-70">({n})</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {!ehFunilDoLeads && etiquetasDoFunil.length > 0 && (
           <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
             <span className="text-muted font-semibold flex-shrink-0 w-[62px]">Etiquetas</span>
             {etiquetasDoFunil.map((t) => {
