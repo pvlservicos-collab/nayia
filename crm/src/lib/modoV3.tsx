@@ -43,4 +43,8 @@ export const NOME_DA_ETAPA: Record<string, string> = {
 }
 
 /** o selo de quem responde: IA (roxo) ou a pessoa (verde); o claro e o escuro estão no globals.css (.v3-selo-*) */
-export const CLASSE_DO_AUTOR = { ia: 'v3-ia', humano: 'v3-humano' } as const
+export const CLASSE_DO_AUTOR = { ia: 'v3-ia', humano: 'v3-humano', parada: 'v3-parada' } as const
+
+/* A EQUIPE (Pedro, 04/11: "na nossa equipe só tem eu Pedro, Tel, Rayssa, Lucas e Diego, todo o resto está com a tag equipe
+   errada"): o selo só leva o nome de um destes; fora deles não há "Equipe" genérico */
+export const EQUIPE_V3 = ['pedro', 'tel', 'rayssa', 'lucas', 'diego'] as const

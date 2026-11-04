@@ -42,7 +42,7 @@ import { etapaDaParceria } from '@/lib/etapaDaParceria'
 import { tipoEscolhido, tipoDoLead, TIPOS_DO_LEAD, CORPO_DO_TIPO, NOME_DA_LINHA, type TipoDoLead } from '@/lib/organizacaoDoLead'
 import { montarAtendentes } from '@/lib/atendentes'
 import { primeiroNome, responsavelV2, usePapelV2 } from '@/lib/versaoDoCrm'
-import { ModoV3, FILAS_V3, ETAPAS_V3, CLASSE_DO_AUTOR, indiceDaEtapa, NOME_DA_ETAPA, type FilaV3 } from '@/lib/modoV3'
+import { ModoV3, FILAS_V3, ETAPAS_V3, CLASSE_DO_AUTOR, EQUIPE_V3, indiceDaEtapa, NOME_DA_ETAPA, type FilaV3 } from '@/lib/modoV3'
 import { formatPhone } from '@/lib/utils'
 import { diaEmManaus } from '@/lib/fusoDeManaus'
 import type { LeadWithOwner } from '@/lib/types'
@@ -63,7 +63,14 @@ import OrganizarConversa, { EnviarParaDaParceria, organizar, type Organizado } f
 
 const CINZA = '#888780'
 const NUMERO: Record<string, string> = { captacao: 'Leads 8595', parceria: 'Parceria 9445' }
-type Responde = { tipo: 'ia' | 'humano'; nome: string }
+/** quem responde: a IA; uma pessoa da equipe (o nome, ou "Celular" quando saiu do celular do número sem dizer quem); ou
+ *  ninguém (a IA está pausada nesta conversa e ninguém da equipe respondeu) */
+type Responde = { tipo: 'ia' | 'humano' | 'parada'; nome: string }
+/** o primeiro nome, só se for da equipe (EQUIPE_V3) */
+const nomeDaEquipe = (n: string | null | undefined): string | null => {
+  const p = primeiroNome(n)
+  return (EQUIPE_V3 as readonly string[]).includes(p) ? p.charAt(0).toUpperCase() + p.slice(1) : null
+}
 
 /** o login Tel (administrador de verdade): a v3 é só dele, por enquanto */
 export function useEhTel(): boolean {
@@ -91,7 +98,9 @@ function BarrinhaCurta({ atual }: { atual: number }) {
 function Selo({ r }: { r: Responde }) {
   return (
     <span className={`${CLASSE_DO_AUTOR[r.tipo]} v3-selo flex-shrink-0 rounded-full px-1.5 text-[11px] font-medium leading-[16px]`}
-          title={r.tipo === 'ia' ? 'A Nay (IA) está respondendo' : `${r.nome} está respondendo`}>{r.tipo === 'ia' ? 'IA' : r.nome}</span>
+          title={r.tipo === 'ia' ? 'A Nay (IA) está respondendo' : r.tipo === 'parada' ? 'A IA está pausada nesta conversa e ninguém da equipe respondeu'
+            : r.nome === 'Celular' ? 'Uma pessoa da equipe respondeu pelo celular do número' : `${r.nome} está respondendo`}>
+      {r.tipo === 'ia' ? 'IA' : r.tipo === 'parada' ? 'Pausada' : r.nome}</span>
   )
 }
 
@@ -364,11 +373,11 @@ function QuemResponde({ l, r, aoMudar, noPainel }: { l: LeadWithOwner; r: Respon
     if (linha !== 'captacao' || r.tipo === 'humano') return
     let vivo = true
     fetch(`/api/leads/${l.id}/pausa-da-nay`).then((x) => (x.ok ? x.json() : null)).then((j) => {
-      if (vivo && j?.ate && Date.parse(j.ate) > Date.now()) setPausa({ quem: String(j.quem || 'Equipe').split(/\s+/)[0] })
+      if (vivo && j?.ate && Date.parse(j.ate) > Date.now()) setPausa({ quem: nomeDaEquipe(String(j.quem || '')) || 'Celular' })
     }).catch(() => undefined)
     return () => { vivo = false }
   }, [l.id, linha, r.tipo])
-  const agora: Responde = r.tipo === 'ia' && pausa ? { tipo: 'humano', nome: pausa.quem } : r
+  const agora: Responde = r.tipo !== 'humano' && pausa ? { tipo: 'humano', nome: pausa.quem } : r
   const eu = (() => { const p = primeiroNome(profileName || user?.name); return p ? p.charAt(0).toUpperCase() + p.slice(1) : 'Equipe' })()
   const postar = (url: string, corpo: unknown) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) })
     .then(async (x) => { if (!x.ok) { const j = await x.json().catch(() => ({})); throw new Error(j.error || j.message || 'Não consegui.') } })
@@ -389,15 +398,25 @@ function QuemResponde({ l, r, aoMudar, noPainel }: { l: LeadWithOwner; r: Respon
   }
   return (
     <div className={`${CLASSE_DO_AUTOR[agora.tipo]} v3-selo relative z-10 flex-shrink-0 ${noPainel ? '' : 'mx-3 sm:mx-5 mt-1.5'} px-3 h-9 rounded-lg flex items-center gap-2 text-[13px]`}>
-      {agora.tipo === 'ia' ? <Robot size={16} weight="fill" /> : <User size={16} weight="fill" />}
+      {agora.tipo === 'humano' ? <User size={16} weight="fill" /> : <Robot size={16} weight="fill" />}
       <span className="flex-1 truncate">
-        {agora.tipo === 'ia' ? 'IA respondendo' : `${agora.nome} está respondendo`} · sai pelo {NUMERO[linha] || linha}
+        {agora.tipo === 'ia' ? 'IA respondendo' : agora.tipo === 'parada' ? 'IA pausada, ninguém respondendo'
+          : agora.nome === 'Celular' ? 'A equipe está respondendo pelo celular' : `${agora.nome} está respondendo`} · sai pelo {NUMERO[linha] || linha}
       </span>
-      <button type="button" disabled={ocupado} onClick={() => void (agora.tipo === 'ia' ? assumir() : devolver())}
-              className="flex items-center gap-1 h-7 px-2.5 rounded-md text-[12.5px] font-medium disabled:opacity-60"
-              style={{ border: '1px solid currentColor' }}>
-        {ocupado && <CircleNotch size={12} className="animate-spin" />}{agora.tipo === 'ia' ? 'Assumir' : 'Devolver à IA'}
-      </button>
+      {agora.tipo !== 'humano' && (
+        <button type="button" disabled={ocupado} onClick={() => void assumir()}
+                className="flex items-center gap-1 h-7 px-2.5 rounded-md text-[12.5px] font-medium disabled:opacity-60"
+                style={{ border: '1px solid currentColor' }}>
+          {ocupado && <CircleNotch size={12} className="animate-spin" />}Assumir
+        </button>
+      )}
+      {agora.tipo !== 'ia' && (
+        <button type="button" disabled={ocupado} onClick={() => void devolver()}
+                className="flex items-center gap-1 h-7 px-2.5 rounded-md text-[12.5px] font-medium disabled:opacity-60"
+                style={{ border: '1px solid currentColor' }}>
+          {ocupado && <CircleNotch size={12} className="animate-spin" />}Devolver à IA
+        </button>
+      )}
     </div>
   )
 }
@@ -538,15 +557,24 @@ export default function ChatV3() {
     return String(olx[fim8(l.phone)]?.etapa || 'nova')
   }, [filaDe, olx])
 
-  /** quem responde agora: a pessoa quando a Nay está parada nesta conversa; senão a IA */
+  /** QUEM RESPONDE (Pedro, 04/11: "só tem eu, Tel, Rayssa, Lucas e Diego; todo o resto está com a tag equipe errada"):
+   *  - a pessoa: quem assumiu (responsável), quem mandou a última mensagem pelo CRM ou o "Rayssa: ..." da pausa -- só da equipe
+   *  - "Celular": a última mensagem nossa saiu do celular do número, sem dizer quem
+   *  - "Pausada": a IA está parada nesta conversa (a própria Nay passou para a equipe: oferta de serviço, cobrança, assunto
+   *    fora...) e ninguém da equipe respondeu -- antes isto aparecia como "Equipe"
+   *  - senão, a IA */
   const respondeDe = useCallback((l: LeadWithOwner): Responde => {
     if (mudado[l.id]) return mudado[l.id]
     const marca = marcas[l.id]
     const parada = getLinhaWhatsapp(l) === 'parceria' ? !!marca?.telAtendendo : !!olx[fim8(l.phone)]?.humano
-    if (!parada) return humanos[l.id] ? { tipo: 'humano', nome: humanos[l.id].nome || 'Equipe' } : { tipo: 'ia', nome: 'IA' }
+    const h = humanos[l.id]
     const r = responsavelV2(l as any, equipeV2)
-    const doMotivo = /^(\p{L}+):/u.exec(String(marca?.telMotivo || ''))?.[1]
-    return { tipo: 'humano', nome: r && !r.nay ? r.nome : doMotivo || 'Equipe' }
+    const nome = nomeDaEquipe(r && !r.nay ? r.nome : null) || nomeDaEquipe(h?.nome)
+      || nomeDaEquipe(/^(\p{L}+):/u.exec(String(marca?.telMotivo || ''))?.[1])
+    if (nome && (parada || h)) return { tipo: 'humano', nome }
+    if (h) return { tipo: 'humano', nome: 'Celular' }
+    if (parada) return { tipo: 'parada', nome: 'Pausada' }
+    return { tipo: 'ia', nome: 'IA' }
   }, [mudado, marcas, olx, equipeV2, humanos])
 
   const aplicar = useCallback((leadId: string, o: Organizado) => {

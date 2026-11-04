@@ -2107,4 +2107,6 @@ html {
 .v3-humano { --wa-out: #E1F5EE; --wa-out-ink: #085041; --v3-fundo: #E1F5EE; --v3-texto: #085041; }
 .dark .v3-ia { --wa-out: #3C3489; --wa-out-ink: #CECBF6; --v3-fundo: #3C3489; --v3-texto: #CECBF6; }
 .dark .v3-humano { --wa-out: #085041; --wa-out-ink: #9FE1CB; --v3-fundo: #085041; --v3-texto: #9FE1CB; }
+.v3-parada { --v3-fundo: #EDEDEC; --v3-texto: #5F5E5A; }
+.dark .v3-parada { --v3-fundo: #2C2C2A; --v3-texto: #D3D1C7; }
 .v3-selo { background: var(--v3-fundo); color: var(--v3-texto); }
