@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '@/hooks'
 import { useLeadsContext } from '@/contexts/LeadsContext'
 import { usePapelDoContato } from '@/hooks/usePapelDoContato'
+import { useFechamentoV2 } from '@/hooks/useFechamentoV2'
 import { acessoV2, type LinhaDoAtendimento } from '@/lib/versaoDoCrm'
 import ChatWhatsApp from '@/components/Chat/ChatWhatsApp'
 import { organizar } from '@/components/Chat/OrganizarConversa'
@@ -43,6 +44,8 @@ export default function AtendimentoPage() {
   const admin = !!(isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || (permissions as any)?.['*'])
   const acesso = acessoV2(admin, profileName || user?.name)
   const { ehProprietario, ehLocacao } = usePapelDoContato()
+  // 04/11 (Pedro): o lead em fechamento é só do Tel e de quem ele incluir (hooks/useFechamentoV2.ts)
+  const { podeVer } = useFechamentoV2()
   const [linha, setLinha] = useState<LinhaDoAtendimento | null>(null)
 
   useEffect(() => {
@@ -57,7 +60,7 @@ export default function AtendimentoPage() {
   if (!acesso.linhas.length) return <NotAuthorized />
   if (!linha) return null
 
-  const filtro = (l: LeadWithOwner) => !ehProprietario(l) && (linha !== 'captacao' || !acesso.soLocacao || ehLocacao(l))
+  const filtro = (l: LeadWithOwner) => !ehProprietario(l) && podeVer(l) && (linha !== 'captacao' || !acesso.soLocacao || ehLocacao(l))
   return (
     <div className="chat-theme flex flex-col h-full min-h-0">
       <div className="flex items-center gap-2 px-4 py-2 flex-shrink-0" style={{ background: 'var(--wa-panel)', borderBottom: '1px solid var(--wa-divider)' }}>

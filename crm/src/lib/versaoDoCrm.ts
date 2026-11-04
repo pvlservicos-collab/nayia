@@ -8,6 +8,9 @@
  *                 mandou com o botão "Mandar para locação"
  *   Visita        quem está na etapa visita, dos dois números (com a faixa do número; o mesmo telefone nos dois: vale a Parceria)
  *   Proprietários todos os donos dos dois números, num lugar só ("serão falados com eles só por lá")
+ *   Fechamento    (04/11) a última etapa, depois de Proprietários: só o Tel vê, e quem ele incluir na conversa
+ *                 (hooks/useFechamentoV2.ts); a Rayssa e o Diego têm a aba, com só os leads em que foram incluídos
+ *   Administração (04/11: "tá faltando a aba administração") o Chat Administração, só do login Tel
  *   Oficial       o WhatsApp API, só para o Tel ("por enquanto")
  * Quem vê o quê, só na v2 ("o nosso login Tel vê tudo, mas o login dos SDR só tem liberado o chat da função deles"):
  *   Tel (administrador) tudo; Lucas Captação; Diego Atendimento › Leads (locação); Rayssa Atendimento › Parceria.
@@ -20,7 +23,7 @@
 import { useEffect, useState } from 'react'
 
 export type VersaoDoCrm = 'v1' | 'v2'
-export type AreaV2 = 'captacao' | 'atendimento' | 'visita' | 'proprietarios' | 'oficial'
+export type AreaV2 = 'captacao' | 'atendimento' | 'visita' | 'proprietarios' | 'fechamento' | 'administracao' | 'oficial'
 export type LinhaDoAtendimento = 'captacao' | 'parceria'
 
 let versao: VersaoDoCrm | null = null
@@ -65,14 +68,14 @@ export async function trocarVersaoDoCrm(nova: VersaoDoCrm): Promise<void> {
 /** a função de cada SDR pelo primeiro nome do login */
 const FUNCAO_DO_SDR: Record<string, { areas: AreaV2[]; linhas: LinhaDoAtendimento[]; soLocacao?: boolean }> = {
   lucas: { areas: ['captacao'], linhas: [] },
-  diego: { areas: ['atendimento', 'visita', 'proprietarios'], linhas: ['captacao'], soLocacao: true },
-  rayssa: { areas: ['atendimento', 'visita', 'proprietarios'], linhas: ['parceria'] },
+  diego: { areas: ['atendimento', 'visita', 'proprietarios', 'fechamento'], linhas: ['captacao'], soLocacao: true },
+  rayssa: { areas: ['atendimento', 'visita', 'proprietarios', 'fechamento'], linhas: ['parceria'] },
 }
 
 export interface AcessoV2 { areas: AreaV2[]; linhas: LinhaDoAtendimento[]; soLocacao: boolean; admin: boolean }
 
 export function acessoV2(admin: boolean, nome: string | null | undefined): AcessoV2 {
-  if (admin) return { areas: ['captacao', 'atendimento', 'visita', 'proprietarios', 'oficial'], linhas: ['captacao', 'parceria'], soLocacao: false, admin: true }
+  if (admin) return { areas: ['captacao', 'atendimento', 'visita', 'proprietarios', 'fechamento', 'administracao', 'oficial'], linhas: ['captacao', 'parceria'], soLocacao: false, admin: true }
   const primeiro = String(nome || '').trim().split(/\s+/)[0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
   const f = FUNCAO_DO_SDR[primeiro]
   return { areas: f?.areas || [], linhas: f?.linhas || [], soLocacao: !!f?.soLocacao, admin: false }
@@ -126,6 +129,8 @@ export const CAMINHOS_DA_AREA: Record<AreaV2, string[]> = {
   atendimento: ['/chat/atendimento'],
   visita: ['/chat/visita'],
   proprietarios: ['/chat/proprietarios'],
+  fechamento: ['/chat/fechamento'],
+  administracao: ['/chat/administracao'],
   oficial: ['/chat'],
 }
 

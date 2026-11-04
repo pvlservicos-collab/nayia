@@ -32,6 +32,7 @@ import {
   ClipboardText,
   Queue,
   FolderSimpleUser,
+  Handshake,
   HouseLine,
   CalendarCheck,
   TreeStructure,
@@ -131,6 +132,9 @@ const ITENS_V2: ItemDoMenu[] = [
   { label: 'Atendimento', href: '/chat/atendimento', icon: WhatsappLogo, area: 'atendimento' },
   { label: 'Visita', href: '/chat/visita', icon: CalendarCheck, area: 'visita' },
   { label: 'Proprietários', curto: 'Donos', href: '/chat/proprietarios', icon: IdentificationBadge, area: 'proprietarios' },
+  // 04/11 (Pedro): Fechamento, a última etapa (só o Tel e quem ele incluir), e o Chat Administração (só o Tel)
+  { label: 'Fechamento', href: '/chat/fechamento', icon: Handshake, area: 'fechamento' },
+  { label: 'Administração', curto: 'Adm', href: '/chat/administracao', icon: FolderSimpleUser, area: 'administracao' },
   { label: 'WhatsApp Oficial', curto: 'Oficial', href: '/chat', icon: WhatsappLogo, area: 'oficial' },
 ]
 
@@ -413,6 +417,21 @@ export default function Navbar() {
                     </div>
                   )}
                 </div>
+              )
+            }
+
+            /* V2 (Pedro, 04/11: "aquelas opções do menu do topo, dá uma apertada nelas para não ocuparem tanto espaço,
+               encolhendo e empilhando"): o ícone em cima e o nome pequeno embaixo */
+            if (v2 && item.area) {
+              return (
+                <Link key={item.href} href={item.href} title={item.label}
+                      className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1 min-w-[58px] rounded-lg text-[10.5px] leading-[12px] font-medium whitespace-nowrap transition-colors border ${isActive
+                        ? 'bg-graphite-6 border-white/15 text-accent-2'
+                        : 'border-transparent text-muted hover:bg-white/[0.06] hover:text-ink'
+                        }`}>
+                  <Icon size={17} weight={isActive ? 'fill' : 'regular'} />
+                  <span>{item.curto ?? item.label}</span>
+                </Link>
               )
             }
 

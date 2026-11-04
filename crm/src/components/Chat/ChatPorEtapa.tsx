@@ -24,9 +24,15 @@
  *   - as conversas postas à mão na visita: custom_attributes.visitas_v2 (rota organizar { visita: { id, ligar } })
  *   - Status: Parceria pela agenda (/api/parceria/visitas/{id}: realizada | excluir, que a deixa cancelada sem avisar
  *     ninguém); Nay Leads por /api/leads/visitas/{id} (realizada, perguntando ao cliente ou ao corretor | cancelar, 587)
+ *
+ * FECHAMENTO (04/11: "uma nova aba fechamento que vai ser a última etapa após proprietários ... só o Tel vendo, a não ser
+ * que ele inclua alguém como Rayssa ou Diego na conversa"): os leads em fechamento dos dois números (hooks/useFechamentoV2.ts),
+ * um card por contato. O Tel vê todos e, no botão direito, inclui ou tira a Rayssa, o Diego... (custom_attributes.pessoas,
+ * a mesma lista do "Adicionar pessoa"); quem foi incluído vê aqui só aqueles leads. Quem não pode ver um lead em
+ * fechamento também não o acha nas outras abas da v2 (Proprietários aqui; Atendimento em /chat/atendimento).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarBlank, CaretDown, CheckCircle, Clock, MagnifyingGlass, Plus, UserCirclePlus, X, XCircle } from '@phosphor-icons/react'
+import { CalendarBlank, CaretDown, Check, CheckCircle, Clock, MagnifyingGlass, Plus, UserCirclePlus, X, XCircle } from '@phosphor-icons/react'
 import { useAuth } from '@/hooks'
 import { useLeadsContext } from '@/contexts/LeadsContext'
 import { usePapelDoContato } from '@/hooks/usePapelDoContato'
@@ -39,6 +45,8 @@ import { getLinhaWhatsapp } from '@/lib/leadChannel'
 import { fim8 } from '@/lib/olxClientes'
 import { primeiroNome, responsavelV2 } from '@/lib/versaoDoCrm'
 import { useEquipeV2 } from '@/hooks/useEquipeV2'
+import { useFechamentoV2 } from '@/hooks/useFechamentoV2'
+import { pessoasDe } from '@/lib/organizacaoDoLead'
 import ChatJuntado from './ChatJuntado'
 import { casaNaBusca } from './BuscaDaLista'
 import { imovelDoDono } from './LeadListItem'
@@ -239,7 +247,7 @@ function RelacionarAVisita({ visitas, inicial, leads, aoFechar, aoMudar }: {
   )
 }
 
-export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietarios' }) {
+export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietarios' | 'fechamento' }) {
   const { isMaster, roleName, permissions, profileName, user } = useAuth()
   const admin = !!(isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || (permissions as any)?.['*'])
   const eu = primeiroNome(profileName || user?.name)
@@ -249,6 +257,7 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
   const donos = useCaptacaoDonos(etapa === 'proprietarios')
   const { visitas, recarregar } = useVisitasParceria(etapa === 'visita')
   const [assumindo, setAssumindo] = useState('')
+  const { emFechamento, podeVer } = useFechamentoV2()
 
   /* ── Proprietários ── */
   const daEtapa = useCallback((l: LeadWithOwner) => {
@@ -258,8 +267,8 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
   const pelaParceria = useMemo(() => new Set(leads.filter((l) => !l.is_group && getLinhaWhatsapp(l) === 'parceria' && daEtapa(l))
     .map((l) => fim8(l.phone)).filter(Boolean)), [leads, daEtapa])
   // 04/11 (Pedro: "deixa todos os proprietários lá no Donos"): saiu o corte de 2 dias de 03/11
-  const ehDono = useCallback((l: LeadWithOwner) => daEtapa(l)
-    && !(getLinhaWhatsapp(l) === 'captacao' && pelaParceria.has(fim8(l.phone))), [daEtapa, pelaParceria])
+  const ehDono = useCallback((l: LeadWithOwner) => daEtapa(l) && podeVer(l)
+    && !(getLinhaWhatsapp(l) === 'captacao' && pelaParceria.has(fim8(l.phone))), [daEtapa, pelaParceria, podeVer])
 
   /* o nome do condomínio de cada código da Parceria (a marca só traz o código) */
   const [nomes, setNomes] = useState<Record<number, string>>({})
@@ -276,7 +285,7 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
   }, [codigosDaParceria])
 
   // 04/11: a borda só de quem já tem a Rayssa ou o Diego (assumiu ou mandou mensagem); os outros, sem borda
-  const equipe = useEquipeV2(etapa === 'proprietarios')
+  const equipe = useEquipeV2(etapa === 'proprietarios' || etapa === 'fechamento')
   const quemAtende = useCallback((l: LeadWithOwner) => responsavelV2(l as any, equipe), [equipe])
   const imovelDele = useCallback((l: LeadWithOwner): string | null => {
     if (getLinhaWhatsapp(l) === 'parceria') {
@@ -348,6 +357,55 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
       setMarcadas((m) => ({ ...m, [v.id]: s.acao }))
       void recarregar()
     } catch (e: any) { window.alert(e?.message || 'Não consegui mudar a visita.') } finally { setMexendo(null) }
+  }
+
+  /* ── Fechamento ── */
+  const naFechamento = useCallback((l: LeadWithOwner) => ['captacao', 'parceria'].includes(getLinhaWhatsapp(l) || '')
+    && emFechamento(l) && podeVer(l), [emFechamento, podeVer])
+  // quem o Tel pode incluir: a equipe, menos ele mesmo
+  const incluiveis = useMemo(() => Object.entries(equipe).filter(([, p]) => p.chave !== 'tel')
+    .sort((a, b) => a[1].nome.localeCompare(b[1].nome, 'pt-BR')), [equipe])
+  const [incluindo, setIncluindo] = useState('')
+  const incluir = async (l: LeadWithOwner, membro: string) => {
+    const atuais = pessoasDe(l)
+    const novas = atuais.includes(membro) ? atuais.filter((x) => x !== membro) : [...atuais, membro]
+    setIncluindo(l.id)
+    try {
+      const o = await organizar(l.id, { pessoas: novas })
+      setLeads((p) => p.map((x) => (x.id === l.id ? { ...x, custom_attributes: o.custom_attributes } : x)))
+    } catch (e: any) { window.alert(e?.message || 'Não consegui incluir.') } finally { setIncluindo('') }
+  }
+
+  if (etapa === 'fechamento') {
+    return (
+      <ChatJuntado titulo="Fechamento"
+                   subtitulo={admin ? 'Os leads em fechamento dos dois números · só você vê, e quem você incluir (botão direito)'
+                                    : 'Os leads em fechamento em que o Tel te incluiu'}
+                   pertence={naFechamento} chaveAbas="crm:abas-fechamento" cards
+                   vazio={admin ? 'Nenhum lead em fechamento agora.' : 'O Tel ainda não te incluiu em nenhum lead em fechamento.'}
+                   enfeite={(l) => ({ borda: quemAtende(l) })}
+                   menu={admin ? (lead, fechar) => (
+                     <div className="flex flex-col">
+                       <div className="px-4 pt-1 pb-1.5 text-[12px]" style={{ color: 'var(--wa-text-2)' }}>
+                         Incluir na conversa (passa a ver no Fechamento)
+                       </div>
+                       {incluiveis.length === 0 && <div className="px-4 py-2 text-[13px]" style={{ color: 'var(--wa-text-2)' }}>Carregando a equipe…</div>}
+                       {incluiveis.map(([id, p]) => {
+                         const dentro = pessoasDe(lead).includes(id)
+                         return (
+                           <button key={id} type="button" disabled={!!incluindo}
+                                   className="w-full text-left px-4 py-2 text-[14px] hover:bg-[var(--wa-row-hover)] flex items-center gap-3 disabled:opacity-50"
+                                   onClick={() => { fechar(); void incluir(lead, id) }}>
+                             <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: p.cor }} />
+                             <span className="flex-1">{p.nome}</span>
+                             {dentro && <Check size={15} weight="bold" style={{ color: p.cor }} />}
+                             <span className="text-[11px]" style={{ color: 'var(--wa-text-2)' }}>{dentro ? 'tirar' : 'incluir'}</span>
+                           </button>
+                         )
+                       })}
+                     </div>
+                   ) : undefined} />
+    )
   }
 
   if (etapa === 'visita') {
