@@ -183,16 +183,27 @@ export default function Navbar() {
     : NAV_ITEMS
   // V3 (Pedro, 04/11/2026): um WhatsApp só juntando Leads e Parceria, em etapas; só o login Tel, por enquanto (ChatV3.tsx)
   const ehTel = papel.adminDeVerdade && !papel.simulando && primeiroNome(profileName || user?.name) === 'tel'
-  const ITENS: ItemDoMenu[] = ITENS_BASE
   // 04/11 (Pedro: "clico no v3 e no chat atendimento volta para o v2"): o v3 é um MODO que fica ligado (neste navegador, só
   // o login Tel) até clicar em v1 ou v2; com ele ligado, as telas de chat do menu abrem dentro do v3
   const [modoV3, setModoV3] = useState(false)
   useEffect(() => { try { setModoV3(localStorage.getItem('crm:v3:ligado') === '1') } catch { /* sem armazenamento: só vale nesta tela */ } }, [])
   const ligarV3 = (ligado: boolean) => { setModoV3(ligado); try { ligado ? localStorage.setItem('crm:v3:ligado', '1') : localStorage.removeItem('crm:v3:ligado') } catch { /* ok */ } }
   const naV3 = ehTel && (modoV3 || pathname.startsWith('/chat/v3'))
+  /* A BARRA DA V3 (Pedro, 04/11: "o captação e o api oficial continuam lá ... um número só com as etapas"): Captação,
+     Atendimento (o WhatsApp juntado, Leads + Parceria, com as etiquetas Em atendimento / Leads / Corretores / Visitas /
+     Fechamento / Proprietários) e o WhatsApp Oficial. O resto do CRM fica no "+ Mais" (só Imóveis na barra, como na v2). */
+  const ITENS_V3: ItemDoMenu[] = [
+    { label: 'Captação', href: '/chat/captar', icon: HouseLine },
+    { label: 'Atendimento', curto: 'WhatsApp', href: '/chat/v3', icon: WhatsappLogo },
+    { label: 'WhatsApp Oficial', curto: 'Oficial', href: '/chat', icon: WhatsappLogo },
+  ]
+  const hrefsV3 = new Set([...ITENS_V3.map((i) => i.href), '/chat/parceria', '/chat/captacao'])
+  const ITENS: ItemDoMenu[] = naV3
+    ? [...ITENS_V3, ...NAV_ITEMS.filter((i) => !hrefsV3.has(i.href)).map((i) => ({ ...i, mais: i.href !== '/imoveis' }))]
+    : ITENS_BASE
   useEffect(() => {
     if (!ehTel || !modoV3) return
-    if (['/chat/atendimento', '/chat/parceria', '/chat/proprietarios', '/chat/visita', '/chat/fechamento'].some((h) => pathname === h || pathname.startsWith(h + '/'))
+    if (['/chat/atendimento', '/chat/parceria', '/chat/captacao', '/chat/proprietarios', '/chat/visita', '/chat/fechamento'].some((h) => pathname === h || pathname.startsWith(h + '/'))
         && !searchParams.get('leadId')) router.replace('/chat/v3')
   }, [ehTel, modoV3, pathname, router, searchParams])
   const [trocandoVersao, setTrocandoVersao] = useState(false)
@@ -218,8 +229,8 @@ export default function Navbar() {
     router.replace(CAMINHOS_DA_AREA[acesso.areas[0]][0])
   }, [v2, acesso.admin, acesso.areas.join(), authLoading, pathname, router, searchParams])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 04/11 (Pedro: "clico no v3 e redireciona para oficial"): /chat/v3 começa com /chat e acendia o WhatsApp Oficial; na v3 nenhum item da barra acende
-  const hrefAtivo = pathname.startsWith('/chat/v3') ? undefined : ITENS
+  // na v3 o /chat/v3 é o item Atendimento (o caminho mais longo vence, então o Oficial, /chat, não acende junto)
+  const hrefAtivo = ITENS
     .map((i) => i.href)
     .filter((h) => pathname === h || (h !== '/' && pathname.startsWith(h)))
     .sort((a, b) => b.length - a.length)[0]
