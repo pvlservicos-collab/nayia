@@ -537,7 +537,10 @@ export default function LeadList({
      conversa aparece fixada lá no número Leads"): quem não é administrador não vê a conversa de Administração (nem na
      lupa), a não ser que tenha sido adicionado a ela; a adicionada fica fixada em cima. Nos dois números (03/11, à tarde). */
   const escondidaDeMim = (l: LeadWithOwner) => !ehAdmin && emAdministracao(l) && !pessoasDe(l).includes(meuId)
-  const fixadaParaMim = (l: LeadWithOwner) => linha === 'captacao' && !!meuId && pessoasDe(l).includes(meuId)
+  /* 04/11 (Pedro: "eu mandei para a Rayssa um contato, é para aparecer no topo do chat Parceria, em Todos, para ela ver"):
+     a conversa ENVIADA para a Parceria (Enviar para Rayssa, mudou_para) fica fixada em cima enquanto ninguém a abriu */
+  const enviadaParaCa = (l: LeadWithOwner) => linha === 'parceria' && mudouPara(l) === 'parceria' && !!l.is_unread
+  const fixadaParaMim = (l: LeadWithOwner) => (linha === 'captacao' && !!meuId && pessoasDe(l).includes(meuId)) || enviadaParaCa(l)
   const naAba = (l: LeadWithOwner) => !!linha && !escondidaDeMim(l) && (mudouPara(l)
     ? mudouPara(l) === linha
     : conversaEstaNaLinha(l, linha) || mostrarTambemEm(l).includes(linha))
@@ -818,6 +821,8 @@ export default function LeadList({
        etapa: se o Tel está com um proprietário, ele aparece na aba do Tel. */
     if (ehParceria && (activeTab === 'all' || activeTab === 'visitas'
         || activeTab === 'proprietarios' || activeTab === 'fechamento')) {
+      // 04/11: a enviada para a Parceria aparece também em Todos (além da aba Rayssa), fixada em cima até ser aberta
+      if (activeTab === 'all' && mudouPara(l) === 'parceria') return true
       if (comAlguem(l, marcas[l.id], atendenteDoLead[l.id])) return false
       return etapaDaParceria(l, marcas[l.id]) === (activeTab === 'all' ? 'todos' : activeTab)
     }
