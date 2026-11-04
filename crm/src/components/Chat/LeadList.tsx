@@ -1006,24 +1006,28 @@ export default function LeadList({
                 20/10: também no WhatsApp Leads (captação) */}
             {(ehParceria || linha === 'captacao') && (
               <div className="flex items-center gap-2 px-4 pb-2 pt-0.5 -mb-1" role="group" aria-label="Período das conversas">
-                <button type="button" aria-pressed={periodo === 'hoje'}
-                        className={`wa-periodo wa-periodo--hoje ${periodo === 'hoje' ? 'wa-periodo--on' : ''}`}
-                        title="Só as conversas que se mexeram hoje (hora de Manaus). Clique de novo para ver todas."
-                        onClick={() => setPeriodo(periodo === 'hoje' ? '' : 'hoje')}>
-                  Hoje{!!contagem['periodo:hoje'] && <span className="wa-periodo__n">{contagem['periodo:hoje']}</span>}
-                </button>
-                <button type="button" aria-pressed={periodo === 'semana'}
-                        className={`wa-periodo ${periodo === 'semana' ? 'wa-periodo--on' : ''}`}
-                        title="As outras conversas da semana (dos últimos 7 dias, fora as de hoje). Clique de novo para ver todas."
-                        onClick={() => setPeriodo(periodo === 'semana' ? '' : 'semana')}>
-                  Essa semana{!!contagem['periodo:semana'] && <span className="wa-periodo__n">{contagem['periodo:semana']}</span>}
-                </button>
+                {/* 03/11 (Pedro: "tira a tag essa semana do Leads e traz a proprietários mais para a esquerda"): no Leads,
+                    Proprietários e corretores vem primeiro e Essa semana ficou só na Parceria */}
                 {linha === 'captacao' && (
                   <button type="button" aria-pressed={!!donosECorretores}
                           className={`wa-periodo ${donosECorretores ? 'wa-periodo--on' : ''}`}
                           title="Quem não é lead: os proprietários (a Nay não atende) e os corretores (a Nay atende). Clique de novo para voltar."
                           onClick={() => { setDonosECorretores(donosECorretores ? '' : 'todos'); setActiveTab('all') }}>
                     Proprietários e corretores{!!contagem['papel:todos'] && <span className="wa-periodo__n">{contagem['papel:todos']}</span>}
+                  </button>
+                )}
+                <button type="button" aria-pressed={periodo === 'hoje'}
+                        className={`wa-periodo wa-periodo--hoje ${periodo === 'hoje' ? 'wa-periodo--on' : ''}`}
+                        title="Só as conversas que se mexeram hoje (hora de Manaus). Clique de novo para ver todas."
+                        onClick={() => setPeriodo(periodo === 'hoje' ? '' : 'hoje')}>
+                  Hoje{!!contagem['periodo:hoje'] && <span className="wa-periodo__n">{contagem['periodo:hoje']}</span>}
+                </button>
+                {ehParceria && (
+                  <button type="button" aria-pressed={periodo === 'semana'}
+                          className={`wa-periodo ${periodo === 'semana' ? 'wa-periodo--on' : ''}`}
+                          title="As outras conversas da semana (dos últimos 7 dias, fora as de hoje). Clique de novo para ver todas."
+                          onClick={() => setPeriodo(periodo === 'semana' ? '' : 'semana')}>
+                    Essa semana{!!contagem['periodo:semana'] && <span className="wa-periodo__n">{contagem['periodo:semana']}</span>}
                   </button>
                 )}
               </div>
