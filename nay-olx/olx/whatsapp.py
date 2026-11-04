@@ -1703,6 +1703,20 @@ def responder(conn, cfg: dict) -> int:
 
 
 def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
+    # 04/11 (Pedro: "todos que estão marcados como corretores, mesmo no número Leads, é para a Nay Parceria atender e não a
+    # Nay Leads"): o corretor marcado (o "Corretor · Nay atende" do CRM: buscas.corretores_marcados) é da Nay Corretores
+    # (olx/buscas.py), que manda as opções pela Parceria. Ela não responde, sai da conversa (humano_em: o acompanhamento e a
+    # revisita da base também param) e deixa a mensagem para a Nay Corretores, que lê captacao_mensagens por conta própria.
+    from olx import buscas
+    if buscas.e_corretor_marcado(conn, lead["telefone"]):
+        agentes.novo_turno(lead)
+        if lead.get("humano_em"):
+            _marcar(conn, lead["id"], ultima_lida=ate)
+        else:
+            _marcar(conn, lead["id"], ultima_lida=ate, humano_em=banco.um(conn, "SELECT now()"),
+                    parada_motivo="corretor: quem atende é a Nay Corretores (Pedro, 04/11)")
+        agentes.passo(lead, "corretor", "marcado como corretor: a Nay Corretores atende, não a Nay Leads")
+        return False
     # 21/10 (Pedro: "toda vez que eu mandar mensagem para o lead ... ela tem que entender o contexto da conversa para poder
     # voltar a atender"): a equipe escreveu por este número (celular ou CRM) -> a Nay espera `gap_equipe_min` (30) desde a
     # ÚLTIMA mensagem da equipe, sem marcar como lida, e depois responde lendo o que a equipe disse (as falas EQUIPE).

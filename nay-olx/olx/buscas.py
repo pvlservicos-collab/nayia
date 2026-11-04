@@ -780,6 +780,21 @@ BUSCAS ATIVAS, apresentar ao cliente. Trabalhamos em parceria (se ele perguntar 
 Aqui você está BUSCANDO imóvel para um cliente nosso: você não atende cliente nem marca visita com o corretor. Se ele
 falar de visita ou de horário, diga só que vai confirmar com o cliente e retorna (Pedro, 30/10).
 
+ELE TAMBÉM PODE PEDIR IMÓVEL (Pedro, 04/11: "mandar os imóveis e responder as solicitações dele"): o corretor tem um
+cliente DELE procurando e pergunta se temos ("tem alguma coisa até 300 mil venda?", "tem apartamento 2 quartos no Parque
+10?", "vc teria alguma coisa?"). Aí NUNCA peça imóvel a ele nem devolva a pergunta ("Você tem algum imóvel até 300 mil?"
+é o erro de 04/11): marque "pede_imovel": true e ponha em "pedido" o pedido INTEIRO de agora, juntando o que ele já disse
+antes na conversa com o que mudou (finalidade, tipo, valor máximo, bairros, condomínio, quartos, mobília). A busca nos
+nossos imóveis, o envio das opções e a resposta a ele são feitos pelo sistema: nesse caso deixe "baloes" vazio.
+- "pede_imovel" só quando o que ele escreveu DEPOIS da sua última resposta pede imóvel, muda o pedido ou aceita o que você
+  ofereceu para afrouxar ("serve com 2 quartos?" -> sim: quartos 2; "num bairro vizinho, como Dom Pedro?" -> sim: ponha
+  o bairro oferecido em "bairros"; "um pouco acima de R$ 300.000?" -> sim: valor 20% maior). "Ok", "obrigado", "vou
+  ver" depois das opções não são pedido: "responder" false.
+- Ele pede um imóvel NOSSO pelo código ("me manda o 5742", "tem foto do 2228?"): "pede_imovel" true e o código em
+  "pedido.codigos".
+- Pergunta sobre um imóvel NOSSO que ele citou (código ou nome; a ficha está em "IMÓVEIS NOSSOS QUE ELE CITOU"):
+  responda pela ficha, curto ("oferece_imovel" false). O que não está na ficha: diga que vai confirmar e retorna.
+
 O QUE JÁ SABEMOS (Pedro, 30/10: "ela nunca deve perguntar coisas que já tem na OLX"): o "ANÚNCIO DA OLX" (quando há) e o
 "JÁ ANOTADO" já estão certos. NUNCA pergunte nada que esteja neles: nem o tipo, nem se é venda ou locação, nem o valor,
 o bairro, os quartos, a área, as vagas, a taxa ou o condomínio. Pergunte só o que faltar de verdade.
@@ -787,7 +802,7 @@ Valor acima de R$ 100 mil é SEMPRE venda; valor até R$ 30 mil é SEMPRE alugue
 escreva "vendo ou alugo"). Com o valor dito, nunca pergunte se é venda ou aluguel (Pedro, 03/11).
 
 O roteiro:
-1. Ele ainda não mandou o imóvel: peça, curto: "Pode me mandar o imóvel que você tem?" (esta é a conversa de quem veio
+1. Ele ainda não mandou o imóvel e NÃO está pedindo imóvel: peça, curto: "Pode me mandar o imóvel que você tem?" (esta é a conversa de quem veio
    do grupo). Se ele perguntou antes se fazemos parceria (ex.: "faz parceria no Kopenhagen?"), responda em UMA frase que
    sim, trabalhamos em parceria com corretores (se "CONDOMÍNIO QUE ELE CITOU" mostrar imóveis nossos nele, pode dizer que
    temos imóveis lá, sem inventar quais), e peça o imóvel na mesma mensagem.
@@ -808,10 +823,14 @@ Regras:
 - O imóvel entra na nossa base MESMO que não sirva para nenhuma busca agora: "serve" é só sobre as buscas ativas.
 - Se ele perguntar algo do cliente que você não sabe (data de mudança, renda, documentos), diga que vai confirmar.
 - Se a conversa não é sobre imóvel nem parceria (outro assunto, propaganda, corrente), não responda.
+- Nunca fale em imóvel "de parceria" ou "de parceiro" nosso (Tel, 28/09: "ela nunca pode falar isso").
 
 Devolva SÓ JSON:
 {"responder": true|false,
  "oferece_imovel": true|false,
+ "pede_imovel": true|false,
+ "pedido": {"codigos": [], "finalidade": "venda|locacao|", "tipo": "apartamento|casa|casa_condominio|cobertura|flat|comercial|terreno|",
+            "teto": 0, "bairros": [], "condominio": "", "quartos": 0, "mobilia": "mobiliado|semi|sem|"},
  "busca_id": <id da busca que o imóvel atende, ou null>,
  "serve": "sim" | "nao" | "talvez",
  "imovel": {"tipo": "", "finalidade": "locacao|venda", "bairro": "", "condominio": "", "quartos": 0, "suites": 0,
@@ -819,7 +838,8 @@ Devolva SÓ JSON:
             "andar": "", "observacao": "", "descricao": "", "interno": ""},
  "baloes": ["..."]}
 "oferece_imovel" = true quando ele falou de um imóvel que TEM (mesmo que ainda incompleto). No "imovel", ponha só o que
-ele disse (o resto vazio ou 0).
+ele disse (o resto vazio ou 0). "pedido" (só com "pede_imovel"): o que o cliente DELE procura; "teto" é o valor máximo em
+reais ("300 mil" = 300000, "3 mil de aluguel" = 3000); o que ele não disse fica vazio ou 0.
 
 """ + REGRA_DOS_CAMPOS
 
@@ -960,11 +980,16 @@ def condominio_citado(conn, conversa: list[dict]) -> str:
 
 
 def _turno_corretor(conn, cor: dict, conversa: list[dict], ativas: list[dict], fotos: int,
-                    anuncio: dict | None = None, ja: dict | None = None) -> str:
+                    anuncio: dict | None = None, ja: dict | None = None, fichas: list[dict] | None = None) -> str:
     ja = ja if ja is not None else (cor.get("imovel") or {})
     linhas = [f"COMO CHEGOU: {COMO_CHEGOU.get(cor.get('origem') or '', 'escreveu para o nosso número')}.",
-              f"CONDOMÍNIO QUE ELE CITOU: {condominio_citado(conn, conversa) or 'nenhum que a gente tenha cadastrado'}", "",
-              "BUSCAS ATIVAS (id: o que o cliente procura):"]
+              f"CONDOMÍNIO QUE ELE CITOU: {condominio_citado(conn, conversa) or 'nenhum que a gente tenha cadastrado'}"]
+    if fichas:
+        # 04/11 (Pedro: "responder as solicitações dele"): a ficha do imóvel NOSSO que ele citou, para tirar a dúvida dele
+        linhas += ["IMÓVEIS NOSSOS QUE ELE CITOU (ficha; para responder dúvida dele sobre eles; NÃO é o imóvel que ele oferece):"]
+        linhas += [f"- #{f.get('codigo')}: {json.dumps({k: v for k, v in f.items() if k != 'codigo'}, ensure_ascii=False, default=str)[:1500]}"
+                   for f in fichas]
+    linhas += ["", "BUSCAS ATIVAS (id: o que o cliente procura):"]
     linhas += [f"- {b['id']}: {resumo(b['filtros'])}" for b in ativas] or ["- nenhuma"]
     if anuncio:
         linhas += ["", f"ANÚNCIO DA OLX deste imóvel (já sabemos; NUNCA pergunte): {anuncio.get('titulo')} | "
@@ -1306,8 +1331,344 @@ def base_volta(conn, c: dict) -> int:
     return feitos
 
 
+# ── 5b. o corretor PEDE imóvel, e quem a Nay Corretores atende (Pedro, 04/11/2026) ──
+# "todos que estão marcados como corretores, mesmo no número Leads, é para a Nay Parceria atender e não a Nay Leads; esses
+# que eu passei para a Rayssa, pode pôr a Nay para atender todos eles"; como: "mandar os imóveis e responder as
+# solicitações dele". O caso: o vasconcelosizaias (…8585) escreveu "TEM ALGUMA COISA ATÉ 300 MIL VENDA" às 09:28 e a Nay
+# Corretores, que só sabia cadastrar o imóvel do corretor, devolveu "Você tem algum imóvel à venda até R$ 300 mil? Pode me
+# mandar?"; ele: "NÃO ESTOU EM BUSCA VC TERIA ALGUMA COISA", e o Pedro mandou as opções à mão (2228, 4262, 5699...).
+# Agora ela lê o pedido, procura nos NOSSOS imóveis (a busca da Nay Leads: olx_cliente_buscar com a faixa firme -20%/+10%
+# e a régua serve_ao_pedido; nunca imóvel de parceiro) e manda até PEDIDO_MAX opções pelo número da Parceria, como o
+# "Enviar imóvel" do CRM (nai_disparo_enfileirar: card e fotos); a Nay da Parceria segue com ele por lá.
+PARCERIA_NUMERO = "92 9445-3618"
+PEDIDO_MAX = 5
+# com "automático" o turno do disparo não conta como "feito à mão" (nai_turno_feito_a_mao): a parede de 24 h de
+# nai_enviar_imoveis_para vale (o mesmo imóvel não vai duas vezes ao corretor; só o envio da equipe passa por cima, 467)
+QUEM_DISPARA = "Nay Corretores (automático)"
+REPETIDO_H = 24
+MARCADOS_A_CADA_S = 600        # a lista dos corretores marcados é relida a cada 10 min (crm_leads_corretores leva ~6 s)
+MARCADO_JANELA_H = 12          # o marcado que a Nay Corretores pega agora: só o que ele escreveu nestas horas (não responde
+                               # mensagem de dois dias atrás de quem a equipe ou a Nay Leads já atendia)
+
+
+def _tipo_pedido(t) -> str:
+    """O tipo que o corretor pediu, no vocabulário da busca (olx_cliente_buscar). '' = residencial, qualquer um."""
+    n = whatsapp._normal(str(t or "")).replace("_", " ")
+    if not n or "tanto" in n or n == "imovel":
+        return ""
+    if "casa" in n and "condom" in n:
+        return "casa_condominio"
+    for prefixo, tipo in (("cobert", "cobertura"), ("apart", "apartamento"), ("apto", "apartamento"), ("ap ", "apartamento"),
+                          ("ape", "apartamento"), ("flat", "flat"), ("kit", "flat"), ("studio", "flat"), ("casa", "casa"),
+                          ("sobrado", "casa"), ("sala", "comercial"), ("loja", "comercial"), ("ponto", "comercial"),
+                          ("comerc", "comercial"), ("galp", "comercial"), ("predio", "comercial"), ("terreno", "terreno"),
+                          ("lote", "terreno")):
+        if (n + " ").startswith(prefixo):
+            return tipo
+    return ""
+
+
+def pedido_do_corretor(p: dict | None) -> dict:
+    """O "pedido" do modelo nos filtros da busca da Nay Leads. O valor manda na finalidade, como no cadastro (Pedro, 30/10 e
+    03/11): acima de R$ 100 mil é venda; até R$ 30 mil é aluguel."""
+    p = p or {}
+    f: dict = {}
+    teto = whatsapp._num(p.get("teto"))
+    if teto and teto > 0:
+        f["teto"] = teto
+    fin = whatsapp._normal(str(p.get("finalidade") or ""))
+    if fin.startswith(("vend", "compr")):
+        f["finalidade"] = "venda"
+    elif fin.startswith(("loc", "alug")):
+        f["finalidade"] = "locacao"
+    if teto and teto > VENDA_A_PARTIR_DE:
+        f["finalidade"] = "venda"
+    elif teto and 0 < teto <= ALUGUEL_ATE:
+        f["finalidade"] = "locacao"
+    tipo = _tipo_pedido(p.get("tipo"))
+    if tipo:
+        f["tipo"] = tipo
+    bairros = [str(b).strip() for b in (p.get("bairros") or []) if str(b).strip()]
+    if bairros:
+        f["bairros"] = bairros
+    if str(p.get("condominio") or "").strip():
+        f["condominio"] = str(p["condominio"]).strip()
+    q = whatsapp._num(p.get("quartos"))
+    if q and 0 < q < 10:
+        f["quartos"] = q
+    mob = whatsapp._normal(str(p.get("mobilia") or ""))
+    if f.get("finalidade") == "locacao" and mob:
+        f["mobilia"] = ("semi" if ("semi" in mob or "modulad" in mob) else "sem" if mob.startswith(("sem", "vazi", "nao"))
+                        else "mobiliado" if mob.startswith("mobil") else "")
+        if not f["mobilia"]:
+            f.pop("mobilia")
+    return f
+
+
+def codigos_do_pedido(p: dict | None) -> list[int]:
+    return [c for c in dict.fromkeys(whatsapp._int(x) for x in (p or {}).get("codigos") or []) if c and 100 <= c <= 99999]
+
+
+def falta_no_pedido(f: dict) -> str:
+    """'' = dá para buscar; senão UMA pergunta curta. Sem valor e sem lugar não se busca (o catálogo inteiro não é
+    resposta); com o lugar e sem valor, falta saber se é venda ou locação."""
+    lugar = bool(f.get("bairros") or f.get("condominio"))
+    if not f.get("teto") and not lugar:
+        return "Até quanto o seu cliente quer pagar?" if f.get("finalidade") else \
+            "É para venda ou locação, e até quanto o seu cliente quer pagar?"
+    if not f.get("finalidade"):
+        return "É para venda ou locação?"
+    return ""
+
+
+ROTULO_DO_TIPO = {"apartamento": "apartamento", "casa": "casa", "casa_condominio": "casa em condomínio",
+                  "cobertura": "cobertura", "flat": "flat", "comercial": "imóvel comercial", "terreno": "terreno"}
+
+
+def perfil_do_pedido(f: dict) -> str:
+    """"Apartamento para venda em Flores com 2 quartos até R$ 300.000" (a frase do "não tenho")."""
+    partes = [ROTULO_DO_TIPO.get(f.get("tipo") or "", "imóvel")]
+    if f.get("finalidade"):
+        partes.append("para venda" if f["finalidade"] == "venda" else "para locação")
+    if f.get("condominio"):
+        partes.append(f"no {f['condominio']}")
+    elif f.get("bairros"):
+        partes.append("em " + " ou ".join(f["bairros"][:2]))
+    if f.get("quartos") and f.get("tipo") not in ("comercial", "terreno"):
+        partes.append(f"com {f['quartos']} {'quarto' if f['quartos'] == 1 else 'quartos'}")
+    if f.get("teto"):
+        partes.append(f"até {whatsapp._dinheiro(f['teto'])}")
+    t = " ".join(partes)
+    return t[:1].upper() + t[1:]
+
+
+def pergunta_de_afrouxar(f: dict, achou: list[tuple[str, str]]) -> str:
+    """A UMA pergunta do "não tenho" (Pedro, 04/11): só o primeiro afrouxar que a base TEM (o_que_existe_afrouxando)."""
+    if not achou:
+        return ""
+    o_que, d = achou[0]
+    if o_que == "quartos":
+        return f"serve com {d} {'quarto' if str(d) == '1' else 'quartos'}?"
+    if o_que == "bairro":
+        return f"serve num bairro vizinho, como {d}?" if d else "serve num bairro vizinho?"
+    return f"serve um pouco acima de {whatsapp._dinheiro(f['teto'])}?" if f.get("teto") else ""
+
+
+def opcoes_text(n: int) -> str:
+    return "1 opção" if n == 1 else f"{n} opções"
+
+
+def resposta_do_pedido(f: dict, mandados: list[int], repetidos: list[int], afrouxar: str = "") -> str:
+    """A resposta no 8595, curta e de gente. Mandou: "Tenho sim! ..." e o número da Parceria (é por lá que as fotos
+    chegam e que a Nay da Parceria segue com ele)."""
+    if mandados:
+        return f"Tenho sim! Te mandei {opcoes_text(len(mandados))} pelo nosso número de parcerias, o {PARCERIA_NUMERO}."
+    if repetidos:
+        return (f"As que tenho nesse perfil já te mandei pelo nosso número de parcerias, o {PARCERIA_NUMERO}."
+                + (f" Para mais opções, {afrouxar}" if afrouxar else ""))
+    perfil = perfil_do_pedido(f)
+    return f"{perfil} não tenho agora" + (f"; {afrouxar}" if afrouxar else ".")
+
+
+def _recentes_do_corretor(conn, tel: str) -> list[int]:
+    """O que já foi para ele (qualquer caminho: a Nay velha, a Nay da Parceria, a equipe) nas últimas REPETIDO_H horas."""
+    return [int(r["codigo"]) for r in banco.linhas(conn, f"""
+        SELECT codigo FROM crm_imoveis_enviados(%s) WHERE ultimo_em > now() - interval '{REPETIDO_H} hours'""", (tel,))]
+
+
+def _nossos_no_mercado(conn, codigos: list[int]) -> list[int]:
+    """Dos códigos, na mesma ordem, só os NOSSOS Disponíveis (parceria nunca sai ao corretor, 60/299/400)."""
+    if not codigos:
+        return []
+    ok = {int(r["codigo"]) for r in banco.linhas(conn, """
+        SELECT codigo FROM imoveis WHERE codigo = ANY(%s::int[]) AND status = 'Disponível' AND NOT coalesce(e_parceiro, false)
+           AND coalesce(nay_esta_no_mercado(disponivel, bloqueado, publicado_no_site), false)""", (list(codigos),))}
+    return [c for c in codigos if c in ok]
+
+
+def opcoes_para_o_corretor(conn, tel: str, f: dict) -> dict:
+    """A busca da Nay Leads para o pedido do corretor: olx_cliente_buscar (sem aceita_parceiro: só o que é nosso), os
+    cortes de sempre (perto de, condomínio, gêmeos), a régua serve_ao_pedido, o exato antes do "mais próximo" (este no
+    máximo whatsapp.MAX_PROXIMOS), até PEDIDO_MAX. {'novos': [...], 'repetidos': [...], 'afrouxar': 'pergunta' | ''}:
+    `repetidos` = os que serviriam mas já foram para ele nas últimas REPETIDO_H h."""
+    lead = {"id": None, "telefone": tel}
+    g = {k: v for k, v in f.items() if k != "aceita_parceiro"}
+    achados = whatsapp._consultar(conn, g, [], [], limite=10)
+    servem = set(whatsapp.so_o_que_serve(conn, lead, g, [a["codigo"] for a in achados], bairro_conferido=True,
+                                         onde="pedido do corretor"))
+    achados = [a for a in achados if int(a["codigo"]) in servem]
+    nossos = set(_nossos_no_mercado(conn, [int(a["codigo"]) for a in achados]))
+    achados = [a for a in achados if int(a["codigo"]) in nossos]
+    recentes = set(_recentes_do_corretor(conn, tel))
+    repetidos = [int(a["codigo"]) for a in achados if int(a["codigo"]) in recentes]
+    novos = [a for a in achados if int(a["codigo"]) not in recentes]
+    exatos = [int(a["codigo"]) for a in novos if not a.get("perto")]
+    perto = [int(a["codigo"]) for a in novos if a.get("perto")][:whatsapp.MAX_PROXIMOS]
+    escolhidos = (exatos + perto)[:PEDIDO_MAX]
+    afrouxar = ""
+    if not escolhidos:
+        try:
+            achou = whatsapp.o_que_existe_afrouxando(conn, lead, {"f": g, "excluir": list(recentes), "nomes_recusados": []})
+            # a sondagem é a mesma busca sem aceita_parceiro: só pergunta o que é nosso e ainda não foi para ele
+            afrouxar = pergunta_de_afrouxar(g, achou)
+        except Exception:  # noqa: BLE001 -- a pergunta para afrouxar não derruba a resposta
+            log.exception("corretor …%s: a sondagem do afrouxar falhou", tel[-4:])
+    return {"novos": escolhidos, "repetidos": repetidos, "afrouxar": afrouxar}
+
+
+MANDOU_CODIGO = re.compile(r"(\d{3,5}) \(card e")
+
+
+def mandar_pela_parceria(conn, tel: str, codigos: list[int], c: dict) -> tuple[list[int], str]:
+    """Card e fotos de cada imóvel pela Nay da Parceria (o "Enviar imóvel" do CRM). Devolve (os que saíram, o texto da
+    função). Em teste, nada sai: o número de teste recebe o aviso e conta como enviado."""
+    if not codigos:
+        return [], ""
+    if c.get("corretor") == "teste":
+        if c.get("teste"):
+            _enviar(c["teste"], f"[teste: iria pela Parceria ao corretor …{tel[-4:]}: "
+                                + ", ".join(f"#{x}" for x in codigos) + "]")
+        return list(codigos), "teste"
+    msg = banco.um(conn, "SELECT nai_disparo_enfileirar(%s, %s::int[], %s)", (tel, list(codigos), QUEM_DISPARA)) or ""
+    conn.commit()
+    if not msg.startswith("Mandei"):
+        return [], msg
+    feitos = msg.split(".\n", 1)[0]
+    return [int(x) for x in MANDOU_CODIGO.findall(feitos) if int(x) in codigos], msg
+
+
+def atender_pedido(conn, cor: dict, r: dict, c: dict) -> list[str]:
+    """O corretor pediu imóvel (pede_imovel): os balões da resposta no 8595 ([] = não responde). Pergunta UMA coisa se
+    falta o essencial; senão busca, manda pela Parceria e diz o que fez."""
+    tel = re.sub(r"\D", "", cor["telefone"])
+    p = r.get("pedido") or {}
+    codigos = codigos_do_pedido(p)
+    if codigos:
+        # ele pediu um imóvel NOSSO pelo código: vai esse (o de parceiro e o fora do mercado não; nem se fala em parceria)
+        nossos = _nossos_no_mercado(conn, codigos)
+        recentes = set(_recentes_do_corretor(conn, tel))
+        novos = [x for x in nossos if x not in recentes][:PEDIDO_MAX]
+        mandados, msg = mandar_pela_parceria(conn, tel, novos, c)
+        log.info("corretor …%s pediu %s: %s", tel[-4:], codigos, msg or "nada a mandar")
+        if mandados:
+            return [f"Te mandei pelo nosso número de parcerias, o {PARCERIA_NUMERO}."]
+        if nossos:
+            return [f"Esse eu já te mandei pelo nosso número de parcerias, o {PARCERIA_NUMERO}."]
+        return ["Esse não está disponível no momento."]
+    f = pedido_do_corretor(p)
+    pergunta = falta_no_pedido(f)
+    if pergunta:
+        return [pergunta]
+    o = opcoes_para_o_corretor(conn, tel, f)
+    mandados, msg = mandar_pela_parceria(conn, tel, o["novos"], c)
+    log.info("corretor …%s pediu %s: achou %s, já tinha %s; %s", tel[-4:], perfil_do_pedido(f), o["novos"], o["repetidos"],
+             msg or "nada a mandar")
+    if o["novos"] and not mandados:
+        if "já foi" in msg:
+            return [resposta_do_pedido(f, [], o["novos"], o["afrouxar"])]
+        # a fila da Parceria recusou por outro motivo (card, número): não se promete o que não saiu; a equipe fica sabendo
+        whatsapp._ao_crm(f"Corretor {cor.get('nome') or ''} ({grupo.telefone_bonito(tel)}) pediu {perfil_do_pedido(f)}: a Nay "
+                         f"achou {', '.join('#' + str(x) for x in o['novos'])}, mas o envio pela Parceria não saiu ({msg[:200]}).")
+        return []
+    return [resposta_do_pedido(f, mandados, o["repetidos"], o["afrouxar"])]
+
+
+_MARCADOS: dict = {"em": 0.0, "fins": None}
+_MARCADOS_TRAVA = threading.Lock()
+
+
+def _marcados_no_crm() -> tuple[set[str], set[str], set[str]]:
+    """(corretor, não corretor, mandado para a Rayssa) pelo que o CRM diz da conversa do Leads (a linha Z-API da
+    captação): o tipo escolhido à mão (tipo_contato) vence; sem ele, "corretor/CRECI/imobiliária" no título conta como
+    corretor (a mesma leitura de /api/captacao/corretores). Mandado para a Rayssa: o "Enviar para Rayssa" (mudou_para
+    'parceria') ou a aba Rayssa da Parceria (etapa_parceria 'rayssa'), em qualquer linha. Falhou = nada."""
+    from olx import config
+    if not config.CRM_DATABASE_URL:
+        return set(), set(), set()
+    import psycopg2
+    sim, nao, rayssa = set(), set(), set()
+    c = None
+    try:
+        c = psycopg2.connect(config.CRM_DATABASE_URL, connect_timeout=5, application_name="nay-olx-corretores",
+                             options="-c statement_timeout=15000 -c default_transaction_read_only=on")
+        with c.cursor() as cur:
+            cur.execute("""
+                SELECT right(regexp_replace(coalesce(l.phone, ''), '[^0-9]', '', 'g'), 8),
+                       l.custom_attributes->>'tipo_contato', coalesce(l.title, '') ~* '(corretor|creci|imobili)'
+                  FROM leads l JOIN integrations i ON i.id = l.integration_id
+                 WHERE l.deleted_at IS NULL AND i.type = 'whatsapp_zapi_captacao'
+                   AND (coalesce(l.custom_attributes->>'tipo_contato', '') <> '' OR coalesce(l.title, '') ~* '(corretor|creci|imobili)')""")
+            for fim8, tipo, no_nome in cur.fetchall():
+                if len(fim8 or "") != 8:
+                    continue
+                if tipo:
+                    (sim if tipo == "corretor" else nao).add(fim8)
+                elif no_nome:
+                    sim.add(fim8)
+            cur.execute("""
+                SELECT DISTINCT right(regexp_replace(coalesce(l.phone, ''), '[^0-9]', '', 'g'), 8)
+                  FROM leads l
+                 WHERE l.deleted_at IS NULL
+                   AND (l.custom_attributes->>'mudou_para' = 'parceria' OR l.custom_attributes->>'etapa_parceria' = 'rayssa')""")
+            rayssa = {f for (f,) in cur.fetchall() if len(f or "") == 8}
+    except Exception:  # noqa: BLE001
+        log.exception("não li os tipos de contato no crmdb")
+        return set(), set(), set()
+    finally:
+        if c is not None:
+            c.close()
+    return sim, nao, rayssa
+
+
+def corretores_marcados(conn) -> frozenset:
+    """Os 8 últimos dígitos de quem está marcado como corretor no Leads (8595), o mesmo "Corretor · Nay atende" do CRM:
+    crm_leads_corretores (541: disse que é corretor/CRECI/imobiliária, a lista de corretores, os grupos, a Nay Corretores,
+    o contato de imóvel de parceiro...) + o CRM (_marcados_no_crm). Fora: a equipe, os nossos números e os corretores que
+    a Nay chama para as visitas (visita_corretores / visita_locacao), que trabalham com a gente. E SÓ os mandados para a
+    Rayssa (Pedro, 04/11: "atende os que foram mandados para a Rayssa"; os com o Lucas que não foram ficam com ele).
+    Relida a cada
+    MARCADOS_A_CADA_S; enquanto uma linha relê, as outras usam a de antes. Falhou sem nenhuma lida: vazia (fica a regra
+    de antes, busca_corretor_e)."""
+    if _MARCADOS["fins"] is not None and time.monotonic() - _MARCADOS["em"] < MARCADOS_A_CADA_S:
+        return _MARCADOS["fins"]
+    if not _MARCADOS_TRAVA.acquire(blocking=_MARCADOS["fins"] is None):
+        return _MARCADOS["fins"]
+    try:
+        if _MARCADOS["fins"] is not None and time.monotonic() - _MARCADOS["em"] < MARCADOS_A_CADA_S:
+            return _MARCADOS["fins"]
+        try:
+            linhas = banco.linhas(conn, "SELECT fone8, motivo FROM crm_leads_corretores()")
+            fins = {l["fone8"] for l in linhas if "da equipe" not in (l.get("motivo") or "")}
+            sim, nao, rayssa = _marcados_no_crm()
+            fins = ((fins | sim) - nao) & rayssa
+            from olx import visita
+            cfg = banco.chaves(conn)
+            fins -= {f[-8:] for _n, f in visita.corretores(cfg) + visita.corretores(cfg, "visita_locacao")}
+            fins -= set(banco.um(conn, "SELECT coalesce(busca_nossos_numeros(), '{}')") or [])
+            _MARCADOS.update(em=time.monotonic(), fins=frozenset(x for x in fins if len(x or "") == 8))
+        except Exception:  # noqa: BLE001
+            conn.rollback()
+            log.exception("não li os corretores marcados; fica a lista de antes")
+            # tenta de novo em 2 min
+            _MARCADOS.update(em=time.monotonic() - MARCADOS_A_CADA_S + 120, fins=_MARCADOS["fins"] or frozenset())
+        return _MARCADOS["fins"]
+    finally:
+        _MARCADOS_TRAVA.release()
+
+
+def e_corretor_marcado(conn, telefone: str | None) -> bool:
+    """Para a Nay Leads (whatsapp.py): esta pessoa é da Nay Corretores, não dela."""
+    t8 = re.sub(r"\D", "", telefone or "")[-8:]
+    return len(t8) == 8 and t8 in corretores_marcados(conn)
+
+
 def _pendentes_corretores(conn) -> list[dict]:
-    """Quem é corretor da busca e escreveu (e parou de escrever há 30 s) depois da última mensagem lida."""
+    """Quem é corretor da busca e escreveu (e parou de escrever há 30 s) depois da última mensagem lida.
+    04/11 (Pedro: "todos que estão marcados como corretores, mesmo no número Leads ... esses que eu passei para a Rayssa,
+    pode pôr a Nay para atender todos eles"): além do corretor da busca (busca_corretor_e), o corretor MARCADO
+    (corretores_marcados), mesmo que já tenha sido cliente da Nay Leads (olx_lead_whatsapp; ela não atende mais) e mesmo
+    com o "Enviar para Rayssa" (etapa 'rayssa', que cala só a Nay Leads). Fica de fora quando a Nay da captação (campanha)
+    está com ele (captacao_leads sem humano) ou ele está respondendo a consulta de uma visita (olx_visita_consulta)."""
     return banco.linhas(conn, """
         SELECT right(regexp_replace(m.telefone, '\\D', '', 'g'), 8) AS t8, max(m.telefone) AS telefone, max(m.id) AS ate,
                max(m.criada_em) AS ultima
@@ -1316,10 +1677,20 @@ def _pendentes_corretores(conn) -> list[dict]:
          WHERE m.direcao = 'recebida' AND m.criada_em > now() - interval '2 days'
            AND m.id > coalesce(bc.ultima_lida, 0)
            AND coalesce(bc.estado, '') NOT IN ('humano')
-           AND busca_corretor_e(m.telefone)
+           AND (busca_corretor_e(m.telefone)
+                OR (right(regexp_replace(m.telefone, '\\D', '', 'g'), 8) = ANY(%(marcados)s::text[])
+                    AND m.criada_em > now() - make_interval(hours => %(janela)s)
+                    AND NOT EXISTS (SELECT 1 FROM captacao_leads l
+                                     WHERE right(regexp_replace(coalesce(l.telefone, ''), '\\D', '', 'g'), 8)
+                                           = right(regexp_replace(m.telefone, '\\D', '', 'g'), 8)
+                                       AND l.humano_assumiu_em IS NULL)
+                    AND NOT EXISTS (SELECT 1 FROM privado.olx_visita_consulta v
+                                     WHERE right(regexp_replace(coalesce(v.telefone, ''), '\\D', '', 'g'), 8)
+                                           = right(regexp_replace(m.telefone, '\\D', '', 'g'), 8)
+                                       AND v.estado = 'esperando')))
          GROUP BY 1
         HAVING max(m.criada_em) < now() - interval '30 seconds'
-         ORDER BY max(m.criada_em) LIMIT 4""")
+         ORDER BY max(m.criada_em) LIMIT 4""", {"marcados": sorted(corretores_marcados(conn)), "janela": MARCADO_JANELA_H})
 
 
 def corretores_volta(conn, c: dict) -> int:
@@ -1332,11 +1703,20 @@ def corretores_volta(conn, c: dict) -> int:
         origem = banco.um(conn, """SELECT CASE WHEN EXISTS (SELECT 1 FROM privado.busca_contato c WHERE c.telefone8 = %s) THEN 'olx'
                                       WHEN EXISTS (SELECT 1 FROM privado.busca_grupo_membro g WHERE g.telefone8 = %s) THEN 'grupo'
                                       ELSE 'parceria' END""", (t8, t8))
-        banco.um(conn, """INSERT INTO privado.busca_corretor (telefone8, telefone, nome, origem, classificado_em) VALUES (%s, %s,
-                            (SELECT nome FROM corretores WHERE right(regexp_replace(telefone, '\\D', '', 'g'), 8) = %s LIMIT 1), %s, now())
+        # 04/11: o corretor marcado que a Nay Corretores pega agora (veio da Nay Leads, ou a Rayssa estava com ele) começa a
+        # leitura depois da última fala nossa para ele: a fala antiga da equipe não o põe em 'humano' na hora (Pedro: "esses
+        # que eu passei para a Rayssa, pode pôr a Nay para atender todos eles")
+        desde = 0
+        if t8 in corretores_marcados(conn) and not banco.um(conn, "SELECT busca_corretor_e(%s)", (p["telefone"],)):
+            desde = banco.um(conn, """SELECT coalesce(max(id), 0) FROM captacao_mensagens WHERE direcao = 'enviada' AND id < %s
+                                         AND right(regexp_replace(coalesce(telefone, ''), '\\D', '', 'g'), 8) = %s""",
+                             (p["ate"], t8)) or 0
+        banco.um(conn, """INSERT INTO privado.busca_corretor (telefone8, telefone, nome, origem, classificado_em, ultima_lida)
+                          VALUES (%s, %s, (SELECT nome FROM corretores WHERE right(regexp_replace(telefone, '\\D', '', 'g'), 8) = %s LIMIT 1),
+                                  %s, now(), %s)
                           ON CONFLICT (telefone8) DO UPDATE SET origem = coalesce(busca_corretor.origem, EXCLUDED.origem),
                               classificado_em = coalesce(busca_corretor.classificado_em, now())""",
-                 (t8, re.sub(r"\D", "", p["telefone"]), t8, origem))
+                 (t8, re.sub(r"\D", "", p["telefone"]), t8, origem, int(desde)))
         cor = banco.linhas(conn, "SELECT * FROM privado.busca_corretor WHERE telefone8 = %s", (t8,))[0]
         conversa = _conversa_corretor(conn, t8)
         # a equipe escreveu para ele pelo 8595 depois que a Nay começou: a conversa é dela
@@ -1354,8 +1734,15 @@ def corretores_volta(conn, c: dict) -> int:
         ja = venda_pelo_valor(juntar_imovel(do_anuncio, cor.get("imovel") or {}))
         equipe_por_perto = any(m["origem"] == "equipe_crm" and m["criada_em"] > datetime.now(timezone.utc) - timedelta(hours=EQUIPE_NA_CONVERSA_H)
                                for m in conversa)
+        # 04/11: a ficha do imóvel NOSSO que ele citou (código, link ou nome), para a dúvida dele; só o que está no site
         try:
-            r = modelo.chamar(PROMPT_CORRETOR, _turno_corretor(conn, cor, conversa, ativas, fotos, anuncio, ja), no="olx.corretor")
+            fichas = whatsapp._fichas_citadas(conn, conversa[-10:])
+        except Exception:  # noqa: BLE001 -- a ficha não derruba a conversa
+            log.exception("corretor …%s: a ficha citada falhou", t8[-4:])
+            fichas = []
+        try:
+            r = modelo.chamar(PROMPT_CORRETOR, _turno_corretor(conn, cor, conversa, ativas, fotos, anuncio, ja, fichas),
+                              no="olx.corretor")
         except Exception:  # noqa: BLE001
             log.exception("corretor …%s: o modelo falhou", t8[-4:])
             continue
@@ -1374,7 +1761,9 @@ def corretores_volta(conn, c: dict) -> int:
             # Pedro, 30/10: a equipe está falando com ele (a Stela, com o link da OLX); a Nay não fala por cima, só anota
             log.info("corretor …%s: a equipe está na conversa; a Nay não responde", t8[-4:])
             baloes = []
-        if (r.get("oferece_imovel") or anuncio) and (not b or r.get("serve") != "nao"):
+        pede = bool(r.get("pede_imovel"))
+        # 04/11: quem PEDE imóvel não está oferecendo o do anúncio da OLX da conversa
+        if (r.get("oferece_imovel") or (anuncio and not pede)) and (not b or r.get("serve") != "nao"):
             # 488: o imóvel do corretor entra na base mesmo sem busca que sirva ("serve" é só das buscas ativas)
             im = venda_pelo_valor(juntar_imovel(ja, r.get("imovel") or {}))
             banco.um(conn, """UPDATE privado.busca_corretor SET imovel = %s::jsonb, busca = %s, estado = 'cadastrando'
@@ -1429,6 +1818,17 @@ def corretores_volta(conn, c: dict) -> int:
             elif b:
                 passo(conn, b["id"], "corretor", f"#{codigo}: falta {', '.join(falta)}")
             conn.commit()
+        if pede and equipe_por_perto:
+            log.info("corretor …%s pediu imóvel, mas a equipe está na conversa: a Nay não manda nem responde", t8[-4:])
+        elif pede:
+            # 04/11 (Pedro: "mandar os imóveis e responder as solicitações dele"): o pedido do cliente DELE
+            try:
+                resposta = atender_pedido(conn, cor, r, c)
+            except Exception:  # noqa: BLE001 -- um corretor não para os outros
+                conn.rollback()
+                log.exception("corretor …%s: o pedido falhou", t8[-4:])
+                resposta = []
+            baloes, r["responder"] = resposta, bool(resposta)
         if r.get("responder") and baloes:
             for n, t in enumerate(baloes):
                 if n:
