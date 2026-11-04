@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { CircleNotch, MagnifyingGlass, Plus, X } from '@phosphor-icons/react'
+import { Archive, Check, CircleNotch, EnvelopeSimple, MagnifyingGlass, Plus, PushPin, Tag, TreeStructure, X } from '@phosphor-icons/react'
 import { useAuth, useIsMobile } from '@/hooks'
 import { useLeadsContext } from '@/contexts/LeadsContext'
 import { useParceriaMarcas } from '@/hooks/useParceriaMarcas'
@@ -22,7 +22,10 @@ import { usePuxador } from '@/hooks/usePuxador'
 import type { LeadWithOwner } from '@/lib/types'
 import { getLinhaWhatsapp } from '@/lib/leadChannel'
 import { acharTipo, tipoEscolhido } from '@/lib/organizacaoDoLead'
-import { CORES_DE_ETIQUETA, criarEtiqueta, useEtiquetas } from '@/lib/etiquetas'
+import { CORES_DE_ETIQUETA, criarEtiqueta, marcarEtiqueta, useEtiquetas } from '@/lib/etiquetas'
+import { dentroDe } from '@/lib/organizacaoDoLead'
+import { organizar } from './OrganizarConversa'
+import RelacionarA from './RelacionarA'
 import NotAuthorized from '@/components/Shared/NotAuthorized'
 import LeadListItem, { ehEtapaComoTag } from './LeadListItem'
 import ChatWindow from './ChatWindow'
@@ -161,7 +164,8 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
       || acesso.linhas.includes(getLinhaWhatsapp(l) as any) || acesso.linhas.includes(mudouPara(l) as any)
     const base = leads.filter((l) => !l.is_group && !l.is_archived && pertence(l) && doNumeroDele(l))
     if (solto && pertence(solto) && !base.some((l) => l.id === solto.id)) base.push(solto)
-    return base.sort((a, b) => new Date(b.last_activity_at || b.created_at).getTime() - new Date(a.last_activity_at || a.created_at).getTime())
+    return base.sort((a, b) => (Number(!!b.is_pinned) - Number(!!a.is_pinned))
+      || new Date(b.last_activity_at || b.created_at).getTime() - new Date(a.last_activity_at || a.created_at).getTime())
   }, [leads, pertence, solto, ehAdmin, papel.nome, papel.abas])
 
   /* o endereço é só ENTRADA (crm/CLAUDE.md): ?leadId= abre aquela conversa uma vez */
@@ -196,7 +200,37 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
     }),
   ]
 
+  /* O MENU DO BOTÃO DIREITO IGUAL AO DOS CHATS (Pedro, 04/11: "quero as mesmas opções de clicar com o botão direito em
+     todos os chats; no de Proprietários só tem uma; põe o mesmo em todos"): Fixar, Não lida, Arquivar, Etiquetas…,
+     Relacionar a… e Remover relacionamento (as mesmas da LeadList), e embaixo as da tela (o `menu`). */
+  const [relacionando, setRelacionando] = useState<LeadWithOwner | null>(null)
+  const [relOcupado, setRelOcupado] = useState(false)
+  const [relErro, setRelErro] = useState('')
+  const [menuDeTags, setMenuDeTags] = useState(false)
+  const [buscaDeTag, setBuscaDeTag] = useState('')
+  const raizDaLista = useRef<HTMLDivElement>(null)
+  const mudarLead = async (l: LeadWithOwner, campos: Partial<LeadWithOwner>) => {
+    setMenuEm(null)
+    setLeads((p) => p.map((x) => (x.id === l.id ? { ...x, ...campos } : x)))
+    try {
+      const r = await fetch(`/api/leads/${l.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(campos) })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    } catch {
+      const volta = Object.fromEntries(Object.keys(campos).map((k) => [k, (l as any)[k]]))
+      setLeads((p) => p.map((x) => (x.id === l.id ? { ...x, ...volta } : x)))
+    }
+  }
+  const relacionar = async (filho: LeadWithOwner, pai: LeadWithOwner) => {
+    setRelOcupado(true); setRelErro('')
+    try {
+      const o = await organizar(filho.id, { dentroDe: { pai: pai.id, ligar: true } })
+      setLeads((p) => p.map((x) => (x.id === filho.id ? { ...x, custom_attributes: o.custom_attributes } : x)))
+      setRelacionando(null)
+    } catch (e: any) { setRelErro(e?.message || 'Não consegui relacionar.') } finally { setRelOcupado(false) }
+  }
+
   const abrir = (l: LeadWithOwner) => {
+    if (relacionando) { if (l.id !== relacionando.id && !relOcupado) void relacionar(relacionando, l); return }
     setSelecionada(l.id); setVerConversa(true)
     if (l.is_unread) {
       setLeads((p) => p.map((x) => (x.id === l.id ? { ...x, is_unread: false } : x)))
@@ -229,7 +263,7 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
     const item = (
       <LeadListItem lead={l} isSelected={l.id === selecionada} timeStr={hora(l.last_activity_at || l.created_at)}
                     onClick={abrir} query={busca}
-                    onContextMenu={(e, lead) => { e.preventDefault(); if (menu) setMenuEm({ x: e.clientX, y: e.clientY, lead }) }}
+                    onContextMenu={(e, lead) => { e.preventDefault(); setMenuDeTags(false); setMenuEm({ x: e.clientX, y: e.clientY, lead }) }}
                     faixaDaLinha={NUMERO_DA_CONVERSA[linhaDe(l)] || null}
                     tipoDoContato={acharTipo(tipos, tipoEscolhido(l))} cinzas />
     )
@@ -317,7 +351,7 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
         )}
         {!buscando && <ChatFilterTabs ativo={aba as any} aoMudar={(k) => setAba(String(k))} filtros={filtros} />}
       </div>
-      <div className="flex-1 overflow-y-auto overflow-x-hidden wa-rolagem">
+      <div ref={raizDaLista} className="flex-1 overflow-y-auto overflow-x-hidden wa-rolagem">
         {buscando && buscaExtra?.(busca)}
         {buscando && visiveis.length > 0 && (
           <div className="px-4 pt-1 pb-1.5 text-[12.5px]" style={{ color: 'var(--wa-text-2)' }}>
@@ -383,13 +417,84 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
     ? <CadastroImovelOlx key={aberta.id} lead={aberta} modo={modo} aoFechar={() => setCadastroDe(null)} linkInicial={cadastrar(aberta).linkInicial} />
     : null
 
-  const menuAberto = menuEm && menu && (
-    <div className="fixed z-50 rounded-xl py-1.5 min-w-[220px] shadow-xl"
-         style={{ left: Math.min(menuEm.x, window.innerWidth - 240), top: Math.min(menuEm.y, window.innerHeight - 200),
+  const item = 'w-full text-left px-4 py-2.5 text-[14px] hover:bg-[var(--wa-row-hover)] flex items-center gap-3'
+  const l = menuEm?.lead
+  const atual = l ? (leads.find((x) => x.id === l.id) || l) : null
+  const etiquetasDoMenu = etiquetas.filter((t) => !ehEtapaComoTag(t.name)
+    && (!buscaDeTag.trim() || t.name.toLowerCase().includes(buscaDeTag.trim().toLowerCase())))
+  const menuAberto = menuEm && atual && (
+    <div className="fixed z-50 rounded-xl py-1.5 min-w-[230px] max-h-[80vh] overflow-y-auto shadow-xl"
+         style={{ left: Math.min(menuEm.x, window.innerWidth - 250), top: Math.min(menuEm.y, window.innerHeight - 340),
                   background: 'var(--wa-menu)', border: '1px solid var(--wa-divider)', color: 'var(--wa-text)' }}
          onClick={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
-      {menu(menuEm.lead, () => setMenuEm(null))}
+      {menuDeTags ? (
+        <div className="px-2 pb-1">
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <button type="button" onClick={() => setMenuDeTags(false)} className="text-[12px]" style={{ color: 'var(--wa-text-2)' }}>‹ Voltar</button>
+            <input autoFocus value={buscaDeTag} onChange={(e) => setBuscaDeTag(e.target.value)} placeholder="Buscar etiqueta"
+                   className="flex-1 h-7 px-2 rounded-md text-[13px] outline-none" style={{ background: 'var(--wa-search)', color: 'var(--wa-text)' }} />
+          </div>
+          {etiquetasDoMenu.map((t) => {
+            const tem = (atual.lead_tags || []).some((lt: any) => lt.tag_id === t.id)
+            return (
+              <button key={t.id} type="button" className={item + ' !py-2'}
+                      onClick={async () => {
+                        aoMudarEtiqueta(atual.id, t.id, tem ? 'remove' : 'add', t)
+                        try { await marcarEtiqueta(atual.id, t.id, !tem) }
+                        catch (e: any) { aoMudarEtiqueta(atual.id, t.id, tem ? 'add' : 'remove', t); window.alert(e?.message || 'Não consegui mudar a etiqueta.') }
+                      }}>
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: t.color }} />
+                <span className="flex-1">{t.name}</span>
+                {tem ? <Check size={15} style={{ color: 'var(--wa-green)' }} /> : <span className="text-[11px]" style={{ color: 'var(--wa-text-2)' }}>pôr</span>}
+              </button>
+            )
+          })}
+          <button type="button" className={item + ' !py-2 text-[13px]'} style={{ color: 'var(--wa-text-2)' }}
+                  onClick={async () => {
+                    const nome = window.prompt('Nome da nova etiqueta:')
+                    if (!nome?.trim()) return
+                    try { const t = await criarEtiqueta(nome, CORES_DE_ETIQUETA[5]); aoMudarEtiqueta(atual.id, t.id, 'add', t); await marcarEtiqueta(atual.id, t.id, true) }
+                    catch (e: any) { window.alert(e?.message || 'Não consegui criar a etiqueta.') }
+                  }}>
+            <Plus size={15} /> Nova etiqueta…
+          </button>
+        </div>
+      ) : (
+        <>
+          <button type="button" className={item} onClick={() => void mudarLead(atual, { is_pinned: !atual.is_pinned })}>
+            <PushPin size={17} style={{ color: 'var(--wa-icon)' }} /> {atual.is_pinned ? 'Desafixar conversa' : 'Fixar conversa'}
+          </button>
+          <button type="button" className={item} onClick={() => void mudarLead(atual, { is_unread: !atual.is_unread })}>
+            <EnvelopeSimple size={17} style={{ color: 'var(--wa-icon)' }} /> {atual.is_unread ? 'Marcar como lida' : 'Marcar como não lida'}
+          </button>
+          <button type="button" className={item} onClick={() => void mudarLead(atual, { is_archived: !atual.is_archived })}>
+            <Archive size={17} style={{ color: 'var(--wa-icon)' }} /> {atual.is_archived ? 'Desarquivar' : 'Arquivar conversa'}
+          </button>
+          <button type="button" className={item} onClick={() => { setMenuDeTags(true); setBuscaDeTag('') }}>
+            <Tag size={17} style={{ color: 'var(--wa-icon)' }} /> <span className="flex-1">Etiquetas…</span>
+          </button>
+          <button type="button" className={item} onClick={() => { setMenuEm(null); setRelacionando(atual); setRelErro('') }}>
+            <TreeStructure size={17} style={{ color: 'var(--wa-icon)' }} /> <span className="flex-1">Relacionar a…</span>
+          </button>
+          {dentroDe(atual).length > 0 && (
+            <button type="button" className={item}
+                    onClick={async () => {
+                      setMenuEm(null)
+                      try { const o = await organizar(atual.id, { soltar: true }); setLeads((p) => p.map((x) => (x.id === atual.id ? { ...x, custom_attributes: o.custom_attributes } : x))) }
+                      catch (e: any) { window.alert(e?.message || 'Não consegui remover o relacionamento.') }
+                    }}>
+              <X size={17} style={{ color: 'var(--wa-icon)' }} /> <span className="flex-1">Remover relacionamento</span>
+            </button>
+          )}
+          {menu && <div className="my-1" style={{ borderTop: '1px solid var(--wa-divider)' }} />}
+          {menu?.(atual, () => setMenuEm(null))}
+        </>
+      )}
     </div>
+  )
+  const faixaDoRelacionar = relacionando && (
+    <RelacionarA nome={relacionando.title || relacionando.phone || 'esta conversa'} alvo={raizDaLista} ocupado={relOcupado} erro={relErro}
+                 aoCancelar={() => { setRelacionando(null); setRelErro('') }} />
   )
 
   if (isMobile) {
@@ -399,6 +504,7 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
         {painel('gaveta')}
         {cadastro('gaveta')}
         {menuAberto}
+        {faixaDoRelacionar}
       </div>
     )
   }
@@ -414,6 +520,7 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
         {cadastro(telaLarga ? 'lateral' : 'gaveta')}
       </div>
       {menuAberto}
+      {faixaDoRelacionar}
     </div>
   )
 }
