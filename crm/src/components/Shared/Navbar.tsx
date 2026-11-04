@@ -181,8 +181,8 @@ export default function Navbar() {
        ...(acesso.admin ? NAV_ITEMS.filter((i) => !hrefsV2.has(i.href)).map((i) => ({ ...i, mais: i.href !== '/imoveis' })) : [])]
         .map((i, n, todos) => (menusDaFuncao && !i.mais && todos.slice(0, n).filter((x) => !x.mais).length >= NA_BARRA ? { ...i, mais: true } : i))
     : NAV_ITEMS
-  // V3 (Pedro, 04/11/2026): um WhatsApp só juntando Leads e Parceria, em etapas; só o login Tel, por enquanto (ChatV3.tsx)
-  const ehTel = papel.adminDeVerdade && !papel.simulando && primeiroNome(profileName || user?.name) === 'tel'
+  // V3 (Pedro, 04/11/2026): um WhatsApp só juntando Leads e Parceria, em etapas; só o login Pedro (o desenvolvedor) até ele liberar; o Tel segue na v2 (ChatV3.tsx)
+  const ehTel = papel.adminDeVerdade && !papel.simulando && primeiroNome(profileName || user?.name) === 'pedro'
   // 04/11 (Pedro: "clico no v3 e no chat atendimento volta para o v2"): o v3 é um MODO que fica ligado (neste navegador, só
   // o login Tel) até clicar em v1 ou v2; com ele ligado, as telas de chat do menu abrem dentro do v3
   const [modoV3, setModoV3] = useState(false)
@@ -619,14 +619,14 @@ export default function Navbar() {
 
         {/* v1 / v2 da organização do CRM: só o administrador vê, e a troca vale para todos (Pedro, 03/11) */}
         {adminDoCrm && versao && (
-          <div role="group" aria-label="Organização do CRM" title={`Organização do CRM: ${versao} (v1 e v2 valem para todos). A v3 é só do login Tel.`}
+          <div role="group" aria-label="Organização do CRM" title={`Organização do CRM: ${versao} (v1 e v2 valem para todos). A v3 é só do login Pedro.`}
                className="flex items-center rounded-full border border-line text-[10px] font-bold overflow-hidden h-6">
             {([['v1', !v2 && !naV3], ['v2', v2 && !naV3]] as const).map(([v, ativo]) => (
               <button key={v} type="button" onClick={() => trocarVersao(v)} disabled={trocandoVersao}
                       className={`px-1.5 h-full flex items-center disabled:opacity-60 ${ativo ? 'bg-accent text-white' : 'text-muted'}`}>{v}</button>
             ))}
             {ehTel && (
-              <button type="button" onClick={() => { ligarV3(true); router.push('/chat/v3') }} title="v3 (teste, só o login Tel): um WhatsApp juntando Leads e Parceria, em etapas"
+              <button type="button" onClick={() => { ligarV3(true); router.push('/chat/v3') }} title="v3 (teste, só o login Pedro): um WhatsApp juntando Leads e Parceria, em etapas"
                       className={`px-1.5 h-full flex items-center ${naV3 ? 'bg-accent text-white' : 'text-muted'}`}>v3</button>
             )}
           </div>

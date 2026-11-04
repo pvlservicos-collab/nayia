@@ -57,7 +57,7 @@ type Responde = { tipo: 'ia' | 'humano'; nome: string }
 export function useEhTel(): boolean {
   const { profileName, user } = useAuth()
   const papel = usePapelV2()
-  return papel.adminDeVerdade && primeiroNome(profileName || user?.name) === 'tel'
+  return papel.adminDeVerdade && primeiroNome(profileName || user?.name) === 'pedro'
 }
 
 const iniciais = (t: string) => t.trim().split(/\s+/).slice(0, 2).map((p) => p.charAt(0).toUpperCase()).join('') || '?'
