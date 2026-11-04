@@ -51,7 +51,7 @@ import { pessoasDe } from '@/lib/organizacaoDoLead'
 import ChatJuntado from './ChatJuntado'
 import AbasParceria, { type AbaDaParceria } from './AbasParceria'
 import VisitasAgendadas from './VisitasAgendadas'
-import { comMarcaDeAbertura } from '@/lib/links'
+import { comMarcaDeAbertura, linkDaConversa } from '@/lib/links'
 import { casaNaBusca } from './BuscaDaLista'
 import { imovelDoDono } from './LeadListItem'
 import { organizar } from './OrganizarConversa'
@@ -251,6 +251,74 @@ function RelacionarAVisita({ visitas, inicial, leads, aoFechar, aoMudar }: {
   )
 }
 
+/* A LUPA DA ABA PROPRIETÁRIOS PELO CÓDIGO (Pedro, 04/11/2026: "quero poder pesquisar lá na aba Proprietários o código do
+   imóvel 1778 ou #1778 e aparecer o número do proprietário"): "1778" ou "#1778" traz o dono do cadastro (599,
+   /api/imoveis-nay/dono), com o número, e acha a conversa dele; sem conversa, cria pela Parceria. */
+const CODIGO_NA_BUSCA = /^\s*(?:#|c[óo]d(?:igo)?\.?\s*)?(\d{3,5})\s*$/i
+type DonoDoImovel = { codigo: number; imovel: string | null; status: string | null; e_parceiro: boolean; nome: string | null;
+  telefone: string | null; motivo: string | null }
+
+function CartaoDoDono({ texto, leads, aoAchar }: { texto: string; leads: LeadWithOwner[]; aoAchar: (d: DonoDoImovel | null) => void }) {
+  const codigo = Number(CODIGO_NA_BUSCA.exec(texto)?.[1] || 0)
+  const [dono, setDono] = useState<DonoDoImovel | null | undefined>(undefined)
+  const [abrindo, setAbrindo] = useState(false)
+  const [copiado, setCopiado] = useState(false)
+  useEffect(() => {
+    if (!codigo) { setDono(undefined); aoAchar(null); return }
+    let vivo = true
+    setDono(undefined)
+    const t = setTimeout(() => {
+      fetch(`/api/imoveis-nay/dono?codigo=${codigo}`).then((r) => (r.ok ? r.json() : null))
+        .then((j) => { if (vivo) { setDono(j?.dono || null); aoAchar(j?.dono || null) } }).catch(() => { if (vivo) setDono(null) })
+    }, 300)
+    return () => { vivo = false; clearTimeout(t) }
+  }, [codigo])  // eslint-disable-line react-hooks/exhaustive-deps
+  if (!codigo) return null
+  const caixa = 'mx-3 mb-2 p-3 rounded-xl text-[13px]'
+  const estilo = { background: 'var(--wa-search)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }
+  if (dono === undefined) return <div className={caixa} style={estilo}>Procurando o imóvel #{codigo}…</div>
+  if (!dono) return <div className={caixa} style={estilo}>Não achei o imóvel #{codigo} no cadastro.</div>
+  const tel = String(dono.telefone || '').replace(/\D/g, '')
+  const conversa = tel ? leads.find((l) => !l.is_group && String(l.phone || '').replace(/\D/g, '').slice(-8) === tel.slice(-8)
+    && ['parceria', 'captacao'].includes(getLinhaWhatsapp(l) || '')) : undefined
+  const bonito = tel.length >= 10 ? tel.replace(/^55/, '').replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3') : tel
+  const abrir = async () => {
+    if (conversa) { window.location.href = linkDaConversa(conversa.id); return }
+    setAbrindo(true)
+    try {
+      const r = await fetch('/api/leads/abrir', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telefone: tel, linha: 'parceria' }) })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(j?.error || j?.message || 'Não consegui abrir a conversa.')
+      window.location.href = linkDaConversa(j.id)
+    } catch (e: any) { window.alert(e?.message || 'Não consegui abrir a conversa.') } finally { setAbrindo(false) }
+  }
+  return (
+    <div className={caixa} style={estilo}>
+      <div className="font-semibold">#{dono.codigo}{dono.imovel ? ` · ${dono.imovel}` : ''}{dono.status ? ` (${dono.status})` : ''}
+        {dono.e_parceiro ? ' · de parceiro' : ''}</div>
+      {tel ? (
+        <>
+          <div className="mt-1">{dono.e_parceiro ? 'Corretor parceiro' : 'Proprietário'}: <b>{dono.nome || 'sem nome no cadastro'}</b></div>
+          <div className="mt-0.5 text-[15px] font-bold tracking-wide">{bonito}</div>
+          <div className="mt-2 flex gap-2">
+            <button type="button" onClick={abrir} disabled={abrindo}
+                    className="h-8 px-3 rounded-lg text-[12.5px] font-semibold disabled:opacity-60" style={{ background: 'var(--wa-green)', color: '#fff' }}>
+              {abrindo ? 'Abrindo…' : conversa ? 'Abrir conversa' : 'Criar conversa pela Parceria'}
+            </button>
+            <button type="button" onClick={() => { void navigator.clipboard?.writeText(tel); setCopiado(true); setTimeout(() => setCopiado(false), 1500) }}
+                    className="h-8 px-3 rounded-lg text-[12.5px] font-semibold" style={{ border: '1px solid var(--wa-divider)', color: 'var(--wa-text)' }}>
+              {copiado ? 'Copiado' : 'Copiar número'}
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="mt-1" style={{ color: 'var(--wa-text-2)' }}>O cadastro não tem o telefone do proprietário{dono.motivo ? ` (${dono.motivo})` : ''}.</div>
+      )}
+    </div>
+  )
+}
+
 export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietarios' | 'fechamento' }) {
   const { isMaster, roleName, permissions, profileName, user } = useAuth()
   const admin = !!(isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || (permissions as any)?.['*'])
@@ -262,6 +330,7 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
   const { visitas, recarregar } = useVisitasParceria(etapa === 'visita')
   const [assumindo, setAssumindo] = useState('')
   const [abaDaVisita, setAbaDaVisita] = useState<AbaDaParceria>('conversas')
+  const [donoBuscado, setDonoBuscado] = useState<DonoDoImovel | null>(null)
   const router = useRouter()
   const { emFechamento, podeVer } = useFechamentoV2()
 
@@ -458,7 +527,16 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
     )
   }
   return (
-    <ChatJuntado titulo="Proprietários" subtitulo="Os donos dos dois números · a resposta sai pelo número de cada conversa"
+    <ChatJuntado casaExtra={(texto, l) => {
+                   const codigo = CODIGO_NA_BUSCA.exec(texto)?.[1]
+                   if (!codigo) return false
+                   const tel8 = String(donoBuscado?.telefone || '').replace(/\D/g, '').slice(-8)
+                   return (marcas[l.id]?.imoveisDoDono || []).map(String).includes(codigo)
+                     || String(donos[l.id]?.codigo || '') === codigo
+                     || (tel8.length === 8 && String(l.phone || '').replace(/\D/g, '').slice(-8) === tel8)
+                 }}
+                 buscaExtra={(texto) => <CartaoDoDono texto={texto} leads={leads} aoAchar={setDonoBuscado} />}
+                 titulo="Proprietários" subtitulo="Os donos dos dois números · a resposta sai pelo número de cada conversa"
                  pertence={ehDono} chaveAbas="crm:abas-proprietarios" vazio="Nenhum proprietário agora."
                  cards
                  enfeite={(l) => ({ faixa: imovelDele(l), borda: quemAtende(l) })}

@@ -92,9 +92,13 @@ interface Props {
   /** v2, aba Visita (Pedro, 04/11: "o Diego, da equipe, fica fixado fora dos cards ... no topo, antes de começar os cards"):
    *  as conversas fixadas em cima dos grupos, com o rótulo delas */
   fixos?: { rotulo: string; ids: Set<string> }
+  /** 04/11: a lupa também acha por isto (na aba Proprietários, o código do imóvel do dono) */
+  casaExtra?: (texto: string, lead: LeadWithOwner) => boolean
+  /** 04/11: o que aparece em cima dos resultados da lupa (na aba Proprietários, o dono do imóvel pesquisado) */
+  buscaExtra?: (texto: string) => ReactNode
 }
 
-export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos }: Props) {
+export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos, casaExtra, buscaExtra }: Props) {
   const { organizationId, loading, isMaster, roleName, permissions, profileName, user } = useAuth()
   const ehAdmin = !!(isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || (permissions as any)?.['*'])
   const pode = soAdmin ? ehAdmin : ehAdmin || !!permissions?.settings?.view_chat
@@ -172,7 +176,7 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
 
   const contagem = (tagId: string) => todas.filter((l) => (l.lead_tags || []).some((lt: any) => lt.tag_id === tagId)).length
   const buscando = busca.trim().length > 0
-  const visiveis = todas.filter((l) => buscando ? casaNaBusca(busca, l)
+  const visiveis = todas.filter((l) => buscando ? casaNaBusca(busca, l) || !!casaExtra?.(busca, l)
     : aba === 'all' ? true : aba === 'meus' ? !!meus?.(l) || l.id === selecionada
     : aba === 'nao_lidas' ? !!l.is_unread || l.id === selecionada
     : (l.lead_tags || []).some((lt: any) => lt.tag_id === aba))
@@ -310,6 +314,7 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
         {!buscando && <ChatFilterTabs ativo={aba as any} aoMudar={(k) => setAba(String(k))} filtros={filtros} />}
       </div>
       <div className="flex-1 overflow-y-auto overflow-x-hidden wa-rolagem">
+        {buscando && buscaExtra?.(busca)}
         {buscando && visiveis.length > 0 && (
           <div className="px-4 pt-1 pb-1.5 text-[12.5px]" style={{ color: 'var(--wa-text-2)' }}>
             {visiveis.length} {visiveis.length === 1 ? 'conversa' : 'conversas'} nesta tela

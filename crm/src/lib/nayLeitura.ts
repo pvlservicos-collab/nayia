@@ -181,6 +181,14 @@ export async function visitasDosLeads(desde?: string | null, ate?: string | null
 }
 
 /** 513: o VISITA REALIZADA de uma visita da Nay Leads; a Nay pergunta "como foi?" ao cliente ou ao corretor. */
+/** 599 (Pedro, 04/11: "pesquisar na aba Proprietários o código do imóvel 1778 ou #1778 e aparecer o número do
+ *  proprietário"): o dono do imóvel pelo código, o mesmo que a Nay lê (nai_proprietario_do_imovel). */
+export async function donoDoImovel(codigo: number): Promise<{ codigo: number; imovel: string | null; status: string | null;
+  e_parceiro: boolean; nome: string | null; telefone: string | null; motivo: string | null } | null> {
+  const r = await naydb().query('SELECT * FROM crm_dono_do_imovel($1::int)', [codigo])
+  return (r.rows[0] as any) || null
+}
+
 /** 587 (v2, aba Proprietários): o nome de cada imóvel (condomínio, ou tipo e bairro) pelo código. */
 export async function nomesDosImoveis(codigos: number[]): Promise<Record<number, string>> {
   if (!codigos.length) return {}
