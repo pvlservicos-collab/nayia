@@ -30,6 +30,7 @@ import ChatFilterTabs, { type FiltroDaLista } from './ChatFilterTabs'
 import { casaNaBusca } from './BuscaDaLista'
 import PainelContatoParceria from './PainelContatoParceria'
 import PainelContatoCaptacao from './PainelContatoCaptacao'
+import CadastroImovelOlx from './CadastroImovelOlx'
 
 export const NUMERO_DA_CONVERSA: Record<string, string> = {
   captacao: 'Pelo número Leads · 8595-6408', parceria: 'Pelo número Parceria · 9445-3618', oficial: 'Pelo número Oficial · 8456-0874',
@@ -72,9 +73,13 @@ interface Props {
   menu?: (lead: LeadWithOwner, fechar: () => void) => ReactNode
   /** ainda carregando quem entra (a lista de captação vem do servidor) */
   carregando?: boolean
+  /** o que vem no alto do card do contato (o contexto da captação) */
+  topoDoCard?: (lead: LeadWithOwner) => ReactNode
+  /** o botão Cadastrar imóvel no alto da conversa (a barra do WhatsApp Leads, 535); devolve o link da OLX, se houver */
+  cadastrar?: (lead: LeadWithOwner) => { linkInicial?: string }
 }
 
-export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando }: Props) {
+export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar }: Props) {
   const { organizationId, loading, isMaster, roleName, permissions } = useAuth()
   const ehAdmin = !!(isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || (permissions as any)?.['*'])
   const pode = soAdmin ? ehAdmin : ehAdmin || !!permissions?.settings?.view_chat
@@ -97,6 +102,7 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
   const [busca, setBusca] = useState('')
   const [menuEm, setMenuEm] = useState<{ x: number; y: number; lead: LeadWithOwner } | null>(null)
   const [painelAberto, setPainelAberto] = useState(true)
+  const [cadastroDe, setCadastroDe] = useState<string | null>(null)
 
   useEffect(() => {
     if (!telaLarga) { setPainelAberto(false); return }
@@ -273,7 +279,9 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
     <ChatWindow key={aberta.id} lead={aberta} organizationId={organizationId || ''} onMessageSent={aoEnviar}
                 linha={getLinhaWhatsapp(aberta) || undefined} marca={linhaDe(aberta) === 'parceria' ? marcas[aberta.id] : undefined}
                 faixaDaLinha={NUMERO_DA_CONVERSA[linhaDe(aberta)] || null} onTagsChange={aoMudarEtiqueta}
-                painelAberto={painelAberto} aoAlternarPainel={alternarPainel} aoVoltar={voltar} />
+                painelAberto={painelAberto} aoAlternarPainel={alternarPainel} aoVoltar={voltar}
+                aoCadastrarImovel={cadastrar ? () => setCadastroDe((x) => (x === aberta.id ? null : aberta.id)) : undefined}
+                cadastroAberto={cadastroDe === aberta.id} />
   ) : (
     <div className="wa-papel flex flex-col items-center justify-center h-full gap-2 px-8 text-center">
       <span className="relative text-[15px] font-semibold" style={{ color: 'var(--wa-text)' }}>{titulo}</span>
@@ -285,12 +293,15 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
   const painel = (modo: 'lateral' | 'gaveta') => {
     if (!aberta || !painelAberto) return null
     if (linhaDe(aberta) === 'parceria') {
-      return <PainelContatoParceria key={aberta.id} lead={aberta} modo={modo} aoFechar={alternarPainel}
+      return <PainelContatoParceria key={aberta.id} lead={aberta} modo={modo} aoFechar={alternarPainel} topo={topoDoCard?.(aberta)}
                                     aoVerVisita={() => router.push('/chat/parceria')} onTagsChange={aoMudarEtiqueta} onUpdateLead={aoMudarLead} />
     }
-    return <PainelContatoCaptacao key={aberta.id} lead={aberta} modo={modo} aoFechar={alternarPainel}
+    return <PainelContatoCaptacao key={aberta.id} lead={aberta} modo={modo} aoFechar={alternarPainel} topo={topoDoCard?.(aberta)}
                                   oficial={linhaDe(aberta) === 'oficial'} onTagsChange={aoMudarEtiqueta} />
   }
+  const cadastro = (modo: 'lateral' | 'gaveta') => aberta && cadastrar && cadastroDe === aberta.id
+    ? <CadastroImovelOlx key={aberta.id} lead={aberta} modo={modo} aoFechar={() => setCadastroDe(null)} linkInicial={cadastrar(aberta).linkInicial} />
+    : null
 
   const menuAberto = menuEm && menu && (
     <div className="fixed z-50 rounded-xl py-1.5 min-w-[220px] shadow-xl"
@@ -306,6 +317,7 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
       <div className="chat-theme h-full flex flex-col">
         <div className="flex-1 min-h-0">{verConversa && aberta ? conversa(() => setVerConversa(false)) : lista}</div>
         {painel('gaveta')}
+        {cadastro('gaveta')}
         {menuAberto}
       </div>
     )
@@ -319,6 +331,7 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
         </div>
         <div className="flex-1 min-w-0 h-full min-h-0">{conversa()}</div>
         {painel(telaLarga ? 'lateral' : 'gaveta')}
+        {cadastro(telaLarga ? 'lateral' : 'gaveta')}
       </div>
       {menuAberto}
     </div>

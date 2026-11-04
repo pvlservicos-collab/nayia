@@ -103,12 +103,14 @@ function erroDe(j: any, r: Response) {
   return String(j?.erro || j?.error || j?.mensagem || `o servidor respondeu ${r.status}`) + (j?.detalhe ? ` (${j.detalhe})` : '')
 }
 
-export default function CadastroImovelOlx({ lead, modo, aoFechar }: {
+export default function CadastroImovelOlx({ lead, modo, aoFechar, linkInicial }: {
   lead: LeadWithOwner
   modo: 'lateral' | 'gaveta'
   aoFechar: () => void
+  /** 03/11 (Pedro, Chat Captação): o dono chamado pela tela Imóveis captar OLX já traz o link do anúncio */
+  linkInicial?: string
 }) {
-  const [link, setLink] = useState('')
+  const [link, setLink] = useState(linkInicial || '')
   const [passos, setPassos] = useState<Passo[]>(PASSOS.map(([chave, rotulo]) => ({ chave, rotulo, estado: 'espera' })))
   const [rodando, setRodando] = useState(false)
   const [codigo, setCodigo] = useState<number | null>(null)

@@ -7,7 +7,10 @@
  *     (Oficial ou Leads), como a tela de Cadastros incompletos acha;
  *   - as conversas marcadas como de captação (custom_attributes.conversa_captacao), que a tela Imóveis captar OLX abre pela
  *     Parceria (POST /api/leads/{id}/organizar { captacao: true }).
- * Devolve só os ids; quem desenha (Chat Captação e as listas dos números) usa as conversas que já tem.
+ * Quem tem a marca FALSE ("Mandar de volta para os proprietários", 03/11 à noite) sai, mesmo sendo cadastro incompleto;
+ * volta só se o cadastro dele andar depois disso.
+ * Devolve os ids e o CONTEXTO de cada conversa (Pedro: "no card tem que ter um contexto, ex.: estávamos cadastrando esse
+ * imóvel dia X e ele parou de responder"): o cadastro (o que já tinha, o que faltou, quando parou) ou o anúncio da OLX.
  */
 import { NextRequest } from 'next/server'
 import { sql } from 'drizzle-orm'
@@ -26,11 +29,19 @@ export async function GET(req: NextRequest) {
     const auth = await authenticateRequest(req)
     const ids = new Set<string>()
 
+    const contexto: Record<string, any> = {}
     const marcadas = await db.execute(sql`
-      SELECT id::text AS id FROM leads
+      SELECT id::text AS id, (custom_attributes->>'conversa_captacao')::boolean AS marca, custom_attributes->'captacao_origem' AS origem,
+             custom_attributes->>'conversa_captacao_em' AS marca_em
+        FROM leads
        WHERE organization_id = ${auth.organizationId}::uuid AND deleted_at IS NULL
-         AND (custom_attributes->>'conversa_captacao')::boolean IS TRUE`)
-    for (const r of marcadas.rows as any[]) ids.add(r.id)
+         AND custom_attributes ? 'conversa_captacao'`)
+    const devolvidas = new Map<string, number>()   // id -> quando foi mandada de volta
+    for (const r of marcadas.rows as any[]) {
+      if (r.marca === false) { devolvidas.set(r.id, r.marca_em ? new Date(r.marca_em).getTime() : Infinity); continue }
+      ids.add(r.id)
+      if (r.origem) contexto[r.id] = { fonte: 'olx', ...r.origem }
+    }
 
     const a = await naydb().query('SELECT crm_cadastros_incompletos(14) AS j')
     const cadastros = (a.rows[0]?.j || []) as any[]
@@ -45,10 +56,17 @@ export async function GET(req: NextRequest) {
       for (const c of cadastros) {
         const tipo = TIPO_DA_LINHA[c.canal] || 'whatsapp_cloud_official'
         const x = leads.find((y) => y.f8 === so8(c.telefone) && y.linha === tipo) || leads.find((y) => y.f8 === so8(c.telefone) && y.linha !== 'whatsapp_zapi')
-        if (x) ids.add(x.id)
+        // mandada de volta: só volta se o cadastro andou DEPOIS (um cadastro novo que também parou)
+        if (!x || (devolvidas.has(x.id) && !(new Date(c.atualizado_em).getTime() > devolvidas.get(x.id)!))) continue
+        ids.add(x.id)
+        contexto[x.id] = {
+          fonte: 'cadastro', tipo: c.tipo, codigo: c.codigo, dados: c.dados || {}, fotos: c.fotos ?? 0,
+          criado_em: c.criado_em, atualizado_em: c.atualizado_em, faltou: c.melhor?.faltou || [], nota: c.nota ?? null,
+          humano: !!c.humano, opt_out: !!c.opt_out,
+        }
       }
     }
-    return Response.json({ ids: Array.from(ids) })
+    return Response.json({ ids: Array.from(ids), contexto })
   } catch (err: any) {
     console.error('[captacao/conversas]', err?.message || err)
     return apiError(err?.status || 500, err?.message || 'Não consegui achar as conversas de captação.')

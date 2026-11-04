@@ -9,7 +9,9 @@
  *                                                        Parceria, no topo e não lida, como conversa nova (mudou_para)
  *   { pessoas: ['<member id>', ...] }                    as pessoas adicionadas à conversa ("Adicionar pessoa")
  *   { devolver: true }                                   devolve a conversa enviada à aba do número dela
- *   { captacao: true | false }                           conversa de captação (Chat Captação e a etiqueta verde nas listas)
+ *   { captacao: true | false }                           conversa de captação (Chat Captação e a etiqueta verde nas listas);
+ *                                                        false fica gravado (o "mandar de volta" tira até o cadastro incompleto)
+ *   { captacaoOrigem: { olx_id, titulo, url, ... } }     de onde veio a captação (a tela Imóveis captar OLX): o contexto do card
  *
  * Só mexe em custom_attributes da conversa; a linha (integration_id) nunca muda (crm/CLAUDE.md).
  */
@@ -59,10 +61,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
     // 03/11 (Pedro: "essa conversa ficar no proprietário parceria e na aba captação, já que é uma conversa de captação")
     if (typeof corpo.captacao === 'boolean') {
-      await db.execute(corpo.captacao
-        ? sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) || '{"conversa_captacao": true}'::jsonb,
-                 updated_at = now() WHERE id = ${id}`
-        : sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) - 'conversa_captacao', updated_at = now() WHERE id = ${id}`)
+      // 03/11, noite: o false fica gravado ("mandar de volta para os proprietários" tira também quem é cadastro incompleto)
+      await db.execute(sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb)
+                 || jsonb_build_object('conversa_captacao', ${corpo.captacao}::boolean, 'conversa_captacao_em', now()::text),
+                 updated_at = now() WHERE id = ${id}`)
+    }
+    if (corpo.captacaoOrigem && typeof corpo.captacaoOrigem === 'object') {
+      const c = corpo.captacaoOrigem as Record<string, unknown>
+      const o = JSON.stringify(Object.fromEntries(['fonte', 'olx_id', 'titulo', 'url', 'preco_texto', 'bairro', 'anunciante', 'chamado_em']
+        .filter((k) => c[k] != null).map((k) => [k, String(c[k]).slice(0, 300)])))
+      await db.execute(sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb)
+                 || jsonb_build_object('captacao_origem', ${o}::jsonb), updated_at = now() WHERE id = ${id}`)
     }
     // 03/11 (Pedro: "quando eu relaciono uma conversa a um número, eu posso remover o relacionamento"): solta de TODAS
     if (corpo.soltar === true) {

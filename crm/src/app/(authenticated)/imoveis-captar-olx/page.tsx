@@ -44,7 +44,12 @@ async function conversaDeCaptacao(i: Item, texto: string): Promise<string> {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ etapa: 'proprietarios' }),
   })
   if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || j.message || 'Não consegui pôr em Proprietários.') }
-  await organizar(id, { tipo: 'proprietario', captacao: true })
+  await organizar(id, {
+    tipo: 'proprietario', captacao: true,
+    // o contexto do card no Chat Captação (e o link para o Cadastrar imóvel)
+    captacaoOrigem: { fonte: 'olx', olx_id: i.olx_id, titulo: i.titulo, url: i.url, preco_texto: i.preco_texto, bairro: i.bairro,
+                      anunciante: i.anunciante, chamado_em: new Date().toISOString() },
+  })
   deixarRascunho(id, texto)
   return id
 }

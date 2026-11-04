@@ -27,7 +27,7 @@
 import AgentesDoLead from './AgentesDoLead'
 import BuscasDoLead from './BuscasDoLead'
 import PausaDaNay from './PausaDaNay'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
   X, User, House, ArrowClockwise, Copy, Check, Plus, PencilSimple, Images, CircleNotch, Robot,
 } from '@phosphor-icons/react'
@@ -125,13 +125,15 @@ function Barra({ pct, falta }: { pct: number; falta: string[] }) {
   )
 }
 
-export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, onTagsChange }: {
+export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, onTagsChange, topo }: {
   lead: LeadWithOwner
   modo: 'lateral' | 'gaveta'
   aoFechar: () => void
   /** aberto na aba Oficial (09/10): a conversa é pelo número da Meta, com a regra das 24 h */
   oficial?: boolean
   onTagsChange?: (leadId: string, tagId: string, action: 'add' | 'remove', tagObj?: any) => void
+  /** 03/11 (Pedro): o que vem antes de tudo no card -- no Chat Captação, o contexto da captação */
+  topo?: ReactNode
 }) {
   const [d, setD] = useState<Dados | null>(null)
   /* 20/10 (Pedro: "adicione no card do lead que abre na direita uma forma de editar o nome do contato"): o lápis ao lado
@@ -224,6 +226,7 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
           {carregando ? <CircleNotch size={18} className="animate-spin" /> : <ArrowClockwise size={18} />}
         </button>
       </div>
+      {topo}
 
       <div className="flex-1 overflow-y-auto wa-rolagem flex flex-col gap-2">
         {/* 1. quem é */}

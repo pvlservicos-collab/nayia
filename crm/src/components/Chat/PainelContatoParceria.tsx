@@ -22,7 +22,7 @@
  * (pôr, trocar, criar), uma caixa de observação, e a pasta do corretor com os
  * documentos dele.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   X, User, PaperPlaneRight, CalendarCheck, ChatCircleDots, House, ArrowClockwise, CircleNotch, WarningCircle, CheckCircle,
   PencilSimple, Check, Copy, Plus, FolderSimple, FileText, UploadSimple, Trash, Robot, CalendarPlus, CalendarBlank,
@@ -106,13 +106,15 @@ function Secao({ titulo, children, acao, cor = COR.historico, icone }: {
 
 type EstadoDoEnvio = { tipo: 'ok' | 'erro' | 'aviso'; texto: string } | null
 
-export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisita, onTagsChange, onUpdateLead }: {
+export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisita, onTagsChange, onUpdateLead, topo }: {
   lead: LeadWithOwner
   modo: 'lateral' | 'gaveta'
   aoFechar: () => void
   aoVerVisita?: (visitaId: number) => void
   onTagsChange?: (leadId: string, tagId: string, action: 'add' | 'remove', tagObj?: any) => void
   onUpdateLead?: (leadId: string, updates: Partial<LeadWithOwner>) => void
+  /** 03/11 (Pedro): o que vem antes de tudo no card -- no Chat Captação, o contexto da captação */
+  topo?: ReactNode
 }) {
   const { marca: marcaDoContato, historico, enviados, carregando, erro, recarregar } = useContatoNay(lead.id)
   const { marcas, nay } = useParceriaMarcas(true)
@@ -354,6 +356,7 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
           <ArrowClockwise size={18} />
         </button>
       </div>
+      {topo}
 
       <div className="flex-1 overflow-y-auto wa-rolagem flex flex-col gap-3 px-3 py-3">
         {/* quem é */}
