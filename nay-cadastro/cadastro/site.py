@@ -19,6 +19,11 @@ class FalhaDoSite(Exception):
     pass
 
 
+class FaltaCondominio(FalhaDoSite):
+    """O 400 da trava do condomínio (04/11, Pedro: "a Nay não pode cadastrar sem"): apartamento/casa de condomínio não
+    passa para Disponível sem o condo_id. Quem chama grava o resto e o imóvel fica como estava (fluxo.gravar_no_site)."""
+
+
 def _cab() -> dict:
     return {"X-Painel-Crm": config.PAINEL_SEGREDO}
 
@@ -28,6 +33,8 @@ def _resposta(r: requests.Response, o_que: str) -> dict:
         j = r.json()
     except ValueError:
         j = {}
+    if r.status_code == 400 and isinstance(j, dict) and j.get("falta") == "condominio":
+        raise FaltaCondominio(f"{o_que}: {j.get('erro')}")
     if r.status_code >= 400:
         raise FalhaDoSite(f"{o_que}: HTTP {r.status_code} {j.get('detalhes') or j.get('motivo') or j.get('erro') or r.text[:200]}")
     return j if isinstance(j, dict) else {}

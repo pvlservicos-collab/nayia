@@ -349,7 +349,10 @@ def olx_estado(codigo):
     conn = _conectar()
     try:
         with conn.cursor() as cur:
+            # tipo e condomínio (04/11, Pedro: "Precisa ter o condomínio obrigatório"): a barra do CRM mostra o condomínio
+            # que o imóvel já tem e só deixa publicar apartamento/casa de condomínio com ele (a trava é do PUT, app.py)
             cur.execute("""SELECT i.codigo, i.status, i.disponivel, i.e_parceiro, i.publicado_no_site,
+                                  i.tipo, i.condo_id, i.condominio_nome,
                                   i.extras->>'olx_url' AS olx_url, i.extras->>'parceiro_antigo' AS parceiro_antigo,
                                   (SELECT count(*) FROM imovel_fotos f WHERE f.codigo = i.codigo) AS fotos,
                                   p.pct, p.falta

@@ -49,7 +49,17 @@ const CAMPOS: Array<{ chave: string; rotulo: string; numero?: boolean; opcoes?: 
   // editar do site (imovel-editar.js, 344)
   { chave: 'mobilia', rotulo: 'Mobília', opcoes: ['sem nada', 'só climatizado', 'com modulados e ar', 'mobiliado'] },
 ]
-// o condomínio só muda escolhendo um da tabela (condo_id), no editar do imóvel: aqui ele só aparece
+// O CONDOMÍNIO (04/11, Pedro: "Tem uns imóveis que ela cadastra mas não está colocando os dados completos, como
+// condomínio e andar. Precisa ter o condomínio obrigatório ... a Nay não pode cadastrar sem, nem manualmente"): escolhido
+// da tabela (condo_id, a lista do popup de cadastro da captação), e obrigatório para publicar os tipos abaixo. A trava de
+// verdade é do PUT do site (nay-site-api/app.py, exige_condominio): a mesma regra, e o 400 dela aparece no passo 6.
+const FALTA_CONDOMINIO = 'Falta o condomínio: apartamento/casa de condomínio só fica Disponível com o condomínio escolhido.'
+function exigeCondominio(tipo: unknown) {
+  const t = semAcento(String(tipo || ''))
+  if (t.includes('via publica')) return false
+  return t.includes('condom') || /apartamento|cobertura|flat|studio|kitnet|loft/.test(t)
+}
+type Condo = { id: number; nome: string; bairro: string | null }
 
 const MAX_FOTOS = 30
 
@@ -134,6 +144,25 @@ export default function CadastroImovelOlx({ lead, modo, aoFechar, linkInicial }:
   }, [])
   // 30/10 (Pedro: "fica um textinho vermelho Selecione o bairro ... ele clica e aí pode publicar"): obrigatório e da lista
   const bairroValido = (b: unknown) => !!String(b || '').trim() && bairros.some((x) => x === String(b))
+  // 04/11: os condomínios da tabela (a mesma lista do popup de cadastro da captação, guardada 5 min no servidor)
+  const [condos, setCondos] = useState<Condo[]>([])
+  const [condo, setCondo] = useState<Condo | null>(null)
+  const [buscaCondo, setBuscaCondo] = useState('')
+  const [condoAberto, setCondoAberto] = useState(false)
+  useEffect(() => {
+    void fetch('/api/captacao/cadastro-opcoes').then((r) => r.json())
+      .then((j) => {
+        if (vivo.current && Array.isArray(j?.condominios)) {
+          setCondos(j.condominios.map((c: any) => ({ id: Number(c.id), nome: String(c.nome || ''), bairro: c.bairro || null })))
+        }
+      })
+      .catch(() => undefined)
+  }, [])
+  const condosFiltrados = (() => {
+    const q = semAcento(buscaCondo)
+    return (q ? condos.filter((c) => semAcento(`${c.nome} ${c.bairro || ''}`).includes(q)) : condos).slice(0, 40)
+  })()
+  const precisaCondo = exigeCondominio(campos.tipo || estado?.tipo) && !condo
 
   function marcar(chave: string, e: Estado, detalhe?: string) {
     if (!vivo.current) return
@@ -142,6 +171,7 @@ export default function CadastroImovelOlx({ lead, modo, aoFechar, linkInicial }:
   function zerar() {
     setPassos(PASSOS.map(([chave, rotulo]) => ({ chave, rotulo, estado: 'espera' })))
     setCodigo(null); setCampos({}); setOriginais({}); setEstado(null); setFotos([]); setCard(null)
+    setCondo(null); setBuscaCondo('')
   }
 
   async function lerEstado(cod: number) {
@@ -150,6 +180,8 @@ export default function CadastroImovelOlx({ lead, modo, aoFechar, linkInicial }:
     const j = await lerJson(r)
     if (!r.ok) { marcar('pontuacao', 'erro', erroDe(j, r)); return null }
     setEstado(j)
+    // 04/11: o condomínio que o imóvel já tem (o que já existia, ou o que acabou de ser gravado) aparece escolhido
+    if (j.condo_id) setCondo((c) => c ?? { id: Number(j.condo_id), nome: String(j.condominio_nome || `condomínio ${j.condo_id}`), bairro: null })
     const falta = Array.isArray(j.falta) && j.falta.length ? ` · falta: ${j.falta.join(', ')}` : ''
     marcar('pontuacao', 'ok', `${j.pct ?? 0}% do cadastro · ${j.fotos} fotos · ${j.status}${falta}`)
     return j
@@ -229,6 +261,11 @@ export default function CadastroImovelOlx({ lead, modo, aoFechar, linkInicial }:
           : 'selecione o bairro: clique no campo Bairro e escolha na lista')
         return
       }
+      // 04/11 (Pedro: "Precisa ter o condomínio obrigatório"): só na passagem para Disponível, como a trava do site
+      if (precisaCondo && estado?.status !== 'Disponível') {
+        marcar('publicar', 'erro', `${FALTA_CONDOMINIO} Clique no campo Condomínio e escolha na lista.`)
+        return
+      }
       const corpo: Record<string, any> = { status: 'Disponível', e_parceiro: true }
       for (const c of CAMPOS) {
         const v = campos[c.chave]
@@ -236,6 +273,7 @@ export default function CadastroImovelOlx({ lead, modo, aoFechar, linkInicial }:
         // como foi digitado: o servidor lê número no jeito brasileiro ("410.000", "89,5")
         corpo[c.chave] = v === '' || v === undefined ? null : String(v).trim()
       }
+      if (condo && condo.id !== Number(estado?.condo_id || 0)) corpo.condo_id = condo.id
       const fone = String(lead.phone || '').replace(/\D/g, '')
       if (donoEContato && fone.length >= 10) {
         const nome = String(lead.title || '').replace(/\D/g, '') === fone || !lead.title ? null : lead.title
@@ -412,11 +450,39 @@ export default function CadastroImovelOlx({ lead, modo, aoFechar, linkInicial }:
               ))}
             </div>
 
-            {campos.condominio_nome && (
-              <p className="text-[12px]" style={{ color: 'var(--wa-text-2)' }}>
-                Condomínio: <span style={{ color: 'var(--wa-text)' }}>{campos.condominio_nome}</span> (para trocar, edite o imóvel #{codigo} na aba Imóveis)
-              </p>
-            )}
+            {/* 04/11 (Pedro: "Precisa ter o condomínio obrigatório"): digita e escolhe na tabela de condomínios */}
+            <label className="block">
+              <span className="block text-[11px] mb-0.5" style={{ color: 'var(--wa-text-2)' }}>
+                Condomínio{exigeCondominio(campos.tipo || estado?.tipo) ? ' (obrigatório)' : ''}
+              </span>
+              <div className="relative">
+                <input value={condo ? condo.nome : buscaCondo} placeholder="digite e escolha"
+                       onChange={(e) => { setCondo(null); setBuscaCondo(e.target.value); setCondoAberto(true) }}
+                       onFocus={() => setCondoAberto(true)} onBlur={() => setTimeout(() => setCondoAberto(false), 150)}
+                       className={entrada} style={{ ...estiloEntrada, ...(precisaCondo ? { borderColor: '#ef4444' } : {}) }} />
+                {condoAberto && !condo && (
+                  <div className="absolute z-30 left-0 right-0 mt-1 rounded-lg border shadow-xl max-h-[200px] overflow-y-auto"
+                       style={{ background: 'var(--wa-panel)', borderColor: 'var(--wa-divider)' }}>
+                    {condosFiltrados.length ? condosFiltrados.map((c) => (
+                      <button key={c.id} type="button" onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                setCondo(c); setBuscaCondo(''); setCondoAberto(false)
+                                // o bairro do condomínio entra quando o do campo ainda não é um dos cadastrados
+                                if (c.bairro && !bairroValido(campos.bairro) && bairros.includes(c.bairro)) setCampos((x) => ({ ...x, bairro: c.bairro }))
+                              }}
+                              className="block w-full text-left px-2.5 py-1.5 text-[13px] hover:opacity-75">
+                        {c.nome}{c.bairro ? <span style={{ color: 'var(--wa-text-2)' }}> · {c.bairro}</span> : null}
+                      </button>
+                    )) : (
+                      <span className="block px-2.5 py-1.5 text-[12px]" style={{ color: 'var(--wa-text-2)' }}>
+                        {condos.length ? 'nenhum condomínio com esse nome: cadastre o condomínio na aba Imóveis' : 'carregando…'}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {precisaCondo && <span className="block mt-0.5 text-[11px] text-red-500">Selecione o condomínio</span>}
+              </div>
+            </label>
             <label className="flex items-center gap-2 text-[12px]">
               <input type="checkbox" checked={donoEContato} onChange={(e) => setDonoEContato(e.target.checked)} />
               O contato desta conversa ({lead.title || lead.phone}) é o proprietário

@@ -95,17 +95,20 @@ def _complemento(conn, leva: Leva, saida: dict, alvo: int) -> bool:
     antes = c["ficha"] or {}
     ficha = achar_condominio(conn, fichas.juntar(antes, novo))
     chaves = set(novo) | ({"condo_id"} if ficha.get("condo_id") and not antes.get("condo_id") else set())
+    liberou = False
     try:
         corpo = fichas.para_o_site({k: ficha[k] for k in chaves if k in ficha})
         if corpo:
-            site.salvar_imovel(c["codigo"], corpo)
+            # 04/11: pelo mesmo PUT da trava -- o condomínio que o Tel disse aqui põe Disponível o que esperava por ele
+            liberou = fluxo.gravar_no_site(conn, {**c, "ficha": ficha}, corpo)
     except Exception as e:  # noqa: BLE001
         fluxo.avisar_erro(conn, c, "Não consegui gravar o complemento do cadastro", e)
         return True
     fluxo.gravar(conn, c["id"], ficha=ficha)
     banco.linhas(conn, banco.MARCAR_LIDAS, {"ids": leva.ids, "cadastro": c["id"]})
     o_que = ", ".join(campos.resumo_do_que_tem(novo)) or ", ".join(campos.rotulos(list(novo)))
-    envio.grupo(conn, f"Anotado no imóvel {c['codigo']}: {o_que}.", c["id"], citar=leva.ids[0])
+    envio.grupo(conn, f"Anotado no imóvel {c['codigo']}: {o_que}." + (" Com o condomínio, ele ficou Disponível." if liberou else ""),
+                c["id"], citar=leva.ids[0])
     log.info("complemento do cadastro %s (imóvel %s): %s", c["id"], c["codigo"], sorted(novo))
     return True
 
@@ -125,6 +128,10 @@ def _nova_ficha(conn, leva: Leva, saida: dict, fones: list[str]) -> None:
     ficha.pop("_contato_nome", None)
     papel = papel_de(conn, fone, ficha.pop("_papel", None))
     ficha = achar_condominio(conn, ficha)
+    # 04/11 (Pedro: "Precisa ter o condomínio obrigatório ... a Nay não pode cadastrar sem"): apartamento/casa de
+    # condomínio sem o condomínio da tabela nasce Rascunho; vira Disponível quando ele chega (fluxo.gravar_no_site)
+    if campos.exige_condominio(ficha.get("tipo")) and not ficha.get("condo_id"):
+        ficha["_sem_condominio"] = True
     ficha["_fotos"] = 0
     ficha["_quem_mandou"] = leva.quem_mandou       # 23/10: é a quem ela pede a autorização (autorizacao.py)
     c = banco.uma(conn, """
@@ -144,11 +151,18 @@ def _nova_ficha(conn, leva: Leva, saida: dict, fones: list[str]) -> None:
             corpo["proprietario"] = _dono(nome, fone)
         codigo = site.criar_imovel(corpo)
         gravar = {"codigo": codigo}
-        if papel == "corretor":
-            site.salvar_imovel(codigo, {"e_parceiro": True})
+        # 30/10 (Pedro: "estão vindo como rascunho do grupo de cadastro, não é para ser assim, é para ficar disponível"):
+        # nasce Disponível; o de corretor já como parceiro, na mesma gravação (assim nem passa pelo site)
+        # 04/11: menos o que espera o condomínio (`_sem_condominio`): fica Rascunho, e o 400 da trava não derruba a ficha
+        c = {**c, **gravar, "ficha": ficha}
+        parceiro = {"e_parceiro": True} if papel == "corretor" else {}
+        if ficha.get("_sem_condominio"):
+            if parceiro:
+                site.salvar_imovel(codigo, parceiro)
+        else:
+            fluxo.gravar_no_site(conn, c, {"status": "Disponível", **parceiro})
         subiram, erros = site.subir_fotos(codigo, [m.midia_url for m in leva.fotos])
         ficha["_fotos"] = subiram
-        c = {**c, **gravar, "ficha": ficha}
         fluxo.gravar(conn, c["id"], codigo=codigo, ficha=ficha, estado="na_fila" if fone else "sem_contato")
         c["estado"] = "na_fila" if fone else "sem_contato"
     except Exception as e:  # noqa: BLE001
@@ -161,7 +175,9 @@ def checklist(conn, c: dict, erros_de_foto: list[str] | None = None) -> str:
     f = c["ficha"]
     ctx = fluxo.contexto(conn, c)
     falta = campos.faltam(f, ctx)
-    linhas = [f"📋 Imóvel {c['codigo']} em rascunho: {campos.descricao_do_imovel(f)}."]
+    # 04/11: desde 30/10 ele nasce Disponível; o que espera o condomínio fica em rascunho, e o grupo sabe por quê
+    situacao = "em rascunho até eu ter o condomínio" if f.get("_sem_condominio") else "disponível"
+    linhas = [f"📋 Imóvel {c['codigo']} {situacao}: {campos.descricao_do_imovel(f)}."]
     tem = campos.resumo_do_que_tem(f)
     linhas.append("✅ Já tenho: " + (", ".join(tem) if tem else "quase nada do texto") + ".")
     if f.get("_condo_candidato"):

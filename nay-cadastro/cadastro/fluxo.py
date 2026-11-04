@@ -6,7 +6,8 @@ Uma ficha anda assim (privado.cadastro_whats.estado):
   na_fila      -> pronto para perguntar (fora do horário, ou a pessoa está respondendo outra ficha)
   perguntando  -> uma pergunta por vez no privado; a resposta chega pela porta (nai_abrir_turno, bloco 428), ou pelo
                   8595 (captacao_mensagens) quando canal = 'leads' (479)
-  concluido    -> perguntou tudo: o imóvel fica Disponível (com tipo, bairro e valor) e o grupo sabe
+  concluido    -> perguntou tudo: o imóvel fica Disponível (com tipo, bairro e valor; e o condomínio, quando o tipo
+                  pede: 04/11) e o grupo sabe
   sem_resposta -> passou o prazo sem resposta: fica como está e o grupo sabe o que faltou
   erro         -> algo falhou (site, modelo): o grupo sabe e a equipe completa à mão
 """
@@ -23,7 +24,9 @@ from cadastro.leva import fone_bonito
 
 log = logging.getLogger("cadastro.fluxo")
 MANAUS = ZoneInfo("America/Manaus")
-ESSENCIAL_PARA_PUBLICAR = ("tipo", "valor", "bairro")
+# 04/11 (Pedro: "Precisa ter o condomínio obrigatório ... a Nay não pode cadastrar sem"): o condomínio entra no essencial;
+# a pergunta "condominio" só cabe nos tipos que pedem (campos.exige_condominio), então casa de rua e sala não esperam por ele
+ESSENCIAL_PARA_PUBLICAR = ("tipo", "valor", "bairro", "condominio")
 
 
 def agora() -> datetime:
@@ -81,7 +84,7 @@ def com_taxa_sabida(conn, c: dict) -> dict:
     ficha = {**f, "taxa_condominio": float(r["valor"]), "_taxa_de": r["de"]}
     gravar(conn, c["id"], ficha=ficha)
     c = {**c, "ficha": ficha}
-    salvar_no_site(c)
+    salvar_no_site(conn, c)
     log.info("cadastro %s: taxa de condomínio %s pelo que já se sabe (%s)", c["id"], r["valor"], r["de"])
     return c
 
@@ -154,7 +157,7 @@ def com_o_que_ja_sabemos(conn, c: dict) -> dict:
         return c
     gravar(conn, c["id"], ficha=f)
     c = {**c, "ficha": f}
-    salvar_no_site(c)
+    salvar_no_site(conn, c)
     log.info("cadastro %s: já se sabia %s; essas perguntas não saem", c["id"], "; ".join(mudou))
     return c
 
@@ -180,13 +183,40 @@ def quem(c: dict) -> str:
     return f"{nome}" + (f", {papel}" if papel else "") + (f", {fone_bonito(c['contato_tel'])}" if c.get("contato_tel") else "")
 
 
-def salvar_no_site(c: dict, extra: dict | None = None) -> None:
-    """O que já se sabe vai para o imóvel a cada resposta: se a conversa parar no meio, o que veio já está salvo."""
+def salvar_no_site(conn, c: dict, extra: dict | None = None) -> bool:
+    """O que já se sabe vai para o imóvel a cada resposta: se a conversa parar no meio, o que veio já está salvo.
+    Devolve se o imóvel ficou Disponível nesta gravação (gravar_no_site)."""
     if not c.get("codigo"):
-        return
+        return False
     corpo = fichas.para_o_site(c["ficha"])
     corpo.pop("descricao", None)          # a descrição é a do anúncio, gravada na criação; não reescreve
-    site.salvar_imovel(c["codigo"], {**corpo, **(extra or {})})
+    return gravar_no_site(conn, c, {**corpo, **(extra or {})})
+
+
+def gravar_no_site(conn, c: dict, corpo: dict) -> bool:
+    """O PUT do imóvel, com a trava do condomínio (Pedro, 04/11: "Precisa ter o condomínio obrigatório ... a Nay não pode
+    cadastrar sem, nem manualmente"). O imóvel que nasceu Rascunho só por falta do condomínio (`_sem_condominio`,
+    no_grupo._nova_ficha) vira Disponível na gravação em que o condomínio da tabela (condo_id) chega -- a regra de 30/10
+    ("é para ficar disponível") com o condomínio. E o 400 da trava não derruba a ficha: o resto é gravado sem a
+    situação, o imóvel fica como estava e a ficha guarda que falta o condomínio. Devolve se a situação Disponível foi."""
+    f = c["ficha"]
+    if f.get("_sem_condominio") and f.get("condo_id") and "status" not in corpo:
+        corpo = {**corpo, "status": "Disponível", **({"e_parceiro": True} if c.get("papel") == "corretor" else {})}
+    try:
+        site.salvar_imovel(c["codigo"], corpo)
+    except site.FaltaCondominio as e:
+        log.warning("cadastro %s: %s -- gravo o resto e o imóvel fica como está", c["id"], e)
+        resto = {k: v for k, v in corpo.items() if k != "status"}
+        if resto:
+            site.salvar_imovel(c["codigo"], resto)
+        if not f.get("_sem_condominio"):
+            f["_sem_condominio"] = True       # na própria ficha (c["ficha"]): quem gravar a ficha depois leva junto
+            gravar(conn, c["id"], ficha=f)
+        return False
+    if corpo.get("status") == "Disponível" and f.pop("_sem_condominio", None):
+        gravar(conn, c["id"], ficha=f)
+        log.info("cadastro %s: o condomínio chegou e o imóvel %s ficou Disponível", c["id"], c["codigo"])
+    return corpo.get("status") == "Disponível"
 
 
 def avisar_erro(conn, c: dict | None, o_que: str, erro: Exception | str) -> None:
@@ -235,14 +265,17 @@ def _criar_condominio_novo(conn, c: dict) -> dict:
 
 
 def concluir(conn, c: dict, como: str, despedir: bool = True) -> None:
-    """Fim da ficha. Com tipo, bairro e valor o imóvel fica Disponível (Pedro, 20/10); sem eles, fica Rascunho."""
+    """Fim da ficha. Com tipo, bairro e valor o imóvel fica Disponível (Pedro, 20/10); sem eles, fica Rascunho. O
+    condomínio, nos tipos que pedem, também (04/11): sem ele, fica Rascunho e o grupo sabe que falta."""
     c = _criar_condominio_novo(conn, c)
     ctx = contexto(conn, c)
     faltou_essencial = [k for k in campos.falta_essencial(c["ficha"], ctx) if k in ESSENCIAL_PARA_PUBLICAR]
     extra = {} if faltou_essencial else {"status": "Disponível"}
     if not faltou_essencial and c.get("papel") == "corretor":
         extra["e_parceiro"] = True       # parceiro fica fora do site e nunca vai a corretor (regra de 27/09 e 400)
-    salvar_no_site(c, extra)
+    publicou = salvar_no_site(conn, c, extra)
+    if extra.get("status") and c.get("codigo") and not publicou:
+        faltou_essencial = ["condominio"]    # 04/11: a trava do site recusou (o tipo pede e o condomínio não ligou)
     if despedir and como == "concluido" and c.get("contato_tel") and c.get("estado") == "perguntando":
         envio.privado(conn, c["contato_tel"], c.get("contato_nome"), ["Pronto, cadastro concluído. Muito obrigada!"],
                       c.get("canal") or "parceria")

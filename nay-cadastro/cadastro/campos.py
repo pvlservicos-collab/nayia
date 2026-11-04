@@ -74,6 +74,16 @@ def em_condominio(ficha: dict) -> bool:
             or tem(ficha, "condo_id") or tem(ficha, "condominio"))
 
 
+def exige_condominio(tipo: str | None) -> bool:
+    """CONDOMÍNIO OBRIGATÓRIO (Pedro, 04/11: "Precisa ter o condomínio obrigatório ... a Nay não pode cadastrar sem, nem
+    manualmente"): apartamento, cobertura, flat e o que é "de condomínio" só ficam Disponíveis com o condomínio da
+    tabela (condo_id). A mesma regra da trava do site (nay-site-api/app.py, exige_condominio), que devolve 400 sem ele."""
+    t = sem_acento(tipo)
+    if "via publica" in t:
+        return False
+    return "condom" in t or re.search(r"apartamento|cobertura|flat|studio|kitnet|loft", t) is not None
+
+
 def condominio_novo(ficha: dict) -> bool:
     """Ele disse o nome de um condomínio que não está cadastrado: as perguntas do condomínio entram. Com um parecido
     no cadastro ainda por confirmar ("É o Life Parque Dez?"), espera a resposta."""

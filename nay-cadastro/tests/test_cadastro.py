@@ -251,3 +251,74 @@ def test_andar_escrito_no_anuncio_nao_vira_pergunta():
     assert fluxo.andar_do_anuncio({"descricao": "Casa térrea"}) is None
     assert fluxo.andar_do_anuncio({"descricao": "Apartamento térreo com garden"}) == "Térreo"
     assert fluxo.andar_do_anuncio({"descricao": "3 quartos, vista rio"}) is None
+
+
+# ── condomínio obrigatório (Pedro, 04/11: "Precisa ter o condomínio obrigatório ... a Nay não pode cadastrar sem") ──
+def test_os_tipos_que_exigem_o_condominio():
+    for t in ("Apartamento", "Cobertura", "Flat", "Casa de condomínio", "Lote em Condomínio", "apartamento duplex"):
+        assert campos.exige_condominio(t), t
+    for t in ("Casa", "Lote", "Sala/Andar", "Loja/Ponto", "Galpão", "Prédio", "Apartamento em Via Pública", None, ""):
+        assert not campos.exige_condominio(t), t
+
+
+def test_sem_o_condominio_o_apartamento_nao_publica_e_a_casa_de_rua_publica():
+    from cadastro import fluxo
+    ctx = {"papel_conhecido": True, "papel": "corretor"}
+
+    def falta(f):
+        return [k for k in campos.falta_essencial(f, ctx) if k in fluxo.ESSENCIAL_PARA_PUBLICAR]
+    apto = {"tipo": "Apartamento", "valor_aluguel": 3000, "bairro": "Aleixo", "_fotos": 3}
+    assert falta(apto) == ["condominio"]
+    assert falta({**apto, "condominio": "Life Parque Dez", "condo_id": 12}) == []
+    assert falta({"tipo": "Casa", "valor_aluguel": 3000, "bairro": "Aleixo", "_fotos": 3}) == []
+
+
+def test_o_condominio_que_chega_poe_disponivel(monkeypatch):
+    from cadastro import fluxo, site
+    puts, gravadas = [], []
+    monkeypatch.setattr(site, "salvar_imovel", lambda cod, corpo: puts.append((cod, corpo)) or {})
+    monkeypatch.setattr(fluxo, "gravar", lambda conn, cid, **k: gravadas.append(dict(k["ficha"])))
+    f = {"tipo": "Apartamento", "_sem_condominio": True}
+    c = {"id": 1, "codigo": 9100, "papel": "corretor", "ficha": f}
+    # sem o condomínio: grava o que veio e a situação não muda
+    assert fluxo.gravar_no_site(None, c, {"quartos": 2}) is False
+    assert puts[-1] == (9100, {"quartos": 2})
+    # o condomínio da tabela chegou: Disponível (como parceiro, é corretor) e a marca sai da ficha
+    f["condo_id"] = 12
+    assert fluxo.gravar_no_site(None, c, {"condo_id": 12}) is True
+    assert puts[-1] == (9100, {"condo_id": 12, "status": "Disponível", "e_parceiro": True})
+    assert "_sem_condominio" not in f and "_sem_condominio" not in gravadas[-1]
+
+
+def test_o_400_da_trava_nao_derruba_a_ficha(monkeypatch):
+    from cadastro import fluxo, site
+    puts, gravadas = [], []
+
+    def salvar(cod, corpo):
+        puts.append(corpo)
+        if corpo.get("status") == "Disponível":
+            raise site.FaltaCondominio("salvar o imóvel 9100: Falta o condomínio")
+        return {}
+    monkeypatch.setattr(site, "salvar_imovel", salvar)
+    monkeypatch.setattr(fluxo, "gravar", lambda conn, cid, **k: gravadas.append(dict(k["ficha"])))
+    c = {"id": 1, "codigo": 9100, "papel": "proprietario", "ficha": {"tipo": "Cobertura"}}
+    assert fluxo.gravar_no_site(None, c, {"status": "Disponível", "quartos": 3}) is False
+    assert puts == [{"status": "Disponível", "quartos": 3}, {"quartos": 3}]
+    assert c["ficha"]["_sem_condominio"] is True and gravadas[-1]["_sem_condominio"] is True
+
+
+def test_o_site_separa_o_400_do_condominio():
+    import pytest
+    from cadastro import site
+
+    class R:
+        def __init__(self, status, j):
+            self.status_code, self._j, self.text = status, j, str(j)
+
+        def json(self):
+            return self._j
+    with pytest.raises(site.FaltaCondominio):
+        site._resposta(R(400, {"erro": "Falta o condomínio", "detalhes": ["Falta o condomínio"], "falta": "condominio"}), "x")
+    with pytest.raises(site.FalhaDoSite) as e:
+        site._resposta(R(400, {"erro": "validação", "detalhes": ["quartos: valor inválido"]}), "x")
+    assert not isinstance(e.value, site.FaltaCondominio)

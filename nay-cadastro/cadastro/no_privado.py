@@ -67,7 +67,7 @@ def o_que_ja_disse(conn, c: dict) -> dict:
     ficha = fichas.juntar(ficha, novo)
     fluxo.gravar(conn, c["id"], ficha=ficha)
     c = {**c, "ficha": ficha}
-    fluxo.salvar_no_site(c)
+    fluxo.salvar_no_site(conn, c)
     log.info("ficha %s: da conversa em volta do encaminhamento veio %s", c["id"], sorted(novo))
     return c
 
@@ -81,7 +81,7 @@ def responder(conn) -> bool:
     ids = [x["id"] for x in entradas]
     try:
         c = ler_a_resposta(conn, c, entradas)
-        fluxo.salvar_no_site(c)
+        fluxo.salvar_no_site(conn, c)
         banco.linhas(conn, banco.FEITAS, (ids,))
         fluxo.proxima(conn, c)
     except modelo.FalhaDoModelo:

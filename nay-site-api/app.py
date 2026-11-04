@@ -13,6 +13,7 @@ role, nao so em codigo.
 import os
 import re
 import threading
+import unicodedata
 import time
 from datetime import datetime, date
 from decimal import Decimal
@@ -1444,6 +1445,36 @@ def api_imovel_fotos(codigo):
 from numeros import numero_br as _numero_br, valor_que_nao_existe as _valor_que_nao_existe  # noqa: E402
 
 
+# CONDOMÍNIO OBRIGATÓRIO (Pedro, 04/11/2026: "Tem uns imóveis que ela cadastra mas não está colocando os dados
+# completos, como condomínio e andar. Precisa ter o condomínio obrigatório ... a Nay não pode cadastrar sem, nem
+# manualmente"). Apartamento, cobertura, flat e todo tipo "de condomínio" (casa, lote) só PASSA para Disponível com o
+# condomínio escolhido da tabela condominios (condo_id) -- o do corpo ou o que já está no banco. Rascunho pode; casa de
+# rua, terreno, comercial e "Apartamento em Via Pública" (prédio de rua, sem condomínio) não têm a exigência; o andar
+# não é obrigatório. É a trava de todos: o editar e o Aprovar do admin, o CRM e o nay-cadastro passam por este PUT/POST.
+# Vale só na PASSAGEM para Disponível: os que já estavam Disponíveis sem condomínio em 04/11 (~25) continuam editáveis.
+# A mesma regra está no nay-cadastro (campos.exige_condominio) e no CRM (CadastroImovelOlx.tsx, exigeCondominio).
+FALTA_CONDOMINIO = "Falta o condomínio: apartamento/casa de condomínio só fica Disponível com o condomínio escolhido."
+
+
+def exige_condominio(tipo):
+    t = "".join(c for c in unicodedata.normalize("NFD", str(tipo or "")) if unicodedata.category(c) != "Mn").lower()
+    if "via publica" in t:
+        return False
+    return "condom" in t or re.search(r"apartamento|cobertura|flat|studio|kitnet|loft", t) is not None
+
+
+def _falta_condominio(cur, tipo, condo_id):
+    """O erro 400 da trava, ou None. `tipo` e `condo_id` são os que o imóvel vai TER depois da gravação."""
+    if not exige_condominio(tipo):
+        return None
+    if condo_id not in (None, ""):
+        cur.execute("SELECT 1 FROM condominios WHERE id = %s", (int(condo_id),))
+        if cur.fetchone():
+            return None
+    # `falta` deixa quem chama por máquina (nay-cadastro) separar este 400 dos outros
+    return {"erro": FALTA_CONDOMINIO, "detalhes": [FALTA_CONDOMINIO], "falta": "condominio"}
+
+
 @app.route("/api/imoveis/<int:codigo>", methods=["PUT"])
 @app.route("/admin/api/imoveis/<int:codigo>", methods=["PUT"])
 def api_imovel_salvar(codigo):
@@ -1565,6 +1596,17 @@ def api_imovel_salvar(codigo):
     conn = conectar_escrita()
     try:
         with conn.cursor() as cur:
+            # CONDOMÍNIO OBRIGATÓRIO (04/11, Pedro: "a Nay não pode cadastrar sem, nem manualmente"): só na passagem
+            # para Disponível, com o tipo e o condomínio como vão ficar (o do corpo vale mais que o do banco)
+            if status_novo == "Disponível":
+                cur.execute("SELECT status, tipo, condo_id FROM imoveis WHERE codigo = %s", (codigo,))
+                atual = cur.fetchone()
+                if atual and atual["status"] != "Disponível":
+                    falta = _falta_condominio(cur, corpo["tipo"] if "tipo" in corpo else atual["tipo"],
+                                              corpo.get("condo_id") if "condo_id" in corpo else atual["condo_id"])
+                    if falta:
+                        conn.rollback()
+                        return jsonify(falta), 400
             if sets:
                 query = psycopg2.sql.SQL("UPDATE imoveis SET {} WHERE codigo = %s").format(
                     psycopg2.sql.SQL(", ").join(sets)
@@ -3485,6 +3527,12 @@ def api_imovel_criar():
                     return jsonify({"erro": "validação", "detalhes": ["condomínio não existe"]}), 400
                 cols += ["condo_id", "condominio_nome"]
                 vals += [c["id"], c["nome"]]
+            # CONDOMÍNIO OBRIGATÓRIO (04/11, Pedro: "nem manualmente"): nascer Disponível também é passar para Disponível
+            if no_ar:
+                falta = _falta_condominio(cur, corpo.get("tipo"), cid)
+                if falta:
+                    conn.rollback()
+                    return jsonify(falta), 400
             query = psycopg2.sql.SQL(
                 "INSERT INTO imoveis (codigo, {}) VALUES (nextval('imoveis_crm_codigo_seq'), {}) RETURNING codigo"
             ).format(psycopg2.sql.SQL(", ").join(psycopg2.sql.Identifier(c) for c in cols),

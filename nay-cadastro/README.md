@@ -22,7 +22,10 @@ concluído."
    favor?" e uma pergunta por vez. A resposta chega pela porta da Nay (`nai_abrir_turno`, bloco 428): enquanto a ficha
    está aberta, a NAI e a Nay nova não respondem essa pessoa. A pergunta que já saiu não volta (regra do Tel de 20/10).
 3. **Fim** (`fluxo.concluir`). Condomínio novo vira cadastro de condomínio; com tipo, bairro e valor o imóvel fica
-   **Disponível** (parceiro fica fora do site, como sempre); o grupo recebe o resumo e o link do editor. Sem resposta:
+   **Disponível** (parceiro fica fora do site, como sempre). **Condomínio obrigatório** (Pedro, 04/11): apartamento,
+   cobertura, flat e casa/lote de condomínio só ficam Disponíveis com o condomínio da tabela (`campos.exige_condominio`,
+   a mesma trava do PUT do site): sem ele nascem Rascunho (`_sem_condominio` na ficha) e viram Disponível quando ele
+   liga (`fluxo.gravar_no_site`); o 400 da trava não derruba a ficha; o grupo recebe o resumo e o link do editor. Sem resposta:
    aviso no grupo em 3 h, a ficha fecha em 24 h com o que tem.
 
 ## O modelo de cadastro (`campos.py`)
