@@ -182,7 +182,7 @@ export default function Navbar() {
         .map((i, n, todos) => (menusDaFuncao && !i.mais && todos.slice(0, n).filter((x) => !x.mais).length >= NA_BARRA ? { ...i, mais: true } : i))
     : NAV_ITEMS
   // V3 (Pedro, 04/11/2026): um WhatsApp só juntando Leads e Parceria, em etapas; só o login Pedro (o desenvolvedor) até ele liberar; o Tel segue na v2 (ChatV3.tsx)
-  const ehTel = papel.adminDeVerdade && !papel.simulando && primeiroNome(profileName || user?.name) === 'pedro'
+  const ehTel = papel.adminDeVerdade && !papel.simulando && ['pedro', 'tel'].includes(primeiroNome(profileName || user?.name))  // 04/11: o v3 também para o Tel
   // 04/11 (Pedro: "clico no v3 e no chat atendimento volta para o v2"): o v3 é um MODO que fica ligado (neste navegador, só
   // o login Tel) até clicar em v1 ou v2; com ele ligado, as telas de chat do menu abrem dentro do v3
   const [modoV3, setModoV3] = useState(false)
