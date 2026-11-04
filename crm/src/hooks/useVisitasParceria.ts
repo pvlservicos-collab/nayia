@@ -6,7 +6,8 @@ import type { EventoDaVisita, VisitaNaTela } from '@/lib/tiposNay'
 
 const CADA_MS = 60_000
 
-export function useVisitasParceria(ativo = true) {
+/** `diasAtras`: só as abertas e as fechadas desses últimos dias (a rota sem janela traz a história inteira) */
+export function useVisitasParceria(ativo = true, diasAtras?: number) {
   const [visitas, setVisitas] = useState<VisitaNaTela[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
@@ -14,7 +15,9 @@ export function useVisitasParceria(ativo = true) {
 
   const recarregar = useCallback(async () => {
     try {
-      const r = await fetch('/api/parceria/visitas')
+      const desde = diasAtras != null
+        ? new Date(Date.now() - diasAtras * 86_400_000).toLocaleDateString('en-CA', { timeZone: 'America/Manaus' }) : null
+      const r = await fetch(desde ? `/api/parceria/visitas?desde=${desde}` : '/api/parceria/visitas')
       const j = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`)
       if (vivo.current) { setVisitas(j.visitas || []); setErro(null) }
@@ -23,7 +26,7 @@ export function useVisitasParceria(ativo = true) {
     } finally {
       if (vivo.current) setCarregando(false)
     }
-  }, [])
+  }, [diasAtras])
 
   useEffect(() => {
     vivo.current = true

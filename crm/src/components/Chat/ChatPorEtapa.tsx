@@ -333,10 +333,12 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
   const eu = primeiroNome(papel.nome)
   const { leads, setLeads } = useLeadsContext()
   // 04/11: quem só usa a Parceria (a Rayssa) não carrega as leituras do Leads aqui
-  const { ehProprietario } = usePapelDoContato(true, !acessoV2(papel.admin, papel.nome, papel.abas).soOsNumerosDela)
+  // 05/11 (Pedro: "aba visita demora demais pra carregar"): o papel do contato (5 leituras) só serve aos Proprietários, e a
+  // Visita só pede as visitas abertas e as fechadas dos últimos 2 dias (a realizada fica 24 h), não a história inteira
+  const { ehProprietario } = usePapelDoContato(etapa === 'proprietarios', !acessoV2(papel.admin, papel.nome, papel.abas).soOsNumerosDela)
   const { marcas } = useParceriaMarcas(true)
   const donos = useCaptacaoDonos(etapa === 'proprietarios')
-  const { visitas, recarregar } = useVisitasParceria(etapa === 'visita')
+  const { visitas, recarregar } = useVisitasParceria(etapa === 'visita', 2)
   const [assumindo, setAssumindo] = useState('')
   const [abaDaVisita, setAbaDaVisita] = useState<AbaDaParceria>('conversas')
   const [donoBuscado, setDonoBuscado] = useState<DonoDoImovel | null>(null)
@@ -415,12 +417,19 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
   /** as conversas de cada visita: a do corretor (ou do cliente), a do dono, na Nay Leads o cliente e o corretor pelo número,
    *  e as postas à mão */
   const conversasDaVisita = useMemo(() => {
+    if (etapa !== 'visita') return new Map<number, string[]>()
+    // a conversa de cada telefone (a da Parceria vence), num índice só, no lugar de varrer a lista inteira por telefone
+    const doTelefone = new Map<string, LeadWithOwner>()
+    for (const l of leads) {
+      const linha = getLinhaWhatsapp(l)
+      if (l.is_group || (linha !== 'parceria' && linha !== 'captacao')) continue
+      const f = fim8(l.phone)
+      const ja = f && doTelefone.get(f)
+      if (f && (!ja || (linha === 'parceria' && getLinhaWhatsapp(ja) !== 'parceria'))) doTelefone.set(f, l)
+    }
     const porTelefone = (tel: string | null | undefined) => {
-      const f = fim8(tel)
-      if (!f) return []
-      const doTel = leads.filter((l) => !l.is_group && fim8(l.phone) === f && ['parceria', 'captacao'].includes(getLinhaWhatsapp(l) || ''))
-      const parceria = doTel.find((l) => getLinhaWhatsapp(l) === 'parceria')
-      return parceria ? [parceria.id] : doTel.map((l) => l.id).slice(0, 1)
+      const l = doTelefone.get(fim8(tel))
+      return l ? [l.id] : []
     }
     const fora = new Map<number, Set<string>>()
     for (const l of leads) for (const vid of visitasFora(l)) fora.set(vid, new Set([...(fora.get(vid) || []), l.id]))
@@ -431,7 +440,7 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
       m.set(v.id, Array.from(new Set(ids.filter(Boolean) as string[])).filter((id) => !fora.get(v.id)?.has(id)))
     }
     return m
-  }, [naTela, leads, aMaoPorVisita])
+  }, [etapa, naTela, leads, aMaoPorVisita])
 
   /* O X E O "EXCLUIR DA VISITA" (Pedro, 04/11 e 05/11: "eu peço e tu não obedece"): valem para TODA pessoa do card --
      a posta à mão sai de visitas_v2, e o corretor, o cliente e o dono (que entram sozinhos) ficam em visitas_v2_fora.
