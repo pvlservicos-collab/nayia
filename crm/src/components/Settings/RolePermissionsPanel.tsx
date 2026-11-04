@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { UsersThree, Kanban, GearSix, SpinnerGap, SquaresFour } from '@phosphor-icons/react'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
-import { AREAS_V2 } from '@/lib/versaoDoCrm'
+import { AREAS_V2, OUTROS_MENUS } from '@/lib/versaoDoCrm'
 
 interface RolePermissionsPanelProps {
   organizationId: string
@@ -126,7 +126,7 @@ export default function RolePermissionsPanel({ organizationId, selectedRoleId }:
       // @ts-ignore
       next[module] = { ...prev[module], [action]: !prev[module][action] }
       // as abas: ligar a primeira já grava a lista inteira, para a função passar a mandar nas áreas (e não o nome)
-      if (module === 'abas') next.abas = Object.fromEntries(AREAS_V2.map((a) => [a.chave, a.chave === action ? !prev.abas[action] : !!prev.abas[a.chave]]))
+      if (module === 'abas') next.abas = Object.fromEntries([...AREAS_V2, ...OUTROS_MENUS].map((a) => [a.chave, a.chave === action ? !prev.abas[action] : !!prev.abas[a.chave]]))
       return next
     })
     setHasChanges(true)
@@ -180,12 +180,19 @@ export default function RolePermissionsPanel({ organizationId, selectedRoleId }:
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           <div className="bg-gray-50 px-6 py-4 flex items-center gap-2 border-b border-gray-200">
             <SquaresFour weight="bold" className="text-gray-400 w-5 h-5" />
-            <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Abas do CRM (v2)</h4>
+            <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Menus do CRM (barra de cima)</h4>
           </div>
           <div className="px-6">
+            <p className="pt-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">Etapas (v2)</p>
             {AREAS_V2.map((a) => (
-              <PermissionRow key={a.chave} title={a.rotulo} description={`Quem tem esta função vê a aba ${a.rotulo} na v2 do CRM.`}
+              <PermissionRow key={a.chave} title={a.rotulo} description={`Quem tem esta função vê a aba ${a.rotulo}.`}
                              module="abas" action={a.chave} permissions={{ ...permissions, abas: { [a.chave]: !!permissions.abas[a.chave] } }}
+                             isAdmin={isAdmin} handleToggle={handleToggle} />
+            ))}
+            <p className="pt-4 text-[11px] font-bold uppercase tracking-wider text-gray-400">Outros menus</p>
+            {OUTROS_MENUS.map((m) => (
+              <PermissionRow key={m.chave} title={m.rotulo} description={`Quem tem esta função vê o menu ${m.rotulo} lá em cima.`}
+                             module="abas" action={m.chave} permissions={{ ...permissions, abas: { [m.chave]: !!permissions.abas[m.chave] } }}
                              isAdmin={isAdmin} handleToggle={handleToggle} />
             ))}
           </div>

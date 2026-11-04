@@ -45,7 +45,7 @@ import GlobalSearch from '@/components/Shared/GlobalSearch'
 import ContatoNovo from '@/components/Shared/ContatoNovo'
 import TamanhoDasConversas from '@/components/Shared/TamanhoDasConversas'
 import { usePipelineFilters } from '@/contexts/FilterContext'
-import { useVersaoDoCrm, trocarVersaoDoCrm, acessoV2, podeEntrar, CAMINHOS_DA_AREA, SDRS_V2, usePapelV2, useVerComo, type AreaV2 } from '@/lib/versaoDoCrm'
+import { useVersaoDoCrm, trocarVersaoDoCrm, acessoV2, podeEntrar, CAMINHOS_DA_AREA, SDRS_V2, usePapelV2, useVerComo, temMenusDaFuncao, menuLiberado, caminhoLiberado, type AreaV2 } from '@/lib/versaoDoCrm'
 
 /* O MENU (Pedro, 08/10/2026): "retire a aba início, deixe quando a pessoa logar já abre no whatsapp parceria,
    e coloca grupos, corretores e configuração em um só menu + Mais e coloca uma nova aba chamada Chat OLX".
@@ -168,10 +168,18 @@ export default function Navbar() {
   const [, trocarVerComo] = useVerComo()
   const acesso = acessoV2(papel.admin, papel.nome, papel.abas)
   const hrefsV2 = new Set(ITENS_V2.map((i) => i.href))
+  // 04/11 (Pedro: "liberar menu por menu lá de cima"): a função com a lista de menus vê, além das etapas dela, os outros
+  // menus ligados, na barra de cima
+  const menusDaFuncao = !papel.admin && temMenusDaFuncao(papel.abas)
+  // 04/11 (Pedro: "deixa um número de 8 itens fora do menu; o que eu liberar para o Lucas fica fora do menu, lá na lista
+  // em cima"): na barra até 8 itens; do 9º em diante vão para o "+ Mais"
+  const NA_BARRA = 8
   const ITENS: ItemDoMenu[] = v2
     ? [...ITENS_V2.filter((i) => i.area && acesso.areas.includes(i.area)),
+       ...(menusDaFuncao ? NAV_ITEMS.filter((i) => !hrefsV2.has(i.href) && menuLiberado(papel.abas, i.href)).map((i) => ({ ...i, mais: false })) : []),
        // 04/11 (Pedro: "sobe de volta a aba Imóveis para fora do menu Mais, põe lá em cima"): só ela fica na barra
        ...(acesso.admin ? NAV_ITEMS.filter((i) => !hrefsV2.has(i.href)).map((i) => ({ ...i, mais: i.href !== '/imoveis' })) : [])]
+        .map((i, n, todos) => (menusDaFuncao && !i.mais && todos.slice(0, n).filter((x) => !x.mais).length >= NA_BARRA ? { ...i, mais: true } : i))
     : NAV_ITEMS
   const [trocandoVersao, setTrocandoVersao] = useState(false)
   const trocarVersao = async () => {
@@ -186,7 +194,7 @@ export default function Navbar() {
   /* na v2, o SDR só entra nas áreas dele: outro endereço leva à primeira delas */
   useEffect(() => {
     if (!v2 || acesso.admin || authLoading || !acesso.areas.length) return
-    if (pathname === '/settings/profile' || podeEntrar(acesso, pathname)) return
+    if (pathname === '/settings/profile' || podeEntrar(acesso, pathname) || caminhoLiberado(papel.abas, pathname)) return
     router.replace(CAMINHOS_DA_AREA[acesso.areas[0]][0])
   }, [v2, acesso.admin, acesso.areas.join(), authLoading, pathname, router])  // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -261,7 +269,8 @@ export default function Navbar() {
   const avatarUrl = user?.image
 
   /* na v2, os itens da v2 já vêm filtrados pelas áreas de quem entrou */
-  const visivel = (item: ItemDoMenu): boolean => (v2 && item.area ? true : isItemVisible(item.label))
+  // 04/11: na v2 o menu que veio da lista da função já foi escolhido por ela (ITENS); a v1 continua pela permissão de antes
+  const visivel = (item: ItemDoMenu): boolean => (v2 && (item.area || menusDaFuncao) ? true : isItemVisible(item.label))
 
   const isItemVisible = (label: string): boolean => {
     // Painel /admin (plataforma inteira) — só profiles.isSuperadmin de verdade, nunca

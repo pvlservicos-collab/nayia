@@ -86,7 +86,39 @@ export const AREAS_V2: Array<{ chave: AreaV2; rotulo: string }> = [
   { chave: 'proprietarios', rotulo: 'Proprietários' }, { chave: 'fechamento', rotulo: 'Fechamento' },
   { chave: 'administracao', rotulo: 'Administração' }, { chave: 'oficial', rotulo: 'WhatsApp Oficial' },
 ]
-export type AbasDaFuncao = Partial<Record<AreaV2, boolean>> | null | undefined
+export type AbasDaFuncao = Partial<Record<string, boolean>> | null | undefined
+
+/* OS MENUS DE CIMA POR FUNÇÃO (Pedro, 04/11, de novo: "eu quero poder liberar para ele a aba Proprietários, ou a aba
+   Fechamento, a aba Imóveis ... menu por menu lá de cima"): a mesma lista (permissions.abas) também guarda os outros
+   menus da barra, pela rota. Função com a lista: só o que está ligado aparece (na v1 e na v2) e só nisso ela entra. */
+export const OUTROS_MENUS: Array<{ chave: string; rotulo: string }> = [
+  { chave: '/imoveis', rotulo: 'Imóveis' }, { chave: '/pipeline', rotulo: 'Pipeline geral' },
+  { chave: '/chat/parceria', rotulo: 'WhatsApp Parceria' }, { chave: '/chat/captacao', rotulo: 'WhatsApp Leads' },
+  { chave: '/chat/olx', rotulo: 'Chat OLX' }, { chave: '/chat/chavesnamao', rotulo: 'Chaves' }, { chave: '/chat/zap', rotulo: 'Chat Zap' },
+  { chave: '/chat/grupos', rotulo: 'Grupos' }, { chave: '/visitantes', rotulo: 'Visitantes' },
+  { chave: '/buscar-imovel-olx', rotulo: 'Buscar imóvel OLX' }, { chave: '/imoveis-captar-olx', rotulo: 'Imóveis captar OLX' },
+  { chave: '/cadastros-incompletos', rotulo: 'Cadastros incompletos' }, { chave: '/corretores', rotulo: 'Corretores' },
+  { chave: '/esteira-followups', rotulo: 'Esteira de follow-up' }, { chave: '/visao-geral', rotulo: 'Visão geral' },
+  { chave: '/guia-de-atendimento', rotulo: 'Guia de atendimento' }, { chave: '/tutoriais', rotulo: 'Tutoriais' },
+  { chave: '/arquitetura', rotulo: 'Arquitetura' }, { chave: '/settings/organization', rotulo: 'Configurações' },
+]
+
+/** A função tem a lista de menus? */
+export function temMenusDaFuncao(abas: AbasDaFuncao): boolean {
+  return !!abas && Object.keys(abas).length > 0
+}
+
+/** Este menu (a rota) está ligado na função? As etapas da v2 contam pela área (Captação = /chat/captar). */
+export function menuLiberado(abas: AbasDaFuncao, href: string): boolean {
+  if (!temMenusDaFuncao(abas)) return false
+  const area = (Object.keys(CAMINHOS_DA_AREA) as AreaV2[]).find((a) => CAMINHOS_DA_AREA[a][0] === href)
+  return !!(area ? abas![area] : abas![href])
+}
+
+/** A rota de agora está num dos outros menus ligados na função (a guarda de endereço da v2 deixa entrar) */
+export function caminhoLiberado(abas: AbasDaFuncao, caminho: string): boolean {
+  return OUTROS_MENUS.some((m) => !!abas?.[m.chave] && (caminho === m.chave || caminho.startsWith(m.chave + '/')))
+}
 
 export interface AcessoV2 { areas: AreaV2[]; linhas: LinhaDoAtendimento[]; soLocacao: boolean; admin: boolean; soOsNumerosDela?: boolean }
 
