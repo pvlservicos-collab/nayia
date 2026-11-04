@@ -88,9 +88,12 @@ interface Props {
   cards?: boolean
   /** v2, aba Visita: o + do alto faz outra coisa (relacionar à visita), no lugar de escolher as etiquetas */
   botaoMais?: { titulo: string; aoClicar: () => void }
+  /** v2, aba Visita (Pedro, 04/11: "o Diego, da equipe, fica fixado fora dos cards ... no topo, antes de começar os cards"):
+   *  as conversas fixadas em cima dos grupos, com o rótulo delas */
+  fixos?: { rotulo: string; ids: Set<string> }
 }
 
-export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais }: Props) {
+export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos }: Props) {
   const { organizationId, loading, isMaster, roleName, permissions } = useAuth()
   const ehAdmin = !!(isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || (permissions as any)?.['*'])
   const pode = soAdmin ? ehAdmin : ehAdmin || !!permissions?.settings?.view_chat
@@ -315,7 +318,13 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
           grupos && !buscando ? (
             /* um card por visita, com espaço entre um e outro (Pedro: "para ficar bem fácil de ver") */
             <div className="flex flex-col gap-4 p-2 pb-4">
-              {grupos(visiveis).map((g) => (
+              {fixos && visiveis.some((l) => fixos.ids.has(l.id)) && (
+                <div className="flex flex-col gap-1.5">
+                  <div className="px-1 text-[11.5px] font-semibold uppercase tracking-wide" style={{ color: 'var(--wa-text-2)' }}>{fixos.rotulo}</div>
+                  {visiveis.filter((l) => fixos.ids.has(l.id)).map((l) => <div key={l.id} className="v2-card">{linhaDaLista(l)}</div>)}
+                </div>
+              )}
+              {grupos(visiveis.filter((l) => !fixos?.ids.has(l.id))).map((g) => (
                 <div key={g.chave} className="rounded-xl" style={{ border: `2px solid ${g.cor || '#2563eb'}` }}>
                   <div className="px-3 py-2 text-[13px] rounded-t-[10px]" style={{ background: `color-mix(in srgb, ${g.cor || '#2563eb'} 12%, transparent)`, color: 'var(--wa-text)' }}>{g.topo}</div>
                   <div className="rounded-b-[10px] overflow-hidden">{g.leads.map(linhaDaLista)}</div>

@@ -16,12 +16,22 @@
  * linha da aba em que a pessoa estava. Agora são dois botões, Parceria e
  * Captação; escolher a outra linha leva para a tela dela, já na conversa.
  * Quem só responde na captação (captacaoSoResponde.ts) vê a Captação apagada.
+ *
+ * A BARREIRA DO PROPRIETÁRIO (Pedro, 04/11/2026: "quando a Nay ou alguém já entrou em contato com esse proprietário por um
+ * número, e alguém digita o número dele em buscar ou criar nova conversa por outro número, vai aparecer um aviso de que já
+ * temos conversa com esse proprietário por outro número, com 2 botões embaixo, Continuar conversa..."): antes do "Criar
+ * conversa", se o número já é de um proprietário em outra linha, o aviso; "Continuar conversa" abre a que já existe e
+ * "Criar mesmo assim" mostra os botões de criar.
  */
 import { useState } from 'react'
-import { MagnifyingGlass, ChatCircleText, X } from '@phosphor-icons/react'
+import { MagnifyingGlass, ChatCircleText, Warning, X } from '@phosphor-icons/react'
 import { useAuth } from '@/hooks'
-import { CAMINHO_DA_LINHA, type LinhaWhatsapp } from '@/lib/leadChannel'
+import { useLeadsContext } from '@/contexts/LeadsContext'
+import { usePapelDoContato } from '@/hooks/usePapelDoContato'
+import { CAMINHO_DA_LINHA, getLinhaWhatsapp, type LinhaWhatsapp } from '@/lib/leadChannel'
 import { RECUSA_DA_CAPTACAO, soRespondeNaCaptacao } from '@/lib/captacaoSoResponde'
+import { NOME_DA_LINHA } from '@/lib/organizacaoDoLead'
+import { linkDaConversa } from '@/lib/links'
 
 export function casaNaBusca(texto: string, lead: { title?: string | null; phone?: string | null }): boolean {
   const t = texto.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -54,6 +64,11 @@ export default function BuscaDaLista({ texto, aoMudar, achados, aoAbrir, placeho
   const [erro, setErro] = useState<string | null>(null)
   const digitos = texto.replace(/\D/g, '')
   const ehNumero = digitos.length >= 10 && digitos.length <= 13 && /^[\d\s()+-]+$/.test(texto.trim())
+  // a barreira do proprietário: só procura quando vai aparecer o "Criar conversa"
+  const procurar = !!soBotao && ehNumero && achados === 0
+  const { leads } = useLeadsContext()
+  const { ehProprietario } = usePapelDoContato(procurar)
+  const [criarMesmo, setCriarMesmo] = useState('')
 
   async function abrir(escolhida: string) {
     setAbrindo(escolhida)
@@ -84,6 +99,33 @@ export default function BuscaDaLista({ texto, aoMudar, achados, aoAbrir, placeho
     const aqui = (linha === 'captacao' || linha === 'parceria') ? linha : 'parceria'
     const aquiBarrada = aqui === 'captacao' && soResponde
     const outras = ESCOLHAS.filter((e) => e.linha !== aqui)
+    const f8 = digitos.slice(-8)
+    const doDono = criarMesmo === digitos ? null : leads.find((l) => !l.is_group && String(l.phone || '').replace(/\D/g, '').slice(-8) === f8
+      && !!getLinhaWhatsapp(l) && getLinhaWhatsapp(l) !== aqui && ehProprietario(l))
+    if (doDono) {
+      const onde = NOME_DA_LINHA[getLinhaWhatsapp(doDono) as LinhaWhatsapp] || 'outro'
+      return (
+        <div className="mx-3 mb-2 p-3 rounded-xl" style={{ background: 'color-mix(in srgb, #d97706 12%, transparent)', border: '1px solid #d9770666' }}>
+          <p className="flex items-start gap-2 text-[13px] leading-[18px]" style={{ color: 'var(--wa-text)' }}>
+            <Warning size={18} weight="fill" className="flex-shrink-0 mt-px" style={{ color: '#d97706' }} />
+            <span>
+              Já temos conversa com este proprietário pelo número <b>{onde}</b>
+              {doDono.title ? <> ({doDono.title})</> : null}. Para não falar com ele por dois números, continue por lá.
+            </span>
+          </p>
+          <div className="mt-2.5 flex gap-2">
+            <button type="button" onClick={() => { window.location.href = linkDaConversa(doDono.id) }}
+                    className="h-8 px-3 rounded-lg text-[13px] font-semibold" style={{ background: '#d97706', color: '#fff' }}>
+              Continuar conversa
+            </button>
+            <button type="button" onClick={() => setCriarMesmo(digitos)}
+                    className="h-8 px-3 rounded-lg text-[13px] font-semibold" style={{ border: '1px solid var(--wa-divider)', color: 'var(--wa-text)' }}>
+              Criar mesmo assim
+            </button>
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="px-4 pb-2">
         <p className="text-[12.5px] mb-1.5" style={{ color: 'var(--wa-text-2)' }}>

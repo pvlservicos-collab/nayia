@@ -192,6 +192,9 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
           </span>
         </span>
       </button>
+      {/* 04/11 (Pedro: "compactar as outras opções do menu, tipo enviar imóvel, para a direita ... encolhendo e empilhando"):
+          os botões rápidos com o ícone em cima e o nome pequeno embaixo (.wa-acoes-topo no globals.css) */}
+      <div className="wa-acoes-topo">
       {aoCadastrarImovel && (
         <button type="button" onClick={aoCadastrarImovel} aria-pressed={!!cadastroAberto}
                 title="Cadastrar o imóvel deste contato pelo link da OLX"
@@ -203,6 +206,7 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
       )}
       {organizar}
       {etiquetasRapidas && <EtiquetasNoCabecalho lead={lead} onTagsChange={onTagsChange} />}
+      </div>
       {aoAlternarPainel && (
         <button type="button" onClick={aoAlternarPainel} className={`wa-icone-btn ${painelAberto ? 'wa-icone-btn--on' : ''}`}
                 title={painelAberto ? 'Fechar os dados do contato' : 'Dados do contato'} aria-pressed={!!painelAberto}>

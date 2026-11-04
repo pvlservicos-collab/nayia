@@ -281,6 +281,21 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
     requestAnimationFrame(() => inputRef.current?.focus())
   }, [onSendMedia])
 
+  /* COLAR IMAGEM (Pedro, 04/11/2026: "quero poder colar imagem em um chat e aparecer, sem precisar eu baixar uma imagem e
+     subir"): Ctrl+V com uma imagem na área de transferência (print, imagem copiada do navegador ou do WhatsApp) vira a
+     mesma mídia pendente do clipe e do arrastar -- a prévia aparece, a legenda é o que estiver digitado, e o Enviar manda.
+     Texto colado continua colando como texto. */
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (!onSendMedia) return
+    const item = Array.from(e.clipboardData?.items || []).find((i) => i.kind === 'file' && i.type.startsWith('image/'))
+    const bruto = item?.getAsFile()
+    if (!bruto) return
+    e.preventDefault()
+    const ext = (bruto.type.split('/')[1] || 'png').replace('jpeg', 'jpg')
+    const nome = bruto.name && bruto.name !== 'image.png' ? bruto.name : `imagem-colada-${Date.now()}.${ext}`
+    setFileAsPendingMedia(new File([bruto], nome, { type: bruto.type }))
+  }
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
@@ -707,6 +722,7 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onKeyDown={handleComposerKeyDown}
+              onPaste={handlePaste}
               placeholder={pendingMedia ? 'Legenda (opcional)' : 'Digite uma mensagem'}
               className="flex-1 min-w-0 self-center py-[9px] px-1 focus:outline-none text-[var(--chat-text-primary)] placeholder-[var(--chat-text-muted)] bg-transparent resize-none overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               rows={1}

@@ -338,8 +338,13 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
     }
     return m
   }, [naTela, leads])
+  /* 04/11 (Pedro: "o Diego, da equipe, fica fixado fora dos cards de visita ... ele não fica relacionado, fica no topo, antes
+     de começar os cards"): quem acompanha as visitas (a marca acompanhante da Parceria, a mesma que fixa no topo de Visitas
+     na v1) fica em cima, fora dos cards */
+  const acompanhantes = useMemo(() => new Set(leads.filter((l) => !l.is_group && getLinhaWhatsapp(l) === 'parceria'
+    && marcas[l.id]?.acompanhante).map((l) => l.id)), [leads, marcas])
   const daVisita = useMemo(() => new Set(Array.from(conversasDaVisita.values()).flat()), [conversasDaVisita])
-  const naVisita = useCallback((l: LeadWithOwner) => daVisita.has(l.id), [daVisita])
+  const naVisita = useCallback((l: LeadWithOwner) => daVisita.has(l.id) || acompanhantes.has(l.id), [daVisita, acompanhantes])
 
   const mudarStatus = async (v: VisitaNaTela, s: Status) => {
     if (s.acao === 'cancelada' && !window.confirm(`Cancelar a visita de ${rotuloDaVisita(v)}? Ninguém é avisado, e o card some.`)) return
@@ -414,6 +419,7 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
         <ChatJuntado titulo="Visita" subtitulo="Cada visita num card: o corretor ou o cliente e o proprietário · a resposta sai pelo número de cada conversa"
                      pertence={naVisita} chaveAbas="crm:abas-visita" vazio="Nenhuma visita aberta agora."
                      botaoMais={{ titulo: 'Relacionar contatos a uma visita', aoClicar: () => setPopup({ visita: null }) }}
+                     fixos={{ rotulo: 'Equipe', ids: acompanhantes }}
                      grupos={(visiveis) => {
                        const ids = new Set(visiveis.map((l) => l.id))
                        return naTela.map((v) => ({
