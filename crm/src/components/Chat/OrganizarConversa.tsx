@@ -46,9 +46,11 @@ interface Props {
   naLocacao?: boolean
   /** v3 (04/11): o tipo do lead vive numa lista no alto da conversa; aqui o botão Tipo não aparece */
   semTipo?: boolean
+  /** v3 (Pedro, 04/11: "remove essas 2 opções do card de lead"): sem o Dentro de… (o Adicionar pessoa sai sem `equipe`) */
+  semDentroDe?: boolean
 }
 
-export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar, soDevolver, equipe, naLocacao, semTipo }: Props) {
+export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar, soDevolver, equipe, naLocacao, semTipo, semDentroDe }: Props) {
   const { tipos, salvar } = useTiposDeContato()
   const [menu, setMenu] = useState<'' | 'tipo' | 'dentro' | 'editar' | 'pessoas'>('')
   const [ocupado, setOcupado] = useState('')
@@ -143,11 +145,13 @@ export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar, soDevol
           <span className="hidden xl:inline">Adicionar pessoa{pessoasDe(lead).length ? ` (${pessoasDe(lead).length})` : ''}</span>
         </button>
       )}
-      <button type="button" className={botao} style={borda} onClick={() => setMenu(menu === 'dentro' ? '' : 'dentro')}
-              title="Pôr esta conversa dentro de outra (aparece na setinha embaixo dela)">
-        <TreeStructure size={16} />
-        <span className="hidden 2xl:inline">Dentro de…</span>
-      </button>
+      {!semDentroDe && (
+        <button type="button" className={botao} style={borda} onClick={() => setMenu(menu === 'dentro' ? '' : 'dentro')}
+                title="Pôr esta conversa dentro de outra (aparece na setinha embaixo dela)">
+          <TreeStructure size={16} />
+          <span className="hidden 2xl:inline">Dentro de…</span>
+        </button>
+      )}
       {aviso && (
         <span className="absolute top-full right-0 mt-1 text-[12px] px-2 py-1 rounded shadow z-40 whitespace-nowrap"
               style={{ background: 'var(--wa-panel, #fff)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }}>{aviso}</span>

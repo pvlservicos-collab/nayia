@@ -585,15 +585,35 @@ export default function ChatV3() {
     } : x)))
   }, [setLeads])
 
+  /* VELOCIDADE (Pedro, 04/11: "as conversas não estão carregando na v3, demora muito"): a fila, o tipo, a etapa e quem
+     responde de cada conversa eram recalculados várias vezes por conversa a cada desenho (os cards, as contagens das filas,
+     os filtros rápidos). Agora é UMA conta por conversa, guardada até a lista ou as leituras mudarem. */
+  const calcular = useCallback((l: LeadWithOwner) => {
+    const tela = daTela(l)
+    const fila = tela ? filaDe(l) : null
+    return { tela, fila, tipo: (tela ? tipoDe(l) : '') as TipoDoLead, etapa: tela ? etapaNay(l) : null, r: respondeDe(l) }
+  }, [daTela, filaDe, tipoDe, etapaNay, respondeDe])
+  const info = useMemo(() => {
+    const m = new Map<string, ReturnType<typeof calcular>>()
+    for (const l of leads) m.set(l.id, calcular(l))
+    return m
+  }, [leads, calcular])
+  const infoDe = useCallback((l: LeadWithOwner) => info.get(l.id) ?? calcular(l), [info, calcular])
+  const telaR = useCallback((l: LeadWithOwner) => infoDe(l).tela, [infoDe])
+  const filaR = useCallback((l: LeadWithOwner) => infoDe(l).fila, [infoDe])
+  const tipoR = (l: LeadWithOwner) => infoDe(l).tipo
+  const etapaR = (l: LeadWithOwner) => infoDe(l).etapa
+  const respR = (l: LeadWithOwner) => infoDe(l).r
+
   const etapas = useMemo(() => [
-    { chave: 'todas', rotulo: 'Todas', cor: CINZA, casa: daTela },
+    { chave: 'todas', rotulo: 'Todas', cor: CINZA, casa: telaR },
     ...(Object.keys(FILAS_V3) as FilaV3[]).map((f) => ({
-      chave: f, rotulo: FILAS_V3[f].rotulo, quem: FILAS_V3[f].quem, cor: corDaFila(f), casa: (l: LeadWithOwner) => filaDe(l) === f,
+      chave: f, rotulo: FILAS_V3[f].rotulo, cor: corDaFila(f), casa: (l: LeadWithOwner) => filaR(l) === f,
     })),
-  ], [daTela, filaDe, corDaFila])
+  ], [telaR, filaR, corDaFila])
 
   /** a conversa está na fila escolhida? ('todas' = todas da tela) */
-  const noFiltroDaFila = (l: LeadWithOwner, fila: string) => (fila === 'todas' ? daTela(l) : filaDe(l) === fila)
+  const noFiltroDaFila = (l: LeadWithOwner, fila: string) => (fila === 'todas' ? telaR(l) : filaR(l) === fila)
   /* AS REGRAS DOS FILTROS RÁPIDOS (Pedro, 04/11):
      Hoje       a pessoa mandou mensagem hoje, desde 00:00 em Manaus (ultima_recebida, a mesma da lista)
      Não lidas  a última mensagem é da pessoa e ninguém respondeu depois (nem a IA, nem gente): sai sozinha ao responder
@@ -602,19 +622,19 @@ export default function ChatV3() {
   const casaRapido = (k: Rapido, l: LeadWithOwner): boolean => {
     if (k === 'hoje') return !!l.ultima_recebida && diaEmManaus(new Date(l.ultima_recebida)) === diaEmManaus(new Date())
     if (k === 'nao_lidas') return l.last_message_sender_type === 'lead'
-    return respondeDe(l).tipo === (k === 'ia' ? 'ia' : 'humano')
+    return respR(l).tipo === (k === 'ia' ? 'ia' : 'humano')
   }
 
   if (loading) return null
   if (!ehTel) return <NotAuthorized />
 
-  const rotuloDoTipo = (l: LeadWithOwner) => { const f = filaDe(l); return f ? FILAS_V3[f].tipo : 'Administração' }
-  const corDe = (l: LeadWithOwner) => { const f = filaDe(l); return f ? corDaFila(f) : CINZA }
+  const rotuloDoTipo = (l: LeadWithOwner) => { const f = filaR(l); return f ? FILAS_V3[f].tipo : 'Administração' }
+  const corDe = (l: LeadWithOwner) => { const f = filaR(l); return f ? corDaFila(f) : CINZA }
   return (
     <ModoV3.Provider value={true}>
       <div className="chat-theme h-full min-h-0 flex flex-col">
         {/* 04/11 (Pedro: "coloca essa barra de volta no atendimento do v3"): a mesma barra do WhatsApp Parceria */}
-        <AbasParceria aba={abaDeCima} aoMudar={setAbaDeCima} naoLidas={leads.filter((l) => daTela(l) && l.is_unread).length}
+        <AbasParceria aba={abaDeCima} aoMudar={setAbaDeCima} naoLidas={leads.filter((l) => telaR(l) && l.is_unread).length}
                       visitasAbertas={new Set(Object.values(marcas).filter((m) => m.visitaAberta && m.visitaId).map((m) => m.visitaId)).size}
                       abas={['conversas', 'visitas', 'pipeline', 'fechamento']} rotuloConversas="As conversas do Leads e da Parceria" rotuloPipeline="Pipeline" rotuloFechamento="Documentação">
           <ContadorDeVisitas linha="parceria" />
@@ -628,7 +648,7 @@ export default function ChatV3() {
         ) : (
         <div className="flex-1 min-h-0">
         <ChatJuntado titulo="Atendimento" subtitulo="Leads e Parceria num lugar só · a resposta sai pelo número de cada conversa"
-                     pertence={daTela} etapas={etapas} etapasEmLista semFaixaDaLinha chaveAbas="crm:abas-v3"
+                     pertence={telaR} etapas={etapas} etapasEmLista semFaixaDaLinha chaveAbas="crm:abas-v3"
                      filtrosRapidos={(fila) => <FiltrosRapidos ligados={rapidos} aoMudar={setRapidos}
                                                                contar={(k) => leads.filter((l) => !l.is_archived && noFiltroDaFila(l, fila) && casaRapido(k, l)).length} />}
                      filtroExtra={rapidos.length ? (l) => rapidos.every((k) => casaRapido(k, l)) : undefined}
@@ -637,40 +657,40 @@ export default function ChatV3() {
                                style={{ border: '1px solid var(--wa-divider)', color: 'var(--wa-text)' }}>Limpar filtros</button></span>}
                      vazio="Nenhuma conversa aqui."
                      cadastrar={() => ({})}
-                     etapaDoCard={(l) => <TipoDoLeadNaFicha l={l} atual={tipoDe(l)} aoMudar={(o) => aplicar(l.id, o)} avisar={avisar}
+                     etapaDoCard={(l) => <TipoDoLeadNaFicha l={l} atual={tipoR(l)} aoMudar={(o) => aplicar(l.id, o)} avisar={avisar}
                                                             corDe={(t) => corDaFila(t === 'locacao' ? 'locacao' : t === 'vendas' ? 'venda' : t === 'corretor' ? 'corretores' : 'proprietarios')} />}
                      painelV3={(l): PainelV3 => {
                        const cor = corDe(l)
                        return {
                          anel: cor,
                          numero: <NumeroDaConversa l={l} />,
-                         pilula: <PilulaDoTipo l={l} atual={tipoDe(l)} cor={cor} aoMudar={(o) => aplicar(l.id, o)} avisar={avisar} />,
-                         quemResponde: <QuemResponde key={`painel-${l.id}`} l={l} r={respondeDe(l)} noPainel
+                         pilula: <PilulaDoTipo l={l} atual={tipoR(l)} cor={cor} aoMudar={(o) => aplicar(l.id, o)} avisar={avisar} />,
+                         quemResponde: <QuemResponde key={`painel-${l.id}`} l={l} r={respR(l)} noPainel
                                                      aoMudar={(x, o) => { setMudado((m) => ({ ...m, [l.id]: x })); if (o) aplicar(l.id, o) }} />,
-                         etapa: etapaNay(l) ? <BarraDasEtapas l={l} etapa={etapaNay(l)!} comAEquipe={!!olx[fim8(l.phone)]?.humano} avisar={avisar} /> : null,
-                         ehLead: !!etapaNay(l),
+                         etapa: etapaR(l) ? <BarraDasEtapas l={l} etapa={etapaR(l)!} comAEquipe={!!olx[fim8(l.phone)]?.humano} avisar={avisar} /> : null,
+                         ehLead: !!etapaR(l),
                        }
                      }}
                      itemDaLista={(l, x) => <CardV3 l={l} hora={x.hora} aberta={x.aberta} abrir={x.abrir} menu={x.menu}
-                                                    cor={corDe(l)} r={respondeDe(l)} tipo={rotuloDoTipo(l)}
-                                                    etapa={etapaNay(l) ? { i: indiceDaEtapa(etapaNay(l)), nome: NOME_DA_ETAPA[etapaNay(l)!] || etapaNay(l)! } : null} />}
+                                                    cor={corDe(l)} r={respR(l)} tipo={rotuloDoTipo(l)}
+                                                    etapa={etapaR(l) ? { i: indiceDaEtapa(etapaR(l)), nome: NOME_DA_ETAPA[etapaR(l)!] || etapaR(l)! } : null} />}
                      naConversa={{
                        anel: corDe,
                        pilula: (l) => {
-                         const f = filaDe(l)
+                         const f = filaR(l)
                          const cor = f ? corDaFila(f) : CINZA
-                         return { texto: '', cor, no: <><NumeroDaConversa l={l} /><PilulaDoTipo l={l} atual={tipoDe(l)} cor={cor} aoMudar={(o) => aplicar(l.id, o)} avisar={avisar} /></> }
+                         return { texto: '', cor, no: <><NumeroDaConversa l={l} /><PilulaDoTipo l={l} atual={tipoR(l)} cor={cor} aoMudar={(o) => aplicar(l.id, o)} avisar={avisar} /></> }
                        },
-                       subtitulo: (l) => <SubtituloV3 l={l} ehLead={getLinhaWhatsapp(l) === 'captacao' && (filaDe(l) === 'locacao' || filaDe(l) === 'venda')}
+                       subtitulo: (l) => <SubtituloV3 l={l} ehLead={getLinhaWhatsapp(l) === 'captacao' && (filaR(l) === 'locacao' || filaR(l) === 'venda')}
                                                       creci={marcas[l.id]?.creci || null} />,
-                       abaixoDoTopo: (l) => etapaNay(l)
-                         ? <BarraDasEtapas l={l} etapa={etapaNay(l)!} comAEquipe={!!olx[fim8(l.phone)]?.humano} avisar={avisar} />
+                       abaixoDoTopo: (l) => etapaR(l)
+                         ? <BarraDasEtapas l={l} etapa={etapaR(l)!} comAEquipe={!!olx[fim8(l.phone)]?.humano} avisar={avisar} />
                          : null,
-                       rodape: (l) => <QuemResponde key={l.id} l={l} r={respondeDe(l)}
+                       rodape: (l) => <QuemResponde key={l.id} l={l} r={respR(l)}
                                                     aoMudar={(r, o) => { setMudado((m) => ({ ...m, [l.id]: r })); if (o) aplicar(l.id, o) }} />,
                        organizar: (l) => getLinhaWhatsapp(l) === 'parceria'
                          ? <EnviarParaDaParceria lead={l} aoMudar={(o) => aplicar(l.id, o)} />
-                         : <OrganizarConversa lead={l} tipoDeduzido={null} equipe={equipe} naLocacao={ehLocacao(l)} semTipo
+                         : <OrganizarConversa lead={l} tipoDeduzido={null} naLocacao={ehLocacao(l)} semTipo semDentroDe
                                               aoMudar={(o) => aplicar(l.id, o)} />,
                      }} />
         </div>
