@@ -32,6 +32,7 @@
  * fechamento também não o acha nas outras abas da v2 (Proprietários aqui; Atendimento em /chat/atendimento).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { CalendarBlank, CaretDown, Check, CheckCircle, Clock, MagnifyingGlass, Plus, UserCirclePlus, X, XCircle } from '@phosphor-icons/react'
 import { useAuth } from '@/hooks'
 import { useLeadsContext } from '@/contexts/LeadsContext'
@@ -48,6 +49,9 @@ import { useEquipeV2 } from '@/hooks/useEquipeV2'
 import { useFechamentoV2 } from '@/hooks/useFechamentoV2'
 import { pessoasDe } from '@/lib/organizacaoDoLead'
 import ChatJuntado from './ChatJuntado'
+import AbasParceria, { type AbaDaParceria } from './AbasParceria'
+import VisitasAgendadas from './VisitasAgendadas'
+import { comMarcaDeAbertura } from '@/lib/links'
 import { casaNaBusca } from './BuscaDaLista'
 import { imovelDoDono } from './LeadListItem'
 import { organizar } from './OrganizarConversa'
@@ -257,6 +261,8 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
   const donos = useCaptacaoDonos(etapa === 'proprietarios')
   const { visitas, recarregar } = useVisitasParceria(etapa === 'visita')
   const [assumindo, setAssumindo] = useState('')
+  const [abaDaVisita, setAbaDaVisita] = useState<AbaDaParceria>('conversas')
+  const router = useRouter()
   const { emFechamento, podeVer } = useFechamentoV2()
 
   /* ── Proprietários ── */
@@ -414,8 +420,21 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
   }
 
   if (etapa === 'visita') {
+    /* 04/11 (Pedro: "colocar a aba Visitas agendadas em cima do menu Visitas"): a mesma barra da Parceria em cima --
+       Conversas (os cards das visitas) e Visitas agendadas (a agenda de todos os números). Abrir a conversa pela agenda
+       volta para os cards já com ela aberta (o endereço é só entrada, crm/CLAUDE.md). */
+    const abrirDaAgenda = (leadId: string) => {
+      setAbaDaVisita('conversas')
+      router.push(comMarcaDeAbertura(`/chat/visita?leadId=${leadId}`))
+    }
     return (
-      <>
+      <div className="chat-theme flex flex-col h-full min-h-0">
+        <AbasParceria aba={abaDaVisita} aoMudar={setAbaDaVisita} naoLidas={0} visitasAbertas={abertas.length}
+                      abas={['conversas', 'visitas']} rotuloConversas="Os cards das visitas abertas" />
+        <div className="flex-1 min-h-0">
+        {abaDaVisita === 'visitas' ? (
+          <div className="h-full flex"><VisitasAgendadas aoAbrirConversa={abrirDaAgenda} destaque={null} /></div>
+        ) : (
         <ChatJuntado titulo="Visita" subtitulo="Cada visita num card: o corretor ou o cliente e o proprietário · a resposta sai pelo número de cada conversa"
                      pertence={naVisita} chaveAbas="crm:abas-visita" vazio="Nenhuma visita aberta agora."
                      botaoMais={{ titulo: 'Relacionar contatos a uma visita', aoClicar: () => setPopup({ visita: null }) }}
@@ -429,11 +448,13 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
                          leads: (conversasDaVisita.get(v.id) || []).filter((id) => ids.has(id)).map((id) => visiveis.find((l) => l.id === id)!),
                        })).filter((g) => g.leads.length > 0)
                      }} />
+        )}
+        </div>
         {popup && (
           <RelacionarAVisita visitas={abertas} inicial={popup.visita} leads={leads} aoFechar={() => setPopup(null)}
                              aoMudar={(leadId, custom) => setLeads((p) => p.map((x) => (x.id === leadId ? { ...x, custom_attributes: custom } : x)))} />
         )}
-      </>
+      </div>
     )
   }
   return (

@@ -167,7 +167,8 @@ export default function Navbar() {
   const hrefsV2 = new Set(ITENS_V2.map((i) => i.href))
   const ITENS: ItemDoMenu[] = v2
     ? [...ITENS_V2.filter((i) => i.area && acesso.areas.includes(i.area)),
-       ...(acesso.admin ? NAV_ITEMS.filter((i) => !hrefsV2.has(i.href)).map((i) => ({ ...i, mais: true })) : [])]
+       // 04/11 (Pedro: "sobe de volta a aba Imóveis para fora do menu Mais, põe lá em cima"): só ela fica na barra
+       ...(acesso.admin ? NAV_ITEMS.filter((i) => !hrefsV2.has(i.href)).map((i) => ({ ...i, mais: i.href !== '/imoveis' })) : [])]
     : NAV_ITEMS
   const [trocandoVersao, setTrocandoVersao] = useState(false)
   const trocarVersao = async () => {
