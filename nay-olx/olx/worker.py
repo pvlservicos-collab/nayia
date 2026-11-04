@@ -42,6 +42,12 @@ def main() -> None:
         buscas.iniciar()
     except Exception:  # noqa: BLE001
         log.exception("o fluxo de busca do cliente não iniciou")
+    # 595 (04/11): as campanhas que o Pedro libera à mão (parceiros, donos parados, feedback) e o aviso de baixa, noutra linha
+    try:
+        from olx import campanhas
+        campanhas.iniciar()
+    except Exception:  # noqa: BLE001
+        log.exception("as campanhas não iniciaram")
     conn = None
     proxima_rodada = 0.0        # a conferência do que foi mandado e a rodada, juntas, a cada 5 min
     espera_ate = 0.0            # a OLX disse não: até aqui a rodada não manda nada (a conferência continua)
