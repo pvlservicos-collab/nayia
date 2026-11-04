@@ -184,12 +184,23 @@ export default function Navbar() {
   // V3 (Pedro, 04/11/2026): um WhatsApp só juntando Leads e Parceria, em etapas; só o login Tel, por enquanto (ChatV3.tsx)
   const ehTel = papel.adminDeVerdade && !papel.simulando && primeiroNome(profileName || user?.name) === 'tel'
   const ITENS: ItemDoMenu[] = ITENS_BASE
-  const naV3 = pathname.startsWith('/chat/v3')
+  // 04/11 (Pedro: "clico no v3 e no chat atendimento volta para o v2"): o v3 é um MODO que fica ligado (neste navegador, só
+  // o login Tel) até clicar em v1 ou v2; com ele ligado, as telas de chat do menu abrem dentro do v3
+  const [modoV3, setModoV3] = useState(false)
+  useEffect(() => { try { setModoV3(localStorage.getItem('crm:v3:ligado') === '1') } catch { /* sem armazenamento: só vale nesta tela */ } }, [])
+  const ligarV3 = (ligado: boolean) => { setModoV3(ligado); try { ligado ? localStorage.setItem('crm:v3:ligado', '1') : localStorage.removeItem('crm:v3:ligado') } catch { /* ok */ } }
+  const naV3 = ehTel && (modoV3 || pathname.startsWith('/chat/v3'))
+  useEffect(() => {
+    if (!ehTel || !modoV3) return
+    if (['/chat/atendimento', '/chat/parceria', '/chat/proprietarios', '/chat/visita', '/chat/fechamento'].some((h) => pathname === h || pathname.startsWith(h + '/'))
+        && !searchParams.get('leadId')) router.replace('/chat/v3')
+  }, [ehTel, modoV3, pathname, router, searchParams])
   const [trocandoVersao, setTrocandoVersao] = useState(false)
   const trocarVersao = async (alvo?: 'v1' | 'v2') => {
     const nova = alvo || (v2 ? 'v1' : 'v2')
-    if (nova === (v2 ? 'v2' : 'v1')) { if (pathname.startsWith('/chat/v3')) router.push(nova === 'v2' ? CAMINHOS_DA_AREA.captacao[0] : PAGINA_INICIAL); return }
+    if (nova === (v2 ? 'v2' : 'v1')) { ligarV3(false); if (pathname.startsWith('/chat/v3')) router.push(nova === 'v2' ? CAMINHOS_DA_AREA.captacao[0] : PAGINA_INICIAL); return }
     if (!window.confirm(`Trocar a organização do CRM de TODOS para a ${nova}?`)) return
+    ligarV3(false)
     setTrocandoVersao(true)
     try {
       await trocarVersaoDoCrm(nova)
@@ -605,7 +616,7 @@ export default function Navbar() {
                       className={`px-1.5 h-full flex items-center disabled:opacity-60 ${ativo ? 'bg-accent text-white' : 'text-muted'}`}>{v}</button>
             ))}
             {ehTel && (
-              <button type="button" onClick={() => router.push('/chat/v3')} title="v3 (teste, só o login Tel): um WhatsApp juntando Leads e Parceria, em etapas"
+              <button type="button" onClick={() => { ligarV3(true); router.push('/chat/v3') }} title="v3 (teste, só o login Tel): um WhatsApp juntando Leads e Parceria, em etapas"
                       className={`px-1.5 h-full flex items-center ${naV3 ? 'bg-accent text-white' : 'text-muted'}`}>v3</button>
             )}
           </div>
