@@ -174,25 +174,10 @@ def _conversa(falas: list[dict], dia: str) -> list[dict]:
 
 
 def buscar_sem_mandar(conn, lead: dict, filtros: dict) -> dict:
-    """A busca de _buscar_e_mandar, só lendo: o que sairia (com o afrouxar e o veto) e nada mais."""
-    cods_recusados, nomes_recusados = whatsapp.recusados(filtros)
-    excluir = list(lead.get("enviados") or []) + cods_recusados
-    f = dict(filtros)
-    if not f.get("finalidade"):
-        f["finalidade"] = whatsapp.finalidade_sem_dizer(lead, f)
-    achados, proximas = [], False
-    for tentativa, afrouxou in whatsapp._afrouxar(f):
-        achados = banco.linhas(conn, "SELECT * FROM olx_cliente_buscar(%s::jsonb, %s::int[], %s)",
-                               (json.dumps(tentativa, ensure_ascii=False), excluir,
-                                whatsapp.MAX_IMOVEIS * 4 if (f.get("perto_de") or nomes_recusados or f.get("so_condominio")) else whatsapp.MAX_IMOVEIS))
-        achados = whatsapp.so_no_condominio(whatsapp.fora_os_recusados(whatsapp.so_perto(conn, achados, tentativa), nomes_recusados),
-                                            f)[:whatsapp.MAX_IMOVEIS]
-        if achados:
-            proximas = afrouxou
-            break
-    antes = [int(a["codigo"]) for a in achados]
-    if achados and not proximas:
-        achados = agentes.filtrar_imoveis(lead, f, achados)
+    """A busca de _buscar_e_mandar, só lendo: o que sairia (com a régua e o veto) e nada mais. 04/11: a mesma função do
+    turno (whatsapp.buscar_na_base); o afrouxar não manda mais nada sozinho, só vira pergunta a ela."""
+    b = whatsapp.buscar_na_base(conn, lead, filtros)
+    f, achados, proximas, antes = b["f"], b["achados"], b["proximas"], b["antes_do_veto"]
 
     def curto(a):
         valor = a.get("valor_aluguel") or a.get("valor_venda") or a.get("preco") or ""

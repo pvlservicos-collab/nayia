@@ -84,11 +84,42 @@ def hora(q: datetime) -> str:
 
 def texto_confirmacao(codigo: int, q: datetime, onde: str = "") -> str:
     """O modelo da Nay de Parceria (nai_texto_confirmar_visita), igual: "🏢 Imóvel: condomínio, bairro" acima do código
-    (Pedro, 21/10: "no card de imóvel está faltando dizer qual o condomínio da visita")."""
+    (Pedro, 21/10: "no card de imóvel está faltando dizer qual o condomínio da visita").
+    04/11 (Pedro: "ela tá falando muito robótica; melhorar sem deixar formal demais"): o bloco dos dados fica; o fecho
+    "Por favor, confirme se os dados estão corretos para que eu possa entrar em contato com o proprietário." virou uma
+    pergunta de gente."""
     return ("🏠 *Só para confirmar a solicitação de visita*\n\nVisita ao imóvel:\n\n"
             + (f"🏢 Imóvel: {onde}\n" if onde else "")
             + f"🔑 Código do imóvel: #{codigo}\n📅 Data: {dia(q)}\n🕐 Horário: {hora(q)}\n\n"
-            "Por favor, confirme se os dados estão corretos para que eu possa entrar em contato com o proprietário.")
+            "Tá certinho? Se estiver, já falo com o proprietário.")
+
+
+ANTECEDENCIA_MIN = 30          # 394: o corretor e o proprietário precisam de tempo para confirmar
+
+
+def primeiro_horario(agora: datetime) -> datetime:
+    """O primeiro horário que dá para pedir: daqui a ANTECEDENCIA_MIN, arredondado para a próxima meia hora."""
+    q = agora + timedelta(minutes=ANTECEDENCIA_MIN)
+    q = q.replace(second=0, microsecond=0)
+    if q.minute not in (0, 30):
+        q = q + timedelta(minutes=(30 - q.minute % 30))
+    return q
+
+
+def por_que_nao(codigo: int | None, data: str | None, hora_dita: str | None, agora: datetime) -> str:
+    """Por que a confirmação da visita NÃO sai ('' = sai): 'sem_imovel' | 'sem_dia_hora' | 'passou' | 'cedo' (a menos de
+    ANTECEDENCIA_MIN). 04/11 (Pedro, o lead 60: "Posso visitar agora?" às 15:19, o modelo marcou a visita para 02/11 15:19,
+    pedir_confirmacao recusou calada e ela ficou sem resposta): quem chama diz o motivo a ela."""
+    if not codigo:
+        return "sem_imovel"
+    q = quando_de(data, hora_dita, agora)
+    if not q:
+        return "sem_dia_hora"
+    if q < agora - timedelta(minutes=5):
+        return "passou"
+    if q < agora + timedelta(minutes=ANTECEDENCIA_MIN):
+        return "cedo"
+    return ""
 
 
 def corretores(cfg: dict, chave: str = "visita_corretores") -> list[tuple[str, str]]:
@@ -299,9 +330,9 @@ def pedir_confirmacao(conn, lead: dict, codigo: int | None, data: str | None, ho
     """O passo 1: a confirmação no modelo da Parceria. Sem imóvel, dia ou hora entendidos, não manda (o modelo pergunta)."""
     w = _w()
     agora = datetime.now(w.MANAUS)
-    q = quando_de(data, hora_dita, agora)
-    if not codigo or not q or q < agora + timedelta(minutes=30):
+    if por_que_nao(codigo, data, hora_dita, agora):
         return False                      # 394: sem dia/hora, ou um horário que já passou: o balão dela pergunta
+    q = quando_de(data, hora_dita, agora)  # (04/11: whatsapp.depois_do_modelo já leva o motivo ao modelo antes)
     mesma = aberta(conn, lead["id"])
     if mesma and mesma["estado"] == "confirmar_cliente" and int(mesma["codigo"]) == int(codigo) and mesma["quando"] == q:
         return True                       # 394: a mesma visita de novo: a confirmação já está com ela

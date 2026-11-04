@@ -28,7 +28,10 @@ DOCUMENTO = re.compile(r"\b(CRECI|CNPJ|CPF|inscri[çc][ãa]o)\b[^\d\n]{0,30}((?:
 # dono disse só vale se a fala da equipe (EQUIPE:) ou a resposta da fila ("Sobre a sua pergunta") está no turno
 EQUIPE_DISSE = re.compile(r"\b(a equipe|o tel|o propriet[áa]rio|a propriet[áa]ria|o corretor|a corretora)\s+(me\s+|j[áa]\s+)?"
                           r"(informou|confirmou|disse|respondeu|falou|passou|garantiu|avisou)\b", re.I)
-RESPOSTA_DA_EQUIPE = re.compile(r"^EQUIPE|Sobre a sua pergunta|Sobre o #\d+", re.M)
+# 04/11 (Pedro: "é melhor não ter essas frases robóticas, só na nossa memória"): a resposta da fila sai sem o prefixo
+# "Sobre a sua pergunta:"/"Sobre o #...:"; o turno a mostra como "NAY (resposta da equipe):" (o tipo 'resposta_fila' de
+# privado.olx_cliente_enviada, whatsapp.montar_turno). Os prefixos antigos ficam para as conversas de antes de 04/11.
+RESPOSTA_DA_EQUIPE = re.compile(r"^EQUIPE|^NAY \(resposta da equipe\)|Sobre a sua pergunta|Sobre o #\d+", re.M)
 
 AVISO = {
     "valor": "você escreveu {x}, que NÃO está na ficha nem na conversa: use só valores que o sistema deu",

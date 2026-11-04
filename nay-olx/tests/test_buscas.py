@@ -169,7 +169,8 @@ class OpcoesDaBase(unittest.TestCase):
         with mock.patch.object(bo.gcatalogo, "carregar", cat), mock.patch.object(bo.glugares, "Lugares"), \
                 mock.patch.object(bo.glugares, "resolver", side_effect=resolver), \
                 mock.patch.object(b.whatsapp, "_ofertavel", side_effect=ofertavel), \
-                mock.patch.object(b, "quer_recente", return_value=None):     # o padrão tem o teste dele
+                mock.patch.object(b.whatsapp, "so_o_que_serve", side_effect=lambda conn, lead, f, cods, **k: list(cods)), \
+                mock.patch.object(b, "quer_recente", return_value=None):     # o padrão tem o teste dele; a régua (04/11) também
             return b.opcoes_da_base(None, {"telefone": "92999990000"}, f or self.F, [9], quantas), cat
 
     def test_mais_de_uma_opcao_a_melhor_primeiro_e_o_vizinho_entra(self):

@@ -1091,18 +1091,28 @@ def oferecer_ao_cliente(conn, b: dict, codigo: int, cor: dict, c: dict) -> str:
     # não está pronto (a mesma regra da revisita da base); fica em "cadastrando" e a revisita manda depois
     if whatsapp.oferta_sozinha_espera(conn, lead, b.get("filtros")):
         return "espera"
-    return _mandar_ao_cliente(conn, lead, [codigo])
+    return _mandar_ao_cliente(conn, lead, [codigo], b.get("filtros"))
 
 
-def _mandar_ao_cliente(conn, lead: dict, codigos: list[int]) -> str:
-    """Os imóveis um de cada vez (card, fotos, espera as fotos, o próximo) e uma pergunta no fim."""
+def _mandar_ao_cliente(conn, lead: dict, codigos: list[int], filtros: dict | None = None) -> str:
+    """Os imóveis um de cada vez (card, fotos, espera as fotos, o próximo) e uma pergunta no fim. 'nao_serve' = nenhum
+    passou na régua (nada foi a ela)."""
     # 03/11 (Pedro: "enviando 2 vezes o mesmo imóvel"): o que já foi para ela nas últimas 24 h, por qualquer caminho, não vai
     codigos = [c for c in codigos if not whatsapp.card_ja_foi(conn, lead, c)]
     if not codigos:
         return "cliente"
-    um = len(codigos) == 1
-    whatsapp.mandar_texto(conn, lead, "Boa notícia! Encontrei uma opção que combina com o que você procura:" if um else
-                          f"Boa notícia! Encontrei {len(codigos)} opções que combinam com o que você procura:")
+    # 04/11 (Pedro: "ela não pode errar ... nem mandar imóvel errado"): a régua única (whatsapp.so_o_que_serve) também na
+    # oferta que chega sozinha: a revisita da base e o imóvel do corretor
+    f = dict(filtros or lead.get("filtros") or {})
+    if not f.get("finalidade"):
+        f["finalidade"] = whatsapp.finalidade_sem_dizer(lead, f)
+    codigos = whatsapp.so_o_que_serve(conn, lead, f, codigos, onde="oferta da busca")
+    if not codigos:
+        return "nao_serve"
+    # 04/11 (Pedro: "ela tá falando muito robótica"): eram "Boa notícia! Encontrei uma opção que combina com o que você
+    # procura:" e "O que achou dessa? Se gostar, já vejo a visita para você.", sempre iguais; agora variam (whatsapp)
+    ja = whatsapp.ja_mandou(conn, lead)
+    whatsapp.mandar_texto(conn, lead, whatsapp.abre_oferta(lead, len(codigos), ja))
     enviados = list(lead.get("enviados") or [])
     for n, codigo in enumerate(codigos):
         time.sleep(whatsapp.DEPOIS_DAS_FOTOS_S if n else whatsapp.ENTRE_ENVIOS_S)
@@ -1111,8 +1121,7 @@ def _mandar_ao_cliente(conn, lead: dict, codigos: list[int]) -> str:
             enviados.append(codigo)
             whatsapp._marcar(conn, lead["id"], enviados=enviados)
     time.sleep(whatsapp.DEPOIS_DAS_FOTOS_S)
-    whatsapp.mandar_texto(conn, lead, "O que achou dessa? Se gostar, já vejo a visita para você." if um else
-                          "Alguma delas te agradou? Me diz qual e já vejo a visita para você.")
+    whatsapp.mandar_texto(conn, lead, whatsapp.fecho(lead, len(codigos), de_novo=True, evitar=ja))
     conn.commit()
     return "cliente"
 
@@ -1235,6 +1244,14 @@ def opcoes_da_base(conn, lead: dict, f: dict, excluir: list[int], quantas: int) 
             continue
         if whatsapp._ofertavel(conn, int(p["codigo"]), lead):
             saida.append({"codigo": int(p["codigo"]), "nota": p["nota"]})
+    # 04/11 (Pedro: "o foco da Nay Leads é ser um bom filtro"): a nota da Captação ativa junta o que "parece" com o pedido
+    # (a faixa de valor, o vizinho colado); a régua única corta o que não serve de fato (mobília, suítes, andar, o "sem")
+    if saida:
+        g = dict(f)
+        if not g.get("finalidade"):
+            g["finalidade"] = whatsapp.finalidade_sem_dizer(lead, g)
+        servem = set(whatsapp.so_o_que_serve(conn, lead, g, [s["codigo"] for s in saida], onde="revisita da base"))
+        saida = [s for s in saida if s["codigo"] in servem]
     return saida
 
 
@@ -1275,7 +1292,7 @@ def base_volta(conn, c: dict) -> int:
         if not achados:
             continue
         codigos = [a["codigo"] for a in achados]
-        onde = _mandar_ao_cliente(conn, lead, codigos)
+        onde = _mandar_ao_cliente(conn, lead, codigos, f)
         em = datetime.now(MANAUS).isoformat(timespec="minutes")
         novas = [{"codigo": a["codigo"], "de": "base", "nota": a["nota"], "em": em, "estado": onde, "teste": False}
                  for a in achados]
@@ -1397,8 +1414,14 @@ def corretores_volta(conn, c: dict) -> int:
                 passo(conn, b["id"], "oferta", {"cliente": f"Imóvel #{codigo} completo e oferecido ao cliente",
                                                 "grupo": f"Imóvel #{codigo} completo; o cliente está com a equipe: avisado no grupo",
                                                 "teste": f"Imóvel #{codigo} completo (teste: não foi ao cliente)",
+                                                # 04/11: a régua única barrou (o motivo fica no registro dos agentes)
+                                                "nao_serve": f"Imóvel #{codigo} completo, mas não serve ao pedido do cliente: não foi",
                                                 "espera": f"Imóvel #{codigo} completo; vai ao cliente na revisita da base "
                                                           f"({whatsapp.oferta_sozinha_espera(conn, whatsapp._lead(conn, b['lead']), b.get('filtros')) or 'agora pode ir'})"}[onde])
+                if not baloes and onde == "nao_serve":
+                    # 04/11: a régua barrou; ao corretor não se diz que foi ao cliente
+                    baloes = ["Obrigado! Esse não fecha com tudo o que o cliente pediu, mas ficou cadastrado aqui e, se servir "
+                              "para outro cliente, te chamo."]
                 if not baloes:
                     baloes = ["Perfeito, obrigado! Já passei a opção para o cliente e, se ele se interessar, entro em contato para agendar uma visita."
                               if onde != "espera" else

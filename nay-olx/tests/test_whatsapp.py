@@ -12,9 +12,18 @@ class Tratamento(unittest.TestCase):
         self.assertEqual(w.tratamento({"nome": "Imobeasy Manaus", "trat": None}), ("Imobeasy", "você"))
 
     def test_fecho_depois_dos_imoveis(self):
-        self.assertIn("chamou a atenção da senhora?", w.fecho({"nome": "Claudia", "trat": "Sra."}))
-        self.assertIn("te chamou a atenção?", w.fecho({"nome": "Ana", "trat": None}))
-        self.assertTrue(w.fecho({"nome": "Claudia", "trat": "Sra."}, 1).startswith("Essa é a opção que separei. Ela agradou a senhora?"))
+        # 04/11 (Pedro: "ela tá falando muito robótica"): era "Essas são as opções que separei. Alguma te chamou a atenção?
+        # Posso agendar uma visita ou procurar mais opções." sempre igual; agora curto e variado
+        claudia = {"nome": "Claudia", "trat": "Sra."}
+        varios = [x.format(voce="a senhora") for x in w.FECHO_VARIOS]
+        self.assertIn(w.fecho(claudia), varios)
+        self.assertIn(w.fecho(claudia, 1), [x.format(voce="a senhora") for x in w.FECHO_UM])
+        for t in (w.fecho(claudia), w.fecho(claudia, 1), w.fecho({"nome": "Ana", "trat": None}, 1)):
+            self.assertNotIn("Posso agendar uma visita ou procurar mais opções", t)
+        # a segunda busca não fecha com a mesma frase
+        primeira = w.fecho(claudia, 2)
+        self.assertNotEqual(w.fecho(claudia, 2, evitar=[primeira]), primeira)
+        self.assertTrue(w.e_fecho(primeira) and w.e_fecho("Essas são as opções que separei. Alguma te agradou?"))
 
 
 class Filtros(unittest.TestCase):
@@ -77,8 +86,21 @@ class Turno(unittest.TestCase):
 
     def test_o_prompt_tem_o_roteiro(self):
         for pedaco in ("Até que valor?", "Quais bairros", "serve 2 quartos", "escada", "simulação de financiamento",
-                       "Vou pegar as opções no meu sistema", "Dar negativa"):
+                       "vai separar as opções", "Dar negativa"):
             self.assertIn(pedaco, w.PROMPT)
+
+    def test_o_prompt_sem_as_muletas(self):
+        # 04/11 (Pedro: "melhorar sem deixar formal demais, um humano normal que fala de maneira objetiva"): os exemplos
+        # literais que viraram muleta saíram; a abertura "quer agendar uma visita ou receber outras opções parecidas?" saiu
+        # 19 vezes
+        for muleta in ("opções no meu sistema", "para lhe enviar.", "Perfeito, Sr. Felipe", "muito grata",
+                       "agendar uma visita ou receber outras opções parecidas"):
+            self.assertNotIn(muleta, w.PROMPT)
+        self.assertIn('NÃO abra toda mensagem com "Perfeito", "Entendi", "Claro"', w.PROMPT)
+        self.assertIn("Reaja ao que ela disse ANTES de perguntar", w.PROMPT)
+        self.assertNotIn("agendar uma visita ou receber outras opções parecidas",
+                         w.montar_turno({"origem": "chavesnamao", "codigo": 5758, "negocio": "venda", "nome": "Maria",
+                                         "ficha_do_anuncio": {"bairro": "Flores"}, "portal": []}, None, []))
 
 
 class Organico(unittest.TestCase):
@@ -123,10 +145,11 @@ class Seguimento(unittest.TestCase):
     """392: o acompanhamento depois de ~10 min de silêncio."""
 
     def test_so_um_imovel(self):
+        # 04/11 (Pedro: "ela tá falando muito robótica"): era "posso estar enviando outras opções semelhantes" (gerundismo)
         self.assertEqual(w.texto_do_seguimento({"nome": "Carlos Eduardo", "trat": "Sr.", "enviados": []}),
-                         "Sr. Carlos, posso estar enviando outras opções semelhantes para o senhor?")
+                         "Sr. Carlos, quer que eu separe outras opções parecidas para o senhor?")
         self.assertEqual(w.texto_do_seguimento({"nome": None, "trat": None, "enviados": []}),
-                         "Posso estar enviando outras opções semelhantes para você?")
+                         "Quer que eu separe outras opções parecidas para você?")
 
     def test_depois_das_opcoes(self):
         self.assertTrue(w.texto_do_seguimento({"nome": "Michelle", "trat": "Sra.", "enviados": [9026]})
@@ -145,7 +168,7 @@ class NuncaRepetir(unittest.TestCase):
         c = self.conv(("c", "Vc teria fotos dele?"), ("n", "Claro, Sr. Carlos. Vou separar as fotos do apartamento e já envio."))
         self.assertIsNone(w.que_seguimento(self.CARLOS, c))        # prometeu as fotos e elas ainda não saíram
         self.assertEqual(w.que_seguimento(self.CARLOS, c, entregou_depois=True),
-                         "Sr. Carlos, posso estar enviando outras opções semelhantes para o senhor?")
+                         "Sr. Carlos, quer que eu separe outras opções parecidas para o senhor?")
         c += self.conv(("n", "Sr. Carlos, posso estar enviando outras opções semelhantes para o senhor?"),
                        ("c", "Eu só tô aguardando você me falar a questão do valor"),
                        ("n", "Sr. Carlos, ainda estou aguardando a confirmação da equipe sobre o menor valor. Assim que me "
@@ -251,29 +274,37 @@ class UmaConfirmacaoSo(unittest.TestCase):
                 self.assertEqual(w.oferta_sozinha_espera(None, lead, {"teto": 900000, "bairros": ["Ponta Negra"]}), "")
 
     def test_afrouxar(self):
+        # 04/11 (Pedro: "o foco da Nay Leads é ser um bom filtro"): o afrouxar não manda mais nada; é só o que se pode
+        # PERGUNTAR (menos quartos, bairro vizinho, um pouco acima do valor), e o perfil exato nem entra
         f = {"finalidade": "venda", "tipo": "casa_condominio", "teto": 900000, "bairros": ["Flores"], "quartos": 3,
              "mobilia": "mobiliado"}
         passos = w._afrouxar(f)
-        self.assertEqual(passos[0], (f, False))
+        self.assertEqual([o for _g, o in passos], ["quartos", "bairro", "valor"])
         # 24/10 (a Esther): a mobília NÃO afrouxa; mobiliado é mobiliado em todos os passos
         self.assertTrue(all(g["mobilia"] == "mobiliado" for g, _ in passos))
-        self.assertTrue(passos[1][0]["aceita_menos_quartos"])
-        self.assertEqual(passos[2][0]["bairros"], [])
-        # 01/11 (lead 119): o passo leva o total a +20% do teto (a busca já soma +10%), não a +32%
-        self.assertEqual(passos[3][0]["teto"], 981818)
-        self.assertLessEqual(passos[3][0]["teto"] * 1.10, 900000 * 1.2 + 1)
-        self.assertEqual(len(passos), 4)
+        self.assertTrue(passos[0][0]["aceita_menos_quartos"])
+        self.assertEqual(passos[1][0]["bairros"], ["Flores"])          # os vizinhos somam a quem busca; nunca "qualquer"
+        self.assertTrue(passos[1][0]["_vizinhos"])
+        self.assertEqual(passos[2][0]["teto"], 981818)
+        # quem já disse que não serve menos quartos não é perguntado de novo; o comercial não tem quartos
+        self.assertNotIn("quartos", [o for _g, o in w._afrouxar({**f, "aceita_menos_quartos": False})])
+        self.assertNotIn("quartos", [o for _g, o in w._afrouxar({**f, "tipo": "sala"})])
+        self.assertNotIn("bairro", [o for _g, o in w._afrouxar({**f, "so_condominio": True})])
 
-    def test_o_que_afrouxou_vai_dito(self):
-        # 01/11 (lead 120: pediu 4 quartos, recebeu duas de 3 sem aviso: "Esse são 3 quartos né")
-        f = {"quartos": 4, "bairros": ["Ponta Negra"], "teto": 8000}
-        passos = w._afrouxar(f)
-        self.assertEqual(w.o_que_afrouxou(f, passos[1][0]), ["com 3 quartos"])
-        self.assertEqual(w.o_que_afrouxou(f, passos[3][0]), ["com 3 quartos", "em outros bairros", "um pouco acima do valor"])
-        t = w.fecho({"nome": "Ana", "trat": None}, 2, proximas=True, afrouxou=["com 3 quartos", "em outros bairros"])
-        self.assertTrue(t.startswith("Essas são as opções mais próximas do que você procura: com 3 quartos e em outros bairros."), t)
-        self.assertTrue(w.fecho({"nome": "Ana", "trat": None}, 1, proximas=True, afrouxou=["com 3 quartos"])
-                        .startswith("Essa é a opção mais próxima do que você procura: com 3 quartos."))
+    def test_sem_nada_no_perfil_pergunta_uma_coisa(self):
+        # 04/11 (Pedro: "Em Planalto com 4 quartos não tenho agora; serve com 3, ou um bairro vizinho?"): era mandar até 5
+        # cards com um quarto a menos, de qualquer bairro e até +20%, sem perguntar
+        from unittest import mock
+        b = {"f": {"finalidade": "locacao", "tipo": "casa", "bairros": ["Planalto"], "quartos": 4, "teto": 4000}}
+        with mock.patch.object(w, "o_que_existe_afrouxando", return_value=[("quartos", "3"), ("bairro", "Dom Pedro")]), \
+                mock.patch.object(w.agentes, "passo"):
+            t = w.pergunta_para_afrouxar(None, {"id": 7}, b, [])
+            self.assertTrue(t.startswith("Em Planalto com 4 quartos "), t)
+            self.assertTrue(t.endswith("serve com 3, ou num bairro vizinho, como Dom Pedro?"), t)
+            self.assertEqual(t.count("?"), 1)                                    # UMA pergunta
+            self.assertEqual(w.pergunta_para_afrouxar(None, {"id": 7}, b, [t]), "")   # pergunta de filtro sai uma vez
+        with mock.patch.object(w, "o_que_existe_afrouxando", return_value=[]):
+            self.assertEqual(w.pergunta_para_afrouxar(None, {"id": 7}, b, []), "")
 
     def test_o_que_o_tel_ja_respondeu_entra_no_turno(self):
         # 01/11: a Nay Leads não lia o imovel_conhecimento; o que o Tel respondia voltava como pergunta
@@ -329,17 +360,30 @@ class UmaConfirmacaoSo(unittest.TestCase):
                  "depende do proprietário. Das mobiliadas com condomínio incluso e até R$ 4.000 que ainda não te mostrei, a mais "
                  "fora de Ponta Negra é o Ariranhas (código 5729), no bairro Da Paz. Não sei dizer a distância dele até o Distrito.")
         self.assertEqual(w.resposta_curta("Fica tudo, sim.", lambda p, u: 1 / 0), "Fica tudo, sim.")      # curta: nem chama o modelo
-        self.assertEqual(w.resposta_curta(longa, lambda p, u: {"texto": w.SEM_INFORMACAO}), w.SEM_INFORMACAO)
-        self.assertEqual(w.texto_da_resposta({"codigo": 2944, "imovel": "Maison Rochelle", "resposta": "Fica tudo, sim."}),
-                         "Sobre o #2944 (Maison Rochelle): Fica tudo, sim.")
+        self.assertEqual(w.resposta_curta(longa, lambda p, u: {"texto": "Ainda estou vendo isso com a proprietária."}),
+                         "Ainda estou vendo isso com a proprietária.")
+        # 04/11: sem o prefixo "Sobre o #...:" (o modelo falhou: vai a resposta como veio)
+        self.assertEqual(w.texto_da_resposta({"codigo": 2944, "imovel": "Maison Rochelle", "resposta": "Fica tudo, sim."},
+                                             lambda p, u: 1 / 0), "Fica tudo, sim.")
         self.assertLessEqual(len(w.resposta_curta(longa, lambda p, u: 1 / 0)), 240)                      # sem modelo: 2 frases
 
-    def test_nao_achou_responde_curto(self):
-        self.assertEqual(w.CONTINUO_VERIFICANDO, "Entendi, por enquanto ainda procurando opções.")
+    def test_nao_achou_sem_frase_fixa(self):
+        # 04/11 (Pedro: "é melhor não ter essas frases robóticas, só na nossa memória"): saíram "Entendi, por enquanto ainda
+        # procurando opções." e "E continuo verificando com os nossos corretores parceiros uma com o perfil exato."
+        self.assertFalse(hasattr(w, "CONTINUO_VERIFICANDO") or hasattr(w, "CONTINUO_EXATO") or hasattr(w, "SEM_INFORMACAO"))
+        f = {"bairros": ["Flores"], "quartos": 5, "tipo": "casa", "finalidade": "venda"}
+        t = w.sigo_procurando({"id": 130}, f)
+        self.assertNotIn("Entendi", t)
+        self.assertNotIn("parceir", t)
+        self.assertNotEqual(w.sigo_procurando({"id": 130}, f, [t]), t)          # não repete o que já foi
 
     def test_fecho_das_mais_proximas(self):
-        self.assertTrue(w.fecho({"nome": "Felipe", "trat": "Sr."}, 3, proximas=True)
-                        .startswith("Essas são as opções mais próximas do que o senhor procura."))
+        # 04/11: só os mais próximos (no máximo 2) dizem que o perfil certinho não tinha, e que ela segue procurando
+        t = w.fecho({"nome": "Felipe", "trat": "Sr."}, 2, proximas=True, lugar="Em Flores com 5 quartos", sigo=True)
+        self.assertTrue(t.startswith("Em Flores com 5 quartos mesmo não achei agora; essas ficam bem pertinho."), t)
+        self.assertTrue(t.endswith("E sigo procurando no perfil certinho."), t)
+        self.assertNotIn("parceir", t)
+        self.assertEqual(w.MAX_PROXIMOS, 2)
 
     def test_valor_nao_e_codigo(self):
         c = [{"direcao": "recebida", "texto": "apartamento até 2500, uns 3000 no máximo, aluguel de 2800 e o 5758"}]
@@ -360,13 +404,38 @@ class RespostaDaFila(unittest.TestCase):
     SEM_MODELO = staticmethod(lambda p, u: 1 / 0)
 
     def test_com_codigo_e_imovel(self):
+        # 04/11 (Pedro): sem o prefixo "Sobre o #9026 (Turim Residencial):"
         self.assertEqual(w.texto_da_resposta({"codigo": 9026, "imovel": "Turim Residencial", "resposta": "fica tudo,  sim"},
-                                             self.SEM_MODELO),
-                         "Sobre o #9026 (Turim Residencial): Fica tudo, sim")
+                                             self.SEM_MODELO), "Fica tudo, sim")
 
     def test_sem_codigo(self):
         self.assertEqual(w.texto_da_resposta({"codigo": None, "imovel": None, "resposta": "pode sim"}, self.SEM_MODELO),
-                         "Sobre a sua pergunta: Pode sim")
+                         "Pode sim")
+
+    def test_a_informacao_da_fila_vai_a_ela(self):
+        # 04/11: a fila disse "o 9127 consta no 4º andar" e a cliente recebeu "Entendi, por enquanto ainda procurando
+        # opções." (12 respostas assim). O modelo é mandado entregar a informação, e o prefixo que ele puser sai.
+        visto = {}
+
+        def modelo(p, u):
+            visto["p"], visto["u"] = p, u
+            return {"manda": True, "texto": "Sobre o #9127: fica no 4º andar."}
+        t = w.texto_da_resposta({"codigo": 9127, "imovel": "Residencial Topázio", "pergunta": "Qual o andar?",
+                                 "resposta": "o 9127 consta no 4º andar"}, modelo)
+        self.assertEqual(t, "Fica no 4º andar.")
+        self.assertNotIn("EXATAMENTE", visto["p"])
+        self.assertNotIn("Entendi, por enquanto", visto["p"])
+        self.assertIn("QUALQUER informação", visto["p"])
+        self.assertIn("IMÓVEL: Residencial Topázio", visto["u"])
+
+    def test_o_turno_ainda_reconhece_a_resposta_da_equipe(self):
+        # 04/11: sem o "Sobre a sua pergunta" no texto, a marca vem do tipo 'resposta_fila' (paredes.RESPOSTA_DA_EQUIPE)
+        from olx import paredes
+        conversa = [{"direcao": "recebida", "texto": "Qual o andar?"},
+                    {"direcao": "enviada", "nossa": True, "tipo_nosso": "resposta_fila", "texto": "Fica no 4º andar."}]
+        turno = w.montar_turno({"id": 1, "nome": "Ana", "telefone": "5592999990000", "etapa": "filtrar"}, None, conversa)
+        self.assertIn("NAY (resposta da equipe): Fica no 4º andar.", turno)
+        self.assertEqual(paredes.conferir(["O proprietário confirmou que fica no 4º andar."], turno, False), [])
 
     def test_recado_interno_nao_vai_ao_cliente(self):
         # 31/10: as respostas cruas que chegaram a clientes do 8595 (pergunta_fila 241, 284, 293, 294, 307, 309)
@@ -387,8 +456,7 @@ class RespostaDaFila(unittest.TestCase):
             return {"manda": True, "texto": "Ela não aceita pet, mas me diz o porte que eu tento com a proprietária."}
         t = w.texto_da_resposta({"codigo": 2944, "imovel": "Maison Rochelle", "pergunta": "Aceita pet?",
                                  "resposta": "ela não aceita pet, mas qual é o porte ? podemos tentar"}, modelo)
-        self.assertEqual(t, "Sobre o #2944 (Maison Rochelle): Ela não aceita pet, mas me diz o porte que eu tento com a "
-                            "proprietária.")
+        self.assertEqual(t, "Ela não aceita pet, mas me diz o porte que eu tento com a proprietária.")
         self.assertIn("PERGUNTA DO CLIENTE: Aceita pet?", visto["u"])
         # resposta já escrita para o cliente, que cita o proprietário, passa
         self.assertIsNotNone(w.texto_da_resposta({"codigo": 5699, "resposta": "O proprietário diz que aceita pet."},

@@ -75,11 +75,10 @@ parte QUANDO VEIO DIRETO.
 === O CAMINHO ===
 1. ABERTURA (a primeira mensagem, quando ainda não há conversa no WhatsApp): lembre que vocês falaram pela OLX sobre o
    imóvel (o condomínio ou o bairro), responda o que tiver ficado pendente lá se a ficha tiver a resposta (se não tiver,
-   diga que confirma e já retorna, e marque "perguntar" com o que ficou pendente), e pergunte se ela quer agendar uma
-   visita ou receber outras opções parecidas. Se na OLX ela já pediu visita com dia/horário, marque "visita"; se pediu
-   desconto ou proposta, marque "perguntar" (a equipe responde e a conversa segue com você).
-   Ex.: "Oi, Sra. Claudia! Aqui é a Nay, da Imob Easy, falamos pela OLX sobre o apartamento no Kopenhagen. A senhora quer
-   agendar uma visita ou receber outras opções parecidas?"
+   diga que confirma e já retorna, e marque "perguntar" com o que ficou pendente), e feche com UMA pergunta curta, com as
+   suas palavras, que faça a conversa andar (se ela quer conhecer o imóvel ou ver outros parecidos). Não use sempre a
+   mesma frase. Se na OLX ela já pediu visita com dia/horário, marque "visita"; se pediu desconto ou proposta, marque
+   "perguntar" (a equipe responde e a conversa segue com você).
 2. OUTRAS OPÇÕES: o roteiro, UMA pergunta por vez, pulando o que ela já disse (aqui ou na OLX):
    - Até que valor?
    - Quais bairros te atendem? ("qualquer bairro" também vale)
@@ -92,14 +91,15 @@ parte QUANDO VEIO DIRETO.
      escada?
    - Só na VENDA: tem crédito aprovado ou gostaria de fazer uma simulação de financiamento? (uma vez só: qualquer
      resposta serve; se ela quer simular ou não tem crédito, diga que a equipe faz a simulação junto com ela)
-   Respondidas as perguntas que cabem, feche como "Ok, muito grata, Sra. Claudia! Vou pegar as opções no meu sistema
-   para lhe enviar." e peça a busca: acao "buscar". O sistema manda os imóveis, um por vez, logo depois. Não faça
-   mais perguntas depois do fechamento.
+   Respondidas as perguntas que cabem, diga numa frase curta que vai separar as opções e peça a busca: acao "buscar".
+   O sistema manda os imóveis, um por vez, logo depois. Não faça mais perguntas depois do fechamento.
    Ela pediu as opções ("tem outras?", "quero ver opções", "manda o que tem") e você já sabe o tipo ou a finalidade, o
    valor e o lugar: busque JÁ ("buscar"). O que faltar (quartos, mobília, crédito) vira tanto faz; não segure as opções
    por mais uma pergunta.
 3. DEPOIS DAS OPÇÕES: se ela gostou de algum, ofereça a visita; se quer mais, refaça o roteiro só no que mudou e peça
-   "buscar" de novo.
+   "buscar" de novo. Quando não há nada no perfil exato, o sistema pergunta a ela se serve com menos quartos, num bairro
+   vizinho ou um pouco acima do valor: se ela aceitou, ponha nos filtros (aceita_menos_quartos = true, o bairro novo em
+   bairros, o teto novo) e peça "buscar"; se não aceitou, nada muda e o sistema segue procurando o perfil exato.
 4. VISITA: NUNCA peça o código do imóvel a ela (Pedro, 21/10: "os clientes não entendem e mandam até errado ou acabam
    falando que não sabem"). QUAL imóvel você descobre pela conversa: o do anúncio, um dos IMÓVEIS DESTA CONVERSA (a lista
    do sistema, com condomínio, bairro e valor) ou o que ela citou pelo nome. Dela você pergunta só o DIA e o HORÁRIO
@@ -114,6 +114,8 @@ parte QUANDO VEIO DIRETO.
    "confirmou_visita" e diga que vai confirmar com o corretor e com o proprietário e já retorna. Se ela mudar o dia ou o
    horário, marque "visita" de novo com os dados novos. Enquanto a visita está sendo confirmada (o sistema diz em que
    pé está), não prometa nada: diga que está confirmando e avisa assim que tiver a resposta.
+   Ela quer visitar AGORA ou daqui a menos de 30 min ("posso visitar agora?"): não marque "visita"; diga que precisa de
+   um tempinho para confirmar com o corretor e o proprietário e pergunte se pode ser daqui a meia hora ou em outro dia.
 5. FOTOS E O IMÓVEL ESCOLHIDO: ela escolheu um dos imóveis que já apareceram (pelo valor: "o de 1.900", "700 mil"; pelo
    nome do condomínio; "esse", "o primeiro"), pediu "me manda", "me envia", "o material", "as informações e as fotos",
    ou pediu MAIS FOTOS de um imóvel sem dizer de qual parte: acao "fotos" com "fotos": {"codigos": [...]} (o código de
@@ -125,7 +127,7 @@ parte QUANDO VEIO DIRETO.
    O CARD RESPONDE (Pedro, 26/10): ela perguntou de um imóvel algo que o card mostra (valor, quartos, área, banheiros,
    vagas, mobília, condomínio e o que está incluso, bairro, "onde fica", "mais informações") e ainda NÃO recebeu o card
    dele por aqui: não responda por partes nem diga que vai confirmar. Mande o card e as fotos (acao "fotos") com uma frase
-   curta, ex.: "Vou te mandar o card com as informações e as fotos dele." O card já responde e mostra o resto. O que o card
+   curta (sem a palavra "card": para ela são as informações e as fotos). O card já responde e mostra o resto. O que o card
    não traz (pet, andar, portaria...) vai junto em "perguntar". Endereço ou localização: o bairro e o condomínio (nunca
    número) e o card.
    RUA E AVENIDA SÃO A MESMA PERGUNTA (Pedro, 27/10): perguntou o nome da rua, da avenida ou a localização mais
@@ -174,8 +176,8 @@ pela confusão e siga).
    procura imóvel e se é para alugar ou comprar. Se ela já disse o que quer, não pergunte de novo: siga o roteiro.
    Ex.: "Boa tarde! Aqui é a Nay, da Imob Easy. Você está procurando imóvel? Seria para alugar ou para comprar?"
    Se ela citou um imóvel (pelo código ou pelo nome, ex.: "Quero saber mais sobre o imóvel Cobertura - Life Flores"), o
-   sistema dá a ficha: responda pela ficha e pergunte se ela quer agendar uma visita ou receber outras opções parecidas,
-   como na OLX (o tipo, os quartos e a finalidade vêm desse imóvel).
+   sistema dá a ficha: responda pela ficha e pergunte, com as suas palavras, se ela quer conhecer o imóvel ou ver outros
+   parecidos, como na OLX (o tipo, os quartos e a finalidade vêm desse imóvel).
 2. Se o assunto não é procurar imóvel (quer vender ou alugar o imóvel dela, é corretor, cobrança, outro assunto): diga com
    naturalidade que já passa para a equipe e marque "equipe" com o motivo.
 3. Procura imóvel: o mesmo roteiro de OUTRAS OPÇÕES, uma pergunta por vez, começando pelo que o anúncio daria: o TIPO
@@ -202,6 +204,7 @@ equipe disse VALE, e você continua de onde ela parou:
 - A equipe fez uma pergunta e ela respondeu: a resposta é para ESSA pergunta (ex.: a equipe perguntou "até que valor?" e
   ela disse "1.000.000": é o teto da busca, não a escolha de um imóvel). Siga o roteiro a partir daí.
 - Não repita o que a equipe já disse ou perguntou, e não se apresente de novo.
+- "NAY (resposta da equipe)" é o que você já passou a ela da resposta da equipe: vale como informação confirmada.
 
 === QUANDO É COM A EQUIPE (acao "equipe") ===
 Documentação, contrato, reclamação, pedido para falar com uma pessoa, corretor oferecendo parceria, cliente que decidiu
@@ -212,9 +215,8 @@ naturalidade que já passa para a equipe e que vão falar com ela por aqui. (Des
 ainda não viu (acao "fotos") e pergunte o dia e o horário.
 
 === UMA CONFIRMAÇÃO SÓ ===
-- Cada pedido é confirmado UMA vez. Quando for buscar, é UM balão só, juntando nele o que for perguntar à equipe (ex.:
-  "Perfeito, Sr. Felipe! Vou confirmar com a equipe a entrada com o apartamento e já pego as opções no meu sistema para
-  lhe enviar."); os imóveis chegam logo depois, pelo sistema.
+- Cada pedido é confirmado UMA vez. Quando for buscar, é UM balão só, juntando nele o que for perguntar à equipe (o que
+  vai confirmar e que já separa as opções, numa frase); os imóveis chegam logo depois, pelo sistema.
 - Já disse que vai confirmar algo com a equipe ou que já retorna: não diga de novo. Se ela só agradeceu, disse "ok" ou
   "aguardo", não responda (balões vazios).
 
@@ -226,8 +228,8 @@ ainda não viu (acao "fotos") e pergunte o dia e o horário.
 - Repetir uma pergunta ou uma frase que você já mandou nesta conversa. Perguntou e ela ainda não respondeu: espere a
   resposta dela (balões vazios é melhor que repetir). Já disse que vai confirmar com a equipe: não diga de novo a cada
   mensagem; responda o que ela disse agora.
-- Dar negativa ("não consigo", "não dá", "não é possível", "não temos"). Se a busca não achar, o sistema avisa a equipe
-  e diz a ela que você está separando as opções.
+- Dar negativa ("não consigo", "não dá", "não é possível", "não temos"). Se a busca não achar, o sistema pergunta a ela
+  o que pode afrouxar (menos quartos, um bairro vizinho) ou diz que segue procurando.
 - Inventar. O que não está na ficha você não sabe: diga que confirma e retorna. Isso vale para CRECI, CNPJ e qualquer
   número de documento: só o que o sistema deu; senão, "vou confirmar com a equipe".
 - Endereço exato, número da casa ou do apartamento, bloco, torre, nome do proprietário. Bairro, condomínio e as avenidas
@@ -237,10 +239,17 @@ ainda não viu (acao "fotos") e pergunte o dia e o horário.
 - Dizer que um imóvel é "de parceiro", "de parceria" ou "de outra imobiliária". Para ela todo imóvel é da Imob Easy.
 
 === COMO VOCÊ FALA ===
-Português do Brasil, de gente: uma moça de Manaus no WhatsApp do trabalho, não um assistente traduzido do inglês. Curto:
-um ou dois balões, poucas linhas. Trate pelo tratamento que o sistema dá (Sra./Sr. + primeiro nome; "a senhora", "o
-senhor"); sem tratamento, pelo primeiro nome e "você". Nada de "Como posso te ajudar hoje?", "Fico à disposição".
-Valor em reais assim: R$ 700.000 / R$ 2.500.
+(Pedro, 04/11: "ela tá falando muito robótica; melhorar sem deixar formal demais, um humano normal que fala de maneira
+objetiva".) Português do Brasil, de gente: uma moça de Manaus no WhatsApp do trabalho, objetiva e simpática, não um
+assistente traduzido do inglês nem atendimento de call center. Curto: um ou dois balões, poucas linhas.
+- Reaja ao que ela disse ANTES de perguntar a próxima coisa: responda a dúvida dela ou comente o que ela contou (uma
+  frase), e só então pergunte. Não pule direto para a próxima pergunta como quem preenche formulário.
+- NÃO abra toda mensagem com "Perfeito", "Entendi", "Claro", "Certo" ou "Ótimo" + o nome. Varie, ou vá direto ao ponto.
+  O nome dela só de vez em quando, não em toda mensagem.
+- Sem frase pronta e sem formalidade: nada de "lhe enviar", "meu sistema", "posso estar enviando", "Fico à disposição",
+  "Como posso te ajudar hoje?". Diga como uma pessoa diria: "te mando", "vou separar", "já te falo".
+Trate pelo tratamento que o sistema dá (Sra./Sr. + primeiro nome; "a senhora", "o senhor"); sem tratamento, pelo
+primeiro nome e "você". Valor em reais assim: R$ 700.000 / R$ 2.500.
 
 === A SUA RESPOSTA: SÓ ESTE JSON, NADA MAIS ===
 {"baloes": ["..."], "acoes": [],
@@ -267,7 +276,9 @@ Valor em reais assim: R$ 700.000 / R$ 2.500.
   Distrito" = "Distrito Industrial"; um bairro ou lugar de Manaus); o SISTEMA calcula a distância de verdade e só traz o
   que fica perto: NUNCA diga distância, "fica longe" ou "fica perto" por conta própria. perto_km: só se ela disse
   quantos km. pet: o que ela disse do bicho ("2 gatas", "cachorro pequeno"). exigencias: o que ela quer e os outros
-  campos não cobrem ("cozinha e lavanderia completas", "elevador", "andar baixo"), um item curto cada.
+  campos não cobrem ("cozinha e lavanderia completas", "elevador", "andar baixo"), um item curto cada. Suítes e andar
+  entram aqui como ela disse ("pelo menos 1 suíte", "2 suítes", "andar alto", "térreo ou primeiro andar"): a busca só
+  manda o imóvel que cumpre.
   so_condominio: true quando ela quer SÓ no condomínio que disse ("só no Ponta Negra Village", "somente no Flex Parque
   Dez"): a busca não traz outro lugar.
   recusados: o que ela recusou ou descartou, para NUNCA voltar na busca: o código do imóvel ("esse não serve" de um
@@ -361,14 +372,15 @@ def com_condominio(conn, texto: str) -> str:
     return CODIGO_NO_TEXTO.sub(troca, texto)
 
 
-def mandar_texto(conn, lead: dict, texto: str) -> str:
+def mandar_texto(conn, lead: dict, texto: str, tipo: str = "texto") -> str:
     """Um texto dela. O MESMO texto para a mesma pessoa nas últimas 6 h não sai de novo (Pedro, 16/10: "fez a mesma
-    pergunta duas vezes para o lead ... precisa checar para ela nunca fazer isso"). Devolve '' quando segurou."""
+    pergunta duas vezes para o lead ... precisa checar para ela nunca fazer isso"). Devolve '' quando segurou.
+    `tipo` 'resposta_fila' (04/11): a resposta da equipe que ela passa; é a marca que o turno mostra (montar_turno)."""
     texto = com_condominio(conn, texto)
     if any(_normal(texto) == _normal(x) for x in ja_mandou(conn, lead, horas=6)):
         log.info("lead %s: texto repetido segurado: %s", lead.get("id"), texto[:80])
         return ""
-    return _mandar(conn, lead, "/send-text", {"message": texto}, "texto", texto_no_crm=texto)
+    return _mandar(conn, lead, "/send-text", {"message": texto}, tipo, texto_no_crm=texto)
 
 
 # ── nunca repetir (392b) ──
@@ -432,6 +444,17 @@ def card_ja_foi(conn, lead: dict, codigo: int, horas: int = CARD_REPETIDO_H) -> 
                                     WHERE direcao = 'enviada' AND criada_em > now() - make_interval(hours => %s)
                                       AND right(regexp_replace(coalesce(telefone, ''), '\\D', '', 'g'), 8) = %s
                                       AND texto ~ ('C[oó]digo:\\s*' || %s::text || '\\M'))""", (horas, tel8, str(int(codigo)))))
+
+
+CARD_VISTO_H = 24 * 30
+
+
+def card_visto(conn, lead: dict, codigo: int) -> bool:
+    """04/11 (a Lorena ...9301 pediu "o link" do anúncio e só recebeu as fotos): ela já recebeu o card deste imóvel POR AQUI
+    (nos enviados, ou na conversa dos últimos 30 dias). O imóvel do anúncio não conta como visto: o anúncio ela viu na OLX
+    ou no portal, o card não."""
+    return (_int(codigo) in {_int(x) for x in lead.get("enviados") or []}
+            or card_ja_foi(conn, lead, codigo, horas=CARD_VISTO_H))
 
 
 def mandar_imovel(conn, lead: dict, codigo: int, com_card: bool = True, com_fotos: bool = True, repetir: bool = False) -> int:
@@ -579,13 +602,26 @@ def novas_depois_da_equipe(conversa: list[dict], ultima_lida: int, equipe_em) ->
 def _conversa_daqui(conn, lead: dict) -> list[dict]:
     return list(reversed(banco.linhas(conn, """
         SELECT m.id, m.direcao, m.origem, m.texto, m.criada_em,
-               EXISTS (SELECT 1 FROM privado.olx_cliente_enviada e WHERE e.message_id = m.message_id) AS nossa
+               EXISTS (SELECT 1 FROM privado.olx_cliente_enviada e WHERE e.message_id = m.message_id) AS nossa,
+               -- 04/11: 'resposta_fila' = a resposta da equipe que ela passou (montar_turno a marca para as paredes)
+               (SELECT e.tipo FROM privado.olx_cliente_enviada e WHERE e.message_id = m.message_id LIMIT 1) AS tipo_nosso
           FROM captacao_mensagens m
          WHERE right(regexp_replace(coalesce(m.telefone, ''), '\\D', '', 'g'), 8) = %s
            AND m.criada_em > now() - interval '30 days'
            -- 394: o eco das fotos (sem texto) não ocupa o lugar da conversa
            AND (m.direcao = 'recebida' OR coalesce(btrim(m.texto), '') <> '')
          ORDER BY m.id DESC LIMIT 40""", (_so8(lead["telefone"]),))))
+
+
+def _num(v) -> int | None:
+    """04/11: o número de uma coluna do banco (Decimal('700000.00'), 3, '3', None) sem o tropeço do _int, que tira os
+    não-dígitos (o Decimal virava 70000000). None = não se sabe."""
+    if v is None or isinstance(v, bool) or (isinstance(v, str) and not v.strip()):
+        return None
+    try:
+        return int(round(float(v)))
+    except (TypeError, ValueError):
+        return _int(v)
 
 
 def _int(v) -> int | None:
@@ -875,17 +911,30 @@ def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
             "Não houve conversa antes do WhatsApp. "
             + ("Não diga \"falamos antes\"." if nome == "OLX" else "NUNCA fale de OLX nem diga \"falamos antes\"."),
         ]
+        # 04/11 (a Paula ...8142: no meio da conversa, uma consulta nova do Chaves na Mão a pôs de volta em 'nova', e a
+        # abertura, com a conversa inteira na frente, não saiu três vezes): conversa já começada não tem abertura
+        ja_falou = any(m.get("nossa") or m.get("origem") == "resposta" for m in conversa)
+        if ja_falou:
+            linhas.append("Vocês JÁ estão conversando (abaixo): a abertura já foi. NÃO se apresente de novo nem refaça a "
+                          "abertura; siga O CAMINHO de onde a conversa está.")
+        if lead.get("meio_da_conversa") and lead.get("codigo"):
+            linhas.append(
+                f"AGORA, no meio da conversa, ela deixou o contato de novo pelo {nome}, desta vez pelo imóvel cód. "
+                f"{lead['codigo']} (a ficha abaixo). Numa frase curta, diga que viu o interesse dela também nesse imóvel "
+                "(pelo condomínio ou pelo bairro) e pergunte se quer que você mande as informações; e responda o que ela "
+                "escreveu e ainda está sem resposta.")
         if lead.get("ficha_do_anuncio"):
             linhas += [
-                f"Siga O CAMINHO como na OLX, com uma diferença na ABERTURA: diga que recebeu o contato dela pelo {nome} "
-                "sobre o imóvel (o condomínio ou o bairro), responda pela ficha o que a mensagem dela perguntou e "
-                "pergunte se ela quer agendar uma visita ou receber outras opções parecidas. Se a mensagem já pede visita "
-                "com dia e horário, marque \"visita\".",
-                f"Ex.: \"Boa tarde, Sra. Maria! Aqui é a Nay, da Imob Easy. Recebi seu contato pelo {nome} sobre o "
-                "apartamento no Kopenhagen. A senhora quer agendar uma visita ou receber outras opções parecidas?\"",
+                *([] if ja_falou else [
+                    f"Siga O CAMINHO como na OLX, com uma diferença na ABERTURA: diga que recebeu o contato dela pelo {nome} "
+                    "sobre o imóvel (o condomínio ou o bairro), responda pela ficha o que a mensagem dela perguntou e "
+                    "feche com uma pergunta curta, com as suas palavras, sobre conhecer o imóvel ou ver outros parecidos. "
+                    "Se a mensagem já pede visita com dia e horário, marque \"visita\"."]),
                 f"{finalidade} | cód. {lead.get('codigo') or '-'}",
                 "Ficha do imóvel do anúncio: " + json.dumps(lead["ficha_do_anuncio"], ensure_ascii=False),
             ]
+        elif ja_falou:
+            pass                          # sem anúncio e já conversando: a abertura "como o orgânico" já foi
         else:
             # 31/10 (Pedro: a Gleise, posta à mão, sem o anúncio): não se sabe o imóvel; abre como o orgânico
             linhas += [
@@ -896,7 +945,9 @@ def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
                 "senhora está procurando imóvel para alugar ou para comprar?\"",
             ]
         tipos = " ".join((p.get("tipo") or "").lower() for p in lead.get("portal") or [])
-        if "financ" in tipos:
+        if ja_falou:
+            pass                          # o que a abertura diria do financiamento e do telefone visto já foi dito
+        elif "financ" in tipos:
             # 02/11 (Pedro, os leads de financiamento): quem simulou financiamento é perguntado disso na abertura
             linhas.append(
                 "ELA SIMULOU UM FINANCIAMENTO no portal (os valores estão abaixo). A ABERTURA é sobre isso, curta e sem "
@@ -908,8 +959,8 @@ def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
                                        for p in lead.get("portal") or []):
             linhas.append(
                 "Ela só VIU O TELEFONE ou o WHATSAPP do anúncio (não escreveu nada): não diga que ela perguntou algo. "
-                f"Diga que viu o interesse dela no imóvel pelo {nome} e pergunte se ainda procura e se quer agendar "
-                "uma visita ou ver outras opções. Seja leve: ela não pediu para ser chamada.")
+                f"Diga que viu o interesse dela no imóvel pelo {nome} e pergunte, com as suas palavras, se ainda procura "
+                "e se quer conhecer o imóvel ou ver outros. Seja leve: ela não pediu para ser chamada.")
         linhas.append("O que ela deixou no portal (o mais antigo primeiro):")
         for p in lead.get("portal") or []:
             linhas.append(f"  {p['quando']} · {p.get('tipo') or 'contato'} · {p.get('anuncio_titulo') or 'anúncio'} "
@@ -948,7 +999,8 @@ def montar_turno(lead: dict, ctx_olx: dict | None, conversa: list[dict]) -> str:
             linhas.append(f"CLIENTE: {texto or '[mandou ' + (m.get('origem') or 'uma mídia') + ']'}")
         elif m.get("nossa") or m.get("origem") == "resposta":
             if texto:
-                linhas.append(f"NAY: {texto}")
+                # 04/11: a resposta da fila sai sem "Sobre a sua pergunta:"; a marca fica só aqui (paredes.RESPOSTA_DA_EQUIPE)
+                linhas.append(f"NAY (resposta da equipe): {texto}" if m.get("tipo_nosso") == "resposta_fila" else f"NAY: {texto}")
         elif texto:
             linhas.append(f"EQUIPE{' (' + m['quem'] + ')' if m.get('quem') else ''}: {texto}")
     linhas += ["", "Responda agora, só com o JSON."]
@@ -1055,21 +1107,32 @@ def _resumo_dos_filtros(f: dict) -> str:
 # ── as três tarefas ──
 _FALHAS: dict[int, int] = {}
 _ESPERA: dict[int, float] = {}
+_AVISADOS: set[int] = set()
+ESPERA_DEPOIS_DE_3_S = 15 * 60       # 04/11: a abertura que falhou três vezes tenta de novo daqui a 15 min
 
 
 def _em_espera(lid: int) -> bool:
     return _ESPERA.get(lid, 0.0) > time.monotonic()
 
 
-def _falhou(conn, lead: dict, ate: int | None, erro: Exception) -> None:
+def _falhou(conn, lead: dict, ate: int | None, erro: Exception, abertura: bool = False) -> None:
     """394: um cliente com erro (modelo, Z-API, dado estranho) não trava os outros nem chama o modelo de 5 em 5 s:
-    espera 2 min; na terceira falha seguida, a Nay larga a mensagem (marca lida) e avisa a equipe no grupo."""
+    espera 2 min; na terceira falha seguida, a Nay larga a mensagem (marca lida) e avisa a equipe no grupo.
+    04/11 (a Paula ...8142): na ABERTURA a terceira falha avisa a equipe UMA vez e a Nay tenta de novo a cada 15 min;
+    antes ela marcava humano_em ("a Nay não conseguiu abrir") e a conversa ficava parada."""
     lid = lead["id"]
     _FALHAS[lid] = _FALHAS.get(lid, 0) + 1
     _ESPERA[lid] = time.monotonic() + 120
     log.warning("lead %s: falhou (%d): %s", lid, _FALHAS[lid], erro)
     if _FALHAS[lid] >= 3:
         _FALHAS.pop(lid, None)
+        if abertura:
+            _ESPERA[lid] = time.monotonic() + ESPERA_DEPOIS_DE_3_S
+            if lid not in _AVISADOS:
+                _AVISADOS.add(lid)
+                _ao_crm(f"Cliente {quem(lead)} no WhatsApp de captação: a Nay não conseguiu escrever a primeira mensagem "
+                        f"(três tentativas: {str(erro)[:120]}). Ela tenta de novo a cada 15 min; se quiserem, chamem por lá.")
+            return
         if ate:
             _marcar(conn, lid, ultima_lida=ate)
         _ao_crm(f"Cliente {quem(lead)} no WhatsApp de captação: a Nay não conseguiu responder a última mensagem "
@@ -1079,6 +1142,7 @@ def _falhou(conn, lead: dict, ate: int | None, erro: Exception) -> None:
 def _deu_certo(lid: int) -> None:
     _FALHAS.pop(lid, None)
     _ESPERA.pop(lid, None)
+    _AVISADOS.discard(lid)
 
 
 def _baloes_do(r: dict) -> list[str]:
@@ -1191,8 +1255,36 @@ PEDE_OPCOES = re.compile(r"\b(mais op[çc]\w*|outras op[çc]\w*|tem outr[ao]s?|o
 # o card só responde PERGUNTA ("4 mil com condomínio incluso" é filtro, não pergunta: o lead 52)
 PERGUNTA = re.compile(r"\?|^\s*(qual|quais|quanto|quantos|quantas|onde|como|tem |aceita|inclui|ainda|me (manda|envia|passa)|"
                       r"pode(ria)? (me )?(mandar|enviar|passar))", re.I | re.M)
-BALAO_SEM_RESPOSTA = {"perguntar": "Vou confirmar isso e já te retorno por aqui.",
-                      "equipe": "Já vou passar para a equipe, e eles falam com você por aqui."}
+# 04/11 (Pedro: "é melhor não ter essas frases robóticas, só na nossa memória, e a Nay fala de forma humanizada, isso para
+# todas as respostinhas padrões"): o que ainda sai pronto do código (quando o modelo não está no meio, ou não escreveu)
+# sai de uma lista curta, variada, e nunca igual ao que ela já mandou (uma_das)
+BALOES_SEM_RESPOSTA = {
+    "perguntar": ["Vou confirmar isso e já te falo.", "Deixa eu ver isso direitinho e já te respondo.",
+                  "Já vejo isso e te falo por aqui."],
+    "equipe": ["Vou chamar alguém da equipe pra falar com você por aqui.",
+               "Já passo para a equipe, e eles te chamam por aqui."]}
+BALAO_SEM_RESPOSTA = {k: v[0] for k, v in BALOES_SEM_RESPOSTA.items()}
+MANDO_O_IMOVEL = ["Te mando aqui as informações e as fotos dele.", "Olha as informações e as fotos dele aqui.",
+                  "Vou te mandar as informações e as fotos dele."]
+MANDO_AS_OPCOES = ["Vou te mandar as opções que tenho nesse perfil.", "Separei umas opções nesse perfil, te mando aqui.",
+                   "Te mando agora as que achei com isso."]
+
+
+def _vez(texto: str) -> int:
+    """Um número que muda com o texto (a frase pronta gira sem sortear: o mesmo turno, a mesma frase, nos testes também)."""
+    return sum(ord(c) for c in (texto or ""))
+
+
+def uma_das(opcoes: list[str], ja: list[str] | None = None, vez: int = 0) -> str:
+    """Uma das frases, a partir da `vez` (gira), a primeira que não se parece com nada de `ja` (o que já foi para ela).
+    Todas parecidas: a da vez."""
+    if not opcoes:
+        return ""
+    for i in range(len(opcoes)):
+        o = opcoes[(vez + i) % len(opcoes)]
+        if not any(parecida(o, x, 0.8) for x in ja or []):
+            return o
+    return opcoes[vez % len(opcoes)]
 
 
 def _imovel_da_pergunta(lead: dict) -> int | None:
@@ -1240,7 +1332,8 @@ def depois_do_modelo(conn, lead: dict, r: dict, novas: list[str], ultima_da_nay:
         so_o_card = not FORA_DO_CARD.search(texto)
         if so_o_card:
             acoes = [a for a in acoes if a not in leva]
-            r["baloes"] = ["Vou te mandar o card com as informações e as fotos dele."]
+            # 04/11 (Pedro: "card" é jargão nosso): era "Vou te mandar o card com as informações e as fotos dele."
+            r["baloes"] = [uma_das(MANDO_O_IMOVEL, vez=_vez(texto))]
         mandar(cod, "card_responde", f"o card do #{cod} responde" + ("" if so_o_card else "; o resto vai à equipe"))
         livre = False
     # 4. pediu opções e já se sabe o bastante: busca já (o que falta vira tanto faz)
@@ -1248,16 +1341,44 @@ def depois_do_modelo(conn, lead: dict, r: dict, novas: list[str], ultima_da_nay:
         acoes = [*[a for a in acoes if a != "perguntar"][:1], "buscar"]
         baloes = _baloes_do(r)
         if not baloes or baloes[-1].rstrip().endswith("?"):
-            r["baloes"] = ["Vou te mandar as opções que tenho com esse perfil."]
+            r["baloes"] = [uma_das(MANDO_AS_OPCOES, vez=_vez(texto))]     # 04/11: era uma frase só, sempre a mesma
         passos.append(("pediu_opcoes", "pediu opções e os filtros bastam: busca já"))
+    # 4b. 04/11 (Pedro: "o foco da Nay Leads é ser um bom filtro"): buscar sem o valor e sem o lugar não busca (saía o que
+    # houvesse, de qualquer valor e lugar); o modelo pergunta o que falta
+    if "buscar" in acoes:
+        f = _filtros(lead.get("filtros"), r.get("filtros"))
+        if not f.get("finalidade"):
+            f = {**f, "finalidade": finalidade_sem_dizer(lead, f)}
+        if not _filtros_bastam(f):
+            acoes = [a for a in acoes if a != "buscar"]
+            falta = " e ".join(x for x in ("o valor" if not f.get("teto") else "",
+                                            "o lugar" if not (f.get("bairros") or f.get("qualquer_bairro") or f.get("condominio")
+                                                              or f.get("perto_de")) else "") if x) or "o tipo"
+            r["_falta_para_buscar"] = falta
+            passos.append(("buscar_sem_filtro", f"pediu a busca sem {falta}: não busca"))
+    # 4c. 04/11 (o lead 60: "Posso visitar agora?" -> visita para 02/11 15:19, a confirmação recusou calada e ela ficou sem
+    # resposta): a visita que não vai sair (sem dia/hora, já passou, a menos de 30 min) sai das ações e o turno volta ao
+    # modelo com o motivo (turno_mudo)
+    if "visita" in acoes:
+        v = r.get("visita") if isinstance(r.get("visita"), dict) else {}
+        motivo = visita.por_que_nao(_int(v.get("codigo")) or _int(lead.get("codigo")), str(v.get("data") or ""),
+                                    str(v.get("hora") or ""), datetime.now(MANAUS))
+        if motivo:
+            acoes = [a for a in acoes if a != "visita"]
+            r["_visita_motivo"] = motivo
+            passos.append(("visita_nao_sai", f"a visita não sai ({motivo}): {v.get('data')} {v.get('hora')}"))
     # 5a. 03/11 (Pedro, a Sra. Maria …5999: "pediu visita e ela foi super ignorante"): ela perguntou "como faço pra visitar",
     # o modelo pôs a ação fotos e o balão "vou te enviar as informações e as fotos", e a trava das fotos repetidas mandou
     # "Já te mandei as fotos ... quer que eu mande de novo?". Sem ela pedir foto, foto que já foi não é ação: sai a ação e
     # sai do balão a promessa de mandar fotos/informações
-    if "fotos" in acoes and not PEDIU_FOTO.search(texto) and not DE_NOVO.search(texto):
+    # 04/11 (a Lorena ...9301: "Me manda o link? Eu esqueci qual é 😅" e só recebeu as fotos): só sai a ação quando as fotos
+    # E o card já foram; o card que ela ainda não recebeu por aqui vai (_fazer). E vale também quando ela pediu foto: a
+    # frase fixa "Já te mandei as fotos desse aqui em cima na conversa. Quer que eu mande de novo?" saiu de _fazer (às vezes
+    # era falsa); quem diz agora é o modelo, com as palavras dele, na segunda chamada (turno_mudo)
+    if "fotos" in acoes and not DE_NOVO.search(texto):
         f = r.get("fotos") if isinstance(r.get("fotos"), dict) else {}
         cods = [c for c in dict.fromkeys(_int(x) for x in [*(f.get("codigos") or []), f.get("codigo")]) if c] or [_int(lead.get("codigo"))]
-        if all(c and fotos_ja_foram(conn, lead, c) for c in cods):
+        if all(c and fotos_ja_foram(conn, lead, c) and card_visto(conn, lead, c) for c in cods):
             acoes = [a for a in acoes if a != "fotos"]
             baloes = []
             for b in _baloes_do(r):
@@ -1265,16 +1386,93 @@ def depois_do_modelo(conn, lead: dict, r: dict, novas: list[str], ultima_da_nay:
                 if frases:
                     baloes.append(" ".join(frases))
             r["baloes"] = baloes
-            passos.append(("fotos_sem_pedir", f"as fotos de {', '.join('#' + str(c) for c in cods)} já foram e ela não pediu foto: sem reenviar"))
-    # 5. nunca leva a dúvida à equipe sem dizer nada a ela (o lead 60 ficou sem resposta)
+            passos.append(("fotos_sem_pedir", f"as fotos e o card de {', '.join('#' + str(c) for c in cods)} já foram: sem reenviar"))
+    # 5. nunca leva a dúvida à equipe sem dizer nada a ela (o lead 60 ficou sem resposta). 04/11: a frase pronta é a rede;
+    # _responder_um pede antes ao modelo que escreva (turno_mudo vê a marca _balao_padrao)
     if not _baloes_do(r):
         for a in ("perguntar", "equipe"):
             if a in acoes:
-                r["baloes"] = [BALAO_SEM_RESPOSTA[a]]
+                r["baloes"] = [uma_das(BALOES_SEM_RESPOSTA[a], vez=_vez(texto))]
+                r["_balao_padrao"] = True
                 passos.append(("balao_sem_resposta", f"ação {a} sem balão: a frase padrão"))
                 break
     r["acoes"] = acoes
     return acoes, passos
+
+
+# 04/11 (Pedro: "ela não pode errar, nem esquecer o lead"; o lead 60 ficou mudo com "Posso visitar agora?", a Lorena com "Só
+# tem 1 dormitório?"): a rede de 2c644f6 (só a trava das fotos) vale para QUALQUER turno que ficaria sem balão
+FALAM_SOZINHAS = {"fotos", "card", "buscar", "visita"}      # ações que mandam algo a ela mesmo sem balão
+
+
+def turno_mudo(r: dict, acoes: list[str], passos: list[tuple[str, str]], novas: list[str]) -> str:
+    """Por que este turno precisa voltar ao modelo ('' = ele fala): 'visita' (a visita não sai e ela precisa saber),
+    'buscar' (pediu a busca sem o valor ou o lugar e prometeu as opções), 'fotos' (as fotos já foram) ou 'mudo' (nenhum
+    balão e nenhuma ação que fale, para mensagem que não é só cortesia). A frase padrão da rede 5 também conta como mudo:
+    o modelo tem a chance de escrever com as palavras dele."""
+    nomes = {n for n, _d in passos}
+    baloes = [] if r.get("_balao_padrao") else _baloes_do(r)
+    if "visita_nao_sai" in nomes:
+        return "visita"
+    if "buscar_sem_filtro" in nomes and (not baloes or any(VOU_ENTREGAR.search(b) for b in baloes)):
+        return "buscar"
+    textos = [t for t in novas or [] if (t or "").strip()]
+    if not textos or so_agradeceu(textos) or baloes or (FALAM_SOZINHAS & set(acoes)):
+        return ""
+    return "fotos" if "fotos_sem_pedir" in nomes else "mudo"
+
+
+def aviso_do_mudo(motivo: str, r: dict, agora: datetime | None = None) -> str:
+    """O aviso da segunda chamada para o turno mudo (turno_mudo)."""
+    agora = agora or datetime.now(MANAUS)
+    if motivo == "visita":
+        v = r.get("visita") if isinstance(r.get("visita"), dict) else {}
+        quando = f"{v.get('data') or ''} {v.get('hora') or ''}".strip() or "o horário que ela disse"
+        por = {
+            "cedo": f"ela quer visitar {quando}, e isso é daqui a menos de 30 min. A visita é confirmada antes com o corretor "
+                    "e com o proprietário, e em cima da hora isso não fecha. Diga isso a ela com naturalidade, numa frase, e "
+                    f"pergunte se pode ser a partir das {visita.hora(visita.primeiro_horario(agora))} ou em outro dia",
+            "passou": f"o horário que ela disse ({quando}) já passou: pergunte o dia e o horário que ela quer",
+            "sem_dia_hora": "faltou o dia ou o horário exato da visita: pergunte (\"de manhã\" não é horário)",
+            "sem_imovel": "você não sabe qual imóvel ela quer visitar: pergunte pelo nome (condomínio ou bairro), nunca o código",
+        }.get(str(r.get("_visita_motivo") or ""), "a visita não pode ser marcada assim: pergunte o dia e o horário")
+        return (f"ATENÇÃO: NÃO marque a ação visita agora: {por}. Escreva o balão (sem \"não dá\", \"não consigo\", \"não é "
+                "possível\").")
+    if motivo == "buscar":
+        return (f"ATENÇÃO: ainda falta {r.get('_falta_para_buscar') or 'o valor e o lugar'} para buscar: NÃO marque buscar "
+                "e não prometa as opções. Pergunte isso a ela, curto, reagindo antes ao que ela disse.")
+    if motivo == "fotos":
+        # 2c644f6 (a Lorena ...9301): a trava das fotos repetidas tirou a única ação do turno
+        return ("ATENÇÃO: as fotos e as informações desse imóvel JÁ FORAM mandadas a ela (estão ali em cima na conversa) e ela "
+                "não pediu de novo. NÃO use a ação fotos. RESPONDA EM TEXTO, no balão, ao que ela escreveu agora (pela ficha; "
+                "o que não estiver lá, diga que vai confirmar e marque \"perguntar\"). Se ela pediu fotos, diga com as suas "
+                "palavras que as que você tem são as que já mandou e pergunte se quer de novo ou se pede outras à equipe.")
+    return ("ATENÇÃO: a sua resposta não tem nenhum balão, e ela escreveu algo que pede resposta. RESPONDA EM TEXTO ao que "
+            "ela escreveu agora (pela ficha e pela conversa; o que você não souber, diga que vai confirmar e marque "
+            "\"perguntar\") e siga o roteiro. Nunca deixe a mensagem dela sem resposta.")
+
+
+def ultima_rede(r: dict, motivo: str, novas: list[str], agora: datetime | None = None) -> tuple[list[str], list[str]]:
+    """Ainda mudo depois da segunda chamada: (as ações, os balões) da rede. A dúvida vai à equipe ("perguntar") e ela ouve
+    que vamos ver; a visita em cima da hora ganha a frase de outro horário. Nunca sem resposta."""
+    agora = agora or datetime.now(MANAUS)
+    texto = " / ".join(t.strip() for t in novas if (t or "").strip())
+    if motivo == "buscar":
+        falta = str(r.get("_falta_para_buscar") or "")
+        return [], [uma_das(["E até que valor fica bom?", "Qual o valor máximo que fica bom?"] if "valor" in falta else
+                            ["E qual região fica melhor?", "Quais bairros ficam bons?"], vez=_vez(texto))]
+    if motivo == "visita" and r.get("_visita_motivo") == "cedo":
+        h = visita.hora(visita.primeiro_horario(agora))
+        return [], [uma_das([f"Pra agora fica em cima da hora para confirmar com o proprietário. Pode ser a partir das {h}, "
+                             "ou prefere outro dia?",
+                             f"Em cima da hora assim fica difícil confirmar com o proprietário. Que tal a partir das {h}, "
+                             "ou outro dia?"], vez=_vez(texto))]
+    if motivo == "visita" and r.get("_visita_motivo") in ("passou", "sem_dia_hora"):
+        return [], [uma_das(["Que dia e horário ficam bons para a visita?", "Me diz o dia e o horário que fica bom para visitar."],
+                            vez=_vez(texto))]
+    if not str(r.get("motivo") or "").strip():
+        r["motivo"] = f"a Nay ficou sem resposta para: {texto[:300]}"
+    return ["perguntar"], [uma_das(BALOES_SEM_RESPOSTA["perguntar"], vez=_vez(texto))]
 
 
 def so_no_condominio(achados: list[dict], f: dict) -> list[dict]:
@@ -1338,8 +1536,25 @@ def abrir(conn, cfg: dict) -> int:
         if not lead or not _pode(cfg, lead["telefone"]):
             continue
         try:
+            # 394: o que ela já escreveu (ou o que já conversamos, se veio de outro anúncio) entra na abertura
+            conversa = _conversa(conn, lead)
+            # 04/11 (a Paula ...8142: no meio da conversa, uma consulta nova do Chaves na Mão -- cnm_lead_para_a_nay -- a
+            # pôs de volta em 'nova'; a "abertura" com a conversa inteira na frente não saiu, deu ValueError três vezes e ela
+            # foi marcada humano_em "a Nay não conseguiu abrir"): conversa já começada é resposta comum. A etapa volta a
+            # ser a de onde a conversa estava (como na reabertura do 'finalizado') e o turno diz que é o meio da conversa.
+            meio = any(m.get("nossa") or m.get("origem") == "resposta" for m in conversa)
+            etapa = "filtrar"
+            if meio:
+                etapa = ("visita" if visita.ativa(conn, lead["id"])
+                         else "imoveis_enviados" if lead.get("enviados") else "filtrar")
             # a equipe já chamou por este número (nos últimos 3 dias): a conversa é dela
             gente = _gente_escreveu(conn, lead, banco.um(conn, "SELECT now() - interval '3 days'"))
+            if gente and meio:
+                # 04/11: no meio da conversa a equipe que escreveu não toma a conversa para sempre: a Nay volta ao que era
+                # e a resposta comum (com a espera de gap_equipe_min) segue dali
+                _marcar(conn, lead["id"], assumido_em_agora=True, etapa=etapa)
+                agentes.passo(lead, "abertura_no_meio", "consulta nova no meio da conversa, com a equipe por perto: sem abertura")
+                continue
             if gente:
                 _marcar(conn, lead["id"], assumido_em_agora=True, humano_em=gente, etapa="filtrar",
                         parada_motivo="a equipe já tinha chamado por este número")
@@ -1347,12 +1562,24 @@ def abrir(conn, cfg: dict) -> int:
                 continue
             ctx_olx = _contexto(conn, lead)
             lead["visita_aberta"] = visita.para_o_modelo(conn, lead["id"])
-            # 394: o que ela já escreveu (ou o que já conversamos, se veio de outro anúncio) entra na abertura
-            conversa = _conversa(conn, lead)
             ate = max([m["id"] for m in conversa if m.get("direcao") == "recebida"] or [_ultima_recebida(conn, lead)])
             agentes.novo_turno(lead)
-            agentes.passo(lead, "abertura", "lead novo: a primeira mensagem da Nay")
-            r = modelo.chamar(PROMPT, montar_turno(lead, ctx_olx, conversa), no="olx.whatsapp")
+            if meio:
+                lead["etapa"], lead["meio_da_conversa"] = etapa, True
+                if organico(lead):
+                    lead["fichas_citadas"] = _fichas_citadas(conn, conversa, lead)
+                lead["imoveis_conhecidos"] = imoveis_da_conversa(conn, lead)
+                lead["saber_dos_imoveis"] = saber_dos_imoveis(conn, lead)
+                agentes.passo(lead, "abertura_no_meio", f"consulta nova no meio da conversa (#{lead.get('codigo')}): resposta comum")
+            else:
+                agentes.passo(lead, "abertura", "lead novo: a primeira mensagem da Nay")
+            turno = montar_turno(lead, ctx_olx, conversa)
+            r = modelo.chamar(PROMPT, turno, no="olx.whatsapp")
+            if not _baloes_do(r):
+                # 04/11: uma segunda chamada, avisada, antes de dar a volta como falha
+                agentes.passo(lead, "chamou_de_novo", "a abertura veio sem balão")
+                r = modelo.chamar(PROMPT, turno + "\n\nATENÇÃO: a sua resposta veio sem balão. Escreva a mensagem dela "
+                                  "agora (curta, como pessoa), no JSON.", no="olx.whatsapp")
             acoes = acoes_da(r)
             if not _baloes_do(r):
                 raise ValueError("o modelo não escreveu a abertura")
@@ -1362,7 +1589,7 @@ def abrir(conn, cfg: dict) -> int:
             agentes.passo(lead, "falou", f"{len(baloes)} balão(ões)" + (f"; ações: {', '.join(acoes)}" if acoes else ""),
                           baloes=baloes)
             filtros = condominio_que_faltou(conn, _filtros(lead.get("filtros"), r.get("filtros")), conversa)
-            _marcar(conn, lead["id"], assumido_em_agora=True, etapa="filtrar", ultima_lida=ate, filtros=filtros)
+            _marcar(conn, lead["id"], assumido_em_agora=True, etapa=etapa, ultima_lida=ate, filtros=filtros)
             # 16/10: o que ela promete já na abertura (passar o desconto à equipe, confirmar a visita pedida na OLX...) tem
             # de chegar à equipe: as ações da abertura valem como as de qualquer resposta
             for acao in acoes:
@@ -1372,10 +1599,9 @@ def abrir(conn, cfg: dict) -> int:
             feitos += 1
         except Exception as e:  # noqa: BLE001 -- um cliente não para os outros
             agentes.registrar(lead, "fluxo", "falhou", {"resumo": f"abertura: {type(e).__name__}: {e}"[:200]}, erro=str(e))
-            _falhou(conn, lead, None, e)
-            if _FALHAS.get(lead["id"]) is None:       # terceira falha: não abre mais sozinha
-                _marcar(conn, lead["id"], assumido_em_agora=True, humano_em=banco.um(conn, "SELECT now()"),
-                        etapa="filtrar", parada_motivo="a Nay não conseguiu abrir")
+            # 04/11 (a Paula ...8142 ficou com a equipe por "a Nay não conseguiu abrir"): falha da Nay nunca marca humano_em;
+            # na terceira, a equipe é avisada e ela tenta de novo mais tarde (_falhou)
+            _falhou(conn, lead, None, e, abertura=True)
     return feitos
 
 
@@ -1508,7 +1734,7 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
         log.info("lead %s: a equipe já respondeu o que ela escreveu; a Nay não responde", lead["id"])
         agentes.passo(lead, "equipe_ja_respondeu", "a equipe já respondeu o que ela escreveu: a Nay não responde")
         return False
-    if banco.um(conn, "SELECT count(*) FROM privado.olx_cliente_enviada WHERE lead = %s AND tipo = 'texto'",
+    if banco.um(conn, "SELECT count(*) FROM privado.olx_cliente_enviada WHERE lead = %s AND tipo IN ('texto', 'resposta_fila')",
                 (lead["id"],)) >= LIMITE_DE_MENSAGENS:
         _marcar(conn, lead["id"], humano_em=banco.um(conn, "SELECT now()"), ultima_lida=ate,
                 parada_motivo="a conversa foi longe demais para a Nay")
@@ -1577,25 +1803,32 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
     # 25-26/10: as camadas sem modelo (o código sozinho, a escolha pelo valor, o card que responde, pediu opções, nunca
     # sem balão): depois_do_modelo, a mesma que os testes rodam
     acoes, passos = depois_do_modelo(conn, lead, r, novas, nossas[-1]["texto"] if nossas else "")
-    if not _baloes_do(r) and not acoes and any(n == "fotos_sem_pedir" for n, _d in passos):
-        # 04/11 (Pedro: "na conversa da Lorena ela perguntou e a Nay não respondeu, não pode abandonar um cliente assim"):
-        # o modelo só pôs a ação fotos, a trava das fotos repetidas tirou a ação e o turno ficou mudo ("Só tem 1
-        # dormitório?" e os bairros dela, sem resposta). Uma segunda chamada, avisada: responder em texto.
+    mudo = turno_mudo(r, acoes, passos, novas)
+    if mudo:
+        # 04/11 (Pedro: "na conversa da Lorena ela perguntou e a Nay não respondeu, não pode abandonar um cliente assim";
+        # e o lead 60, "Posso visitar agora?", mudo): a rede de 2c644f6 (a trava das fotos) agora vale para qualquer turno
+        # mudo -- a visita que não sai, a busca sem filtro, a frase padrão, nenhum balão. Uma segunda chamada, avisada;
+        # ainda mudo, a última rede (ultima_rede): nunca sem resposta.
         for nome, detalhe in passos:
             agentes.passo(lead, nome, detalhe)
-        aviso_fotos = ("ATENÇÃO: as fotos desse imóvel JÁ FORAM mandadas a ela e ela não pediu de novo. NÃO use a ação "
-                       "fotos e não prometa fotos nem informações. RESPONDA EM TEXTO, no balão, ao que ela escreveu agora "
-                       "(use a ficha do imóvel; o que não estiver lá, diga que vai confirmar) e siga o roteiro.")
-        agentes.passo(lead, "chamou_de_novo", "só a ação fotos, que já foram: responder em texto")
-        r = modelo.chamar(prompt, turno + "\n\n" + aviso_fotos, no="olx.whatsapp")
+        agentes.passo(lead, "chamou_de_novo", f"turno mudo ({mudo}): responder em texto")
+        r2 = modelo.chamar(prompt, turno + "\n\n" + aviso_do_mudo(mudo, r), no="olx.whatsapp")
         u4 = modelo.ultimo_uso()
         uso = {**u4, **{k: (uso.get(k) or 0) + (u4.get(k) or 0) for k in ("ms", "tokens_entrada", "tokens_saida", "tokens_cache")}}
-        acoes, passos = depois_do_modelo(conn, lead, r, novas, nossas[-1]["texto"] if nossas else "")
-        if not _baloes_do(r) and not acoes and any("?" in (n or "") for n in novas):
-            # ainda mudo e ela perguntou: a dúvida vai à equipe e ela ouve que vamos confirmar (nunca sem resposta)
-            acoes = ["perguntar"]
-            r["baloes"] = [BALAO_SEM_RESPOSTA["perguntar"]]
-            passos.append(("balao_sem_resposta", "ainda sem balão depois da segunda chamada: a dúvida vai à equipe"))
+        sobra, ainda = paredes.cortar(_baloes_do(r2), turno, organico(lead))
+        if ainda:
+            agentes.passo(lead, "parede_cortou", "; ".join(f"{p}: {x}" for _i, p, x in ainda)[:180], furos=ainda)
+        r2["baloes"] = sobra
+        acoes2, passos2 = depois_do_modelo(conn, lead, r2, novas, nossas[-1]["texto"] if nossas else "")
+        mudo2 = turno_mudo(r2, acoes2, passos2, novas)
+        if not mudo2 or (_baloes_do(r2) and not r2.get("_balao_padrao") and mudo2 != "buscar"):
+            r, acoes, passos = r2, acoes2, passos2
+        else:
+            if not r.get("_balao_padrao"):
+                extra, r["baloes"] = ultima_rede(r, mudo, novas)
+                acoes = list(dict.fromkeys([*[a for a in acoes if a not in ("visita", "buscar")], *extra]))[:2]
+                r["acoes"] = acoes
+            passos = [("balao_sem_resposta", f"ainda mudo ({mudo2}) depois da segunda chamada: a última rede")]
     for nome, detalhe in passos:
         agentes.passo(lead, nome, detalhe)
     r["_novas"] = novas
@@ -1728,16 +1961,20 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
                 continue
             if n:
                 time.sleep(DEPOIS_DAS_FOTOS_S)   # as fotos do anterior carregam antes do próximo card
-            # o imóvel do anúncio ou um que ela já recebeu: só as fotos (o card ela já viu)
-            ja_viu = codigo == lead.get("codigo") or codigo in enviados
+            # um que ela já recebeu POR AQUI: só as fotos (o card ela já viu). 04/11 (a Lorena ...9301: "Me manda o link? Eu
+            # esqueci qual é 😅" e só recebeu as fotos): o imóvel do anúncio não conta mais como visto -- ela viu o anúncio,
+            # não o card -- e o card vai quando ela ainda não o recebeu aqui (card_visto)
+            ja_viu = codigo in enviados or card_visto(conn, lead, codigo)
+            de_novo = bool(DE_NOVO.search(" ".join(r.get("_novas") or [])))
             # 25/10 (a marcação do Pedro no treino, …9640: "não reenviar o mesmo card, ela enviou várias vezes"): as fotos
-            # que já foram não vão de novo, a não ser que ela peça de novo ("de novo", "não chegaram")
-            if ja_viu and fotos_ja_foram(conn, lead, codigo) and not DE_NOVO.search(" ".join(r.get("_novas") or [])):
-                agentes.passo(lead, "fotos_ja_foram", f"as fotos do #{codigo} já foram: não reenvia")
-                if not any(_normal("Já te mandei as fotos") in _normal(x) for x in ja_mandou(conn, lead)):
-                    mandar_texto(conn, lead, "Já te mandei as fotos desse aqui em cima na conversa. Quer que eu mande de novo?")
+            # que já foram não vão de novo, a não ser que ela peça de novo ("de novo", "não chegaram"). 04/11: saiu a frase
+            # fixa "Já te mandei as fotos desse aqui em cima na conversa. Quer que eu mande de novo?" (às vezes falsa): o
+            # turno sem nada a mandar volta ao modelo antes (depois_do_modelo 5a e turno_mudo)
+            com_fotos = de_novo or not fotos_ja_foram(conn, lead, codigo)
+            if ja_viu and not com_fotos:
+                agentes.passo(lead, "fotos_ja_foram", f"as fotos e o card do #{codigo} já foram: não reenvia")
                 continue
-            mandar_imovel(conn, lead, codigo, com_card=not ja_viu, repetir=bool(DE_NOVO.search(" ".join(r.get("_novas") or []))))
+            mandar_imovel(conn, lead, codigo, com_card=not ja_viu, com_fotos=com_fotos, repetir=de_novo)
             if not ja_viu:
                 enviados.append(codigo)
                 _marcar(conn, lead["id"], enviados=enviados)
@@ -1765,8 +2002,13 @@ def _fazer(conn, lead: dict, r: dict, acao: str, filtros: dict, cfg: dict | None
         # a Karoline ...0222): "Vou pegar as opções no meu sistema para lhe enviar" é promessa de MANDAR, não aviso de que
         # ainda está procurando -- contava como aviso, a busca deu vazio e ela ficou 5 h sem ouvir nada
         ja_avisou = any(re.search(r"continu\w* (procurando|verificando|buscando)|ainda (estou )?(procurando|verificando)|"
-                                  r"verificando com|te aviso (por aqui )?assim que", b, re.I)
+                                  r"verificando com|te aviso (por aqui )?assim que|sigo procurando", b, re.I)
                         for b in (r.get("_baloes_que_sairam") or _baloes_do(r)))
+        # 04/11 (Pedro: "o foco da Nay Leads é ser um bom filtro"): sem o valor e o lugar não se busca (a abertura também
+        # chega aqui; o turno comum já tirou a ação em depois_do_modelo)
+        if not _filtros_bastam({**filtros, "finalidade": filtros.get("finalidade") or finalidade_sem_dizer(lead, filtros)}):
+            agentes.passo(lead, "buscar_sem_filtro", f"a busca pedida sem o valor ou o lugar: não busca ({_resumo_dos_filtros(filtros)})")
+            return
         _buscar_e_mandar(conn, lead, filtros, ja_avisou=ja_avisou)
     elif acao == "visita":
         # 389 (Pedro, 16/10): a confirmação no modelo da Parceria; os contatos só depois do sim dela
@@ -1827,9 +2069,12 @@ def _contato_do_corretor_da_visita(conn, lead: dict) -> str | None:
 
 ETAPAS_DA_BUSCA = ("nova", "filtrar", "feito_busca", "imoveis_enviados", "finalizado")
 # 475 (Pedro, 22/10: "se não tivermos avisamos a ele que vamos continuar verificando")
-# 24/10 (Pedro): "se ela não encontrou a busca ela responde 'Entendi, por enquanto ainda procurando opções'"
-CONTINUO_VERIFICANDO = "Entendi, por enquanto ainda procurando opções."
-CONTINUO_EXATO = "E continuo verificando com os nossos corretores parceiros uma com o perfil exato. Te aviso por aqui."
+# 04/11 (Pedro: "é melhor não ter essas frases robóticas, só na nossa memória"): saíram as duas frases fixas, "Entendi, por
+# enquanto ainda procurando opções." e "E continuo verificando com os nossos corretores parceiros uma com o perfil exato. Te
+# aviso por aqui." (esta falava "parceiros" ao cliente). Sem nada no perfil, ela pergunta UMA coisa para afrouxar
+# (pergunta_para_afrouxar) ou diz, com uma frase que varia, que segue procurando (sigo_procurando).
+MAX_PROXIMOS = 2           # 04/11: o "mais próximo" (bairro vizinho, condomínio próximo) sai no máximo 2 por busca
+TETO_FOLGA = 1.10          # 04/11: nada acima de +10% do teto que ela disse, por nenhum caminho (a régua)
 
 
 def distancias_km(conn, bairros: list[str], lugar: str) -> dict[str, float]:
@@ -1864,25 +2109,269 @@ def so_perto(conn, achados: list[dict], f: dict) -> list[dict]:
     return [a for a in achados if a.get("bairro") in d and d[a["bairro"]] <= km_max]
 
 
-def _afrouxar(f: dict) -> list[tuple[dict, bool]]:
-    """394 (Pedro: "e depois já vir com as opções pesquisadas"): nada no perfil exato -> o mais perto, um passo de cada vez
-    (sem mobília, com um quarto a menos, nos bairros vizinhos e em qualquer bairro, até 20% acima do valor)."""
-    passos: list[tuple[dict, bool]] = [(f, False)]
-    g = dict(f)
-    # 24/10 (Pedro, a Esther pediu mobiliado e recebeu "com modulados e ar"): a mobília NÃO afrouxa mais. Mobiliado é
-    # mobiliado (a mobília rígida de 20/10), e o "perto de X" também fica como ela pediu.
-    if g.get("quartos") and not g.get("aceita_menos_quartos"):
-        g = {**g, "aceita_menos_quartos": True}
-        passos.append((g, True))
-    if g.get("bairros") and not g.get("qualquer_bairro"):
-        g = {**g, "bairros": [], "qualquer_bairro": True}
-        passos.append((g, True))
-    if g.get("teto"):
-        # 01/11 (lead 119: até R$ 200 mil e recebeu duas de R$ 255 mil): a busca já põe +10% sobre o teto; o passo leva
-        # o total a +20% do que ela disse, não a +32%
-        g = {**g, "teto": int(float(g["teto"]) * 1.2 / 1.1)}
-        passos.append((g, True))
+COMERCIAL = {"galpao", "predio", "sala", "loja", "terreno", "comercial"}
+
+
+def _comercial(f: dict) -> bool:
+    return _normal(str((f or {}).get("tipo") or "")).replace(" ", "_") in COMERCIAL
+
+
+def _afrouxar(f: dict) -> list[tuple[dict, str]]:
+    """O que se pode PERGUNTAR a ela para afrouxar, na ordem: (os filtros afrouxados, 'quartos' | 'bairro' | 'valor').
+    394 (Pedro: "e depois já vir com as opções pesquisadas"): era o mais perto, um passo de cada vez, MANDADO sem perguntar
+    (um quarto a menos, qualquer bairro, até +20% do valor), e o veto do JEV não rodava nessas.
+    04/11 (Pedro: "o foco da Nay Leads é ser um bom filtro mais do que qualquer outra coisa; ela não pode errar ... nem
+    mandar imóvel errado"): nada passa de +10% do teto, nem troca de bairro ou baixa quartos sem ela aceitar. Os passos
+    agora só servem para saber o que existe e fazer UMA pergunta curta (pergunta_para_afrouxar): "Em Planalto com 4 quartos
+    não tenho agora; serve com 3, ou um bairro vizinho?". A mobília continua sem afrouxar (24/10, a Esther).
+    O 'bairro' leva a marca _vizinhos: quem busca soma os bairros vizinhos (nai_bairros_ao_redor) aos que ela disse."""
+    passos: list[tuple[dict, str]] = []
+    # quem já disse que não serve menos quartos (aceita_menos_quartos = false) não é perguntado de novo
+    if _int(f.get("quartos")) and _int(f.get("quartos")) > 1 and f.get("aceita_menos_quartos") is None and not _comercial(f):
+        passos.append(({**f, "aceita_menos_quartos": True}, "quartos"))
+    if f.get("bairros") and not f.get("qualquer_bairro") and not f.get("so_condominio"):
+        passos.append(({**f, "_vizinhos": True}, "bairro"))
+    if _int(f.get("teto")):
+        # 01/11 (lead 119: até R$ 200 mil e recebeu duas de R$ 255 mil): a busca já põe +10%; aqui é só para PERGUNTAR
+        # se serve um pouco acima (até +20% no total)
+        passos.append(({**f, "teto": int(float(f["teto"]) * 1.2 / 1.1)}, "valor"))
     return passos
+
+
+# ── 04/11: A RÉGUA ÚNICA "serve ao pedido" ──
+# Pedro (04/11): "ela não pode errar, nem esquecer o lead, nem mandar imóvel errado". Tudo o que sai ao cliente sem ela ter
+# pedido aquele imóvel (a busca da base, a revisita da base, a oferta do corretor, o cadastro da OLX, o anúncio de
+# parceiro) passa por aqui: finalidade, tipo, valor até +10% do teto, quartos, bairro, mobília (o "sem" nunca recebe
+# mobiliado), suítes mínimas e faixa de andar. Suítes e andar vinham só como texto nas exigências e não filtravam nada.
+SUITES = re.compile(r"(?:(\d+)|\b(uma|um|duas|dois|tres|quatro)\b)?\s*su[ií]tes?\b", re.I)
+NUMEROS = {"um": 1, "uma": 1, "dois": 2, "duas": 2, "tres": 3, "quatro": 4}
+ANDAR_TEXTO = {"terreo": 0, "baixo": 2, "medio": 5, "mediano": 5, "alto": 10, "cobertura": 99}
+
+
+def suites_pedidas(f: dict) -> int:
+    """O mínimo de suítes que ela pediu ("com suíte", "pelo menos 1 suíte", "2 suítes", "duas suítes"); 0 = não pediu."""
+    minimo = 0
+    for x in (f or {}).get("exigencias") or []:
+        t = _normal(str(x))
+        if re.search(r"\b(sem|nao precisa)\b.*\bsuite", t):
+            continue
+        for m in SUITES.finditer(t):
+            n = int(m.group(1)) if m.group(1) else NUMEROS.get(m.group(2) or "", 1)
+            minimo = max(minimo, n)
+    return minimo
+
+
+def andar_pedido(f: dict) -> tuple[int | None, int | None]:
+    """A faixa de andar que ela pediu, (mínimo, máximo); (None, None) = não pediu. "andar alto" (8, -), "andar mediano ou
+    alto" (4, -), "andar baixo" (-, 3), "térreo ou primeiro andar" (-, 1), "térreo" (-, 0), "até o 3º andar" (-, 3),
+    "não quero térreo" (1, -). O que fala de escada ("escada se for no segundo andar") é do aceita_escada, não daqui."""
+    lo = hi = None
+    for x in (f or {}).get("exigencias") or []:
+        t = _normal(str(x))
+        if "escada" in t or not re.search(r"\bandar|\bterreo\b", t):
+            continue
+        if re.search(r"\b(nao|sem)\b[^,]*\bterreo\b", t):
+            lo = max(lo or 0, 1)
+            continue
+        m = re.search(r"\bate o?\s*(\d+)", t)
+        if m:
+            hi = int(m.group(1))
+        elif re.search(r"\bterreo\b", t):
+            hi = 1 if re.search(r"\b(primeiro|1)\b", t) else 0
+        elif re.search(r"\bbaixo\b", t):
+            hi = 3
+        elif re.search(r"\b(medio|mediano)\b", t):
+            lo = 4
+            if not re.search(r"\balto\b", t):
+                hi = 7
+        elif re.search(r"\balto\b", t):
+            lo = 8
+    return lo, hi
+
+
+def andar_do_imovel(andar) -> int | None:
+    """O andar do cadastro em número: '3', '3º', '02', 'Térreo', 'Alto', 'Andar alto', 'Médio', 'Cobertura'; None = não se sabe."""
+    t = _normal(str(andar or ""))
+    if not t:
+        return None
+    m = re.search(r"\d+", t)
+    if m:
+        return int(m.group(0))
+    for k, v in ANDAR_TEXTO.items():
+        if k in t:
+            return v
+    return None
+
+
+TIPOS_RESIDENCIAIS = {"apartamento", "casa", "casa_condominio", "flat", "cobertura"}
+
+
+def _tipo_serve(pedido: str, im: dict) -> bool | None:
+    """O tipo do imóvel (o da core_imovel_busca) serve ao tipo pedido; None = não se sabe o do imóvel."""
+    t = _normal(pedido).replace(" ", "_")
+    ti = _normal(str(im.get("tipo") or "")).replace(" ", "_")
+    if not ti:
+        return None
+    original = _normal(str(im.get("tipo_original") or ""))
+    if t in ("", "tanto_faz"):
+        return ti in TIPOS_RESIDENCIAIS
+    if t == "casa":
+        return ti in ("casa", "casa_condominio")
+    if t == "apartamento":
+        return ti in ("apartamento", "cobertura", "flat")
+    if t == "comercial":
+        return ti in ("sala", "loja") or (ti == "outro" and bool(re.match(r"(galp|predio)", original)))
+    if t in ("galpao", "predio"):
+        return ti == "outro" and original.startswith(t[:5])
+    return ti == t
+
+
+def serve_ao_pedido(im: dict, f: dict, desconhecido_passa: bool = False) -> str:
+    """'' = o imóvel serve ao pedido; senão o motivo curto (vai ao registro dos agentes). `im`: tipo, tipo_original,
+    valor_venda, valor_aluguel, quartos, suites, mobilia ('', 'semi', 'mobiliado', 'nao', 'nada'), andar, condominio,
+    codigo e bairro_ok (False = fora dos bairros pedidos e dos vizinhos; None = não conferido). O que o imóvel não diz
+    (quartos, suítes, andar, mobília) NÃO serve quando ela pediu, a não ser `desconhecido_passa` (o anúncio da OLX)."""
+    f = f or {}
+
+    def falta(o_que: str) -> str:
+        return "" if desconhecido_passa else f"sem {o_que} no cadastro"
+
+    fin = str(f.get("finalidade") or "")
+    venda = fin.startswith("vend")
+    locacao = fin.startswith("loca")
+    valor = _num(im.get("valor_venda")) if venda else _num(im.get("valor_aluguel")) if locacao else \
+        (_num(im.get("valor_aluguel")) or _num(im.get("valor_venda")))
+    if (venda or locacao) and not valor and not (desconhecido_passa and im.get("valor_venda") is None
+                                                  and im.get("valor_aluguel") is None):
+        return "não é de venda" if venda else "não é de locação"
+    tipo_ok = _tipo_serve(str(f.get("tipo") or ""), im)
+    if tipo_ok is False:
+        return f"o tipo ({im.get('tipo')}) não é o pedido ({f.get('tipo') or 'residencial'})"
+    teto = _int(f.get("teto"))
+    if teto and valor and valor > teto * TETO_FOLGA + 0.5:
+        return f"R$ {valor} passa de +10% do teto (R$ {teto})"
+    comercial = _comercial(f)
+    q = _int(f.get("quartos"))
+    if q and not comercial:
+        minimo = q - (1 if f.get("aceita_menos_quartos") is True else 0)
+        qi = _num(im.get("quartos"))
+        if qi is None:
+            if falta("quartos"):
+                return falta("quartos")
+        elif qi < minimo:
+            return f"{qi} quarto(s), ela pediu {q}"
+    if im.get("bairro_ok") is False:
+        return f"o bairro ({im.get('bairro')}) não é o pedido nem vizinho"
+    cods_rec, nomes_rec = recusados(f)
+    if _num(im.get("codigo")) in cods_rec or (nomes_rec and fora_os_recusados([im], nomes_rec) == []):
+        return "ela recusou esse imóvel"
+    if f.get("so_condominio") and f.get("condominio") and not so_no_condominio([im], f):
+        return f"ela quer só no {f['condominio']}"
+    mob = str(f.get("mobilia") or "")
+    if locacao and not comercial and mob in ("mobiliado", "semi", "sem"):
+        mi = str(im.get("mobilia") or "")
+        if mob == "sem":
+            if mi == "mobiliado":
+                return "mobiliado, e ela não quer mobiliado"
+        elif not mi:
+            if falta("a mobília"):
+                return falta("a mobília")
+        elif mob == "mobiliado" and mi != "mobiliado":
+            return f"mobília '{mi}', ela quer mobiliado"
+        elif mob == "semi" and mi not in ("semi", "mobiliado"):
+            return f"mobília '{mi}', ela quer modulados e ar"
+    s = suites_pedidas(f)
+    if s:
+        si = _num(im.get("suites"))
+        if si is None:
+            if falta("as suítes"):
+                return falta("as suítes")
+        elif si < s:
+            return f"{si} suíte(s), ela pediu {s}"
+    lo, hi = andar_pedido(f)
+    if (lo is not None or hi is not None) and str(im.get("tipo") or "") in ("apartamento", "cobertura", "flat", ""):
+        a = andar_do_imovel(im.get("andar"))
+        if a is None:
+            if falta("o andar"):
+                return falta("o andar")
+        elif (lo is not None and a < lo) or (hi is not None and a > hi):
+            return f"andar {im.get('andar')}, fora da faixa que ela pediu"
+    return ""
+
+
+def fichas_da_regua(conn, codigos: list[int]) -> dict[int, dict]:
+    """O que a régua precisa de cada imóvel: a core_imovel_busca (tipo e mobília já normalizados) e, para o que ainda não
+    entrou nela (o cadastro novo, até o REFRESH), o cadastro com o tipo e a mobília lidos do jeito mais simples."""
+    cods = [c for c in dict.fromkeys(_int(x) for x in codigos or []) if c]
+    if not cods:
+        return {}
+    return {int(l["codigo"]): l for l in banco.linhas(conn, """
+        SELECT i.codigo, coalesce(c.tipo, CASE
+                 WHEN lower(unaccent(coalesce(i.tipo, ''))) ~ 'casa.*cond' THEN 'casa_condominio'
+                 WHEN lower(unaccent(coalesce(i.tipo, ''))) ~ '^(apart|apto)' THEN 'apartamento'
+                 WHEN lower(unaccent(coalesce(i.tipo, ''))) ~ '^casa' THEN 'casa'
+                 WHEN lower(unaccent(coalesce(i.tipo, ''))) ~ '^cobert' THEN 'cobertura'
+                 WHEN lower(unaccent(coalesce(i.tipo, ''))) ~ '^(flat|kitnet|studio)' THEN 'flat'
+                 WHEN lower(unaccent(coalesce(i.tipo, ''))) ~ '^sala' THEN 'sala'
+                 WHEN lower(unaccent(coalesce(i.tipo, ''))) ~ '^(loja|ponto)' THEN 'loja'
+                 WHEN lower(unaccent(coalesce(i.tipo, ''))) ~ '^(terreno|lote)' THEN 'terreno'
+                 WHEN coalesce(i.tipo, '') = '' THEN NULL ELSE 'outro' END) AS tipo,
+               coalesce(c.tipo_original, i.tipo) AS tipo_original,
+               coalesce(c.valor_venda, i.valor_venda) AS valor_venda, coalesce(c.valor_aluguel, i.valor_aluguel) AS valor_aluguel,
+               coalesce(c.quartos, i.quartos) AS quartos, coalesce(c.suites, i.suites) AS suites,
+               coalesce(c.mobilia, CASE
+                 WHEN lower(unaccent(coalesce(i.mobilia, ''))) ~ '(semi|modulad)' THEN 'semi'
+                 WHEN lower(unaccent(coalesce(i.mobilia, ''))) ~ '^mobiliad' THEN 'mobiliado'
+                 WHEN lower(unaccent(coalesce(i.mobilia, ''))) ~ '(nao|sem)' THEN 'nao' ELSE '' END) AS mobilia,
+               i.andar, i.bairro, coalesce(c.condominio_nome, i.condominio_nome) AS condominio
+          FROM imoveis i LEFT JOIN core_imovel_busca c ON c.codigo = i.codigo
+         WHERE i.codigo = ANY(%s::int[])""", (cods,))}
+
+
+def bairros_que_servem(conn, f: dict, bairros: list[str]) -> dict[str, bool] | None:
+    """{bairro do imóvel: está nos bairros que ela pediu (o nome do cadastro parecido, o lugar) ou num vizinho deles
+    (nai_bairros_ao_redor, a mesma regra da busca)}. Sem bairro pedido (qualquer bairro, só o condomínio): None = não
+    confere. O bairro que não volta no dicionário (imóvel sem bairro) não serve."""
+    pedidos = [b for b in (f or {}).get("bairros") or [] if str(b).strip()]
+    if not pedidos or (f or {}).get("qualquer_bairro"):
+        return None
+    alvo = sorted({str(b) for b in bairros if b})
+    if not alvo:
+        return {}
+    return {l["bairro"]: bool(l["ok"]) for l in banco.linhas(conn, """
+        WITH ped AS (
+          SELECT DISTINCT nay_normalizar_lugar(x, true) AS n
+            FROM unnest(%(p)s::text[]) b
+            CROSS JOIN LATERAL unnest(coalesce(CASE WHEN nay_bairro_parecido(b) IS NOT NULL THEN ARRAY[nay_bairro_parecido(b)] END,
+                                               nullif(nai_bairros_do_lugar('no ' || b), '{}'), ARRAY[b])) x
+           WHERE btrim(b) <> ''),
+        viz AS (SELECT DISTINCT nay_normalizar_lugar(x, true) AS n FROM unnest(nai_bairros_ao_redor(ARRAY(SELECT n FROM ped))) x)
+        SELECT b AS bairro, (nay_normalizar_lugar(b, true) IN (SELECT n FROM ped)
+                             OR nay_normalizar_lugar(b, true) IN (SELECT n FROM viz)) AS ok
+          FROM unnest(%(a)s::text[]) b""", {"p": pedidos, "a": alvo})}
+
+
+def so_o_que_serve(conn, lead: dict, f: dict, codigos: list[int], bairro_conferido: bool = False,
+                   onde: str = "") -> list[int]:
+    """Dos `codigos`, os que servem ao pedido `f` (serve_ao_pedido), na mesma ordem. O que não serve fica no registro dos
+    agentes com o motivo. `bairro_conferido`: a busca da base (olx_cliente_buscar) já olhou o bairro, com os 2 km da borda."""
+    cods = [c for c in dict.fromkeys(_int(x) for x in codigos or []) if c]
+    if not cods:
+        return []
+    fichas = fichas_da_regua(conn, cods)
+    ok = None if bairro_conferido else bairros_que_servem(conn, f, [x.get("bairro") for x in fichas.values()])
+    saem = []
+    for c in cods:
+        im = fichas.get(c)
+        if not im:
+            motivo = "sem cadastro"
+        else:
+            motivo = serve_ao_pedido({**im, "bairro_ok": None if ok is None else ok.get(im.get("bairro"), False)}, f)
+        if motivo:
+            agentes.passo(lead, "regua_barrou", f"#{c}: {motivo}" + (f" ({onde})" if onde else ""))
+        else:
+            saem.append(c)
+    return saem
 
 
 def sem_os_gemeos(conn, achados: list[dict], ja: list[int]) -> list[dict]:
@@ -1935,7 +2424,24 @@ def fora_os_recusados(achados: list[dict], nomes: list[str]) -> list[dict]:
     return [a for a in achados if not any(n in _normal(str(a.get("condominio") or "")) for n in nomes)]
 
 
-def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -> None:
+def _consultar(conn, f: dict, excluir: list[int], nomes_recusados: list[str], limite: int = 10) -> list[dict]:
+    """Uma consulta à base (olx_cliente_buscar) com os cortes de sempre: o perto de X, os recusados pelo nome, só o
+    condomínio pedido e o cadastro em dobro. 04/11: pede 10 (o máximo da função): a régua e o veto ainda cortam."""
+    g = {k: v for k, v in f.items() if not k.startswith("_")}
+    achados = banco.linhas(conn, "SELECT * FROM olx_cliente_buscar(%s::jsonb, %s::int[], %s)",
+                           (json.dumps(g, ensure_ascii=False), excluir, limite))
+    achados = so_no_condominio(fora_os_recusados(so_perto(conn, achados, g), nomes_recusados), g)
+    return sem_os_gemeos(conn, achados, excluir)
+
+
+def buscar_na_base(conn, lead: dict, filtros: dict) -> dict:
+    """A busca da base, sem mandar nada (o _buscar_e_mandar e o agentes_erros.buscar_sem_mandar rodam a mesma):
+    {f, achados, proximas, excluir, nomes_recusados, antes_do_veto, ms}.
+    04/11 (Pedro: "o foco da Nay Leads é ser um bom filtro mais do que qualquer outra coisa; ela não pode errar ... nem
+    mandar imóvel errado"): só o perfil que ela disse -- o afrouxar não manda mais nada sozinho --; a régua
+    (so_o_que_serve) e o veto do JEV em TUDO o que sai (antes o veto pulava os "mais próximos", que iam até 5, com um
+    quarto a menos, de qualquer bairro e até +20%); o mais próximo (perto: o bairro vizinho, o condomínio próximo) sai no
+    máximo MAX_PROXIMOS."""
     cods_recusados, nomes_recusados = recusados(filtros)
     excluir = list(lead.get("enviados") or []) + ([lead["codigo"]] if lead.get("codigo") else []) + cods_recusados
     f = tipo_pelas_exigencias(dict(filtros))
@@ -1943,81 +2449,177 @@ def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -
         f["finalidade"] = finalidade_sem_dizer(lead, f)
     if _aceita_parceiro(conn, lead):
         f["aceita_parceiro"] = "true"           # 400: o cliente final recebe também os de parceiro
-    achados, proximas, tentativas, t0, usada = [], False, 0, time.monotonic(), f
-    for tentativa, afrouxou in _afrouxar(f):
-        tentativas += 1
-        achados = banco.linhas(conn, "SELECT * FROM olx_cliente_buscar(%s::jsonb, %s::int[], %s)",
-                               (json.dumps(tentativa, ensure_ascii=False), excluir,
-                                MAX_IMOVEIS * 4 if (f.get("perto_de") or nomes_recusados or f.get("so_condominio")) else MAX_IMOVEIS))
-        achados = so_no_condominio(fora_os_recusados(so_perto(conn, achados, tentativa), nomes_recusados), f)
-        achados = sem_os_gemeos(conn, achados, excluir)[:MAX_IMOVEIS]
-        if achados:
-            proximas, usada = afrouxou, tentativa
+    t0 = time.monotonic()
+    achados = _consultar(conn, f, excluir, nomes_recusados)
+    servem = set(so_o_que_serve(conn, lead, f, [a["codigo"] for a in achados], bairro_conferido=True, onde="busca da base"))
+    achados = [a for a in achados if int(a["codigo"]) in servem]
+    antes = [int(a["codigo"]) for a in achados]
+    if achados:
+        achados = agentes.filtrar_imoveis(lead, f, achados)      # 489: o veto do JEV, agora em tudo
+    exatos = [a for a in achados if not a.get("perto")][:MAX_IMOVEIS]
+    perto = [a for a in achados if a.get("perto")][:max(0, min(MAX_PROXIMOS, MAX_IMOVEIS - len(exatos)))]
+    return {"f": f, "achados": exatos + perto, "proximas": bool(perto) and not exatos, "excluir": excluir,
+            "nomes_recusados": nomes_recusados, "antes_do_veto": antes, "ms": int((time.monotonic() - t0) * 1000)}
+
+
+def vizinhos_de(conn, bairros: list[str]) -> list[str]:
+    """Os bairros vizinhos dos que ela disse (nai_bairros_ao_redor: divisa ou até 3 km), o mais perto primeiro."""
+    if not bairros:
+        return []
+    return [b for b in (banco.um(conn, "SELECT nai_bairros_ao_redor(%s::text[])", (list(bairros),)) or []) if b]
+
+
+def o_que_existe_afrouxando(conn, lead: dict, b: dict) -> list[tuple[str, str]]:
+    """04/11: o que a base TEM se afrouxar uma coisa (_afrouxar), para a pergunta oferecer só o que existe: até duas de
+    ('quartos', '3'), ('bairro', 'Dom Pedro'), ('valor', ''). O valor só entra quando nada mais deu. Nada aqui vai a ela."""
+    f, achou = b["f"], []
+    for g, o_que in _afrouxar(f):
+        if len(achou) >= 2 or (o_que == "valor" and achou):
             break
-    agentes.passo(lead, "buscou_na_base", f"{len(achados)} imóvel(is)" + (" (os mais próximos: afrouxou)" if proximas else "")
-                  + f" · {_resumo_dos_filtros(f)}", filtros=f, tentativas=tentativas,
-                  achados=[int(a["codigo"]) for a in achados], ms=int((time.monotonic() - t0) * 1000))
-    if achados and not proximas:
-        # 489: o veto do JEV antes dos cards (só no perfil exato: os "mais próximos" já vão avisados como próximos)
-        achados = agentes.filtrar_imoveis(lead, f, achados)
-    # 03/11: o que já foi para ela nas últimas 24 h sai da lista; se nada sobra, não repete a mensagem nem os cards
+        if o_que == "bairro":
+            viz = vizinhos_de(conn, f.get("bairros") or [])
+            if not viz:
+                continue
+            g = {**g, "bairros": list(f.get("bairros") or []) + viz[:6]}
+        try:
+            cands = _consultar(conn, g, b["excluir"], b["nomes_recusados"], limite=5)
+            cods = so_o_que_serve(conn, lead, g, [a["codigo"] for a in cands], bairro_conferido=True, onde=f"sondagem: {o_que}")
+        except Exception:  # noqa: BLE001 -- a sondagem não derruba a resposta
+            log.exception("lead %s: a sondagem do afrouxar (%s) falhou", lead.get("id"), o_que)
+            continue
+        if not cods:
+            continue
+        bons = [a for a in cands if int(a["codigo"]) in cods]
+        if o_que == "quartos":
+            achou.append(("quartos", str(min(_num(a.get("quartos")) or 0 for a in bons) or _int(f["quartos"]) - 1)))
+        elif o_que == "bairro":
+            pedidos = {_normal(str(x)) for x in f.get("bairros") or []}
+            fora = [a.get("bairro") for a in bons if a.get("bairro") and _normal(a["bairro"]) not in pedidos]
+            achou.append(("bairro", fora[0] if fora else ""))
+        else:
+            achou.append(("valor", ""))
+    return achou
+
+
+def _dinheiro(v) -> str:
+    return f"R$ {int(v):,}".replace(",", ".")
+
+
+def perfil_curto(f: dict) -> str:
+    """"Em Planalto com 4 quartos", "No Vision até R$ 3.000", "Em Flores ou Parque 10" (para as frases da busca)."""
+    bairros = [str(b) for b in f.get("bairros") or [] if str(b).strip()]
+    lugar = (f"Em {' ou '.join(bairros[:2])}" if bairros and not f.get("so_condominio")
+             else f"No {f['condominio']}" if f.get("condominio") else "")
+    q = _int(f.get("quartos"))
+    detalhe = (f"com {q} {'quarto' if q == 1 else 'quartos'}" if q and not _comercial(f)
+               else f"até {_dinheiro(_int(f['teto']))}" if _int(f.get("teto")) else "")
+    if lugar:
+        return f"{lugar} {detalhe}".strip()
+    return f"{detalhe[:1].upper()}{detalhe[1:]}" if detalhe else ""
+
+
+def pergunta_para_afrouxar(conn, lead: dict, b: dict, ja: list[str] | None = None) -> str:
+    """04/11 (Pedro: "Em Planalto com 4 quartos não tenho agora; serve com 3, ou um bairro vizinho?"): sem nada no perfil
+    exato, UMA pergunta curta com o que a base tem afrouxando (o_que_existe_afrouxando). '' = nada a oferecer, ou a mesma
+    pergunta já foi (pergunta de filtro sai uma vez)."""
+    achou = o_que_existe_afrouxando(conn, lead, b)
+    if not achou:
+        return ""
+    f = b["f"]
+    ops = []
+    for o_que, d in achou:
+        if o_que == "quartos":
+            ops.append(f"com {d}")
+        elif o_que == "bairro":
+            ops.append(f"num bairro vizinho, como {d}" if d else "num bairro vizinho")
+        else:
+            ops.append(f"um pouco acima de {_dinheiro(_int(f['teto']))}")
+    inicio = perfil_curto(f) or "Nesse perfil"
+    nao = uma_das(["não tenho agora", "não achei agora", "ainda não apareceu"], vez=_vez(inicio + str(lead.get("id"))))
+    texto = f"{inicio} {nao}; serve {ops[0]}" + (f", ou {ops[1]}" if len(ops) > 1 else "") + "?"
+    if any(parecida(texto, x, 0.8) for x in ja or []):
+        agentes.passo(lead, "afrouxar_ja_perguntado", "a mesma pergunta para afrouxar já foi: não repete")
+        return ""
+    agentes.passo(lead, "afrouxar_pergunta", f"nada no perfil exato: perguntou ({', '.join(o for o, _d in achou)})")
+    return texto
+
+
+def sigo_procurando(lead: dict, f: dict, ja: list[str] | None = None) -> str:
+    """04/11: no lugar de "Entendi, por enquanto ainda procurando opções.", uma frase que varia e diz o perfil."""
+    p = perfil_curto(f)
+    opcoes = ([f"{p} ainda não achei, mas sigo procurando e te aviso por aqui assim que aparecer."] if p else []) + [
+        "Com esse perfil ainda não apareceu nada por aqui. Sigo procurando e te aviso assim que surgir.",
+        "Ainda não apareceu nada nesse perfil; vou continuar de olho e te aviso por aqui."]
+    return uma_das(opcoes, ja, vez=_vez(str(lead.get("id")) + p))
+
+
+def _buscar_e_mandar(conn, lead: dict, filtros: dict, ja_avisou: bool = False) -> None:
+    b = buscar_na_base(conn, lead, filtros)
+    f, achados, proximas = b["f"], b["achados"], b["proximas"]
+    agentes.passo(lead, "buscou_na_base", f"{len(achados)} imóvel(is)" + (" (só os mais próximos)" if proximas else "")
+                  + f" · {_resumo_dos_filtros(f)}", filtros=f, achados=[int(a["codigo"]) for a in achados],
+                  barrados_pelo_veto=[c for c in b["antes_do_veto"] if c not in {int(a["codigo"]) for a in achados}],
+                  ms=b["ms"])
+    # 03/11: o que já foi para ela nas últimas 24 h sai da lista. 04/11: se nada sobra, ela ouve isso e a pergunta para
+    # afrouxar (antes calava, e quem tinha prometido as opções no turno ficava sem nada)
+    repetidos = False
     if achados:
         novos_achados = [a for a in achados if not card_ja_foi(conn, lead, int(a["codigo"]))]
         if not novos_achados:
             agentes.passo(lead, "card_repetido", "tudo o que a busca achou já foi para ela nas últimas 24 h: não repete")
-            return
+            repetidos = True
         achados = novos_achados
     if lead.get("etapa") in ETAPAS_DA_BUSCA:
         _marcar(conn, lead["id"], etapa="feito_busca")
     # 475 (Pedro, 22/10): a busca do cliente conta o que a nossa base deu; nada no perfil exato ativa os grupos e a OLX
     # (olx/buscas.py) e ela avisa que vai continuar verificando
     from olx import buscas
-    ativou = buscas.resultado_da_base(conn, lead, f, len(achados), bool(achados) and not proximas)
+    ativou = False if repetidos else buscas.resultado_da_base(conn, lead, f, len(achados), bool(achados) and not proximas)
     buscando = ativou or banco.um(conn, "SELECT estado = 'buscando' FROM privado.busca_cliente WHERE lead = %s", (lead["id"],))
-    if not achados and buscando:
-        agentes.passo(lead, "nada_na_base", "a busca de fora continua (grupos, OLX, corretores)" + (" · ativou agora" if ativou else ""))
-        texto = CONTINUO_VERIFICANDO
-        if any(parecida(texto, x) for x in ja_mandou(conn, lead)):
-            texto = "Continuo procurando e te aviso por aqui assim que aparecer."
-        if not ja_avisou:
-            mandar_texto(conn, lead, texto)
-            buscas.cliente_avisado(conn, lead, texto)
-        else:
-            buscas.cliente_avisado(conn, lead, "(o aviso de que continua procurando saiu na resposta do turno)")
-        return
     if not achados:
-        # 416 (Pedro, 19/10): o catálogo não tem -> ordem de busca na OLX (olx/parceiro.py); ela "vai verificar"
-        if abrir_busca_na_olx(conn, lead, f):
+        if repetidos:
+            pass
+        elif buscando:
+            agentes.passo(lead, "nada_na_base", "a busca de fora continua (grupos, OLX, corretores)" + (" · ativou agora" if ativou else ""))
+        elif abrir_busca_na_olx(conn, lead, f):
+            # 416 (Pedro, 19/10): o catálogo não tem -> ordem de busca na OLX (olx/parceiro.py)
             agentes.passo(lead, "nada_na_base", "abriu a ordem de busca na OLX")
-            if not ja_avisou:
-                mandar_texto(conn, lead, "Vou verificar as opções que tenho aqui se estão disponíveis e já te retorno.")
-            return
-        agentes.passo(lead, "nada_na_base", "nada nem perto: o perfil foi ao grupo da equipe")
-        # nunca a negativa: ela diz que está separando e a equipe recebe o perfil (se já disse neste turno, não repete)
-        if not ja_avisou:
-            mandar_texto(conn, lead, "Estou separando as opções com a nossa equipe e já te retorno por aqui.")
-        _ao_crm(f"Cliente {quem(lead)} procura "
-                f"{_resumo_dos_filtros(f)} e a busca não achou nada nem perto: separar opções para ela.")
+        else:
+            agentes.passo(lead, "nada_na_base", "nada no perfil: o perfil foi à equipe")
+            _ao_crm(f"Cliente {quem(lead)} procura {_resumo_dos_filtros(f)} e a busca não achou nada no perfil: separar "
+                    "opções para ela.")
+        # nunca a negativa seca: UMA pergunta para afrouxar com o que existe; sem ela, que segue procurando (se o turno
+        # ainda não disse). 04/11: eram três frases fixas ("Entendi, por enquanto ainda procurando opções.", "Vou verificar
+        # as opções que tenho aqui se estão disponíveis e já te retorno.", "Estou separando as opções com a nossa equipe e
+        # já te retorno por aqui.")
+        ja = ja_mandou(conn, lead)
+        texto = pergunta_para_afrouxar(conn, lead, b, ja)
+        if repetidos:
+            texto = (uma_das(["As que tenho nesse perfil são essas que te mandei.", "Nesse perfil, as que tenho são essas aí de cima."],
+                             ja, vez=_vez(str(lead.get("id")))) + (" " + texto[:1].upper() + texto[1:] if texto else ""))
+        elif not texto and not ja_avisou:
+            texto = sigo_procurando(lead, f, ja)
+        if texto:
+            mandar_texto(conn, lead, texto)
+        if buscando:
+            buscas.cliente_avisado(conn, lead, texto or "(o aviso de que continua procurando saiu na resposta do turno)")
         return
     enviados = list(lead.get("enviados") or [])
     for n, a in enumerate(achados):
         if n:
             time.sleep(DEPOIS_DAS_FOTOS_S)       # as fotos do anterior carregam antes do próximo card
         mandar_imovel(conn, lead, int(a["codigo"]))
-        agentes.registrar(lead, "imoveis", "enviou", {"codigo": int(a["codigo"]), "proximas": proximas,
+        agentes.registrar(lead, "imoveis", "enviou", {"codigo": int(a["codigo"]), "proximas": bool(a.get("perto")),
                                                       "resumo": f"#{a['codigo']} {a.get('condominio') or a.get('bairro') or ''}"})
         enviados.append(int(a["codigo"]))
         _marcar(conn, lead["id"], enviados=enviados)
     time.sleep(DEPOIS_DAS_FOTOS_S)
-    texto = fecho(lead, len(achados), proximas=proximas, afrouxou=o_que_afrouxou(f, usada) if proximas else None)
-    if any(_normal(texto) == _normal(x) for x in ja_mandou(conn, lead)):
-        texto = fecho(lead, len(achados), de_novo=True)        # a segunda busca não fecha com a mesma frase
+    # 475: mandou só as mais próximas e a busca do perfil exato continua (grupos, OLX): o fecho diz, sem "parceiros"
+    texto = fecho(lead, len(achados), proximas=proximas, lugar=perfil_curto(f), sigo=bool(proximas and buscando),
+                  evitar=ja_mandou(conn, lead))
     mandar_texto(conn, lead, texto)
-    if ativou and proximas:
-        # 475: mandou as mais próximas e a busca do perfil exato continua nos grupos e na OLX
-        time.sleep(ENTRE_ENVIOS_S)
-        mandar_texto(conn, lead, CONTINUO_EXATO)
-        buscas.cliente_avisado(conn, lead, CONTINUO_EXATO)
+    if proximas and buscando:
+        buscas.cliente_avisado(conn, lead, texto)
     if lead.get("etapa") in ETAPAS_DA_BUSCA:
         _marcar(conn, lead["id"], etapa="imoveis_enviados")
     log.info("lead %s: %d imóvel(is) enviado(s)%s", lead["id"], len(achados), " (os mais próximos)" if proximas else "")
@@ -2066,41 +2668,56 @@ def finalidade_sem_dizer(lead: dict, f: dict) -> str:
     return "locacao" if 0 < teto <= 30000 else "venda"
 
 
-def o_que_afrouxou(f: dict, t: dict) -> list[str]:
-    """01/11 (lead 120: pediu 4 quartos, ouviu "casas com 4 quartos" e recebeu duas de 3; "Esse são 3 quartos né"): o
-    que a busca afrouxou para achar, dito ao cliente junto das mais próximas."""
-    o = []
-    if t.get("aceita_menos_quartos") and not f.get("aceita_menos_quartos") and _int(f.get("quartos")):
-        o.append(f"com {_int(f['quartos']) - 1} {'quarto' if _int(f['quartos']) == 2 else 'quartos'}")
-    if t.get("qualquer_bairro") and not f.get("qualquer_bairro") and f.get("bairros"):
-        o.append("em outros bairros")
-    if f.get("teto") and _int(t.get("teto")) != _int(f.get("teto")):
-        o.append("um pouco acima do valor")
-    return o
+# 04/11 (Pedro: "ela tá falando muito robótica ... um humano normal que fala de maneira objetiva" e "é melhor não ter
+# essas frases robóticas, só na nossa memória"): o fecho depois dos imóveis era "Essas são as opções que separei. Alguma te
+# chamou a atenção? Posso agendar uma visita ou procurar mais opções." sempre igual; agora curto, varia, e nunca repete o
+# que já foi (evitar). {voce} = "você" | "a senhora" | "o senhor".
+FECHO_UM = ["O que achou dessa? Se gostar, já vejo a visita.", "Gostou dessa? Se quiser conhecer, eu marco a visita.",
+            "Essa combina com o que {voce} procura? Se sim, já vejo a visita."]
+FECHO_VARIOS = ["Gostou de alguma? Me diz qual que eu vejo a visita.", "Alguma chamou atenção? Se sim, já marco a visita.",
+                "Dessas, alguma serve? É só me dizer qual que eu vejo a visita."]
+# a oferta que chega depois, sozinha (buscas: a revisita da base, o corretor; parceiro: o cadastro, o anúncio): era
+# "Boa notícia! Encontrei uma opção que combina com o que você procura:"
+ABRE_UM = ["Apareceu uma opção nova com o que {voce} pediu:", "Achei mais uma no perfil que {voce} procura:",
+           "Olha essa que entrou agora, bem no perfil que {voce} pediu:"]
+ABRE_VARIOS = ["Apareceram {n} opções novas com o que {voce} pediu:", "Achei mais {n} no perfil que {voce} procura:"]
 
 
-def fecho(lead: dict, quantos: int = 2, de_novo: bool = False, proximas: bool = False,
-          afrouxou: list[str] | None = None) -> str:
-    """A mensagem depois dos imóveis (fixa: o modelo não é chamado no meio do envio). `proximas`: a busca foi afrouxada
-    (o perfil exato não tinha): "as mais próximas do que procura", nunca a negativa; `afrouxou` diz no quê."""
-    _, pronome = tratamento(lead)
-    if proximas and not de_novo:
-        procura = {"a senhora": "a senhora procura", "o senhor": "o senhor procura"}.get(pronome, "você procura")
-        quem = {"a senhora": "chamou a atenção da senhora", "o senhor": "chamou a atenção do senhor"}.get(pronome, "te chamou a atenção")
-        em = (": " + (", ".join(afrouxou[:-1]) + " e " + afrouxou[-1] if len(afrouxou) > 1 else afrouxou[0])) if afrouxou else ""
-        if quantos == 1:
-            return f"Essa é a opção mais próxima do que {procura}{em}. Ela {quem}? Posso agendar uma visita ou procurar mais opções."
-        return (f"Essas são as opções mais próximas do que {procura}{em}. Alguma {quem}? Posso agendar uma visita ou procurar "
-                f"mais opções.")
-    if de_novo:
-        quem = {"a senhora": "a senhora gostou", "o senhor": "o senhor gostou"}.get(pronome, "você gostou")
-        return (f"{'Essa é mais uma opção' if quantos == 1 else 'Essas são mais opções'} que encontrei. Se {quem} de "
-                f"alguma, já vejo a visita.")
-    if quantos == 1:
-        quem = {"a senhora": "agradou a senhora", "o senhor": "agradou o senhor"}.get(pronome, "te agradou")
-        return f"Essa é a opção que separei. Ela {quem}? Posso agendar uma visita ou procurar mais opções."
-    quem = {"a senhora": "chamou a atenção da senhora", "o senhor": "chamou a atenção do senhor"}.get(pronome, "te chamou a atenção")
-    return f"Essas são as opções que separei. Alguma {quem}? Posso agendar uma visita ou procurar mais opções."
+def _voce(lead: dict) -> str:
+    return {"a senhora": "a senhora", "o senhor": "o senhor"}.get(tratamento(lead)[1], "você")
+
+
+def fecho(lead: dict, quantos: int = 2, de_novo: bool = False, proximas: bool = False, lugar: str = "",
+          sigo: bool = False, evitar: list[str] | None = None) -> str:
+    """A mensagem depois dos imóveis (o modelo não é chamado no meio do envio). `proximas`: só os mais próximos (o perfil
+    exato não tinha): diz isso numa frase, nunca a negativa seca; `sigo`: a busca do perfil exato continua. `de_novo`
+    (a segunda busca) e `evitar` (o que já foi para ela): a frase não se repete."""
+    v = _voce(lead)
+    vez = len(lead.get("enviados") or []) + quantos + (1 if de_novo else 0)
+    base = uma_das([x.format(voce=v) for x in (FECHO_UM if quantos == 1 else FECHO_VARIOS)], evitar, vez=vez)
+    if not proximas:
+        return base
+    perto = "essa fica bem pertinho" if quantos == 1 else "essas ficam bem pertinho"
+    antes = f"{lugar} mesmo não achei agora; {perto}." if lugar else f"No perfil certinho não achei agora; {perto}."
+    return antes + " " + base + (" E sigo procurando no perfil certinho." if sigo else "")
+
+
+def abre_oferta(lead: dict, quantos: int, evitar: list[str] | None = None) -> str:
+    """A frase antes da oferta que chega sozinha (04/11: no lugar de "Boa notícia! Encontrei ...")."""
+    v = _voce(lead)
+    return uma_das([x.format(voce=v, n=quantos) for x in (ABRE_UM if quantos == 1 else ABRE_VARIOS)], evitar,
+                   vez=len(lead.get("enviados") or []))
+
+
+def e_fecho(texto: str) -> bool:
+    """A mensagem é o fecho de uma busca (o de hoje, que varia, ou o de antes de 04/11, FECHO_DA_BUSCA)."""
+    t = _normal(texto)
+    if not t:
+        return False
+    if (texto or "").strip().startswith(FECHO_DA_BUSCA):
+        return True
+    return any(_normal(x.format(voce=v)) in t for x in FECHO_UM + FECHO_VARIOS
+               for v in ("você", "a senhora", "o senhor"))
 
 
 def _grupo(texto: str) -> None:
@@ -2179,19 +2796,23 @@ def _mesmo_assunto(a: str, b: str) -> bool:
     return len(pa & pb) / min(len(pa), len(pb)) >= 0.6
 
 
-SEM_INFORMACAO = "Entendi, por enquanto ainda procurando opções."
+# 04/11 (Pedro: "é melhor não ter essas frases robóticas, só na nossa memória, e a Nay fala de forma humanizada"): saiu
+# o SEM_INFORMACAO ("Entendi, por enquanto ainda procurando opções."). Os modelos daqui mandavam respondê-lo EXATAMENTE
+# quando a resposta "não trazia a informação", e 12 respostas reais foram jogadas fora assim (a fila disse "o 9127 consta
+# no 4º andar" e a cliente recebeu a frase). Agora vai o que a resposta tem; sem nada, ela diz com as palavras dela.
 PROMPT_CURTO = """Você é a Nay, da Imob Easy. Chegou a RESPOSTA RECEBIDA (do nosso time) a uma dúvida de um cliente. Escreva o que
 vai ao cliente: NO MÁXIMO duas frases curtas (até 220 caracteres), só com o que responde à dúvida dele.
-- Se a resposta NÃO traz a informação pedida (não achou, não sabe, depende de confirmar com o proprietário) ou só traz
-  sugestões que ele não pediu: responda EXATAMENTE "Entendi, por enquanto ainda procurando opções."
+- Entregue TODA informação que a resposta traz sobre a dúvida, mesmo que seja só uma parte.
+- Só se a resposta não traz informação nenhuma (não achou, não sabe, depende do proprietário): diga com as suas
+  palavras, numa frase curta, que ainda está vendo isso e avisa assim que souber.
 - NUNCA cite distância, nem ofereça outros imóveis, bairros ou códigos que ele não pediu, nem diga "mais fora de".
-- Português do Brasil, de gente, sem emoji, sem link, sem telefone.
+- Português do Brasil, de gente, objetiva e sem formalidade, sem emoji, sem link, sem telefone.
 Devolva SÓ JSON: {"texto": "..."}"""
 
 
 def resposta_curta(resposta: str, chamar=None) -> str:
     """24/10 (Pedro, a Esther recebeu um balão enorme com sugestões e uma distância errada): a resposta do revisor passa por
-    aqui. Curta (até 160 caracteres) vai como está; maior, o modelo reescreve em duas frases ou diz "ainda procurando"."""
+    aqui. Curta (até 160 caracteres) vai como está; maior, o modelo reescreve em duas frases."""
     r = re.sub(r"\s+", " ", str(resposta or "")).strip()
     if len(r) <= 160:
         return r
@@ -2219,21 +2840,27 @@ Decida se ela responde à PERGUNTA DO CLIENTE e escreva o que vai a ele.
 - Recado interno, instrução para você ou para a equipe, assunto de outra pessoa, ou algo que não responde à pergunta
   ("ela passa a atender", "chegou", "ah sim", "manda o WhatsApp dele", "dele que se faz análise"): {"manda": false}.
 - NUNCA fale de honorários, comissão, divisão de valor, cláusula de contrato entre nós e corretor, nem de outro cliente.
-- Ordem para você ("fala que a gente vai ver") vira fala sua: "Vamos ver isso e te aviso por aqui."
-- Se a resposta diz que não achou, não sabe ou depende do proprietário: {"manda": true, "texto": "Entendi, por enquanto ainda procurando opções."}
-- Senão: no máximo duas frases curtas (até 220 caracteres), em primeira pessoa, sem "o Tel disse", sem emoji, sem link,
-  sem telefone, português do Brasil de gente.
+- Ordem para você ("fala que a gente vai ver") vira fala sua, com as suas palavras.
+- A resposta traz QUALQUER informação sobre a pergunta (ex.: "o 9127 consta no 4º andar"): entregue essa informação,
+  mesmo que seja só parte do que ele perguntou. Nunca troque uma informação por "ainda estou vendo".
+- Só quando a resposta não traz informação nenhuma (não achou, não sabe, depende do proprietário): diga com as suas
+  palavras, numa frase curta, que ainda está vendo isso e avisa assim que souber.
+- Fale como quem conversa, em primeira pessoa: sem "Sobre o #...", sem "Sobre a sua pergunta", sem "o Tel disse", sem
+  "a equipe informou". O imóvel pelo nome do condomínio (ou tipo e bairro), sem o código.
+- No máximo duas frases curtas (até 220 caracteres), sem emoji, sem link, sem telefone, português do Brasil de gente,
+  objetiva e sem formalidade.
 Devolva SÓ JSON: {"manda": true, "texto": "..."} ou {"manda": false}"""
 
 
-def resposta_ao_cliente(pergunta: str, resposta: str, chamar=None) -> str | None:
+def resposta_ao_cliente(pergunta: str, resposta: str, chamar=None, imovel: str = "") -> str | None:
     """A resposta do Tel reescrita para o cliente, ou None quando é recado interno (aí não sai nada ao cliente)."""
     r = re.sub(r"\s+", " ", str(resposta or "")).strip()
     if not r or INTERNO.search(r) or SO_RECADO.match(r):
         return None
     try:
         j = (chamar or (lambda p, u: modelo.chamar(p, u, no="olx.whatsapp")))(
-            PROMPT_DA_RESPOSTA, f"PERGUNTA DO CLIENTE: {pergunta or '(não anotada)'}\nRESPOSTA DO TEL: {r}")
+            PROMPT_DA_RESPOSTA, f"PERGUNTA DO CLIENTE: {pergunta or '(não anotada)'}\n"
+                                + (f"IMÓVEL: {imovel}\n" if (imovel or "").strip() else "") + f"RESPOSTA DO TEL: {r}")
         if j.get("manda") is False:
             return None
         t = re.sub(r"\s+", " ", str(j.get("texto") or "")).strip()
@@ -2244,20 +2871,21 @@ def resposta_ao_cliente(pergunta: str, resposta: str, chamar=None) -> str | None
     return resposta_curta(r, lambda p, u: {})
 
 
+PREFIXO_DA_FILA = re.compile(r"^\s*sobre (o #\d+[^:]*|a sua pergunta)\s*:\s*", re.I)
+
+
 def texto_da_resposta(p: dict, chamar=None) -> str | None:
-    """A resposta do Tel como ela chega ao cliente: "Sobre o #9026 (Turim Residencial): Fica tudo, sim.". None = era
-    recado interno e não vai ao cliente (quem chama avisa a equipe)."""
-    r = resposta_ao_cliente(p.get("pergunta") or "", p.get("resposta"), chamar)
+    """A resposta do Tel como ela chega ao cliente, em primeira pessoa e sem prefixo. None = era recado interno e não vai
+    ao cliente (quem chama avisa a equipe).
+    04/11 (Pedro): era "Sobre o #9026 (Turim Residencial): Fica tudo, sim." -- o prefixo era robótico e, com o
+    com_condominio de mandar_texto, o nome saía em dobro ("#9127 (Residencial X) (Residencial X)"). A marca de que é
+    resposta da equipe ficou só por dentro: o tipo 'resposta_fila' em privado.olx_cliente_enviada (montar_turno e
+    paredes.RESPOSTA_DA_EQUIPE)."""
+    r = resposta_ao_cliente(p.get("pergunta") or "", p.get("resposta"), chamar, p.get("imovel") or "")
     if r is None:
         return None
-    if r.rstrip(".").lower() == SEM_INFORMACAO.rstrip(".").lower():
-        return SEM_INFORMACAO
-    r = r[:1].upper() + r[1:]
-    if p.get("codigo"):
-        sobre = f"o #{p['codigo']}" + (f" ({p['imovel']})" if (p.get("imovel") or "").strip() else "")
-    else:
-        sobre = "a sua pergunta"
-    return f"Sobre {sobre}: {r}"
+    r = PREFIXO_DA_FILA.sub("", r).strip()
+    return r[:1].upper() + r[1:] if r else None
 
 
 def entregar_respostas(conn) -> int:
@@ -2281,7 +2909,7 @@ def entregar_respostas(conn) -> int:
                     f"interno (\"{str(p.get('resposta') or '')[:120]}\"). A pergunta era: {str(p.get('pergunta') or '')[:160]}. "
                     "Responda pelo CRM.")
             continue
-        mandar_texto(conn, lead, texto)
+        mandar_texto(conn, lead, texto, tipo="resposta_fila")      # 04/11: a marca da resposta da equipe, por dentro
         banco.um(conn, "UPDATE pergunta_fila SET entregue_em = now() WHERE id = %s", (p["id"],))
         log.info("lead %s: a resposta do Tel (pergunta %s) entregue", lead["id"], p["id"])
         feitas += 1
@@ -2346,20 +2974,22 @@ def _ha_envio(conn) -> bool:
 
 def texto_do_seguimento(lead: dict) -> str:
     """392 (Pedro, 16/10): ~10 min de silêncio depois da última mensagem dela. Já mandou opções: se alguma agradou; só
-    falou de um imóvel: "Sr. Carlos, posso estar enviando outras opções semelhantes para o Sr.?"."""
+    falou de um imóvel: se quer outras parecidas.
+    04/11 (Pedro: "ela tá falando muito robótica"): saiu o gerundismo "posso estar enviando outras opções semelhantes
+    para o senhor?" e o "Se quiser, separo outras semelhantes ou já agendo uma visita." do fim."""
     trat, pronome = tratamento(lead)
     para = {"a senhora": "a senhora", "o senhor": "o senhor"}.get(pronome, "você")
     if lead.get("enviados"):
-        t = "conseguiu ver as opções que eu mandei? Se quiser, separo outras semelhantes ou já agendo uma visita."
+        t = "conseguiu ver as opções que te mandei? Se alguma agradou, já vejo a visita."
     else:
-        t = f"posso estar enviando outras opções semelhantes para {para}?"
+        t = f"quer que eu separe outras opções parecidas para {para}?"
     return f"{trat}, {t}" if trat else t[:1].upper() + t[1:]
 
 
 FECHO_DA_BUSCA = ("Essas são as opções", "Essa é a opção", "Essas são mais opções", "Essa é mais uma opção")
 # "vou separar/pegar/enviar": promessa de ENTREGA, que vale como cumprida quando card ou foto saiu depois
 VOU_ENTREGAR = re.compile(r"\b(vou (separar|pegar|enviar|mandar|buscar|procurar)|lhe enviar|te envio|j[aá] envio)\b", re.I)
-OFERTA = "outras opções semelhantes"
+OFERTA = ("outras opções parecidas", "outras opções semelhantes")     # a de hoje e a de antes de 04/11
 # ela prometeu um retorno (a equipe confirma, ela avisa): quem espera é ela, não o cliente
 PROMESSA = re.compile(r"\b(retorno|retornar|aviso por aqui|te aviso|assim que|vou (confirmar|verificar|checar|ver com)|"
                       r"estou (verificando|confirmando|separando|aguardando|vendo)|ainda (estou )?aguardando|"
@@ -2370,19 +3000,19 @@ def que_seguimento(lead: dict, conversa: list[dict], entregou_depois: bool = Fal
     """392b (Pedro, 16/10: "fez a mesma pergunta duas vezes ... precisa checar para ela nunca fazer isso"). O
     acompanhamento só tem dois casos, e cada um sai UMA vez:
       - depois das opções (a última mensagem dela é o fecho da busca): "conseguiu ver as opções?";
-      - ela só falou de um imóvel e nunca ofereceu outras: "posso estar enviando outras opções semelhantes?".
+      - ela só falou de um imóvel e nunca ofereceu outras: "quer que eu separe outras opções parecidas?".
     A última mensagem dela é uma PERGUNTA ou uma PROMESSA de retorno: espera (o cliente responde, ou a equipe)."""
     nossas = [m for m in conversa if m.get("direcao") == "enviada" and (m.get("texto") or "").strip()]
     if not nossas:
         return None
     ultima = nossas[-1]["texto"].strip()
-    if ultima.startswith(FECHO_DA_BUSCA):
+    if e_fecho(ultima):                   # 04/11: o fecho varia (fecho); o de antes também conta
         return texto_do_seguimento({**lead, "enviados": lead.get("enviados") or [0]})
     if ultima.endswith("?") or PROMESSA.search(ultima):
         return None
     if VOU_ENTREGAR.search(ultima) and not entregou_depois:
         return None                       # 394: prometeu as opções/fotos e ainda não mandou: quem espera é ela
-    if lead.get("enviados") or any(OFERTA in (m.get("texto") or "") for m in nossas):
+    if lead.get("enviados") or any(o in (m.get("texto") or "") for m in nossas for o in OFERTA):
         return None
     return texto_do_seguimento({**lead, "enviados": []})
 

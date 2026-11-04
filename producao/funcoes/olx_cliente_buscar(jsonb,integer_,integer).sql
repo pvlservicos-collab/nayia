@@ -77,6 +77,9 @@ AS $function$
        -- 394: mobília é coisa de LOCAÇÃO (o Felipe, venda até 900 mil "mobiliada": a busca voltava vazia)
        AND (f.comercial OR f.fin = 'venda' OR f.mob NOT IN ('mobiliado', 'semi') OR i.mobilia = f.mob
             OR (f.mob = 'semi' AND i.mobilia = 'mobiliado'))
+       -- 597 (Pedro, 04/11: "ela não pode errar ... nem mandar imóvel errado"): o "sem" (não quer mobiliado) nunca
+       -- recebe o mobiliado. Antes o "sem" caía no NOT IN acima e passava tudo; modulados e ar continuam servindo
+       AND NOT (NOT f.comercial AND f.fin <> 'venda' AND f.mob = 'sem' AND i.mobilia = 'mobiliado')
        AND NOT (f.sem_escada AND i.tipo IN ('apartamento', 'cobertura', 'flat') AND nai_imovel_tem_elevador(i.codigo) IS FALSE)
        AND NOT (i.codigo = ANY (coalesce(p_excluir, '{}')))
        -- quem vai financiar não recebe imóvel que não aceita financiamento (a regra dos pedidos dos grupos, 371)

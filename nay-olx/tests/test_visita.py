@@ -29,7 +29,7 @@ class Confirmacao(unittest.TestCase):
         t = v.texto_confirmacao(5718, datetime(2026, 10, 17, 11, 0, tzinfo=MANAUS))
         self.assertEqual(t, "🏠 *Só para confirmar a solicitação de visita*\n\nVisita ao imóvel:\n\n"
                             "🔑 Código do imóvel: #5718\n📅 Data: 17/10 (sábado)\n🕐 Horário: 11h00\n\n"
-                            "Por favor, confirme se os dados estão corretos para que eu possa entrar em contato com o proprietário.")
+                            "Tá certinho? Se estiver, já falo com o proprietário.")
 
 
     def test_com_o_condominio(self):

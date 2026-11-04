@@ -413,7 +413,7 @@ class Rodada:
                              (_so8(d["cliente_tel"]), EQUIPE_NA_CONVERSA_MIN)))
 
     # -- ao cliente
-    def ao_cliente(self, d: dict, texto: str, fotos: list[str] = ()) -> str:
+    def ao_cliente(self, d: dict, texto: str, fotos: list[str] = (), tipo: str = "texto") -> str:
         if self.ensaio:
             return "ensaio"
         if d["linha"] == "captacao":
@@ -422,7 +422,7 @@ class Rodada:
                 return "a Nay não está na conversa"
             if not self.conectada():
                 return "8595 desconectado"
-            whatsapp.mandar_texto(self.conn, lead, texto)
+            whatsapp.mandar_texto(self.conn, lead, texto, tipo=tipo)
             for url in fotos:
                 whatsapp._mandar(self.conn, lead, "/send-image", {"image": url}, "foto", d.get("codigo"))
             return "mandado"
@@ -478,7 +478,9 @@ class Rodada:
                 elif d.get("codigo"):
                     texto = f"Sobre o #{d['codigo']}" + (f" ({d['imovel']})" if d.get("imovel") else "") + f": {texto}"
                 manda = fotos if r.get("fotos") else []
-                como = self.ao_cliente(d, texto, manda)
+                # 04/11: a resposta sai sem o "Sobre o #...:" (whatsapp.texto_da_resposta); a marca 'resposta_fila' fica
+                # por dentro, para o turno da Nay Leads saber que é resposta da equipe (paredes.RESPOSTA_DA_EQUIPE)
+                como = self.ao_cliente(d, texto, manda, tipo="resposta_fila" if d["linha"] == "captacao" else "texto")
                 if como not in ("mandado", "ensaio"):
                     self.aviso(d, "duvida", f"A resposta da dúvida chegou, mas não mandei ({como}): {texto}")
                 muda.update(estado="respondida", resposta=texto[:2000], respondida_em=self.agora)

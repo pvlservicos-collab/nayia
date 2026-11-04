@@ -23,7 +23,7 @@ import re
 import threading
 import time
 
-from olx import banco, busca_olx, cdp, fotos_olx, grupo, modelo, whatsapp
+from olx import agentes, banco, busca_olx, cdp, fotos_olx, grupo, modelo, whatsapp
 
 log = logging.getLogger("nay-olx.parceiro")
 ABERTAS = ("pendente", "buscando", "sem_navegador", "perguntado", "aguardando_cadastro")
@@ -186,29 +186,49 @@ def _ao_grupo_com_cadastro(conn, o: dict, lead: dict, a: dict, texto: str, motiv
     _parar_cliente(conn, lead, motivo_da_pausa)
 
 
-def entregar_do_cadastro(conn, o: dict, lead: dict) -> None:
-    """O pré-cadastro ficou Disponível: o card vai ao cliente e a Nay volta a atender."""
+def _filtros_da_ordem(o: dict, lead: dict) -> dict:
+    f = dict(o.get("filtros") or lead.get("filtros") or {})
+    if not f.get("finalidade"):
+        f["finalidade"] = whatsapp.finalidade_sem_dizer(lead, f)
+    return f
+
+
+def entregar_do_cadastro(conn, o: dict, lead: dict) -> bool:
+    """O pré-cadastro ficou Disponível: o card vai ao cliente e a Nay volta a atender. False = não serve ao pedido (a régua
+    única barrou; nada foi a ela)."""
     codigo = int(o["codigo"])
     if whatsapp.card_ja_foi(conn, lead, codigo):      # 03/11: o mesmo imóvel não vai duas vezes
-        return
-    whatsapp.mandar_texto(conn, lead, "Boa notícia! Consegui uma opção que combina com o que você procura:")
+        return True
+    # 04/11 (Pedro: "ela não pode errar ... nem mandar imóvel errado"): a régua única também no cadastro da OLX
+    if not whatsapp.so_o_que_serve(conn, lead, _filtros_da_ordem(o, lead), [codigo], onde="cadastro da busca na OLX"):
+        return False
+    # 04/11 (Pedro: "ela tá falando muito robótica"): eram "Boa notícia! Consegui uma opção que combina com o que você
+    # procura:" e "O que achou dessa? Se gostar, já vejo a visita para você.", sempre iguais
+    ja = whatsapp.ja_mandou(conn, lead)
+    whatsapp.mandar_texto(conn, lead, whatsapp.abre_oferta(lead, 1, ja))
     time.sleep(whatsapp.ENTRE_ENVIOS_S)
     whatsapp.mandar_imovel(conn, lead, codigo)
     time.sleep(whatsapp.DEPOIS_DAS_FOTOS_S)
-    whatsapp.mandar_texto(conn, lead, "O que achou dessa? Se gostar, já vejo a visita para você.")
+    whatsapp.mandar_texto(conn, lead, whatsapp.fecho(lead, 1, de_novo=True, evitar=ja))
     enviados = list(lead.get("enviados") or [])
     if codigo not in enviados:
         whatsapp._marcar(conn, lead["id"], enviados=enviados + [codigo])
     if str(lead.get("parada_motivo") or "").startswith("busca na OLX"):
         whatsapp._marcar(conn, lead["id"], humano_em=None, parada_motivo=None)
     conn.commit()
+    return True
 
 
 def _cadastro(conn, o: dict, lead: dict) -> None:
     st = banco.um(conn, "SELECT status FROM imoveis WHERE codigo = %s", (o["codigo"],))
     a = o["escolhido"] or {}
     if st == "Disponível":
-        entregar_do_cadastro(conn, o, lead)
+        if not entregar_do_cadastro(conn, o, lead):
+            # 04/11: o cadastro não serve ao pedido (a régua única): nada vai ao cliente; a conversa segue com a equipe
+            _marcar(conn, o["id"], estado="no_grupo")
+            _aviso(o, f"o imóvel #{o['codigo']} ({a.get('titulo')}) ficou Disponível, mas não serve ao pedido do cliente "
+                      f"{_cliente(lead)} (o motivo está no registro dos agentes): a Nay não mandou. A conversa segue com a equipe.")
+            return
         _marcar(conn, o["id"], estado="enviado")
         _aviso(o, f"o imóvel #{o['codigo']} ({a.get('titulo')}) ficou Disponível e a Nay mandou ao cliente {_cliente(lead)}. "
                   "Ela voltou a atender a conversa.")
@@ -307,8 +327,28 @@ def disponivel(texto: str) -> str:
     return "sim" if s and not n else "nao" if n and not s else "duvida"
 
 
-def mandar_ao_cliente(conn, lead: dict, a: dict) -> None:
-    linhas = [f"Achei mais uma opção para você:\n\n*{a.get('titulo')}*", f"📍 {a.get('bairro') or 'Manaus'}"]
+def anuncio_serve(a: dict, f: dict) -> str:
+    """04/11 (a régua única, whatsapp.serve_ao_pedido): o anúncio da OLX que o anunciante confirmou serve ao pedido? '' =
+    serve; senão o motivo. O que o anúncio não diz (mobília, suítes, andar) passa: ele já veio pela nota da busca."""
+    im = a.get("imovel") or {}
+    tipo = im.get("tipo")
+    if tipo == "casa" and "condom" in str((f or {}).get("tipo") or ""):
+        tipo = None                       # a OLX não separa a casa de rua da de condomínio: não se sabe
+    return whatsapp.serve_ao_pedido({"tipo": tipo, "quartos": im.get("quartos") or a.get("quartos"),
+                                     "valor_venda": im.get("valor_venda"), "valor_aluguel": im.get("valor_aluguel"),
+                                     "mobilia": im.get("mobilia") or "", "bairro": a.get("bairro"),
+                                     "condominio": a.get("titulo")}, f, desconhecido_passa=True)
+
+
+def mandar_ao_cliente(conn, lead: dict, a: dict, f: dict | None = None) -> str:
+    """O anúncio confirmado vai ao cliente. Devolve '' (foi) ou o motivo de não servir ao pedido (não foi nada)."""
+    motivo = anuncio_serve(a, f or {})
+    if motivo:
+        agentes.passo(lead, "regua_barrou", f"anúncio {a.get('url')}: {motivo} (busca na OLX)")
+        return motivo
+    # 04/11 (Pedro: "ela tá falando muito robótica"): era "Achei mais uma opção para você:" e "O que achou dessa?", fixas
+    ja = whatsapp.ja_mandou(conn, lead)
+    linhas = [f"{whatsapp.abre_oferta(lead, 1, ja)}\n\n*{a.get('titulo')}*", f"📍 {a.get('bairro') or 'Manaus'}"]
     medidas = " · ".join(x for x in (f"{a['quartos']} quartos" if a.get("quartos") else "", a.get("area") or "") if x)
     if medidas:
         linhas.append("🛏 " + medidas)
@@ -319,8 +359,9 @@ def mandar_ao_cliente(conn, lead: dict, a: dict) -> None:
         time.sleep(whatsapp.ENTRE_ENVIOS_S)
         whatsapp._mandar(conn, lead, "/send-image", {"image": url}, "olx_parceiro")
     time.sleep(whatsapp.DEPOIS_DAS_FOTOS_S)
-    whatsapp.mandar_texto(conn, lead, "O que achou dessa?")
+    whatsapp.mandar_texto(conn, lead, whatsapp.fecho(lead, 1, de_novo=True, evitar=ja))
     conn.commit()
+    return ""
 
 
 def _esperar(conn, o: dict, c: dict, lead: dict) -> None:
@@ -337,7 +378,14 @@ def _esperar(conn, o: dict, c: dict, lead: dict) -> None:
     veredito = disponivel(texto)
     _pausar_parceria(conn, o["contato_tel"], "", False)
     if veredito == "sim":
-        mandar_ao_cliente(conn, lead, a)
+        nao_serve = mandar_ao_cliente(conn, lead, a, _filtros_da_ordem(o, lead))
+        if nao_serve:
+            # 04/11: o anúncio confirmado não serve ao pedido (a régua única): nada vai ao cliente, a equipe fica sabendo e
+            # a conversa continua com a Nay (não é motivo para parar o cliente)
+            _marcar(conn, o["id"], estado="no_grupo", resposta_texto=texto[:1000], resposta_em=banco.um(conn, "SELECT now()"))
+            _aviso(o, f"{nome} ({o['contato_tel']}) confirmou que {a.get('titulo')} está disponível, mas o anúncio não serve "
+                      f"ao pedido do cliente {_cliente(lead)} ({nao_serve}): a Nay não mandou. Anúncio: {a.get('url')}")
+            return
         _marcar(conn, o["id"], estado="confirmado", resposta_texto=texto[:1000], resposta_em=banco.um(conn, "SELECT now()"))
         _aviso(o, f"{nome} ({o['contato_tel']}) confirmou que {a.get('titulo')} está disponível. A Nay mandou ao cliente "
                   f"{_cliente(lead)}. Anúncio: {a.get('url')}. Se ele quiser visitar, combinar com {nome}.")

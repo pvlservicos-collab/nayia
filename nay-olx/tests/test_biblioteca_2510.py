@@ -75,7 +75,8 @@ class DepoisDoModelo(unittest.TestCase):
 
     def rodar(self, r, novas, lead=None, ultima=""):
         lead = lead or {"codigo": 3078, "enviados": [], "filtros": {}}
-        with mock.patch.object(w, "_ofertavel", return_value=True):
+        # 04/11: sem banco, as fotos ainda não foram (a trava das fotos repetidas lê privado.olx_cliente_enviada)
+        with mock.patch.object(w, "_ofertavel", return_value=True), mock.patch.object(w, "fotos_ja_foram", return_value=False):
             return w.depois_do_modelo(None, lead, r, novas, ultima)
 
     def test_o_card_responde_no_lugar_do_vou_confirmar(self):
@@ -83,7 +84,9 @@ class DepoisDoModelo(unittest.TestCase):
         acoes, passos = self.rodar(r, ["qual o valor e quantos quartos?"])
         self.assertEqual(acoes, ["fotos"])
         self.assertEqual(r["fotos"], {"codigos": [3078]})
-        self.assertIn("card", r["baloes"][0])
+        # 04/11 (Pedro: "card" é jargão): era "Vou te mandar o card com as informações e as fotos dele."
+        self.assertNotIn("card", r["baloes"][0])
+        self.assertIn(r["baloes"][0], w.MANDO_O_IMOVEL)
         self.assertEqual(passos[0][0], "card_responde")
 
     def test_o_que_o_card_nao_traz_continua_na_equipe(self):
@@ -110,7 +113,8 @@ class DepoisDoModelo(unittest.TestCase):
     def test_nunca_vai_a_equipe_sem_balao(self):
         r = {"baloes": [], "acoes": ["perguntar"]}
         self.rodar(r, ["tem essa disponibilidade?"], {"enviados": [], "filtros": {}})
-        self.assertEqual(r["baloes"], [w.BALAO_SEM_RESPOSTA["perguntar"]])
+        self.assertIn(r["baloes"][0], w.BALOES_SEM_RESPOSTA["perguntar"])
+        self.assertTrue(r["_balao_padrao"])            # 04/11: a frase pronta é a rede; o modelo é chamado de novo antes
 
     def test_filtro_nao_e_pergunta(self):
         # o lead 52: a faixa de valor "com condomínio incluso" não pede o card do Maison
