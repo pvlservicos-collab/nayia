@@ -24,7 +24,7 @@ import PainelContatoCaptacao from './PainelContatoCaptacao'
 import CadastroImovelOlx from './CadastroImovelOlx'
 import EnviarImovelPelaCaptacao from './EnviarImovelPelaCaptacao'
 import PainelContatoParceria from './PainelContatoParceria'
-import OrganizarConversa, { organizar, EnviarParaAdministracaoParceria } from './OrganizarConversa'
+import OrganizarConversa, { organizar, EnviarParaAdministracaoParceria, EnviarParaCaptacao } from './OrganizarConversa'
 import { apareceNaAba, faixaDeOutraLinha, mostrarTambemEm, mudouPara, LINHAS_MISTAS, NOME_DA_LINHA } from '@/lib/organizacaoDoLead'
 import type { Organizado } from './OrganizarConversa'
 import { usePuxador } from '@/hooks/usePuxador'
@@ -374,7 +374,11 @@ export default function ChatWhatsApp({ linha, filtro, extraNoTopo }: {
         ? <OrganizarConversa lead={displayedLead} tipoDeduzido={getLinhaWhatsapp(displayedLead) === 'parceria' ? 'corretor' : null}
                              equipe={isAdmin ? equipeDaConversa : undefined}
                              aoMudar={(o) => aplicarOrganizacao(displayedLead.id, o)} />
-        : undefined}{extraNoTopo?.(displayedLead)}</>}
+        : undefined}
+        {/* 04/11 (Pedro): Enviar para captação, ao lado do Enviar para administração, nos dois números */}
+        {(linha === 'parceria' || linha === 'captacao') && !(mudouPara(displayedLead) === linha && getLinhaWhatsapp(displayedLead) !== linha) && (
+          <EnviarParaCaptacao lead={displayedLead} aoMudar={(o) => aplicarOrganizacao(displayedLead.id, o)} />
+        )}{extraNoTopo?.(displayedLead)}</>}
       marca={ehParceria ? marcas[displayedLead.id] : undefined}
       dono={linha === 'oficial' ? donosDaCaptacao[displayedLead.id] : undefined}
       painelAberto={painelAberto}

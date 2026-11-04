@@ -12,7 +12,7 @@
  *   Dentro de…      põe esta conversa dentro de outra (a setinha da lista), ou tira
  */
 import { useEffect, useRef, useState } from 'react'
-import { Check, CircleNotch, FolderSimpleUser, MagnifyingGlass, PaperPlaneRight, Plus, Tag, Trash, TreeStructure, UserPlus, X } from '@phosphor-icons/react'
+import { Check, CircleNotch, FolderSimpleUser, HouseLine, MagnifyingGlass, PaperPlaneRight, Plus, Tag, Trash, TreeStructure, UserPlus, X } from '@phosphor-icons/react'
 import type { LeadWithOwner, SearchHit } from '@/lib/types'
 import { useTiposDeContato } from '@/hooks/useTiposDeContato'
 import { acharTipo, dentroDe, pessoasDe, type TipoDeContato } from '@/lib/organizacaoDoLead'
@@ -319,5 +319,26 @@ export function EnviarParaAdministracaoParceria({ lead, aoMudar }: { lead: LeadW
               style={{ background: 'var(--wa-panel, #fff)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }}>{aviso}</span>
       )}
     </div>
+  )
+}
+
+/** 04/11 (Pedro: "preciso de um botão Enviar para captação", ao lado do Enviar para administração): a conversa ganha a
+ *  marca da captação (organizar { captacao: true }) e entra no Chat Captação do Lucas, nos dois números. */
+export function EnviarParaCaptacao({ lead, aoMudar }: { lead: LeadWithOwner; aoMudar: (o: Organizado) => void }) {
+  const [ocupado, setOcupado] = useState(false)
+  const ja = lead.custom_attributes?.conversa_captacao === true
+  return (
+    <button type="button" disabled={ocupado || ja}
+            className="flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-[13px] font-semibold flex-shrink-0 disabled:opacity-60"
+            style={{ border: '1px solid var(--wa-divider)', color: 'var(--wa-text)' }}
+            title="A conversa entra no Chat Captação (a aba do Lucas)"
+            onClick={async () => {
+              setOcupado(true)
+              try { aoMudar(await organizar(lead.id, { captacao: true })) }
+              catch (e: any) { window.alert(e?.message || 'Não consegui enviar para a captação.') } finally { setOcupado(false) }
+            }}>
+      {ocupado ? <CircleNotch size={16} className="animate-spin" /> : <HouseLine size={16} />}
+      <span className="hidden xl:inline">{ja ? 'Na captação' : 'Enviar para captação'}</span>
+    </button>
   )
 }
