@@ -122,11 +122,17 @@ interface Props {
   itemDaLista?: (lead: LeadWithOwner, x: { hora: string; aberta: boolean; abrir: () => void; menu: (e: EventoDeMouse) => void }) => ReactNode
   /** v3 (Pedro, 04/11: o painel do lead no visual novo): o que o painel do lead do Leads ganha (anel, tipo, número, quem responde, etapa) */
   painelV3?: (lead: LeadWithOwner) => PainelV3
+  /** v3 (Pedro, 04/11: Hoje · Não lidas · IA · Equipe): a linha de filtros rápidos embaixo das filas (recebe a fila escolhida) */
+  filtrosRapidos?: (filaEscolhida: string) => ReactNode
+  /** v3: o filtro rápido ligado; combina com a fila (as contagens das filas não mudam por ele) */
+  filtroExtra?: (lead: LeadWithOwner) => boolean
+  /** v3: a lista vazia por causa dos filtros rápidos ("Nenhuma conversa com esses filtros" e Limpar filtros) */
+  vazioDosFiltros?: ReactNode
   /** v3: sem a faixa laranja "Pelo número ..." (a saída vai embaixo, em cima da caixa de mensagem) */
   semFaixaDaLinha?: boolean
 }
 
-export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos, casaExtra, buscaExtra, etapaDoCard, abaixoDoTitulo, etapas, etapasEmLista, rodapeDoItem, naConversa, semFaixaDaLinha, itemDaLista, painelV3 }: Props) {
+export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos, casaExtra, buscaExtra, etapaDoCard, abaixoDoTitulo, etapas, etapasEmLista, rodapeDoItem, naConversa, semFaixaDaLinha, itemDaLista, painelV3, filtrosRapidos, filtroExtra, vazioDosFiltros }: Props) {
   const { organizationId, loading, permissions } = useAuth()
   // 04/11: o Visualizar por do administrador vale aqui (usePapelV2)
   const papel = usePapelV2()
@@ -212,6 +218,7 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
     : aba === 'all' ? true : aba === 'meus' ? !!meus?.(l) || l.id === selecionada
     : aba === 'nao_lidas' ? !!l.is_unread || l.id === selecionada
     : (l.lead_tags || []).some((lt: any) => lt.tag_id === aba))
+    .filter((l) => buscando || !filtroExtra || filtroExtra(l) || l.id === selecionada)
   const aberta = todas.find((l) => l.id === selecionada) || null
 
   const filtros: FiltroDaLista[] = etapas ? etapas.map((e) => ({ chave: e.chave as any, rotulo: e.rotulo, contagem: todas.filter(e.casa).length })) : [
@@ -387,6 +394,7 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
           </div>
         )}
         {!buscando && etapas && etapasEmLista ? (
+          <>
           <div className="flex flex-col py-1.5" style={{ borderBottom: '1px solid var(--wa-divider)' }}>
             {etapas.map((e) => (
               <button key={e.chave} type="button" onClick={() => setAba(e.chave)} aria-pressed={aba === e.chave}
@@ -398,6 +406,8 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
               </button>
             ))}
           </div>
+            {filtrosRapidos?.(aba)}
+          </>
         ) : !buscando && <ChatFilterTabs ativo={aba as any} aoMudar={(k) => setAba(String(k))} filtros={filtros} />}
       </div>
       <div ref={raizDaLista} className="flex-1 overflow-y-auto overflow-x-hidden wa-rolagem">
@@ -409,7 +419,8 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
         )}
         {visiveis.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-[70%] px-8 text-center text-[14px]" style={{ color: 'var(--wa-text-2)' }}>
-            {carregando ? 'Carregando…' : buscando ? 'Ninguém com esse nome ou número nesta tela' : aba !== 'all' ? 'Nenhuma conversa neste filtro' : vazio}
+            {carregando ? 'Carregando…' : buscando ? 'Ninguém com esse nome ou número nesta tela'
+              : filtroExtra && vazioDosFiltros ? vazioDosFiltros : aba !== 'all' ? 'Nenhuma conversa neste filtro' : vazio}
           </div>
         ) : (
           grupos && !buscando ? (

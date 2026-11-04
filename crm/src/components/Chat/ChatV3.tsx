@@ -44,9 +44,20 @@ import { montarAtendentes } from '@/lib/atendentes'
 import { primeiroNome, responsavelV2, usePapelV2 } from '@/lib/versaoDoCrm'
 import { ModoV3, FILAS_V3, ETAPAS_V3, CLASSE_DO_AUTOR, indiceDaEtapa, NOME_DA_ETAPA, type FilaV3 } from '@/lib/modoV3'
 import { formatPhone } from '@/lib/utils'
+import { diaEmManaus } from '@/lib/fusoDeManaus'
 import type { LeadWithOwner } from '@/lib/types'
 import NotAuthorized from '@/components/Shared/NotAuthorized'
 import ChatJuntado from './ChatJuntado'
+import AbasParceria, { type AbaDaParceria } from './AbasParceria'
+import VisitasAgendadas from './VisitasAgendadas'
+import FechamentoChecklists from './FechamentoChecklists'
+import ContadorDeVisitas from './ContadorDeVisitas'
+import PipelineBoard from '@/components/Pipeline/PipelineBoard'
+import { useEtiquetas } from '@/lib/etiquetas'
+import { useTiposDeContato } from '@/hooks/useTiposDeContato'
+import { acharTipo } from '@/lib/organizacaoDoLead'
+import { comMarcaDeAbertura } from '@/lib/links'
+import { useRouter } from 'next/navigation'
 import type { PainelV3 } from './PainelContatoCaptacao'
 import OrganizarConversa, { EnviarParaDaParceria, organizar, type Organizado } from './OrganizarConversa'
 
@@ -317,9 +328,77 @@ function QuemResponde({ l, r, aoMudar, noPainel }: { l: LeadWithOwner; r: Respon
   )
 }
 
+/* OS FILTROS RÁPIDOS (Pedro, 04/11: "Hoje, Não lidas, IA e Equipe ... botões ativáveis e desativáveis com um clique").
+   Pílulas cinzas com a contagem (da fila escolhida); ligadas, um fundo mais claro e o texto na cor primária. Hoje e Não
+   lidas combinam (E); IA e Equipe se excluem; clicar no ligado desliga. Ficam guardados por usuário (neste navegador). */
+type Rapido = 'hoje' | 'nao_lidas' | 'ia' | 'equipe'
+const RAPIDOS: Array<{ chave: Rapido; rotulo: string; dica: string }> = [
+  { chave: 'hoje', rotulo: 'Hoje', dica: 'Quem mandou mensagem hoje (desde 00:00, horário de Manaus)' },
+  { chave: 'nao_lidas', rotulo: 'Não lidas', dica: 'A última mensagem é da pessoa e ninguém respondeu depois (nem a IA, nem a equipe)' },
+  { chave: 'ia', rotulo: 'IA', dica: 'Quem responde é a IA (o selo roxo do card)' },
+  { chave: 'equipe', rotulo: 'Equipe', dica: 'Quem responde é uma pessoa da equipe (o selo verde do card)' },
+]
+
+function useRapidos(usuario: string | undefined): [Rapido[], (r: Rapido[]) => void] {
+  const chave = `crm:v3:filtros-rapidos:${usuario || 'sem-login'}`
+  const [ligados, setLigados] = useState<Rapido[]>([])
+  useEffect(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem(chave) || '[]')
+      setLigados(Array.isArray(v) ? v.filter((x: string) => RAPIDOS.some((r) => r.chave === x)) : [])
+    } catch { setLigados([]) }
+  }, [chave])
+  const mudar = useCallback((r: Rapido[]) => {
+    setLigados(r)
+    try { localStorage.setItem(chave, JSON.stringify(r)) } catch { /* sem armazenamento: vale só nesta tela */ }
+  }, [chave])
+  return [ligados, mudar]
+}
+
+function FiltrosRapidos({ ligados, aoMudar, contar }: { ligados: Rapido[]; aoMudar: (r: Rapido[]) => void; contar: (k: Rapido) => number }) {
+  const alternar = (k: Rapido) => {
+    if (ligados.includes(k)) { aoMudar(ligados.filter((x) => x !== k)); return }
+    const sem = k === 'ia' ? 'equipe' : k === 'equipe' ? 'ia' : null      // IA e Equipe se excluem
+    aoMudar([...ligados.filter((x) => x !== sem), k])
+  }
+  return (
+    <div className="flex flex-wrap gap-1.5 px-3 py-2" style={{ borderBottom: '1px solid var(--wa-divider)' }}>
+      {RAPIDOS.map((r) => {
+        const on = ligados.includes(r.chave)
+        return (
+          <button key={r.chave} type="button" onClick={() => alternar(r.chave)} aria-pressed={on} title={r.dica}
+                  className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[12.5px]"
+                  style={{
+                    border: '1px solid var(--wa-divider)',
+                    background: on ? 'var(--wa-row-selected)' : 'transparent',
+                    color: on ? 'var(--wa-text)' : 'var(--wa-text-2)', fontWeight: on ? 500 : 400,
+                  }}>
+            {r.rotulo}<span className="text-[11.5px]" style={{ color: 'var(--wa-text-2)' }}>{contar(r.chave)}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function ChatV3() {
-  const { loading, organizationId } = useAuth()
+  const { loading, organizationId, user } = useAuth()
   const ehTel = useEhTel()
+  const router = useRouter()
+  /* AS CORES DAS FILAS = as de hoje na aba Leads (Pedro, 04/11: "para não gerar estranheza, as bolinhas da mesma cor que
+     é hoje na aba Leads, ex.: locação é azul"): Locação e Venda são as etiquetas; Corretor e Proprietário, os tipos de
+     contato. Lidas do CRM: se mudarem lá, mudam aqui. */
+  const etiquetas = useEtiquetas()
+  const { tipos } = useTiposDeContato()
+  const corDaFila = useCallback((f: FilaV3): string => {
+    const daEtiqueta = (nome: string) => etiquetas.find((t) => (t.nomeOriginal || t.name) === nome)?.color
+    if (f === 'locacao') return daEtiqueta('Locação') || '#0891b2'
+    if (f === 'venda') return daEtiqueta('Venda') || '#d97706'
+    if (f === 'corretores') return acharTipo(tipos, 'corretor')?.cor || '#7c3aed'
+    return acharTipo(tipos, 'proprietario')?.cor || '#d97706'
+  }, [etiquetas, tipos])
+  const [abaDeCima, setAbaDeCima] = useState<AbaDaParceria>('conversas')
+  const [rapidos, setRapidos] = useRapidos(user?.id)
   const { leads, setLeads } = useLeadsContext()
   const { ehProprietario, ehVisita, ehLocacao } = usePapelDoContato(true, true)
   const { emFechamento, podeVer } = useFechamentoV2()
@@ -407,20 +486,53 @@ export default function ChatV3() {
   const etapas = useMemo(() => [
     { chave: 'todas', rotulo: 'Todas', cor: CINZA, casa: daTela },
     ...(Object.keys(FILAS_V3) as FilaV3[]).map((f) => ({
-      chave: f, rotulo: FILAS_V3[f].rotulo, quem: FILAS_V3[f].quem, cor: FILAS_V3[f].cor, casa: (l: LeadWithOwner) => filaDe(l) === f,
+      chave: f, rotulo: FILAS_V3[f].rotulo, quem: FILAS_V3[f].quem, cor: corDaFila(f), casa: (l: LeadWithOwner) => filaDe(l) === f,
     })),
-  ], [daTela, filaDe])
+  ], [daTela, filaDe, corDaFila])
+
+  /** a conversa está na fila escolhida? ('todas' = todas da tela) */
+  const noFiltroDaFila = (l: LeadWithOwner, fila: string) => (fila === 'todas' ? daTela(l) : filaDe(l) === fila)
+  /* AS REGRAS DOS FILTROS RÁPIDOS (Pedro, 04/11):
+     Hoje       a pessoa mandou mensagem hoje, desde 00:00 em Manaus (ultima_recebida, a mesma da lista)
+     Não lidas  a última mensagem é da pessoa e ninguém respondeu depois (nem a IA, nem gente): sai sozinha ao responder
+     IA         quem responde é a IA (o selo roxo do card)
+     Equipe     quem responde é uma pessoa (o selo verde do card) */
+  const casaRapido = (k: Rapido, l: LeadWithOwner): boolean => {
+    if (k === 'hoje') return !!l.ultima_recebida && diaEmManaus(new Date(l.ultima_recebida)) === diaEmManaus(new Date())
+    if (k === 'nao_lidas') return l.last_message_sender_type === 'lead'
+    return respondeDe(l).tipo === (k === 'ia' ? 'ia' : 'humano')
+  }
 
   if (loading) return null
   if (!ehTel) return <NotAuthorized />
 
   const rotuloDoTipo = (l: LeadWithOwner) => { const f = filaDe(l); return f ? FILAS_V3[f].tipo : 'Administração' }
-  const corDe = (l: LeadWithOwner) => { const f = filaDe(l); return f ? FILAS_V3[f].cor : CINZA }
+  const corDe = (l: LeadWithOwner) => { const f = filaDe(l); return f ? corDaFila(f) : CINZA }
   return (
     <ModoV3.Provider value={true}>
-      <div className="chat-theme h-full min-h-0">
+      <div className="chat-theme h-full min-h-0 flex flex-col">
+        {/* 04/11 (Pedro: "coloca essa barra de volta no atendimento do v3"): a mesma barra do WhatsApp Parceria */}
+        <AbasParceria aba={abaDeCima} aoMudar={setAbaDeCima} naoLidas={leads.filter((l) => daTela(l) && l.is_unread).length}
+                      visitasAbertas={new Set(Object.values(marcas).filter((m) => m.visitaAberta && m.visitaId).map((m) => m.visitaId)).size}
+                      abas={['conversas', 'visitas', 'pipeline', 'fechamento']} rotuloConversas="As conversas do Leads e da Parceria" rotuloPipeline="Pipeline">
+          <ContadorDeVisitas linha="parceria" />
+        </AbasParceria>
+        {abaDeCima === 'visitas' ? (
+          <div className="flex-1 min-h-0 flex"><VisitasAgendadas destaque={null} aoAbrirConversa={(id) => { setAbaDeCima('conversas'); router.push(comMarcaDeAbertura(`/chat/v3?leadId=${id}`)) }} /></div>
+        ) : abaDeCima === 'pipeline' ? (
+          <div className="pipeline-no-chat flex-1 min-w-0 min-h-0 flex flex-col">{organizationId && <PipelineBoard organizationId={organizationId} />}</div>
+        ) : abaDeCima === 'fechamento' ? (
+          <div className="flex-1 min-h-0 overflow-y-auto"><FechamentoChecklists /></div>
+        ) : (
+        <div className="flex-1 min-h-0">
         <ChatJuntado titulo="Atendimento" subtitulo="Leads e Parceria num lugar só · a resposta sai pelo número de cada conversa"
                      pertence={daTela} etapas={etapas} etapasEmLista semFaixaDaLinha chaveAbas="crm:abas-v3"
+                     filtrosRapidos={(fila) => <FiltrosRapidos ligados={rapidos} aoMudar={setRapidos}
+                                                               contar={(k) => leads.filter((l) => !l.is_archived && noFiltroDaFila(l, fila) && casaRapido(k, l)).length} />}
+                     filtroExtra={rapidos.length ? (l) => rapidos.every((k) => casaRapido(k, l)) : undefined}
+                     vazioDosFiltros={<span className="flex flex-col items-center gap-2">Nenhuma conversa com esses filtros
+                       <button type="button" onClick={() => setRapidos([])} className="h-8 px-3 rounded-lg text-[13px]"
+                               style={{ border: '1px solid var(--wa-divider)', color: 'var(--wa-text)' }}>Limpar filtros</button></span>}
                      vazio="Nenhuma conversa aqui."
                      cadastrar={() => ({})}
                      painelV3={(l): PainelV3 => {
@@ -442,7 +554,7 @@ export default function ChatV3() {
                        anel: corDe,
                        pilula: (l) => {
                          const f = filaDe(l)
-                         const cor = f ? FILAS_V3[f].cor : CINZA
+                         const cor = f ? corDaFila(f) : CINZA
                          return { texto: '', cor, no: <><NumeroDaConversa l={l} /><PilulaDoTipo l={l} atual={tipoDe(l)} cor={cor} aoMudar={(o) => aplicar(l.id, o)} avisar={avisar} /></> }
                        },
                        subtitulo: (l) => <SubtituloV3 l={l} ehLead={getLinhaWhatsapp(l) === 'captacao' && (filaDe(l) === 'locacao' || filaDe(l) === 'venda')}
@@ -457,6 +569,8 @@ export default function ChatV3() {
                          : <OrganizarConversa lead={l} tipoDeduzido={null} equipe={equipe} naLocacao={ehLocacao(l)} semTipo
                                               aoMudar={(o) => aplicar(l.id, o)} />,
                      }} />
+        </div>
+        )}
       </div>
       <AvisoComDesfazer aviso={aviso} fechar={fecharAviso} />
     </ModoV3.Provider>
