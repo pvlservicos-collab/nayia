@@ -11,7 +11,7 @@
  * captação). Cada conversa continua sendo da linha dela (crm/CLAUDE.md): a faixa diz por qual número fala, e a resposta
  * sai por ele. Quem entra é a tela que diz (`pertence`); o botão direito também (`menu`).
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type MouseEvent as EventoDeMouse } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Archive, Check, CircleNotch, EnvelopeSimple, MagnifyingGlass, Plus, PushPin, Tag, TreeStructure, X } from '@phosphor-icons/react'
 import { useAuth, useIsMobile } from '@/hooks'
@@ -112,15 +112,19 @@ interface Props {
   /** v3: o que a conversa aberta ganha (os botões do alto, o subtítulo, a barra das etapas, por onde sai a resposta) */
   naConversa?: {
     organizar?: (lead: LeadWithOwner) => ReactNode
-    subtitulo?: (lead: LeadWithOwner) => string | undefined
+    subtitulo?: (lead: LeadWithOwner) => ReactNode
     abaixoDoTopo?: (lead: LeadWithOwner) => ReactNode
-    saida?: (lead: LeadWithOwner) => string | undefined
+    rodape?: (lead: LeadWithOwner) => ReactNode
+    anel?: (lead: LeadWithOwner) => string | undefined
+    pilula?: (lead: LeadWithOwner) => { texto: string; cor: string } | undefined
   }
+  /** v3: o card da lista é este (no lugar do LeadListItem); recebe a hora, se está aberta, abrir e o botão direito */
+  itemDaLista?: (lead: LeadWithOwner, x: { hora: string; aberta: boolean; abrir: () => void; menu: (e: EventoDeMouse) => void }) => ReactNode
   /** v3: sem a faixa laranja "Pelo número ..." (a saída vai embaixo, em cima da caixa de mensagem) */
   semFaixaDaLinha?: boolean
 }
 
-export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos, casaExtra, buscaExtra, etapaDoCard, abaixoDoTitulo, etapas, etapasEmLista, rodapeDoItem, naConversa, semFaixaDaLinha }: Props) {
+export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos, casaExtra, buscaExtra, etapaDoCard, abaixoDoTitulo, etapas, etapasEmLista, rodapeDoItem, naConversa, semFaixaDaLinha, itemDaLista }: Props) {
   const { organizationId, loading, permissions } = useAuth()
   // 04/11: o Visualizar por do administrador vale aqui (usePapelV2)
   const papel = usePapelV2()
@@ -278,6 +282,12 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
 
   /* uma conversa na lista; na v2, com a faixa do imóvel em cima e a borda de quem atende, o nome em pé ("pregado na parede") */
   const linhaDaLista = (l: LeadWithOwner) => {
+    if (itemDaLista) return (
+      <div key={l.id}>{itemDaLista(l, {
+        hora: hora(l.last_activity_at || l.created_at), aberta: l.id === selecionada, abrir: () => abrir(l),
+        menu: (e) => { e.preventDefault(); setMenuDeTags(false); setMenuEm({ x: e.clientX, y: e.clientY, lead: l }) },
+      })}</div>
+    )
     const item = (
       <LeadListItem lead={l} isSelected={l.id === selecionada} timeStr={hora(l.last_activity_at || l.created_at)}
                     onClick={abrir} query={busca}
@@ -431,7 +441,8 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
                 linha={getLinhaWhatsapp(aberta) || undefined} marca={linhaDe(aberta) === 'parceria' ? marcas[aberta.id] : undefined}
                 faixaDaLinha={semFaixaDaLinha ? null : NUMERO_DA_CONVERSA[linhaDe(aberta)] || null} onTagsChange={aoMudarEtiqueta}
                 organizar={naConversa?.organizar?.(aberta)} subtituloDoTopo={naConversa?.subtitulo?.(aberta)}
-                abaixoDoTopo={naConversa?.abaixoDoTopo?.(aberta)} saidaNoRodape={naConversa?.saida?.(aberta)}
+                abaixoDoTopo={naConversa?.abaixoDoTopo?.(aberta)} rodapeDoChat={naConversa?.rodape?.(aberta)}
+                anelDoAvatar={naConversa?.anel?.(aberta)} pilulaDoTopo={naConversa?.pilula?.(aberta)}
                 painelAberto={painelAberto} aoAlternarPainel={alternarPainel} aoVoltar={voltar}
                 aoCadastrarImovel={cadastrar ? () => setCadastroDe((x) => (x === aberta.id ? null : aberta.id)) : undefined}
                 cadastroAberto={cadastroDe === aberta.id} />

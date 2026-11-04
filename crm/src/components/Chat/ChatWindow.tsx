@@ -1,5 +1,6 @@
 'use client'
 
+import { useModoV3 } from '@/lib/modoV3'
 import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react'
 import { codigoReferenciado } from '@/lib/imovelCodigo'
 import { Image as ImageIcon, ArrowLeft, User, SidebarSimple, Robot, HouseLine } from '@phosphor-icons/react'
@@ -47,12 +48,15 @@ interface ChatWindowProps {
   organizar?: ReactNode
   /** 03/11: a conversa é de OUTRA linha e aparece nesta aba (misto): "Falando pelo número Parceria" */
   faixaDaLinha?: string | null
-  /** v3 (04/11): o que fica embaixo do nome no alto ("Locação · Diego"), no lugar do telefone */
-  subtituloDoTopo?: string
+  /** v3 (04/11): o que fica embaixo do nome no alto (o telefone e o resumo da ficha), no lugar do de sempre */
+  subtituloDoTopo?: ReactNode
   /** v3: o que vem logo embaixo do cabeçalho (a barra das etapas) */
   abaixoDoTopo?: ReactNode
-  /** v3: a linha em cima da caixa de mensagem ("Sai pelo WhatsApp Leads · 8595") */
-  saidaNoRodape?: string
+  /** v3: o que vem em cima da caixa de mensagem (a barra de quem está respondendo) */
+  rodapeDoChat?: ReactNode
+  /** v3: o anel de 2px no avatar (a cor da fila) e a pílula do tipo ao lado do nome */
+  anelDoAvatar?: string
+  pilulaDoTopo?: { texto: string; cor: string }
 }
 
 export interface ReplyContext {
@@ -139,8 +143,10 @@ function EtiquetasNoCabecalho({ lead, onTagsChange }: {
   )
 }
 
-function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlternarPainel, aoVoltar, dono, etiquetasRapidas, onTagsChange, aoCadastrarImovel, cadastroAberto, organizar, falando, subtituloDoTopo }: {
-  subtituloDoTopo?: string
+function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlternarPainel, aoVoltar, dono, etiquetasRapidas, onTagsChange, aoCadastrarImovel, cadastroAberto, organizar, falando, subtituloDoTopo, anelDoAvatar, pilulaDoTopo }: {
+  subtituloDoTopo?: ReactNode
+  anelDoAvatar?: string
+  pilulaDoTopo?: { texto: string; cor: string }
   /** v2 do CRM (Pedro, 03/11: "onde tem o pontinho rosa de humano vai aparecer o nome de quem está falando pelo login") */
   falando?: QuemAtende | null
   organizar?: ReactNode
@@ -172,6 +178,8 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
     if (imovelDoDono(dono)) partes.push(imovelDoDono(dono))
     partes.push(formatPhone(lead.phone || ''))
   }
+  const v3 = useModoV3()
+  if (v3) falando = null   // v3: quem responde fica só na barra de cima da caixa de mensagem
   const subtitulo = subtituloDoTopo || (partes.length ? partes.join(' · ') : formatPhone(lead.phone || ''))
 
   return (
@@ -181,13 +189,19 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
       )}
       {mostrarRobo && <RoboDaNay nay={nay ?? null} marca={marca} />}
       <button type="button" onClick={aoAlternarPainel} className="flex items-center gap-3 min-w-0 flex-1 text-left" title="Dados do contato">
-        <span className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center" style={{ background: 'var(--wa-row-selected)' }}>
+        <span className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center" style={{ background: 'var(--wa-row-selected)', ...(anelDoAvatar ? { boxShadow: `0 0 0 2px ${anelDoAvatar}` } : {}) }}>
           {lead.avatar_url
             ? <img src={lead.avatar_url} alt="" className="w-full h-full object-cover" />
             : <User size={24} weight="fill" style={{ color: 'var(--wa-text-2)', opacity: 0.55 }} />}
         </span>
         <span className="min-w-0">
-          <span className="block text-[16px] leading-[21px] truncate" style={{ color: 'var(--wa-text)' }}>{nomeDono || formatPhone(lead.title)}</span>
+          <span className="flex items-center gap-2 min-w-0">
+            <span className="block text-[16px] leading-[21px] truncate" style={{ color: 'var(--wa-text)' }}>{nomeDono || formatPhone(lead.title)}</span>
+            {pilulaDoTopo && (
+              <span className="flex-shrink-0 rounded-full px-2 text-[11.5px] font-medium leading-[18px]"
+                    style={{ color: pilulaDoTopo.cor, background: `${pilulaDoTopo.cor}22`, border: `1px solid ${pilulaDoTopo.cor}66` }}>{pilulaDoTopo.texto}</span>
+            )}
+          </span>
           <span className="block text-[13px] leading-[18px] truncate" style={{ color: marca?.telAtendendo ? 'var(--wa-tag-tel)' : 'var(--wa-text-2)' }}>
             {falando && (
               <span className="inline-block rounded px-1.5 mr-1.5 text-[11.5px] font-semibold leading-[16px] align-[1px]"
@@ -224,7 +238,7 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
   )
 }
 
-export default function ChatWindow({ lead, organizationId, onMessageSent, linha, marca, dono, painelAberto, aoAlternarPainel, aoVoltar, onTagsChange, aoCadastrarImovel, cadastroAberto, organizar, faixaDaLinha, subtituloDoTopo, abaixoDoTopo, saidaNoRodape }: ChatWindowProps) {
+export default function ChatWindow({ lead, organizationId, onMessageSent, linha, marca, dono, painelAberto, aoAlternarPainel, aoVoltar, onTagsChange, aoCadastrarImovel, cadastroAberto, organizar, faixaDaLinha, subtituloDoTopo, abaixoDoTopo, rodapeDoChat, anelDoAvatar, pilulaDoTopo }: ChatWindowProps) {
   const {
     activities, loading, error: erroDasMensagens, refresh: recarregarMensagens, sendHumanMessage, sendMediaMessage, deleteMessage,
     temMais, carregandoAnteriores, carregarAnteriores,
@@ -485,7 +499,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent, linha,
     >
       <CabecalhoConversa lead={lead} marca={marca} nay={nay} mostrarRobo={false} painelAberto={painelAberto} aoAlternarPainel={aoAlternarPainel} aoVoltar={aoVoltar} dono={dono}
                          etiquetasRapidas={linha === 'captacao'} onTagsChange={onTagsChange}
-                         aoCadastrarImovel={aoCadastrarImovel} cadastroAberto={cadastroAberto} organizar={organizar} falando={falando} subtituloDoTopo={subtituloDoTopo} />
+                         aoCadastrarImovel={aoCadastrarImovel} cadastroAberto={cadastroAberto} organizar={organizar} falando={falando} subtituloDoTopo={subtituloDoTopo} anelDoAvatar={anelDoAvatar} pilulaDoTopo={pilulaDoTopo} />
       {abaixoDoTopo}
       {/* 03/11 (Pedro): a conversa é de outra linha e aparece aqui (misto); a resposta sai pelo número dela */}
       {faixaDaLinha && (
@@ -540,9 +554,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent, linha,
         </div>
       )}
 
-      {saidaNoRodape && (
-        <div className="relative z-10 flex-shrink-0 px-4 pt-1.5 text-[12px]" style={{ color: 'var(--wa-text-2)' }}>{saidaNoRodape}</div>
-      )}
+      {rodapeDoChat}
       <ActivityComposer
         ref={composerRef}
         onSend={handleSendActivity}

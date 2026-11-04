@@ -14,6 +14,7 @@
  *   { captacaoOrigem: { olx_id, titulo, url, ... } }     de onde veio a captação (a tela Imóveis captar OLX): o contexto do card
  *   { locacao: true | false }                            v2 do CRM: o lead do Leads vai (ou sai) da locação, que é do Diego
  *   { responsavel: { nome } | { nay: true } | null }     v2 do CRM: quem assumiu o proprietário (null volta à regra do número)
+ *   { etapaV3: 0..4 | null }                             v3: a etapa escolhida à mão na barra (custom_attributes.etapa_v3); null volta ao automático
  *   { visita: { id: <id da visita>, ligar: true } }      v2, aba Visita: a conversa entra (ou sai) do card daquela visita à mão
  *                                                        (custom_attributes.visitas_v2; o id da Nay Leads é negativo, como na agenda)
  *
@@ -86,6 +87,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         ? sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb)
                  || jsonb_build_object('responsavel_v2', ${JSON.stringify(v)}::jsonb), updated_at = now() WHERE id = ${id}`
         : sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) - 'responsavel_v2', updated_at = now() WHERE id = ${id}`)
+    }
+    // v3 (Pedro, 04/11: "cada segmento é clicável para mudar a etapa manualmente"): 0 Começar .. 4 Visitas; null volta ao automático
+    if ('etapaV3' in corpo) {
+      const n = corpo.etapaV3 == null ? null : Math.trunc(Number(corpo.etapaV3))
+      await db.execute(n !== null && n >= 0 && n <= 4
+        ? sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb)
+                 || jsonb_build_object('etapa_v3', jsonb_build_object('n', ${n}::int, 'em', now()::text)), updated_at = now() WHERE id = ${id}`
+        : sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) - 'etapa_v3', updated_at = now() WHERE id = ${id}`)
     }
     if (corpo.captacaoOrigem && typeof corpo.captacaoOrigem === 'object') {
       const c = corpo.captacaoOrigem as Record<string, unknown>

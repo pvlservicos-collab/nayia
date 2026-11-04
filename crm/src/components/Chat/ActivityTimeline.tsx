@@ -1,6 +1,8 @@
 'use client'
 
 import { useRef, useEffect, useLayoutEffect, useState, useMemo, memo, useCallback } from 'react'
+import { Robot, User, DeviceMobile } from '@phosphor-icons/react'
+import { useModoV3, CLASSE_DO_AUTOR } from '@/lib/modoV3'
 import { Sparkle, X, Play, Pause, Microphone, ArrowBendUpLeft, ArrowBendUpRight, Check, Checks, WarningCircle, Lightning, PushPin, Trash, Prohibit, FileText, DownloadSimple, CaretDown, CaretLeft, CaretRight } from '@phosphor-icons/react'
 import { LeadActivityWithActor, LeadWithOwner } from '@/lib/types'
 import { formatTime } from '@/lib/utils'
@@ -459,6 +461,25 @@ function quemMandou(a: any, v2: boolean): string | null {
   return a?.metadata?.do_celular ? 'celular' : null
 }
 
+/* V3 (Pedro, 04/11): quem mandou cada mensagem nossa. Humano = pelo CRM (source human) ou pelo celular (do_celular);
+   o resto que sai por nós é a Nay (IA). Mesma régua do BarrasDeEntrega. */
+function autorV3(a: any): { tipo: 'ia' | 'humano'; texto: string; celular: boolean } {
+  const m = a?.metadata || {}
+  const humano = m.source === 'human' || !!m.do_celular
+  if (!humano) return { tipo: 'ia', texto: 'IA', celular: false }
+  const nome = String(a?.actor?.profiles?.full_name || '').trim().split(/\s+/)[0] || 'Equipe'
+  return m.do_celular ? { tipo: 'humano', texto: `${nome} · pelo celular`, celular: true } : { tipo: 'humano', texto: nome, celular: false }
+}
+function RotuloDoAutorV3({ activity }: { activity: any }) {
+  const a = autorV3(activity)
+  return (
+    <span className="flex items-center gap-1 text-[11.5px] leading-[15px] font-medium mb-0.5" style={{ color: 'var(--v3-texto)' }}>
+      {a.tipo === 'ia' ? <Robot size={13} weight="fill" /> : a.celular ? <DeviceMobile size={13} weight="fill" /> : <User size={13} weight="fill" />}
+      {a.texto}
+    </span>
+  )
+}
+
 // ── O balão ──
 const MessageBubble = memo(function MessageBubble({
   activity,
@@ -494,6 +515,7 @@ const MessageBubble = memo(function MessageBubble({
   mostrarTranscricao?: boolean
 }) {
   const v2 = useVersaoDoCrm() === 'v2'
+  const v3 = useModoV3()
   if (senderType === 'system_other') return null
 
   const outgoing = isOutgoing(senderType)
@@ -509,7 +531,7 @@ const MessageBubble = memo(function MessageBubble({
 
   // o nome em cima, dentro do balão: da Nay/automação, ou de quem fala no grupo
   const rotulo = outgoing
-    ? (showHeader && (isAI || isAutomated) ? (isAI ? 'Nay (IA)' : 'Automático') : null)
+    ? (!v3 && showHeader && (isAI || isAutomated) ? (isAI ? 'Nay (IA)' : 'Automático') : null)
     : (showHeader && ehGrupo ? (m.sender_name || nomeDoLead) : null)
   const corDoRotulo = isAI ? '#7c6bff' : isAutomated ? 'var(--wa-green)' : 'var(--wa-quote-bar)'
 
@@ -573,8 +595,9 @@ const MessageBubble = memo(function MessageBubble({
             <span className="absolute bottom-[3px] right-[7px] wa-hora">{formatTime(activity.created_at)}</span>
           </div>
         ) : (
-          <div className={`wa-balao ${outgoing ? 'wa-balao--out' : 'wa-balao--in'} ${showHeader ? 'wa-balao--rabo' : ''}`}>
-            {outgoing && activity.type === 'whatsapp' && <BarrasDeEntrega metadata={m} criadaEm={activity.created_at} quem={quemMandou(activity, v2)} />}
+          <div className={`wa-balao ${outgoing ? 'wa-balao--out' : 'wa-balao--in'} ${showHeader ? 'wa-balao--rabo' : ''} ${v3 && outgoing ? CLASSE_DO_AUTOR[autorV3(activity).tipo] : ''}`}>
+            {outgoing && v3 && <RotuloDoAutorV3 activity={activity} />}
+            {outgoing && !v3 && activity.type === 'whatsapp' && <BarrasDeEntrega metadata={m} criadaEm={activity.created_at} quem={quemMandou(activity, v2)} />}
             {rotulo && (
               <p className="text-[12.8px] font-semibold leading-[18px] mb-0.5 flex items-center gap-1" style={{ color: corDoRotulo }}>
                 {isAI && <Sparkle size={12} weight="fill" />}
@@ -648,12 +671,14 @@ const AlbumDeFotos = memo(function AlbumDeFotos({ fotos, outgoing, showHeader, r
   aoAbrir: (indice: number) => void
 }) {
   const v2 = useVersaoDoCrm() === 'v2'
+  const v3 = useModoV3()
   const ultima = fotos[fotos.length - 1]
   const resto = fotos.length - 3  // como no WhatsApp: a 4ª fica coberta pelo número
   return (
     <div className={`flex ${outgoing ? 'justify-end' : 'justify-start'} ${outgoing ? 'pl-[10%]' : 'pr-[10%]'}`}>
-      <div className={`wa-balao ${outgoing ? 'wa-balao--out' : 'wa-balao--in'} ${showHeader ? 'wa-balao--rabo' : ''} !p-[3px]`}>
-        {outgoing && <span className="block px-1.5 pt-1"><BarrasDeEntrega metadata={ultima.metadata || {}} criadaEm={ultima.created_at} quem={quemMandou(ultima, v2)} /></span>}
+      <div className={`wa-balao ${outgoing ? 'wa-balao--out' : 'wa-balao--in'} ${showHeader ? 'wa-balao--rabo' : ''} ${v3 && outgoing ? CLASSE_DO_AUTOR[autorV3(ultima).tipo] : ''} !p-[3px]`}>
+        {outgoing && v3 && <span className="block px-1.5 pt-1"><RotuloDoAutorV3 activity={ultima} /></span>}
+        {outgoing && !v3 && <span className="block px-1.5 pt-1"><BarrasDeEntrega metadata={ultima.metadata || {}} criadaEm={ultima.created_at} quem={quemMandou(ultima, v2)} /></span>}
         {rotulo && <p className="text-[12.8px] font-semibold leading-[18px] px-1.5 pt-0.5 pb-1" style={{ color: 'var(--wa-quote-bar)' }}>{rotulo}</p>}
         <div className="grid grid-cols-2 gap-[3px] w-[min(300px,62vw)]">
           {fotos.slice(0, 4).map((f, i) => (

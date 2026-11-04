@@ -1,5 +1,6 @@
 'use client'
 
+import { useModoV3 } from '@/lib/modoV3'
 import { useState, useEffect, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react'
 import dynamic from 'next/dynamic'
 import type { EmojiClickData, Theme } from 'emoji-picker-react'
@@ -117,6 +118,7 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
   lead,
   rascunhoId,
 }, ref) {
+  const modoV3 = useModoV3()
   const [content, setContent] = useState('')
   // de quem é o texto do campo agora: troca junto com a conversa e ANTES de gravar (senão o texto da conversa que
   // acabou de fechar iria parar no rascunho da que abriu). A gravação vem declarada antes da leitura de propósito: na
@@ -489,7 +491,8 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
     <div className="px-3 sm:px-5 pb-3 pt-1.5 space-y-2 relative z-10">
       {/* Action Buttons */}
       <div className="flex gap-2 items-center mb-1 flex-wrap">
-        {chatButtonSettings?.pausar_ia?.enabled && (!chatButtonSettings.pausar_ia.position || chatButtonSettings.pausar_ia.position === 'chat') && (
+        {/* v3 (Pedro, 04/11): o Pausar IA vira o Assumir da barra de quem responde, em cima desta caixa */}
+        {!modoV3 && chatButtonSettings?.pausar_ia?.enabled && (!chatButtonSettings.pausar_ia.position || chatButtonSettings.pausar_ia.position === 'chat') && (
           <button
             onClick={() => handleChatButtonClick('pausar_ia')}
             disabled={webhookStatus?.key === 'pausar_ia' && webhookStatus.status === 'sending'}
@@ -500,7 +503,7 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
             {getButtonStatusIcon('pausar_ia')}
           </button>
         )}
-        {chatButtonSettings?.sugerir_passos?.enabled && (!chatButtonSettings.sugerir_passos.position || chatButtonSettings.sugerir_passos.position === 'chat') && (
+        {!modoV3 && chatButtonSettings?.sugerir_passos?.enabled && (!chatButtonSettings.sugerir_passos.position || chatButtonSettings.sugerir_passos.position === 'chat') && (
           <button
             onClick={() => handleChatButtonClick('sugerir_passos')}
             disabled={webhookStatus?.key === 'sugerir_passos' && webhookStatus.status === 'sending'}
@@ -668,6 +671,14 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
               >
                 <Smiley size={24} />
               </button>
+              {/* v3: o Sugerir próximos passos vira só o ícone, ao lado do campo */}
+              {modoV3 && chatButtonSettings?.sugerir_passos?.enabled && (
+                <button type="button" onClick={() => handleChatButtonClick('sugerir_passos')}
+                        disabled={webhookStatus?.key === 'sugerir_passos' && webhookStatus.status === 'sending'}
+                        className="wa-icone-btn" title="Sugerir próximos passos" aria-label="Sugerir próximos passos">
+                  <Sparkle size={22} />
+                </button>
+              )}
             </div>
 
             {/* Emoji Picker Popover */}

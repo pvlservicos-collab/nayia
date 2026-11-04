@@ -2100,3 +2100,11 @@ html {
   overflow: hidden; display: -webkit-box !important; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .wa-acoes-topo > button > svg, .wa-acoes-topo > div > button > svg { flex-shrink: 0; }
 .wa-acoes-topo select { font-size: 11px !important; max-width: 92px !important; }
+
+/* V3 (Pedro, 04/11/2026): as cores do autor. IA roxo, humano verde; no escuro, as do pedido (fundo #3C3489 / #085041).
+   Valem no balão (trocam --wa-out, então o rabinho acompanha), no selo do card e na barra de quem responde. */
+.v3-ia { --wa-out: #EEEDFE; --wa-out-ink: #3C3489; --v3-fundo: #EEEDFE; --v3-texto: #3C3489; }
+.v3-humano { --wa-out: #E1F5EE; --wa-out-ink: #085041; --v3-fundo: #E1F5EE; --v3-texto: #085041; }
+.dark .v3-ia { --wa-out: #3C3489; --wa-out-ink: #CECBF6; --v3-fundo: #3C3489; --v3-texto: #CECBF6; }
+.dark .v3-humano { --wa-out: #085041; --wa-out-ink: #9FE1CB; --v3-fundo: #085041; --v3-texto: #9FE1CB; }
+.v3-selo { background: var(--v3-fundo); color: var(--v3-texto); }
