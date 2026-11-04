@@ -194,7 +194,8 @@ export default function Navbar() {
   /* na v2, o SDR só entra nas áreas dele: outro endereço leva à primeira delas */
   useEffect(() => {
     if (!v2 || acesso.admin || authLoading || !acesso.areas.length) return
-    if (pathname === '/settings/profile' || podeEntrar(acesso, pathname) || caminhoLiberado(papel.abas, pathname)) return
+    // 04/11 (Pedro: "quando clico em Enviar imóvel não aparece mais"): o Enviar imóvel do alto vale para todos
+    if (pathname === '/settings/profile' || pathname.startsWith('/disparo') || podeEntrar(acesso, pathname) || caminhoLiberado(papel.abas, pathname)) return
     // 04/11 (Pedro: "o Lucas pode pesquisar um contato lá em cima e abrir como ele está nos números normais, mesmo sem
     // acesso, para abrir e mandar lá"): a conversa pedida pela busca (?leadId=) abre na tela do número dela
     if (pathname.startsWith('/chat') && searchParams.get('leadId')) return
