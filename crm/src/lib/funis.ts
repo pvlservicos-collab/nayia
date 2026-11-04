@@ -26,6 +26,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { integrations, leadStageHistory } from '@/lib/schema'
 import { naydb } from '@/lib/nayDisparo'
+import { corretoresDaCaptacao } from '@/app/api/captacao/donos/route'
 import { telefoneCanonico, telefoneVariantes } from '@/lib/leadSources'
 import { PIPELINE_DA_LINHA } from '@/lib/etapaDaLinha'
 import { publishEvent, channels, events } from '@/lib/realtime'
@@ -292,27 +293,37 @@ export async function sincronizarFunis(org: string): Promise<ResultadoDosFunis |
            AND coalesce(nome_original, name) IN (${sql.join(Object.values(ETAPA_PARA_ETIQUETA).map((e) => sql`${e.nome}`), sql`, `)})`))
         .rows as Array<{ id: string; chave: string }>
       const etiquetaDaEtapa = (etapa: string) => marcas.find((m) => m.chave === ETAPA_PARA_ETIQUETA[etapa]?.nome)?.id
-      const [clientes, donosDaCampanha] = await Promise.all([
+      const [clientes, donosDaCampanha, corretores] = await Promise.all([
         naydb().query('SELECT telefone, etapa FROM crm_olx_clientes_etapas()'),
         naydb().query('SELECT telefone FROM crm_captacao_donos()'),
+        corretoresDaCaptacao(),
       ])
       const fim8 = (t: unknown) => String(t || '').replace(/\D/g, '').slice(-8)
       const etapaPorFim = new Map<string, string>()
-      for (const d of donosDaCampanha.rows as Array<{ telefone: string }>) if (fim8(d.telefone).length === 8) etapaPorFim.set(fim8(d.telefone), 'proprietarios')
-      for (const c of clientes.rows as Array<{ telefone: string; etapa: string }>) if (fim8(c.telefone).length === 8) etapaPorFim.set(fim8(c.telefone), c.etapa)
+      /* 04/11 (Pedro: "revisar todas as tags do CRM e tirar os proprietários falsos"): a etiqueta Proprietários ia para todo
+         dono da campanha, inclusive o corretor que a campanha procurou como se fosse dono (Moacy, Sarah, Davi Izel, Marcia...),
+         e para o CLIENTE na etapa 'proprietarios' da Nay Leads (que é "combinando com o proprietário", não ser dono). Agora:
+         corretor não ganha; a etapa do cliente 'proprietarios' não vira essa etiqueta */
+      for (const d of donosDaCampanha.rows as Array<{ telefone: string }>) {
+        if (fim8(d.telefone).length === 8 && !corretores.has(fim8(d.telefone))) etapaPorFim.set(fim8(d.telefone), 'proprietarios')
+      }
+      for (const c of clientes.rows as Array<{ telefone: string; etapa: string }>) {
+        if (fim8(c.telefone).length === 8 && c.etapa !== 'proprietarios') etapaPorFim.set(fim8(c.telefone), c.etapa)
+      }
       const conversas = (await db.execute(sql`
-        SELECT l.id::text, l.phone, l.custom_attributes->>'etapa_leads_fato' AS antes,
+        SELECT l.id::text, l.phone, l.custom_attributes->>'etapa_leads_fato' AS antes, l.custom_attributes->>'tipo_contato' AS tipo,
                EXISTS (SELECT 1 FROM lead_tags lt WHERE lt.lead_id = l.id
                           AND lt.tag_id = ANY(${sql.raw(`ARRAY[${marcas.map((m) => `'${m.id}'`).join(',')}]::uuid[]`)})) AS tem_etapa
           FROM leads l
          WHERE l.organization_id = ${org} AND l.integration_id = ${linhaLeads} AND l.deleted_at IS NULL AND NOT coalesce(l.is_group, false)`))
-        .rows as Array<{ id: string; phone: string | null; antes: string | null; tem_etapa: boolean }>
+        .rows as Array<{ id: string; phone: string | null; antes: string | null; tem_etapa: boolean; tipo: string | null }>
       /* só quem mudou de etapa desde o último espelho. Sem anotação (a 1ª vez, ou alguém regravou o custom_attributes
          inteiro): quem já tem uma das quatro só ganha a anotação, para não desfazer o que foi posto à mão. */
       const mudou = conversas
         .map((l) => {
           const e = etapaPorFim.get(fim8(l.phone)) || ''
-          const fato = ETAPA_PARA_ETIQUETA[e] ? e : ''
+          // 04/11: o tipo escolhido à mão (corretor, equipe, cliente...) vence: não é dono
+          const fato = ETAPA_PARA_ETIQUETA[e] && !(e === 'proprietarios' && l.tipo && l.tipo !== 'proprietario') ? e : ''
           const soAnota = l.antes === null && !!l.tem_etapa
           return { lead_id: l.id, tag_id: fato ? etiquetaDaEtapa(fato) || null : null, fato, antes: l.antes, so_anota: soAnota }
         })
