@@ -31,6 +31,7 @@ import { casaNaBusca } from './BuscaDaLista'
 import PainelContatoParceria from './PainelContatoParceria'
 import PainelContatoCaptacao from './PainelContatoCaptacao'
 import CadastroImovelOlx from './CadastroImovelOlx'
+import type { QuemAtende } from '@/lib/versaoDoCrm'
 
 export const NUMERO_DA_CONVERSA: Record<string, string> = {
   captacao: 'Pelo número Leads · 8595-6408', parceria: 'Pelo número Parceria · 9445-3618', oficial: 'Pelo número Oficial · 8456-0874',
@@ -77,9 +78,15 @@ interface Props {
   topoDoCard?: (lead: LeadWithOwner) => ReactNode
   /** o botão Cadastrar imóvel no alto da conversa (a barra do WhatsApp Leads, 535); devolve o link da OLX, se houver */
   cadastrar?: (lead: LeadWithOwner) => { linkInicial?: string }
+  /** v2 (Pedro, 03/11, noite): a faixa preta/branca do imóvel e a borda com o nome em pé de quem atende, em cada conversa */
+  enfeite?: (lead: LeadWithOwner) => { faixa?: string | null; borda?: QuemAtende | null } | null
+  /** v2: a aba "Meus" (a padrão) para quem só vê os dele por padrão; "Todos" mostra o resto */
+  meus?: (lead: LeadWithOwner) => boolean
+  /** v2, aba Visita: as conversas em cards, um por visita (o topo de cada card e quem entra nele) */
+  grupos?: (visiveis: LeadWithOwner[]) => Array<{ chave: string; topo: ReactNode; leads: LeadWithOwner[] }>
 }
 
-export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar }: Props) {
+export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos }: Props) {
   const { organizationId, loading, isMaster, roleName, permissions } = useAuth()
   const ehAdmin = !!(isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || (permissions as any)?.['*'])
   const pode = soAdmin ? ehAdmin : ehAdmin || !!permissions?.settings?.view_chat
@@ -93,7 +100,7 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const [aba, setAba] = useState<string>('all')
+  const [aba, setAba] = useState<string>(meus ? 'meus' : 'all')
   const [selecionada, setSelecionada] = useState<string | null>(null)
   const [verConversa, setVerConversa] = useState(false)
   const [abas, setAbas] = useState<string[]>([])
@@ -154,11 +161,13 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
   const contagem = (tagId: string) => todas.filter((l) => (l.lead_tags || []).some((lt: any) => lt.tag_id === tagId)).length
   const buscando = busca.trim().length > 0
   const visiveis = todas.filter((l) => buscando ? casaNaBusca(busca, l)
-    : aba === 'all' ? true : aba === 'nao_lidas' ? !!l.is_unread || l.id === selecionada
+    : aba === 'all' ? true : aba === 'meus' ? !!meus?.(l) || l.id === selecionada
+    : aba === 'nao_lidas' ? !!l.is_unread || l.id === selecionada
     : (l.lead_tags || []).some((lt: any) => lt.tag_id === aba))
   const aberta = todas.find((l) => l.id === selecionada) || null
 
   const filtros: FiltroDaLista[] = [
+    ...(meus ? [{ chave: 'meus' as any, rotulo: 'Meus', contagem: todas.filter((l) => meus(l)).length }] : []),
     { chave: 'all', rotulo: 'Todos', contagem: todas.length },
     { chave: 'nao_lidas' as any, rotulo: 'Não lidos', contagem: todas.filter((l) => l.is_unread).length },
     ...abas.flatMap((id) => {
@@ -194,6 +203,38 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
   if (!pode) return <NotAuthorized />
 
   const linhaDe = (l: LeadWithOwner) => getLinhaWhatsapp(l) || ''
+
+  /* uma conversa na lista; na v2, com a faixa do imóvel em cima e a borda de quem atende, o nome em pé ("pregado na parede") */
+  const linhaDaLista = (l: LeadWithOwner) => {
+    const item = (
+      <LeadListItem lead={l} isSelected={l.id === selecionada} timeStr={hora(l.last_activity_at || l.created_at)}
+                    onClick={abrir} query={busca}
+                    onContextMenu={(e, lead) => { e.preventDefault(); if (menu) setMenuEm({ x: e.clientX, y: e.clientY, lead }) }}
+                    faixaDaLinha={NUMERO_DA_CONVERSA[linhaDe(l)] || null}
+                    tipoDoContato={acharTipo(tipos, tipoEscolhido(l))} cinzas />
+    )
+    const e = enfeite?.(l)
+    if (!e || (!e.faixa && !e.borda)) return <div key={l.id}>{item}</div>
+    return (
+      <div key={l.id} className="flex items-stretch">
+        {e.borda && (
+          <div className="w-[20px] flex-shrink-0 flex items-center justify-center" style={{ background: e.borda.cor }} title={`Quem atende: ${e.borda.nome}`}>
+            <span className="text-[10px] font-bold text-white whitespace-nowrap tracking-wide" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+              {e.borda.nome}
+            </span>
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          {e.faixa && (
+            <div className="px-3 py-[3px] text-[11.5px] font-semibold truncate" style={{ background: 'var(--wa-text)', color: 'var(--wa-panel)' }} title={e.faixa}>
+              {e.faixa}
+            </div>
+          )}
+          {item}
+        </div>
+      </div>
+    )
+  }
 
   const lista = (
     <div className="flex flex-col h-full" style={{ background: 'var(--wa-panel)' }}>
@@ -261,15 +302,19 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
             {carregando ? 'Carregando…' : buscando ? 'Ninguém com esse nome ou número nesta tela' : aba !== 'all' ? 'Nenhuma conversa neste filtro' : vazio}
           </div>
         ) : (
-          <div className="flex flex-col pb-2">
-            {visiveis.map((l) => (
-              <LeadListItem key={l.id} lead={l} isSelected={l.id === selecionada} timeStr={hora(l.last_activity_at || l.created_at)}
-                            onClick={abrir} query={busca}
-                            onContextMenu={(e, lead) => { e.preventDefault(); if (menu) setMenuEm({ x: e.clientX, y: e.clientY, lead }) }}
-                            faixaDaLinha={NUMERO_DA_CONVERSA[linhaDe(l)] || null}
-                            tipoDoContato={acharTipo(tipos, tipoEscolhido(l))} cinzas />
-            ))}
-          </div>
+          grupos && !buscando ? (
+            /* um card por visita, com espaço entre um e outro (Pedro: "para ficar bem fácil de ver") */
+            <div className="flex flex-col gap-4 p-2 pb-4">
+              {grupos(visiveis).map((g) => (
+                <div key={g.chave} className="rounded-xl overflow-hidden" style={{ border: '2px solid #16a34a' }}>
+                  <div className="px-3 py-2 text-[13px]" style={{ background: 'color-mix(in srgb, #16a34a 12%, transparent)', color: 'var(--wa-text)' }}>{g.topo}</div>
+                  {g.leads.map(linhaDaLista)}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col pb-2">{visiveis.map(linhaDaLista)}</div>
+          )
         )}
       </div>
     </div>

@@ -13,6 +13,7 @@
  *                                                        false fica gravado (o "mandar de volta" tira até o cadastro incompleto)
  *   { captacaoOrigem: { olx_id, titulo, url, ... } }     de onde veio a captação (a tela Imóveis captar OLX): o contexto do card
  *   { locacao: true | false }                            v2 do CRM: o lead do Leads vai (ou sai) da locação, que é do Diego
+ *   { responsavel: { nome } | { nay: true } | null }     v2 do CRM: quem assumiu o proprietário (null volta à regra do número)
  *
  * Só mexe em custom_attributes da conversa; a linha (integration_id) nunca muda (crm/CLAUDE.md).
  */
@@ -72,6 +73,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       await db.execute(sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb)
                  || jsonb_build_object('atendimento_locacao', ${corpo.locacao}::boolean, 'atendimento_locacao_em', now()::text),
                  updated_at = now() WHERE id = ${id}`)
+    }
+    // v2 (Pedro, 03/11, noite: "ela pode assumir a conversa de outro humano"): o responsável pelo proprietário
+    if ('responsavel' in corpo) {
+      const r = corpo.responsavel
+      const v = r && typeof r === 'object'
+        ? (r.nay ? { nay: true } : { nome: String(r.nome || '').trim().slice(0, 60), em: new Date().toISOString() })
+        : null
+      await db.execute(v && ('nay' in v || v.nome)
+        ? sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb)
+                 || jsonb_build_object('responsavel_v2', ${JSON.stringify(v)}::jsonb), updated_at = now() WHERE id = ${id}`
+        : sql`UPDATE leads SET custom_attributes = coalesce(custom_attributes, '{}'::jsonb) - 'responsavel_v2', updated_at = now() WHERE id = ${id}`)
     }
     if (corpo.captacaoOrigem && typeof corpo.captacaoOrigem === 'object') {
       const c = corpo.captacaoOrigem as Record<string, unknown>

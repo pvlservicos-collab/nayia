@@ -11,7 +11,11 @@
  *   Oficial       o WhatsApp API, só para o Tel ("por enquanto")
  * Quem vê o quê, só na v2 ("o nosso login Tel vê tudo, mas o login dos SDR só tem liberado o chat da função deles"):
  *   Tel (administrador) tudo; Lucas Captação; Diego Atendimento › Leads (locação); Rayssa Atendimento › Parceria.
- *   Visita e Proprietários valem para todos ("o pessoal do atendimento tem acesso caso tenha que tirar uma dúvida").
+ *   Visita e Proprietários valem para quem atende ("o pessoal do atendimento tem acesso caso tenha que tirar uma dúvida");
+ *   o Lucas não ("o Lucas não vai falar com proprietários, ele é só da etapa captação").
+ * QUEM ATENDE (03/11, noite): cada pessoa tem uma cor (Rayssa rosa, Diego azul-claro, Lucas laranja; Tel roxo; a Nay Leads
+ * verde e a Nay Parceria anil). O responsável por um proprietário: quem ASSUMIU (custom_attributes.responsavel_v2); sem
+ * isso, com a Nay atendendo, a Nay do número; com gente, o dono do número (Parceria Rayssa, Leads Diego).
  * A versão é uma só para todos (/api/linhas/versao); só o administrador troca, no botão do alto.
  */
 import { useEffect, useState } from 'react'
@@ -62,10 +66,9 @@ export async function trocarVersaoDoCrm(nova: VersaoDoCrm): Promise<void> {
 /** a função de cada SDR pelo primeiro nome do login */
 const FUNCAO_DO_SDR: Record<string, { areas: AreaV2[]; linhas: LinhaDoAtendimento[]; soLocacao?: boolean }> = {
   lucas: { areas: ['captacao'], linhas: [] },
-  diego: { areas: ['atendimento'], linhas: ['captacao'], soLocacao: true },
-  rayssa: { areas: ['atendimento'], linhas: ['parceria'] },
+  diego: { areas: ['atendimento', 'visita', 'proprietarios'], linhas: ['captacao'], soLocacao: true },
+  rayssa: { areas: ['atendimento', 'visita', 'proprietarios'], linhas: ['parceria'] },
 }
-const DE_TODOS: AreaV2[] = ['visita', 'proprietarios']
 
 export interface AcessoV2 { areas: AreaV2[]; linhas: LinhaDoAtendimento[]; soLocacao: boolean; admin: boolean }
 
@@ -73,7 +76,43 @@ export function acessoV2(admin: boolean, nome: string | null | undefined): Acess
   if (admin) return { areas: ['captacao', 'atendimento', 'visita', 'proprietarios', 'oficial'], linhas: ['captacao', 'parceria'], soLocacao: false, admin: true }
   const primeiro = String(nome || '').trim().split(/\s+/)[0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
   const f = FUNCAO_DO_SDR[primeiro]
-  return { areas: [...(f?.areas || []), ...DE_TODOS], linhas: f?.linhas || [], soLocacao: !!f?.soLocacao, admin: false }
+  return { areas: f?.areas || [], linhas: f?.linhas || [], soLocacao: !!f?.soLocacao, admin: false }
+}
+
+export function primeiroNome(nome: string | null | undefined): string {
+  return String(nome || '').trim().split(/\s+/)[0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+}
+
+/** as cores de quem atende na v2 (o nome em pé na borda, o "falando" no alto da conversa) */
+export const CORES_V2: Record<string, string> = {
+  tel: '#8b5cf6', rayssa: '#ec4899', diego: '#38bdf8', lucas: '#f97316', nay_leads: '#16a34a', nay_parceria: '#6366f1',
+}
+export interface QuemAtende { chave: string; nome: string; cor: string; nay?: boolean }
+
+export function pessoaV2(nome: string | null | undefined): QuemAtende | null {
+  const p = primeiroNome(nome)
+  if (!p) return null
+  const rotulo = p.charAt(0).toUpperCase() + p.slice(1)
+  return { chave: p, nome: rotulo, cor: CORES_V2[p] || '#64748b' }
+}
+
+export function nayDaLinha(linha: string | null | undefined): QuemAtende {
+  return linha === 'parceria'
+    ? { chave: 'nay_parceria', nome: 'Nay Parceria', cor: CORES_V2.nay_parceria, nay: true }
+    : { chave: 'nay_leads', nome: 'Nay Leads', cor: CORES_V2.nay_leads, nay: true }
+}
+
+/** o responsável por um proprietário na v2 (ver o cabeçalho) */
+export function responsavelV2(lead: { custom_attributes?: any; em_atendimento_humano?: boolean }, linha: string | null | undefined,
+                              humanoNaNay: boolean): QuemAtende {
+  const r = lead.custom_attributes?.responsavel_v2
+  if (r && typeof r === 'object') {
+    if (r.nay) return nayDaLinha(linha)
+    const p = pessoaV2(r.nome)
+    if (p) return p
+  }
+  if (!lead.em_atendimento_humano && !humanoNaNay) return nayDaLinha(linha)
+  return pessoaV2(linha === 'parceria' ? 'Rayssa' : 'Diego')!
 }
 
 /** os endereços de cada área (o primeiro é o que o menu abre) */

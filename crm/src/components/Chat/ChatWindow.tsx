@@ -22,6 +22,8 @@ import type { DonoNaLista } from '@/lib/tiposNay'
 import { nomeDoDono, imovelDoDono } from './LeadListItem'
 import { useEtiquetas, marcarEtiqueta } from '@/lib/etiquetas'
 import EncaminharMensagem from './EncaminharMensagem'
+import { useVersaoDoCrm, type QuemAtende } from '@/lib/versaoDoCrm'
+import { useEquipeV2 } from '@/hooks/useEquipeV2'
 
 interface ChatWindowProps {
   lead: LeadWithOwner
@@ -131,7 +133,9 @@ function EtiquetasNoCabecalho({ lead, onTagsChange }: {
   )
 }
 
-function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlternarPainel, aoVoltar, dono, etiquetasRapidas, onTagsChange, aoCadastrarImovel, cadastroAberto, organizar }: {
+function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlternarPainel, aoVoltar, dono, etiquetasRapidas, onTagsChange, aoCadastrarImovel, cadastroAberto, organizar, falando }: {
+  /** v2 do CRM (Pedro, 03/11: "onde tem o pontinho rosa de humano vai aparecer o nome de quem está falando pelo login") */
+  falando?: QuemAtende | null
   organizar?: ReactNode
   aoCadastrarImovel?: () => void
   cadastroAberto?: boolean
@@ -178,6 +182,12 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
         <span className="min-w-0">
           <span className="block text-[16px] leading-[21px] truncate" style={{ color: 'var(--wa-text)' }}>{nomeDono || formatPhone(lead.title)}</span>
           <span className="block text-[13px] leading-[18px] truncate" style={{ color: marca?.telAtendendo ? 'var(--wa-tag-tel)' : 'var(--wa-text-2)' }}>
+            {falando && (
+              <span className="inline-block rounded px-1.5 mr-1.5 text-[11.5px] font-semibold leading-[16px] align-[1px]"
+                    style={{ background: falando.cor, color: '#fff' }} title="Quem respondeu por último pelo login do CRM">
+                {falando.nome} falando
+              </span>
+            )}
             {subtitulo}
           </span>
         </span>
@@ -219,6 +229,10 @@ export default function ChatWindow({ lead, organizationId, onMessageSent, linha,
   const ehParceria = linha === 'parceria'
   // o robô: a chave geral da Nay (a marca desta conversa já vem do pai)
   const { nay } = useParceriaMarcas(ehParceria)
+  /* v2 do CRM: o nome de quem respondeu por último pelo login (autores_manuais vem do mais recente) */
+  const v2 = useVersaoDoCrm() === 'v2'
+  const equipeV2 = useEquipeV2(v2)
+  const falando = v2 && lead.em_atendimento_humano && lead.autores_manuais?.[0] ? equipeV2[lead.autores_manuais[0]] || null : null
   /* Mandou pelo CRM: a Nay vai calar por 30 min assim que o eco chegar a ela
      (segundos). Pede uma leitura nova para o robô ficar vermelho sem esperar
      o minuto da atualização. */
@@ -448,7 +462,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent, linha,
     >
       <CabecalhoConversa lead={lead} marca={marca} nay={nay} mostrarRobo={false} painelAberto={painelAberto} aoAlternarPainel={aoAlternarPainel} aoVoltar={aoVoltar} dono={dono}
                          etiquetasRapidas={linha === 'captacao'} onTagsChange={onTagsChange}
-                         aoCadastrarImovel={aoCadastrarImovel} cadastroAberto={cadastroAberto} organizar={organizar} />
+                         aoCadastrarImovel={aoCadastrarImovel} cadastroAberto={cadastroAberto} organizar={organizar} falando={falando} />
       {/* 03/11 (Pedro): a conversa é de outra linha e aparece aqui (misto); a resposta sai pelo número dela */}
       {faixaDaLinha && (
         <div className="flex-shrink-0 px-3 py-1 text-[12px] font-semibold text-center"
