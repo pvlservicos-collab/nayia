@@ -1,4 +1,4 @@
-# privado.busca_corretor  (tabela, ~59 linhas)
+# privado.busca_corretor  (tabela, ~64 linhas)
 476: a conversa da Nay dos corretores (nay-olx olx/buscas.py) com cada corretor que oferece imóvel para uma busca.
 
 ## colunas

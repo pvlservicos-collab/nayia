@@ -31,4 +31,4 @@ nay_leitura: SELECT
 scrap_blacklist_60d, scrap_contatos_rebuild, site_scrap_importar, site_scrap_importar_contatos, site_scrap_lista_apagar, site_scrap_lista_salvar
 
 ## funções que citam
-crm_olx_scrap_busca, scrap_blacklist_60d, scrap_bloqueado, scrap_contatos_rebuild, site_scrap_anuncios, site_scrap_contato_salvar, site_scrap_contatos, site_scrap_contatos_acao, site_scrap_importar, site_scrap_importar_contatos, site_scrap_lista_apagar, site_scrap_lista_salvar, site_scrap_listas
+crm_olx_captar, crm_olx_scrap_busca, scrap_blacklist_60d, scrap_bloqueado, scrap_contatos_rebuild, site_scrap_anuncios, site_scrap_contato_salvar, site_scrap_contatos, site_scrap_contatos_acao, site_scrap_importar, site_scrap_importar_contatos, site_scrap_lista_apagar, site_scrap_lista_salvar, site_scrap_listas

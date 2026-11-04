@@ -1,4 +1,4 @@
-# privado.falou_conosco  (tabela, ~3671 linhas)
+# privado.falou_conosco  (tabela, ~3679 linhas)
 
 ## colunas
 chave  text  NOT NULL
@@ -19,4 +19,4 @@ falou_conosco_pkey: PRIMARY KEY (chave)
 nay_falou_conosco_atualizar
 
 ## funções que citam
-captacao_py_fila_do_disparo, nay_falou_conosco, nay_falou_conosco_atualizar, scrap_blacklist_60d, site_publicos_disparo
+captacao_py_fila_do_disparo, crm_olx_captar, nay_falou_conosco, nay_falou_conosco_atualizar, scrap_blacklist_60d, site_publicos_disparo

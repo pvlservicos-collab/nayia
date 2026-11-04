@@ -1,4 +1,4 @@
-# core_porta_sombra  (tabela, ~2054 linhas)
+# core_porta_sombra  (tabela, ~2322 linhas)
 551: no modo sombra, o que a porta gravaria; comparar com mensagens / captacao_mensagens
 
 ## colunas

@@ -1,4 +1,4 @@
-# privado.olx_cliente_enviada  (tabela, ~2674 linhas)
+# privado.olx_cliente_enviada  (tabela, ~3001 linhas)
 385: o que a Nay do WhatsApp mandou pelo 8595-6408 (o eco da Z-API não cala a Nay).
 
 ## colunas

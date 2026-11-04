@@ -1,4 +1,4 @@
-# midia_item  (tabela, ~0 linhas)
+# midia_item  (tabela, ~115 linhas)
 579: a aba Mídias do admin: demandas de conteúdo/tráfego por canal (Insta, Face, YouTube, Google SEO, IA GEO) e as peças do calendário.
 
 ## colunas

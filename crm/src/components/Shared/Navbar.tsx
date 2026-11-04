@@ -32,6 +32,7 @@ import {
   ClipboardText,
   Queue,
   FolderSimpleUser,
+  HouseLine,
 } from '@phosphor-icons/react'
 import { useAuth, usePipeline } from '@/hooks'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -104,6 +105,8 @@ const NAV_ITEMS = [
   { label: 'Esteira de follow-up', curto: 'Follow-up', href: '/esteira-followups', icon: Queue, mais: true },
   // CADASTROS INCOMPLETOS (Pedro, 03/11/2026): os donos com quem a conversa do cadastro do imóvel parou, com a nota pela procura
   { label: 'Cadastros incompletos', curto: 'Cadastros', href: '/cadastros-incompletos', icon: ClipboardText, mais: true },
+  // IMÓVEIS CAPTAR OLX (Pedro, 03/11/2026): os anúncios de particular da OLX com cara de dono, sem quem já conhecemos (585)
+  { label: 'Imóveis captar OLX', curto: 'Captar OLX', href: '/imoveis-captar-olx', icon: HouseLine, mais: true },
   { label: 'Configurações', href: '/settings/organization', icon: Gear, mais: true },
 ]
 
@@ -231,6 +234,7 @@ export default function Navbar() {
       case 'Tutoriais':
       case 'Esteira de follow-up':
       case 'Cadastros incompletos':
+      case 'Imóveis captar OLX':
       case 'Guia de atendimento': return !!permissions.settings?.view_chat
       case 'DM Instagram': return !!permissions.settings?.view_chat
       case 'Funil de Mensagens': return !!permissions.settings?.view_funnels

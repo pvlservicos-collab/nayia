@@ -1,4 +1,4 @@
-# privado.agente_evento  (tabela, ~1687 linhas)
+# privado.agente_evento  (tabela, ~1907 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('privado.agente_evento_id_seq'::regclass)

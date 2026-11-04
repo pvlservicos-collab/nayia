@@ -39,4 +39,4 @@ anuncio_consulta_pkey: PRIMARY KEY (id)
 crm_anuncio_decidir
 
 ## funções que citam
-crm_anuncio_decidir, crm_olx_abordagens
+crm_anuncio_decidir, crm_olx_abordagens, crm_olx_captar

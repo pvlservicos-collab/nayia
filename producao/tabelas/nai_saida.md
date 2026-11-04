@@ -1,4 +1,4 @@
-# nai_saida  (tabela, ~28222 linhas)
+# nai_saida  (tabela, ~29125 linhas)
 
 ## colunas
 id  bigint  NOT NULL  padrão nextval('nai_saida_id_seq'::regclass)

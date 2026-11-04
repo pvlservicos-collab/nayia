@@ -1,4 +1,4 @@
-# bairro_normal  (tabela, ~56 linhas)
+# bairro_normal  (tabela, ~57 linhas)
 241: os bairros do catálogo normalizados, para a identificação não varrer imoveis a cada chamada
 
 ## colunas
