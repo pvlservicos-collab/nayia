@@ -14,8 +14,7 @@
  *   Visita e Proprietários valem para quem atende ("o pessoal do atendimento tem acesso caso tenha que tirar uma dúvida");
  *   o Lucas não ("o Lucas não vai falar com proprietários, ele é só da etapa captação").
  * QUEM ATENDE (03/11, noite): cada pessoa tem uma cor (Rayssa rosa, Diego azul-claro, Lucas laranja; Tel roxo; a Nay Leads
- * verde e a Nay Parceria anil). O responsável por um proprietário: quem ASSUMIU (custom_attributes.responsavel_v2); sem
- * isso, com a Nay atendendo, a Nay do número; com gente, o dono do número (Parceria Rayssa, Leads Diego).
+ * verde e a Nay Parceria anil). O responsável por um proprietário: ver responsavelV2 (04/11).
  * A versão é uma só para todos (/api/linhas/versao); só o administrador troca, no botão do alto.
  */
 import { useEffect, useState } from 'react'
@@ -102,17 +101,23 @@ export function nayDaLinha(linha: string | null | undefined): QuemAtende {
     : { chave: 'nay_leads', nome: 'Nay Leads', cor: CORES_V2.nay_leads, nay: true }
 }
 
-/** o responsável por um proprietário na v2 (ver o cabeçalho) */
-export function responsavelV2(lead: { custom_attributes?: any; em_atendimento_humano?: boolean }, linha: string | null | undefined,
-                              humanoNaNay: boolean): QuemAtende {
+/** o responsável por um proprietário na v2 (Pedro, 04/11: "com as tags só os que já estão, os outros aparecem sem tags
+ *  laterais até algum dos 2 chamar; sempre que a Rayssa ou o Diego chamar deve ir para a tag deles no automático"):
+ *  quem assumiu ou mandou por último (custom_attributes.responsavel_v2, gravado no envio e no "Assumir"); sem isso, a última
+ *  mensagem manual da Rayssa ou do Diego (autores_manuais vem do mais recente); senão, ninguém (sem borda). */
+export const DONOS_DOS_PROPRIETARIOS = ['rayssa', 'diego']
+export function responsavelV2(lead: { custom_attributes?: any; autores_manuais?: string[] },
+                              equipe: Record<string, QuemAtende>): QuemAtende | null {
   const r = lead.custom_attributes?.responsavel_v2
-  if (r && typeof r === 'object') {
-    if (r.nay) return nayDaLinha(linha)
+  if (r && typeof r === 'object' && r.nome) {
     const p = pessoaV2(r.nome)
     if (p) return p
   }
-  if (!lead.em_atendimento_humano && !humanoNaNay) return nayDaLinha(linha)
-  return pessoaV2(linha === 'parceria' ? 'Rayssa' : 'Diego')!
+  for (const id of lead.autores_manuais || []) {
+    const p = equipe[id]
+    if (p && DONOS_DOS_PROPRIETARIOS.includes(p.chave)) return p
+  }
+  return null
 }
 
 /** os endereços de cada área (o primeiro é o que o menu abre) */

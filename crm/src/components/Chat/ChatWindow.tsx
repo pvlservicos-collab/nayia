@@ -22,7 +22,7 @@ import type { DonoNaLista } from '@/lib/tiposNay'
 import { nomeDoDono, imovelDoDono } from './LeadListItem'
 import { useEtiquetas, marcarEtiqueta } from '@/lib/etiquetas'
 import EncaminharMensagem from './EncaminharMensagem'
-import { useVersaoDoCrm, type QuemAtende } from '@/lib/versaoDoCrm'
+import { useVersaoDoCrm, primeiroNome, DONOS_DOS_PROPRIETARIOS, type QuemAtende } from '@/lib/versaoDoCrm'
 import { useEquipeV2 } from '@/hooks/useEquipeV2'
 
 interface ChatWindowProps {
@@ -219,7 +219,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent, linha,
     temMais, carregandoAnteriores, carregarAnteriores,
   } = useLeadActivities(organizationId, lead.id)
   const { pinned, pinnedActivityIds, togglePin } = usePinnedMessages(lead.id)
-  const { currentOrganization } = useAuth()
+  const { currentOrganization, profileName, user } = useAuth()
   const { settings: chatButtonSettings, fireWebhook } = useChatButtonSettings()
   const [replyContext, setReplyContext] = useState<ReplyContext | null>(null)
   const [paraEncaminhar, setParaEncaminhar] = useState<LeadActivityWithActor | null>(null)   // 29/10: encaminhar mensagem
@@ -236,10 +236,22 @@ export default function ChatWindow({ lead, organizationId, onMessageSent, linha,
   /* Mandou pelo CRM: a Nay vai calar por 30 min assim que o eco chegar a ela
      (segundos). Pede uma leitura nova para o robô ficar vermelho sem esperar
      o minuto da atualização. */
+  /* v2 (Pedro, 04/11: "sempre que a Rayssa ou o Diego chamar deve ir para a tag deles no automático"): quem dos dois manda
+     mensagem passa a ser o responsável da conversa (a borda na aba Donos); grava só quando muda */
+  const marcarResponsavel = useCallback(() => {
+    if (!v2) return
+    const eu = primeiroNome(profileName || user?.name)
+    if (!DONOS_DOS_PROPRIETARIOS.includes(eu)) return
+    if (primeiroNome((lead.custom_attributes as any)?.responsavel_v2?.nome) === eu) return
+    fetch(`/api/leads/${lead.id}/organizar`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsavel: { nome: profileName || user?.name } }),
+    }).catch(() => {})
+  }, [v2, profileName, user?.name, lead.id, lead.custom_attributes])
   const avisarANay = useCallback(() => {
+    marcarResponsavel()
     if (!ehParceria) return
     setTimeout(() => { void recarregarMarcasDaParceria(true) }, 8000)
-  }, [ehParceria])
+  }, [ehParceria, marcarResponsavel])
 
   /**
    * Abriu a conversa? O cursor já vai pro campo de texto (só no computador:

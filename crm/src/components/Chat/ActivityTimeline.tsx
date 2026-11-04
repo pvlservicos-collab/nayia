@@ -9,6 +9,7 @@ import TextoComLinks from './TextoComLinks'
 import ContatoCompartilhado from './ContatoCompartilhado'
 import DocumentoPdf, { ehPdf } from './VisualizadorPdf'
 import { useAuth } from '@/hooks'
+import { useVersaoDoCrm } from '@/lib/versaoDoCrm'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 
 /**
@@ -403,7 +404,9 @@ function Tiques({ metadata }: { metadata: any }) {
 const INICIO_DO_ACOMPANHAMENTO = Date.parse('2026-10-14T14:30:00Z')
 const DEZ_MINUTOS = 10 * 60 * 1000
 
-function BarrasDeEntrega({ metadata, criadaEm }: { metadata: any; criadaEm: string }) {
+/* v2 do CRM (Pedro, 03/11: "em cima dos risquinhos rosas precisa ter o nome de quem mandou essa mensagem, por qual conta
+   saiu, bem pequenininho"): o primeiro nome do login que mandou; mandada do celular, "celular" */
+function BarrasDeEntrega({ metadata, criadaEm, quem }: { metadata: any; criadaEm: string; quem?: string | null }) {
   const st = String(metadata?.whatsapp_status || '').toLowerCase()
   const otimista = !!metadata?.is_optimistic
   const falhou = metadata?.send_status === 'failed' || st === 'failed'
@@ -433,12 +436,27 @@ function BarrasDeEntrega({ metadata, criadaEm }: { metadata: any; criadaEm: stri
       <span className="absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out" style={{ width: `${cheia}%`, background: cor }} />
     </span>
   )
-  return (
+  const barras = (
     <span className="flex items-center gap-1 w-[84px] mb-1" title={titulo} aria-label={titulo}>
       {barra(falhou || saiu ? 100 : 55, falhou ? '#ef4444' : saiu ? verde : humano ? '#f9a8d4' : 'var(--wa-text-2, #8696a0)', otimista ? 'animate-pulse' : '')}
       {barra(entregue || atrasada ? 100 : 0, lida ? 'var(--wa-tick-read, #53bdeb)' : entregue ? verde : '#f59e0b')}
     </span>
   )
+  if (!humano || !quem) return barras
+  return (
+    <span className="flex flex-col">
+      <span className="text-[9.5px] leading-[11px] font-semibold truncate w-[84px]" style={{ color: '#ec4899' }} title={`Saiu pela conta de ${quem}`}>{quem}</span>
+      {barras}
+    </span>
+  )
+}
+
+/** o primeiro nome de quem mandou pelo CRM (só na v2); do celular, "celular" */
+function quemMandou(a: any, v2: boolean): string | null {
+  if (!v2) return null
+  const nome = String(a?.actor?.profiles?.full_name || '').trim().split(/\s+/)[0]
+  if (nome) return nome
+  return a?.metadata?.do_celular ? 'celular' : null
 }
 
 // ── O balão ──
@@ -475,6 +493,7 @@ const MessageBubble = memo(function MessageBubble({
   isSelected?: boolean
   mostrarTranscricao?: boolean
 }) {
+  const v2 = useVersaoDoCrm() === 'v2'
   if (senderType === 'system_other') return null
 
   const outgoing = isOutgoing(senderType)
@@ -555,7 +574,7 @@ const MessageBubble = memo(function MessageBubble({
           </div>
         ) : (
           <div className={`wa-balao ${outgoing ? 'wa-balao--out' : 'wa-balao--in'} ${showHeader ? 'wa-balao--rabo' : ''}`}>
-            {outgoing && activity.type === 'whatsapp' && <BarrasDeEntrega metadata={m} criadaEm={activity.created_at} />}
+            {outgoing && activity.type === 'whatsapp' && <BarrasDeEntrega metadata={m} criadaEm={activity.created_at} quem={quemMandou(activity, v2)} />}
             {rotulo && (
               <p className="text-[12.8px] font-semibold leading-[18px] mb-0.5 flex items-center gap-1" style={{ color: corDoRotulo }}>
                 {isAI && <Sparkle size={12} weight="fill" />}
@@ -628,12 +647,13 @@ const AlbumDeFotos = memo(function AlbumDeFotos({ fotos, outgoing, showHeader, r
   rotulo: string | null
   aoAbrir: (indice: number) => void
 }) {
+  const v2 = useVersaoDoCrm() === 'v2'
   const ultima = fotos[fotos.length - 1]
   const resto = fotos.length - 3  // como no WhatsApp: a 4ª fica coberta pelo número
   return (
     <div className={`flex ${outgoing ? 'justify-end' : 'justify-start'} ${outgoing ? 'pl-[10%]' : 'pr-[10%]'}`}>
       <div className={`wa-balao ${outgoing ? 'wa-balao--out' : 'wa-balao--in'} ${showHeader ? 'wa-balao--rabo' : ''} !p-[3px]`}>
-        {outgoing && <span className="block px-1.5 pt-1"><BarrasDeEntrega metadata={ultima.metadata || {}} criadaEm={ultima.created_at} /></span>}
+        {outgoing && <span className="block px-1.5 pt-1"><BarrasDeEntrega metadata={ultima.metadata || {}} criadaEm={ultima.created_at} quem={quemMandou(ultima, v2)} /></span>}
         {rotulo && <p className="text-[12.8px] font-semibold leading-[18px] px-1.5 pt-0.5 pb-1" style={{ color: 'var(--wa-quote-bar)' }}>{rotulo}</p>}
         <div className="grid grid-cols-2 gap-[3px] w-[min(300px,62vw)]">
           {fotos.slice(0, 4).map((f, i) => (

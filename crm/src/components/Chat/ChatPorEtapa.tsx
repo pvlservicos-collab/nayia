@@ -10,8 +10,8 @@
  * ou Rayssa na Parceria e Diego no Leads). Quem não é administrador abre em "Meus" (os dele) e tem "Todos"; o botão direito
  * "Assumir a conversa" faz dele o responsável.
  * Mais tarde, na mesma noite ("cada contato seja um card único ... e nem tem o nome dos condomínios deles ... os donos só
- * dos últimos 2 dias ... um espaço entre eles"): cada conversa é um card, com espaço entre eles; só quem falou nos últimos
- * 2 dias; o nome do condomínio vem do banco (/api/imoveis-nay/nomes, 587), porque a Parceria só sabe o código.
+ * dos últimos 2 dias ... um espaço entre eles"): cada conversa é um card, com espaço entre eles (04/11: o corte de 2 dias
+ * saiu, "deixa todos os proprietários lá"; a borda só em quem a Rayssa ou o Diego já têm); o nome do condomínio vem do banco (/api/imoveis-nay/nomes, 587), porque a Parceria só sabe o código.
  *
  * VISITA ("que fiquem só quem é visita, ou seja quem está relacionado a uma visita, ex.: o corretor ou lead e o proprietário
  * ... em cards de 2 contatos ou mais ... um ícone de calendário em cima escrito o horário sugerido da visita, se já está
@@ -37,8 +37,8 @@ import type { LeadWithOwner } from '@/lib/types'
 import type { VisitaNaTela } from '@/lib/tiposNay'
 import { getLinhaWhatsapp } from '@/lib/leadChannel'
 import { fim8 } from '@/lib/olxClientes'
-import { nayEmPausa } from '@/lib/etapaDaParceria'
 import { primeiroNome, responsavelV2 } from '@/lib/versaoDoCrm'
+import { useEquipeV2 } from '@/hooks/useEquipeV2'
 import ChatJuntado from './ChatJuntado'
 import { casaNaBusca } from './BuscaDaLista'
 import { imovelDoDono } from './LeadListItem'
@@ -48,7 +48,6 @@ const AZUL = '#2563eb'
 const VERDE = '#16a34a'
 const VERMELHO = '#dc2626'
 const FIM_DA_VISITA = ['realizada', 'encerrada', 'cancelada', 'expirada']
-const DOIS_DIAS_MS = 2 * 24 * 3600 * 1000
 const UM_DIA_MS = 24 * 3600 * 1000
 const quandoDaVisita = (iso: string | null) => iso
   ? new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Manaus', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -258,10 +257,9 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
   }, [ehProprietario])
   const pelaParceria = useMemo(() => new Set(leads.filter((l) => !l.is_group && getLinhaWhatsapp(l) === 'parceria' && daEtapa(l))
     .map((l) => fim8(l.phone)).filter(Boolean)), [leads, daEtapa])
-  // só quem falou nos últimos 2 dias (Pedro, 03/11, noite)
+  // 04/11 (Pedro: "deixa todos os proprietários lá no Donos"): saiu o corte de 2 dias de 03/11
   const ehDono = useCallback((l: LeadWithOwner) => daEtapa(l)
-    && !(getLinhaWhatsapp(l) === 'captacao' && pelaParceria.has(fim8(l.phone)))
-    && Date.now() - new Date(l.last_activity_at || l.created_at).getTime() < DOIS_DIAS_MS, [daEtapa, pelaParceria])
+    && !(getLinhaWhatsapp(l) === 'captacao' && pelaParceria.has(fim8(l.phone))), [daEtapa, pelaParceria])
 
   /* o nome do condomínio de cada código da Parceria (a marca só traz o código) */
   const [nomes, setNomes] = useState<Record<number, string>>({})
@@ -277,11 +275,9 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
     return () => { vivo = false }
   }, [codigosDaParceria])
 
-  const quemAtende = useCallback((l: LeadWithOwner) => {
-    const linha = getLinhaWhatsapp(l)
-    const m = marcas[l.id]
-    return responsavelV2(l as any, linha, linha === 'parceria' && !!(m?.telAtendendo || nayEmPausa(m)))
-  }, [marcas])
+  // 04/11: a borda só de quem já tem a Rayssa ou o Diego (assumiu ou mandou mensagem); os outros, sem borda
+  const equipe = useEquipeV2(etapa === 'proprietarios')
+  const quemAtende = useCallback((l: LeadWithOwner) => responsavelV2(l as any, equipe), [equipe])
   const imovelDele = useCallback((l: LeadWithOwner): string | null => {
     if (getLinhaWhatsapp(l) === 'parceria') {
       const i = marcas[l.id]?.imoveisDoDono || []
@@ -377,18 +373,18 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
     )
   }
   return (
-    <ChatJuntado titulo="Proprietários" subtitulo="Os donos dos dois números que falaram nos últimos 2 dias · a resposta sai pelo número de cada conversa"
-                 pertence={ehDono} chaveAbas="crm:abas-proprietarios" vazio="Nenhum proprietário falou nos últimos 2 dias."
+    <ChatJuntado titulo="Proprietários" subtitulo="Os donos dos dois números · a resposta sai pelo número de cada conversa"
+                 pertence={ehDono} chaveAbas="crm:abas-proprietarios" vazio="Nenhum proprietário agora."
                  cards
                  enfeite={(l) => ({ faixa: imovelDele(l), borda: quemAtende(l) })}
-                 meus={admin ? undefined : (l) => quemAtende(l).chave === eu}
+                 meus={admin ? undefined : (l) => quemAtende(l)?.chave === eu}
                  menu={(lead, fechar) => (
                    <button type="button" disabled={!!assumindo}
                            className="w-full text-left px-4 py-2.5 text-[14px] hover:bg-[var(--wa-row-hover)] flex items-center gap-3 disabled:opacity-50"
                            title="Você passa a ser quem atende este proprietário"
                            onClick={() => { fechar(); void assumir(lead) }}>
                      <UserCirclePlus size={17} style={{ color: 'var(--wa-icon)' }} /> Assumir a conversa
-                     <span className="ml-auto text-[12px]" style={{ color: 'var(--wa-text-2)' }}>hoje: {quemAtende(lead).nome}</span>
+                     <span className="ml-auto text-[12px]" style={{ color: 'var(--wa-text-2)' }}>hoje: {quemAtende(lead)?.nome || 'ninguém'}</span>
                    </button>
                  )} />
   )
