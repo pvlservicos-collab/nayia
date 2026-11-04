@@ -439,6 +439,8 @@ def grupos_volta(conn, c: dict) -> int:
     if not buscas:
         return 0
     feitas = 0
+    # 04/11 (a notinha "Nay foi falar com"): uma por pedido, na primeira vez que ele vai a um grupo de verdade
+    ja_nos_grupos = {b["id"] for b in buscas if any(not x.get("teste") for x in b["grupos"] or [])}
     for g in banco.linhas(conn, "SELECT * FROM privado.busca_grupo WHERE ativo ORDER BY grupo_id"):
         if c["grupos"] == "sim" and g["ultimo_envio_em"] and \
                 time.time() - g["ultimo_envio_em"].timestamp() < c["intervalo_min"] * 60:
@@ -470,6 +472,10 @@ def grupos_volta(conn, c: dict) -> int:
             banco.um(conn, """UPDATE privado.busca_cliente SET grupos = grupos || %s::jsonb, grupos_em = now() WHERE id = %s""",
                      (json.dumps([item], ensure_ascii=False), b["id"]))
             passo(conn, b["id"], "grupos", f"Pedido no grupo {g['nome']}" + (" (teste: foi ao número de teste)" if teste else ""))
+            if not teste and b["id"] not in ja_nos_grupos:
+                ja_nos_grupos.add(b["id"])
+                whatsapp.nota_nay_foi(conn, whatsapp._lead(conn, b["lead"]),
+                                      f"Nay foi pedir nos grupos de corretores (começou pelo {g['nome']}): {resumo(b['filtros'])}.")
         conn.commit()
         feitas += 1
         log.info("grupos: %s (%d busca/s)%s", g["nome"], len(bs), " [teste]" if teste else "")
@@ -727,6 +733,11 @@ def olx_volta(conn, c: dict) -> int:
                 # nota interna na conversa do anunciante (511)
                 banco.um(conn, "SELECT nay_aviso_equipe('nay-olx', 'nota', 'Anúncio da OLX', %s, %s)",
                          (nota_do_anuncio(a, b), tel))
+                # 04/11: e na conversa do cliente, a notinha de com quem a Nay foi falar por ele
+                whatsapp.nota_nay_foi(conn, whatsapp._lead(conn, b["lead"]),
+                                      f"Nay foi falar com {a.get('anunciante') or 'o anunciante'} (anunciante da OLX, …{tel[-4:]}): "
+                                      f"perguntou se \"{a.get('titulo') or 'o anúncio'}\" ({dinheiro(a.get('preco'))}, "
+                                      f"{a.get('bairro') or '-'}) está disponível e se aceita parceria.")
             item = {"olx_id": a["olx_id"], "titulo": a["titulo"], "url": a["url"], "preco": float(a["preco"] or 0),
                     "bairro": a["bairro"], "tel": tel, "anunciante": a.get("anunciante"), "nota": a.get("nota"),
                     "em": datetime.now(MANAUS).isoformat(timespec="minutes"), "mid": mid, "teste": teste}

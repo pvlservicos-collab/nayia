@@ -2112,6 +2112,19 @@ def _grupo(texto: str) -> None:
         log.exception("o aviso ao grupo falhou")
 
 
+def nota_nay_foi(conn, lead: dict | None, texto: str) -> None:
+    """A NOTINHA AMARELA "Nay foi falar com X" (Pedro, 04/11/2026: "quando a Nay manda para o lead 'vou confirmar' ou 'vou
+    buscar', a gente precisa achar onde a Nay vai buscar: ficar lá um aviso tipo uma notinha amarela"). Nota interna no CRM,
+    na conversa do CLIENTE (nay_aviso_equipe 'nota', 511): com quem ela foi falar por ele e o que pediu. Só a equipe vê."""
+    tel = (lead or {}).get("telefone")
+    if not tel or not texto:
+        return
+    try:
+        banco.um(conn, "SELECT nay_aviso_equipe('nay-olx', 'nota', 'Nay foi falar com', %s, %s)", (texto[:1500], tel))
+    except Exception:  # noqa: BLE001
+        log.exception("nota 'Nay foi falar com' do lead %s", (lead or {}).get("id"))
+
+
 def _ao_crm(texto: str) -> None:
     """508 (Pedro, 28/10/2026): a escalada e a dúvida do cliente vão às Notificações do CRM, não ao grupo."""
     grupo.ao_crm("lead", texto)

@@ -274,6 +274,10 @@ def perguntas_ao_dono(conn) -> int:
                                   f"dúvida da Nay Leads (fila #{p.get('fila')})", linha)
             banco.um(conn, """UPDATE privado.nay_leads_dono_pergunta SET estado = 'enviada', linha = %s, enviado_em = now()
                                WHERE id = %s""", (saiu, p["id"]))
+            if p.get("lead"):
+                _w().nota_nay_foi(conn, _lead(conn, p["lead"]),
+                                  f"Nay foi falar com o proprietário {p.get('nome') or ''} (…{p['telefone'][-4:]}, pelo número "
+                                  f"{'Parceria' if saiu == 'parceria' else 'Leads'}): {p['texto'][:300]}")
             log.info("pergunta %s ao dono ...%s: pela %s", p["id"], p["telefone"][-4:], saiu)
             feitas += 1
         except Exception as e:  # noqa: BLE001
@@ -409,6 +413,8 @@ def _proximo_corretor(conn, v: dict, cfg: dict) -> None:
                      f"{' (' + onde + ')' if onde else ''} no dia {dia(q)} às {hora(q)}, com um cliente "
                      f"{ {'organico': 'que nos chamou no WhatsApp', 'chavesnamao': 'que veio do Chaves na Mão', 'zap': 'que veio do ZAP Imóveis'}.get(lead.get('origem'), 'que veio da OLX')}. "
                      f"Você consegue ir nesse horário? Me responde com SIM ou NÃO, por favor.")
+        _w().nota_nay_foi(conn, lead, f"Nay foi falar com o corretor {nome} (…{fone[-4:]}): perguntou se ele vai à visita do "
+                                      f"imóvel #{v['codigo']} no dia {dia(q)} às {hora(q)}.")
         log.info("visita %s: perguntado ao corretor %s", v["id"], nome)
         return
     if ocupados:
@@ -463,6 +469,9 @@ def _pedir_ao_dono(conn, v: dict, cfg: dict) -> None:
     if saiu != linha:                     # a Parceria recusou e saiu pelo 8595: a resposta vem por lá
         banco.um(conn, "UPDATE privado.olx_visita_consulta SET linha = %s, ultima_lida = %s WHERE id = %s",
                  (saiu, ultima_do_telefone(conn, fone, saiu), cid))
+    _w().nota_nay_foi(conn, lead, f"Nay foi falar com o proprietário {nome or ''} (…{fone[-4:]}, pelo número "
+                                  f"{'Parceria' if saiu == 'parceria' else 'Leads'}): pediu para confirmar a visita do imóvel "
+                                  f"#{v['codigo']} no dia {dia(q)} às {hora(q)}.")
     log.info("visita %s: perguntado ao proprietário", v["id"])
 
 
