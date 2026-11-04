@@ -92,13 +92,15 @@ interface Props {
   /** v2, aba Visita (Pedro, 04/11: "o Diego, da equipe, fica fixado fora dos cards ... no topo, antes de começar os cards"):
    *  as conversas fixadas em cima dos grupos, com o rótulo delas */
   fixos?: { rotulo: string; ids: Set<string> }
+  /** 04/11: o que fica no card no lugar das etapas (no Chat Captação, o tipo do contato) */
+  etapaDoCard?: (lead: LeadWithOwner) => ReactNode
   /** 04/11: a lupa também acha por isto (na aba Proprietários, o código do imóvel do dono) */
   casaExtra?: (texto: string, lead: LeadWithOwner) => boolean
   /** 04/11: o que aparece em cima dos resultados da lupa (na aba Proprietários, o dono do imóvel pesquisado) */
   buscaExtra?: (texto: string) => ReactNode
 }
 
-export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos, casaExtra, buscaExtra }: Props) {
+export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos, casaExtra, buscaExtra, etapaDoCard }: Props) {
   const { organizationId, loading, permissions } = useAuth()
   // 04/11: o Visualizar por do administrador vale aqui (usePapelV2)
   const papel = usePapelV2()
@@ -371,10 +373,10 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
   const painel = (modo: 'lateral' | 'gaveta') => {
     if (!aberta || !painelAberto) return null
     if (linhaDe(aberta) === 'parceria') {
-      return <PainelContatoParceria key={aberta.id} lead={aberta} modo={modo} aoFechar={alternarPainel} topo={topoDoCard?.(aberta)}
+      return <PainelContatoParceria key={aberta.id} lead={aberta} modo={modo} aoFechar={alternarPainel} topo={topoDoCard?.(aberta)} trocaDaEtapa={etapaDoCard?.(aberta)}
                                     aoVerVisita={() => router.push('/chat/parceria')} onTagsChange={aoMudarEtiqueta} onUpdateLead={aoMudarLead} />
     }
-    return <PainelContatoCaptacao key={aberta.id} lead={aberta} modo={modo} aoFechar={alternarPainel} topo={topoDoCard?.(aberta)}
+    return <PainelContatoCaptacao key={aberta.id} lead={aberta} modo={modo} aoFechar={alternarPainel} topo={topoDoCard?.(aberta)} trocaDaEtapa={etapaDoCard?.(aberta)}
                                   oficial={linhaDe(aberta) === 'oficial'} onTagsChange={aoMudarEtiqueta} />
   }
   const cadastro = (modo: 'lateral' | 'gaveta') => aberta && cadastrar && cadastroDe === aberta.id

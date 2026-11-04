@@ -125,7 +125,7 @@ function Barra({ pct, falta }: { pct: number; falta: string[] }) {
   )
 }
 
-export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, onTagsChange, topo }: {
+export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, onTagsChange, topo, trocaDaEtapa }: {
   lead: LeadWithOwner
   modo: 'lateral' | 'gaveta'
   aoFechar: () => void
@@ -134,6 +134,8 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
   onTagsChange?: (leadId: string, tagId: string, action: 'add' | 'remove', tagObj?: any) => void
   /** 03/11 (Pedro): o que vem antes de tudo no card -- no Chat Captação, o contexto da captação */
   topo?: ReactNode
+  /** 04/11 (Pedro): no lugar das etapas -- no Chat Captação, a lista do tipo do contato (Lead, Corretor, Proprietário) */
+  trocaDaEtapa?: ReactNode
 }) {
   const [d, setD] = useState<Dados | null>(null)
   /* 20/10 (Pedro: "adicione no card do lead que abre na direita uma forma de editar o nome do contato"): o lápis ao lado
@@ -304,10 +306,10 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
         {/* a etapa (242); 18/10 (Pedro: "as Etapas da captação não estão lá no número de captação"): quem não é dono da
             campanha (cliente da OLX, orgânico) ganha a etapa do cliente da OLX, a mesma do botão direito da lista */}
         <div style={{ background: 'var(--wa-panel)' }}>
-          {dono
+          {trocaDaEtapa ?? (dono
             ? <EtapaDaCaptacao leadId={lead.id} etapaManual={dono.etapaManual} abas={dono.abas} oficial={oficial}
                                aoMudar={(etapa) => { void ler(); void marcarEtapaManual(lead.id, etapa) }} />
-            : !oficial && <EtapaDoClienteOlx telefone={lead.phone} leadId={lead.id} comOTel={!!c?.comOTel} aoMudar={() => void ler()} />}
+            : !oficial && <EtapaDoClienteOlx telefone={lead.phone} leadId={lead.id} comOTel={!!c?.comOTel} aoMudar={() => void ler()} />)}
         </div>
 
         {/* 28/10 (Pedro): as buscas do lead e os nossos imóveis que servem, com a nota (nayia 510). 29/10: "em mais destaque

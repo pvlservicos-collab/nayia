@@ -16,8 +16,14 @@
  *   - o contexto no alto do card: o cadastro (o que já tinha, o que faltou, quando parou) ou o anúncio da OLX;
  *   - Mandar de volta para Proprietários: o tipo Proprietário (na Parceria, também a etapa Proprietários) e a marca de
  *     captação em FALSE -- sai daqui e da etiqueta verde, mesmo sendo cadastro incompleto (volta se o cadastro andar de novo).
+ *
+ * 04/11 (Pedro: "lá na captação quero um botão Mandar de volta para Corretor, e também poder mudar o status do lead que eu
+ * tô falando entre corretor, proprietário ou lead: no lugar das etapas do lado do card dele, uma lista suspensa"):
+ *   - Mandar de volta para Corretor: o tipo Corretor e a marca de captação em FALSE (na Parceria, a etapa Todos);
+ *   - no card, no lugar das etapas, o tipo do contato (Lead = cliente, Corretor, Proprietário), gravado à mão (organizar).
  */
 import { useCallback, useState, type ReactNode } from 'react'
+import { tipoEscolhido } from '@/lib/organizacaoDoLead'
 import { ArrowUUpLeft, ArrowSquareOut, CircleNotch } from '@phosphor-icons/react'
 import { useLeadsContext } from '@/contexts/LeadsContext'
 import { useConversasDeCaptacao, useContextoDaCaptacao, ehDeCaptacao, recarregarCaptacao, type ContextoDaCaptacao } from '@/hooks/useConversasDeCaptacao'
@@ -38,7 +44,32 @@ function oQue(c: Extract<ContextoDaCaptacao, { fonte: 'cadastro' }>): string {
   return `${tipo ? (/casa|kit/.test(tipo) ? 'uma ' : 'um ') + tipo : 'o imóvel dele'}${onde ? ` no ${onde}` : ''}`
 }
 
-function Contexto({ c, ocupado, aoDevolver }: { c: ContextoDaCaptacao | undefined; ocupado: boolean; aoDevolver: () => void }) {
+const TIPOS_DO_CONTATO: [string, string][] = [['cliente', 'Lead'], ['corretor', 'Corretor'], ['proprietario', 'Proprietário']]
+
+/** No card, no lugar das etapas: o tipo do contato, escolhido à mão */
+function TipoDoContato({ lead, aoMudar }: { lead: LeadWithOwner; aoMudar: (custom: Record<string, any>) => void }) {
+  const [ocupado, setOcupado] = useState(false)
+  const atual = tipoEscolhido(lead) || ''
+  return (
+    <label className="flex items-center gap-2 px-4 py-3 text-[13px]" style={{ color: 'var(--wa-text)', borderTop: '1px solid var(--wa-divider)' }}>
+      <span className="font-semibold uppercase text-[11px] tracking-wide" style={{ color: 'var(--wa-text-2)' }}>Tipo do contato</span>
+      <select value={TIPOS_DO_CONTATO.some(([k]) => k === atual) ? atual : ''} disabled={ocupado}
+              onChange={async (e) => {
+                const tipo = e.target.value || null
+                setOcupado(true)
+                try { const o = await organizar(lead.id, { tipo }); aoMudar(o.custom_attributes) }
+                catch (er: any) { window.alert(er?.message || 'Não consegui mudar o tipo.') } finally { setOcupado(false) }
+              }}
+              className="ml-auto h-8 px-2 rounded-lg text-[13px] font-semibold disabled:opacity-60"
+              style={{ background: 'var(--wa-search)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }}>
+        <option value="">Escolher…</option>
+        {TIPOS_DO_CONTATO.map(([k, r]) => <option key={k} value={k}>{r}</option>)}
+      </select>
+    </label>
+  )
+}
+
+function Contexto({ c, ocupado, aoDevolver, aoDevolverCorretor }: { c: ContextoDaCaptacao | undefined; ocupado: boolean; aoDevolver: () => void; aoDevolverCorretor: () => void }) {
   let texto: ReactNode = 'Conversa de captação.'
   let detalhes: ReactNode = null
   if (c?.fonte === 'cadastro') {
@@ -73,6 +104,12 @@ function Contexto({ c, ocupado, aoDevolver }: { c: ContextoDaCaptacao | undefine
               style={{ background: '#14532d' }}>
         {ocupado ? <CircleNotch size={14} className="animate-spin" /> : <ArrowUUpLeft size={14} weight="bold" />} Mandar de volta para Proprietários
       </button>
+      <button type="button" onClick={aoDevolverCorretor} disabled={ocupado}
+              title="É corretor: a conversa sai da Captação e volta para o número dela como Corretor"
+              className="self-start flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold disabled:opacity-60"
+              style={{ border: '1px solid #14532d', color: 'var(--wa-text)' }}>
+        <ArrowUUpLeft size={14} weight="bold" /> Mandar de volta para Corretor
+      </button>
     </div>
   )
 }
@@ -84,20 +121,21 @@ export default function ChatCaptacao() {
   const [devolvendo, setDevolvendo] = useState('')
   const pertence = useCallback((l: LeadWithOwner) => ehDeCaptacao(l, ids), [ids])
 
-  const devolver = async (l: LeadWithOwner) => {
+  const devolver = async (l: LeadWithOwner, para: 'proprietario' | 'corretor' = 'proprietario') => {
     setDevolvendo(l.id)
     try {
       if (getLinhaWhatsapp(l) === 'parceria') {
         const r = await fetch(`/api/leads/${l.id}/contato`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ etapa: 'proprietarios' }),
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ etapa: para === 'corretor' ? 'todos' : 'proprietarios' }),
         })
-        if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || j.message || 'Não consegui pôr em Proprietários.') }
+        if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || j.message || 'Não consegui mudar a etapa.') }
       }
-      const o = await organizar(l.id, { tipo: 'proprietario', captacao: false })
+      const o = await organizar(l.id, { tipo: para, captacao: false })
       setLeads((p) => p.map((x) => (x.id === l.id ? { ...x, custom_attributes: o.custom_attributes } : x)))
       void recarregarCaptacao()
     } catch (e: any) {
-      window.alert(e?.message || 'Não consegui mandar de volta para Proprietários.')
+      window.alert(e?.message || 'Não consegui mandar de volta.')
     } finally { setDevolvendo('') }
   }
 
@@ -108,13 +146,22 @@ export default function ChatCaptacao() {
                    const c = contexto[l.id]
                    return { linkInicial: c?.fonte === 'olx' ? c.url : undefined }
                  }}
-                 topoDoCard={(l) => <Contexto c={contexto[l.id]} ocupado={devolvendo === l.id} aoDevolver={() => void devolver(l)} />}
+                 topoDoCard={(l) => <Contexto c={contexto[l.id]} ocupado={devolvendo === l.id} aoDevolver={() => void devolver(l)}
+                                              aoDevolverCorretor={() => void devolver(l, 'corretor')} />}
+                 etapaDoCard={(l) => <TipoDoContato lead={l} aoMudar={(custom) => setLeads((p) => p.map((x) => (x.id === l.id ? { ...x, custom_attributes: custom } : x)))} />}
                  menu={(lead, fechar) => (
-                   <button type="button" className="w-full text-left px-4 py-2.5 text-[14px] hover:bg-[var(--wa-row-hover)] flex items-center gap-3"
-                           title="Depois de finalizar o cadastro: a conversa sai da Captação e volta para Proprietários no número dela"
-                           onClick={() => { fechar(); void devolver(lead) }}>
-                     <ArrowUUpLeft size={17} style={{ color: 'var(--wa-icon)' }} /> Mandar de volta para Proprietários
-                   </button>
+                   <>
+                     <button type="button" className="w-full text-left px-4 py-2.5 text-[14px] hover:bg-[var(--wa-row-hover)] flex items-center gap-3"
+                             title="Depois de finalizar o cadastro: a conversa sai da Captação e volta para Proprietários no número dela"
+                             onClick={() => { fechar(); void devolver(lead) }}>
+                       <ArrowUUpLeft size={17} style={{ color: 'var(--wa-icon)' }} /> Mandar de volta para Proprietários
+                     </button>
+                     <button type="button" className="w-full text-left px-4 py-2.5 text-[14px] hover:bg-[var(--wa-row-hover)] flex items-center gap-3"
+                             title="É corretor: a conversa sai da Captação e volta para o número dela como Corretor"
+                             onClick={() => { fechar(); void devolver(lead, 'corretor') }}>
+                       <ArrowUUpLeft size={17} style={{ color: 'var(--wa-icon)' }} /> Mandar de volta para Corretor
+                     </button>
+                   </>
                  )} />
   )
 }

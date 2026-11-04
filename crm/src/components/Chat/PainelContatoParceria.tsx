@@ -106,7 +106,7 @@ function Secao({ titulo, children, acao, cor = COR.historico, icone }: {
 
 type EstadoDoEnvio = { tipo: 'ok' | 'erro' | 'aviso'; texto: string } | null
 
-export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisita, onTagsChange, onUpdateLead, topo }: {
+export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisita, onTagsChange, onUpdateLead, topo, trocaDaEtapa }: {
   lead: LeadWithOwner
   modo: 'lateral' | 'gaveta'
   aoFechar: () => void
@@ -115,6 +115,8 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
   onUpdateLead?: (leadId: string, updates: Partial<LeadWithOwner>) => void
   /** 03/11 (Pedro): o que vem antes de tudo no card -- no Chat Captação, o contexto da captação */
   topo?: ReactNode
+  /** 04/11 (Pedro): no lugar da etapa -- no Chat Captação, a lista do tipo do contato (Lead, Corretor, Proprietário) */
+  trocaDaEtapa?: ReactNode
 }) {
   const { marca: marcaDoContato, historico, enviados, carregando, erro, recarregar } = useContatoNay(lead.id)
   const { marcas, nay } = useParceriaMarcas(true)
@@ -407,7 +409,7 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
               menu tinha ido parar no LeadDetailsSidebar, que o chat da
               Parceria nem desenha. */}
           <div className="mt-3 text-left">
-            <EtapaDoLead lead={lead} onUpdateLead={onUpdateLead} semExplicacao />
+            {trocaDaEtapa ?? <EtapaDoLead lead={lead} onUpdateLead={onUpdateLead} semExplicacao />}
           </div>
         </div>
 
