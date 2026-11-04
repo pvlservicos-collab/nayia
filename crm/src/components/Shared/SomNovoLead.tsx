@@ -215,7 +215,7 @@ export default function SomNovoLead() {
       onClick={alternar}
       title={ligado ? 'Som de lead novo ligado — clique para silenciar' : 'Som de lead novo silenciado'}
       aria-label={ligado ? 'Silenciar som de lead novo' : 'Ativar som de lead novo'}
-      className="app-tap-target btn-icon w-11 h-11"
+      className="app-tap-target btn-icon w-8 h-8"
     >
       {ligado ? <SpeakerHigh size={18} /> : <SpeakerSlash size={18} />}
     </button>,

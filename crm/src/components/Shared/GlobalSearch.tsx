@@ -223,7 +223,7 @@ export default function GlobalSearch() {
         onChange={(e) => handleChange(e.target.value)}
         onFocus={() => (results.length > 0 || tutoriais.length > 0) && setOpen(true)}
         placeholder="Buscar leads..."
-        className="w-28 lg:w-36 min-[1536px]:w-44 min-[1800px]:w-56 pl-9 pr-8 py-1.5 bg-gray-100 border-none rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+        className="w-28 min-[1800px]:w-36 focus:w-56 pl-9 pr-8 py-1.5 bg-gray-100 border-none rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
       />
       {open && (
         <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-100 rounded-xl shadow-xl shadow-gray-200/60 z-50 max-h-[400px] overflow-y-auto animate-in fade-in slide-in-from-top-2">

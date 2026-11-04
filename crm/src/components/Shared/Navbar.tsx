@@ -501,7 +501,9 @@ export default function Navbar() {
       </div>
 
       {/* Right: Search + Notifications + User + Button */}
-      <div className="flex items-center gap-1.5 lg:gap-2 min-[1800px]:gap-4 flex-shrink-0">
+      {/* 04/11 (Pedro: "diminuir todos esses botões, pôr menor e apertar eles para o lado para sobrar mais espaço para os
+          outros menus"): os botões daqui com o ícone em cima e o nome pequeno embaixo, ícones menores e pouco espaço */}
+      <div className="flex items-center gap-0.5 flex-shrink-0">
         {/* ENVIAR IMOVEL (Tel, 28/09/2026): "coloca o enviar imovel do lado do n8n
             la em cima e no crm". Botao no alto, fora das abas -- a mesma tela do
             admin do site. No celular tambem vai escrito (Pedro, 29/09: "quero nao
@@ -509,7 +511,7 @@ export default function Navbar() {
         <Link
           href="/disparo"
           title="Enviar imóvel"
-          className={`app-tap-target flex items-center justify-center gap-1.5 h-9 px-2.5 lg:px-3 rounded-lg text-[13px] sm:text-sm font-semibold whitespace-nowrap border transition-colors ${pathname.startsWith('/disparo')
+          className={`app-tap-target relative flex flex-col items-center justify-center gap-0.5 h-11 w-[58px] px-1 rounded-lg text-[10px] leading-[11px] font-semibold text-center border transition-colors ${pathname.startsWith('/disparo')
             ? 'bg-graphite-6 border-white/15 text-accent-2'
             : 'border-line text-ink hover:border-accent/60'
             }`}
@@ -523,15 +525,15 @@ export default function Navbar() {
         <Link
           href="/respostas-tel"
           title="Respostas Tel: dúvidas da Nay esperando o Tel"
-          className={`respostas-tel-brilho respostas-tel-roxo relative app-tap-target flex items-center justify-center gap-1.5 h-9 px-2.5 lg:px-3 rounded-lg text-[13px] sm:text-sm font-semibold whitespace-nowrap border transition-colors ${pathname.startsWith('/respostas-tel')
+          className={`respostas-tel-brilho respostas-tel-roxo app-tap-target relative flex flex-col items-center justify-center gap-0.5 h-11 w-[58px] px-1 rounded-lg text-[10px] leading-[11px] font-semibold text-center border transition-colors ${pathname.startsWith('/respostas-tel')
             ? 'ring-2 ring-white/40'
             : 'hover:brightness-110'
             } ${duvidasDoTel > 0 ? 'respostas-tel-tem' : ''}`}
         >
           <ChatTeardropText size={16} weight={duvidasDoTel > 0 || pathname.startsWith('/respostas-tel') ? 'fill' : 'regular'} />
-          <span className="hidden min-[2000px]:inline">Respostas Tel</span>
+          <span>Respostas Tel</span>
           {duvidasDoTel > 0 && (
-            <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-white text-[#6d28d9] text-[11px] leading-[18px] text-center">{duvidasDoTel}</span>
+            <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-white text-[#6d28d9] text-[10px] leading-[16px] text-center shadow">{duvidasDoTel}</span>
           )}
         </Link>
 
@@ -553,9 +555,9 @@ export default function Navbar() {
         {adminDoCrm && versao && (
           <button type="button" onClick={trocarVersao} disabled={trocandoVersao}
                   title={`Organização do CRM: ${versao} (vale para todos). Clique para trocar para a ${v2 ? 'v1' : 'v2'}.`}
-                  className="flex items-center rounded-full border border-line text-[11px] font-bold overflow-hidden h-7 disabled:opacity-60">
-            <span className={`px-2 h-full flex items-center ${!v2 ? 'bg-accent text-white' : 'text-muted'}`}>v1</span>
-            <span className={`px-2 h-full flex items-center ${v2 ? 'bg-accent text-white' : 'text-muted'}`}>v2</span>
+                  className="flex items-center rounded-full border border-line text-[10px] font-bold overflow-hidden h-6 disabled:opacity-60">
+            <span className={`px-1.5 h-full flex items-center ${!v2 ? 'bg-accent text-white' : 'text-muted'}`}>v1</span>
+            <span className={`px-1.5 h-full flex items-center ${v2 ? 'bg-accent text-white' : 'text-muted'}`}>v2</span>
           </button>
         )}
 
@@ -563,9 +565,9 @@ export default function Navbar() {
         <button
           onClick={toggleTheme}
           title={isDark ? 'Modo claro' : 'Modo escuro'}
-          className="app-tap-target btn-icon w-11 h-11"
+          className="app-tap-target btn-icon w-8 h-8"
         >
-          {isDark ? <Sun size={18} weight="fill" className="text-yellow-400" /> : <Moon size={18} />}
+          {isDark ? <Sun size={16} weight="fill" className="text-yellow-400" /> : <Moon size={16} />}
         </button>
 
         {/* User Dropdown */}

@@ -66,13 +66,13 @@ export default function ContatoNovo() {
         onClick={() => { setAberto((v) => !v); setErro(null) }}
         aria-expanded={aberto}
         title="Contato novo: criar conversa com um número"
-        className={`app-tap-target flex items-center justify-center gap-1.5 h-9 px-2.5 lg:px-3 rounded-lg text-[13px] sm:text-sm font-semibold whitespace-nowrap border transition-colors ${aberto
+        className={`app-tap-target relative flex flex-col items-center justify-center gap-0.5 h-11 w-[58px] px-1 rounded-lg text-[10px] leading-[11px] font-semibold text-center border transition-colors ${aberto
           ? 'bg-graphite-6 border-white/15 text-accent-2'
           : 'border-line text-ink hover:border-accent/60'
           }`}
       >
         <UserPlus size={16} weight={aberto ? 'fill' : 'regular'} />
-        <span className="hidden min-[2000px]:inline">Contato novo</span>
+        <span>Contato novo</span>
       </button>
 
       {aberto && (

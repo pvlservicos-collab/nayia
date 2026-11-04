@@ -47,11 +47,11 @@ export default function TamanhoDasConversas() {
   return (
     <div className="flex items-center" role="group" aria-label="Tamanho das conversas" title={`Tamanho das conversas: ${pct}%`}>
       <button type="button" onClick={() => mudar(-1)} disabled={degrau === 0}
-              className="app-tap-target btn-icon w-11 h-11 disabled:opacity-40" aria-label="Diminuir o tamanho das conversas">
+              className="app-tap-target btn-icon w-7 h-8 disabled:opacity-40" aria-label="Diminuir o tamanho das conversas">
         <Minus size={18} weight="bold" />
       </button>
       <button type="button" onClick={() => mudar(1)} disabled={degrau === DEGRAUS.length - 1}
-              className="app-tap-target btn-icon w-11 h-11 disabled:opacity-40" aria-label="Aumentar o tamanho das conversas">
+              className="app-tap-target btn-icon w-7 h-8 disabled:opacity-40" aria-label="Aumentar o tamanho das conversas">
         <Plus size={18} weight="bold" />
       </button>
     </div>
