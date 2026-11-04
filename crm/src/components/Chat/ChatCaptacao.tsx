@@ -21,6 +21,9 @@
  * tô falando entre corretor, proprietário ou lead: no lugar das etapas do lado do card dele, uma lista suspensa"):
  *   - Mandar de volta para Corretor: o tipo Corretor e a marca de captação em FALSE (na Parceria, a etapa Todos);
  *   - no card, no lugar das etapas, o tipo do contato (Lead = cliente, Corretor, Proprietário), gravado à mão (organizar).
+ * 04/11 (Pedro: "para o Lucas tira o criar contato lá de cima e deixa embaixo do 'Cadastros incompletos e donos chamados
+ * pela OLX', para ele criar contato por lá e já aparecer na lista dele"): o Criar contato daqui abre a conversa no número
+ * escolhido, já com a marca da captação, e a abre aqui.
  */
 import { useCallback, useState, type ReactNode } from 'react'
 import { tipoEscolhido } from '@/lib/organizacaoDoLead'
@@ -42,6 +45,47 @@ function oQue(c: Extract<ContextoDaCaptacao, { fonte: 'cadastro' }>): string {
   const tipo = String(c.dados?.tipo || '').toLowerCase()
   const onde = c.dados?.condominio || c.dados?.bairro
   return `${tipo ? (/casa|kit/.test(tipo) ? 'uma ' : 'um ') + tipo : 'o imóvel dele'}${onde ? ` no ${onde}` : ''}`
+}
+
+function CriarContato() {
+  const [numero, setNumero] = useState('')
+  const [linha, setLinha] = useState<'captacao' | 'parceria'>('captacao')
+  const [ocupado, setOcupado] = useState(false)
+  const [erro, setErro] = useState('')
+  const digitos = numero.replace(/\D/g, '')
+  const ok = digitos.length >= 10 && digitos.length <= 13
+  const criar = async () => {
+    if (!ok) { setErro('Digite o número com DDD.'); return }
+    setOcupado(true); setErro('')
+    try {
+      const r = await fetch('/api/leads/abrir', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telefone: digitos, linha }) })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(j?.error || j?.message || 'Não consegui criar a conversa.')
+      await organizar(j.id, { captacao: true })
+      window.location.href = `/chat/captar?leadId=${j.id}`
+    } catch (e: any) { setErro(e?.message || 'Não consegui criar a conversa.'); setOcupado(false) }
+  }
+  const campo = { background: 'var(--wa-search)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }
+  return (
+    <div className="px-3 pb-2">
+      <div className="flex items-center gap-1.5">
+        <input value={numero} onChange={(e) => { setNumero(e.target.value); setErro('') }} inputMode="tel"
+               onKeyDown={(e) => { if (e.key === 'Enter') void criar() }} placeholder="Criar contato: número com DDD"
+               className="flex-1 min-w-0 h-8 px-2.5 rounded-lg text-[13px] outline-none" style={campo} />
+        <select value={linha} onChange={(e) => setLinha(e.target.value as 'captacao' | 'parceria')} title="Por qual número a conversa fala"
+                className="h-8 px-1.5 rounded-lg text-[12px]" style={campo}>
+          <option value="captacao">Leads</option>
+          <option value="parceria">Parceria</option>
+        </select>
+        <button type="button" onClick={() => void criar()} disabled={ocupado || !ok}
+                className="h-8 px-3 rounded-lg text-[13px] font-semibold text-white disabled:opacity-50" style={{ background: 'var(--wa-green)' }}>
+          {ocupado ? <CircleNotch size={14} className="animate-spin" /> : 'Criar'}
+        </button>
+      </div>
+      {erro && <p className="mt-1 text-[12px]" style={{ color: '#dc2626' }}>{erro}</p>}
+    </div>
+  )
 }
 
 const TIPOS_DO_CONTATO: [string, string][] = [['cliente', 'Lead'], ['corretor', 'Corretor'], ['proprietario', 'Proprietário']]
@@ -142,6 +186,7 @@ export default function ChatCaptacao() {
   return (
     <ChatJuntado titulo="Captação" subtitulo="Cadastros incompletos e donos chamados pela OLX · cada conversa responde pelo número dela"
                  pertence={pertence} chaveAbas="crm:abas-captacao" vazio="Nenhuma conversa de captação agora."
+                 abaixoDoTitulo={<CriarContato />}
                  cadastrar={(l) => {
                    const c = contexto[l.id]
                    return { linkInicial: c?.fonte === 'olx' ? c.url : undefined }

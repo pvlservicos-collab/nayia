@@ -564,7 +564,8 @@ export default function Navbar() {
         </Link>
 
         {/* CONTATO NOVO (Pedro, 29/10/2026): o "Criar conversa" da lupa, aqui no alto */}
-        <ContatoNovo />
+        {/* 04/11 (Pedro): para quem tem a Captação (o Lucas), o Criar contato fica dentro do Chat Captação */}
+        {(papel.admin || !acesso.areas.includes('captacao')) && <ContatoNovo />}
 
         {/* Busca — input+dropdown no desktop, ícone que abre overlay de tela cheia no celular */}
         <GlobalSearch />

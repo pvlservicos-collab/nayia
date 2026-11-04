@@ -4,7 +4,10 @@ CREATE OR REPLACE FUNCTION public.crm_olx_captar()
  STABLE SECURITY DEFINER
  SET search_path TO 'public', 'privado'
 AS $function$
-  WITH base AS MATERIALIZED (SELECT * FROM olx_captar WHERE fora IS NULL),
+  -- 603 (Pedro, 04/11): só aluguel a partir de R$ 2.500, venda a partir de R$ 200 mil e imóvel em condomínio
+  WITH base AS MATERIALIZED (SELECT * FROM olx_captar WHERE fora IS NULL
+        AND ((tipo_negocio ILIKE 'Aluguel%' AND coalesce(preco, 0) >= 2500) OR (tipo_negocio ILIKE 'Venda%' AND coalesce(preco, 0) >= 200000))
+        AND (categoria = 'Apartamentos' OR tipo_negocio ILIKE '%condomin%')),
   chaves AS MATERIALIZED (SELECT DISTINCT unnest(telefones) t FROM base),
   ch AS MATERIALIZED (SELECT t, nay_fone_chave(nay_fone_com_ddi(t)) AS chave FROM chaves),
   conhecido AS MATERIALIZED (
@@ -51,6 +54,8 @@ AS $function$
     'fora', (SELECT coalesce(jsonb_object_agg(m, n), '{}'::jsonb) FROM (
         SELECT m, count(*) n FROM (
           SELECT fora m FROM olx_captar WHERE fora IS NOT NULL
+          UNION ALL SELECT 'fora do filtro (aluguel a partir de R$ 2.500, venda a partir de R$ 200 mil, só em condomínio)'
+            FROM olx_captar WHERE fora IS NULL AND NOT (((tipo_negocio ILIKE 'Aluguel%' AND coalesce(preco, 0) >= 2500) OR (tipo_negocio ILIKE 'Venda%' AND coalesce(preco, 0) >= 200000)) AND (categoria = 'Apartamentos' OR tipo_negocio ILIKE '%condomin%'))
           UNION ALL SELECT CASE WHEN anuncio_ja THEN 'anúncio que já cadastramos ou consultamos'
                                 ELSE regexp_replace(motivo, ' \(.*$', '') END
             FROM julgado WHERE motivo IS NOT NULL OR anuncio_ja) q GROUP BY m) r),

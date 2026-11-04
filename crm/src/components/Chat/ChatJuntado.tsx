@@ -101,9 +101,11 @@ interface Props {
   casaExtra?: (texto: string, lead: LeadWithOwner) => boolean
   /** 04/11: o que aparece em cima dos resultados da lupa (na aba Proprietários, o dono do imóvel pesquisado) */
   buscaExtra?: (texto: string) => ReactNode
+  /** 04/11: o que vem logo embaixo do título e do subtítulo (no Chat Captação, o Criar contato) */
+  abaixoDoTitulo?: ReactNode
 }
 
-export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos, casaExtra, buscaExtra, etapaDoCard }: Props) {
+export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos, casaExtra, buscaExtra, etapaDoCard, abaixoDoTitulo }: Props) {
   const { organizationId, loading, permissions } = useAuth()
   // 04/11: o Visualizar por do administrador vale aqui (usePapelV2)
   const papel = usePapelV2()
@@ -315,6 +317,7 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
             )}
           </div>
         </div>
+        {abaixoDoTitulo}
         {buscaAberta && (
           <div className="px-3 pb-2">
             <label className="wa-busca">
