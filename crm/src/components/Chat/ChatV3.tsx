@@ -1,47 +1,64 @@
 'use client'
 
 /**
- * A V3 DO CRM (Pedro, 04/11/2026): "quero testar uma nova versão do CRM, parecida com a v2, só no cadastro Tel ... um número
- * de WhatsApp só juntando Leads e Parceria ... o lead é atendido, depois que confirma que quer uma visita vai para a aba
- * Visita ... nesse número vamos falar com corretores e leads ... as tags: Em atendimento, Leads, Corretores, Visitas,
- * Fechamento, Proprietários". E, depois de ver a primeira versão: "cadê as etapas que eu pedi no chat da v3? tá tudo
- * bagunçado, eu pedi as tags específicas": UMA lista só (a cara do WhatsApp Leads), e as seis etapas são os chips do alto
- * dela, e só elas. O Captação e o WhatsApp Oficial continuam à parte (são outros propósitos).
+ * O ATENDIMENTO DA V3 (Pedro, 04/11/2026): "um número de WhatsApp só juntando Leads e Parceria ... o lead é atendido, depois
+ * que confirma que quer uma visita vai para Visitas ... nesse número vamos falar com corretores e leads; a Nay que atende
+ * depende da origem". E o desenho que ele mandou ("coloca esse layout no atendimento da v3, com as funções que já estão
+ * funcionando nos outros"):
  *
- * É só a TELA: cada conversa continua sendo da linha dela (crm/CLAUDE.md, um lead por pessoa em cada linha), e a resposta sai
- * pelo número dela. A Nay que atende segue a origem, como já é: quem veio do Leads (OLX e os outros canais) é a Nay Leads;
- * quem veio da Parceria é a Nay Parceria. Nada mudou no servidor.
+ *   à esquerda   Todas (a contagem) · Locação (Diego) · Venda (Rayssa) · Corretores (Nay), em coluna, com a bolinha da cor;
+ *                embaixo, as conversas, cada uma com a barrinha das etapas e "etapa · quem atende" (IA quando é a Nay)
+ *   no alto      o nome e "Locação · Diego"; Cadastrar imóvel, Tipo, Enviar para…, Adicionar pessoa e Dentro de
+ *                (os mesmos do WhatsApp Leads: OrganizarConversa; na Parceria, o Enviar para… dela)
+ *   embaixo dele a barra das 5 etapas: Começar · Filtrado · Em atend. · Opção · Visitas, a de agora em negrito
+ *   em cima da caixa de mensagem: "Sai pelo WhatsApp Leads · 8595" (ou Parceria · 9445)
  *
- * Fora do Em atendimento, a conversa está em UMA etapa só, na ordem do funil (a mais adiante vence): Fechamento >
- * Proprietários > Visitas > Corretores > Leads. O mesmo telefone nos dois números aparece uma vez só, pela Parceria (a regra da v2).
+ * É só a TELA: cada conversa continua sendo da linha dela (crm/CLAUDE.md) e a resposta sai pelo número dela; a Nay que
+ * atende segue a origem (Leads: Nay Leads; Parceria: Nay Parceria). O mesmo telefone nos dois números aparece uma vez, pela
+ * Parceria. Fechamento só o Tel e quem ele incluiu (a regra da v2).
  *
- *   Em atendimento  TODAS as conversas dos dois números (Pedro, 04/11: "na tag atendimento é todas as conversas"); as outras
- *                   etapas são recortes dela
- *   Corretores      tudo o que fala pela Parceria e os corretores do número Leads
- *   Leads           o resto do número Leads (OLX e os outros canais)
- *   Visitas         quem está na etapa visita (Parceria: etapa Visitas; Leads: a etiqueta Visita)
- *   Fechamento      só o Tel e quem ele incluiu (a mesma regra da v2)
- *   Proprietários   os donos dos dois números
- * (Pedro: "testa aí, mas eu vou mudar": as regras ficam todas em `etapaDe`.)
+ * AS ETAPAS saem do que a Nay já sabe (o passo dela, 520; crm_olx_clientes_etapas), com esta leitura (as regras ficam em
+ * `etapaDe`; Pedro: "testa aí, mas eu vou mudar"):
+ *   Começar         a Nay ainda está perguntando o perfil (passo 1) ou nem começou
+ *   Filtrado        perfil completo, busca feita (passo 2)
+ *   Em atendimento  imóveis enviados, conversando sobre eles (passo 3); na Parceria, todo corretor fora de visita
+ *   Opção           escolheu um e pediu visita (passo 4)
+ *   Visitas         visita confirmada (passo 5) ou na etapa Visita (Leads: a etiqueta; Parceria: a etapa Visitas)
  */
 import { useCallback, useMemo } from 'react'
-import { useAuth } from '@/hooks'
+import { useAuth, useOrganizationMembers } from '@/hooks'
 import { useLeadsContext } from '@/contexts/LeadsContext'
 import { usePapelDoContato } from '@/hooks/usePapelDoContato'
 import { useFechamentoV2 } from '@/hooks/useFechamentoV2'
 import { useCorretoresDaCaptacao } from '@/hooks/useCorretoresDaCaptacao'
+import { useOlxClientes } from '@/hooks/useOlxClientes'
+import { useParceriaMarcas } from '@/hooks/useParceriaMarcas'
+import { useEquipeV2 } from '@/hooks/useEquipeV2'
 import { getLinhaWhatsapp } from '@/lib/leadChannel'
 import { fim8 } from '@/lib/olxClientes'
-import { primeiroNome, usePapelV2 } from '@/lib/versaoDoCrm'
+import { etapaDaParceria } from '@/lib/etapaDaParceria'
+import { tipoEscolhido } from '@/lib/organizacaoDoLead'
+import { montarAtendentes } from '@/lib/atendentes'
+import { primeiroNome, responsavelV2, usePapelV2 } from '@/lib/versaoDoCrm'
 import type { LeadWithOwner } from '@/lib/types'
 import NotAuthorized from '@/components/Shared/NotAuthorized'
 import ChatJuntado from './ChatJuntado'
+import OrganizarConversa, { EnviarParaDaParceria, type Organizado } from './OrganizarConversa'
 
-type EtapaV3 = 'leads' | 'corretores' | 'visitas' | 'fechamento' | 'proprietarios'
-const ETAPAS: Array<{ chave: EtapaV3; rotulo: string }> = [
-  { chave: 'leads', rotulo: 'Leads' }, { chave: 'corretores', rotulo: 'Corretores' },
-  { chave: 'visitas', rotulo: 'Visitas' }, { chave: 'fechamento', rotulo: 'Fechamento' }, { chave: 'proprietarios', rotulo: 'Proprietários' },
+type Grupo = 'locacao' | 'venda' | 'corretores'
+const GRUPOS: Array<{ chave: Grupo; rotulo: string; quem: string; cor: string }> = [
+  { chave: 'locacao', rotulo: 'Locação', quem: 'Diego', cor: '#22c55e' },
+  { chave: 'venda', rotulo: 'Venda', quem: 'Rayssa', cor: '#f97316' },
+  { chave: 'corretores', rotulo: 'Corretores', quem: 'Nay', cor: '#ec4899' },
 ]
+const ETAPAS = [
+  { curto: 'Começar', rotulo: 'Começar', cor: '#9ca3af' },
+  { curto: 'Filtrado', rotulo: 'Filtrado', cor: '#3b82f6' },
+  { curto: 'Em atend.', rotulo: 'Em atendimento', cor: '#8b5cf6' },
+  { curto: 'Opção', rotulo: 'Opção', cor: '#65a30d' },
+  { curto: 'Visitas', rotulo: 'Visitas', cor: '#f59e0b' },
+]
+const SAIDA: Record<string, string> = { captacao: 'Sai pelo WhatsApp Leads · 8595', parceria: 'Sai pelo WhatsApp Parceria · 9445' }
 
 /** o login Tel (administrador de verdade): a v3 é só dele, por enquanto */
 export function useEhTel(): boolean {
@@ -50,43 +67,116 @@ export function useEhTel(): boolean {
   return papel.adminDeVerdade && primeiroNome(profileName || user?.name) === 'tel'
 }
 
+/** a barra das 5 etapas embaixo do cabeçalho da conversa (a de agora em negrito; as de depois apagadas) */
+function BarraDasEtapas({ atual }: { atual: number }) {
+  return (
+    <div className="flex-shrink-0 grid grid-cols-5 gap-1.5 px-3 pt-2 pb-1.5" style={{ borderBottom: '1px solid var(--wa-divider)' }}>
+      {ETAPAS.map((e, i) => (
+        <div key={e.curto} className="flex flex-col items-center gap-1 min-w-0">
+          <span className="h-[5px] w-full rounded-full" style={{ background: e.cor, opacity: i <= atual ? 1 : 0.3 }} />
+          <span className="text-[12px] truncate" style={{ color: i === atual ? 'var(--wa-text)' : 'var(--wa-text-2)', fontWeight: i === atual ? 700 : 400 }}>{e.curto}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** embaixo de cada conversa da lista: a barrinha (até a etapa de agora) e "etapa · quem atende" */
+function RodapeDaConversa({ atual, quem }: { atual: number; quem: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-[3px]">
+        {ETAPAS.map((e, i) => (
+          <span key={e.curto} className="h-[3px] flex-1 rounded-full max-w-[34px]" style={{ background: i <= atual ? e.cor : 'var(--wa-row-selected)' }} />
+        ))}
+      </div>
+      <span className="text-[12px] truncate" style={{ color: 'var(--wa-text-2)' }}>{ETAPAS[atual].rotulo} · {quem}</span>
+    </div>
+  )
+}
+
 export default function ChatV3() {
-  const { loading } = useAuth()
+  const { loading, organizationId } = useAuth()
   const ehTel = useEhTel()
-  const { leads } = useLeadsContext()
-  const { ehProprietario, ehVisita } = usePapelDoContato(true, true)
+  const { leads, setLeads } = useLeadsContext()
+  const { ehProprietario, ehVisita, ehLocacao } = usePapelDoContato(true, true)
   const { emFechamento, podeVer } = useFechamentoV2()
   const corretoresDoLeads = useCorretoresDaCaptacao(true)
+  const olx = useOlxClientes(true)
+  const { marcas } = useParceriaMarcas(true)
+  const equipeV2 = useEquipeV2(true)
+  const { members } = useOrganizationMembers(organizationId || '')
+  const equipe = useMemo(() => montarAtendentes(members || []), [members])
 
   // o telefone que já tem conversa na Parceria: o do Leads some (vale a Parceria)
   const pelaParceria = useMemo(() => new Set(leads.filter((l) => !l.is_group && getLinhaWhatsapp(l) === 'parceria').map((l) => fim8(l.phone)).filter(Boolean)), [leads])
 
-  /** em qual etapa a conversa está (ou null: é de outro número, grupo ou o Tel não a liberou) */
-  const etapaDe = useCallback((l: LeadWithOwner): EtapaV3 | null => {
+  /** a conversa é desta tela? (os dois números, sem grupo, sem o repetido do Leads, e o fechamento só de quem pode) */
+  const daTela = useCallback((l: LeadWithOwner): boolean => {
     const linha = getLinhaWhatsapp(l)
-    if (l.is_group || (linha !== 'captacao' && linha !== 'parceria')) return null
-    if (linha === 'captacao' && pelaParceria.has(fim8(l.phone))) return null
-    if (!podeVer(l)) return null
-    if (emFechamento(l)) return 'fechamento'
-    if (ehProprietario(l)) return 'proprietarios'
-    if (ehVisita(l)) return 'visitas'
-    if (linha === 'parceria' || corretoresDoLeads.has(fim8(l.phone))) return 'corretores'
-    return 'leads'
-  }, [pelaParceria, emFechamento, ehProprietario, ehVisita, podeVer, corretoresDoLeads])
+    if (l.is_group || (linha !== 'captacao' && linha !== 'parceria')) return false
+    if (linha === 'captacao' && pelaParceria.has(fim8(l.phone))) return false
+    return podeVer(l)
+  }, [pelaParceria, podeVer])
+
+  /** Locação, Venda ou Corretores (o proprietário fica só em Todas) */
+  const grupoDe = useCallback((l: LeadWithOwner): Grupo | null => {
+    if (!daTela(l)) return null
+    const tipo = tipoEscolhido(l)
+    if (getLinhaWhatsapp(l) === 'parceria' || tipo === 'corretor' || corretoresDoLeads.has(fim8(l.phone))) return 'corretores'
+    if (ehProprietario(l) || emFechamento(l)) return null
+    return ehLocacao(l) ? 'locacao' : 'venda'
+  }, [daTela, corretoresDoLeads, ehProprietario, emFechamento, ehLocacao])
+
+  /** a etapa de agora, 0 a 4 (ETAPAS) */
+  const etapaDe = useCallback((l: LeadWithOwner): number => {
+    if (getLinhaWhatsapp(l) === 'parceria') return etapaDaParceria(l as any, marcas[l.id]) === 'visitas' ? 4 : 2
+    const passo = Number(olx[fim8(l.phone)]?.passo || 0)
+    if (ehVisita(l) || passo >= 5) return 4
+    return passo === 4 ? 3 : passo === 3 ? 2 : passo === 2 ? 1 : 0
+  }, [marcas, olx, ehVisita])
+
+  /** quem atende: a pessoa da equipe que assumiu; senão a Nay (IA) */
+  const quemDe = useCallback((l: LeadWithOwner): string => {
+    const r = responsavelV2(l as any, equipeV2)
+    return r && !r.nay ? r.nome : 'IA'
+  }, [equipeV2])
+
+  const aplicar = useCallback((leadId: string, o: Organizado) => {
+    setLeads((p) => p.map((x) => (x.id === leadId ? {
+      ...x, custom_attributes: o.custom_attributes,
+      ...(o.last_activity_at ? { last_activity_at: new Date(o.last_activity_at).toISOString() } : {}),
+      ...(typeof o.is_unread === 'boolean' ? { is_unread: o.is_unread } : {}),
+    } : x)))
+  }, [setLeads])
 
   const etapas = useMemo(() => [
-    { chave: 'atendimento', rotulo: 'Em atendimento', casa: (l: LeadWithOwner) => etapaDe(l) !== null },   // todas as conversas
-    ...ETAPAS.map((e) => ({ ...e, casa: (l: LeadWithOwner) => etapaDe(l) === e.chave })),
-  ], [etapaDe])
+    { chave: 'todas', rotulo: 'Todas', cor: '#9ca3af', casa: daTela },
+    ...GRUPOS.map((g) => ({ chave: g.chave, rotulo: g.rotulo, quem: g.quem, cor: g.cor, casa: (l: LeadWithOwner) => grupoDe(l) === g.chave })),
+  ], [daTela, grupoDe])
 
   if (loading) return null
   if (!ehTel) return <NotAuthorized />
 
   return (
     <div className="chat-theme h-full min-h-0">
-      <ChatJuntado titulo="WhatsApp · v3" subtitulo="Leads e Parceria num lugar só · a resposta sai pelo número de cada conversa"
-                   pertence={(l) => etapaDe(l) !== null} etapas={etapas} chaveAbas="crm:abas-v3"
-                   vazio="Nenhuma conversa nesta etapa." />
+      <ChatJuntado titulo="Atendimento" subtitulo="Leads e Parceria num lugar só · a resposta sai pelo número de cada conversa"
+                   pertence={daTela} etapas={etapas} etapasEmLista semFaixaDaLinha chaveAbas="crm:abas-v3"
+                   vazio="Nenhuma conversa aqui."
+                   cadastrar={() => ({})}
+                   rodapeDoItem={(l) => <RodapeDaConversa atual={etapaDe(l)} quem={quemDe(l)} />}
+                   naConversa={{
+                     subtitulo: (l) => {
+                       const g = GRUPOS.find((x) => x.chave === grupoDe(l))
+                       return `${g ? g.rotulo : ehProprietario(l) ? 'Proprietário' : 'Fechamento'} · ${quemDe(l)}`
+                     },
+                     abaixoDoTopo: (l) => <BarraDasEtapas atual={etapaDe(l)} />,
+                     saida: (l) => SAIDA[getLinhaWhatsapp(l) || ''],
+                     organizar: (l) => getLinhaWhatsapp(l) === 'parceria'
+                       ? <EnviarParaDaParceria lead={l} aoMudar={(o) => aplicar(l.id, o)} />
+                       : <OrganizarConversa lead={l} tipoDeduzido={null} equipe={equipe} naLocacao={ehLocacao(l)}
+                                            aoMudar={(o) => aplicar(l.id, o)} />,
+                   }} />
     </div>
   )
 }

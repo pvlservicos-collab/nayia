@@ -104,10 +104,23 @@ interface Props {
   /** 04/11: o que vem logo embaixo do título e do subtítulo (no Chat Captação, o Criar contato) */
   abaixoDoTitulo?: ReactNode
   /** v3 (Pedro, 04/11): os chips do alto são ESTAS etapas (e só elas), cada uma filtrando pela sua regra; a primeira abre */
-  etapas?: Array<{ chave: string; rotulo: string; casa: (lead: LeadWithOwner) => boolean }>
+  etapas?: Array<{ chave: string; rotulo: string; casa: (lead: LeadWithOwner) => boolean; quem?: string; cor?: string }>
+  /** v3 (Pedro, 04/11, o desenho do Atendimento): as etapas em COLUNA (bolinha, nome e quem atende à direita), no lugar dos chips */
+  etapasEmLista?: boolean
+  /** v3: o que vai embaixo de cada conversa da lista (a barrinha das etapas e "etapa · quem atende") */
+  rodapeDoItem?: (lead: LeadWithOwner) => ReactNode
+  /** v3: o que a conversa aberta ganha (os botões do alto, o subtítulo, a barra das etapas, por onde sai a resposta) */
+  naConversa?: {
+    organizar?: (lead: LeadWithOwner) => ReactNode
+    subtitulo?: (lead: LeadWithOwner) => string | undefined
+    abaixoDoTopo?: (lead: LeadWithOwner) => ReactNode
+    saida?: (lead: LeadWithOwner) => string | undefined
+  }
+  /** v3: sem a faixa laranja "Pelo número ..." (a saída vai embaixo, em cima da caixa de mensagem) */
+  semFaixaDaLinha?: boolean
 }
 
-export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos, casaExtra, buscaExtra, etapaDoCard, abaixoDoTitulo, etapas }: Props) {
+export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos, casaExtra, buscaExtra, etapaDoCard, abaixoDoTitulo, etapas, etapasEmLista, rodapeDoItem, naConversa, semFaixaDaLinha }: Props) {
   const { organizationId, loading, permissions } = useAuth()
   // 04/11: o Visualizar por do administrador vale aqui (usePapelV2)
   const papel = usePapelV2()
@@ -269,10 +282,16 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
       <LeadListItem lead={l} isSelected={l.id === selecionada} timeStr={hora(l.last_activity_at || l.created_at)}
                     onClick={abrir} query={busca}
                     onContextMenu={(e, lead) => { e.preventDefault(); setMenuDeTags(false); setMenuEm({ x: e.clientX, y: e.clientY, lead }) }}
-                    faixaDaLinha={NUMERO_DA_CONVERSA[linhaDe(l)] || null}
+                    faixaDaLinha={semFaixaDaLinha ? null : NUMERO_DA_CONVERSA[linhaDe(l)] || null}
                     tipoDoContato={acharTipo(tipos, tipoEscolhido(l))} cinzas />
     )
     const e = enfeite?.(l)
+    if (rodapeDoItem) return (
+      <div key={l.id} style={{ background: l.id === selecionada ? 'var(--wa-row-selected)' : undefined, borderBottom: '1px solid var(--wa-divider)' }}>
+        {item}
+        <div className="pl-[72px] pr-3 -mt-[6px] pb-2 cursor-pointer" onClick={() => abrir(l)}>{rodapeDoItem(l)}</div>
+      </div>
+    )
     if (!e || (!e.faixa && !e.borda)) return <div key={l.id} className={cards ? 'v2-card' : undefined}>{item}</div>
     return (
       <div key={l.id} className={`flex items-stretch${cards ? ' v2-card' : ''}`}>
@@ -355,7 +374,19 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
             </button>
           </div>
         )}
-        {!buscando && <ChatFilterTabs ativo={aba as any} aoMudar={(k) => setAba(String(k))} filtros={filtros} />}
+        {!buscando && etapas && etapasEmLista ? (
+          <div className="flex flex-col py-1.5" style={{ borderBottom: '1px solid var(--wa-divider)' }}>
+            {etapas.map((e) => (
+              <button key={e.chave} type="button" onClick={() => setAba(e.chave)} aria-pressed={aba === e.chave}
+                      className="mx-2 px-3 h-9 rounded-lg flex items-center gap-2.5 text-[14px] text-left"
+                      style={{ background: aba === e.chave ? 'var(--wa-row-selected)' : 'transparent', color: 'var(--wa-text)' }}>
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: e.cor || 'var(--wa-text-2)' }} />
+                <span className="flex-1">{e.rotulo}</span>
+                <span className="text-[12px]" style={{ color: 'var(--wa-text-2)' }}>{e.quem ?? todas.filter(e.casa).length}</span>
+              </button>
+            ))}
+          </div>
+        ) : !buscando && <ChatFilterTabs ativo={aba as any} aoMudar={(k) => setAba(String(k))} filtros={filtros} />}
       </div>
       <div ref={raizDaLista} className="flex-1 overflow-y-auto overflow-x-hidden wa-rolagem">
         {buscando && buscaExtra?.(busca)}
@@ -398,7 +429,9 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
   const conversa = (voltar?: () => void) => aberta ? (
     <ChatWindow key={aberta.id} lead={aberta} organizationId={organizationId || ''} onMessageSent={aoEnviar}
                 linha={getLinhaWhatsapp(aberta) || undefined} marca={linhaDe(aberta) === 'parceria' ? marcas[aberta.id] : undefined}
-                faixaDaLinha={NUMERO_DA_CONVERSA[linhaDe(aberta)] || null} onTagsChange={aoMudarEtiqueta}
+                faixaDaLinha={semFaixaDaLinha ? null : NUMERO_DA_CONVERSA[linhaDe(aberta)] || null} onTagsChange={aoMudarEtiqueta}
+                organizar={naConversa?.organizar?.(aberta)} subtituloDoTopo={naConversa?.subtitulo?.(aberta)}
+                abaixoDoTopo={naConversa?.abaixoDoTopo?.(aberta)} saidaNoRodape={naConversa?.saida?.(aberta)}
                 painelAberto={painelAberto} aoAlternarPainel={alternarPainel} aoVoltar={voltar}
                 aoCadastrarImovel={cadastrar ? () => setCadastroDe((x) => (x === aberta.id ? null : aberta.id)) : undefined}
                 cadastroAberto={cadastroDe === aberta.id} />

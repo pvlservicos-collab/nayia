@@ -47,6 +47,12 @@ interface ChatWindowProps {
   organizar?: ReactNode
   /** 03/11: a conversa é de OUTRA linha e aparece nesta aba (misto): "Falando pelo número Parceria" */
   faixaDaLinha?: string | null
+  /** v3 (04/11): o que fica embaixo do nome no alto ("Locação · Diego"), no lugar do telefone */
+  subtituloDoTopo?: string
+  /** v3: o que vem logo embaixo do cabeçalho (a barra das etapas) */
+  abaixoDoTopo?: ReactNode
+  /** v3: a linha em cima da caixa de mensagem ("Sai pelo WhatsApp Leads · 8595") */
+  saidaNoRodape?: string
 }
 
 export interface ReplyContext {
@@ -133,7 +139,8 @@ function EtiquetasNoCabecalho({ lead, onTagsChange }: {
   )
 }
 
-function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlternarPainel, aoVoltar, dono, etiquetasRapidas, onTagsChange, aoCadastrarImovel, cadastroAberto, organizar, falando }: {
+function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlternarPainel, aoVoltar, dono, etiquetasRapidas, onTagsChange, aoCadastrarImovel, cadastroAberto, organizar, falando, subtituloDoTopo }: {
+  subtituloDoTopo?: string
   /** v2 do CRM (Pedro, 03/11: "onde tem o pontinho rosa de humano vai aparecer o nome de quem está falando pelo login") */
   falando?: QuemAtende | null
   organizar?: ReactNode
@@ -165,7 +172,7 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
     if (imovelDoDono(dono)) partes.push(imovelDoDono(dono))
     partes.push(formatPhone(lead.phone || ''))
   }
-  const subtitulo = partes.length ? partes.join(' · ') : formatPhone(lead.phone || '')
+  const subtitulo = subtituloDoTopo || (partes.length ? partes.join(' · ') : formatPhone(lead.phone || ''))
 
   return (
     <div className="wa-topo gap-3 flex-shrink-0 relative z-20 !px-3" style={{ borderBottom: '1px solid var(--wa-divider)' }}>
@@ -217,7 +224,7 @@ function CabecalhoConversa({ lead, marca, nay, mostrarRobo, painelAberto, aoAlte
   )
 }
 
-export default function ChatWindow({ lead, organizationId, onMessageSent, linha, marca, dono, painelAberto, aoAlternarPainel, aoVoltar, onTagsChange, aoCadastrarImovel, cadastroAberto, organizar, faixaDaLinha }: ChatWindowProps) {
+export default function ChatWindow({ lead, organizationId, onMessageSent, linha, marca, dono, painelAberto, aoAlternarPainel, aoVoltar, onTagsChange, aoCadastrarImovel, cadastroAberto, organizar, faixaDaLinha, subtituloDoTopo, abaixoDoTopo, saidaNoRodape }: ChatWindowProps) {
   const {
     activities, loading, error: erroDasMensagens, refresh: recarregarMensagens, sendHumanMessage, sendMediaMessage, deleteMessage,
     temMais, carregandoAnteriores, carregarAnteriores,
@@ -478,7 +485,8 @@ export default function ChatWindow({ lead, organizationId, onMessageSent, linha,
     >
       <CabecalhoConversa lead={lead} marca={marca} nay={nay} mostrarRobo={false} painelAberto={painelAberto} aoAlternarPainel={aoAlternarPainel} aoVoltar={aoVoltar} dono={dono}
                          etiquetasRapidas={linha === 'captacao'} onTagsChange={onTagsChange}
-                         aoCadastrarImovel={aoCadastrarImovel} cadastroAberto={cadastroAberto} organizar={organizar} falando={falando} />
+                         aoCadastrarImovel={aoCadastrarImovel} cadastroAberto={cadastroAberto} organizar={organizar} falando={falando} subtituloDoTopo={subtituloDoTopo} />
+      {abaixoDoTopo}
       {/* 03/11 (Pedro): a conversa é de outra linha e aparece aqui (misto); a resposta sai pelo número dela */}
       {faixaDaLinha && (
         <div className="flex-shrink-0 px-3 py-1 text-[12px] font-semibold text-center"
@@ -532,6 +540,9 @@ export default function ChatWindow({ lead, organizationId, onMessageSent, linha,
         </div>
       )}
 
+      {saidaNoRodape && (
+        <div className="relative z-10 flex-shrink-0 px-4 pt-1.5 text-[12px]" style={{ color: 'var(--wa-text-2)' }}>{saidaNoRodape}</div>
+      )}
       <ActivityComposer
         ref={composerRef}
         onSend={handleSendActivity}
