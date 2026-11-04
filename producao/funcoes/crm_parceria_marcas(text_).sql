@@ -10,21 +10,41 @@ AS $function$
     SELECT pe.telefone, unnest(pe.chaves) AS chave FROM pessoa pe
   ),
   -- 543: os 8 últimos dígitos de cada chave -- o filtro barato que vem ANTES do nai_chave dos cadastros abaixo
+  -- 605 (04/11, o CRM pesado para a Rayssa): os finais como CONJUNTO (junção por hash), não um array de ~650 comparado
+  -- linha a linha com = ANY em cada cadastro (era ~3 s dos 6,5 s da função)
   fins AS MATERIALIZED (
-    SELECT array_agg(DISTINCT right(regexp_replace(cp.chave, '\D', '', 'g'), 8)) AS f FROM chave_da_pessoa cp
+    SELECT DISTINCT right(regexp_replace(cp.chave, '\D', '', 'g'), 8) AS f FROM chave_da_pessoa cp
   ),
   -- todo proprietário que o sistema conhece: o cadastro do site, o do admin
   -- antigo e quem a campanha de captação procurou
   donos AS MATERIALIZED (
     SELECT nai_chave(p.telefone) AS chave, p.nome, 'p'::text AS fonte, p.id::text AS ref
-      FROM proprietarios p, fins WHERE coalesce(p.telefone, '') <> ''
-       AND right(regexp_replace(p.telefone, '\D', '', 'g'), 8) = ANY (fins.f)
+      FROM proprietarios p JOIN fins ON fins.f = right(regexp_replace(p.telefone, '\D', '', 'g'), 8) WHERE coalesce(p.telefone, '') <> ''
     UNION ALL
-    SELECT nai_chave(a.telefone), a.nome, 'a', a.id::text FROM proprietarios_admin a, fins WHERE coalesce(a.telefone, '') <> ''
-       AND right(regexp_replace(a.telefone, '\D', '', 'g'), 8) = ANY (fins.f)
+    SELECT nai_chave(a.telefone), a.nome, 'a', a.id::text FROM proprietarios_admin a JOIN fins ON fins.f = right(regexp_replace(a.telefone, '\D', '', 'g'), 8) WHERE coalesce(a.telefone, '') <> ''
     UNION ALL
-    SELECT l.telefone_chave, l.nome, 'c', l.codigo FROM captacao_leads l, fins WHERE coalesce(l.telefone_chave, '') <> ''
-       AND right(regexp_replace(l.telefone_chave, '\D', '', 'g'), 8) = ANY (fins.f)
+    SELECT l.telefone_chave, l.nome, 'c', l.codigo FROM captacao_leads l JOIN fins ON fins.f = right(regexp_replace(l.telefone_chave, '\D', '', 'g'), 8) WHERE coalesce(l.telefone_chave, '') <> ''
+  ),
+  -- 605: a EQUIPE calculada uma vez para todos (a mesma regra de nai_e_da_equipe_contato: o número do Tel, os
+  -- so_estes_numeros, quem pode comandar e a tabela equipe ativa, pelos 8 últimos dígitos, em qualquer irmão do contato);
+  -- antes ela relia essas listas para cada um dos ~650 contatos (1,8 s)
+  eq_chaves AS MATERIALIZED (
+    SELECT nai_chave(nai_cfg('tel_telefone')) AS chave
+    UNION SELECT unnest(nai_chaves_de('so_estes_numeros'))
+    UNION SELECT nai_chave(n) FROM regexp_split_to_table(coalesce(nai_cfg('comando_telefones'), ''), '\s*,\s*') AS n
+     WHERE nullif(btrim(n), '') IS NOT NULL
+  ),
+  eq_fins AS MATERIALIZED (
+    SELECT right(regexp_replace(e.telefone, '[^0-9]', '', 'g'), 8) AS f FROM equipe e WHERE e.ativo
+  ),
+  eq_contato AS MATERIALIZED (
+    SELECT DISTINCT pe.contato_id
+      FROM pessoa pe
+      CROSS JOIN LATERAL unnest(nai_contato_irmaos(pe.contato_id)) AS ir(id)
+      JOIN nai_contato c ON c.id = ir.id
+     WHERE pe.contato_id IS NOT NULL
+       AND (c.chave IN (SELECT chave FROM eq_chaves WHERE chave IS NOT NULL)
+            OR right(regexp_replace(coalesce(c.telefone, ''), '[^0-9]', '', 'g'), 8) IN (SELECT f FROM eq_fins))
   ),
   dono AS MATERIALIZED (
     SELECT cp.telefone, d.nome, d.fonte, d.ref FROM chave_da_pessoa cp JOIN donos d ON d.chave = cp.chave
@@ -38,8 +58,8 @@ AS $function$
   corretor AS MATERIALIZED (
     SELECT DISTINCT ON (cp.telefone) cp.telefone, c.nome, c.creci
       FROM chave_da_pessoa cp
-      JOIN (SELECT nai_chave(c0.telefone) AS chave, c0.nome, c0.creci, c0.ativo FROM corretores c0, fins
-             WHERE right(regexp_replace(coalesce(c0.telefone, ''), '\D', '', 'g'), 8) = ANY (fins.f)) c ON c.chave = cp.chave
+      JOIN (SELECT nai_chave(c0.telefone) AS chave, c0.nome, c0.creci, c0.ativo FROM corretores c0
+             JOIN fins ON fins.f = right(regexp_replace(coalesce(c0.telefone, ''), '\D', '', 'g'), 8)) c ON c.chave = cp.chave
      ORDER BY cp.telefone, c.ativo DESC NULLS LAST
   ),
   -- O TEL COM A CONVERSA: quem decide é a Nay (`nai_tel_com_a_conversa`, a
@@ -110,7 +130,7 @@ AS $function$
     ) et ON true
     -- 173: a equipe, pela regra única da Nay (tel_telefone, comando, equipe)
     LEFT JOIN LATERAL (
-      SELECT coalesce(pe.contato_id IS NOT NULL AND nai_e_da_equipe_contato(pe.contato_id), false) AS equipe
+      SELECT (pe.contato_id IS NOT NULL AND pe.contato_id IN (SELECT contato_id FROM eq_contato)) AS equipe
     ) eq ON true
     -- 30/09: JA PEDIU O CHECKLIST? Quem pede a documentacao esta fechando --
     -- e a etapa Fechamento no CRM. O checklist sai pela caixa da Nay com
