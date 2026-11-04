@@ -173,9 +173,17 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  /* SAIR (Pedro, 03/11/2026: "quando clico em sair vai pra outro link, e às vezes sai para um lugar bugado"). Era
+     signOut({ redirect: false }) + router.push('/login'): o next-auth avisava esta aba que a sessão acabou, o AuthGuard
+     mandava para /login?callbackUrl=<a página de onde saiu> ao mesmo tempo, e as duas navegações corriam por dentro do
+     app ainda montado -- quem entrava de novo voltava para a página antiga, ou a tela ficava pela metade. Agora é a
+     saída padrão do next-auth: troca a página inteira (window.location) e não acorda o AuthGuard antes. */
   const handleLogout = async () => {
-    await signOut({ callbackUrl: '/login', redirect: false })
-    router.push('/login')
+    try {
+      await signOut({ callbackUrl: '/login' })
+    } catch {
+      window.alert('Não consegui sair: confira a internet e tente de novo.')
+    }
   }
 
   // Get user name or email for display

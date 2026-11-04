@@ -5,11 +5,9 @@
  * Usa NextAuth Credentials provider
  */
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 
 export default function LoginForm() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -29,6 +27,7 @@ export default function LoginForm() {
 
       if (result?.error) {
         setError('Email ou senha inválidos.')
+        setLoading(false)
         return
       }
 
@@ -47,14 +46,17 @@ export default function LoginForm() {
       const busca = typeof window !== 'undefined' ? window.location.search : ''
       // sem destino pedido, abre na Parceria (Pedro, 08/10: "quando a pessoa logar já abre no whatsapp parceria")
       const pedido = new URLSearchParams(busca).get('callbackUrl') || '/chat/parceria'
-      const destino = pedido.startsWith('/') && !pedido.startsWith('//') ? pedido : '/chat/parceria'
-      router.push(destino)
-      router.refresh()
+      const destino = pedido.startsWith('/') && !pedido.startsWith('//') && !pedido.startsWith('/login') ? pedido : '/chat/parceria'
+      /* 03/11 (Pedro: "esse login precisa estar 100%"): carrega a página inteira, em vez de router.push + refresh.
+         Navegando por dentro do app, o CRM abria com o que sobrou da sessão anterior em memória (a sessão ainda
+         "sem usuário" no provider, as listas antigas) e às vezes ficava pela metade. O botão fica em "Entrando..."
+         até a página nova chegar, para ninguém clicar de novo. */
+      window.location.assign(destino)
+      return
     } catch (err) {
       setError('Ocorreu um erro. Tente novamente.')
-    } finally {
-      setLoading(false)
     }
+    setLoading(false)
   }
 
   return (
