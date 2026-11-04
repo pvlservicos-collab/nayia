@@ -16,7 +16,8 @@
  *   { responsavel: { nome } | { nay: true } | null }     v2 do CRM: quem assumiu o proprietário (null volta à regra do número)
  *   { tipo: '<chave>' | null }                           o tipo do contato; grava também tipo_contato_origem 'manual', _por e _em
  *   { visita: { id: <id da visita>, ligar: true } }      v2, aba Visita: a conversa entra (ou sai) do card daquela visita à mão
- *                                                        (custom_attributes.visitas_v2; o id da Nay Leads é negativo, como na agenda)
+ *                                                        (custom_attributes.visitas_v2; o id da Nay Leads é negativo, como na agenda);
+ *                                                        sair grava em visitas_v2_fora, que tira do card até quem entra sozinho
  *
  * Só mexe em custom_attributes da conversa; a linha (integration_id) nunca muda (crm/CLAUDE.md).
  */
@@ -103,15 +104,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
     /* v2 (Pedro, 03/11, noite: "eu posso criar um relacionamento para visita manualmente, eu seleciono a visita e os contatos
        por um buscador em um popup"): os ids das visitas em que esta conversa foi posta à mão */
+    /* 05/11 (Pedro: "excluir da visita" no botão direito de qualquer pessoa do card): sair grava a visita também em
+       visitas_v2_fora, para tirar do card até quem entra sozinho (o corretor, o cliente, o dono); entrar de novo apaga */
     if (corpo.visita && typeof corpo.visita === 'object') {
       const vid = Number(corpo.visita.id)
       if (!Number.isInteger(vid) || vid === 0) return apiError(400, 'Visita inválida.')
-      await db.execute(corpo.visita.ligar === false
-        ? sql`UPDATE leads SET custom_attributes = jsonb_set(coalesce(custom_attributes, '{}'::jsonb), '{visitas_v2}',
-                 coalesce((SELECT jsonb_agg(x) FROM jsonb_array_elements(custom_attributes->'visitas_v2') x WHERE x <> to_jsonb(${vid}::bigint)), '[]'::jsonb)),
-                 updated_at = now() WHERE id = ${id}`
-        : sql`UPDATE leads SET custom_attributes = jsonb_set(coalesce(custom_attributes, '{}'::jsonb), '{visitas_v2}',
-                 (SELECT jsonb_agg(DISTINCT x) FROM (SELECT jsonb_array_elements(coalesce(custom_attributes->'visitas_v2', '[]'::jsonb)) AS x
+      const [tira, poe] = corpo.visita.ligar === false ? ['visitas_v2', 'visitas_v2_fora'] : ['visitas_v2_fora', 'visitas_v2']
+      await db.execute(sql`UPDATE leads SET custom_attributes = jsonb_set(jsonb_set(coalesce(custom_attributes, '{}'::jsonb),
+                 ARRAY[${tira}::text],
+                 coalesce((SELECT jsonb_agg(x) FROM jsonb_array_elements(coalesce(custom_attributes->${tira}::text, '[]'::jsonb)) x
+                           WHERE x <> to_jsonb(${vid}::bigint)), '[]'::jsonb)),
+                 ARRAY[${poe}::text],
+                 (SELECT jsonb_agg(DISTINCT x) FROM (SELECT jsonb_array_elements(coalesce(custom_attributes->${poe}::text, '[]'::jsonb)) AS x
                                                     UNION SELECT to_jsonb(${vid}::bigint)) y)),
                  updated_at = now() WHERE id = ${id}`)
     }

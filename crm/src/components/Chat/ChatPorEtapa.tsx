@@ -75,6 +75,12 @@ function visitasAMao(l: LeadWithOwner): number[] {
   return Array.isArray(v) ? v.map(Number).filter((n) => Number.isInteger(n) && n !== 0) : []
 }
 
+/** as visitas de que a conversa foi excluída (o "Excluir da visita"): fica fora do card mesmo sendo o corretor ou o dono */
+function visitasFora(l: LeadWithOwner): number[] {
+  const v = (l.custom_attributes as any)?.visitas_v2_fora
+  return Array.isArray(v) ? v.map(Number).filter((n) => Number.isInteger(n) && n !== 0) : []
+}
+
 /** com quem falta confirmar a visita */
 function faltaConfirmar(v: VisitaNaTela): string[] {
   const falta: string[] = []
@@ -396,7 +402,7 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
   [visitas, marcadas, realizada])
   const abertas = useMemo(() => naTela.filter((v) => !realizada(v)), [naTela, realizada])
 
-  /** as visitas em que cada conversa foi posta à mão (custom_attributes.visitas_v2): só estas podem sair pelo x do card */
+  /** as visitas em que cada conversa foi posta à mão (custom_attributes.visitas_v2) */
   const aMaoPorVisita = useMemo(() => {
     const m = new Map<number, Set<string>>()
     for (const l of leads) for (const vid of visitasAMao(l)) {
@@ -416,19 +422,20 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
       const parceria = doTel.find((l) => getLinhaWhatsapp(l) === 'parceria')
       return parceria ? [parceria.id] : doTel.map((l) => l.id).slice(0, 1)
     }
+    const fora = new Map<number, Set<string>>()
+    for (const l of leads) for (const vid of visitasFora(l)) fora.set(vid, new Set([...(fora.get(vid) || []), l.id]))
     const m = new Map<number, string[]>()
     for (const v of naTela) {
       const ids = [v.conversa?.leadId, ...porTelefone(v.clienteTelefone), ...porTelefone(v.corretorTelefone), v.dono?.leadId,
                    ...porTelefone(v.dono?.telefone), ...Array.from(aMaoPorVisita.get(v.id) || [])]
-      m.set(v.id, Array.from(new Set(ids.filter(Boolean) as string[])))
+      m.set(v.id, Array.from(new Set(ids.filter(Boolean) as string[])).filter((id) => !fora.get(v.id)?.has(id)))
     }
     return m
   }, [naTela, leads, aMaoPorVisita])
 
-  /* O X DE CADA PESSOA NO CARD (Pedro, 04/11: "ve la para na aba visita eu poder remover uma pessoa da visita com um
-     x"): só quem foi posto à mão (Adicionar pessoa / Relacionar à visita) sai assim -- o corretor, o cliente e o dono
-     vêm da própria visita (não dá para "remover" sem cancelar a visita). É a mesma chamada do checkbox desmarcado em
-     RelacionarAVisita (organizar visita.ligar: false). */
+  /* O X E O "EXCLUIR DA VISITA" (Pedro, 04/11 e 05/11: "eu peço e tu não obedece"): valem para TODA pessoa do card --
+     a posta à mão sai de visitas_v2, e o corretor, o cliente e o dono (que entram sozinhos) ficam em visitas_v2_fora.
+     Adicionar de novo pelo "Adicionar pessoa" traz de volta. */
   const removerDaVisita = async (leadId: string, visitaId: number) => {
     try {
       const o = await organizar(leadId, { visita: { id: visitaId, ligar: false } })
@@ -538,7 +545,7 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
                          topo: <TopoDaVisita v={v} realizada={realizada(v)} ocupado={mexendo === v.id}
                                              aoAdicionar={() => setPopup({ visita: v.id })} aoStatus={(s) => void mudarStatus(v, s)} />,
                          leads: (conversasDaVisita.get(v.id) || []).filter((id) => ids.has(id)).map((id) => visiveis.find((l) => l.id === id)!),
-                         removiveis: aMaoPorVisita.get(v.id),
+                         removiveis: new Set(conversasDaVisita.get(v.id) || []),
                          aoRemover: (leadId: string) => void removerDaVisita(leadId, v.id),
                        })).filter((g) => g.leads.length > 0)
                      }} />

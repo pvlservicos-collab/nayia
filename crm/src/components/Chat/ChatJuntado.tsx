@@ -87,7 +87,7 @@ interface Props {
   /** v2: a aba "Meus" (a padrão) para quem só vê os dele por padrão; "Todos" mostra o resto */
   meus?: (lead: LeadWithOwner) => boolean
   /** v2, aba Visita: as conversas em cards, um por visita (o topo de cada card, quem entra nele e a cor da borda).
-   *  `removiveis` são os ids de quem pode sair do card pelo x (quem foi posto à mão); `aoRemover` tira. */
+   *  `removiveis` são os ids de quem pode sair do card (o x e o "Excluir da visita"); `aoRemover` tira. */
   grupos?: (visiveis: LeadWithOwner[]) => Array<{
     chave: string; topo: ReactNode; leads: LeadWithOwner[]; cor?: string
     removiveis?: Set<string>; aoRemover?: (leadId: string) => void
@@ -580,8 +580,8 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
             </button>
           )}
           {/* 05/11 (Pedro: "quero poder clicar com o botão direito no lead que faz parte da aba visita em todas as
-              visitas e poder clicar em excluir da visita"): o mesmo x do card, aqui no botão direito -- vale só para
-              quem foi posto à mão nela (removerDaVisitaPor). */}
+              visitas e poder clicar em excluir da visita"): o mesmo x do card, aqui no botão direito, para toda
+              pessoa do card (removerDaVisitaPor). */}
           {removerDaVisitaPor.has(atual.id) && (
             <button type="button" className={item} style={{ color: 'var(--wa-tag-tel)' }}
                     onClick={() => { setMenuEm(null); removerDaVisitaPor.get(atual.id)!() }}>
