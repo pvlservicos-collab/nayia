@@ -1577,6 +1577,25 @@ def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
     # 25-26/10: as camadas sem modelo (o código sozinho, a escolha pelo valor, o card que responde, pediu opções, nunca
     # sem balão): depois_do_modelo, a mesma que os testes rodam
     acoes, passos = depois_do_modelo(conn, lead, r, novas, nossas[-1]["texto"] if nossas else "")
+    if not _baloes_do(r) and not acoes and any(n == "fotos_sem_pedir" for n, _d in passos):
+        # 04/11 (Pedro: "na conversa da Lorena ela perguntou e a Nay não respondeu, não pode abandonar um cliente assim"):
+        # o modelo só pôs a ação fotos, a trava das fotos repetidas tirou a ação e o turno ficou mudo ("Só tem 1
+        # dormitório?" e os bairros dela, sem resposta). Uma segunda chamada, avisada: responder em texto.
+        for nome, detalhe in passos:
+            agentes.passo(lead, nome, detalhe)
+        aviso_fotos = ("ATENÇÃO: as fotos desse imóvel JÁ FORAM mandadas a ela e ela não pediu de novo. NÃO use a ação "
+                       "fotos e não prometa fotos nem informações. RESPONDA EM TEXTO, no balão, ao que ela escreveu agora "
+                       "(use a ficha do imóvel; o que não estiver lá, diga que vai confirmar) e siga o roteiro.")
+        agentes.passo(lead, "chamou_de_novo", "só a ação fotos, que já foram: responder em texto")
+        r = modelo.chamar(prompt, turno + "\n\n" + aviso_fotos, no="olx.whatsapp")
+        u4 = modelo.ultimo_uso()
+        uso = {**u4, **{k: (uso.get(k) or 0) + (u4.get(k) or 0) for k in ("ms", "tokens_entrada", "tokens_saida", "tokens_cache")}}
+        acoes, passos = depois_do_modelo(conn, lead, r, novas, nossas[-1]["texto"] if nossas else "")
+        if not _baloes_do(r) and not acoes and any("?" in (n or "") for n in novas):
+            # ainda mudo e ela perguntou: a dúvida vai à equipe e ela ouve que vamos confirmar (nunca sem resposta)
+            acoes = ["perguntar"]
+            r["baloes"] = [BALAO_SEM_RESPOSTA["perguntar"]]
+            passos.append(("balao_sem_resposta", "ainda sem balão depois da segunda chamada: a dúvida vai à equipe"))
     for nome, detalhe in passos:
         agentes.passo(lead, nome, detalhe)
     r["_novas"] = novas
