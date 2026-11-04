@@ -8,6 +8,9 @@
  *   Tipo            o tipo de contato (cor na lista); o lápis do menu edita a lista de tipos
  *   Rayssa          a conversa aparece na aba Rayssa da Parceria, com a faixa "Conversando pelo número Leads";
  *                   a Nay Leads cala (etapa 'rayssa' da captação)
+ *   Diego           (04/11, Pedro: "um botão no lead do WhatsApp Leads, Enviar para Diego, que ele aparece ao Diego") o lead
+ *                   vai para a locação (atendimento_locacao), que é do Diego, e ele fica como quem atende (a bordinha);
+ *                   já na locação, o botão tira
  *   Administração   o tipo vira Administração: a conversa sai das abas do número e vai para o Chat Administração (só o Tel)
  *   Dentro de…      põe esta conversa dentro de outra (a setinha da lista), ou tira
  */
@@ -39,9 +42,11 @@ interface Props {
   soDevolver?: string
   /** 03/11 (Pedro): só o administrador (o Tel) adiciona pessoa à conversa; a lista é da equipe (lib/atendentes) */
   equipe?: { id: string; nome: string; cor: string }[]
+  /** 04/11: a conversa do Leads já está na locação (do Diego); sem o valor, o botão do Diego não aparece */
+  naLocacao?: boolean
 }
 
-export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar, soDevolver, equipe }: Props) {
+export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar, soDevolver, equipe, naLocacao }: Props) {
   const { tipos, salvar } = useTiposDeContato()
   const [menu, setMenu] = useState<'' | 'tipo' | 'dentro' | 'editar' | 'pessoas'>('')
   const [ocupado, setOcupado] = useState('')
@@ -80,6 +85,11 @@ export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar, soDevol
     }).catch(() => undefined)
   })
   const enviarAdministracao = () => fazer('Enviado para a Administração', { tipo: 'administracao' })
+  // 04/11: para o Diego = a locação; tirar devolve para o atendimento de vendas (e ele deixa de ser quem atende)
+  const doDiego = String(lead.custom_attributes?.responsavel_v2?.nome || '').trim().toLowerCase().startsWith('diego')
+  const enviarDiego = () => (naLocacao
+    ? fazer('Tirado da locação', { locacao: false, ...(doDiego ? { responsavel: null } : {}) })
+    : fazer('Enviado para o Diego', { locacao: true, responsavel: { nome: 'Diego' } }))
 
   const botao = 'flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-[13px] font-semibold flex-shrink-0'
   const borda = { border: '1px solid var(--wa-divider)', color: 'var(--wa-text)' }
@@ -112,6 +122,15 @@ export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar, soDevol
         {ocupado === 'Enviado para a Rayssa' ? <CircleNotch size={16} className="animate-spin" /> : <PaperPlaneRight size={16} />}
         <span className="hidden xl:inline">Enviar para Rayssa</span>
       </button>
+      {naLocacao !== undefined && (
+        <button type="button" className={botao} onClick={enviarDiego} disabled={!!ocupado}
+                style={naLocacao ? borda : { ...borda, background: '#38bdf8', borderColor: '#38bdf8', color: '#fff' }}
+                title={naLocacao ? 'Está na locação, com o Diego: tira e volta para o atendimento de vendas'
+                                 : 'Manda este lead para a locação: ele aparece para o Diego, com a bordinha dele'}>
+          {ocupado === 'Enviado para o Diego' || ocupado === 'Tirado da locação' ? <CircleNotch size={16} className="animate-spin" /> : <HouseLine size={16} />}
+          <span className="hidden xl:inline">{naLocacao ? 'Com o Diego · tirar' : 'Enviar para Diego'}</span>
+        </button>
+      )}
       <button type="button" className={botao} style={borda} onClick={enviarAdministracao} disabled={!!ocupado}
               title="O contato vira Administração: sai das abas deste número e vai para o Chat Administração (só o Tel vê)">
         {ocupado === 'Enviado para a Administração' ? <CircleNotch size={16} className="animate-spin" /> : <FolderSimpleUser size={16} />}

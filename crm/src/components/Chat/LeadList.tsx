@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from 'react'
+import { pessoaV2, primeiroNome, usePapelV2, type QuemAtende } from '@/lib/versaoDoCrm'
 import { LeadWithOwner, SearchHit } from '@/lib/types'
 import { MagnifyingGlass, PushPin, Archive, ArrowCounterClockwise, ArrowLeft, Check, X, ChatCircleText, ChatCircleDots, Tag as TagIcon, TreeStructure } from '@phosphor-icons/react'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
@@ -161,6 +162,22 @@ function ehConversaVisivel(lead: LeadWithOwner): boolean {
   return new Date(lead.last_activity_at).getTime() >= limite
 }
 
+/* 04/11 (Pedro: "no do Tel aparece todos, mas os de locação que o Diego for atendendo aparecem com a bordinha com o nome
+   do Diego"): a mesma borda em pé das telas que juntam os números (ChatJuntado) */
+function ComBorda({ quem, children }: { quem: QuemAtende | null; children: ReactNode }) {
+  if (!quem) return <>{children}</>
+  return (
+    <div className="flex items-stretch">
+      <div className="w-[20px] flex-shrink-0 flex items-center justify-center" style={{ background: quem.cor }} title={`Quem atende: ${quem.nome}`}>
+        <span className="text-[10px] font-bold text-white whitespace-nowrap tracking-wide" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+          {quem.nome}
+        </span>
+      </div>
+      <div className="flex-1 min-w-0">{children}</div>
+    </div>
+  )
+}
+
 export default function LeadList({
   leads,
   linha,
@@ -231,6 +248,13 @@ export default function LeadList({
   /* OS CLIENTES DA OLX (Pedro, 16/10/2026: "novas etapas na aba captação baseada nas etapas da nay que está atendendo").
      A etapa vem da Nay do WhatsApp dos clientes da OLX (src/lib/olxClientes.ts); só na aba Captação, que é o número dela. */
   const olxClientes = useOlxClientes(linha === 'captacao')
+  // 04/11: a locação do Leads é do Diego; quem não é ele vê a bordinha (a marca à mão vale; sem ela, a finalidade da Nay)
+  const euNaV2 = primeiroNome(usePapelV2().nome)
+  const bordaDaLocacao = (l: LeadWithOwner): QuemAtende | null => {
+    if (linha !== 'captacao' || euNaV2 === 'diego' || getLinhaWhatsapp(l) !== 'captacao') return null
+    const m = (l.custom_attributes as any)?.atendimento_locacao
+    return m === true || (m !== false && olxClientes[fim8(l.phone)]?.finalidade === 'locacao') ? pessoaV2('diego') : null
+  }
   /* 16/10 (Pedro: "no CRM número captação pôr a aba proprietário também"): Proprietários da Captação vale como o da
      Parceria -- quem é dono de imóvel no cadastro entra, além do dono da campanha (migração 397) */
   const donosDoCadastro = useDonosDoCadastro(linha === 'captacao')
@@ -1118,6 +1142,7 @@ export default function LeadList({
               const aberto = !!relacionadosAbertos[lead.id]
               return (
                 <div key={lead.id}>
+                <ComBorda quem={bordaDaLocacao(lead)}>
                 <LeadListItem
                   lead={lead}
                   isSelected={selectedLeadId === lead.id}
@@ -1156,6 +1181,7 @@ export default function LeadList({
                   } : undefined}
                   aoAlternarRelacionados={filhos.length ? alternarRelacionados : undefined}
                 />
+                </ComBorda>
                 {/* 517: os contatos relacionados, um pouco mais para dentro, com o fio à esquerda */}
                 {aberto && filhos.length > 0 && (
                   <div className="ml-7 mb-1" style={{ borderLeft: '2px solid var(--wa-divider)' }}>

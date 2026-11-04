@@ -29,6 +29,8 @@ import { apareceNaAba, faixaDeOutraLinha, mostrarTambemEm, mudouPara, LINHAS_MIS
 import type { Organizado } from './OrganizarConversa'
 import { usePuxador } from '@/hooks/usePuxador'
 import { useCaptacaoDonos } from '@/hooks/useCaptacaoDonos'
+import { useOlxClientes } from '@/hooks/useOlxClientes'
+import { fim8 as fimDoTelefone } from '@/lib/olxClientes'
 
 /** Última conversa aberta nesta tela, pra reabrir no próximo acesso. */
 const CHAVE_ULTIMA_CONVERSA = 'crm:ultima-conversa:whatsapp'
@@ -322,6 +324,13 @@ export default function ChatWhatsApp({ linha, filtro, extraNoTopo }: {
   }, [])
 
   const isAdmin = isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || permissions?.['*']
+  /* 04/11 (Enviar para Diego): a conversa do Leads está na locação? A marca à mão vale; sem ela, a finalidade que a Nay
+     entendeu (a mesma regra de usePapelDoContato.ehLocacao) */
+  const clientesDaOlx = useOlxClientes(linha === 'captacao')
+  const naLocacao = (l: LeadWithOwner): boolean => {
+    const m = (l.custom_attributes as any)?.atendimento_locacao
+    return m === true || (m !== false && clientesDaOlx[fimDoTelefone(l.phone)]?.finalidade === 'locacao')
+  }
   if (!loading && !isAdmin && permissions && !permissions.settings?.view_chat) return <NotAuthorized />
 
   if (loading || leadsLoading || (!isAdmin && !permissions)) {
@@ -379,6 +388,7 @@ export default function ChatWhatsApp({ linha, filtro, extraNoTopo }: {
         : linha === 'captacao'
         ? <OrganizarConversa lead={displayedLead} tipoDeduzido={getLinhaWhatsapp(displayedLead) === 'parceria' ? 'corretor' : null}
                              equipe={isAdmin ? equipeDaConversa : undefined}
+                             naLocacao={getLinhaWhatsapp(displayedLead) === 'captacao' ? naLocacao(displayedLead) : undefined}
                              aoMudar={(o) => aplicarOrganizacao(displayedLead.id, o)} />
         : undefined}
         {/* 04/11 (Pedro): Enviar para captação, ao lado do Enviar para administração, nos dois números */}
