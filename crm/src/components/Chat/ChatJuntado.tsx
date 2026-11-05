@@ -247,8 +247,9 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
   /* v2, aba Visita: os grupos (um por visita) calculados uma vez, para desenhar os cards e para o "Excluir da visita"
      do botão direito saber, de qualquer lead, se ele pode sair e por qual card (05/11, Pedro: "quero poder clicar com
      o botão direito no lead que faz parte da aba visita em todas as visitas e poder clicar em excluir da visita") */
-  const gruposNaTela = useMemo(() => grupos ? grupos(visiveis.filter((l) => !fixos?.ids.has(l.id))) : null,
-    [grupos, visiveis, fixos])
+  // 05/11 (Pedro: "o Diego equipe pode entrar dentro dos cards de visita e continuar lá em cima fixado"): o fixado também
+  // entra nos cards
+  const gruposNaTela = useMemo(() => grupos ? grupos(visiveis) : null, [grupos, visiveis])
   const removerDaVisitaPor = useMemo(() => {
     const m = new Map<string, () => void>()
     for (const g of gruposNaTela || []) for (const id of g.removiveis || []) m.set(id, () => g.aoRemover?.(id))

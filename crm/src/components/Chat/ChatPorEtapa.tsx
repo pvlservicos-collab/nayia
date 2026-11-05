@@ -335,7 +335,9 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
   // 04/11: quem só usa a Parceria (a Rayssa) não carrega as leituras do Leads aqui
   // 05/11 (Pedro: "aba visita demora demais pra carregar"): o papel do contato (5 leituras) só serve aos Proprietários, e a
   // Visita só pede as visitas abertas e as fechadas dos últimos 2 dias (a realizada fica 24 h), não a história inteira
-  const { ehProprietario } = usePapelDoContato(etapa === 'proprietarios', !acessoV2(papel.admin, papel.nome, papel.abas).soOsNumerosDela)
+  // na Visita só o ehVisita (as marcas da Parceria e a etiqueta Visita), sem as 4 leituras do Leads
+  const { ehProprietario, ehVisita } = usePapelDoContato(etapa === 'proprietarios' || etapa === 'visita',
+    etapa === 'proprietarios' && !acessoV2(papel.admin, papel.nome, papel.abas).soOsNumerosDela)
   const { marcas } = useParceriaMarcas(true)
   const donos = useCaptacaoDonos(etapa === 'proprietarios')
   const { visitas, recarregar } = useVisitasParceria(etapa === 'visita', 2)
@@ -464,7 +466,14 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
   const acompanhantes = useMemo(() => new Set(leads.filter((l) => !l.is_group && getLinhaWhatsapp(l) === 'parceria'
     && marcas[l.id]?.acompanhante).map((l) => l.id)), [leads, marcas])
   const daVisita = useMemo(() => new Set(Array.from(conversasDaVisita.values()).flat()), [conversasDaVisita])
-  const naVisita = useCallback((l: LeadWithOwner) => daVisita.has(l.id) || acompanhantes.has(l.id), [daVisita, acompanhantes])
+  /* NA ETAPA VISITA, SEM VISITA LIGADA (05/11, Pedro: "a visita da Joyce não apareceu o contato dela na aba visita; o Tel
+     tinha colocado ela em visita no pipeline"): a etiqueta (ou a etapa) Visita tira a conversa do Atendimento, e sem visita
+     ligada ela não entrava em card nenhum -- sumia. Agora fica num card próprio, para ligar à visita */
+  const semVisita = useMemo(() => etapa !== 'visita' ? new Set<string>() : new Set(leads.filter((l) => !l.is_group
+    && ['captacao', 'parceria'].includes(getLinhaWhatsapp(l) || '') && ehVisita(l) && !daVisita.has(l.id) && !acompanhantes.has(l.id))
+    .map((l) => l.id)), [etapa, leads, ehVisita, daVisita, acompanhantes])
+  const naVisita = useCallback((l: LeadWithOwner) => daVisita.has(l.id) || acompanhantes.has(l.id) || semVisita.has(l.id),
+    [daVisita, acompanhantes, semVisita])
 
   const mudarStatus = async (v: VisitaNaTela, s: Status) => {
     if (s.acao === 'cancelada' && !window.confirm(`Cancelar a visita de ${rotuloDaVisita(v)}? Ninguém é avisado, e o card some.`)) return
@@ -604,6 +613,20 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
                          removiveis: new Set(conversasDaVisita.get(v.id) || []),
                          aoRemover: (leadId: string) => void removerDaVisita(leadId, v.id),
                        })).filter((g) => g.leads.length > 0)
+                         .concat((() => {
+                           const sem = visiveis.filter((l) => semVisita.has(l.id) && (!buscaDaVisita.trim() || casaNaBusca(buscaDaVisita, l)))
+                           return sem.length && !alvo ? [{
+                             chave: 'sem-visita', cor: '#d97706', leads: sem, removiveis: new Set<string>(), aoRemover: () => undefined,
+                             topo: (
+                               <div className="flex flex-col gap-0.5">
+                                 <span className="font-semibold" style={{ color: '#d97706' }}>Na etapa Visita, sem visita ligada</span>
+                                 <span className="text-[12px]" style={{ color: 'var(--wa-text-2)' }}>
+                                   Ligue cada conversa à visita dela pelo + do alto, ou crie a visita no card do contato
+                                 </span>
+                               </div>
+                             ),
+                           }] : []
+                         })())
                      }} />
         )}
         </div>
