@@ -19,6 +19,9 @@ import { Check, CircleNotch, MagnifyingGlass, PaperPlaneRight, Plus, Tag, Trash,
 import type { LeadWithOwner, SearchHit } from '@/lib/types'
 import { useTiposDeContato } from '@/hooks/useTiposDeContato'
 import { acharTipo, dentroDe, pessoasDe, type TipoDeContato } from '@/lib/organizacaoDoLead'
+import { marcarEtiqueta, useEtiquetas } from '@/lib/etiquetas'
+import { useLeadsContext } from '@/contexts/LeadsContext'
+import { recarregarMarcasDaParceria } from '@/hooks/useParceriaMarcas'
 
 const fim8 = (t: string | null | undefined) => String(t || '').replace(/\D/g, '').slice(-8)
 
@@ -97,12 +100,36 @@ export default function OrganizarConversa({ lead, tipoDeduzido, aoMudar, soDevol
 
   const jaNaCaptacao = lead.custom_attributes?.conversa_captacao === true
   const jaNaAdministracao = escolhido === 'administracao'
+  /* FECHAMENTO E PROPRIETÁRIOS (05/11, Pedro: "no enviar para tem que ter enviar para fechamento, enviar para administração e
+     enviar para proprietário se não tiver; essas o lead some de onde estava e vai para lá; só o visita vai quando alguém
+     cadastra uma visita"). No Leads o Fechamento é a etiqueta Fechamento (a que a aba Fechamento lê, hooks/useFechamentoV2),
+     e Proprietários é o tipo do contato. */
+  const { setLeads } = useLeadsContext()
+  const etiquetaFechamento = useEtiquetas().find((t) => (t.nomeOriginal || t.name) === 'Fechamento')
+  const jaNoFechamento = !!etiquetaFechamento && (lead.lead_tags || []).some((lt: any) => lt.tag_id === etiquetaFechamento.id)
+  const jaProprietario = escolhido === 'proprietario'
+  const enviarFechamento = async () => {
+    if (!etiquetaFechamento) { setAviso('Não achei a etiqueta Fechamento.'); return }
+    setOcupado('Fechamento'); setAviso('')
+    try {
+      await marcarEtiqueta(lead.id, etiquetaFechamento.id, true)
+      setLeads((p) => p.map((x) => (x.id === lead.id ? { ...x, lead_tags: [...(x.lead_tags || []).filter((lt: any) => lt.tag_id !== etiquetaFechamento.id),
+        { tag_id: etiquetaFechamento.id, tag: { id: etiquetaFechamento.id, name: etiquetaFechamento.name, color: etiquetaFechamento.color } } as any] } : x)))
+      setAviso('Enviado para o Fechamento')
+      setTimeout(() => setAviso(''), 2500)
+    } catch (e: any) { setAviso(e?.message || 'Não consegui enviar para o Fechamento.') } finally { setOcupado('') }
+  }
   // 04/11 (Pedro: "um botão que abre uma lista suspensa, seleciono onde e clico enviar, no lugar das várias opções de enviar")
   const opcoesDeEnvio: OpcaoDeEnvio[] = [
     { chave: 'rayssa', rotulo: 'Rayssa (Parceria)', acao: enviarRayssa,
       dica: 'A conversa sai do Leads e vai para a aba Rayssa da Parceria, no topo (a resposta continua saindo por este número); a Nay para de responder' },
     ...(naLocacao !== undefined ? [{ chave: 'diego', rotulo: naLocacao ? 'Tirar da locação (Diego)' : 'Diego (locação)', acao: enviarDiego,
       dica: naLocacao ? 'Está na locação, com o Diego: tira e volta para o atendimento de vendas' : 'Manda este lead para a locação: ele aparece para o Diego' }] : []),
+    { chave: 'fechamento', rotulo: jaNoFechamento ? 'Fechamento (já está)' : 'Fechamento', desabilitada: jaNoFechamento, acao: enviarFechamento,
+      dica: 'O lead sai do Atendimento e vai para a aba Fechamento (só o Tel vê, e quem ele incluir)' },
+    { chave: 'proprietario', rotulo: jaProprietario ? 'Proprietários (já está)' : 'Proprietários', desabilitada: jaProprietario,
+      acao: () => fazer('Enviado para Proprietários', { tipo: 'proprietario' }),
+      dica: 'O contato vira Proprietário: sai da fila em que estava e vai para Proprietários' },
     { chave: 'administracao', rotulo: jaNaAdministracao ? 'Administração (já está)' : 'Administração', desabilitada: jaNaAdministracao, acao: enviarAdministracao,
       dica: 'O contato vira Administração: sai das abas deste número e vai para o Chat Administração (só o Tel vê)' },
     { chave: 'captacao', rotulo: jaNaCaptacao ? 'Captação (já está)' : 'Captação', desabilitada: jaNaCaptacao,
@@ -348,14 +375,35 @@ export function EnviarParaDaParceria({ lead, aoMudar }: { lead: LeadWithOwner; a
   const [aviso, setAviso] = useState('')
   const jaAdm = lead.custom_attributes?.tipo_contato === 'administracao'
   const jaCap = lead.custom_attributes?.conversa_captacao === true
+  const etapa = lead.custom_attributes?.etapa_parceria
   const ir = (rotulo: string, corpo: Record<string, unknown>) => async () => {
     setOcupado(true); setAviso('')
     try { aoMudar(await organizar(lead.id, corpo)); setAviso(rotulo) } catch (e: any) { setAviso(e?.message || 'Não consegui.') }
     finally { setOcupado(false); setTimeout(() => setAviso(''), 2500) }
   }
+  // 05/11: Fechamento e Proprietários na Parceria são a etapa (a mesma do card), e a Nay da Parceria fica sabendo
+  const paraEtapa = (rotulo: string, etapaNova: 'fechamento' | 'proprietarios', corpo: Record<string, unknown>) => async () => {
+    setOcupado(true); setAviso('')
+    try {
+      const r = await fetch(`/api/leads/${lead.id}/contato`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ etapa: etapaNova }),
+      })
+      if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || j.message || 'Não consegui mudar a etapa.') }
+      aoMudar(await organizar(lead.id, corpo))
+      void recarregarMarcasDaParceria(true)
+      setAviso(rotulo)
+    } catch (e: any) { setAviso(e?.message || 'Não consegui.') } finally { setOcupado(false); setTimeout(() => setAviso(''), 2500) }
+  }
   return (
     <div className="relative">
       <ListaEnviarPara ocupado={ocupado} opcoes={[
+        { chave: 'fechamento', rotulo: etapa === 'fechamento' ? 'Fechamento (já está)' : 'Fechamento', desabilitada: etapa === 'fechamento',
+          acao: paraEtapa('Enviado para o Fechamento', 'fechamento', {}),
+          dica: 'A conversa sai do Atendimento e vai para a aba Fechamento (só o Tel vê, e quem ele incluir)' },
+        { chave: 'proprietario', rotulo: lead.custom_attributes?.tipo_contato === 'proprietario' ? 'Proprietários (já está)' : 'Proprietários',
+          desabilitada: lead.custom_attributes?.tipo_contato === 'proprietario',
+          acao: paraEtapa('Enviado para Proprietários', 'proprietarios', { tipo: 'proprietario' }),
+          dica: 'O contato vira Proprietário: sai da fila em que estava e vai para Proprietários' },
         { chave: 'administracao', rotulo: jaAdm ? 'Administração (já está)' : 'Administração', desabilitada: jaAdm,
           acao: ir('Enviado para a Administração', { tipo: 'administracao' }),
           dica: 'A conversa sai das abas da Parceria e vai para o Chat Administração (só o Tel vê)' },

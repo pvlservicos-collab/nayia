@@ -12,7 +12,8 @@
  *               volta ao de Atendimento (o mesmo jeito da caixinha Proprietários do quadro antigo)
  */
 import { useMemo, useState } from 'react'
-import { CircleNotch } from '@phosphor-icons/react'
+import { CircleNotch, MagnifyingGlass, X } from '@phosphor-icons/react'
+import { casaNaBusca } from './BuscaDaLista'
 import type { LeadWithOwner } from '@/lib/types'
 import { ETAPAS_OLX } from '@/lib/olxClientes'
 import { mudarEtapaOlx } from '@/hooks/useOlxClientes'
@@ -53,17 +54,19 @@ export default function PipelineV3({ organizationId, linhas, leads, etapaDe, car
   const [salvando, setSalvando] = useState<string | null>(null)
   // o que acabou de ser arrastado vale na hora, até a leitura da Nay confirmar
   const [movidos, setMovidos] = useState<Record<string, string>>({})
+  // 05/11 (Pedro: "põe uma lupa lá no pipeline para buscar leads por lá"): nome ou número, a mesma busca da lista
+  const [busca, setBusca] = useState('')
 
   const porColuna = useMemo(() => {
     const m = new Map<string, LeadWithOwner[]>(COLUNAS.map((c) => [c.chave, []]))
     for (const l of leads) {
-      if (l.is_archived) continue
+      if (l.is_archived || (busca.trim() && !casaNaBusca(busca, l))) continue
       const e = movidos[l.id] || etapaDe(l)
       if (!e) continue
       ;(m.get(e) || m.get('nova')!).push(l)
     }
     return m
-  }, [leads, etapaDe, movidos])
+  }, [leads, etapaDe, movidos, busca])
   const total = Array.from(porColuna.values()).reduce((n, c) => n + c.length, 0)
 
   const mover = async (l: LeadWithOwner, para: string) => {
@@ -104,7 +107,15 @@ export default function PipelineV3({ organizationId, linhas, leads, etapaDe, car
         <span className="text-[15px] font-semibold" style={{ color: 'var(--wa-text)' }}>
           {funil ? FUNIS.find((f) => f.linha === funil)?.rotulo : 'Pipeline de atendimento'}
         </span>
-        {!funil && <span className="text-[12px]" style={{ color: 'var(--wa-text-2)' }}>As etapas da Nay · {total} {total === 1 ? 'lead' : 'leads'} · arraste o card para mudar a etapa</span>}
+        {!funil && <span className="text-[12px]" style={{ color: 'var(--wa-text-2)' }}>As etapas da Nay · {total} {total === 1 ? 'lead' : 'leads'}{busca.trim() ? ' com essa busca' : ''} · arraste o card para mudar a etapa</span>}
+        {!funil && (
+          <label className="wa-busca !h-8 w-full sm:w-[260px]">
+            <MagnifyingGlass size={16} />
+            <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar lead (nome ou número)" aria-label="Buscar lead no pipeline"
+                   onKeyDown={(e) => { if (e.key === 'Escape') setBusca('') }} />
+            {busca && <button type="button" onClick={() => setBusca('')} aria-label="Limpar a busca"><X size={14} /></button>}
+          </label>
+        )}
         <span className="ml-auto flex flex-wrap items-center gap-3">{FUNIS.filter((f) => linhas.includes(f.linha)).map(caixinha)}</span>
       </div>
 
