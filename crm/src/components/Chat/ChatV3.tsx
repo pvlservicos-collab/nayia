@@ -39,7 +39,7 @@ import { useEquipeV2 } from '@/hooks/useEquipeV2'
 import { getLinhaWhatsapp } from '@/lib/leadChannel'
 import { fim8 } from '@/lib/olxClientes'
 import { etapaDaParceria } from '@/lib/etapaDaParceria'
-import { tipoEscolhido, tipoDoLead, TIPOS_DO_LEAD, CORPO_DO_TIPO, NOME_DA_LINHA, mudouPara, type TipoDoLead } from '@/lib/organizacaoDoLead'
+import { tipoEscolhido, TIPOS_DO_LEAD, CORPO_DO_TIPO, NOME_DA_LINHA, mudouPara, type TipoDoLead } from '@/lib/organizacaoDoLead'
 import { montarAtendentes } from '@/lib/atendentes'
 import { acessoV2, primeiroNome, responsavelV2, usePapelV2 } from '@/lib/versaoDoCrm'
 import { ModoV3, FILAS_V3, ETAPAS_V3, CLASSE_DO_AUTOR, EQUIPE_V3, indiceDaEtapa, NOME_DA_ETAPA, type FilaV3 } from '@/lib/modoV3'
@@ -545,13 +545,22 @@ export default function ChatV3() {
   }, [pelaParceria, podeVer, emFechamento, ehVisita, acesso.admin, acesso.linhas.join(), acesso.soLocacao, acesso.semVenda, olx, ehLocacao, leadDoLink])  // eslint-disable-line react-hooks/exhaustive-deps
 
   /** o tipo de agora: o escolhido à mão; senão o que a lista deduz (corretor na Parceria, dono, locação ou venda) */
+  /* VENDA SÓ DE VERDADE (05/11, Pedro: "tem muito lead de vendas, pode ter lead de venda fake lá que são corretores ou outra
+     coisa, dá uma olhada e revisa"): era venda tudo o que sobrava -- dos 138 "Venda" do Leads, 98 a Nay nunca atendeu
+     (captação de set/out: donos, corretores, a equipe, cobrança). Agora venda é só o marcado "Lead de vendas" ou o que a
+     Nay entendeu como venda; o resto fica SEM TIPO (''), só em Todas, com a pílula para escolher. */
   const tipoDe = useCallback((l: LeadWithOwner): TipoDoLead => {
-    const t = tipoDoLead(l, getLinhaWhatsapp(l) === 'captacao', (f) => olx[f]?.finalidade)
-    if (t && tipoEscolhido(l)) return t
+    const escolhido = tipoEscolhido(l)
+    if (escolhido === 'proprietario' || escolhido === 'corretor' || escolhido === 'administracao') return escolhido
+    const loc = (l.custom_attributes as any)?.atendimento_locacao
+    const finalidade = olx[fim8(l.phone)]?.finalidade
+    const doLead = (): TipoDoLead => (loc === true || (loc !== false && finalidade === 'locacao') ? 'locacao'
+      : loc === false || finalidade === 'venda' ? 'vendas' : '')
+    if (escolhido === 'cliente') return doLead()      // "Lead" escolhido à mão: locação, venda ou ainda sem finalidade
     if (ehProprietario(l)) return 'proprietario'
     if (getLinhaWhatsapp(l) === 'parceria' || corretoresDoLeads.has(fim8(l.phone))) return 'corretor'
-    return ehLocacao(l) ? 'locacao' : 'vendas'
-  }, [olx, ehProprietario, corretoresDoLeads, ehLocacao])
+    return doLead()
+  }, [olx, ehProprietario, corretoresDoLeads])
 
   /** a fila pelo tipo (04/11, Pedro: o Evandro é proprietário, não corretor): Administração fica só em Todas, com o anel cinza */
   const filaDe = useCallback((l: LeadWithOwner): FilaV3 | null => {
@@ -559,16 +568,19 @@ export default function ChatV3() {
     const t = tipoDe(l)
     if (t === 'proprietario') return 'proprietarios'
     if (t === 'corretor') return 'corretores'
-    if (t === 'administracao') return null
-    return t === 'locacao' ? 'locacao' : 'venda'
+    if (t === 'locacao') return 'locacao'
+    if (t === 'vendas') return 'venda'
+    return null                                     // Administração e sem tipo: só em Todas
   }, [daTela, tipoDe])
 
   /** a etapa da Nay Leads, só para lead (locação ou venda); corretor e proprietário não entram no funil de lead */
   const etapaNay = useCallback((l: LeadWithOwner): string | null => {
     const f = filaDe(l)
-    if (f !== 'locacao' && f !== 'venda') return null
-    return String(olx[fim8(l.phone)]?.etapa || 'nova')
-  }, [filaDe, olx])
+    const daNay = olx[fim8(l.phone)]
+    // o sem tipo que a Nay está atendendo (ainda sem a finalidade) continua no funil, na etapa dela
+    if (f !== 'locacao' && f !== 'venda' && !(f === null && daNay && daTela(l) && tipoDe(l) === '')) return null
+    return String(daNay?.etapa || 'nova')
+  }, [filaDe, olx, daTela, tipoDe])
 
   /** QUEM RESPONDE (Pedro, 04/11: "só tem eu, Tel, Rayssa, Lucas e Diego; todo o resto está com a tag equipe errada"):
    *  - a pessoa: quem assumiu (responsável), quem mandou a última mensagem pelo CRM ou o "Rayssa: ..." da pausa -- só da equipe
@@ -643,7 +655,7 @@ export default function ChatV3() {
   if (loading) return null
   if (!acesso.admin && !acesso.linhas.length) return <NotAuthorized />
 
-  const rotuloDoTipo = (l: LeadWithOwner) => { const f = filaR(l); return f ? FILAS_V3[f].tipo : 'Administração' }
+  const rotuloDoTipo = (l: LeadWithOwner) => { const f = filaR(l); return f ? FILAS_V3[f].tipo : tipoR(l) === 'administracao' ? 'Administração' : 'Sem tipo' }
   const corDe = (l: LeadWithOwner) => { const f = filaR(l); return f ? corDaFila(f) : CINZA }
   return (
     <ModoV3.Provider value={true}>
