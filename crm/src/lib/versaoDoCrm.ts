@@ -71,13 +71,15 @@ export async function trocarVersaoDoCrm(nova: VersaoDoCrm): Promise<void> {
    Parceria aparecendo; mas o corretor do Leads que alguém mandou com Enviar para Rayssa aparece para ela no chat da
    Parceria, com o aviso embaixo falando pelo número de Leads"): nas telas que juntam os dois números (Visita,
    Proprietários, Fechamento) ela só vê as conversas dos números dela e as que foram ENVIADAS para eles (mudou_para) */
-const FUNCAO_DO_SDR: Record<string, { areas: AreaV2[]; linhas: LinhaDoAtendimento[]; soLocacao?: boolean; soOsNumerosDela?: boolean }> = {
+const FUNCAO_DO_SDR: Record<string, { areas: AreaV2[]; linhas: LinhaDoAtendimento[]; soLocacao?: boolean; soOsNumerosDela?: boolean; semVenda?: boolean }> = {
   // 04/11, mais tarde (Pedro: "libera a aba Visita para o Lucas também"): ele passa a ver a agenda de visitas dos dois
   // números, além da Captação
   lucas: { areas: ['captacao', 'visita'], linhas: [] },
   // 05/11 (Pedro: "o Diego criou um lead e não apareceu em Todos pra ele; pode tirar todo limitador, mesmo contatos de vendas,
   // libera todas as funções de SDR pra ele"): os dois números, venda e locação, sem recorte
-  diego: { areas: ['atendimento', 'visita', 'proprietarios', 'fechamento'], linhas: ['captacao', 'parceria'] },
+  // 05/11, depois (Pedro: "a única coisa oculta para o cadastro do Diego é os leads de vendas"): tudo, menos o lead de VENDA
+  // (marcado "Lead de vendas" ou que a Nay entendeu como venda); o lead novo, sem finalidade, aparece para ele
+  diego: { areas: ['atendimento', 'visita', 'proprietarios', 'fechamento'], linhas: ['captacao', 'parceria'], semVenda: true },
   // 04/11 (Pedro: "libera o WhatsApp Leads para a Rayssa, mas abre primeiro o de Parceria, e o de Leads à direita; só
   // carrega se ela clicar, e quando ela sai, sai, para não pesar"): a Parceria é a primeira; o Leads só carrega aberto
   rayssa: { areas: ['atendimento', 'visita', 'proprietarios', 'fechamento'], linhas: ['parceria', 'captacao'], soOsNumerosDela: true },
@@ -126,7 +128,7 @@ export function caminhoLiberado(abas: AbasDaFuncao, caminho: string): boolean {
   return OUTROS_MENUS.some((m) => !!abas?.[m.chave] && (caminho === m.chave || caminho.startsWith(m.chave + '/')))
 }
 
-export interface AcessoV2 { areas: AreaV2[]; linhas: LinhaDoAtendimento[]; soLocacao: boolean; admin: boolean; soOsNumerosDela?: boolean }
+export interface AcessoV2 { areas: AreaV2[]; linhas: LinhaDoAtendimento[]; soLocacao: boolean; admin: boolean; soOsNumerosDela?: boolean; semVenda?: boolean }
 
 export function acessoV2(admin: boolean, nome: string | null | undefined, abas?: AbasDaFuncao): AcessoV2 {
   if (admin) return { areas: ['captacao', 'atendimento', 'visita', 'proprietarios', 'fechamento', 'administracao', 'oficial'], linhas: ['captacao', 'parceria'], soLocacao: false, admin: true }
@@ -134,7 +136,7 @@ export function acessoV2(admin: boolean, nome: string | null | undefined, abas?:
   const f = FUNCAO_DO_SDR[primeiro]
   const daFuncao = abas && Object.keys(abas).length ? AREAS_V2.map((a) => a.chave).filter((a) => abas[a]) : null
   const linhas = f?.linhas?.length ? f.linhas : (daFuncao?.includes('atendimento') ? (['captacao', 'parceria'] as LinhaDoAtendimento[]) : [])
-  return { areas: daFuncao || f?.areas || [], linhas, soLocacao: !!f?.soLocacao, admin: false, soOsNumerosDela: !!f?.soOsNumerosDela }
+  return { areas: daFuncao || f?.areas || [], linhas, soLocacao: !!f?.soLocacao, admin: false, soOsNumerosDela: !!f?.soOsNumerosDela, semVenda: !!f?.semVenda }
 }
 
 export function primeiroNome(nome: string | null | undefined): string {

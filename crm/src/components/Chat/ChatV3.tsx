@@ -530,12 +530,19 @@ export default function ChatV3() {
     if (!acesso.admin) {
       if (!acesso.linhas.includes(linha) && !acesso.linhas.includes(mudouPara(l) as any)) return false
       if (linha === 'captacao' && acesso.soLocacao && !ehLocacao(l)) return false
+      // o lead de VENDA de verdade (marcado "Lead de vendas" ou que a Nay entendeu como venda); o sem finalidade fica
+      if (acesso.semVenda) {
+        const c = (l.custom_attributes as any) || {}
+        const cliente = !c.tipo_contato || c.tipo_contato === 'cliente'
+        const venda = c.atendimento_locacao === false || (c.atendimento_locacao !== true && olx[fim8(l.phone)]?.finalidade === 'venda')
+        if (cliente && venda) return false
+      }
     }
     if (l.id === leadDoLink) return true
     if (linha === 'captacao' && pelaParceria.has(fim8(l.phone))) return false
     if (emFechamento(l) || ehVisita(l) || tipoEscolhido(l) === 'administracao') return false
     return true
-  }, [pelaParceria, podeVer, emFechamento, ehVisita, acesso.admin, acesso.linhas.join(), acesso.soLocacao, ehLocacao, leadDoLink])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pelaParceria, podeVer, emFechamento, ehVisita, acesso.admin, acesso.linhas.join(), acesso.soLocacao, acesso.semVenda, olx, ehLocacao, leadDoLink])  // eslint-disable-line react-hooks/exhaustive-deps
 
   /** o tipo de agora: o escolhido à mão; senão o que a lista deduz (corretor na Parceria, dono, locação ou venda) */
   const tipoDe = useCallback((l: LeadWithOwner): TipoDoLead => {
