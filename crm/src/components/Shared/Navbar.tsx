@@ -188,11 +188,16 @@ export default function Navbar() {
         .map((i, n, todos) => (menusDaFuncao && !i.mais && todos.slice(0, n).filter((x) => !x.mais).length >= NA_BARRA ? { ...i, mais: true } : i))
     : NAV_ITEMS
   const ITENS: ItemDoMenu[] = ITENS_BASE
-  // as telas da v1 e o Atendimento da v2 abrem a v3 (a conversa pedida por link, ?leadId=, ainda abre na tela do número dela)
+  /* as telas da v1 e o Atendimento da v2 abrem a v3, já com a conversa pedida (05/11, Pedro: "quando eu crio contato novo ele
+     abre em uma versão da v2, deixa tudo funcionando para a v3"): o ?leadId= vai junto. Quem não tem o Atendimento (o Lucas)
+     segue abrindo a conversa na tela do número dela, como antes */
+  const temAtendimento = acesso.areas.includes('atendimento')
   useEffect(() => {
-    if ([...TELAS_DA_V1, '/chat/atendimento'].some((h) => pathname === h || pathname.startsWith(h + '/'))
-        && !searchParams.get('leadId')) router.replace('/chat/v3')
-  }, [pathname, router, searchParams])
+    if (!temAtendimento) return
+    if (![...TELAS_DA_V1, '/chat/atendimento'].some((h) => pathname === h || pathname.startsWith(h + '/'))) return
+    const qs = searchParams.toString()
+    router.replace(qs ? `/chat/v3?${qs}` : '/chat/v3')
+  }, [temAtendimento, pathname, router, searchParams])
   /* na v2, o SDR só entra nas áreas dele: outro endereço leva à primeira delas */
   useEffect(() => {
     if (!v2 || acesso.admin || authLoading || !acesso.areas.length) return

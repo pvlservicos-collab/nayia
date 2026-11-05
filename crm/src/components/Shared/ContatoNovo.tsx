@@ -14,7 +14,8 @@ import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { UserPlus, ChatCircleText } from '@phosphor-icons/react'
 import { useAuth } from '@/hooks'
-import { CAMINHO_DA_LINHA, type LinhaWhatsapp } from '@/lib/leadChannel'
+import { type LinhaWhatsapp } from '@/lib/leadChannel'
+import { comMarcaDeAbertura } from '@/lib/links'
 import { RECUSA_DA_CAPTACAO, soRespondeNaCaptacao } from '@/lib/captacaoSoResponde'
 import { primeiroNome } from '@/lib/versaoDoCrm'
 import { organizar } from '@/components/Chat/OrganizarConversa'
@@ -68,7 +69,8 @@ export default function ContatoNovo() {
         window.location.href = `/chat/captar?leadId=${j.id}`
         return
       }
-      window.location.href = `${CAMINHO_DA_LINHA[linha]}?leadId=${j.id}`
+      // 05/11 (Pedro: "quando eu crio contato novo ele abre em uma versão da v2"): abre na v3
+      window.location.href = comMarcaDeAbertura(`/chat/v3?leadId=${j.id}`)
     } catch (e: any) {
       setErro(e?.message || 'Não consegui abrir a conversa.')
       setAbrindo(null)

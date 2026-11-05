@@ -51,5 +51,7 @@ export async function enviarTexto(leadId: string, texto: string): Promise<void> 
 }
 
 export function irParaConversa(leadId: string, linha: LinhaDeEnvio) {
-  window.location.href = comMarcaDeAbertura(`${CAMINHO_DA_LINHA[linha as LinhaWhatsapp]}?leadId=${leadId}`)
+  // 05/11 (Pedro: "deixa tudo funcionando para a v3"): Leads e Parceria abrem na v3; o Oficial na tela dele
+  window.location.href = comMarcaDeAbertura(linha === 'captacao' || linha === 'parceria'
+    ? `/chat/v3?leadId=${leadId}` : `${CAMINHO_DA_LINHA[linha as LinhaWhatsapp]}?leadId=${leadId}`)
 }

@@ -57,7 +57,7 @@ import { useEtiquetas } from '@/lib/etiquetas'
 import { useTiposDeContato } from '@/hooks/useTiposDeContato'
 import { acharTipo } from '@/lib/organizacaoDoLead'
 import { comMarcaDeAbertura } from '@/lib/links'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import type { PainelV3 } from './PainelContatoCaptacao'
 import OrganizarConversa, { EnviarParaDaParceria, organizar, type Organizado } from './OrganizarConversa'
 
@@ -513,6 +513,10 @@ export default function ChatV3() {
     return () => { vivo = false; clearInterval(t) }
   }, [])
 
+  /* A CONVERSA PEDIDA POR LINK (05/11, Pedro: "deixa tudo funcionando para a v3"): o Contato novo, a busca da OLX, a lupa do
+     alto e o Pipeline abrem aqui (?leadId=). Ela aparece mesmo fora das filas (em Visita, Fechamento...), desde que seja dos
+     números e da pessoa poder vê-la */
+  const leadDoLink = useSearchParams().get('leadId')
   const pelaParceria = useMemo(() => new Set(leads.filter((l) => !l.is_group && getLinhaWhatsapp(l) === 'parceria').map((l) => fim8(l.phone)).filter(Boolean)), [leads])
 
   /* AS ABAS SÃO EXCLUSIVAS (Pedro, 04/11: "se ele está em fechamento não é para estar em atendimento; as únicas abas que não
@@ -521,15 +525,17 @@ export default function ChatV3() {
   const daTela = useCallback((l: LeadWithOwner): boolean => {
     const linha = getLinhaWhatsapp(l)
     if (l.is_group || (linha !== 'captacao' && linha !== 'parceria')) return false
-    if (linha === 'captacao' && pelaParceria.has(fim8(l.phone))) return false
-    if (!podeVer(l) || emFechamento(l) || ehVisita(l) || tipoEscolhido(l) === 'administracao') return false
+    if (!podeVer(l)) return false
     // o SDR, como no Atendimento da v2: só os números dele (ou o que foi enviado para eles) e, no Leads do Diego, só a locação
     if (!acesso.admin) {
       if (!acesso.linhas.includes(linha) && !acesso.linhas.includes(mudouPara(l) as any)) return false
       if (linha === 'captacao' && acesso.soLocacao && !ehLocacao(l)) return false
     }
+    if (l.id === leadDoLink) return true
+    if (linha === 'captacao' && pelaParceria.has(fim8(l.phone))) return false
+    if (emFechamento(l) || ehVisita(l) || tipoEscolhido(l) === 'administracao') return false
     return true
-  }, [pelaParceria, podeVer, emFechamento, ehVisita, acesso.admin, acesso.linhas.join(), acesso.soLocacao, ehLocacao])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pelaParceria, podeVer, emFechamento, ehVisita, acesso.admin, acesso.linhas.join(), acesso.soLocacao, ehLocacao, leadDoLink])  // eslint-disable-line react-hooks/exhaustive-deps
 
   /** o tipo de agora: o escolhido à mão; senão o que a lista deduz (corretor na Parceria, dono, locação ou venda) */
   const tipoDe = useCallback((l: LeadWithOwner): TipoDoLead => {
