@@ -52,7 +52,7 @@ import AbasParceria, { type AbaDaParceria } from './AbasParceria'
 import VisitasAgendadas from './VisitasAgendadas'
 import { DocumentacaoChecklists } from './FechamentoChecklists'
 import ContadorDeVisitas from './ContadorDeVisitas'
-import PipelineBoard from '@/components/Pipeline/PipelineBoard'
+import PipelineV3 from './PipelineV3'
 import { useEtiquetas } from '@/lib/etiquetas'
 import { useTiposDeContato } from '@/hooks/useTiposDeContato'
 import { acharTipo } from '@/lib/organizacaoDoLead'
@@ -644,7 +644,13 @@ export default function ChatV3() {
         {abaDeCima === 'visitas' ? (
           <div className="flex-1 min-h-0 flex"><VisitasAgendadas destaque={null} aoAbrirConversa={(id) => { setAbaDeCima('conversas'); router.push(comMarcaDeAbertura(`/chat/v3?leadId=${id}`)) }} /></div>
         ) : abaDeCima === 'pipeline' ? (
-          <div className="pipeline-no-chat flex-1 min-w-0 min-h-0 flex flex-col">{organizationId && <PipelineBoard organizationId={organizationId} />}</div>
+          /* 05/11 (Pedro: "uma pipeline de atendimento, com as etapas da Nay; os outros só aparecem se marcar") */
+          <PipelineV3 organizationId={organizationId || null}
+                      linhas={acesso.admin ? ['captacao', 'parceria', 'oficial'] : acesso.linhas}
+                      leads={leads.filter(telaR)} etapaDe={etapaR}
+                      cardDe={(l) => ({ cor: corDe(l), tipo: rotuloDoTipo(l), responde: respR(l) })}
+                      comAEquipe={(l) => !!olx[fim8(l.phone)]?.humano} avisar={avisar}
+                      aoAbrir={(id) => { setAbaDeCima('conversas'); router.push(comMarcaDeAbertura(`/chat/v3?leadId=${id}`)) }} />
         ) : abaDeCima === 'fechamento' ? (
           <div className="flex-1 min-h-0 overflow-y-auto"><DocumentacaoChecklists /></div>
         ) : (
