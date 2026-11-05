@@ -5,7 +5,7 @@ import os
 import pathlib
 import sys
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -273,6 +273,212 @@ class Erro4_PerguntaOQueEleJaDisse(unittest.TestCase):
         self.assertEqual(b.sem_pergunta_repetida(baloes, b.ja_perguntado(conversa)),
                          ["Obrigada pelas informações e pelas fotos! E qual é a área em m²?"])
         self.assertEqual(b.sem_pergunta_repetida(["É casa ou apartamento?"], b.ja_perguntado(conversa)), [])
+
+
+# ─────────────────────────── NAY LEADS ───────────────────────────
+LORENA = {"id": 148, "telefone": "92992649301", "codigo": 5724, "enviados": [5724, 9128, 9048], "filtros": {}}
+
+
+class Erro5_Lorena9301_PromessaDeFoto(unittest.TestCase):
+    ULTIMA = "O Estilo Golf tem 2 quartos, sendo 1 suíte. A senhora quer as fotos do Vista dos Jatobás ou do Estilo Golf?"
+
+    def test_ja_te_mando_e_promessa(self):
+        for t in ("Já te mando as fotos do apartamento no Conquista Rio Negro.", "Te mando aqui as informações e as fotos dele.",
+                  "Vou separar as fotos da sala do apartamento no Conquista Rio Negro e já retorno"):
+            self.assertTrue(w.PROMETE_FOTO.search(t), t)
+        self.assertFalse(w.PROMETE_FOTO.search("O Estilo Golf tem 2 quartos, sendo 1 suíte."))
+        self.assertEqual(w.promessa_sem_entrega(["Já te mando as fotos do apartamento no Conquista Rio Negro."], [])[0], [])
+
+    def _depois(self, fotos_antigas: bool):
+        r = {"baloes": ["Já te mando as fotos do apartamento no Conquista Rio Negro."], "acoes": ["fotos"],
+             "fotos": {"codigos": [5724]}}
+        # as fotos do 5724 foram 22 h antes (03/11 12:51): "já foram" sempre, mas não nas últimas 2 h
+        ja_foram = (lambda conn, lead, c, horas=None: horas is None) if fotos_antigas else (lambda *a, **k: True)
+        with mock.patch.object(w, "fotos_ja_foram", side_effect=ja_foram), mock.patch.object(w, "card_visto", return_value=True), \
+                mock.patch.object(w, "_ofertavel", return_value=True):
+            acoes, passos = w.depois_do_modelo(None, dict(LORENA), r, ["Conquista"], self.ULTIMA)
+        return r, acoes, passos
+
+    def test_pediu_foto_de_fotos_antigas_recebe_de_novo(self):
+        r, acoes, _ = self._depois(fotos_antigas=True)
+        self.assertIn("fotos", acoes)
+        self.assertTrue(r["_pediu_foto"])
+        self.assertEqual(w._baloes_do(r), ["Já te mando as fotos do apartamento no Conquista Rio Negro."])
+        with mock.patch.object(w, "fotos_ja_foram", side_effect=lambda conn, lead, c, horas=None: horas is None), \
+                mock.patch.object(w, "card_visto", return_value=True), mock.patch.object(w, "_ofertavel", return_value=True), \
+                mock.patch.object(w, "mandar_imovel") as imovel, mock.patch.object(w, "_marcar"), \
+                mock.patch.object(w, "ja_mandou", return_value=[]), mock.patch.object(w.time, "sleep"), \
+                mock.patch.object(w.agentes, "acao"), mock.patch.object(w.agentes, "passo"):
+            w._fazer(None, dict(LORENA), r, "fotos", {})
+        imovel.assert_called_once_with(None, mock.ANY, 5724, com_card=False, com_fotos=True, repetir=False)
+
+    def test_fotos_de_agora_ha_pouco_nao_repetem_e_a_promessa_sai(self):
+        r, acoes, passos = self._depois(fotos_antigas=False)
+        self.assertNotIn("fotos", acoes)
+        self.assertEqual(w._baloes_do(r), [])                                # "Já te mando as fotos" não sai sem foto
+        self.assertIn("promessa_sem_acao", [n for n, _d in passos])
+        self.assertEqual(w.turno_mudo(r, acoes, passos, ["Conquista"]), "fotos")   # o modelo responde em texto
+
+
+ALEXANDRE = {"id": 155, "telefone": "55997016541", "codigo": 5724, "enviados": [5724], "filtros": {}}
+
+
+class Erro6_Alexandre6541_PerguntaDescartada(unittest.TestCase):
+    def test_o_prompt_resolve_na_hora(self):
+        self.assertIn("Resolva NA HORA", w.PROMPT)
+        self.assertIn("Nunca prometa separar ou mandar foto sem a acao", w.PROMPT)
+        self.assertNotIn("diga que vai separar\n   essas fotos e já retorna", w.PROMPT)
+        from olx import agentes
+        self.assertIsNotNone(agentes.partes_do_prompt(w.PROMPT))           # o corte por caminho continua lendo o PROMPT
+
+    def test_vou_separar_sem_acao_nenhuma_nao_sai(self):
+        r = {"baloes": ["Vou separar as fotos da sala do apartamento no Conquista Rio Negro e já retorno, Sr. Alexandre."],
+             "acoes": []}
+        with mock.patch.object(w, "_ofertavel", return_value=True):
+            acoes, passos = w.depois_do_modelo(None, dict(ALEXANDRE), r, ["Olá boa noite", "Você tem foto da sala?"], "")
+        self.assertEqual(w._baloes_do(r), [])
+        self.assertEqual(w.turno_mudo(r, acoes, passos, ["Você tem foto da sala?"]), "mudo")
+        # com "perguntar" a promessa é cumprida pela fila: fica
+        r = {"baloes": ["Vou separar as fotos da sala do apartamento no Conquista Rio Negro e já retorno."], "acoes": ["perguntar"]}
+        with mock.patch.object(w, "_ofertavel", return_value=True):
+            w.depois_do_modelo(None, dict(ALEXANDRE), r, ["Você tem foto da sala?"], "")
+        self.assertEqual(len(w._baloes_do(r)), 1)
+
+    def _fechar(self, modelo_disse, gente=None, ja_entregue=False):
+        p = {"id": 379, "chave": "55997016541", "codigo": 5724, "criada_em": AGORA - timedelta(minutes=10),
+             "pergunta": "Fotos da sala do apartamento no Conquista Rio Negro (#5724)"}
+
+        def linhas(conn, sql, params=None):
+            return [p] if "FROM pergunta_fila" in sql else [{"id": 155}] if "olx_lead_whatsapp" in sql else []
+        um = mock.Mock(side_effect=lambda conn, sql, params=None: ja_entregue if "EXISTS" in sql else None)
+        with mock.patch.object(w.banco, "linhas", side_effect=linhas), mock.patch.object(w.banco, "um", um), \
+                mock.patch.object(w, "_lead", return_value=dict(ALEXANDRE, humano_em=None)), \
+                mock.patch.object(w, "_gente_escreveu", return_value=gente), \
+                mock.patch.object(w.modelo, "chamar", return_value={"texto": modelo_disse}), \
+                mock.patch.object(w.agentes, "passo"), mock.patch.object(w, "mandar_texto") as texto:
+            n = w.fechar_descartadas(mock.Mock())
+        return n, texto, [c.args[1] for c in um.call_args_list]
+
+    def test_a_pergunta_descartada_e_fechada_com_o_cliente(self):
+        n, texto, sqls = self._fechar("As fotos que tenho do apartamento são essas aí de cima; na visita dá para ver a sala de perto.")
+        self.assertEqual(n, 1)
+        self.assertIn("visita", texto.call_args.args[2])
+        self.assertTrue(any("entregue_em = now()" in s for s in sqls))
+        # o modelo prometeu de novo: vai a frase pronta, sem promessa
+        _, texto, _ = self._fechar("Vou verificar com a equipe e já retorno.")
+        self.assertNotRegex(texto.call_args.args[2], w.PROMESSA)
+        # a equipe falou com ele depois da pergunta, ou ele já recebeu resposta: nada sai
+        n, texto, sqls = self._fechar("x", gente=AGORA)
+        self.assertEqual(n, 0)
+        texto.assert_not_called()
+        self.assertTrue(any("a equipe está na conversa" in s for s in sqls))
+        n, texto, _ = self._fechar("x", ja_entregue=True)
+        texto.assert_not_called()
+
+
+class Erro7_Karoline0222_LocalizacaoInventada(unittest.TestCase):
+    def test_localizacao_so_da_ficha(self):
+        self.assertIn("LOCALIZAÇÃO SÓ DA FICHA", w.PROMPT)
+        self.assertNotIn("Avenidas de referência do bairro\": \"fica no <bairro>", w.PROMPT)
+        linha = {"codigo": 9104, "tipo": "Casa", "condo": None, "bairro": "Parque 10 de Novembro", "quartos": 4,
+                 "valor_venda": None, "valor_aluguel": 6500, "av_conjunto": None,
+                 "av_bairro": "Maneca Marques, Mário Ypiranga, Perimetral, Tancredo Neves"}
+        with mock.patch.object(w.banco, "linhas", return_value=[linha]):
+            l = w.imoveis_da_conversa(None, {"codigo": 9104, "enviados": []})[0]
+        self.assertIn("NÃO são a localização do imóvel", l)
+        self.assertNotIn("avenidas de referência do bairro", l)
+
+
+ALLEFE = {"id": 152, "telefone": "92999992423", "enviados": [5722, 9133], "negocio": "locacao",
+          "filtros": {"finalidade": "locacao", "tipo": "apartamento", "teto": 2200, "bairros": ["Tarumã"], "quartos": 2,
+                      "mobilia": "mobiliado"}}
+
+
+class Erro8_Allefe2423_SimAoAfrouxar(unittest.TestCase):
+    PERGUNTA = "Em Tarumã com 2 quartos não tenho agora; serve um pouco acima de R$ 2.200?"
+
+    def test_serve_sim_aplica_e_busca(self):
+        g, o_que = w.afrouxar_aceito(ALLEFE["filtros"], ["Blz", "Serve sim"], self.PERGUNTA)
+        self.assertEqual(g, {"teto": 2400})                                  # +20% com a folga de 10% da busca
+        r = {"baloes": ["Que bom, Sra. Allefe. Até quanto a senhora consegue chegar no aluguel?"], "acoes": [], "filtros": {}}
+        acoes, passos = w.depois_do_modelo(None, dict(ALLEFE), r, ["Blz", "Serve sim"], self.PERGUNTA)
+        self.assertEqual(acoes, ["buscar"])
+        self.assertEqual(w._filtros(ALLEFE["filtros"], r["filtros"])["teto"], 2400)
+        self.assertFalse(any(x.endswith("?") for x in w._baloes_do(r)))    # nada de "Até quanto consegue chegar?"
+        self.assertIn("afrouxar_aceito", [n for n, _d in passos])
+
+    def test_os_outros_afrouxar_e_o_nao(self):
+        f = ALLEFE["filtros"]
+        self.assertEqual(w.afrouxar_aceito(f, ["sim"], "Em Tarumã com 2 quartos não tenho agora; serve com 1?")[0],
+                         {"aceita_menos_quartos": True})
+        self.assertEqual(w.afrouxar_aceito(f, ["pode ser"], "Em Tarumã não achei agora; serve num bairro vizinho, como Ponta Negra?")[0],
+                         {"bairros": ["Tarumã", "Ponta Negra"]})
+        self.assertEqual(w.afrouxar_aceito(f, ["não, só no Tarumã"], self.PERGUNTA), ({}, ""))
+        self.assertEqual(w.afrouxar_aceito(f, ["Serve sim"], "Quer conhecer o apartamento?"), ({}, ""))
+
+
+class Erro9_Allefe2423_CardSozinho(unittest.TestCase):
+    """21:34: o card do 9132 saiu sozinho. Não foi a Nay: foi o "Enviar imóvel" do CRM (captacao_envio_pedido 52; o 53 e o
+    49 do ...0662 também), que manda só card e fotos."""
+
+    def _enviar(self, humano_em=None, gente=None):
+        pedido = {"id": 52, "telefone": "5592999992423", "codigos": [9132]}
+
+        def linhas(conn, sql, params=None):
+            return [pedido] if "captacao_envio_pedido" in sql else [{"id": 152}] if "olx_lead_whatsapp" in sql else []
+        ordem = mock.Mock()
+        with mock.patch.object(w.banco, "linhas", side_effect=linhas), mock.patch.object(w.banco, "um", return_value=None), \
+                mock.patch.object(w, "_lead", return_value={**ALLEFE, "nome": "Allefe", "humano_em": humano_em}), \
+                mock.patch.object(w, "_ofertavel", return_value=True), mock.patch.object(w, "_gente_escreveu", return_value=gente), \
+                mock.patch.object(w, "ja_mandou", return_value=[]), mock.patch.object(w, "_marcar"), \
+                mock.patch.object(w, "mandar_texto", ordem.texto), mock.patch.object(w, "mandar_imovel", ordem.imovel):
+            w.enviar_pedidos(mock.Mock())
+        return [c[0] for c in ordem.mock_calls]
+
+    def test_o_envio_do_crm_vem_com_uma_frase_antes(self):
+        self.assertEqual(self._enviar(), ["texto", "imovel"])
+        self.assertEqual(self._enviar(humano_em="x"), ["imovel"])           # a equipe está com ela: só o que a equipe mandou
+        self.assertEqual(self._enviar(gente=AGORA), ["imovel"])             # a equipe acabou de escrever
+
+
+class Erro10_Joyce0113_PromessaENegativa(unittest.TestCase):
+    BALOES = ["O endereço exato do galpão no Centro eu passo quando marcarmos a visita.",
+              "Vou separar outros galpões no Centro com aluguel até R$ 5.000 e te mando."]
+
+    def test_a_busca_vazia_tira_a_promessa_de_mandar(self):
+        sobra, tiradas = w.promessa_sem_entrega(self.BALOES, ["buscar"], opcoes_vazias=True)
+        self.assertEqual(sobra, self.BALOES[:1])
+        self.assertEqual(tiradas, self.BALOES[1:])
+        self.assertEqual(w.promessa_sem_entrega(self.BALOES, ["buscar"])[0], self.BALOES)   # achou: a promessa vale
+
+    def _buscar(self, recente: bool):
+        lead = {"id": 160, "telefone": "92999990113", "etapa": "imoveis_enviados", "enviados": [5752], "nome": "Joyce"}
+        f = {"finalidade": "locacao", "tipo": "galpao", "teto": 5000, "bairros": ["Centro", "Cachoeirinha"]}
+        previa = {"b": {"f": f, "achados": [], "proximas": False, "antes_do_veto": [], "ms": 1, "excluir": [], "nomes_recusados": []},
+                  "novos": []}
+        from olx import buscas
+        with mock.patch.object(w, "buscar_na_base", side_effect=AssertionError("a busca prévia vale")), \
+                mock.patch.object(w, "_marcar"), mock.patch.object(w.agentes, "passo"), mock.patch.object(w, "ja_mandou", return_value=[]), \
+                mock.patch.object(buscas, "resultado_da_base", return_value=False), mock.patch.object(buscas, "cliente_avisado"), \
+                mock.patch.object(w.banco, "um", return_value=True), mock.patch.object(w, "pergunta_para_afrouxar", return_value=""), \
+                mock.patch.object(w, "negativa_recente", return_value=recente), mock.patch.object(w, "mandar_texto") as texto:
+            w._buscar_e_mandar(None, lead, f, previa=previa)
+        return texto
+
+    def test_a_negativa_nao_se_repete_em_poucos_minutos(self):
+        self._buscar(recente=True).assert_not_called()
+        self.assertRegex(self._buscar(recente=False).call_args.args[2], w.NEGATIVA)
+        self.assertTrue(w.NEGATIVA.search("Ainda não apareceu nada nesse perfil; vou continuar de olho e te aviso por aqui."))
+
+
+class Erro11_0662_BomDia(unittest.TestCase):
+    def test_bom_dia_que_abre_o_dia_pede_resposta(self):
+        card = [{"texto": "📍 Verdes Mares I ... Código: 9060", "criada_em": datetime(2026, 11, 3, 22, 46, tzinfo=timezone.utc)}]
+        manha = datetime(2026, 11, 4, 11, 26, tzinfo=timezone.utc)
+        self.assertTrue(w.saudacao_que_pede_resposta(["Bom dia!"], card, manha))
+        self.assertFalse(w.saudacao_que_pede_resposta(["Bom dia!"], card, card[0]["criada_em"] + timedelta(minutes=5)))
+        self.assertFalse(w.saudacao_que_pede_resposta(["Obrigada"], card, manha))
+        self.assertFalse(w.saudacao_que_pede_resposta(["Bom dia!"], [], manha))
 
 
 if __name__ == "__main__":
