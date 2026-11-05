@@ -1,7 +1,7 @@
 /**
  * GET /api/parceria/visitas/opcoes -- quem dá para escolher como corretor ao
  * agendar uma visita à mão (Pedro, 01/10/2026): as conversas da Parceria que a
- * Nay reconhece como corretor (e não são da equipe). Só o nome e a conversa: o
+ * Nay reconhece como corretor ou como da equipe (05/11). Só o nome e a conversa: o
  * telefone fica no servidor, a tela manda o id da conversa de volta.
  * Quem não está na lista entra pelo número, digitado no próprio formulário.
  */
@@ -18,8 +18,10 @@ export async function GET(req: NextRequest) {
     const auth = await authenticateRequest(req)
     const conversas = await conversasDaParceria(auth.organizationId)
     const marcas = await marcasDaNay(conversas.map((c) => c.telefone || '').filter(Boolean))
+    // 05/11 (Pedro: "o Diego pesquisou diego no corretor na hora de criar visita e não apareceu ele, tem que aparecer"): a
+    // equipe também entra (quem leva o cliente à visita pode ser alguém de casa)
     const corretores = conversas
-      .filter((c) => { const m = c.telefone ? marcas.get(c.telefone) : undefined; return m?.corretor && !m.equipe })
+      .filter((c) => { const m = c.telefone ? marcas.get(c.telefone) : undefined; return !!(m?.corretor || m?.equipe) })
       .map((c) => {
         const m = marcas.get(c.telefone || '')
         return { leadId: c.id, nome: (m?.corretorNome || c.titulo || '').trim() || 'Sem nome', fim: (c.telefone || '').slice(-4) }
