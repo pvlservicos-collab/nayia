@@ -44,7 +44,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarPlus, CircleNotch, Clock, CalendarBlank, BellRinging, X } from '@phosphor-icons/react'
 import { MODELO_DO_LEMBRETE } from '@/lib/lembreteDaVisitaTexto'
-import { useModoV3 } from '@/lib/modoV3'
 import LembretesDaVisita from './LembretesDaVisita'
 import { diaEmManaus, diaEmManausMais, horaEmManaus, instanteEmManaus } from '@/lib/fusoDeManaus'
 import EscolherImovelDaVisita from './EscolherImovelDaVisita'
@@ -175,9 +174,9 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, corretorIni
   }
 
   // v3 (Pedro, 04/11: "um único botão primário por seção, com a mesma cor de destaque; unifique"): o azul vira o destaque
-  const v3 = useModoV3()
-  const DESTAQUE = v3 ? 'var(--wa-green)' : AZUL
-  const TINTA = v3 ? 'var(--wa-green-ink)' : '#fff'
+  // 05/11 (Pedro: "tudo sobre visita é azul"): a v3 também fica no azul da visita
+  const DESTAQUE = AZUL
+  const TINTA = '#fff'
   const campo = { background: 'var(--wa-app)', color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' }
   const chip = (ligado: boolean) => (ligado
     ? { background: DESTAQUE, color: TINTA }
@@ -186,10 +185,10 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, corretorIni
   const rotulo = 'text-[12px] block mb-1'
 
   return (
-    <div className="w-full text-left rounded-xl p-3" style={v3 ? { border: '1px solid var(--wa-divider)' } : { border: `1px solid ${AZUL}`, background: AZUL_SUAVE }}>
+    <div className="w-full text-left rounded-xl p-3" style={{ border: `1px solid ${AZUL}`, background: AZUL_SUAVE }}>
       <div className="flex items-center gap-1.5 mb-2">
-        <CalendarPlus size={17} weight="fill" style={{ color: v3 ? 'var(--wa-text-2)' : AZUL }} />
-        <b className="text-[14px]" style={{ color: v3 ? 'var(--wa-text)' : AZUL }}>Agendar visita</b>
+        <CalendarPlus size={17} weight="fill" style={{ color: AZUL }} />
+        <b className="text-[14px]" style={{ color: AZUL }}>Agendar visita</b>
         {aoCancelar && (
           <button type="button" onClick={aoCancelar} className="ml-auto wa-icone-btn !w-7 !h-7" aria-label="Fechar"><X size={15} /></button>
         )}

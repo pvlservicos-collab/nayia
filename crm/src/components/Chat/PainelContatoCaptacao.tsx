@@ -662,7 +662,7 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
                                aoCancelar={() => setVisitaAberta(false)} aoAgendar={() => setVisitaAberta(false)} />
               : <AgendarVisita key={lead.id} aoCancelar={() => setVisitaAberta(false)} aoAgendar={() => setVisitaAberta(false)} />
           ) : (
-            <button type="button" onClick={() => setVisitaAberta(true)} style={PRIMARIO_V3}
+            <button type="button" onClick={() => setVisitaAberta(true)} style={{ background: '#2563eb', color: '#fff' }}
                     className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-medium"
                     title="Agendar uma visita à mão: corretor, imóvel, dia, duração e lembrete">
               <CalendarPlus size={14} weight="fill" /> Agendar visita
@@ -673,7 +673,7 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
           <EnviarImovelPelaCaptacao leadId={lead.id} telefone={lead.phone} oficial={oficial} />
         </SecaoV3>
         <SecaoV3 titulo="Agendar follow-up">
-          <div className="-mx-4 -my-3"><AgendarFollowup leadId={lead.id} /></div>
+          <AgendarFollowup leadId={lead.id} />
           {oficial && <p className="pt-2 text-[11px] leading-4" style={{ color: 'var(--wa-text-2)' }}>{AVISO_DAS_24_HORAS}</p>}
         </SecaoV3>
         <SecaoV3 titulo="Cadastrar imóvel">
