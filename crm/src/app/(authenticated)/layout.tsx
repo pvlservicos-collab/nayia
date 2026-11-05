@@ -31,7 +31,7 @@ export default function AuthenticatedLayout({
                 {/* surface-app é o degradê cinza→preto do fundo do app; bg-void
                     fica como cor de base pro caso do degradê não pintar (ex:
                     print/PDF, que costuma descartar background-image). */}
-                <div className="flex flex-col h-[100dvh] bg-void surface-app">
+                <div className="flex flex-col app-zoom bg-void surface-app">
                     <Navbar />
                     {/* Espaço embaixo pra não ficar atrás da barra de navegação inferior fixa (celular) */}
                     <main className="flex-1 overflow-auto scrollbar-hide pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">

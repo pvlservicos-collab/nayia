@@ -2116,3 +2116,7 @@ html {
 .barra-carregando > span { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 999px; background: var(--wa-green, #22c55e); transition: width .5s ease-out; }
 .barra-carregando--indeterminada > span { width: 35%; animation: barra-carregando-vai 1.1s ease-in-out infinite; }
 @keyframes barra-carregando-vai { 0% { left: -35%; } 100% { left: 100%; } }
+
+/* O ZOOM DO CRM (05/11, o + e - do alto: components/Shared/TamanhoDasConversas.tsx): a tela inteira cresce ou diminui; a
+   altura é compensada para continuar ocupando a tela (100dvh dividido pelo zoom) */
+.app-zoom { zoom: var(--zoom-app, 1); height: calc(100dvh / var(--zoom-app, 1)); }
