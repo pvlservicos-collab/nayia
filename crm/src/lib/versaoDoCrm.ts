@@ -180,7 +180,8 @@ export function responsavelV2(lead: { custom_attributes?: any; autores_manuais?:
 /** os endereços de cada área (o primeiro é o que o menu abre) */
 export const CAMINHOS_DA_AREA: Record<AreaV2, string[]> = {
   captacao: ['/chat/captar'],
-  atendimento: ['/chat/atendimento'],
+  // 05/11 (Pedro: "a v3 para todos"): o Atendimento é o da v3; o da v2 fica como reserva (o endereço leva à v3)
+  atendimento: ['/chat/v3', '/chat/atendimento'],
   visita: ['/chat/visita'],
   proprietarios: ['/chat/proprietarios'],
   fechamento: ['/chat/fechamento'],

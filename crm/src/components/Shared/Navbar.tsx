@@ -45,7 +45,7 @@ import GlobalSearch from '@/components/Shared/GlobalSearch'
 import ContatoNovo from '@/components/Shared/ContatoNovo'
 import TamanhoDasConversas from '@/components/Shared/TamanhoDasConversas'
 import { usePipelineFilters } from '@/contexts/FilterContext'
-import { useVersaoDoCrm, trocarVersaoDoCrm, acessoV2, podeEntrar, CAMINHOS_DA_AREA, SDRS_V2, usePapelV2, useVerComo, temMenusDaFuncao, menuLiberado, caminhoLiberado, primeiroNome, type AreaV2 } from '@/lib/versaoDoCrm'
+import { acessoV2, podeEntrar, CAMINHOS_DA_AREA, SDRS_V2, usePapelV2, useVerComo, temMenusDaFuncao, menuLiberado, caminhoLiberado, type AreaV2 } from '@/lib/versaoDoCrm'
 
 /* O MENU (Pedro, 08/10/2026): "retire a aba início, deixe quando a pessoa logar já abre no whatsapp parceria,
    e coloca grupos, corretores e configuração em um só menu + Mais e coloca uma nova aba chamada Chat OLX".
@@ -129,7 +129,8 @@ const NAV_ITEMS: ItemDoMenu[] = [
    o Tel vê tudo e tem o resto da v1 no "+ Mais". O WhatsApp Oficial só para o Tel ("por enquanto"). */
 const ITENS_V2: ItemDoMenu[] = [
   { label: 'Captação', href: '/chat/captar', icon: HouseLine, area: 'captacao' },
-  { label: 'Atendimento', href: '/chat/atendimento', icon: WhatsappLogo, area: 'atendimento' },
+  // 05/11 (Pedro: "a v3 para todos"): o Atendimento é o da v3
+  { label: 'Atendimento', href: '/chat/v3', icon: WhatsappLogo, area: 'atendimento' },
   { label: 'Visita', href: '/chat/visita', icon: CalendarCheck, area: 'visita' },
   { label: 'Proprietários', curto: 'Donos', href: '/chat/proprietarios', icon: IdentificationBadge, area: 'proprietarios' },
   // 04/11 (Pedro): Fechamento, a última etapa (só o Tel e quem ele incluir), e o Chat Administração (só o Tel)
@@ -139,7 +140,9 @@ const ITENS_V2: ItemDoMenu[] = [
 ]
 
 /** Onde o CRM abre: depois do login, no logo e no endereço "/". */
-const PAGINA_INICIAL = '/chat/parceria'
+const PAGINA_INICIAL = '/chat/v3'
+/** as telas da v1 (um WhatsApp por número) que a v3 substitui: ficam no código, fora do menu, e o endereço abre a v3 */
+const TELAS_DA_V1 = ['/chat/parceria', '/chat/captacao']
 
 // Destinos mais usados — ficam sempre à mão na barra inferior do celular.
 // Os demais (Configurações, Funil de Mensagens, Métricas) ficam atrás do "Mais",
@@ -159,15 +162,18 @@ export default function Navbar() {
   /* A aba acesa e a de caminho MAIS LONGO que casa com o endereco. Sem
      isto, /chat/parceria acenderia tambem a aba /chat (captacao), porque
      '/chat' e prefixo de '/chat/parceria'. */
-  /* a versão da organização (v1 de sempre / v2 por etapas) e o que cada login vê nela */
-  const versao = useVersaoDoCrm()
-  const adminDoCrm = !!(isMaster || ['admin', 'administrador', 'owner'].includes(roleName?.toLowerCase() || '') || permissions?.['*'])
-  const v2 = versao === 'v2'
+  /* A V3 PARA TODOS (Pedro, 05/11/2026: "implemente a v3 para todos, deixe as outras opções só em backups internos"): a
+     barra é a da v2 (cada SDR com as áreas dele) com o Atendimento da v3 (/chat/v3), para todo login. O seletor v1/v2/v3
+     saiu; a v1 (ChatWhatsApp de cada número), o Atendimento da v2 (/chat/atendimento) e a troca de versão da organização
+     (trocarVersaoDoCrm, /api/linhas/versao) ficam no código, sem caminho no menu. A versão gravada segue 'v2', que é a
+     base da v3 (ChatWindow e ActivityTimeline leem dela). */
+  const v2 = true
   // 04/11 (Pedro: "Visualizar por ... para eu visualizar como um dos SDR"): o menu e a guarda são os do SDR escolhido
   const papel = usePapelV2()
   const [, trocarVerComo] = useVerComo()
   const acesso = acessoV2(papel.admin, papel.nome, papel.abas)
-  const hrefsV2 = new Set(ITENS_V2.map((i) => i.href))
+  // as telas da v1 que a v3 substitui (o endereço delas leva ao /chat/v3) não aparecem no menu
+  const hrefsV2 = new Set([...ITENS_V2.map((i) => i.href), ...TELAS_DA_V1])
   // 04/11 (Pedro: "liberar menu por menu lá de cima"): a função com a lista de menus vê, além das etapas dela, os outros
   // menus ligados, na barra de cima
   const menusDaFuncao = !papel.admin && temMenusDaFuncao(papel.abas)
@@ -181,41 +187,12 @@ export default function Navbar() {
        ...(acesso.admin ? NAV_ITEMS.filter((i) => !hrefsV2.has(i.href)).map((i) => ({ ...i, mais: i.href !== '/imoveis' })) : [])]
         .map((i, n, todos) => (menusDaFuncao && !i.mais && todos.slice(0, n).filter((x) => !x.mais).length >= NA_BARRA ? { ...i, mais: true } : i))
     : NAV_ITEMS
-  // V3 (Pedro, 04/11/2026): um WhatsApp só juntando Leads e Parceria, em etapas; só o login Pedro (o desenvolvedor) até ele liberar; o Tel segue na v2 (ChatV3.tsx)
-  const ehTel = papel.adminDeVerdade && !papel.simulando && ['pedro', 'tel'].includes(primeiroNome(profileName || user?.name))  // 04/11: o v3 também para o Tel
-  // 04/11 (Pedro: "clico no v3 e no chat atendimento volta para o v2"): o v3 é um MODO que fica ligado (neste navegador, só
-  // o login Tel) até clicar em v1 ou v2; com ele ligado, as telas de chat do menu abrem dentro do v3
-  const [modoV3, setModoV3] = useState(false)
-  useEffect(() => { try { setModoV3(localStorage.getItem('crm:v3:ligado') === '1') } catch { /* sem armazenamento: só vale nesta tela */ } }, [])
-  const ligarV3 = (ligado: boolean) => { setModoV3(ligado); try { ligado ? localStorage.setItem('crm:v3:ligado', '1') : localStorage.removeItem('crm:v3:ligado') } catch { /* ok */ } }
-  const naV3 = ehTel && (modoV3 || pathname.startsWith('/chat/v3'))
-  /* A BARRA DA V3 (Pedro, 04/11: "o captação e o api oficial continuam lá ... um número só com as etapas"): Captação,
-     Atendimento (o WhatsApp juntado, Leads + Parceria, com as etiquetas Em atendimento / Leads / Corretores / Visitas /
-     Fechamento / Proprietários) e o WhatsApp Oficial. O resto do CRM fica no "+ Mais" (só Imóveis na barra, como na v2). */
-  // (Pedro, 04/11, depois: "no v3 Visita, Proprietários, Fechamento e Administração ficam lá em cima no menu, igual tem
-  // na v2"): a mesma barra da v2, só que o Atendimento é o da v3
-  const ITENS_V3: ItemDoMenu[] = ITENS_V2.map(({ area, ...i }) => (area === 'atendimento' ? { ...i, href: '/chat/v3' } : i))
-  const hrefsV3 = new Set([...ITENS_V3.map((i) => i.href), '/chat/parceria', '/chat/captacao', '/chat/atendimento'])
-  const ITENS: ItemDoMenu[] = naV3
-    ? [...ITENS_V3, ...NAV_ITEMS.filter((i) => !hrefsV3.has(i.href)).map((i) => ({ ...i, mais: i.href !== '/imoveis' }))]
-    : ITENS_BASE
+  const ITENS: ItemDoMenu[] = ITENS_BASE
+  // as telas da v1 e o Atendimento da v2 abrem a v3 (a conversa pedida por link, ?leadId=, ainda abre na tela do número dela)
   useEffect(() => {
-    if (!ehTel || !modoV3) return
-    if (['/chat/atendimento', '/chat/parceria', '/chat/captacao'].some((h) => pathname === h || pathname.startsWith(h + '/'))
+    if ([...TELAS_DA_V1, '/chat/atendimento'].some((h) => pathname === h || pathname.startsWith(h + '/'))
         && !searchParams.get('leadId')) router.replace('/chat/v3')
-  }, [ehTel, modoV3, pathname, router, searchParams])
-  const [trocandoVersao, setTrocandoVersao] = useState(false)
-  const trocarVersao = async (alvo?: 'v1' | 'v2') => {
-    const nova = alvo || (v2 ? 'v1' : 'v2')
-    if (nova === (v2 ? 'v2' : 'v1')) { ligarV3(false); if (pathname.startsWith('/chat/v3')) router.push(nova === 'v2' ? CAMINHOS_DA_AREA.captacao[0] : PAGINA_INICIAL); return }
-    if (!window.confirm(`Trocar a organização do CRM de TODOS para a ${nova}?`)) return
-    ligarV3(false)
-    setTrocandoVersao(true)
-    try {
-      await trocarVersaoDoCrm(nova)
-      router.push(nova === 'v2' ? CAMINHOS_DA_AREA.captacao[0] : PAGINA_INICIAL)
-    } catch (e: any) { window.alert(e?.message || 'Não consegui trocar a versão.') } finally { setTrocandoVersao(false) }
-  }
+  }, [pathname, router, searchParams])
   /* na v2, o SDR só entra nas áreas dele: outro endereço leva à primeira delas */
   useEffect(() => {
     if (!v2 || acesso.admin || authLoading || !acesso.areas.length) return
@@ -617,20 +594,6 @@ export default function Navbar() {
           </label>
         )}
 
-        {/* v1 / v2 da organização do CRM: só o administrador vê, e a troca vale para todos (Pedro, 03/11) */}
-        {adminDoCrm && versao && (
-          <div role="group" aria-label="Organização do CRM" title={`Organização do CRM: ${versao} (v1 e v2 valem para todos). A v3 é só do login Pedro.`}
-               className="flex items-center rounded-full border border-line text-[10px] font-bold overflow-hidden h-6">
-            {([['v1', !v2 && !naV3], ['v2', v2 && !naV3]] as const).map(([v, ativo]) => (
-              <button key={v} type="button" onClick={() => trocarVersao(v)} disabled={trocandoVersao}
-                      className={`px-1.5 h-full flex items-center disabled:opacity-60 ${ativo ? 'bg-accent text-white' : 'text-muted'}`}>{v}</button>
-            ))}
-            {ehTel && (
-              <button type="button" onClick={() => { ligarV3(true); router.push('/chat/v3') }} title="v3 (teste, só o login Pedro): um WhatsApp juntando Leads e Parceria, em etapas"
-                      className={`px-1.5 h-full flex items-center ${naV3 ? 'bg-accent text-white' : 'text-muted'}`}>v3</button>
-            )}
-          </div>
-        )}
 
         {/* Dark mode toggle */}
         <button

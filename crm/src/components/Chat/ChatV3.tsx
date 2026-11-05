@@ -39,9 +39,9 @@ import { useEquipeV2 } from '@/hooks/useEquipeV2'
 import { getLinhaWhatsapp } from '@/lib/leadChannel'
 import { fim8 } from '@/lib/olxClientes'
 import { etapaDaParceria } from '@/lib/etapaDaParceria'
-import { tipoEscolhido, tipoDoLead, TIPOS_DO_LEAD, CORPO_DO_TIPO, NOME_DA_LINHA, type TipoDoLead } from '@/lib/organizacaoDoLead'
+import { tipoEscolhido, tipoDoLead, TIPOS_DO_LEAD, CORPO_DO_TIPO, NOME_DA_LINHA, mudouPara, type TipoDoLead } from '@/lib/organizacaoDoLead'
 import { montarAtendentes } from '@/lib/atendentes'
-import { primeiroNome, responsavelV2, usePapelV2 } from '@/lib/versaoDoCrm'
+import { acessoV2, primeiroNome, responsavelV2, usePapelV2 } from '@/lib/versaoDoCrm'
 import { ModoV3, FILAS_V3, ETAPAS_V3, CLASSE_DO_AUTOR, EQUIPE_V3, indiceDaEtapa, NOME_DA_ETAPA, type FilaV3 } from '@/lib/modoV3'
 import { formatPhone } from '@/lib/utils'
 import { diaEmManaus } from '@/lib/fusoDeManaus'
@@ -72,12 +72,6 @@ const nomeDaEquipe = (n: string | null | undefined): string | null => {
   return (EQUIPE_V3 as readonly string[]).includes(p) ? p.charAt(0).toUpperCase() + p.slice(1) : null
 }
 
-/** o login Tel (administrador de verdade): a v3 é só dele, por enquanto */
-export function useEhTel(): boolean {
-  const { profileName, user } = useAuth()
-  const papel = usePapelV2()
-  return papel.adminDeVerdade && ['pedro', 'tel'].includes(primeiroNome(profileName || user?.name))  // 04/11: o Pedro e o Tel ("libera o v3 para o Tel")
-}
 
 const iniciais = (t: string) => t.trim().split(/\s+/).slice(0, 2).map((p) => p.charAt(0).toUpperCase()).join('') || '?'
 const reais = (v: number) => v >= 1e6 ? `R$ ${(v / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mi`
@@ -476,7 +470,9 @@ function FiltrosRapidos({ ligados, aoMudar, contar }: { ligados: Rapido[]; aoMud
 
 export default function ChatV3() {
   const { loading, organizationId, user } = useAuth()
-  const ehTel = useEhTel()
+  // 05/11 (Pedro: "implemente a v3 para todos"): cada SDR vê aqui o mesmo recorte de números da v2 (lib/versaoDoCrm.ts)
+  const papel = usePapelV2()
+  const acesso = acessoV2(papel.admin, papel.nome, papel.abas)
   const router = useRouter()
   /* AS CORES DAS FILAS = as de hoje na aba Leads (Pedro, 04/11: "para não gerar estranheza, as bolinhas da mesma cor que
      é hoje na aba Leads, ex.: locação é azul"): Locação e Venda são as etiquetas; Corretor e Proprietário, os tipos de
@@ -510,13 +506,12 @@ export default function ChatV3() {
   // gente (pelo CRM ou pelo celular) vale como a pessoa respondendo, mesmo que a Nay não esteja pausada
   const [humanos, setHumanos] = useState<Record<string, { nome: string; celular: boolean }>>({})
   useEffect(() => {
-    if (!ehTel) return
     let vivo = true
     const ler = () => fetch('/api/linhas/quem-responde').then((r) => (r.ok ? r.json() : null)).then((j) => { if (vivo && j?.humanos) setHumanos(j.humanos) }).catch(() => undefined)
     void ler()
     const t = setInterval(() => { if (document.visibilityState === 'visible') void ler() }, 30_000)
     return () => { vivo = false; clearInterval(t) }
-  }, [ehTel])
+  }, [])
 
   const pelaParceria = useMemo(() => new Set(leads.filter((l) => !l.is_group && getLinhaWhatsapp(l) === 'parceria').map((l) => fim8(l.phone)).filter(Boolean)), [leads])
 
@@ -528,8 +523,13 @@ export default function ChatV3() {
     if (l.is_group || (linha !== 'captacao' && linha !== 'parceria')) return false
     if (linha === 'captacao' && pelaParceria.has(fim8(l.phone))) return false
     if (!podeVer(l) || emFechamento(l) || ehVisita(l) || tipoEscolhido(l) === 'administracao') return false
+    // o SDR, como no Atendimento da v2: só os números dele (ou o que foi enviado para eles) e, no Leads do Diego, só a locação
+    if (!acesso.admin) {
+      if (!acesso.linhas.includes(linha) && !acesso.linhas.includes(mudouPara(l) as any)) return false
+      if (linha === 'captacao' && acesso.soLocacao && !ehLocacao(l)) return false
+    }
     return true
-  }, [pelaParceria, podeVer, emFechamento, ehVisita])
+  }, [pelaParceria, podeVer, emFechamento, ehVisita, acesso.admin, acesso.linhas.join(), acesso.soLocacao, ehLocacao])  // eslint-disable-line react-hooks/exhaustive-deps
 
   /** o tipo de agora: o escolhido à mão; senão o que a lista deduz (corretor na Parceria, dono, locação ou venda) */
   const tipoDe = useCallback((l: LeadWithOwner): TipoDoLead => {
@@ -626,7 +626,7 @@ export default function ChatV3() {
   }
 
   if (loading) return null
-  if (!ehTel) return <NotAuthorized />
+  if (!acesso.admin && !acesso.linhas.length) return <NotAuthorized />
 
   const rotuloDoTipo = (l: LeadWithOwner) => { const f = filaR(l); return f ? FILAS_V3[f].tipo : 'Administração' }
   const corDe = (l: LeadWithOwner) => { const f = filaR(l); return f ? corDaFila(f) : CINZA }
