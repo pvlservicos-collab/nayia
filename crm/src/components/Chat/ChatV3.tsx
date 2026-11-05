@@ -99,10 +99,27 @@ function Selo({ r }: { r: Responde }) {
 }
 
 /** o card da lista: exatamente 3 linhas */
-function CardV3({ l, hora, aberta, abrir, menu, cor, etapa, tipo, r }: {
+/** A TAXA DE SUCESSO DA CONVERSA (Pedro, 05/11: "uma taxa de sucesso em cada conversa que só aparece para o meu login e
+ *  o do Tel, nas que tu revisar"): a nota da revisão (0 a 100), verde de 80 para cima, amarela de 50 a 79, vermelha abaixo;
+ *  o resumo e os erros no "title". Vem de /api/v3/sucesso-das-conversas, que só responde para Pedro e Tel. */
+type Sucesso = { nota: number; resumo: string | null; erros: string[]; dia: string }
+function SeloDeSucesso({ s }: { s: Sucesso }) {
+  const cor = s.nota >= 80 ? '#16a34a' : s.nota >= 50 ? '#d97706' : '#dc2626'
+  const dia = s.dia ? s.dia.slice(8, 10) + '/' + s.dia.slice(5, 7) : ''
+  const dica = [`Taxa de sucesso da Nay nesta conversa${dia ? ` (revisão de ${dia})` : ''}: ${s.nota}%`, s.resumo || '',
+    ...s.erros.map((e) => `• ${e}`)].filter(Boolean).join('\n')
+  return (
+    <span className="flex-shrink-0 rounded px-1 text-[10.5px] font-semibold leading-[15px]" title={dica} aria-label={dica}
+          style={{ color: cor, border: `1px solid ${cor}88`, background: `${cor}14` }}>{s.nota}%</span>
+  )
+}
+
+function CardV3({ l, hora, aberta, abrir, menu, cor, etapa, tipo, r, sucesso }: {
   l: LeadWithOwner; hora: string; aberta: boolean; abrir: () => void; menu: (e: React.MouseEvent) => void
   /** só lead tem etapa (a da Nay); corretor e proprietário mostram o tipo no lugar da barrinha */
   cor: string; etapa: { i: number; nome: string } | null; tipo: string; r: Responde
+  /** a taxa de sucesso da revisão (só para os logins Pedro e Tel) */
+  sucesso?: Sucesso | null
 }) {
   const nome = (l.title || '').trim() || formatPhone(l.phone || '') || 'Sem nome'
   const naoLida = !!l.is_unread
@@ -120,6 +137,7 @@ function CardV3({ l, hora, aberta, abrir, menu, cor, etapa, tipo, r }: {
       <span className="flex-1 min-w-0 flex flex-col gap-[3px]">
         <span className="flex items-center gap-2">
           <span className="flex-1 truncate text-[15px]" style={{ color: 'var(--wa-text)', fontWeight: naoLida ? 600 : 400 }}>{nome}</span>
+          {sucesso && <SeloDeSucesso s={sucesso} />}
           <span className="flex-shrink-0" style={{ color: naoLida ? 'var(--wa-green)' : 'var(--wa-text-2)', fontSize: naoLida ? 13 : 12, fontWeight: naoLida ? 600 : 400 }}>{hora}</span>
         </span>
         <span className="flex items-center gap-1.5">
@@ -473,6 +491,17 @@ export default function ChatV3() {
   // 05/11 (Pedro: "implemente a v3 para todos"): cada SDR vê aqui o mesmo recorte de números da v2 (lib/versaoDoCrm.ts)
   const papel = usePapelV2()
   const acesso = acessoV2(papel.admin, papel.nome, papel.abas)
+  const veSucesso = papel.adminDeVerdade && !papel.simulando && ['pedro', 'tel'].includes(primeiroNome(papel.nome))
+  const [sucessos, setSucessos] = useState<Record<string, Sucesso>>({})
+  useEffect(() => {
+    if (!veSucesso) { setSucessos({}); return }
+    let vivo = true
+    const ler = () => fetch('/api/v3/sucesso-das-conversas').then((x) => (x.ok ? x.json() : null))
+      .then((j) => { if (vivo && j?.notas) setSucessos(j.notas) }).catch(() => undefined)
+    void ler()
+    const t = setInterval(() => { if (document.visibilityState === 'visible') void ler() }, 5 * 60_000)
+    return () => { vivo = false; clearInterval(t) }
+  }, [veSucesso])
   const router = useRouter()
   /* AS CORES DAS FILAS = as de hoje na aba Leads (Pedro, 04/11: "para não gerar estranheza, as bolinhas da mesma cor que
      é hoje na aba Leads, ex.: locação é azul"): Locação e Venda são as etiquetas; Corretor e Proprietário, os tipos de
@@ -706,6 +735,7 @@ export default function ChatV3() {
                      }}
                      itemDaLista={(l, x) => <CardV3 l={l} hora={x.hora} aberta={x.aberta} abrir={x.abrir} menu={x.menu}
                                                     cor={corDe(l)} r={respR(l)} tipo={rotuloDoTipo(l)}
+                                                    sucesso={veSucesso ? sucessos[`${getLinhaWhatsapp(l)}:${fim8(l.phone)}`] ?? null : null}
                                                     etapa={etapaR(l) ? { i: indiceDaEtapa(etapaR(l)), nome: NOME_DA_ETAPA[etapaR(l)!] || etapaR(l)! } : null} />}
                      naConversa={{
                        anel: corDe,
