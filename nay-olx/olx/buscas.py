@@ -33,6 +33,7 @@ import re
 import threading
 import time
 from datetime import datetime, timedelta, timezone
+from difflib import SequenceMatcher
 
 from olx import banco, fotos_olx, grupo, modelo, whatsapp
 
@@ -798,8 +799,24 @@ O corretor chegou de um destes jeitos (veja "COMO CHEGOU"): respondeu um pedido 
 respondeu a pergunta que fizemos no anúncio dele na OLX, ou escreveu pedindo parceria.
 O objetivo: cadastrar na nossa base o imóvel que ele tem (como imóvel de parceiro) e, se ele servir para uma das nossas
 BUSCAS ATIVAS, apresentar ao cliente. Trabalhamos em parceria (se ele perguntar a divisão: meio a meio, 50%).
-Aqui você está BUSCANDO imóvel para um cliente nosso: você não atende cliente nem marca visita com o corretor. Se ele
-falar de visita ou de horário, diga só que vai confirmar com o cliente e retorna (Pedro, 30/10).
+Quando ELE oferece o imóvel dele, quem visita é o NOSSO cliente: se ele falar de visita ou de horário desse imóvel, diga
+só que vai confirmar com o cliente e retorna (Pedro, 30/10).
+
+PRIMEIRO ENTENDA O QUE ELE QUER AGORA (04/11, a revisão das conversas reais) e ponha em "intencao":
+- "pedido": o cliente DELE procura imóvel e ele pergunta se temos ("TEM ALGUMA COISA ATÉ 300 MIL VENDA", "Vc tem algum
+  apartamento no Smile Flores, andar baixo de dois quartos?"). Também quando ele CORRIGE o pedido ("É no condomínio",
+  "Não é no bairro Flores", "meu cliente só quer nesse condomínio"): ponha o pedido corrigido.
+- "oferta": ele tem um imóvel e está mandando (texto, fotos, link). Uma mensagem com o NOSSO pedido do grupo (na CONVERSA
+  aparece como "[ele encaminhou o NOSSO pedido do grupo ...]") e o imóvel dele é OFERTA: ele está respondendo ao nosso
+  pedido, NUNCA é pedido dele.
+- "visita": o cliente DELE quer visitar um imóvel NOSSO (o "ANÚNCIO NOSSO" ou um imóvel nosso que ele citou): "temos
+  cliente interessado em visitar amanhã às 14:30". Não é cadastro e não existe cliente nosso nessa conversa: diga, curto,
+  que vai ver o horário com a equipe e já retorna. A equipe recebe o aviso e combina com ele.
+- "reclamacao": ele reclama do que mandamos ("Vc não enviou nenhuma opção", "nenhum é no condomínio", "vc tá
+  enganada"). Ponha em "pedido" o pedido dele de antes (o PEDIDO DELE abaixo) com a correção que ele fez; NUNCA diga
+  "tenho sim" nem "te mandei" por conta própria.
+- "duvida": pergunta sobre um imóvel nosso que ele citou, ou sobre a parceria.
+- "outro": cumprimento, agradecimento, outro assunto.
 
 ELE TAMBÉM PODE PEDIR IMÓVEL (Pedro, 04/11: "mandar os imóveis e responder as solicitações dele"): o corretor tem um
 cliente DELE procurando e pergunta se temos ("tem alguma coisa até 300 mil venda?", "tem apartamento 2 quartos no Parque
@@ -807,6 +824,9 @@ cliente DELE procurando e pergunta se temos ("tem alguma coisa até 300 mil vend
 é o erro de 04/11): marque "pede_imovel": true e ponha em "pedido" o pedido INTEIRO de agora, juntando o que ele já disse
 antes na conversa com o que mudou (finalidade, tipo, valor máximo, bairros, condomínio, quartos, mobília). A busca nos
 nossos imóveis, o envio das opções e a resposta a ele são feitos pelo sistema: nesse caso deixe "baloes" vazio.
+CONDOMÍNIO DITO É OBRIGATÓRIO (04/11, o ...2985 pediu o Smile Flores cinco vezes e recebeu 18 imóveis de outros lugares):
+com o condomínio no pedido, ponha "condominio" e "so_condominio": true; andar e suítes vão em "exigencias" ("andar
+baixo", "pelo menos 1 suíte").
 - "pede_imovel" só quando o que ele escreveu DEPOIS da sua última resposta pede imóvel, muda o pedido ou aceita o que você
   ofereceu para afrouxar ("serve com 2 quartos?" -> sim: quartos 2; "num bairro vizinho, como Dom Pedro?" -> sim: ponha
   o bairro oferecido em "bairros"; "um pouco acima de R$ 300.000?" -> sim: valor 20% maior). "Ok", "obrigado", "vou
@@ -819,6 +839,15 @@ nossos imóveis, o envio das opções e a resposta a ele são feitos pelo sistem
 O QUE JÁ SABEMOS (Pedro, 30/10: "ela nunca deve perguntar coisas que já tem na OLX"): o "ANÚNCIO DA OLX" (quando há) e o
 "JÁ ANOTADO" já estão certos. NUNCA pergunte nada que esteja neles: nem o tipo, nem se é venda ou locação, nem o valor,
 o bairro, os quartos, a área, as vagas, a taxa ou o condomínio. Pergunte só o que faltar de verdade.
+O TEXTO DELE TRAZ OS DADOS (04/11, o ...1009: "Área: 142 m²", "CONDOMÍNIO VILLAGE VERT" e "R$ 660.000,00" no mesmo texto, e
+a Nay perguntou o valor, a área e o condomínio): leia o texto INTEIRO, até o fim (o valor costuma vir no final), e ponha
+no "imovel" tudo o que ele já disse. Suítes são quartos: "Casa com 3 suítes" = quartos 3 e suites 3. "Duplex" e
+"sobrado" sem dizer apartamento são casa. Pergunta que está em "JÁ PERGUNTADO" não se repete: se ele não respondeu, siga
+sem isso. Fotos mandadas como ARQUIVO (documento) contam como fotos: nunca diga que não chegaram.
+UM IMÓVEL POR VEZ (04/11, o ...8020 mandou o Conquista Torquato e o Jardim Paradiso juntos e virou um cadastro só): o
+"imovel" é UM imóvel. Se ele mandou mais de um, o primeiro vai em "imovel" e os outros, cada um, em "mais_imoveis". Se o
+imóvel de agora NÃO é o do "JÁ ANOTADO" (outro condomínio, outro bairro, outra finalidade, outro valor), marque
+"outro_imovel": true e ponha em "imovel" só o de agora.
 Valor acima de R$ 100 mil é SEMPRE venda; valor até R$ 30 mil é SEMPRE aluguel (R$ 3.200 é aluguel, mesmo que ele
 escreva "vendo ou alugo"). Com o valor dito, nunca pergunte se é venda ou aluguel (Pedro, 03/11).
 
@@ -847,16 +876,20 @@ Regras:
 - Nunca fale em imóvel "de parceria" ou "de parceiro" nosso (Tel, 28/09: "ela nunca pode falar isso").
 
 Devolva SÓ JSON:
-{"responder": true|false,
+{"intencao": "pedido|oferta|visita|reclamacao|duvida|outro",
+ "responder": true|false,
  "oferece_imovel": true|false,
  "pede_imovel": true|false,
  "pedido": {"codigos": [], "finalidade": "venda|locacao|", "tipo": "apartamento|casa|casa_condominio|cobertura|flat|comercial|terreno|",
-            "teto": 0, "bairros": [], "condominio": "", "quartos": 0, "mobilia": "mobiliado|semi|sem|"},
+            "teto": 0, "bairros": [], "condominio": "", "so_condominio": false, "quartos": 0, "mobilia": "mobiliado|semi|sem|",
+            "exigencias": []},
  "busca_id": <id da busca que o imóvel atende, ou null>,
  "serve": "sim" | "nao" | "talvez",
+ "outro_imovel": true|false,
  "imovel": {"tipo": "", "finalidade": "locacao|venda", "bairro": "", "condominio": "", "quartos": 0, "suites": 0,
             "vagas": 0, "area": 0, "valor": 0, "taxa_condominio": 0, "mobilia": "mobiliado|com modulados e ar|sem nada|",
             "andar": "", "observacao": "", "descricao": "", "interno": ""},
+ "mais_imoveis": [],
  "baloes": ["..."]}
 "oferece_imovel" = true quando ele falou de um imóvel que TEM (mesmo que ainda incompleto). No "imovel", ponha só o que
 ele disse (o resto vazio ou 0). "pedido" (só com "pede_imovel"): o que o cliente DELE procura; "teto" é o valor máximo em
@@ -882,7 +915,72 @@ def juntar_imovel(antes: dict, novo: dict) -> dict:
     return d
 
 
-VENDA_A_PARTIR_DE = 100_000      # Pedro, 30/10: "acima de 100k é sempre venda"
+def sem_marcas(im: dict | None) -> dict:
+    """O imóvel sem as marcas internas ("_pedido", "_revisar"...), que moram no mesmo jsonb de privado.busca_corretor."""
+    return {k: v for k, v in (im or {}).items() if not str(k).startswith("_")}
+
+
+def marcas(im: dict | None) -> dict:
+    return {k: v for k, v in (im or {}).items() if str(k).startswith("_")}
+
+
+PALAVRAS_DE_CONDOMINIO = {"condominio", "cond", "residencial", "res", "edificio", "ed", "residence", "the", "torre"}
+
+
+def chave_do_condominio(nome) -> str:
+    """'Condomínio Smille Flores' -> 'smille flores' (para comparar nomes escritos de ouvido)."""
+    return " ".join(p for p in whatsapp._normal(str(nome or "")).split() if p not in PALAVRAS_DE_CONDOMINIO)
+
+
+def mesmo_condominio(a, b, limite: float = 0.8) -> bool:
+    ca, cb = chave_do_condominio(a), chave_do_condominio(b)
+    if not ca or not cb:
+        return False
+    return ca == cb or ca in cb or cb in ca or SequenceMatcher(None, ca, cb).ratio() >= limite
+
+
+def _categoria(tipo) -> str:
+    t = whatsapp._normal(str(tipo or ""))
+    if not t:
+        return ""
+    if "casa" in t or "sobrado" in t or "duplex" in t:
+        return "casa"
+    if any(x in t for x in ("apart", "apto", "cobert", "flat", "kitnet", "studio")):
+        return "apartamento"
+    return t.split()[0]
+
+
+def mesmo_imovel(a: dict | None, b: dict | None) -> bool:
+    """04/11 (o ...8525: o Simon Bolívar, venda R$ 250 mil, num dia e o Smart Tarumã, aluguel R$ 1.600, no outro viraram o
+    mesmo #9130; o ...8020 mandou dois de uma vez e virou o #9132): o que se sabe dos dois descreve o mesmo imóvel. Só
+    compara o que os dois dizem: outro condomínio, outra finalidade, outro tipo, valor 30% diferente ou (sem condomínio
+    nos dois) outro bairro = outro imóvel."""
+    a, b = sem_marcas(a), sem_marcas(b)
+    if a.get("condominio") and b.get("condominio") and not mesmo_condominio(a["condominio"], b["condominio"], 0.75):
+        return False
+    fa, fb = finalidade(a), finalidade(b)
+    if fa and fb and fa != fb:
+        return False
+    va, vb = (whatsapp._num(x.get("valor")) or 0 for x in (a, b))
+    if va > 0 and vb > 0 and max(va, vb) / min(va, vb) > 1.3:
+        return False
+    ta, tb = _categoria(a.get("tipo")), _categoria(b.get("tipo"))
+    if ta and tb and ta != tb:
+        return False
+    if not (a.get("condominio") and b.get("condominio")):
+        ba, bb = whatsapp._normal(str(a.get("bairro") or "")), whatsapp._normal(str(b.get("bairro") or ""))
+        if ba and bb and ba != bb:
+            return False
+    return True
+
+
+def tem_identidade(im: dict | None) -> bool:
+    """O imóvel diz o bastante para se comparar com outro (condomínio, bairro, valor ou finalidade)."""
+    im = sem_marcas(im)
+    return any(im.get(k) for k in ("condominio", "bairro", "valor", "finalidade"))
+
+
+VENDA_A_PARTIR_DE = 100_000     # Pedro, 30/10: "acima de 100k é sempre venda"
 # Pedro, 03/11 (a Tahina ...3600 disse "venda ou aluguel no valor de 3.200" e a Nay perguntou se era venda ou aluguel):
 # "quando já estiver o valor ela já entende que é aluguel esses valores de locação baixos"
 ALUGUEL_ATE = 30_000
@@ -935,6 +1033,101 @@ def imovel_do_anuncio(conn, a: dict) -> dict:
     return venda_pelo_valor({k: v for k, v in im.items() if v not in (None, "", 0, 0.0)})
 
 
+# 04/11 (o ...7891 mandou o link da OLX de uma casa NOSSA, do Tel, com "temos cliente interessado em visitar amanhã"; a Nay
+# achou que era o imóvel dele, cadastrou o #9129 em dobro do nosso #2462 e falou de "um cliente" nosso que não existia):
+# o anúncio da OLX é nosso quando o anunciante é a casa (a mesma lista de busca_olx.NOSSOS) ou quando é o mesmo imóvel de
+# um cadastro NOSSO (o número do anúncio, ou o mesmo condomínio, quartos e valor: o gêmeo de whatsapp.gemeos).
+ANUNCIANTE_NOSSO = ("imob easy", "imobeasy", "f v sobreira", "telmario")
+
+
+def nosso_do_anuncio(conn, a: dict | None) -> dict | None:
+    """{'codigo': o nosso imóvel (ou None)} quando o anúncio da OLX é NOSSO; None quando é de outro."""
+    if not a:
+        return None
+    quem = whatsapp._normal(str(a.get("anunciante") or ""))
+    im = imovel_do_anuncio(conn, a)
+    codigo = banco.um(conn, """
+        SELECT i.codigo FROM imoveis i
+         WHERE i.status <> 'Excluído' AND NOT coalesce(i.e_parceiro, false)
+           AND (i.extras->>'olx_id' = %(o)s
+                OR (%(c)s <> '' AND similarity(nay_chave_condominio(i.condominio_nome), nay_chave_condominio(%(c)s)) >= 0.7
+                    AND i.quartos IS NOT DISTINCT FROM %(q)s AND %(v)s > 0
+                    AND (coalesce(i.valor_aluguel, 0) = %(v)s OR coalesce(i.valor_venda, 0) = %(v)s)))
+         ORDER BY (i.status = 'Disponível') DESC, i.codigo LIMIT 1""",
+                      {"o": str(a.get("olx_id") or ""), "c": str(im.get("condominio") or ""),
+                       "q": whatsapp._num(im.get("quartos")), "v": float(im.get("valor") or 0)})
+    if codigo or any(n in quem for n in ANUNCIANTE_NOSSO):
+        return {"codigo": int(codigo) if codigo else None}
+    return None
+
+
+# 04/11 (o ...3703: "Condomínio Bela sonata" virou bairro Turismo sem condomínio; o Bella Sonata é do Tarumã na base): o
+# condomínio escrito de ouvido, achado na nossa lista de condomínios, dá o nome certo e o bairro
+CONDOMINIO_NO_TEXTO = re.compile(r"\b(?:condom[ií]nio|cond\.|residencial|edif[ií]cio)\s+([^\W\d_][\w' ]{2,40})", re.I)
+CONDOMINIO_DA_BASE_MIN = 0.7
+
+
+def condominio_da_base(conn, nome: str | None) -> dict | None:
+    """{'nome', 'bairro'} do condomínio da nossa lista (condominios) com o nome parecido (pg_trgm sobre
+    nay_chave_condominio, a partir de 0,7: "Bela sonata" acha o "Bella Sonata Residencial", Tarumã), ou None."""
+    n = str(nome or "").strip()
+    if len(chave_do_condominio(n)) < 4:
+        return None
+    r = banco.linhas(conn, """
+        SELECT nome, bairro FROM condominios
+         WHERE similarity(nay_chave_condominio(nome), nay_chave_condominio(%(n)s)) >= %(s)s
+         ORDER BY similarity(nay_chave_condominio(nome), nay_chave_condominio(%(n)s)) DESC, length(nome) LIMIT 1""",
+                     {"n": n, "s": CONDOMINIO_DA_BASE_MIN})
+    return r[0] if r else None
+
+
+def completar_imovel(conn, im: dict, textos: list[str]) -> dict:
+    """O que o código acerta sozinho no imóvel do corretor, depois do modelo: suítes são quartos ("Casa com 3 suítes");
+    o condomínio dito (no "imovel" ou no texto novo dele) achado na nossa lista dá o nome e o BAIRRO do cadastro, e a casa
+    em condomínio vira "casa em condomínio"."""
+    im = dict(im or {})
+    s, q = whatsapp._num(im.get("suites")), whatsapp._num(im.get("quartos"))
+    if s and s > 0 and (not q or q < s):
+        im["quartos"] = s
+    if im.get("condominio"):
+        base = condominio_da_base(conn, im["condominio"])
+    else:
+        # o mais novo que a nossa lista conhece ("Condomínio fechado, lazer completo" não é nome)
+        achados = [m.strip() for t in textos or [] for m in CONDOMINIO_NO_TEXTO.findall(t or "")]
+        base = next((x for x in (condominio_da_base(conn, n) for n in reversed(achados[-4:])) if x), None)
+    if base:
+        im["condominio"] = base["nome"]
+        if base.get("bairro"):
+            im["bairro"] = base["bairro"]
+        if _categoria(im.get("tipo")) == "casa" and "condom" not in whatsapp._normal(str(im.get("tipo") or "")):
+            im["tipo"] = "casa em condomínio"
+    return im
+
+
+# 04/11 (o ...5642 encaminhou o NOSSO pedido do grupo, "✅ PRECISO DE AP P/ LOCAÇÃO ... até 2.600 ... Me chama no privado",
+# junto com o imóvel dele; a Nay leu como pedido DELE e mandou o nosso #5724): o bloco do nosso pedido (bloco e
+# mensagem_de_grupo, no molde do Tel) sai da conversa antes do modelo e vira uma marca
+NOSSO_PEDIDO = re.compile(r"✅\s*PRECISO DE\b[^\n]*(?:\n[ \t]*-[^\n]*)*(?:\s*Tem algum\?\s*Me chama no privado\.?)?", re.I)
+
+
+def sem_nosso_pedido(texto: str | None) -> tuple[str, bool]:
+    """(o texto com o nosso pedido do grupo trocado pela marca, se ele estava lá)."""
+    achou = []
+
+    def troca(m: re.Match) -> str:
+        achou.append(m.group(0))
+        linhas = [re.sub(r"^✅\s*PRECISO DE\s*", "", x.strip(" -\t")) for x in m.group(0).splitlines()
+                  if x.strip() and not x.strip().lower().startswith("tem algum")]
+        return f"[ele encaminhou o NOSSO pedido do grupo ({' · '.join(linhas)[:220]}): ele responde a ele, NÃO é pedido dele]"
+    return NOSSO_PEDIDO.sub(troca, texto or ""), bool(achou)
+
+
+def busca_do_pedido_citado(ativas: list[dict], textos: list[str]) -> dict | None:
+    """A busca ativa cujo pedido do grupo ele encaminhou (o mesmo bloco)."""
+    junto = whatsapp._normal(" ".join(textos or []))
+    return next((b for b in ativas if b.get("filtros") and whatsapp._normal(bloco(b["filtros"])) in junto), None)
+
+
 def falta_no_imovel(im: dict, fotos: int) -> list[str]:
     falta = []
     # Pedro, 30/10: "precisa ter informações mínimas, como as informações que vão no card" (o m² é a 3ª linha do card)
@@ -957,12 +1150,54 @@ def _conversa_corretor(conn, tel8: str) -> list[dict]:
         SELECT id, direcao, origem, texto, criada_em, to_char(criada_em AT TIME ZONE 'America/Manaus', 'DD/MM HH24:MI') AS hora
           FROM captacao_mensagens
          WHERE right(regexp_replace(coalesce(telefone, ''), '\\D', '', 'g'), 8) = %s
-         ORDER BY id DESC LIMIT 30""", (tel8,))))
+         ORDER BY id DESC LIMIT %s""", (tel8, CONVERSA_DO_CORRETOR))))
     # 30/10: o que a equipe mandou pelo CRM ou pelo celular fica só no crmdb; sem isto a Nay não via o Tel na conversa
     equipe = [{"id": 0, "direcao": "enviada", "origem": "equipe_crm", "texto": e["texto"], "criada_em": e["criada_em"],
                "hora": e["criada_em"].astimezone(MANAUS).strftime("%d/%m %H:%M")}
               for e in whatsapp.da_equipe_no_crm(tel8, 15)]
-    return sorted(daqui + equipe, key=lambda m: m["criada_em"])[-40:]
+    return sorted(daqui + equipe, key=lambda m: m["criada_em"])[-CONVERSA_DO_CORRETOR:]
+
+
+# 04/11 (o ...1009 mandou o texto do Village Vert e 25 fotos como documento): eram as 30 últimas mensagens, e as 25 fotos
+# empurravam o texto para fora; e cada mensagem ia cortada em 600 letras (o valor, no fim do texto, sumia). Agora 80, as
+# mídias sem texto em sequência viram uma linha ("[25 arquivos]") e o texto dele vai até TEXTO_DO_CORRETOR letras
+CONVERSA_DO_CORRETOR = 80
+TEXTO_DO_CORRETOR = 2500
+
+
+def _midia_sem_texto(m: dict) -> bool:
+    return m["direcao"] == "recebida" and not (m.get("texto") or "").strip() and m.get("origem") not in ("texto", None)
+
+
+def docs_recebidos(conversa: list[dict], horas: int = 6) -> int:
+    """Quantas fotos ele mandou como ARQUIVO (documento) nas últimas `horas`: o recebedor das fotos não guarda o documento
+    (busca_corretor_foto só tem as imagens), mas a foto chegou e não se pede de novo."""
+    desde = datetime.now(timezone.utc) - timedelta(hours=horas)
+    return sum(1 for m in conversa if m["direcao"] == "recebida" and m.get("origem") == "documento"
+               and not (m.get("texto") or "").strip() and m["criada_em"] > desde)
+
+
+def ja_perguntado(conversa: list[dict], n: int = 6) -> list[str]:
+    """As perguntas que a Nay já fez a ele (as mais novas), para não repetir (o ...5600 ouviu "é casa ou apartamento?"
+    duas vezes)."""
+    ps = [f for m in conversa if m["direcao"] == "enviada" and m.get("origem") == "resposta"
+          for f in whatsapp._frases(m.get("texto") or "") if f.endswith("?")]
+    return list(dict.fromkeys(ps))[-n:]
+
+
+def sem_pergunta_repetida(baloes: list[str], perguntas: list[str]) -> list[str]:
+    """Tira de cada balão a pergunta que já foi feita (as palavras dela estão todas numa pergunta de antes: "É casa ou
+    apartamento?" depois de "Essa duplex é casa ou apartamento?"); balão que fica vazio sai."""
+    antes = [set(whatsapp._normal(p).split()) for p in perguntas]
+    saida = []
+    for b in baloes:
+        frases = [f for f in whatsapp._frases(b)
+                  if not (f.endswith("?") and any(len(set(whatsapp._normal(f).split()) - {"e"}) >= 2
+                                                  and set(whatsapp._normal(f).split()) - {"e"} <= p for p in antes))]
+        novo = " ".join(frases).strip()
+        if novo and (frases == whatsapp._frases(b) or any(f.endswith("?") for f in frases) or len(novo.split()) > 3):
+            saida.append(novo)
+    return saida
 
 
 EQUIPE_NA_CONVERSA_H = 12   # a equipe falou com o corretor há menos disto: a Nay não fala, só anota e cadastra
@@ -1001,8 +1236,9 @@ def condominio_citado(conn, conversa: list[dict]) -> str:
 
 
 def _turno_corretor(conn, cor: dict, conversa: list[dict], ativas: list[dict], fotos: int,
-                    anuncio: dict | None = None, ja: dict | None = None, fichas: list[dict] | None = None) -> str:
-    ja = ja if ja is not None else (cor.get("imovel") or {})
+                    anuncio: dict | None = None, ja: dict | None = None, fichas: list[dict] | None = None,
+                    nosso: dict | None = None, docs: int = 0) -> str:
+    ja = sem_marcas(ja if ja is not None else (cor.get("imovel") or {}))
     linhas = [f"COMO CHEGOU: {COMO_CHEGOU.get(cor.get('origem') or '', 'escreveu para o nosso número')}.",
               f"CONDOMÍNIO QUE ELE CITOU: {condominio_citado(conn, conversa) or 'nenhum que a gente tenha cadastrado'}"]
     if fichas:
@@ -1012,19 +1248,53 @@ def _turno_corretor(conn, cor: dict, conversa: list[dict], ativas: list[dict], f
                    for f in fichas]
     linhas += ["", "BUSCAS ATIVAS (id: o que o cliente procura):"]
     linhas += [f"- {b['id']}: {resumo(b['filtros'])}" for b in ativas] or ["- nenhuma"]
-    if anuncio:
+    if anuncio and nosso is not None:
+        # 04/11 (o ...7891): o anúncio é NOSSO; não é o imóvel dele e não se cadastra
+        linhas += ["", "ANÚNCIO NOSSO (o link da OLX que está na conversa é um imóvel NOSSO"
+                       + (f", o #{nosso['codigo']}" if nosso.get("codigo") else "") + f": {anuncio.get('titulo')}). NÃO é o "
+                       "imóvel dele e NÃO se cadastra; se o cliente dele quer visitar, intencao \"visita\"."]
+    elif anuncio:
         linhas += ["", f"ANÚNCIO DA OLX deste imóvel (já sabemos; NUNCA pergunte): {anuncio.get('titulo')} | "
                        f"{json.dumps(imovel_do_anuncio(conn, anuncio), ensure_ascii=False)} | {len(anuncio.get('fotos') or [])} fotos"]
-    falta = falta_no_imovel(ja, fotos)
+    falta = falta_no_imovel(ja, fotos + docs)
+    ped = pedido_guardado(cor)
+    perguntas = ja_perguntado(conversa)
     linhas += ["", f"JÁ ANOTADO deste imóvel: {json.dumps(ja, ensure_ascii=False)}",
                f"FALTA PARA O CARD: {', '.join(falta) if falta else 'nada, está completo'}",
-               f"Fotos recebidas até agora: {fotos}", f"Busca escolhida antes: {cor.get('busca') or 'nenhuma'}", "", "CONVERSA:"]
+               f"Fotos recebidas até agora: {fotos}"
+               + (f" (e mais {docs} mandadas como ARQUIVO: contam como fotos, NÃO peça de novo)" if docs else ""),
+               f"Busca escolhida antes: {cor.get('busca') or 'nenhuma'}",
+               "PEDIDO DELE (o último, para o cliente dele): "
+               + (f"{perfil_do_pedido(ped['f'])} (de {ped.get('em', '')[:16]}; respondemos: \"{ped.get('resposta') or '-'}\")"
+                  if ped else "nenhum"),
+               "JÁ PERGUNTADO (não repita): " + (" | ".join(perguntas) if perguntas else "nada"), "", "CONVERSA:"]
+    midias: list[str] = []
+
+    def solta_midias() -> None:
+        if midias:
+            nomes = {"imagem": ("foto", "fotos"),
+                     "documento": ("arquivo (foto mandada como documento)", "arquivos (fotos mandadas como documento)")}
+            n = {o: midias.count(o) for o in dict.fromkeys(midias)}
+            linhas.append(f"{hora} CORRETOR: [" + ", ".join(
+                f"{q} {nomes.get(o, (o, o))[q > 1]}" for o, q in n.items()) + "]")
+            midias.clear()
+    hora = ""
     for m in conversa:
+        if _midia_sem_texto(m):
+            hora = hora if midias else m["hora"]
+            midias.append(m.get("origem") or "mídia")
+            continue
+        solta_midias()
         quem = "CORRETOR" if m["direcao"] == "recebida" else "EQUIPE" if m.get("origem") == "equipe_crm" else "NAY/EQUIPE"
         texto = (m["texto"] or "").strip() or f"[{m['origem'] or 'mídia'}]"
+        if m["direcao"] == "recebida":
+            texto = sem_nosso_pedido(texto)[0][:TEXTO_DO_CORRETOR]
+        else:
+            texto = texto[:600]
         if m["origem"] == "imagem":
             texto = "[foto] " + texto
-        linhas.append(f"{m['hora']} {quem}: {texto[:600]}")
+        linhas.append(f"{m['hora']} {quem}: {texto}")
+    solta_midias()
     return "\n".join(linhas)
 
 
@@ -1048,7 +1318,7 @@ def _tipo_do_cadastro(t: str | None) -> str | None:
 
 
 def cadastrar(conn, cor: dict, b: dict | None, ativo: bool, fotos_do_anuncio: list[str] | None = None,
-              anuncio: dict | None = None) -> int:
+              anuncio: dict | None = None, com_fotos: bool = True) -> int:
     """O imóvel do corretor no nosso cadastro, como imóvel de PARCEIRO. Rascunho enquanto falta dado; completo, Disponível
     (ativo=True). Devolve o código.
 
@@ -1104,7 +1374,8 @@ def cadastrar(conn, cor: dict, b: dict | None, ativo: bool, fotos_do_anuncio: li
         # Uso interno › Observações (privado.imovel_ficha); a função não repete o que já está lá
         banco.um(conn, "SELECT privado.uso_interno_somar(%s, %s)", (codigo, str(im["interno"]).strip()[:2000]))
     ordem = int(banco.um(conn, "SELECT coalesce(max(ordem), 0) FROM imovel_fotos WHERE codigo = %s", (codigo,)) or 0)
-    for f in _fotos_novas(conn, _tel8(cor["telefone"])):
+    # 04/11: o segundo imóvel da mesma mensagem não leva as fotos (elas ficam no primeiro, e a equipe separa)
+    for f in (_fotos_novas(conn, _tel8(cor["telefone"])) if com_fotos else []):
         ordem += 1
         banco.um(conn, "INSERT INTO imovel_fotos (codigo, ordem, url, e_capa) VALUES (%s, %s, %s, %s)", (codigo, ordem, f["url"], ordem == 1))
         banco.um(conn, "UPDATE privado.busca_corretor_foto SET usada_em = now() WHERE id = %s", (f["id"],))
@@ -1413,7 +1684,13 @@ def pedido_do_corretor(p: dict | None) -> dict:
     if bairros:
         f["bairros"] = bairros
     if str(p.get("condominio") or "").strip():
+        # 04/11 (o ...2985: "apartamento no Smille Flores", e saíram 18 imóveis de outros lugares): o condomínio que o
+        # corretor diz é o pedido; nada fora dele
         f["condominio"] = str(p["condominio"]).strip()
+        f["so_condominio"] = True
+    exigencias = [str(x).strip()[:120] for x in (p.get("exigencias") or []) if str(x).strip()]
+    if exigencias:
+        f["exigencias"] = exigencias          # "andar baixo", "pelo menos 1 suíte": a régua (serve_ao_pedido) cumpre
     q = whatsapp._num(p.get("quartos"))
     if q and 0 < q < 10:
         f["quartos"] = q
@@ -1424,6 +1701,78 @@ def pedido_do_corretor(p: dict | None) -> dict:
         if not f["mobilia"]:
             f.pop("mobilia")
     return f
+
+
+# 04/11 (o ...2985 repetiu o pedido cinco vezes e cada reclamação virou um pedido novo): o pedido do corretor fica guardado
+# (o jsonb de privado.busca_corretor, na marca "_pedido") com o que respondemos e o que mandamos, e vale entre os turnos
+PEDIDO_VALE_H = 24
+CAMPOS_DO_PEDIDO = ("finalidade", "tipo", "teto", "bairros", "condominio", "so_condominio", "quartos", "mobilia", "exigencias")
+
+
+def pedido_guardado(cor: dict) -> dict | None:
+    """{'f', 'em', 'resposta', 'mandados'} do último pedido dele, se for das últimas PEDIDO_VALE_H horas."""
+    p = (cor.get("imovel") or {}).get("_pedido") if isinstance(cor.get("imovel"), dict) else None
+    if not isinstance(p, dict) or not isinstance(p.get("f"), dict):
+        return None
+    try:
+        em = datetime.fromisoformat(str(p.get("em")))
+    except ValueError:
+        return None
+    if em.tzinfo is None:
+        em = em.replace(tzinfo=MANAUS)
+    return p if datetime.now(MANAUS) - em <= timedelta(hours=PEDIDO_VALE_H) else None
+
+
+def herdar_pedido(antes: dict | None, novo: dict) -> dict:
+    """O pedido de agora com o de antes: quando o de agora não diz o lugar, o valor nem o tipo ("Venda", "Vc não enviou
+    nenhuma opção"), ele é a continuação do de antes e só soma o que trouxe. Quando diz, é ele que vale (o modelo já junta
+    a conversa)."""
+    if not antes:
+        return novo
+    if novo.get("condominio") or novo.get("bairros") or novo.get("teto") or novo.get("tipo"):
+        return novo
+    return {**antes, **novo}
+
+
+def mesmo_pedido_do_corretor(a: dict | None, b: dict | None) -> bool:
+    def chave(f):
+        f = f or {}
+        return json.dumps({k: (sorted(whatsapp._normal(str(x)) for x in f[k]) if isinstance(f.get(k), list)
+                               else chave_do_condominio(f[k]) if k == "condominio" else f[k])
+                           for k in CAMPOS_DO_PEDIDO if f.get(k) not in (None, "", [], 0, False)}, sort_keys=True, default=str)
+    return chave(a) == chave(b)
+
+
+def guardar_pedido(conn, t8: str, cor: dict, feito: dict) -> None:
+    """Grava o pedido de agora (a marca "_pedido" do jsonb do corretor), sem mexer no imóvel que ele oferece."""
+    p = {**feito, "em": datetime.now(MANAUS).isoformat(timespec="minutes")}
+    banco.um(conn, """UPDATE privado.busca_corretor SET imovel = coalesce(imovel, '{}'::jsonb) || jsonb_build_object('_pedido', %s::jsonb)
+                       WHERE telefone8 = %s""", (json.dumps(p, ensure_ascii=False, default=str), t8))
+    cor["imovel"] = {**(cor.get("imovel") or {}), "_pedido": p}
+
+
+def nome_do_condominio(conn, nome: str) -> str:
+    """O nome do condomínio pedido como está no NOSSO cadastro ("Smille Flores" -> "Smile Flores"), ou o que ele escreveu."""
+    r = banco.um(conn, """
+        SELECT condominio_nome FROM imoveis WHERE coalesce(btrim(condominio_nome), '') <> ''
+           AND similarity(nay_chave_condominio(condominio_nome), nay_chave_condominio(%(n)s)) >= 0.6
+         ORDER BY similarity(nay_chave_condominio(condominio_nome), nay_chave_condominio(%(n)s)) DESC, (status = 'Disponível') DESC
+         LIMIT 1""", {"n": nome})
+    return str(r) if r else nome
+
+
+def _no_condominio(conn, f: dict) -> list[dict]:
+    """Os imóveis do condomínio pedido, direto do cadastro: a busca da base (olx_cliente_buscar) só conhece o condomínio
+    da planilha dos próximos e, sem ele, traz 10 de qualquer lugar (o 99 Adrianópolis de R$ 3 mi para o Smile Flores).
+    Parceiro e fora do mercado saem depois (_nossos_no_mercado); a régua confere o resto."""
+    venda = f.get("finalidade") == "venda"
+    return [{"codigo": int(r["codigo"]), "perto": False} for r in banco.linhas(conn, f"""
+        SELECT codigo, condominio_nome FROM imoveis
+         WHERE status = 'Disponível' AND coalesce(btrim(condominio_nome), '') <> ''
+           AND coalesce({'valor_venda' if venda else 'valor_aluguel'}, 0) > 0
+           AND similarity(nay_chave_condominio(condominio_nome), nay_chave_condominio(%s)) >= 0.6
+         ORDER BY codigo DESC LIMIT 20""", (f["condominio"],))
+            if whatsapp.so_no_condominio([{"condominio": r["condominio_nome"]}], {**f, "so_condominio": True})]
 
 
 def codigos_do_pedido(p: dict | None) -> list[int]:
@@ -1514,7 +1863,8 @@ def opcoes_para_o_corretor(conn, tel: str, f: dict) -> dict:
     `repetidos` = os que serviriam mas já foram para ele nas últimas REPETIDO_H h."""
     lead = {"id": None, "telefone": tel}
     g = {k: v for k, v in f.items() if k != "aceita_parceiro"}
-    achados = whatsapp._consultar(conn, g, [], [], limite=10)
+    # 04/11: com o condomínio dito, só os do condomínio (direto do cadastro); sem ele, a busca da Nay Leads
+    achados = _no_condominio(conn, g) if g.get("condominio") else whatsapp._consultar(conn, g, [], [], limite=10)
     servem = set(whatsapp.so_o_que_serve(conn, lead, g, [a["codigo"] for a in achados], bairro_conferido=True,
                                          onde="pedido do corretor"))
     achados = [a for a in achados if int(a["codigo"]) in servem]
@@ -1564,6 +1914,7 @@ def atender_pedido(conn, cor: dict, r: dict, c: dict) -> list[str]:
     tel = re.sub(r"\D", "", cor["telefone"])
     p = r.get("pedido") or {}
     codigos = codigos_do_pedido(p)
+    guardado = pedido_guardado(cor)
     if codigos:
         # ele pediu um imóvel NOSSO pelo código: vai esse (o de parceiro e o fora do mercado não; nem se fala em parceria)
         nossos = _nossos_no_mercado(conn, codigos)
@@ -1576,9 +1927,14 @@ def atender_pedido(conn, cor: dict, r: dict, c: dict) -> list[str]:
         if nossos:
             return [f"Esse eu já te mandei pelo nosso número de parcerias, o {PARCERIA_NUMERO}."]
         return ["Esse não está disponível no momento."]
-    f = pedido_do_corretor(p)
+    # 04/11 (o ...2985): o pedido de antes vale ("Venda" responde à pergunta; a reclamação não é pedido novo)
+    f = herdar_pedido((guardado or {}).get("f"), pedido_do_corretor(p))
+    if f.get("condominio"):
+        f["condominio"] = nome_do_condominio(conn, f["condominio"])
+    r["_pedido_feito"] = {"f": f}
     pergunta = falta_no_pedido(f)
     if pergunta:
+        r["_pedido_feito"]["resposta"] = pergunta
         return [pergunta]
     o = opcoes_para_o_corretor(conn, tel, f)
     mandados, msg = mandar_pela_parceria(conn, tel, o["novos"], c)
@@ -1586,12 +1942,20 @@ def atender_pedido(conn, cor: dict, r: dict, c: dict) -> list[str]:
              msg or "nada a mandar")
     if o["novos"] and not mandados:
         if "já foi" in msg:
-            return [resposta_do_pedido(f, [], o["novos"], o["afrouxar"])]
+            resposta = resposta_do_pedido(f, [], o["novos"], o["afrouxar"])
+            r["_pedido_feito"].update(resposta=resposta, mandados=[])
+            return [resposta]
         # a fila da Parceria recusou por outro motivo (card, número): não se promete o que não saiu; a equipe fica sabendo
         whatsapp._ao_crm(f"Corretor {cor.get('nome') or ''} ({grupo.telefone_bonito(tel)}) pediu {perfil_do_pedido(f)}: a Nay "
                          f"achou {', '.join('#' + str(x) for x in o['novos'])}, mas o envio pela Parceria não saiu ({msg[:200]}).")
         return []
-    return [resposta_do_pedido(f, mandados, o["repetidos"], o["afrouxar"])]
+    resposta = resposta_do_pedido(f, mandados, o["repetidos"], o["afrouxar"])
+    if not mandados and guardado and mesmo_pedido_do_corretor(guardado.get("f"), f) and not guardado.get("mandados"):
+        # o mesmo pedido, já respondido, e nada novo: diz uma vez que conferiu, sem "tenho sim" (e sem repetir a frase)
+        resposta = f"Conferi de novo: {perfil_do_pedido(f)[:1].lower()}{perfil_do_pedido(f)[1:]} não tenho agora. " \
+                   "Se entrar algum, te chamo por aqui."
+    r["_pedido_feito"].update(resposta=resposta, mandados=mandados)
+    return [resposta]
 
 
 _MARCADOS: dict = {"em": 0.0, "fins": None}
@@ -1714,6 +2078,166 @@ def _pendentes_corretores(conn) -> list[dict]:
          ORDER BY max(m.criada_em) LIMIT 4""", {"marcados": sorted(corretores_marcados(conn)), "janela": MARCADO_JANELA_H})
 
 
+# ── 5c. O QUE O CORRETOR QUER (04/11/2026, a revisão das conversas reais da Nay Corretores) ──
+# Os erros de 04/11 tinham a mesma raiz: a Nay agia antes de entender. "TEM ALGUMA COISA ATÉ 300 MIL VENDA" virou pedido
+# de cadastro; o NOSSO pedido do grupo encaminhado virou pedido dele; o link de uma casa NOSSA com "temos cliente
+# interessado em visitar" virou cadastro (o #9129, em dobro do #2462); cada "vc não enviou nenhuma" virou um pedido novo.
+# Agora um entendimento só, antes de agir: pedido | oferta | visita | reclamacao | duvida | outro -- o do modelo, com as
+# travas que o código sabe sozinho.
+INTENCOES = ("pedido", "oferta", "visita", "reclamacao", "duvida", "outro")
+VISITA_NO_TEXTO = re.compile(r"\b(visit\w*|agend\w*|conhecer o im[oó]vel|levar (?:o |meu |minha |a )?client\w*|"
+                             r"client\w* interessad\w*)", re.I)
+
+
+def entender_corretor(r: dict, novas: list[str], nosso: dict | None, im_anuncio: dict | None, citou_nosso_pedido: bool,
+                      tem_pedido: bool = False) -> str:
+    """A intenção do turno: a do modelo ("intencao"; o formato antigo pede_imovel/oferece_imovel também vale), corrigida
+    pelo que o código sabe: o anúncio NOSSO não é oferta dele (com visita no texto é visita); o nosso pedido do grupo
+    encaminhado não é pedido dele; a reclamação sem pedido nenhum (nem agora nem antes) fica com o balão do modelo."""
+    i = whatsapp._normal(str(r.get("intencao") or "")).replace(" ", "")
+    if i not in INTENCOES:
+        i = "pedido" if r.get("pede_imovel") else "oferta" if r.get("oferece_imovel") else "outro"
+    texto = " ".join(novas or [])
+    im = sem_marcas(r.get("imovel") if isinstance(r.get("imovel"), dict) else {})
+    if nosso is not None and i in ("oferta", "outro", "duvida"):
+        if VISITA_NO_TEXTO.search(texto):
+            i = "visita"
+        elif i == "oferta" and (not tem_identidade(im) or mesmo_imovel(im_anuncio, im)):
+            i = "duvida"                  # o imóvel "oferecido" é o do nosso anúncio
+    if citou_nosso_pedido and i in ("pedido", "reclamacao") and not codigos_do_pedido(r.get("pedido")):
+        i = "oferta" if (r.get("oferece_imovel") or tem_identidade(im)) else "outro"
+    if i == "reclamacao" and not tem_pedido and not pedido_do_corretor(r.get("pedido")):
+        i = "duvida"                      # reclama de outra coisa: o modelo responde
+    return i
+
+
+def _avisar_revisao(conn, cor: dict, codigos: list[int], motivo: str) -> None:
+    """Dados que não fecham num imóvel só ficam em Rascunho e a equipe confere (Pedro: dados conflitantes não viram
+    Disponível)."""
+    whatsapp._ao_crm(f"Corretor {cor.get('nome') or ''} ({grupo.telefone_bonito(cor['telefone'])}): {motivo} "
+                     f"Pré-cadastro{'s' if len(codigos) > 1 else ''} {', '.join('#' + str(x) for x in codigos)} em Rascunho: "
+                     "confiram os dados e as fotos antes de publicar.")
+
+
+def _atender_oferta(conn, cor: dict, r: dict, b: dict | None, c: dict, *, ja: dict, anuncio: dict | None, do_anuncio: dict,
+                    fotos: int, docs: int, fotos_anuncio: list[str], novas: list[str], baloes: list[str]) -> list[str]:
+    """O imóvel que ele oferece: anota, cadastra (pré-cadastro de parceiro) e, completo, oferece ao cliente da busca.
+    04/11: imóvel diferente do anotado abre um pré-cadastro NOVO (o #9130 juntou o Simon Bolívar e o Smart Tarumã);
+    vários de uma vez, um Rascunho para cada e nenhum Disponível sozinho (as fotos vieram misturadas: o #9132); o
+    condomínio da nossa lista dá o bairro; e o imóvel é anotado mesmo quando não serve à busca (o ...1009 tinha o Village
+    Vert esquecido a cada turno porque "serve" era "nao", e a Nay perguntava de novo o que ele tinha escrito)."""
+    t8 = _tel8(cor["telefone"])
+    novo = sem_marcas(r.get("imovel") if isinstance(r.get("imovel"), dict) else {})
+    if b and r.get("serve") == "nao":
+        b = None                          # não serve a essa busca: entra na base e a revisita olha as outras
+    antes = sem_marcas(cor.get("imovel"))
+    outro = bool(cor.get("codigo")) and tem_identidade(novo) and (
+        r.get("outro_imovel") is True or (tem_identidade(antes) and not mesmo_imovel(antes, novo)))
+    revisar = bool((cor.get("imovel") or {}).get("_revisar"))
+    if outro:
+        # outro imóvel: começa do zero (o anúncio só vale se for dele); o pré-cadastro de antes fica como estava
+        log.info("corretor …%s: outro imóvel (o #%s era outro): pré-cadastro novo", t8[-4:], cor.get("codigo"))
+        base = do_anuncio if anuncio and mesmo_imovel(do_anuncio, novo) else {}
+        if not base:
+            anuncio, fotos_anuncio = None, []
+        ja, revisar = base, False
+        cor = {**cor, "codigo": None}
+        fotos = _qtd_fotos(conn, t8, None) + len(fotos_anuncio)
+    mais = [sem_marcas(x) for x in (r.get("mais_imoveis") or []) if isinstance(x, dict) and tem_identidade(x)]
+    im = venda_pelo_valor(completar_imovel(conn, juntar_imovel(ja, novo), novas))
+    if mais:
+        revisar = True                    # as fotos de mais de um imóvel vieram juntas: ninguém vira Disponível sozinho
+    guardadas = {k: v for k, v in marcas(cor.get("imovel")).items() if not outro or k == "_pedido"}
+    im = {**guardadas, **im, **({"_revisar": True} if revisar else {})}
+    if not revisar:
+        im.pop("_revisar", None)
+    banco.um(conn, """UPDATE privado.busca_corretor SET imovel = %s::jsonb, busca = %s, estado = 'cadastrando',
+                       codigo = CASE WHEN %s THEN NULL ELSE codigo END WHERE telefone8 = %s""",
+             (json.dumps(im, ensure_ascii=False, default=str), b["id"] if b else None, outro, t8))
+    cor = {**cor, "imovel": im, "busca": b["id"] if b else None}
+    primeira = not cor.get("codigo")
+    # pronto de verdade: as fotos guardadas (o documento não fica no cadastro) e nada a conferir
+    falta = falta_no_imovel(sem_marcas(im), fotos)
+    pronto = not falta and not revisar
+    completo = pronto and c["corretor"] == "sim"
+    codigo = cadastrar(conn, {**cor, "imovel": sem_marcas(im)}, b, ativo=completo, fotos_do_anuncio=fotos_anuncio, anuncio=anuncio)
+    banco.um(conn, "UPDATE privado.busca_corretor SET codigo = %s WHERE telefone8 = %s", (codigo, t8))
+    if mais:
+        extras = [cadastrar(conn, {**cor, "codigo": None, "imovel": venda_pelo_valor(completar_imovel(conn, x, []))}, None,
+                            ativo=False, com_fotos=False) for x in mais]
+        _avisar_revisao(conn, cor, [codigo, *extras], f"mandou {1 + len(extras)} imóveis na mesma conversa; as fotos vieram "
+                                                      f"juntas e ficaram no #{codigo}.")
+    if docs and fotos < FOTOS_MINIMAS and (cor.get("imovel") or {}).get("_aviso_docs") != docs:
+        # o documento não é guardado pelo recebedor das fotos: a equipe baixa do WhatsApp
+        _avisar_revisao(conn, cor, [codigo], f"mandou {docs} foto(s) como ARQUIVO (documento), que não entram no cadastro "
+                                             "sozinhas: baixem do WhatsApp do Leads.")
+        banco.um(conn, """UPDATE privado.busca_corretor SET imovel = imovel || jsonb_build_object('_aviso_docs', %s::int)
+                           WHERE telefone8 = %s""", (docs, t8))
+    if primeira and b:
+        banco.um(conn, "UPDATE privado.busca_cliente SET ofertas = ofertas || %s::jsonb WHERE id = %s",
+                 (json.dumps([{"tel": cor["telefone"], "nome": cor.get("nome"), "codigo": codigo,
+                               "em": datetime.now(MANAUS).isoformat(timespec="minutes"), "estado": "cadastrando"}], ensure_ascii=False), b["id"]))
+        passo(conn, b["id"], "corretor", f"Corretor {cor.get('nome') or ''} (…{t8[-4:]}) ofereceu um imóvel: pré-cadastro #{codigo}")
+    if pronto and not b:
+        # 488: cadastro completo e nenhuma busca em vista: a Nay dos leads recebe a opção nova (a nossa base é
+        # olhada de novo agora por todas as buscas abertas) e o corretor sabe que ficou cadastrado
+        banco.um(conn, "UPDATE privado.busca_corretor SET estado = 'ofertado' WHERE telefone8 = %s", (t8,))
+        banco.um(conn, "UPDATE privado.busca_cliente SET base_em = NULL WHERE estado = 'buscando'")
+        log.info("corretor …%s: imóvel #%s cadastrado; as buscas abertas olham a base de novo", t8[-4:], codigo)
+        if not baloes:
+            baloes = ["Perfeito, obrigado! Vou passar a opção para o cliente e, se ele se interessar, entro em contato para agendar uma visita."]
+    elif pronto:
+        onde = oferecer_ao_cliente(conn, b, codigo, cor, c)
+        if onde in ("cliente", "grupo"):
+            # 23/10: um imóvel não fecha a busca; ela segue até OPCOES_META opções (_fechar_se_completa)
+            ofertas = banco.um(conn, """
+                UPDATE privado.busca_cliente SET ofertas = (
+                       SELECT coalesce(jsonb_agg(CASE WHEN o->>'codigo' = %s::text THEN o || jsonb_build_object('estado', %s::text)
+                                                      ELSE o END ORDER BY n), '[]'::jsonb)
+                         FROM jsonb_array_elements(ofertas) WITH ORDINALITY AS x(o, n))
+                 WHERE id = %s RETURNING ofertas""", (codigo, onde, b["id"]))
+            _fechar_se_completa(conn, b, ofertas or [])
+            banco.um(conn, "UPDATE privado.busca_corretor SET estado = 'ofertado' WHERE telefone8 = %s", (t8,))
+            banco.um(conn, "UPDATE privado.busca_cliente SET base_em = NULL WHERE estado = 'buscando' AND id <> %s", (b["id"],))
+        passo(conn, b["id"], "oferta", {"cliente": f"Imóvel #{codigo} completo e oferecido ao cliente",
+                                        "grupo": f"Imóvel #{codigo} completo; o cliente está com a equipe: avisado no grupo",
+                                        "teste": f"Imóvel #{codigo} completo (teste: não foi ao cliente)",
+                                        # 04/11: a régua única barrou (o motivo fica no registro dos agentes)
+                                        "nao_serve": f"Imóvel #{codigo} completo, mas não serve ao pedido do cliente: não foi",
+                                        "espera": f"Imóvel #{codigo} completo; vai ao cliente na revisita da base "
+                                                  f"({whatsapp.oferta_sozinha_espera(conn, whatsapp._lead(conn, b['lead']), b.get('filtros')) or 'agora pode ir'})"}[onde])
+        if not baloes and onde == "nao_serve":
+            # 04/11: a régua barrou; ao corretor não se diz que foi ao cliente
+            baloes = ["Obrigado! Esse não fecha com tudo o que o cliente pediu, mas ficou cadastrado aqui e, se servir "
+                      "para outro cliente, te chamo."]
+        if not baloes:
+            baloes = ["Perfeito, obrigado! Já passei a opção para o cliente e, se ele se interessar, entro em contato para agendar uma visita."
+                      if onde != "espera" else
+                      "Perfeito, obrigado! Vou passar a opção para o cliente e, se ele se interessar, entro em contato para agendar uma visita."]
+    elif b:
+        passo(conn, b["id"], "corretor", f"#{codigo}: falta {', '.join(falta) or 'conferir (dados de mais de um imóvel)'}")
+    conn.commit()
+    return baloes
+
+
+def _atender_visita(conn, cor: dict, nosso: dict | None, fichas: list[dict], novas: list[str], baloes: list[str]) -> list[str]:
+    """04/11 (o ...7891: "Temos cliente interessado em visitar amanhã... 14:30" sobre uma casa NOSSA; ficou "Estou no
+    aguardo" sem resposta): o cliente DELE quer visitar um imóvel NOSSO. Não é cadastro e a Nay Corretores não marca
+    visita: a equipe recebe o aviso com o imóvel e o que ele escreveu, e combina com ele (a conversa passa à equipe)."""
+    t8 = _tel8(cor["telefone"])
+    cods = [c for c in [(nosso or {}).get("codigo"), *[whatsapp._int(f.get("codigo")) for f in fichas or []]] if c]
+    qual = f"o nosso #{cods[0]}" if cods else "um imóvel nosso"
+    whatsapp._ao_crm(f"Corretor {cor.get('nome') or ''} ({grupo.telefone_bonito(cor['telefone'])}) quer visitar {qual} com o "
+                     f"cliente dele: \"{' / '.join(t.strip() for t in novas if t.strip())[:300]}\". Combinem a visita com ele "
+                     "pelo WhatsApp Leads; a Nay Corretores parou nessa conversa.")
+    banco.um(conn, "UPDATE privado.busca_corretor SET estado = 'humano', humano_em = now() WHERE telefone8 = %s", (t8,))
+    conn.commit()
+    log.info("corretor …%s quer visitar %s: a equipe foi avisada", t8[-4:], qual)
+    # o balão do modelo, se não fala de cliente nosso nem promete o que é da equipe; senão uma frase curta
+    ok = [x for x in baloes if not re.search(r"\b(com o|com a|ao|o nosso|meu|nosso) client", x, re.I)]
+    return ok[:1] or ["Show! Vou ver o horário com a equipe e já te retorno por aqui."]
+
+
 def corretores_volta(conn, c: dict) -> int:
     if c["corretor"] == "nao":
         return 0
@@ -1746,13 +2270,17 @@ def corretores_volta(conn, c: dict) -> int:
                      (p["ate"], t8))
             conn.commit()
             continue
+        novas = [m["texto"] or "" for m in conversa if m["direcao"] == "recebida" and m["id"] > (cor["ultima_lida"] or 0)]
         fotos = _qtd_fotos(conn, t8, cor.get("codigo"))
+        docs = docs_recebidos(conversa)
         anuncio = anuncio_da_conversa(conn, t8, [m["texto"] or "" for m in conversa])
-        do_anuncio = imovel_do_anuncio(conn, anuncio) if anuncio else {}
-        fotos_anuncio = [u for u in (anuncio or {}).get("fotos") or [] if u][:FOTOS_DO_ANUNCIO]
+        # 04/11 (o ...7891): o anúncio NOSSO não é o imóvel dele: não entra no "já anotado" nem no cadastro
+        nosso = nosso_do_anuncio(conn, anuncio) if anuncio else None
+        do_anuncio = imovel_do_anuncio(conn, anuncio) if anuncio and nosso is None else {}
+        fotos_anuncio = [u for u in (anuncio or {}).get("fotos") or [] if u][:FOTOS_DO_ANUNCIO] if nosso is None else []
         if fotos < FOTOS_MINIMAS:
             fotos += len(fotos_anuncio)
-        ja = venda_pelo_valor(juntar_imovel(do_anuncio, cor.get("imovel") or {}))
+        ja = venda_pelo_valor(juntar_imovel(do_anuncio, sem_marcas(cor.get("imovel"))))
         equipe_por_perto = any(m["origem"] == "equipe_crm" and m["criada_em"] > datetime.now(timezone.utc) - timedelta(hours=EQUIPE_NA_CONVERSA_H)
                                for m in conversa)
         # 04/11: a ficha do imóvel NOSSO que ele citou (código, link ou nome), para a dúvida dele; só o que está no site
@@ -1762,15 +2290,23 @@ def corretores_volta(conn, c: dict) -> int:
             log.exception("corretor …%s: a ficha citada falhou", t8[-4:])
             fichas = []
         try:
-            r = modelo.chamar(PROMPT_CORRETOR, _turno_corretor(conn, cor, conversa, ativas, fotos, anuncio, ja, fichas),
+            r = modelo.chamar(PROMPT_CORRETOR, _turno_corretor(conn, cor, conversa, ativas, fotos, anuncio, ja, fichas,
+                                                               nosso=nosso, docs=docs),
                               no="olx.corretor")
         except Exception:  # noqa: BLE001
             log.exception("corretor …%s: o modelo falhou", t8[-4:])
             continue
         banco.um(conn, "UPDATE privado.busca_corretor SET ultima_lida = %s, atualizado_em = now() WHERE telefone8 = %s", (p["ate"], t8))
         conn.commit()
+        # 04/11: O QUE ELE QUER, antes de agir (pedido, oferta, visita, reclamação, dúvida), com as travas do código
+        citou = any(sem_nosso_pedido(t)[1] for t in novas)
+        intencao = entender_corretor(r, novas, nosso, do_anuncio or imovel_do_anuncio(conn, anuncio) if anuncio else {}, citou,
+                                     bool(pedido_guardado(cor)))
         ids = {b["id"]: b for b in ativas}
         bid = r.get("busca_id") if r.get("busca_id") in ids else cor.get("busca")
+        citada = busca_do_pedido_citado(ativas, novas) if citou else None
+        if citada:
+            bid = citada["id"]                    # ele respondeu ao NOSSO pedido do grupo: é dessa busca
         if not bid:
             # 30/10 (revisão, o Augusto ...8279 e a busca 85 da Karoline): a busca que o chamou pela OLX está em
             # busca_contato; sem ela o imóvel entrava solto e ele ouvia "vou passar ao cliente" de um imóvel que não servia
@@ -1782,74 +2318,33 @@ def corretores_volta(conn, c: dict) -> int:
             # Pedro, 30/10: a equipe está falando com ele (a Stela, com o link da OLX); a Nay não fala por cima, só anota
             log.info("corretor …%s: a equipe está na conversa; a Nay não responde", t8[-4:])
             baloes = []
-        pede = bool(r.get("pede_imovel"))
-        # 04/11: quem PEDE imóvel não está oferecendo o do anúncio da OLX da conversa
-        if (r.get("oferece_imovel") or (anuncio and not pede)) and (not b or r.get("serve") != "nao"):
+        pede = intencao in ("pedido", "reclamacao")
+        if intencao == "oferta" or (anuncio and nosso is None and intencao not in ("pedido", "reclamacao", "visita")):
             # 488: o imóvel do corretor entra na base mesmo sem busca que sirva ("serve" é só das buscas ativas)
-            im = venda_pelo_valor(juntar_imovel(ja, r.get("imovel") or {}))
-            banco.um(conn, """UPDATE privado.busca_corretor SET imovel = %s::jsonb, busca = %s, estado = 'cadastrando'
-                               WHERE telefone8 = %s""", (json.dumps(im, ensure_ascii=False), b["id"] if b else None, t8))
-            cor = {**cor, "imovel": im, "busca": b["id"] if b else None}
-            primeira = not cor.get("codigo")
-            falta = falta_no_imovel(im, fotos)
-            completo = not falta and c["corretor"] == "sim"
-            codigo = cadastrar(conn, cor, b, ativo=completo, fotos_do_anuncio=fotos_anuncio, anuncio=anuncio)
-            banco.um(conn, "UPDATE privado.busca_corretor SET codigo = %s WHERE telefone8 = %s", (codigo, t8))
-            if primeira and b:
-                banco.um(conn, "UPDATE privado.busca_cliente SET ofertas = ofertas || %s::jsonb WHERE id = %s",
-                         (json.dumps([{"tel": cor["telefone"], "nome": cor.get("nome"), "codigo": codigo,
-                                       "em": datetime.now(MANAUS).isoformat(timespec="minutes"), "estado": "cadastrando"}], ensure_ascii=False), b["id"]))
-                passo(conn, b["id"], "corretor", f"Corretor {cor.get('nome') or ''} (…{t8[-4:]}) ofereceu um imóvel: pré-cadastro #{codigo}")
-            if not falta and not b:
-                # 488: cadastro completo e nenhuma busca em vista: a Nay dos leads recebe a opção nova (a nossa base é
-                # olhada de novo agora por todas as buscas abertas) e o corretor sabe que ficou cadastrado
-                banco.um(conn, "UPDATE privado.busca_corretor SET estado = 'ofertado' WHERE telefone8 = %s", (t8,))
-                banco.um(conn, "UPDATE privado.busca_cliente SET base_em = NULL WHERE estado = 'buscando'")
-                log.info("corretor …%s: imóvel #%s cadastrado; as buscas abertas olham a base de novo", t8[-4:], codigo)
-                if not baloes:
-                    baloes = ["Perfeito, obrigado! Vou passar a opção para o cliente e, se ele se interessar, entro em contato para agendar uma visita."]
-            elif not falta:
-                onde = oferecer_ao_cliente(conn, b, codigo, cor, c)
-                if onde in ("cliente", "grupo"):
-                    # 23/10: um imóvel não fecha a busca; ela segue até OPCOES_META opções (_fechar_se_completa)
-                    ofertas = banco.um(conn, """
-                        UPDATE privado.busca_cliente SET ofertas = (
-                               SELECT coalesce(jsonb_agg(CASE WHEN o->>'codigo' = %s::text THEN o || jsonb_build_object('estado', %s::text)
-                                                              ELSE o END ORDER BY n), '[]'::jsonb)
-                                 FROM jsonb_array_elements(ofertas) WITH ORDINALITY AS x(o, n))
-                         WHERE id = %s RETURNING ofertas""", (codigo, onde, b["id"]))
-                    _fechar_se_completa(conn, b, ofertas or [])
-                    banco.um(conn, "UPDATE privado.busca_corretor SET estado = 'ofertado' WHERE telefone8 = %s", (t8,))
-                    banco.um(conn, "UPDATE privado.busca_cliente SET base_em = NULL WHERE estado = 'buscando' AND id <> %s", (b["id"],))
-                passo(conn, b["id"], "oferta", {"cliente": f"Imóvel #{codigo} completo e oferecido ao cliente",
-                                                "grupo": f"Imóvel #{codigo} completo; o cliente está com a equipe: avisado no grupo",
-                                                "teste": f"Imóvel #{codigo} completo (teste: não foi ao cliente)",
-                                                # 04/11: a régua única barrou (o motivo fica no registro dos agentes)
-                                                "nao_serve": f"Imóvel #{codigo} completo, mas não serve ao pedido do cliente: não foi",
-                                                "espera": f"Imóvel #{codigo} completo; vai ao cliente na revisita da base "
-                                                          f"({whatsapp.oferta_sozinha_espera(conn, whatsapp._lead(conn, b['lead']), b.get('filtros')) or 'agora pode ir'})"}[onde])
-                if not baloes and onde == "nao_serve":
-                    # 04/11: a régua barrou; ao corretor não se diz que foi ao cliente
-                    baloes = ["Obrigado! Esse não fecha com tudo o que o cliente pediu, mas ficou cadastrado aqui e, se servir "
-                              "para outro cliente, te chamo."]
-                if not baloes:
-                    baloes = ["Perfeito, obrigado! Já passei a opção para o cliente e, se ele se interessar, entro em contato para agendar uma visita."
-                              if onde != "espera" else
-                              "Perfeito, obrigado! Vou passar a opção para o cliente e, se ele se interessar, entro em contato para agendar uma visita."]
-            elif b:
-                passo(conn, b["id"], "corretor", f"#{codigo}: falta {', '.join(falta)}")
-            conn.commit()
+            baloes = _atender_oferta(conn, cor, r, b, c, ja=ja, anuncio=anuncio if nosso is None else None,
+                                     do_anuncio=do_anuncio, fotos=fotos, docs=docs, fotos_anuncio=fotos_anuncio,
+                                     novas=novas, baloes=baloes)
+        elif intencao == "visita" and not equipe_por_perto:
+            baloes = _atender_visita(conn, cor, nosso, fichas, novas, baloes)
+            r["responder"] = True
         if pede and equipe_por_perto:
             log.info("corretor …%s pediu imóvel, mas a equipe está na conversa: a Nay não manda nem responde", t8[-4:])
         elif pede:
             # 04/11 (Pedro: "mandar os imóveis e responder as solicitações dele"): o pedido do cliente DELE
             try:
                 resposta = atender_pedido(conn, cor, r, c)
+                if r.get("_pedido_feito"):
+                    guardar_pedido(conn, t8, cor, r["_pedido_feito"])
+                    conn.commit()
             except Exception:  # noqa: BLE001 -- um corretor não para os outros
                 conn.rollback()
                 log.exception("corretor …%s: o pedido falhou", t8[-4:])
                 resposta = []
             baloes, r["responder"] = resposta, bool(resposta)
+        # 04/11 (o ...5600 ouviu "é casa ou apartamento?" duas vezes; o ...2985 ouviu a mesma frase cinco vezes): nada que a
+        # Nay já disse ou perguntou a ele sai de novo
+        nossas = [m["texto"] for m in conversa if m["direcao"] == "enviada" and (m["texto"] or "").strip()][-30:]
+        baloes = whatsapp.sem_repetir(sem_pergunta_repetida(baloes, ja_perguntado(conversa, 30)), nossas)
         if r.get("responder") and baloes:
             for n, t in enumerate(baloes):
                 if n:

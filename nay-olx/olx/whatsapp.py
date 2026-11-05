@@ -1481,8 +1481,18 @@ def so_no_condominio(achados: list[dict], f: dict) -> list[dict]:
     if not (f.get("so_condominio") and f.get("condominio")):
         return achados
     alvo = _normal(str(f["condominio"]))
-    return [a for a in achados if alvo and (alvo in _normal(str(a.get("condominio") or "")) or
-                                            _normal(str(a.get("condominio") or "")) in alvo and a.get("condominio"))]
+
+    def serve(nome: str) -> bool:
+        n = _normal(nome)
+        if not (alvo and n):
+            return False
+        if alvo in n or n in alvo:
+            return True
+        # 04/11 (o ...2985 escreveu "Smille Flores"): o nome escrito de ouvido, sem as palavras de condomínio
+        a, b = (" ".join(p for p in x.split() if p not in ("condominio", "residencial", "edificio", "cond", "res", "ed"))
+                for x in (alvo, n))
+        return bool(a and b) and SequenceMatcher(None, a, b).ratio() >= 0.85
+    return [a for a in achados if serve(str(a.get("condominio") or ""))]
 
 
 def pergunta_a_toa(r: dict, conversa: list[dict]) -> str:
