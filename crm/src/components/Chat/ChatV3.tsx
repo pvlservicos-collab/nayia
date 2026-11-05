@@ -110,7 +110,7 @@ function SeloDeSucesso({ s }: { s: Sucesso }) {
     ...s.erros.map((e) => `• ${e}`)].filter(Boolean).join('\n')
   return (
     <span className="flex-shrink-0 rounded px-1 text-[10.5px] font-semibold leading-[15px]" title={dica} aria-label={dica}
-          style={{ color: cor, border: `1px solid ${cor}88`, background: `${cor}14` }}>{s.nota}%</span>
+          style={{ color: cor, border: `1px solid ${cor}88`, background: `${cor}14` }}>{s.nota}</span>
   )
 }
 
@@ -137,7 +137,6 @@ function CardV3({ l, hora, aberta, abrir, menu, cor, etapa, tipo, r, sucesso }: 
       <span className="flex-1 min-w-0 flex flex-col gap-[3px]">
         <span className="flex items-center gap-2">
           <span className="flex-1 truncate text-[15px]" style={{ color: 'var(--wa-text)', fontWeight: naoLida ? 600 : 400 }}>{nome}</span>
-          {sucesso && <SeloDeSucesso s={sucesso} />}
           <span className="flex-shrink-0" style={{ color: naoLida ? 'var(--wa-green)' : 'var(--wa-text-2)', fontSize: naoLida ? 13 : 12, fontWeight: naoLida ? 600 : 400 }}>{hora}</span>
         </span>
         <span className="flex items-center gap-1.5">
@@ -153,7 +152,11 @@ function CardV3({ l, hora, aberta, abrir, menu, cor, etapa, tipo, r, sucesso }: 
         <span className="flex items-center gap-2">
           {etapa && <BarrinhaCurta atual={etapa.i} />}
           <span className="flex-1 truncate text-[12px]" style={{ color: 'var(--wa-text-2)' }}>{etapa ? etapa.nome : tipo}</span>
-          <Selo r={r} />
+          {/* 05/11 (Pedro: "a nota eu quero embaixo de IA, ex.: IA 95"): a taxa de sucesso logo abaixo do selo de quem responde */}
+          <span className="flex flex-col items-center gap-[2px] flex-shrink-0">
+            <Selo r={r} />
+            {sucesso && <SeloDeSucesso s={sucesso} />}
+          </span>
         </span>
       </span>
     </button>
