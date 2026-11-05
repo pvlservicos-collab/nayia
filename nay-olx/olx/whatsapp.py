@@ -1626,7 +1626,7 @@ def descobrir_organicos(conn, cfg: dict, a_cada_s: float = 20.0) -> int:
         from olx import buscas
         falas = " ".join((x["texto"] or "") for x in banco.linhas(conn, """
             SELECT texto FROM captacao_mensagens WHERE id >= %s AND direcao = 'recebida'
-               AND right(regexp_replace(coalesce(telefone, ''), '[^0-9]', '', 'g'), 8) = right(%s, 8) ORDER BY id LIMIT 3""",
+               AND right(regexp_replace(coalesce(telefone, ''), '[^0-9]', '', 'g'), 8) = right(%s, 8) ORDER BY id LIMIT 10""",
                                                                   (int(o["primeira"]), o["telefone"])))
         if buscas.parece_corretor(falas):
             if banco.um(conn, """INSERT INTO privado.busca_corretor (telefone8, telefone, origem, classificado_em, ultima_lida)
@@ -1702,13 +1702,33 @@ def responder(conn, cfg: dict) -> int:
     return feitos
 
 
+def _virou_corretor(conn, lead: dict) -> bool:
+    """04/11 (Pedro, ...1953734: a Nay perguntou "esta procurando um imovel?" a uma imobiliaria que respondeu "esse apartamento e
+    de parceria"): o lead organico que, em qualquer momento da conversa, pede/cita parceria ou se diz corretor/imobiliaria e da
+    Nay Corretores. Antes so as 3 primeiras mensagens eram lidas; "parceira" veio na quarta, depois da Nay ja ter respondido."""
+    if lead.get("origem") != "organico":
+        return False
+    from olx import buscas
+    falas = " ".join((x["texto"] or "") for x in banco.linhas(conn, """
+        SELECT texto FROM captacao_mensagens WHERE direcao = 'recebida' AND criada_em > now() - interval '3 days'
+           AND right(regexp_replace(coalesce(telefone, ''), '[^0-9]', '', 'g'), 8) = right(%s, 8) ORDER BY id DESC LIMIT 10""",
+                                                              (lead["telefone"],)))
+    if not buscas.parece_corretor(falas):
+        return False
+    if banco.um(conn, """INSERT INTO privado.busca_corretor (telefone8, telefone, origem, classificado_em, ultima_lida)
+                         VALUES (right(%s, 8), %s, 'parceria', now(), %s) ON CONFLICT (telefone8) DO NOTHING RETURNING 1""",
+                (lead["telefone"], lead["telefone"], int(lead.get("ultima_lida") or 0))):
+        log.info("corretor classificado no meio da conversa: %s", nay.telefone_bonito(lead["telefone"]))
+    return True
+
+
 def _responder_um(conn, cfg: dict, lead: dict, ate: int) -> bool:
     # 04/11 (Pedro: "todos que estão marcados como corretores, mesmo no número Leads, é para a Nay Parceria atender e não a
     # Nay Leads"): o corretor marcado (o "Corretor · Nay atende" do CRM: buscas.corretores_marcados) é da Nay Corretores
     # (olx/buscas.py), que manda as opções pela Parceria. Ela não responde, sai da conversa (humano_em: o acompanhamento e a
     # revisita da base também param) e deixa a mensagem para a Nay Corretores, que lê captacao_mensagens por conta própria.
     from olx import buscas
-    if buscas.e_corretor_marcado(conn, lead["telefone"]):
+    if buscas.e_corretor_marcado(conn, lead["telefone"]) or _virou_corretor(conn, lead):
         agentes.novo_turno(lead)
         if lead.get("humano_em"):
             _marcar(conn, lead["id"], ultima_lida=ate)

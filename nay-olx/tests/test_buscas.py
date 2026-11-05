@@ -232,7 +232,9 @@ class OpcoesDaBase(unittest.TestCase):
         """Pedro, 24/10: 'faz parceria no Kopenhagen?' e corretor; o cliente que fala 'o corretor me disse' nao."""
         f = b.parece_corretor
         for t in ("faz parceria no Kopenhagen?", "Boa tarde, sou corretor, tenho um apto no Flores", "Sou da imobiliária Casa Forte",
-                  "meu CRECI é 1234", "Tenho cliente, aceitam parceria?", "Sou corretora de imóveis"):
+                  "meu CRECI é 1234", "Tenho cliente, aceitam parceria?", "Sou corretora de imóveis",
+                  "Esse apartamento é de parceira :/",
+                  "Olá, tudo bem? Vamos lá, antes de iniciarmos uma conversa, preciso saber algumas informações; * PROCURAS casa para IMEDIATO"):
             self.assertTrue(f(t), t)
         for t in ("o corretor me disse que tem um apartamento", "oi, vi o anúncio do 9024", "quero alugar um 2 quartos", ""):
             self.assertFalse(f(t), t)

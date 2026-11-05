@@ -630,6 +630,25 @@ def pergunta_ao_anunciante(a: dict, predio: str | None = None) -> str:
             f"Você trabalha com parceria?")
 
 
+def abrir_com_o_anunciante(conn, tel: str, texto: str, nome: str | None, motivo: str) -> str | None:
+    """Pedro, 04/11 ("já tínhamos conversa com esse número, é a Ana, e a Nay fica começando conversa pelo número de
+    leads, NUNCA PARA ELA FAZER ISSO"): quem já conversa conosco na Parceria é abordado POR LÁ (a regra 492/493 do dono);
+    só quem nunca falou conosco recebe a abertura pelo 8595. Devolve o id da mensagem (ou 'saida:<id>' na Parceria)."""
+    # qualquer conversa na Parceria vale (recebida OU enviada, ou só o contato), não só a que ele escreveu
+    if banco.um(conn, """SELECT nay_leads_linha_do_dono(%(t)s) = 'parceria'
+                             OR EXISTS (SELECT 1 FROM mensagens m WHERE nai_chave(m.telefone) = nai_chave(%(t)s))
+                             OR EXISTS (SELECT 1 FROM nai_contato c WHERE c.chave = nai_chave(%(t)s))""", {"t": tel}):
+        sid = banco.um(conn, "SELECT nay_leads_mandar_pela_parceria(%s, %s, %s, %s, NULL)", (tel, texto, nome or None, motivo[:200]))
+        if sid:
+            log.info("olx: …%s já conversa na Parceria: a abertura foi por lá (saída %s)", tel[-4:], sid)
+            return f"saida:{sid}"
+        log.warning("olx: …%s conversa na Parceria mas ela não aceitou; a abertura NÃO sai pelo 8595", tel[-4:])
+        raise RuntimeError("a Parceria não aceitou e o contato já conversa lá: não abrir pelo 8595")
+    mid = _enviar(tel, texto)
+    _guardar_enviada(conn, tel, texto, mid)
+    return mid
+
+
 def trecho_do_predio(titulo: str) -> str | None:
     """O pedaço do título que nomeia o prédio: o que vem depois de "Cond", "Condomínio", "Resid", "Residencial",
     "Edifício" ou "Ed" até a vírgula, o hífen ou o fim ("... Cond Resid The Club, Parque das Laranjeiras" -> "The Club")."""
@@ -660,7 +679,10 @@ def predio_do_anuncio(conn, a: dict) -> str | None:
 # 488 (Pedro, 24/10: "faz parceria no Kopenhagen?"): quem escreve ao 8595 pedindo parceria, ou dizendo que é corretor, não é
 # cliente: vai para a Nay Corretores. "corretor" solto não vale (o cliente fala "o corretor me disse").
 CORRETOR_NO_TEXTO = re.compile(r"parceria|parceir[oa]s?\b|\bcreci\b|\bsou (?:a |o )?corretor|\bsou (?:da|do) imobili|"
-                               r"\bsomos (?:uma )?imobili|\btrabalho (?:com|na|no) imobili|\bcorretora? de im[oó]veis", re.I)
+                               r"\bsomos (?:uma )?imobili|\btrabalho (?:com|na|no) imobili|\bcorretora? de im[oó]veis|"
+                               # 04/11 (…1953734): o questionário automático de imobiliária ("antes de iniciarmos uma conversa…
+                               # PROCURAS casa para IMEDIATO…") é de corretor qualificando cliente, não de cliente
+                               r"\bantes de iniciarmos\b|\bprocuras\b", re.I)
 
 
 def parece_corretor(texto: str | None) -> bool:
@@ -723,8 +745,7 @@ def olx_volta(conn, c: dict) -> int:
                     break
                 mid = _enviar(c["teste"], f"[teste: iria para {a.get('anunciante') or 'o anunciante'} {tel}]\n{texto}")
             else:
-                mid = _enviar(tel, texto)
-                _guardar_enviada(conn, tel, texto, mid)
+                mid = abrir_com_o_anunciante(conn, tel, texto, a.get("anunciante"), f"busca {b['id']}: anúncio OLX {a['olx_id']}")
                 banco.um(conn, """INSERT INTO privado.busca_contato (telefone8, telefone, busca, de, olx_id, nome)
                                   VALUES (%s, %s, %s, 'anunciante_olx', %s, %s)""",
                          (tel[-8:], tel, b["id"], a["olx_id"], a.get("anunciante")))
