@@ -75,7 +75,9 @@ const FUNCAO_DO_SDR: Record<string, { areas: AreaV2[]; linhas: LinhaDoAtendiment
   // 04/11, mais tarde (Pedro: "libera a aba Visita para o Lucas também"): ele passa a ver a agenda de visitas dos dois
   // números, além da Captação
   lucas: { areas: ['captacao', 'visita'], linhas: [] },
-  diego: { areas: ['atendimento', 'visita', 'proprietarios', 'fechamento'], linhas: ['captacao'], soLocacao: true },
+  // 05/11 (Pedro: "o Diego criou um lead e não apareceu em Todos pra ele; pode tirar todo limitador, mesmo contatos de vendas,
+  // libera todas as funções de SDR pra ele"): os dois números, venda e locação, sem recorte
+  diego: { areas: ['atendimento', 'visita', 'proprietarios', 'fechamento'], linhas: ['captacao', 'parceria'] },
   // 04/11 (Pedro: "libera o WhatsApp Leads para a Rayssa, mas abre primeiro o de Parceria, e o de Leads à direita; só
   // carrega se ela clicar, e quando ela sai, sai, para não pesar"): a Parceria é a primeira; o Leads só carrega aberto
   rayssa: { areas: ['atendimento', 'visita', 'proprietarios', 'fechamento'], linhas: ['parceria', 'captacao'], soOsNumerosDela: true },
