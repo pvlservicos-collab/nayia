@@ -456,9 +456,9 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
         <Secao titulo="Agendar visita">
           {visitaAberta ? (
             dono && imoveis.length
-              ? <AgendarVisita key={lead.id} imoveis={imoveis.map((i) => String(i.codigo))} proprietarioLeadId={lead.id}
+              ? <AgendarVisita key={lead.id} imoveis={imoveis.map((i) => String(i.codigo))} proprietarioLeadId={lead.id} leadDaConversa={lead.id}
                                aoCancelar={() => setVisitaAberta(false)} aoAgendar={() => setVisitaAberta(false)} />
-              : <AgendarVisita key={lead.id} aoCancelar={() => setVisitaAberta(false)} aoAgendar={() => setVisitaAberta(false)} />
+              : <AgendarVisita key={lead.id} leadDaConversa={lead.id} aoCancelar={() => setVisitaAberta(false)} aoAgendar={() => setVisitaAberta(false)} />
           ) : (
             <button type="button" onClick={() => setVisitaAberta(true)}
                     className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-semibold"
@@ -658,9 +658,9 @@ export default function PainelContatoCaptacao({ lead, modo, aoFechar, oficial, o
         <SecaoV3 titulo="Agendar visita">
           {visitaAberta ? (
             dono && imoveis.length
-              ? <AgendarVisita key={lead.id} imoveis={imoveis.map((i) => String(i.codigo))} proprietarioLeadId={lead.id}
+              ? <AgendarVisita key={lead.id} imoveis={imoveis.map((i) => String(i.codigo))} proprietarioLeadId={lead.id} leadDaConversa={lead.id}
                                aoCancelar={() => setVisitaAberta(false)} aoAgendar={() => setVisitaAberta(false)} />
-              : <AgendarVisita key={lead.id} aoCancelar={() => setVisitaAberta(false)} aoAgendar={() => setVisitaAberta(false)} />
+              : <AgendarVisita key={lead.id} leadDaConversa={lead.id} aoCancelar={() => setVisitaAberta(false)} aoAgendar={() => setVisitaAberta(false)} />
           ) : (
             <button type="button" onClick={() => setVisitaAberta(true)} style={{ background: '#2563eb', color: '#fff' }}
                     className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-medium"

@@ -502,9 +502,9 @@ export default function PainelContatoParceria({ lead, modo, aoFechar, aoVerVisit
           <div className="w-full text-left">
             {visitaAberta ? (
               marca?.proprietario
-                ? <AgendarVisita key={lead.id} imoveis={marca.imoveisDoDono} proprietarioLeadId={lead.id}
+                ? <AgendarVisita key={lead.id} imoveis={marca.imoveisDoDono} proprietarioLeadId={lead.id} leadDaConversa={lead.id}
                                  aoCancelar={() => setVisitaAberta(false)} />
-                : <AgendarVisita key={lead.id}
+                : <AgendarVisita key={lead.id} leadDaConversa={lead.id}
                                  corretorInicial={{ leadId: lead.id, nome: lead.title || 'este contato',
                                                     fim: String(lead.phone || '').replace(/[^0-9]/g, '').slice(-4) }}
                                  aoCancelar={() => setVisitaAberta(false)} />

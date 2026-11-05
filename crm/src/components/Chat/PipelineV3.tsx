@@ -12,8 +12,12 @@
  *               volta ao de Atendimento (o mesmo jeito da caixinha Proprietários do quadro antigo)
  */
 import { useMemo, useState } from 'react'
-import { CircleNotch, MagnifyingGlass, X } from '@phosphor-icons/react'
+import { CalendarBlank, CircleNotch, MagnifyingGlass, Warning, X } from '@phosphor-icons/react'
 import { casaNaBusca } from './BuscaDaLista'
+import { useVisitasParceria } from '@/hooks/useVisitasParceria'
+import { organizar } from './OrganizarConversa'
+import AgendarVisita from './AgendarVisita'
+import type { VisitaNaTela } from '@/lib/tiposNay'
 import type { LeadWithOwner } from '@/lib/types'
 import { ETAPAS_OLX } from '@/lib/olxClientes'
 import { mudarEtapaOlx } from '@/hooks/useOlxClientes'
@@ -56,6 +60,10 @@ export default function PipelineV3({ organizationId, linhas, leads, etapaDe, car
   const [movidos, setMovidos] = useState<Record<string, string>>({})
   // 05/11 (Pedro: "põe uma lupa lá no pipeline para buscar leads por lá"): nome ou número, a mesma busca da lista
   const [busca, setBusca] = useState('')
+  /* PARA VISITA SÓ COM A VISITA (05/11, Pedro: "no pipeline não posso mover um contato para visita sem selecionar a visita,
+     aparece um popup Cuidado, para mover o contato selecione ou crie uma nova"): soltar em Visita abre o aviso; escolhida
+     (ou criada) a visita, a conversa entra no card dela (organizar visita.ligar) e só então a etapa da Nay vira Visita */
+  const [paraVisita, setParaVisita] = useState<LeadWithOwner | null>(null)
 
   const porColuna = useMemo(() => {
     const m = new Map<string, LeadWithOwner[]>(COLUNAS.map((c) => [c.chave, []]))
@@ -137,7 +145,9 @@ export default function PipelineV3({ organizationId, linhas, leads, etapaDe, car
                          onDrop={(e) => {
                            e.preventDefault(); setSobre(null)
                            const l = leads.find((x) => x.id === e.dataTransfer.getData('text/plain'))
-                           if (l) void mover(l, c.chave)
+                           if (!l || (movidos[l.id] || etapaDe(l)) === c.chave) return
+                           if (c.chave === 'visita') setParaVisita(l)
+                           else void mover(l, c.chave)
                          }}>
                   <header className="flex-shrink-0 px-3 pt-2.5 pb-2" title={c.titulo}>
                     <span className="block h-[4px] rounded-full mb-2" style={{ background: c.cor }} />
@@ -176,6 +186,79 @@ export default function PipelineV3({ organizationId, linhas, leads, etapaDe, car
           </div>
         </div>
       )}
+      {paraVisita && (
+        <EscolherAVisita lead={paraVisita} aoFechar={() => setParaVisita(null)}
+                         aoEscolher={() => { const l = paraVisita; setParaVisita(null); void mover(l, 'visita') }} />
+      )}
+    </div>
+  )
+}
+
+const quandoDaVisita = (v: VisitaNaTela) => {
+  const q = v.quando || v.quandoSugerido
+  return q ? new Date(q).toLocaleString('pt-BR', { timeZone: 'America/Manaus', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : 'sem horário'
+}
+const FIM_DA_VISITA = ['realizada', 'encerrada', 'cancelada', 'expirada']
+
+/** o aviso "Cuidado": escolher uma visita aberta para este contato, ou criar uma nova */
+function EscolherAVisita({ lead, aoFechar, aoEscolher }: { lead: LeadWithOwner; aoFechar: () => void; aoEscolher: () => void }) {
+  const { visitas, carregando } = useVisitasParceria(true, 2)
+  const [criando, setCriando] = useState(false)
+  const [ligando, setLigando] = useState<number | null>(null)
+  const [erro, setErro] = useState('')
+  const abertas = visitas.filter((v) => v.aberta && !FIM_DA_VISITA.includes(v.estado))
+    .sort((a, b) => new Date(a.quando || a.quandoSugerido || 0).getTime() - new Date(b.quando || b.quandoSugerido || 0).getTime())
+  const ligar = async (v: VisitaNaTela) => {
+    setLigando(v.id); setErro('')
+    try { await organizar(lead.id, { visita: { id: v.id, ligar: true } }); aoEscolher() }
+    catch (e: any) { setErro(e?.message || 'Não consegui ligar o contato à visita.'); setLigando(null) }
+  }
+  const nome = formatPhone(lead.title || lead.phone || '')
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)' }} onMouseDown={aoFechar}>
+      <div role="dialog" aria-label="Escolher a visita" onMouseDown={(e) => e.stopPropagation()}
+           className="chat-theme w-full max-w-[480px] max-h-[88vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden"
+           style={{ background: 'var(--wa-panel)', color: 'var(--wa-text)', border: '2px solid #d97706' }}>
+        <div className="px-4 py-3 flex items-start gap-2" style={{ background: 'color-mix(in srgb, #d97706 14%, transparent)' }}>
+          <Warning size={22} weight="fill" style={{ color: '#d97706' }} className="flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <div className="text-[16px] font-bold">Cuidado</div>
+            <div className="text-[13px]">Para mover {nome} para Visita, selecione a visita dele ou crie uma nova.</div>
+          </div>
+          <button type="button" onClick={aoFechar} className="wa-icone-btn" aria-label="Fechar"><X size={18} /></button>
+        </div>
+        <div className="p-3 flex flex-col gap-2 min-h-0 overflow-y-auto">
+          {criando ? (
+            <AgendarVisita leadDaConversa={lead.id} aoCancelar={() => setCriando(false)} aoAgendar={() => aoEscolher()} />
+          ) : (
+            <>
+              <button type="button" onClick={() => setCriando(true)}
+                      className="h-9 rounded-lg text-[13.5px] font-semibold text-white flex items-center justify-center gap-1.5" style={{ background: '#2563eb' }}>
+                <CalendarBlank size={16} weight="bold" /> Criar uma nova visita
+              </button>
+              <div className="text-[12px] font-semibold mt-1" style={{ color: 'var(--wa-text-2)' }}>ou escolha uma visita aberta</div>
+              {carregando && !visitas.length && <p className="text-[13px]" style={{ color: 'var(--wa-text-2)' }}>Carregando as visitas…</p>}
+              {!carregando && !abertas.length && <p className="text-[13px]" style={{ color: 'var(--wa-text-2)' }}>Nenhuma visita aberta agora.</p>}
+              {abertas.map((v) => (
+                <button key={v.id} type="button" disabled={ligando !== null} onClick={() => void ligar(v)}
+                        className="w-full text-left rounded-lg px-3 py-2 flex flex-col gap-0.5 disabled:opacity-60"
+                        style={{ background: 'var(--wa-app)', border: '1px solid var(--wa-divider)' }}>
+                  <span className="flex items-center gap-1.5 text-[13.5px] font-semibold">
+                    {ligando === v.id && <CircleNotch size={13} className="animate-spin" />}
+                    {quandoDaVisita(v)} · {[v.imovel, v.codigo ? `#${v.codigo}` : null].filter(Boolean).join(' ') || 'imóvel'}
+                  </span>
+                  <span className="text-[12px]" style={{ color: 'var(--wa-text-2)' }}>
+                    {[v.clienteNome || v.visitanteNome, v.corretorNome && `corretor ${v.corretorNome}`, v.proprietarioNome && `dono ${v.proprietarioNome}`]
+                      .filter(Boolean).join(' · ') || (v.linha === 'leads' ? 'Nay Leads' : 'Parceria')}
+                  </span>
+                </button>
+              ))}
+              {erro && <p className="text-[13px]" style={{ color: '#dc2626' }}>{erro}</p>}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

@@ -395,6 +395,12 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
   const [marcadas, setMarcadas] = useState<Record<number, 'realizada' | 'cancelada'>>({})
   const [mexendo, setMexendo] = useState<number | null>(null)
   const [popup, setPopup] = useState<{ visita: number | null } | null>(null)
+  /* OS FILTROS DOS CARDS (05/11, Pedro: "um filtro no menu visitas, hoje, amanhã e um calendário para selecionar o dia e
+     filtrar as visitas pro dia, e posso pesquisar também uma lupa pelo nome do contato que está lá"): o dia é o da visita
+     (ou o sugerido), em Manaus; a lupa acha pelo nome ou número de quem está no card, e pelo imóvel e os nomes da visita */
+  const [diaDaVisita, setDiaDaVisita] = useState<'todas' | 'hoje' | 'amanha' | 'dia'>('todas')
+  const [diaEscolhido, setDiaEscolhido] = useState('')
+  const [buscaDaVisita, setBuscaDaVisita] = useState('')
   const realizada = useCallback((v: VisitaNaTela) => marcadas[v.id] === 'realizada'
     || ((v.estado === 'realizada' || !!v.realizadaEm)
         && Date.now() - new Date(v.realizadaEm || v.posVisitaEm || v.atualizadoEm || 0).getTime() < UM_DIA_MS), [marcadas])
@@ -535,6 +541,46 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
       setAbaDaVisita('conversas')
       router.push(comMarcaDeAbertura(`/chat/visita?leadId=${leadId}`))
     }
+    const diaEmManaus = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: 'America/Manaus' })
+    const alvo = diaDaVisita === 'hoje' ? diaEmManaus(new Date()) : diaDaVisita === 'amanha' ? diaEmManaus(new Date(Date.now() + 86_400_000))
+      : diaDaVisita === 'dia' ? diaEscolhido : ''
+    const passaNoFiltro = (v: VisitaNaTela) => {
+      if (alvo) {
+        const q = v.quando || v.quandoSugerido
+        if (!q || diaEmManaus(new Date(q)) !== alvo) return false
+      }
+      const b = buscaDaVisita.trim()
+      if (!b) return true
+      const nomes = [v.imovel, v.codigo, v.corretorNome, v.clienteNome, v.proprietarioNome, v.visitanteNome].filter(Boolean).join(' ')
+      if (casaNaBusca(b, { title: nomes })) return true
+      return (conversasDaVisita.get(v.id) || []).some((id) => { const l = leads.find((x) => x.id === id); return !!l && casaNaBusca(b, l) })
+    }
+    const nNoFiltro = naTela.filter(passaNoFiltro).length
+    const chip = (ligado: boolean) => (ligado ? { background: AZUL, color: '#fff' } : { color: 'var(--wa-text)', border: '1px solid var(--wa-divider)' })
+    const filtrosDaVisita = (
+      <div className="px-3 pb-2 flex flex-col gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {([['todas', 'Todas'], ['hoje', 'Hoje'], ['amanha', 'Amanhã']] as const).map(([k, r]) => (
+            <button key={k} type="button" onClick={() => setDiaDaVisita(k)} aria-pressed={diaDaVisita === k}
+                    className="h-7 px-2.5 rounded-full text-[12.5px] font-medium" style={chip(diaDaVisita === k)}>{r}</button>
+          ))}
+          <label className="inline-flex items-center gap-1 h-7 pl-2 pr-1 rounded-full text-[12.5px]" style={chip(diaDaVisita === 'dia')}
+                 title="Escolher o dia da visita">
+            <CalendarBlank size={14} />
+            <input type="date" value={diaEscolhido} aria-label="Dia da visita"
+                   onChange={(e) => { setDiaEscolhido(e.target.value); setDiaDaVisita(e.target.value ? 'dia' : 'todas') }}
+                   className="bg-transparent outline-none text-[12.5px]" style={{ colorScheme: 'light dark', color: 'inherit' }} />
+          </label>
+          <span className="ml-auto text-[12px]" style={{ color: 'var(--wa-text-2)' }}>{nNoFiltro} {nNoFiltro === 1 ? 'visita' : 'visitas'}</span>
+        </div>
+        <label className="wa-busca !h-8">
+          <MagnifyingGlass size={16} />
+          <input value={buscaDaVisita} onChange={(e) => setBuscaDaVisita(e.target.value)} placeholder="Buscar pelo nome do contato da visita"
+                 aria-label="Buscar visita pelo nome do contato" onKeyDown={(e) => { if (e.key === 'Escape') setBuscaDaVisita('') }} />
+          {buscaDaVisita && <button type="button" onClick={() => setBuscaDaVisita('')} aria-label="Limpar a busca"><X size={14} /></button>}
+        </label>
+      </div>
+    )
     return (
       <div className="chat-theme flex flex-col h-full min-h-0">
         <AbasParceria aba={abaDaVisita} aoMudar={setAbaDaVisita} naoLidas={0} visitasAbertas={abertas.length}
@@ -547,9 +593,10 @@ export default function ChatPorEtapa({ etapa }: { etapa: 'visita' | 'proprietari
                      pertence={naVisita} chaveAbas="crm:abas-visita" vazio="Nenhuma visita aberta agora."
                      botaoMais={{ titulo: 'Relacionar contatos a uma visita', aoClicar: () => setPopup({ visita: null }) }}
                      fixos={{ rotulo: 'Equipe', ids: acompanhantes }}
+                     abaixoDoTitulo={filtrosDaVisita}
                      grupos={(visiveis) => {
                        const ids = new Set(visiveis.map((l) => l.id))
-                       return naTela.map((v) => ({
+                       return naTela.filter(passaNoFiltro).map((v) => ({
                          chave: String(v.id), cor: realizada(v) ? VERDE : AZUL,
                          topo: <TopoDaVisita v={v} realizada={realizada(v)} ocupado={mexendo === v.id}
                                              aoAdicionar={() => setPopup({ visita: v.id })} aoStatus={(s) => void mudarStatus(v, s)} />,

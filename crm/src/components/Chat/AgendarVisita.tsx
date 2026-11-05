@@ -48,6 +48,7 @@ import LembretesDaVisita from './LembretesDaVisita'
 import { diaEmManaus, diaEmManausMais, horaEmManaus, instanteEmManaus } from '@/lib/fusoDeManaus'
 import EscolherImovelDaVisita from './EscolherImovelDaVisita'
 import { imovelPeloCodigo } from '@/lib/imovelDaVisita'
+import { organizar } from './OrganizarConversa'
 
 const AZUL = '#2563eb'
 const AZUL_SUAVE = 'color-mix(in srgb, #2563eb 14%, transparent)'
@@ -61,7 +62,10 @@ const DURACOES: Array<[number, string]> = [[30, '30 min'], [60, '1 h'], [90, '1h
 /* por padrão, 1 hora antes (Pedro, 01/10) */
 const ANTECEDENCIAS: Array<[number, string]> = [[30, '30 min antes'], [60, '1 hora antes'], [120, '2 horas antes'], [1440, '1 dia antes']]
 
-export default function AgendarVisita({ imoveis, proprietarioLeadId, corretorInicial, codigoInicial, quandoInicial, aoAgendar, aoCancelar }: {
+export default function AgendarVisita({ imoveis, proprietarioLeadId, corretorInicial, codigoInicial, quandoInicial, aoAgendar, aoCancelar, leadDaConversa }: {
+  /** 05/11 (Pedro: "não está criando a visita relacionada no automático quando crio uma visita"): a conversa em que a visita
+      foi criada entra no card dela na aba Visita (organizar visita.ligar, custom_attributes.visitas_v2) */
+  leadDaConversa?: string
   /** os imóveis do dono deste card (aí o código é escolhido, não digitado) */
   imoveis?: string[]
   /** a conversa do proprietário: o lembrete dele sai por ela. SÓ no card do dono --
@@ -166,6 +170,9 @@ export default function AgendarVisita({ imoveis, proprietarioLeadId, corretorIni
       if (Array.isArray(j.avisos)) partes.push(...j.avisos)
       setAviso({ ok: true, texto: partes.join(' ') })
       setAgendada({ id: Number(j.visita), comLembrete: Array.isArray(j.lembretes) && j.lembretes.length > 0 })
+      if (leadDaConversa && Number.isInteger(Number(j.visita)) && Number(j.visita) !== 0) {
+        await organizar(leadDaConversa, { visita: { id: Number(j.visita), ligar: true } }).catch(() => undefined)
+      }
       setMensagem(MODELO_DO_LEMBRETE)
       aoAgendar?.(Number(j.visita))
     } catch (e: any) {
