@@ -102,7 +102,13 @@ export function LeadsProvider({ children, escopo = 'tudo' }: { children: ReactNo
     return params
   }
 
-  async function fetchLeads(showLoading = true) {
+  /* A PRIMEIRA CARGA EM DUAS ETAPAS (Pedro, 05/11: "carregar as conversas só dos últimos 7 dias inicialmente e mais quando
+     rolar"): no Chat, abrir a tela baixa primeiro só quem se mexeu nos últimos 7 dias (e as fixadas e não lidas), e a tela
+     já aparece; a lista inteira vem logo em seguida, por trás, para a lupa e as outras abas acharem tudo. Daí em diante,
+     como sempre, só a lista inteira. */
+  const DIAS_DA_PRIMEIRA = 7
+
+  async function fetchLeads(showLoading = true, dias?: number) {
     if (!organizationId) { setLoading(false); return }
     if (buscando.current) { deNovo.current = true; return }
     buscando.current = true
@@ -110,7 +116,9 @@ export function LeadsProvider({ children, escopo = 'tudo' }: { children: ReactNo
     try {
       if (showLoading) setLoading(true)
       setError(null)
-      const res = await fetch(`/api/leads?${parametrosBase()}`)
+      const params = parametrosBase()
+      if (dias) params.set('dias', String(dias))
+      const res = await fetch(`/api/leads?${params}`)
       if (!res.ok) throw new Error('Failed to fetch leads')
       const { data } = await res.json()
       const assinatura = JSON.stringify(data || [])
@@ -191,7 +199,8 @@ export function LeadsProvider({ children, escopo = 'tudo' }: { children: ReactNo
   acoes.current = { fetchLeads, pedirConversas }
 
   useEffect(() => {
-    fetchLeads()
+    if (escopo !== 'conversas') { void fetchLeads(); return }
+    void fetchLeads(true, DIAS_DA_PRIMEIRA).then(() => fetchLeads(false))
   }, [organizationId, currentOrganization?.id])
 
   useEffect(() => () => { if (relogioIds.current) clearTimeout(relogioIds.current) }, [])

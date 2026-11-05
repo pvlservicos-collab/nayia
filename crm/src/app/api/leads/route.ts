@@ -90,6 +90,13 @@ export async function GET(req: NextRequest) {
       conditions.push(sql`(${leads.integrationId} IN (SELECT id FROM integrations WHERE type = 'whatsapp_zapi')
         OR ${leads.customAttributes}->>'mudou_para' = 'parceria')`)
     }
+    // 05/11 (Pedro: "carregar as conversas só dos últimos 7 dias inicialmente"): a primeira carga da tela vem só com quem se
+    // mexeu nesses dias (e as fixadas e não lidas); a lista inteira vem logo depois (LeadsContext)
+    const dias = Number(searchParams.get('dias'))
+    if (Number.isInteger(dias) && dias > 0 && dias <= 365) {
+      conditions.push(sql`(coalesce(${leads.lastActivityAt}, ${leads.createdAt}) > now() - make_interval(days => ${dias}::int)
+        OR ${leads.isPinned} IS TRUE OR ${leads.isUnread} IS TRUE)`)
+    }
 
     if (scope === 'funil') {
       conditions.push(sql`${leads.stageId} IS NOT NULL`)

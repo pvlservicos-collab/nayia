@@ -134,9 +134,12 @@ interface Props {
   vazioDosFiltros?: ReactNode
   /** v3: sem a faixa laranja "Pelo número ..." (a saída vai embaixo, em cima da caixa de mensagem) */
   semFaixaDaLinha?: boolean
+  /** v3 (Pedro, 05/11: "só dos últimos 7 dias inicialmente e mais quando rolar"): a lista desenha só quem se mexeu nesses
+   *  dias (e as fixadas e não lidas); chegar ao fim dela traz mais esse tanto de dias. A lupa procura em todas. */
+  janelaDias?: number
 }
 
-export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos, casaExtra, buscaExtra, etapaDoCard, abaixoDoTitulo, etapas, etapasEmLista, rodapeDoItem, naConversa, semFaixaDaLinha, itemDaLista, painelV3, filtrosRapidos, filtroExtra, vazioDosFiltros }: Props) {
+export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chaveAbas, vazio, menu, carregando, topoDoCard, cadastrar, enfeite, meus, grupos, cards, botaoMais, fixos, casaExtra, buscaExtra, etapaDoCard, abaixoDoTitulo, etapas, etapasEmLista, rodapeDoItem, naConversa, semFaixaDaLinha, itemDaLista, painelV3, filtrosRapidos, filtroExtra, vazioDosFiltros, janelaDias }: Props) {
   const { organizationId, loading, permissions } = useAuth()
   // 04/11: o Visualizar por do administrador vale aqui (usePapelV2)
   const papel = usePapelV2()
@@ -224,6 +227,22 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
     : (l.lead_tags || []).some((lt: any) => lt.tag_id === aba))
     .filter((l) => buscando || !filtroExtra || filtroExtra(l) || l.id === selecionada)
   const aberta = todas.find((l) => l.id === selecionada) || null
+
+  /* A LISTA POR PARTES (janelaDias): desenhar centenas de conversas de uma vez é o que pesa na tela */
+  const [diasNaLista, setDiasNaLista] = useState(janelaDias || 0)
+  const limiteDaLista = diasNaLista ? Date.now() - diasNaLista * 86_400_000 : 0
+  const naLista = !janelaDias || buscando ? visiveis : visiveis.filter((l) => l.is_pinned || l.is_unread || l.id === selecionada
+    || new Date(l.last_activity_at || l.created_at).getTime() > limiteDaLista)
+  const escondidas = visiveis.length - naLista.length
+  const fimDaLista = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const alvo = fimDaLista.current
+    if (!janelaDias || !escondidas || !alvo) return
+    const olho = new IntersectionObserver((e) => { if (e.some((x) => x.isIntersecting)) setDiasNaLista((d) => d + janelaDias) },
+      { root: raizDaLista.current, rootMargin: '300px' })
+    olho.observe(alvo)
+    return () => olho.disconnect()
+  }, [janelaDias, escondidas, diasNaLista])
 
   /* v2, aba Visita: os grupos (um por visita) calculados uma vez, para desenhar os cards e para o "Excluir da visita"
      do botão direito saber, de qualquer lead, se ele pode sair e por qual card (05/11, Pedro: "quero poder clicar com
@@ -469,10 +488,18 @@ export default function ChatJuntado({ titulo, subtitulo, pertence, soAdmin, chav
               ))}
             </div>
           ) : cards ? (
-            <div className="flex flex-col gap-2.5 p-2 pb-4">{visiveis.map(linhaDaLista)}</div>
+            <div className="flex flex-col gap-2.5 p-2 pb-4">{naLista.map(linhaDaLista)}</div>
           ) : (
-            <div className="flex flex-col pb-2">{visiveis.map(linhaDaLista)}</div>
+            <div className="flex flex-col pb-2">{naLista.map(linhaDaLista)}</div>
           )
+        )}
+        {escondidas > 0 && !(grupos && !buscando) && (
+          <div ref={fimDaLista} className="px-4 py-3 text-center text-[12.5px]" style={{ color: 'var(--wa-text-2)' }}>
+            Conversas dos últimos {diasNaLista} dias ·{' '}
+            <button type="button" onClick={() => setDiasNaLista((d) => d + (janelaDias || 7))} className="underline">
+              ver mais antigas ({escondidas})
+            </button>
+          </div>
         )}
       </div>
     </div>

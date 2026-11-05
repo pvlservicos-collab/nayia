@@ -591,7 +591,9 @@ export default function ChatV3() {
   const calcular = useCallback((l: LeadWithOwner) => {
     const tela = daTela(l)
     const fila = tela ? filaDe(l) : null
-    return { tela, fila, tipo: (tela ? tipoDe(l) : '') as TipoDoLead, etapa: tela ? etapaNay(l) : null, r: respondeDe(l) }
+    // 05/11: quem não entra na tela (o Oficial, os outros números do SDR) não precisa de "quem responde"
+    return { tela, fila, tipo: (tela ? tipoDe(l) : '') as TipoDoLead, etapa: tela ? etapaNay(l) : null,
+             r: tela ? respondeDe(l) : ({ tipo: 'ia', nome: 'IA' } as Responde) }
   }, [daTela, filaDe, tipoDe, etapaNay, respondeDe])
   const info = useMemo(() => {
     const m = new Map<string, ReturnType<typeof calcular>>()
@@ -648,7 +650,7 @@ export default function ChatV3() {
         ) : (
         <div className="flex-1 min-h-0">
         <ChatJuntado titulo="Atendimento" subtitulo="Leads e Parceria num lugar só · a resposta sai pelo número de cada conversa"
-                     pertence={telaR} etapas={etapas} etapasEmLista semFaixaDaLinha chaveAbas="crm:abas-v3"
+                     pertence={telaR} etapas={etapas} etapasEmLista semFaixaDaLinha chaveAbas="crm:abas-v3" janelaDias={7}
                      filtrosRapidos={(fila) => <FiltrosRapidos ligados={rapidos} aoMudar={setRapidos}
                                                                contar={(k) => leads.filter((l) => !l.is_archived && noFiltroDaFila(l, fila) && casaRapido(k, l)).length} />}
                      filtroExtra={rapidos.length ? (l) => rapidos.every((k) => casaRapido(k, l)) : undefined}
